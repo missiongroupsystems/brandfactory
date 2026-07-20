@@ -10,7 +10,7 @@ export function FileBlockView({ block }: FileBlockViewProps) {
   const { data: url } = useSignedReadUrl(block.blobKey)
 
   return (
-    <div className="flex items-center gap-3 rounded border bg-background p-3">
+    <div className="flex items-center gap-3 rounded-lg border bg-surface-base p-3">
       <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{block.filename}</p>

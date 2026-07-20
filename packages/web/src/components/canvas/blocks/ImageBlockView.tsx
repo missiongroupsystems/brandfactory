@@ -16,12 +16,12 @@ export function ImageBlockView({ block, onAltChange }: ImageBlockViewProps) {
   return (
     <div className="flex flex-col gap-2">
       {isPending && (
-        <div className="flex h-40 items-center justify-center rounded bg-muted text-xs text-muted-foreground">
+        <div className="flex h-40 items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground">
           Loading image…
         </div>
       )}
       {isError && (
-        <div className="flex h-40 items-center justify-center rounded bg-muted text-xs text-destructive">
+        <div className="flex h-40 items-center justify-center rounded-lg bg-muted text-xs text-destructive">
           Failed to load image
         </div>
       )}
@@ -29,7 +29,7 @@ export function ImageBlockView({ block, onAltChange }: ImageBlockViewProps) {
         <button
           type="button"
           onClick={() => setLightbox(true)}
-          className="overflow-hidden rounded border bg-background"
+          className="overflow-hidden rounded-lg border bg-surface-base"
         >
           <img src={url} alt={block.alt ?? ''} className="block max-h-96 w-full object-contain" />
         </button>

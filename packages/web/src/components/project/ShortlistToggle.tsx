@@ -15,7 +15,7 @@ export function ShortlistToggle({
     <div
       role="tablist"
       aria-label="Canvas filter"
-      className="inline-flex rounded-full border bg-background p-0.5 text-xs"
+      className="inline-flex rounded-lg border bg-surface-sunken p-0.5 text-xs"
     >
       <button
         type="button"
@@ -23,7 +23,7 @@ export function ShortlistToggle({
         aria-selected={mode === 'all'}
         onClick={() => onChange('all')}
         className={cn(
-          'rounded-full px-3 py-1 transition-colors',
+          'rounded-lg px-3 py-1 transition-colors duration-150',
           mode === 'all'
             ? 'bg-primary text-primary-foreground'
             : 'text-muted-foreground hover:text-foreground',
@@ -37,7 +37,7 @@ export function ShortlistToggle({
         aria-selected={mode === 'shortlist'}
         onClick={() => onChange('shortlist')}
         className={cn(
-          'rounded-full px-3 py-1 transition-colors',
+          'rounded-lg px-3 py-1 transition-colors duration-150',
           mode === 'shortlist'
             ? 'bg-primary text-primary-foreground'
             : 'text-muted-foreground hover:text-foreground',

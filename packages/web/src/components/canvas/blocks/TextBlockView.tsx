@@ -44,7 +44,7 @@ export function TextBlockView({ block, onChange }: TextBlockViewProps) {
   }, [editor, onChange])
 
   return (
-    <div className="min-h-[60px] rounded border border-input bg-background px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+    <div className="min-h-[60px] rounded-lg border border-input bg-surface-base px-3 py-2 text-sm focus-within:border-[var(--border-focus)] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--border-focus)]">
       <EditorContent editor={editor} />
     </div>
   )

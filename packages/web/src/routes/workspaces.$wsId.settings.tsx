@@ -22,7 +22,11 @@ function SourceBadge({ source }: { source: 'workspace' | 'env' }) {
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-        source === 'workspace' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+        // §12.4: pills take a feedback tint or the neutral beige — never a wash
+        // of the brand accent, which is budgeted for action/selection (§4).
+        source === 'workspace'
+          ? 'bg-status-info-tint text-status-info'
+          : 'bg-muted text-muted-foreground'
       }`}
     >
       {source === 'workspace' ? 'workspace setting' : 'env default'}
@@ -72,7 +76,7 @@ function WorkspaceSettingsPage() {
         >
           ← Workspace
         </Link>
-        <h1 className="mt-1 text-2xl font-semibold">Workspace Settings</h1>
+        <h1 className="mt-1 text-2xl font-medium tracking-[-0.015em]">Workspace settings</h1>
       </div>
 
       {isPending && <p className="text-sm text-muted-foreground">Loading…</p>}

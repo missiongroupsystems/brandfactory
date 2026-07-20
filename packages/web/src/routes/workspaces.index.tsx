@@ -99,7 +99,7 @@ function WorkspaceCard({ workspace }: { workspace: Workspace }) {
         void navigate({ to: '/workspaces/$wsId', params: { wsId: workspace.id } })
       }}
     >
-      <div className="font-semibold group-hover:text-accent-foreground">{workspace.name}</div>
+      <div className="font-medium group-hover:text-accent-foreground">{workspace.name}</div>
       <div className="mt-1 text-xs text-muted-foreground">
         Created {new Date(workspace.createdAt).toLocaleDateString()}
       </div>
@@ -113,7 +113,7 @@ function WorkspacesPage() {
   return (
     <div className="flex-1 overflow-auto p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Workspaces</h1>
+        <h1 className="text-2xl font-medium tracking-[-0.015em]">Workspaces</h1>
         <NewWorkspaceDialog />
       </div>
 

@@ -133,7 +133,7 @@ function SectionRow({
             className="h-8 text-sm"
           />
         </div>
-        <div className="min-h-[80px] rounded border border-input bg-background px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+        <div className="min-h-[80px] rounded-lg border border-input bg-surface-base px-3 py-2 text-sm focus-within:border-[var(--border-focus)] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--border-focus)]">
           <EditorContent editor={editor} />
         </div>
       </div>
@@ -375,7 +375,7 @@ function ProjectCard({ project }: { project: Project }) {
         void navigate({ to: '/projects/$projectId', params: { projectId: project.id } })
       }
     >
-      <div className="font-semibold group-hover:text-accent-foreground">{project.name}</div>
+      <div className="font-medium group-hover:text-accent-foreground">{project.name}</div>
       <div className="mt-2 text-xs text-muted-foreground">
         Created {new Date(project.createdAt).toLocaleDateString()}
       </div>
@@ -389,7 +389,7 @@ export function ProjectsSection({ brandId }: { brandId: string }) {
   return (
     <section className="mb-10">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Projects</h2>
+        <h2 className="text-xl font-medium tracking-[-0.01em]">Projects</h2>
         <NewProjectDialog brandId={brandId} />
       </div>
 
@@ -437,13 +437,13 @@ function BrandEditorPage() {
             ← Workspaces
           </Link>
         )}
-        <h1 className="mt-1 text-2xl font-semibold">{brand?.name ?? '…'}</h1>
+        <h1 className="mt-1 text-2xl font-medium tracking-[-0.015em]">{brand?.name ?? '…'}</h1>
       </div>
 
       <ProjectsSection brandId={brandId} />
 
       <section className="border-t pt-6">
-        <h2 className="mb-4 text-lg font-semibold">Guidelines</h2>
+        <h2 className="mb-4 text-xl font-medium tracking-[-0.01em]">Guidelines</h2>
         {isPending && <p className="text-sm text-muted-foreground">Loading…</p>}
         {isError && <p className="text-sm text-destructive">Failed to load brand.</p>}
         {brand && <BrandEditorForm key={brand.id} brand={brand} />}

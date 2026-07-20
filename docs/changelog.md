@@ -4,8 +4,9 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 ## Index
 
-- **1.1.0** — 2026-05-18 — Projects reachable + functional, Thread A (Phases A.1–A.5): `useCreateProject` mutation hook in `api/queries/brands.ts`; `NewProjectDialog` + `ProjectCard` + `ProjectsSection` co-located in `brands.$brandId.tsx`; brand-page header restructured (subtitle dropped, Projects above Guidelines, `border-t` divider); static audit of all three nav paths (brand→project, project→brand, brand→workspace); two RTL render tests on `ProjectsSection`. ~155 LOC net across the web package. 240 tests (+2). Thread B (end-to-end verification matrix) tracked separately.
-- **1.0.0** — 2026-04-21 — Hosted-deploy baseline (Phases 1–6): Supabase auth `ensureUser` auto-provision (+4 tests), server `Dockerfile` + `fly.toml` + root `.dockerignore`, `pg` pooler-safety invariants pinned in `db/client.ts`, single-instance `native-ws` commitment documented in `adapters.ts` + README, `packages/web/vercel.json` SPA fallback, CORS allowlist (already shipped 0.8.0) gates split-origin Vercel ↔ Fly. 238 tests (+4).
+- **1.2.0** — 2026-07-20 — Mission Systems CI on `packages/web`: self-hosted Satoshi, three-tier tokens in `index.css`, six `components/ui` primitives re-specced, three accent-budget violations fixed. No behaviour change; 240 tests unchanged. **Visual verification skipped.**
+- **1.1.0** — 2026-05-18 — Projects reachable + functional, Thread A (A.1–A.5): `useCreateProject` hook, `ProjectsSection` + `NewProjectDialog` in `brands.$brandId.tsx`, brand-page header restructured. ~155 LOC. 240 tests (+2). Thread B verification matrix separate.
+- **1.0.0** — 2026-04-21 — Hosted-deploy baseline (Phases 1–6): Supabase `ensureUser` auto-provision, server `Dockerfile` + `fly.toml`, `pg` pooler-safety invariants, `vercel.json` SPA fallback. Split-origin Vercel ↔ Fly. 238 tests (+4).
 - **0.8.0** — 2026-04-20 — Phase 8 (scope-cut, no deploy recipe): `db:seed` dev token, root `.env.example` + drift guard, GitHub Actions CI on Postgres 16, README rewrite, `CORS_ALLOWED_ORIGINS` gates HTTP + WS. 234 tests (+11).
 - **0.7.4** — 2026-04-20 — Phase 7 Steps 12–16: real canvas pane (TipTap text / image / file blocks, pin, drag-reorder, drop-zone upload), unified `applyAgentEvent` module, shell polish (dark mode, router error/pending, `Cmd-S`), frontend vitest pass (+56), dev/env plumbing. 223 tests (+56).
 - **0.7.3** — 2026-04-20 — Phase 7 Steps 7–11: workspaces/brands list, workspace picker, settings page, TipTap+dnd-kit brand editor, project split-screen with realtime, `useAgentChat` SSE hook + Markdown chat pane.
@@ -21,6 +22,84 @@ Latest releases at the top. Each version has a one-line entry in the index below
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` lands — drizzle schema for 8 tables, singleton pg `Pool`, 18 query helpers, local-dev docker Postgres, and an end-to-end smoke check.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` lands as the single source of truth for domain types and zod schemas, consumed by both `server` and `web`.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture blueprint, scaffolding plan, and Phase 0 repo foundation.
+
+---
+
+## 1.2.0 — 2026-07-20
+
+The first release that changes nothing about what BrandFactory does. 1.2.0 is a re-skin: the web package stops looking like default shadcn/ui and starts looking like Mission Systems. Every route, query, mutation, and interaction is behaviourally identical; test count holds at **240**, and that unchanged number is the point — it's the regression net proving the re-skin didn't disturb a render path.
+
+Spec source is `STYLEGUIDE_MISSION_SYSTEMS.md`, bundled with the `frontend:apply-mission-systems-ci` skill (v0.3.0). Section references below point into that file. Scope is `packages/web` only — no server, db, adapter, or shared package touched. ~390 insertions / ~106 deletions across 19 files, plus 5 font binaries. Full record: [docs/completions/mission-systems-ci-product-ui.md](./completions/mission-systems-ci-product-ui.md).
+
+### Why the diff is small
+
+The single fact that made this ~390 lines instead of a rewrite: **the codebase already routed nearly every surface through shadcn's semantic contract.** Product code says `bg-card`, `text-muted-foreground`, `border` — almost nowhere does it say a hex or a `bg-slate-*`.
+
+The styleguide's §2 demands three token tiers where components read tier 2 or 3 and never a raw primitive. The shadcn contract *is* a tier-3 component-token layer; it was simply pointed at a greyscale oklch palette. So the re-skin reduces to: define tiers 1 and 2, re-point the existing tier-3 names, and fix the handful of places where product code had spent a token on the wrong role. Had colors been hard-coded at the point of use, this would have been a file-by-file rewrite with a far worse diff and far higher regression risk.
+
+### Token architecture (`index.css`, +371)
+
+Four blocks in dependency order: `@font-face` × 5 (Satoshi Light/Regular/Italic/Medium/Bold, self-hosted from `public/fonts/`, weights mapped per §1.1); **tier 1 primitives** (`--c-*` — the accent `#1d3a2a`, the warm ink ramp, four feedback triads, the 4px `--space-*` grid — the only place a hex appears in the codebase); **tier 2 semantic aliases** (`--color-text-*`, `--surface-*`, `--border-*`, `--elevation-*`); **tier 3**, the shadcn contract, each name now a one-line alias onto tier 2.
+
+Plus the base-layer rules the styleguide states as absolutes: body at 14/1.5/**400** (§0.7 — 300 is display-only), `text-wrap: pretty` on headings, `tabular-nums` on numeric containers, a `:focus-visible` outline (§10.2), and a `prefers-reduced-motion` block (§14).
+
+### The `--accent` name collision
+
+The one trap in this job, and the one place where the obvious edit is wrong.
+
+**shadcn's `--accent` is not an accent.** In shadcn's vocabulary it's the hover/active *surface* — the thing behind a hovered menu item. In Mission's vocabulary (§4) "the accent" is `#1d3a2a`, spent on a fixed, deliberately scarce set of roles. Two tokens, same word, opposite intent. The naive mapping `--accent: var(--color-brand-accent)` reads correct and would have turned **every hover state in the application forest green** — blowing the accent budget on the least meaningful interaction in the product.
+
+Shipped mapping: `--primary` → `var(--surface-accent)` (action, selection), `--accent` → `var(--surface-hover)` (beige). There's a comment at that line in `index.css` saying exactly this.
+
+### Three accent-budget violations, all pre-existing
+
+Latent bugs. They looked fine in greyscale and only became violations the moment `--primary` started meaning something — flipping the token *revealed* rather than caused them, which is worth recording because it means §4 earns its keep as a review lens, not just a paint job.
+
+- **`ChatPane` painted every user message bubble `bg-primary`.** A ten-turn conversation would have rendered ten forest-green blocks down the pane. §4 permits the accent on one primary button, one hero metric, active/selected state, and small brand chrome; a chat log is none of those. Now `--surface-selected` — the faint accent-tinted beige, ink at 15.9:1 — which still says "this one is mine" without spending the accent.
+- **`workspaces.$wsId.settings` source pill was `bg-primary/10 text-primary`.** §12.4 is explicit that pills take a feedback tint or the neutral beige. "workspace setting" is a genuine informational state → `info` tint (6.3:1 on tint); "env default" → neutral beige.
+- **`ShortlistToggle` was `rounded-full`.** §9 has no pill button in product UI — pills are reserved for status/chips/avatars, segmented controls are 8px. Its accent-filled selected segment was already correct per §12.5 and was left alone; it's one of the four sanctioned accent roles.
+
+Post-change accent inventory across the whole app: primary buttons (one per view), the selected shortlist segment, focus rings, the canvas drag-active outline. Nothing else is green.
+
+### Component primitives and product surfaces
+
+`button` (8px radius, 40/32/44 heights per §6.2 density, elevation removed per §8, `:focus-visible` outline replacing shadcn's ring), `input` (40px, 1px `--border-input` clearing 3:1 per §3.4, disabled by fill not opacity), `select` (trigger matched to input; content 12px + elevation-2), `card` (12px, 20px padding, `--elevation-1` ink-tinted), `dialog` (16px, `--elevation-3`, scrim `rgba(23,23,23,0.32)`), `label` (13px/500 secondary).
+
+Across routes: headings 600 → **500** (§5.1) with §5.2 letter-spacing, H2s corrected `text-lg` → `text-xl`/20px, canvas block radii normalised to the 8px default, and `Workspace Settings` → `Workspace settings`. A sentence-case audit of every button, label, and heading found no other violation — the codebase was already clean there.
+
+### Dark mode kept, as an alias re-point
+
+The styleguide is **light-theme only** (§16), but this app has had a working three-state theme toggle since 0.7.4. Deleting a working feature is out of scope for a re-skin; leaving dark mode on the old greyscale would be the worst outcome, because one branded theme and one unbranded theme reads as a bug rather than a decision.
+
+So dark mode is a **second tier-2 map only** — exactly the shape §16 prescribes for when dark mode officially arrives. No component branches on theme; no tier-1 primitives beyond the declared `--c-dark-*` set. One substantive judgement inside it: the accent lifts `#1d3a2a` → `#3d6b52`, because the near-black-green is safe as a fill at 12.4:1 but against a `#1a1a17` surface stops reading as a fill at all — a primary button would vanish. `#3d6b52` computes to 6.05:1 behind white text, clearing the §16 tenant guardrail with margin. **This is an extrapolation beyond a light-only spec and is provisional.**
+
+### Verification
+
+```
+pnpm typecheck                              ✔  9/9 workspaces clean
+pnpm lint                                   ✔  clean (zero new suppressions)
+pnpm format:check                           ✔  clean
+pnpm test                                   ✔  239 passed + 1 skipped (240 total; unchanged)
+pnpm --filter @brandfactory/web build       ✔  clean
+```
+
+**Built-CSS emission check.** Tailwind *silently drops* utilities it can't resolve — a typo'd `bg-surface-selected` yields no error, no warning, and no style, so a passing build proves nothing about whether the new tokens reach the browser. The built stylesheet was therefore grepped directly: `bg-surface-{base,sunken,selected}`, `placeholder:text-tertiary`, `bg-status-info-tint`, `text-status-info`, `shadow-elevation-{1,3}`, all five `Satoshi-*.woff2` URLs, and the accent hex — all present.
+
+**Visual verification: SKIPPED.** The skill's screenshot loop (Playwright at 1280×800 and 390×844, diffed against the bundled reference) was not run — the CLI is unavailable in this environment, and offered install-to-scratchpad / install-to-repo / drive-Chrome / skip, the operator chose skip.
+
+Stated plainly: **no human or agent has looked at this UI.** Everything above is spec conformance established by reading code and grepping build output. Unverified: whether Satoshi actually renders (vs. silently falling back to `system-ui`) and at which weights; the accent inventory as *rendered* rather than as grepped; contrast of real text on real backgrounds; mobile overflow at 390px; and every hover, focus, disabled, and loading state.
+
+**The one open risk.** `--background` now maps to `--surface-sunken` (beige `#f6f5f1`) per §3.2, correct for the card-grid pages and matching the reference. It is **unverified on the project split-screen** — that route is two content panes, not a card grid, and the canvas blocks are white `bg-card` on what is now a beige pane. That may read as intended layering or as muddy beige-on-beige; §17 has no split-screen analogue to check against. If it reads badly the fix is local: `bg-surface-base` on `SplitScreen`'s two panes. First thing to look at when the app is next opened.
+
+### What 1.2.0 explicitly does NOT include
+
+**The §17 reference layout.** The canonical dashboard is a side-nav shell with stat cards, a data table, and a segmented time control. BrandFactory has none of those — it's a top-bar shell over card grids and a split-screen editor. The CI was applied as *tokens, type, density, components, and accent budget*; the reference layout was deliberately **not** imposed. Forcing a side-nav and stat-card row onto an app with no metrics to show would be cargo-culting the screenshot instead of applying the identity.
+
+**A monospace face.** `--font-mono` is defined per §5.4 but unused — the app surfaces no SKU, product code, hash, or copyable ID yet. The token waits for the day one appears; a second webfont for zero call sites is weight without benefit.
+
+**Also out.** The `--space-*` scale as utilities (Tailwind's own scale is already 4px-based, so migrating `p-6` → `p-[var(--space-6)]` is churn for an identical computed result); a11y audit beyond token contrast (§15 wants axe + contrast in CI — the tokens shipped are the styleguide's own AA-verified values, but no axe run or keyboard pass happened); density modes (§6.2 defines comfortable/compact — only comfortable is implemented, no dense table exists to motivate the other); and any behaviour change whatsoever.
+
+**Deferred.** Running the Playwright loop and checking the split-screen panes are both **high** priority precisely because the visual step didn't run. Then: axe + contrast in CI, a mono face when the first ID surface lands, compact density when the first dense table lands, and replacing the provisional `#3d6b52` dark accent if an official Mission dark spec ever ships.
 
 ---
 

@@ -4,7 +4,262 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ---------------------------------------------------------------------------
+   Satoshi — the one Mission Systems typeface (styleguide §1.1).
+   Self-hosted from /public/fonts; never hot-linked.
+   --------------------------------------------------------------------------- */
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/Satoshi/Satoshi-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/Satoshi/Satoshi-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/Satoshi/Satoshi-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/Satoshi/Satoshi-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/Satoshi/Satoshi-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------------------------------------------------------------------------
+   TIER 1 — Primitives (styleguide §2). The ONLY place a raw hex may live.
+   Components must never reference these directly.
+   --------------------------------------------------------------------------- */
+
+:root {
+  /* Brand accent */
+  --c-green-900: #1d3a2a;
+
+  /* Warm neutral ramp — never a cold grey */
+  --c-ink-900: #171717;
+  --c-ink-700: #55534c;
+  --c-ink-500: #6b6962;
+  --c-ink-300: #8d8a82;
+  --c-ink-200: #807d76;
+  --c-beige-100: #f6f5f1;
+  --c-beige-200: #eef2ef;
+  --c-white: #ffffff;
+
+  /* Feedback primitives (§3.3) */
+  --c-error-600: #9a3b2e;
+  --c-error-50: #fbf1ef;
+  --c-warning-600: #8a5a1f;
+  --c-warning-50: #f8f1e3;
+  --c-success-600: #2f6b46;
+  --c-success-50: #ebf2ec;
+  --c-info-600: #335a7a;
+  --c-info-50: #eaf0f5;
+
+  /* Dark-theme primitives — consumed only by the [§16] dark alias map below */
+  --c-dark-base: #1a1a17;
+  --c-dark-sunken: #121210;
+  --c-dark-raised: #1f1f1c;
+  --c-dark-hover: #262622;
+  --c-dark-selected: #23302a;
+  --c-dark-ink-100: #f5f4f0;
+  --c-dark-ink-300: #b8b5ad;
+  --c-dark-ink-500: #96938b;
+  --c-dark-ink-700: #6b6962;
+  --c-green-500: #3d6b52;
+
+  /* Type + spacing scales */
+  --font-satoshi:
+    'Satoshi', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-data: ui-monospace, 'SF Mono', 'Geist Mono', 'IBM Plex Mono', Menlo, monospace;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+}
+
+/* ---------------------------------------------------------------------------
+   TIER 2 — Semantic aliases (§2). This is the ONLY layer a tenant re-skin or a
+   dark theme re-points. Components read from here (or tier 3), never tier 1.
+   --------------------------------------------------------------------------- */
+
+:root {
+  /* Text roles (§3.1) */
+  --color-text-primary: var(--c-ink-900);
+  --color-text-secondary: var(--c-ink-700);
+  --color-text-tertiary: var(--c-ink-500);
+  --color-text-disabled: var(--c-ink-300);
+  --color-text-inverse: var(--c-white);
+  --color-text-link: var(--c-green-900);
+
+  /* Brand (§1.2, §4) — the single themeable surface (§16) */
+  --color-brand-accent: var(--c-green-900);
+
+  /* Surfaces (§3.2) */
+  --surface-base: var(--c-white);
+  --surface-sunken: var(--c-beige-100);
+  --surface-raised: var(--c-white);
+  --surface-overlay: var(--c-white);
+  --surface-hover: var(--c-beige-100);
+  --surface-selected: var(--c-beige-200);
+  --surface-accent: var(--color-brand-accent);
+
+  /* Borders (§3.4) */
+  --border-subtle: rgba(23, 23, 23, 0.1);
+  --border-default: rgba(23, 23, 23, 0.16);
+  --border-strong: rgba(23, 23, 23, 0.28);
+  --border-input: var(--c-ink-200);
+  --border-focus: var(--color-brand-accent);
+
+  /* Feedback (§3.3) */
+  --color-feedback-error: var(--c-error-600);
+  --color-feedback-error-tint: var(--c-error-50);
+  --color-feedback-warning: var(--c-warning-600);
+  --color-feedback-warning-tint: var(--c-warning-50);
+  --color-feedback-success: var(--c-success-600);
+  --color-feedback-success-tint: var(--c-success-50);
+  --color-feedback-info: var(--c-info-600);
+  --color-feedback-info-tint: var(--c-info-50);
+
+  /* Elevation (§8) — ink-tinted, never black */
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px rgba(23, 23, 23, 0.05), 0 1px 1px rgba(23, 23, 23, 0.04);
+  --elevation-2: 0 4px 12px rgba(23, 23, 23, 0.08), 0 1px 3px rgba(23, 23, 23, 0.06);
+  --elevation-3: 0 24px 60px rgba(23, 23, 23, 0.12), 0 4px 12px rgba(23, 23, 23, 0.08);
+}
+
+/* Dark theme (§16) — additive alias re-point only. No component code changes,
+   no new primitives beyond the --c-dark-* / --c-green-500 set declared above.
+   The product spec is light-first; this map keeps the existing theme toggle
+   honest rather than shipping a half-branded dark surface. */
+.dark {
+  --color-text-primary: var(--c-dark-ink-100);
+  --color-text-secondary: var(--c-dark-ink-300);
+  --color-text-tertiary: var(--c-dark-ink-500);
+  --color-text-disabled: var(--c-dark-ink-700);
+  --color-text-inverse: var(--c-white);
+  --color-text-link: var(--c-green-500);
+
+  --color-brand-accent: var(--c-green-500);
+
+  --surface-base: var(--c-dark-base);
+  --surface-sunken: var(--c-dark-sunken);
+  --surface-raised: var(--c-dark-raised);
+  --surface-overlay: var(--c-dark-raised);
+  --surface-hover: var(--c-dark-hover);
+  --surface-selected: var(--c-dark-selected);
+  --surface-accent: var(--color-brand-accent);
+
+  --border-subtle: rgba(245, 244, 240, 0.08);
+  --border-default: rgba(245, 244, 240, 0.14);
+  --border-strong: rgba(245, 244, 240, 0.26);
+  --border-input: rgba(245, 244, 240, 0.34);
+  --border-focus: var(--color-brand-accent);
+
+  --color-feedback-error: #e08a7c;
+  --color-feedback-error-tint: #3a221e;
+  --color-feedback-warning: #d9a55e;
+  --color-feedback-warning-tint: #362a17;
+  --color-feedback-success: #6fae86;
+  --color-feedback-success-tint: #1c2f23;
+  --color-feedback-info: #7ba6c7;
+  --color-feedback-info-tint: #1b2831;
+}
+
+/* ---------------------------------------------------------------------------
+   TIER 3 — Component tokens. The shadcn/ui primitives in this repo consume the
+   `--background` / `--foreground` / `--primary` … contract, so that contract IS
+   our tier-3 layer: each name below is a component knob pointed at a tier-2
+   alias. Re-skinning still means editing tier 2 alone.
+   --------------------------------------------------------------------------- */
+
+@layer base {
+  :root {
+    --background: var(--surface-sunken);
+    --foreground: var(--color-text-primary);
+
+    --card: var(--surface-raised);
+    --card-foreground: var(--color-text-primary);
+
+    --popover: var(--surface-overlay);
+    --popover-foreground: var(--color-text-primary);
+
+    /* Primary = the accent button fill (§4, §12.2) */
+    --primary: var(--surface-accent);
+    --primary-foreground: var(--color-text-inverse);
+
+    /* Secondary button = white fill + hairline border (§12.2) */
+    --secondary: var(--surface-base);
+    --secondary-foreground: var(--color-text-primary);
+
+    --muted: var(--surface-sunken);
+    --muted-foreground: var(--color-text-secondary);
+
+    /* shadcn's `accent` is the hover/active SURFACE, not the brand accent.
+       Pointing it at the brand green would spray accent across every hover
+       and blow the §4 accent budget. */
+    --accent: var(--surface-hover);
+    --accent-foreground: var(--color-text-primary);
+
+    --destructive: var(--color-feedback-error);
+
+    --border: var(--border-default);
+    --input: var(--border-input);
+    --ring: var(--border-focus);
+
+    /* 8px functional default (§9): rounded-lg = 8, rounded-xl = 12 (cards),
+       rounded-md = 6 (tooltips/inline code), rounded-sm = 4. */
+    --radius: 0.5rem;
+
+    /* Indirection so the tier-2 `--color-*` / `--surface-*` names below can be
+       exposed as Tailwind utilities without a self-referential @theme entry
+       (Tailwind owns the `--color-*` namespace). These resolve at use site, so
+       the `.dark` re-point above still flows through them. */
+    --fb-error: var(--color-feedback-error);
+    --fb-error-tint: var(--color-feedback-error-tint);
+    --fb-warning: var(--color-feedback-warning);
+    --fb-warning-tint: var(--color-feedback-warning-tint);
+    --fb-success: var(--color-feedback-success);
+    --fb-success-tint: var(--color-feedback-success-tint);
+    --fb-info: var(--color-feedback-info);
+    --fb-info-tint: var(--color-feedback-info-tint);
+    --text-tertiary: var(--color-text-tertiary);
+  }
+}
+
 @theme inline {
+  --font-sans: var(--font-satoshi);
+  --font-mono: var(--font-data);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -23,55 +278,33 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* Surface + feedback roles exposed as utilities so product code can say
+     `bg-surface-selected` / `text-feedback-warning` instead of a raw value. */
+  --color-surface-base: var(--surface-base);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-selected: var(--surface-selected);
+  --color-surface-accent: var(--surface-accent);
+  --color-tertiary: var(--text-tertiary);
+  --color-status-error: var(--fb-error);
+  --color-status-error-tint: var(--fb-error-tint);
+  --color-status-warning: var(--fb-warning);
+  --color-status-warning-tint: var(--fb-warning-tint);
+  --color-status-success: var(--fb-success);
+  --color-status-success-tint: var(--fb-success-tint);
+  --color-status-info: var(--fb-info);
+  --color-status-info-tint: var(--fb-info-tint);
+
+  --shadow-elevation-1: var(--elevation-1);
+  --shadow-elevation-2: var(--elevation-2);
+  --shadow-elevation-3: var(--elevation-3);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-}
-
-@layer base {
-  :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --radius: 0.625rem;
-  }
-
-  .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.985 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-  }
 }
 
 @layer base {
@@ -81,11 +314,47 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family:
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      'Segoe UI',
-      sans-serif;
+    /* Body is 14/1.5 at weight 400 (§0.7, §5.2). 300 is display-only. */
+    font-family: var(--font-satoshi);
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* §0.9 — pretty wrapping on headings and short blocks */
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: pretty;
+    font-weight: 500;
+  }
+
+  /* §5.3 — digits align and never jitter on update */
+  table,
+  input[type='number'],
+  time,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* §10.2 — focus is non-negotiable, and it is :focus-visible */
+  :focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+    border-radius: inherit;
+  }
+
+  /* §14 — reduced motion is mandatory, not a nicety */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

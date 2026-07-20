@@ -14,7 +14,7 @@ export function RouteError({ error, reset }: { error: unknown; reset?: () => voi
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-8 text-center">
       <div className="flex flex-col gap-2">
-        <h1 className="text-lg font-semibold">Something went wrong</h1>
+        <h1 className="text-lg font-medium">Something went wrong</h1>
         <p className="max-w-md text-sm text-muted-foreground">{message}</p>
       </div>
       <div className="flex gap-2">

@@ -75,7 +75,7 @@ export function ChatPane({ projectId, messages }: { projectId: string; messages:
             }}
             placeholder="Message the agent…  (⌘+Enter to send)"
             rows={2}
-            className="min-h-[44px] flex-1 resize-y rounded-md border bg-background p-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-h-[44px] flex-1 resize-y rounded-lg border border-input bg-surface-base p-2 text-sm outline-none focus-visible:border-[var(--border-focus)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
             disabled={status === 'streaming'}
           />
           {status === 'streaming' ? (
@@ -100,7 +100,9 @@ function MessageBubble({ message }: { message: AgentMessage }) {
       <div
         className={cn(
           'max-w-[85%] rounded-lg px-3 py-2 text-sm',
-          isUser ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground',
+          // The accent is budgeted (§4) — it does not get spent on every user
+          // bubble. Selected-surface tint carries "this one is mine" instead.
+          isUser ? 'bg-surface-selected text-foreground' : 'bg-muted text-foreground',
         )}
       >
         {isUser ? (

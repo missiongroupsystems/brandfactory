@@ -108,7 +108,7 @@ function BrandCard({ brand }: { brand: Brand }) {
       className="group rounded-lg border bg-card p-5 text-left shadow-sm transition-colors hover:bg-accent"
       onClick={() => void navigate({ to: '/brands/$brandId', params: { brandId: brand.id } })}
     >
-      <div className="font-semibold group-hover:text-accent-foreground">{brand.name}</div>
+      <div className="font-medium group-hover:text-accent-foreground">{brand.name}</div>
       {brand.description && (
         <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{brand.description}</div>
       )}
@@ -135,7 +135,7 @@ function WorkspaceDetailPage() {
           <Link to="/workspaces" className="text-xs text-muted-foreground hover:text-foreground">
             ← Workspaces
           </Link>
-          <h1 className="mt-1 text-2xl font-semibold">
+          <h1 className="mt-1 text-2xl font-medium tracking-[-0.015em]">
             {wsPending ? '…' : wsError ? 'Workspace' : workspace?.name}
           </h1>
         </div>

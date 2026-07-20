@@ -48,7 +48,7 @@ function RootLayout() {
   return (
     <div className="flex h-screen flex-col">
       <header className="flex h-12 shrink-0 items-center gap-4 border-b px-4">
-        <Link to="/workspaces" className="font-semibold tracking-tight">
+        <Link to="/workspaces" className="font-medium tracking-tight">
           BrandFactory
         </Link>
         <div className="flex-1" />
