@@ -4,6 +4,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 ## Index
 
+- **0.8.1** — 2026-07-22 — Fly deploy recipe recovered into the repo: `fly.toml` (saved from the live app), `packages/server/Dockerfile` (tsx runtime, pnpm filtered install), `packages/db/scripts/migrate.mjs` release migrator, root `.dockerignore`. Fixes releases v7/v8 failing on the missing migrate script; prod redeployed after 11 weeks stuck on the v5 image. 234 tests (unchanged).
 - **0.8.0** — 2026-04-20 — Phase 8 (scope-cut, no deploy recipe): `db:seed` dev token, root `.env.example` + drift guard, GitHub Actions CI on Postgres 16, README rewrite, `CORS_ALLOWED_ORIGINS` gates HTTP + WS. 234 tests (+11).
 - **0.7.4** — 2026-04-20 — Phase 7 Steps 12–16: real canvas pane (TipTap text / image / file blocks, pin, drag-reorder, drop-zone upload), unified `applyAgentEvent` module, shell polish (dark mode, router error/pending, `Cmd-S`), frontend vitest pass (+56), dev/env plumbing. 223 tests (+56).
 - **0.7.3** — 2026-04-20 — Phase 7 Steps 7–11: workspaces/brands list, workspace picker, settings page, TipTap+dnd-kit brand editor, project split-screen with realtime, `useAgentChat` SSE hook + Markdown chat pane.
@@ -19,6 +20,56 @@ Latest releases at the top. Each version has a one-line entry in the index below
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` lands — drizzle schema for 8 tables, singleton pg `Pool`, 18 query helpers, local-dev docker Postgres, and an end-to-end smoke check.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` lands as the single source of truth for domain types and zod schemas, consumed by both `server` and `web`.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture blueprint, scaffolding plan, and Phase 0 repo foundation.
+
+---
+
+## 0.8.1 — 2026-07-22
+
+Ops patch, no feature surface and no app-code changes (test count stays **234**). The Fly app `brandfactory` (org `ebb-amp-flow-group`, region `sin`) had been deployed from files that only ever existed untracked on one teammate's machine — `fly.toml`, `packages/server/Dockerfile`, and the `migrate.mjs` the release command calls were in no checkout and nowhere in git history. Releases v7 (May 18) and v8 (Jul 20) failed, leaving both machines pinned to the v5 image from **May 7** — pre-dating everything in 0.7.x/0.8.0 that shipped since. This patch commits the full deploy recipe so `git clone` + `fly deploy` from the repo root works for anyone in the Fly org, and redeploys prod. (Distinct from the self-host deploy story Phase 8 dropped — this is the minimal recipe for *our* Fly app, not opinionated self-hoster templates.)
+
+### `fly.toml` — recovered, not written
+
+Recovered verbatim from the live app via `fly config save -a brandfactory`, so it can't drift from what production actually runs: `sin` region, one `shared-cpu-1x:512MB` VM group, internal port 3001, `/health` HTTP checks every 15 s, `kill_signal = 'SIGINT'`, and the release command `cd node_modules/@brandfactory/db && node scripts/migrate.mjs`. Non-secret env (`AUTH_PROVIDER=supabase`, `LLM_PROVIDER=openrouter`, `REALTIME_PROVIDER=native-ws`, `STORAGE_PROVIDER=supabase`, …) lives here; the 17 secrets (`DATABASE_URL`, `SUPABASE_*`, `OPENROUTER_API_KEY`, …) stay on the app via `fly secrets`, so no local `.env` is ever needed to deploy.
+
+### `packages/server/Dockerfile` — reconstructed
+
+The build context is the repo root (`[build] dockerfile = 'packages/server/Dockerfile'` in `fly.toml`). Decisions, and why:
+
+- **`node:22-slim` + corepack.** `engines` says `>=20.11`; Node 22 LTS still ships corepack, which reads the root `packageManager: pnpm@10.28.2` pin — no pnpm version duplicated in the Dockerfile. `COREPACK_ENABLE_DOWNLOAD_PROMPT=0` keeps the non-interactive build from hanging on corepack's download prompt.
+- **No build step — tsx at runtime.** `@brandfactory/server`'s `start` script is `tsx src/main.ts`; workspace deps all point `main` at `./src/index.ts`. The image mirrors that: copy sources, install, run tsx. tsx is a devDependency, hence `pnpm install --prod=false`.
+- **Filtered install.** `--filter '@brandfactory/server...'` installs the server plus its workspace dependency closure only — `@brandfactory/web`'s React/Vite tree stays out of the image. `--frozen-lockfile` still needs every workspace `package.json` present (all importers must match the lockfile), which is why `.dockerignore` does **not** exclude `packages/web`.
+- **pnpm store as a BuildKit cache mount** (`--mount=type=cache,id=pnpm-store,target=/pnpm/store`) — Fly's depot builders persist BuildKit cache across builds, so repeat deploys skip re-downloading packages even though `COPY . .` invalidates the install layer.
+- **Final `WORKDIR /app/packages/server`** does double duty: tsx resolves `src/main.ts` from there, and the release command's *relative* `node_modules/@brandfactory/db` resolves through pnpm's workspace symlink to `/app/packages/db`.
+- **`CMD ["./node_modules/.bin/tsx", "src/main.ts"]`** — exec'd directly, no `pnpm start` wrapper, so the node process is PID 1 and receives Fly's `SIGINT` itself; `main.ts` already handles SIGINT/SIGTERM graceful shutdown (WS close → HTTP close → pool end).
+
+### `packages/db/scripts/migrate.mjs` — the missing release script
+
+The root cause of the failed releases: the release command has always pointed at `node_modules/@brandfactory/db/scripts/migrate.mjs`, but `packages/db/scripts/` only contained `smoke.ts`. Reconstructed as plain-node ESM (the release VM runs `node`, not tsx): `drizzle-orm/node-postgres/migrator` against the `packages/db/drizzle/` folder (resolved via `import.meta.url`, so it works regardless of cwd), a `max: 1` pg Pool torn down in `finally`, hard exit 1 with a clear message when `DATABASE_URL` is unset, and a non-zero exit on any migration failure so a bad release aborts the deploy instead of shipping unmigrated code. Deps (`drizzle-orm`, `pg`) are prod dependencies of `@brandfactory/db`, so the production image always has them.
+
+### Supporting changes
+
+- **Root `.dockerignore`** — new. Keeps `.env*` files out of the image (runtime config comes from Fly secrets — never bake local env files into a published image), plus `.git`, `node_modules`, `docs/`, `assets/`, coverage/dist junk. `!**/.env.example` stays whitelisted.
+- **`eslint.config.js`** — `'**/scripts/*.mjs'` added to the ignores block (alongside the existing `**/*.config.mjs`): the type-aware `projectService` setup has no tsconfig covering plain `.mjs` scripts, so without the ignore `pnpm lint` fails on the new file with a project-service parsing error.
+
+### Verification
+
+```
+pnpm lint                               ✔  clean (incl. new migrate.mjs via ignores)
+pnpm exec prettier --check .            ✔  clean
+node scripts/migrate.mjs (no DB URL)    ✔  imports resolve, clean "DATABASE_URL is required" exit 1
+fly deploy                              ✔  release v9 complete — first successful release since v5 (May 7)
+  image                                    114 MB, filtered install: 8 of 10 workspace projects (web excluded)
+  release_command (migrate.mjs)         ✔  completed successfully against prod DB
+  rolling update                        ✔  both machines healthy on the new image, checks 1/1
+  GET https://brandfactory.fly.dev/health  200
+```
+
+Note: the Docker build was never run locally (no local daemon) — Fly's depot builder was its first and successful exercise.
+
+### Follow-ups
+
+- **CI deploy job** — add a `flyctl deploy` step to `.github/workflows/ci.yml` on push to `main` with a `FLY_API_TOKEN` repo secret (`fly tokens create deploy`), so prod can't drift from `main` again. Deliberately not bundled into this patch.
+- Web frontend deploy story remains out of scope (unchanged from the Phase-8 cut).
 
 ---
 
