@@ -35,7 +35,7 @@ export function SupabaseAuthProvider() {
             if (!res.ok) return
             const data = (await res.json()) as MeResponse
             setAuth(token, data.id)
-            await navigate({ to: '/workspaces' })
+            await navigate({ to: '/' })
           })
           .catch(() => undefined)
       }

@@ -4,11 +4,13 @@ import {
   type Brand,
   type BrandGuidelineSection,
   type BrandId,
+  type BrandSummary,
   type Canvas,
   type CanvasBlock,
   type CanvasBlockId,
   type CanvasId,
   type ProjectId,
+  type ProjectSummary,
   type ProseMirrorDoc,
   type SectionId,
   type UserId,
@@ -64,6 +66,37 @@ export function rowToBrand(row: BrandRow): Brand {
     description: row.description,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+  }
+}
+
+// `section_count` / `project_count` come from `count(*)::int`. The cast
+// matters: bare `count()` is bigint and node-pg returns it as a string,
+// which fails BrandSummarySchema at the route boundary.
+export function rowToBrandSummary(
+  row: BrandRow & { sectionCount: number; projectCount: number },
+): BrandSummary {
+  return {
+    ...rowToBrand(row),
+    sectionCount: row.sectionCount,
+    projectCount: row.projectCount,
+  }
+}
+
+// Raw SQL / `greatest()` / correlated `max()` can hand back either an ISO
+// string (drizzle `mode: 'string'` columns) or a `Date` (node-pg default
+// for unbound timestamp expressions). Normalize at the mapper so the wire
+// always sees ISO strings.
+function toIsoTimestamp(value: string | Date): string {
+  return value instanceof Date ? value.toISOString() : value
+}
+
+export function rowToProjectSummary(
+  row: ProjectRow & { brandName: string; lastActivityAt: string | Date },
+): ProjectSummary {
+  return {
+    ...rowToProject(row),
+    brandName: row.brandName,
+    lastActivityAt: toIsoTimestamp(row.lastActivityAt),
   }
 }
 

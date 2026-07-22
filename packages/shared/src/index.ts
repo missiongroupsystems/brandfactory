@@ -9,18 +9,23 @@ export * from './llm/provider-ids'
 export * from './workspace/workspace'
 export * from './workspace/create'
 export * from './workspace/settings'
+export * from './workspace/update'
 
 // Brand
 export * from './brand/brand'
+export * from './brand/summary'
 export * from './brand/guideline-section'
 export * from './brand/suggested-categories'
 export * from './brand/create'
+export * from './brand/update'
 export * from './brand/update-guidelines'
 
 // Project
 export * from './project/project'
+export * from './project/summary'
 export * from './project/canvas'
 export * from './project/create'
+export * from './project/update'
 export * from './project/canvas-op'
 export * from './project/detail'
 

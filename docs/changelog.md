@@ -4,6 +4,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 ## Index
 
+- **0.9.0** — 2026-07-22 — Phase 9 navigation redesign: workspace home with brand grid + recent-work strip, brand hub with reachable projects, dropdown workspace switcher + breadcrumbs, smart `/` landing, rename/delete for brands and projects, Mission Systems visual identity — plus a review-remediation pass (9H) covering live-DB query coverage, blob cleanup on delete, and dark-mode contrast. 234 → **285 tests (+51)**.
 - **0.8.1** — 2026-07-22 — Fly deploy recipe recovered into the repo: `fly.toml` (saved from the live app), `packages/server/Dockerfile` (tsx runtime, pnpm filtered install), `packages/db/scripts/migrate.mjs` release migrator, root `.dockerignore`. Fixes releases v7/v8 failing on the missing migrate script; prod redeployed after 11 weeks stuck on the v5 image. 234 tests (unchanged).
 - **0.8.0** — 2026-04-20 — Phase 8 (scope-cut, no deploy recipe): `db:seed` dev token, root `.env.example` + drift guard, GitHub Actions CI on Postgres 16, README rewrite, `CORS_ALLOWED_ORIGINS` gates HTTP + WS. 234 tests (+11).
 - **0.7.4** — 2026-04-20 — Phase 7 Steps 12–16: real canvas pane (TipTap text / image / file blocks, pin, drag-reorder, drop-zone upload), unified `applyAgentEvent` module, shell polish (dark mode, router error/pending, `Cmd-S`), frontend vitest pass (+56), dev/env plumbing. 223 tests (+56).
@@ -20,6 +21,120 @@ Latest releases at the top. Each version has a one-line entry in the index below
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` lands — drizzle schema for 8 tables, singleton pg `Pool`, 18 query helpers, local-dev docker Postgres, and an end-to-end smoke check.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` lands as the single source of truth for domain types and zod schemas, consumed by both `server` and `web`.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture blueprint, scaffolding plan, and Phase 0 repo foundation.
+
+---
+
+## 0.9.0 — 2026-07-22
+
+The first release that makes the product reachable. Phases 5–7 built a
+split-screen agent canvas that, as of 0.8.1, could only be opened by pasting a
+UUID into the URL bar: `useBrandProjects` existed and was never called, nothing
+linked to `/projects/$projectId`, and there was no "New project" affordance
+anywhere. Workspaces were represented twice (a nav picker *and* a full-page
+grid) with the picker reading `localStorage` rather than the route, so it could
+name a different workspace than the page you were on. Phase 9 fixes all three.
+
+After this release: log in → land in a workspace → see brands with real signal
+and recent work across all of them → one click into a project canvas.
+
+Full plan in `docs/executing/phase-9-navigation-redesign.md`; per-phase notes in
+`docs/completions/phase-9{a…h}.md`.
+
+Test count 234 → **285 (+51)**. Locally 279 pass with 6 skipped (live-DB); CI
+runs all 285 against its Postgres service container.
+
+### Phases A–C — contracts, queries, routes
+
+`BrandSummary` (brand row + section/project counts) and `ProjectSummary`
+(project row + `brandName` + `lastActivityAt`) join the shared package, plus
+three `Update*Input` schemas. The old `pick`-only `BrandSummarySchema` was
+unused monorepo-wide and is replaced.
+
+**`lastActivityAt` is computed server-side** (decision D1). `projects.updatedAt`
+only moves when the row itself changes, so ordering by it would surface creation
+order under an "updated" label. Instead: `greatest()` of `projects.updated_at`,
+the newest `agent_messages.created_at`, and the newest `canvas_events.created_at`
+for the project's canvas — correlated subqueries so neither activity table can
+fan out the result set. `count(distinct …)::int` on the brand counts, because
+bare `count()` is `bigint` and node-pg returns it as a string.
+
+New HTTP surface: `GET /workspaces/:id/brands` widened to `BrandSummary[]`;
+`GET /workspaces/:id/projects?limit=` added for the workspace-spanning strip.
+
+### Phases D–E — the shell and the two screens
+
+- **Workspace switcher** is a `DropdownMenu` deriving "current" from **route
+  params**, falling back to `bf_last_workspace` only when that id still appears
+  in the user's list — the stale-storage bug that would 404 the landing page.
+- **`/` resolves** rather than blindly redirecting: route → last-workspace-if-valid
+  → oldest by `createdAt` → first-run screen. `/workspaces` is now first-run only.
+- **Breadcrumbs** carry the brand/project tail (the workspace lives in the
+  switcher), replacing four hand-rolled `← Back` links.
+- **Workspace home** — brand grid with a muted guideline-completeness meter
+  (deliberately not a report card: no colour, no percentage, no "incomplete"
+  copy, and a brand with zero sections is a legitimate state) plus the recent-work
+  strip.
+- **Brand hub** — identity header, projects grid with `New project`, then the
+  existing guidelines editor relocated unchanged below.
+
+### Phase F — rename and delete
+
+`PATCH` for workspaces, brands and projects; `DELETE` for brands and projects.
+Brand deletion cascades projects → canvases → blocks and requires typed-name
+confirmation with an explicit count of what goes. **Workspace deletion is
+deliberately absent** — it would cascade everything the user owns with no undo
+and no export path, and it is not needed to fix navigation.
+
+### Phase G — Mission Systems visual identity
+
+Self-hosted Satoshi, forest accent, warm neutral surfaces and a semantic
+feedback palette, applied as a three-tier token layer so components keep using
+`bg-card` / `text-muted-foreground` and inherit the identity without a
+class-by-class rewrite. The Phase-7 light/dark/system toggle survives it.
+
+### Phase H — review remediation
+
+A pre-push review of the whole changeset found eleven issues; all are fixed in
+this release. The structural one is worth naming: the two new raw-SQL queries —
+the ones the entire landing page depends on — had **no test anywhere**. Every
+test that touched them ran against an in-memory fake that reimplemented their
+semantics in TypeScript, so the actual SQL had never executed, in CI or locally.
+`packages/db/src/queries.live.test.ts` now exercises them against real Postgres
+under the same `DATABASE_URL` gate as the seed test.
+
+Also fixed: the brand hub rendered `updatedAt` under an "activity" label (the
+exact thing D1 rejected — now sourced from one shared SQL fragment); the
+delete-brand dialog claimed "0 projects" while its cascade count was still
+loading; deleting a brand or project orphaned every uploaded blob in storage
+forever (deletes now sweep them, best-effort, since the rows are already gone);
+`preventDefault()` in menu `onSelect` left a second focus scope alive under
+every rename/delete dialog; dark-mode destructive buttons sat at 2.85:1 because
+`--destructive-foreground` was declared but never bridged into `@theme inline`;
+and a translucent `--surface-hover` had quietly removed the focus indicator on
+menu items and the hover affordance on cards. Cards became real links, so
+Cmd-click opens a project in a new tab. Details in
+`docs/completions/phase-9h-review-remediation.md`.
+
+### Verification
+
+```
+pnpm typecheck                          ✔  9/9 workspaces
+pnpm lint                               ✔  clean
+pnpm format:check                       ✔  clean
+pnpm test                               ✔  279 passed + 6 skipped (285 in CI)
+pnpm -F @brandfactory/web build         ✔
+```
+
+### Known gaps
+
+- The plan's **six-step manual smoke has not been run** — no database or Docker
+  daemon on the machine this shipped from. Step 5 (send an agent message, watch
+  the project jump to the top of Recent work) is the one behaviour no unit test
+  proves end to end; the query beneath it is now covered, the loop is not.
+- **Phase G3's Playwright visual check has not been run.** The dark-mode
+  contrast defects fixed in Phase H are exactly what it would have caught.
+- Standardized project templates remain out of scope — `templateId` is still a
+  bare string with no registry. Project creation is freeform-only.
 
 ---
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createRoute, Link, redirect } from '@tanstack/react-router'
+import { createRoute, redirect } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { LLM_PROVIDER_IDS } from '@brandfactory/shared'
 import type { LLMProviderId } from '@brandfactory/shared'
@@ -7,6 +7,7 @@ import { rootRoute } from './__root'
 import { getAuthToken } from '@/auth/store'
 import { AppError } from '@/api/client'
 import { useWorkspaceSettings, useUpdateWorkspaceSettings } from '@/api/queries/settings'
+import { useUpdateWorkspace, useWorkspace } from '@/api/queries/workspaces'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -35,13 +36,33 @@ type FormDraft = { provider: LLMProviderId; model: string }
 
 function WorkspaceSettingsPage() {
   const { wsId } = workspaceSettingsRoute.useParams()
+  const { data: workspace } = useWorkspace(wsId)
   const { data: settings, isPending, isError } = useWorkspaceSettings(wsId)
   const mutation = useUpdateWorkspaceSettings(wsId)
+  const rename = useUpdateWorkspace(wsId)
 
   const [draft, setDraft] = useState<FormDraft | null>(null)
+  const [nameDraft, setNameDraft] = useState<string | null>(null)
 
   const provider: LLMProviderId | '' = draft?.provider ?? settings?.llmProviderId ?? ''
   const model: string = draft?.model ?? settings?.llmModel ?? ''
+  const name = nameDraft ?? workspace?.name ?? ''
+
+  function handleNameSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim() || !workspace || name.trim() === workspace.name) return
+    rename.mutate(
+      { name: name.trim() },
+      {
+        onSuccess: () => {
+          setNameDraft(null)
+          toast.success('Workspace renamed')
+        },
+        onError: (err) =>
+          toast.error(err instanceof AppError ? err.message : 'Failed to rename workspace'),
+      },
+    )
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -61,25 +82,33 @@ function WorkspaceSettingsPage() {
 
   const isDirty =
     settings && (provider !== settings.llmProviderId || model.trim() !== settings.llmModel)
+  const nameDirty = workspace ? name.trim() !== workspace.name && name.trim().length > 0 : false
 
   return (
     <div className="flex-1 overflow-auto p-6">
       <div className="mb-6">
-        <Link
-          to="/workspaces/$wsId"
-          params={{ wsId }}
-          className="text-xs text-muted-foreground hover:text-foreground"
-        >
-          ← Workspace
-        </Link>
-        <h1 className="mt-1 text-2xl font-semibold">Workspace Settings</h1>
+        <h1 className="text-2xl font-semibold">Workspace Settings</h1>
       </div>
+
+      {workspace && (
+        <form onSubmit={handleNameSubmit} className="mb-10 max-w-md space-y-4">
+          <h2 className="text-sm font-medium text-muted-foreground">Workspace</h2>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="ws-name">Name</Label>
+            <Input id="ws-name" value={name} onChange={(e) => setNameDraft(e.target.value)} />
+          </div>
+          <Button type="submit" disabled={!nameDirty || rename.isPending}>
+            {rename.isPending ? 'Saving…' : 'Save name'}
+          </Button>
+        </form>
+      )}
 
       {isPending && <p className="text-sm text-muted-foreground">Loading…</p>}
       {isError && <p className="text-sm text-destructive">Failed to load settings.</p>}
 
       {settings && (
         <form onSubmit={handleSubmit} className="max-w-md space-y-6">
+          <h2 className="text-sm font-medium text-muted-foreground">LLM defaults</h2>
           <div className="space-y-4">
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2">

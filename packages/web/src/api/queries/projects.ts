@@ -1,12 +1,75 @@
-import { useQuery } from '@tanstack/react-query'
-import type { AgentMessage, CanvasBlock, ProjectDetail } from '@brandfactory/shared'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type {
+  AgentMessage,
+  CanvasBlock,
+  Project,
+  ProjectDetail,
+  UpdateProjectInput,
+} from '@brandfactory/shared'
 import { api, callJson } from '@/api/client'
+import { brandKeys } from '@/api/queries/brands'
+import { workspaceKeys } from '@/api/queries/workspaces'
 
 export const projectKeys = {
   detail: (id: string) => ['projects', id] as const,
   blocks: (id: string) => ['projects', id, 'blocks'] as const,
   messages: (id: string) => ['projects', id, 'messages'] as const,
   shortlist: (id: string) => ['projects', id, 'shortlist'] as const,
+}
+
+/** Freeform-only create for Phase 9. Invalidates brand + workspace project lists. */
+export function useCreateProject(brandId: string, workspaceId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const res = await api.brands[':brandId'].projects.$post({
+        param: { brandId },
+        json: { kind: 'freeform', name },
+      })
+      return callJson<Project>(res)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: brandKeys.projects(brandId) })
+      void queryClient.invalidateQueries({ queryKey: workspaceKeys.projects(workspaceId) })
+      void queryClient.invalidateQueries({ queryKey: workspaceKeys.brands(workspaceId) })
+    },
+  })
+}
+
+export function useUpdateProject(projectId: string, brandId: string, workspaceId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: UpdateProjectInput) => {
+      const res = await api.projects[':id'].$patch({
+        param: { id: projectId },
+        json: input,
+      })
+      return callJson<Project>(res)
+    },
+    onSuccess: (project) => {
+      queryClient.setQueryData<ProjectDetail>(projectKeys.detail(projectId), (old) =>
+        old ? { ...old, ...project } : old,
+      )
+      void queryClient.invalidateQueries({ queryKey: brandKeys.projects(brandId) })
+      void queryClient.invalidateQueries({ queryKey: workspaceKeys.projects(workspaceId) })
+    },
+  })
+}
+
+export function useDeleteProject(projectId: string, brandId: string, workspaceId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await api.projects[':id'].$delete({ param: { id: projectId } })
+      return callJson<Project>(res)
+    },
+    onSuccess: () => {
+      void queryClient.removeQueries({ queryKey: projectKeys.detail(projectId) })
+      void queryClient.invalidateQueries({ queryKey: brandKeys.projects(brandId) })
+      void queryClient.invalidateQueries({ queryKey: workspaceKeys.projects(workspaceId) })
+      void queryClient.invalidateQueries({ queryKey: workspaceKeys.brands(workspaceId) })
+    },
+  })
 }
 
 export function useProjectDetail(id: string) {

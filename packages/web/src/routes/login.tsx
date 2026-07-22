@@ -23,7 +23,7 @@ export const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
   beforeLoad: () => {
-    if (getAuthToken()) throw redirect({ to: '/workspaces' })
+    if (getAuthToken()) throw redirect({ to: '/' })
   },
   component: LoginPage,
 })

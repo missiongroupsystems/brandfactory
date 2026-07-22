@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createRoute, Link, redirect } from '@tanstack/react-router'
+import { createRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useEditor, EditorContent } from '@tiptap/react'
 import {
   DndContext,
@@ -31,7 +31,19 @@ import { SUGGESTED_SECTIONS } from '@brandfactory/shared'
 import { rootRoute } from './__root'
 import { getAuthToken } from '@/auth/store'
 import { AppError } from '@/api/client'
-import { useBrand, useUpdateBrandGuidelines } from '@/api/queries/brands'
+import {
+  useBrand,
+  useBrandProjects,
+  useDeleteBrand,
+  useUpdateBrand,
+  useUpdateBrandGuidelines,
+} from '@/api/queries/brands'
+import { useBreadcrumbTrail } from '@/components/Breadcrumbs'
+import { DeleteBrandDialog } from '@/components/entity/DeleteBrandDialog'
+import { EntityMenu } from '@/components/entity/EntityMenu'
+import { RenameDialog } from '@/components/entity/RenameDialog'
+import { NewProjectDialog } from '@/components/project/NewProjectDialog'
+import { ProjectCard } from '@/components/project/ProjectCard'
 import { defaultExtensions } from '@/editor/proseMirrorSchema'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -277,36 +289,136 @@ function BrandEditorForm({ brand }: { brand: BrandWithSections }) {
 }
 
 // ---------------------------------------------------------------------------
-// BrandEditorPage — route component
+// Brand hub — identity + projects + guidelines
 // ---------------------------------------------------------------------------
 
-function BrandEditorPage() {
+function BrandHubPage() {
   const { brandId } = brandEditorRoute.useParams()
+  const navigate = useNavigate()
   const { data: brand, isPending, isError } = useBrand(brandId)
+  const {
+    data: projects,
+    isPending: projectsPending,
+    isError: projectsError,
+  } = useBrandProjects(brandId)
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const update = useUpdateBrand(brandId, brand?.workspaceId ?? '')
+  const del = useDeleteBrand(brandId, brand?.workspaceId ?? '')
+
+  useBreadcrumbTrail(brand ? { brand: { id: brand.id, name: brand.name } } : {})
 
   return (
     <div className="flex-1 overflow-auto p-6">
-      <div className="mb-6">
-        {brand ? (
-          <Link
-            to="/workspaces/$wsId"
-            params={{ wsId: brand.workspaceId }}
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
-            ← Workspace
-          </Link>
-        ) : (
-          <Link to="/workspaces" className="text-xs text-muted-foreground hover:text-foreground">
-            ← Workspaces
-          </Link>
+      <header className="mb-8 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold">{brand?.name ?? (isPending ? '…' : 'Brand')}</h1>
+          {brand?.description ? (
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{brand.description}</p>
+          ) : null}
+          {isError && <p className="mt-2 text-sm text-destructive">Failed to load brand.</p>}
+        </div>
+        {brand && (
+          <EntityMenu
+            label={`Actions for ${brand.name}`}
+            onRename={() => setRenameOpen(true)}
+            onDelete={() => setDeleteOpen(true)}
+          />
         )}
-        <h1 className="mt-1 text-2xl font-semibold">{brand?.name ?? '…'}</h1>
-        <p className="text-sm text-muted-foreground">Brand guidelines</p>
-      </div>
+      </header>
 
-      {isPending && <p className="text-sm text-muted-foreground">Loading…</p>}
-      {isError && <p className="text-sm text-destructive">Failed to load brand.</p>}
-      {brand && <BrandEditorForm key={brand.id} brand={brand} />}
+      {brand && (
+        <>
+          <section className="mb-10">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-sm font-medium text-muted-foreground">Projects</h2>
+              <NewProjectDialog brandId={brand.id} workspaceId={brand.workspaceId} />
+            </div>
+
+            {projectsPending && (
+              <p className="mt-4 text-sm text-muted-foreground">Loading projects…</p>
+            )}
+            {projectsError && (
+              <p className="mt-4 text-sm text-destructive">Failed to load projects.</p>
+            )}
+            {!projectsPending && projects?.length === 0 && (
+              <p className="mt-4 text-sm text-muted-foreground">
+                No projects yet. Start one to open the agent canvas with this brand&apos;s context.
+              </p>
+            )}
+            {projects && projects.length > 0 && (
+              <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+                {projects.map((p) => (
+                  <ProjectCard
+                    key={p.id}
+                    id={p.id}
+                    name={p.name}
+                    kind={p.kind}
+                    brandId={brand.id}
+                    workspaceId={brand.workspaceId}
+                    lastActivityAt={p.lastActivityAt}
+                    showBrandName={false}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <h2 className="mb-4 text-sm font-medium text-muted-foreground">Guidelines</h2>
+            <BrandEditorForm key={brand.id} brand={brand} />
+          </section>
+
+          <RenameDialog
+            open={renameOpen}
+            onOpenChange={setRenameOpen}
+            resource="brand"
+            initialName={brand.name}
+            initialDescription={brand.description}
+            pending={update.isPending}
+            onSubmit={(values) => {
+              update.mutate(
+                {
+                  name: values.name,
+                  description: values.description ?? null,
+                },
+                {
+                  onSuccess: () => {
+                    setRenameOpen(false)
+                    toast.success('Brand updated')
+                  },
+                  onError: (err) =>
+                    toast.error(err instanceof AppError ? err.message : 'Failed to update brand'),
+                },
+              )
+            }}
+          />
+
+          <DeleteBrandDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            brandName={brand.name}
+            // null = not loaded yet / failed. The dialog must not claim "0
+            // projects" while the cascade is about to take an unknown number.
+            projectCount={projectsPending || projectsError ? null : (projects?.length ?? null)}
+            pending={del.isPending}
+            onConfirm={() => {
+              del.mutate(undefined, {
+                onSuccess: () => {
+                  setDeleteOpen(false)
+                  toast.success('Brand deleted')
+                  void navigate({
+                    to: '/workspaces/$wsId',
+                    params: { wsId: brand.workspaceId },
+                  })
+                },
+                onError: (err) =>
+                  toast.error(err instanceof AppError ? err.message : 'Failed to delete brand'),
+              })
+            }}
+          />
+        </>
+      )}
     </div>
   )
 }
@@ -317,5 +429,5 @@ export const brandEditorRoute = createRoute({
   beforeLoad: () => {
     if (!getAuthToken()) throw redirect({ to: '/login' })
   },
-  component: BrandEditorPage,
+  component: BrandHubPage,
 })

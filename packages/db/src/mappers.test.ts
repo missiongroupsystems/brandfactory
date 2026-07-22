@@ -3,10 +3,12 @@ import type { ProseMirrorDoc } from '@brandfactory/shared'
 import {
   rowToAgentMessage,
   rowToBrand,
+  rowToBrandSummary,
   rowToCanvas,
   rowToCanvasBlock,
   rowToGuidelineSection,
   rowToProject,
+  rowToProjectSummary,
   rowToWorkspace,
 } from './mappers'
 
@@ -41,6 +43,42 @@ describe('mappers — happy paths', () => {
     }
     const b = rowToBrand(row)
     expect(b.description).toBeNull()
+  })
+
+  it('rowToBrandSummary attaches section and project counts', () => {
+    const row = {
+      id: 'b-1',
+      workspaceId: 'ws-1',
+      name: 'Brand',
+      description: null,
+      createdAt: TS,
+      updatedAt: TS,
+      sectionCount: 3,
+      projectCount: 1,
+    }
+    expect(rowToBrandSummary(row)).toMatchObject({
+      id: 'b-1',
+      sectionCount: 3,
+      projectCount: 1,
+    })
+  })
+
+  it('rowToProjectSummary normalizes Date lastActivityAt to ISO string', () => {
+    const when = new Date('2026-04-20T12:00:00.000Z')
+    const summary = rowToProjectSummary({
+      id: 'p-1',
+      brandId: 'b-1',
+      kind: 'freeform',
+      templateId: null,
+      name: 'Proj',
+      createdAt: TS,
+      updatedAt: TS,
+      brandName: 'Acme',
+      lastActivityAt: when,
+    })
+    expect(summary.brandName).toBe('Acme')
+    expect(summary.lastActivityAt).toBe('2026-04-20T12:00:00.000Z')
+    expect(summary.kind).toBe('freeform')
   })
 
   it('rowToCanvas passes through', () => {

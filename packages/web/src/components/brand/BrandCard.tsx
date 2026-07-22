@@ -1,0 +1,95 @@
+import { useState } from 'react'
+import { Link } from '@tanstack/react-router'
+import { toast } from 'sonner'
+import type { BrandSummary } from '@brandfactory/shared'
+import { AppError } from '@/api/client'
+import { useDeleteBrand, useUpdateBrand } from '@/api/queries/brands'
+import { GuidelineMeter } from '@/components/brand/GuidelineMeter'
+import { DeleteBrandDialog } from '@/components/entity/DeleteBrandDialog'
+import { EntityMenu } from '@/components/entity/EntityMenu'
+import { RenameDialog } from '@/components/entity/RenameDialog'
+
+export function BrandCard({ brand }: { brand: BrandSummary }) {
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const update = useUpdateBrand(brand.id, brand.workspaceId)
+  const del = useDeleteBrand(brand.id, brand.workspaceId)
+
+  return (
+    <>
+      <div className="group relative flex flex-col gap-3 rounded-lg border bg-card p-5 shadow-sm transition-colors hover:bg-accent">
+        <div className="absolute top-3 right-3 z-10">
+          <EntityMenu
+            label={`Actions for ${brand.name}`}
+            onRename={() => setRenameOpen(true)}
+            onDelete={() => setDeleteOpen(true)}
+          />
+        </div>
+        {/* Link, not button + navigate() — see ProjectCard. */}
+        <Link
+          to="/brands/$brandId"
+          params={{ brandId: brand.id }}
+          className="flex flex-1 flex-col gap-3 pr-8 text-left before:absolute before:inset-0 before:content-['']"
+        >
+          <div>
+            <div className="font-semibold group-hover:text-accent-foreground">{brand.name}</div>
+            {brand.description && (
+              <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                {brand.description}
+              </div>
+            )}
+          </div>
+          <div className="mt-auto flex items-center justify-between gap-3">
+            <GuidelineMeter sectionCount={brand.sectionCount} />
+            <span className="text-xs text-muted-foreground">
+              {brand.projectCount === 1 ? '1 project' : `${brand.projectCount} projects`}
+            </span>
+          </div>
+        </Link>
+      </div>
+
+      <RenameDialog
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+        resource="brand"
+        initialName={brand.name}
+        initialDescription={brand.description}
+        pending={update.isPending}
+        onSubmit={(values) => {
+          update.mutate(
+            {
+              name: values.name,
+              description: values.description ?? null,
+            },
+            {
+              onSuccess: () => {
+                setRenameOpen(false)
+                toast.success('Brand updated')
+              },
+              onError: (err) =>
+                toast.error(err instanceof AppError ? err.message : 'Failed to update brand'),
+            },
+          )
+        }}
+      />
+
+      <DeleteBrandDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        brandName={brand.name}
+        projectCount={brand.projectCount}
+        pending={del.isPending}
+        onConfirm={() => {
+          del.mutate(undefined, {
+            onSuccess: () => {
+              setDeleteOpen(false)
+              toast.success('Brand deleted')
+            },
+            onError: (err) =>
+              toast.error(err instanceof AppError ? err.message : 'Failed to delete brand'),
+          })
+        }}
+      />
+    </>
+  )
+}

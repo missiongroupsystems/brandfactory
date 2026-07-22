@@ -7,11 +7,13 @@ import type {
   Brand,
   BrandGuidelineSection,
   BrandId,
+  BrandSummary,
   Canvas,
   CanvasBlock,
   CanvasBlockId,
   Project,
   ProjectId,
+  ProjectSummary,
   ShortlistView,
   Workspace,
   WorkspaceId,
@@ -97,6 +99,25 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
   db: Db
   state: FakeDbState
 } {
+  // Mirrors the real `lastActivityAt` SQL expression (D1): greatest of
+  // project.updatedAt, newest agent message, newest canvas event. Shared by
+  // both summary listings for the same reason the SQL fragment is.
+  function toSummary(project: Project, brandName: string): ProjectSummary {
+    const msgTimes = state.agentMessages
+      .filter((m) => m.projectId === project.id)
+      .map((m) => m.createdAt)
+    const canvas = [...state.canvases.values()].find((c) => c.projectId === project.id)
+    const eventTimes = canvas
+      ? state.canvasEvents.filter((e) => e.canvasId === canvas.id).map((e) => e.createdAt)
+      : []
+    const candidates = [project.updatedAt, ...msgTimes, ...eventTimes]
+    return {
+      ...project,
+      brandName,
+      lastActivityAt: candidates.reduce((a, b) => (a > b ? a : b)),
+    }
+  }
+
   const db: Db = {
     async getUserById(id) {
       return state.users.get(id) ?? null
@@ -120,12 +141,32 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       state.workspaces.set(id, row)
       return row
     },
+    async updateWorkspace(id, input) {
+      const existing = state.workspaces.get(id)
+      if (!existing) return null
+      const row: Workspace = { ...existing, name: input.name, updatedAt: NOW }
+      state.workspaces.set(id, row)
+      return row
+    },
 
     async getBrandById(id) {
       return state.brands.get(id) ?? null
     },
     async listBrandsByWorkspace(workspaceId) {
       return [...state.brands.values()].filter((b) => b.workspaceId === workspaceId)
+    },
+    async listBrandSummariesByWorkspace(workspaceId) {
+      // Mirrors the real SQL: left-join counts + order by created_at.
+      return [...state.brands.values()]
+        .filter((b) => b.workspaceId === workspaceId)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+        .map(
+          (b): BrandSummary => ({
+            ...b,
+            sectionCount: [...state.sections.values()].filter((s) => s.brandId === b.id).length,
+            projectCount: [...state.projects.values()].filter((p) => p.brandId === b.id).length,
+          }),
+        )
     },
     async createBrand(input) {
       const id = nextId('br') as BrandId
@@ -139,6 +180,45 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       }
       state.brands.set(id, row)
       return row
+    },
+    async updateBrand(id, input) {
+      const existing = state.brands.get(id)
+      if (!existing) return null
+      const row: Brand = {
+        ...existing,
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        updatedAt: NOW,
+      }
+      state.brands.set(id, row)
+      return row
+    },
+    async deleteBrand(id) {
+      const existing = state.brands.get(id)
+      if (!existing) return null
+      state.brands.delete(id)
+      for (const [sid, section] of state.sections) {
+        if (section.brandId === id) state.sections.delete(sid)
+      }
+      for (const [pid, project] of [...state.projects.entries()]) {
+        if (project.brandId === id) {
+          // Cascade through the same helper so canvas/messages/events go too.
+          await db.deleteProject(pid as ProjectId)
+        }
+      }
+      return existing
+    },
+    async listBlobKeysByBrand(brandId) {
+      const projectIds = [...state.projects.values()]
+        .filter((p) => p.brandId === brandId)
+        .map((p) => p.id)
+      const canvasIds = [...state.canvases.values()]
+        .filter((c) => projectIds.includes(c.projectId))
+        .map((c) => c.id)
+      return [...state.canvasBlocks.values()]
+        .filter((b) => canvasIds.includes(b.canvasId))
+        .map((b) => ('blobKey' in b ? b.blobKey : null))
+        .filter((k): k is string => typeof k === 'string')
     },
     async listSectionsByBrand(brandId) {
       return [...state.sections.values()]
@@ -185,6 +265,37 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
     async listProjectsByBrand(brandId) {
       return [...state.projects.values()].filter((p) => p.brandId === brandId)
     },
+    async listProjectSummariesByBrand(brandId) {
+      const brand = state.brands.get(brandId)
+      if (!brand) return []
+      return [...state.projects.values()]
+        .filter((p) => p.brandId === brandId)
+        .map((p) => toSummary(p, brand.name))
+        .sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt))
+    },
+    async listRecentProjectsByWorkspace(workspaceId, limit) {
+      const brandById = new Map(
+        [...state.brands.values()]
+          .filter((b) => b.workspaceId === workspaceId)
+          .map((b) => [b.id, b]),
+      )
+      const summaries: ProjectSummary[] = []
+      for (const project of state.projects.values()) {
+        const brand = brandById.get(project.brandId)
+        if (!brand) continue
+        summaries.push(toSummary(project, brand.name))
+      }
+      summaries.sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt))
+      return summaries.slice(0, limit)
+    },
+    async listBlobKeysByProject(projectId) {
+      const canvas = [...state.canvases.values()].find((c) => c.projectId === projectId)
+      if (!canvas) return []
+      return [...state.canvasBlocks.values()]
+        .filter((b) => b.canvasId === canvas.id)
+        .map((b) => ('blobKey' in b ? b.blobKey : null))
+        .filter((k): k is string => typeof k === 'string')
+    },
     async createProjectWithCanvas(input) {
       const id = nextId('pr') as ProjectId
       const base = {
@@ -203,6 +314,29 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       const canvas: Canvas = { id: canvasId, projectId: id, createdAt: NOW, updatedAt: NOW }
       state.canvases.set(canvasId, canvas)
       return { project, canvas }
+    },
+    async updateProject(id, input) {
+      const existing = state.projects.get(id)
+      if (!existing) return null
+      const row: Project = { ...existing, name: input.name, updatedAt: NOW }
+      state.projects.set(id, row)
+      return row
+    },
+    async deleteProject(id) {
+      const existing = state.projects.get(id)
+      if (!existing) return null
+      state.projects.delete(id)
+      for (const [cid, canvas] of [...state.canvases.entries()]) {
+        if (canvas.projectId === id) {
+          state.canvases.delete(cid)
+          for (const [bid, block] of [...state.canvasBlocks.entries()]) {
+            if (block.canvasId === cid) state.canvasBlocks.delete(bid)
+          }
+          state.canvasEvents = state.canvasEvents.filter((e) => e.canvasId !== cid)
+        }
+      }
+      state.agentMessages = state.agentMessages.filter((m) => m.projectId !== id)
+      return existing
     },
     async getCanvasByProject(projectId) {
       return [...state.canvases.values()].find((canvas) => canvas.projectId === projectId) ?? null

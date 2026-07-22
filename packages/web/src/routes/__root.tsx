@@ -1,67 +1,50 @@
-import { createRootRoute, Link, Outlet, useNavigate } from '@tanstack/react-router'
+import { createRootRoute, Link, Outlet } from '@tanstack/react-router'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { AuthBoundary } from '@/auth/AuthBoundary'
-import { useAuthStore } from '@/auth/store'
-import { useWorkspaces } from '@/api/queries/workspaces'
-import { getLastWorkspaceId, setLastWorkspaceId } from '@/lib/last-workspace'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { BreadcrumbProvider, Breadcrumbs } from '@/components/Breadcrumbs'
+import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher'
+import { useActiveWorkspaceId } from '@/lib/workspace-context'
 
-function WorkspacePicker() {
-  const token = useAuthStore((s) => s.token)
-  const { data: workspaces } = useWorkspaces({ enabled: !!token })
-  const navigate = useNavigate()
-
-  if (!token || !workspaces?.length) return null
-
-  const current = getLastWorkspaceId() ?? ''
-
+function Wordmark() {
+  const wsId = useActiveWorkspaceId()
+  // Medium 500 — hierarchy from weight on Satoshi, not a second family.
+  const className = 'text-[15px] font-medium tracking-tight text-foreground'
+  if (wsId) {
+    return (
+      <Link to="/workspaces/$wsId" params={{ wsId }} className={className}>
+        BrandFactory
+      </Link>
+    )
+  }
   return (
-    <Select
-      value={current}
-      onValueChange={(id) => {
-        setLastWorkspaceId(id)
-        void navigate({ to: '/workspaces/$wsId', params: { wsId: id } })
-      }}
-    >
-      <SelectTrigger className="h-8 w-48 text-sm">
-        <SelectValue placeholder="Select workspace" />
-      </SelectTrigger>
-      <SelectContent>
-        {workspaces.map((ws) => (
-          <SelectItem key={ws.id} value={ws.id}>
-            {ws.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <Link to="/workspaces" className={className}>
+      BrandFactory
+    </Link>
   )
 }
 
 function RootLayout() {
   return (
-    <div className="flex h-screen flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-4 border-b px-4">
-        <Link to="/workspaces" className="font-semibold tracking-tight">
-          BrandFactory
-        </Link>
-        <div className="flex-1" />
-        <WorkspacePicker />
-        <ThemeToggle />
-      </header>
-      <main className="flex flex-1 overflow-hidden">
-        <AuthBoundary>
-          <Outlet />
-        </AuthBoundary>
-      </main>
-      <Toaster />
-    </div>
+    <BreadcrumbProvider>
+      <div className="flex h-screen flex-col bg-background">
+        {/* Raised chrome on sunken page canvas — flat product surface, no glass. */}
+        <header className="flex h-12 shrink-0 items-center gap-3 border-b bg-card px-4">
+          <Wordmark />
+          <WorkspaceSwitcher />
+          <div className="min-w-0 flex-1">
+            <Breadcrumbs />
+          </div>
+          <ThemeToggle />
+        </header>
+        <main className="flex flex-1 overflow-hidden">
+          <AuthBoundary>
+            <Outlet />
+          </AuthBoundary>
+        </main>
+        <Toaster />
+      </div>
+    </BreadcrumbProvider>
   )
 }
 

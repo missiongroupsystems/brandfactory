@@ -4,6 +4,251 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* =========================================================================
+   Mission Systems product CI — Satoshi (self-hosted, never hot-linked)
+   Source faces vendored under public/fonts/satoshi/
+   ========================================================================= */
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/satoshi/Satoshi-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/satoshi/Satoshi-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/satoshi/Satoshi-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/satoshi/Satoshi-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/satoshi/Satoshi-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    /* =====================================================================
+       TIER 1 — PRIMITIVES
+       Only place raw hex may appear. Components never read these directly.
+       ===================================================================== */
+
+    /* Brand accent — forest green. Authoritative, NOT "success". */
+    --c-green-900: #1d3a2a;
+
+    /* Warm neutral ramp — never cold grey. */
+    --c-ink-950: #161512;
+    --c-ink-900: #171717;
+    --c-ink-700: #55534c;
+    --c-ink-500: #6b6962;
+    --c-ink-300: #8d8a82;
+    --c-beige-100: #f6f5f1;
+    --c-beige-200: #eef2ef;
+    --c-page: #faf9f6;
+    --c-white: #ffffff;
+
+    /* Feedback palette — AA-verified, muted, unambiguous. */
+    --c-error-600: #9a3b2e;
+    --c-error-50: #fbf1ef;
+    --c-warning-600: #8a5a1f;
+    --c-warning-50: #f8f1e3;
+    --c-success-600: #2f6b46;
+    --c-success-50: #ebf2ec;
+    --c-info-600: #335a7a;
+    --c-info-50: #eaf0f5;
+
+    /* Control boundary — 4.1:1, not a hairline. */
+    --c-border-input: #807d76;
+
+    /* 4px base grid */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+
+    /* =====================================================================
+       TIER 2 — SEMANTIC ALIASES
+       Re-point this layer for tenants or dark mode. Components read here.
+       ===================================================================== */
+
+    --color-brand-accent: var(--c-green-900);
+
+    --color-text-primary: var(--c-ink-900);
+    --color-text-secondary: var(--c-ink-700);
+    --color-text-tertiary: var(--c-ink-500);
+    --color-text-disabled: var(--c-ink-300);
+    --color-text-inverse: var(--c-white);
+    --color-text-link: var(--c-green-900);
+
+    --surface-base: var(--c-white);
+    --surface-sunken: var(--c-page);
+    --surface-raised: var(--c-white);
+    --surface-overlay: var(--c-white);
+    --surface-hover: var(--c-beige-100);
+    --surface-selected: var(--c-beige-200);
+    --surface-accent: var(--c-green-900);
+    --surface-tooltip: var(--c-ink-950);
+
+    --color-feedback-error: var(--c-error-600);
+    --color-feedback-error-tint: var(--c-error-50);
+    --color-feedback-warning: var(--c-warning-600);
+    --color-feedback-warning-tint: var(--c-warning-50);
+    --color-feedback-success: var(--c-success-600);
+    --color-feedback-success-tint: var(--c-success-50);
+    --color-feedback-info: var(--c-info-600);
+    --color-feedback-info-tint: var(--c-info-50);
+
+    --border-subtle: rgba(23, 23, 23, 0.1);
+    --border-default: rgba(23, 23, 23, 0.16);
+    --border-strong: rgba(23, 23, 23, 0.28);
+    --border-input: var(--c-border-input);
+    --border-focus: var(--color-brand-accent);
+
+    --elevation-0: none;
+    --elevation-1: 0 1px 2px rgba(23, 23, 23, 0.05), 0 1px 1px rgba(23, 23, 23, 0.04);
+    --elevation-2: 0 4px 12px rgba(23, 23, 23, 0.08), 0 1px 3px rgba(23, 23, 23, 0.06);
+    --elevation-3: 0 24px 60px rgba(23, 23, 23, 0.12), 0 4px 12px rgba(23, 23, 23, 0.08);
+
+    --color-scrim: rgba(23, 23, 23, 0.32);
+
+    /* Functional default for buttons/inputs */
+    --radius: 8px;
+
+    /* =====================================================================
+       TIER 3 — shadcn utility bridge
+       Existing Tailwind utilities (bg-card, text-muted-foreground, …) rebind
+       onto tier 2 so the whole tree inherits the CI without class rewrites.
+       ===================================================================== */
+
+    --background: var(--surface-sunken);
+    --foreground: var(--color-text-primary);
+
+    --primary: var(--color-brand-accent);
+    --primary-foreground: var(--color-text-inverse);
+
+    --secondary: var(--c-beige-100);
+    --secondary-foreground: var(--color-text-primary);
+
+    --muted: var(--c-beige-100);
+    --muted-foreground: var(--color-text-secondary);
+
+    /* Hover surface — NOT the brand accent. Brand is --primary. */
+    --accent: var(--surface-hover);
+    --accent-foreground: var(--color-text-primary);
+
+    --card: var(--surface-raised);
+    --card-foreground: var(--color-text-primary);
+    --popover: var(--surface-overlay);
+    --popover-foreground: var(--color-text-primary);
+
+    --destructive: var(--color-feedback-error);
+    --destructive-foreground: var(--color-text-inverse);
+
+    --border: var(--border-default);
+    --input: var(--border-input);
+    --ring: var(--border-focus);
+  }
+
+  /* Dark mode — re-point tier 2 only. Theme toggle (Phase 7) stays intact. */
+  .dark {
+    --color-text-primary: #f6f5f1;
+    --color-text-secondary: #a8a59d;
+    --color-text-tertiary: #8d8a82;
+    --color-text-disabled: #6b6962;
+    --color-text-inverse: #171717;
+    --color-text-link: #a8c4b4;
+
+    --surface-base: #171717;
+    --surface-sunken: #12110f;
+    --surface-raised: #1c1b18;
+    --surface-overlay: #1c1b18;
+    /* Opaque, not alpha. `--accent` maps to this and is used both for menu-item
+       highlight and card hover; a translucent value composites against whatever
+       sits behind the element, so on a raised card over the sunken page canvas
+       the "hover" resolved to ~1.05:1 against the card — no visible change. */
+    --surface-hover: #35342f;
+    --surface-selected: #3f3e38;
+    --surface-accent: var(--c-green-900);
+    --surface-tooltip: #0c0b0a;
+
+    --border-subtle: rgba(246, 245, 241, 0.08);
+    --border-default: rgba(246, 245, 241, 0.14);
+    --border-strong: rgba(246, 245, 241, 0.24);
+    --border-input: #6b6962;
+    --border-focus: #6b9a7a;
+
+    --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --elevation-2: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --elevation-3: 0 24px 60px rgba(0, 0, 0, 0.5);
+
+    --color-scrim: rgba(0, 0, 0, 0.55);
+
+    --color-feedback-error: #d48478;
+    --color-feedback-error-tint: rgba(154, 59, 46, 0.2);
+    --color-feedback-warning: #c49a5a;
+    --color-feedback-warning-tint: rgba(138, 90, 31, 0.2);
+    --color-feedback-success: #6b9a7a;
+    --color-feedback-success-tint: rgba(47, 107, 70, 0.2);
+    --color-feedback-info: #7a9ab4;
+    --color-feedback-info-tint: rgba(51, 90, 122, 0.2);
+
+    --background: var(--surface-sunken);
+    --foreground: var(--color-text-primary);
+
+    --primary: #2a4f3a;
+    --primary-foreground: #f6f5f1;
+
+    --secondary: var(--surface-raised);
+    --secondary-foreground: var(--color-text-primary);
+
+    --muted: var(--surface-raised);
+    --muted-foreground: var(--color-text-secondary);
+
+    --accent: var(--surface-hover);
+    --accent-foreground: var(--color-text-primary);
+
+    --card: var(--surface-raised);
+    --card-foreground: var(--color-text-primary);
+    --popover: var(--surface-overlay);
+    --popover-foreground: var(--color-text-primary);
+
+    --destructive: var(--color-feedback-error);
+    --destructive-foreground: #171717;
+
+    --border: var(--border-default);
+    --input: var(--border-input);
+    --ring: var(--border-focus);
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -20,58 +265,21 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  /* Bridged so `text-destructive-foreground` exists. Without it the destructive
+     button falls back to hardcoded white, which on the dark-mode destructive
+     surface (#d48478) is 2.85:1 — below AA for any text size. */
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+
+  --font-sans: 'Satoshi', system-ui, -apple-system, sans-serif;
+  --font-display: 'Satoshi', system-ui, -apple-system, sans-serif;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-}
-
-@layer base {
-  :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --radius: 0.625rem;
-  }
-
-  .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.985 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-  }
+  --radius-xl: 12px;
 }
 
 @layer base {
@@ -79,13 +287,44 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    font-synthesis: none;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family:
+      'Satoshi',
       system-ui,
       -apple-system,
-      BlinkMacSystemFont,
-      'Segoe UI',
       sans-serif;
+    /* Body is Regular 400. Light 300 is reserved for ≥24px display moments. */
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Hierarchy from size + weight on one family — never a second cut. */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family:
+      'Satoshi',
+      system-ui,
+      -apple-system,
+      sans-serif;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
   }
 }

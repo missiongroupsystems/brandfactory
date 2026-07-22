@@ -16,18 +16,28 @@ export interface Db {
   getWorkspaceById: typeof db.getWorkspaceById
   listWorkspacesByOwner: typeof db.listWorkspacesByOwner
   createWorkspace: typeof db.createWorkspace
+  updateWorkspace: typeof db.updateWorkspace
 
   // Brands + guideline sections
   getBrandById: typeof db.getBrandById
   listBrandsByWorkspace: typeof db.listBrandsByWorkspace
+  listBrandSummariesByWorkspace: typeof db.listBrandSummariesByWorkspace
   createBrand: typeof db.createBrand
+  updateBrand: typeof db.updateBrand
+  deleteBrand: typeof db.deleteBrand
+  listBlobKeysByBrand: typeof db.listBlobKeysByBrand
   listSectionsByBrand: typeof db.listSectionsByBrand
   updateBrandGuidelines: typeof db.updateBrandGuidelines
 
   // Projects + canvases
   getProjectById: typeof db.getProjectById
   listProjectsByBrand: typeof db.listProjectsByBrand
+  listProjectSummariesByBrand: typeof db.listProjectSummariesByBrand
+  listRecentProjectsByWorkspace: typeof db.listRecentProjectsByWorkspace
   createProjectWithCanvas: typeof db.createProjectWithCanvas
+  updateProject: typeof db.updateProject
+  deleteProject: typeof db.deleteProject
+  listBlobKeysByProject: typeof db.listBlobKeysByProject
   getCanvasByProject: typeof db.getCanvasByProject
 
   // Workspace settings
@@ -55,14 +65,24 @@ export function buildDbDeps(): Db {
     getWorkspaceById: db.getWorkspaceById,
     listWorkspacesByOwner: db.listWorkspacesByOwner,
     createWorkspace: db.createWorkspace,
+    updateWorkspace: db.updateWorkspace,
     getBrandById: db.getBrandById,
     listBrandsByWorkspace: db.listBrandsByWorkspace,
+    listBrandSummariesByWorkspace: db.listBrandSummariesByWorkspace,
     createBrand: db.createBrand,
+    updateBrand: db.updateBrand,
+    deleteBrand: db.deleteBrand,
+    listBlobKeysByBrand: db.listBlobKeysByBrand,
     listSectionsByBrand: db.listSectionsByBrand,
     updateBrandGuidelines: db.updateBrandGuidelines,
     getProjectById: db.getProjectById,
     listProjectsByBrand: db.listProjectsByBrand,
+    listProjectSummariesByBrand: db.listProjectSummariesByBrand,
+    listRecentProjectsByWorkspace: db.listRecentProjectsByWorkspace,
     createProjectWithCanvas: db.createProjectWithCanvas,
+    updateProject: db.updateProject,
+    deleteProject: db.deleteProject,
+    listBlobKeysByProject: db.listBlobKeysByProject,
     getCanvasByProject: db.getCanvasByProject,
     getWorkspaceSettings: db.getWorkspaceSettings,
     upsertWorkspaceSettings: db.upsertWorkspaceSettings,
