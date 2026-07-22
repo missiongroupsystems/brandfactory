@@ -59,9 +59,10 @@ Full product vision: [`docs/vision.md`](docs/vision.md).
 with streaming agent + realtime WS · Vite + React 19 frontend with
 split-screen project workspace, brand editor, settings, and realtime
 canvas · dev seed, root env template, CI, CORS gate for split-origin
-deploys.
+deploys · workspace home + brand hub navigation with recent-work signal,
+project creation, rename/delete, and the Mission Systems visual identity.
 
-**Up next:** Playwright e2e (Phase 9), adapter docs, standardized project
+**Up next:** Playwright e2e (Phase 10), adapter docs, standardized project
 templates.
 
 ## Quickstart

@@ -22,7 +22,11 @@ import { createCanvasRouter } from './routes/canvas'
 import { createHealthRouter } from './routes/health'
 import { createMeRouter } from './routes/me'
 import { createMessagesRouter } from './routes/messages'
-import { createBrandProjectsRouter, createProjectsRouter } from './routes/projects'
+import {
+  createBrandProjectsRouter,
+  createProjectsRouter,
+  createWorkspaceProjectsRouter,
+} from './routes/projects'
 import { createSettingsRouter } from './routes/settings'
 import { createWorkspacesRouter } from './routes/workspaces'
 
@@ -81,11 +85,12 @@ export function createApp(deps: AppDeps) {
     .route('/health', createHealthRouter())
     .route('/me', createMeRouter({ auth: deps.auth }))
     .route('/workspaces', createWorkspacesRouter({ db: deps.db }))
-    .route('/workspaces', createWorkspaceBrandsRouter({ db: deps.db }))
+    .route('/workspaces', createWorkspaceBrandsRouter({ db: deps.db, storage: deps.storage }))
+    .route('/workspaces', createWorkspaceProjectsRouter({ db: deps.db, storage: deps.storage }))
     .route('/workspaces', createSettingsRouter({ db: deps.db, env: deps.env }))
-    .route('/brands', createBrandsRouter({ db: deps.db }))
-    .route('/brands', createBrandProjectsRouter({ db: deps.db }))
-    .route('/projects', createProjectsRouter({ db: deps.db }))
+    .route('/brands', createBrandsRouter({ db: deps.db, storage: deps.storage }))
+    .route('/brands', createBrandProjectsRouter({ db: deps.db, storage: deps.storage }))
+    .route('/projects', createProjectsRouter({ db: deps.db, storage: deps.storage }))
     .route('/projects', createCanvasRouter({ db: deps.db, realtime: deps.realtime }))
     .route('/projects', createMessagesRouter({ db: deps.db }))
     .route(

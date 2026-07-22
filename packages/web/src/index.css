@@ -11,7 +11,7 @@
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('/fonts/Satoshi/Satoshi-Light.woff2') format('woff2');
+  src: url('/fonts/satoshi/Satoshi-Light.woff2') format('woff2');
   font-weight: 300;
   font-style: normal;
   font-display: swap;
@@ -19,7 +19,7 @@
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('/fonts/Satoshi/Satoshi-Regular.woff2') format('woff2');
+  src: url('/fonts/satoshi/Satoshi-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -27,7 +27,7 @@
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('/fonts/Satoshi/Satoshi-Italic.woff2') format('woff2');
+  src: url('/fonts/satoshi/Satoshi-Italic.woff2') format('woff2');
   font-weight: 400;
   font-style: italic;
   font-display: swap;
@@ -35,7 +35,7 @@
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('/fonts/Satoshi/Satoshi-Medium.woff2') format('woff2');
+  src: url('/fonts/satoshi/Satoshi-Medium.woff2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -43,7 +43,7 @@
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('/fonts/Satoshi/Satoshi-Bold.woff2') format('woff2');
+  src: url('/fonts/satoshi/Satoshi-Bold.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -143,6 +143,11 @@
   /* Feedback (§3.3) */
   --color-feedback-error: var(--c-error-600);
   --color-feedback-error-tint: var(--c-error-50);
+  /* Foreground for text/icons sitting ON --color-feedback-error. Needs its own
+     alias rather than --color-text-inverse, which is white in BOTH themes:
+     dark re-points the error surface to a light salmon, where white text falls
+     below AA. Re-pointed in the .dark block below. */
+  --color-feedback-error-on: var(--c-white);
   --color-feedback-warning: var(--c-warning-600);
   --color-feedback-warning-tint: var(--c-warning-50);
   --color-feedback-success: var(--c-success-600);
@@ -187,6 +192,8 @@
 
   --color-feedback-error: #e08a7c;
   --color-feedback-error-tint: #3a221e;
+  /* Near-black on the light salmon error surface — 6.7:1. White would be 2.6:1. */
+  --color-feedback-error-on: var(--c-dark-base);
   --color-feedback-warning: #d9a55e;
   --color-feedback-warning-tint: #362a17;
   --color-feedback-success: #6fae86;
@@ -231,6 +238,7 @@
     --accent-foreground: var(--color-text-primary);
 
     --destructive: var(--color-feedback-error);
+    --destructive-foreground: var(--color-feedback-error-on);
 
     --border: var(--border-default);
     --input: var(--border-input);
@@ -275,6 +283,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

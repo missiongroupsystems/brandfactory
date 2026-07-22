@@ -12,7 +12,12 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80',
-        destructive: 'bg-destructive text-white hover:bg-destructive/90 active:bg-destructive/80',
+        // `text-destructive-foreground`, not `text-white`: in dark mode the
+        // destructive surface is a light salmon (`--color-feedback-error`),
+        // where white text falls below AA. The token resolves to white in
+        // light mode and near-black in dark.
+        destructive:
+          'bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80',
         outline: 'border border-border bg-secondary text-secondary-foreground hover:bg-accent',
         secondary: 'border border-border bg-secondary text-secondary-foreground hover:bg-accent',
         ghost: 'hover:bg-accent hover:text-accent-foreground',

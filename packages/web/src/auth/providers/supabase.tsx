@@ -57,7 +57,9 @@ export function SupabaseAuthProvider() {
         }
         const data = (await res.json()) as MeResponse
         setAuth(token, data.id)
-        await navigate({ to: '/workspaces' })
+        // `/`, not `/workspaces`: the landing route resolves which workspace
+        // to open (route → last-used-if-still-valid → oldest → first-run).
+        await navigate({ to: '/' })
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         setError(`Sign-in network error: ${msg}`)

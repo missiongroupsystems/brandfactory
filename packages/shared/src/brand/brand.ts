@@ -13,19 +13,13 @@ export const BrandSchema = z.object({
 
 export type Brand = z.infer<typeof BrandSchema>
 
-// Lightweight projection for brand lists / pickers — avoids fetching full
-// guideline sections for surfaces that only need to display the brand name.
-export const BrandSummarySchema = BrandSchema.pick({
-  id: true,
-  workspaceId: true,
-  name: true,
-})
-
-export type BrandSummary = z.infer<typeof BrandSummarySchema>
-
 // Composed view returned by endpoints that hydrate sections alongside the
 // brand row. Sections are stored in their own table (see Phase 2); this is
 // the API-level join, not a storage shape.
+//
+// Brand list/grid projection with section + project counts lives in
+// `./summary` (`BrandSummarySchema`) — the former `pick`-only summary was
+// unused and is replaced by that shape for the workspace-home surface.
 export const BrandWithSectionsSchema = BrandSchema.extend({
   sections: z.array(BrandGuidelineSectionSchema),
 })

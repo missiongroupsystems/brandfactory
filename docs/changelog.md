@@ -4,6 +4,10 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 ## Index
 
+- **1.3.0** — 2026-07-22 — Reconciled with the OSS upstream (`philholke/brandfactory`): takes upstream's 0.8.1→0.9.1 line (Phase 9 navigation redesign, live-DB query coverage, ISO-timestamp fix, blob cleanup on delete) and keeps this fork's deploy layer + design-system re-spec. Restores the missing `migrate.mjs` that broke releases v7/v8. **292 tests.**
+- **0.9.1** — 2026-07-22 — Repo split: deployment specifics (`fly.toml`, `Dockerfile`, `.dockerignore`) move out of this OSS upstream into the deployment fork; Supabase auto-provisioning (`ensureUser`), pg pooler-safety and single-instance `native-ws` invariants ported upstream from that fork. Fixes API timestamps never having been ISO 8601 despite every schema declaring it. Documents why releases v7/v8 failed. 285 → **292 tests (+7)**.
+- **0.9.0** — 2026-07-22 — Navigation redesign: workspace home with brand grid + recent-work strip, brand hub with reachable projects, dropdown workspace switcher + breadcrumbs, smart `/` landing, rename/delete for brands and projects, Mission Systems visual identity — plus a review-remediation pass (9H) covering live-DB query coverage, blob cleanup on delete, and dark-mode contrast. 234 → **285 tests (+51)**.
+- **0.8.1** — 2026-07-22 — Fly deploy recipe recovered into the repo: `fly.toml` (saved from the live app), `packages/server/Dockerfile` (tsx runtime, pnpm filtered install), `packages/db/scripts/migrate.mjs` release migrator, root `.dockerignore`. Fixes releases v7/v8 failing on the missing migrate script; prod redeployed after 11 weeks stuck on the v5 image. 234 tests (unchanged).
 - **1.2.0** — 2026-07-20 — Mission Systems CI on `packages/web`: self-hosted Satoshi, three-tier tokens in `index.css`, six `components/ui` primitives re-specced, three accent-budget violations fixed. No behaviour change; 240 tests unchanged. **Visual verification skipped.**
 - **1.1.0** — 2026-05-18 — Projects reachable + functional, Thread A (A.1–A.5): `useCreateProject` hook, `ProjectsSection` + `NewProjectDialog` in `brands.$brandId.tsx`, brand-page header restructured. ~155 LOC. 240 tests (+2). Thread B verification matrix separate.
 - **1.0.0** — 2026-04-21 — Hosted-deploy baseline (Phases 1–6): Supabase `ensureUser` auto-provision, server `Dockerfile` + `fly.toml`, `pg` pooler-safety invariants, `vercel.json` SPA fallback. Split-origin Vercel ↔ Fly. 238 tests (+4).
@@ -22,6 +26,342 @@ Latest releases at the top. Each version has a one-line entry in the index below
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` lands — drizzle schema for 8 tables, singleton pg `Pool`, 18 query helpers, local-dev docker Postgres, and an end-to-end smoke check.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` lands as the single source of truth for domain types and zod schemas, consumed by both `server` and `web`.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture blueprint, scaffolding plan, and Phase 0 repo foundation.
+
+---
+
+## 1.3.0 — 2026-07-22
+
+Reconciliation release. This fork and the OSS upstream (`philholke/brandfactory`)
+had been developed independently since `0.8.0` / Phase 8 (2026-04-20), and had
+solved two of the same problems in parallel. This merges them and settles which
+repo owns what.
+
+### Why this had to happen
+
+Deploys run from **this** repo. `fly.toml`'s release command has always been:
+
+```
+release_command = "sh -c 'cd node_modules/@brandfactory/db && node scripts/migrate.mjs'"
+```
+
+`scripts/migrate.mjs` **has never existed here** — which is exactly why releases
+v7 (2026-05-18) and v8 (2026-07-20) failed and both machines stayed pinned to
+the v5 image from 2026-05-07. Upstream's `0.8.1` diagnosed that failure
+correctly, then committed the fix to the repo that isn't deployed. Merging is
+what actually repairs the release path.
+
+Upstream `0.8.1` also claimed the deploy files "were in no checkout and nowhere
+in git history." They were here all along, in `1.0.0`. Its `fly.toml` was
+reconstructed from `fly config save`; **this fork's hand-written one is kept**,
+since it carries the operator comments and the "set these before first deploy"
+note that the generated version lost.
+
+### Repo boundary, now explicit
+
+| | Upstream (`philholke`) | This fork |
+| --- | --- | --- |
+| Product code | owns | inherits |
+| `fly.toml`, `Dockerfile`, `.dockerignore`, `vercel.json` | removed | **owns** |
+| `packages/db/scripts/migrate.mjs` | owns (generic migrator) | inherits |
+
+Upstream `0.9.1` stripped the deploy layer from the OSS repo and ported this
+fork's product-code improvements — `ensureUser` auto-provisioning, the pg
+pooler-safety invariant, the single-instance `native-ws` commitment — back
+upstream, so those now flow in both directions cleanly.
+
+### Conflict resolutions
+
+Nine files conflicted. How each was settled, and why:
+
+- **Navigation (`__root`, `brands.$brandId`, `workspaces.*`, `api/queries/brands`)**
+  — upstream's Phase 9 wins. It supersedes this fork's `1.1.0` "projects
+  reachable" work (~155 LOC, +2 tests) with a full redesign: workspace home,
+  brand hub, dropdown switcher, breadcrumbs, landing resolution, rename/delete,
+  +51 tests.
+- **`index.css`** — **this fork's** three-tier token architecture wins. It is
+  the more rigorous of the two (styleguide section references, a complete
+  primitive ramp, dark mode as a pure §16 alias re-point) and its dark surfaces
+  are opaque, which avoids a translucency bug the upstream version shipped.
+- **`components/ui/button.tsx`** — this fork's re-spec (elevation off buttons,
+  `active:` states, 40px controls) with upstream's contrast fix applied on top.
+- **`auth/providers/supabase.tsx`** — this fork's manual code-exchange flow
+  (real error surfacing, `API_BASE` instead of a hardcoded `/api`) with
+  upstream's post-login redirect changed to `/` so Phase 9's landing resolution
+  runs.
+- **`server/src/adapters.ts`** — upstream's wording; the fork's version pointed
+  at `docs/executing/hosted-deployment-plan.md`, which has since moved to
+  `docs/archive/`.
+- **`docs/archive/*`** — this fork's archived phase docs kept; upstream deleted
+  them, which loses history for no gain.
+- **`docs/changelog.md`** — both lineages preserved and interleaved by date. The
+  `0.x` and `1.x` version lines are genuinely parallel history, not a mistake.
+
+### New contrast token
+
+Wiring upstream's destructive-button fix into this fork's palette needed a new
+tier-2 alias, `--color-feedback-error-on`. `--color-text-inverse` is white in
+**both** themes, but dark mode re-points the error surface to a light salmon
+(`#e08a7c`) where white text sits at 2.6:1. The new alias resolves to white in
+light and near-black in dark (6.7:1), re-pointed in the `.dark` block like every
+other tier-2 token, and bridged into `@theme inline` as
+`--color-destructive-foreground`.
+
+### Duplicate font directory removed
+
+Both sides vendored Satoshi — this fork at `public/fonts/Satoshi/`, upstream at
+`public/fonts/satoshi/`. The blobs are byte-identical. Case-only duplicates
+collapse on macOS (case-insensitive) but are two real directories on Linux CI,
+so the capital-S copy is dropped and the `@font-face` rules point at the
+lowercase path.
+
+### Verification
+
+```
+pnpm typecheck                   9/9 workspaces
+pnpm lint                        clean
+pnpm format:check                clean
+pnpm test                        292 (DATABASE_URL set, no skips)
+pnpm -F @brandfactory/web build  ok
+```
+
+---
+
+## 0.9.1 — 2026-07-22
+
+Repository split + upstream reconciliation. No product features.
+
+**This repo is the OSS upstream; deployment lives in a fork.** `fly.toml`,
+`packages/server/Dockerfile` and `.dockerignore` are removed here and now live
+only in the deployment fork (`missiongroupsystems/brandfactory`). This finishes
+what Phase 8 decided when it dropped the deploy half of its plan — opinionated
+deploy templates are a maintenance magnet and belong to whoever operates the
+service, not to the upstream. `packages/db/scripts/migrate.mjs` **stays**: it is
+a plain drizzle migrator any self-hoster needs, not Fly-specific.
+
+**0.8.1's premise was wrong, and it matters.** That entry claimed the deploy
+files "were in no checkout and nowhere in git history". They were — committed in
+the deployment fork as `8f3c6be "v1.0.0 — hosted-deploy baseline"` back in April.
+0.8.1 reconstructed from the live app what already existed in git, and committed
+the fix to the repo that isn't deployed. The fork's `fly.toml` release command
+has always called `packages/db/scripts/migrate.mjs`, a file that has never
+existed in the fork — which is the actual cause of the failed v7 (May 18) and
+v8 (Jul 20) releases. Reconciling the two repos is what fixes it.
+
+**Ported from the fork** (product code that never made it upstream; none of it
+conflicted — this repo had not touched these files since Phase 8):
+
+- **Supabase auto-provisioning.** `upsertUserById` in `@brandfactory/db` plus an
+  `ensureUser` seam in the Supabase auth adapter: on first verify per process
+  per `sub`, insert the `public.users` row so downstream FKs resolve. Dedup via
+  a process-level `Set`, `onConflictDoNothing` on the primary key, skipped when
+  the JWT carries no email claim, and failures are logged rather than thrown so
+  a DB hiccup cannot turn every authed request into a 401. +4 tests.
+- **pg pooler-safety invariant** documented in `packages/db/src/client.ts`: no
+  server-side prepared statements, no `pg-native` — both break Supabase
+  PgBouncer transaction-mode pooling.
+- **Single-instance `native-ws` commitment** documented in
+  `packages/server/src/adapters.ts`: the bus is in-process, so running more than
+  one instance silently drops cross-instance canvas-op fan-out. Horizontal scale
+  needs a second `RealtimeAdapter` branch first.
+
+### Timestamps on the wire were never ISO 8601
+
+Found by the live-DB query tests added in 0.9.0 the first time they ran against
+a real Postgres.
+
+Every timestamp column is `mode: 'string'`, and drizzle's string mode passes the
+driver value through **verbatim** — so the API has been emitting Postgres' own
+text format, `2026-07-22 07:57:59.635905+00`, while every schema in
+`@brandfactory/shared` declares `z.iso.datetime()`. The contract has been wrong
+since Phase 2.
+
+It stayed invisible because no route parses its own response and V8's
+`new Date()` accepts the Postgres format, so the frontend worked. Any stricter
+consumer — a generated client, a non-JS caller, `z.iso.datetime()` at a trust
+boundary — would have broken.
+
+Normalised in `mappers.ts`, which this package already treats as its read-side
+trust boundary. **Not** fixable at the driver: registering a `pg` type parser
+has no effect because drizzle supplies its own `types.getTypeParser` in every
+query config and that override wins — verified empirically before settling on
+the mapper seam. Sub-millisecond precision is dropped, inherent to
+ISO-8601-with-milliseconds.
+
+Guarded by three pure unit tests (Postgres format → ISO, ISO passes through
+unchanged, nullable `pinnedAt` / `deletedAt` stay null) so the regression is
+caught without a database.
+
+Test count 285 → **292 (+7)**: +4 Supabase auto-provisioning, +3 timestamp
+normalisation. With `DATABASE_URL` set, all 292 run and pass — no skips.
+
+Not ported: the fork's `tsx` move from `devDependencies` to `dependencies`
+(deploy-motivated — belongs with the deploy layer), and its independent
+implementations of projects-reachability and the Mission Systems visual pass,
+both of which 0.9.0 supersedes.
+
+---
+
+## 0.9.0 — 2026-07-22
+
+The first release that makes the product reachable. Phases 5–7 built a
+split-screen agent canvas that, as of 0.8.1, could only be opened by pasting a
+UUID into the URL bar: `useBrandProjects` existed and was never called, nothing
+linked to `/projects/$projectId`, and there was no "New project" affordance
+anywhere. Workspaces were represented twice (a nav picker *and* a full-page
+grid) with the picker reading `localStorage` rather than the route, so it could
+name a different workspace than the page you were on. Phase 9 fixes all three.
+
+After this release: log in → land in a workspace → see brands with real signal
+and recent work across all of them → one click into a project canvas.
+
+Full plan in `docs/executing/phase-9-navigation-redesign.md`; per-phase notes in
+`docs/completions/phase-9{a…h}.md`.
+
+Test count 234 → **285 (+51)**. Locally 279 pass with 6 skipped (live-DB); CI
+runs all 285 against its Postgres service container.
+
+### Phases A–C — contracts, queries, routes
+
+`BrandSummary` (brand row + section/project counts) and `ProjectSummary`
+(project row + `brandName` + `lastActivityAt`) join the shared package, plus
+three `Update*Input` schemas. The old `pick`-only `BrandSummarySchema` was
+unused monorepo-wide and is replaced.
+
+**`lastActivityAt` is computed server-side** (decision D1). `projects.updatedAt`
+only moves when the row itself changes, so ordering by it would surface creation
+order under an "updated" label. Instead: `greatest()` of `projects.updated_at`,
+the newest `agent_messages.created_at`, and the newest `canvas_events.created_at`
+for the project's canvas — correlated subqueries so neither activity table can
+fan out the result set. `count(distinct …)::int` on the brand counts, because
+bare `count()` is `bigint` and node-pg returns it as a string.
+
+New HTTP surface: `GET /workspaces/:id/brands` widened to `BrandSummary[]`;
+`GET /workspaces/:id/projects?limit=` added for the workspace-spanning strip.
+
+### Phases D–E — the shell and the two screens
+
+- **Workspace switcher** is a `DropdownMenu` deriving "current" from **route
+  params**, falling back to `bf_last_workspace` only when that id still appears
+  in the user's list — the stale-storage bug that would 404 the landing page.
+- **`/` resolves** rather than blindly redirecting: route → last-workspace-if-valid
+  → oldest by `createdAt` → first-run screen. `/workspaces` is now first-run only.
+- **Breadcrumbs** carry the brand/project tail (the workspace lives in the
+  switcher), replacing four hand-rolled `← Back` links.
+- **Workspace home** — brand grid with a muted guideline-completeness meter
+  (deliberately not a report card: no colour, no percentage, no "incomplete"
+  copy, and a brand with zero sections is a legitimate state) plus the recent-work
+  strip.
+- **Brand hub** — identity header, projects grid with `New project`, then the
+  existing guidelines editor relocated unchanged below.
+
+### Phase F — rename and delete
+
+`PATCH` for workspaces, brands and projects; `DELETE` for brands and projects.
+Brand deletion cascades projects → canvases → blocks and requires typed-name
+confirmation with an explicit count of what goes. **Workspace deletion is
+deliberately absent** — it would cascade everything the user owns with no undo
+and no export path, and it is not needed to fix navigation.
+
+### Phase G — Mission Systems visual identity
+
+Self-hosted Satoshi, forest accent, warm neutral surfaces and a semantic
+feedback palette, applied as a three-tier token layer so components keep using
+`bg-card` / `text-muted-foreground` and inherit the identity without a
+class-by-class rewrite. The Phase-7 light/dark/system toggle survives it.
+
+### Phase H — review remediation
+
+A pre-push review of the whole changeset found eleven issues; all are fixed in
+this release. The structural one is worth naming: the two new raw-SQL queries —
+the ones the entire landing page depends on — had **no test anywhere**. Every
+test that touched them ran against an in-memory fake that reimplemented their
+semantics in TypeScript, so the actual SQL had never executed, in CI or locally.
+`packages/db/src/queries.live.test.ts` now exercises them against real Postgres
+under the same `DATABASE_URL` gate as the seed test.
+
+Also fixed: the brand hub rendered `updatedAt` under an "activity" label (the
+exact thing D1 rejected — now sourced from one shared SQL fragment); the
+delete-brand dialog claimed "0 projects" while its cascade count was still
+loading; deleting a brand or project orphaned every uploaded blob in storage
+forever (deletes now sweep them, best-effort, since the rows are already gone);
+`preventDefault()` in menu `onSelect` left a second focus scope alive under
+every rename/delete dialog; dark-mode destructive buttons sat at 2.85:1 because
+`--destructive-foreground` was declared but never bridged into `@theme inline`;
+and a translucent `--surface-hover` had quietly removed the focus indicator on
+menu items and the hover affordance on cards. Cards became real links, so
+Cmd-click opens a project in a new tab. Details in
+`docs/completions/phase-9h-review-remediation.md`.
+
+### Verification
+
+```
+pnpm typecheck                          ✔  9/9 workspaces
+pnpm lint                               ✔  clean
+pnpm format:check                       ✔  clean
+pnpm test                               ✔  279 passed + 6 skipped (285 in CI)
+pnpm -F @brandfactory/web build         ✔
+```
+
+### Known gaps
+
+- The plan's **six-step manual smoke has not been run** — no database or Docker
+  daemon on the machine this shipped from. Step 5 (send an agent message, watch
+  the project jump to the top of Recent work) is the one behaviour no unit test
+  proves end to end; the query beneath it is now covered, the loop is not.
+- **Phase G3's Playwright visual check has not been run.** The dark-mode
+  contrast defects fixed in Phase H are exactly what it would have caught.
+- Standardized project templates remain out of scope — `templateId` is still a
+  bare string with no registry. Project creation is freeform-only.
+
+---
+
+## 0.8.1 — 2026-07-22
+
+Ops patch, no feature surface and no app-code changes (test count stays **234**). The Fly app `brandfactory` (org `ebb-amp-flow-group`, region `sin`) had been deployed from files that only ever existed untracked on one teammate's machine — `fly.toml`, `packages/server/Dockerfile`, and the `migrate.mjs` the release command calls were in no checkout and nowhere in git history. Releases v7 (May 18) and v8 (Jul 20) failed, leaving both machines pinned to the v5 image from **May 7** — pre-dating everything in 0.7.x/0.8.0 that shipped since. This patch commits the full deploy recipe so `git clone` + `fly deploy` from the repo root works for anyone in the Fly org, and redeploys prod. (Distinct from the self-host deploy story Phase 8 dropped — this is the minimal recipe for *our* Fly app, not opinionated self-hoster templates.)
+
+### `fly.toml` — recovered, not written
+
+Recovered verbatim from the live app via `fly config save -a brandfactory`, so it can't drift from what production actually runs: `sin` region, one `shared-cpu-1x:512MB` VM group, internal port 3001, `/health` HTTP checks every 15 s, `kill_signal = 'SIGINT'`, and the release command `cd node_modules/@brandfactory/db && node scripts/migrate.mjs`. Non-secret env (`AUTH_PROVIDER=supabase`, `LLM_PROVIDER=openrouter`, `REALTIME_PROVIDER=native-ws`, `STORAGE_PROVIDER=supabase`, …) lives here; the 17 secrets (`DATABASE_URL`, `SUPABASE_*`, `OPENROUTER_API_KEY`, …) stay on the app via `fly secrets`, so no local `.env` is ever needed to deploy.
+
+### `packages/server/Dockerfile` — reconstructed
+
+The build context is the repo root (`[build] dockerfile = 'packages/server/Dockerfile'` in `fly.toml`). Decisions, and why:
+
+- **`node:22-slim` + corepack.** `engines` says `>=20.11`; Node 22 LTS still ships corepack, which reads the root `packageManager: pnpm@10.28.2` pin — no pnpm version duplicated in the Dockerfile. `COREPACK_ENABLE_DOWNLOAD_PROMPT=0` keeps the non-interactive build from hanging on corepack's download prompt.
+- **No build step — tsx at runtime.** `@brandfactory/server`'s `start` script is `tsx src/main.ts`; workspace deps all point `main` at `./src/index.ts`. The image mirrors that: copy sources, install, run tsx. tsx is a devDependency, hence `pnpm install --prod=false`.
+- **Filtered install.** `--filter '@brandfactory/server...'` installs the server plus its workspace dependency closure only — `@brandfactory/web`'s React/Vite tree stays out of the image. `--frozen-lockfile` still needs every workspace `package.json` present (all importers must match the lockfile), which is why `.dockerignore` does **not** exclude `packages/web`.
+- **pnpm store as a BuildKit cache mount** (`--mount=type=cache,id=pnpm-store,target=/pnpm/store`) — Fly's depot builders persist BuildKit cache across builds, so repeat deploys skip re-downloading packages even though `COPY . .` invalidates the install layer.
+- **Final `WORKDIR /app/packages/server`** does double duty: tsx resolves `src/main.ts` from there, and the release command's *relative* `node_modules/@brandfactory/db` resolves through pnpm's workspace symlink to `/app/packages/db`.
+- **`CMD ["./node_modules/.bin/tsx", "src/main.ts"]`** — exec'd directly, no `pnpm start` wrapper, so the node process is PID 1 and receives Fly's `SIGINT` itself; `main.ts` already handles SIGINT/SIGTERM graceful shutdown (WS close → HTTP close → pool end).
+
+### `packages/db/scripts/migrate.mjs` — the missing release script
+
+The root cause of the failed releases: the release command has always pointed at `node_modules/@brandfactory/db/scripts/migrate.mjs`, but `packages/db/scripts/` only contained `smoke.ts`. Reconstructed as plain-node ESM (the release VM runs `node`, not tsx): `drizzle-orm/node-postgres/migrator` against the `packages/db/drizzle/` folder (resolved via `import.meta.url`, so it works regardless of cwd), a `max: 1` pg Pool torn down in `finally`, hard exit 1 with a clear message when `DATABASE_URL` is unset, and a non-zero exit on any migration failure so a bad release aborts the deploy instead of shipping unmigrated code. Deps (`drizzle-orm`, `pg`) are prod dependencies of `@brandfactory/db`, so the production image always has them.
+
+### Supporting changes
+
+- **Root `.dockerignore`** — new. Keeps `.env*` files out of the image (runtime config comes from Fly secrets — never bake local env files into a published image), plus `.git`, `node_modules`, `docs/`, `assets/`, coverage/dist junk. `!**/.env.example` stays whitelisted.
+- **`eslint.config.js`** — `'**/scripts/*.mjs'` added to the ignores block (alongside the existing `**/*.config.mjs`): the type-aware `projectService` setup has no tsconfig covering plain `.mjs` scripts, so without the ignore `pnpm lint` fails on the new file with a project-service parsing error.
+
+### Verification
+
+```
+pnpm lint                               ✔  clean (incl. new migrate.mjs via ignores)
+pnpm exec prettier --check .            ✔  clean
+node scripts/migrate.mjs (no DB URL)    ✔  imports resolve, clean "DATABASE_URL is required" exit 1
+fly deploy                              ✔  release v9 complete — first successful release since v5 (May 7)
+  image                                    114 MB, filtered install: 8 of 10 workspace projects (web excluded)
+  release_command (migrate.mjs)         ✔  completed successfully against prod DB
+  rolling update                        ✔  both machines healthy on the new image, checks 1/1
+  GET https://brandfactory.fly.dev/health  200
+```
+
+Note: the Docker build was never run locally (no local daemon) — Fly's depot builder was its first and successful exercise.
+
+### Follow-ups
+
+- **CI deploy job** — add a `flyctl deploy` step to `.github/workflows/ci.yml` on push to `main` with a `FLY_API_TOKEN` repo secret (`fly tokens create deploy`), so prod can't drift from `main` again. Deliberately not bundled into this patch.
+- Web frontend deploy story remains out of scope (unchanged from the Phase-8 cut).
 
 ---
 

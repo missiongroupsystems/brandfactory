@@ -1,11 +1,16 @@
-import { CreateWorkspaceInputSchema, WorkspaceIdSchema, type UserId } from '@brandfactory/shared'
+import {
+  CreateWorkspaceInputSchema,
+  UpdateWorkspaceInputSchema,
+  WorkspaceIdSchema,
+  type UserId,
+} from '@brandfactory/shared'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireWorkspaceAccess } from '../authz'
 import type { AppEnv } from '../context'
 import type { Db } from '../db'
-import { UnauthorizedError } from '../errors'
+import { NotFoundError, UnauthorizedError } from '../errors'
 
 export interface WorkspacesDeps {
   db: Db
@@ -35,4 +40,19 @@ export function createWorkspacesRouter(deps: WorkspacesDeps) {
       const workspace = await requireWorkspaceAccess(userId, id, deps.db)
       return c.json(workspace)
     })
+    .patch(
+      '/:id',
+      zValidator('param', IdParam),
+      zValidator('json', UpdateWorkspaceInputSchema),
+      async (c) => {
+        const userId = c.var.userId
+        if (!userId) throw new UnauthorizedError()
+        const { id } = c.req.valid('param')
+        await requireWorkspaceAccess(userId, id, deps.db)
+        const body = c.req.valid('json')
+        const row = await deps.db.updateWorkspace(id, body)
+        if (!row) throw new NotFoundError('workspace not found', 'WORKSPACE_NOT_FOUND')
+        return c.json(row)
+      },
+    )
 }

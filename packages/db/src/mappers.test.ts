@@ -3,10 +3,12 @@ import type { ProseMirrorDoc } from '@brandfactory/shared'
 import {
   rowToAgentMessage,
   rowToBrand,
+  rowToBrandSummary,
   rowToCanvas,
   rowToCanvasBlock,
   rowToGuidelineSection,
   rowToProject,
+  rowToProjectSummary,
   rowToWorkspace,
 } from './mappers'
 
@@ -41,6 +43,42 @@ describe('mappers — happy paths', () => {
     }
     const b = rowToBrand(row)
     expect(b.description).toBeNull()
+  })
+
+  it('rowToBrandSummary attaches section and project counts', () => {
+    const row = {
+      id: 'b-1',
+      workspaceId: 'ws-1',
+      name: 'Brand',
+      description: null,
+      createdAt: TS,
+      updatedAt: TS,
+      sectionCount: 3,
+      projectCount: 1,
+    }
+    expect(rowToBrandSummary(row)).toMatchObject({
+      id: 'b-1',
+      sectionCount: 3,
+      projectCount: 1,
+    })
+  })
+
+  it('rowToProjectSummary normalizes Date lastActivityAt to ISO string', () => {
+    const when = new Date('2026-04-20T12:00:00.000Z')
+    const summary = rowToProjectSummary({
+      id: 'p-1',
+      brandId: 'b-1',
+      kind: 'freeform',
+      templateId: null,
+      name: 'Proj',
+      createdAt: TS,
+      updatedAt: TS,
+      brandName: 'Acme',
+      lastActivityAt: when,
+    })
+    expect(summary.brandName).toBe('Acme')
+    expect(summary.lastActivityAt).toBe('2026-04-20T12:00:00.000Z')
+    expect(summary.kind).toBe('freeform')
   })
 
   it('rowToCanvas passes through', () => {
@@ -246,5 +284,66 @@ describe('mappers — data-integrity failures fail loud', () => {
       mime: 'application/pdf',
     }
     expect(() => rowToCanvasBlock(row)).toThrow(/missing filename/)
+  })
+})
+
+// Regression guard for the timestamp-format bug: Postgres hands back its own
+// text format, not ISO 8601, and drizzle's `mode: 'string'` passes it through
+// untouched. Every wire schema declares `z.iso.datetime()`, so mappers must
+// normalise. Kept as a pure unit test — the live-DB suite that first caught
+// this only runs when DATABASE_URL is set.
+describe('mappers — timestamp normalisation', () => {
+  const PG = '2026-07-22 07:57:59.635905+00'
+  const ISO = '2026-07-22T07:57:59.635Z'
+
+  it('converts Postgres text-format timestamps to ISO 8601', () => {
+    const ws = rowToWorkspace({
+      id: 'ws-1',
+      name: 'Acme',
+      ownerUserId: 'u-1',
+      createdAt: PG,
+      updatedAt: PG,
+    })
+    expect(ws.createdAt).toBe(ISO)
+    expect(ws.updatedAt).toBe(ISO)
+  })
+
+  it('leaves already-ISO values unchanged', () => {
+    const b = rowToBrand({
+      id: 'b-1',
+      workspaceId: 'ws-1',
+      name: 'Acme',
+      description: null,
+      createdAt: ISO,
+      updatedAt: ISO,
+    })
+    expect(b.createdAt).toBe(ISO)
+  })
+
+  it('normalises nullable pinnedAt / deletedAt without turning null into a date', () => {
+    const base = {
+      id: 'cb-1',
+      canvasId: 'c-1',
+      kind: 'text' as const,
+      body: TEXT_DOC,
+      blobKey: null,
+      alt: null,
+      width: null,
+      height: null,
+      filename: null,
+      mime: null,
+      position: 1000,
+      isPinned: true,
+      createdBy: 'user' as const,
+      createdAt: PG,
+      updatedAt: PG,
+    }
+    const pinned = rowToCanvasBlock({ ...base, pinnedAt: PG, deletedAt: null })
+    expect(pinned.pinnedAt).toBe(ISO)
+    expect(pinned.deletedAt).toBeNull()
+
+    const deleted = rowToCanvasBlock({ ...base, pinnedAt: null, deletedAt: PG })
+    expect(deleted.pinnedAt).toBeNull()
+    expect(deleted.deletedAt).toBe(ISO)
   })
 })
