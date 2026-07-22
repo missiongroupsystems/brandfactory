@@ -62,8 +62,7 @@ export function buildAdapters(env: Env): Adapters {
   // silently drops cross-instance fan-out: a canvas-op published on
   // Machine A never reaches a subscriber on Machine B. Deploys that need
   // horizontal scale must land a second `RealtimeAdapter` branch first
-  // (Supabase Realtime / Redis pub-sub / etc.) — see
-  // docs/executing/hosted-deployment-plan.md Question 3.
+  // (Supabase Realtime / Redis pub-sub / etc.).
   const realtime: RealtimeAdapter = { provider: 'native-ws', bus: createNativeWsRealtimeBus() }
 
   const llmConfig: LLMProviderConfig = {}

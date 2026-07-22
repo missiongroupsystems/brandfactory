@@ -2,19 +2,23 @@ import {
   BrandIdSchema,
   CreateBrandInputSchema,
   UpdateBrandGuidelinesInputSchema,
+  UpdateBrandInputSchema,
   WorkspaceIdSchema,
   type BrandWithSections,
 } from '@brandfactory/shared'
+import type { BlobStore } from '@brandfactory/adapter-storage'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireBrandAccess, requireWorkspaceAccess } from '../authz'
+import { sweepBlobs } from '../blob-sweep'
 import type { AppEnv } from '../context'
 import type { Db } from '../db'
-import { UnauthorizedError } from '../errors'
+import { NotFoundError, UnauthorizedError } from '../errors'
 
 export interface BrandsDeps {
   db: Db
+  storage: BlobStore
 }
 
 // Two mounted shapes — workspace-scoped list/create and brand-scoped
@@ -29,7 +33,8 @@ export function createWorkspaceBrandsRouter(deps: BrandsDeps) {
       if (!userId) throw new UnauthorizedError()
       const { workspaceId } = c.req.valid('param')
       await requireWorkspaceAccess(userId, workspaceId, deps.db)
-      const rows = await deps.db.listBrandsByWorkspace(workspaceId)
+      // BrandSummary: brand row + section/project counts for the workspace home.
+      const rows = await deps.db.listBrandSummariesByWorkspace(workspaceId)
       return c.json(rows)
     })
     .post(
@@ -64,6 +69,34 @@ export function createBrandsRouter(deps: BrandsDeps) {
       const sections = await deps.db.listSectionsByBrand(id)
       const body: BrandWithSections = { ...brand, sections }
       return c.json(body)
+    })
+    .patch(
+      '/:id',
+      zValidator('param', BrandParam),
+      zValidator('json', UpdateBrandInputSchema),
+      async (c) => {
+        const userId = c.var.userId
+        if (!userId) throw new UnauthorizedError()
+        const { id } = c.req.valid('param')
+        await requireBrandAccess(userId, id, deps.db)
+        const body = c.req.valid('json')
+        const row = await deps.db.updateBrand(id, body)
+        if (!row) throw new NotFoundError('brand not found', 'BRAND_NOT_FOUND')
+        return c.json(row)
+      },
+    )
+    .delete('/:id', zValidator('param', BrandParam), async (c) => {
+      const userId = c.var.userId
+      if (!userId) throw new UnauthorizedError()
+      const { id } = c.req.valid('param')
+      await requireBrandAccess(userId, id, deps.db)
+      // Read the blob keys first — the row cascade destroys the only pointer.
+      const blobKeys = await deps.db.listBlobKeysByBrand(id)
+      // Cascades projects → canvases → blocks / messages via FK onDelete.
+      const row = await deps.db.deleteBrand(id)
+      if (!row) throw new NotFoundError('brand not found', 'BRAND_NOT_FOUND')
+      await sweepBlobs(deps.storage, blobKeys, c.var.log, { resource: 'brand', id })
+      return c.json(row)
     })
     .patch(
       '/:id/guidelines',

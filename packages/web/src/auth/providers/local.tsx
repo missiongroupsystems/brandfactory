@@ -32,7 +32,7 @@ export function LocalAuthProvider() {
       }
       const data = (await res.json()) as MeResponse
       setAuth(token.trim(), data.id)
-      await navigate({ to: '/workspaces' })
+      await navigate({ to: '/' })
     } catch {
       setError('Network error — is the server running?')
     } finally {

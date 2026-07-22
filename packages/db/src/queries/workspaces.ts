@@ -1,5 +1,5 @@
 import type { UserId, Workspace, WorkspaceId } from '@brandfactory/shared'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { db } from '../client'
 import { rowToWorkspace } from '../mappers'
 import { workspaces } from '../schema'
@@ -24,4 +24,16 @@ export async function createWorkspace(input: {
     .returning()
   if (!row) throw new Error('createWorkspace returned no row')
   return rowToWorkspace(row)
+}
+
+export async function updateWorkspace(
+  id: WorkspaceId,
+  input: { name: string },
+): Promise<Workspace | null> {
+  const [row] = await db
+    .update(workspaces)
+    .set({ name: input.name, updatedAt: sql`now()` })
+    .where(eq(workspaces.id, id))
+    .returning()
+  return row ? rowToWorkspace(row) : null
 }
