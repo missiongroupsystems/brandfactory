@@ -1,6 +1,6 @@
+import './load-env'
 import { serve } from '@hono/node-server'
 import { pool } from '@brandfactory/db'
-import 'dotenv/config'
 import type { Server as HttpServer } from 'node:http'
 import { buildAdapters } from './adapters'
 import { createAgentConcurrencyGuard } from './agent/concurrency'

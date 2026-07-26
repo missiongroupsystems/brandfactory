@@ -13,6 +13,12 @@ import { Link } from '@tanstack/react-router'
 export type BreadcrumbTrail = {
   brand?: { id: string; name: string }
   project?: { id: string; name: string }
+  /**
+   * Non-project leaf under a brand — a mini-app category, which has no entity
+   * of its own. Rendered exactly like a project crumb; ignored when `project`
+   * is set, since a project is always the deeper crumb.
+   */
+  leaf?: { name: string }
 }
 
 type BreadcrumbContextValue = {
@@ -43,25 +49,28 @@ export function useBreadcrumbTrail(trail: BreadcrumbTrail) {
   const brandName = trail.brand?.name
   const projectId = trail.project?.id
   const projectName = trail.project?.name
+  const leafName = trail.leaf?.name
 
   useEffect(() => {
     setTrail({
       ...(brandId && brandName ? { brand: { id: brandId, name: brandName } } : {}),
       ...(projectId && projectName ? { project: { id: projectId, name: projectName } } : {}),
+      ...(leafName ? { leaf: { name: leafName } } : {}),
     })
     return () => setTrail({})
-  }, [setTrail, brandId, brandName, projectId, projectName])
+  }, [setTrail, brandId, brandName, projectId, projectName, leafName])
 }
 
 export function Breadcrumbs() {
   const ctx = useContext(BreadcrumbContext)
   if (!ctx) return null
-  const { brand, project } = ctx.trail
+  const { brand, project, leaf } = ctx.trail
   if (!brand) return null
+  const tail = project?.name ?? leaf?.name
 
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
-      {project ? (
+      {tail ? (
         <>
           <Link
             to="/brands/$brandId"
@@ -71,7 +80,7 @@ export function Breadcrumbs() {
             {brand.name}
           </Link>
           <span className="text-muted-foreground shrink-0">/</span>
-          <span className="truncate font-medium">{project.name}</span>
+          <span className="truncate font-medium">{tail}</span>
         </>
       ) : (
         <span className="truncate font-medium">{brand.name}</span>

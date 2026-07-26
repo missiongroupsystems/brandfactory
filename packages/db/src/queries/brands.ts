@@ -8,7 +8,7 @@ import type {
   SectionId,
   WorkspaceId,
 } from '@brandfactory/shared'
-import { and, eq, isNotNull, sql } from 'drizzle-orm'
+import { and, eq, isNotNull, notInArray, sql } from 'drizzle-orm'
 import { db } from '../client'
 import { rowToBrand, rowToBrandSummary, rowToGuidelineSection } from '../mappers'
 import { brands, canvasBlocks, canvases, guidelineSections, projects } from '../schema'
@@ -190,11 +190,20 @@ export interface UpdateBrandGuidelinesSectionInput {
   createdBy: GuidelineSectionCreatedBy
 }
 
+/**
+ * Replaces a brand's guideline sections with `sections`, which is the complete
+ * desired state — not a partial patch. Rows carrying an `id` are updated in
+ * place, rows without one are inserted, and **any row the payload omits is
+ * deleted**: removing a section in the editor is only a removal if it survives
+ * the round trip. The sole caller is `PATCH /brands/:id/guidelines`, which
+ * forwards the editor's full list.
+ */
 export async function updateBrandGuidelines(
   brandId: BrandId,
   sections: UpdateBrandGuidelinesSectionInput[],
 ): Promise<BrandGuidelineSection[]> {
   return db.transaction(async (tx) => {
+    const keptIds: SectionId[] = []
     for (const section of sections) {
       if (section.id) {
         const [row] = await tx
@@ -211,6 +220,9 @@ export async function updateBrandGuidelines(
         if (!row) {
           throw new Error(`Section ${section.id} not found in brand ${brandId}`)
         }
+        // `section.id` rather than `row.id`: same value (the update matched on
+        // it) and already branded, so no cast.
+        keptIds.push(section.id)
       } else {
         const [row] = await tx
           .insert(guidelineSections)
@@ -223,8 +235,23 @@ export async function updateBrandGuidelines(
           })
           .returning({ id: guidelineSections.id })
         if (!row) throw new Error('updateBrandGuidelines: insert returned no row')
+        keptIds.push(row.id as SectionId) // same idiom as `rowToGuidelineSection`
       }
     }
+
+    // Sections the payload dropped were removed in the editor. Without this the
+    // upsert loop above is write-only: the section stays in the table, comes
+    // back in the select below, and the editor's own success handler reseeds it
+    // straight back into the form. `notInArray` on an empty list is invalid
+    // SQL, so an empty payload clears the brand outright.
+    await tx
+      .delete(guidelineSections)
+      .where(
+        keptIds.length > 0
+          ? and(eq(guidelineSections.brandId, brandId), notInArray(guidelineSections.id, keptIds))
+          : eq(guidelineSections.brandId, brandId),
+      )
+
     const rows = await tx
       .select()
       .from(guidelineSections)

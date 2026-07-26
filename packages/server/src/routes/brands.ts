@@ -108,9 +108,10 @@ export function createBrandsRouter(deps: BrandsDeps) {
         const { id } = c.req.valid('param')
         await requireBrandAccess(userId, id, deps.db)
         const body = c.req.valid('json')
-        // Single-tx upsert + reorder lives in `@brandfactory/db` so a
-        // mid-list failure rolls back instead of leaving the brand half
-        // updated.
+        // The payload is the brand's COMPLETE section list, not a patch: the
+        // single-tx upsert + reorder + delete-omitted lives in
+        // `@brandfactory/db` so a mid-list failure rolls back instead of
+        // leaving the brand half updated.
         const sections = await deps.db.updateBrandGuidelines(
           id,
           body.sections.map((s) => ({

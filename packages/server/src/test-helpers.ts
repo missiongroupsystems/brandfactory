@@ -226,6 +226,9 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         .sort((a, b) => a.priority - b.priority)
     },
     async updateBrandGuidelines(brandId, sections) {
+      // Mirrors the real query: the payload is the complete desired state, so
+      // sections it omits are deleted (see `keptIds` in db/queries/brands.ts).
+      const keptIds = new Set<string>()
       for (const section of sections) {
         if (section.id) {
           const existing = state.sections.get(section.id)
@@ -240,6 +243,7 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
             createdBy: section.createdBy,
             updatedAt: NOW,
           })
+          keptIds.add(section.id)
         } else {
           const id = nextId('sec') as BrandGuidelineSection['id']
           state.sections.set(id, {
@@ -252,6 +256,12 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
             createdAt: NOW,
             updatedAt: NOW,
           })
+          keptIds.add(id)
+        }
+      }
+      for (const existing of [...state.sections.values()]) {
+        if (existing.brandId === brandId && !keptIds.has(existing.id)) {
+          state.sections.delete(existing.id)
         }
       }
       return [...state.sections.values()]

@@ -17,14 +17,22 @@ export const projectKeys = {
   shortlist: (id: string) => ['projects', id, 'shortlist'] as const,
 }
 
-/** Freeform-only create for Phase 9. Invalidates brand + workspace project lists. */
+/**
+ * Create a project under a brand. Omit `templateId` for a freeform thread;
+ * pass it to create a standardized (mini-app) thread. Invalidates brand +
+ * workspace project lists.
+ */
 export function useCreateProject(brandId: string, workspaceId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async ({ name, templateId }: { name: string; templateId?: string }) => {
+      const json =
+        templateId !== undefined
+          ? ({ kind: 'standardized', name, templateId } as const)
+          : ({ kind: 'freeform', name } as const)
       const res = await api.brands[':brandId'].projects.$post({
         param: { brandId },
-        json: { kind: 'freeform', name },
+        json,
       })
       return callJson<Project>(res)
     },

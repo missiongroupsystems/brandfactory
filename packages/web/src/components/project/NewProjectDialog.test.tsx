@@ -43,9 +43,11 @@ describe('NewProjectDialog', () => {
   })
 
   it('navigates to the new project on success', async () => {
-    mutate.mockImplementation((_name: string, opts: { onSuccess: (p: { id: string }) => void }) => {
-      opts.onSuccess({ id: 'p-new' })
-    })
+    mutate.mockImplementation(
+      (_arg: { name: string }, opts: { onSuccess: (p: { id: string }) => void }) => {
+        opts.onSuccess({ id: 'p-new' })
+      },
+    )
     const user = userEvent.setup()
     render(
       <NewProjectDialog brandId="b-1" workspaceId="ws-1" open onOpenChange={() => undefined} />,
@@ -54,7 +56,7 @@ describe('NewProjectDialog', () => {
     await user.type(screen.getByLabelText('Name'), 'Campaign')
     await user.click(screen.getByRole('button', { name: 'Create' }))
 
-    expect(mutate).toHaveBeenCalledWith('Campaign', expect.any(Object))
+    expect(mutate).toHaveBeenCalledWith({ name: 'Campaign' }, expect.any(Object))
     await waitFor(() => {
       expect(navigate).toHaveBeenCalledWith({
         to: '/projects/$projectId',
@@ -63,8 +65,36 @@ describe('NewProjectDialog', () => {
     })
   })
 
+  it('tags the create with a templateId when a mini-app supplies one', async () => {
+    mutate.mockImplementation(
+      (_arg: { name: string }, opts: { onSuccess: (p: { id: string }) => void }) => {
+        opts.onSuccess({ id: 'p-new' })
+      },
+    )
+    const user = userEvent.setup()
+    render(
+      <NewProjectDialog
+        brandId="b-1"
+        workspaceId="ws-1"
+        templateId="copywriting"
+        title="New thread"
+        open
+        onOpenChange={() => undefined}
+      />,
+    )
+
+    expect(screen.getByText('New thread')).toBeTruthy()
+    await user.type(screen.getByLabelText('Name'), 'Taglines')
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(mutate).toHaveBeenCalledWith(
+      { name: 'Taglines', templateId: 'copywriting' },
+      expect.any(Object),
+    )
+  })
+
   it('toasts on error', async () => {
-    mutate.mockImplementation((_name: string, opts: { onError: (e: Error) => void }) => {
+    mutate.mockImplementation((_arg: { name: string }, opts: { onError: (e: Error) => void }) => {
       opts.onError(new Error('boom'))
     })
     const user = userEvent.setup()

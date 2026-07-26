@@ -4,6 +4,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 ## Index
 
+- **1.4.0** — 2026-07-25 — Brand hub mini-apps (Phases A–J): the brand page becomes a **hub** — an ambient, collapsible **brand context bar** (guidelines demoted from a full-page editor to one-click-away editing) over a **Workspace grid of mini-app tiles** (Copywriting + Open canvas live; Visual identity + Social calendar as inert "Soon" tiles), each tile opening a category page that lists and creates threads tagged with a `templateId` — the first time the standardized-project path is driven end-to-end from the UI. Unblocked by generalizing `useCreateProject` to `{ name, templateId? }`. Includes a review-remediation pass (I: undeletable guideline sections finally persist, stale context-bar content, blank mini-app page on a failed brand query) and a live-browser polish pass (J: distinct collapsed-rail icons, WCAG-AA contrast on Soon tiles, an orphan-thread catch-all, root `.env` loading). 292 → **332 tests (+40)**, no skips against live Postgres.
 - **1.3.0** — 2026-07-22 — Reconciled with the OSS upstream (`philholke/brandfactory`): takes upstream's 0.8.1→0.9.1 line (Phase 9 navigation redesign, live-DB query coverage, ISO-timestamp fix, blob cleanup on delete) and keeps this fork's deploy layer + design-system re-spec. Restores the missing `migrate.mjs` that broke releases v7/v8. **292 tests.**
 - **0.9.1** — 2026-07-22 — Repo split: deployment specifics (`fly.toml`, `Dockerfile`, `.dockerignore`) move out of this OSS upstream into the deployment fork; Supabase auto-provisioning (`ensureUser`), pg pooler-safety and single-instance `native-ws` invariants ported upstream from that fork. Fixes API timestamps never having been ISO 8601 despite every schema declaring it. Documents why releases v7/v8 failed. 285 → **292 tests (+7)**.
 - **0.9.0** — 2026-07-22 — Navigation redesign: workspace home with brand grid + recent-work strip, brand hub with reachable projects, dropdown workspace switcher + breadcrumbs, smart `/` landing, rename/delete for brands and projects, Mission Systems visual identity — plus a review-remediation pass (9H) covering live-DB query coverage, blob cleanup on delete, and dark-mode contrast. 234 → **285 tests (+51)**.
@@ -26,6 +27,163 @@ Latest releases at the top. Each version has a one-line entry in the index below
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` lands — drizzle schema for 8 tables, singleton pg `Pool`, 18 query helpers, local-dev docker Postgres, and an end-to-end smoke check.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` lands as the single source of truth for domain types and zod schemas, consumed by both `server` and `web`.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture blueprint, scaffolding plan, and Phase 0 repo foundation.
+
+---
+
+## 1.4.0 — 2026-07-25
+
+Brand-page redesign: the brand page stops being an identity header + a thin
+"Projects" strip + a full-page guidelines editor, and becomes a **hub** —
+identity header → ambient **brand context bar** → a **Workspace grid of mini-app
+tiles**. Guidelines move behind an Edit button; threads move behind their
+category. Shipped as ten phases (A–J) that each kept the repo green at their
+boundary. Plan tracked in `docs/executing/brand-hub-mini-apps.md`.
+
+### The model
+
+A **mini-app** is a category of creative work with a purpose-built page. The
+brand hub advertises four as tiles, backed by a declarative `MINI_APPS` registry
+(`components/brand/miniApps.ts`):
+
+| id | title | kind | status |
+| --- | --- | --- | --- |
+| `copywriting` | Copywriting | standardized / `'copywriting'` | **live** |
+| `freeform` | Open canvas | freeform | **live** |
+| `visual` | Visual identity | standardized / `'visual'` | Soon |
+| `social` | Social calendar | standardized / `'social'` | Soon |
+
+Each row carries a `match` predicate classifying which existing threads belong
+to it and a `create` descriptor. "Soon" tiles ship as `enabled: false` rows
+rather than being omitted, so going live later is a one-line flip plus the
+bespoke UI. Threads are created **inside** a mini-app (each knows its own
+`templateId`), so the create dialog never needs a template picker.
+
+### What shipped, by phase
+
+- **A — generalize project creation.** `useCreateProject`'s arg widened from
+  `name: string` to `{ name, templateId? }`; `templateId` present →
+  `kind: 'standardized'`, absent → `kind: 'freeform'` (unchanged). The whole
+  standardized-project path already worked across `shared`/`server`/`db`; the
+  web hook was the sole blocker pinning every create to freeform.
+- **B — registry + icons.** `MINI_APPS` and `iconForSection(label)`, pure data,
+  no consumers. Standardized `match` predicates narrow on `kind` **before**
+  touching `templateId` (it lives only on the standardized union member).
+- **C — extract the editor.** The entire guidelines editor (TipTap section list,
+  dnd-kit reorder, quick-add, `Cmd-S`) moved **verbatim** out of the route into
+  `BrandGuidelinesEditor.tsx`, wrapped in `EditGuidelinesDialog.tsx`, so the
+  Phase E rewrite could be pure orchestration.
+- **D — brand context bar.** `BrandContextBar` — section chips (Phase B icons),
+  a one-instance read-only body panel, collapse to an icon rail, an empty-state
+  invitation, and an Edit hand-off. Guidelines become *present* while you work,
+  not a thing you *do*.
+- **E — rewrite the page as a hub.** Identity header (rename/delete kept
+  verbatim) → context bar → a `MINI_APPS` tile grid with thread counts derived
+  from `useBrandProjects`. Tiles are real `<Link>`s (cmd/middle-click work);
+  counts go silent rather than showing "0" when unknown.
+- **F — mini-app page.** `/brands/$brandId/apps/$appId` lists its category's
+  threads (`useBrandProjects` filtered by `app.match`) and creates new ones with
+  the mini-app's `templateId` — the standardized path Phase A unlocked, now
+  exercised from the UI. Disabled apps render a "Coming soon" panel.
+- **G — tests.** +21: `match` predicates and count derivation over a mixed
+  fixture (partition invariant; unregistered templates stay unclaimed), tile
+  render branches, the route's four states, and the `templateId`-reaches-mutation
+  case. Verified by deliberately mutating two behaviours and confirming failures.
+- **H — verification.** Repo-root gates green (9/9 typecheck, 315 tests). The
+  manual dev-app pass was skipped by request and recorded as outstanding.
+
+Two plan gaps surfaced and were filled rather than worked around: the mini-app
+**route registration had to move from F into E** (TanStack Router types `Link`
+against the registered tree, so E could not compile alone), and the
+**breadcrumb trail gained an explicit `leaf` slot** for a category that has no
+id, instead of misusing the entity `project` slot.
+
+### Review remediation (Phase I)
+
+A pre-push review found two defects in new code, one pre-existing data bug the
+redesign made far more visible, and two smaller inconsistencies — all fixed, and
+the whole suite now runs against a **live Postgres with no skips**:
+
+- **I1** — the context bar showed **stale body content after an edit**: the
+  read-only editor seeds `content` once at mount and the panel keys on section
+  id, but a save returns the *same* ids, so the editor kept the pre-edit text
+  under a new heading. Fixed with an explicit `setContent` sync on `section.body`.
+- **I2** — the mini-app page rendered **blank when the brand query failed** (grid
+  gated on `brand &&`, no `isError`/`isPending` branch). Collapsed the brand and
+  thread queries into one `listPending`/`listError` pair.
+- **I3 (pre-existing)** — **removing a guideline section never persisted.**
+  `updateBrandGuidelines` was upsert-only and returned every row, so the editor
+  reseeded any deleted section straight back. Last touched in Phase 9; surfaced
+  now because the redesign promotes every section to a permanent chip. The
+  transaction now deletes ids the payload dropped (`notInArray`, with an
+  empty-list branch for "clear all"), its full-desired-state contract documented,
+  and the server's in-memory fake updated in lockstep.
+- **I4** — a "Soon" tile counted threads it gave **no way to reach**; the tile
+  now links (and the page lists them) once it holds threads.
+- **I5** — `aria-expanded` with no `aria-controls` referent, wired up.
+
+Coverage 315 → 325 (+10), including a new `guidelines.live.test.ts` (own file so
+it owns the `pg` pool; restores seeded state in `afterAll` so it is re-runnable).
+Mutation-checked: deleting the `tx.delete` failed all four new cases.
+
+### Live-browser polish (Phase J)
+
+The manual pass Phases H and I had deferred finally ran, in a real Chromium
+session (screenshots + measured contrast). Six issues, none correctness bugs:
+
+- **J1** — the **collapsed rail was three identical `FileText` glyphs**:
+  `iconForSection` matched only the five exact suggested labels, so the seed
+  brand's own labels ("Voice", "Audience", "Values") fell through. Added a
+  keyword fallback map (substring, most-specific-first).
+- **J2** — "Soon" tiles **failed WCAG AA** on their description (blanket
+  `opacity-60` dragged 7.7:1 text to 2.89:1). Dropped the opacity; the pill alone
+  now carries the state — and the tile becomes a real link once it holds threads,
+  so the disabled-contrast exemption didn't apply.
+- **J3** — the collapse toggle announced `aria-expanded` for a region that
+  **never hides** (collapse only restyles it). Switched to `aria-pressed`.
+- **J4** — a thread under an **unregistered `templateId` was reachable from
+  nowhere** (server accepts any string; registry matches three). Added
+  `isOrphanThread` and an **"Other threads"** catch-all on the hub. Verified live
+  with a `packaging-2024` thread.
+- **J5** — stale "upsert + reorder" comment on the guidelines route, now
+  reflecting the I3 delete behaviour.
+- **J6 (setup bug)** — the documented root `.env` **was never loaded**:
+  `dotenv/config` reads from `process.cwd()`, which under
+  `pnpm -F @brandfactory/server dev` is the package dir, not the root — a hard
+  env-validation failure that was **almost certainly why the manual pass kept
+  being deferred**. New `load-env.ts` loads the root `.env` first, then a
+  package-local override, without clobbering platform-injected secrets.
+
+Coverage 325 → 332 (+7). The two purely-visual fixes and J6 are verified in the
+browser, not by unit test.
+
+### Standing notes
+
+- **Guidelines save is now destructive** (full-list-is-desired-state, from I3):
+  concurrent two-tab edits are last-write-wins with no undo — a documented v1
+  stance, blast radius contained (single brand-scoped caller, transactional,
+  empty `{}` PATCH rejected 400).
+- **One unexercised claim:** agent output landing as canvas blocks in a
+  copywriting thread needs an `OPENROUTER_API_KEY`, absent in this pass. It
+  exercises the pre-existing `applyAgentEvent` seam the redesign did not touch.
+- **Deferred (non-goals):** a shared `TEMPLATE_ID` constant + DB `CHECK`
+  constraint (J4 is the interim safety net); bespoke Social-calendar UI;
+  per-mini-app agent tuning; inline editing in the context bar.
+
+### Verification
+
+```
+pnpm typecheck                   9/9 workspaces
+pnpm lint                        clean
+pnpm format:check                clean
+pnpm test                        332 (DATABASE_URL set, no skips)
+pnpm build                       all packages ok
+```
+
+Test count 292 → **332 (+40)**: +2 Phase D, +21 Phase G, +10 Phase I, +7
+Phase J. Plus a manual walk in headless Chromium — hub in both themes, context
+bar collapse/read/edit, a Copywriting thread persisting
+`kind: 'standardized', templateId: 'copywriting'`, the orphan catch-all, and
+zero console errors.
 
 ---
 

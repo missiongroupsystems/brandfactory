@@ -1,0 +1,143 @@
+import { createRoute, redirect } from '@tanstack/react-router'
+import { rootRoute } from './__root'
+import { getAuthToken } from '@/auth/store'
+import { useBrand, useBrandProjects } from '@/api/queries/brands'
+import { useBreadcrumbTrail } from '@/components/Breadcrumbs'
+import { miniAppById } from '@/components/brand/miniApps'
+import { NewProjectDialog } from '@/components/project/NewProjectDialog'
+import { ProjectCard } from '@/components/project/ProjectCard'
+import { Button } from '@/components/ui/button'
+
+// ---------------------------------------------------------------------------
+// Mini-app page — a category workspace listing its threads
+// ---------------------------------------------------------------------------
+
+function MiniAppPage() {
+  const { brandId, appId } = miniAppRoute.useParams()
+  const app = miniAppById(appId)
+  const { data: brand, isPending: brandPending, isError: brandError } = useBrand(brandId)
+  const {
+    data: projects,
+    isPending: threadsPending,
+    isError: threadsError,
+  } = useBrandProjects(brandId)
+
+  // Hooks stay unconditional — the unknown-app branch is a render-time return
+  // below. A mini-app has no entity of its own, so it occupies the breadcrumb's
+  // `leaf` slot rather than the project one.
+  useBreadcrumbTrail(
+    brand
+      ? {
+          brand: { id: brand.id, name: brand.name },
+          ...(app ? { leaf: { name: app.title } } : {}),
+        }
+      : {},
+  )
+
+  if (!app) {
+    return (
+      <div className="flex-1 overflow-auto p-6">
+        <h1 className="text-2xl font-semibold">Unknown mini-app</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          No mini-app is registered under &ldquo;{appId}&rdquo;.
+        </p>
+      </div>
+    )
+  }
+
+  const Icon = app.icon
+  // Client-side filtering: the threads endpoint is per-brand, and a brand's
+  // thread count is small enough that a server-side template filter would be
+  // premature (see the plan's non-goals).
+  const threads = projects?.filter(app.match) ?? []
+
+  // ProjectCard needs a `workspaceId`, which only the brand query supplies, so
+  // the list is gated on BOTH queries. Collapsing them into one pending/error
+  // pair is what keeps a failed brand fetch from rendering an empty page with
+  // no explanation — the threads themselves may well have loaded fine.
+  const listPending = brandPending || threadsPending
+  const listError = brandError || threadsError
+
+  return (
+    <div className="flex-1 overflow-auto p-6">
+      <header className="mb-6 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 text-2xl font-semibold">
+            <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+            {app.title}
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{app.description}</p>
+        </div>
+        {app.enabled && brand && (
+          <NewProjectDialog
+            brandId={brand.id}
+            workspaceId={brand.workspaceId}
+            templateId={app.create.kind === 'standardized' ? app.create.templateId : undefined}
+            title="New thread"
+            trigger={<Button size="sm">New thread</Button>}
+          />
+        )}
+      </header>
+
+      {!app.enabled && (
+        <div className="mb-6 rounded-lg border border-dashed bg-card p-6">
+          <p className="text-sm font-medium">Coming soon</p>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+            {app.title} gets a purpose-built surface in a later pass. Until then, Open canvas covers
+            the same ground in a freeform thread.
+          </p>
+        </div>
+      )}
+
+      {listError && (
+        <p className="text-sm text-destructive">
+          {brandError ? 'Failed to load this brand.' : 'Failed to load threads.'}
+        </p>
+      )}
+      {!listError && listPending && (
+        <p className="text-sm text-muted-foreground">Loading threads…</p>
+      )}
+      {!listError &&
+        !listPending &&
+        brand &&
+        (threads.length > 0 ? (
+          <>
+            {/* A not-yet-live mini-app still lists whatever threads exist under
+                its template — the hub tile advertises that count, so the page it
+                points at must not be a dead end. Creating more stays disabled. */}
+            {!app.enabled && (
+              <h2 className="mb-3 text-sm font-medium text-muted-foreground">Existing threads</h2>
+            )}
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+              {threads.map((p) => (
+                <ProjectCard
+                  key={p.id}
+                  id={p.id}
+                  name={p.name}
+                  kind={p.kind}
+                  brandId={brand.id}
+                  workspaceId={brand.workspaceId}
+                  lastActivityAt={p.lastActivityAt}
+                  showBrandName={false}
+                />
+              ))}
+            </div>
+          </>
+        ) : app.enabled ? (
+          <p className="text-sm text-muted-foreground">
+            No threads yet. Start your first {app.title.toLowerCase()} thread — it opens with this
+            brand&apos;s context already loaded.
+          </p>
+        ) : null)}
+    </div>
+  )
+}
+
+export const miniAppRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/brands/$brandId/apps/$appId',
+  beforeLoad: () => {
+    if (!getAuthToken()) throw redirect({ to: '/login' })
+  },
+  component: MiniAppPage,
+})

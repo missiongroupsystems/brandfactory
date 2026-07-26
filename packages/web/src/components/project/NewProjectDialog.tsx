@@ -18,6 +18,13 @@ import { Label } from '@/components/ui/label'
 export interface NewProjectDialogProps {
   brandId: string
   workspaceId: string
+  /**
+   * Omit for a freeform project; pass a mini-app's template id to create a
+   * standardized thread. Threaded straight through to `useCreateProject`.
+   */
+  templateId?: string
+  /** Dialog heading — mini-apps call these "threads", not "projects". */
+  title?: string
   /** Optional controlled open (tests / external triggers). */
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -27,6 +34,8 @@ export interface NewProjectDialogProps {
 export function NewProjectDialog({
   brandId,
   workspaceId,
+  templateId,
+  title = 'New project',
   open: controlledOpen,
   onOpenChange,
   trigger,
@@ -58,7 +67,7 @@ export function NewProjectDialog({
       )}
       <DialogContent aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle>New project</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <form
           id="new-project-form"
@@ -66,19 +75,22 @@ export function NewProjectDialog({
           onSubmit={(e) => {
             e.preventDefault()
             if (!name.trim()) return
-            mutation.mutate(name.trim(), {
-              onSuccess: (project) => {
-                setOpen(false)
-                setName('')
-                void navigate({
-                  to: '/projects/$projectId',
-                  params: { projectId: project.id },
-                })
+            mutation.mutate(
+              { name: name.trim(), ...(templateId !== undefined ? { templateId } : {}) },
+              {
+                onSuccess: (project) => {
+                  setOpen(false)
+                  setName('')
+                  void navigate({
+                    to: '/projects/$projectId',
+                    params: { projectId: project.id },
+                  })
+                },
+                onError: (err) => {
+                  toast.error(err instanceof AppError ? err.message : 'Failed to create project')
+                },
               },
-              onError: (err) => {
-                toast.error(err instanceof AppError ? err.message : 'Failed to create project')
-              },
-            })
+            )
           }}
         >
           <div className="flex flex-col gap-1.5">

@@ -7,6 +7,7 @@ import { workspacesIndexRoute } from '@/routes/workspaces.index'
 import { workspaceDetailRoute } from '@/routes/workspaces.$wsId.index'
 import { workspaceSettingsRoute } from '@/routes/workspaces.$wsId.settings'
 import { brandEditorRoute } from '@/routes/brands.$brandId'
+import { miniAppRoute } from '@/routes/brands.$brandId.apps.$appId'
 import { projectRoute } from '@/routes/projects.$projectId'
 
 const routeTree = rootRoute.addChildren([
@@ -16,6 +17,7 @@ const routeTree = rootRoute.addChildren([
   workspaceDetailRoute,
   workspaceSettingsRoute,
   brandEditorRoute,
+  miniAppRoute,
   projectRoute,
 ])
 
