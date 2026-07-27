@@ -4,6 +4,29 @@ import userEvent from '@testing-library/user-event'
 import type { BrandWithSections } from '@brandfactory/shared'
 import { BrandContextBar } from './BrandContextBar'
 
+// The bar's conversation entry points are real `<Link>`s, which need a router
+// context this component test does not stand up. Same stub the mini-app route
+// test uses: interpolate params into `to` so the href is assertable.
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({
+    children,
+    to,
+    params,
+    ...props
+  }: {
+    children: React.ReactNode
+    to: string
+    params?: Record<string, string>
+  }) => (
+    <a
+      href={Object.entries(params ?? {}).reduce((p, [k, v]) => p.replace(`$${k}`, v), to)}
+      {...props}
+    >
+      {children}
+    </a>
+  ),
+}))
+
 function section(
   id: string,
   label: string,
@@ -42,6 +65,21 @@ describe('BrandContextBar', () => {
     render(<BrandContextBar brand={brand([])} onEdit={onEdit} />)
     await userEvent.click(screen.getByRole('button', { name: 'Add brand context' }))
     expect(onEdit).toHaveBeenCalledOnce()
+  })
+
+  // Two entry points, because the bar has two shapes. A brand that starts as a
+  // rough idea only ever sees the empty state, so the conversation has to be
+  // offered there — that is the intended first-run path.
+  it('offers the conversation from the empty state', () => {
+    render(<BrandContextBar brand={brand([])} onEdit={vi.fn()} />)
+    const link = screen.getByRole('link', { name: '…or talk it through' })
+    expect(link.getAttribute('href')).toBe('/brands/b-1/context')
+  })
+
+  it('offers the conversation beside Edit once sections exist', () => {
+    render(<BrandContextBar brand={brand([section('s-1', 'Voice & tone')])} onEdit={vi.fn()} />)
+    const link = screen.getByRole('link', { name: 'Talk it through' })
+    expect(link.getAttribute('href')).toBe('/brands/b-1/context')
   })
 
   it('chip reveals a read-only body; collapse hides labels; Edit fires', async () => {

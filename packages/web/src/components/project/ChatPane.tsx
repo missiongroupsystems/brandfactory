@@ -4,10 +4,24 @@ import remarkGfm from 'remark-gfm'
 import { Send, Square } from 'lucide-react'
 import type { AgentMessage } from '@brandfactory/shared'
 import { useAgentChat } from '@/agent/useAgentChat'
+import { MessageCapture, type CapturePayload } from '@/components/project/MessageCapture'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-export function ChatPane({ projectId, messages }: { projectId: string; messages: AgentMessage[] }) {
+export interface ChatPaneProps {
+  projectId: string
+  messages: AgentMessage[]
+  /**
+   * Where a captured message goes. Omit when the thread has no capture target,
+   * which suppresses the affordances entirely rather than offering a gesture
+   * that lands nowhere. Today only a brand-context thread supplies one (its
+   * right pane is the guidelines editor); Phase E supplies a dialog-backed
+   * target for every other thread, which is a prop change, not a redesign.
+   */
+  onCapture?: (payload: CapturePayload) => void
+}
+
+export function ChatPane({ projectId, messages, onCapture }: ChatPaneProps) {
   const { status, send, stop } = useAgentChat(projectId)
   const [draft, setDraft] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -47,7 +61,7 @@ export function ChatPane({ projectId, messages }: { projectId: string; messages:
         ) : (
           <div className="flex flex-col gap-3">
             {messages.map((m) => (
-              <MessageBubble key={m.id} message={m} />
+              <MessageBubble key={m.id} message={m} onCapture={onCapture} />
             ))}
             {status === 'streaming' ? (
               <div className="text-xs text-muted-foreground">Thinking…</div>
@@ -93,10 +107,28 @@ export function ChatPane({ projectId, messages }: { projectId: string; messages:
   )
 }
 
-function MessageBubble({ message }: { message: AgentMessage }) {
+function MessageBubble({
+  message,
+  onCapture,
+}: {
+  message: AgentMessage
+  onCapture?: (payload: CapturePayload) => void
+}) {
   const isUser = message.role === 'user'
+  // The assistant flavor of a capture is this element's rendered HTML, which is
+  // why the ref sits on the content div and not the bubble (the bubble's padding
+  // and background are chrome, not content).
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  const capture = onCapture ? (
+    <MessageCapture message={message} contentRef={contentRef} onCapture={onCapture} />
+  ) : null
+
   return (
-    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
+    <div className={cn('group flex items-start gap-1', isUser ? 'justify-end' : 'justify-start')}>
+      {/* The capture controls sit in the gutter on the outside of the bubble, so
+          they never reflow its text. */}
+      {isUser && capture}
       <div
         className={cn(
           'max-w-[85%] rounded-lg px-3 py-2 text-sm',
@@ -106,13 +138,19 @@ function MessageBubble({ message }: { message: AgentMessage }) {
         )}
       >
         {isUser ? (
-          <div className="whitespace-pre-wrap">{message.content}</div>
+          <div ref={contentRef} className="whitespace-pre-wrap">
+            {message.content}
+          </div>
         ) : (
-          <div className="prose prose-sm max-w-none break-words dark:prose-invert [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1">
+          <div
+            ref={contentRef}
+            className="prose prose-sm max-w-none break-words dark:prose-invert [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1"
+          >
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
           </div>
         )}
       </div>
+      {!isUser && capture}
     </div>
   )
 }

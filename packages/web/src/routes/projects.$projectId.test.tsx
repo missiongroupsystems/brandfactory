@@ -1,0 +1,131 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import type { ProjectDetail } from '@brandfactory/shared'
+import { projectRoute } from './projects.$projectId'
+
+const h = vi.hoisted(() => ({
+  detail: { data: undefined as unknown, isLoading: false, error: null as unknown },
+}))
+
+vi.mock('@tanstack/react-router', () => ({
+  createRoute: (opts: Record<string, unknown>) => ({
+    ...opts,
+    useParams: () => ({ projectId: PROJECT_ID }),
+  }),
+  createRootRoute: (opts: Record<string, unknown>) => ({ ...opts }),
+  Outlet: () => null,
+  redirect: vi.fn(),
+  useNavigate: () => vi.fn(),
+  // Nothing under test renders a Link (TopBar is stubbed below); this only
+  // has to exist for the transitive __root import.
+  Link: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+}))
+
+vi.mock('@/api/queries/projects', () => ({
+  useProjectDetail: () => h.detail,
+}))
+
+vi.mock('@/realtime/useProjectStream', () => ({ useProjectStream: () => undefined }))
+vi.mock('@/components/Breadcrumbs', () => ({ useBreadcrumbTrail: () => undefined }))
+
+// The two panes and the surrounding chrome are stubbed to markers: this test is
+// about which pane the route picks, not what either renders. Both real panes
+// pull in TipTap / dnd-kit / mutation hooks that would drown the signal.
+vi.mock('@/components/project/TopBar', () => ({ TopBar: () => <div>top-bar</div> }))
+vi.mock('@/components/project/ChatPane', () => ({ ChatPane: () => <div>chat-pane</div> }))
+vi.mock('@/components/project/SplitScreen', () => ({
+  SplitScreen: ({ left, right }: { left: React.ReactNode; right: React.ReactNode }) => (
+    <div>
+      {left}
+      {right}
+    </div>
+  ),
+}))
+vi.mock('@/components/canvas/CanvasPane', () => ({ CanvasPane: () => <div>canvas-pane</div> }))
+vi.mock('@/components/brand/BrandContextPane', () => ({
+  BrandContextPane: () => <div>brand-context-pane</div>,
+}))
+
+const ProjectPage = (projectRoute as unknown as { component: () => React.ReactElement }).component
+
+const PROJECT_ID = '11111111-1111-4111-8111-111111111111'
+const BRAND_ID = '22222222-2222-4222-8222-222222222222'
+
+function detail(kind: ProjectDetail['kind'], templateId?: string): ProjectDetail {
+  const common = {
+    id: PROJECT_ID as ProjectDetail['id'],
+    brandId: BRAND_ID as ProjectDetail['brandId'],
+    name: 'A thread',
+    createdAt: '2026-07-27T00:00:00.000Z',
+    updatedAt: '2026-07-27T00:00:00.000Z',
+    canvas: {
+      id: '33333333-3333-4333-8333-333333333333' as ProjectDetail['canvas']['id'],
+      projectId: PROJECT_ID as ProjectDetail['canvas']['projectId'],
+      createdAt: '2026-07-27T00:00:00.000Z',
+      updatedAt: '2026-07-27T00:00:00.000Z',
+    },
+    blocks: [],
+    shortlistBlockIds: [],
+    recentMessages: [],
+    brand: {
+      id: BRAND_ID as ProjectDetail['brand']['id'],
+      workspaceId: '44444444-4444-4444-8444-444444444444' as ProjectDetail['brand']['workspaceId'],
+      name: 'Acme',
+      description: null,
+      createdAt: '2026-07-27T00:00:00.000Z',
+      updatedAt: '2026-07-27T00:00:00.000Z',
+      sections: [],
+    },
+  }
+  return kind === 'standardized'
+    ? { ...common, kind: 'standardized', templateId: templateId as string }
+    : { ...common, kind: 'freeform' }
+}
+
+describe('project route right pane', () => {
+  beforeEach(() => {
+    h.detail = { data: undefined, isLoading: false, error: null }
+  })
+
+  it('renders the guidelines pane for a brand-context thread', () => {
+    h.detail = { data: detail('standardized', 'brand-context'), isLoading: false, error: null }
+    render(<ProjectPage />)
+
+    expect(screen.getByText('brand-context-pane')).toBeTruthy()
+    expect(screen.queryByText('canvas-pane')).toBeNull()
+    // The left pane never branches.
+    expect(screen.getByText('chat-pane')).toBeTruthy()
+  })
+
+  it('renders the canvas for a freeform thread', () => {
+    h.detail = { data: detail('freeform'), isLoading: false, error: null }
+    render(<ProjectPage />)
+
+    expect(screen.getByText('canvas-pane')).toBeTruthy()
+    expect(screen.queryByText('brand-context-pane')).toBeNull()
+    expect(screen.getByText('chat-pane')).toBeTruthy()
+  })
+
+  // Narrowing on `kind` alone, or on `templateId` alone, would swallow every
+  // other standardized thread's canvas.
+  it('renders the canvas for a standardized thread under another template', () => {
+    h.detail = { data: detail('standardized', 'copywriting'), isLoading: false, error: null }
+    render(<ProjectPage />)
+
+    expect(screen.getByText('canvas-pane')).toBeTruthy()
+    expect(screen.queryByText('brand-context-pane')).toBeNull()
+  })
+
+  it('renders neither pane while loading or on error', () => {
+    h.detail = { data: undefined, isLoading: true, error: null }
+    const { unmount } = render(<ProjectPage />)
+    expect(screen.getByText('Loading project…')).toBeTruthy()
+    unmount()
+
+    h.detail = { data: undefined, isLoading: false, error: new Error('nope') }
+    render(<ProjectPage />)
+    expect(screen.getByText('nope')).toBeTruthy()
+    expect(screen.queryByText('canvas-pane')).toBeNull()
+    expect(screen.queryByText('brand-context-pane')).toBeNull()
+  })
+})

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { redirect } from '@tanstack/react-router'
 import type { ProjectSummary } from '@brandfactory/shared'
 import { miniAppRoute } from './brands.$brandId.apps.$appId'
 
@@ -43,6 +44,10 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }))
 
+// beforeLoad's auth gate runs before the surface check; a token keeps the
+// redirect under test the only one that can fire.
+vi.mock('@/auth/store', () => ({ getAuthToken: () => 'tok' }))
+
 vi.mock('@/api/queries/brands', () => ({
   useBrand: () => h.brand,
   useBrandProjects: () => ({ data: h.projects, isPending: false, isError: false }),
@@ -59,6 +64,11 @@ vi.mock('@/components/Breadcrumbs', () => ({
 }))
 
 const MiniAppPage = (miniAppRoute as unknown as { component: () => React.ReactElement }).component
+const beforeLoad = (
+  miniAppRoute as unknown as {
+    beforeLoad: (ctx: { params: { brandId: string; appId: string } }) => void
+  }
+).beforeLoad
 
 function base(id: string) {
   return {
@@ -158,5 +168,38 @@ describe('mini-app route', () => {
 
     expect(screen.getByText('Unknown mini-app')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'New thread' })).toBeNull()
+  })
+})
+
+// `miniAppById` resolves by id with no surface check, so without the guard this
+// route would render a second surface for a hidden category's threads.
+describe('mini-app route beforeLoad', () => {
+  beforeEach(() => {
+    vi.mocked(redirect).mockClear()
+  })
+
+  it('redirects a hidden-surface app to the surface it actually lives on', () => {
+    try {
+      beforeLoad({ params: { brandId: 'b-1', appId: 'context' } })
+    } catch {
+      // The real `redirect` return value is thrown, not returned; the mock's is
+      // `undefined`. The call itself is what we assert on.
+    }
+    expect(vi.mocked(redirect)).toHaveBeenCalledWith({
+      to: '/brands/$brandId/context',
+      params: { brandId: 'b-1' },
+    })
+  })
+
+  it('lets a tile app through', () => {
+    beforeLoad({ params: { brandId: 'b-1', appId: 'copywriting' } })
+    expect(vi.mocked(redirect)).not.toHaveBeenCalled()
+  })
+
+  // An id no row claims is not a hidden row — it still belongs to the page's
+  // unknown-app branch, which explains itself rather than bouncing elsewhere.
+  it('leaves an unregistered id to the unknown-app branch', () => {
+    beforeLoad({ params: { brandId: 'b-1', appId: 'nope' } })
+    expect(vi.mocked(redirect)).not.toHaveBeenCalled()
   })
 })

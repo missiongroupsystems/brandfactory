@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { useEditor, EditorContent } from '@tiptap/react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, MessagesSquare } from 'lucide-react'
 import type { BrandGuidelineSection, BrandWithSections } from '@brandfactory/shared'
 import { iconForSection } from '@/components/brand/guidelineIcons'
 import { GuidelineMeter } from '@/components/brand/GuidelineMeter'
@@ -60,6 +61,12 @@ export interface BrandContextBarProps {
  * icon rail but keeps the open panel, so the bar can be shrunk without losing
  * the section being read.
  *
+ * It is also where the brand *conversation* hangs off (rather than the hub's
+ * mini-app grid): typing context and talking it out are the two ways to build
+ * the same thing, so they sit together. Two entry points — an icon beside Edit
+ * once sections exist, and a second CTA on the empty state, which is the
+ * intended first-run path for a brand that starts as a rough idea.
+ *
  * Accent budget: chips and the rail stay neutral (`bg-surface-sunken` /
  * `hover:bg-accent`, selection via `bg-surface-selected`). No brand green here —
  * this bar is ambient context, not a call to action.
@@ -86,9 +93,16 @@ export function BrandContextBar({ brand, onEdit }: BrandContextBarProps) {
             Nothing captured yet. Audience, voice and positioning ride along into every thread.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={onEdit}>
-          Add brand context
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="outline" size="sm" onClick={onEdit}>
+            Add brand context
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/brands/$brandId/context" params={{ brandId: brand.id }}>
+              …or talk it through
+            </Link>
+          </Button>
+        </div>
       </section>
     )
   }
@@ -112,7 +126,19 @@ export function BrandContextBar({ brand, onEdit }: BrandContextBarProps) {
             Brand context
           </button>
           <GuidelineMeter sectionCount={sections.length} />
-          <Button variant="outline" size="sm" className="ml-auto" onClick={onEdit}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto"
+            title="Talk it through"
+            aria-label="Talk it through"
+            asChild
+          >
+            <Link to="/brands/$brandId/context" params={{ brandId: brand.id }}>
+              <MessagesSquare className="size-4" aria-hidden="true" />
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" onClick={onEdit}>
             Edit
           </Button>
         </div>

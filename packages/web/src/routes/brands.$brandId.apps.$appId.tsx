@@ -136,8 +136,17 @@ function MiniAppPage() {
 export const miniAppRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/brands/$brandId/apps/$appId',
-  beforeLoad: () => {
+  beforeLoad: ({ params }) => {
     if (!getAuthToken()) throw redirect({ to: '/login' })
+    // `miniAppById` resolves by id with no surface check, so without this a
+    // hidden row would render a second, unintended surface for its threads
+    // under /apps/ — exactly the "it's a peer tile after all" framing the
+    // hidden surface exists to prevent. Redirect to the row's real home.
+    // An unregistered id still falls through to the unknown-app branch above.
+    const app = miniAppById(params.appId)
+    if (app && app.surface !== 'tile') {
+      throw redirect({ to: '/brands/$brandId/context', params: { brandId: params.brandId } })
+    }
   },
   component: MiniAppPage,
 })

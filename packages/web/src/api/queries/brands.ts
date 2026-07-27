@@ -1,8 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import type {
   Brand,
   BrandGuidelineSection,
   BrandWithSections,
+  ProjectDetail,
   ProjectSummary,
   UpdateBrandGuidelinesInput,
   UpdateBrandInput,
@@ -26,6 +27,49 @@ export function useBrand(id: string) {
   })
 }
 
+// The ['projects'] prefix in the applier below also matches ['projects', id,
+// 'blocks' | 'messages' | 'shortlist'], whose cached data is an array — narrow
+// on shape before spreading, or a guidelines save would quietly replace a block
+// list with an object.
+//
+// The brand-id check below already excludes those (an array has no `.brand`),
+// so the explicit array rejection is belt-and-braces: it is what keeps this
+// honest if the brand check is ever loosened.
+function isProjectDetailOfBrand(value: unknown, brandId: string): value is ProjectDetail {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const brand = (value as ProjectDetail).brand
+  return typeof brand === 'object' && brand !== null && brand.id === brandId
+}
+
+/**
+ * Repoint every cached copy of a brand's guideline sections after a save.
+ *
+ * There are two: `brands/:id` (the brand hub's context bar) and the `brand`
+ * embedded in each `ProjectDetail` (which a brand-context thread's right pane
+ * renders from). Patching only the first leaves the second stale, and the
+ * visible editor would look correct right up until a refetch of the project
+ * detail — React Query's default window-focus refetch will do it — put the
+ * pre-save sections back beside it. That is the 1.4.0 I1 bug class, one layer
+ * out.
+ *
+ * Exported and standalone so the cache contract is testable without standing up
+ * a mutation, the same shape as `applyAgentEvent`.
+ */
+export function applyGuidelinesToCache(
+  queryClient: QueryClient,
+  brandId: string,
+  sections: BrandGuidelineSection[],
+): void {
+  queryClient.setQueryData<BrandWithSections>(brandKeys.detail(brandId), (old) =>
+    old ? { ...old, sections } : old,
+  )
+  // Literal key prefix rather than `projectKeys`: projects.ts already imports
+  // `brandKeys` from here, so importing back would be an import cycle.
+  queryClient.setQueriesData<unknown>({ queryKey: ['projects'] }, (old: unknown) =>
+    isProjectDetailOfBrand(old, brandId) ? { ...old, brand: { ...old.brand, sections } } : old,
+  )
+}
+
 export function useUpdateBrandGuidelines(brandId: string) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -36,11 +80,7 @@ export function useUpdateBrandGuidelines(brandId: string) {
       })
       return callJson<BrandGuidelineSection[]>(res)
     },
-    onSuccess: (sections) => {
-      queryClient.setQueryData<BrandWithSections>(brandKeys.detail(brandId), (old) =>
-        old ? { ...old, sections } : old,
-      )
-    },
+    onSuccess: (sections) => applyGuidelinesToCache(queryClient, brandId, sections),
   })
 }
 

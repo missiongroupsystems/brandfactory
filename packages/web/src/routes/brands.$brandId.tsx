@@ -8,7 +8,7 @@ import { useBrand, useBrandProjects, useDeleteBrand, useUpdateBrand } from '@/ap
 import { useBreadcrumbTrail } from '@/components/Breadcrumbs'
 import { BrandContextBar } from '@/components/brand/BrandContextBar'
 import { EditGuidelinesDialog } from '@/components/brand/EditGuidelinesDialog'
-import { MINI_APPS, isOrphanThread } from '@/components/brand/miniApps'
+import { TILE_APPS, isOrphanThread } from '@/components/brand/miniApps'
 import { MiniAppTile } from '@/components/brand/MiniAppTile'
 import { DeleteBrandDialog } from '@/components/entity/DeleteBrandDialog'
 import { EntityMenu } from '@/components/entity/EntityMenu'
@@ -39,6 +39,8 @@ function BrandHubPage() {
   const countsKnown = !projectsPending && !projectsError && projects !== undefined
   // Threads whose templateId matches no registered mini-app would otherwise be
   // reachable from nowhere; surface them under a catch-all below the tiles.
+  // `isOrphanThread` consults the full registry, so a hidden-surface thread
+  // (brand context) is classified and therefore never lands here.
   const orphanThreads = countsKnown ? projects.filter(isOrphanThread) : []
 
   return (
@@ -75,7 +77,7 @@ function BrandHubPage() {
             )}
 
             <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-              {MINI_APPS.map((app) => (
+              {TILE_APPS.map((app) => (
                 <MiniAppTile
                   key={app.id}
                   app={app}
