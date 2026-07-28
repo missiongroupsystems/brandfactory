@@ -355,6 +355,24 @@
     border-radius: inherit;
   }
 
+  /* The brand monogram (`components/brand/BrandMark.tsx`). The hue arrives as
+     a bare number on `--brand-hue` from the component; lightness and chroma are
+     fixed here so a derived colour can never land outside the palette's range
+     or below AA against its own fill.
+
+     It lives in CSS rather than in Tailwind utilities because the light and
+     dark fills are two different rules over one inline variable, and an inline
+     `style` cannot express a `.dark` variant. */
+  .brand-mark {
+    background-color: oklch(0.93 0.045 var(--brand-hue));
+    color: oklch(0.42 0.13 var(--brand-hue));
+  }
+
+  .dark .brand-mark {
+    background-color: oklch(0.31 0.05 var(--brand-hue));
+    color: oklch(0.85 0.09 var(--brand-hue));
+  }
+
   /* §14 — reduced motion is mandatory, not a nicety */
   @media (prefers-reduced-motion: reduce) {
     *,

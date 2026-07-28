@@ -1,7 +1,21 @@
 # Brand research onboarding — a brand that arrives already knowing something about itself
 
-**Status:** proposal, not yet locked. Open questions for review at the end —
-**Q4 resolved 2026-07-28** (decisions 8 and 9); 1–3 and 5–10 still open.
+**Status:** **locked 2026-07-28.** All ten open questions are resolved; see
+[Resolved questions](#resolved-questions) for each answer and the reason behind
+it. Two were resolved earlier (Q4, 2026-07-28); the remaining eight were
+resolved when the goal was restated — see Context.
+
+> **A note on decision numbering.** This document's decisions are numbered 1–12
+> and are referred to as *"decision N"*. The repo also has a **separate,
+> repo-wide locked-decision register** from the original architecture phase,
+> cited in `packages/server/src/env.ts` (decisions 13, 15) and
+> `packages/db/src/schema/workspace_settings.ts` (decision 9). The two
+> numberings collide — repo-wide decision 9 is *"API keys stay env-only"*, this
+> document's decision 9 is *provenance on the wire*. Every reference here to the
+> repo-wide register says so in full. Decisions 1–9 keep the numbers they had in
+> the proposal draft, deliberately, because decisions 8 and 9 are cited by number
+> throughout this document and will be cited by number in the completions
+> records; renumbering them would silently invalidate those references.
 
 ## Context
 
@@ -20,21 +34,25 @@ the single biggest reason a brand sits at 0% guidelines a week after creation �
 which makes *every* downstream surface (Copywriting, Open canvas, the
 brand-context interview) worse, because they all read the same empty sections.
 
-**The feature:** the New brand dialog grows a small set of optional fields — a
-website URL first among them — and an opt-in **"Research this brand"** toggle.
-Accept it, and a background deep-research job goes and reads the public web, then
-comes back with a cited report and a set of **draft guideline sections**. On a
-brand you have already started writing by hand, you review, edit and save those
-drafts yourself. On a brand still sitting at zero sections — the case this
-feature exists for — they are simply there when you next open it, marked as
-research-written, with an Undo. Decision 8 is why those are different.
+**The goal, stated the way it was actually asked for:** there is a manual loop
+happening today — open Perplexity, run a deep research pass on the brand, read
+the report, copy the useful parts back into the guidelines by hand. This feature
+**is that loop, automated.** Not a research assistant, not a chat surface with
+search: the same deep research run, started for you, landing where you would
+have pasted it.
+
+That framing is load-bearing and it decides several things the proposal draft
+left open — it is why Quick mode is cut (decision 10), why Perplexity is the only
+provider (decision 5), why the dialog does not grow four prompt-engineering
+fields (decision 1), and why the re-run entry point matters more on day one than
+the create-dialog one (also decision 1).
 
 ## The load-bearing mechanism
 
 **Research does not write guidelines. It produces two artifacts, and the
 curation gesture that shipped in 1.5.0 already eats both of them.**
 
-1. A **report message** appended to the brand-context thread as
+1. A **report message** appended to a brand-context thread as
    `agent_messages(role: 'assistant')`. That table, that route, and the chat
    surface all ship. The Phase C/D/E capture gesture — drag a whole message, or
    select one sentence and capture that — works on it on arrival, with no new
@@ -90,13 +108,22 @@ which already has two.
 | `POST /:workspaceId/brands` maps 1:1 to `createBrand` | `routes/brands.ts:40-57` |
 | The editor accepts staged capture payloads | `BrandGuidelinesEditorProps.staged?: CapturePayload \| null`, consumed by an identity-keyed effect (`BrandGuidelinesEditor.tsx:235-241`) |
 | `CapturePayload` is `{ html?: string; text: string }` | `components/project/MessageCapture.tsx:15` |
-| Sections carry an author flag already | `GuidelineSectionCreatedBySchema = z.enum(['user','agent'])`; `PATCH /brands/:id/guidelines` hardcodes `'user'` (`routes/brands.ts:122`) |
-| Five curated starter labels exist | `SUGGESTED_SECTIONS` (`packages/shared/src/brand/suggested-categories.ts`) — the shaping pass targets these labels |
+| Sections carry an author flag already | `GuidelineSectionCreatedBySchema = z.enum(['user','agent'])`; `PATCH /brands/:id/guidelines` hardcodes `createdBy: 'user'` (`routes/brands.ts:122`) |
+| Five curated starter labels exist | `SUGGESTED_SECTIONS` (`packages/shared/src/brand/suggested-categories.ts`) — Voice & tone · Target audience · Values & positioning · Visual guidelines · Messaging frameworks. The shaping pass targets these labels |
 | Realtime payloads are agent events, project-scoped | `RealtimeEventPayloadSchema = AgentEventSchema` (`packages/shared/src/realtime/*`) |
 | LLM settings resolve workspace-then-env | `resolveLLMSettings` (`packages/server/src/settings.ts`) |
-| API keys are env-only, by locked decision | `schema/workspace_settings.ts` comment: *"API keys stay env-only per locked decision 9 (DB persistence needs at-rest encryption — deferred)"* |
+| API keys are env-only, by the **repo-wide** register | `schema/workspace_settings.ts` comment: *"API keys stay env-only per locked decision 9 (DB persistence needs at-rest encryption — deferred)"* — that is the repo-wide register's 9, not this document's |
 | Per-project concurrency guard exists as a pattern to copy | `AgentConcurrencyGuard`, `routes/agent.ts:60` |
-| TipTap is v3 | `@tiptap/starter-kit ^3.22.4` — StarterKit v3 bundles `Link`, so citation links survive `insertContent`. **Assumed from the version, not run.** |
+| Brand context is a **list of threads**, not a singleton | `brands.$brandId.context.tsx` filters `isBrandContextThread` over all of a brand's projects and renders a grid of `ProjectCard`s |
+| Nothing may spawn a context thread implicitly | Same route, written down before this pass existed: *"Nothing is created implicitly on arrival. An icon that silently spawns a thread leaves strays behind; 'resume the most recent' is wrong the first time you want a fresh line of thinking."* — the precedent decision 11 follows |
+| **Citation links survive `insertContent`** | **Verified, not assumed.** `@tiptap/starter-kit` **3.22.4** depends on `@tiptap/extension-link`, and `dist/index.js:69-71` registers it **opt-out**: `if (this.options.link !== false) extensions.push(Link.configure(...))`. `defaultExtensions` (`editor/proseMirrorSchema.ts`) configures only `heading`, so `link` is left enabled |
+
+The last row was `**Assumed from the version, not run**` in the proposal draft.
+It is the assumption decision 8's *"the editor still does the parsing — not
+purism, citations"* rests on entirely, so it was checked against the installed
+package rather than left as a version inference. Had it been false, either
+citations flatten to plain text or `proseMirrorSchema.ts` has to change — and
+that file is on the "unchanged on purpose" list.
 
 ## Facts verified against the Perplexity docs (2026-07-28)
 
@@ -110,13 +137,17 @@ which already has two.
 - **Pricing (deep research):** $2/M input, $8/M output, $2/M citation tokens,
   $3/M reasoning tokens, **plus $5 per 1K search queries**. A single brand report
   is realistically **tens of cents** — estimated from the rate card, *not
-  measured*. Phase B measures it.
+  measured*. B0 measures it.
 - ⚠️ **The docs carry a banner: "Sonar Chat Completions is now Agent API."** The
   chat-completions surface is being migrated to a Responses-API-shaped Agent API,
   and the async endpoint above sits on the older line. It is documented and
   functional today; how long that lasts is unknown. **This is exactly why the
   work goes behind a port** — see Phase B, which spikes the live API *before*
   anything else is built on it.
+
+**A key is available** as of the lock, so B0 is unblocked and runs first within
+Phase B. `.env` today carries only `OPENROUTER_API_KEY`; `perplexity` appears
+nowhere in the repo outside this document.
 
 Sources: [models](https://docs.perplexity.ai/getting-started/models) ·
 [async chat completions](https://docs.perplexity.ai/api-reference/async-chat-completions-post) ·
@@ -125,7 +156,7 @@ Sources: [models](https://docs.perplexity.ai/getting-started/models) ·
 
 ## Design decisions
 
-### 1. The dialog is tiered, and the fast path stays two keystrokes
+### 1. Two entry points, and the one that matters on day one is not the dialog
 
 ```
 New brand
@@ -133,18 +164,32 @@ New brand
   Website (optional)       [ https://casavostra.com   ]
   Description (optional)   [ What this brand is about ]
 
-  ▸ Research this brand  ················································ [ off ]
-      ( ) Quick        — a few searches, ~30s,  ≈$0.01
-      (•) Deep         — exhaustive, 3–15 min,  ≈$0.30      [needs a website]
-      Other sources    [ instagram.com/…, a press link, … ]
-      Market / region  [ Zurich, CH                        ]
-      Focus on         [ tone of voice and positioning     ]
+  [x] Research this brand   — reads the public web, ~3–15 min, ≈$0.30
+      Needs a website. Runs in the background; the brand is created either way.
 
                                               [ Cancel ]  [ Create ]
 ```
 
-Type a name, hit Enter, you have a brand — unchanged. Everything else is
-progressive disclosure, and the research block stays collapsed by default.
+Type a name, hit Enter, you have a brand — unchanged. The research checkbox is
+the only new control, and it is disabled with a reason shown when the website
+field is empty (decision 4).
+
+**What is deliberately absent: `Other sources`, `Market / region`, and
+`Focus on`.** The proposal draft had all three. They are *themselves* the
+manual work this feature removes — three text inputs asking you to prompt-engineer
+a research job is a smaller version of the same tax as retyping a brand deck. The
+prompt derives region, market and focus from the site itself. The
+`brand_research_jobs.input jsonb` column still exists, so any of them can come
+back as a field later **without a migration**; they should not be in the first
+version.
+
+**The second entry point is a "Research this brand" action in the
+`BrandContextBar`, and it is not a nice-to-have.** Every brand that exists today
+was created before this feature — Casa Vostra and the rest are already sitting at
+0% guidelines. A create-dialog-only version of this feature does nothing for a
+single brand that currently exists. Re-run is what makes it usable on the day it
+ships, and it also covers the rebrand case. It costs nothing extra once Phase C
+exists: the same `POST /brands/:id/research`, from a different button.
 
 ### 2. The brand is created first. Research never blocks creation.
 
@@ -162,26 +207,40 @@ live in `brand_research_jobs.input jsonb`.
 
 The brand table is not a CRM. A column nothing renders is a column we regret.
 
-### 4. The URL is the hallucination gate
+### 4. No website, no research. The URL is a hard gate.
 
 A deep-research pass over the bare string "Casa Vostra" will find *a* Casa Vostra
 — a restaurant in Ontario, a pasta brand in Naples — and write a confident,
 cited, entirely wrong brand profile. Citations make it *look* more trustworthy,
 not less.
 
-So: **no URL, no deep research.** Name-only gets the Quick mode, labelled as a
-guess, or nothing at all (open question 7). The prompt explicitly permits — and
-the result schema explicitly models — **"found nothing"**, because the brand that
-doesn't exist yet is a case this feature has to survive, not paper over. Every
-draft section carries its sources inline as links.
+The proposal draft softened this into "no URL, no *deep* research; name-only gets
+Quick mode, labelled as a guess." **Cutting Quick (decision 10) collapses that
+into a hard gate, and this is the cleanest thing the cut buys.** There is no
+lesser mode to fall back to, so there is no half-trustworthy result to explain
+in a banner, and no second confabulation path to test. No website → the checkbox
+is disabled and says why.
 
-### 5. Two stages: find, then shape
+The prompt explicitly permits — and the result schema explicitly models —
+**"found nothing"**, because the brand that doesn't exist yet is a case this
+feature has to survive, not paper over. That is the `NO_FINDINGS` terminal state
+in Phase C, and a website that exists but is a one-page holding site is exactly
+how it gets reached. Every draft section carries its sources inline as links.
+
+### 5. Two stages: find, then shape. Perplexity is the only finder.
 
 - **Stage 1 — Perplexity.** Returns a markdown report with citations. That report
   is a deliverable in its own right, not an intermediate.
 - **Stage 2 — the workspace's own configured model.** `resolveLLMSettings` +
   AI SDK `generateObject` with a zod schema converts the report into draft
   sections keyed to `SUGGESTED_SECTIONS` labels.
+
+**One provider, one adapter.** OpenRouter can reach `sonar` and other
+web-search-capable models, and the port would accommodate a second
+implementation — but the thing being automated is specifically the Perplexity
+deep research run, and a second adapter is a second thing to test against a
+vendor surface already flagged as churning. The port exists for *replaceability*,
+not for shipping two.
 
 **Rejected:** asking Perplexity for our JSON directly via `response_format`. It
 couples our guideline schema to a search vendor we have already flagged as
@@ -211,6 +270,10 @@ advisory lock or a claim column; out of scope, recorded.
 
 ### 8. An empty brand is auto-populated. The gate is emptiness, not newness.
 
+*Resolved 2026-07-28, ahead of the rest. With the goal restated, this stopped
+being an edge case and became the **primary** path: "the research I ran by hand
+is just there when I come back" is the feature.*
+
 There is exactly one writer of guideline sections — `PATCH /brands/:id/guidelines`
 → `db.updateBrandGuidelines` (`packages/db/src/queries/brands.ts:201`) — and its
 own doc comment says the payload is *"the brand's COMPLETE section list, not a
@@ -229,6 +292,10 @@ there is something to destroy. Empty → save; non-empty → the badge and revie
 sheet. One condition, checked at the last possible moment, degrading into the
 reviewed path automatically.
 
+Note that decision 1's re-run entry point makes the non-empty case *common*, not
+exotic: re-running research on a brand you have been curating for a month is the
+rebrand scenario, and it must take the review path every time.
+
 **Arrival state: saved, with an Undo.** You open the brand and it is populated —
 a toast says what was added, where it came from, and offers Undo. Undo is one
 more full-list write back to zero sections, through the same single writer. It is
@@ -240,10 +307,11 @@ wipe this decision exists to prevent.
 its sources as inline links, and links survive only if parsed by a schema that
 has `Link`. That schema is `defaultExtensions`
 (`packages/web/src/editor/proseMirrorSchema.ts`), already a standalone module
-imported by all three live TipTap instances. Auto-populate mounts a **fourth,
-headless** instance from the same list — same schema by construction, nothing
-hoisted, no second schema to keep honest. It runs `insertContent` per draft,
-reads `getJSON()`, and calls the existing mutation.
+imported by all three live TipTap instances, and `Link` is confirmed present in
+it (see the facts table). Auto-populate mounts a **fourth, headless** instance
+from the same list — same schema by construction, nothing hoisted, no second
+schema to keep honest. It runs `insertContent` per draft, reads `getJSON()`, and
+calls the existing mutation.
 
 Two honest costs, both accepted:
 
@@ -266,9 +334,12 @@ reopened on that trigger rather than re-argued.
 
 ### 9. Provenance rides along, because otherwise the field lies
 
+*This is **this document's** decision 9. The repo-wide register's decision 9 is
+"API keys stay env-only" — see the numbering note at the top.*
+
 `guideline_sections.created_by` is a `pgEnum('user','agent')` and has been since
 0.3.0 — but `UpdateBrandGuidelinesSectionInputSchema`
-(`packages/shared/src/brand/update-guidelines.ts:8`) carries `id, label, body,
+(`packages/shared/src/brand/update-guidelines.ts`) carries `id, label, body,
 priority` and **no `createdBy` at all**. The route synthesises `'user'`
 (`routes/brands.ts:122`) because the wire has no way to express anything else.
 `'agent'` is currently unreachable: a dead enum value with no producer.
@@ -285,6 +356,75 @@ is exactly the distinction a "from research, unreviewed" marker and a "discard
 everything research wrote" escape hatch need. This is a small change that is
 awkward to retrofit once brands exist whose provenance was never recorded, which
 is why it rides along rather than waiting for the phase that consumes it.
+
+### 10. Deep only. Quick is cut.
+
+The proposal draft offered a `Quick` mode — "a few searches, ~30s, ≈$0.01" —
+alongside `Deep`, with an open question about which to preselect.
+
+**Both are cut in favour of Deep, because Quick is not the thing being
+automated.** A 30-second few-searches pass is not what anyone runs by hand in
+Perplexity before filling in a brand's guidelines; the deep research pass is. A
+tier selector whose fast option nobody would choose is a knob nobody turns, a
+second code path to test, and a second cost profile to reason about.
+
+What this buys, beyond one less control:
+
+- Decision 4 becomes a **hard gate** instead of a soft one, and open question 7
+  ("name-only: offer Quick, or hard-block?") disappears rather than being
+  answered — the best kind of resolution.
+- One prompt, one result shape, one set of fixtures.
+
+What it costs, and why the cost is small: **the port keeps `model` as job input**
+and `brand_research_jobs.model` is a column, so Quick returns later as a config
+value and a second enum member — not a rewrite. If B0 measures Deep at a price
+that makes it unusable, adding Quick back is the cheap response, and B0 runs
+before anything is built on the answer.
+
+### 11. Research gets its **own** conversation. It never appends to yours.
+
+Brand context is a **list** of threads, not a singleton — `brands.$brandId.context.tsx`
+renders a grid of them. So "append the report to *the* brand-context thread" was
+a category error in the proposal draft's Phase F: there may be none, or six.
+
+Each research run **creates its own** brand-context thread, named for the run
+(`Brand research — Casa Vostra, 28 Jul 2026`), and the report is its first
+message. Two reasons, one of them already written down in the repo:
+
+- **Appending to your most recent conversation is rejected precedent.** The
+  context route's own comment says *"'resume the most recent' is wrong the first
+  time you want a fresh line of thinking"* — written for the 1.5.0 thread picker,
+  and it applies with more force here, because a 4,000-word report landing in the
+  middle of a conversation you were having is worse than a thread you have to
+  pick.
+- **A run is a document with a date.** Re-running after a rebrand (decision 1)
+  should produce a second thread you can compare against the first, not an
+  append that buries it.
+
+The tension this accepts, stated rather than hidden: the same route comment also
+says *"Nothing is created implicitly on arrival."* Research **does** create a
+thread you did not explicitly ask for. The distinction is that the route's rule
+targets *navigation* — arriving at a page must not spawn a stray — whereas here
+you opted into a paid background job, and its output has to live somewhere. The
+thread **is** the deliverable, not a side effect of looking at something.
+
+### 12. A daily budget guard, because the surprise invoice is the one you can't undo
+
+`RESEARCH_MAX_JOBS_PER_DAY` per workspace, alongside
+`RESEARCH_MAX_ACTIVE_PER_WORKSPACE`, both enforced in Phase C at the same place
+the one-active-job-per-brand guard lives. Counting today's rows in
+`brand_research_jobs` is one query in a table that has to exist anyway.
+
+Every other guard in this design protects your *data* — the emptiness gate, the
+Undo no-op, the URL gate. This one protects your *money*, and money is the one
+resource here with no undo. A per-day cap is a handful of lines while the guard
+code is being written and an awkward retrofit after someone's first surprise
+invoice, which is the whole argument.
+
+Deliberately a **daily job count, not a dollar budget.** Real spend is only known
+after a job completes, so a dollar cap either blocks optimistically on an
+estimate or discovers the overrun too late to prevent it. A count is enforceable
+before the outbound call — the only place enforcement is worth anything.
 
 ## Phases
 
@@ -327,13 +467,18 @@ export interface ResearchProvider {
 - `NoopResearchProvider` — `RESEARCH_PROVIDER=none`, the default. Self-hosters
   without a key get the feature **absent and explained**, not broken.
 - Env: `RESEARCH_PROVIDER`, `PERPLEXITY_API_KEY`, `RESEARCH_MODEL`,
-  `RESEARCH_MAX_ACTIVE_PER_WORKSPACE`. Key stays in env — locked decision 9.
+  `RESEARCH_MAX_ACTIVE_PER_WORKSPACE`, `RESEARCH_MAX_JOBS_PER_DAY` (decision 12).
+  Key stays in env — **repo-wide** locked decision 9. Every one of these must
+  also land in `.env.example`: `packages/server/src/env.example.test.ts` is a
+  drift guard that fails the build if `EnvSchema` widens without it.
 
-**B0 is a live spike before B1 is written**: one real key, one real brand, one
-real report. It confirms the async endpoint still exists, measures wall-clock and
-actual cost, and captures a real response body to fixture the tests against. If
-the Agent API migration has already landed, that is one adapter file, discovered
-for the price of an afternoon rather than after five phases.
+**B0 is a live spike before B1 is written**, and the key is in hand as of the
+lock, so nothing gates it: one real key, one real brand, one real report. It
+confirms the async endpoint still exists, measures wall-clock and actual cost —
+the number decision 10 is prepared to be revised by — and captures a real
+response body to fixture the tests against. If the Agent API migration has
+already landed, that is one adapter file, discovered for the price of an
+afternoon rather than after five phases.
 
 ### Phase C — the job: table, routes, lifecycle (+14–18)
 
@@ -341,10 +486,13 @@ for the price of an afternoon rather than after five phases.
 input jsonb, external_id, report text, citations jsonb, drafts jsonb, error,
 created_by, created_at, started_at, completed_at)`.
 
-- `POST /brands/:id/research` → 201 with the job. One active job per brand,
-  guarded exactly like `AgentConcurrencyGuard` guards a project — except this
-  guard has to be **the table**, not process memory, because the job outlives
-  the request.
+- `POST /brands/:id/research` → 201 with the job. Serves **both** entry points of
+  decision 1 — the create dialog and the context-bar re-run — which is why re-run
+  costs nothing extra.
+- One active job per brand, guarded exactly like `AgentConcurrencyGuard` guards a
+  project — except this guard has to be **the table**, not process memory,
+  because the job outlives the request. The per-workspace active cap and the
+  per-day cap (decision 12) are enforced here too, before the outbound call.
 - `GET /brands/:id/research/:jobId`, `GET /brands/:id/research` (latest).
 - The ticker, plus **reconcile-on-read**, so a server restart mid-job doesn't
   strand it in `IN_PROGRESS` forever.
@@ -374,7 +522,9 @@ decision 8 exists to prevent.
 **E2 — the non-empty brand: the review sheet.** The badge on `BrandContextBar`
 opens it: one card per draft, its sources visible, a checkbox each. **Accept
 selected** stages them into `BrandGuidelinesEditor` and gets out of the way; you
-are then in the ordinary editor, with ordinary undo, and an ordinary Save.
+are then in the ordinary editor, with ordinary undo, and an ordinary Save. Note
+this is the path every context-bar re-run on a curated brand takes, so it is not
+the rare branch.
 
 Both paths need `staged` widened from one `CapturePayload` to an ordered list of
 `{ label, payload }` — the one real change to a 1.5.0 file. The identity-keyed
@@ -388,8 +538,8 @@ while the user has typed one section must take E2, not E1.
 
 ### Phase F — the report joins the conversation (+6–8)
 
-The full report is appended to the brand-context thread as an assistant message,
-creating that thread on demand if it doesn't exist. Capture (whole message,
+The full report lands as the first assistant message of a **newly created**
+brand-context thread named for the run (decision 11). Capture (whole message,
 excerpt, drag) works on it immediately and by construction — no new code, and a
 test that pins exactly that.
 
@@ -403,7 +553,9 @@ would not hold for a pass containing a migration."*
 paid vendor call, and a background job.** Every clause of that exemption is
 false here. The live pass runs: real Postgres, real key, real brand, watched from
 submission through review to a saved section — plus the deferred 1.5.0 items that
-touch the same editor.
+touch the same editor, and the deferred 1.6.0 browser items (pill spacing, long
+brand-name truncation, menu placement at 30+ brands) that this pass's own
+`BrandContextBar` changes sit next to.
 
 ## Files
 
@@ -418,89 +570,70 @@ touch the same editor.
 · `shared/brand/update-guidelines.ts` (`createdBy` on the wire) · `routes/brands.ts`
 (stops synthesising `'user'`) · `server/src/{env,adapters}.ts` ·
 `routes/workspaces.$wsId.index.tsx` (the dialog) · `BrandCard.tsx` ·
-`BrandContextBar.tsx` · `BrandGuidelinesEditor.tsx` (`staged` → list, sends
-`createdBy`) · `.env.example`
+`BrandContextBar.tsx` (status strip, badge, **and the re-run action**) ·
+`BrandGuidelinesEditor.tsx` (`staged` → list, sends `createdBy`) · `.env.example`
 
 **Unchanged on purpose:** `packages/web/src/editor/proseMirrorSchema.ts`. The
 headless auto-populate instance imports `defaultExtensions` as-is; if this file
-has to change to accommodate research, the design has gone wrong.
+has to change to accommodate research, the design has gone wrong. (It does not
+need to: `Link` is already enabled — facts table.)
 
 ## Non-goals (this pass)
 
 - **Research writing guidelines directly.** Not a scope cut — the point.
+- **A Quick research mode.** Decision 10. Returns as a config value if B0 makes
+  Deep look unaffordable.
 - **Logo / palette / font extraction.** Visual identity from a website is a
-  different problem (fetch, parse, screenshot) with a different failure mode.
-  Open question 9.
+  different problem (fetch, parse, screenshot) with a different failure mode, its
+  own dependencies, and its own way of being wrong. **Out, as its own follow-up**
+  — recorded below as the thing that would let the Visual identity tile stop
+  saying "Soon".
 - **Scraping anything ourselves.** We call a vendor that already has the index
   and the licence. No crawler ships in this repo.
 - **Continuous monitoring.** No "your brand changed its tagline" watcher.
 - **Research inside project threads.** Brand-level only, for now.
-- **Persisting the vendor key in Postgres.** Locked decision 9 stands.
+- **A second research provider.** Decision 5.
+- **Persisting the vendor key in Postgres.** Repo-wide locked decision 9 stands.
 
 ## Risks
 
 | Risk | Mitigation |
 | --- | --- |
-| **Every click costs real money** | Opt-in; cost estimate shown *before* Create; one active job per brand; per-workspace active cap; Quick is the safe default if deep proves expensive in B0 |
+| **Every click costs real money** | Opt-in; cost estimate shown *before* Create; one active job per brand; per-workspace active cap; **per-workspace daily cap** (decision 12); B0 measures real cost before anything depends on the estimate |
 | **Vendor surface is migrating** (Agent API) | The port; a live spike before anything is built on it; one file to swap |
-| **Confabulated brand profiles** | URL gate; citations on every draft; a real `NO_FINDINGS` state; on a non-empty brand nothing auto-saves, and on an empty one a wrong draft costs an Undo — never existing work |
+| **Confabulated brand profiles** | Hard URL gate (decision 4); citations on every draft; a real `NO_FINDINGS` state; on a non-empty brand nothing auto-saves, and on an empty one a wrong draft costs an Undo — never existing work |
 | **Auto-populate saves without you pressing Save** | Gated on *zero* sections, checked when drafts land rather than when the job starts; Undo in the toast; Undo no-ops if the list moved. The destructive full-list write is additive when the list is empty — decision 8 |
+| **Deep is now the only mode** | The port keeps `model` as job input and the job row has a `model` column, so Quick is a config value away; B0 runs before the decision is load-bearing |
 | **Deep research exceeds a session** | The job is a row; ticker + reconcile-on-read; results wait |
 | **Rollback is no longer free** | Two migrations. Both additive (new column, new table), so the previous image tolerates them — but this must be stated in the release notes rather than assumed |
 | **`staged` widening touches 1.5.0 code** | The StrictMode double-insert bug found in 1.5.0 Phase G lived in exactly this path. Its test comes with us, extended per-item |
 | **Silent feature absence for self-hosters** | `RESEARCH_PROVIDER=none` is the default and the UI says *why* the toggle is missing, rather than hiding it |
+| **Research threads accumulate** | One per run (decision 11), named and dated, listed on a page built to list them. Acceptable; revisit if re-running becomes frequent enough to clutter |
 
 ---
 
-## Open questions — for your review
+## Resolved questions
 
-1. **Which extra fields go on the brand row?** My recommendation is exactly one —
-   `website_url` — with competitors / region / focus staying research-only job
-   input. If you want any of those visible and editable on the brand *after*
-   creation (say, an `industry` shown on the card, or social handles), they need
-   columns and they need a place in the context bar. Which, if any?
+All ten of the proposal draft's open questions, with what was decided and why.
+Q4 was resolved 2026-07-28 ahead of the rest; the other nine were resolved at the
+lock, when the goal was restated as *"automate the Perplexity deep research run I
+do by hand."*
 
-2. **Quick or Deep as the default when a URL is present?** Deep is the better
-   answer and roughly 30× the cost. My lean: Deep is preselected, the estimate is
-   shown, and B0's real measurement decides whether that survives.
+| # | Question | Resolution |
+| --- | --- | --- |
+| 1 | Which extra fields go on the brand row? | **`website_url` only.** Competitors / region / focus stay job input in `input jsonb`, and are not even collected in v1 — decision 1. Any of them can become a column later; a column nothing renders is a column we regret |
+| 2 | Quick or Deep as the default? | **Deep, and Quick is cut entirely** — decision 10. Quick is not what anyone runs by hand, so it is a knob nobody turns |
+| 3 | Re-runnable on an existing brand? | **Yes, and it is not optional.** Every brand that exists today predates this feature, so a create-dialog-only version helps zero real brands. The context-bar action is arguably the *more* important of the two entry points — decision 1 |
+| 4 | On arrival: auto-open the review, or badge and wait? | **Neither, on an empty brand** *(resolved 2026-07-28)*. It saves outright; you arrive at a populated brand with a toast and an Undo — decision 8. Badge-and-wait stands for the non-empty case, which is the review sheet's only job |
+| 5 | Perplexity only, or a second path? | **Perplexity only** — decision 5. The port exists for replaceability, not for shipping two adapters against a churning vendor surface |
+| 6 | Which thread does the report live in? | **Its own, newly created and named for the run** — decision 11. Brand context is a list, not a singleton, and "resume the most recent" is rejected precedent already written into `brands.$brandId.context.tsx` |
+| 7 | Name-only research: offer Quick, or hard-block? | **Dissolved by decision 10.** With Quick cut there is no lesser mode to offer, so the URL gate is hard and needs no "we guessed which brand you meant" banner — decision 4 |
+| 8 | A budget guard? | **Yes — `RESEARCH_MAX_JOBS_PER_DAY` per workspace**, decision 12. A daily job count, not a dollar budget, because only a count is enforceable *before* the outbound call. **This one was decided on your behalf** rather than following from the restated goal; it is the cheapest thing here to change if you disagree — one env var and one guard clause in Phase C |
+| 9 | Visual identity extraction — in or out? | **Out**, as its own follow-up. A different machine (HTTP fetch + HTML/CSS parse + screenshot) with different dependencies and different failure modes. Recorded rather than dropped: it is the work that would let the Visual identity tile stop saying "Soon", and the `Visual guidelines` starter label stays thin without it |
+| 10 | Ship Phase A on its own first? | **Recommended, and still the open sequencing call** — it is a day's work, independently useful, and puts a real migration through the release path before the interesting phases depend on one. The only thing arguing against is that it delivers nothing you asked for. This is the one decision the lock does *not* settle, because it is a scheduling question, not a design one |
 
-3. **Re-runnable on an existing brand?** I'm assuming yes — a "Research this
-   brand" action in the context bar for the hundreds of brands that already
-   exist, and for re-running after a rebrand. It costs nothing extra once Phase C
-   exists. Confirm?
-
-4. ~~**On arrival: auto-open the review, or badge and wait?**~~ **Resolved
-   2026-07-28 — neither, on an empty brand.** It saves outright and you arrive at
-   a populated brand with a toast and an Undo (decision 8). The badge-and-wait
-   answer stands for the non-empty case, which is now the review sheet's only
-   job. Provenance rides along in Phase A so the saved sections are marked
-   `'agent'` rather than lying (decision 9).
-
-5. **Perplexity only, or a second path?** OpenRouter can reach web-search-capable
-   models, and `sonar` is on OpenRouter too. Ship one adapter and one port now,
-   or two adapters?
-
-6. **The report needs a brand-context thread to live in.** Create one silently
-   named "Brand research" if none exists, or append to the most recent one? I
-   lean: create one, named for the research, because "resume the most recent" was
-   already rejected once in 1.5.0 Phase A for good reasons.
-
-7. **Name-only research: offer Quick, or hard-block?** Blocking is safer and
-   makes the URL field feel mandatory-ish; offering it with a "we guessed which
-   brand you meant — check the sources" banner is friendlier and occasionally
-   right. I lean **offer, clearly labelled**, but this is a taste call about how
-   much you trust a first-time user to read a warning.
-
-8. **A budget guard?** e.g. `RESEARCH_MAX_JOBS_PER_DAY` per workspace. Cheap to
-   add now, awkward to retrofit after someone's first surprise invoice.
-
-9. **Visual identity extraction — in or out?** Fetching the site to pull the
-   logo, palette and fonts into a *Visual guidelines* draft is genuinely valuable
-   and is a separate machine (HTTP fetch + HTML/CSS parse + screenshot), with its
-   own failure modes and its own dependencies. My strong lean is **out of this
-   pass**, as its own follow-up — but it's also the thing that would make the
-   Visual identity tile stop saying "Soon", so say if you want it folded in.
-
-10. **Do you want Phase A shipped on its own first?** It's a day's work, it's
-    independently useful, and it puts a real migration through the release path
-    before the interesting phases depend on one. I'd recommend it.
+**Follow-ups recorded, not scheduled:** visual identity extraction (Q9) · a Quick
+mode as a config value if B0's cost measurement demands it (decision 10) ·
+multi-instance ticker safety via advisory lock or claim column (decision 7) ·
+server-side landing with `@tiptap/html` if research ever needs to land with no
+browser in the loop (decision 8).

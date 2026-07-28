@@ -4,6 +4,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 ## Index
 
+- **1.7.0** — 2026-07-28 — Brand hub restructure: the page's top half was a stack of full-bleed bands with content pinned to both edges and a dead middle, and the brand itself was rendered as 24px of text on the one surface whose premise is that the brand is the centre of gravity. It becomes **three zones answering three questions in order** — *who is this* (a derived **monogram**, name, TL;DR), *what can I do* (the app tiles, kept, now a 2×2), *what do we know* (a persistent right **rail**). The load-bearing rule is that **no fact appears twice**: the identity band carries no counts, because the rail is about sections and each tile carries its own thread count. `BrandContextBar` is superseded and **deleted**; in the rail, written sections and unwritten suggestions are **one list**, which is why there is no meter — five rows, two written, *is* the meter, and it is the version you can click. First route in the app to constrain its width. `packages/web` only; no migration, no `shared`/`server` change. 436 → **456 tests (+20 net, +27 new)**. **A live pass was run** against a throwaway harness and changed the code three times — brand assets (colours, logos, photos) are **not** in this pass and are specced in [`docs/plans/brand-assets.md`](plans/brand-assets.md).
 - **1.6.0** — 2026-07-28 — Brand switcher in the app shell header: the header could switch **workspaces** and could only *name* the brand, so moving between two brands meant going up to workspace home and back down through the grid. A brand is as much a **place** as a workspace is, so it gets the same pill — `[ Mission Group ⌄ ] / [ Casa Vostra ⌄ ] / Copywriting`. The load-bearing decision is that the brand **moved out of the breadcrumb** rather than appearing in both (the precedent was already written down in `Breadcrumbs.tsx`), so the trail type shrinks to a tail-only, four routes stop reporting a brand, and each header segment now owns its own *leading* separator. New `useActiveBrandId` resolves the brand from the route param *or* `project.brand.id`, with **no storage fallback** — a remembered brand would offer to navigate you out of a page you're on. `packages/web` only; no migration, no API route, no `shared`/`server` change. 426 → **436 tests (+10)**. **No live browser pass** — pill rhythm, long-name truncation and menu placement are reasoned, not observed.
 - **1.5.1** — 2026-07-28 — Session token refresh, a production bug fix: the web app captured the Supabase access token **once at sign-in** and sent that frozen JWT forever, so any tab left open past its 1-hour `exp` 401'd every query — presenting as a correct-looking brand header over red `Failed to load brand.` text, and self-healing on reload, which is why it read as *intermittent* rather than time-based. The auto-refreshing `supabase-js` client was module-scoped **inside a component that only mounts on `/login`**, so once you were signed in no refresh listener was alive in the process. Fixed by making the Supabase session the source of truth and `sessionStorage` a cache of it: one `getFreshAuthToken()` accessor (in-flight de-duped) that every server-bound call goes through, `startSessionSync()` mirroring background refreshes into the store, and a token-goes-null subscription that finally *navigates* on the 401 path. 400 → **426 tests (+26)**. **Not reproduced live** — the failure takes an hour of wall clock by definition.
 - **1.5.0** — 2026-07-28 — Brand context capture (Phases A–G): a brand gets a **recorded conversation** — a hidden-from-the-hub `brand-context` thread that renders the **live guidelines editor** where every other thread renders the canvas — plus a **manual gesture** promoting any message, yours or the agent's, into a guideline section. The agent never writes; you curate. The bridge is **the drop itself** (bubble writes rendered HTML into `dataTransfer`, TipTap parses it through its own schema), so no markdown→ProseMirror converter exists and `updateBrandGuidelines` gains no second caller. Captures whole messages *or* selected excerpts, from *any* thread. Includes a correctness fix (F): the agent no longer gets canvas tools in a thread that renders no canvas, where blocks would have been persisted, broadcast, and displayed nowhere. 332 → **400 tests (+68)**. **Phase H's live pass was skipped by decision — shipped unobserved, verification deferred to production.**
@@ -30,6 +31,138 @@ Latest releases at the top. Each version has a one-line entry in the index below
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` lands — drizzle schema for 8 tables, singleton pg `Pool`, 18 query helpers, local-dev docker Postgres, and an end-to-end smoke check.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` lands as the single source of truth for domain types and zod schemas, consumed by both `server` and `web`.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture blueprint, scaffolding plan, and Phase 0 repo foundation.
+
+---
+
+## 1.7.0 — 2026-07-28
+
+**The brand becomes something you can see, and the page tells you what it
+knows.** 1.4.0 made the brand page a hub, 1.5.0 gave it a conversation, 1.6.0
+made it somewhere you could move between — and the hub's top half was still a
+stack of bands. Standalone pass, no plan document — requested directly. Detail
+in [`docs/completions/brand-hub-restructure.md`](completions/brand-hub-restructure.md).
+
+```
+before   Mission Group                                              ⋯
+         This is the core Mission Group brand.
+         ┌──────────────────────────────────────────────────────────┐
+         │ ⌄ Brand context  ●○○○○          [Target audience]   [Edit]│
+         └──────────────────────────────────────────────────────────┘
+         Workspace
+         [Copywriting] [Visual identity] [Social calendar] [Open canvas]
+
+after    ┌────┐  Mission Group                                      ⋯
+         │ MG │  This is the core Mission Group brand.
+         └────┘
+         Apps                              ┌─ Brand context ────────┐
+         [Copywriting ] [Visual identity]  │ 1 of 5 suggested  [Edit]│
+         [Social cal. ] [Open canvas    ]  │ ✓ Target audience     ⌄ │
+                                           │   Voice & tone        + │
+                                           │   Values & positioning+ │
+                                           │   Visual guidelines   + │
+                                           │   Messaging frameworks+ │
+                                           │ 💬 Talk it through      │
+                                           └─────────────────────────┘
+```
+
+### The load-bearing decision
+
+**Each of the three questions gets a zone, and each fact lives in exactly one of
+them — the one where you can act on it.** *Who is this* → identity band. *What
+can I do* → main column. *What do we know* → right rail, on screen while you
+choose rather than read and scrolled past.
+
+The corollary is what kept the design from bloating: **no fact appears twice.**
+`BrandIdentity` carries no counts, and a test pins that, because the rail is
+*about* sections and each tile already carries its own thread count. A stats
+strip in the header would have restated both a scroll earlier with nowhere to
+click.
+
+The rail is a column and not a band because that is the record-detail shape —
+Linear, Attio, GitHub's *About* sidebar — and the actions, not the reference
+material, deserve the wide column.
+
+### What shipped
+
+- **`BrandMark`** — initials from the name, hue from the **id**, so a rename
+  does not recolour a mark you have learned to recognise. FNV-1a rather than a
+  `charCodeAt` sum, because sibling brands in one workspace are exactly the
+  colliding case; initials split by **code point**, since `"🌱 Sprout"[0]` is
+  half a surrogate pair. Lightness and chroma are fixed in `index.css` so a
+  derived hue can never land outside the palette or below AA against its own
+  fill — only the hue crosses the boundary, as a bare number on `--brand-hue`.
+  In CSS rather than Tailwind utilities because light and dark are two rules
+  over one inline variable, and an inline `style` cannot express a `.dark`
+  variant. On the **accent budget**: the hue is not the *product's* accent, it
+  is the *customer's brand* — the one thing on this page entitled to look like
+  itself, on one element per surface.
+- **`BrandIdentity`** — an absent description renders as **an action, not a
+  gap**: "Add a description" opens `RenameDialog`, which already owns the field.
+- **`BrandContextRail`** supersedes `BrandContextBar`, which is **deleted**
+  rather than left dead. **Written sections and unwritten suggestions are one
+  list** — the suggestions are not a get-started widget that vanishes once you
+  begin, they are the same rows unwritten, which is what answers *what do we
+  know* and *what is missing* in one glance. Hence **no meter**: five rows, two
+  written, *is* the meter, and it is the version you can click. Still inside the
+  D2 decision on `GuidelineMeter` — no percentage, no bar, no red/green; a brand
+  at zero reads `Rides along into every thread`, not `0 of 5`, because zero
+  sections is a legitimate brand state (`vision.md:28`). A written row is a
+  **disclosure** (`aria-expanded`), deliberately unlike the 1.4.0 chip row's
+  `aria-pressed`, which was correct there precisely because nothing was hidden.
+- **The route** gains `mx-auto max-w-6xl` — the **first constrained width in the
+  app**, kept on this route because widening the others is a change to pages
+  this pass has no business touching. `Workspace` → `Apps`. Below `lg` the
+  columns stack **apps first**.
+
+### Verification
+
+```
+pnpm typecheck                          9/9 workspaces
+pnpm lint / format:check                clean
+pnpm test                               446 passed | 10 skipped (456)
+pnpm --filter @brandfactory/web build   ok
+```
+
+436 → **456 (+20 net)**: +27 new (`BrandMark` 11, `BrandContextRail` 11,
+`BrandIdentity` 5), −7 with the deleted `BrandContextBar` suite. Two behaviours
+were carried across verbatim because they encode bugs actually hit: the read
+panel's **explicit content sync** (a save returns the same section id, so the
+key does not change and a seeded editor would keep rendering the pre-edit body),
+and the `aria-controls` target existing in the DOM.
+
+**A live pass was run, and it changed the code three times.** Docker was down,
+so a throwaway Vite harness rendered the three zones over four mock brands and
+Playwright shot them at 1600px light, 1600px dark and 900px. It caught: the tile
+grid wrapping **3 + 1** under `auto-fill` (now a fixed `sm:grid-cols-2`);
+unwritten rows whose `+` was `opacity-0` **until hover**, invisible at rest and
+absent entirely on touch; and — a harness bug, not a code bug — every monogram
+rendering the same green because all four mocks shared an id, which meant the
+central claim about hue variation was unverified until the ids were fixed.
+
+Caveats, stated the way 1.6.0 states them:
+
+- **The harness rendered the three zones, not the route.** The app-shell header
+  above it, the React Query loading/error states, and the `Other threads`
+  catch-all appear in **no screenshot**. Covered by tests and behaviourally
+  unchanged, but that is not the same as observed.
+- **The stacked rail is wide.** Below `lg` a row's trailing glyph sits far from
+  its label. The settings-list convention, and accepted rather than overlooked —
+  but it is the same *class* of thing this pass set out to fix.
+- **One hue lands near the error tint** — a coral monogram in dark reads faintly
+  destructive. Seen and accepted.
+- **The 10 skips are the live-Postgres suites** (no local Docker daemon). This
+  pass touches no `db` or `server` code.
+
+**Not addressed: brand assets** — colours, logos, photos, files. It is a new
+capability, not a layout change: `guideline_sections` is text-only, images exist
+only as `canvas_blocks` inside a project, and `grep -rn "asset"` returns nothing.
+The blob transport is already generic, so what is missing is the data model —
+specced in [`docs/plans/brand-assets.md`](plans/brand-assets.md). No dead
+"coming soon" box was shipped in its place, on a page whose problem was already
+two inert tiles.
+
+**Untouched:** `packages/shared`, `packages/db`, `packages/server`,
+`packages/agent`, `packages/adapters/*`. No migration, no wire-contract change.
 
 ---
 
