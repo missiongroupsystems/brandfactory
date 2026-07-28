@@ -33,9 +33,7 @@ function BrandContextPage() {
 
   // A conversation list has no entity id of its own, so it occupies the
   // breadcrumb's `leaf` slot rather than the project one — same as a mini-app.
-  useBreadcrumbTrail(
-    brand ? { brand: { id: brand.id, name: brand.name }, leaf: { name: 'Brand context' } } : {},
-  )
+  useBreadcrumbTrail({ leaf: { name: 'Brand context' } })
 
   // Client-side filter, per the 1.4.0 non-goal: the threads endpoint is
   // per-brand and the list is small enough that a server-side template filter

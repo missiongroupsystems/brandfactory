@@ -7,11 +7,14 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { Link } from '@tanstack/react-router'
 
-/** Brand / project tail only — workspace lives in the switcher. */
+/**
+ * The tail below the brand only — workspace *and* brand both live in their own
+ * switcher. A crumb that merely repeated the brand pill next to it would be the
+ * same name twice in twelve pixels of chrome, and the switcher is the better of
+ * the two: it navigates to the hub *and* to every sibling brand.
+ */
 export type BreadcrumbTrail = {
-  brand?: { id: string; name: string }
   project?: { id: string; name: string }
   /**
    * Non-project leaf under a brand — a mini-app category, which has no entity
@@ -45,46 +48,35 @@ export function useBreadcrumbTrail(trail: BreadcrumbTrail) {
   }
   const { setTrail } = ctx
 
-  const brandId = trail.brand?.id
-  const brandName = trail.brand?.name
   const projectId = trail.project?.id
   const projectName = trail.project?.name
   const leafName = trail.leaf?.name
 
   useEffect(() => {
     setTrail({
-      ...(brandId && brandName ? { brand: { id: brandId, name: brandName } } : {}),
       ...(projectId && projectName ? { project: { id: projectId, name: projectName } } : {}),
       ...(leafName ? { leaf: { name: leafName } } : {}),
     })
     return () => setTrail({})
-  }, [setTrail, brandId, brandName, projectId, projectName, leafName])
+  }, [setTrail, projectId, projectName, leafName])
 }
 
 export function Breadcrumbs() {
   const ctx = useContext(BreadcrumbContext)
   if (!ctx) return null
-  const { brand, project, leaf } = ctx.trail
-  if (!brand) return null
+  const { project, leaf } = ctx.trail
   const tail = project?.name ?? leaf?.name
+  if (!tail) return null
 
   return (
-    <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
-      {tail ? (
-        <>
-          <Link
-            to="/brands/$brandId"
-            params={{ brandId: brand.id }}
-            className="text-muted-foreground truncate transition-colors hover:text-foreground"
-          >
-            {brand.name}
-          </Link>
-          <span className="text-muted-foreground shrink-0">/</span>
-          <span className="truncate font-medium">{tail}</span>
-        </>
-      ) : (
-        <span className="truncate font-medium">{brand.name}</span>
-      )}
+    <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2 text-sm">
+      {/* Leading separator, per the header's rule — the brand switcher to the
+          left of it is always present when a tail is, since every route that
+          sets one is scoped to a brand. */}
+      <span aria-hidden="true" className="shrink-0 text-muted-foreground">
+        /
+      </span>
+      <span className="truncate font-medium">{tail}</span>
     </nav>
   )
 }

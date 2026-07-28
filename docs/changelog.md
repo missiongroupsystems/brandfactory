@@ -4,6 +4,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 ## Index
 
+- **1.6.0** — 2026-07-28 — Brand switcher in the app shell header: the header could switch **workspaces** and could only *name* the brand, so moving between two brands meant going up to workspace home and back down through the grid. A brand is as much a **place** as a workspace is, so it gets the same pill — `[ Mission Group ⌄ ] / [ Casa Vostra ⌄ ] / Copywriting`. The load-bearing decision is that the brand **moved out of the breadcrumb** rather than appearing in both (the precedent was already written down in `Breadcrumbs.tsx`), so the trail type shrinks to a tail-only, four routes stop reporting a brand, and each header segment now owns its own *leading* separator. New `useActiveBrandId` resolves the brand from the route param *or* `project.brand.id`, with **no storage fallback** — a remembered brand would offer to navigate you out of a page you're on. `packages/web` only; no migration, no API route, no `shared`/`server` change. 426 → **436 tests (+10)**. **No live browser pass** — pill rhythm, long-name truncation and menu placement are reasoned, not observed.
+- **1.5.1** — 2026-07-28 — Session token refresh, a production bug fix: the web app captured the Supabase access token **once at sign-in** and sent that frozen JWT forever, so any tab left open past its 1-hour `exp` 401'd every query — presenting as a correct-looking brand header over red `Failed to load brand.` text, and self-healing on reload, which is why it read as *intermittent* rather than time-based. The auto-refreshing `supabase-js` client was module-scoped **inside a component that only mounts on `/login`**, so once you were signed in no refresh listener was alive in the process. Fixed by making the Supabase session the source of truth and `sessionStorage` a cache of it: one `getFreshAuthToken()` accessor (in-flight de-duped) that every server-bound call goes through, `startSessionSync()` mirroring background refreshes into the store, and a token-goes-null subscription that finally *navigates* on the 401 path. 400 → **426 tests (+26)**. **Not reproduced live** — the failure takes an hour of wall clock by definition.
 - **1.5.0** — 2026-07-28 — Brand context capture (Phases A–G): a brand gets a **recorded conversation** — a hidden-from-the-hub `brand-context` thread that renders the **live guidelines editor** where every other thread renders the canvas — plus a **manual gesture** promoting any message, yours or the agent's, into a guideline section. The agent never writes; you curate. The bridge is **the drop itself** (bubble writes rendered HTML into `dataTransfer`, TipTap parses it through its own schema), so no markdown→ProseMirror converter exists and `updateBrandGuidelines` gains no second caller. Captures whole messages *or* selected excerpts, from *any* thread. Includes a correctness fix (F): the agent no longer gets canvas tools in a thread that renders no canvas, where blocks would have been persisted, broadcast, and displayed nowhere. 332 → **400 tests (+68)**. **Phase H's live pass was skipped by decision — shipped unobserved, verification deferred to production.**
 - **1.4.0** — 2026-07-25 — Brand hub mini-apps (Phases A–J): the brand page becomes a **hub** — an ambient, collapsible **brand context bar** (guidelines demoted from a full-page editor to one-click-away editing) over a **Workspace grid of mini-app tiles** (Copywriting + Open canvas live; Visual identity + Social calendar as inert "Soon" tiles), each tile opening a category page that lists and creates threads tagged with a `templateId` — the first time the standardized-project path is driven end-to-end from the UI. Unblocked by generalizing `useCreateProject` to `{ name, templateId? }`. Includes a review-remediation pass (I: undeletable guideline sections finally persist, stale context-bar content, blank mini-app page on a failed brand query) and a live-browser polish pass (J: distinct collapsed-rail icons, WCAG-AA contrast on Soon tiles, an orphan-thread catch-all, root `.env` loading). 292 → **332 tests (+40)**, no skips against live Postgres.
 - **1.3.0** — 2026-07-22 — Reconciled with the OSS upstream (`philholke/brandfactory`): takes upstream's 0.8.1→0.9.1 line (Phase 9 navigation redesign, live-DB query coverage, ISO-timestamp fix, blob cleanup on delete) and keeps this fork's deploy layer + design-system re-spec. Restores the missing `migrate.mjs` that broke releases v7/v8. **292 tests.**
@@ -28,6 +30,263 @@ Latest releases at the top. Each version has a one-line entry in the index below
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` lands — drizzle schema for 8 tables, singleton pg `Pool`, 18 query helpers, local-dev docker Postgres, and an end-to-end smoke check.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` lands as the single source of truth for domain types and zod schemas, consumed by both `server` and `web`.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture blueprint, scaffolding plan, and Phase 0 repo foundation.
+
+---
+
+## 1.6.0 — 2026-07-28
+
+The brand becomes a **place you can move between**. 1.4.0 made the brand page a
+hub and 1.5.0 gave it a conversation; both assumed you were already in the right
+brand. The header could switch workspaces and could only *name* the brand, so
+going from one brand to another meant navigating up to workspace home and back
+down through the grid. Standalone pass, no plan document — requested directly.
+Detail in [`docs/completions/brand-switcher-header.md`](completions/brand-switcher-header.md).
+
+```
+before   BrandFactory   [ Mission Group ⌄ ]   Casa Vostra / Copywriting
+after    BrandFactory   [ Mission Group ⌄ ] / [ Casa Vostra ⌄ ] / Copywriting
+```
+
+### The load-bearing decision
+
+**The brand moved out of the breadcrumb and into a switcher — it is not in both
+places.** `Breadcrumbs.tsx` already carried the sentence *"Brand / project tail
+only — workspace lives in the switcher"*, so the precedent was written down
+before this pass existed: a segment that gets a switcher **leaves** the crumb
+trail. Rendering both would print the same brand name twice within twelve pixels
+of chrome.
+
+Nothing is lost in the trade, which is what makes it safe: the crumb was a link
+to the brand hub, and the pill reaches the brand hub *and* every sibling brand.
+Everything else — a shrinking trail type, four routes that stop reporting a
+brand, a new separator rule — is downstream of that one choice.
+
+### What shipped
+
+- **`useActiveBrandId` (`lib/active-brand.ts`)** — `params.brandId ??
+  project?.brand.id ?? null`. The route param on a brand hub, mini-app page or
+  brand-context thread; `project.brand.id` on a project page, where there is no
+  `brandId` in the URL at all. The param is checked **before** the query, so a
+  brand page renders its switcher on the first frame rather than after a
+  round-trip, and `useProjectDetail` is already mounted by `useActiveWorkspaceId`
+  in the same header, so React Query dedupes it and the hook costs no request.
+- **No storage fallback, unlike `useActiveWorkspaceId`** — and the asymmetry is
+  the point, so it is commented at the site. The shell always needs *a*
+  workspace, so a remembered id beats none. A brand is contextual: on workspace
+  home you are not in a brand, and a switcher that claimed one would sit there
+  offering to navigate you away from the page you are on, to a brand you never
+  picked.
+- **`BrandSwitcher`** is a deliberate near-clone of `WorkspaceSwitcher` — same
+  pill, same `DropdownMenuRadioGroup` (the check mark is opacity-only, so without
+  `aria-checked` the active brand is signalled visually and nowhere else), same
+  `aria-description`-never-`aria-label` (a label would *override* the button text
+  and hide which brand is active), comments included, because both are the kind
+  of thing a well-meaning pass "fixes" in the wrong direction.
+- **Selecting a brand always lands on `/brands/$brandId`**, never the equivalent
+  page under the new brand: a project id belongs to the brand you just left, and
+  a mini-app category may have no thread in the brand you are entering.
+  `All brands` returns to workspace home, in the slot `Workspace settings`
+  occupies in the sibling component.
+- **Each header segment renders its own *leading* separator**, stated in the
+  header comment and followed by both switcher and trail. The alternative — the
+  header emitting `/` between children — cannot work, because both children
+  return `null` on most pages and the header cannot see it; that is how you get
+  an orphan divider floating next to the workspace pill on workspace home.
+  Owning the separator means owning its absence.
+- **The trail is now the tail only.** `BreadcrumbTrail` loses `brand` entirely
+  and `Link` is no longer imported, because with the brand gone nothing in the
+  trail is a link — the tail is always the page you are already on. The brand hub
+  stops calling it at all rather than passing `{}`, which reads like a segment
+  someone forgot to fill in; safe because **every route is a flat child of
+  `rootRoute`** (verified in `router.tsx`), so the departing route's cleanup is
+  what clears the trail. Under a nested tree this would have been a stale-crumb
+  bug.
+- **No "New brand…" item, on purpose.** `NewBrandDialog` is still defined inline
+  in `routes/workspaces.$wsId.index.tsx`; extracting it is a real change to a
+  route this pass doesn't otherwise touch, `All brands` already lands on the page
+  that owns creation, and `docs/executing/brand-research-onboarding.md` Phase A
+  wants to grow that same dialog — so whoever extracts it should do it there.
+
+### Verification
+
+```
+pnpm typecheck      9/9 workspaces
+pnpm lint           clean
+prettier --check    clean
+pnpm test           426 passed | 10 skipped (436)
+```
+
+Test count 426 → **436 (+10)**: +8 `BrandSwitcher.test.tsx` (trigger named after
+the active brand; nothing outside a brand; resolution from a *project* route with
+no `brandId`; brand-detail fallback while the list loads; no pill before a name
+resolves; `aria-checked`; select navigates to the **hub**; `All brands` → workspace
+home), and `Breadcrumbs.test.tsx` 3 → 5, including *never renders a brand
+segment*. `useActiveBrandId` is deliberately **not mocked** in the switcher suite
+— brand resolution is the part worth pinning, and a mocked resolver would have
+tested the mock. Two mutation checks caught: dropping the `project?.brand.id`
+fallback fails 3 tests; dropping the `?? brand?.name` label fallback fails the
+deep-link case.
+
+Caveats, stated the way the 1.5.0 phases state them:
+
+- **The 10 skips are the live-Postgres suites** (no local Docker daemon). This
+  pass touches no `db` or `server` code, so nothing in it could be covered by
+  them; CI runs them against a Postgres 16 sidecar.
+- **The absolute count is not a clean 1.5.0 baseline** — 426 already includes
+  1.5.1's session-refresh work, which was in the tree uncommitted. The `+10` is
+  this pass.
+- **No live browser pass.** Three things are reasoned, not observed: pill spacing
+  and rhythm in a 48px header; truncation with a long brand name (`max-w-56` plus
+  `min-w-0` should shrink rather than overflow — the same class of flexbox defect
+  1.5.0 Phase B4 actually found in `SectionRow`); and menu placement at
+  `align="start"` with 30+ brands scrolling inside `max-h-80`. Cheapest to fold
+  into the browser pass that `docs/executing/brand-research-onboarding.md` Phase G
+  already commits to running.
+
+**Untouched:** `packages/shared`, `packages/db`, `packages/server`,
+`packages/agent`, `packages/adapters/*`. No migration, no wire-contract change.
+
+---
+
+## 1.5.1 — 2026-07-28
+
+**The app stops sending an expired token.** An unplanned bug fix raised from
+production (`brandfactory.fly.dev`), not part of a tracked phase plan. Detail in
+[`docs/completions/session-token-refresh.md`](completions/session-token-refresh.md).
+
+The report: a brand hub rendering its name and description correctly, with
+`Failed to load brand.` and `Failed to load threads.` in red beneath them, and
+three 401s in the console. Described as *"sometimes this happens"*, and
+self-healing on reload.
+
+### The bug
+
+The web app captured the Supabase access token **once, at sign-in**
+(`providers/supabase.tsx` → `store.ts` → `sessionStorage` → every request in
+`api/client.ts`) and sent that frozen string forever. A Supabase access token is
+a JWT with a **1-hour default `exp`** and the server enforces it, so a tab left
+open past the hour 401s every query.
+
+Nothing refreshed the stored copy, because the `supabase-js` client that *does*
+auto-refresh was module-scoped **inside `providers/supabase.tsx` — a component
+that only mounts on `/login`.** Once you were signed in, no refresh listener was
+alive anywhere in the process.
+
+Two behaviours shaped how it presented, and both are fixed here too:
+
+1. **It didn't redirect.** `callJson` called `logout()` on a 401 but never
+   navigated, and route guards only run in `beforeLoad`, so nothing
+   re-evaluated: React Query kept serving the last good brand from cache while
+   every refetch failed underneath it. Hence a correct-looking header over red
+   error text.
+2. **It self-healed on reload**, which is why it read as intermittent rather than
+   time-based: reload → no token → guard redirects to `/login` →
+   `getSession()` finds the still-valid, auto-refreshed session in localStorage →
+   signs straight back in, with no login form ever shown.
+
+### The load-bearing mechanism
+
+**The Supabase session is the source of truth for the token; `sessionStorage` is
+a cache of it.** Everything follows from moving the client to module scope where
+the whole app can reach it, and routing every server-bound token read through one
+accessor that consults the session before answering.
+
+`supabase.auth.getSession()` is the refresh point, not merely a getter — it
+checks `expires_at` and redeems the refresh token transparently. So "get me a
+token" and "refresh if needed" are the same call, and **no expiry arithmetic is
+written anywhere in this repo.**
+
+### What changed
+
+- **`auth/session.ts` (new)** holds the client at module scope and exports
+  `getFreshAuthToken()` — the single accessor for anything that talks to the
+  server, writing back into the store when the token differs — and
+  `startSessionSync()`, which mirrors `onAuthStateChange` into the store so a
+  *background* refresh (supabase-js fires one on a timer and on tab focus, with
+  nobody calling the accessor) reaches the copy the route guards read. Guarded by
+  a module flag, because StrictMode mounts effects twice and a second
+  subscription doubles every store write for the life of the tab.
+- **Fall back to the stored token, never to `null`.** With no session, or if
+  `getSession()` throws, we send what we have and let the server be the
+  authority: a genuinely dead token earns a 401 that drives the logout path — the
+  correct outcome — and the server log records *who* it was. Returning `null`
+  produces the same 401 with less information.
+- **Concurrent calls de-dupe into one in-flight promise**, cleared in
+  `.finally()`. A brand page mounts several queries at once and each asks for a
+  token; a *permanent* cache would make the first token resolved the only token
+  ever sent, which is the original bug wearing a different hat. Pinned by its own
+  test.
+- **`getAuthToken()` survives with a narrowed remit** — still correct for
+  *presence* checks in the eight `beforeLoad` guards, where stale-but-present
+  still means "signed in"; no longer correct for authenticating a request, and
+  the comment says so. `store.ts` gains **`setToken`**, because the refresh path
+  cannot use `setAuth`: that demands a `userId` a token rotation has no fresh
+  source for, and a placeholder would overwrite a correct one.
+- **Four consumers moved to the fresh accessor** — `api/client.ts` (the `hc`
+  `headers` callback, now async; that hono version's awaiting of a promise-
+  returning callback was checked in `node_modules`, not assumed from the docs),
+  `agent/useAgentChat.ts` (the `await` sits *before* the optimistic user-message
+  append, preserving the property that a signed-out send leaves no orphan
+  bubble), `api/queries/blobs.ts` (`fetchReadUrl` runs on a 4-minute
+  `refetchInterval` for the life of any mounted image, which makes it the surface
+  most likely to be the *first* call made with an expired token), and
+  `realtime/client.ts`.
+- **`realtime/client.ts` — async connect with a generation guard.** An open
+  socket legitimately outlives its token (the server verifies once, at upgrade),
+  but **every reconnect re-authenticates**, and reconnects are exactly what
+  happens after a laptop sleeps past the hour mark — the old code retried a dead
+  token on every backoff tick forever, with the exponential delay making it look
+  like a network problem. Because the socket is now constructed a microtask after
+  `connect()` returns, `closeSocket()` bumps the generation too: without it a
+  pending attempt would build an orphan socket that nothing holds and nothing
+  closes.
+- **`auth/AuthBoundary.tsx` stops causing the logout it was checking for.** It
+  probed `/me` with the *stored* token, so on a boot more than an hour after
+  sign-in it 401'd and signed the user out of a session still perfectly alive
+  behind the refresh token. It now probes with a fresh token, and a store
+  subscription watching the `prev.token && !state.token` **transition** (not the
+  value) navigates to `/login` — which is what closes symptom (1): every 401
+  handler clears the token, and now that clearing moves the user somewhere. A
+  first paint with no token and a plain token *rotation* both stay quiet, and
+  both are covered.
+- **`providers/supabase.tsx` imports the client instead of building one.** Two
+  clients over one localStorage session is two refresh schedulers racing each
+  other.
+
+### Verification
+
+```
+pnpm typecheck                   clean, all packages
+pnpm lint / format:check         clean
+pnpm test                        416 passed, 10 skipped (426)
+pnpm --filter @brandfactory/web build   ok
+```
+
+Test count 400 → **426 (+26)**: +12 `auth/session.test.ts` (refresh + store
+sync, `userId` preservation, in-flight de-dupe *and* that it clears after settle,
+both fallbacks, the unconfigured/local-auth path, `SIGNED_OUT`, subscribe-once),
++7 `AuthBoundary.test.tsx`, +4 realtime (fresh token per reconnect; abandoned
+in-flight connect), +3 `api/client.test.ts`. The nine existing realtime tests
+were rewritten to await socket construction — two of them needed an explicit
+microtask drain *before* asserting a socket was **not** created, otherwise the
+assertion could not fail. Mutation checks caught both the deleted generation
+guard and an `AuthBoundary` reverted to the stored token; `api/client.ts` needs
+none, since its test asserts `Bearer fresh` while the store holds `expired`.
+
+**Not verified live.** The failure takes an hour of wall clock to reproduce by
+definition. The honest confirmation is: sign in, leave the tab open for over an
+hour, and load a brand page *without reloading*. Recorded rather than claimed, in
+the spirit of 1.5.0's Phase H note.
+
+### Standing notes
+
+- **No boot-time session hydration.** `sessionStorage` is per-tab, so a *new* tab
+  still has no token, still bounces through `/login`, and still signs in silently
+  via `getSession()`. A separate and much less harmful papercut; fixing it means
+  blocking first paint on a session read in `main.tsx`.
+- **No token refresh mid-socket.** An open WS keeps its original token until it
+  reconnects. Correct today because the server verifies only at upgrade — but
+  this repo now depends on that assumption in two places, so it is written down.
 
 ---
 

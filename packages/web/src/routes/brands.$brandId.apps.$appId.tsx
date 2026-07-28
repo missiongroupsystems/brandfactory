@@ -25,14 +25,7 @@ function MiniAppPage() {
   // Hooks stay unconditional — the unknown-app branch is a render-time return
   // below. A mini-app has no entity of its own, so it occupies the breadcrumb's
   // `leaf` slot rather than the project one.
-  useBreadcrumbTrail(
-    brand
-      ? {
-          brand: { id: brand.id, name: brand.name },
-          ...(app ? { leaf: { name: app.title } } : {}),
-        }
-      : {},
-  )
+  useBreadcrumbTrail(app ? { leaf: { name: app.title } } : {})
 
   if (!app) {
     return (

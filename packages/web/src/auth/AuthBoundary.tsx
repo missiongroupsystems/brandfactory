@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useAuthStore } from './store'
+import { getFreshAuthToken, startSessionSync } from './session'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '/api') as string
 
@@ -15,16 +16,40 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
   // Lazy initializer reads store once at mount — no token means nothing to validate.
   const [ready, setReady] = useState(() => !useAuthStore.getState().token)
 
+  // Any 401 anywhere clears the token (`callJson`, `useAgentChat`, `blobs`),
+  // but clearing it used to leave the user parked on the page they were
+  // already on: route guards only run in `beforeLoad`, so nothing re-evaluated
+  // and they got a screen of stale cache under red error text. Watch the
+  // transition instead of relying on a navigation happening to occur.
   useEffect(() => {
-    const token = useAuthStore.getState().token
-    if (!token) return
+    return useAuthStore.subscribe((state, prev) => {
+      if (prev.token && !state.token) {
+        void navigate({ to: '/login' })
+      }
+    })
+  }, [navigate])
+
+  useEffect(() => {
+    if (!useAuthStore.getState().token) return
+
+    startSessionSync()
 
     const controller = new AbortController()
-    void fetch(`${API_BASE}/me`, {
-      headers: { authorization: `Bearer ${token}` },
-      signal: controller.signal,
-    })
-      .then(async (res) => {
+    // `getFreshAuthToken`, not the stored token: on a boot that happens more
+    // than an hour after sign-in the stored copy is expired, and probing with
+    // it would 401 and sign the user out of a session that is still perfectly
+    // alive behind the refresh token.
+    void getFreshAuthToken()
+      .then(async (token) => {
+        if (!token) {
+          logout()
+          await navigate({ to: '/login' })
+          return
+        }
+        const res = await fetch(`${API_BASE}/me`, {
+          headers: { authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        })
         if (!res.ok) {
           logout()
           await navigate({ to: '/login' })

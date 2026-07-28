@@ -1,23 +1,16 @@
 import { type FormEvent, useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import { useNavigate } from '@tanstack/react-router'
 import { useAuthStore } from '@/auth/store'
+import { supabase } from '@/auth/session'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-// Module-level client — null when env vars are absent (dev without Supabase).
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-// `detectSessionInUrl: false` — we exchange the magic-link code ourselves in
-// the effect below so we can surface exchange errors instead of letting
-// supabase-js log silently and leave the user staring at the form.
-const supabase =
-  supabaseUrl && supabaseKey
-    ? createClient(supabaseUrl, supabaseKey, {
-        auth: { detectSessionInUrl: false, flowType: 'pkce' },
-      })
-    : null
+// The client is imported, not constructed here. Two clients over one
+// localStorage session is two refresh schedulers racing each other, and the
+// one that used to live in this file was unreachable from the signed-in app —
+// which is precisely how the access token was left to expire in place.
+// Null when the env vars are absent (dev without Supabase).
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '/api') as string
 
 interface MeResponse {
@@ -98,6 +91,10 @@ export function SupabaseAuthProvider() {
       </p>
     )
   }
+  // Re-bound to a local const: TypeScript doesn't carry the null-narrowing of
+  // an *imported* binding into a nested closure, since another module could in
+  // principle reassign it. The guard above is the real check.
+  const client = supabase
 
   if (sent) {
     return (
@@ -115,7 +112,7 @@ export function SupabaseAuthProvider() {
     setError(null)
     setLoading(true)
     try {
-      const { error: signInError } = await supabase.auth.signInWithOtp({
+      const { error: signInError } = await client.auth.signInWithOtp({
         email: email.trim(),
         // Land on /login so SupabaseAuthProvider mounts and processes the
         // ?code= query. Returning to `/` lets indexRoute.beforeLoad redirect

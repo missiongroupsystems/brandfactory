@@ -2,7 +2,8 @@ import { useCallback, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { AgentEventSchema, type AgentMessage, type ProjectDetail } from '@brandfactory/shared'
-import { getAuthToken, useAuthStore } from '@/auth/store'
+import { useAuthStore } from '@/auth/store'
+import { getFreshAuthToken } from '@/auth/session'
 import { projectKeys } from '@/api/queries/projects'
 import { applyAgentEvent } from '@/realtime/applyAgentEvent'
 import { SseFrameParser } from './sseParser'
@@ -34,7 +35,11 @@ export function useAgentChat(projectId: string): UseAgentChatResult {
       const trimmed = content.trim()
       if (!trimmed || status === 'streaming') return
 
-      const token = getAuthToken()
+      // Resolved before the optimistic append, so a signed-out send leaves no
+      // orphan bubble in the cache. An agent turn can stream for minutes, but
+      // the server only authenticates at request start, so a token that is
+      // fresh here stays good for the whole stream.
+      const token = await getFreshAuthToken()
       if (!token) return
 
       const userMessage: AgentMessage = {

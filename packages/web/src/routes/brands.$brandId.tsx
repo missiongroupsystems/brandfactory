@@ -5,7 +5,6 @@ import { rootRoute } from './__root'
 import { getAuthToken } from '@/auth/store'
 import { AppError } from '@/api/client'
 import { useBrand, useBrandProjects, useDeleteBrand, useUpdateBrand } from '@/api/queries/brands'
-import { useBreadcrumbTrail } from '@/components/Breadcrumbs'
 import { BrandContextBar } from '@/components/brand/BrandContextBar'
 import { EditGuidelinesDialog } from '@/components/brand/EditGuidelinesDialog'
 import { TILE_APPS, isOrphanThread } from '@/components/brand/miniApps'
@@ -34,8 +33,9 @@ function BrandHubPage() {
   const update = useUpdateBrand(brandId, brand?.workspaceId ?? '')
   const del = useDeleteBrand(brandId, brand?.workspaceId ?? '')
 
-  useBreadcrumbTrail(brand ? { brand: { id: brand.id, name: brand.name } } : {})
-
+  // No trail: the brand hub *is* the brand, and the header's brand switcher
+  // already names it. Leaving the call in with an empty trail would read as a
+  // segment we forgot to fill in.
   const countsKnown = !projectsPending && !projectsError && projects !== undefined
   // Threads whose templateId matches no registered mini-app would otherwise be
   // reachable from nowhere; surface them under a catch-all below the tiles.

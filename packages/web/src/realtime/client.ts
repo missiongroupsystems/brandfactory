@@ -1,6 +1,6 @@
 import { RealtimeServerMessageSchema } from '@brandfactory/shared'
 import type { AgentEvent, RealtimeChannel } from '@brandfactory/shared'
-import { getAuthToken } from '@/auth/store'
+import { getFreshAuthToken } from '@/auth/session'
 
 type Handler = (payload: AgentEvent) => void
 type ResyncHandler = () => void
@@ -28,6 +28,12 @@ class RealtimeClient {
   private backoffMs = MIN_BACKOFF_MS
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private connectionCount = 0
+  // Bumped by every `connect()`. The socket is now constructed a microtask
+  // after `connect()` returns (the token is resolved asynchronously), so an
+  // unsubscribe-or-reconnect that lands in that gap must be able to invalidate
+  // the in-flight attempt — otherwise it builds an orphan socket nobody holds
+  // a reference to and nobody closes.
+  private connectGeneration = 0
 
   subscribe(channel: RealtimeChannel, handler: Handler): () => void {
     let handlers = this.channels.get(channel)
@@ -69,9 +75,30 @@ class RealtimeClient {
     }
   }
 
+  // The token goes in the URL and is verified once, at upgrade. A socket that
+  // opened with a valid token therefore survives that token's expiry — but
+  // every *reconnect* re-authenticates, and reconnects are exactly what
+  // happens after a laptop sleeps past the hour mark. Resolving a fresh token
+  // per attempt is what stops a backoff loop from retrying an expired one
+  // forever.
   private connect() {
     this.state = 'connecting'
-    const token = getAuthToken()
+    void this.openSocket(++this.connectGeneration)
+  }
+
+  private async openSocket(generation: number) {
+    let token: string | null = null
+    try {
+      token = await getFreshAuthToken()
+    } catch {
+      // Fall through with no token: the server closes the socket and the
+      // existing backoff handles the retry. Better than never reconnecting.
+    }
+
+    // Superseded while the token resolved — a newer `connect()` owns the
+    // socket now, or `closeSocket()` stood the client down entirely.
+    if (generation !== this.connectGeneration || this.state !== 'connecting') return
+
     const base = import.meta.env.VITE_RT_URL ?? '/rt'
     const qs = token ? `?token=${encodeURIComponent(token)}` : ''
     const wsUrl = toWsUrl(`${base}${qs}`)
@@ -85,6 +112,8 @@ class RealtimeClient {
 
   private closeSocket() {
     this.state = 'idle'
+    // Invalidate any attempt still waiting on a token.
+    this.connectGeneration++
     if (this.reconnectTimer !== null) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null

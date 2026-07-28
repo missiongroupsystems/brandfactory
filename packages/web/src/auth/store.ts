@@ -6,6 +6,7 @@ interface AuthState {
   token: string | null
   userId: string | null
   setAuth: (token: string, userId: string) => void
+  setToken: (token: string) => void
   logout: () => void
 }
 
@@ -15,6 +16,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   setAuth: (token, userId) => {
     sessionStorage.setItem(TOKEN_KEY, token)
     set({ token, userId })
+  },
+  // Token-only update for session refresh: the access token rotates roughly
+  // hourly while the identity behind it does not, so `userId` must survive.
+  // `setAuth` can't do this job — it demands a userId the refresh path has no
+  // fresh source for, and passing a placeholder would silently corrupt it.
+  setToken: (token) => {
+    sessionStorage.setItem(TOKEN_KEY, token)
+    set({ token })
   },
   logout: () => {
     sessionStorage.removeItem(TOKEN_KEY)

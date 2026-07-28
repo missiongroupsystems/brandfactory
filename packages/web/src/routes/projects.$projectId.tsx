@@ -26,14 +26,8 @@ function ProjectPage() {
   const [captureDialogOpen, setCaptureDialogOpen] = useState(false)
 
   useProjectStream(projectId)
-  useBreadcrumbTrail(
-    data
-      ? {
-          brand: { id: data.brand.id, name: data.brand.name },
-          project: { id: data.id, name: data.name },
-        }
-      : {},
-  )
+  // Brand omitted on purpose — it is the header's brand switcher now.
+  useBreadcrumbTrail(data ? { project: { id: data.id, name: data.name } } : {})
 
   if (isLoading) {
     return (

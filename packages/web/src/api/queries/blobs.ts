@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import type { BlobReadUrlResponse, BlobUploadResponse } from '@brandfactory/shared'
 import { AppError } from '@/api/client'
-import { getAuthToken, useAuthStore } from '@/auth/store'
+import { useAuthStore } from '@/auth/store'
+import { getFreshAuthToken } from '@/auth/session'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '/api') as string
 
@@ -19,7 +20,10 @@ export const blobKeys = {
 // not be percent-encoded into a single segment). Raw fetch is simpler and
 // matches the pattern `useAgentChat` already uses for the streaming endpoint.
 async function fetchReadUrl(key: string, signal?: AbortSignal): Promise<string> {
-  const token = getAuthToken()
+  // This one runs on a 4-minute `refetchInterval` for the life of any mounted
+  // image, so it is the surface most likely to be the first call made with an
+  // expired token.
+  const token = await getFreshAuthToken()
   const res = await fetch(`${API_BASE}/blob-urls/${key}/read-url`, {
     headers: token ? { authorization: `Bearer ${token}` } : {},
     signal,
@@ -51,7 +55,7 @@ export interface UploadBlobArgs {
 // storage. Returns the storage key the caller passes to the create-block
 // mutation. Errors from either step throw `AppError` so callers can toast.
 export async function uploadBlob({ file }: UploadBlobArgs): Promise<{ key: string }> {
-  const token = getAuthToken()
+  const token = await getFreshAuthToken()
   const mintRes = await fetch(`${API_BASE}/blob-urls/upload-url`, {
     method: 'POST',
     headers: {

@@ -1,7 +1,8 @@
 import { QueryClient } from '@tanstack/react-query'
 import { hc } from 'hono/client'
 import type { AppType } from '@brandfactory/server'
-import { getAuthToken, useAuthStore } from '@/auth/store'
+import { useAuthStore } from '@/auth/store'
+import { getFreshAuthToken } from '@/auth/session'
 
 export class AppError extends Error {
   readonly code: string
@@ -36,11 +37,14 @@ export async function callJson<T>(res: Response): Promise<T> {
   throw new AppError(message, code, res.status)
 }
 
-// Singleton typed API client. Headers callback reads the token on each call so
-// the client does not need to be re-created after login/logout.
+// Singleton typed API client. The headers callback resolves the token on each
+// call so the client does not need to be re-created after login/logout — and
+// it is `async` so it can go through `getFreshAuthToken`, which refreshes an
+// expired Supabase access token before the request rather than after the 401.
+// hono/client awaits a `headers` callback that returns a promise.
 export const api = hc<AppType>(import.meta.env.VITE_API_BASE_URL ?? '/api', {
-  headers: (): Record<string, string> => {
-    const token = getAuthToken()
+  headers: async (): Promise<Record<string, string>> => {
+    const token = await getFreshAuthToken()
     return token ? { authorization: `Bearer ${token}` } : {}
   },
 })

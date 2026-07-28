@@ -4,6 +4,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { AuthBoundary } from '@/auth/AuthBoundary'
 import { BreadcrumbProvider, Breadcrumbs } from '@/components/Breadcrumbs'
 import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher'
+import { BrandSwitcher } from '@/components/BrandSwitcher'
 import { useActiveWorkspaceId } from '@/lib/workspace-context'
 
 function Wordmark() {
@@ -28,11 +29,16 @@ function RootLayout() {
   return (
     <BreadcrumbProvider>
       <div className="flex h-screen flex-col bg-background">
-        {/* Raised chrome on sunken page canvas — flat product surface, no glass. */}
+        {/* Raised chrome on sunken page canvas — flat product surface, no glass.
+            One path left to right: workspace › brand › where you are inside it.
+            The switchers are peers because a brand is as much a *place* as a
+            workspace; each segment after the first renders its own leading `/`,
+            so a segment that renders nothing leaves no orphan divider. */}
         <header className="flex h-12 shrink-0 items-center gap-3 border-b bg-card px-4">
           <Wordmark />
-          <WorkspaceSwitcher />
-          <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <WorkspaceSwitcher />
+            <BrandSwitcher />
             <Breadcrumbs />
           </div>
           <ThemeToggle />
