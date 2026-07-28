@@ -54,78 +54,296 @@ authors a ProseMirror doc, so `packages/shared`'s "ProseMirror-validity is
 enforced by the editor, not the wire contract" invariant survives untouched, and
 `updateBrandGuidelines` gains **no second caller**.
 
-### What shipped, by phase
+### Phases at a glance
 
-- **A — registry row + conversation surface.** `MINI_APPS` was doing two jobs
-  that happened to agree: *classify* a thread (which `isOrphanThread` reads) and
-  *display* a tile (which the hub grid reads). The brand conversation is the
-  first row where they diverge — it must be classified, or a conversation lands
-  in "Other threads" filed under "we don't know what this is"; and it must not be
-  displayed, or the grid frames it as a fifth peer of Copywriting. Resolved with
-  `surface: 'tile' | 'hidden'` and a derived `TILE_APPS`. New route
-  `/brands/$brandId/context`, two entry points on the context bar, and a redirect
-  closing `/apps/context` as a second surface. **+15**
-- **B — the thread surface.** A brand-context thread renders `BrandContextPane`
-  (the live guidelines editor) where every other thread renders `CanvasPane`.
-  You cannot drop into a target you cannot see. Also patches cached project
-  details on a guidelines save, so a window-focus refetch can't resurface stale
-  sections beside a correct editor. **+11**
-- **C — the gesture.** `MessageCapture.tsx`: a drag grip and a click action in
-  the bubble gutter, drop affordances on every section, and a
-  `+ Drop here for a new section` target. Content lands in **local state** —
-  nothing saves until you press Save, which is what makes capture safe to be
-  one-handed. User messages set `text/plain` only (their bubbles aren't
-  markdown-rendered, so HTML would collapse their line breaks). **+17**
-- **D — excerpt capture.** Whole-message capture over-captures; agent replies are
-  chatty and the good line is usually one sentence. Select the sentence, capture
-  the sentence. **Not cut** — its named risk (the affordance clearing its own
-  selection) is real, and is handled by preventing the mousedown default. Reuses
-  C's insert path verbatim. **+12**
-- **E — capture from any thread.** A sharp line about the brand doesn't wait for
-  you to be in the right thread; it turns up while you're writing ad copy. The
-  gesture already existed on every bubble — what Copywriting and Open canvas
-  lacked was somewhere for it to land. `staged` threads through
-  `EditGuidelinesDialog` to the same editor. A prop and a dialog. **+6**
-- **F — agent behaviour (a correctness fix, not a feature).** `streamResponse`
-  built canvas tools unconditionally and the system prompt told the model to use
-  them — so an agent in a brand-context thread could call `add_canvas_block` and
-  the block would be **persisted, broadcast over the realtime bus, and rendered
-  nowhere**. Work that silently vanishes. `templateId` now reaches the agent (one
-  line in `routes/agent.ts`), which withholds both the canvas context block and
-  the tools. The interview persona replaces the canvas-awareness block; the
-  default prompt is pinned **byte-identical** by test, so every other thread is
-  provably unaffected. **+6**
-- **G — tests, as reconciliation.** Planned as "+25–35 on top of 332", but A, B,
-  E and F had each written the coverage G was scheduled to write, and the suite
-  was already at 399. So G walked the plan's seventeen items and proved each was
-  paid. Sixteen were. **The seventeenth was hiding a real defect** — a StrictMode
-  double-insert, now fixed by keying the insert path on payload identity. **+1
-  and one bug.**
+| Phase | What | Tests | Status |
+| --- | --- | --- | --- |
+| [A](completions/brand-context-capture-phase-a.md) | Registry row + conversation surface | 332 → 347 (+15) | done |
+| [B](completions/brand-context-capture-phase-b.md) | The brand-context thread surface | 347 → 358 (+11) | done |
+| [C](completions/brand-context-capture-phase-c.md) | Drag a message into brand context | 358 → 375 (+17) | done |
+| [D](completions/brand-context-capture-phase-d.md) | Excerpt capture | 375 → 387 (+12) | done — **not cut** |
+| [E](completions/brand-context-capture-phase-e.md) | Capture from any thread | 387 → 393 (+6) | done |
+| [F](completions/brand-context-capture-phase-f.md) | Brand-context agent behaviour | 393 → 399 (+6) | done — **correctness fix** |
+| [G](completions/brand-context-capture-phase-g.md) | Tests (reconciliation) | 399 → 400 (+1) | done — **+1 bug fixed** |
+| [H](completions/brand-context-capture-phase-h.md) | Verification and live pass | — | **not run — skipped by decision** |
 
-### Phase H did not run
+Every phase left the repo green at its boundary and landed its own
+`docs/completions/` file, per repo convention.
 
-The plan's final phase — repo gates plus a thirteen-step live browser walk — was
-**skipped by an explicit decision on 2026-07-28 to verify in production
-instead.** The static gates are green (typecheck 9/9, lint, format, build, 400
-tests with the live-DB suites covered by CI's Postgres 16 sidecar). The browser
-walk is **unobserved**.
+### Phase A — registry row + conversation surface (+15)
 
-That includes the step the plan itself called the whole point: **that the next
-agent turn reflects a just-captured section.** Also unobserved: that a real drag
-lands at the cursor rather than appending, that no orphaned canvas block reaches
-real Postgres (F is proven only against the in-memory fake), cache coherence
-after a refetch, and whether a real model actually phrases crisply under F2's
-persona — which F3 is blunt about being the thing that makes capture worth doing
-at all.
+`MINI_APPS` was doing one job with two consumers that happened to agree:
+*classify* a thread by `templateId` (which `isOrphanThread` reads) and *display*
+a category tile (which the hub grid reads). The brand conversation is the first
+row where those diverge — it **must** be classified, or a conversation lands in
+the hub's "Other threads" catch-all filed under "we don't know what this is"; and
+it **must not** be displayed, or the Workspace grid frames it as a fifth peer of
+Copywriting, telling a first-time user to start anywhere but the brand.
 
-The decision was defensible on one specific ground: this pass contains **no
-migration, no new table, no schema change, and no new API route**
-(`packages/db` and `packages/shared` are untouched), so rollback is redeploying
-the previous image with no data state to unwind. **That ground would not hold for
-a pass containing a migration.**
+- `surface: 'tile' | 'hidden'` on the `MiniApp` type, set **explicitly** on all
+  five rows (no default — a default is how a new row silently acquires a display
+  behaviour nobody chose), plus a derived `TILE_APPS`. One registry, two views of
+  it; a second list is precisely how the two halves drift apart.
+- `isOrphanThread` keeps reading `MINI_APPS`, not `TILE_APPS` — that single
+  choice is the entire reason a hidden thread isn't orphaned, and it now carries
+  a comment saying so, because it reads like a bug without one.
+- New route `/brands/$brandId/context` (deliberately not under `/apps/`), both
+  queries collapsed into one `listPending`/`listError` pair — the 1.4.0 **I2**
+  lesson. It creates nothing on arrival: implicit creation strews empty threads,
+  and "resume the most recent" is wrong the first time you want a fresh line of
+  thinking.
+- `/brands/$brandId/apps/context` would have rendered a **second, unintended
+  surface** the moment the row existed. Closed with a `beforeLoad` redirect —
+  in `beforeLoad` rather than the render body, so there's no frame of the wrong
+  surface. An unregistered id still falls to the unknown-app branch; being
+  unregistered is not the same as being hidden.
+- Two entry points on the context bar, because the bar has two shapes and a brand
+  that starts as a rough idea only ever sees the empty one — which is exactly the
+  brand this feature is for. Both `ghost`; the accent budget isn't spent on
+  ambient context.
 
-Full unverified list, the orphan-block query, and the rollback procedure:
-`docs/completions/brand-context-capture-phase-h.md`.
+Pulled forward from the plan's Phase B: `BRAND_CONTEXT_TEMPLATE_ID`, since A
+already had two callers. `isBrandContextThread` is exported as a named predicate
+that the registry row uses **as** its `match`, so route and registry are the same
+function rather than two expressions that must agree.
+
+### Phase B — the brand-context thread surface (+11)
+
+You cannot drop into a target you cannot see. A brand-context thread renders
+`BrandContextPane` — the **live** guidelines editor — where every other thread
+renders `CanvasPane`. `ProjectDetail` is an intersection over the
+`kind`-discriminated union, so the branch narrows with no cast and **no API
+change**. `ChatPane` is byte-identical in every thread, which matters because
+Phase C's capture handles are deliberately not brand-context-specific.
+
+- **No second Save button and no second `Cmd-S`.** The editor owns both. Two
+  triggers over one destructive full-list write is how you get a wipe nobody can
+  trace. Pinned by a test, because a later "the pane should have its own footer"
+  instinct quietly breaks it.
+- **Cache coherence.** A brand's sections are now cached in *two* places —
+  `brands/:id` and the `brand` embedded in each `ProjectDetail`.
+  `useUpdateBrandGuidelines` only repointed the first, so the visible editor
+  would have looked correct right up until a window-focus refetch put the
+  pre-save sections back beside it. The 1.4.0 **I1** class one layer out, and
+  mystifying to debug: the editor is right, the data behind it is wrong, and the
+  trigger is switching browser tabs. Both writes now live in
+  `applyGuidelinesToCache`.
+- **A real layout defect, not just a check.** `SectionRow`'s content column was
+  `flex-1` with no `min-w-0`, so it sized to min-content — fine in a dialog and a
+  full-width page, overflowing in a pane that can be 35% of the viewport. Fixed
+  with `min-w-0` + `break-words`. Reasoned from the box model, **not observed**;
+  H owed the look.
+- **B5 — the canvas is still there.** Every project gets one at creation; we
+  simply don't render it. Cheaper than conditional creation, and it keeps the
+  thread convertible. Recorded so it isn't rediscovered as a bug — and it is
+  exactly why **F is required, not optional**.
+
+### Phase C — drag a message into brand context (+17)
+
+The gesture, and the shippable core. `MessageCapture.tsx` exports the payload
+builders, a drag grip and a click action, so `ChatPane` stays a chat component
+and the editor stays an editor.
+
+- The **grip** carries the drag, not the bubble, so text selection inside the
+  bubble still works — Phase D depends on that. Rendered for **both roles** and
+  not styled as an agent-only affordance: the sharpest articulation of a brand is
+  often the founder's own offhand sentence.
+- **User messages set `text/plain` only.** A user bubble is escaped plain text
+  whose newlines are CSS (`whitespace-pre-wrap`), so parsing its `innerHTML`
+  would collapse a multi-line message into one run-on paragraph. ProseMirror
+  splits plain text on newlines natively — strictly better than hand-building
+  `<p>` tags, and it writes no HTML anywhere, which keeps the no-converter
+  invariant clean.
+- **Existing sections add styling only.** They're already drop targets by virtue
+  of containing a contenteditable, and the row never calls `preventDefault` on
+  the drop — that would take the event from ProseMirror and land content at the
+  end instead of at the cursor. Precision is the whole point. The `dragover`
+  highlight clears via a `relatedTarget` containment check, not on every
+  `dragleave` (which also fires crossing into a child).
+- **Nothing saves.** A drop mutates local state exactly like typing. Name the
+  section, trim the body, then Save. That's what makes capture safe to be
+  one-handed, and a test pins it.
+- **dnd-kit coexistence: the conflict does not exist**, verified against
+  `@dnd-kit/core` source rather than assumed. `useSortable().attributes` never
+  sets `draggable`; its `PointerSensor` activates on `onPointerDown`, which HTML5
+  drag events don't produce on the element being dragged *over*; and our grip
+  lives in `ChatPane`, outside the `DndContext` entirely. Recorded either way — a
+  plausible-sounding conflict that turns out not to exist is worth writing down.
+
+A mutation check here earned its keep: replacing the staged identity guard with a
+truthiness check **initially passed**, because the test wasn't rendering under
+`StrictMode`. The test was fixed, the mutation re-run, and it failed correctly.
+The first version of that test was worthless and looked fine.
+
+### Phase D — excerpt capture (+12) — not cut
+
+Whole-message capture over-captures: agent replies are chatty and the good line
+is usually one sentence, so capturing the whole reply means capturing three
+paragraphs of hedging around it. Select the sentence, capture the sentence.
+
+D reuses C's insert path **verbatim** — the plan's rule was that if it doesn't,
+the two payload shapes have diverged and one of them is wrong. `MessageCapture`
+grew a section; no other file gained a concept.
+
+- `useSelectionCapture` resolves the host via `range.commonAncestorContainer`,
+  which climbs out of the bubble the instant a selection spans two of them. One
+  line rejects **both** cross-bubble selections and selections outside the chat —
+  the two cases the plan named as reasons D might have to be cut.
+- One affordance per pane, not one per bubble: a text selection is a
+  document-level singleton. `position: fixed`, anchored above the selection rect,
+  hidden when the selection scrolls out of the pane.
+- **The cut criterion was real, and jsdom reproduced it.** A test that cleared
+  the selection then clicked the button found the button already gone: the
+  `selectionchange` lands during the click's yield, the hook clears state, React
+  unmounts the affordance *before the click is delivered*. Not a jsdom artifact —
+  the production failure mode on production timing. `onMouseDown` +
+  `preventDefault` is therefore **load-bearing, not polish**, and the comment now
+  says so; it was written the other way round first.
+- One hazard in the free native selection drag: inside a **user** bubble the UA's
+  own `text/html` flavor is pre-wrapped plain text — the exact newline collapse
+  Correction 3 exists to prevent, sneaking back through the one path we didn't
+  author. `restrictSelectionDragToText` clears that flavor and leaves
+  `text/plain`.
+
+A mutation check found a guard that no test touched — the scroll-out-of-view
+guard had been written, shipped and was apparently fine. It has a test now. That
+is the point of doing them.
+
+### Phase E — capture from any thread (+6)
+
+A sharp line about the brand doesn't wait for you to be in the right thread; it
+usually turns up while you're writing ad copy. The plan claimed this was "a prop
+and a dialog", and it was: `BrandGuidelinesEditor` already took `staged` (C built
+E2 ahead of time) and `EditGuidelinesDialog` was already controlled.
+
+One gating decision the plan didn't anticipate: **the drag grip had to be
+gated.** Turning the affordances on everywhere literally would have shipped a
+drag grip in threads whose right pane is the canvas — and the canvas is full of
+TipTap editors that accept `text/plain`, so a grip labelled "Drag into brand
+context" would quietly drop the message **into the canvas**. A closed dialog
+cannot be dragged into. `hasDropTarget` is true only where the editor is on
+screen; the click and selection paths are destination-agnostic and need no gate.
+
+| | click action | selection affordance | drag grip |
+| --- | --- | --- | --- |
+| Brand context | yes | yes | yes |
+| Copywriting / Open canvas | yes | yes | **no** |
+
+Also worth recording: the route first refused to *open* the dialog in a
+brand-context thread **and** refused to *render* one. Each masked the other —
+deleting either left every test green, so the property was pinned by nothing.
+Collapsed to a single decision at the render site. Two guards for one property is
+not belt-and-braces, it is an untested property.
+
+### Phase F — brand-context agent behaviour (+6) — a correctness fix
+
+**Not a feature.** It closes the gap B opened and every phase since widened.
+`streamResponse` built canvas tools unconditionally and the system prompt told
+the model to use them, so an agent in a brand-context thread could call
+`add_canvas_block` and the block would be **persisted to the database, broadcast
+over the realtime bus, and rendered nowhere.** Work that silently vanishes.
+
+- **The canvas is withheld at both ends.** `buildCanvasTools` isn't called at all
+  (the applier is unreachable, not merely unused) *and* `buildCanvasContext`
+  isn't composed into `system`. Withholding only the tools would leave the model
+  reasoning about, and describing, a canvas the user cannot see — there's a test
+  asserting the blocks passed in go undescribed.
+- **The server forwards and decides nothing** — one line, exactly as predicted.
+  The route forwards `templateId`; the agent decides what a template means.
+- **The interview persona** replaces the canvas contract for this one template:
+  one sharp question at a time, probe for specifics rather than the first
+  abstraction, reflect a settled aspect back as a single crisp articulation
+  rather than a menu of five, and an explicit statement that it has no canvas, no
+  tools, and never writes to the brand itself.
+- **The byte-identity snapshot was recorded before the code changed** — added
+  first, run against the pre-F build, and only then was `opts` introduced. So the
+  literal is genuinely *today's* prompt rather than a transcription of the prompt
+  just written.
+- **The server got its own tests**, which the plan explicitly did not ask for. It
+  is one pass-through argument, but it is the argument that decides whether the
+  defect exists in production, and the agent-package test cannot see it. It
+  asserts on database and bus state — zero blocks, zero canvas events, zero
+  published ops — and the mutation check confirmed it: reverting the route to its
+  exact pre-F state fails it.
+
+F3's honest framing: a persona is not a capability, and removing tools is the
+opposite of granting one. But the persona isn't decoration — **the agent phrasing
+well is what makes capture worth doing.** Every gesture in C–E moves the agent's
+words by hand into a guideline section, so if its replies are three paragraphs of
+hedging there is nothing crisp to grab.
+
+### Phase G — tests, as reconciliation (+1, and one bug)
+
+G was planned as "+25–35 on top of 332" but could not run that way: A, B, E and F
+had each written the coverage G was scheduled to write, and D and F added
+mutation-driven tests G never listed. By the time G started the suite was already
+at **399**. So it ran as a reconciliation — walk the plan's seventeen items,
+prove each is paid or write it, and say plainly which ones jsdom cannot express.
+
+Sixteen were paid. **The seventeenth was hiding a real defect.**
+
+Item 11 asked that `pendingInsert` reach `insertContent` *and be cleared after*.
+The first half was paid three times over; the second by nothing — and clearing
+has **no observable behaviour in the current UI**, so the honest question was not
+"is it cleared" but "what is the clearing protecting against". The answer is
+StrictMode: `onInsertConsumed` is a state update that has not landed by the time
+React's dev-mode double-invoke runs the effect again.
+
+**Every captured message was pasted into its section twice in development.**
+
+It survived five phases because the guard that *looks* like it covers this —
+Phase C's `consumedStagedRef` — guards the **parent** and counts **sections**. A
+section appended twice and a body inserted twice are different bugs, and the
+existing test asserted only the former. Scope is dev-only (React doesn't
+double-invoke in production builds), so no shipped build pasted twice — but every
+developer and every manual QA pass since Phase C saw doubled text, which makes it
+exactly the kind of thing that would have wasted the Phase H walk.
+
+Fixed with the same identity guard C used in the parent, applied per-row to the
+insert path. A defect was fixed inside a test phase deliberately: deferring it
+would have meant knowingly leaving a double-paste in the tree while writing a
+document that says the insert path is covered.
+
+### Phase H — verification and live pass — **not run**
+
+The plan's final phase, and the only one that did not execute. Repo gates plus a
+thirteen-step live browser walk, **skipped by an explicit decision on 2026-07-28
+to verify in production instead.**
+
+What *is* verified: typecheck 9/9, lint, format, build, and **400/400 tests with
+zero skips in CI** — `.github/workflows/ci.yml` runs the suite against a Postgres
+16 sidecar, so the ten live-DB suites that skip locally do execute there. That is
+the no-skips half of H's gate, met by CI rather than by a local run.
+
+What is **unobserved** — the browser walk, in full. The highest-value items:
+
+1. **The loop closes** — after saving a captured section, the *next agent turn
+   reflects it*. The plan's own words: *"if only one step is verified, make it
+   this one."* It is the entire point of the feature.
+2. **No phantom canvas in real Postgres.** F is proven against the in-memory
+   fake, which is the same code path but not the same storage.
+3. **Drop position** — content lands at the ProseMirror cursor rather than
+   appending. Correction 5 states outright that jsdom can never express this.
+4. **Cache coherence** after a real window-focus refetch (B3) — a silent, delayed
+   failure mode.
+5. **Whether a real model actually interviews and phrases crisply** under F2's
+   persona. No test can answer this.
+
+Plus, carried from A–F: the narrow-pane layout and header strip by eye (B),
+whether a contenteditable accepts the synthetic drag at all and whether the hover
+styling swallows the drop (C), `clearData` on a native selection drag and the
+floating affordance's placement (D), whether the dialog opens scrolled to the
+capture (E), mobile long-press, and gutter discoverability.
+
+The decision was defensible on one specific ground, worth stating precisely so it
+isn't mistaken for a general licence: this pass contains **no migration, no new
+table, no schema change, and no new API route** (`packages/db` and
+`packages/shared` are untouched), so rollback is redeploying the previous image
+with no data state to unwind. **That ground would not hold for a pass containing
+a migration.**
+
+Full unverified list, the orphan-block SQL, and the rollback procedure:
+[`docs/completions/brand-context-capture-phase-h.md`](completions/brand-context-capture-phase-h.md).
 
 ### Standing notes
 
@@ -148,10 +366,16 @@ Full unverified list, the orphan-block query, and the rollback procedure:
 pnpm typecheck                   9/9 workspaces
 pnpm lint                        clean
 pnpm format:check                clean
-pnpm test                        400 (390 passed, 10 skipped locally —
-                                 live-DB suites run in CI)
+pnpm test                        400 — 390 passed, 10 skipped locally
+                                 (no Docker daemon); 400/400 no skips in CI
 pnpm build                       all packages ok
 ```
+
+CI on the release commit ran the full suite against a Postgres 16 sidecar with
+`DATABASE_URL` set: **67 files, 400 passed (400), zero skipped.** The ten
+live-Postgres suites that skip locally do execute there, so the no-skips gate is
+met — just not before the deploy, since `deploy-backend.yml` has no `needs:`
+dependency on the verify job and both start on the same push.
 
 Test count 332 → **400 (+68)**: +15 A, +11 B, +17 C, +12 D, +6 E, +6 F, +1 G.
 **No manual browser pass** — see Phase H above.
