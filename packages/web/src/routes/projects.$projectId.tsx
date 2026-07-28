@@ -10,16 +10,20 @@ import { TopBar } from '@/components/project/TopBar'
 import { ChatPane } from '@/components/project/ChatPane'
 import { CanvasPane } from '@/components/canvas/CanvasPane'
 import { BrandContextPane } from '@/components/brand/BrandContextPane'
+import { EditGuidelinesDialog } from '@/components/brand/EditGuidelinesDialog'
 import { BRAND_CONTEXT_TEMPLATE_ID } from '@/components/brand/miniApps'
 import type { CapturePayload } from '@/components/project/MessageCapture'
 
 function ProjectPage() {
   const { projectId } = projectRoute.useParams()
   const { data, isLoading, error } = useProjectDetail(projectId)
-  // The click path's hand-off between the two panes. The drag path needs no
-  // state — the drop lands directly in the editor.
+  // The click path's hand-off to whichever editor is in reach. The drag path
+  // needs no state — the drop lands directly in the visible editor.
   const [staged, setStaged] = useState<CapturePayload | null>(null)
   const clearStaged = useCallback(() => setStaged(null), [])
+  // Phase E: outside a brand-context thread the editor isn't on screen, so a
+  // capture brings it up.
+  const [captureDialogOpen, setCaptureDialogOpen] = useState(false)
 
   useProjectStream(projectId)
   useBreadcrumbTrail(
@@ -57,6 +61,19 @@ function ProjectPage() {
   const isBrandContext =
     data.kind === 'standardized' && data.templateId === BRAND_CONTEXT_TEMPLATE_ID
 
+  // One capture destination, reached two ways. In a brand-context thread the
+  // editor is already the right pane, so the payload just goes to it; anywhere
+  // else the same payload opens the dialog over the canvas. Same prop shape,
+  // same staging effect, same sole writer of the guidelines.
+  //
+  // Whether a dialog exists at all is decided in one place, below — this does
+  // not re-test it. Two guards for one property mask each other, and neither
+  // ends up pinned by a test.
+  const capture = (payload: CapturePayload) => {
+    setStaged(payload)
+    setCaptureDialogOpen(true)
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <TopBar project={data} brand={data.brand} />
@@ -65,10 +82,10 @@ function ProjectPage() {
           <ChatPane
             projectId={projectId}
             messages={data.recentMessages}
-            // No capture target outside a brand-context thread until Phase E
-            // gives one the dialog, and an affordance that lands nowhere is
-            // worse than none.
-            onCapture={isBrandContext ? setStaged : undefined}
+            onCapture={capture}
+            // Only a brand-context thread has the editor on screen to drop
+            // into; elsewhere the dialog is closed until a capture opens it.
+            hasDropTarget={isBrandContext}
           />
         }
         right={
@@ -85,6 +102,18 @@ function ProjectPage() {
           )
         }
       />
+      {/* `data.brand` is already a full BrandWithSections, so this needs no
+          fetch of its own — and no second caller of the guidelines write: the
+          dialog frames the same editor the pane does. */}
+      {!isBrandContext && (
+        <EditGuidelinesDialog
+          brand={data.brand}
+          open={captureDialogOpen}
+          onOpenChange={setCaptureDialogOpen}
+          staged={staged}
+          onStagedConsumed={clearStaged}
+        />
+      )}
     </div>
   )
 }

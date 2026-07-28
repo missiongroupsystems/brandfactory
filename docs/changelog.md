@@ -4,6 +4,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 ## Index
 
+- **1.5.0** — 2026-07-28 — Brand context capture (Phases A–G): a brand gets a **recorded conversation** — a hidden-from-the-hub `brand-context` thread that renders the **live guidelines editor** where every other thread renders the canvas — plus a **manual gesture** promoting any message, yours or the agent's, into a guideline section. The agent never writes; you curate. The bridge is **the drop itself** (bubble writes rendered HTML into `dataTransfer`, TipTap parses it through its own schema), so no markdown→ProseMirror converter exists and `updateBrandGuidelines` gains no second caller. Captures whole messages *or* selected excerpts, from *any* thread. Includes a correctness fix (F): the agent no longer gets canvas tools in a thread that renders no canvas, where blocks would have been persisted, broadcast, and displayed nowhere. 332 → **400 tests (+68)**. **Phase H's live pass was skipped by decision — shipped unobserved, verification deferred to production.**
 - **1.4.0** — 2026-07-25 — Brand hub mini-apps (Phases A–J): the brand page becomes a **hub** — an ambient, collapsible **brand context bar** (guidelines demoted from a full-page editor to one-click-away editing) over a **Workspace grid of mini-app tiles** (Copywriting + Open canvas live; Visual identity + Social calendar as inert "Soon" tiles), each tile opening a category page that lists and creates threads tagged with a `templateId` — the first time the standardized-project path is driven end-to-end from the UI. Unblocked by generalizing `useCreateProject` to `{ name, templateId? }`. Includes a review-remediation pass (I: undeletable guideline sections finally persist, stale context-bar content, blank mini-app page on a failed brand query) and a live-browser polish pass (J: distinct collapsed-rail icons, WCAG-AA contrast on Soon tiles, an orphan-thread catch-all, root `.env` loading). 292 → **332 tests (+40)**, no skips against live Postgres.
 - **1.3.0** — 2026-07-22 — Reconciled with the OSS upstream (`philholke/brandfactory`): takes upstream's 0.8.1→0.9.1 line (Phase 9 navigation redesign, live-DB query coverage, ISO-timestamp fix, blob cleanup on delete) and keeps this fork's deploy layer + design-system re-spec. Restores the missing `migrate.mjs` that broke releases v7/v8. **292 tests.**
 - **0.9.1** — 2026-07-22 — Repo split: deployment specifics (`fly.toml`, `Dockerfile`, `.dockerignore`) move out of this OSS upstream into the deployment fork; Supabase auto-provisioning (`ensureUser`), pg pooler-safety and single-instance `native-ws` invariants ported upstream from that fork. Fixes API timestamps never having been ISO 8601 despite every schema declaring it. Documents why releases v7/v8 failed. 285 → **292 tests (+7)**.
@@ -27,6 +28,133 @@ Latest releases at the top. Each version has a one-line entry in the index below
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` lands — drizzle schema for 8 tables, singleton pg `Pool`, 18 query helpers, local-dev docker Postgres, and an end-to-end smoke check.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` lands as the single source of truth for domain types and zod schemas, consumed by both `server` and `web`.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture blueprint, scaffolding plan, and Phase 0 repo foundation.
+
+---
+
+## 1.5.0 — 2026-07-28
+
+A brand you can **think out loud in**. 1.4.0 gave the brand page a hub of
+mini-apps; this release gives the brand a conversation that sits next to its own
+guidelines, and a gesture that moves anything said in it into those guidelines by
+hand. Plan tracked in `docs/executing/brand-context-capture.md`.
+
+**The agent never writes. It talks; you curate.**
+
+### The load-bearing mechanism
+
+A chat message is markdown text (`agent_messages.content` is `text`). A guideline
+body is a `ProseMirrorDoc`. The bridge is **the drop itself**: the bubble writes
+rendered HTML into `dataTransfer`, and a TipTap editor parses it through its own
+schema. Headings, lists, bold and italic arrive as real nodes; an `h4` or a table
+is coerced **by the schema**, not by a converter we would have to write and keep
+honest.
+
+Everything else is downstream of that one idea. Nothing outside the editor ever
+authors a ProseMirror doc, so `packages/shared`'s "ProseMirror-validity is
+enforced by the editor, not the wire contract" invariant survives untouched, and
+`updateBrandGuidelines` gains **no second caller**.
+
+### What shipped, by phase
+
+- **A — registry row + conversation surface.** `MINI_APPS` was doing two jobs
+  that happened to agree: *classify* a thread (which `isOrphanThread` reads) and
+  *display* a tile (which the hub grid reads). The brand conversation is the
+  first row where they diverge — it must be classified, or a conversation lands
+  in "Other threads" filed under "we don't know what this is"; and it must not be
+  displayed, or the grid frames it as a fifth peer of Copywriting. Resolved with
+  `surface: 'tile' | 'hidden'` and a derived `TILE_APPS`. New route
+  `/brands/$brandId/context`, two entry points on the context bar, and a redirect
+  closing `/apps/context` as a second surface. **+15**
+- **B — the thread surface.** A brand-context thread renders `BrandContextPane`
+  (the live guidelines editor) where every other thread renders `CanvasPane`.
+  You cannot drop into a target you cannot see. Also patches cached project
+  details on a guidelines save, so a window-focus refetch can't resurface stale
+  sections beside a correct editor. **+11**
+- **C — the gesture.** `MessageCapture.tsx`: a drag grip and a click action in
+  the bubble gutter, drop affordances on every section, and a
+  `+ Drop here for a new section` target. Content lands in **local state** —
+  nothing saves until you press Save, which is what makes capture safe to be
+  one-handed. User messages set `text/plain` only (their bubbles aren't
+  markdown-rendered, so HTML would collapse their line breaks). **+17**
+- **D — excerpt capture.** Whole-message capture over-captures; agent replies are
+  chatty and the good line is usually one sentence. Select the sentence, capture
+  the sentence. **Not cut** — its named risk (the affordance clearing its own
+  selection) is real, and is handled by preventing the mousedown default. Reuses
+  C's insert path verbatim. **+12**
+- **E — capture from any thread.** A sharp line about the brand doesn't wait for
+  you to be in the right thread; it turns up while you're writing ad copy. The
+  gesture already existed on every bubble — what Copywriting and Open canvas
+  lacked was somewhere for it to land. `staged` threads through
+  `EditGuidelinesDialog` to the same editor. A prop and a dialog. **+6**
+- **F — agent behaviour (a correctness fix, not a feature).** `streamResponse`
+  built canvas tools unconditionally and the system prompt told the model to use
+  them — so an agent in a brand-context thread could call `add_canvas_block` and
+  the block would be **persisted, broadcast over the realtime bus, and rendered
+  nowhere**. Work that silently vanishes. `templateId` now reaches the agent (one
+  line in `routes/agent.ts`), which withholds both the canvas context block and
+  the tools. The interview persona replaces the canvas-awareness block; the
+  default prompt is pinned **byte-identical** by test, so every other thread is
+  provably unaffected. **+6**
+- **G — tests, as reconciliation.** Planned as "+25–35 on top of 332", but A, B,
+  E and F had each written the coverage G was scheduled to write, and the suite
+  was already at 399. So G walked the plan's seventeen items and proved each was
+  paid. Sixteen were. **The seventeenth was hiding a real defect** — a StrictMode
+  double-insert, now fixed by keying the insert path on payload identity. **+1
+  and one bug.**
+
+### Phase H did not run
+
+The plan's final phase — repo gates plus a thirteen-step live browser walk — was
+**skipped by an explicit decision on 2026-07-28 to verify in production
+instead.** The static gates are green (typecheck 9/9, lint, format, build, 400
+tests with the live-DB suites covered by CI's Postgres 16 sidecar). The browser
+walk is **unobserved**.
+
+That includes the step the plan itself called the whole point: **that the next
+agent turn reflects a just-captured section.** Also unobserved: that a real drag
+lands at the cursor rather than appending, that no orphaned canvas block reaches
+real Postgres (F is proven only against the in-memory fake), cache coherence
+after a refetch, and whether a real model actually phrases crisply under F2's
+persona — which F3 is blunt about being the thing that makes capture worth doing
+at all.
+
+The decision was defensible on one specific ground: this pass contains **no
+migration, no new table, no schema change, and no new API route**
+(`packages/db` and `packages/shared` are untouched), so rollback is redeploying
+the previous image with no data state to unwind. **That ground would not hold for
+a pass containing a migration.**
+
+Full unverified list, the orphan-block query, and the rollback procedure:
+`docs/completions/brand-context-capture-phase-h.md`.
+
+### Standing notes
+
+- **The template id now lives in three places** — `miniApps.ts` (web),
+  `packages/agent/src/templates.ts` (new, deliberately local), and as a bare
+  string on the wire. The repo-wide `TEMPLATE_ID` constant plus DB `CHECK`
+  remains the 1.4.0 follow-up; a third copy raises the price of deferring it
+  again. `isOrphanThread` is still the net.
+- **The canvas still exists server-side** for brand-context threads — every
+  project gets one at creation. We simply don't render it. Cheaper than making
+  creation conditional, and it keeps the thread convertible later.
+- **Deferred (non-goals, unchanged):** agent-authored sections; auto-capture or
+  "this looks quotable" hinting; canvas → brand context capture; per-section
+  provenance; a "captured" marker on the bubble (no id links a message to a
+  section, so it could only ever mean "you once dragged this").
+
+### Verification
+
+```
+pnpm typecheck                   9/9 workspaces
+pnpm lint                        clean
+pnpm format:check                clean
+pnpm test                        400 (390 passed, 10 skipped locally —
+                                 live-DB suites run in CI)
+pnpm build                       all packages ok
+```
+
+Test count 332 → **400 (+68)**: +15 A, +11 B, +17 C, +12 D, +6 E, +6 F, +1 G.
+**No manual browser pass** — see Phase H above.
 
 ---
 

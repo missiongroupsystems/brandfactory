@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ProjectDetail } from '@brandfactory/shared'
+import type { CapturePayload } from '@/components/project/MessageCapture'
 import { projectRoute } from './projects.$projectId'
 
 const h = vi.hoisted(() => ({
@@ -32,7 +34,27 @@ vi.mock('@/components/Breadcrumbs', () => ({ useBreadcrumbTrail: () => undefined
 // about which pane the route picks, not what either renders. Both real panes
 // pull in TipTap / dnd-kit / mutation hooks that would drown the signal.
 vi.mock('@/components/project/TopBar', () => ({ TopBar: () => <div>top-bar</div> }))
-vi.mock('@/components/project/ChatPane', () => ({ ChatPane: () => <div>chat-pane</div> }))
+// The chat stub exposes the two capture props the route owns: a button that
+// fires a capture, and what the route decided about a visible drop target.
+// Markers are separate elements so the pre-existing `chat-pane` assertions stay
+// exact matches.
+vi.mock('@/components/project/ChatPane', () => ({
+  ChatPane: ({
+    onCapture,
+    hasDropTarget,
+  }: {
+    onCapture?: (p: CapturePayload) => void
+    hasDropTarget?: boolean
+  }) => (
+    <div>
+      <div>chat-pane</div>
+      <div>{`drop-target:${String(Boolean(hasDropTarget))}`}</div>
+      <button type="button" onClick={() => onCapture?.({ text: CAPTURED })}>
+        fire-capture
+      </button>
+    </div>
+  ),
+}))
 vi.mock('@/components/project/SplitScreen', () => ({
   SplitScreen: ({ left, right }: { left: React.ReactNode; right: React.ReactNode }) => (
     <div>
@@ -43,13 +65,28 @@ vi.mock('@/components/project/SplitScreen', () => ({
 }))
 vi.mock('@/components/canvas/CanvasPane', () => ({ CanvasPane: () => <div>canvas-pane</div> }))
 vi.mock('@/components/brand/BrandContextPane', () => ({
-  BrandContextPane: () => <div>brand-context-pane</div>,
+  BrandContextPane: ({ staged }: { staged?: CapturePayload | null }) => (
+    <div>
+      <div>brand-context-pane</div>
+      <div>{`pane-staged:${staged?.text ?? 'none'}`}</div>
+    </div>
+  ),
+}))
+vi.mock('@/components/brand/EditGuidelinesDialog', () => ({
+  EditGuidelinesDialog: ({ open, staged }: { open: boolean; staged?: CapturePayload | null }) =>
+    open ? (
+      <div>
+        <div>guidelines-dialog</div>
+        <div>{`dialog-staged:${staged?.text ?? 'none'}`}</div>
+      </div>
+    ) : null,
 }))
 
 const ProjectPage = (projectRoute as unknown as { component: () => React.ReactElement }).component
 
 const PROJECT_ID = '11111111-1111-4111-8111-111111111111'
 const BRAND_ID = '22222222-2222-4222-8222-222222222222'
+const CAPTURED = 'Warm, never cute.'
 
 function detail(kind: ProjectDetail['kind'], templateId?: string): ProjectDetail {
   const common = {
@@ -116,6 +153,13 @@ describe('project route right pane', () => {
     expect(screen.queryByText('brand-context-pane')).toBeNull()
   })
 
+  it('renders no capture dialog until something is captured', () => {
+    h.detail = { data: detail('standardized', 'copywriting'), isLoading: false, error: null }
+    render(<ProjectPage />)
+
+    expect(screen.queryByText('guidelines-dialog')).toBeNull()
+  })
+
   it('renders neither pane while loading or on error', () => {
     h.detail = { data: undefined, isLoading: true, error: null }
     const { unmount } = render(<ProjectPage />)
@@ -127,5 +171,46 @@ describe('project route right pane', () => {
     expect(screen.getByText('nope')).toBeTruthy()
     expect(screen.queryByText('canvas-pane')).toBeNull()
     expect(screen.queryByText('brand-context-pane')).toBeNull()
+  })
+})
+
+// Phase E. Capture works in every thread; what differs is where the editor is
+// when the payload arrives.
+describe('project route capture destination', () => {
+  beforeEach(() => {
+    h.detail = { data: undefined, isLoading: false, error: null }
+  })
+
+  it('brings up the guidelines dialog, staged, from a thread whose pane is the canvas', async () => {
+    h.detail = { data: detail('standardized', 'copywriting'), isLoading: false, error: null }
+    render(<ProjectPage />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'fire-capture' }))
+
+    expect(screen.getByText('guidelines-dialog')).toBeTruthy()
+    expect(screen.getByText(`dialog-staged:${CAPTURED}`)).toBeTruthy()
+  })
+
+  // The editor is already on screen here, so raising a dialog over it would be
+  // a second copy of the same editor — and a second way to save it.
+  it('stages into the visible pane, and opens no dialog, in a brand-context thread', async () => {
+    h.detail = { data: detail('standardized', 'brand-context'), isLoading: false, error: null }
+    render(<ProjectPage />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'fire-capture' }))
+
+    expect(screen.getByText(`pane-staged:${CAPTURED}`)).toBeTruthy()
+    expect(screen.queryByText('guidelines-dialog')).toBeNull()
+  })
+
+  it('advertises a drop target only where the editor is on screen', () => {
+    h.detail = { data: detail('standardized', 'brand-context'), isLoading: false, error: null }
+    const { unmount } = render(<ProjectPage />)
+    expect(screen.getByText('drop-target:true')).toBeTruthy()
+    unmount()
+
+    h.detail = { data: detail('freeform'), isLoading: false, error: null }
+    render(<ProjectPage />)
+    expect(screen.getByText('drop-target:false')).toBeTruthy()
   })
 })

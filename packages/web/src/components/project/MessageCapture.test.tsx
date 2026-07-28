@@ -6,8 +6,10 @@ import type { AgentMessage } from '@brandfactory/shared'
 import {
   MessageCapture,
   buildCaptureTransfer,
+  buildSelectionCapture,
   hasCaptureData,
   readCaptureTransfer,
+  restrictSelectionDragToText,
   type CapturePayload,
 } from './MessageCapture'
 
@@ -20,6 +22,9 @@ function fakeDataTransfer(initial: Record<string, string> = {}) {
       store[format] = value
     }),
     getData: vi.fn((format: string) => store[format] ?? ''),
+    clearData: vi.fn((format: string) => {
+      delete store[format]
+    }),
     get types() {
       return Object.keys(store)
     },
@@ -90,10 +95,14 @@ function Harness({
       <div ref={ref}>
         <p>{content}</p>
       </div>
+      {/* The grip is gated on a visible drop target (Phase E); these cases are
+          about what it carries, so they opt in. The gating itself is covered in
+          `ChatPane.test.tsx`, where the two threads differ. */}
       <MessageCapture
         message={message(messageRole, content)}
         contentRef={ref}
         onCapture={onCapture}
+        hasDropTarget
       />
     </>
   )
@@ -123,6 +132,77 @@ describe('MessageCapture drag', () => {
 
     expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', "We never say 'synergy'.")
     expect(dataTransfer.setData).not.toHaveBeenCalledWith('text/html', expect.anything())
+  })
+})
+
+describe('buildSelectionCapture', () => {
+  function selectAcross(html: string, start: [number, number], end: [number, number]) {
+    const host = document.createElement('div')
+    host.innerHTML = html
+    document.body.appendChild(host)
+    const texts = document.createTreeWalker(host, NodeFilter.SHOW_TEXT)
+    const nodes: Node[] = []
+    while (texts.nextNode()) nodes.push(texts.currentNode)
+    const range = document.createRange()
+    range.setStart(nodes[start[0]] as Node, start[1])
+    range.setEnd(nodes[end[0]] as Node, end[1])
+    return range
+  }
+
+  // The point of the phase: an excerpt, not the whole message — and the
+  // structure the excerpt actually covered, so a dropped list is still a list.
+  it('captures only the selected part of an assistant message, with its markup', () => {
+    const range = selectAcross(
+      '<p>Warm, never cute.</p><ul><li>One</li><li>Two</li></ul>',
+      [0, 6],
+      [2, 3],
+    )
+    const payload = buildSelectionCapture(range, 'assistant')
+
+    expect(payload?.text).toBe('never cute.OneTwo')
+    expect(payload?.html).toContain('<li>')
+    expect(payload?.html).not.toContain('Warm,')
+  })
+
+  // Correction 3 again, at excerpt scale: a user bubble's markup is escaped
+  // plain text whose newlines are CSS, so html would collapse them.
+  it('gives a user selection text only', () => {
+    const range = selectAcross('<div>first line\nsecond line</div>', [0, 0], [0, 22])
+
+    expect(buildSelectionCapture(range, 'user')).toEqual({ text: 'first line\nsecond line' })
+  })
+
+  it('returns null for an empty or whitespace-only selection', () => {
+    expect(buildSelectionCapture(selectAcross('<p>hi</p>', [0, 1], [0, 1]), 'assistant')).toBeNull()
+    expect(
+      buildSelectionCapture(selectAcross('<p>  hi</p>', [0, 0], [0, 2]), 'assistant'),
+    ).toBeNull()
+  })
+})
+
+describe('restrictSelectionDragToText', () => {
+  // D3: the browser's own selection drag is free, but inside a user bubble the
+  // UA's `text/html` flavor reintroduces the newline collapse.
+  it('drops the html flavor and writes the selection as plain text', () => {
+    const dataTransfer = fakeDataTransfer({
+      'text/html': '<span style="white-space:pre-wrap">a\nb</span>',
+      'text/plain': 'a\nb',
+    })
+
+    restrictSelectionDragToText(dataTransfer, 'a\nb')
+
+    expect(dataTransfer.clearData).toHaveBeenCalledWith('text/html')
+    expect(dataTransfer.types).toEqual(['text/plain'])
+    expect(dataTransfer.getData('text/plain')).toBe('a\nb')
+  })
+
+  it('leaves a drag that carries no selection alone', () => {
+    const dataTransfer = fakeDataTransfer({ 'text/html': '<p>untouched</p>' })
+
+    restrictSelectionDragToText(dataTransfer, '   ')
+
+    expect(dataTransfer.clearData).not.toHaveBeenCalled()
+    expect(dataTransfer.getData('text/html')).toBe('<p>untouched</p>')
   })
 })
 

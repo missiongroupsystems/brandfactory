@@ -1,5 +1,6 @@
 import type { BrandWithSections } from '@brandfactory/shared'
 import { BrandGuidelinesEditor } from '@/components/brand/BrandGuidelinesEditor'
+import type { CapturePayload } from '@/components/project/MessageCapture'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -14,13 +15,28 @@ export interface EditGuidelinesDialogProps {
   brand: BrandWithSections
   open: boolean
   onOpenChange: (open: boolean) => void
+  /**
+   * A message captured from a thread whose right pane is the canvas, on its way
+   * into a new section (Phase E). Passed straight through: this is the same
+   * prop, in the same shape, that `BrandContextPane` hands the editor for the
+   * in-pane click path, so both capture destinations are one path rather than
+   * two that have to agree.
+   */
+  staged?: CapturePayload | null
+  onStagedConsumed?: () => void
 }
 
 // Frames the guidelines editor in a dialog. The editor already owns its own
 // Save button and Cmd-S handler, so this wrapper does NOT duplicate the save
 // path — the footer is just a close affordance. `key={brand.id}` preserves the
 // remount-on-brand-switch idiom the editor's local-state seeding depends on.
-export function EditGuidelinesDialog({ brand, open, onOpenChange }: EditGuidelinesDialogProps) {
+export function EditGuidelinesDialog({
+  brand,
+  open,
+  onOpenChange,
+  staged,
+  onStagedConsumed,
+}: EditGuidelinesDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -30,7 +46,12 @@ export function EditGuidelinesDialog({ brand, open, onOpenChange }: EditGuidelin
         <DialogHeader>
           <DialogTitle>Edit brand context</DialogTitle>
         </DialogHeader>
-        <BrandGuidelinesEditor key={brand.id} brand={brand} />
+        <BrandGuidelinesEditor
+          key={brand.id}
+          brand={brand}
+          staged={staged}
+          onStagedConsumed={onStagedConsumed}
+        />
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline" type="button">

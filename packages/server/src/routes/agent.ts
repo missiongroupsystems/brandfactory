@@ -112,6 +112,10 @@ export function createAgentRouter(deps: AgentRouteDeps) {
           llmSettings,
           applier,
           signal: c.req.raw.signal,
+          // The agent decides what a template means; the route only forwards it.
+          // Today only 'brand-context' changes anything — it withholds the
+          // canvas tools from a thread that renders no canvas.
+          templateId: project.kind === 'standardized' ? project.templateId : undefined,
         })
 
         // Accumulator for assistant text, persisted on stream close. A

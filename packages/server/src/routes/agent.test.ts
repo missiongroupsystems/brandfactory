@@ -16,6 +16,10 @@ interface SeededHarness extends TestHarness {
 async function seedProject(opts?: {
   llm?: LLMProvider
   realtime?: RealtimeBus
+  /** Defaults to a freeform thread; Phase F needs a standardized one. */
+  project?:
+    | { kind: 'freeform'; name: string }
+    | { kind: 'standardized'; name: string; templateId: string }
 }): Promise<SeededHarness> {
   const harness = createTestApp({
     users: [{ id: USER_ID, token: TOKEN }],
@@ -42,7 +46,7 @@ async function seedProject(opts?: {
     await app.request(`/brands/${br.id}/projects`, {
       method: 'POST',
       headers: auth,
-      body: JSON.stringify({ kind: 'freeform', name: 'P' }),
+      body: JSON.stringify(opts?.project ?? { kind: 'freeform', name: 'P' }),
     })
   ).json()) as { id: string }
   const canvas = [...harness.state.canvases.values()].find((c) => c.projectId === pr.id)!
@@ -178,6 +182,82 @@ describe('POST /projects/:id/agent', () => {
     const canvasOps = published.filter((p) => p.event.kind === 'canvas-op')
     expect(canvasOps).toHaveLength(1)
     expect(canvasOps[0]!.channel).toBe(`project:${projectId}`)
+  })
+
+  // Phase F1, end to end and against the defect itself rather than the argument
+  // that fixes it. A brand-context thread renders the guidelines editor, not the
+  // canvas — so a block written here would be persisted, broadcast over the
+  // realtime bus, and displayed nowhere. This is the test that would have caught
+  // the window Phase B opened.
+  it('persists no canvas block in a brand-context thread, even if the model reaches for one', async () => {
+    const llm = fakeProvider(
+      fakeModel([
+        {
+          type: 'tool-call',
+          toolCallType: 'function',
+          toolCallId: 'call_1',
+          toolName: 'add_canvas_block',
+          args: JSON.stringify({
+            body: {
+              type: 'doc',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'A' }] }],
+            },
+            position: 0,
+          }),
+        },
+        {
+          type: 'finish',
+          finishReason: 'tool-calls',
+          usage: { promptTokens: 1, completionTokens: 1 },
+        },
+      ]),
+    )
+    const { bus, published } = captureBus()
+    const { app, state, projectId, canvasId } = await seedProject({
+      llm,
+      realtime: bus,
+      project: { kind: 'standardized', name: 'Context', templateId: 'brand-context' },
+    })
+
+    const res = await app.request(`/projects/${projectId}/agent`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ message: { content: 'add one' } }),
+    })
+    expect(res.status).toBe(200)
+    await readSse(res.body!)
+
+    // The canvas still exists server-side (every project gets one at creation);
+    // nothing was written to it.
+    expect([...state.canvasBlocks.values()].filter((b) => b.canvasId === canvasId)).toHaveLength(0)
+    expect(state.canvasEvents).toHaveLength(0)
+    expect(published.filter((p) => p.event.kind === 'canvas-op')).toHaveLength(0)
+  })
+
+  it('still streams and persists an ordinary turn in a brand-context thread', async () => {
+    const llm = fakeProvider(
+      fakeModel([
+        { type: 'text-delta', textDelta: 'Who is this really for?' },
+        { type: 'finish', finishReason: 'stop', usage: { promptTokens: 1, completionTokens: 1 } },
+      ]),
+    )
+    const { app, state, projectId } = await seedProject({
+      llm,
+      project: { kind: 'standardized', name: 'Context', templateId: 'brand-context' },
+    })
+
+    const res = await app.request(`/projects/${projectId}/agent`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ message: { content: 'help me name it' } }),
+    })
+    expect(res.status).toBe(200)
+    const body = await readSse(res.body!)
+    expect(body).toContain('"content":"Who is this really for?"')
+
+    expect(
+      state.agentMessages.filter((r) => r.projectId === projectId).map((r) => r.message.role),
+    ).toEqual(['user', 'assistant'])
   })
 
   it('returns 409 AGENT_BUSY when a second turn races the same project', async () => {

@@ -95,12 +95,21 @@ function SectionRow({
     },
   })
 
-  // The imperative insert path, shared by the click action and (in Phase E) the
+  // The imperative insert path, shared by the click action and the Phase E
   // dialog. Parsing happens inside a live editor instance, so no markdown →
   // ProseMirror converter is written anywhere. `insertContent` fires `onUpdate`,
   // which is what gets the new body into local state.
+  //
+  // Keyed on payload identity, for the same reason the `staged` effect below
+  // is: StrictMode double-invokes effects in dev, and clearing `pendingInsert`
+  // is a state update that has not landed by the time the second invocation
+  // runs — so without this ref the captured body is pasted in twice. The
+  // section-count guard one level up does not cover this; a body inserted twice
+  // and a section appended twice are different bugs.
+  const insertedRef = useRef<CapturePayload | null>(null)
   useEffect(() => {
-    if (!editor || !pendingInsert) return
+    if (!editor || !pendingInsert || insertedRef.current === pendingInsert) return
+    insertedRef.current = pendingInsert
     editor.commands.insertContent(pendingInsert.html ?? pendingInsert.text)
     onInsertConsumed(section._key)
   }, [editor, pendingInsert, onInsertConsumed, section._key])

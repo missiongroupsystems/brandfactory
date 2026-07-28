@@ -1,13 +1,33 @@
 # Brand context capture — implementation plan
 
-Status: **Phases A–C done** (332 → 375 tests;
+Status: **Phases A–G done; H skipped by decision** (332 → 400 tests;
 [A](../completions/brand-context-capture-phase-a.md),
 [B](../completions/brand-context-capture-phase-b.md),
-[C](../completions/brand-context-capture-phase-c.md)) — the feature is walkable
-end-to-end in a brand-context thread, which was the planned cut line. D–H
-outstanding. Note the
-**known gap between B and F**: a brand-context thread now renders no canvas, but
-the agent can still write to the canvas it has server-side until F1 lands.
+[C](../completions/brand-context-capture-phase-c.md),
+[D](../completions/brand-context-capture-phase-d.md),
+[E](../completions/brand-context-capture-phase-e.md),
+[F](../completions/brand-context-capture-phase-f.md),
+[G](../completions/brand-context-capture-phase-g.md),
+[H](../completions/brand-context-capture-phase-h.md)) — **feature-complete and
+unit-covered; shipped without the live pass.** The feature is walkable end-to-end
+in a brand-context thread, which was the planned cut line; it captures excerpts
+as well as whole messages, and from any thread. **D was not cut**: its named risk
+(the affordance clearing its own selection) is real and is handled by preventing
+the mousedown default. **G ran as a reconciliation**, not a writing phase — A, B,
+E and F had already paid sixteen of its seventeen items; the seventeenth (11)
+was hiding a StrictMode double-insert, now fixed.
+
+**H did not run.** On 2026-07-28 the live pass was deliberately deferred to
+production and the release shipped without it. The no-skips test gate is met by
+CI (Postgres 16 sidecar) rather than locally; the thirteen-step browser walk is
+**unobserved**, including the one step the plan called the whole point — that the
+next agent turn reflects a captured section. The full unverified list, the ground
+on which the decision was defensible (no migration, no schema change, so rollback
+is image-only), and the rollback procedure are in
+[Phase H](../completions/brand-context-capture-phase-h.md). That file, not this
+header, is the honest description of the feature's verified state.
+The **gap between B and F is closed**: a brand-context thread renders no canvas,
+and since F1 the agent is given no tools to write to the one it has server-side.
 Source sketch:
 [`docs/plans/brand-context-capture.md`](../plans/brand-context-capture.md).
 Per-phase write-ups land in [`docs/completions/`](../completions/) as

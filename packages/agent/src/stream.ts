@@ -15,6 +15,7 @@ import type {
 } from '@brandfactory/shared'
 import { buildCanvasContext } from './prompts/canvas-context'
 import { buildSystemPrompt } from './prompts/system-prompt'
+import { BRAND_CONTEXT_TEMPLATE_ID } from './templates'
 import { buildCanvasTools } from './tools/definitions'
 import type { CanvasOpApplier } from './tools/applier'
 
@@ -28,6 +29,15 @@ export interface StreamResponseInput {
   llmSettings: LLMProviderSettings
   applier: CanvasOpApplier
   signal?: AbortSignal
+  /**
+   * The project's template id, when it is a standardized thread.
+   *
+   * Only `'brand-context'` changes anything: that thread renders the guidelines
+   * editor instead of the canvas, so blocks written there would be persisted,
+   * broadcast, and displayed nowhere. Absent or any other value leaves
+   * behaviour byte-identical.
+   */
+  templateId?: string
 }
 
 // Composes (system prompt + canvas context + tools) and streams a typed
@@ -41,23 +51,33 @@ export function streamResponse(input: StreamResponseInput): AsyncIterable<AgentE
 }
 
 async function* run(input: StreamResponseInput): AsyncIterable<AgentEvent> {
-  const systemPrompt = buildSystemPrompt(input.brand)
-  const canvasContext = buildCanvasContext({
-    blocks: input.blocks,
-    shortlistBlockIds: input.shortlistBlockIds,
-    recentOps: input.recentOps,
-  })
+  // A brand-context thread has no canvas on screen. Describing one and handing
+  // over tools to mutate it produces work that is persisted and broadcast but
+  // rendered nowhere — so the canvas is withheld at both ends: no context block
+  // to reason about, and no tools to reach for. Removing a capability is the
+  // whole fix; the persona in `buildSystemPrompt` is the smaller half.
+  const isBrandContext = input.templateId === BRAND_CONTEXT_TEMPLATE_ID
+
+  const systemPrompt = buildSystemPrompt(input.brand, { templateId: input.templateId })
   // Canvas context is prepended to `system` (not injected as a user
   // message) so the model treats it as static context, not something to
   // respond to directly.
-  const system = `${systemPrompt}\n\n${canvasContext}`
+  const system = isBrandContext
+    ? systemPrompt
+    : `${systemPrompt}\n\n${buildCanvasContext({
+        blocks: input.blocks,
+        shortlistBlockIds: input.shortlistBlockIds,
+        recentOps: input.recentOps,
+      })}`
 
   const pendingByToolCall = new Map<string, CanvasOpEvent | PinOpEvent>()
-  const tools = buildCanvasTools(input.applier, {
-    onApplied: (toolCallId, event) => {
-      pendingByToolCall.set(toolCallId, event)
-    },
-  })
+  const tools = isBrandContext
+    ? undefined
+    : buildCanvasTools(input.applier, {
+        onApplied: (toolCallId, event) => {
+          pendingByToolCall.set(toolCallId, event)
+        },
+      })
 
   const modelMessages: CoreMessage[] = input.messages.map((m) => ({
     role: m.role,

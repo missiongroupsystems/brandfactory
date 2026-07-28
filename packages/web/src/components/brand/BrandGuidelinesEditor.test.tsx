@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { BrandWithSections } from '@brandfactory/shared'
 import { BrandGuidelinesEditor } from './BrandGuidelinesEditor'
+import { EditGuidelinesDialog } from './EditGuidelinesDialog'
 import type { CapturePayload } from '@/components/project/MessageCapture'
 
 const mutate = vi.hoisted(() => vi.fn())
@@ -128,6 +129,45 @@ describe('BrandGuidelinesEditor capture', () => {
     expect(await screen.findByText('Who is this really for?')).toBeTruthy()
     expect(onStagedConsumed).toHaveBeenCalledOnce()
     expect(mutate).not.toHaveBeenCalled()
+  })
+
+  // Phase E: the same prop, through the dialog. A capture from a Copywriting or
+  // Open canvas thread arrives here — no second write path, no second editor.
+  it('stages a captured payload arriving through EditGuidelinesDialog', async () => {
+    const onStagedConsumed = vi.fn()
+    render(
+      <EditGuidelinesDialog
+        brand={brand()}
+        open
+        onOpenChange={vi.fn()}
+        staged={{ html: '<p>What would you never say?</p>', text: '…' }}
+        onStagedConsumed={onStagedConsumed}
+      />,
+    )
+
+    await waitFor(() => expect(sectionLabels()).toHaveLength(2))
+    expect(await screen.findByText('What would you never say?')).toBeTruthy()
+    // Still a draft gesture: the dialog saves nothing on its own.
+    expect(onStagedConsumed).toHaveBeenCalledOnce()
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  // G11. The section-count guard is not the same guard as the insert path:
+  // `pendingInsert` is consumed by an effect that calls `insertContent`, and
+  // StrictMode double-invokes effects in dev. A body pasted in twice is a
+  // different bug from a section appended twice, and only the latter was pinned.
+  it('inserts a captured body exactly once under StrictMode', async () => {
+    const staged: CapturePayload = { text: 'Warm, never cute.' }
+    render(
+      <StrictMode>
+        <BrandGuidelinesEditor brand={brand()} staged={staged} />
+      </StrictMode>,
+    )
+
+    await waitFor(() => expect(sectionLabels()).toHaveLength(2))
+    await waitFor(() => expect(document.body.textContent).toContain('Warm, never cute.'))
+    // `split(x).length - 1` is the occurrence count.
+    expect((document.body.textContent ?? '').split('Warm, never cute.').length - 1).toBe(1)
   })
 
   // The app runs under StrictMode, which double-invokes effects in dev — and

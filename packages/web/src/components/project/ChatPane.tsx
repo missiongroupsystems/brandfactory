@@ -4,7 +4,14 @@ import remarkGfm from 'remark-gfm'
 import { Send, Square } from 'lucide-react'
 import type { AgentMessage } from '@brandfactory/shared'
 import { useAgentChat } from '@/agent/useAgentChat'
-import { MessageCapture, type CapturePayload } from '@/components/project/MessageCapture'
+import {
+  MessageCapture,
+  SelectionCaptureButton,
+  captureRoleProps,
+  restrictSelectionDragToText,
+  useSelectionCapture,
+  type CapturePayload,
+} from '@/components/project/MessageCapture'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -12,20 +19,26 @@ export interface ChatPaneProps {
   projectId: string
   messages: AgentMessage[]
   /**
-   * Where a captured message goes. Omit when the thread has no capture target,
-   * which suppresses the affordances entirely rather than offering a gesture
-   * that lands nowhere. Today only a brand-context thread supplies one (its
-   * right pane is the guidelines editor); Phase E supplies a dialog-backed
-   * target for every other thread, which is a prop change, not a redesign.
+   * Where a captured message goes. Every thread supplies one now: a
+   * brand-context thread inserts into its visible editor, and every other
+   * thread opens the guidelines dialog with the content staged (Phase E).
+   * Optional because `ChatPane` knows nothing about brands — a caller with no
+   * destination gets no affordances, rather than a gesture that lands nowhere.
    */
   onCapture?: (payload: CapturePayload) => void
+  /** Whether the capture destination is a *visible* drop target. See `MessageCapture`. */
+  hasDropTarget?: boolean
 }
 
-export function ChatPane({ projectId, messages, onCapture }: ChatPaneProps) {
+export function ChatPane({ projectId, messages, onCapture, hasDropTarget }: ChatPaneProps) {
   const { status, send, stop } = useAgentChat(projectId)
   const [draft, setDraft] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const pinnedToBottomRef = useRef(true)
+  // Excerpt capture (Phase D). Scoped to the message list, so a selection in
+  // the other pane — the guidelines editor, in a brand-context thread — never
+  // raises a chat affordance.
+  const { capture, dismiss } = useSelectionCapture(scrollRef, Boolean(onCapture))
 
   // Autoscroll to bottom when new messages arrive, unless the user has
   // scrolled up. `scrollHeight - scrollTop - clientHeight < 32` is "near the
@@ -61,7 +74,12 @@ export function ChatPane({ projectId, messages, onCapture }: ChatPaneProps) {
         ) : (
           <div className="flex flex-col gap-3">
             {messages.map((m) => (
-              <MessageBubble key={m.id} message={m} onCapture={onCapture} />
+              <MessageBubble
+                key={m.id}
+                message={m}
+                onCapture={onCapture}
+                hasDropTarget={hasDropTarget}
+              />
             ))}
             {status === 'streaming' ? (
               <div className="text-xs text-muted-foreground">Thinking…</div>
@@ -103,6 +121,9 @@ export function ChatPane({ projectId, messages, onCapture }: ChatPaneProps) {
           )}
         </form>
       </div>
+      {onCapture && capture ? (
+        <SelectionCaptureButton capture={capture} onCapture={onCapture} onDismiss={dismiss} />
+      ) : null}
     </div>
   )
 }
@@ -110,9 +131,11 @@ export function ChatPane({ projectId, messages, onCapture }: ChatPaneProps) {
 function MessageBubble({
   message,
   onCapture,
+  hasDropTarget,
 }: {
   message: AgentMessage
   onCapture?: (payload: CapturePayload) => void
+  hasDropTarget?: boolean
 }) {
   const isUser = message.role === 'user'
   // The assistant flavor of a capture is this element's rendered HTML, which is
@@ -121,7 +144,12 @@ function MessageBubble({
   const contentRef = useRef<HTMLDivElement>(null)
 
   const capture = onCapture ? (
-    <MessageCapture message={message} contentRef={contentRef} onCapture={onCapture} />
+    <MessageCapture
+      message={message}
+      contentRef={contentRef}
+      onCapture={onCapture}
+      hasDropTarget={hasDropTarget}
+    />
   ) : null
 
   return (
@@ -138,12 +166,23 @@ function MessageBubble({
         )}
       >
         {isUser ? (
-          <div ref={contentRef} className="whitespace-pre-wrap">
+          <div
+            ref={contentRef}
+            {...captureRoleProps(message.role)}
+            // A native drag of a selection in here would carry the UA's own
+            // `text/html` — pre-wrapped plain text, whose newlines collapse on
+            // parse (Correction 3). Strip it back to the flavor we want.
+            onDragStart={(e) =>
+              restrictSelectionDragToText(e.dataTransfer, document.getSelection()?.toString() ?? '')
+            }
+            className="whitespace-pre-wrap"
+          >
             {message.content}
           </div>
         ) : (
           <div
             ref={contentRef}
+            {...captureRoleProps(message.role)}
             className="prose prose-sm max-w-none break-words dark:prose-invert [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1"
           >
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>

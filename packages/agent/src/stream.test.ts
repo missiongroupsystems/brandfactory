@@ -34,10 +34,24 @@ type StreamPart =
     }
   | { type: 'error'; error: unknown }
 
+// What the model was actually asked to do. `doStream` is the only place the
+// composed system string and the tool set are observable from outside — which
+// is exactly what Phase F changes, so the tests read them here rather than
+// re-deriving them.
+interface DoStreamOpts {
+  mode?: { type: string; tools?: { name: string }[] }
+  prompt?: { role: string; content: unknown }[]
+}
+
+function systemOf(opts: DoStreamOpts | undefined): string {
+  const msg = opts?.prompt?.find((m) => m.role === 'system')
+  return typeof msg?.content === 'string' ? msg.content : ''
+}
+
 // Builds a minimal LanguageModelV1 that emits the supplied stream parts.
 // We implement only the slice streamText actually calls against a v1 model:
 // specificationVersion / provider / modelId metadata and `doStream`.
-function fakeModel(parts: StreamPart[]): LanguageModel {
+function fakeModel(parts: StreamPart[], capture?: { opts?: DoStreamOpts }): LanguageModel {
   const model = {
     specificationVersion: 'v1' as const,
     provider: 'fake',
@@ -48,7 +62,8 @@ function fakeModel(parts: StreamPart[]): LanguageModel {
     doGenerate: async () => {
       throw new Error('fakeModel.doGenerate should not be called')
     },
-    doStream: async (_opts: unknown) => {
+    doStream: async (opts: DoStreamOpts) => {
+      if (capture) capture.opts = opts
       const stream = new ReadableStream({
         start(controller) {
           for (const part of parts) controller.enqueue(part)
@@ -212,6 +227,77 @@ describe('streamResponse', () => {
     const canvasOp = events[2]
     if (canvasOp?.kind !== 'canvas-op') throw new Error('expected canvas-op')
     expect(canvasOp.op.op).toBe('add-block')
+  })
+
+  // Phase F1, the correctness fix. A brand-context thread renders the guidelines
+  // editor instead of the canvas, so a block written there is persisted,
+  // broadcast, and displayed nowhere. The tools are withheld rather than the
+  // model being asked nicely not to use them.
+  it('withholds the canvas tools and canvas context in a brand-context thread', async () => {
+    const capture: { opts?: DoStreamOpts } = {}
+    const model = fakeModel(
+      [
+        { type: 'text-delta', textDelta: 'Who is this really for?' },
+        { type: 'finish', finishReason: 'stop', usage: { promptTokens: 1, completionTokens: 1 } },
+      ],
+      capture,
+    )
+    const applier = makeApplier()
+
+    await collect(
+      streamResponse({
+        brand: makeBrand(),
+        blocks: [makeBlock('blk_1', 'an idea')],
+        shortlistBlockIds: [],
+        messages: [userMessage],
+        llmProvider: fakeProvider(model),
+        llmSettings: settings,
+        applier,
+        templateId: 'brand-context',
+      }),
+    )
+
+    expect(capture.opts?.mode?.tools ?? []).toEqual([])
+    const system = systemOf(capture.opts)
+    expect(system).toContain('## Brand context interview')
+    // The blocks were passed in and still went undescribed — withholding the
+    // tools alone would leave the model reasoning about a canvas it cannot see.
+    expect(system).not.toContain('CANVAS STATE')
+    expect(system).not.toContain('an idea')
+    expect(applier.addCanvasBlock).not.toHaveBeenCalled()
+  })
+
+  it('passes the full canvas tool set and context in every other thread', async () => {
+    for (const templateId of [undefined, 'copywriting']) {
+      const capture: { opts?: DoStreamOpts } = {}
+      const model = fakeModel(
+        [{ type: 'finish', finishReason: 'stop', usage: { promptTokens: 1, completionTokens: 1 } }],
+        capture,
+      )
+
+      await collect(
+        streamResponse({
+          brand: makeBrand(),
+          blocks: [makeBlock('blk_1', 'an idea')],
+          shortlistBlockIds: [],
+          messages: [userMessage],
+          llmProvider: fakeProvider(model),
+          llmSettings: settings,
+          applier: makeApplier(),
+          templateId,
+        }),
+      )
+
+      expect((capture.opts?.mode?.tools ?? []).map((t) => t.name).sort()).toEqual([
+        'add_canvas_block',
+        'pin_block',
+        'unpin_block',
+      ])
+      const system = systemOf(capture.opts)
+      expect(system).toContain('CANVAS STATE')
+      expect(system).toContain('## Canvas awareness')
+      expect(system).not.toContain('## Brand context interview')
+    }
   })
 
   it('surfaces model errors as a thrown error from the generator', async () => {
