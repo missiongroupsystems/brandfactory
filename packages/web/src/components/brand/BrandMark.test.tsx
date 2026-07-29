@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { BrandMark, brandHue, brandInitials } from './BrandMark'
 
 describe('brandInitials', () => {
@@ -70,5 +70,64 @@ describe('BrandMark', () => {
   it('is hidden from assistive tech', () => {
     render(<BrandMark name="Mission Group" seed="b-1" />)
     expect(screen.getByText('MG').getAttribute('aria-hidden')).toBe('true')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// A declared mark — absent on every real call site today
+// ---------------------------------------------------------------------------
+
+describe('BrandMark — a declared src', () => {
+  it('renders the monogram when no src is given', () => {
+    const { container } = render(<BrandMark name="Mission Group" seed="b-1" />)
+    expect(screen.getByText('MG')).toBeTruthy()
+    expect(container.querySelector('img')).toBeNull()
+  })
+
+  // The box, its size class and its hue stay put; only the fill changes from
+  // derived to declared. That is what `logo-blob` exists to screenshot, and it
+  // is cheap to assert here rather than only look at.
+  it('keeps its geometry when the fill becomes an image', () => {
+    const { container, rerender } = render(<BrandMark name="Mission Group" seed="b-1" size="lg" />)
+    const before = container.firstElementChild?.className
+
+    rerender(<BrandMark name="Mission Group" seed="b-1" size="lg" src="/logo.svg" />)
+    expect(container.firstElementChild?.className).toBe(before)
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('/logo.svg')
+    expect(screen.queryByText('MG')).toBeNull()
+  })
+
+  // A Drive share URL serves an HTML viewer page and Dropbox needs `?raw=1`, so
+  // "clickable but not renderable" is the expected outcome of the link path.
+  it('falls back to the monogram when the image fails to load', () => {
+    const { container } = render(<BrandMark name="Mission Group" seed="b-1" src="/dead.png" />)
+
+    const img = container.querySelector('img')
+    expect(img).toBeTruthy()
+    fireEvent.error(img as HTMLImageElement)
+
+    expect(screen.getByText('MG')).toBeTruthy()
+    expect(container.querySelector('img')).toBeNull()
+  })
+
+  // Keyed on the src: one dead link must not poison the slot for the next
+  // brand rendered through the same element.
+  it('gives a new src a fresh attempt after a failure', () => {
+    const { container, rerender } = render(
+      <BrandMark name="Mission Group" seed="b-1" src="/dead.png" />,
+    )
+    fireEvent.error(container.querySelector('img') as HTMLImageElement)
+    expect(screen.getByText('MG')).toBeTruthy()
+
+    rerender(<BrandMark name="Mission Group" seed="b-1" src="/good.svg" />)
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('/good.svg')
+  })
+
+  // The name is still the accessible text beside it; an alt here would announce
+  // the brand twice.
+  it('keeps the image out of the accessibility tree', () => {
+    const { container } = render(<BrandMark name="Mission Group" seed="b-1" src="/logo.svg" />)
+    expect(container.firstElementChild?.getAttribute('aria-hidden')).toBe('true')
+    expect(container.querySelector('img')?.getAttribute('alt')).toBe('')
   })
 })

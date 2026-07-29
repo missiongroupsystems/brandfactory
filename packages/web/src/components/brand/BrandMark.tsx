@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -66,9 +67,25 @@ export interface BrandMarkProps {
   seed: string
   size?: keyof typeof SIZES
   className?: string
+  /**
+   * A **declared** mark — the resolved URL of a `role: 'logo'` asset, signed
+   * for a `blob` source or passed straight through for a `link` one.
+   *
+   * Absent on every real call site today, and the component's own note above
+   * promised exactly this change: the geometry and the call sites stay, only
+   * the source of the fill moves from derived to declared.
+   *
+   * **A `src` that fails to load falls back to the monogram**, which is not a
+   * courtesy — a share URL from Drive or Dropbox serves an HTML viewer page
+   * rather than image bytes, so "clickable but not renderable" is the *expected*
+   * outcome of the link path, not its edge case.
+   */
+  src?: string | null
 }
 
-export function BrandMark({ name, seed, size = 'md', className }: BrandMarkProps) {
+export function BrandMark({ name, seed, size = 'md', className, src }: BrandMarkProps) {
+  const initials = brandInitials(name)
+
   // `aria-hidden`, always: the mark is a restatement of the brand name, which
   // is rendered as text beside it on every surface that uses this. Announcing
   // "MG" before "Mission Group" is noise.
@@ -77,12 +94,36 @@ export function BrandMark({ name, seed, size = 'md', className }: BrandMarkProps
       aria-hidden="true"
       style={{ '--brand-hue': brandHue(seed) } as React.CSSProperties}
       className={cn(
-        'brand-mark flex shrink-0 items-center justify-center font-semibold tracking-tight select-none',
+        'brand-mark flex shrink-0 items-center justify-center overflow-hidden font-semibold tracking-tight select-none',
         SIZES[size],
         className,
       )}
     >
-      {brandInitials(name)}
+      {/* Keyed on the src so a *new* declared mark gets a fresh attempt: the
+          did-it-load state belongs to one URL, and without the key one dead
+          link would poison the slot for every brand rendered through this
+          element afterwards. A key rather than a reset effect — the state is
+          derived from the src, so remounting is the honest expression of it. */}
+      {src ? <MarkImage key={src} src={src} fallback={initials} /> : initials}
     </div>
+  )
+}
+
+/**
+ * The declared mark, with the monogram behind it. Inside the same box at
+ * `size-full`, so the tinted fill stays as the loading placeholder and the
+ * geometry cannot shift between a declared mark and a derived one — which is
+ * the thing the `logo-blob` fixture exists to screenshot.
+ */
+function MarkImage({ src, fallback }: { src: string; fallback: string }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return <>{fallback}</>
+  return (
+    <img
+      src={src}
+      alt=""
+      onError={() => setFailed(true)}
+      className="size-full rounded-[inherit] object-cover"
+    />
   )
 }

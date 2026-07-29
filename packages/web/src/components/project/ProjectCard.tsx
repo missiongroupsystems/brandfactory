@@ -56,16 +56,25 @@ export function ProjectCard({
           params={{ projectId: id }}
           className="flex flex-col gap-2 pr-8 text-left before:absolute before:inset-0 before:content-['']"
         >
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 font-medium group-hover:text-accent-foreground">{name}</div>
+          {/* The name owns its own row, and the kind badge has moved down to the
+              meta line. Found by the front-end mockup's live pass, in a card the
+              hub has shipped since 0.9.0: on the hub's "Other threads" grid a
+              card is ~235px, and a `shrink-0` badge plus the ⋯ menu's gutter left
+              the name a ~60px column that wrapped one word per line. `truncate`
+              alone does not fix that — it only turns four bad lines into one
+              unreadable one, because the width was never the name's to begin
+              with. The badge is a secondary fact and the meta row is where the
+              other secondary facts already are. */}
+          <div className="min-w-0 truncate pr-2 font-medium group-hover:text-accent-foreground">
+            {name}
+          </div>
+          <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
             {/* Sentence case, 12px/500, neutral beige (§0.4, §12.4) — `kind`
                 arrives lowercase off the wire, so `capitalize` is what makes
                 it a sentence rather than a shout. */}
-            <span className="mr-6 shrink-0 rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium capitalize text-muted-foreground">
+            <span className="shrink-0 rounded-full bg-surface-sunken px-2 py-0.5 font-medium text-muted-foreground capitalize">
               {kind}
             </span>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {showBrandName && brandName ? <span className="truncate">{brandName}</span> : null}
             {showBrandName && brandName ? <span aria-hidden>·</span> : null}
             <span className="shrink-0">{formatRelativeTime(lastActivityAt)}</span>

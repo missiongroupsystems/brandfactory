@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import type { BrandWithSections } from '@brandfactory/shared'
 import { SUGGESTED_SECTIONS } from '@brandfactory/shared'
 import { BrandContextRail } from './BrandContextRail'
+import type { BrandAsset } from '@/demo/assetTypes'
+import type { ResearchJobSummary } from '@/demo/researchTypes'
 
 // The rail's conversation entry point is a real `<Link>`, which needs a router
 // context this component test does not stand up. Same stub the mini-app route
@@ -192,5 +194,156 @@ describe('BrandContextRail', () => {
   it('labels the rail as a region', () => {
     render(<BrandContextRail brand={brand([])} onEdit={vi.fn()} />)
     expect(screen.getByRole('complementary', { name: 'Brand context' })).toBeTruthy()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The front-end mockup's additions — structure A and the research footer row
+// ---------------------------------------------------------------------------
+
+function color(id: string, status: BrandAsset['status'] = 'active'): BrandAsset {
+  return {
+    id,
+    brandId: 'b-1',
+    kind: 'color',
+    source: 'inline',
+    role: null,
+    status,
+    label: `Colour ${id}`,
+    value: '#b5573c',
+    position: 100,
+    deletedAt: null,
+  }
+}
+
+function researchJob(
+  status: ResearchJobSummary['status'],
+  overrides: Partial<ResearchJobSummary> = {},
+): ResearchJobSummary {
+  return {
+    id: 'j-1',
+    status,
+    startedAt: '2026-07-29T09:00:00.000Z',
+    completedAt: null,
+    error: null,
+    drafts: [],
+    sourceCount: 0,
+    ...overrides,
+  }
+}
+
+describe('BrandContextRail — the palette block (structure A)', () => {
+  // The invariant. Absent → the rail is 1.7.0 exactly, which is what the real
+  // route renders and what structures B and C render here.
+  it('renders no palette block when given no colours', () => {
+    render(<BrandContextRail brand={brand([])} onEdit={vi.fn()} />)
+    expect(screen.queryByRole('heading', { name: 'Palette' })).toBeNull()
+  })
+
+  it('renders one when given some', () => {
+    render(
+      <BrandContextRail brand={brand([])} onEdit={vi.fn()} colors={[color('c-1', 'proposed')]} />,
+    )
+    expect(screen.getByRole('heading', { name: 'Palette' })).toBeTruthy()
+    expect(screen.getByText('1 colour · 1 proposed')).toBeTruthy()
+  })
+
+  // The section list has a stated meaning — written sections and unwritten
+  // suggestions, one list, which *is* the meter. A swatch row inside it would
+  // be neither, and would break the one rule the rail promises.
+  it('keeps the palette out of the section list', () => {
+    render(<BrandContextRail brand={brand([])} onEdit={vi.fn()} colors={[color('c-1')]} />)
+    const rows = screen.getAllByRole('listitem')
+    expect(rows.some((r) => r.textContent?.includes('Palette'))).toBe(false)
+  })
+})
+
+describe('BrandContextRail — the research row', () => {
+  // A rail that offers to research a brand against a backend with no research
+  // route is a dead affordance, which is the class of thing 1.7.0 removed. The
+  // row exists only when its callback does.
+  it('renders no research row without a handler', () => {
+    render(<BrandContextRail brand={brand([])} onEdit={vi.fn()} research={researchJob('FAILED')} />)
+    expect(screen.queryByText(/Research/)).toBeNull()
+  })
+
+  it('offers the entry point when there is no job', () => {
+    const onStartResearch = vi.fn()
+    render(
+      <BrandContextRail brand={brand([])} onEdit={vi.fn()} onStartResearch={onStartResearch} />,
+    )
+    expect(screen.getByRole('button', { name: 'Research this brand' })).toBeTruthy()
+  })
+
+  it('reports an in-flight job and offers nothing to click', () => {
+    render(
+      <BrandContextRail
+        brand={brand([])}
+        onEdit={vi.fn()}
+        research={researchJob('IN_PROGRESS')}
+        onStartResearch={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(/^Researching…/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Research/ })).toBeNull()
+  })
+
+  it('offers the review sheet when drafts are ready', async () => {
+    const onReviewDrafts = vi.fn()
+    render(
+      <BrandContextRail
+        brand={brand([])}
+        onEdit={vi.fn()}
+        research={researchJob('COMPLETED', {
+          drafts: [{ label: 'Voice & tone', html: '<p>x</p>', text: 'x', sources: [] }],
+        })}
+        onStartResearch={vi.fn()}
+        onReviewDrafts={onReviewDrafts}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: '1 draft ready — Review' }))
+    expect(onReviewDrafts).toHaveBeenCalledOnce()
+  })
+
+  // Failure in a column that is on screen the whole time you are choosing what
+  // to work on. It has to be legible without being a red banner.
+  it('offers a retry on failure and shows the reason without alarm', async () => {
+    const onStartResearch = vi.fn()
+    render(
+      <BrandContextRail
+        brand={brand([])}
+        onEdit={vi.fn()}
+        research={researchJob('FAILED', { error: 'The provider timed out.' })}
+        onStartResearch={onStartResearch}
+      />,
+    )
+
+    expect(screen.getByText('The provider timed out.')).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: 'Research failed — Try again' }))
+    expect(onStartResearch).toHaveBeenCalledOnce()
+  })
+
+  // The state the locked document names as terminal and never draws. A website
+  // that is a one-page holding site is the ordinary way to reach it.
+  it('draws the no-findings terminal state', () => {
+    render(
+      <BrandContextRail
+        brand={brand([])}
+        onEdit={vi.fn()}
+        research={researchJob('NO_FINDINGS')}
+        onStartResearch={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Nothing found — Try again' })).toBeTruthy()
+    expect(screen.getByText('The site gave us too little to work with.')).toBeTruthy()
+  })
+
+  // Research joins `Talk it through` in the footer because they are the same
+  // kind of thing — the ways of finding out more. It does not replace it.
+  it('sits beside the conversation rather than instead of it', () => {
+    render(<BrandContextRail brand={brand([])} onEdit={vi.fn()} onStartResearch={vi.fn()} />)
+    expect(screen.getByRole('link', { name: 'Talk it through' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Research this brand' })).toBeTruthy()
   })
 })

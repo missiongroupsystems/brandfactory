@@ -10,6 +10,17 @@ export interface MiniAppTileProps {
   brandId: string
   /** `null` = not loaded yet / failed; the tile stays silent rather than claiming zero. */
   threadCount: number | null
+  /**
+   * An explicit destination, replacing `/brands/$brandId/apps/$appId`.
+   *
+   * Absent on every real call site. It exists because the mockup's tile list is
+   * a prop but a tile's *destination* was a constant inside this component — so
+   * "the demo overrides the registry without the registry knowing" was only half
+   * true until the href came with it. A plain `<a>` rather than a `<Link>`:
+   * the demo routes are registered at runtime and deliberately absent from the
+   * router's type, so there is no type-safe `to` to hand it.
+   */
+  href?: string
 }
 
 // One entry from the MINI_APPS registry, as rendered on the brand hub. Enabled
@@ -20,7 +31,7 @@ export interface MiniAppTileProps {
 // The "Soon" state is signalled by the pill alone — no blanket `opacity`, which
 // would drag the description text below WCAG AA (measured 2.9:1 light / 3.8:1
 // dark at 60%). The pill and muted title carry the meaning at full contrast.
-export function MiniAppTile({ app, brandId, threadCount }: MiniAppTileProps) {
+export function MiniAppTile({ app, brandId, threadCount, href }: MiniAppTileProps) {
   const Icon = app.icon
   // A "Soon" tile that also reads "0 threads" is noise — but if threads somehow
   // exist under a not-yet-live template, the count still shows.
@@ -56,6 +67,14 @@ export function MiniAppTile({ app, brandId, threadCount }: MiniAppTileProps) {
       <div className={cn(TILE_CLASS)} aria-disabled="true">
         {body}
       </div>
+    )
+  }
+
+  if (href) {
+    return (
+      <a href={href} className={cn(TILE_CLASS, 'hover:bg-accent')}>
+        {body}
+      </a>
     )
   }
 

@@ -4,6 +4,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 ## Index
 
+- **1.8.0** — 2026-07-29 — Brand hub, front-end first (P0–P5): two proposals — `brand-assets.md` and the locked `brand-research-onboarding.md` — are **two migrations, a new table, a fifth adapter, a paid vendor and six routes**, and **neither had ever been seen**. So the surface goes first, on fixtures. The load-bearing decision is that `BrandHubPage` splits into a **data route and a pure `BrandHubView`**, and the mockup is *the same view with different props* — not a second harness, so the app shell, the real router and the real `index.css` are in every screenshot, which is exactly what 1.7.0's throwaway harness could not show. 13 scenarios behind a picker, each carrying the decision it can falsify; the rail's **three candidate structures are all built** because two of them being deleted is the deliverable, and **C is the default because C *is* 1.7.0**. What protects the shipped hub is not "it's only the demo route" but a written invariant — *the real route can only pass null for every prop this pass adds, and every affordance renders nothing when its prop is absent* — with tests of its own. The plan's `import.meta.env.DEV` gate **did not work**: measured, not assumed, the first production build shipped `/demo/brand` and every fixture string into `dist`, because Rolldown treats a top-level `createRoute(…)` as side-effecting; `/* @__PURE__ */` plus moving the fixtures inside functions takes it to **zero occurrences of `demo` in the built assets**. `packages/web` only; no migration, no route, no vendor call, no new repo dependency. 456 → **527 tests (+71), none edited** — P0's acceptance criterion, and the evidence the extraction was a move. **A live pass was run** — 34 shots, both themes, no console errors — and it changed the code twice, once to fix `ProjectCard`'s name column, which has wrapped one word per line since 0.9.0. Detail in [`docs/completions/brand-hub-fe-mockup.md`](completions/brand-hub-fe-mockup.md); the decision record is appended to [the plan](executing/brand-hub-fe-mockup.md).
 - **1.7.1** — 2026-07-29 — Mission Systems CI conformance, the drift since 1.2.0: 1.2.0 applied the CI and **that spine held** — zero raw hex, zero primitive reads, Satoshi's five weights, focus/motion/numerics in the base layer — but four feature passes shipped since without re-reading the contract, and its "six primitives re-specced" left **three of nine untouched**. Caught: two uppercase pills on a product with **no side nav** (§0.4 permits caps in exactly one place, so the correct count is zero), ten call sites overriding the type scale, seven black-based Tailwind shadows, six wrong radii, four accent spends outside the named roles — and one real bug, `AlertDialogContent` on `bg-background`, which resolves to the **sunken page canvas**, so every delete confirmation rendered beige where `dialog.tsx` renders white. The load-bearing decision is that **the type scale moves into `@layer base`** rather than being fixed ten times: the call sites were wrong on *three* axes at once (weight 600/500, line-height 1.333/1.25, tracking −0.025em/−0.015em) and exactly one file of ten had it right, which is what proves the scale was reachable only by recall. `packages/web` only; no migration, no API route, no new dependency. **456 → 456 tests, none added or edited** — the whole point, since a styling pass that churns behavioural tests has changed behaviour. **No live pass** — Playwright would not install under pnpm (`EUNSUPPORTEDPROTOCOL`) and verification was skipped by decision; the `alert-dialog` surface fix is the one worth looking at first. Detail in [`docs/completions/mission-systems-ci-conformance.md`](completions/mission-systems-ci-conformance.md).
 - **1.7.0** — 2026-07-28 — Brand hub restructure: the page's top half was a stack of full-bleed bands with content pinned to both edges and a dead middle, and the brand itself was rendered as 24px of text on the one surface whose premise is that the brand is the centre of gravity. It becomes **three zones answering three questions in order** — *who is this* (a derived **monogram**, name, TL;DR), *what can I do* (the app tiles, kept, now a 2×2), *what do we know* (a persistent right **rail**). The load-bearing rule is that **no fact appears twice**: the identity band carries no counts, because the rail is about sections and each tile carries its own thread count. `BrandContextBar` is superseded and **deleted**; in the rail, written sections and unwritten suggestions are **one list**, which is why there is no meter — five rows, two written, *is* the meter, and it is the version you can click. First route in the app to constrain its width. `packages/web` only; no migration, no `shared`/`server` change. 436 → **456 tests (+20 net, +27 new)**. **A live pass was run** against a throwaway harness and changed the code three times — brand assets (colours, logos, photos) are **not** in this pass and are specced in [`docs/plans/brand-assets.md`](plans/brand-assets.md).
 - **1.6.0** — 2026-07-28 — Brand switcher in the app shell header: the header could switch **workspaces** and could only *name* the brand, so moving between two brands meant going up to workspace home and back down through the grid. A brand is as much a **place** as a workspace is, so it gets the same pill — `[ Mission Group ⌄ ] / [ Casa Vostra ⌄ ] / Copywriting`. The load-bearing decision is that the brand **moved out of the breadcrumb** rather than appearing in both (the precedent was already written down in `Breadcrumbs.tsx`), so the trail type shrinks to a tail-only, four routes stop reporting a brand, and each header segment now owns its own *leading* separator. New `useActiveBrandId` resolves the brand from the route param *or* `project.brand.id`, with **no storage fallback** — a remembered brand would offer to navigate you out of a page you're on. `packages/web` only; no migration, no API route, no `shared`/`server` change. 426 → **436 tests (+10)**. **No live browser pass** — pill rhythm, long-name truncation and menu placement are reasoned, not observed.
@@ -32,6 +33,120 @@ Latest releases at the top. Each version has a one-line entry in the index below
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` lands — drizzle schema for 8 tables, singleton pg `Pool`, 18 query helpers, local-dev docker Postgres, and an end-to-end smoke check.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` lands as the single source of truth for domain types and zod schemas, consumed by both `server` and `web`.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture blueprint, scaffolding plan, and Phase 0 repo foundation.
+
+---
+
+## 1.8.0 — 2026-07-29
+
+**Two proposals that had never been seen, rendered as one page you can reject.**
+`brand-assets.md` has no UI at all; `brand-research-onboarding.md`'s UI is four
+ASCII sketches in a locked document. Together they are two migrations, a new
+table, a fifth adapter, a paid vendor and roughly six routes. Building the
+surface first inverts the risk — and the fixtures, typed against the proposed
+`BrandAsset` union, are the schema review. Plan:
+[`docs/executing/brand-hub-fe-mockup.md`](executing/brand-hub-fe-mockup.md);
+notes: [`docs/completions/brand-hub-fe-mockup.md`](completions/brand-hub-fe-mockup.md).
+
+```
+routes/brands.$brandId.tsx      queries + dialogs   ─┐
+                                                     ├─→  <BrandHubView …props />
+routes/demo.brand.tsx           fixtures + picker   ─┘
+```
+
+### The load-bearing decision
+
+**The mockup is the same view with different props. It is not a harness.**
+1.7.0's live pass ran against a throwaway Vite app, and its own caveat says what
+that cost: the app-shell header, the query states and the `Other threads`
+catch-all were in no screenshot. A second harness buys a second identical
+caveat. Splitting the route instead means both surfaces render inside the real
+router, the real shell, the real `index.css` and the real theme toggle — and the
+seam outlives the mockup, because it is what makes the hub testable without
+mounting a QueryClient.
+
+**What keeps the shipped hub unchanged is not the URL.** `BrandHubView` is
+*shared*, so every affordance P1–P4 added lands in a component `/brands/$brandId`
+mounts. The protection is an invariant, written down and tested:
+
+> The real route can only pass `null` / empty for every prop this pass adds, and
+> every new affordance renders nothing when its prop is absent.
+
+Hence the research row is gated on its **callback**, not on the job it renders —
+a rail offering to research a brand against a backend with no research route is
+the dead affordance 1.7.0 spent a pass removing. And the rail variant defaults to
+**C, because C *is* 1.7.0**: the only one of the three arrangements that is also
+the shipped layout.
+
+### The gate that did not gate
+
+The plan's `import.meta.env.DEV` registration was supposed to tree-shake the demo
+out of production. **It did not, and the build grep is what found it** — the
+first production build shipped `/demo/brand`, `/demo/brand/assets` and every
+fixture string into `dist`. Rolldown treats a top-level call to an imported
+function as potentially side-effecting, so `export const demoBrandRoute =
+createRoute({…})` keeps its whole module alive, and so does `const VOICE =
+section(…)` in the fixtures. `/* @__PURE__ */` on the two routes, and the fixture
+data moved inside functions, takes it to **zero occurrences** — and the reason is
+written into both files so the next edit does not quietly undo it.
+
+The demo is also **absent from the router's type** while present in its runtime
+tree: a dev-only path should not become a typed destination product code can
+reach for. It navigates with plain `<a href>` and carries its state in the query
+string, which gives the live pass a deep link per screenshot.
+
+### What the screenshots settled
+
+- `palette-proposed` — two floated colours and nothing else — **does not read as
+  broken or scolding**. `status` survives its first contact with a screen.
+- **Structure A does not collapse under `rich`**, which removes the argument that
+  was expected to kill it and leaves the choice on discoverability.
+- **The monogram fallback costs nothing, and that is the problem**:
+  `logo-link-dead` is pixel-identical to a brand with no logo, so the hub gives
+  no signal that a recorded logo is broken.
+- Five schema findings for `brand-assets.md` — no `size_bytes`, no `alt`,
+  `role: 'primary'` is not unique, a `link` image carries no dimensions, and
+  cardinality wants grouping — are recorded in the plan's decisions section and
+  next to the fields that produced them.
+
+### Verification
+
+```
+pnpm typecheck                          9/9 workspaces
+pnpm lint / format:check                clean
+pnpm test                               517 passed | 10 skipped (527)
+pnpm --filter @brandfactory/web build   ok
+grep -c "demo" dist/…js                 0
+```
+
+456 → **527 (+71), and no existing test was edited** — P0's acceptance criterion
+and the evidence that extracting `BrandHubView` was a move rather than a rewrite.
+
+**The live pass ran** — Playwright over `vite dev`, 13 scenarios × light/dark at
+1600×900 plus a 900px narrow pass, 34 shots, no console or page errors. Playwright
+was installed outside the repo; `package.json` and `pnpm-lock.yaml` are unchanged.
+It changed the code twice: the `/* @__PURE__ */` work above, and **`ProjectCard`,
+which has wrapped its name one word per line since 0.9.0** — a `shrink-0` badge
+left the name a ~60px column in a ~235px card, and `truncate` alone only turns
+four bad lines into one unreadable one, so the badge moved to the meta row. That
+one is outside the plan's scope and is flagged rather than buried.
+
+### Caveats
+
+- **The brand switcher is still not in a screenshot.** The demo route has no auth
+  gate by design, and the switchers return `null` without a token. **1.6.0's
+  switcher check is still owed**; `long-names` discharges its identity-band and
+  rail-row halves.
+- **The narrow rail is observed, not fixed** — at 900px a section row is ~830px
+  with its chevron at the far end. 1.7.0 logged it; this pass added two rows to
+  that column.
+- **No reduced-motion pass and no keyboard walk.** Both themes were shot; focus
+  order was not.
+- **The mockup is built, not reviewed.** Two of the three rail structures are
+  meant to be deleted, and that deletion is the deliverable this pass cannot
+  write for itself.
+
+**Untouched:** `packages/shared`, `db`, `server`, `agent`, `adapters/*`, plus
+`miniApps.ts`, the real create dialog and `editor/proseMirrorSchema.ts`.
 
 ---
 

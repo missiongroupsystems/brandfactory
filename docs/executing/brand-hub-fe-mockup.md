@@ -450,3 +450,80 @@ Its Q10 — whether Phase A ships alone first — is still the open sequencing c
 and this pass makes the answer **yes**: Phase A is backend-only and blocked by
 nothing here, while every other research phase touches a rail whose shape is
 about to be decided.
+
+---
+
+# Decisions — P5, 2026-07-29
+
+**Built and observed, not yet reviewed.** P0–P5 are implemented and a live
+Playwright pass ran over all 13 scenarios × light/dark at 1600×900 plus a 900px
+narrow pass. This section records what the screenshots *showed*; the one thing it
+does not record is the rail-structure verdict, because that is the reviewer's
+call and the whole point of building three. Implementation notes are in
+[`docs/completions/brand-hub-fe-mockup.md`](../completions/brand-hub-fe-mockup.md).
+
+## What the screenshots settled
+
+- **`palette-proposed` does not read as broken or scolding.** Two dashed chips
+  and "2 colours · 2 proposed" in a rail that is otherwise unchanged. `status`
+  survives its first contact with a screen. The chips are *small* — a 14px fill
+  inside a 28px dashed box — which is the one sizing note worth arguing about.
+- **The monogram fallback costs nothing, and that is also the problem.**
+  `logo-link-dead` is **pixel-identical** to a brand with no logo at all. The
+  assets proposal claims this as a feature; the screenshot shows the cost, which
+  is that the hub gives you no signal that the logo you recorded is broken. Only
+  the asset library says `Did not render`. If a link-sourced logo is first-class,
+  something has to surface a dead one.
+- **Structure A does not collapse under `rich`.** Five section rows, a 12-swatch
+  palette block and two footer rows come to ~450px in an 80-wide rail at 900px
+  viewport height — the crowding test the whole merge was built to run, and A
+  survives it. That removes the argument that was expected to kill A, and leaves
+  the choice on discoverability rather than on space.
+- **The research footer row is legible in all five states** and none of them
+  alarms. `FAILED` spends one 14px amber glyph and a muted line of reason; the
+  neutral `Loader2` rather than §12.8's accent arc keeps the rail's stated
+  "neutral throughout" rule intact.
+- **The stacked rail below `lg` is as wide as 1.7.0 warned.** At 900px a section
+  row is ~830px with its chevron at the far right of its own label. Now observed
+  rather than suspected — and this pass added two footer rows to that column.
+
+## Findings for `brand-assets.md`, before its Phase A is written
+
+Recorded at the bottom of `packages/web/src/demo/assetTypes.ts` too, next to the
+fields that produced them.
+
+1. **No `size_bytes`.** The library renders files as rows and a file row that
+   cannot say "6.5 MB" is a worse row. `canvas_blocks` lacks it as well, so the
+   proposal inherited the gap rather than introducing it.
+2. **No `alt`.** `canvas_blocks` has one; `brand_assets` does not, so `label` is
+   doing the work. Serviceable for "Wordmark, dark bg", wrong the moment a label
+   is "Primary" and the image is a photograph of a dining room.
+3. **`role: 'primary'` is not unique and the schema reads as though it were.**
+   The `palette-proposed` fixture — the case that prompted this pass — has *two*
+   proposed primaries. `position` is what actually orders them, so any reader
+   asking for "the primary colour" has no answer.
+4. **A `link` image carries no dimensions, and the UI shows it.** In the library
+   a blob-backed photo reads `320×240 · 822 KB` and a link-backed one falls all
+   the way back to `image/svg+xml`. Not a bug — a consequence of the
+   bring-your-own-hosting rule, and worth deciding whether the caption should say
+   something better.
+5. **Cardinality wants grouping at the top end** (question 6). Twelve colours in
+   one flat `position` list read as a ramp in `palette-full` only because they
+   happen to be sorted into one. A nullable `collection` stays cheap-to-add.
+
+## Answered by looking
+
+- **Question 2 — where do assets render?** The photo grid is emphatically not
+  rail-shaped; `/demo/brand/assets` is. `Visual identity` is the answer, and the
+  mockup reaches it without touching `miniApps.ts`.
+- **Question 3 — does the *Visual guidelines* text section survive?** Both are on
+  screen at once in `rich`, and they do **not** read as duplicates: the section
+  holds rationale ("references: the tiled floor, the awning") while the swatches
+  hold values. That is the third resolution the document offered, and it is the
+  one the screenshot supports. Not settled — but no longer symmetrical.
+
+## Still open, deliberately
+
+The **rail structure**. A, B and C are all built and all reachable from the
+picker; two of them are meant to be deleted, and the deletion is the deliverable
+this section cannot write for you.

@@ -1,12 +1,25 @@
 import { useEffect, useId, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useEditor, EditorContent } from '@tiptap/react'
-import { ChevronDown, MessagesSquare, Plus } from 'lucide-react'
+import {
+  ChevronDown,
+  CircleAlert,
+  Loader2,
+  MessagesSquare,
+  Plus,
+  Search,
+  SearchX,
+  Sparkles,
+} from 'lucide-react'
 import type { BrandGuidelineSection, BrandWithSections } from '@brandfactory/shared'
 import { SUGGESTED_SECTIONS } from '@brandfactory/shared'
+import { ColorSwatches, paletteSummary } from '@/components/brand/ColorSwatches'
 import { iconForSection } from '@/components/brand/guidelineIcons'
 import { Button } from '@/components/ui/button'
+import type { BrandAsset } from '@/demo/assetTypes'
+import type { ResearchJobSummary } from '@/demo/researchTypes'
 import { defaultExtensions } from '@/editor/proseMirrorSchema'
+import { formatRelativeTime } from '@/lib/relative-time'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -44,10 +57,49 @@ function SectionReadPanel({ section }: { section: BrandGuidelineSection }) {
 // BrandContextRail — the brand's facts, alongside the work
 // ---------------------------------------------------------------------------
 
+/**
+ * Where a brand's colours go, as three arrangements on one page rather than
+ * three arguments in a document.
+ *
+ * - `A` — a `Palette` block in the rail, below the section list. The obvious
+ *   one, and the one that crowds a column already holding five rows and two
+ *   actions.
+ * - `B` — under the mark, in the identity band. Leaves the rail's one-list rule
+ *   untouched at the cost of a second fact in a band 1.7.0 kept to one.
+ * - `C` — out of the rail entirely, onto the `Visual identity` page. Cleanest
+ *   and least discoverable: a brand's colours become somewhere you navigate to.
+ *
+ * **`C` is the default because `C` is 1.7.0** — it is the only one of the three
+ * that leaves both the rail and the identity band exactly as they ship, so a
+ * caller that passes no variant gets the shipped hub. `A` and `B` are reachable
+ * only from the demo scenario picker.
+ */
+export type RailVariant = 'A' | 'B' | 'C'
+
 export interface BrandContextRailProps {
   brand: BrandWithSections
   onEdit: () => void
   className?: string
+  /**
+   * **Structure A only** — `BrandHubView` passes this for variant `A` and
+   * nothing otherwise. Absent → no palette block, which is what the real route
+   * renders and what variants `B` and `C` render here.
+   */
+  colors?: BrandAsset[]
+  /**
+   * The latest research job, or `null` for a brand nobody has researched.
+   * Absent on the real route; there is no research query yet.
+   */
+  research?: ResearchJobSummary | null
+  /**
+   * The re-run entry point (research decision 1). **The footer's research row
+   * exists only when this does** — a rail that offers to research a brand
+   * against a backend with no research route would be a dead affordance, which
+   * is the class of thing 1.7.0 spent a pass removing.
+   */
+  onStartResearch?: () => void
+  /** Opens the review sheet from the `ready` state (research E2). */
+  onReviewDrafts?: () => void
 }
 
 /**
@@ -73,9 +125,25 @@ export interface BrandContextRailProps {
  * brand — `docs/vision.md:28` — and the rail must not scold it.
  *
  * Accent budget: the rail stays neutral throughout. The only colour on this
- * page is the brand's own monogram.
+ * page is the brand's own monogram — which is why the research row's in-flight
+ * state is a neutral `Loader2` rather than §12.8's accent arc, and why its
+ * failed state tints one 14px glyph and nothing else.
+ *
+ * **The footer is "the ways of finding out more".** Talking and looking it up
+ * are the same kind of thing, which is what lets research join it without
+ * becoming a sixth row in the section list — that list means *written sections
+ * and unwritten suggestions*, and a row that is neither breaks the one rule the
+ * rail promises.
  */
-export function BrandContextRail({ brand, onEdit, className }: BrandContextRailProps) {
+export function BrandContextRail({
+  brand,
+  onEdit,
+  className,
+  colors,
+  research,
+  onStartResearch,
+  onReviewDrafts,
+}: BrandContextRailProps) {
   const [openId, setOpenId] = useState<string | null>(null)
   const headingId = useId()
   const panelId = useId()
@@ -181,6 +249,19 @@ export function BrandContextRail({ brand, onEdit, className }: BrandContextRailP
           })}
         </ul>
 
+        {colors && colors.length > 0 && (
+          // Structure A. A block, not a row: the section list is the meter and
+          // a swatch row inside it would be neither a written section nor an
+          // unwritten suggestion.
+          <div className="border-t px-4 py-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <h3 className="text-sm font-medium">Palette</h3>
+              <span className="text-xs text-muted-foreground">{paletteSummary(colors)}</span>
+            </div>
+            <ColorSwatches colors={colors} className="mt-2.5" />
+          </div>
+        )}
+
         <div className="border-t p-1.5">
           <Button variant="ghost" size="sm" className="w-full justify-start gap-2.5 px-2.5" asChild>
             <Link to="/brands/$brandId/context" params={{ brandId: brand.id }}>
@@ -188,8 +269,129 @@ export function BrandContextRail({ brand, onEdit, className }: BrandContextRailP
               Talk it through
             </Link>
           </Button>
+
+          {onStartResearch && (
+            <ResearchRow
+              research={research ?? null}
+              onStartResearch={onStartResearch}
+              onReviewDrafts={onReviewDrafts}
+            />
+          )}
         </div>
       </div>
     </aside>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// ResearchRow — one slot, five states
+// ---------------------------------------------------------------------------
+
+/**
+ * Research decision 2: the run reports itself in the **same footer row the
+ * action was started from**, and does not open a second zone to describe
+ * itself. Four states are named in the locked document; the fifth,
+ * `NO_FINDINGS`, is named as terminal there and never drawn, so it is drawn
+ * here — a website that turns out to be a one-page holding site is the ordinary
+ * way to reach it, not a failure.
+ *
+ * ```
+ * idle         🔍  Research this brand
+ * running      ◌   Researching… started 2 minutes ago
+ * ready        ✦   5 drafts ready — Review
+ * no findings  ⌀   Nothing found — Try again
+ * failed       ⚠   Research failed — Try again
+ * ```
+ *
+ * **None of these may look alarming.** A rail that is on screen the whole time
+ * you are choosing what to work on cannot carry a red banner about a background
+ * job you opted into; a failed run gets one tinted 14px glyph and a muted line
+ * of reason, and everything else stays in the rail's neutral register.
+ *
+ * `IDLE` is deliberately not a status — it is `research === null`, which is
+ * what the query returns for a brand nobody has researched, and it means a hub
+ * that has never run research looks exactly as it does today.
+ */
+function ResearchRow({
+  research,
+  onStartResearch,
+  onReviewDrafts,
+}: {
+  research: ResearchJobSummary | null
+  onStartResearch: () => void
+  onReviewDrafts?: () => void
+}) {
+  const rowClass = 'w-full justify-start gap-2.5 px-2.5'
+  const iconClass = 'size-4 shrink-0 text-muted-foreground'
+
+  if (research?.status === 'IN_PROGRESS') {
+    return (
+      <div
+        className="flex items-center gap-2.5 px-2.5 py-2 text-sm text-muted-foreground"
+        // The row is the status, so it announces changes rather than waiting
+        // for a poll to be noticed.
+        aria-live="polite"
+      >
+        <Loader2 className={cn(iconClass, 'animate-spin')} aria-hidden="true" />
+        <span className="min-w-0 truncate">
+          Researching…{' '}
+          {research.startedAt
+            ? `started ${formatRelativeTime(research.startedAt)}`
+            : 'just started'}
+        </span>
+      </div>
+    )
+  }
+
+  if (research?.status === 'COMPLETED' && research.drafts.length > 0) {
+    const n = research.drafts.length
+    return (
+      <Button variant="ghost" size="sm" className={rowClass} onClick={onReviewDrafts}>
+        <Sparkles className={iconClass} aria-hidden="true" />
+        <span className="min-w-0 truncate">
+          {n === 1 ? '1 draft ready' : `${n} drafts ready`} — Review
+        </span>
+      </Button>
+    )
+  }
+
+  if (research?.status === 'NO_FINDINGS') {
+    return (
+      <div>
+        <Button variant="ghost" size="sm" className={rowClass} onClick={onStartResearch}>
+          <SearchX className={iconClass} aria-hidden="true" />
+          <span className="min-w-0 truncate">Nothing found — Try again</span>
+        </Button>
+        <p className="px-2.5 pb-1 text-xs text-muted-foreground">
+          The site gave us too little to work with.
+        </p>
+      </div>
+    )
+  }
+
+  if (research?.status === 'FAILED') {
+    return (
+      <div>
+        <Button variant="ghost" size="sm" className={rowClass} onClick={onStartResearch}>
+          <CircleAlert
+            className="size-4 shrink-0 text-[var(--color-status-warning)]"
+            aria-hidden="true"
+          />
+          <span className="min-w-0 truncate">Research failed — Try again</span>
+        </Button>
+        {research.error && (
+          <p className="px-2.5 pb-1 text-xs text-muted-foreground">{research.error}</p>
+        )}
+      </div>
+    )
+  }
+
+  // Everything else — no job, a cancelled one, or a completed run whose drafts
+  // have already been dealt with — is the entry point again.
+  return (
+    <Button variant="ghost" size="sm" className={rowClass} onClick={onStartResearch}>
+      <Search className={iconClass} aria-hidden="true" />
+      <span className="min-w-0 truncate">Research this brand</span>
+    </Button>
   )
 }
