@@ -127,7 +127,7 @@ function WorkspaceHomePage() {
   return (
     <div className="flex-1 overflow-auto p-6">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">
+        <h1 className="min-w-0 truncate">
           {wsPending ? '…' : wsError ? 'Workspace' : workspace?.name}
         </h1>
         <NewBrandDialog wsId={wsId} />

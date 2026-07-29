@@ -17,7 +17,7 @@ export function BrandCard({ brand }: { brand: BrandSummary }) {
 
   return (
     <>
-      <div className="group relative flex flex-col gap-3 rounded-lg border bg-card p-5 shadow-sm transition-colors hover:bg-accent">
+      <div className="group relative flex flex-col gap-3 rounded-xl border bg-card p-5 shadow-elevation-1 transition-colors duration-150 hover:bg-accent">
         <div className="absolute top-3 right-3 z-10">
           <EntityMenu
             label={`Actions for ${brand.name}`}
@@ -32,7 +32,7 @@ export function BrandCard({ brand }: { brand: BrandSummary }) {
           className="flex flex-1 flex-col gap-3 pr-8 text-left before:absolute before:inset-0 before:content-['']"
         >
           <div>
-            <div className="font-semibold group-hover:text-accent-foreground">{brand.name}</div>
+            <div className="font-medium group-hover:text-accent-foreground">{brand.name}</div>
             {brand.description && (
               <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                 {brand.description}

@@ -20,7 +20,10 @@ export function FileBlockView({ block }: FileBlockViewProps) {
         <a
           href={url}
           download={block.filename}
-          className="text-xs text-primary hover:underline"
+          // §3.1: a standalone link reads `--color-text-link`, not `--primary`
+          // (the button *fill*). Same value in light, and they are meant to be
+          // re-pointed independently.
+          className="text-xs text-[var(--color-text-link)] hover:underline"
           target="_blank"
           rel="noreferrer"
         >

@@ -331,13 +331,37 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* §0.9 — pretty wrapping on headings and short blocks */
+  /* §5.2 — the product type scale lives here, not at each call site.
+     Weight 500 across the board (§5.1: headings are 500, never 600), fixed
+     sizes with no clamp(), and the negative tracking the scale specifies.
+     Encoding it once is what stops eight routes each restating `text-2xl
+     font-semibold` and drifting apart; a heading that needs a different size
+     (a 14px section label, say) still overrides with a utility. §0.9 wraps
+     them pretty. */
   h1,
   h2,
   h3,
   h4 {
     text-wrap: pretty;
     font-weight: 500;
+  }
+
+  h1 {
+    font-size: 24px;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+  }
+
+  h2 {
+    font-size: 20px;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: 16px;
+    line-height: 1.35;
+    letter-spacing: -0.005em;
   }
 
   /* §5.3 — digits align and never jitter on update */

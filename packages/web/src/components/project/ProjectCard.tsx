@@ -39,7 +39,7 @@ export function ProjectCard({
 
   return (
     <>
-      <div className="group relative flex flex-col gap-2 rounded-lg border bg-card p-4 shadow-sm transition-colors hover:bg-accent">
+      <div className="group relative flex flex-col gap-2 rounded-xl border bg-card p-4 shadow-elevation-1 transition-colors duration-150 hover:bg-accent">
         <div className="absolute top-2 right-2 z-10">
           <EntityMenu
             label={`Actions for ${name}`}
@@ -58,7 +58,10 @@ export function ProjectCard({
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 font-medium group-hover:text-accent-foreground">{name}</div>
-            <span className="mr-6 shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            {/* Sentence case, 12px/500, neutral beige (§0.4, §12.4) — `kind`
+                arrives lowercase off the wire, so `capitalize` is what makes
+                it a sentence rather than a shout. */}
+            <span className="mr-6 shrink-0 rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium capitalize text-muted-foreground">
               {kind}
             </span>
           </div>

@@ -4,6 +4,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 ## Index
 
+- **1.7.1** — 2026-07-29 — Mission Systems CI conformance, the drift since 1.2.0: 1.2.0 applied the CI and **that spine held** — zero raw hex, zero primitive reads, Satoshi's five weights, focus/motion/numerics in the base layer — but four feature passes shipped since without re-reading the contract, and its "six primitives re-specced" left **three of nine untouched**. Caught: two uppercase pills on a product with **no side nav** (§0.4 permits caps in exactly one place, so the correct count is zero), ten call sites overriding the type scale, seven black-based Tailwind shadows, six wrong radii, four accent spends outside the named roles — and one real bug, `AlertDialogContent` on `bg-background`, which resolves to the **sunken page canvas**, so every delete confirmation rendered beige where `dialog.tsx` renders white. The load-bearing decision is that **the type scale moves into `@layer base`** rather than being fixed ten times: the call sites were wrong on *three* axes at once (weight 600/500, line-height 1.333/1.25, tracking −0.025em/−0.015em) and exactly one file of ten had it right, which is what proves the scale was reachable only by recall. `packages/web` only; no migration, no API route, no new dependency. **456 → 456 tests, none added or edited** — the whole point, since a styling pass that churns behavioural tests has changed behaviour. **No live pass** — Playwright would not install under pnpm (`EUNSUPPORTEDPROTOCOL`) and verification was skipped by decision; the `alert-dialog` surface fix is the one worth looking at first. Detail in [`docs/completions/mission-systems-ci-conformance.md`](completions/mission-systems-ci-conformance.md).
 - **1.7.0** — 2026-07-28 — Brand hub restructure: the page's top half was a stack of full-bleed bands with content pinned to both edges and a dead middle, and the brand itself was rendered as 24px of text on the one surface whose premise is that the brand is the centre of gravity. It becomes **three zones answering three questions in order** — *who is this* (a derived **monogram**, name, TL;DR), *what can I do* (the app tiles, kept, now a 2×2), *what do we know* (a persistent right **rail**). The load-bearing rule is that **no fact appears twice**: the identity band carries no counts, because the rail is about sections and each tile carries its own thread count. `BrandContextBar` is superseded and **deleted**; in the rail, written sections and unwritten suggestions are **one list**, which is why there is no meter — five rows, two written, *is* the meter, and it is the version you can click. First route in the app to constrain its width. `packages/web` only; no migration, no `shared`/`server` change. 436 → **456 tests (+20 net, +27 new)**. **A live pass was run** against a throwaway harness and changed the code three times — brand assets (colours, logos, photos) are **not** in this pass and are specced in [`docs/plans/brand-assets.md`](plans/brand-assets.md).
 - **1.6.0** — 2026-07-28 — Brand switcher in the app shell header: the header could switch **workspaces** and could only *name* the brand, so moving between two brands meant going up to workspace home and back down through the grid. A brand is as much a **place** as a workspace is, so it gets the same pill — `[ Mission Group ⌄ ] / [ Casa Vostra ⌄ ] / Copywriting`. The load-bearing decision is that the brand **moved out of the breadcrumb** rather than appearing in both (the precedent was already written down in `Breadcrumbs.tsx`), so the trail type shrinks to a tail-only, four routes stop reporting a brand, and each header segment now owns its own *leading* separator. New `useActiveBrandId` resolves the brand from the route param *or* `project.brand.id`, with **no storage fallback** — a remembered brand would offer to navigate you out of a page you're on. `packages/web` only; no migration, no API route, no `shared`/`server` change. 426 → **436 tests (+10)**. **No live browser pass** — pill rhythm, long-name truncation and menu placement are reasoned, not observed.
 - **1.5.1** — 2026-07-28 — Session token refresh, a production bug fix: the web app captured the Supabase access token **once at sign-in** and sent that frozen JWT forever, so any tab left open past its 1-hour `exp` 401'd every query — presenting as a correct-looking brand header over red `Failed to load brand.` text, and self-healing on reload, which is why it read as *intermittent* rather than time-based. The auto-refreshing `supabase-js` client was module-scoped **inside a component that only mounts on `/login`**, so once you were signed in no refresh listener was alive in the process. Fixed by making the Supabase session the source of truth and `sessionStorage` a cache of it: one `getFreshAuthToken()` accessor (in-flight de-duped) that every server-bound call goes through, `startSessionSync()` mirroring background refreshes into the store, and a token-goes-null subscription that finally *navigates* on the 401 path. 400 → **426 tests (+26)**. **Not reproduced live** — the failure takes an hour of wall clock by definition.
@@ -31,6 +32,163 @@ Latest releases at the top. Each version has a one-line entry in the index below
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` lands — drizzle schema for 8 tables, singleton pg `Pool`, 18 query helpers, local-dev docker Postgres, and an end-to-end smoke check.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` lands as the single source of truth for domain types and zod schemas, consumed by both `server` and `web`.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture blueprint, scaffolding plan, and Phase 0 repo foundation.
+
+---
+
+## 1.7.1 — 2026-07-29
+
+**A contract nobody re-read.** 1.2.0 applied the Mission Systems CI to
+`packages/web`; 1.4.0, 1.5.0, 1.6.0 and 1.7.0 then shipped four surfaces on top
+of it without opening the styleguide again. Standalone pass, no plan document —
+the `frontend:apply-mission-systems-ci` skill run with no named target, against
+a docs-only working tree, so the target became the whole package. Detail in
+[`docs/completions/mission-systems-ci-conformance.md`](completions/mission-systems-ci-conformance.md).
+
+```
+before   <h1 className="text-2xl font-semibold tracking-tight">   ×9 routes
+         600 weight · 1.333 line-height · −0.025em          (spec: 500 / 1.25 / −0.015em)
+
+after    <h1>                                                     ×9 routes
+         the scale lives in @layer base; a call site cannot restate it
+```
+
+### What the audit cleared
+
+Worth recording as much as what it caught, so the next sweep does not re-derive
+it. **The 1.2.0 spine is intact:** zero raw `#hex` in any component, zero raw
+`--c-*` primitive reads, Satoshi self-hosted at five weights with
+`font-display: swap`, and `:focus-visible` / `prefers-reduced-motion` /
+`tabular-nums` all present in `@layer base`. Six `components/ui` primitives were
+already to spec.
+
+The directory holds **nine**. `alert-dialog`, `dropdown-menu` and `sonner` are
+the three 1.2.0's "six primitives" never reached, and two of them had shipped
+visible defects.
+
+### The load-bearing decision
+
+**The type scale moves into `@layer base`, so a call site cannot restate it.**
+Everything else in this pass is an enumerated fix; this is the only structural
+choice.
+
+`index.css` already carried `h1..h4 { font-weight: 500 }` — the rule was written
+down and correct, and ten call sites overrode it anyway. They were wrong on
+**three axes at once**, not one: weight 600 against a spec of 500, line-height
+1.333 (`text-2xl`) against 1.25, tracking −0.025em (`tracking-tight`) against
+−0.015em. Exactly one file had it right — `login.tsx`, hand-written as
+`text-2xl font-medium tracking-[-0.015em]`.
+
+**One correct instance out of ten is the diagnosis.** The scale was reachable
+only by remembering it, and nine routes did not. Swapping `font-semibold` →
+`font-medium` in ten files fixes one axis of three and leaves the eleventh route
+starting from the same blank slate. So the base layer now carries h1/h2/h3 in
+full and the call sites drop their utilities: `<h1>{brand.name}</h1>` renders to
+spec because it is an `h1`. Overriding is still possible — it is now a
+*decision* rather than the only way to get the default.
+
+This is the argument the token tiers already make one layer down (§2). A
+component reading a raw hex is a bug *because* the correct value should not
+require recall; a heading restating the scale is that bug in typography.
+
+### What shipped
+
+- **§0.4, the one uppercase rule** — the CI permits caps in exactly one place,
+  side-nav section eyebrows. This app has **no side nav**, so its correct
+  uppercase count is zero and it had two: `MiniAppTile`'s `Soon` pill and
+  `ProjectCard`'s kind badge, both `text-[10px] uppercase tracking-wide`. Now
+  12px/500 sentence case on the neutral beige pill §12.4 specifies. `kind`
+  arrives lowercase off the wire, so `capitalize` is what makes it a sentence
+  rather than dropping it to lowercase. `Workspace Settings` → `Workspace
+  settings`.
+- **§8 / §9, elevation and radii** — `shadow-sm`/`md`/`lg` are Tailwind's
+  **black-based** defaults, and the point of a warm neutral ramp is that its
+  shadows are warm too. Cards move to `elevation-1` + 12px (they were on
+  `rounded-lg`, the *button* radius); menus to `elevation-2` + 12px (they were
+  on `rounded-md`, the *tooltip* radius) with 8px items; the capture button and
+  the toaster to `elevation-2`.
+- **`alert-dialog`, the one real bug** — `AlertDialogContent` was
+  `bg-background`, and in this repo's tier-3 map `--background` is
+  `--surface-sunken`, the **page canvas**. `DialogContent` is `bg-popover` =
+  white. Two modal types on two surface colours, and the odd one out was the
+  **destructive-confirmation** path. Alongside it: `bg-black/50` where §12.6
+  asks for ink at 32% — a cold veil over a deliberately warm ramp — plus 8px
+  radius where §9 says 16 and `shadow-lg` where §8 says `elevation-3`. All four
+  now match `dialog.tsx` exactly, which is the point: two components
+  implementing one spec should be diffable.
+- **§4, accent budget** — four spends outside the named roles: a `bg-primary/10`
+  badge (a 10% accent tint is not a colour the palette contains → `info` tint,
+  since *where did this value come from* is informational), chips turning green
+  on hover (hover is a **surface** change, §10.1), a resize handle on
+  `primary/40` (→ `--border-strong`), and a link reading `--primary`, the button
+  *fill*, instead of `--color-text-link` (§3.1). **Left alone** because they are
+  the budget working: `ShortlistToggle`'s accent-filled selected segment is
+  §12.5 verbatim, the spinner is §12.8's thin accent arc, the drop targets are
+  the active-state role, and `BrandMark`'s hue is the *customer's* brand rather
+  than the product's accent — 1.7.0's argument, unchanged.
+
+**`BrandMark` keeps `font-semibold`, deliberately.** A monogram in a coloured
+tile is brand chrome (§7.2's logo tile), not a typographic role, and its weight
+does optical work against a tinted fill. Left rather than swept up by a grep.
+
+### Verification
+
+```
+pnpm typecheck                          9/9 workspaces
+pnpm lint / format:check                clean
+pnpm test                               446 passed | 10 skipped (456)
+pnpm --filter @brandfactory/web build   ok
+```
+
+**456 → 456. No test was added, edited, or deleted** — the intended result, and
+evidence rather than a gap: every change here is a class name or a CSS rule, and
+a styling pass that churns behavioural tests has changed behaviour. The two
+suites at actual risk were `MiniAppTile` and `ProjectCard`, whose badge markup
+was rewritten; both assert on text and role, not class names, and both passed
+untouched. No test in the repo pins `font-semibold`, `uppercase`, `shadow-sm` or
+`text-2xl`.
+
+19 files, +89 / −31. The 10 skips are the live-Postgres suites (no Docker
+daemon); this pass touches no `db` or `server` code.
+
+### Caveats
+
+**Nothing was rendered — the live pass was skipped by decision.** Playwright was
+not installed and Docker was down. A mocked-API Playwright run was chosen and
+then abandoned: `npm install -D @playwright/test` fails in this repo with
+`EUNSUPPORTEDPROTOCOL` on a transitive `link:` dependency, pnpm being the
+package manager. Nothing was left behind — npm aborted before writing, and
+`package.json` and `pnpm-lock.yaml` are unchanged.
+
+Stated the way 1.6.0 and 1.5.1 state theirs:
+
+- **The `alert-dialog` surface fix is the one worth looking at first.** It is
+  the only change with a visible before/after larger than a few pixels, and the
+  only one whose prior state was demonstrably wrong rather than merely off-spec.
+- **The sonner change is the least certain** — `toastOptions.className` composes
+  with sonner's own stylesheet, and whether `shadow-elevation-2` beats its
+  built-in `box-shadow` is a specificity question a screenshot answers and
+  reading does not.
+- **Pill sizing and card radii moved 2–4px** across every card surface.
+  Individually invisible, collectively the thing the CI is for, entirely
+  unverified.
+- **Both themes are unverified.** Every token used already has a `.dark`
+  re-point and no new primitive was added, so dark should follow by
+  construction — but §16's promise is the kind worth testing once rather than
+  trusting forever.
+
+Two things were **seen and left**, so they read as decisions rather than misses:
+`RouteError`'s 18px `h1` (an error-boundary card, not a page, and now an
+explicit override against a base rule), and the 14px `<h2>` section labels on
+the hub, workspace home and mini-app pages — a 1.4.0/1.7.0 layout decision, not
+CI drift, and changing it belongs to whoever redesigns those pages.
+
+**Not addressed: the mono face** (§5.4). `--font-mono` is wired to a system
+stack and nothing in the product surfaces an ID, SKU or code block yet, so there
+is no call site to give it.
+
+**Untouched:** `packages/shared`, `packages/db`, `packages/server`,
+`packages/agent`, `packages/adapters/*`. No migration, no wire-contract change,
+no new dependency.
 
 ---
 

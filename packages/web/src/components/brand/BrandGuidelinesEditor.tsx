@@ -389,7 +389,11 @@ export function BrandGuidelinesEditor({
                 key={sg.label}
                 type="button"
                 title={sg.description}
-                className="rounded-full border px-3 py-1 text-xs text-muted-foreground hover:border-primary hover:text-primary"
+                // Hover is a *surface* change, not an accent one (§4, §10.1):
+                // the accent belongs to the primary action and the selected
+                // state, and a row of chips that all turn green on the way past
+                // spends it on nothing.
+                className="rounded-full border px-3 py-1 text-xs text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
                 onClick={() => setSections((prev) => [...prev, blankSection(sg.label)])}
               >
                 {sg.label}

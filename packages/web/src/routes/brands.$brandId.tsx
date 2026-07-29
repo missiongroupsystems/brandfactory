@@ -63,7 +63,7 @@ function BrandHubPage() {
       <div className="mx-auto max-w-6xl p-6 lg:p-8">
         {!brand && (
           <header className="flex items-start gap-4">
-            <h1 className="text-2xl font-semibold">{isPending ? '…' : 'Brand'}</h1>
+            <h1>{isPending ? '…' : 'Brand'}</h1>
             {isError && <p className="mt-2 text-sm text-destructive">Failed to load brand.</p>}
           </header>
         )}

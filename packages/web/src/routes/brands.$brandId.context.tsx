@@ -51,7 +51,7 @@ function BrandContextPage() {
     <div className="flex-1 overflow-auto p-6">
       <header className="mb-6 flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-2xl font-semibold">
+          <h1 className="flex items-center gap-2">
             <MessagesSquare className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             Brand context
           </h1>

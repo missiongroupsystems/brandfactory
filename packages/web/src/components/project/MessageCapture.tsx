@@ -325,7 +325,7 @@ export function SelectionCaptureButton({
           onCapture(capture.payload)
           onDismiss()
         }}
-        className="flex items-center gap-1 rounded-md border bg-popover px-2 py-1 text-xs font-medium whitespace-nowrap text-popover-foreground shadow-md hover:bg-accent"
+        className="flex items-center gap-1 rounded-lg border bg-popover px-2 py-1 text-xs font-medium whitespace-nowrap text-popover-foreground shadow-elevation-2 hover:bg-accent"
       >
         <BookmarkPlus className="size-3.5" aria-hidden="true" />
         Add to brand context

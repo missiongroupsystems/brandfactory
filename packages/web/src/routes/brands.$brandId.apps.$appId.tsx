@@ -30,7 +30,7 @@ function MiniAppPage() {
   if (!app) {
     return (
       <div className="flex-1 overflow-auto p-6">
-        <h1 className="text-2xl font-semibold">Unknown mini-app</h1>
+        <h1>Unknown mini-app</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           No mini-app is registered under &ldquo;{appId}&rdquo;.
         </p>
@@ -55,7 +55,7 @@ function MiniAppPage() {
     <div className="flex-1 overflow-auto p-6">
       <header className="mb-6 flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-2xl font-semibold">
+          <h1 className="flex items-center gap-2">
             <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
             {app.title}
           </h1>

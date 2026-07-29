@@ -3,7 +3,7 @@ import type { MiniApp } from '@/components/brand/miniApps'
 import { cn } from '@/lib/utils'
 
 const TILE_CLASS =
-  'group relative flex flex-col rounded-lg border bg-card p-4 shadow-sm transition-colors duration-150'
+  'group relative flex flex-col rounded-xl border bg-card p-4 shadow-elevation-1 transition-colors duration-150'
 
 export interface MiniAppTileProps {
   app: MiniApp
@@ -35,8 +35,11 @@ export function MiniAppTile({ app, brandId, threadCount }: MiniAppTileProps) {
       <div className="flex items-center gap-2">
         <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="truncate font-medium">{app.title}</span>
+        {/* Sentence case, 12px/500, neutral beige (§0.4, §12.4). The only
+            uppercase text the CI allows is a side-nav section eyebrow, and
+            this app has no side nav — so nothing here is ever caps. */}
         {!app.enabled && (
-          <span className="ml-auto rounded-full bg-surface-sunken px-2 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+          <span className="ml-auto rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium text-muted-foreground">
             Soon
           </span>
         )}

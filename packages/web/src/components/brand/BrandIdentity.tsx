@@ -35,7 +35,7 @@ export function BrandIdentity({ brand, onRename, onDelete }: BrandIdentityProps)
       {/* `min-w-0` so a long unbroken brand name truncates instead of pushing
           the ⋯ menu off the container. */}
       <div className="min-w-0 flex-1 pt-1">
-        <h1 className="truncate text-2xl font-semibold tracking-tight">{brand.name}</h1>
+        <h1 className="truncate">{brand.name}</h1>
         {brand.description ? (
           <p className="mt-1.5 max-w-prose text-sm text-pretty text-muted-foreground">
             {brand.description}

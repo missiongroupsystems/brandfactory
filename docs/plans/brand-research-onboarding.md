@@ -5,6 +5,20 @@
 it. Two were resolved earlier (Q4, 2026-07-28); the remaining eight were
 resolved when the goal was restated — see Context.
 
+**Re-verified 2026-07-29 against `main` at 1.7.0.** This document was locked the
+same day 1.7.0 shipped, and 1.7.0 **deleted `BrandContextBar`** — the component
+this design named as the host for all three of its brand-hub affordances. The
+host is now `BrandContextRail`, and every reference has been corrected; see
+[Drift corrections](#drift-corrections) at the foot of this document for what
+changed, what it cost, and what it did not touch. **No decision was reopened** —
+the rail is a better host than the bar was, for reasons the rail's own doc
+comment already gives. Every other citation in the facts table was re-checked
+line by line and still holds.
+
+The one thing the lock does **not** settle remains open: **Q10, sequencing** —
+whether Phase A ships on its own first. That is a scheduling call, not a design
+one, and it is the only input this document still needs.
+
 > **A note on decision numbering.** This document's decisions are numbered 1–12
 > and are referred to as *"decision N"*. The repo also has a **separate,
 > repo-wide locked-decision register** from the original architecture phase,
@@ -20,8 +34,9 @@ resolved when the goal was restated — see Context.
 ## Context
 
 Creating a brand today is two fields: `Name`, `Description (optional)`, Create.
-The brand then lands on its hub with an empty context bar, a 0% guideline meter,
-and five suggested section labels waiting to be filled in by hand.
+The brand then lands on its hub with a **`BrandContextRail`** whose every row is
+an unwritten suggestion — five labels, five `+` glyphs, `Rides along into every
+thread` where a section count would go — waiting to be filled in by hand.
 
 For the *rough idea* brand — the one `docs/vision.md:28` says BrandFactory has to
 treat as a first-class case — that's correct. There is nothing to look up.
@@ -30,7 +45,7 @@ For the **brand that already exists in the world** it is a waste. Casa Vostra ha
 a website, a menu, an Instagram, a tone of voice visible in every caption it has
 ever posted, and press coverage. All of it is public. Asking the founder to
 retype it into a TipTap list is asking them to do the machine's job, and it is
-the single biggest reason a brand sits at 0% guidelines a week after creation —
+the single biggest reason a brand still has zero sections a week after creation —
 which makes *every* downstream surface (Copywriting, Open canvas, the
 brand-context interview) worse, because they all read the same empty sections.
 
@@ -116,6 +131,12 @@ which already has two.
 | Per-project concurrency guard exists as a pattern to copy | `AgentConcurrencyGuard`, `routes/agent.ts:60` |
 | Brand context is a **list of threads**, not a singleton | `brands.$brandId.context.tsx` filters `isBrandContextThread` over all of a brand's projects and renders a grid of `ProjectCard`s |
 | Nothing may spawn a context thread implicitly | Same route, written down before this pass existed: *"Nothing is created implicitly on arrival. An icon that silently spawns a thread leaves strays behind; 'resume the most recent' is wrong the first time you want a fresh line of thinking."* — the precedent decision 11 follows |
+| **`BrandContextBar` does not exist** | **Deleted in 1.7.0.** `grep -rn "BrandContextBar" packages/` returns zero hits. The hub's context surface is `BrandContextRail`, rendered at `routes/brands.$brandId.tsx:128` |
+| The rail is **presentational** | `BrandContextRailProps` is `{ brand, onEdit, className }` — no queries, no mutations, no router state beyond one `Link`. Its 11 tests render it from props alone, and this pass keeps that |
+| The rail already has a **footer action block** | `Talk it through`, a full-width ghost `Button` in a `border-t` block below the section list (`BrandContextRail.tsx:184-191`). This is the slot decisions 1 and 2 use |
+| The hub owns the dialog state | `brands.$brandId.tsx` holds `editOpen` / `renameOpen` / `deleteOpen` and passes `onEdit` down — the precedent for the route owning the research query and passing state in |
+| **`EditGuidelinesDialog` already forwards `staged`** | `EditGuidelinesDialogProps.staged?: CapturePayload \| null`, passed straight through to the editor. The hub renders this dialog (`brands.$brandId.tsx:78`) and currently passes **no** `staged` — so E2's *Accept selected* is an existing prop finally being used on this surface, not a new channel |
+| The meter left the **hub**, not the app | `GuidelineMeter` still renders on `BrandCard` in the workspace grid (`BrandCard.tsx:43`). The rail deliberately has none — five rows, two written, *is* the meter |
 | **Citation links survive `insertContent`** | **Verified, not assumed.** `@tiptap/starter-kit` **3.22.4** depends on `@tiptap/extension-link`, and `dist/index.js:69-71` registers it **opt-out**: `if (this.options.link !== false) extensions.push(Link.configure(...))`. `defaultExtensions` (`editor/proseMirrorSchema.ts`) configures only `heading`, so `link` is left enabled |
 
 The last row was `**Assumed from the version, not run**` in the proposal draft.
@@ -146,8 +167,12 @@ that file is on the "unchanged on purpose" list.
   anything else is built on it.
 
 **A key is available** as of the lock, so B0 is unblocked and runs first within
-Phase B. `.env` today carries only `OPENROUTER_API_KEY`; `perplexity` appears
-nowhere in the repo outside this document.
+Phase B. **Still true on 2026-07-29, and still not in the repo:** `.env` and
+`.env.example` both carry exactly ten keys, of which the only vendor key is
+`OPENROUTER_API_KEY`, and `grep -rli perplexity` over the whole repo matches this
+document alone. So B0's first physical step is putting `PERPLEXITY_API_KEY` into
+`.env` — worth stating, because "a key is available" and "a key is wired up" are
+a day apart if the key has to be found rather than pasted.
 
 Sources: [models](https://docs.perplexity.ai/getting-started/models) ·
 [async chat completions](https://docs.perplexity.ai/api-reference/async-chat-completions-post) ·
@@ -184,19 +209,62 @@ back as a field later **without a migration**; they should not be in the first
 version.
 
 **The second entry point is a "Research this brand" action in the
-`BrandContextBar`, and it is not a nice-to-have.** Every brand that exists today
+`BrandContextRail`, and it is not a nice-to-have.** Every brand that exists today
 was created before this feature — Casa Vostra and the rest are already sitting at
-0% guidelines. A create-dialog-only version of this feature does nothing for a
+zero sections. A create-dialog-only version of this feature does nothing for a
 single brand that currently exists. Re-run is what makes it usable on the day it
 ships, and it also covers the rebrand case. It costs nothing extra once Phase C
 exists: the same `POST /brands/:id/research`, from a different button.
+
+**Where in the rail, and why it is the one slot that fits.** The rail's footer is
+already an action block — a `border-t` strip below the section list holding
+`Talk it through`. Research joins it as a second full-width row:
+
+```
+┌─ Brand context ─────────┐
+│ 1 of 5 suggested  [Edit]│
+│ ✓ Target audience     ⌄ │
+│   Voice & tone        + │
+│   …                     │
+├─────────────────────────┤
+│ 💬 Talk it through      │
+│ 🔍 Research this brand  │   ← new
+└─────────────────────────┘
+```
+
+The two belong together because they are the same kind of thing: the section
+list answers *what do we know*, and the footer holds **the ways of finding out
+more** — one by talking, one by looking it up. That reading is what keeps the
+rail's load-bearing 1.7.0 rule intact. **Research must not become a sixth row in
+the section list**, because that list has a stated meaning — written sections and
+unwritten suggestions, one list, which *is* the meter. A row that is neither
+would break the one thing the rail promises.
+
+**The rail stays presentational.** It takes `research: ResearchJobSummary | null`
+and `onStartResearch: () => void` alongside the `onEdit` it already has; the
+**route** owns the React Query poll, exactly as it already owns `editOpen` and
+passes `onEdit` down. This is not tidiness — the rail's 11 tests render it from
+props alone, and a query inside it would make every one of them mount a client.
 
 ### 2. The brand is created first. Research never blocks creation.
 
 `POST /brands` returns, the router navigates to the brand hub, *then* the
 research job is started as a second call. A vendor outage, a bad key, or a
 15-minute deep-research run must never stand between someone and a brand that
-exists. The hub shows a status strip in the `BrandContextBar` while it runs.
+exists. The hub reports the run in the **same rail footer row** the action was
+started from — it does not open a second zone to describe itself:
+
+```
+idle       🔍 Research this brand
+running    ◌  Researching… started 2 min ago          (polling, decision 6)
+ready      ✦  5 drafts ready — Review                 (E2; empty brands never
+                                                       reach this state)
+failed     ⚠  Research failed — Try again
+```
+
+One slot, four states, no fact printed twice — which is the rule 1.7.0 built the
+hub around. A brand hub with no research job ever run looks exactly as it does
+today, because the idle state *is* the entry point.
 
 ### 3. One new brand column. Everything else is job input.
 
@@ -260,8 +328,8 @@ a 5-second poll is free.
 
 Deep research can exceed the length of a browser session. `brand_research_jobs`
 is persisted, an in-process ticker reconciles in-flight jobs against the vendor,
-and the result is waiting when you come back — as a badge on the context bar, not
-a modal that stole your attention mid-sentence.
+and the result is waiting when you come back — as the `ready` state of the rail's
+footer row (decision 2), not a modal that stole your attention mid-sentence.
 
 **The ticker is single-instance.** `native-ws` realtime already pins the server
 to one instance (0.9.1), so this adds no new constraint — but it is written down
@@ -288,8 +356,8 @@ invariant; it recognises where the invariant's reason does not apply.
 **Gate on emptiness, evaluated when the drafts land — not on newness, and not at
 submission.** They diverge in practice: deep research runs 3–15 minutes, which is
 ample time to start typing a Voice section by hand. Same brand, same job, but now
-there is something to destroy. Empty → save; non-empty → the badge and review
-sheet. One condition, checked at the last possible moment, degrading into the
+there is something to destroy. Empty → save; non-empty → the rail's `ready` state
+and the review sheet. One condition, checked at the last possible moment, degrading into the
 reviewed path automatically.
 
 Note that decision 1's re-run entry point makes the non-empty case *common*, not
@@ -317,7 +385,7 @@ Two honest costs, both accepted:
 
 - **It needs a browser at some point.** Not during the run — to land it. The
   brand populates on your next visit rather than the instant the vendor returns,
-  which is the same moment you would have seen the badge anyway.
+  which is the same moment you would have seen the rail go `ready` anyway.
 - **`useUpdateBrandGuidelines` gains a second call site.** Today its only caller
   is `BrandGuidelinesEditor.tsx:213`. The *server* route still has one handler and
   the ProseMirror still comes from a real TipTap schema, so the invariant survives
@@ -487,7 +555,7 @@ input jsonb, external_id, report text, citations jsonb, drafts jsonb, error,
 created_by, created_at, started_at, completed_at)`.
 
 - `POST /brands/:id/research` → 201 with the job. Serves **both** entry points of
-  decision 1 — the create dialog and the context-bar re-run — which is why re-run
+  decision 1 — the create dialog and the rail's re-run action — which is why re-run
   costs nothing extra.
 - One active job per brand, guarded exactly like `AgentConcurrencyGuard` guards a
   project — except this guard has to be **the table**, not process memory,
@@ -519,15 +587,25 @@ the same mutation, and **no-ops if the section list changed underneath it** —
 tested explicitly, because an Undo that fires against an edited brand is the wipe
 decision 8 exists to prevent.
 
-**E2 — the non-empty brand: the review sheet.** The badge on `BrandContextBar`
-opens it: one card per draft, its sources visible, a checkbox each. **Accept
-selected** stages them into `BrandGuidelinesEditor` and gets out of the way; you
-are then in the ordinary editor, with ordinary undo, and an ordinary Save. Note
-this is the path every context-bar re-run on a curated brand takes, so it is not
-the rare branch.
+**E2 — the non-empty brand: the review sheet.** The rail footer's `ready` state
+(decision 2) opens it: one card per draft, its sources visible, a checkbox each.
+**Accept selected** stages them into `BrandGuidelinesEditor` and gets out of the
+way; you are then in the ordinary editor, with ordinary undo, and an ordinary
+Save. Note this is the path every rail re-run on a curated brand takes, so it is
+not the rare branch.
+
+The staging channel already exists on this surface and has never been used
+here: `EditGuidelinesDialog` forwards a `staged` prop straight to the editor for
+the 1.5.0 capture path, and the hub renders that dialog while passing nothing.
+So *Accept selected* is `setStaged(drafts)` + `setEditOpen(true)` in
+`brands.$brandId.tsx` — the same two pieces of state the hub already owns.
 
 Both paths need `staged` widened from one `CapturePayload` to an ordered list of
-`{ label, payload }` — the one real change to a 1.5.0 file. The identity-keyed
+`{ label, payload }` — the one real change to 1.5.0 code. It is one *behavioural*
+change in `BrandGuidelinesEditor` and two **pure type pass-throughs** in
+`EditGuidelinesDialog` and `BrandContextPane`, which forward the prop untouched;
+widening it in the editor without widening both forwarders will not compile,
+which is the good kind of coupling. The identity-keyed
 StrictMode guards (`consumedStagedRef`, `insertedRef`) must be preserved
 **per-item**; Phase G of 1.5.0 is on record about what happens when they aren't,
 and the failure it found — every captured message pasted twice — is invisible in
@@ -554,8 +632,16 @@ paid vendor call, and a background job.** Every clause of that exemption is
 false here. The live pass runs: real Postgres, real key, real brand, watched from
 submission through review to a saved section — plus the deferred 1.5.0 items that
 touch the same editor, and the deferred 1.6.0 browser items (pill spacing, long
-brand-name truncation, menu placement at 30+ brands) that this pass's own
-`BrandContextBar` changes sit next to.
+brand-name truncation, menu placement at 30+ brands) that this pass's own rail
+changes sit next to.
+
+Two 1.7.0 caveats land in this pass's lap as well, because it is editing the
+component they were logged against. **The stacked rail below `lg` is wide** — a
+row's trailing glyph sits far from its label — and this pass adds footer rows to
+exactly that column. And 1.7.0's live pass ran against **a throwaway Vite
+harness, not the route**, so the rail has still never been observed inside the
+real hub with the app shell above it. This pass's live run is the first chance to
+see both, and it should look.
 
 ## Files
 
@@ -570,8 +656,12 @@ brand-name truncation, menu placement at 30+ brands) that this pass's own
 · `shared/brand/update-guidelines.ts` (`createdBy` on the wire) · `routes/brands.ts`
 (stops synthesising `'user'`) · `server/src/{env,adapters}.ts` ·
 `routes/workspaces.$wsId.index.tsx` (the dialog) · `BrandCard.tsx` ·
-`BrandContextBar.tsx` (status strip, badge, **and the re-run action**) ·
-`BrandGuidelinesEditor.tsx` (`staged` → list, sends `createdBy`) · `.env.example`
+`BrandContextRail.tsx` (the footer action row and its four states — **the re-run
+entry point**) · `routes/brands.$brandId.tsx` (owns the research query, the
+`staged` list, and the review sheet — the rail stays presentational) ·
+`BrandGuidelinesEditor.tsx` (`staged` → list, sends `createdBy`) ·
+`EditGuidelinesDialog.tsx` + `BrandContextPane.tsx` (`staged` type pass-through
+only) · `.env.example`
 
 **Unchanged on purpose:** `packages/web/src/editor/proseMirrorSchema.ts`. The
 headless auto-populate instance imports `defaultExtensions` as-is; if this file
@@ -623,7 +713,7 @@ do by hand."*
 | --- | --- | --- |
 | 1 | Which extra fields go on the brand row? | **`website_url` only.** Competitors / region / focus stay job input in `input jsonb`, and are not even collected in v1 — decision 1. Any of them can become a column later; a column nothing renders is a column we regret |
 | 2 | Quick or Deep as the default? | **Deep, and Quick is cut entirely** — decision 10. Quick is not what anyone runs by hand, so it is a knob nobody turns |
-| 3 | Re-runnable on an existing brand? | **Yes, and it is not optional.** Every brand that exists today predates this feature, so a create-dialog-only version helps zero real brands. The context-bar action is arguably the *more* important of the two entry points — decision 1 |
+| 3 | Re-runnable on an existing brand? | **Yes, and it is not optional.** Every brand that exists today predates this feature, so a create-dialog-only version helps zero real brands. The rail action is arguably the *more* important of the two entry points — decision 1 |
 | 4 | On arrival: auto-open the review, or badge and wait? | **Neither, on an empty brand** *(resolved 2026-07-28)*. It saves outright; you arrive at a populated brand with a toast and an Undo — decision 8. Badge-and-wait stands for the non-empty case, which is the review sheet's only job |
 | 5 | Perplexity only, or a second path? | **Perplexity only** — decision 5. The port exists for replaceability, not for shipping two adapters against a churning vendor surface |
 | 6 | Which thread does the report live in? | **Its own, newly created and named for the run** — decision 11. Brand context is a list, not a singleton, and "resume the most recent" is rejected precedent already written into `brands.$brandId.context.tsx` |
@@ -637,3 +727,52 @@ mode as a config value if B0's cost measurement demands it (decision 10) ·
 multi-instance ticker safety via advisory lock or claim column (decision 7) ·
 server-side landing with `@tiptap/html` if research ever needs to land with no
 browser in the loop (decision 8).
+
+---
+
+## Drift corrections
+
+**2026-07-29, against `main` at 1.7.0.** This document was locked on 2026-07-28.
+1.7.0 shipped the same day and restructured the brand hub, which invalidated one
+class of reference throughout — recorded here rather than silently rewritten, so
+that a reader of the completion records can tell which parts of this design were
+argued and which were merely relocated.
+
+**The one correction: `BrandContextBar` was deleted, and `BrandContextRail` is
+the host.** The bar was a full-width card above the app tiles; the rail is a
+persistent right column. This design named the bar in four places — the second
+entry point (decision 1), the in-flight status strip (decision 2), the
+drafts-ready badge (Phase E2), and the file list.
+
+**No decision was reopened, because the rail is a strictly better host**, and for
+reasons the rail's own doc comment gives without knowing this feature existed:
+it is *"beside the apps rather than stacked above them, so it stays on screen
+while you pick something to work on."* A research job that runs for 3–15 minutes
+wants exactly that — a status that remains visible while you go and do something
+else, rather than one you scroll past on your way to the tiles.
+
+What the relocation *did* change, in each case for the better:
+
+| Was | Now | Why it is not a like-for-like swap |
+| --- | --- | --- |
+| A re-run button somewhere on the bar | A row in the rail's **footer action block**, under `Talk it through` | The footer already had a stated meaning — the ways of adding context. Research is the second one. The alternative, a row in the section list, would have broken 1.7.0's load-bearing rule that the list is written sections and unwritten suggestions and nothing else |
+| A status strip, a badge, and an action — three affordances | **One footer row with four states** (`idle`/`running`/`ready`/`failed`) | 1.7.0's rule is that no fact appears twice. Three separate affordances for one job would have printed the job's existence three times; the idle state *is* the entry point |
+| Unstated where the query lives | The **route** owns it; the rail stays presentational | Not discovered by design but by reading: `BrandContextRailProps` is `{ brand, onEdit, className }` and its 11 tests render it from props alone. The hub already owns `editOpen` and passes `onEdit` down, so research follows a path that exists |
+
+**One thing the re-verification found that makes Phase E smaller than specced.**
+`EditGuidelinesDialog` already forwards a `staged` prop to the editor — built in
+1.5.0 for the capture path — and the hub renders that dialog while passing
+nothing into it. E2's *Accept selected* is therefore an existing channel being
+used on a surface that never used it, not a new one. Correspondingly, the
+`staged` widening touches **three** 1.5.0 files rather than one, but two of them
+are pure type pass-throughs.
+
+**Everything else still holds.** Every other citation was re-checked against the
+source on 2026-07-29 and is unchanged: `staged` at `BrandGuidelinesEditor.tsx:199`,
+`useUpdateBrandGuidelines`'s single caller at `:213`, `createdBy` genuinely absent
+from `UpdateBrandGuidelinesSectionInputSchema` while `routes/brands.ts:122`
+hardcodes `'user'`, `brands` at six columns, `updateBrandGuidelines`'s
+delete-by-omission doc comment, `SUGGESTED_SECTIONS`' five labels,
+`isBrandContextThread`, `createAgentConcurrencyGuard`, and the four shipped
+adapters. `docs/plans/brand-assets.md` — raised out of the same 1.7.0 pass —
+remains a separate, unlocked proposal and is not a dependency of this one.

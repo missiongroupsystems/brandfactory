@@ -39,7 +39,9 @@ export function SplitScreen({ left, right }: { left: ReactNode; right: ReactNode
       <div
         role="separator"
         aria-orientation="vertical"
-        className="w-1 shrink-0 cursor-col-resize bg-border transition-colors hover:bg-primary/40"
+        // A resize handle darkening on hover is a border emphasis, not an
+        // accent role (§4) — `--border-strong` is the token for exactly that.
+        className="w-1 shrink-0 cursor-col-resize bg-border transition-colors duration-150 hover:bg-[var(--border-strong)]"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

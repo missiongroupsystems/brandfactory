@@ -19,14 +19,21 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+// §4 / §12.4: the accent is spent on the primary action, one hero metric, the
+// active/selected state and brand chrome — a badge is none of those, and a 10%
+// accent tint is not a colour the palette has. "Where did this value come
+// from" is an *informational* distinction, so it takes the `info` tint; the
+// fallback is the neutral beige pill the guide reserves for plain states.
 function SourceBadge({ source }: { source: 'workspace' | 'env' }) {
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-        source === 'workspace' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+        source === 'workspace'
+          ? 'bg-status-info-tint text-status-info'
+          : 'bg-surface-sunken text-muted-foreground'
       }`}
     >
-      {source === 'workspace' ? 'workspace setting' : 'env default'}
+      {source === 'workspace' ? 'Workspace setting' : 'Env default'}
     </span>
   )
 }
@@ -87,7 +94,7 @@ function WorkspaceSettingsPage() {
   return (
     <div className="flex-1 overflow-auto p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Workspace Settings</h1>
+        <h1>Workspace settings</h1>
       </div>
 
       {workspace && (
