@@ -2,6 +2,8 @@ import {
   ProseMirrorDocSchema,
   type AgentMessage,
   type Brand,
+  type BrandAsset,
+  type BrandAssetId,
   type BrandGuidelineSection,
   type BrandId,
   type BrandSummary,
@@ -19,6 +21,7 @@ import {
 } from '@brandfactory/shared'
 import type {
   agentMessages,
+  brandAssets,
   brands,
   canvasBlocks,
   canvases,
@@ -30,6 +33,7 @@ import type {
 type WorkspaceRow = typeof workspaces.$inferSelect
 type BrandRow = typeof brands.$inferSelect
 type GuidelineSectionRow = typeof guidelineSections.$inferSelect
+type BrandAssetRow = typeof brandAssets.$inferSelect
 type ProjectRow = typeof projects.$inferSelect
 type CanvasRow = typeof canvases.$inferSelect
 type CanvasBlockRow = typeof canvasBlocks.$inferSelect
@@ -92,6 +96,7 @@ export function rowToBrand(row: BrandRow): Brand {
     workspaceId: row.workspaceId as WorkspaceId,
     name: row.name,
     description: row.description,
+    websiteUrl: row.websiteUrl,
     createdAt: toIsoTimestamp(row.createdAt),
     updatedAt: toIsoTimestamp(row.updatedAt),
   }
@@ -130,6 +135,44 @@ export function rowToGuidelineSection(row: GuidelineSectionRow): BrandGuidelineS
     createdBy: row.createdBy,
     createdAt: toIsoTimestamp(row.createdAt),
     updatedAt: toIsoTimestamp(row.updatedAt),
+  }
+}
+
+// `value` / `blob_key` / `url` are nullable at the DB level because one wide
+// table stores all three variants, exactly as `canvas_blocks` does. The
+// `brand_assets_source_exactly_one` CHECK guarantees the one matching the row's
+// `source` is present, so a null here is a data-integrity bug (a CHECK dropped
+// by a bad migration, a direct DB edit) and fails loud rather than degrading
+// into an asset that renders nothing.
+export function rowToBrandAsset(row: BrandAssetRow): BrandAsset {
+  const base = {
+    id: row.id as BrandAssetId,
+    brandId: row.brandId as BrandId,
+    kind: row.kind,
+    role: row.role,
+    status: row.status,
+    label: row.label,
+    position: row.position,
+    deletedAt: toIsoTimestampOrNull(row.deletedAt),
+    alt: row.alt,
+    mime: row.mime,
+    filename: row.filename,
+    width: row.width,
+    height: row.height,
+    sizeBytes: row.sizeBytes,
+    createdAt: toIsoTimestamp(row.createdAt),
+    updatedAt: toIsoTimestamp(row.updatedAt),
+  }
+  switch (row.source) {
+    case 'inline':
+      if (row.value === null) throw new Error(`Inline asset ${row.id} missing value`)
+      return { ...base, source: 'inline', value: row.value }
+    case 'blob':
+      if (row.blobKey === null) throw new Error(`Blob asset ${row.id} missing blobKey`)
+      return { ...base, source: 'blob', blobKey: row.blobKey }
+    case 'link':
+      if (row.url === null) throw new Error(`Link asset ${row.id} missing url`)
+      return { ...base, source: 'link', url: row.url }
   }
 }
 

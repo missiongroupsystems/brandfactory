@@ -33,11 +33,21 @@ export const SUGGESTED_SECTIONS = [
       'Honest over hypey. Open over proprietary. We win when the user can walk away with all their data intact.',
   },
   {
+    // **This section survives alongside the palette, and the two do not
+    // duplicate each other** (assets question 3, settled by looking at both on
+    // screen in 2E): the swatches hold the *values*, this section holds the
+    // *rationale* — "the tiled floor, the awning, the wine list" — and a colour
+    // ramp cannot carry a reason.
+    //
+    // The example body was rewritten in 2E for exactly that reason. It used to
+    // read "Primary palette: neutral-first, one accent…", which prompted the
+    // user to type colours into prose at the very moment a control exists for
+    // them. Now it prompts for the half only prose can hold.
     label: 'Visual guidelines',
     description:
-      'Color, type, logo, aesthetic references. Links to Figma / moodboards are welcome.',
+      'The thinking behind the look — references, rules, what to avoid. Colours and marks live in Visual identity.',
     exampleBody:
-      'Primary palette: neutral-first, one accent. Type: one grotesk, one serif for long-form. References: [link].',
+      'References: the tiled floor, the awning at dusk, the wine list. Type: one grotesk, one serif for long-form. Never: drop shadows, stock photography of food.',
   },
   {
     label: 'Messaging frameworks',

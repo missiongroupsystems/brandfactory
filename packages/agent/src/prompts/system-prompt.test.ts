@@ -36,6 +36,7 @@ function makeBrand(sections: BrandGuidelineSection[]): BrandWithSections {
     workspaceId: 'w1' as WorkspaceId,
     name: 'Northstar Coffee',
     description: 'Specialty roaster with a minimalist aesthetic.',
+    websiteUrl: null,
     createdAt: ts,
     updatedAt: ts,
     sections,

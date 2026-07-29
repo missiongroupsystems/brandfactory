@@ -1,10 +1,14 @@
-import type { BrandWithSections, ProjectSummary } from '@brandfactory/shared'
-import { BrandContextRail, type RailVariant } from '@/components/brand/BrandContextRail'
+import {
+  assetsOfKind,
+  type BrandAsset,
+  type BrandWithSections,
+  type ProjectSummary,
+} from '@brandfactory/shared'
+import { BrandContextRail } from '@/components/brand/BrandContextRail'
 import { BrandIdentity } from '@/components/brand/BrandIdentity'
 import { TILE_APPS, isOrphanThread, type MiniApp } from '@/components/brand/miniApps'
 import { MiniAppTile } from '@/components/brand/MiniAppTile'
 import { ProjectCard } from '@/components/project/ProjectCard'
-import type { BrandAsset } from '@/demo/assetTypes'
 import type { ResearchJobSummary } from '@/demo/researchTypes'
 
 // ---------------------------------------------------------------------------
@@ -42,10 +46,25 @@ import type { ResearchJobSummary } from '@/demo/researchTypes'
 //   the real route can only pass null / empty for each of them, and every
 //   affordance they drive renders *nothing* when its prop is absent.
 //
-// That holds by construction today — `Brand` has no `website_url`, there is no
-// assets query and no research query, so the route has nothing to pass even if
-// it wanted to. It stops holding the moment the backend passes land those
-// queries, which is why it is written here rather than relied on.
+// **Stages 1A and 2C retire the first half of that, one prop at a time.**
+// `websiteUrl` came off the brand row in 1A; `colors` comes off
+// `useBrandAssets` in 2C. The second half is what carries the weight from here
+// and is unchanged:
+//
+//   every affordance still renders nothing when its prop is absent — and
+//   "absent" is now a real runtime state, because a query can be pending,
+//   empty, or failed.
+//
+// A brand with no website renders no link; a brand with no colours renders no
+// palette block, and neither is a placeholder saying so. Both states are
+// byte-identical to 1.7.0.
+//
+// `logoSrc` and `research` are still unfed: `logoAsset` resolution is 2D and
+// there is no research query until Stage 3.
+//
+// **`railVariant` is gone.** 1.8.0 built the palette three ways so two could be
+// deleted; the screenshots settled it and the rail block is the survivor. A prop
+// with one legal value is a prop that has already been decided.
 
 export interface BrandHubViewProps {
   brand: BrandWithSections
@@ -58,8 +77,27 @@ export interface BrandHubViewProps {
   onRename: () => void
   onDelete: () => void
   onEdit: () => void
+  /**
+   * `brand.websiteUrl`. Fed by the real route since Stage 1A; renders nothing
+   * when null, which is the surviving half of the invariant above.
+   */
+  websiteUrl?: string | null
+  /**
+   * The brand's assets — all kinds, `proposed` included. Fed by the real route
+   * since Stage 2C (colours) and 2E (the tile count).
+   *
+   * **One prop rather than two.** 2C passed a pre-filtered `colors`; 2E needs
+   * the total as well, for `Visual identity`'s tile. Deriving both from one
+   * list keeps a single source and one pending state — passing `colors` and
+   * `assets` separately would make "the palette knows but the tile does not" a
+   * representable state that means nothing.
+   *
+   * `undefined` = not known (pending or failed), `[]` = the brand has none.
+   * Neither renders a palette block — see `BrandContextRailProps`.
+   */
+  assets?: BrandAsset[]
 
-  // ---- absent on the real route; see the invariant above --------------------
+  // ---- still absent on the real route; see the invariant above --------------
 
   /**
    * The tile registry, as a prop. The real route passes nothing and gets
@@ -70,12 +108,8 @@ export interface BrandHubViewProps {
   tiles?: MiniApp[]
   /** Per-tile destination override. See `MiniAppTile`'s `href`. */
   tileHref?: (app: MiniApp) => string | undefined
-  websiteUrl?: string | null
   /** Resolved URL for a `role: 'logo'` asset. Falls back to the monogram. */
   logoSrc?: string | null
-  /** Inline colour assets, `proposed` ones included. */
-  colors?: BrandAsset[]
-  railVariant?: RailVariant
   research?: ResearchJobSummary | null
   onStartResearch?: () => void
   onReviewDrafts?: () => void
@@ -92,13 +126,22 @@ export function BrandHubView({
   tileHref,
   websiteUrl,
   logoSrc,
-  colors,
-  railVariant = 'C',
+  assets,
   research,
   onStartResearch,
   onReviewDrafts,
 }: BrandHubViewProps) {
   const countsKnown = projects !== undefined
+  // Same rule as the palette: `undefined` is "not known", `[]` is "none".
+  const colors = assets && assetsOfKind(assets, 'color')
+  // The rail's `Palette` heading links to the surface that owns colours — but
+  // only once that surface exists. `Visual identity` is a `Coming soon` stub
+  // until 2E flips `enabled`, and the registry is the single place that knows,
+  // so the link is derived from it rather than from a second flag. `tiles` is
+  // a prop, so the demo's own copy answers for the demo.
+  const visualHref = tiles.find((a) => a.id === 'visual')?.enabled
+    ? `/brands/${brand.id}/apps/visual`
+    : undefined
   // Threads whose templateId matches no registered mini-app would otherwise be
   // reachable from nowhere; surface them under a catch-all below the tiles.
   // `isOrphanThread` consults the full registry, so a hidden-surface thread
@@ -114,9 +157,6 @@ export function BrandHubView({
           onDelete={onDelete}
           websiteUrl={websiteUrl}
           logoSrc={logoSrc}
-          // Structure B, and only B: the palette sits under the mark, leaving
-          // the rail's one-list rule untouched.
-          colors={railVariant === 'B' ? colors : undefined}
         />
 
         <div className="mt-8 flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
@@ -139,7 +179,17 @@ export function BrandHubView({
                   key={app.id}
                   app={app}
                   brandId={brand.id}
-                  threadCount={countsKnown ? projects.filter(app.match).length : null}
+                  // Each tile counts its own `unit`. `Visual identity` is a
+                  // collection of assets, not of threads, so counting threads
+                  // there would print `0 threads` on a page that has none to
+                  // have — see `MiniApp.unit`.
+                  threadCount={
+                    app.unit === 'asset'
+                      ? (assets?.length ?? null)
+                      : countsKnown
+                        ? projects.filter(app.match).length
+                        : null
+                  }
                   href={tileHref?.(app)}
                 />
               ))}
@@ -169,9 +219,19 @@ export function BrandHubView({
           <BrandContextRail
             brand={brand}
             onEdit={onEdit}
-            className="lg:w-80 lg:shrink-0"
-            // Structure A, and only A: the palette becomes a rail block.
-            colors={railVariant === 'A' ? colors : undefined}
+            // **The stacked rail is one tile column wide, not the whole page.**
+            // Below `lg` the two columns stack and the rail was taking the full
+            // ~830px, which turned every section row into a stretched hit area
+            // with its chevron at the far end and put `Edit` back across the
+            // page — precisely the 1.4.0 `BrandContextBar` shape this component
+            // was written to replace (see its doc comment). 1.7.0 logged it,
+            // 1.8.0 measured it, 2C narrowed it to the section list; this caps
+            // it. `calc(50% - 0.375rem)` is one column of the `sm:grid-cols-2
+            // gap-3` tile grid above, so the card's right edge lands on the
+            // grid's. Below `sm` the tiles are one column and so is this.
+            className="sm:max-w-[calc(50%-0.375rem)] lg:w-80 lg:max-w-none lg:shrink-0"
+            colors={colors}
+            paletteHref={visualHref}
             research={research}
             onStartResearch={onStartResearch}
             onReviewDrafts={onReviewDrafts}

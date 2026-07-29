@@ -88,10 +88,12 @@ const COPY_THREAD: ProjectSummary = {
   templateId: 'copywriting',
 }
 const FREEFORM_THREAD: ProjectSummary = { ...base('Scratch canvas'), kind: 'freeform' }
-const VISUAL_THREAD: ProjectSummary = {
-  ...base('Logo directions'),
+// `social` is the not-yet-live example. It was `visual` until 2E turned that
+// tile on and gave it an asset library instead of a thread list.
+const SOCIAL_THREAD: ProjectSummary = {
+  ...base('Launch week posts'),
   kind: 'standardized',
-  templateId: 'visual',
+  templateId: 'social',
 }
 
 describe('mini-app route', () => {
@@ -117,7 +119,7 @@ describe('mini-app route', () => {
   })
 
   it('renders the stub for a not-yet-live mini-app', () => {
-    h.params = { brandId: 'b-1', appId: 'visual' }
+    h.params = { brandId: 'b-1', appId: 'social' }
     h.projects = [COPY_THREAD, FREEFORM_THREAD]
     render(<MiniAppPage />)
 
@@ -131,12 +133,12 @@ describe('mini-app route', () => {
   // The hub tile advertises a count for a Soon app that has threads, so this
   // page has to list them — otherwise the count points at unreachable data.
   it('still lists existing threads under a not-yet-live mini-app', () => {
-    h.params = { brandId: 'b-1', appId: 'visual' }
-    h.projects = [VISUAL_THREAD, COPY_THREAD]
+    h.params = { brandId: 'b-1', appId: 'social' }
+    h.projects = [SOCIAL_THREAD, COPY_THREAD]
     render(<MiniAppPage />)
 
     expect(screen.getByText('Coming soon')).toBeTruthy()
-    expect(screen.getByText('Logo directions')).toBeTruthy()
+    expect(screen.getByText('Launch week posts')).toBeTruthy()
     expect(screen.queryByText('Tagline round 1')).toBeNull()
     // Listing them is not the same as letting you make more.
     expect(screen.queryByRole('button', { name: 'New thread' })).toBeNull()

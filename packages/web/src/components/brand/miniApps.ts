@@ -61,6 +61,20 @@ export type MiniApp = {
   /** false → rendered as a "Soon" tile with a stub route; not creatable yet. */
   enabled: boolean
   /**
+   * What this app is a collection *of*, and therefore what its tile counts.
+   *
+   * Every row was a category of threads until 2E. `Visual identity` is the
+   * first that is not: it is a collection of **assets**, with no `New thread`
+   * button and no thread list. Without this the tile would read `0 threads` on
+   * every brand the moment `enabled` flipped — a statement that is not merely
+   * unhelpful but false, since the page behind it has no threads to have.
+   *
+   * `create` and `match` are retained on that row so a legacy
+   * `templateId: 'visual'` thread is still *classified* (and so never lands in
+   * the hub's "we don't know what this is" catch-all), but nothing creates one.
+   */
+  unit: 'thread' | 'asset'
+  /**
    * Where this category is presented. `'tile'` = the brand hub's Workspace grid
    * plus `/brands/$brandId/apps/$appId`. `'hidden'` = neither; it has its own
    * surface. Set explicitly on every row — a default is how the two halves of
@@ -78,16 +92,23 @@ export const MINI_APPS: MiniApp[] = [
     create: { kind: 'standardized', templateId: 'copywriting' },
     match: (p) => p.kind === 'standardized' && p.templateId === 'copywriting',
     enabled: true,
+    unit: 'thread',
     surface: 'tile',
   },
   {
     id: 'visual',
     title: 'Visual identity',
-    description: 'Color, type, logo, and aesthetic directions for the brand.',
+    description: 'Colours, marks, photography and files — everything the brand looks like.',
     icon: Palette,
     create: { kind: 'standardized', templateId: 'visual' },
     match: (p) => p.kind === 'standardized' && p.templateId === 'visual',
-    enabled: false,
+    // Stage 2E, and the first time this registry has been edited. 1.8.0 was
+    // explicitly forbidden from flipping it — a `true` here turns the tile on
+    // for **every real brand**, so it may only move when there is something
+    // behind it. There now is: `/brands/$brandId/apps/visual` renders the asset
+    // library rather than a thread list.
+    enabled: true,
+    unit: 'asset',
     surface: 'tile',
   },
   {
@@ -98,6 +119,7 @@ export const MINI_APPS: MiniApp[] = [
     create: { kind: 'standardized', templateId: 'social' },
     match: (p) => p.kind === 'standardized' && p.templateId === 'social',
     enabled: false,
+    unit: 'thread',
     surface: 'tile',
   },
   {
@@ -108,6 +130,7 @@ export const MINI_APPS: MiniApp[] = [
     create: { kind: 'freeform' },
     match: (p) => p.kind === 'freeform',
     enabled: true,
+    unit: 'thread',
     surface: 'tile',
   },
   {
@@ -123,6 +146,7 @@ export const MINI_APPS: MiniApp[] = [
     create: { kind: 'standardized', templateId: BRAND_CONTEXT_TEMPLATE_ID },
     match: isBrandContextThread,
     enabled: true,
+    unit: 'thread',
     surface: 'hidden',
   },
 ]

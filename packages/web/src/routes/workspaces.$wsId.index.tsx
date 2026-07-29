@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import type { Brand } from '@brandfactory/shared'
+import type { Brand, CreateBrandInput } from '@brandfactory/shared'
 import { rootRoute } from './__root'
 import { getAuthToken } from '@/auth/store'
 import { api, AppError, callJson } from '@/api/client'
@@ -13,6 +13,7 @@ import {
   useWorkspaceProjects,
 } from '@/api/queries/workspaces'
 import { setLastWorkspaceId } from '@/lib/last-workspace'
+import { normalizeWebsiteUrl } from '@/lib/website-url'
 import { BrandCard } from '@/components/brand/BrandCard'
 import { ProjectCard } from '@/components/project/ProjectCard'
 import { Button } from '@/components/ui/button'
@@ -31,11 +32,13 @@ function NewBrandDialog({ wsId }: { wsId: string }) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [websiteUrl, setWebsiteUrl] = useState('')
+  const [websiteError, setWebsiteError] = useState<string | null>(null)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
-    mutationFn: async (data: { name: string; description?: string }) => {
+    mutationFn: async (data: CreateBrandInput) => {
       const res = await api.workspaces[':workspaceId'].brands.$post({
         param: { workspaceId: wsId },
         json: data,
@@ -47,6 +50,8 @@ function NewBrandDialog({ wsId }: { wsId: string }) {
       setOpen(false)
       setName('')
       setDescription('')
+      setWebsiteUrl('')
+      setWebsiteError(null)
       void navigate({ to: '/brands/$brandId', params: { brandId: brand.id } })
     },
     onError: (err) => {
@@ -69,9 +74,19 @@ function NewBrandDialog({ wsId }: { wsId: string }) {
           onSubmit={(e) => {
             e.preventDefault()
             if (!name.trim()) return
+            const website = normalizeWebsiteUrl(websiteUrl)
+            if (!website.ok) {
+              setWebsiteError(website.error)
+              return
+            }
+            setWebsiteError(null)
             mutation.mutate({
               name: name.trim(),
               ...(description.trim() ? { description: description.trim() } : {}),
+              // Omitted rather than sent as null: `websiteUrl` is
+              // optional-nullable on create, and a brand that never had one has
+              // nothing to clear.
+              ...(website.value ? { websiteUrl: website.value } : {}),
             })
           }}
         >
@@ -92,6 +107,25 @@ function NewBrandDialog({ wsId }: { wsId: string }) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="brand-website">Website (optional)</Label>
+            <Input
+              id="brand-website"
+              placeholder="casavostra.com"
+              value={websiteUrl}
+              onChange={(e) => {
+                setWebsiteUrl(e.target.value)
+                if (websiteError) setWebsiteError(null)
+              }}
+              aria-invalid={websiteError ? true : undefined}
+              aria-describedby={websiteError ? 'brand-website-error' : undefined}
+            />
+            {websiteError && (
+              <p id="brand-website-error" className="text-xs text-destructive">
+                {websiteError}
+              </p>
+            )}
           </div>
         </form>
         <DialogFooter>

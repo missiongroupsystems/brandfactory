@@ -59,6 +59,7 @@ const brand: BrandWithSections = {
   workspaceId: 'w_smoke' as WorkspaceId,
   name: 'Northstar Coffee',
   description: 'Specialty roaster with a minimalist aesthetic.',
+  websiteUrl: null,
   createdAt: now,
   updatedAt: now,
   sections: [

@@ -8,6 +8,7 @@ import { GuidelineMeter } from '@/components/brand/GuidelineMeter'
 import { DeleteBrandDialog } from '@/components/entity/DeleteBrandDialog'
 import { EntityMenu } from '@/components/entity/EntityMenu'
 import { RenameDialog } from '@/components/entity/RenameDialog'
+import { displayHost } from '@/lib/website-url'
 
 export function BrandCard({ brand }: { brand: BrandSummary }) {
   const [renameOpen, setRenameOpen] = useState(false)
@@ -31,11 +32,21 @@ export function BrandCard({ brand }: { brand: BrandSummary }) {
           params={{ brandId: brand.id }}
           className="flex flex-1 flex-col gap-3 pr-8 text-left before:absolute before:inset-0 before:content-['']"
         >
-          <div>
+          <div className="min-w-0">
             <div className="font-medium group-hover:text-accent-foreground">{brand.name}</div>
             {brand.description && (
               <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                 {brand.description}
+              </div>
+            )}
+            {brand.websiteUrl && (
+              // Text, not an anchor. The whole card is already a link to the
+              // brand (the `before:` overlay above), so a nested `<a>` would be
+              // invalid HTML *and* sit under that overlay — unclickable, and
+              // announced as a link that does nothing. The hub is where the
+              // website becomes a real link; here it is an identifying fact.
+              <div className="mt-1 truncate text-xs text-muted-foreground">
+                {displayHost(brand.websiteUrl)}
               </div>
             )}
           </div>
@@ -54,12 +65,14 @@ export function BrandCard({ brand }: { brand: BrandSummary }) {
         resource="brand"
         initialName={brand.name}
         initialDescription={brand.description}
+        initialWebsiteUrl={brand.websiteUrl}
         pending={update.isPending}
         onSubmit={(values) => {
           update.mutate(
             {
               name: values.name,
               description: values.description ?? null,
+              websiteUrl: values.websiteUrl ?? null,
             },
             {
               onSuccess: () => {

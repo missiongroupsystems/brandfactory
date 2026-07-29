@@ -96,6 +96,7 @@ function makeBrand(): BrandWithSections {
     workspaceId: 'w1' as WorkspaceId,
     name: 'Brand',
     description: null,
+    websiteUrl: null,
     createdAt: ts,
     updatedAt: ts,
     sections: [

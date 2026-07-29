@@ -26,5 +26,8 @@ export type CanvasBlockId = z.infer<typeof CanvasBlockIdSchema>
 export const SectionIdSchema = brandedId('SectionId')
 export type SectionId = z.infer<typeof SectionIdSchema>
 
+export const BrandAssetIdSchema = brandedId('BrandAssetId')
+export type BrandAssetId = z.infer<typeof BrandAssetIdSchema>
+
 export const UserIdSchema = brandedId('UserId')
 export type UserId = z.infer<typeof UserIdSchema>

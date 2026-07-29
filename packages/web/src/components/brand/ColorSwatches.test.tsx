@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { ColorSwatches, paletteSummary } from './ColorSwatches'
-import type { BrandAsset } from '@/demo/assetTypes'
+import type { BrandAsset } from '@brandfactory/shared'
+
+// `BrandAsset` moved to `@brandfactory/shared` in 2A, where — like every other
+// domain entity — it carries branded ids and the two timestamp columns the DB
+// writes. Fixtures state them; nothing in this file reads them.
+const ASSET_STAMPS = {
+  createdAt: '2026-07-01T00:00:00.000Z',
+  updatedAt: '2026-07-01T00:00:00.000Z',
+} as const
 
 function color(
   id: string,
@@ -11,8 +19,8 @@ function color(
   position = 100,
 ): BrandAsset {
   return {
-    id,
-    brandId: 'b-1',
+    id: id as BrandAsset['id'],
+    brandId: 'b-1' as BrandAsset['brandId'],
     kind: 'color',
     source: 'inline',
     role: null,
@@ -21,6 +29,7 @@ function color(
     value,
     position,
     deletedAt: null,
+    ...ASSET_STAMPS,
   }
 }
 
@@ -63,8 +72,8 @@ describe('ColorSwatches', () => {
   // to a swatch row must not get an empty box per photo.
   it('ignores anything that is not an inline colour', () => {
     const photo: BrandAsset = {
-      id: 'a-1',
-      brandId: 'b-1',
+      id: 'a-1' as BrandAsset['id'],
+      brandId: 'b-1' as BrandAsset['brandId'],
       kind: 'image',
       source: 'blob',
       role: null,
@@ -73,6 +82,7 @@ describe('ColorSwatches', () => {
       blobKey: 'k',
       position: 100,
       deletedAt: null,
+      ...ASSET_STAMPS,
     }
     render(<ColorSwatches colors={[color('c-1', 'Olive', '#6b7248'), photo]} />)
     expect(screen.getAllByRole('listitem')).toHaveLength(1)

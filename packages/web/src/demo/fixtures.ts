@@ -1,8 +1,11 @@
-import type { BrandGuidelineSection, BrandWithSections, ProjectSummary } from '@brandfactory/shared'
-import type { BrandAsset } from '@/demo/assetTypes'
+import type {
+  BrandAsset,
+  BrandGuidelineSection,
+  BrandWithSections,
+  ProjectSummary,
+} from '@brandfactory/shared'
 import type { ResearchDraft, ResearchJobSummary } from '@/demo/researchTypes'
 import logoMarkUrl from '@/demo/assets/logo-mark.svg'
-import logoWordmarkUrl from '@/demo/assets/logo-wordmark.svg'
 import photoDiningUrl from '@/demo/assets/photo-dining.svg'
 import photoPastaUrl from '@/demo/assets/photo-pasta.svg'
 import photoTerraceUrl from '@/demo/assets/photo-terrace.svg'
@@ -19,14 +22,22 @@ import photoTerraceUrl from '@/demo/assets/photo-terrace.svg'
 // is a reset, which is the point — this is a surface to look at and reject, not
 // a second source of truth.
 //
-// **Both link fixtures point at the dev origin, and that is not tidiness.** A
+// **Every link fixture points at the dev origin, and that is not tidiness.** A
 // real Drive URL would make the live pass depend on a third party being up, and
 // a fabricated hostname fails via DNS — which *hangs* for however long the
 // resolver takes rather than firing `onError` promptly, so the screenshot lands
 // mid-timeout and the fallback it exists to prove is the one thing not in it.
-// `logo-link-ok` is a real file served by Vite; `logo-link-dead` is a `.png`
-// path on that same origin that does not exist, so the 404 is immediate, local
-// and deterministic.
+// The live link is a real file served by Vite; the dead one is a `.png` path on
+// that same origin that does not exist, so the 404 is immediate, local and
+// deterministic.
+//
+// **2F cut the asset scenarios.** `palette-proposed`, `palette-full`,
+// `logo-blob`, `logo-link-ok` and `logo-link-dead` were built to settle schema
+// and rendering decisions before either surface existed; both now ship, and the
+// states they showed are reachable on the real hub and the real Visual identity
+// page against real rows. What is left is what the real app still cannot show
+// on demand: the five research states, plus `rich` and `long-names` as the
+// crowding and truncation tests Stage 3 renders into.
 
 const BRAND_ID = 'b-demo' as BrandWithSections['id']
 const WORKSPACE_ID = 'w-demo' as BrandWithSections['workspaceId']
@@ -126,6 +137,31 @@ function sectionFixtures() {
 // Assets
 // ---------------------------------------------------------------------------
 
+/**
+ * Fixture ids are hand-written and readable; the real ones are uuids out of the
+ * column. Same cast, and the same reason, as `BRAND_ID` above — 2A moved
+ * `BrandAsset` into `@brandfactory/shared`, where an id is branded like every
+ * other id in the domain.
+ */
+const aid = (id: string) => id as BrandAsset['id']
+
+/** Fixture rows are not written by the DB, so they carry the fixture clock. */
+const STAMPS = { createdAt: T0, updatedAt: T0 } as const
+
+/**
+ * Same-origin, but stated absolutely.
+ *
+ * The link fixtures deliberately point at the dev origin, for the reason in the
+ * header comment. From 2A they must *also* be values the real schema accepts:
+ * `AssetLinkUrlSchema` is `http`/`https` only, and a relative path is not a URL
+ * to it. `new URL(path, origin)` keeps every property the header defends — same
+ * host, no DNS, immediate 404 for the dead one — while making the fixture a row
+ * the real `POST /brands/:id/assets` would take. TypeScript cannot catch this
+ * (the field is typed `string`), so `fixtures.test.ts` parses them instead.
+ */
+const linkUrl = (path: string) =>
+  new URL(path, typeof window === 'undefined' ? 'http://localhost' : window.location.origin).href
+
 function color(
   id: string,
   label: string,
@@ -135,7 +171,7 @@ function color(
   role: BrandAsset['role'] = null,
 ): BrandAsset {
   return {
-    id,
+    id: aid(id),
     brandId: BRAND_ID,
     kind: 'color',
     source: 'inline',
@@ -145,22 +181,12 @@ function color(
     value,
     position,
     deletedAt: null,
+    ...STAMPS,
   }
 }
 
 // Same lazy shape as `sectionFixtures`, for the same bundling reason.
 function assetFixtures() {
-  /**
-   * The case that prompted this whole pass: *"1 or 2 primary colours proposed
-   * and not even finalised."* If this reads as a broken or scolding brand rather
-   * than as a brand in progress, `status` has failed and the schema needs
-   * rethinking — not the CSS.
-   */
-  const PALETTE_PROPOSED: BrandAsset[] = [
-    color('c-p1', 'Terracotta', '#b5573c', 100, 'proposed', 'primary'),
-    color('c-p2', 'Olive', '#6b7248', 200, 'proposed', 'primary'),
-  ]
-
   /** Cardinality at the top end. Twelve rows, one still floated. */
   const PALETTE_FULL: BrandAsset[] = [
     color('c-f01', 'Ink 900', '#231f1c', 100),
@@ -178,7 +204,7 @@ function assetFixtures() {
   ]
 
   const LOGO_BLOB: BrandAsset = {
-    id: 'a-logo-blob',
+    id: aid('a-logo-blob'),
     brandId: BRAND_ID,
     kind: 'image',
     source: 'blob',
@@ -193,46 +219,12 @@ function assetFixtures() {
     sizeBytes: 1_240,
     position: 100,
     deletedAt: null,
-  }
-
-  const LOGO_LINK_OK: BrandAsset = {
-    id: 'a-logo-link-ok',
-    brandId: BRAND_ID,
-    kind: 'image',
-    source: 'link',
-    role: 'logo',
-    status: 'active',
-    label: 'Wordmark, hosted on the agency’s CDN',
-    url: logoWordmarkUrl,
-    mime: 'image/svg+xml',
-    position: 100,
-    deletedAt: null,
-  }
-
-  /**
-   * The graceful-degradation path, as a first-class fixture rather than an
-   * afterthought. A Drive share URL serves an HTML viewer page and Dropbox needs
-   * `?raw=1`, so "clickable but not renderable" is the *expected* outcome of the
-   * link path — the proposal claims falling back to the monogram costs nothing,
-   * and a screenshot is what decides that.
-   */
-  const LOGO_LINK_DEAD: BrandAsset = {
-    id: 'a-logo-link-dead',
-    brandId: BRAND_ID,
-    kind: 'image',
-    source: 'link',
-    role: 'logo',
-    status: 'active',
-    label: 'Logo on the old brand portal',
-    url: '/demo-asset-that-does-not-exist.png',
-    mime: 'image/png',
-    position: 100,
-    deletedAt: null,
+    ...STAMPS,
   }
 
   const PHOTOS: BrandAsset[] = [
     {
-      id: 'a-photo-1',
+      id: aid('a-photo-1'),
       brandId: BRAND_ID,
       kind: 'image',
       source: 'blob',
@@ -247,9 +239,10 @@ function assetFixtures() {
       sizeBytes: 842_100,
       position: 100,
       deletedAt: null,
+      ...STAMPS,
     },
     {
-      id: 'a-photo-2',
+      id: aid('a-photo-2'),
       brandId: BRAND_ID,
       kind: 'image',
       source: 'blob',
@@ -264,38 +257,41 @@ function assetFixtures() {
       sizeBytes: 1_204_800,
       position: 200,
       deletedAt: null,
+      ...STAMPS,
     },
     {
-      id: 'a-photo-3',
+      id: aid('a-photo-3'),
       brandId: BRAND_ID,
       kind: 'image',
       source: 'link',
       role: null,
       status: 'active',
       label: 'Terrace at dusk (photographer’s Dropbox)',
-      url: photoTerraceUrl,
+      url: linkUrl(photoTerraceUrl),
       mime: 'image/svg+xml',
       position: 300,
       deletedAt: null,
+      ...STAMPS,
     },
     {
-      id: 'a-photo-4',
+      id: aid('a-photo-4'),
       brandId: BRAND_ID,
       kind: 'image',
       source: 'link',
       role: null,
       status: 'proposed',
       label: 'Shortlisted for the new menu cover',
-      url: '/demo-asset-that-does-not-exist.png',
+      url: linkUrl('/demo-asset-that-does-not-exist.png'),
       mime: 'image/jpeg',
       position: 400,
       deletedAt: null,
+      ...STAMPS,
     },
   ]
 
   const FILES: BrandAsset[] = [
     {
-      id: 'a-file-1',
+      id: aid('a-file-1'),
       brandId: BRAND_ID,
       kind: 'file',
       source: 'blob',
@@ -308,9 +304,10 @@ function assetFixtures() {
       sizeBytes: 6_815_744,
       position: 100,
       deletedAt: null,
+      ...STAMPS,
     },
     {
-      id: 'a-file-2',
+      id: aid('a-file-2'),
       brandId: BRAND_ID,
       kind: 'file',
       source: 'link',
@@ -322,18 +319,11 @@ function assetFixtures() {
       filename: 'menu-artwork.fig',
       position: 200,
       deletedAt: null,
+      ...STAMPS,
     },
   ]
 
-  return {
-    PALETTE_PROPOSED,
-    PALETTE_FULL,
-    LOGO_BLOB,
-    LOGO_LINK_OK,
-    LOGO_LINK_DEAD,
-    PHOTOS,
-    FILES,
-  }
+  return { PALETTE_FULL, LOGO_BLOB, PHOTOS, FILES }
 }
 
 // ---------------------------------------------------------------------------
@@ -412,11 +402,6 @@ function job(
 
 export type ScenarioId =
   | 'bare'
-  | 'palette-proposed'
-  | 'palette-full'
-  | 'logo-blob'
-  | 'logo-link-ok'
-  | 'logo-link-dead'
   | 'researching'
   | 'research-landed'
   | 'research-ready'
@@ -465,6 +450,7 @@ function baseBrand(overrides: Partial<BrandWithSections> = {}): BrandWithSection
     name: 'Casa Vostra',
     description:
       'Neighbourhood trattoria in Kreuzberg — handmade pasta, natural wine, no white tablecloths.',
+    websiteUrl: null,
     createdAt: T0,
     updatedAt: T0,
     sections: [],
@@ -480,8 +466,7 @@ function baseBrand(overrides: Partial<BrandWithSections> = {}): BrandWithSection
  */
 export function buildScenarios(now: Date): DemoScenario[] {
   const { VOICE, AUDIENCE, VALUES, VISUAL, MESSAGING } = sectionFixtures()
-  const { PALETTE_PROPOSED, PALETTE_FULL, LOGO_BLOB, LOGO_LINK_OK, LOGO_LINK_DEAD, PHOTOS, FILES } =
-    assetFixtures()
+  const { PALETTE_FULL, LOGO_BLOB, PHOTOS, FILES } = assetFixtures()
   const DRAFTS = draftFixtures()
   const THREADS = threadFixtures()
 
@@ -494,60 +479,6 @@ export function buildScenarios(now: Date): DemoScenario[] {
       projects: THREADS,
       websiteUrl: null,
       assets: [],
-      research: null,
-    },
-    {
-      id: 'palette-proposed',
-      title: 'palette-proposed — two colours, both floated',
-      tests:
-        'The case that prompted this pass. If it reads as broken or scolding, `status` has failed.',
-      brand: baseBrand(),
-      projects: THREADS,
-      websiteUrl: 'https://casavostra.example',
-      assets: PALETTE_PROPOSED,
-      research: null,
-    },
-    {
-      id: 'palette-full',
-      title: 'palette-full — twelve colours',
-      tests:
-        'Cardinality at the top end. Does a rail block survive a full ramp, or does it force structure C?',
-      brand: baseBrand({ sections: [VOICE, AUDIENCE] }),
-      projects: THREADS,
-      websiteUrl: 'https://casavostra.example',
-      assets: PALETTE_FULL,
-      research: null,
-    },
-    {
-      id: 'logo-blob',
-      title: 'logo-blob — an uploaded mark',
-      tests: 'BrandMark, declared. Geometry must not shift against the monogram.',
-      brand: baseBrand({ sections: [VOICE] }),
-      projects: THREADS,
-      websiteUrl: 'https://casavostra.example',
-      assets: [LOGO_BLOB, ...PALETTE_PROPOSED],
-      research: null,
-    },
-    {
-      id: 'logo-link-ok',
-      title: 'logo-link-ok — someone else’s hosting',
-      tests:
-        'Bring-your-own-hosting, the happy path. A link-sourced logo renders like an uploaded one.',
-      brand: baseBrand({ sections: [VOICE] }),
-      projects: THREADS,
-      websiteUrl: 'https://casavostra.example',
-      assets: [LOGO_LINK_OK],
-      research: null,
-    },
-    {
-      id: 'logo-link-dead',
-      title: 'logo-link-dead — the link that does not render',
-      tests:
-        'The monogram fallback. The proposal claims this costs nothing; the screenshot decides.',
-      brand: baseBrand({ sections: [VOICE] }),
-      projects: THREADS,
-      websiteUrl: 'https://casavostra.example',
-      assets: [LOGO_LINK_DEAD],
       research: null,
     },
     {

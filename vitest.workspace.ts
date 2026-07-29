@@ -11,6 +11,7 @@ export default [
   'packages/adapters/llm/vitest.config.ts',
   'packages/agent/vitest.config.ts',
   'packages/db/vitest.config.ts',
+  'packages/shared/vitest.config.ts',
   'packages/server/vitest.config.ts',
   'packages/web/vitest.config.ts',
 ]

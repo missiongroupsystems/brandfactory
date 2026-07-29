@@ -68,6 +68,60 @@ describe('blobs routes', () => {
     expect(Array.from(buf)).toEqual([7, 8, 9])
   })
 
+  // ---------------------------------------------------------------------------
+  // Content type — the gap Stage 2D surfaced
+  // ---------------------------------------------------------------------------
+  //
+  // Phase 4 hardcoded `application/octet-stream` and deferred the real thing.
+  // It stayed invisible because browsers content-sniff PNG/JPEG for an `<img>`
+  // — but **SVG is never sniffed**, so an uploaded SVG logo fired `onError` and
+  // fell back to the monogram, indistinguishable from having no logo at all.
+
+  async function getBlob(key: string) {
+    const { store } = buildStorage()
+    const { app } = createTestApp({ storage: store })
+    const expPut = Math.floor(Date.now() / 1000) + 60
+    await app.request(`/blobs/${key}?exp=${expPut}&sig=${sign('PUT', key, expPut, SECRET)}`, {
+      method: 'PUT',
+      body: new Uint8Array([1, 2, 3]),
+    })
+    const exp = Math.floor(Date.now() / 1000) + 60
+    return app.request(`/blobs/${key}?exp=${exp}&sig=${sign('GET', key, exp, SECRET)}`)
+  }
+
+  it.each([
+    ['uploads/2026/07/abc-mark.svg', 'image/svg+xml'],
+    ['uploads/2026/07/abc-photo.PNG', 'image/png'],
+    ['uploads/2026/07/abc-photo.jpeg', 'image/jpeg'],
+    ['uploads/2026/07/abc-deck.pdf', 'application/pdf'],
+  ])('GET %s declares %s', async (key, expected) => {
+    const res = await getBlob(key)
+    expect(res.headers.get('content-type')).toBe(expected)
+  })
+
+  // The default is the one that cannot become a vector. `text/plain` and the
+  // Word types are deliberately *not* in the map — they are downloads, not
+  // things a browser should render inline from user bytes.
+  it.each(['notes.txt', 'letter.doc', 'archive.zip', 'noextension', 'trailing.'])(
+    'GET %s stays application/octet-stream',
+    async (key) => {
+      const res = await getBlob(key)
+      expect(res.headers.get('content-type')).toBe('application/octet-stream')
+    },
+  )
+
+  /**
+   * What makes declaring a real content type safe. `/blobs` is same-origin with
+   * the app, and an SVG is a *document*: navigated to directly, a `<script>` in
+   * user-uploaded bytes would run in the app's origin. The sandbox and the null
+   * default-src neutralise it; `nosniff` closes the other direction.
+   */
+  it('serves user bytes with a sandbox CSP and nosniff', async () => {
+    const res = await getBlob('uploads/2026/07/abc-mark.svg')
+    expect(res.headers.get('content-security-policy')).toBe("default-src 'none'; sandbox")
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff')
+  })
+
   it('expired signature → 403', async () => {
     const { store } = buildStorage()
     const { app } = createTestApp({ storage: store })

@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { createRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
+import { logoAsset } from '@brandfactory/shared'
 import { rootRoute } from './__root'
 import { getAuthToken } from '@/auth/store'
 import { AppError } from '@/api/client'
+import { useAssetUrl, useBrandAssets } from '@/api/queries/assets'
 import { useBrand, useBrandProjects, useDeleteBrand, useUpdateBrand } from '@/api/queries/brands'
 import { BrandHubView } from '@/components/brand/BrandHubView'
 import { EditGuidelinesDialog } from '@/components/brand/EditGuidelinesDialog'
@@ -20,9 +22,17 @@ import { RenameDialog } from '@/components/entity/RenameDialog'
 // precedent `BrandContextRail` already set one level down: props in, callbacks
 // out, no query of its own.
 //
-// **This route passes nothing for any prop the mockup pass added.** See the
-// invariant on `BrandHubView` — that absence is the thing keeping the shipped
-// hub identical to 1.7.0, and it is an acceptance criterion, not an accident.
+// **Stages 1A and 2C feed the mockup's props, one at a time.** `websiteUrl` came
+// off the brand row in 1A; `colors` comes off `useBrandAssets` here. So the
+// first half of 1.8.0's invariant ("the real route can only pass null") retires
+// for those two, on purpose. The half that carries the weight does not — and it
+// is now about *runtime* states rather than a construction: a brand with no
+// website renders no link, a brand with no colours renders no palette block, and
+// both surfaces are byte-identical to 1.7.0.
+//
+// **2D feeds `logoSrc` too**, resolving a `role: 'logo'` asset through
+// `useSignedReadUrl`. `research` is the last prop still unfed — there is no
+// research query until Stage 3.
 
 function BrandHubPage() {
   const { brandId } = brandEditorRoute.useParams()
@@ -33,6 +43,7 @@ function BrandHubPage() {
     isPending: projectsPending,
     isError: projectsError,
   } = useBrandProjects(brandId)
+  const { data: assets, isPending: assetsPending, isError: assetsError } = useBrandAssets(brandId)
   const [renameOpen, setRenameOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -43,6 +54,29 @@ function BrandHubPage() {
   // already names it. Leaving the call in with an empty trail would read as a
   // segment we forgot to fill in.
   const countsKnown = !projectsPending && !projectsError && projects !== undefined
+
+  // `undefined` while pending or failed — *not* `[]`. The rail reads the two
+  // states differently on purpose: a palette block that flashes empty on every
+  // navigation is worse than one that appears 100ms late, and a brand that
+  // genuinely has no colours must render the 1.7.0 hub exactly, with no
+  // placeholder saying so.
+  //
+  // The whole list, not a pre-filtered one: `BrandHubView` derives the palette
+  // and `Visual identity`'s asset count from it, and two props would make "the
+  // palette knows but the tile does not" representable.
+  const assetsKnown = !assetsPending && !assetsError && assets !== undefined
+
+  // The declared mark (2D). `logoAsset` applies the rules — `kind: 'image'`,
+  // `role: 'logo'`, **active only**, first by position — so a proposed logo
+  // resolves to `null` here and the band renders the monogram, which is what
+  // "proposed reaches neither the agent nor the mark" means in practice.
+  //
+  // `useAssetUrl` is called unconditionally with `null` while the query is
+  // pending, and returns `null` until a `blob`'s signed URL arrives. Every one
+  // of those paths lands on the same monogram — no logo, a proposed logo, a
+  // pending read URL and a broken image are **visually one state**, and that is
+  // the property `BrandMark`'s `onError` fallback was built for.
+  const logoSrc = useAssetUrl(assetsKnown ? logoAsset(assets) : null)
 
   if (!brand) {
     return (
@@ -63,6 +97,9 @@ function BrandHubPage() {
         brand={brand}
         projects={countsKnown ? projects : undefined}
         projectsError={projectsError}
+        websiteUrl={brand.websiteUrl}
+        assets={assetsKnown ? assets : undefined}
+        logoSrc={logoSrc}
         onRename={() => setRenameOpen(true)}
         onDelete={() => setDeleteOpen(true)}
         onEdit={() => setEditOpen(true)}
@@ -76,12 +113,14 @@ function BrandHubPage() {
         resource="brand"
         initialName={brand.name}
         initialDescription={brand.description}
+        initialWebsiteUrl={brand.websiteUrl}
         pending={update.isPending}
         onSubmit={(values) => {
           update.mutate(
             {
               name: values.name,
               description: values.description ?? null,
+              websiteUrl: values.websiteUrl ?? null,
             },
             {
               onSuccess: () => {

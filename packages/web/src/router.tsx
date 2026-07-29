@@ -11,7 +11,6 @@ import { miniAppRoute } from '@/routes/brands.$brandId.apps.$appId'
 import { brandContextRoute } from '@/routes/brands.$brandId.context'
 import { projectRoute } from '@/routes/projects.$projectId'
 import { demoBrandRoute } from '@/routes/demo.brand'
-import { demoBrandAssetsRoute } from '@/routes/demo.brand.assets'
 
 const appRoutes = [
   indexRoute,
@@ -25,7 +24,13 @@ const appRoutes = [
   projectRoute,
 ] as const
 
-// The front-end mockup's two routes (`docs/executing/brand-hub-fe-mockup.md`).
+// The front-end mockup's surviving route (`docs/executing/brand-hub-fe-mockup.md`).
+//
+// **`/demo/brand/assets` is gone as of 2F**, because the real Visual identity
+// page ships and a fixture copy of a surface that exists is the second source of
+// truth the plan set out to avoid. `/demo/brand` stays until 3G: it is still the
+// only way to see a research job running, failing or finding nothing without
+// making a vendor do it on demand.
 //
 // **Gated on `import.meta.env.DEV`, not on remembering to delete them.** Vite
 // replaces that expression with a literal in a production build, so the ternary
@@ -41,7 +46,7 @@ const appRoutes = [
 // exactly that reason.
 const routeTree = rootRoute.addChildren([
   ...appRoutes,
-  ...(import.meta.env.DEV ? [demoBrandRoute, demoBrandAssetsRoute] : []),
+  ...(import.meta.env.DEV ? [demoBrandRoute] : []),
 ] as unknown as typeof appRoutes)
 
 export const router = createRouter({

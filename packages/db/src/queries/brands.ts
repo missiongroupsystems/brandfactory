@@ -11,7 +11,7 @@ import type {
 import { and, eq, isNotNull, notInArray, sql } from 'drizzle-orm'
 import { db } from '../client'
 import { rowToBrand, rowToBrandSummary, rowToGuidelineSection } from '../mappers'
-import { brands, canvasBlocks, canvases, guidelineSections, projects } from '../schema'
+import { brandAssets, brands, canvasBlocks, canvases, guidelineSections, projects } from '../schema'
 
 export async function getBrandById(id: BrandId): Promise<Brand | null> {
   const [row] = await db.select().from(brands).where(eq(brands.id, id))
@@ -36,6 +36,7 @@ export async function listBrandSummariesByWorkspace(
       workspaceId: brands.workspaceId,
       name: brands.name,
       description: brands.description,
+      websiteUrl: brands.websiteUrl,
       createdAt: brands.createdAt,
       updatedAt: brands.updatedAt,
       sectionCount: sql<number>`count(distinct ${guidelineSections.id})::int`.mapWith(Number),
@@ -54,6 +55,7 @@ export async function createBrand(input: {
   workspaceId: WorkspaceId
   name: string
   description?: string | null
+  websiteUrl?: string | null
 }): Promise<Brand> {
   const [row] = await db
     .insert(brands)
@@ -61,21 +63,27 @@ export async function createBrand(input: {
       workspaceId: input.workspaceId,
       name: input.name,
       description: input.description ?? null,
+      websiteUrl: input.websiteUrl ?? null,
     })
     .returning()
   if (!row) throw new Error('createBrand returned no row')
   return rowToBrand(row)
 }
 
+// `undefined` leaves a column alone; `null` clears it. That distinction is the
+// whole patch semantics of `UpdateBrandInputSchema` and it has to survive the
+// trip down here — a `?? null` on any of these keys would turn "don't touch the
+// website" into "delete the website" on every rename.
 export async function updateBrand(
   id: BrandId,
-  input: { name?: string; description?: string | null },
+  input: { name?: string; description?: string | null; websiteUrl?: string | null },
 ): Promise<Brand | null> {
   const [row] = await db
     .update(brands)
     .set({
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.websiteUrl !== undefined ? { websiteUrl: input.websiteUrl } : {}),
       updatedAt: sql`now()`,
     })
     .where(eq(brands.id, id))
@@ -92,16 +100,45 @@ export async function deleteBrand(id: BrandId): Promise<Brand | null> {
   return row ? rowToBrand(row) : null
 }
 
-// Storage keys held by every block on every canvas under this brand. Read
-// before the row delete cascades them away.
+/**
+ * Storage keys held by everything under this brand. Read before the row delete
+ * cascades them away — this is the *only* place brand bytes are swept, because
+ * a soft-deleted block or asset can come back and destroying its bytes would
+ * make "hidden" mean "gone".
+ *
+ * Two arms, and both are load-bearing:
+ *
+ * - **canvas blocks**, via project → canvas. This was the whole query until 2A.
+ * - **brand assets**, filtered to `source = 'blob'`. Without this arm every
+ *   uploaded logo, photo and deck leaks its bytes on brand delete, silently and
+ *   permanently. The `source` filter is not an optimisation: a `link` row's
+ *   `url` is somebody else's host, and sweeping it would mean issuing a delete
+ *   against a key that is not ours. The column is null for `link` and `inline`
+ *   rows anyway — the filter says *why* rather than relying on that.
+ *
+ * Soft-deleted rows are deliberately **included**: the brand is going away, so
+ * every byte it ever owned goes with it.
+ */
 export async function listBlobKeysByBrand(brandId: BrandId): Promise<string[]> {
-  const rows = await db
+  const blockRows = await db
     .select({ blobKey: canvasBlocks.blobKey })
     .from(canvasBlocks)
     .innerJoin(canvases, eq(canvases.id, canvasBlocks.canvasId))
     .innerJoin(projects, eq(projects.id, canvases.projectId))
     .where(and(eq(projects.brandId, brandId), isNotNull(canvasBlocks.blobKey)))
-  return rows.map((r) => r.blobKey).filter((k): k is string => k !== null)
+
+  const assetRows = await db
+    .select({ blobKey: brandAssets.blobKey })
+    .from(brandAssets)
+    .where(
+      and(
+        eq(brandAssets.brandId, brandId),
+        eq(brandAssets.source, 'blob'),
+        isNotNull(brandAssets.blobKey),
+      ),
+    )
+
+  return [...blockRows, ...assetRows].map((r) => r.blobKey).filter((k): k is string => k !== null)
 }
 
 export async function listSectionsByBrand(brandId: BrandId): Promise<BrandGuidelineSection[]> {

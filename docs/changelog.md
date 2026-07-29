@@ -4,6 +4,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 ## Index
 
+- **1.10.0** — 2026-07-29 — Brand assets end to end (Stage 2, phases 2A–2F): a brand can finally *have* colours, marks, photography and files. **Migration 0004** lands `brand_assets` — one table, four enums, a hand-authored three-branch CHECK (`inline` carries a value, `blob` a key, `link` a URL, exactly one) and two partial indexes — under four routes and one new page. The load-bearing decision was made in 1.8.0 and executed here: **the rail shows the palette, the library owns it** — read there, write here — so `railVariant` and two of the three arrangements the mockup built are **deleted**, which was the mockup's whole deliverable. `Visual identity` stops being a `Soon` tile, and the registry gains `unit: 'thread' | 'asset'` because the moment it went live it would have read **`0 threads` on every brand** — not merely unhelpful but false. Two bugs the live passes found and no test would have: stored blobs were served as `application/octet-stream`, which browsers sniff past for PNG and **never** for SVG, so an uploaded SVG logo silently fell back to the monogram; and browser uploads have failed on a CORS preflight **since 0.7.4**, because Vite proxied `/api` and `/rt` but not the one path that carries bytes — reads never noticed, an `<img src>` is not CORS-gated. 2F is the not-skippable phase: **all 29 live-Postgres tests run and pass**, both migrators go from empty and are idempotent, and the 900px rail is fixed on its third pass by capping the stacked rail to **exactly one tile column** (measured: 420px against 420px). The first keyboard walk in the plan found an unnamed file input in the tab order. 565 → **688 tests (+123)**, zero skipped with a `DATABASE_URL`. `demo.brand.assets.tsx` and the five asset scenarios are deleted — the real page exists now. Detail in [`docs/completions/stage-2f-verification.md`](completions/stage-2f-verification.md) and the five phase notes beside it.
+- **1.9.0** — 2026-07-29 — Foundation (Stage 1, phases 1A–1B): two things the schema could not say, neither needing assets or research to exist. **Migration 0003** adds `brands.website_url` — one nullable column, end to end, whose real job is to **put a migration through the release path before anything interesting depends on one** (it was broken for releases v7 and v8). The load-bearing line is `z.url({ protocol: /^https?$/ })`, not `z.url()`: measured against the installed zod 4.3.6, `javascript:alert(1)` **is** a syntactically valid URL and a bare `z.url()` would have shipped a stored XSS with a nice UI around it — the value goes into an `href`. 1B stops `createdBy` from lying: `routes/brands.ts` hardcoded `createdBy: 'user'` over a payload that is the brand's **complete** section list, so every save rewrote the author of **every section in the brand** — a section stored as `'agent'` reverted the next time you renamed something unrelated. Nothing surfaced it because nothing produced `'agent'` yet, which is exactly why it ships before Stage 3E becomes the first producer. 527 → **565 tests (+38)**. Detail in [`docs/completions/stage-1a-brand-website-url.md`](completions/stage-1a-brand-website-url.md) and [`stage-1b-guideline-provenance.md`](completions/stage-1b-guideline-provenance.md).
 - **1.8.0** — 2026-07-29 — Brand hub, front-end first (P0–P5): two proposals — `brand-assets.md` and the locked `brand-research-onboarding.md` — are **two migrations, a new table, a fifth adapter, a paid vendor and six routes**, and **neither had ever been seen**. So the surface goes first, on fixtures. The load-bearing decision is that `BrandHubPage` splits into a **data route and a pure `BrandHubView`**, and the mockup is *the same view with different props* — not a second harness, so the app shell, the real router and the real `index.css` are in every screenshot, which is exactly what 1.7.0's throwaway harness could not show. 13 scenarios behind a picker, each carrying the decision it can falsify; the rail's **three candidate structures are all built** because two of them being deleted is the deliverable, and **C is the default because C *is* 1.7.0**. What protects the shipped hub is not "it's only the demo route" but a written invariant — *the real route can only pass null for every prop this pass adds, and every affordance renders nothing when its prop is absent* — with tests of its own. The plan's `import.meta.env.DEV` gate **did not work**: measured, not assumed, the first production build shipped `/demo/brand` and every fixture string into `dist`, because Rolldown treats a top-level `createRoute(…)` as side-effecting; `/* @__PURE__ */` plus moving the fixtures inside functions takes it to **zero occurrences of `demo` in the built assets**. `packages/web` only; no migration, no route, no vendor call, no new repo dependency. 456 → **527 tests (+71), none edited** — P0's acceptance criterion, and the evidence the extraction was a move. **A live pass was run** — 34 shots, both themes, no console errors — and it changed the code twice, once to fix `ProjectCard`'s name column, which has wrapped one word per line since 0.9.0. Detail in [`docs/completions/brand-hub-fe-mockup.md`](completions/brand-hub-fe-mockup.md); the decision record is appended to [the plan](executing/brand-hub-fe-mockup.md).
 - **1.7.1** — 2026-07-29 — Mission Systems CI conformance, the drift since 1.2.0: 1.2.0 applied the CI and **that spine held** — zero raw hex, zero primitive reads, Satoshi's five weights, focus/motion/numerics in the base layer — but four feature passes shipped since without re-reading the contract, and its "six primitives re-specced" left **three of nine untouched**. Caught: two uppercase pills on a product with **no side nav** (§0.4 permits caps in exactly one place, so the correct count is zero), ten call sites overriding the type scale, seven black-based Tailwind shadows, six wrong radii, four accent spends outside the named roles — and one real bug, `AlertDialogContent` on `bg-background`, which resolves to the **sunken page canvas**, so every delete confirmation rendered beige where `dialog.tsx` renders white. The load-bearing decision is that **the type scale moves into `@layer base`** rather than being fixed ten times: the call sites were wrong on *three* axes at once (weight 600/500, line-height 1.333/1.25, tracking −0.025em/−0.015em) and exactly one file of ten had it right, which is what proves the scale was reachable only by recall. `packages/web` only; no migration, no API route, no new dependency. **456 → 456 tests, none added or edited** — the whole point, since a styling pass that churns behavioural tests has changed behaviour. **No live pass** — Playwright would not install under pnpm (`EUNSUPPORTEDPROTOCOL`) and verification was skipped by decision; the `alert-dialog` surface fix is the one worth looking at first. Detail in [`docs/completions/mission-systems-ci-conformance.md`](completions/mission-systems-ci-conformance.md).
 - **1.7.0** — 2026-07-28 — Brand hub restructure: the page's top half was a stack of full-bleed bands with content pinned to both edges and a dead middle, and the brand itself was rendered as 24px of text on the one surface whose premise is that the brand is the centre of gravity. It becomes **three zones answering three questions in order** — *who is this* (a derived **monogram**, name, TL;DR), *what can I do* (the app tiles, kept, now a 2×2), *what do we know* (a persistent right **rail**). The load-bearing rule is that **no fact appears twice**: the identity band carries no counts, because the rail is about sections and each tile carries its own thread count. `BrandContextBar` is superseded and **deleted**; in the rail, written sections and unwritten suggestions are **one list**, which is why there is no meter — five rows, two written, *is* the meter, and it is the version you can click. First route in the app to constrain its width. `packages/web` only; no migration, no `shared`/`server` change. 436 → **456 tests (+20 net, +27 new)**. **A live pass was run** against a throwaway harness and changed the code three times — brand assets (colours, logos, photos) are **not** in this pass and are specced in [`docs/plans/brand-assets.md`](plans/brand-assets.md).
@@ -33,6 +35,159 @@ Latest releases at the top. Each version has a one-line entry in the index below
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` lands — drizzle schema for 8 tables, singleton pg `Pool`, 18 query helpers, local-dev docker Postgres, and an end-to-end smoke check.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` lands as the single source of truth for domain types and zod schemas, consumed by both `server` and `web`.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture blueprint, scaffolding plan, and Phase 0 repo foundation.
+
+---
+
+## 1.10.0 — 2026-07-29
+
+**A brand can have colours, marks, photography and files — and the surfaces that
+show them were reviewed before the schema that stores them was written.**
+Stage 2 of [`docs/executing/brand-hub-implementation.md`](executing/brand-hub-implementation.md),
+phases 2A–2F, on top of 1.9.0.
+
+```
+2A  shared + db      brand_assets, migration 0004, src/demo/assetTypes.ts deleted
+2B  server           four routes at /brands, all behind requireBrandAccess
+2C  colours          the rail's palette block, fed for real
+2D  the logo         BrandMark's fill goes from derived to declared
+2E  the library      Visual identity ships; the tile turns on
+2F  verification     the migration path, the live pass, the 900px rail
+```
+
+### The load-bearing decision, executed rather than made
+
+1.8.0 built the palette **three ways** so that two could be deleted, and said
+plainly that the deletion was the deliverable. This release is that deletion:
+**the rail shows the palette, the Visual identity page owns it.** Read there,
+write here. `railVariant` is gone — a prop with one legal value is a prop that
+has already been decided — and the rail's palette block stays read-only with its
+heading linking to the page that can change it.
+
+The rule the rail promises survives intact: *written sections and unwritten
+suggestions are one list, and that list is the meter*. A palette **block** — its
+own border, heading and summary — is not a row in that list and does not enter
+the count.
+
+### Two bugs no test would have caught
+
+**An uploaded SVG logo never rendered.** `local-disk` storage served every blob
+as `application/octet-stream`; browsers sniff past that for PNG and JPEG and
+**never** for SVG, so the declared mark silently fell back to the monogram — the
+one failure mode that looks exactly like success. Found by 2D's screenshots.
+
+**Browser uploads had been failing since 0.7.4.** `scripts/dev.sh` has claimed
+since Phase 8 that the Vite proxy makes dev single-origin. True for `/api` and
+`/rt`; false for `/blobs`, the one path that carries bytes. Reads never noticed —
+an `<img src>` is not CORS-gated — but `uploadBlob` PUTs with `fetch`, which
+preflights. Three lines of configuration, no application code, and the mechanism
+was proved from inside the browser in both directions.
+
+### 2F, which the plan wrote down as not skippable
+
+- **All 29 live-Postgres tests ran and passed.** Every prior phase reported them
+  as skips; this is the first run with a `DATABASE_URL` since `brand_assets`
+  landed. **688 passed, 0 skipped.**
+- **Both migrators, from empty, and idempotent** — including the release
+  migrator that broke v7 and v8. The CHECK constraint and both partial indexes
+  were read back off the fresh database rather than assumed.
+- **The 900px rail is fixed on its third pass.** Below `lg` the hub's columns
+  stack and the rail had been taking the full ~830px, which is precisely the
+  1.4.0 `BrandContextBar` shape the rail was written to replace. It is now capped
+  to **one column of the tile grid above it** — measured at 900px: rail 420px,
+  tile 420px, right edges landing on each other.
+- **The first keyboard walk in the plan** found an unnamed file input sitting in
+  the tab order between the theme toggle and `Choose files`: `sr-only` hides a
+  control from the eye and not from a screen reader, which is the wrong half for
+  a proxy.
+- **The demo's asset scenarios are deleted**, along with `demo.brand.assets.tsx`.
+  Eight scenarios remain — the five research states, plus `rich` and
+  `long-names` — which is what the real app still cannot show on demand.
+  `grep -c demo dist` is still 0.
+
+### Rollback
+
+0003 is one nullable column and 0004 is a new table. **Both are additive, so the
+previous image tolerates them** — stated here because the plan's risk table asked
+for it to be stated rather than assumed.
+
+### Verification
+
+```
+pnpm typecheck                                 9/9 workspaces
+pnpm lint / format:check                       clean
+pnpm test                                      659 passed | 29 skipped (688)
+DATABASE_URL=… pnpm test                       688 passed |  0 skipped
+pnpm --filter @brandfactory/web build          ok · grep -c demo dist → 0
+```
+
+565 → **688 (+123)** across the stage. Live passes ran in 2D, 2E and 2F; the dev
+database was seeded through the real API and cleaned up, ending at 0 asset rows
+and 0 blob files — which is also how the brand cascade's blob sweep was verified.
+
+### Caveats
+
+- **Asset delete has no confirmation and no way back.** It is a soft delete with
+  no recovery UI, so a misclick is a disappearance. The fix is an Undo, not a
+  dialog; neither is in this release.
+- **The agent still cannot see a brand's colours.** Assets are deliberately not
+  in `ProjectDetail` or the system prompt. Named as the obvious next pass in the
+  plan's *What this plan does not settle*.
+- **Nothing sets `alt`**, and **split-origin deploys are untested** — they need
+  the absolute `BLOB_PUBLIC_BASE_URL` plus `CORS_ALLOWED_ORIGINS`, which nothing
+  in Stage 2 exercised.
+- **The dnd-kit keyboard sensor is wired and unexercised.** The walk reaches every
+  `Reorder …` button; it does not drag one.
+
+Detail in [`docs/completions/stage-2f-verification.md`](completions/stage-2f-verification.md),
+with a note per phase beside it.
+
+---
+
+## 1.9.0 — 2026-07-29
+
+**Two things the schema could not say.** Stage 1 of
+[`docs/executing/brand-hub-implementation.md`](executing/brand-hub-implementation.md),
+phases 1A–1B — `brand-research-onboarding.md`'s Phase A, shipped alone and first
+so that a real migration goes through the release path before anything
+interesting depends on one.
+
+### 1A — `brands.website_url`
+
+One nullable column, end to end: schema → **migration 0003** → mapper → queries →
+wire → two forms → two surfaces. The line that matters is the schema:
+
+```ts
+export const BrandWebsiteUrlSchema = z.url({ protocol: /^https?$/ }).max(2048)
+```
+
+**The protocol filter is the whole schema; the URL parse is decoration.** The
+plan asked for `z.url()` rather than `z.string()` because the value is rendered
+into an `href` — correct as far as it goes, and not sufficient. Measured against
+the installed zod 4.3.6, `javascript:alert(1)` and `data:text/html,<script>` both
+**pass** a bare `z.url()`: they are syntactically valid URLs. Restricting the
+scheme on the shared schema means create, update and the row itself are
+restricted **by construction** rather than by each remembering to be.
+
+### 1B — provenance on the wire
+
+`guideline_section_created_by` has carried `'agent'` since 0.3.0 with no
+producer. The bug was not that the field was unset — it was that the field was
+actively rewritten:
+
+```
+PATCH /brands/:id/guidelines  →  body.sections.map((s) => ({ …s, createdBy: 'user' }))
+```
+
+That payload is the brand's **complete** section list — the documented contract of
+`updateBrandGuidelines`, and why the editor re-sends everything on every save. So
+the hardcoded `'user'` rewrote the author of **every section in the brand**, on
+every save, including ones you never touched. It ships now rather than with Stage
+3E, the phase that becomes the first producer, because landing the producer first
+would mean shipping a feature whose output degrades on the user's next keystroke.
+
+527 → **565 tests (+38)**. Detail in
+[`docs/completions/stage-1a-brand-website-url.md`](completions/stage-1a-brand-website-url.md)
+and [`stage-1b-guideline-provenance.md`](completions/stage-1b-guideline-provenance.md).
 
 ---
 

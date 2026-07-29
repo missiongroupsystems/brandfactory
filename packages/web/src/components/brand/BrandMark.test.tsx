@@ -123,6 +123,37 @@ describe('BrandMark — a declared src', () => {
     expect(container.querySelector('img')?.getAttribute('src')).toBe('/good.svg')
   })
 
+  /**
+   * **The monogram is the fallback for four different things**, and 2D is the
+   * pass that makes three of them reachable at once: no logo at all, a
+   * `proposed` logo (which `logoAsset` filters out, so the route passes `null`),
+   * a blob whose signed read URL has not arrived yet (`useAssetUrl` returns
+   * `null`), and a `src` that fails to load.
+   *
+   * They must be *one* state on screen, not four that happen to look similar —
+   * otherwise the hub develops a flicker between them on every load. The first
+   * three are literally `src == null`, so the only one that could diverge is
+   * the failure path, and this compares the rendered markup rather than
+   * asserting each separately.
+   */
+  it('renders identical markup for an absent src and a failed one', () => {
+    const absent = render(<BrandMark name="Mission Group" seed="b-1" size="lg" />)
+    const absentHtml = absent.container.innerHTML
+    absent.unmount()
+
+    const failed = render(<BrandMark name="Mission Group" seed="b-1" size="lg" src="/dead.png" />)
+    fireEvent.error(failed.container.querySelector('img') as HTMLImageElement)
+    expect(failed.container.innerHTML).toBe(absentHtml)
+  })
+
+  // `null` and `undefined` both mean "no declared mark". The route passes
+  // `null` (a resolved absence); the demo and older call sites pass nothing.
+  it('treats a null src the same as no src', () => {
+    const { container } = render(<BrandMark name="Mission Group" seed="b-1" src={null} />)
+    expect(container.querySelector('img')).toBeNull()
+    expect(screen.getByText('MG')).toBeTruthy()
+  })
+
   // The name is still the accessible text beside it; an alt here would announce
   // the brand twice.
   it('keeps the image out of the accessibility tree', () => {

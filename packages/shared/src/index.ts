@@ -20,6 +20,11 @@ export * from './brand/create'
 export * from './brand/update'
 export * from './brand/update-guidelines'
 
+// Brand assets
+export * from './asset/asset'
+export * from './asset/create'
+export * from './asset/update'
+
 // Project
 export * from './project/project'
 export * from './project/summary'

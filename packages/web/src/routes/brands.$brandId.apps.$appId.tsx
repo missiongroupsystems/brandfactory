@@ -3,28 +3,31 @@ import { rootRoute } from './__root'
 import { getAuthToken } from '@/auth/store'
 import { useBrand, useBrandProjects } from '@/api/queries/brands'
 import { useBreadcrumbTrail } from '@/components/Breadcrumbs'
+import type { MiniApp } from '@/components/brand/miniApps'
 import { miniAppById } from '@/components/brand/miniApps'
+import { VisualIdentityPage } from '@/components/brand/VisualIdentityPage'
 import { NewProjectDialog } from '@/components/project/NewProjectDialog'
 import { ProjectCard } from '@/components/project/ProjectCard'
 import { Button } from '@/components/ui/button'
 
 // ---------------------------------------------------------------------------
-// Mini-app page — a category workspace listing its threads
+// Mini-app page — a category workspace
 // ---------------------------------------------------------------------------
+//
+// Two shapes behind one route, chosen by the registry's `unit`:
+//
+//   unit: 'thread'  → the thread list this page has always been
+//   unit: 'asset'   → `VisualIdentityPage`, the asset library (2E)
+//
+// They are separate components rather than one with branches, because each owns
+// a different set of queries: the thread page needs `useBrandProjects`, the
+// library needs `useBrandAssets` and four mutations, and neither should pay for
+// the other's. `useBreadcrumbTrail` stays up here, unconditional, because both
+// shapes occupy the same `leaf` slot.
 
 function MiniAppPage() {
   const { brandId, appId } = miniAppRoute.useParams()
   const app = miniAppById(appId)
-  const { data: brand, isPending: brandPending, isError: brandError } = useBrand(brandId)
-  const {
-    data: projects,
-    isPending: threadsPending,
-    isError: threadsError,
-  } = useBrandProjects(brandId)
-
-  // Hooks stay unconditional — the unknown-app branch is a render-time return
-  // below. A mini-app has no entity of its own, so it occupies the breadcrumb's
-  // `leaf` slot rather than the project one.
   useBreadcrumbTrail(app ? { leaf: { name: app.title } } : {})
 
   if (!app) {
@@ -37,6 +40,18 @@ function MiniAppPage() {
       </div>
     )
   }
+
+  if (app.unit === 'asset') return <VisualIdentityPage brandId={brandId} app={app} />
+  return <ThreadListPage brandId={brandId} app={app} />
+}
+
+function ThreadListPage({ brandId, app }: { brandId: string; app: MiniApp }) {
+  const { data: brand, isPending: brandPending, isError: brandError } = useBrand(brandId)
+  const {
+    data: projects,
+    isPending: threadsPending,
+    isError: threadsError,
+  } = useBrandProjects(brandId)
 
   const Icon = app.icon
   // Client-side filtering: the threads endpoint is per-brand, and a brand's

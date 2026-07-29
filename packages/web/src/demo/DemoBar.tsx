@@ -1,4 +1,3 @@
-import type { RailVariant } from '@/components/brand/BrandContextRail'
 import type { DemoScenario, ScenarioId } from '@/demo/fixtures'
 
 // ---------------------------------------------------------------------------
@@ -18,21 +17,12 @@ export interface DemoBarProps {
   scenarios: DemoScenario[]
   scenario: DemoScenario
   onScenario: (id: ScenarioId) => void
-  /** Omitted on the asset library, which has no rail to arrange. */
-  rail?: RailVariant
-  onRail?: (v: RailVariant) => void
   children?: React.ReactNode
-}
-
-const RAIL_LABELS: Record<RailVariant, string> = {
-  A: 'A — swatches as a rail block',
-  B: 'B — swatches under the mark',
-  C: 'C — assets leave the rail',
 }
 
 const SELECT_CLASS = 'h-8 max-w-full min-w-0 rounded-lg border bg-card px-2 text-sm text-foreground'
 
-export function DemoBar({ scenarios, scenario, onScenario, rail, onRail, children }: DemoBarProps) {
+export function DemoBar({ scenarios, scenario, onScenario, children }: DemoBarProps) {
   return (
     <div className="shrink-0 border-b border-dashed bg-surface-sunken px-6 py-3">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3">
@@ -54,23 +44,6 @@ export function DemoBar({ scenarios, scenario, onScenario, rail, onRail, childre
             ))}
           </select>
         </label>
-
-        {rail && onRail && (
-          <label className="flex min-w-0 items-center gap-2">
-            <span className="sr-only">Rail structure</span>
-            <select
-              className={SELECT_CLASS}
-              value={rail}
-              onChange={(e) => onRail(e.target.value as RailVariant)}
-            >
-              {(Object.keys(RAIL_LABELS) as RailVariant[]).map((v) => (
-                <option key={v} value={v}>
-                  {RAIL_LABELS[v]}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
 
         {children}
       </div>

@@ -1,9 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { Palette } from 'lucide-react'
-import type { BrandWithSections, ProjectSummary } from '@brandfactory/shared'
+import type { BrandAsset, BrandWithSections, ProjectSummary } from '@brandfactory/shared'
 import { BrandHubView } from './BrandHubView'
-import type { BrandAsset } from '@/demo/assetTypes'
+import { TILE_APPS } from '@/components/brand/miniApps'
+
+// `BrandAsset` moved to `@brandfactory/shared` in 2A, where — like every other
+// domain entity — it carries branded ids and the two timestamp columns the DB
+// writes. Fixtures state them; nothing in this file reads them.
+const ASSET_STAMPS = {
+  createdAt: '2026-07-01T00:00:00.000Z',
+  updatedAt: '2026-07-01T00:00:00.000Z',
+} as const
 
 // Same `Link` stub the rail's and the mini-app route's tests use: this view is
 // rendered from props alone, which is the whole point of extracting it, so it
@@ -45,6 +53,7 @@ function brand(overrides: Partial<BrandWithSections> = {}): BrandWithSections {
     workspaceId: 'w-1' as BrandWithSections['workspaceId'],
     name: 'Casa Vostra',
     description: 'Neighbourhood trattoria.',
+    websiteUrl: null,
     createdAt: '2026-07-01T00:00:00.000Z',
     updatedAt: '2026-07-01T00:00:00.000Z',
     sections: [],
@@ -68,8 +77,8 @@ function thread(id: string, templateId: string | null): ProjectSummary {
 }
 
 const color: BrandAsset = {
-  id: 'c-1',
-  brandId: 'b-1',
+  id: 'c-1' as BrandAsset['id'],
+  brandId: 'b-1' as BrandAsset['brandId'],
   kind: 'color',
   source: 'inline',
   role: 'primary',
@@ -78,6 +87,7 @@ const color: BrandAsset = {
   value: '#b5573c',
   position: 100,
   deletedAt: null,
+  ...ASSET_STAMPS,
 }
 
 const handlers = { onRename: vi.fn(), onDelete: vi.fn(), onEdit: vi.fn() }
@@ -95,30 +105,72 @@ describe('BrandHubView — the absent-prop invariant', () => {
     expect(screen.queryByRole('button', { name: /Research this brand/ })).toBeNull()
   })
 
-  // C is the default because C *is* 1.7.0: neither the rail nor the identity
-  // band moves. B reflows the band, so defaulting to it would shift the real
-  // hub's mark and nobody would notice until the live pass.
-  it('defaults to rail structure C, so colours reach neither the rail nor the band', () => {
-    render(<BrandHubView brand={brand()} projects={[]} colors={[color]} {...handlers} />)
-    expect(screen.queryByRole('heading', { name: 'Palette' })).toBeNull()
-    expect(screen.queryByText(/1 colour/)).toBeNull()
+  // 2C: `railVariant` is gone and the rail block is the survivor, so a brand
+  // with colours gets exactly one palette — in the rail, never under the mark.
+  it('puts the palette in the rail and nowhere else', () => {
+    render(<BrandHubView brand={brand()} projects={[]} assets={[color]} {...handlers} />)
+    expect(screen.getAllByRole('heading', { name: 'Palette' })).toHaveLength(1)
+    expect(screen.getAllByText('1 colour · 1 proposed')).toHaveLength(1)
   })
 
-  it('puts the palette in the rail for A and in the identity band for B', () => {
-    const { rerender } = render(
-      <BrandHubView brand={brand()} projects={[]} colors={[color]} railVariant="A" {...handlers} />,
-    )
-    expect(screen.getByRole('heading', { name: 'Palette' })).toBeTruthy()
-
-    rerender(
-      <BrandHubView brand={brand()} projects={[]} colors={[color]} railVariant="B" {...handlers} />,
-    )
+  // Both halves of the surviving invariant, and they are different states:
+  // `undefined` is "not known" (pending or failed), `[]` is "no colours". A
+  // block that flashes empty on every navigation is worse than one that appears
+  // 100ms late, and a "no colours yet" placeholder is the scolding 1.7.0 spent
+  // a pass removing.
+  it.each([
+    ['pending', undefined],
+    ['empty', []],
+  ])('renders no palette block when colors are %s', (_name, colors) => {
+    render(<BrandHubView brand={brand()} projects={[]} assets={colors} {...handlers} />)
     expect(screen.queryByRole('heading', { name: 'Palette' })).toBeNull()
-    expect(screen.getByText('1 colour · 1 proposed')).toBeTruthy()
+    expect(screen.queryByText(/colour/)).toBeNull()
+  })
+
+  /**
+   * The heading links only when the surface that owns colours exists — gated on
+   * the registry, not on a second flag.
+   *
+   * **2E flipped `visual.enabled`, so the default is now the linked case.** The
+   * gate itself is still live and still worth a test: a registry where the tile
+   * is off must produce plain text, because a link to a page that says "later"
+   * is the dead affordance 1.7.0 spent a pass removing. That is the state this
+   * asserts, by passing a tile list with it off.
+   */
+  it('links the Palette heading, because Visual identity is enabled', () => {
+    render(<BrandHubView brand={brand()} projects={[]} assets={[color]} {...handlers} />)
+    expect(screen.getByRole('link', { name: 'Palette' }).getAttribute('href')).toBe(
+      '/brands/b-1/apps/visual',
+    )
+  })
+
+  it('leaves it unlinked for a registry where Visual identity is off', () => {
+    const tiles = TILE_APPS.map((a) => (a.id === 'visual' ? { ...a, enabled: false } : a))
+    render(
+      <BrandHubView brand={brand()} projects={[]} assets={[color]} tiles={tiles} {...handlers} />,
+    )
+    expect(screen.queryByRole('link', { name: 'Palette' })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Palette' })).toBeTruthy()
   })
 })
 
 describe('BrandHubView', () => {
+  // Stage 1A: the first mockup prop the real route feeds. The invariant test
+  // above proves the absent half; this proves the prop is still wired through
+  // the view to the identity band and did not become decorative.
+  it('renders the website link when the route supplies one', () => {
+    render(
+      <BrandHubView
+        brand={brand()}
+        projects={[]}
+        websiteUrl="https://casavostra.com"
+        {...handlers}
+      />,
+    )
+    const link = screen.getByRole('link', { name: /casavostra\.com/ })
+    expect(link.getAttribute('href')).toBe('https://casavostra.com')
+  })
+
   it('counts threads per tile and files an unregistered one under the catch-all', () => {
     render(
       <BrandHubView
@@ -159,6 +211,7 @@ describe('BrandHubView', () => {
             create: { kind: 'standardized', templateId: 'visual' },
             match: () => false,
             enabled: true,
+            unit: 'asset',
             surface: 'tile',
           },
         ]}

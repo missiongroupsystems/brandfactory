@@ -47,6 +47,7 @@ function brandSummary(id: string, name: string): BrandSummary {
     workspaceId: 'ws-1' as BrandSummary['workspaceId'],
     name,
     description: null,
+    websiteUrl: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     sectionCount: 0,

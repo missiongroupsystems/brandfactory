@@ -1,11 +1,18 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { BrandWithSections } from '@brandfactory/shared'
+import type { BrandAsset, BrandWithSections } from '@brandfactory/shared'
 import { SUGGESTED_SECTIONS } from '@brandfactory/shared'
 import { BrandContextRail } from './BrandContextRail'
-import type { BrandAsset } from '@/demo/assetTypes'
 import type { ResearchJobSummary } from '@/demo/researchTypes'
+
+// `BrandAsset` moved to `@brandfactory/shared` in 2A, where — like every other
+// domain entity — it carries branded ids and the two timestamp columns the DB
+// writes. Fixtures state them; nothing in this file reads them.
+const ASSET_STAMPS = {
+  createdAt: '2026-07-01T00:00:00.000Z',
+  updatedAt: '2026-07-01T00:00:00.000Z',
+} as const
 
 // The rail's conversation entry point is a real `<Link>`, which needs a router
 // context this component test does not stand up. Same stub the mini-app route
@@ -56,6 +63,7 @@ function brand(sections: BrandWithSections['sections']): BrandWithSections {
     workspaceId: 'w-1' as BrandWithSections['workspaceId'],
     name: 'Acme',
     description: null,
+    websiteUrl: null,
     createdAt: '2026-07-24T00:00:00.000Z',
     updatedAt: '2026-07-24T00:00:00.000Z',
     sections,
@@ -203,8 +211,8 @@ describe('BrandContextRail', () => {
 
 function color(id: string, status: BrandAsset['status'] = 'active'): BrandAsset {
   return {
-    id,
-    brandId: 'b-1',
+    id: id as BrandAsset['id'],
+    brandId: 'b-1' as BrandAsset['brandId'],
     kind: 'color',
     source: 'inline',
     role: null,
@@ -213,6 +221,7 @@ function color(id: string, status: BrandAsset['status'] = 'active'): BrandAsset 
     value: '#b5573c',
     position: 100,
     deletedAt: null,
+    ...ASSET_STAMPS,
   }
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { activeAssets, assetUrl, assetsOfKind, colorValue, logoAsset } from './assetTypes'
+import { BrandAssetSchema, assetsOfKind, colorValue, logoAsset } from '@brandfactory/shared'
+import { assetUrl } from '@/lib/asset-url'
 import { buildScenarios, resolveDemoBlob } from './fixtures'
 import { canStartResearch, hasDraftsReady } from './researchTypes'
 
@@ -17,10 +18,38 @@ const NOW = new Date('2026-07-29T12:00:00.000Z')
 const scenarios = buildScenarios(NOW)
 const byId = (id: string) => scenarios.find((s) => s.id === id)!
 
+// 2A moved `BrandAsset` out of `src/demo/assetTypes.ts` and into
+// `@brandfactory/shared`, which is what closes the second-source-of-truth risk:
+// from here the fixtures are typed against the *shipped* schema, so a fixture
+// that stops compiling is a real incompatibility.
+//
+// Compiling is not the whole contract, though. `AssetLinkUrlSchema` restricts a
+// link to `http`/`https` — the same rule, and the same stored-XSS reason, as
+// `BrandWebsiteUrlSchema` — and the field is still typed `string`, so a fixture
+// holding `javascript:` or a bare `/path.png` would type-check happily and be
+// rejected by the real route. Parsing every fixture is the half of the check
+// TypeScript cannot do.
+describe('every fixture is a row the real schema would accept', () => {
+  it('parses as BrandAssetSchema', () => {
+    for (const s of scenarios) {
+      for (const asset of s.assets) {
+        const result = BrandAssetSchema.safeParse(asset)
+        expect(result.success, `${s.id} / ${asset.label}: ${result.error?.message}`).toBe(true)
+      }
+    }
+  })
+})
+
 describe('the scenario set', () => {
-  it('covers all thirteen, with no duplicate ids', () => {
-    expect(scenarios).toHaveLength(13)
-    expect(new Set(scenarios.map((s) => s.id)).size).toBe(13)
+  // Thirteen until 2F. The five asset scenarios — `palette-proposed`,
+  // `palette-full`, `logo-blob`, `logo-link-ok`, `logo-link-dead` — existed to
+  // settle schema and rendering questions before either surface was built; both
+  // ship now, so those states are reachable on the real hub and the real Visual
+  // identity page against real rows, and the accessor rules they asserted moved
+  // into `@brandfactory/shared`'s own suite with the types in 2A.
+  it('covers all eight, with no duplicate ids', () => {
+    expect(scenarios).toHaveLength(8)
+    expect(new Set(scenarios.map((s) => s.id)).size).toBe(8)
   })
 
   // A scenario that cannot falsify a decision is a screenshot nobody needs.
@@ -37,72 +66,6 @@ describe('the scenario set', () => {
     expect(bare.assets).toHaveLength(0)
     expect(bare.research).toBeNull()
     expect(bare.websiteUrl).toBeNull()
-  })
-})
-
-describe('the palette states', () => {
-  // The exact case that prompted this pass: "1 or 2 primary colours proposed
-  // and not even finalised."
-  it('can express a brand whose only colours are proposals', () => {
-    const s = byId('palette-proposed')
-    const colors = assetsOfKind(s.assets, 'color')
-    expect(colors).toHaveLength(2)
-    expect(colors.every((c) => c.status === 'proposed')).toBe(true)
-    expect(activeAssets(s.assets)).toHaveLength(0)
-  })
-
-  // Finding 3: `role: 'primary'` is not unique, and the schema reads as if it
-  // were. Two proposed primaries is the ordinary state, not a corruption — so
-  // `position` is what actually orders them, and a reader that wants exactly
-  // one primary colour has no answer here.
-  it('carries two assets with role: primary at once', () => {
-    const colors = assetsOfKind(byId('palette-proposed').assets, 'color')
-    expect(colors.filter((c) => c.role === 'primary')).toHaveLength(2)
-  })
-
-  // Cardinality at the top end (assets question 6). Twelve rows in one flat
-  // `position` list is legible as a ramp only because they happen to be sorted.
-  it('reaches a full ramp with a proposal still in it', () => {
-    const colors = assetsOfKind(byId('palette-full').assets, 'color')
-    expect(colors).toHaveLength(12)
-    expect(colors.filter((c) => c.status === 'proposed')).toHaveLength(1)
-    expect(colors.map((c) => c.position)).toEqual(
-      [...colors.map((c) => c.position)].sort((a, b) => a - b),
-    )
-  })
-})
-
-describe('the logo states', () => {
-  it('resolves an uploaded mark through the blob accessor', () => {
-    const logo = logoAsset(byId('logo-blob').assets)!
-    expect(logo.source).toBe('blob')
-    expect(assetUrl(logo, resolveDemoBlob)).not.toBe('')
-  })
-
-  it('passes a linked mark straight through', () => {
-    const logo = logoAsset(byId('logo-link-ok').assets)!
-    expect(logo.source).toBe('link')
-    expect(assetUrl(logo, resolveDemoBlob)).toBe(logo.source === 'link' ? logo.url : '')
-  })
-
-  // A fabricated hostname fails via DNS, which *hangs* rather than firing
-  // `onError` promptly — so the screenshot lands mid-timeout and the fallback
-  // it exists to prove is the one thing not in it. Same origin, immediate 404.
-  it('points the dead link at this origin so the failure is local and instant', () => {
-    const logo = logoAsset(byId('logo-link-dead').assets)!
-    const url = assetUrl(logo, resolveDemoBlob)!
-    expect(url.startsWith('/')).toBe(true)
-    expect(url).not.toMatch(/^https?:/)
-  })
-
-  // Assets question 7: a `proposed` asset reaches neither the agent nor the
-  // mark. Every read path filters on status, so the accessor has to.
-  it('never offers a proposed image as the brand’s mark', () => {
-    const proposedLogo = {
-      ...logoAsset(byId('logo-blob').assets)!,
-      status: 'proposed' as const,
-    }
-    expect(logoAsset([proposedLogo])).toBeNull()
   })
 })
 
@@ -172,6 +135,19 @@ describe('rich — the crowding test', () => {
   it('includes an asset with no preview', () => {
     const files = assetsOfKind(byId('rich').assets, 'file')
     expect(files.some((f) => assetUrl(f, resolveDemoBlob) === '')).toBe(true)
+  })
+
+  // The claim the file header makes, still asserted after 2F deleted the two
+  // logo link fixtures: a link that fails must fail *here*, immediately. A
+  // fabricated hostname fails via DNS, which hangs rather than firing `onError`,
+  // so the screenshot lands mid-timeout and the fallback it exists to prove is
+  // the one thing not in it. `rich` carries the surviving dead link — a photo
+  // shortlisted for the menu cover — and it points at this origin.
+  it('keeps its dead link on this origin', () => {
+    const images = assetsOfKind(byId('rich').assets, 'image')
+    const dead = images.find((a) => a.source === 'link' && a.url.endsWith('does-not-exist.png'))!
+    expect(dead).toBeDefined()
+    expect(new URL(assetUrl(dead, resolveDemoBlob)!).origin).toBe(window.location.origin)
   })
 })
 

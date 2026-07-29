@@ -31,6 +31,7 @@ function brand(id: string, sections: BrandGuidelineSection[]): BrandWithSections
     workspaceId: '44444444-4444-4444-8444-444444444444' as BrandWithSections['workspaceId'],
     name: 'Acme',
     description: null,
+    websiteUrl: null,
     createdAt: '2026-07-27T00:00:00.000Z',
     updatedAt: '2026-07-27T00:00:00.000Z',
     sections,

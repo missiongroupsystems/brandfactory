@@ -29,6 +29,13 @@ export interface Db {
   listSectionsByBrand: typeof db.listSectionsByBrand
   updateBrandGuidelines: typeof db.updateBrandGuidelines
 
+  // Brand assets
+  listAssetsByBrand: typeof db.listAssetsByBrand
+  createAsset: typeof db.createAsset
+  updateAsset: typeof db.updateAsset
+  softDeleteAsset: typeof db.softDeleteAsset
+  reorderAssets: typeof db.reorderAssets
+
   // Projects + canvases
   getProjectById: typeof db.getProjectById
   listProjectsByBrand: typeof db.listProjectsByBrand
@@ -75,6 +82,11 @@ export function buildDbDeps(): Db {
     listBlobKeysByBrand: db.listBlobKeysByBrand,
     listSectionsByBrand: db.listSectionsByBrand,
     updateBrandGuidelines: db.updateBrandGuidelines,
+    listAssetsByBrand: db.listAssetsByBrand,
+    createAsset: db.createAsset,
+    updateAsset: db.updateAsset,
+    softDeleteAsset: db.softDeleteAsset,
+    reorderAssets: db.reorderAssets,
     getProjectById: db.getProjectById,
     listProjectsByBrand: db.listProjectsByBrand,
     listProjectSummariesByBrand: db.listProjectSummariesByBrand,

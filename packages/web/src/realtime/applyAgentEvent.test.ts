@@ -55,6 +55,7 @@ function makeDetail(blocks: CanvasBlock[], shortlistBlockIds: string[] = []): Pr
       workspaceId: '44444444-4444-4444-8444-444444444444' as ProjectDetail['brand']['workspaceId'],
       name: 'Test brand',
       description: null,
+      websiteUrl: null,
       createdAt: '2026-04-20T00:00:00.000Z',
       updatedAt: '2026-04-20T00:00:00.000Z',
       sections: [],

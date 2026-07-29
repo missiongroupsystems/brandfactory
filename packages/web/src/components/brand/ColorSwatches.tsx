@@ -1,4 +1,4 @@
-import { type BrandAsset, byPosition, colorValue } from '@/demo/assetTypes'
+import { byPosition, colorValue, type BrandAsset } from '@brandfactory/shared'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------

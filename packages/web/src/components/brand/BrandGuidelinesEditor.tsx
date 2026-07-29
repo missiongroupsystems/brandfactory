@@ -22,6 +22,7 @@ import { toast } from 'sonner'
 import type {
   BrandGuidelineSection,
   BrandWithSections,
+  GuidelineSectionCreatedBy,
   ProseMirrorDoc,
   SectionId,
   UpdateBrandGuidelinesInput,
@@ -50,16 +51,34 @@ type LocalSection = {
   label: string
   body: ProseMirrorDoc
   priority: number
+  /**
+   * Carried through local state rather than re-derived at save time, because
+   * this form round-trips the brand's *complete* section list: a section this
+   * editor merely re-sends must go back with the author it arrived with. The
+   * only place the literal `'user'` appears on the client is `blankSection`.
+   *
+   * Editing an agent-written section does **not** flip it to `'user'`. The
+   * field records who produced the section, which is what makes Stage 3E's
+   * "these five came from research" legible after you have tidied their prose.
+   */
+  createdBy: GuidelineSectionCreatedBy
 }
 
 const EMPTY_DOC: ProseMirrorDoc = { type: 'doc', content: [{ type: 'paragraph' }] }
 
 function toLocal(s: BrandGuidelineSection): LocalSection {
-  return { _key: s.id, id: s.id, label: s.label, body: s.body, priority: s.priority }
+  return {
+    _key: s.id,
+    id: s.id,
+    label: s.label,
+    body: s.body,
+    priority: s.priority,
+    createdBy: s.createdBy,
+  }
 }
 
 function blankSection(label = ''): LocalSection {
-  return { _key: crypto.randomUUID(), label, body: EMPTY_DOC, priority: 0 }
+  return { _key: crypto.randomUUID(), label, body: EMPTY_DOC, priority: 0, createdBy: 'user' }
 }
 
 // ---------------------------------------------------------------------------
@@ -274,6 +293,7 @@ export function BrandGuidelinesEditor({
         label: s.label,
         body: s.body,
         priority: (i + 1) * 1000,
+        createdBy: s.createdBy,
       })),
     }
     mutation.mutate(payload, {

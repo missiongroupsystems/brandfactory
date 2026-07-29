@@ -87,6 +87,7 @@ describe('projects routes', () => {
         workspaceId: workspaceId as WorkspaceId,
         name: 'Brand Two',
         description: null,
+        websiteUrl: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
       })
@@ -293,6 +294,7 @@ describe('projects routes', () => {
         workspaceId: wsId,
         name: 'B2',
         description: null,
+        websiteUrl: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
       })

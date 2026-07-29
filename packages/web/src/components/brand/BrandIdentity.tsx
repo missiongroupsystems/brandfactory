@@ -1,9 +1,8 @@
 import { ExternalLink } from 'lucide-react'
 import type { BrandWithSections } from '@brandfactory/shared'
 import { BrandMark } from '@/components/brand/BrandMark'
-import { ColorSwatches, paletteSummary } from '@/components/brand/ColorSwatches'
 import { EntityMenu } from '@/components/entity/EntityMenu'
-import type { BrandAsset } from '@/demo/assetTypes'
+import { displayHost } from '@/lib/website-url'
 
 // ---------------------------------------------------------------------------
 // BrandIdentity — who this brand is, at a glance
@@ -14,20 +13,12 @@ export interface BrandIdentityProps {
   onRename: () => void
   onDelete: () => void
   /**
-   * `brands.website_url`, which does not exist yet — research decision 3 adds
-   * the column, and this pass renders it from a fixture so the placement can be
-   * reviewed before the migration is written. Absent on the real route.
+   * `brands.website_url`. Landed by migration 0003 (Stage 1A) after the mockup
+   * pass reviewed the placement against a fixture. Renders nothing when null.
    */
   websiteUrl?: string | null
   /** A declared mark. See `BrandMark`'s `src`. */
   logoSrc?: string | null
-  /**
-   * **Structure B only.** The palette under the mark, leaving the rail's
-   * one-list rule untouched. `BrandHubView` passes this for variant `B` and
-   * nothing for `A` and `C`, so the arrangement lives in one place rather than
-   * being re-derived here.
-   */
-  colors?: BrandAsset[]
 }
 
 /**
@@ -45,11 +36,14 @@ export interface BrandIdentityProps {
  * (`RenameDialog` takes `initialDescription`), which is why the affordance
  * routes to `onRename` rather than growing an editor of its own.
  *
- * **On the palette (structure B).** 1.7.0's no-counts rule is about facts that
- * already appear elsewhere on the page; a palette appears nowhere else, so it
- * is a *new* fact rather than a restated one and the rule does not exclude it.
- * That makes B arguable rather than obviously wrong — which is why it is one of
- * three variants on screen and not a decision taken in this file.
+ * **The palette is not here, and that was a decision rather than an omission.**
+ * 1.8.0 built it three ways so two could be deleted: under this mark (B), in the
+ * rail (A), or only on the Visual identity page (C). The screenshots settled it
+ * for A — B has no good answer at the top of the cardinality range, where a
+ * twelve-colour ramp under a 40px mark either wraps into the description or
+ * shrinks below legibility, and C makes a brand's colours somewhere you navigate
+ * to, which is the opposite of the request that produced the proposal. The band
+ * stays at one fact: *whose page is this*.
  */
 export function BrandIdentity({
   brand,
@@ -57,10 +51,7 @@ export function BrandIdentity({
   onDelete,
   websiteUrl,
   logoSrc,
-  colors,
 }: BrandIdentityProps) {
-  const hasPalette = colors !== undefined && colors.length > 0
-
   return (
     <header className="flex items-start gap-4">
       <BrandMark name={brand.name} seed={brand.id} size="lg" src={logoSrc} />
@@ -84,24 +75,27 @@ export function BrandIdentity({
         )}
 
         {websiteUrl && (
-          // The host, not the URL: `https://casavostra.com/` is three tokens of
-          // chrome around the one word that identifies the brand. §3.1 — a
-          // standalone link reads `--color-text-link`, not `--primary`.
-          <a
-            href={websiteUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="mt-1.5 inline-flex items-center gap-1.5 text-sm text-[var(--color-text-link)] hover:underline"
-          >
-            {displayHost(websiteUrl)}
-            <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
-          </a>
-        )}
-
-        {hasPalette && (
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <ColorSwatches colors={colors} size="sm" />
-            <span className="text-xs text-muted-foreground">{paletteSummary(colors)}</span>
+          // The wrapper is load-bearing, and the live pass is what found it: an
+          // `inline-flex` anchor after the `Add a description` *button* — also
+          // inline-level — shares its line, and the two render as
+          // `Add a descriptioncasavostra.com` with no space between them. The
+          // description case hid it, because a `<p>` is a block and pushes the
+          // link down on its own. Wrapping the anchor makes the row a block in
+          // both cases while leaving the anchor inline-flex, which is what keeps
+          // the ↗ glyph on the text baseline.
+          <div className="mt-1.5">
+            {/* The host, not the URL: `https://casavostra.com/` is three tokens
+                of chrome around the one word that identifies the brand. §3.1 —
+                a standalone link reads `--color-text-link`, not `--primary`. */}
+            <a
+              href={websiteUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-link)] hover:underline"
+            >
+              {displayHost(websiteUrl)}
+              <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
+            </a>
           </div>
         )}
       </div>
@@ -109,21 +103,4 @@ export function BrandIdentity({
       <EntityMenu label={`Actions for ${brand.name}`} onRename={onRename} onDelete={onDelete} />
     </header>
   )
-}
-
-/**
- * `https://www.casavostra.com/menu` → `casavostra.com/menu`. Falls back to the
- * raw string when the URL does not parse — a link the user typed by hand is
- * still worth rendering, and swallowing it would be a worse failure than an
- * ugly one.
- */
-export function displayHost(url: string): string {
-  try {
-    const parsed = new URL(url)
-    const host = parsed.host.replace(/^www\./, '')
-    const path = parsed.pathname === '/' ? '' : parsed.pathname.replace(/\/$/, '')
-    return `${host}${path}`
-  } catch {
-    return url
-  }
 }

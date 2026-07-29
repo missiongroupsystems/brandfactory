@@ -1,21 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoute } from '@tanstack/react-router'
 import { toast } from 'sonner'
-import type { BrandWithSections } from '@brandfactory/shared'
+import { logoAsset, type BrandWithSections } from '@brandfactory/shared'
 import { rootRoute } from './__root'
-import type { RailVariant } from '@/components/brand/BrandContextRail'
 import { BrandHubView } from '@/components/brand/BrandHubView'
 import { EditGuidelinesDialog } from '@/components/brand/EditGuidelinesDialog'
 import { ResearchReviewSheet } from '@/components/brand/ResearchReviewSheet'
-import { TILE_APPS, type MiniApp } from '@/components/brand/miniApps'
 import { DeleteBrandDialog } from '@/components/entity/DeleteBrandDialog'
 import { RenameDialog } from '@/components/entity/RenameDialog'
 import type { CapturePayload } from '@/components/project/MessageCapture'
 import { Button } from '@/components/ui/button'
-import { assetUrl, assetsOfKind, logoAsset } from '@/demo/assetTypes'
+import { assetUrl } from '@/lib/asset-url'
 import { DemoBar } from '@/demo/DemoBar'
 import { DemoNewBrandDialog } from '@/demo/DemoNewBrandDialog'
-import { demoHref, readDemoParams, writeDemoParams } from '@/demo/demoParams'
+import { readDemoParams, writeDemoParams } from '@/demo/demoParams'
 import {
   buildScenarios,
   resolveDemoBlob,
@@ -56,23 +54,16 @@ function DemoBrandPage() {
   )
 
   const [scenarioId, setScenarioId] = useState<ScenarioId>(initial.scenario)
-  const [rail, setRail] = useState<RailVariant>(initial.rail)
   const [createOpen, setCreateOpen] = useState(false)
   const scenario = scenarios.find((s) => s.id === scenarioId) ?? scenarios[0]!
 
   useEffect(() => {
-    writeDemoParams({ scenario: scenarioId, rail })
-  }, [scenarioId, rail])
+    writeDemoParams({ scenario: scenarioId })
+  }, [scenarioId])
 
   return (
     <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-      <DemoBar
-        scenarios={scenarios}
-        scenario={scenario}
-        onScenario={setScenarioId}
-        rail={rail}
-        onRail={setRail}
-      >
+      <DemoBar scenarios={scenarios} scenario={scenario} onScenario={setScenarioId}>
         <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
           New brand…
         </Button>
@@ -81,14 +72,14 @@ function DemoBrandPage() {
       {/* Keyed on the scenario: switching fixture must not carry a renamed
           brand, a staged draft or a dismissed toast across from the last one.
           A remount says that plainly, where a reset effect would only imply it. */}
-      <DemoHub key={scenarioId} scenario={scenario} rail={rail} />
+      <DemoHub key={scenarioId} scenario={scenario} />
 
       <DemoNewBrandDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   )
 }
 
-function DemoHub({ scenario, rail }: { scenario: DemoScenario; rail: RailVariant }) {
+function DemoHub({ scenario }: { scenario: DemoScenario }) {
   // Local overrides on top of the fixture, so Undo, rename and the review sheet
   // do something you can see.
   const [brand, setBrand] = useState<BrandWithSections>(scenario.brand)
@@ -133,16 +124,15 @@ function DemoHub({ scenario, rail }: { scenario: DemoScenario; rail: RailVariant
   const assets = scenario.assets
   const logo = logoAsset(assets)
   const logoSrc = logo ? assetUrl(logo, resolveDemoBlob) : null
-  const colors = assetsOfKind(assets, 'color')
 
-  // P4's mechanism: the tile list is a **prop**, so `miniApps.ts` is never
-  // edited. Flipping `enabled` in the registry would turn a dead tile on for
-  // every real brand — the exact affordance 1.7.0 was cleaning up.
-  const tiles: MiniApp[] = useMemo(
-    () => TILE_APPS.map((app) => (app.id === 'visual' ? { ...app, enabled: true } : app)),
-    [],
-  )
-  const assetsHref = demoHref('/demo/brand/assets', { scenario: scenario.id, rail })
+  // **The tile override is gone, and so is the `tiles` prop from this call.**
+  // 1.8.0 passed a copy of the registry with `Visual identity` enabled and
+  // pointed at `/demo/brand/assets`, because flipping `enabled` in `miniApps.ts`
+  // would have turned a dead tile on for every real brand. 2E earned the flip —
+  // the registry now says `enabled: true` and means it — and 2F deleted the demo
+  // library, so `Visual identity` here behaves exactly like `Copywriting` and
+  // `Open canvas` always have: it links to the real route with a fixture brand
+  // id and leaves the mockup. One rule for every tile beats an override.
 
   return (
     <>
@@ -152,12 +142,9 @@ function DemoHub({ scenario, rail }: { scenario: DemoScenario; rail: RailVariant
         onRename={() => setRenameOpen(true)}
         onDelete={() => setDeleteOpen(true)}
         onEdit={() => setEditOpen(true)}
-        tiles={tiles}
-        tileHref={(app) => (app.id === 'visual' ? assetsHref : undefined)}
         websiteUrl={scenario.websiteUrl}
         logoSrc={logoSrc}
-        colors={colors}
-        railVariant={rail}
+        assets={assets}
         research={scenario.research}
         onStartResearch={() => toast.info('Research would start here. Inert in the mockup.')}
         onReviewDrafts={() => setReviewOpen(true)}

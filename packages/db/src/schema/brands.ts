@@ -10,6 +10,10 @@ export const brands = pgTable(
       .references(() => workspaces.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     description: text('description'),
+    // Validated as http/https at the wire boundary (`BrandWebsiteUrlSchema`),
+    // stored as plain text: a CHECK here would duplicate a rule that already
+    // has one enforcement point and no second writer.
+    websiteUrl: text('website_url'),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' })
       .notNull()
       .defaultNow(),

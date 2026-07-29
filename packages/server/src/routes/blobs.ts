@@ -12,6 +12,45 @@ export interface BlobsDeps {
 }
 
 const KeyParam = z.object({ key: z.string().min(1) })
+
+/**
+ * Content type for a stored blob, from its key's extension.
+ *
+ * Phase 4 hardcoded `application/octet-stream` here and deferred the real thing
+ * to a "Phase 8 polish" that never landed. **Stage 2D is what made the gap
+ * visible**, because it is the first feature to render a stored image: browsers
+ * content-sniff PNG/JPEG/GIF/WebP for an `<img>` regardless of the declared
+ * type, so canvas image blocks have always worked — but **SVG is never
+ * sniffed**. An uploaded SVG logo fired `onError` and fell back to the
+ * monogram, which is pixel-identical to a brand with no logo. The feature
+ * failed silently for the single most likely logo format.
+ *
+ * From the extension rather than from a persisted value, because the value was
+ * never persisted: `local-disk`'s `put` takes a `contentType` option and
+ * discards it, so there is nothing to read for any blob written before today.
+ * The upload path already appends the original filename to the key, so the
+ * extension is present and server-minted.
+ *
+ * **An allowlist, not a lookup table.** Anything unrecognised stays
+ * `application/octet-stream` — a default that cannot become a vector — and the
+ * list is deliberately a subset of `ALLOWED_UPLOAD_MIMES` rather than derived
+ * from it: `text/plain` and the Word types are downloads, not things a browser
+ * should render inline from user bytes.
+ */
+const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+  pdf: 'application/pdf',
+}
+
+export function contentTypeForKey(key: string): string {
+  const ext = key.split('.').pop()?.toLowerCase() ?? ''
+  return CONTENT_TYPE_BY_EXTENSION[ext] ?? 'application/octet-stream'
+}
 const SigQuery = z.object({
   exp: z.coerce.number().int().positive(),
   sig: z.string().min(1),
@@ -40,10 +79,24 @@ export function createBlobsRouter(deps: BlobsDeps) {
         }
         throw err
       }
-      // Content-type persistence is a Phase 8 polish (plan task 4); the
-      // Phase 4 default keeps uploads honest without a schema change.
       return new Response(bytes as Uint8Array<ArrayBuffer>, {
-        headers: { 'content-type': 'application/octet-stream' },
+        headers: {
+          'content-type': contentTypeForKey(key),
+          // These two are what make declaring a real content type safe, and
+          // they are the reason this is not simply "the Phase 8 polish, late".
+          //
+          // `/blobs` is same-origin with the app in the single-origin dev and
+          // minimal-deploy setups, and **an SVG is a document**: served as
+          // `image/svg+xml` and *navigated to directly*, a `<script>` inside
+          // user-uploaded bytes would run in the app's origin. It cannot run
+          // inside the `<img>` that BrandMark renders — but the URL is one
+          // click away from being pasted into a tab.
+          //
+          //   sandbox + default-src 'none'  → no script, no fetch, no origin
+          //   nosniff                       → and no type confusion the other way
+          'content-security-policy': "default-src 'none'; sandbox",
+          'x-content-type-options': 'nosniff',
+        },
       })
     })
     .put('/:key{.+}', zValidator('param', KeyParam), zValidator('query', SigQuery), async (c) => {

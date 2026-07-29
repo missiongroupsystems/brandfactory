@@ -2,8 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { BrandWithSections } from '@brandfactory/shared'
-import { BrandIdentity, displayHost } from './BrandIdentity'
-import type { BrandAsset } from '@/demo/assetTypes'
+import { BrandIdentity } from './BrandIdentity'
 
 function brand(overrides: Partial<BrandWithSections> = {}): BrandWithSections {
   return {
@@ -11,6 +10,7 @@ function brand(overrides: Partial<BrandWithSections> = {}): BrandWithSections {
     workspaceId: 'w-1' as BrandWithSections['workspaceId'],
     name: 'Mission Group',
     description: 'This is the core Mission Group brand.',
+    websiteUrl: null,
     createdAt: '2026-07-24T00:00:00.000Z',
     updatedAt: '2026-07-24T00:00:00.000Z',
     sections: [],
@@ -59,27 +59,15 @@ describe('BrandIdentity', () => {
 })
 
 // ---------------------------------------------------------------------------
-// The front-end mockup's additions — all absent on the real route
+// `websiteUrl` is fed by the real route from Stage 1A. The palette is *not*
+// here at all from 2C — structure B was one of three arrangements 1.8.0 built
+// so that two could be deleted, and this band is one of the deletions.
 // ---------------------------------------------------------------------------
 
-function color(id: string, status: BrandAsset['status']): BrandAsset {
-  return {
-    id,
-    brandId: 'b-1',
-    kind: 'color',
-    source: 'inline',
-    role: null,
-    status,
-    label: `Colour ${id}`,
-    value: '#b5573c',
-    position: 100,
-    deletedAt: null,
-  }
-}
-
 describe('BrandIdentity — website and palette', () => {
-  // The invariant: the real route passes neither, and neither renders anything
-  // when absent. A prop that cannot be absent has changed the shipped hub.
+  // The surviving half of 1.8.0's invariant: neither renders anything when
+  // absent. A brand with no website must be byte-identical to 1.7.0 even though
+  // the route now passes the prop for real.
   it('renders nothing extra when given no website and no colours', () => {
     render(<BrandIdentity brand={brand()} onRename={vi.fn()} onDelete={vi.fn()} />)
     expect(screen.queryByRole('link')).toBeNull()
@@ -103,28 +91,36 @@ describe('BrandIdentity — website and palette', () => {
     expect(link.getAttribute('rel')).toContain('noopener')
   })
 
-  it('renders the palette and its count under the mark for structure B', () => {
+  // Found by the live pass, not by this suite: both the `Add a description`
+  // affordance and the website link are inline-level, so before the wrapper
+  // they rendered as one run of text — `Add a descriptioncasavostra.com`. A
+  // brand with a description never showed it, because a `<p>` is a block.
+  it('keeps the website link off the "Add a description" line', () => {
     render(
       <BrandIdentity
-        brand={brand()}
+        brand={brand({ description: null })}
         onRename={vi.fn()}
         onDelete={vi.fn()}
-        colors={[color('c-1', 'active'), color('c-2', 'proposed')]}
+        websiteUrl="https://casavostra.com"
       />,
     )
-    expect(screen.getByText('2 colours · 1 proposed')).toBeTruthy()
+
+    const button = screen.getByRole('button', { name: 'Add a description' })
+    const link = screen.getByRole('link', { name: /casavostra\.com/ })
+    // Not siblings in the same inline run: the link sits inside its own block.
+    expect(link.parentElement).not.toBe(button.parentElement)
+    expect(link.parentElement?.tagName).toBe('DIV')
+  })
+
+  // Structure B is deleted in 2C: the screenshots settled the palette into the
+  // rail, and the band goes back to one fact — *whose page is this*. The band
+  // must not grow swatches again by accident.
+  it('renders no palette under the mark', () => {
+    render(<BrandIdentity brand={brand()} onRename={vi.fn()} onDelete={vi.fn()} />)
+    expect(screen.queryByText(/colour/)).toBeNull()
+    expect(screen.queryByRole('list', { name: /palette/i })).toBeNull()
   })
 })
 
-describe('displayHost', () => {
-  it('drops the scheme, the www and a trailing slash', () => {
-    expect(displayHost('https://www.casavostra.com/')).toBe('casavostra.com')
-    expect(displayHost('https://casavostra.com/about/brand')).toBe('casavostra.com/about/brand')
-  })
-
-  // A link someone typed by hand is still worth rendering; swallowing it would
-  // be a worse failure than an ugly one.
-  it('falls back to the raw string when the URL does not parse', () => {
-    expect(displayHost('casavostra')).toBe('casavostra')
-  })
-})
+// `displayHost`'s own tests moved to `lib/website-url.test.ts` with the
+// function, which `BrandCard` now shares.

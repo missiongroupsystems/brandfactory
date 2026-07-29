@@ -5,6 +5,8 @@ import type { RealtimeBus } from '@brandfactory/adapter-realtime'
 import type {
   AgentMessage,
   Brand,
+  BrandAsset,
+  BrandAssetId,
   BrandGuidelineSection,
   BrandId,
   BrandSummary,
@@ -64,6 +66,7 @@ export interface FakeDbState {
   workspaces: Map<string, Workspace>
   brands: Map<string, Brand>
   sections: Map<string, BrandGuidelineSection>
+  assets: Map<string, BrandAsset>
   projects: Map<string, Project>
   canvases: Map<string, Canvas>
   settings: Map<string, WorkspaceSettings>
@@ -78,6 +81,7 @@ export function createFakeDbState(): FakeDbState {
     workspaces: new Map(),
     brands: new Map(),
     sections: new Map(),
+    assets: new Map(),
     projects: new Map(),
     canvases: new Map(),
     settings: new Map(),
@@ -175,6 +179,7 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         workspaceId: input.workspaceId,
         name: input.name,
         description: input.description ?? null,
+        websiteUrl: input.websiteUrl ?? null,
         createdAt: NOW,
         updatedAt: NOW,
       }
@@ -184,10 +189,13 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
     async updateBrand(id, input) {
       const existing = state.brands.get(id)
       if (!existing) return null
+      // Mirrors the real `set()`: `undefined` leaves a column alone, `null`
+      // clears it. A spread of `input` wholesale would diverge from SQL.
       const row: Brand = {
         ...existing,
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.websiteUrl !== undefined ? { websiteUrl: input.websiteUrl } : {}),
         updatedAt: NOW,
       }
       state.brands.set(id, row)
@@ -199,6 +207,9 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       state.brands.delete(id)
       for (const [sid, section] of state.sections) {
         if (section.brandId === id) state.sections.delete(sid)
+      }
+      for (const [aid, asset] of state.assets) {
+        if (asset.brandId === id) state.assets.delete(aid)
       }
       for (const [pid, project] of [...state.projects.entries()]) {
         if (project.brandId === id) {
@@ -215,10 +226,18 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       const canvasIds = [...state.canvases.values()]
         .filter((c) => projectIds.includes(c.projectId))
         .map((c) => c.id)
-      return [...state.canvasBlocks.values()]
+      const blockKeys = [...state.canvasBlocks.values()]
         .filter((b) => canvasIds.includes(b.canvasId))
         .map((b) => ('blobKey' in b ? b.blobKey : null))
         .filter((k): k is string => typeof k === 'string')
+      // Mirrors the real query's second arm (2A): `source = 'blob'` only — a
+      // `link` row's url is somebody else's host — and soft-deleted rows
+      // *included*, because the brand is going away and every byte goes with it.
+      const assetKeys = [...state.assets.values()]
+        .filter((a) => a.brandId === brandId)
+        .map((a) => (a.source === 'blob' ? a.blobKey : null))
+        .filter((k): k is string => k !== null)
+      return [...blockKeys, ...assetKeys]
     },
     async listSectionsByBrand(brandId) {
       return [...state.sections.values()]
@@ -267,6 +286,89 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       return [...state.sections.values()]
         .filter((s) => s.brandId === brandId)
         .sort((a, b) => a.priority - b.priority)
+    },
+
+    // Brand assets. Every one of these mirrors the real query rather than doing
+    // the obvious thing, because a fake that spreads its input wholesale agrees
+    // with a broken implementation — see `updateAsset` and `listAssetsByBrand`
+    // in particular.
+    async listAssetsByBrand(brandId) {
+      // Soft-deleted rows out, `proposed` rows *in*, ordered by kind then
+      // position — the real `orderBy(asc(kind), asc(position))`.
+      return [...state.assets.values()]
+        .filter((a) => a.brandId === brandId && a.deletedAt === null)
+        .sort((a, b) => a.kind.localeCompare(b.kind) || a.position - b.position)
+    },
+    async createAsset(input) {
+      const id = nextId('as') as BrandAssetId
+      const base = {
+        id,
+        brandId: input.brandId,
+        kind: input.kind,
+        label: input.label,
+        position: input.position,
+        role: input.role ?? null,
+        status: input.status ?? 'active',
+        alt: input.alt ?? null,
+        mime: input.mime ?? null,
+        filename: input.filename ?? null,
+        width: input.width ?? null,
+        height: input.height ?? null,
+        sizeBytes: input.sizeBytes ?? null,
+        deletedAt: null,
+        createdAt: NOW,
+        updatedAt: NOW,
+      }
+      let asset: BrandAsset
+      switch (input.source) {
+        case 'inline':
+          asset = { ...base, source: 'inline', value: input.value }
+          break
+        case 'blob':
+          asset = { ...base, source: 'blob', blobKey: input.blobKey }
+          break
+        case 'link':
+          asset = { ...base, source: 'link', url: input.url }
+          break
+      }
+      state.assets.set(id, asset)
+      return asset
+    },
+    async updateAsset(brandId, id, patch) {
+      const existing = state.assets.get(id)
+      // Scoped by brand as well as id — an asset from another brand misses.
+      if (!existing || existing.brandId !== brandId) return null
+      // `undefined` leaves a column alone, `null` clears it. A spread of
+      // `patch` wholesale would agree with a `set()` that had lost the rule.
+      const updated: BrandAsset = {
+        ...existing,
+        ...(patch.label !== undefined ? { label: patch.label } : {}),
+        ...(patch.position !== undefined ? { position: patch.position } : {}),
+        ...(patch.role !== undefined ? { role: patch.role } : {}),
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        ...(patch.alt !== undefined ? { alt: patch.alt } : {}),
+        updatedAt: NOW,
+      }
+      state.assets.set(id, updated)
+      return updated
+    },
+    async softDeleteAsset(brandId, id) {
+      const existing = state.assets.get(id)
+      if (!existing || existing.brandId !== brandId) return null
+      // The row stays in the map. Nothing sweeps its bytes.
+      const updated: BrandAsset = { ...existing, deletedAt: NOW, updatedAt: NOW }
+      state.assets.set(id, updated)
+      return updated
+    },
+    async reorderAssets(brandId, updates) {
+      for (const { id, position } of updates) {
+        const existing = state.assets.get(id)
+        if (!existing || existing.brandId !== brandId) {
+          throw new Error(`Asset ${id} not found in brand ${brandId}`)
+        }
+        state.assets.set(id, { ...existing, position, updatedAt: NOW })
+      }
+      return db.listAssetsByBrand(brandId)
     },
 
     async getProjectById(id) {

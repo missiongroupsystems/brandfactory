@@ -34,6 +34,7 @@ function brand(): BrandWithSections {
     workspaceId: '44444444-4444-4444-8444-444444444444' as BrandWithSections['workspaceId'],
     name: 'Acme',
     description: null,
+    websiteUrl: null,
     createdAt: '2026-07-27T00:00:00.000Z',
     updatedAt: '2026-07-27T00:00:00.000Z',
     sections: [
@@ -56,6 +57,92 @@ function brand(): BrandWithSections {
 
 const dropTarget = () => screen.getByText('Drop a message here for a new section')
 const sectionLabels = () => screen.getAllByLabelText('Label') as HTMLInputElement[]
+
+/** The brand above plus an agent-written section, for the provenance tests. */
+function brandWithAgentSection(): BrandWithSections {
+  const base = brand()
+  return {
+    ...base,
+    sections: [
+      ...base.sections,
+      {
+        ...base.sections[0]!,
+        id: 's-2' as BrandWithSections['sections'][number]['id'],
+        label: 'Target audience',
+        priority: 2000,
+        createdBy: 'agent',
+      },
+    ],
+  }
+}
+
+const savedSections = () =>
+  (mutate.mock.calls[0]?.[0] as { sections: { label: string; createdBy: string }[] }).sections
+
+// ---------------------------------------------------------------------------
+// Provenance (Stage 1B)
+// ---------------------------------------------------------------------------
+//
+// This form round-trips the brand's *complete* section list, so it is the
+// client half of the bug: whatever it puts in `createdBy` is what every section
+// it sends becomes.
+
+describe('BrandGuidelinesEditor provenance', () => {
+  beforeEach(() => {
+    mutate.mockClear()
+  })
+
+  // The client-side statement of Stage 1B's acceptance criterion. Editing one
+  // section must not rewrite the author of the section next to it.
+  it('sends each section back with the author it arrived with', async () => {
+    render(<BrandGuidelinesEditor brand={brandWithAgentSection()} />)
+
+    await userEvent.type(sectionLabels()[0]!, ' (edited)')
+    await userEvent.click(screen.getByRole('button', { name: 'Save guidelines' }))
+
+    expect(savedSections().map((s) => [s.label, s.createdBy])).toEqual([
+      ['Voice & tone (edited)', 'user'],
+      ['Target audience', 'agent'],
+    ])
+  })
+
+  // Editing an agent section does not make you its author. The field records
+  // where the section came from, which is what keeps "these came from research"
+  // legible after you have tidied the prose.
+  it('keeps an agent section agent-written when you edit it directly', async () => {
+    render(<BrandGuidelinesEditor brand={brandWithAgentSection()} />)
+
+    await userEvent.type(sectionLabels()[1]!, ' — refined')
+    await userEvent.click(screen.getByRole('button', { name: 'Save guidelines' }))
+
+    expect(savedSections()[1]).toMatchObject({
+      label: 'Target audience — refined',
+      createdBy: 'agent',
+    })
+  })
+
+  it('marks a section you add yourself as user-written', async () => {
+    render(<BrandGuidelinesEditor brand={brand()} />)
+
+    await userEvent.click(screen.getByRole('button', { name: '+ Add section' }))
+    await userEvent.type(sectionLabels()[1]!, 'Values')
+    await userEvent.click(screen.getByRole('button', { name: 'Save guidelines' }))
+
+    expect(savedSections()[1]).toMatchObject({ label: 'Values', createdBy: 'user' })
+  })
+
+  it('marks a captured section user-written — you curated it, the agent did not write it here', async () => {
+    render(<BrandGuidelinesEditor brand={brand()} />)
+
+    fireEvent.drop(dropTarget(), {
+      dataTransfer: fakeDataTransfer({ 'text/plain': 'Warm, never cute.' }),
+    })
+    await waitFor(() => expect(sectionLabels()).toHaveLength(2))
+    await userEvent.click(screen.getByRole('button', { name: 'Save guidelines' }))
+
+    expect(savedSections()[1]?.createdBy).toBe('user')
+  })
+})
 
 describe('BrandGuidelinesEditor capture', () => {
   beforeEach(() => {

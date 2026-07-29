@@ -109,6 +109,7 @@ function detail(kind: ProjectDetail['kind'], templateId?: string): ProjectDetail
       workspaceId: '44444444-4444-4444-8444-444444444444' as ProjectDetail['brand']['workspaceId'],
       name: 'Acme',
       description: null,
+      websiteUrl: null,
       createdAt: '2026-07-27T00:00:00.000Z',
       updatedAt: '2026-07-27T00:00:00.000Z',
       sections: [],

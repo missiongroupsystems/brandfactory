@@ -8,7 +8,13 @@ const TILE_CLASS =
 export interface MiniAppTileProps {
   app: MiniApp
   brandId: string
-  /** `null` = not loaded yet / failed; the tile stays silent rather than claiming zero. */
+  /**
+   * How many of the app's `unit` are behind it — threads for most rows, assets
+   * for `Visual identity`.
+   *
+   * `null` = not loaded yet / failed; the tile stays silent rather than
+   * claiming zero.
+   */
   threadCount: number | null
   /**
    * An explicit destination, replacing `/brands/$brandId/apps/$appId`.
@@ -57,7 +63,7 @@ export function MiniAppTile({ app, brandId, threadCount, href }: MiniAppTileProp
       </div>
       <p className="mt-1.5 text-xs text-muted-foreground">{app.description}</p>
       <span className="mt-3 text-xs text-muted-foreground">
-        {showCount ? (threadCount === 1 ? '1 thread' : `${threadCount} threads`) : ' '}
+        {showCount ? `${threadCount} ${app.unit}${threadCount === 1 ? '' : 's'}` : ' '}
       </span>
     </>
   )

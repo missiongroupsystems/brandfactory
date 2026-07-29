@@ -51,6 +51,7 @@ export function createWorkspaceBrandsRouter(deps: BrandsDeps) {
           workspaceId,
           name: body.name,
           description: body.description ?? null,
+          websiteUrl: body.websiteUrl ?? null,
         })
         return c.json(row, 201)
       },
@@ -112,6 +113,12 @@ export function createBrandsRouter(deps: BrandsDeps) {
         // single-tx upsert + reorder + delete-omitted lives in
         // `@brandfactory/db` so a mid-list failure rolls back instead of
         // leaving the brand half updated.
+        //
+        // `createdBy` comes off the wire (Stage 1B). It used to be synthesised
+        // as `'user'` here, which — because the payload is the complete list —
+        // meant every save rewrote the author of every section the client sent
+        // back, not just the one being edited. The schema defaults it to
+        // `'user'`, so a client that does not know about the field is unchanged.
         const sections = await deps.db.updateBrandGuidelines(
           id,
           body.sections.map((s) => ({
@@ -119,7 +126,7 @@ export function createBrandsRouter(deps: BrandsDeps) {
             label: s.label,
             body: s.body,
             priority: s.priority,
-            createdBy: 'user',
+            createdBy: s.createdBy,
           })),
         )
         return c.json(sections)

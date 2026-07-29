@@ -15,6 +15,7 @@ import { loggerMiddleware } from './middleware/logger'
 import { requestIdMiddleware } from './middleware/request-id'
 import type { AgentConcurrencyGuard } from './agent/concurrency'
 import { createAgentRouter } from './routes/agent'
+import { createBrandAssetsRouter } from './routes/assets'
 import { createBlobsRouter } from './routes/blobs'
 import { createBlobUrlsRouter } from './routes/blobs-auth'
 import { createBrandsRouter, createWorkspaceBrandsRouter } from './routes/brands'
@@ -90,6 +91,8 @@ export function createApp(deps: AppDeps) {
     .route('/workspaces', createSettingsRouter({ db: deps.db, env: deps.env }))
     .route('/brands', createBrandsRouter({ db: deps.db, storage: deps.storage }))
     .route('/brands', createBrandProjectsRouter({ db: deps.db, storage: deps.storage }))
+    // No `storage`: asset delete is a soft delete and must not sweep bytes.
+    .route('/brands', createBrandAssetsRouter({ db: deps.db }))
     .route('/projects', createProjectsRouter({ db: deps.db, storage: deps.storage }))
     .route('/projects', createCanvasRouter({ db: deps.db, realtime: deps.realtime }))
     .route('/projects', createMessagesRouter({ db: deps.db }))

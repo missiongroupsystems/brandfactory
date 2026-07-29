@@ -47,12 +47,16 @@ describe.skipIf(!hasDb)('updateBrandGuidelines (live DB)', () => {
     content: [{ type: 'paragraph' as const, content: [{ type: 'text' as const, text }] }],
   })
 
+  // Mirrors what `BrandGuidelinesEditor` sends since Stage 1B: a section goes
+  // back with the author it arrived with, rather than with a literal the caller
+  // chose. Carrying `s.createdBy` here is what makes the provenance case below
+  // exercise the same shape as the client.
   const asInput = (s: BrandGuidelineSection) => ({
     id: s.id,
     label: s.label,
     body: s.body,
     priority: s.priority,
-    createdBy: 'user' as const,
+    createdBy: s.createdBy,
   })
 
   it('deletes sections the payload omits', async () => {
@@ -87,6 +91,33 @@ describe.skipIf(!hasDb)('updateBrandGuidelines (live DB)', () => {
     expect(after.map((s) => s.label)).toEqual(['Renamed', 'Brand new'])
     expect(after[0]!.id).toBe(first!.id) // updated in place, not re-created
     expect(after.map((s) => s.id)).not.toContain(third!.id) // dropped
+  })
+
+  // Stage 1B. `guideline_section_created_by` has carried `'agent'` since 0.3.0
+  // with no producer, so this is the first time the enum's second value goes
+  // through the transaction and comes back out of a real column.
+  it('writes and preserves per-section provenance across an unrelated edit', async () => {
+    const seeded = await updateBrandGuidelines(brandId, [
+      { label: 'Voice', body: body('dry'), priority: 1000, createdBy: 'user' },
+      { label: 'Audience', body: body('from research'), priority: 2000, createdBy: 'agent' },
+    ])
+    expect(seeded.map((s) => s.createdBy)).toEqual(['user', 'agent'])
+
+    // Edit the user-written one and re-send both, as the editor does. The row
+    // stored as `'agent'` must survive a save it was merely carried along by.
+    const [voice, audience] = seeded
+    const after = await updateBrandGuidelines(brandId, [
+      { ...asInput(voice!), label: 'Voice & tone' },
+      asInput(audience!),
+    ])
+
+    expect(after.map((s) => [s.label, s.createdBy])).toEqual([
+      ['Voice & tone', 'user'],
+      ['Audience', 'agent'],
+    ])
+    // Re-read, because the return value is a select over the table but within
+    // the same transaction's snapshot — this proves what is actually stored.
+    expect((await listSectionsByBrand(brandId)).map((s) => s.createdBy)).toEqual(['user', 'agent'])
   })
 
   it('scopes the delete to one brand', async () => {

@@ -3,6 +3,7 @@ import type { ProseMirrorDoc } from '@brandfactory/shared'
 import {
   rowToAgentMessage,
   rowToBrand,
+  rowToBrandAsset,
   rowToBrandSummary,
   rowToCanvas,
   rowToCanvasBlock,
@@ -38,11 +39,28 @@ describe('mappers — happy paths', () => {
       workspaceId: 'ws-1',
       name: 'Brand',
       description: null,
+      websiteUrl: null,
       createdAt: TS,
       updatedAt: TS,
     }
     const b = rowToBrand(row)
     expect(b.description).toBeNull()
+  })
+
+  // The column is nullable and every other brand fixture in the suite leaves it
+  // null, so without this the mapper could drop `website_url` entirely and
+  // nothing would notice.
+  it('rowToBrand carries website_url through', () => {
+    const b = rowToBrand({
+      id: 'b-1',
+      workspaceId: 'ws-1',
+      name: 'Brand',
+      description: null,
+      websiteUrl: 'https://casavostra.com',
+      createdAt: TS,
+      updatedAt: TS,
+    })
+    expect(b.websiteUrl).toBe('https://casavostra.com')
   })
 
   it('rowToBrandSummary attaches section and project counts', () => {
@@ -51,6 +69,7 @@ describe('mappers — happy paths', () => {
       workspaceId: 'ws-1',
       name: 'Brand',
       description: null,
+      websiteUrl: null,
       createdAt: TS,
       updatedAt: TS,
       sectionCount: 3,
@@ -187,6 +206,98 @@ describe('mappers — happy paths', () => {
   })
 })
 
+describe('rowToBrandAsset', () => {
+  const assetRow = {
+    id: 'a-1',
+    brandId: 'b-1',
+    kind: 'color' as const,
+    source: 'inline' as const,
+    role: null,
+    status: 'active' as const,
+    label: 'Terracotta',
+    value: '#b5573c',
+    blobKey: null,
+    url: null,
+    alt: null,
+    mime: null,
+    filename: null,
+    width: null,
+    height: null,
+    sizeBytes: null,
+    position: 100,
+    deletedAt: null,
+    createdAt: TS,
+    updatedAt: TS,
+  }
+
+  it('narrows to the arm named by source', () => {
+    const inline = rowToBrandAsset(assetRow)
+    expect(inline.source).toBe('inline')
+    if (inline.source === 'inline') expect(inline.value).toBe('#b5573c')
+
+    const blob = rowToBrandAsset({
+      ...assetRow,
+      kind: 'image',
+      source: 'blob',
+      value: null,
+      blobKey: 'brands/mark.svg',
+    })
+    if (blob.source === 'blob') expect(blob.blobKey).toBe('brands/mark.svg')
+
+    const link = rowToBrandAsset({
+      ...assetRow,
+      kind: 'image',
+      source: 'link',
+      value: null,
+      url: 'https://cdn.example.com/a.svg',
+    })
+    if (link.source === 'link') expect(link.url).toBe('https://cdn.example.com/a.svg')
+  })
+
+  // The two columns the 1.8.0 mockup found missing. Both are nullable, so a
+  // mapper that dropped them would leave every other assertion here green.
+  it('carries alt and size_bytes through', () => {
+    const a = rowToBrandAsset({
+      ...assetRow,
+      kind: 'image',
+      source: 'blob',
+      value: null,
+      blobKey: 'brands/photo.jpg',
+      alt: 'The back room at 7pm',
+      sizeBytes: 842_100,
+      width: 320,
+      height: 240,
+      mime: 'image/jpeg',
+      filename: 'back-room.jpg',
+    })
+    expect(a).toMatchObject({
+      alt: 'The back room at 7pm',
+      sizeBytes: 842_100,
+      width: 320,
+      height: 240,
+      mime: 'image/jpeg',
+      filename: 'back-room.jpg',
+    })
+  })
+
+  it('normalises deletedAt without turning null into a date', () => {
+    expect(rowToBrandAsset(assetRow).deletedAt).toBeNull()
+    expect(
+      rowToBrandAsset({ ...assetRow, deletedAt: '2026-07-22 07:57:59.635905+00' }).deletedAt,
+    ).toBe('2026-07-22T07:57:59.635Z')
+  })
+
+  // The CHECK guarantees the source column is present, so a null here means the
+  // constraint is gone — a data-integrity bug, not a state to degrade into.
+  it.each([
+    ['inline', { source: 'inline' as const, value: null }, /missing value/],
+    ['blob', { source: 'blob' as const, value: null, blobKey: null }, /missing blobKey/],
+    ['link', { source: 'link' as const, value: null, url: null }, /missing url/],
+  ])('throws when a %s row has lost its source column', (_name, columns, message) => {
+    expect(() => rowToBrandAsset({ ...assetRow, ...columns })).toThrow(message)
+  })
+})
+
 describe('mappers — data-integrity failures fail loud', () => {
   it('rowToGuidelineSection throws on a malformed ProseMirror body', () => {
     const row = {
@@ -314,6 +425,7 @@ describe('mappers — timestamp normalisation', () => {
       workspaceId: 'ws-1',
       name: 'Acme',
       description: null,
+      websiteUrl: null,
       createdAt: ISO,
       updatedAt: ISO,
     })

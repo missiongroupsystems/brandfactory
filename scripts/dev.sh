@@ -2,8 +2,13 @@
 # Dev entrypoint — boots the Hono server and Vite frontend in parallel.
 #
 # The server serves the API + realtime WS on :3001. Vite boots on :5173 with
-# a proxy (`/api` → :3001, `/rt` → :3001) so the browser sees a single origin
-# and no CORS setup is needed in dev.
+# a proxy (`/api`, `/rt` and `/blobs` → :3001) so the browser sees a single
+# origin and no CORS setup is needed in dev.
+#
+# `/blobs` joined that list in 2E. It was missing from 0.7.4, which made every
+# browser *upload* fail on a CORS preflight while every *read* kept working —
+# an `<img src>` is not CORS-gated. It also requires `BLOB_PUBLIC_BASE_URL` to
+# be relative; see `.env.example`.
 #
 # Assumes Postgres is already running. Start it via
 # `docker compose -f docker/compose.yaml up -d` and apply migrations with
