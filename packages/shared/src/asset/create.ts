@@ -1,5 +1,12 @@
 import { z } from 'zod'
-import { AssetKindSchema, AssetLinkUrlSchema, AssetRoleSchema, AssetStatusSchema } from './asset'
+import {
+  AssetKindSchema,
+  AssetLinkUrlSchema,
+  AssetRoleSchema,
+  AssetStatusSchema,
+  checkKindSourceAgreement,
+} from './asset'
+import { AssetColorValueSchema } from './color'
 
 // The create body is the row union minus everything the server owns: `id`,
 // `brandId` (it is in the path), `deletedAt`, `createdAt`, `updatedAt`.
@@ -32,11 +39,11 @@ const CreateBrandAssetBaseShape = {
   position: z.number().int().optional(),
 }
 
-export const CreateBrandAssetInputSchema = z.discriminatedUnion('source', [
+const CreateBrandAssetUnion = z.discriminatedUnion('source', [
   z.object({
     ...CreateBrandAssetBaseShape,
     source: z.literal('inline'),
-    value: z.string().min(1).max(255),
+    value: AssetColorValueSchema,
   }),
   z.object({
     ...CreateBrandAssetBaseShape,
@@ -50,4 +57,13 @@ export const CreateBrandAssetInputSchema = z.discriminatedUnion('source', [
   }),
 ])
 
-export type CreateBrandAssetInput = z.infer<typeof CreateBrandAssetInputSchema>
+/**
+ * `checkKindSourceAgreement` runs here as well as on the row schema, which is
+ * the same belt-and-braces the source rule already gets — except that here it
+ * is the half that matters, because this is the only schema a request is
+ * actually parsed by. The row schema carries it so the two cannot drift.
+ */
+export const CreateBrandAssetInputSchema =
+  CreateBrandAssetUnion.superRefine(checkKindSourceAgreement)
+
+export type CreateBrandAssetInput = z.infer<typeof CreateBrandAssetUnion>

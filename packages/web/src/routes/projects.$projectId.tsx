@@ -12,6 +12,7 @@ import { CanvasPane } from '@/components/canvas/CanvasPane'
 import { BrandContextPane } from '@/components/brand/BrandContextPane'
 import { EditGuidelinesDialog } from '@/components/brand/EditGuidelinesDialog'
 import { BRAND_CONTEXT_TEMPLATE_ID } from '@/components/brand/miniApps'
+import type { StagedSection } from '@/components/brand/BrandGuidelinesEditor'
 import type { CapturePayload } from '@/components/project/MessageCapture'
 
 function ProjectPage() {
@@ -19,7 +20,12 @@ function ProjectPage() {
   const { data, isLoading, error } = useProjectDetail(projectId)
   // The click path's hand-off to whichever editor is in reach. The drag path
   // needs no state — the drop lands directly in the visible editor.
-  const [staged, setStaged] = useState<CapturePayload | null>(null)
+  // A one-item list since Stage 3E widened the channel for the research review
+  // sheet. The gesture is unchanged — one message, one section — and it stays
+  // one here: the alternative, accumulating captures into a batch, would put
+  // the "when does this land?" question into a path that has always answered
+  // it immediately.
+  const [staged, setStaged] = useState<StagedSection[] | null>(null)
   const clearStaged = useCallback(() => setStaged(null), [])
   // Phase E: outside a brand-context thread the editor isn't on screen, so a
   // capture brings it up.
@@ -64,7 +70,7 @@ function ProjectPage() {
   // not re-test it. Two guards for one property mask each other, and neither
   // ends up pinned by a test.
   const capture = (payload: CapturePayload) => {
-    setStaged(payload)
+    setStaged([{ payload }])
     setCaptureDialogOpen(true)
   }
 

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { BrandAssetIdSchema, BrandIdSchema } from '../ids'
+import { AssetColorValueSchema } from './color'
 
 // ---------------------------------------------------------------------------
 // BrandAsset — three orthogonal axes
@@ -94,11 +95,18 @@ const BrandAssetBaseShape = {
   updatedAt: z.iso.datetime(),
 }
 
-/** `kind: 'color'` — the hex/oklch string lives in the row. */
+/**
+ * `kind: 'color'` — the hex/oklch string lives in the row.
+ *
+ * `AssetColorValueSchema` rather than a bare string since the Stage 1–2 review:
+ * `inline` and `color` imply each other (see `checkKindSourceAgreement`), so
+ * every value that reaches this arm *is* a colour and the schema may as well
+ * say so. See `./color.ts` for why the sink makes that worth enforcing.
+ */
 export const InlineBrandAssetSchema = z.object({
   ...BrandAssetBaseShape,
   source: z.literal('inline'),
-  value: z.string().min(1).max(255),
+  value: AssetColorValueSchema,
 })
 export type InlineBrandAsset = z.infer<typeof InlineBrandAssetSchema>
 
@@ -126,13 +134,59 @@ export type LinkBrandAsset = z.infer<typeof LinkBrandAssetSchema>
  * (unlike `brands.website_url`) because this invariant spans three columns and
  * a future writer could plausibly violate it.
  */
-export const BrandAssetSchema = z.discriminatedUnion('source', [
+const BrandAssetUnion = z.discriminatedUnion('source', [
   InlineBrandAssetSchema,
   BlobBrandAssetSchema,
   LinkBrandAssetSchema,
 ])
 
-export type BrandAsset = z.infer<typeof BrandAssetSchema>
+/**
+ * The second axis rule, added by the Stage 1–2 review: **`kind` and `source`
+ * are orthogonal in the table and not in reality.**
+ *
+ * 2A's three axes are independent by design, and the CHECK plus the union pin
+ * `source` against its three value columns — but nothing said which *kinds* may
+ * take which sources. So `{ kind: 'color', source: 'link' }` and
+ * `{ kind: 'image', source: 'inline' }` passed the schema, the CHECK and the
+ * route, and rendered as an empty swatch with an `aria-label` of `Copy ` and a
+ * permanent `No preview` tile respectively. Neither is reachable from the UI;
+ * both were reachable from the API.
+ *
+ * The rule is a biconditional, which is why it is one function rather than two
+ * checks: **a colour is inline and an inline asset is a colour.** Bytes live in
+ * a blob or on someone else's host; a colour is short enough to live in the row
+ * and has nowhere else to be.
+ *
+ * Enforced here rather than as a fourth CHECK on the table. The `source` CHECK
+ * earned its SQL because it spans three columns a future direct writer could
+ * walk past one at a time; this one is two columns set together at insert, the
+ * only writers are `createAsset` and the route above it, and adding a migration
+ * mid-Stage-3 would renumber a migration that stage has already claimed. Worth
+ * revisiting whenever the next migration lands for its own reasons.
+ */
+export function checkKindSourceAgreement(
+  asset: { kind: AssetKind; source: AssetSource },
+  ctx: z.RefinementCtx,
+): void {
+  if (asset.kind === 'color' && asset.source !== 'inline') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['source'],
+      message: "a 'color' asset carries its value in the row — source must be 'inline'",
+    })
+  }
+  if (asset.kind !== 'color' && asset.source === 'inline') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['source'],
+      message: `a '${asset.kind}' asset has bytes — source must be 'blob' or 'link'`,
+    })
+  }
+}
+
+export const BrandAssetSchema = BrandAssetUnion.superRefine(checkKindSourceAgreement)
+
+export type BrandAsset = z.infer<typeof BrandAssetUnion>
 
 // ---------------------------------------------------------------------------
 // Accessors

@@ -46,7 +46,11 @@ export function WorkspaceSwitcher() {
             <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="min-w-48">
+        {/* Capped for the same reason as BrandSwitcher's, which is where a long
+            name made the defect visible: `truncate` on a row does nothing while
+            the menu is free to grow to the widest one. A workspace name has the
+            same freedom as a brand name, so it gets the same ceiling. */}
+        <DropdownMenuContent align="start" className="min-w-48 max-w-80">
           {/* Radio semantics, not plain items: the check mark is opacity-only,
               so without `aria-checked` the active workspace is signalled
               visually and nowhere else. */}
@@ -60,7 +64,7 @@ export function WorkspaceSwitcher() {
                   void navigate({ to: '/workspaces/$wsId', params: { wsId: ws.id } })
                 }}
               >
-                <span className="truncate">{ws.name}</span>
+                <span className="min-w-0 truncate">{ws.name}</span>
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>

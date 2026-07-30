@@ -124,3 +124,57 @@ describe('loadEnv', () => {
     expect(err?.message).toMatch(/ANTHROPIC_API_KEY/)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Brand research (3B)
+// ---------------------------------------------------------------------------
+//
+// The five keys land together with the adapter, because `env.example.test.ts`
+// fails the build if `EnvSchema` widens without `.env.example` following — the
+// drift guard working as designed rather than as an obstacle.
+
+describe('research env', () => {
+  // The most important default in the file: a deployment that has not opted in
+  // gets the feature absent, never a surprise invoice.
+  it('defaults to no research provider at all', () => {
+    const env = loadEnv(baseLocal as NodeJS.ProcessEnv)
+    expect(env.RESEARCH_PROVIDER).toBe('none')
+    expect(env.PERPLEXITY_API_KEY).toBeUndefined()
+  })
+
+  it('rejects perplexity without PERPLEXITY_API_KEY', () => {
+    expect(() =>
+      loadEnv({ ...baseLocal, RESEARCH_PROVIDER: 'perplexity' } as NodeJS.ProcessEnv),
+    ).toThrow(/PERPLEXITY_API_KEY/)
+  })
+
+  it('accepts perplexity with a key, and defaults the model 3A measured', () => {
+    const env = loadEnv({
+      ...baseLocal,
+      RESEARCH_PROVIDER: 'perplexity',
+      PERPLEXITY_API_KEY: 'pplx-x',
+    } as NodeJS.ProcessEnv)
+    expect(env.RESEARCH_PROVIDER).toBe('perplexity')
+    expect(env.RESEARCH_MODEL).toBe('sonar-deep-research')
+  })
+
+  // Decision 12's guards have defaults so an operator who never reads this
+  // section is still capped — an unset budget guard is not a guard.
+  it('caps runs by default, and coerces overrides from strings', () => {
+    const env = loadEnv(baseLocal as NodeJS.ProcessEnv)
+    expect(env.RESEARCH_MAX_ACTIVE_PER_WORKSPACE).toBe(2)
+    expect(env.RESEARCH_MAX_JOBS_PER_DAY).toBe(10)
+
+    const tuned = loadEnv({
+      ...baseLocal,
+      RESEARCH_MAX_JOBS_PER_DAY: '25',
+    } as NodeJS.ProcessEnv)
+    expect(tuned.RESEARCH_MAX_JOBS_PER_DAY).toBe(25)
+  })
+
+  it('refuses a cap of zero, which would read as "unlimited" and mean "never"', () => {
+    expect(() =>
+      loadEnv({ ...baseLocal, RESEARCH_MAX_JOBS_PER_DAY: '0' } as NodeJS.ProcessEnv),
+    ).toThrow()
+  })
+})

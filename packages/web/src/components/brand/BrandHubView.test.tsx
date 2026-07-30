@@ -215,13 +215,15 @@ describe('BrandHubView', () => {
             surface: 'tile',
           },
         ]}
-        tileHref={(app) => (app.id === 'visual' ? '/demo/brand/assets' : undefined)}
+        // An arbitrary override, not a route: `tileHref` exists so a caller can
+        // redirect one tile, and 3G deleted the only caller that ever did.
+        tileHref={(app) => (app.id === 'visual' ? '/elsewhere' : undefined)}
         {...handlers}
       />,
     )
 
     const tile = screen.getByRole('link', { name: /Visual identity/ })
-    expect(tile.getAttribute('href')).toBe('/demo/brand/assets')
+    expect(tile.getAttribute('href')).toBe('/elsewhere')
     expect(screen.queryByText('Soon')).toBeNull()
   })
 })

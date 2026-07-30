@@ -3,13 +3,13 @@ import {
   type BrandAsset,
   type BrandWithSections,
   type ProjectSummary,
+  type ResearchJobSummary,
 } from '@brandfactory/shared'
 import { BrandContextRail } from '@/components/brand/BrandContextRail'
 import { BrandIdentity } from '@/components/brand/BrandIdentity'
 import { TILE_APPS, isOrphanThread, type MiniApp } from '@/components/brand/miniApps'
 import { MiniAppTile } from '@/components/brand/MiniAppTile'
 import { ProjectCard } from '@/components/project/ProjectCard'
-import type { ResearchJobSummary } from '@/demo/researchTypes'
 
 // ---------------------------------------------------------------------------
 // Brand hub — three zones, answering three questions in reading order
@@ -34,33 +34,35 @@ import type { ResearchJobSummary } from '@/demo/researchTypes'
 // Why this is a view and not a page
 // ---------------------------------------------------------------------------
 //
-// `routes/brands.$brandId.tsx` owns every query, every mutation and all three
-// dialogs, and feeds this component props. `routes/demo.brand.tsx` feeds the
-// same component fixtures. Both render inside the real router, the real app
-// shell, the real `index.css` and the real theme toggle — which is the list
-// 1.7.0's throwaway Vite harness could not put in a screenshot.
+// `routes/brands.$brandId.tsx` owns every query, every mutation and all four
+// dialogs, and feeds this component props. Until 3G a mockup route fed the same
+// component fixtures, which is why the split exists at all: the mockup rendered
+// the *route's own* component inside the real router, the real app shell, the
+// real `index.css` and the real theme toggle — the list 1.7.0's throwaway Vite
+// harness could not put in a screenshot.
 //
-// **The invariant that keeps the real hub unchanged.** Every prop below the
-// `onEdit` line is added by the front-end mockup pass, and:
+// **The invariant that kept the real hub unchanged, and how it ended.** Every
+// prop below the `onEdit` line was added by the front-end mockup pass under two
+// promises:
 //
 //   the real route can only pass null / empty for each of them, and every
 //   affordance they drive renders *nothing* when its prop is absent.
 //
-// **Stages 1A and 2C retire the first half of that, one prop at a time.**
-// `websiteUrl` came off the brand row in 1A; `colors` comes off
-// `useBrandAssets` in 2C. The second half is what carries the weight from here
-// and is unchanged:
+// **The first half is now fully retired, on purpose and one stage at a time** —
+// `websiteUrl` (1A), `assets` (2C, 2E), `logoSrc` (2D), `research` and
+// `onStartResearch` (3C), `onReviewDrafts` (3E). There is no unfed prop left, and
+// the mockup that justified them is deleted.
+//
+// **The second half is what carries the weight from here, and it is unchanged:**
 //
 //   every affordance still renders nothing when its prop is absent — and
 //   "absent" is now a real runtime state, because a query can be pending,
-//   empty, or failed.
+//   empty, or failed, and a deployment can have no research provider at all.
 //
 // A brand with no website renders no link; a brand with no colours renders no
-// palette block, and neither is a placeholder saying so. Both states are
-// byte-identical to 1.7.0.
-//
-// `logoSrc` and `research` are still unfed: `logoAsset` resolution is 2D and
-// there is no research query until Stage 3.
+// palette block; a deployment with `RESEARCH_PROVIDER=none` renders no research
+// row. None is a placeholder saying so, and all three are byte-identical to
+// 1.7.0. `tiles` and `tileHref` remain props because the tests drive them.
 //
 // **`railVariant` is gone.** 1.8.0 built the palette three ways so two could be
 // deleted; the screenshots settled it and the rail block is the survivor. A prop

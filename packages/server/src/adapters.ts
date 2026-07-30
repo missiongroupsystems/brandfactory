@@ -14,6 +14,7 @@ import {
   type LLMProviderConfig,
   createLLMProvider,
 } from '@brandfactory/adapter-llm'
+import { type ResearchProvider, createResearchProvider } from '@brandfactory/adapter-research'
 import type { Env } from './env'
 
 // Realtime is a discriminated union so consumers that need provider-specific
@@ -28,6 +29,14 @@ export interface Adapters {
   storage: BlobStore
   realtime: RealtimeAdapter
   llm: LLMProvider
+  /**
+   * The fifth adapter, and the only one that spends money. Always present —
+   * `RESEARCH_PROVIDER=none` builds the noop, which refuses loudly, rather than
+   * leaving this `undefined` for every consumer to narrow. Whether the *feature*
+   * exists is a separate question, answered at the surface by whether the route
+   * passes a callback.
+   */
+  research: ResearchProvider
 }
 
 export function buildAdapters(env: Env): Adapters {
@@ -81,5 +90,13 @@ export function buildAdapters(env: Env): Adapters {
   llmConfig.ollama = { baseURL: env.OLLAMA_BASE_URL }
   const llm: LLMProvider = createLLMProvider(llmConfig)
 
-  return { auth, storage, realtime, llm }
+  // `EnvSchema` already requires the key when the provider is selected, so the
+  // `!` is the same one every branch above uses and for the same reason.
+  const research: ResearchProvider = createResearchProvider(
+    env.RESEARCH_PROVIDER === 'perplexity'
+      ? { providerId: 'perplexity', perplexity: { apiKey: env.PERPLEXITY_API_KEY! } }
+      : { providerId: 'none' },
+  )
+
+  return { auth, storage, realtime, llm, research }
 }

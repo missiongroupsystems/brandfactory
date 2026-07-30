@@ -71,6 +71,7 @@ async function main(): Promise<void> {
     storage: adapters.storage,
     realtime: adapters.realtime.bus,
     llm: adapters.llm,
+    research: adapters.research,
     agentGuard,
   })
 

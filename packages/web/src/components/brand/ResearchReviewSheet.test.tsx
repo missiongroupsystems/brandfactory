@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ResearchReviewSheet } from './ResearchReviewSheet'
-import type { ResearchDraft } from '@/demo/researchTypes'
+import type { ResearchDraft } from '@brandfactory/shared'
 
 const DRAFTS: ResearchDraft[] = [
   {

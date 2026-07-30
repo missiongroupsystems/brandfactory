@@ -6,9 +6,11 @@ import {
   createAsset,
   listAssetsByBrand,
   reorderAssets,
+  restoreAsset,
   softDeleteAsset,
   updateAsset,
 } from './queries/assets'
+import { listStillReferencedBlobKeys } from './queries/blob-refs'
 import { createBrand, deleteBrand, listBlobKeysByBrand } from './queries/brands'
 import { seed } from './seed'
 
@@ -306,6 +308,106 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     })
     await softDeleteAsset(brand.id, asset.id)
     expect(await listBlobKeysByBrand(brand.id)).toEqual(['brands/deck-v3.pdf'])
+  })
+
+  /**
+   * The Stage 1–2 review's soft-delete guards and the Undo they enable. Live
+   * rather than faked because all four are `where` clauses — the one thing a
+   * fake reproduces by restating rather than by executing.
+   */
+  it('refuses to patch or re-delete a hidden row, and restores it exactly once', async () => {
+    const brand = await scratchBrand()
+    const asset = await createAsset({
+      brandId: brand.id,
+      kind: 'color',
+      source: 'inline',
+      label: 'Misclicked',
+      value: '#b5573c',
+      position: 100,
+    })
+
+    expect(await softDeleteAsset(brand.id, asset.id)).not.toBeNull()
+    // A second delete misses, so `deletedAt` cannot creep forward under an Undo
+    // that is still on screen.
+    expect(await softDeleteAsset(brand.id, asset.id)).toBeNull()
+    // And a patch cannot land on a row no read path returns.
+    expect(await updateAsset(brand.id, asset.id, { label: 'Resurrected' })).toBeNull()
+    expect(await listAssetsByBrand(brand.id)).toHaveLength(0)
+
+    const restored = await restoreAsset(brand.id, asset.id)
+    expect(restored?.deletedAt).toBeNull()
+    expect(restored?.label).toBe('Misclicked')
+    // Back at the position it never lost — a restore is a state change.
+    expect(restored?.position).toBe(100)
+    // Replaying the Undo is inert rather than a no-op write on a live row.
+    expect(await restoreAsset(brand.id, asset.id)).toBeNull()
+    expect(await listAssetsByBrand(brand.id)).toHaveLength(1)
+  })
+
+  /**
+   * The sweep subtraction. `listBlobKeysByBrand` says what a brand *held*;
+   * this says what is *still held elsewhere*, and the difference is what the
+   * cascade is allowed to destroy.
+   */
+  it('listStillReferencedBlobKeys finds every surviving reference, hidden ones included', async () => {
+    const keeper = await scratchBrand()
+    const going = await scratchBrand()
+    const shared = 'brands/shared-mark.svg'
+
+    for (const brand of [keeper, going]) {
+      await createAsset({
+        brandId: brand.id,
+        kind: 'image',
+        source: 'blob',
+        label: 'Mark',
+        blobKey: shared,
+        position: 100,
+      })
+    }
+    const soleOwner = await createAsset({
+      brandId: going.id,
+      kind: 'image',
+      source: 'blob',
+      label: 'Only ours',
+      blobKey: 'brands/only-ours.svg',
+      position: 200,
+    })
+    // A link row names somebody else's host and owns no bytes of ours.
+    await createAsset({
+      brandId: keeper.id,
+      kind: 'image',
+      source: 'link',
+      label: 'Elsewhere',
+      url: 'https://cdn.example.com/elsewhere.svg',
+      position: 300,
+    })
+
+    const held = await listBlobKeysByBrand(going.id)
+    await deleteBrand(going.id)
+    created.splice(created.indexOf(going.id), 1)
+
+    const stillReferenced = await listStillReferencedBlobKeys(held)
+    // The keeper's row survived the cascade and still points at the shared key.
+    expect(stillReferenced).toEqual([shared])
+    // So the cascade may destroy exactly one of the two keys it held.
+    expect(held.filter((k) => !stillReferenced.includes(k))).toEqual(['brands/only-ours.svg'])
+    void soleOwner
+
+    // A hidden row is still a reference — it can come back.
+    const hidden = await createAsset({
+      brandId: keeper.id,
+      kind: 'image',
+      source: 'blob',
+      label: 'Hidden',
+      blobKey: 'brands/hidden.svg',
+      position: 400,
+    })
+    await softDeleteAsset(keeper.id, hidden.id)
+    expect(await listStillReferencedBlobKeys(['brands/hidden.svg'])).toEqual(['brands/hidden.svg'])
+  })
+
+  it('listStillReferencedBlobKeys asks nothing of an empty list', async () => {
+    expect(await listStillReferencedBlobKeys([])).toEqual([])
   })
 
   it('cascades assets when the brand is deleted', async () => {

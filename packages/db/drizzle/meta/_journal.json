@@ -36,6 +36,13 @@
       "when": 1785312463344,
       "tag": "0004_wonderful_the_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785331449282,
+      "tag": "0005_public_elektra",
+      "breakpoints": true
     }
   ]
 }

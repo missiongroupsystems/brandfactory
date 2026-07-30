@@ -55,10 +55,11 @@ import { cn } from '@/lib/utils'
 // ---------------------------------------------------------------------------
 //
 // Every write is a **callback prop**, and every affordance renders nothing when
-// its callback is absent — the same invariant `BrandHubView` carries, and the
-// reason `routes/demo.brand.assets.tsx` still renders this component against
-// fixtures with no QueryClient in sight. `VisualIdentityPage` owns the queries
-// and the mutations; this file owns the layout and nothing else.
+// its callback is absent — the same invariant `BrandHubView` carries, and what
+// once let the mockup render this component against fixtures with no QueryClient
+// in sight. The mockup is gone; the invariant is what the tests now hold onto.
+// `VisualIdentityPage` owns the queries and the mutations; this file owns the
+// layout and nothing else.
 
 export interface AssetLibraryViewProps {
   brand: BrandWithSections
@@ -495,9 +496,14 @@ function ColorRow({
           <GripVertical className="size-4" aria-hidden="true" />
         </button>
       )}
+      {/* `backgroundColor`, not the `background` shorthand — the shorthand
+          includes `background-image`, so a stored `url(…)` would paint as a
+          fetch. `AssetColorValueSchema` now refuses that at the wire and
+          `ColorSwatches` was already on the longhand; this is the third side of
+          the same triangle, and the cheapest of the three. */}
       <span
         aria-hidden="true"
-        style={{ background: value }}
+        style={{ backgroundColor: value }}
         className={cn(
           'size-5 shrink-0 rounded-md border',
           color.status === 'proposed' && 'border-dashed',

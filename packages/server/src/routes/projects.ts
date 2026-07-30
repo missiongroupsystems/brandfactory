@@ -141,7 +141,16 @@ export function createProjectsRouter(deps: ProjectsDeps) {
       const blobKeys = await deps.db.listBlobKeysByProject(id)
       const row = await deps.db.deleteProject(id)
       if (!row) throw new NotFoundError('project not found', 'PROJECT_NOT_FOUND')
-      await sweepBlobs(deps.storage, blobKeys, c.var.log, { resource: 'project', id })
+      // Same subtraction as the brand cascade: a key another surviving row
+      // still points at is not this project's to destroy.
+      const stillReferenced = await deps.db.listStillReferencedBlobKeys(blobKeys)
+      await sweepBlobs(
+        deps.storage,
+        blobKeys,
+        c.var.log,
+        { resource: 'project', id },
+        stillReferenced,
+      )
       return c.json(row)
     })
 }

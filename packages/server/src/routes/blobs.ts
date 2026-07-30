@@ -3,6 +3,7 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import type { AppEnv } from '../context'
+import { contentTypeForKey } from '../content-type'
 import { ForbiddenError, HttpError } from '../errors'
 
 export interface BlobsDeps {
@@ -13,44 +14,13 @@ export interface BlobsDeps {
 
 const KeyParam = z.object({ key: z.string().min(1) })
 
-/**
- * Content type for a stored blob, from its key's extension.
- *
- * Phase 4 hardcoded `application/octet-stream` here and deferred the real thing
- * to a "Phase 8 polish" that never landed. **Stage 2D is what made the gap
- * visible**, because it is the first feature to render a stored image: browsers
- * content-sniff PNG/JPEG/GIF/WebP for an `<img>` regardless of the declared
- * type, so canvas image blocks have always worked — but **SVG is never
- * sniffed**. An uploaded SVG logo fired `onError` and fell back to the
- * monogram, which is pixel-identical to a brand with no logo. The feature
- * failed silently for the single most likely logo format.
- *
- * From the extension rather than from a persisted value, because the value was
- * never persisted: `local-disk`'s `put` takes a `contentType` option and
- * discards it, so there is nothing to read for any blob written before today.
- * The upload path already appends the original filename to the key, so the
- * extension is present and server-minted.
- *
- * **An allowlist, not a lookup table.** Anything unrecognised stays
- * `application/octet-stream` — a default that cannot become a vector — and the
- * list is deliberately a subset of `ALLOWED_UPLOAD_MIMES` rather than derived
- * from it: `text/plain` and the Word types are downloads, not things a browser
- * should render inline from user bytes.
- */
-const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  gif: 'image/gif',
-  webp: 'image/webp',
-  svg: 'image/svg+xml',
-  pdf: 'application/pdf',
-}
+// `contentTypeForKey` moved to `../content-type` in the Stage 1–2 review, so
+// the mint path can use it too — the key's extension and the type this server
+// authorises now have to agree, or the two storage providers answer the same
+// question differently. Re-exported because this module was its home and the
+// tests that pin it live next door.
+export { contentTypeForKey } from '../content-type'
 
-export function contentTypeForKey(key: string): string {
-  const ext = key.split('.').pop()?.toLowerCase() ?? ''
-  return CONTENT_TYPE_BY_EXTENSION[ext] ?? 'application/octet-stream'
-}
 const SigQuery = z.object({
   exp: z.coerce.number().int().positive(),
   sig: z.string().min(1),

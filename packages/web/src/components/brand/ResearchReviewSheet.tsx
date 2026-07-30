@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ExternalLink } from 'lucide-react'
-import type { ResearchDraft } from '@/demo/researchTypes'
+import type { ResearchDraft } from '@brandfactory/shared'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,

@@ -96,7 +96,18 @@ export function createBrandsRouter(deps: BrandsDeps) {
       // Cascades projects → canvases → blocks / messages via FK onDelete.
       const row = await deps.db.deleteBrand(id)
       if (!row) throw new NotFoundError('brand not found', 'BRAND_NOT_FOUND')
-      await sweepBlobs(deps.storage, blobKeys, c.var.log, { resource: 'brand', id })
+      // Asked *after* the cascade, so anything still pointing at one of these
+      // keys is by definition a row outside the brand just deleted — an asset
+      // that named a key it did not mint, or a canvas block sharing one.
+      // Sweeping those would destroy bytes this delete does not own.
+      const stillReferenced = await deps.db.listStillReferencedBlobKeys(blobKeys)
+      await sweepBlobs(
+        deps.storage,
+        blobKeys,
+        c.var.log,
+        { resource: 'brand', id },
+        stillReferenced,
+      )
       return c.json(row)
     })
     .patch(

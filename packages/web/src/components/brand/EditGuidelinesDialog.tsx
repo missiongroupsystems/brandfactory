@@ -1,6 +1,5 @@
 import type { BrandWithSections } from '@brandfactory/shared'
-import { BrandGuidelinesEditor } from '@/components/brand/BrandGuidelinesEditor'
-import type { CapturePayload } from '@/components/project/MessageCapture'
+import { BrandGuidelinesEditor, type StagedSection } from '@/components/brand/BrandGuidelinesEditor'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -16,13 +15,18 @@ export interface EditGuidelinesDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   /**
-   * A message captured from a thread whose right pane is the canvas, on its way
-   * into a new section (Phase E). Passed straight through: this is the same
-   * prop, in the same shape, that `BrandContextPane` hands the editor for the
-   * in-pane click path, so both capture destinations are one path rather than
-   * two that have to agree.
+   * A message captured from a thread whose right pane is the canvas, or the
+   * drafts accepted from the research review sheet, on their way into new
+   * sections. Passed straight through: this is the same prop, in the same
+   * shape, that `BrandContextPane` hands the editor for the in-pane click path,
+   * so every staging destination is one path rather than several that have to
+   * agree.
+   *
+   * Widened to a list by Stage 3E, and this file is a **pure type
+   * pass-through** — which is the good kind of coupling: widening the editor
+   * without widening both forwarders does not compile.
    */
-  staged?: CapturePayload | null
+  staged?: StagedSection[] | null
   onStagedConsumed?: () => void
 }
 

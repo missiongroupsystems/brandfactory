@@ -63,7 +63,16 @@ export function BrandSwitcher() {
             <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="max-h-80 min-w-48 overflow-y-auto">
+        {/* **`max-w-80` is the half that was missing, and only a long name
+            shows it.** The items have said `truncate` since 1.6.0, but a
+            dropdown with no maximum grows to fit its widest child, so the
+            ellipsis never engaged: measured at 3G against a 90-character brand
+            name, the menu opened **670px wide** — most of the page — and left
+            all 32 short names rattling in rows sized for one long one. Capping
+            the content is what makes the `truncate` on each row mean something.
+            `max-h-80` was already here and is why 30+ brands scroll instead of
+            running off the viewport; this is its horizontal twin. */}
+        <DropdownMenuContent align="start" className="max-h-80 min-w-48 max-w-80 overflow-y-auto">
           {/* Radio semantics for the same reason as the workspace list — the
               check mark is opacity-only and would otherwise be visual-only. */}
           <DropdownMenuRadioGroup value={brandId}>
@@ -78,7 +87,7 @@ export function BrandSwitcher() {
                   void navigate({ to: '/brands/$brandId', params: { brandId: b.id } })
                 }}
               >
-                <span className="truncate">{b.name}</span>
+                <span className="min-w-0 truncate">{b.name}</span>
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>

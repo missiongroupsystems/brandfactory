@@ -6,7 +6,7 @@ import type {
   BrandAssetId,
   BrandId,
 } from '@brandfactory/shared'
-import { and, asc, eq, isNull, sql } from 'drizzle-orm'
+import { and, asc, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 import { db } from '../client'
 import { rowToBrandAsset } from '../mappers'
 import { brandAssets } from '../schema'
@@ -124,7 +124,15 @@ export async function updateAsset(
     })
     // Scoped by brand as well as id: the route resolves access against the
     // brand, so an id from another brand must miss rather than update.
-    .where(and(eq(brandAssets.id, id), eq(brandAssets.brandId, brandId)))
+    //
+    // `deletedAt IS NULL` since the Stage 1–2 review: a soft-deleted row is
+    // absent from every read path, so a patch that lands on one is editing
+    // something the caller cannot see and cannot have meant. It now misses and
+    // 404s, which is what a client that has drifted out of date should be told.
+    // `restoreAsset` is the one writer that deliberately targets a hidden row.
+    .where(
+      and(eq(brandAssets.id, id), eq(brandAssets.brandId, brandId), isNull(brandAssets.deletedAt)),
+    )
     .returning()
   return row ? rowToBrandAsset(row) : null
 }
@@ -142,7 +150,41 @@ export async function softDeleteAsset(
   const [row] = await db
     .update(brandAssets)
     .set({ deletedAt: sql`now()`, updatedAt: sql`now()` })
-    .where(and(eq(brandAssets.id, id), eq(brandAssets.brandId, brandId)))
+    // Already-hidden rows miss, so a double delete 404s instead of silently
+    // moving `deletedAt` forward — which would quietly extend the window an
+    // Undo is measured against.
+    .where(
+      and(eq(brandAssets.id, id), eq(brandAssets.brandId, brandId), isNull(brandAssets.deletedAt)),
+    )
+    .returning()
+  return row ? rowToBrandAsset(row) : null
+}
+
+/**
+ * Un-hides an asset. The other half of a soft delete, and the reason the delete
+ * route can offer an Undo rather than a confirmation dialog.
+ *
+ * 1.10.0 shipped delete with neither, and named the gap: *"a misclick is a
+ * disappearance. The fix is an Undo, not a dialog."* The row was always
+ * recoverable — nothing sweeps its bytes, by design — but no caller could reach
+ * it. This is that caller.
+ *
+ * Deliberately **not** a `status` or a field on `UpdateBrandAssetInput`:
+ * `deletedAt` is the one column a patch must not be able to set, or a client
+ * could resurrect a row as a side effect of renaming it. Restore is its own
+ * verb, and it only matches rows that are actually hidden.
+ */
+export async function restoreAsset(brandId: BrandId, id: BrandAssetId): Promise<BrandAsset | null> {
+  const [row] = await db
+    .update(brandAssets)
+    .set({ deletedAt: null, updatedAt: sql`now()` })
+    .where(
+      and(
+        eq(brandAssets.id, id),
+        eq(brandAssets.brandId, brandId),
+        isNotNull(brandAssets.deletedAt),
+      ),
+    )
     .returning()
   return row ? rowToBrandAsset(row) : null
 }
@@ -161,7 +203,13 @@ export async function reorderAssets(
       const result = await tx
         .update(brandAssets)
         .set({ position, updatedAt: sql`now()` })
-        .where(and(eq(brandAssets.id, id), eq(brandAssets.brandId, brandId)))
+        .where(
+          and(
+            eq(brandAssets.id, id),
+            eq(brandAssets.brandId, brandId),
+            isNull(brandAssets.deletedAt),
+          ),
+        )
         .returning({ id: brandAssets.id })
       if (result.length === 0) {
         throw new Error(`Asset ${id} not found in brand ${brandId}`)

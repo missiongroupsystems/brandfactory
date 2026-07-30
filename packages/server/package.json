@@ -19,6 +19,7 @@
     "@brandfactory/adapter-auth": "workspace:*",
     "@brandfactory/adapter-llm": "workspace:*",
     "@brandfactory/adapter-realtime": "workspace:*",
+    "@brandfactory/adapter-research": "workspace:*",
     "@brandfactory/adapter-storage": "workspace:*",
     "@brandfactory/agent": "workspace:*",
     "@brandfactory/db": "workspace:*",

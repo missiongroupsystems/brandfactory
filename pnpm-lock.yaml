@@ -117,6 +117,19 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.19.17)(jsdom@29.0.2)(lightningcss@1.32.0)
 
+  packages/adapters/research:
+    dependencies:
+      '@brandfactory/shared':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: ^22.9.0
+        version: 22.19.17
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.17)(jsdom@29.0.2)(lightningcss@1.32.0)
+
   packages/adapters/storage:
     dependencies:
       '@supabase/supabase-js':
@@ -194,6 +207,9 @@ importers:
       '@brandfactory/adapter-realtime':
         specifier: workspace:*
         version: link:../adapters/realtime
+      '@brandfactory/adapter-research':
+        specifier: workspace:*
+        version: link:../adapters/research
       '@brandfactory/adapter-storage':
         specifier: workspace:*
         version: link:../adapters/storage

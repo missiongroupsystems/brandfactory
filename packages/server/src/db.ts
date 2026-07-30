@@ -29,12 +29,28 @@ export interface Db {
   listSectionsByBrand: typeof db.listSectionsByBrand
   updateBrandGuidelines: typeof db.updateBrandGuidelines
 
+  // Brand research jobs
+  createResearchJob: typeof db.createResearchJob
+  getResearchJob: typeof db.getResearchJob
+  getLatestResearchJob: typeof db.getLatestResearchJob
+  hasActiveResearchJob: typeof db.hasActiveResearchJob
+  countActiveResearchJobsForWorkspace: typeof db.countActiveResearchJobsForWorkspace
+  countResearchJobsTodayForWorkspace: typeof db.countResearchJobsTodayForWorkspace
+  listInFlightResearchJobs: typeof db.listInFlightResearchJobs
+  setResearchJobExternalId: typeof db.setResearchJobExternalId
+  finishResearchJob: typeof db.finishResearchJob
+  setResearchJobDrafts: typeof db.setResearchJobDrafts
+
   // Brand assets
   listAssetsByBrand: typeof db.listAssetsByBrand
   createAsset: typeof db.createAsset
   updateAsset: typeof db.updateAsset
   softDeleteAsset: typeof db.softDeleteAsset
+  restoreAsset: typeof db.restoreAsset
   reorderAssets: typeof db.reorderAssets
+
+  // Blob references, across every table that holds a key
+  listStillReferencedBlobKeys: typeof db.listStillReferencedBlobKeys
 
   // Projects + canvases
   getProjectById: typeof db.getProjectById
@@ -82,11 +98,23 @@ export function buildDbDeps(): Db {
     listBlobKeysByBrand: db.listBlobKeysByBrand,
     listSectionsByBrand: db.listSectionsByBrand,
     updateBrandGuidelines: db.updateBrandGuidelines,
+    createResearchJob: db.createResearchJob,
+    getResearchJob: db.getResearchJob,
+    getLatestResearchJob: db.getLatestResearchJob,
+    hasActiveResearchJob: db.hasActiveResearchJob,
+    countActiveResearchJobsForWorkspace: db.countActiveResearchJobsForWorkspace,
+    countResearchJobsTodayForWorkspace: db.countResearchJobsTodayForWorkspace,
+    listInFlightResearchJobs: db.listInFlightResearchJobs,
+    setResearchJobExternalId: db.setResearchJobExternalId,
+    finishResearchJob: db.finishResearchJob,
+    setResearchJobDrafts: db.setResearchJobDrafts,
     listAssetsByBrand: db.listAssetsByBrand,
     createAsset: db.createAsset,
     updateAsset: db.updateAsset,
     softDeleteAsset: db.softDeleteAsset,
+    restoreAsset: db.restoreAsset,
     reorderAssets: db.reorderAssets,
+    listStillReferencedBlobKeys: db.listStillReferencedBlobKeys,
     getProjectById: db.getProjectById,
     listProjectsByBrand: db.listProjectsByBrand,
     listProjectSummariesByBrand: db.listProjectSummariesByBrand,

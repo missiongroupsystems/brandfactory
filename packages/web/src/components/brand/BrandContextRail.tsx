@@ -11,12 +11,16 @@ import {
   SearchX,
   Sparkles,
 } from 'lucide-react'
-import type { BrandAsset, BrandGuidelineSection, BrandWithSections } from '@brandfactory/shared'
+import type {
+  BrandAsset,
+  BrandGuidelineSection,
+  BrandWithSections,
+  ResearchJobSummary,
+} from '@brandfactory/shared'
 import { SUGGESTED_SECTIONS } from '@brandfactory/shared'
 import { ColorSwatches, paletteSummary } from '@/components/brand/ColorSwatches'
 import { iconForSection } from '@/components/brand/guidelineIcons'
 import { Button } from '@/components/ui/button'
-import type { ResearchJobSummary } from '@/demo/researchTypes'
 import { defaultExtensions } from '@/editor/proseMirrorSchema'
 import { formatRelativeTime } from '@/lib/relative-time'
 import { cn } from '@/lib/utils'
@@ -168,9 +172,19 @@ export function BrandContextRail({
               Brand context
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
+              {/* Counts what the list below actually shows: N written rows,
+                  then M suggestion rows. It used to read
+                  `${sections.length} of ${SUGGESTED_SECTIONS.length} suggested
+                  sections` — a denominator the numerator can exceed, so a brand
+                  with eight sections of its own announced "8 of 5 suggested
+                  sections", and a brand whose sections are all custom claimed
+                  suggestions it had not taken. Still no percentage, no bar and
+                  no "incomplete": the register is the rail's, only true. */}
               {sections.length === 0
                 ? 'Rides along into every thread'
-                : `${sections.length} of ${SUGGESTED_SECTIONS.length} suggested sections`}
+                : unwritten.length > 0
+                  ? `${sections.length} written · ${unwritten.length} suggested`
+                  : `${sections.length} written`}
             </p>
           </div>
           <Button variant="outline" size="sm" className="shrink-0" onClick={onEdit}>

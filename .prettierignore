@@ -10,6 +10,11 @@ pnpm-lock.yaml
 # Drizzle-generated migrations and snapshots — never hand-edit.
 packages/*/drizzle/
 
+# Verbatim vendor response bodies, captured by 3A's live spike — same rule as
+# the migrations above, and a stronger reason: a reformatted capture is no
+# longer evidence of what the vendor actually sent.
+packages/adapters/research/fixtures/*.json
+
 # Authored prose — don't auto-rewrap. Code-adjacent markdown (READMEs)
 # can opt back in explicitly if needed later.
 docs/

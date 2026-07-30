@@ -4,6 +4,7 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import type { AppEnv } from '../context'
+import { keyWithCanonicalExtension } from '../content-type'
 import { HttpError, UnauthorizedError } from '../errors'
 import { randomUUID } from 'node:crypto'
 
@@ -30,7 +31,17 @@ export function createBlobUrlsRouter(deps: BlobUrlsDeps) {
       const yyyy = now.getFullYear()
       const mm = String(now.getMonth() + 1).padStart(2, '0')
       const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100)
-      const key = `uploads/${yyyy}/${mm}/${randomUUID()}-${safeName}`
+      // The key's extension is normalised to the type we are about to
+      // authorise. `local-disk` serves a blob by reading that extension while
+      // Supabase serves it by echoing the header the client PUT — and
+      // production is Supabase while every Stage 2 live pass ran on local-disk,
+      // so the two had never been compared. `keyWithCanonicalExtension` makes
+      // them agree by construction; see `../content-type` for why here and not
+      // at either reader.
+      const key = keyWithCanonicalExtension(
+        `uploads/${yyyy}/${mm}/${randomUUID()}-${safeName}`,
+        contentType,
+      )
 
       const { url, headers } = await deps.storage.getSignedWriteUrl(key, {
         contentType,

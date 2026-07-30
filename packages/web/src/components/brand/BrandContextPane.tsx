@@ -1,6 +1,5 @@
 import type { BrandWithSections } from '@brandfactory/shared'
-import { BrandGuidelinesEditor } from '@/components/brand/BrandGuidelinesEditor'
-import type { CapturePayload } from '@/components/project/MessageCapture'
+import { BrandGuidelinesEditor, type StagedSection } from '@/components/brand/BrandGuidelinesEditor'
 
 /**
  * The right pane of a brand-context thread: the live guidelines editor where
@@ -22,8 +21,13 @@ import type { CapturePayload } from '@/components/project/MessageCapture'
  */
 export interface BrandContextPaneProps {
   brand: BrandWithSections
-  /** A message captured via the click path, on its way into a new section. */
-  staged?: CapturePayload | null
+  /**
+   * A message captured via the click path, on its way into a new section. A
+   * list since Stage 3E, and a pure type pass-through here — the pane adds
+   * nothing to the channel, which is why it never had to change when the
+   * channel gained a second producer.
+   */
+  staged?: StagedSection[] | null
   onStagedConsumed?: () => void
 }
 

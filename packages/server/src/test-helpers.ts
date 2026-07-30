@@ -1,6 +1,7 @@
 import type { AuthProvider } from '@brandfactory/adapter-auth'
 import type { BlobStore } from '@brandfactory/adapter-storage'
 import type { LLMProvider } from '@brandfactory/adapter-llm'
+import type { ResearchProvider } from '@brandfactory/adapter-research'
 import type { RealtimeBus } from '@brandfactory/adapter-realtime'
 import type {
   AgentMessage,
@@ -16,6 +17,7 @@ import type {
   Project,
   ProjectId,
   ProjectSummary,
+  ResearchJobId,
   ShortlistView,
   Workspace,
   WorkspaceId,
@@ -23,7 +25,9 @@ import type {
 } from '@brandfactory/shared'
 import { createAgentConcurrencyGuard, type AgentConcurrencyGuard } from './agent/concurrency'
 import { createApp, type AppDeps } from './app'
+import type { ResearchJob } from '@brandfactory/db'
 import type { Db } from './db'
+import type { ShapeResearchFn } from './research/shape'
 import type { Env } from './env'
 import { createLogger, type Logger } from './logger'
 
@@ -67,6 +71,7 @@ export interface FakeDbState {
   brands: Map<string, Brand>
   sections: Map<string, BrandGuidelineSection>
   assets: Map<string, BrandAsset>
+  researchJobs: Map<string, ResearchJob>
   projects: Map<string, Project>
   canvases: Map<string, Canvas>
   settings: Map<string, WorkspaceSettings>
@@ -82,6 +87,7 @@ export function createFakeDbState(): FakeDbState {
     brands: new Map(),
     sections: new Map(),
     assets: new Map(),
+    researchJobs: new Map(),
     projects: new Map(),
     canvases: new Map(),
     settings: new Map(),
@@ -239,6 +245,20 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         .filter((k): k is string => k !== null)
       return [...blockKeys, ...assetKeys]
     },
+    // Mirrors `listStillReferencedBlobKeys`: every table that holds a key,
+    // soft-deleted rows *included* — a hidden row still owns its bytes. Called
+    // after the cascade, so whatever it finds is outside the deleted resource.
+    async listStillReferencedBlobKeys(keys) {
+      if (keys.length === 0) return []
+      const wanted = new Set(keys)
+      const blockKeys = [...state.canvasBlocks.values()]
+        .map((b) => ('blobKey' in b ? b.blobKey : null))
+        .filter((k): k is string => typeof k === 'string')
+      const assetKeys = [...state.assets.values()]
+        .map((a) => (a.source === 'blob' ? a.blobKey : null))
+        .filter((k): k is string => k !== null)
+      return [...new Set([...blockKeys, ...assetKeys].filter((k) => wanted.has(k)))]
+    },
     async listSectionsByBrand(brandId) {
       return [...state.sections.values()]
         .filter((s) => s.brandId === brandId)
@@ -336,8 +356,10 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
     },
     async updateAsset(brandId, id, patch) {
       const existing = state.assets.get(id)
-      // Scoped by brand as well as id — an asset from another brand misses.
-      if (!existing || existing.brandId !== brandId) return null
+      // Scoped by brand as well as id — an asset from another brand misses —
+      // and by `deletedAt IS NULL`, so a patch cannot land on a row no read
+      // path returns.
+      if (!existing || existing.brandId !== brandId || existing.deletedAt !== null) return null
       // `undefined` leaves a column alone, `null` clears it. A spread of
       // `patch` wholesale would agree with a `set()` that had lost the rule.
       const updated: BrandAsset = {
@@ -354,21 +376,133 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
     },
     async softDeleteAsset(brandId, id) {
       const existing = state.assets.get(id)
-      if (!existing || existing.brandId !== brandId) return null
+      // Already-hidden rows miss, so a double delete 404s rather than moving
+      // `deletedAt` forward under an Undo that is still on screen.
+      if (!existing || existing.brandId !== brandId || existing.deletedAt !== null) return null
       // The row stays in the map. Nothing sweeps its bytes.
       const updated: BrandAsset = { ...existing, deletedAt: NOW, updatedAt: NOW }
       state.assets.set(id, updated)
       return updated
     },
+    async restoreAsset(brandId, id) {
+      const existing = state.assets.get(id)
+      // Only matches a row that is actually hidden — the mirror image of
+      // `softDeleteAsset`, so a replayed Undo cannot touch a live asset.
+      if (!existing || existing.brandId !== brandId || existing.deletedAt === null) return null
+      const updated: BrandAsset = { ...existing, deletedAt: null, updatedAt: NOW }
+      state.assets.set(id, updated)
+      return updated
+    },
     async reorderAssets(brandId, updates) {
-      for (const { id, position } of updates) {
+      // **Resolve every row before writing any of them.** The real query runs
+      // in a transaction, so a batch naming one bad id leaves the brand's
+      // ordering exactly as it found it. A fake that walked the list mutating
+      // as it went would report a half-applied reorder as correct — which is
+      // the one property the batch route exists to provide over N patches.
+      const resolved = updates.map(({ id, position }) => {
         const existing = state.assets.get(id)
-        if (!existing || existing.brandId !== brandId) {
+        if (!existing || existing.brandId !== brandId || existing.deletedAt !== null) {
           throw new Error(`Asset ${id} not found in brand ${brandId}`)
         }
-        state.assets.set(id, { ...existing, position, updatedAt: NOW })
+        return { existing, position }
+      })
+      for (const { existing, position } of resolved) {
+        state.assets.set(existing.id, { ...existing, position, updatedAt: NOW })
       }
       return db.listAssetsByBrand(brandId)
+    },
+
+    // Brand research jobs. Same rule as the assets fakes above: mirror the real
+    // query, do not do the obvious thing. `finishResearchJob` in particular has
+    // to keep the "terminal states are terminal" `WHERE`, or a test would pass
+    // against a fake that lets two finishers overwrite each other.
+    async createResearchJob(input) {
+      const id = nextId('job') as ResearchJobId
+      const job: ResearchJob = {
+        id,
+        brandId: input.brandId,
+        status: 'IN_PROGRESS',
+        provider: input.provider,
+        model: input.model,
+        input: input.input,
+        externalId: null,
+        report: null,
+        citations: [],
+        drafts: [],
+        error: null,
+        costUsd: null,
+        createdBy: input.createdBy,
+        createdAt: NOW,
+        startedAt: NOW,
+        completedAt: null,
+      }
+      state.researchJobs.set(id, job)
+      return job
+    },
+    async getResearchJob(brandId, jobId) {
+      const job = state.researchJobs.get(jobId)
+      // Scoped by brand as well as id, like every other cross-boundary read.
+      return job && job.brandId === brandId ? job : null
+    },
+    async getLatestResearchJob(brandId) {
+      const jobs = [...state.researchJobs.values()].filter((j) => j.brandId === brandId)
+      // Insertion order stands in for `createdAt DESC` — the fake clock does
+      // not tick, so the real ordering column cannot break the tie.
+      return jobs.length ? jobs[jobs.length - 1]! : null
+    },
+    async hasActiveResearchJob(brandId) {
+      return [...state.researchJobs.values()].some(
+        (j) => j.brandId === brandId && j.status === 'IN_PROGRESS',
+      )
+    },
+    async countActiveResearchJobsForWorkspace(workspaceId) {
+      return [...state.researchJobs.values()].filter((j) => {
+        const brand = state.brands.get(j.brandId)
+        return brand?.workspaceId === workspaceId && j.status === 'IN_PROGRESS'
+      }).length
+    },
+    async countResearchJobsTodayForWorkspace(workspaceId) {
+      // Every job, every status — a failed run may still have been billed, so
+      // the money guard counts it. The fake clock never advances, so every row
+      // is inside the rolling window.
+      return [...state.researchJobs.values()].filter(
+        (j) => state.brands.get(j.brandId)?.workspaceId === workspaceId,
+      ).length
+    },
+    async listInFlightResearchJobs() {
+      return [...state.researchJobs.values()].filter((j) => j.status === 'IN_PROGRESS')
+    },
+    async setResearchJobExternalId(jobId, externalId) {
+      const job = state.researchJobs.get(jobId)
+      if (!job) return null
+      const updated = { ...job, externalId }
+      state.researchJobs.set(jobId, updated)
+      return updated
+    },
+    async finishResearchJob(jobId, input) {
+      const job = state.researchJobs.get(jobId)
+      // The real `WHERE status = 'IN_PROGRESS'`: a second finisher loses, and
+      // finds out by getting null back.
+      if (!job || job.status !== 'IN_PROGRESS') return null
+      const updated: ResearchJob = {
+        ...job,
+        status: input.status,
+        report: input.report ?? null,
+        citations: input.citations ?? [],
+        drafts: input.drafts ?? [],
+        error: input.error ?? null,
+        costUsd: input.costUsd ?? null,
+        completedAt: NOW,
+      }
+      state.researchJobs.set(jobId, updated)
+      return updated
+    },
+    async setResearchJobDrafts(jobId, drafts) {
+      const job = state.researchJobs.get(jobId)
+      if (!job) return null
+      const updated = { ...job, drafts }
+      state.researchJobs.set(jobId, updated)
+      return updated
     },
 
     async getProjectById(id) {
@@ -641,10 +775,17 @@ export function createFakeAdapters(overrides: Partial<AppDeps> = {}): Omit<AppDe
       throw new Error('llm.getModel not expected in test')
     },
   }
+  // The noop, unless a test says otherwise. Matches the shipped default
+  // (`RESEARCH_PROVIDER=none`) so a route test that reaches the provider by
+  // accident fails loudly instead of pretending to research something.
+  const research: ResearchProvider = overrides.research ?? {
+    start: () => Promise.reject(new Error('research.start not expected in test')),
+    poll: () => Promise.reject(new Error('research.poll not expected in test')),
+  }
   const { db } = overrides.db ? { db: overrides.db } : createFakeDb()
   const auth = overrides.auth ?? createFakeAuth({})
   const agentGuard = overrides.agentGuard ?? createAgentConcurrencyGuard()
-  return { db, auth, storage, realtime, llm, agentGuard }
+  return { db, auth, storage, realtime, llm, research, agentGuard }
 }
 
 export function testEnv(overrides: Partial<Env> = {}): Env {
@@ -663,6 +804,10 @@ export function testEnv(overrides: Partial<Env> = {}): Env {
     PORT: 3001,
     HOST: '0.0.0.0',
     LOG_LEVEL: 'error',
+    RESEARCH_PROVIDER: 'none',
+    RESEARCH_MODEL: 'sonar-deep-research',
+    RESEARCH_MAX_ACTIVE_PER_WORKSPACE: 2,
+    RESEARCH_MAX_JOBS_PER_DAY: 10,
     ...overrides,
   } as Env
 }
@@ -681,6 +826,9 @@ export function createTestApp(
     storage?: BlobStore
     llm?: LLMProvider
     realtime?: RealtimeBus
+    research?: ResearchProvider
+    /** 3D's stage 2. Absent means the app's real shaper, which needs a model. */
+    shapeResearch?: ShapeResearchFn
     agentGuard?: AgentConcurrencyGuard
   } = {},
 ): TestHarness {
@@ -704,8 +852,14 @@ export function createTestApp(
     ...(opts.storage ? { storage: opts.storage } : {}),
     ...(opts.llm ? { llm: opts.llm } : {}),
     ...(opts.realtime ? { realtime: opts.realtime } : {}),
+    ...(opts.research ? { research: opts.research } : {}),
     ...(opts.agentGuard ? { agentGuard: opts.agentGuard } : {}),
   })
-  const app = createApp({ ...adapters, env, log: silentLogger() })
+  const app = createApp({
+    ...adapters,
+    env,
+    log: silentLogger(),
+    ...(opts.shapeResearch ? { shapeResearch: opts.shapeResearch } : {}),
+  })
   return { app, state, auth, tokens }
 }

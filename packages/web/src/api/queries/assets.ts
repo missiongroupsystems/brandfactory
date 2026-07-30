@@ -133,3 +133,51 @@ export function useDeleteAsset(brandId: string) {
     onSuccess: (asset) => applyAssetToCache(queryClient, brandId, asset),
   })
 }
+
+/**
+ * Undo a delete. The row was never destroyed — a soft delete leaves the bytes
+ * alone by design — so this is a state change, not a re-upload.
+ *
+ * 1.10.0 shipped delete with no confirmation and no way back, and said the fix
+ * was an Undo rather than a dialog. This is the client half of that: the
+ * restored row comes back with `deletedAt: null`, which `applyAssetToCache`
+ * reads to put it back in the list at the position it never lost.
+ */
+export function useRestoreAsset(brandId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: BrandAssetId) => {
+      const res = await api.brands[':id'].assets[':assetId'].restore.$post({
+        param: { id: brandId, assetId: id },
+      })
+      return callJson<BrandAsset>(res)
+    },
+    onSuccess: (asset) => applyAssetToCache(queryClient, brandId, asset),
+  })
+}
+
+/**
+ * Re-position a batch of assets in one transactional call.
+ *
+ * Replaces 2E's N-independent-`PATCH`es. Dragging one swatch renumbers every
+ * row after it, so the old shape fired up to N concurrent writes whose
+ * interleaving decided the final order and whose partial failure left the ramp
+ * half-renumbered. The route returns the brand's full list, so the cache is
+ * replaced outright rather than patched row by row — the server's ordering is
+ * the answer, and there is no intermediate state worth rendering.
+ */
+export function useReorderAssets(brandId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (updates: Array<{ id: BrandAssetId; position: number }>) => {
+      // `PATCH` on the collection rather than a `/reorder` verb — see the route,
+      // where the spelling turned out to be load-bearing for Hono's router.
+      const res = await api.brands[':id'].assets.$patch({
+        param: { id: brandId },
+        json: { updates },
+      })
+      return callJson<BrandAsset[]>(res)
+    },
+    onSuccess: (assets) => queryClient.setQueryData(brandKeys.assets(brandId), assets),
+  })
+}

@@ -9,6 +9,7 @@ export default [
   'packages/adapters/storage/vitest.config.ts',
   'packages/adapters/realtime/vitest.config.ts',
   'packages/adapters/llm/vitest.config.ts',
+  'packages/adapters/research/vitest.config.ts',
   'packages/agent/vitest.config.ts',
   'packages/db/vitest.config.ts',
   'packages/shared/vitest.config.ts',

@@ -6,6 +6,8 @@ import {
   useBrandAssets,
   useCreateAsset,
   useDeleteAsset,
+  useReorderAssets,
+  useRestoreAsset,
   useUpdateAsset,
 } from '@/api/queries/assets'
 import { uploadBlob, useSignedReadUrls } from '@/api/queries/blobs'
@@ -19,10 +21,10 @@ import { IMAGE_URL_REFUSAL, probeImageUrl } from '@/lib/image-url'
 // ---------------------------------------------------------------------------
 //
 // Same split as the brand hub: this owns every query and every mutation,
-// `AssetLibraryView` owns the layout and takes callbacks. That is what keeps
-// `routes/demo.brand.assets.tsx` able to render the same component against
-// fixtures with no QueryClient, and it is why the view can be tested without
-// one.
+// `AssetLibraryView` owns the layout and takes callbacks. That split was what
+// let the 2E mockup render the same component against fixtures with no
+// QueryClient; the mockup is deleted (2F took its asset route, 3G the rest) and
+// the property it was built on is why the view is still testable without one.
 
 /** What a dropped file becomes. Images are images; everything else is a file. */
 function kindForFile(file: File): 'image' | 'file' {
@@ -35,6 +37,8 @@ export function VisualIdentityPage({ brandId, app }: { brandId: string; app: Min
   const create = useCreateAsset(brandId)
   const update = useUpdateAsset(brandId)
   const del = useDeleteAsset(brandId)
+  const restore = useRestoreAsset(brandId)
+  const reorder = useReorderAssets(brandId)
   const [uploading, setUploading] = useState(false)
 
   // Every blob key on the page, resolved in one `useQueries` so each keeps its
@@ -115,29 +119,56 @@ export function VisualIdentityPage({ brandId, app }: { brandId: string; app: Min
     update.mutate({ id, patch }, { onError: (err) => fail(err, 'Could not save that change') })
   }
 
+  /**
+   * Delete, with the way back attached to it.
+   *
+   * 1.10.0 shipped this as a one-click disappearance and named the gap: *"a
+   * misclick is a disappearance. The fix is an Undo, not a dialog."* A dialog
+   * would tax every deliberate delete to catch the rare accidental one; the row
+   * is soft-deleted and its bytes are never swept, so the way back was always
+   * there and simply had no caller.
+   *
+   * The asset's label is in the toast because a grid of thumbnails gives no
+   * other clue which row just left.
+   */
   function handleDelete(id: BrandAssetId) {
-    del.mutate(id, { onError: (err) => fail(err, 'Could not remove that asset') })
+    const label = (assets ?? []).find((a) => a.id === id)?.label
+    del.mutate(id, {
+      onError: (err) => fail(err, 'Could not remove that asset'),
+      onSuccess: () => {
+        toast(label ? `Removed ${label}` : 'Asset removed', {
+          action: {
+            label: 'Undo',
+            onClick: () =>
+              restore.mutate(id, {
+                onError: (err) => fail(err, 'Could not restore that asset'),
+              }),
+          },
+        })
+      },
+    })
   }
 
   /**
-   * Reorder as N patches rather than one call.
+   * Reorder as one transactional call.
    *
-   * `reorderAssets` exists in the db layer and has no route — 2B declined to
-   * ship one with no caller. Patching each moved row is what the existing
-   * surface supports, and dragging one swatch in a twelve-colour ramp moves at
-   * most a handful. If a real palette ever grows past that, the batch route is
-   * already written underneath.
+   * 2E did this as N independent `PATCH`es because `reorderAssets` had no route
+   * — the Stage 1–2 review shipped one. The batch matters more than it looks:
+   * moving a swatch renumbers every row after it, so the old shape raced N
+   * writes against each other and could leave the ramp half-renumbered under a
+   * toast that named no row.
+   *
+   * Unchanged rows are still filtered out. The transaction makes that an
+   * optimisation rather than a correctness question, but sending nine updates
+   * to move one swatch would still be nine rows touched for one intent.
    */
   function handleReorderColors(ids: BrandAssetId[]) {
     const current = assets ?? []
-    ids.forEach((id, index) => {
-      const position = (index + 1) * 100
-      if (current.find((a) => a.id === id)?.position === position) return
-      update.mutate(
-        { id, patch: { position } },
-        { onError: (err) => fail(err, 'Could not reorder') },
-      )
-    })
+    const updates = ids
+      .map((id, index) => ({ id, position: (index + 1) * 100 }))
+      .filter(({ id, position }) => current.find((a) => a.id === id)?.position !== position)
+    if (updates.length === 0) return
+    reorder.mutate(updates, { onError: (err) => fail(err, 'Could not reorder') })
   }
 
   if (brandPending || isPending) {

@@ -77,8 +77,28 @@ function toLocal(s: BrandGuidelineSection): LocalSection {
   }
 }
 
-function blankSection(label = ''): LocalSection {
-  return { _key: crypto.randomUUID(), label, body: EMPTY_DOC, priority: 0, createdBy: 'user' }
+function blankSection(label = '', createdBy: GuidelineSectionCreatedBy = 'user'): LocalSection {
+  return { _key: crypto.randomUUID(), label, body: EMPTY_DOC, priority: 0, createdBy }
+}
+
+/**
+ * One thing on its way into a new section, unsaved.
+ *
+ * **A list of these is what `staged` carries, and the list is the Stage 3E
+ * change.** 1.5.0 opened this channel for a single captured message, which is
+ * why it was one `CapturePayload`; the research review sheet accepts several
+ * drafts at once and staging them one at a time would make "accept selected"
+ * mean "accept the first of the selected".
+ *
+ * `label` and `createdBy` are optional because the capture gesture has neither:
+ * a message you drag out of a thread has no name until you give it one, and it
+ * is **yours** — you curated it, the agent did not write it here. Research
+ * supplies both.
+ */
+export interface StagedSection {
+  label?: string
+  payload: CapturePayload
+  createdBy?: GuidelineSectionCreatedBy
 }
 
 // ---------------------------------------------------------------------------
@@ -211,11 +231,12 @@ function SectionRow({
 export interface BrandGuidelinesEditorProps {
   brand: BrandWithSections
   /**
-   * Content captured from a message elsewhere in the UI (the click path, or in
-   * Phase E the dialog). Appends a blank section and stages the content into
-   * it. Unsaved, like any other edit.
+   * Content on its way into new sections: a message captured elsewhere in the
+   * UI (the click path, or the dialog), or the drafts accepted from the research
+   * review sheet. Appends one blank section per item, in order, and stages each
+   * item's content into its own row. Unsaved, like any other edit.
    */
-  staged?: CapturePayload | null
+  staged?: StagedSection[] | null
   /** Called once `staged` has been taken, so the caller can clear it. */
   onStagedConsumed?: () => void
 }
@@ -229,16 +250,57 @@ export function BrandGuidelinesEditor({
   // Keyed by section `_key`. A payload waiting for its row's editor to mount.
   const [pendingInserts, setPendingInserts] = useState<Record<string, CapturePayload>>({})
   const [newSectionDropActive, setNewSectionDropActive] = useState(false)
+  // The row a staging gesture should bring into view; see the effect below.
+  const [scrollToKey, setScrollToKey] = useState<string | null>(null)
   const mutation = useUpdateBrandGuidelines(brand.id)
 
-  // Capture into a brand-new section: append a blank row and stage the content
-  // on it, so recording a brand-new aspect doesn't mean creating an empty
-  // section first and then aiming at it.
-  const captureIntoNewSection = useCallback((payload: CapturePayload) => {
-    const created = blankSection()
-    setSections((prev) => [...prev, created])
-    setPendingInserts((prev) => ({ ...prev, [created._key]: payload }))
+  // Capture into brand-new sections: append a blank row per item and stage the
+  // content on it, so recording a brand-new aspect doesn't mean creating an
+  // empty section first and then aiming at it.
+  //
+  // A list rather than a single item because accepting five research drafts is
+  // one gesture and must be one state update: five separate calls would each
+  // append against a `prev` the previous one had not landed in yet.
+  const captureIntoNewSections = useCallback((items: StagedSection[]) => {
+    const created = items.map((item) => ({
+      section: blankSection(item.label ?? '', item.createdBy ?? 'user'),
+      payload: item.payload,
+    }))
+    setSections((prev) => [...prev, ...created.map((c) => c.section)])
+    setPendingInserts((prev) => {
+      const next = { ...prev }
+      for (const c of created) next[c.section._key] = c.payload
+      return next
+    })
+    if (created[0]) setScrollToKey(created[0].section._key)
   }, [])
+
+  // New sections are appended, and this dialog opens at the top — so on a brand
+  // with anything in it, *Accept selected* put three drafts below the fold and
+  // looked like it had done nothing at all. Found by looking at it: the tests
+  // all passed, because "the row exists" and "you can see the row" are not the
+  // same claim.
+  //
+  // In an effect keyed on the new row rather than inline, so it runs after the
+  // rows have actually mounted.
+  //
+  // `block: 'start'`, and the first attempt at `'nearest'` is why it is stated
+  // rather than defaulted: measured against a brand with six sections,
+  // `'nearest'` did the least that satisfies "in view" — it parked the new
+  // row's *label* on the bottom edge with its body still below the fold, which
+  // reads as an empty field rather than as three drafts that just landed.
+  // `'start'` puts the first accepted draft at the top, so what you accepted is
+  // what you are looking at.
+  useEffect(() => {
+    if (!scrollToKey) return
+    // jsdom does not implement `scrollIntoView`; a missing method here must not
+    // take the staging path down with it.
+    document.getElementById(`label-${scrollToKey}`)?.scrollIntoView?.({ block: 'start' })
+    // Not reset afterwards: `_key` is a fresh uuid per created section, so the
+    // next staging gesture changes this value and re-runs the effect on its
+    // own. Clearing it would be a setState inside an effect — a cascading
+    // render to reach a state no gesture can ask for twice.
+  }, [scrollToKey])
 
   const handleInsertConsumed = useCallback((key: string) => {
     setPendingInserts((prev) => {
@@ -249,15 +311,26 @@ export function BrandGuidelinesEditor({
     })
   }, [])
 
-  // StrictMode double-invokes effects in dev, and this one appends a section —
-  // so it keys on payload identity rather than merely on truthiness.
-  const consumedStagedRef = useRef<CapturePayload | null>(null)
+  // StrictMode double-invokes effects in dev, and this one appends sections —
+  // so it keys on identity rather than merely on truthiness.
+  //
+  // **Per item, not per list.** 1.5.0 kept one `CapturePayload` here and
+  // comparing the prop against the last one it consumed was the whole guard.
+  // With a list that is no longer sufficient in one direction: staging `[A]` and
+  // then `[A, B]` is a different array, and a list-level check would append `A`
+  // a second time. A `WeakSet` of the items already taken answers exactly the
+  // question being asked — *has this one been staged?* — and answers it for the
+  // StrictMode replay too, which is the case that reaches production as a
+  // double paste nobody can reproduce in a build.
+  const consumedStagedRef = useRef<WeakSet<StagedSection>>(new WeakSet())
   useEffect(() => {
-    if (!staged || consumedStagedRef.current === staged) return
-    consumedStagedRef.current = staged
-    captureIntoNewSection(staged)
+    if (!staged || staged.length === 0) return
+    const fresh = staged.filter((item) => !consumedStagedRef.current.has(item))
+    if (fresh.length === 0) return
+    for (const item of fresh) consumedStagedRef.current.add(item)
+    captureIntoNewSections(fresh)
     onStagedConsumed?.()
-  }, [staged, captureIntoNewSection, onStagedConsumed])
+  }, [staged, captureIntoNewSections, onStagedConsumed])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -287,6 +360,27 @@ export function BrandGuidelinesEditor({
   }
 
   function save() {
+    // **A section with no label fails the *whole* save, and the server cannot
+    // say which one.** `UpdateBrandGuidelinesSectionInputSchema` requires
+    // `label.min(1)`, and this form sends the brand's complete list — so one
+    // blank row 400s the request and takes every other edit in the payload with
+    // it. What the user saw was a toast reading `Bad Request`.
+    //
+    // Reachable since 1.5.0, because **every capture creates a blank label** by
+    // design (you name it and trim it, then Save). 3F is what made it the
+    // ordinary path rather than a corner: the research report is the thing
+    // people will capture, and it arrives as a nameless section like any other.
+    //
+    // Caught by a live pass, not by a test — the editor's own tests type a
+    // label before saving, which is exactly what a person does not do when the
+    // body they just captured is 4,000 characters long.
+    const blank = sections.find((s) => s.label.trim() === '')
+    if (blank) {
+      toast.error('Every section needs a label. Name this one, then save again.')
+      document.getElementById(`label-${blank._key}`)?.focus()
+      return
+    }
+
     const payload: UpdateBrandGuidelinesInput = {
       sections: sections.map((s, i) => ({
         ...(s.id !== undefined ? { id: s.id as SectionId } : {}),
@@ -378,7 +472,7 @@ export function BrandGuidelinesEditor({
           e.preventDefault()
           setNewSectionDropActive(false)
           const payload = readCaptureTransfer(e.dataTransfer)
-          if (payload) captureIntoNewSection(payload)
+          if (payload) captureIntoNewSections([{ payload }])
         }}
         className={cn(
           'rounded-lg border border-dashed px-4 py-3 text-center text-xs transition-colors duration-150',

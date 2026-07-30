@@ -7,18 +7,21 @@ import { getAuthToken } from '@/auth/store'
 import { AppError } from '@/api/client'
 import { useAssetUrl, useBrandAssets } from '@/api/queries/assets'
 import { useBrand, useBrandProjects, useDeleteBrand, useUpdateBrand } from '@/api/queries/brands'
+import { useBrandResearch, useStartResearch } from '@/api/queries/research'
 import { BrandHubView } from '@/components/brand/BrandHubView'
 import { EditGuidelinesDialog } from '@/components/brand/EditGuidelinesDialog'
+import { ResearchReviewSheet } from '@/components/brand/ResearchReviewSheet'
+import { useDraftLanding } from '@/components/brand/useDraftLanding'
 import { DeleteBrandDialog } from '@/components/entity/DeleteBrandDialog'
 import { RenameDialog } from '@/components/entity/RenameDialog'
 
-// The brand hub's data half. Every query, every mutation and all three dialogs
-// live here; the three zones live in `BrandHubView`, which this feeds props and
-// `routes/demo.brand.tsx` feeds fixtures.
+// The brand hub's data half. Every query, every mutation and all four dialogs
+// live here; the three zones live in `BrandHubView`, which this feeds props.
 //
-// The split is not tidiness — it is what lets the mockup render the *route's*
-// component inside the real shell instead of a second throwaway harness, and it
-// is what makes the hub testable without mounting a QueryClient. It follows the
+// The split was not tidiness — it is what let the 1.8.0 mockup render the
+// *route's* component inside the real shell instead of a second throwaway
+// harness, and, now that the mockup is deleted, it is what still makes the hub
+// testable without mounting a QueryClient. It follows the
 // precedent `BrandContextRail` already set one level down: props in, callbacks
 // out, no query of its own.
 //
@@ -31,8 +34,15 @@ import { RenameDialog } from '@/components/entity/RenameDialog'
 // both surfaces are byte-identical to 1.7.0.
 //
 // **2D feeds `logoSrc` too**, resolving a `role: 'logo'` asset through
-// `useSignedReadUrl`. `research` is the last prop still unfed — there is no
-// research query until Stage 3.
+// `useSignedReadUrl`.
+//
+// **3C feeds the last two, and closes the invariant's first half for good.**
+// `research` is the brand's latest job and `onStartResearch` is the action —
+// and the *callback* is the gate, exactly as 1.8.0 built it: a deployment with
+// `RESEARCH_PROVIDER=none` reports `enabled: false`, this route passes no
+// callback, and the rail's footer row does not exist. A self-hoster without a
+// key gets the feature absent rather than broken, which is the one property
+// this whole arrangement was for.
 
 function BrandHubPage() {
   const { brandId } = brandEditorRoute.useParams()
@@ -44,11 +54,24 @@ function BrandHubPage() {
     isError: projectsError,
   } = useBrandProjects(brandId)
   const { data: assets, isPending: assetsPending, isError: assetsError } = useBrandAssets(brandId)
+  const { data: research } = useBrandResearch(brandId)
+  const startResearch = useStartResearch(brandId)
   const [renameOpen, setRenameOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const update = useUpdateBrand(brandId, brand?.workspaceId ?? '')
   const del = useDeleteBrand(brandId, brand?.workspaceId ?? '')
+
+  // **3E, and the one behaviour on this page that happens without a click.**
+  // Everything the two landing paths need is already here — the brand's current
+  // sections and the polled job — and the decision between them lives in the
+  // hook, which is where it can be tested without a page. This route keeps what
+  // routes keep: the queries, and which dialog is open.
+  const landing = useDraftLanding({
+    brandId,
+    sections: brand?.sections,
+    job: research?.job,
+  })
 
   // No trail: the brand hub *is* the brand, and the header's brand switcher
   // already names it. Leaving the call in with an empty trail would read as a
@@ -103,9 +126,43 @@ function BrandHubPage() {
         onRename={() => setRenameOpen(true)}
         onDelete={() => setDeleteOpen(true)}
         onEdit={() => setEditOpen(true)}
+        research={research?.job ?? null}
+        // Absent until the query answers, and absent forever on a deployment
+        // with no provider — the row is gated on the callback, not on the job.
+        onStartResearch={
+          research?.enabled
+            ? () =>
+                startResearch.mutate(undefined, {
+                  onError: (err) =>
+                    toast.error(
+                      err instanceof AppError ? err.message : 'Could not start research.',
+                    ),
+                })
+            : undefined
+        }
+        // The rail's `N drafts ready — Review` row. The same sheet the arrival
+        // opens by itself on a curated brand — one surface, two ways in, so a
+        // dismissed sheet is never a lost report.
+        onReviewDrafts={() => landing.setReviewOpen(true)}
       />
 
-      <EditGuidelinesDialog brand={brand} open={editOpen} onOpenChange={setEditOpen} />
+      <EditGuidelinesDialog
+        brand={brand}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        staged={landing.staged}
+        onStagedConsumed={landing.clearStaged}
+      />
+
+      <ResearchReviewSheet
+        open={landing.reviewOpen}
+        onOpenChange={landing.setReviewOpen}
+        drafts={research?.job?.drafts ?? []}
+        onAcceptSelected={(chosen) => {
+          landing.acceptDrafts(chosen)
+          setEditOpen(true)
+        }}
+      />
 
       <RenameDialog
         open={renameOpen}

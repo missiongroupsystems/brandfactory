@@ -1,10 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { BrandAsset, BrandWithSections } from '@brandfactory/shared'
+import type { BrandAsset, BrandWithSections, ResearchJobSummary } from '@brandfactory/shared'
 import { SUGGESTED_SECTIONS } from '@brandfactory/shared'
 import { BrandContextRail } from './BrandContextRail'
-import type { ResearchJobSummary } from '@/demo/researchTypes'
 
 // `BrandAsset` moved to `@brandfactory/shared` in 2A, where — like every other
 // domain entity — it carries branded ids and the two timestamp columns the DB
@@ -98,14 +97,39 @@ describe('BrandContextRail', () => {
     expect(screen.queryByRole('button', { name: 'Add Voice & tone' })).toBeNull()
   })
 
-  it('counts written sections against the suggested total', () => {
+  it('counts what the list below it actually shows', () => {
     render(
       <BrandContextRail
         brand={brand([section('s-1', 'Voice & tone'), section('s-2', 'Target audience')])}
         onEdit={vi.fn()}
       />,
     )
-    expect(screen.getByText(`2 of ${SUGGESTED_SECTIONS.length} suggested sections`)).toBeTruthy()
+    const remaining = SUGGESTED_SECTIONS.length - 2
+    expect(screen.getByText(`2 written · ${remaining} suggested`)).toBeTruthy()
+  })
+
+  /**
+   * The regression the Stage 1–2 review found. The old copy was
+   * `${sections.length} of ${SUGGESTED_SECTIONS.length} suggested sections` — a
+   * denominator the numerator can exceed, because a brand may write as many
+   * sections of its own as it likes. Six custom sections announced
+   * "6 of 5 suggested sections", and every one of them was a section the
+   * suggestions had never proposed.
+   */
+  it('does not claim more suggested sections than exist', () => {
+    const custom = ['Tone in email', 'Photography', 'Legal', 'Naming', 'Partners', 'Events'].map(
+      (label, i) => section(`s-${i}`, label),
+    )
+    render(<BrandContextRail brand={brand(custom)} onEdit={vi.fn()} />)
+    expect(screen.queryByText(/of \d+ suggested sections/)).toBeNull()
+    // All five suggestions are still unwritten — none of these labels match one.
+    expect(screen.getByText(`6 written · ${SUGGESTED_SECTIONS.length} suggested`)).toBeTruthy()
+  })
+
+  it('drops the suggestion half once every suggestion is written', () => {
+    const all = SUGGESTED_SECTIONS.map((s, i) => section(`s-${i}`, s.label))
+    render(<BrandContextRail brand={brand(all)} onEdit={vi.fn()} />)
+    expect(screen.getByText(`${SUGGESTED_SECTIONS.length} written`)).toBeTruthy()
   })
 
   // No percentage, no bar, no scolding — zero sections is a legitimate brand
@@ -230,7 +254,9 @@ function researchJob(
   overrides: Partial<ResearchJobSummary> = {},
 ): ResearchJobSummary {
   return {
-    id: 'j-1',
+    // Branded in 3B, with the types. Fixture constructors state it; nothing
+    // reads it.
+    id: 'j-1' as ResearchJobSummary['id'],
     status,
     startedAt: '2026-07-29T09:00:00.000Z',
     completedAt: null,

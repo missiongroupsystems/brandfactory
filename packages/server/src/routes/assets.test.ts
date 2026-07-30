@@ -54,6 +54,11 @@ const LOGO = { kind: 'image', source: 'blob', label: 'Mark', blobKey: 'brands/ma
 // composed Hono type carries every route's signature, and asking TypeScript to
 // re-derive it through an inferred async return is a TS2589 ("excessively
 // deep").
+async function listAssets(app: TestHarness['app'], brandId: string) {
+  const res = await app.request(`/brands/${brandId}/assets`, { headers: auth() })
+  return (await res.json()) as BrandAsset[]
+}
+
 async function post(app: TestHarness['app'], brandId: string, body: unknown) {
   return app.request(`/brands/${brandId}/assets`, {
     method: 'POST',
@@ -406,6 +411,76 @@ describe('DELETE /brands/:id/assets/:assetId', () => {
     expect(del.mock.calls.map((call) => call[0])).toEqual(['brands/mark.svg'])
   })
 
+  /**
+   * The Stage 1–2 review's sweep finding.
+   *
+   * `POST /brands/:id/assets` takes `blobKey` from the client and checks
+   * neither that the key exists nor that the caller minted it — the signed-URL
+   * transport is built so the server stays out of the byte path, and the key it
+   * hands back is the only token there is. Tolerable for a read. Stage 2 made a
+   * stored key something the **brand cascade destroys**, so a row pointing at
+   * bytes it does not own turned a delete of your own brand into a delete of
+   * another brand's file.
+   *
+   * Not reachable in practice — keys embed a v4 UUID and workspaces are
+   * single-owner — which is exactly why it needs a test rather than a live
+   * repro. `listStillReferencedBlobKeys` makes it safe by construction: sweep
+   * only what nothing else points at.
+   */
+  it('does not sweep a key another brand’s asset still points at', async () => {
+    const { del, storage } = spyStorage()
+    const { app, workspaceId } = await seedBrand({ storage })
+    const victim = (await (
+      await app.request(`/workspaces/${workspaceId}/brands`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ name: 'Victim' }),
+      })
+    ).json()) as { id: string }
+    const attacker = (await (
+      await app.request(`/workspaces/${workspaceId}/brands`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ name: 'Attacker' }),
+      })
+    ).json()) as { id: string }
+
+    // The victim owns the bytes; the attacker's brand merely names the key.
+    await post(app, victim.id, { ...LOGO, blobKey: 'uploads/victim/logo.svg' })
+    await post(app, attacker.id, { ...LOGO, blobKey: 'uploads/victim/logo.svg' })
+    await post(app, attacker.id, { ...LOGO, label: 'Mine', blobKey: 'uploads/attacker/own.svg' })
+
+    await app.request(`/brands/${attacker.id}`, { method: 'DELETE', headers: auth() })
+
+    // Its own key goes. The victim's does not.
+    expect(del.mock.calls.map((call) => call[0])).toEqual(['uploads/attacker/own.svg'])
+  })
+
+  // The other direction, and the one that proves the subtraction is not simply
+  // "never sweep a shared key": once the last reference goes, the bytes go.
+  it('sweeps the key once the final reference is deleted', async () => {
+    const { del, storage } = spyStorage()
+    const { app, workspaceId } = await seedBrand({ storage })
+    const brands: string[] = []
+    for (const name of ['One', 'Two']) {
+      const b = (await (
+        await app.request(`/workspaces/${workspaceId}/brands`, {
+          method: 'POST',
+          headers: auth(),
+          body: JSON.stringify({ name }),
+        })
+      ).json()) as { id: string }
+      brands.push(b.id)
+      await post(app, b.id, { ...LOGO, blobKey: 'uploads/shared/logo.svg' })
+    }
+
+    await app.request(`/brands/${brands[0]}`, { method: 'DELETE', headers: auth() })
+    expect(del).not.toHaveBeenCalled()
+
+    await app.request(`/brands/${brands[1]}`, { method: 'DELETE', headers: auth() })
+    expect(del.mock.calls.map((call) => call[0])).toEqual(['uploads/shared/logo.svg'])
+  })
+
   it('404s for an unknown asset id', async () => {
     const { app, brandId } = await seedBrand()
     const res = await app.request(`/brands/${brandId}/assets/as-nope`, {
@@ -413,5 +488,150 @@ describe('DELETE /brands/:id/assets/:assetId', () => {
       headers: auth(),
     })
     expect(res.status).toBe(404)
+  })
+
+  // Added by the Stage 1–2 review. Before it, a second DELETE moved `deletedAt`
+  // forward on an already-hidden row and returned 200 — which would quietly
+  // extend the window an Undo is measured against.
+  it('404s on a second delete rather than re-hiding a hidden row', async () => {
+    const { app, brandId } = await seedBrand()
+    const row = (await (await post(app, brandId, LOGO)).json()) as BrandAsset
+    const del = () =>
+      app.request(`/brands/${brandId}/assets/${row.id}`, { method: 'DELETE', headers: auth() })
+    expect((await del()).status).toBe(200)
+    expect((await del()).status).toBe(404)
+  })
+
+  // A patch that lands on a soft-deleted row is editing something no read path
+  // returns and the caller cannot see.
+  it('404s on a patch to a soft-deleted asset', async () => {
+    const { app, brandId } = await seedBrand()
+    const row = (await (await post(app, brandId, LOGO)).json()) as BrandAsset
+    await app.request(`/brands/${brandId}/assets/${row.id}`, { method: 'DELETE', headers: auth() })
+    const res = await app.request(`/brands/${brandId}/assets/${row.id}`, {
+      method: 'PATCH',
+      headers: auth(),
+      body: JSON.stringify({ label: 'Resurrected' }),
+    })
+    expect(res.status).toBe(404)
+  })
+})
+
+/**
+ * The Undo behind the delete. 1.10.0 shipped delete with no confirmation and no
+ * way back and named the fix as an Undo rather than a dialog; the row was always
+ * recoverable — nothing sweeps its bytes — and simply had no caller.
+ */
+describe('POST /brands/:id/assets/:assetId/restore', () => {
+  it('brings a soft-deleted asset back into the list', async () => {
+    const { app, brandId } = await seedBrand()
+    const row = (await (await post(app, brandId, LOGO)).json()) as BrandAsset
+    await app.request(`/brands/${brandId}/assets/${row.id}`, { method: 'DELETE', headers: auth() })
+    expect(await listAssets(app, brandId)).toHaveLength(0)
+
+    const res = await app.request(`/brands/${brandId}/assets/${row.id}/restore`, {
+      method: 'POST',
+      headers: auth(),
+    })
+    expect(res.status).toBe(200)
+    const restored = (await res.json()) as BrandAsset
+    expect(restored.deletedAt).toBeNull()
+    // Back where it was — a restore is a state change, not a re-create.
+    expect(restored.position).toBe(row.position)
+    expect(await listAssets(app, brandId)).toHaveLength(1)
+  })
+
+  it('404s for an asset that is not deleted, so a replayed Undo is inert', async () => {
+    const { app, brandId } = await seedBrand()
+    const row = (await (await post(app, brandId, LOGO)).json()) as BrandAsset
+    const res = await app.request(`/brands/${brandId}/assets/${row.id}/restore`, {
+      method: 'POST',
+      headers: auth(),
+    })
+    expect(res.status).toBe(404)
+  })
+
+  it('404s for a brand that does not exist, before it looks at the asset', async () => {
+    const { app } = await seedBrand()
+    const res = await app.request(`/brands/b-nope/assets/as-1/restore`, {
+      method: 'POST',
+      headers: auth(),
+    })
+    expect(res.status).toBe(404)
+  })
+})
+
+/**
+ * Batch re-position. `reorderAssets` had been live-tested in `@brandfactory/db`
+ * and reachable from nothing since 2A; 2E's drag handler settled for N
+ * independent `PATCH`es whose interleaving decided the final order.
+ *
+ * Spelled `PATCH /brands/:id/assets` rather than `POST …/reorder` — see the
+ * route, where a literal segment beside a sibling's parameter turned out to
+ * downgrade Hono's router for the entire app.
+ */
+describe('PATCH /brands/:id/assets — reorder', () => {
+  async function seedThree(opts: Parameters<typeof createTestApp>[0] = {}) {
+    const { app, brandId, ...rest } = await seedBrand(opts)
+    const rows: BrandAsset[] = []
+    for (const label of ['A', 'B', 'C']) {
+      rows.push((await (await post(app, brandId, { ...COLOR, label })).json()) as BrandAsset)
+    }
+    return { app, brandId, rows, ...rest }
+  }
+
+  const reorder = (app: TestHarness['app'], brandId: string, updates: unknown) =>
+    app.request(`/brands/${brandId}/assets`, {
+      method: 'PATCH',
+      headers: auth(),
+      body: JSON.stringify({ updates }),
+    })
+
+  it('applies every position and returns the brand’s full list', async () => {
+    const { app, brandId, rows } = await seedThree()
+    const [a, b, c] = rows as [BrandAsset, BrandAsset, BrandAsset]
+    const res = await reorder(app, brandId, [
+      { id: c.id, position: 100 },
+      { id: a.id, position: 200 },
+      { id: b.id, position: 300 },
+    ])
+    expect(res.status).toBe(200)
+    const list = (await res.json()) as BrandAsset[]
+    expect(list.map((r) => r.label)).toEqual(['C', 'A', 'B'])
+  })
+
+  // The property N patches could not have. A batch naming one row that is not
+  // this brand's must leave the ordering exactly as it found it.
+  it('rolls the whole batch back when one id does not belong to the brand', async () => {
+    const { app, brandId, rows } = await seedThree()
+    const [a, b] = rows as [BrandAsset, BrandAsset, BrandAsset]
+    const res = await reorder(app, brandId, [
+      { id: a.id, position: 900 },
+      { id: b.id, position: 100 },
+      { id: '00000000-0000-4000-8000-000000000000', position: 200 },
+    ])
+    expect(res.status).toBe(404)
+    const list = await listAssets(app, brandId)
+    expect(list.map((r) => r.label)).toEqual(['A', 'B', 'C'])
+    expect(list.map((r) => r.position)).toEqual([100, 200, 300])
+  })
+
+  it('400s on an empty batch', async () => {
+    const { app, brandId } = await seedThree()
+    expect((await reorder(app, brandId, [])).status).toBe(400)
+  })
+
+  it('403s for a brand in a workspace the caller does not own', async () => {
+    // The brand belongs to USER; `u-2` is authenticated and simply not the
+    // owner, which is the difference between a 401 and a 403 here.
+    const { app, brandId } = await seedThree({ users: [USER, { id: 'u-2', token: 't-2' }] })
+    const res = await app.request(`/brands/${brandId}/assets`, {
+      method: 'PATCH',
+      headers: { authorization: 'Bearer t-2', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        updates: [{ id: '00000000-0000-4000-8000-000000000000', position: 1 }],
+      }),
+    })
+    expect(res.status).toBe(403)
   })
 })

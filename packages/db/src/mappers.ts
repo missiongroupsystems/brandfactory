@@ -71,12 +71,12 @@ function parseProseMirrorBody(body: unknown, blockOrSectionId: string): ProseMir
 //
 // Sub-millisecond precision is dropped — inherent to ISO-8601-with-ms, and
 // already true of any value that round-tripped through a JS `Date`.
-function toIsoTimestamp(value: string | Date): string {
+export function toIsoTimestamp(value: string | Date): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString()
 }
 
 // Nullable variant for `pinnedAt` / `deletedAt`.
-function toIsoTimestampOrNull(value: string | Date | null): string | null {
+export function toIsoTimestampOrNull(value: string | Date | null): string | null {
   return value === null ? null : toIsoTimestamp(value)
 }
 

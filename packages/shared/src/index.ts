@@ -22,8 +22,16 @@ export * from './brand/update-guidelines'
 
 // Brand assets
 export * from './asset/asset'
+export * from './asset/color'
 export * from './asset/create'
 export * from './asset/update'
+export * from './asset/reorder'
+
+// Brand research
+export * from './research/job'
+
+// Brand research
+export * from './research/job'
 
 // Project
 export * from './project/project'

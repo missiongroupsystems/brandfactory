@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { LLM_PROVIDER_IDS } from '@brandfactory/shared'
+import { RESEARCH_PROVIDER_IDS } from '@brandfactory/adapter-research'
 
 // Single env schema for the server. Per locked decision 13, every adapter
 // gets discrete env vars (not a JSON blob); per locked decision 15, the
@@ -55,6 +56,25 @@ const EnvObject = z.object({
   SUPABASE_JWT_AUDIENCE: NonEmpty.optional(),
   SUPABASE_JWT_ISSUER: NonEmpty.optional(),
   SUPABASE_STORAGE_BUCKET: NonEmpty.optional(),
+
+  // Brand research (Stage 3). **`none` is the default, and that is the
+  // feature's most important line of configuration**: research is the only
+  // thing in this repo that spends money per click, so a deployment that has
+  // not opted in gets it absent and explained rather than broken — the routes
+  // pass no `onStartResearch`, and the rail's footer row does not exist.
+  RESEARCH_PROVIDER: z.enum(RESEARCH_PROVIDER_IDS).default('none'),
+  PERPLEXITY_API_KEY: NonEmpty.optional(),
+  // Job input, not provider construction, so decision 10's cut of Quick mode
+  // is a config change away rather than a rewrite. 3A measured this model at
+  // $0.377 and 4.0 minutes for one brand.
+  RESEARCH_MODEL: NonEmpty.default('sonar-deep-research'),
+  // Decision 12's two caps, both enforced in 3C before the outbound call —
+  // the only place enforcement is worth anything. Deliberately job *counts*
+  // rather than a dollar budget: real spend is known only after a run
+  // completes, so a dollar cap either blocks on an estimate or discovers the
+  // overrun too late to stop it.
+  RESEARCH_MAX_ACTIVE_PER_WORKSPACE: z.coerce.number().int().min(1).default(2),
+  RESEARCH_MAX_JOBS_PER_DAY: z.coerce.number().int().min(1).default(10),
 
   // LLM provider keys.
   ANTHROPIC_API_KEY: NonEmpty.optional(),
@@ -128,6 +148,13 @@ export const EnvSchema = EnvObject.superRefine((env, ctx) => {
         message: `unhandled LLM_PROVIDER: ${String(_exhaustive)}`,
       })
     }
+  }
+
+  // Same rule as every LLM provider: selecting a paid finder without its key is
+  // a boot failure, not a first-click failure. `none` requires nothing, which
+  // is what makes it a usable default rather than a broken one.
+  if (env.RESEARCH_PROVIDER === 'perplexity') {
+    require_('PERPLEXITY_API_KEY', "RESEARCH_PROVIDER='perplexity'")
   }
 })
 

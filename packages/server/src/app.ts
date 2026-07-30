@@ -1,6 +1,7 @@
 import type { AuthProvider } from '@brandfactory/adapter-auth'
 import type { BlobStore } from '@brandfactory/adapter-storage'
 import type { LLMProvider } from '@brandfactory/adapter-llm'
+import type { ResearchProvider } from '@brandfactory/adapter-research'
 import type { RealtimeBus } from '@brandfactory/adapter-realtime'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
@@ -16,6 +17,8 @@ import { requestIdMiddleware } from './middleware/request-id'
 import type { AgentConcurrencyGuard } from './agent/concurrency'
 import { createAgentRouter } from './routes/agent'
 import { createBrandAssetsRouter } from './routes/assets'
+import { createResearchRouter } from './routes/research'
+import { createResearchShaper, type ShapeResearchFn } from './research/shape'
 import { createBlobsRouter } from './routes/blobs'
 import { createBlobUrlsRouter } from './routes/blobs-auth'
 import { createBrandsRouter, createWorkspaceBrandsRouter } from './routes/brands'
@@ -39,6 +42,12 @@ export interface AppDeps {
   storage: BlobStore
   realtime: RealtimeBus
   llm: LLMProvider
+  research: ResearchProvider
+  /**
+   * 3D's shaping pass. Injectable so a test can drive the lifecycle without a
+   * model; the default composes the real one from `db` + `llm` + `env`.
+   */
+  shapeResearch?: ShapeResearchFn
   agentGuard: AgentConcurrencyGuard
 }
 
@@ -93,6 +102,25 @@ export function createApp(deps: AppDeps) {
     .route('/brands', createBrandProjectsRouter({ db: deps.db, storage: deps.storage }))
     // No `storage`: asset delete is a soft delete and must not sweep bytes.
     .route('/brands', createBrandAssetsRouter({ db: deps.db }))
+    // The only router that can spend money. Its guards live in
+    // `research/service.ts` rather than in the handler, because the ticker
+    // needs the same lifecycle and a guard inside a handler is one the
+    // background sweep does not have.
+    .route(
+      '/brands',
+      createResearchRouter({
+        db: deps.db,
+        research: deps.research,
+        env: deps.env,
+        // Stage 2 of a run, on the workspace's own model (3D). Built here
+        // rather than injected, because it is a composition of things the app
+        // already holds — and passing it as a function is what keeps the
+        // lifecycle testable without a model.
+        shape:
+          deps.shapeResearch ?? createResearchShaper({ db: deps.db, llm: deps.llm, env: deps.env }),
+        logger: deps.log,
+      }),
+    )
     .route('/projects', createProjectsRouter({ db: deps.db, storage: deps.storage }))
     .route('/projects', createCanvasRouter({ db: deps.db, realtime: deps.realtime }))
     .route('/projects', createMessagesRouter({ db: deps.db }))

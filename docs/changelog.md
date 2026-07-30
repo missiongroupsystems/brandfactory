@@ -4,6 +4,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 ## Index
 
+- **1.11.1** — 2026-07-30 — Stages 1–2 review remediation, run against the shipped code before production: nine findings, eight fixed here and one already closed by 3G. The one that would have shipped broken is a **deployment gap, not a code defect** — `fly.toml` runs `STORAGE_PROVIDER = "supabase"` while every Stage 2 live pass ran on `local-disk`, and the two providers derive a blob's content type from **different fields of the same request** (the key's extension vs the header this server mints), so `{ filename: 'logo.svg', contentType: 'image/png' }` served as a *document* on one and an image on the other; `keyWithCanonicalExtension` makes them agree at the only place that can guarantee it, the mint. A colour value was never checked to be a colour and was rendered through the **`background` shorthand**, which includes `background-image` — so a stored `url(…)` painted as an outbound request on a privacy-first product; fixed on all three sides (schema allowlist, the `backgroundColor` longhand, the inline arm). `kind` and `source` were orthogonal in the table and not in reality, so `{ kind: 'color', source: 'link' }` passed the schema, the CHECK *and* the route. The blob sweep could **destroy bytes it did not own**, because Stage 2 turned a client-supplied `blobKey` into something the brand cascade deletes — closed by subtracting what still points at a key *after* the cascade, which does not depend on keys being unguessable or workspaces staying single-owner. Delete finally gets the **Undo 1.10.0 asked for** (`restoreAsset`, plus the three `deletedAt` guards that were missing from every soft-delete writer), and `reorderAssets` — transactional and live-tested since 2A, reachable from **nothing** — gets a route, replacing N racing patches. The route spelling turned out to be load-bearing: `POST /:id/assets/reorder` puts a literal where a sibling has a parameter, which Hono's `RegExpRouter` refuses, silently downgrading **the whole app** to `TrieRouter` — and the visible symptom was `GET /blob-urls/:key/read-url` 404ing in a file the change never opened. Its existing test caught it. Also: the rail could print "6 of 5 suggested sections", and `VisualIdentityPage` — the data half holding the upload loop and the reorder arithmetic — had **zero tests** against its view's 24. No migration. 817 → **887 tests (+70)**, zero skipped against a clean database. Detail in [`docs/completions/stage-1-2-review-remediation.md`](completions/stage-1-2-review-remediation.md).
+- **1.11.0** — 2026-07-30 — Brand research end to end (Stage 3, phases 3A–3G): a brand can be **researched from its website**, and what comes back lands in three places — draft guideline sections, the full report as a conversation, and a row in the rail that says where the run got to. **Migration 0005** lands `brand_research_jobs` (one table, one enum, two indexes, one of them partial) under three routes, a fifth adapter, an in-process ticker and a paid vendor. The load-bearing rule is that **every guard fires above the line that spends money** — provider off, no `website_url`, brand already running, workspace at its active cap, workspace at its daily cap — because below it the money is gone and all a check can do is hide the result; and the row is written **before** the submission, because a row with no `externalId` is recoverable and a paid run with no row is not. 3D is a **compression pass, not a partition**: 3A measured a real report at 67,780 characters across five `##` headings, so the obvious reading of "one heading per section" produces a 16,000-character *Voice & tone* in a rail row built for a paragraph. 3E answers *"is this brand empty?"* **when the drafts land, not at submission** — a deep run takes 3–15 minutes, which is ample time to start typing a Voice section by hand — and its Undo is a full-list write of `[]` guarded on ids **and** `updatedAt`, because between the toast appearing and being clicked that `[]` stops meaning "take back what research added". 3F makes the report the first message of a **new** brand-context thread, which buys capture and agent-awareness **by construction** rather than by code. **A real vendor call was made** at 3G: $0.4157, 48,607 characters, 17 citations, 5.2 minutes — 10% dearer and 30% slower than 3A's sample of one, and the report was about the company at the URL it was given, which is the confabulation the hard URL gate exists to prevent. Shaping threw `Unauthorized` on a placeholder key, which **verified 3D's refusal on a real paid report**: the run still completed and all 48,607 characters survived. Three bugs the live passes found and no test would have: accepting drafts landed them **below the fold**, so it looked like nothing happened; a captured section is **nameless by design** and `label` is `min(1)` over a payload that is the brand's *complete* list, so one capture 400'd the whole save and showed a toast reading `Bad Request` — reachable since 1.5.0 and made the ordinary path by 3F; and the brand switcher's menu had **no width cap**, so one 90-character brand name opened it 670px wide with 32 short names rattling inside. Also fixed: `fileParallelism` in a project config is **silently ignored**, so `packages/db`'s live tests had been racing each other since 0.9.1 and "all green" was worker timing. **The mockup is demolished** — `src/demo/`, its route, the `import.meta.env.DEV` ternary and both `/* @__PURE__ */` annotations — and 1.8.0's invariant is formally closed: every prop it added is fed by the real route. 688 → **887 tests**, zero skipped with a `DATABASE_URL`. Detail in [`docs/completions/stage-3g-verification-and-demolition.md`](completions/stage-3g-verification-and-demolition.md) and the six phase notes beside it.
 - **1.10.0** — 2026-07-29 — Brand assets end to end (Stage 2, phases 2A–2F): a brand can finally *have* colours, marks, photography and files. **Migration 0004** lands `brand_assets` — one table, four enums, a hand-authored three-branch CHECK (`inline` carries a value, `blob` a key, `link` a URL, exactly one) and two partial indexes — under four routes and one new page. The load-bearing decision was made in 1.8.0 and executed here: **the rail shows the palette, the library owns it** — read there, write here — so `railVariant` and two of the three arrangements the mockup built are **deleted**, which was the mockup's whole deliverable. `Visual identity` stops being a `Soon` tile, and the registry gains `unit: 'thread' | 'asset'` because the moment it went live it would have read **`0 threads` on every brand** — not merely unhelpful but false. Two bugs the live passes found and no test would have: stored blobs were served as `application/octet-stream`, which browsers sniff past for PNG and **never** for SVG, so an uploaded SVG logo silently fell back to the monogram; and browser uploads have failed on a CORS preflight **since 0.7.4**, because Vite proxied `/api` and `/rt` but not the one path that carries bytes — reads never noticed, an `<img src>` is not CORS-gated. 2F is the not-skippable phase: **all 29 live-Postgres tests run and pass**, both migrators go from empty and are idempotent, and the 900px rail is fixed on its third pass by capping the stacked rail to **exactly one tile column** (measured: 420px against 420px). The first keyboard walk in the plan found an unnamed file input in the tab order. 565 → **688 tests (+123)**, zero skipped with a `DATABASE_URL`. `demo.brand.assets.tsx` and the five asset scenarios are deleted — the real page exists now. Detail in [`docs/completions/stage-2f-verification.md`](completions/stage-2f-verification.md) and the five phase notes beside it.
 - **1.9.0** — 2026-07-29 — Foundation (Stage 1, phases 1A–1B): two things the schema could not say, neither needing assets or research to exist. **Migration 0003** adds `brands.website_url` — one nullable column, end to end, whose real job is to **put a migration through the release path before anything interesting depends on one** (it was broken for releases v7 and v8). The load-bearing line is `z.url({ protocol: /^https?$/ })`, not `z.url()`: measured against the installed zod 4.3.6, `javascript:alert(1)` **is** a syntactically valid URL and a bare `z.url()` would have shipped a stored XSS with a nice UI around it — the value goes into an `href`. 1B stops `createdBy` from lying: `routes/brands.ts` hardcoded `createdBy: 'user'` over a payload that is the brand's **complete** section list, so every save rewrote the author of **every section in the brand** — a section stored as `'agent'` reverted the next time you renamed something unrelated. Nothing surfaced it because nothing produced `'agent'` yet, which is exactly why it ships before Stage 3E becomes the first producer. 527 → **565 tests (+38)**. Detail in [`docs/completions/stage-1a-brand-website-url.md`](completions/stage-1a-brand-website-url.md) and [`stage-1b-guideline-provenance.md`](completions/stage-1b-guideline-provenance.md).
 - **1.8.0** — 2026-07-29 — Brand hub, front-end first (P0–P5): two proposals — `brand-assets.md` and the locked `brand-research-onboarding.md` — are **two migrations, a new table, a fifth adapter, a paid vendor and six routes**, and **neither had ever been seen**. So the surface goes first, on fixtures. The load-bearing decision is that `BrandHubPage` splits into a **data route and a pure `BrandHubView`**, and the mockup is *the same view with different props* — not a second harness, so the app shell, the real router and the real `index.css` are in every screenshot, which is exactly what 1.7.0's throwaway harness could not show. 13 scenarios behind a picker, each carrying the decision it can falsify; the rail's **three candidate structures are all built** because two of them being deleted is the deliverable, and **C is the default because C *is* 1.7.0**. What protects the shipped hub is not "it's only the demo route" but a written invariant — *the real route can only pass null for every prop this pass adds, and every affordance renders nothing when its prop is absent* — with tests of its own. The plan's `import.meta.env.DEV` gate **did not work**: measured, not assumed, the first production build shipped `/demo/brand` and every fixture string into `dist`, because Rolldown treats a top-level `createRoute(…)` as side-effecting; `/* @__PURE__ */` plus moving the fixtures inside functions takes it to **zero occurrences of `demo` in the built assets**. `packages/web` only; no migration, no route, no vendor call, no new repo dependency. 456 → **527 tests (+71), none edited** — P0's acceptance criterion, and the evidence the extraction was a move. **A live pass was run** — 34 shots, both themes, no console errors — and it changed the code twice, once to fix `ProjectCard`'s name column, which has wrapped one word per line since 0.9.0. Detail in [`docs/completions/brand-hub-fe-mockup.md`](completions/brand-hub-fe-mockup.md); the decision record is appended to [the plan](executing/brand-hub-fe-mockup.md).
@@ -35,6 +37,279 @@ Latest releases at the top. Each version has a one-line entry in the index below
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` lands — drizzle schema for 8 tables, singleton pg `Pool`, 18 query helpers, local-dev docker Postgres, and an end-to-end smoke check.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` lands as the single source of truth for domain types and zod schemas, consumed by both `server` and `web`.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture blueprint, scaffolding plan, and Phase 0 repo foundation.
+
+---
+
+## 1.11.1 — 2026-07-30
+
+**Stages 1 and 2, reviewed against the shipped code rather than against the
+notes that describe it.** Not a phase of the implementation plan — a
+remediation pass asked for before production, run while Stage 3 was in flight.
+Nine findings; eight fixed here, one already closed by 3G.
+
+Detail in
+[`docs/completions/stage-1-2-review-remediation.md`](completions/stage-1-2-review-remediation.md).
+
+### The one that would have shipped broken
+
+`fly.toml` runs `STORAGE_PROVIDER = "supabase"`. Every Stage 2 live pass ran on
+`local-disk`, and `app.ts` mounts `/blobs` **only** for `local-disk` — so 2D's
+content-type fix and the `sandbox` + `nosniff` headers beside it sit on a route
+production never loads. Stage 2 is the first feature whose content is *bytes*.
+
+Reading the two providers side by side turned that into a concrete defect:
+
+```
+local-disk   serves from the KEY'S EXTENSION       (routes/blobs.ts)
+supabase     serves from the CLIENT'S PUT HEADER   (which this server mints)
+```
+
+Both come from the same request and nothing compared them, so
+`{ filename: 'logo.svg', contentType: 'image/png' }` served as `image/svg+xml`
+— **a document** — on one provider and `image/png` on the other.
+`keyWithCanonicalExtension` removes the disagreement at the mint, the only place
+that can guarantee it. It appends rather than rejects: a file named `logo` with
+a correct type is the ordinary case, not an attack.
+
+**Still needs a human.** Nothing here proves Supabase stores and returns the
+type as expected, and nothing here gives that path the CSP headers — those
+belong to the server serving the bytes, which on that path is Supabase. One
+upload → render → brand-delete cycle on a Supabase deploy, with an SVG.
+
+### Four more with teeth
+
+- **A colour value was never checked to be a colour**, and the palette row
+  rendered it through the **`background` shorthand** — which includes
+  `background-image`, so `url(…)` painted as an outbound request. Owner-only
+  today (workspaces are single-owner), which is why it is the guard that must
+  already exist the day they are not. Fixed on three sides: an allowlist of
+  forms, the `backgroundColor` longhand, and the inline arm of both schemas.
+- **`kind` and `source` were orthogonal in the table and not in reality.**
+  `{ kind: 'color', source: 'link' }` and `{ kind: 'image', source: 'inline' }`
+  passed the schema, the CHECK *and* the route, rendering as an empty swatch and
+  a permanent `No preview`. Enforced as a biconditional at the wire — a colour
+  is inline and an inline asset is a colour. No migration: adding a CHECK
+  mid-Stage-3 would renumber one that stage had claimed.
+- **The blob sweep could destroy bytes it did not own.** Stage 2 turned a
+  client-supplied `blobKey` into something the brand cascade *deletes*, so a row
+  naming a key it did not mint made deleting your own brand delete another's
+  file. Unreachable in practice — v4 UUIDs, single-owner workspaces — which is
+  why it needed a test rather than a repro. Now the cascade subtracts whatever
+  still points at a key **after** the delete, which depends on neither of those
+  staying true. Applied to the project cascade too.
+- **Delete gets the Undo 1.10.0 asked for.** Its own caveats named it: *"the fix
+  is an Undo, not a dialog."* The row was always recoverable and simply had no
+  caller. `restoreAsset` is that caller — its own verb, not a patch field, since
+  `deletedAt` is the one column a patch must not set. Three missing `deletedAt`
+  guards came with it, on every soft-delete writer.
+
+### The route spelling was load-bearing
+
+`reorderAssets` had been transactional, live-tested and reachable from
+**nothing** since 2A; 2E settled for N racing patches. Giving it a door broke a
+module the change never opened:
+
+```
+POST /brands/:id/assets/reorder        ← a literal where a sibling has a param
+  → RegExpRouter refuses the shape
+  → SmartRouter silently downgrades THE WHOLE APP to TrieRouter
+  → TrieRouter cannot match :key{.+}
+  → GET /blob-urls/…/read-url          200 → 404
+```
+
+The existing blob test caught it, which is the argument for the suite that was
+already there. The route is `PATCH /brands/:id/assets` — no collision, and the
+more honest verb. `test-helpers`' fake was corrected in the same pass: it
+mutated row by row and so reported a half-applied reorder as correct.
+
+### Two smaller, and one already fixed
+
+The rail could print **"6 of 5 suggested sections"** — a denominator its
+numerator can exceed — and now counts what the list actually shows.
+`VisualIdentityPage`, the data half holding the upload loop and the reorder
+arithmetic, had **zero tests** against its view's 24; it has twelve, through the
+seam the pure view was built for. And two comments describing a deleted demo
+route were **already fixed by 3G** before this pass reached them.
+
+### Verification
+
+```
+pnpm typecheck                                 10/10 workspaces
+pnpm lint / format:check                       clean
+DATABASE_URL=<clean db> pnpm test              887 passed | 0 skipped (100 files)
+release migrator, from empty                   applied; idempotent on re-run
+pnpm --filter @brandfactory/web build          ok · "demo" in dist → 0
+```
+
+817 → **887 (+70)**. **No migration**, so nothing to roll back — every change is
+a schema refinement, a `where` clause, a route, or a test.
+
+On the *dev* database one test fails and it is not a defect:
+`listRecentProjectsByWorkspace` asserts an exact count of distinct brands, and
+the local database carries two hand-made ones. Established by running the suite
+against a freshly migrated database rather than assumed, and left alone — the
+test is correct and the data is the user's.
+
+---
+
+## 1.11.0 — 2026-07-30
+
+**A brand can be researched from its website, and a real vendor call proved it.**
+Stage 3 of [`docs/executing/brand-hub-implementation.md`](executing/brand-hub-implementation.md),
+phases 3A–3G, on top of 1.10.0.
+
+```
+3A  the live spike     one key, one real brand, two captured bodies — no repo code
+3B  the port           the fifth adapter, against 3A's real response shapes
+3C  the job            migration 0005, three routes, the ticker, reconcile-on-read
+3D  the shaping pass   report → drafts, on the workspace's own model
+3E  landing the drafts populate an empty brand with an Undo, or open the sheet
+3F  the conversation   the full report as the first message of a new thread
+3G  verification       the paid pass, the migrators, the demolition
+```
+
+### Everything expensive happens above the line that spends
+
+```
+POST /brands/:id/research
+  ├─ RESEARCH_PROVIDER=none?   501   the feature is off, nothing is broken
+  ├─ no website_url?           400   the hard gate
+  ├─ this brand running?       409
+  ├─ workspace active cap?     429
+  ├─ workspace daily cap?      429   the money one
+  ├─ INSERT … IN_PROGRESS            ← recorded *before* submitted
+  └─ provider.start()                ← the only line that costs anything
+```
+
+Below that last line the money is spent and a check can only hide the result. The
+order is not decorative either: the URL gate is second because a deep pass over
+the bare string "Casa Vostra" finds *a* Casa Vostra and writes a confident,
+cited, entirely wrong profile — and the citations make it more convincing, not
+less. **Verified against a real report at 3G**, which came back about the company
+at the URL it was given.
+
+Record-then-submit, not the reverse: a row with no `externalId` is recognised and
+closed after a grace period; a paid run with no row is money on the floor.
+
+### The three decisions worth reading
+
+**Compression, not partition.** 3A's real report was 67,780 characters across
+five `##` headings, so *"turn the report into draft sections"* read literally
+produces a 16,000-character *Voice & tone* in a rail row built for a paragraph.
+`DRAFT_TARGET_MAX_CHARS = 1200` is asked for in the prompt and stated as a
+number, because "keep it short" without one is how a 16,000-character section
+happens.
+
+**Emptiness is answered when the drafts land, not at submission.** A deep run
+takes 3–15 minutes — ample time to start typing a Voice section by hand — so a
+brand that was empty when you clicked need not be empty when the report arrives.
+An unknown section list takes the path that *asks*, because the difference
+between "empty" and "not loaded yet" is a destructive write.
+
+**A new thread, never an append.** The report becomes the first `assistant`
+message of a brand-context thread named for the run, which buys two things
+without building either: capture works on it (the 1.5.0 gesture is a property of
+a message bubble and never asked how the message got there), and the interviewer
+answers against it (`routes/agent.ts` re-reads the history every turn).
+
+### The paid pass
+
+```
+click “Research this brand”   rail → “Researching… started 1 second ago”
+310s                          COMPLETED · 17 sources · 0 drafts
+row                           48,607 chars · cost_usd 0.415660 · 5.2 min
+thread                        “Brand research — Ebb & Flow Group, 30 Jul 2026”
+capture                       48,607 chars → a 53,984-char section, in 3.1s
+```
+
+**10% dearer and 30% slower than 3A's sample of one**, on the same target two
+days apart. Nothing depends on the exact figure — the daily cap is a job count —
+but *"a run costs $0.377"* should be read as *"around $0.40, and it varies"*.
+
+**Shaping threw `Unauthorized`** on this environment's placeholder LLM key, and
+that verified the refusal it was written for: the run still reached `COMPLETED`
+and all 48,607 characters survived on the row. A report that cost $0.42 is not
+discarded because the writing model was unreachable. It also means **E1 and E2
+were not exercised live** — no drafts, no arrival — and remain verified against
+fabricated, shape-accurate drafts on real Postgres.
+
+### Three bugs the live passes found and no test would have
+
+- **Accepted drafts landed below the fold.** New sections are appended and the
+  dialog opens at the top, so on a brand with six sections *Accept selected* put
+  three drafts out of sight and looked like it had done nothing. Every test
+  passed: *the row exists* and *you can see the row* are not the same claim.
+- **A capture could not be saved, and the toast said `Bad Request`.** `label` is
+  `min(1)` on the shared schema and the editor sends the brand's **complete**
+  section list, so one nameless row rejected the whole request and took every
+  other edit with it. Every capture is nameless *by design* — you name it and
+  trim it, then Save — so this has been reachable since 1.5.0; 3F is what made it
+  the ordinary path, because the report is the thing people capture.
+- **The brand switcher's menu had no width cap.** One 90-character brand name
+  opened it **670px wide** with 32 short names rattling inside. The rows have
+  said `truncate` since 1.6.0, but a dropdown grows to fit its widest child, so
+  the ellipsis never engaged. Now 320px, re-measured.
+
+### And one in the test harness
+
+`fileParallelism: false` has sat in `packages/db/vitest.config.ts` since 0.9.1
+with a comment explaining that the live-DB files must not race. **It is a
+root-level option and is silently ignored in a project config**, so the file that
+deletes the seeded brand's sections has been running concurrently with the two
+that assert exact counts on them, and `pnpm test` passed or failed on worker
+timing. Every "0 skipped, all green" in 3B, 3C and 3D was luck. Fixed with
+`singleFork`, verified across three consecutive runs.
+
+### The demolition
+
+`src/demo/`, the mockup route, the `import.meta.env.DEV` ternary, both
+`/* @__PURE__ */` annotations and the cast the gate needed are gone.
+`grep -rn "src/demo" packages/web/src` → 0 and `grep -c demo dist/assets/*.js` →
+0, both run rather than assumed. Four comments that described the mockup in the
+present tense are corrected, and **1.8.0's invariant is formally closed**: every
+prop it added is fed by the real route, and the half that carries the weight —
+*every affordance renders nothing when its prop is absent* — has
+`RESEARCH_PROVIDER=none` as its newest instance, checked live and button-for-button.
+
+### Verification
+
+```
+pnpm typecheck                                 10/10 workspaces
+pnpm lint / format:check                       clean
+DATABASE_URL=… pnpm test                       887 passed | 0 skipped (100 files)
+pnpm --filter @brandfactory/web build          ok · grep -c demo dist → 0
+both migrators, from empty                     12 tables · idempotent
+```
+
+688 → **887**. 0005's cascade, its five-member enum and its partial index were
+read back off a fresh database, including through the release migrator that broke
+v7 and v8.
+
+### Rollback
+
+0005 is a new table and nothing outside the research feature reads it, so **the
+previous image tolerates it** — stated because the plan's risk table asked for it
+to be stated rather than assumed. `RESEARCH_PROVIDER=none` turns the whole
+feature off at boot with no migration involved.
+
+### Caveats
+
+- **No real report has ever been shaped.** The LLM key in this environment is a
+  placeholder; supply a working one and it is a single click. The gap is a
+  credential, not code.
+- **Cost and duration are two samples of one target.** Both from
+  `ebbflowgroup.com`.
+- **The rail cannot mention the report.** A completed run with zero drafts falls
+  back to `Research this brand`, which invites paying twice for a report already
+  sitting in a thread. The fix is `threadId` on the wire, recorded and not built.
+- **`CANCELLED` has no producer**, the ticker is **single-instance**, the
+  Perplexity key is temporary and must be rotated, and asset `alt` text is still
+  unset.
+- **The paid run's artefacts are kept** in a `3G Live Pass` workspace of their own
+  so the workspace-scoped live tests stay green.
+
+Detail in [`docs/completions/stage-3g-verification-and-demolition.md`](completions/stage-3g-verification-and-demolition.md)
+and a note per phase beside it.
 
 ---
 

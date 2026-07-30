@@ -1,0 +1,82 @@
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import type { BrandResearchState, ResearchJobSummary } from '@brandfactory/shared'
+import { api, callJson } from '@/api/client'
+import { brandKeys } from '@/api/queries/brands'
+
+/**
+ * How often the client asks about a job it is watching.
+ *
+ * **Polling, not realtime** (decision 6): `RealtimeEventPayloadSchema` *is*
+ * `AgentEventSchema` and its channels are project-scoped, so pushing a
+ * brand-scoped status string would mean widening a wire contract shared by
+ * `web` and `server` for one string. Against a job 3A measured at **4.0
+ * minutes**, a 5-second poll is free — roughly 48 requests for a run that costs
+ * $0.377, all of them served from a table.
+ */
+export const RESEARCH_POLL_MS = 5_000
+
+/**
+ * The brand's research state: whether this deployment can research at all, and
+ * where the latest run got to.
+ *
+ * **`refetchInterval` is a function, so the polling stops on its own.** A fixed
+ * interval would keep a brand nobody is researching — which is almost every
+ * brand — asking a question with a permanent answer, forever, on every open hub
+ * tab.
+ */
+export function researchRefetchInterval(state: BrandResearchState | undefined): number | false {
+  return state?.job?.status === 'IN_PROGRESS' ? RESEARCH_POLL_MS : false
+}
+
+export function useBrandResearch(brandId: string) {
+  return useQuery({
+    queryKey: brandKeys.research(brandId),
+    enabled: !!brandId,
+    queryFn: async () => {
+      const res = await api.brands[':id'].research.$get({ param: { id: brandId } })
+      return callJson<BrandResearchState>(res)
+    },
+    refetchInterval: (query) => researchRefetchInterval(query.state.data),
+  })
+}
+
+/**
+ * Start a run. Serves **both** entry points of decision 1 — the rail's action
+ * and (later) the create dialog — because the server takes no body: everything
+ * the run needs is already on the brand.
+ *
+ * The response is written straight into the cache rather than invalidated: it
+ * *is* the new state, and a refetch would ask the same question one round trip
+ * later while the rail rendered its old row.
+ */
+export function useStartResearch(brandId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await api.brands[':id'].research.$post({ param: { id: brandId } })
+      return callJson<ResearchJobSummary>(res)
+    },
+    onSuccess: (job) => applyStartedJobToCache(qc, brandId, job),
+  })
+}
+
+/**
+ * Write a freshly started job into the cache.
+ *
+ * Extracted, and exported, for the same reason `applyAssetToCache` is: the
+ * interesting behaviour is a cache transition, and a test that has to mount a
+ * mutation to reach it is testing React Query.
+ */
+export function applyStartedJobToCache(
+  qc: QueryClient,
+  brandId: string,
+  job: ResearchJobSummary,
+): void {
+  qc.setQueryData(brandKeys.research(brandId), (prev: BrandResearchState | undefined) => ({
+    // A job that started proves the feature is on, whatever the cache last said
+    // — and the alternative, defaulting to `false`, would make the rail's row
+    // vanish at the exact moment it has something to report.
+    enabled: prev?.enabled ?? true,
+    job,
+  }))
+}

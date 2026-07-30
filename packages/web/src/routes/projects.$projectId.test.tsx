@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ProjectDetail } from '@brandfactory/shared'
+import type { StagedSection } from '@/components/brand/BrandGuidelinesEditor'
 import type { CapturePayload } from '@/components/project/MessageCapture'
 import { projectRoute } from './projects.$projectId'
 
@@ -65,19 +66,23 @@ vi.mock('@/components/project/SplitScreen', () => ({
 }))
 vi.mock('@/components/canvas/CanvasPane', () => ({ CanvasPane: () => <div>canvas-pane</div> }))
 vi.mock('@/components/brand/BrandContextPane', () => ({
-  BrandContextPane: ({ staged }: { staged?: CapturePayload | null }) => (
+  // The channel is a list since Stage 3E; this route still puts exactly one
+  // thing on it, and reading `[0]` is what keeps that assertable.
+  BrandContextPane: ({ staged }: { staged?: StagedSection[] | null }) => (
     <div>
       <div>brand-context-pane</div>
-      <div>{`pane-staged:${staged?.text ?? 'none'}`}</div>
+      <div>{`pane-staged:${staged?.[0]?.payload.text ?? 'none'}`}</div>
+      <div>{`pane-staged-count:${staged?.length ?? 0}`}</div>
     </div>
   ),
 }))
 vi.mock('@/components/brand/EditGuidelinesDialog', () => ({
-  EditGuidelinesDialog: ({ open, staged }: { open: boolean; staged?: CapturePayload | null }) =>
+  EditGuidelinesDialog: ({ open, staged }: { open: boolean; staged?: StagedSection[] | null }) =>
     open ? (
       <div>
         <div>guidelines-dialog</div>
-        <div>{`dialog-staged:${staged?.text ?? 'none'}`}</div>
+        <div>{`dialog-staged:${staged?.[0]?.payload.text ?? 'none'}`}</div>
+        <div>{`dialog-staged-count:${staged?.length ?? 0}`}</div>
       </div>
     ) : null,
 }))
@@ -190,6 +195,9 @@ describe('project route capture destination', () => {
 
     expect(screen.getByText('guidelines-dialog')).toBeTruthy()
     expect(screen.getByText(`dialog-staged:${CAPTURED}`)).toBeTruthy()
+    // Stage 3E widened the channel for the research review sheet, and this
+    // gesture stays what it always was: one message, one section, landing now.
+    expect(screen.getByText('dialog-staged-count:1')).toBeTruthy()
   })
 
   // The editor is already on screen here, so raising a dialog over it would be
@@ -201,6 +209,7 @@ describe('project route capture destination', () => {
     await userEvent.click(screen.getByRole('button', { name: 'fire-capture' }))
 
     expect(screen.getByText(`pane-staged:${CAPTURED}`)).toBeTruthy()
+    expect(screen.getByText('pane-staged-count:1')).toBeTruthy()
     expect(screen.queryByText('guidelines-dialog')).toBeNull()
   })
 

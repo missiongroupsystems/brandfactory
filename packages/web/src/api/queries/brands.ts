@@ -15,6 +15,7 @@ export const brandKeys = {
   detail: (id: string) => ['brands', id] as const,
   projects: (brandId: string) => ['brands', brandId, 'projects'] as const,
   assets: (brandId: string) => ['brands', brandId, 'assets'] as const,
+  research: (brandId: string) => ['brands', brandId, 'research'] as const,
 }
 
 export function useBrand(id: string) {

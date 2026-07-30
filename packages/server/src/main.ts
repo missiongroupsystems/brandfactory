@@ -9,6 +9,8 @@ import { parseCorsAllowedOrigins } from './cors'
 import { buildDbDeps } from './db'
 import { loadEnv } from './env'
 import { createLogger } from './logger'
+import { createResearchShaper } from './research/shape'
+import { createResearchTicker } from './research/ticker'
 import { mountRealtime, type MountRealtimeHandle } from './ws'
 
 async function main(): Promise<void> {
@@ -28,8 +30,23 @@ async function main(): Promise<void> {
     storage: adapters.storage,
     realtime: adapters.realtime.bus,
     llm: adapters.llm,
+    research: adapters.research,
     agentGuard,
   })
+
+  // Decision 7's other half: the row survives a closed browser, and this is
+  // what finishes the run nobody is watching. Single-instance, like the
+  // realtime bus it sits beside — see the module comment.
+  const researchTicker = createResearchTicker({
+    db,
+    research: adapters.research,
+    env,
+    // The sweep shapes too — a job that finishes while nobody is watching must
+    // arrive with its drafts, not with a report and an empty review sheet.
+    shape: createResearchShaper({ db, llm: adapters.llm, env }),
+    logger: log,
+  })
+  if (env.RESEARCH_PROVIDER !== 'none') researchTicker.start()
 
   const server = serve(
     {
@@ -69,6 +86,8 @@ async function main(): Promise<void> {
     shuttingDown = true
     log.info('shutdown: signal received', { signal })
     try {
+      // Before the pool closes: a sweep mid-flight would query a dead pool.
+      researchTicker.stop()
       await ws.close()
       await new Promise<void>((resolve, reject) =>
         server.close((err) => (err ? reject(err) : resolve())),
