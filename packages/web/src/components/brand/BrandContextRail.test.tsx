@@ -444,19 +444,30 @@ describe('BrandContextRail — the research row', () => {
 // stage) and drafts already taken (1.11.2's clear route).
 
 describe('BrandContextRail — the finished run', () => {
-  it('points at the report when a completed run has no drafts', () => {
+  // **The row is a button, and it used to be a link to the conversation list.**
+  // "Read the report" meant leaving the hub for a page that does not mention
+  // research and picking the right card out of the brand's conversations by the
+  // date in its title. It opens the report instead.
+  it('opens the report when a completed run has no drafts', async () => {
+    const onReadReport = vi.fn()
     render(
       <BrandContextRail
         brand={brand([])}
         onEdit={vi.fn()}
         research={researchJob('COMPLETED')}
         onStartResearch={vi.fn()}
+        onReadReport={onReadReport}
       />,
     )
 
-    const link = screen.getByRole('link', { name: /Research finished — read the report/ })
-    expect(link.getAttribute('href')).toBe('/brands/b-1/context')
-    expect(screen.getByText(/full report is a conversation in Brand context/)).toBeTruthy()
+    await userEvent.click(
+      screen.getByRole('button', { name: /Research finished — read the report/ }),
+    )
+    expect(onReadReport).toHaveBeenCalledOnce()
+    // Nothing here navigates any more — the way onward to the conversation is a
+    // footer action inside the dialog.
+    expect(screen.queryByRole('link', { name: /read the report/ })).toBeNull()
+    expect(screen.getByText(/Opens here in full/)).toBeTruthy()
   })
 
   // The old fall-through offered exactly one next move, and it was the one that
@@ -474,7 +485,7 @@ describe('BrandContextRail — the finished run', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Research again' }))
     expect(onStartResearch).toHaveBeenCalledOnce()
-    expect(screen.getByRole('link', { name: /read the report/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /read the report/ })).toBeTruthy()
   })
 
   // Drafts are the urgent thing and keep the row. The report is still reachable
@@ -493,7 +504,7 @@ describe('BrandContextRail — the finished run', () => {
     )
 
     expect(screen.getByRole('button', { name: /1 draft ready — Review/ })).toBeTruthy()
-    expect(screen.queryByRole('link', { name: /read the report/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /read the report/ })).toBeNull()
   })
 
   // `NO_FINDINGS` gets no thread — its report is the finder saying the site gave
@@ -507,7 +518,7 @@ describe('BrandContextRail — the finished run', () => {
         onStartResearch={vi.fn()}
       />,
     )
-    expect(screen.queryByRole('link', { name: /read the report/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /read the report/ })).toBeNull()
   })
 
   // A brand nobody has researched must look exactly as it did before any of
@@ -515,41 +526,46 @@ describe('BrandContextRail — the finished run', () => {
   it('leaves a brand with no job on the plain entry point', () => {
     render(<BrandContextRail brand={brand([])} onEdit={vi.fn()} onStartResearch={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'Research this brand' })).toBeTruthy()
-    expect(screen.queryByRole('link', { name: /read the report/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /read the report/ })).toBeNull()
   })
 
   // -------------------------------------------------------------------------
-  // …and when the report is not where the row says it is
+  // …and when the *conversation* is not there
   // -------------------------------------------------------------------------
   //
-  // `hasReportToRead` is `status === 'COMPLETED'`, called a fact because that is
-  // the condition `landReportInThread` runs under. It is one swallowed failure
-  // short of one: that function logs and returns null rather than throwing, so a
-  // completed job can point at a Brand context that never received anything —
-  // and the row makes the exact claim it exists to stop being made.
+  // 1.13.2 suppressed this row when the brand had no conversations, on the
+  // grounds that `landReportInThread` swallows its own failure so a COMPLETED
+  // job could point at a Brand context that never received anything.
+  //
+  // **The report is not in the thread — it is on the job row**, and the thread was
+  // only ever a copy. So a failed landing costs the conversation and never the
+  // report, and hiding the row meant hiding a readable document to report a
+  // missing copy of it, leaving "research again" ($0.40) as the only move.
 
-  it('drops the promise when the brand has no conversation at all', () => {
+  it('still opens the report when the brand has no conversation at all', async () => {
+    const onReadReport = vi.fn()
     render(
       <BrandContextRail
         brand={brand([])}
         onEdit={vi.fn()}
         research={researchJob('COMPLETED')}
         onStartResearch={vi.fn()}
+        onReadReport={onReadReport}
         hasBrandContextThreads={false}
       />,
     )
 
-    // Nowhere to go, so nothing that looks like it goes somewhere.
-    expect(screen.queryByRole('link', { name: /read the report/ })).toBeNull()
-    expect(screen.getByText('Research finished')).toBeTruthy()
-    expect(screen.getByText(/either failed to land or has been deleted/)).toBeTruthy()
-    // Still not the bare entry point — the run happened, and re-running is the
-    // move that was always available.
+    await userEvent.click(screen.getByRole('button', { name: /read the report/ }))
+    expect(onReadReport).toHaveBeenCalledOnce()
+    // The anomaly is named, and it names the right thing: the conversation.
+    expect(screen.getByText(/conversation from this run is not in Brand context/)).toBeTruthy()
+    expect(screen.getByText(/report itself is still here/)).toBeTruthy()
+    // Still not the bare entry point, and re-running is no longer the advice.
     expect(screen.getByRole('button', { name: 'Research again' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Research this brand' })).toBeNull()
   })
 
-  it('keeps the report link once a conversation is there', () => {
+  it('says nothing about a missing conversation once one is there', () => {
     render(
       <BrandContextRail
         brand={brand([])}
@@ -559,15 +575,14 @@ describe('BrandContextRail — the finished run', () => {
         hasBrandContextThreads
       />,
     )
-    expect(screen.getByRole('link', { name: /read the report/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /read the report/ })).toBeTruthy()
     expect(screen.queryByText(/failed to land/)).toBeNull()
   })
 
-  // **`undefined` errs toward the promise, against this file's usual rule.** The
-  // two mistakes are not symmetric: suppressing on a pending query flashes the
-  // row back to a bare entry point on every navigation, which is the 1.13.1 bug
-  // itself. A briefly optimistic link is the cheaper wrong.
-  it('keeps the report link while the project list is still unknown', () => {
+  // **`undefined` reads as "landed", against this file's usual rule.** The two
+  // mistakes are not symmetric: flashing an anomaly notice onto a healthy brand
+  // on every navigation is worse than being briefly quiet about a real one.
+  it('says nothing about a missing conversation while the list is unknown', () => {
     render(
       <BrandContextRail
         brand={brand([])}
@@ -576,7 +591,8 @@ describe('BrandContextRail — the finished run', () => {
         onStartResearch={vi.fn()}
       />,
     )
-    expect(screen.getByRole('link', { name: /read the report/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /read the report/ })).toBeTruthy()
+    expect(screen.queryByText(/failed to land/)).toBeNull()
   })
 
   // `COMPLETED` is forever, so the hint — *read it there, capture what matters
@@ -592,13 +608,13 @@ describe('BrandContextRail — the finished run', () => {
       />,
     )
 
-    expect(screen.getByRole('link', { name: /read the report/ })).toBeTruthy()
-    expect(screen.queryByText(/full report is a conversation in Brand context/)).toBeNull()
+    expect(screen.getByRole('button', { name: /read the report/ })).toBeTruthy()
+    expect(screen.queryByText(/Opens here in full/)).toBeNull()
   })
 
-  // The missing-report line explains an anomaly rather than teaching a gesture,
-  // so the rule above must not silence it.
-  it('keeps the missing-report line even on a brand with sections', () => {
+  // The missing-conversation line explains an anomaly rather than teaching a
+  // gesture, so the rule above must not silence it.
+  it('keeps the missing-conversation line even on a brand with sections', () => {
     render(
       <BrandContextRail
         brand={brand([section('s-1', 'Voice & tone')])}

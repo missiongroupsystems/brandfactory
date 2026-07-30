@@ -494,6 +494,139 @@ describe('research — the report as a thread', () => {
 })
 
 // ---------------------------------------------------------------------------
+// GET /brands/:id/research/:jobId/report
+// ---------------------------------------------------------------------------
+//
+// The read the wire has refused since 3C, and the omission nobody costed: the
+// summary leaves the report off because the hub polls it every 5 seconds, and the
+// consequence was that the only way to read a $0.40 artefact was to leave the hub
+// for the list of every conversation the brand has and recognise the right card
+// by its date. Nothing was broken; nobody could find it.
+
+describe('GET /brands/:id/research/:jobId/report', () => {
+  const SOURCES = [
+    { title: 'Casa Vostra — About', url: 'https://casavostra.example/about' },
+    { title: 'Trattoria review', url: 'https://food.example/casa-vostra' },
+  ]
+
+  async function completedRun(sources = SOURCES) {
+    const harness = await seed({ research: fakeProvider({ poll: completedPoll(REPORT, sources) }) })
+    const job = (await (await harness.post()).json()) as { id: string }
+    await harness.latest()
+    const report = (brandId = harness.brandId, jobId = job.id) =>
+      harness.app.request(`/brands/${brandId}/research/${jobId}/report`, { headers: auth() })
+    return { ...harness, jobId: job.id, report }
+  }
+
+  it('returns the whole report, its sources and what the run cost', async () => {
+    const { report } = await completedRun()
+
+    const res = await report()
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as {
+      report: string
+      sources: unknown[]
+      costUsd: number
+      brandName: string
+      startedAt: string
+    }
+    expect(body.report).toBe(REPORT)
+    expect(body.sources).toEqual(SOURCES)
+    // `numeric` money, arriving as a number rather than pg's string.
+    expect(body.costUsd).toBe(0.377)
+    // Recorded at submission, so a rename mid-run does not relabel the run.
+    expect(body.brandName).toBe('Casa Vostra')
+    // Dated by when the run started, like the thread it created — one run must
+    // not appear under two dates.
+    expect(body.startedAt).toBeTruthy()
+  })
+
+  // Migration 0007, end to end: the thread `landReportInThread` creates is now on
+  // the row, which is what lets a client link straight at the conversation rather
+  // than at the list of all of them.
+  it('points at the brand-context thread the report landed in', async () => {
+    const { app, brandId, report } = await completedRun()
+
+    const body = (await (await report()).json()) as { reportProjectId: string }
+    const [thread] = await threads(app, brandId)
+    expect(body.reportProjectId).toBe(thread!.id)
+  })
+
+  // Null is the honest answer on two histories a client must not tell apart: the
+  // landing failed, or the row predates 0007. Both mean "there is no thread to
+  // link straight at", and the report is on the row regardless — which is the
+  // whole reason this route does not depend on the thread existing.
+  it('still serves the report when the thread could not be created', async () => {
+    const harness = await seed({ research: fakeProvider({ poll: completedPoll(REPORT) }) })
+    const job = (await (await harness.post()).json()) as { id: string }
+    harness.state.projects = {
+      set() {
+        throw new Error('disk full')
+      },
+    } as never
+    await harness.latest()
+
+    const body = (await (
+      await harness.app.request(`/brands/${harness.brandId}/research/${job.id}/report`, {
+        headers: auth(),
+      })
+    ).json()) as { report: string; reportProjectId: string | null }
+    expect(body.report).toBe(REPORT)
+    expect(body.reportProjectId).toBeNull()
+  })
+
+  // Any state, not just COMPLETED. `NO_FINDINGS` has a real report — the finder
+  // saying plainly that the site gave it too little — and a 404 there would be
+  // this repo withholding an answer it has. 1.13.1 is a whole release about a
+  // state the UI had no drawing for.
+  it('serves the finder’s own words for a run that found nothing', async () => {
+    const short = 'The site is one page with a logo and an email address.'
+    const harness = await seed({ research: fakeProvider({ poll: completedPoll(short) }) })
+    const job = (await (await harness.post()).json()) as { id: string }
+    await harness.latest()
+
+    const body = (await (
+      await harness.app.request(`/brands/${harness.brandId}/research/${job.id}/report`, {
+        headers: auth(),
+      })
+    ).json()) as { report: string; reportProjectId: string | null }
+    expect(body.report).toBe(short)
+    expect(body.reportProjectId).toBeNull()
+  })
+
+  // Nothing the vendor could be polled with leaves this server.
+  it('carries no vendor identifiers', async () => {
+    const { report } = await completedRun()
+    const body = (await (await report()).json()) as Record<string, unknown>
+
+    expect(Object.keys(body).sort()).toEqual([
+      'brandName',
+      'costUsd',
+      'jobId',
+      'report',
+      'reportProjectId',
+      'sources',
+      'startedAt',
+    ])
+  })
+
+  it('404s for a job id that is not this brand’s', async () => {
+    const { app, workspaceId, report } = await completedRun()
+    const other = await newBrand(app, workspaceId, 'https://other.example')
+
+    const res = await report(other.id)
+    expect(res.status).toBe(404)
+    expect(((await res.json()) as { code: string }).code).toBe('RESEARCH_JOB_NOT_FOUND')
+  })
+
+  it('401s without a token', async () => {
+    const { app, brandId, jobId } = await completedRun()
+    const res = await app.request(`/brands/${brandId}/research/${jobId}/report`)
+    expect(res.status).toBe(401)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // DELETE /brands/:id/research/:jobId/drafts
 // ---------------------------------------------------------------------------
 //

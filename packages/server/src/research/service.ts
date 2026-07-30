@@ -5,6 +5,7 @@ import type {
   ResearchDraft,
   ResearchJobId,
   ResearchJobSummary,
+  ResearchReport,
   UserId,
   WorkspaceId,
 } from '@brandfactory/shared'
@@ -111,6 +112,35 @@ export function toResearchJobSummary(job: ResearchJob): ResearchJobSummary {
     error: job.error,
     drafts: job.drafts,
     sourceCount: job.citations.length,
+  }
+}
+
+/**
+ * The report, on its own wire. **The other half of `toResearchJobSummary`'s
+ * decision rather than a reversal of it.**
+ *
+ * That function narrows the row because the hub re-reads it every 5 seconds while
+ * a run is in flight, and 3A's report came back at 67,780 characters. This shape
+ * carries exactly what the summary refuses to, and it is read **once, when a
+ * human asks to read it** — a terminal job's report never changes again, so the
+ * client can cache it forever.
+ *
+ * Still narrower than the row: no `externalId`, no provider, no `input.websiteUrl`
+ * — the vendor's identifiers stay server-side for the reason they always have.
+ */
+export function toResearchReport(job: ResearchJob): ResearchReport {
+  return {
+    jobId: job.id,
+    brandName: job.input.brandName,
+    report: job.report,
+    // Named `sources` on the wire and `citations` on the row. The client-facing
+    // vocabulary is `ResearchSource` everywhere already — `ResearchDraft.sources`
+    // is the same array shape — so the rename happens here rather than teaching
+    // one surface a second word for one thing.
+    sources: job.citations,
+    costUsd: job.costUsd,
+    startedAt: job.startedAt,
+    reportProjectId: job.reportProjectId,
   }
 }
 

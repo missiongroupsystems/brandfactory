@@ -16,6 +16,10 @@ export const brandKeys = {
   projects: (brandId: string) => ['brands', brandId, 'projects'] as const,
   assets: (brandId: string) => ['brands', brandId, 'assets'] as const,
   research: (brandId: string) => ['brands', brandId, 'research'] as const,
+  // Keyed by job as well as brand: a re-run is a different report, and a key that
+  // only named the brand would serve the previous run's document from cache.
+  researchReport: (brandId: string, jobId: string) =>
+    ['brands', brandId, 'research', jobId, 'report'] as const,
 }
 
 export function useBrand(id: string) {

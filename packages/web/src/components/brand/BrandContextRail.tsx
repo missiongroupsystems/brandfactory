@@ -24,7 +24,6 @@ import { iconForSection } from '@/components/brand/guidelineIcons'
 import { Button } from '@/components/ui/button'
 import { defaultExtensions } from '@/editor/proseMirrorSchema'
 import {
-  RESEARCH_FINISHED_ROW_LABEL,
   RESEARCH_POLL_UNREACHABLE,
   RESEARCH_REPORT_MISSING_HINT,
   RESEARCH_REPORT_ROW_HINT,
@@ -113,6 +112,17 @@ export interface BrandContextRailProps {
   onStartResearch?: () => void
   /** Opens the review sheet from the `ready` state (research E2). */
   onReviewDrafts?: () => void
+  /**
+   * Opens the report dialog from the finished state.
+   *
+   * **This row used to be a `<Link>` to `/brands/:id/context`** — the *list* of
+   * every conversation the brand has, where finding the report meant recognising
+   * a date in a card title. It is a button now, and the destination it used to be
+   * is a footer action inside the dialog. Optional and un-gated, exactly like
+   * `onReviewDrafts`: the row is what tells you a paid run finished, so it must
+   * render whether or not a caller wired the handler.
+   */
+  onReadReport?: () => void
   /** A start request is in flight — see `BrandHubViewProps.researchStarting`. */
   researchStarting?: boolean
   /**
@@ -137,18 +147,21 @@ export interface BrandContextRailProps {
   /**
    * Does Brand context hold **any** conversation for this brand?
    *
-   * The finished-run row tells you the report is a conversation in Brand
-   * context, and `hasReportToRead` infers that from `COMPLETED` alone — which is
-   * one swallowed failure away from being wrong (see
-   * `RESEARCH_REPORT_MISSING_HINT`). This is the cheap half of the check: with
-   * zero conversations on the brand, the report is definitively not there and
-   * the row must not send anyone looking.
+   * **It no longer gates the report row, and that is the correction.** 1.13.2
+   * added this to stop the row promising a report that was not where it pointed:
+   * `landReportInThread` swallows its own failure, so a `COMPLETED` job could
+   * link at a Brand context that never received anything, and the answer was to
+   * drop the affordance entirely.
    *
-   * **`undefined` means not known, and errs toward showing the report row.** The
-   * usual rule here is that unknown renders nothing, but the two mistakes are not
-   * symmetric: suppressing on a pending query flashes the row back to a bare
-   * entry point, which is the exact 1.13.1 bug, and it would do it on every
-   * navigation. A link that is briefly optimistic is the cheaper wrong.
+   * That answer was one layer too high. The report is not in the thread — it is on
+   * the job row, and the thread was only ever a copy of it. So a failed landing
+   * costs the *conversation*, never the report, and suppressing the row meant
+   * hiding a readable document in order to report a missing copy of it, with
+   * "research again" — $0.40 — as the only remaining move.
+   *
+   * What it drives now is one sentence: which hint sits under a row that works
+   * either way. `undefined` is still a pending query and still reads as "landed",
+   * so a navigation does not flash an anomaly notice on a healthy brand.
    */
   hasBrandContextThreads?: boolean
 }
@@ -195,6 +208,7 @@ export function BrandContextRail({
   research,
   onStartResearch,
   onReviewDrafts,
+  onReadReport,
   researchStarting = false,
   researchMaxMinutes,
   researchUnreachable = false,
@@ -352,11 +366,11 @@ export function BrandContextRail({
 
           {onStartResearch && (
             <ResearchRow
-              brandId={brand.id}
               research={research ?? null}
               researchStarting={researchStarting}
               onStartResearch={onStartResearch}
               onReviewDrafts={onReviewDrafts}
+              onReadReport={onReadReport}
               maxMinutes={researchMaxMinutes}
               unreachable={researchUnreachable}
               hasBrandContextThreads={hasBrandContextThreads}
@@ -392,7 +406,7 @@ export function BrandContextRail({
  *                  ▁▁▁▁▁▂▂▂▂▂▂▂▂▂▂▂▂  (elapsed across the quoted window)
  *                  Usually 3–15 minutes. Drafts + report land here when ready.
  * ready        ✦   5 drafts ready — Review
- * finished     ▤   Research finished — read the report
+ * finished     ▤   Research finished — read the report   → opens the report
  *              🔍  Research again
  * no findings  ⌀   Nothing found — Try again
  * failed       ⚠   Research failed — Try again
@@ -416,6 +430,14 @@ export function BrandContextRail({
  * through to the bare entry point, so a finished $0.40 run rendered identically
  * to a brand nobody had ever researched. See `hasReportToRead`.
  *
+ * **And when it did exist, it pointed at a list.** The row it shipped as was a
+ * `<Link>` to `/brands/:id/context`, so "read the report" meant leaving the hub
+ * for a page that does not mention research and picking the right card out of the
+ * brand's conversations by the date in its title. It opens the report instead
+ * (`onReadReport`), and the conversation is a footer action in that dialog. The
+ * row is therefore a `<button>` where it used to be a link — Cmd-click to a new
+ * tab moves one step in, to `View in brand context`, which is still a real link.
+ *
  * **None of these may look alarming.** A rail that is on screen the whole time
  * you are choosing what to work on cannot carry a red banner about a background
  * job you opted into; a failed run gets one tinted 14px glyph and a muted line
@@ -434,20 +456,20 @@ export function BrandContextRail({
  * that has never run research looks exactly as it does today.
  */
 function ResearchRow({
-  brandId,
   research,
   onStartResearch,
   onReviewDrafts,
+  onReadReport,
   researchStarting = false,
   maxMinutes,
   unreachable = false,
   hasBrandContextThreads,
   showReportHint = true,
 }: {
-  brandId: string
   research: ResearchJobSummary | null
   onStartResearch: () => void
   onReviewDrafts?: () => void
+  onReadReport?: () => void
   researchStarting?: boolean
   maxMinutes?: number
   unreachable?: boolean
@@ -520,42 +542,29 @@ function ResearchRow({
   // replacing it; a finished run has two reasonable next moves and the old
   // fall-through offered only the one that spends $0.40 again.
   if (hasReportToRead(research)) {
-    // **The one claim in this row that can be checked, checked.** `COMPLETED` is
-    // the condition `landReportInThread` runs under, but that function swallows
-    // its own failure, so the report row can send you to a Brand context that
-    // never received anything. With zero conversations on the brand it did not
-    // land; `undefined` is a pending query and keeps the promise, because
-    // suppressing on pending would flash the bare entry point back — the exact
-    // thing this row exists to prevent.
-    const reportLanded = hasBrandContextThreads !== false
+    // **`COMPLETED` and the report are one write** — `finishResearchJob` sets the
+    // status and the report text in a single statement — so this row's claim needs
+    // nothing checked. It used to: the report was fetched *by going to look for the
+    // conversation 3F made of it*, and that landing can fail silently, which is
+    // what 1.13.2's `hasBrandContextThreads` gate was for. Reading the report off
+    // the row instead of out of the thread removes the fallible step, and with it
+    // the reason to ever suppress the row.
+    //
+    // The prop survives, doing something smaller and honest: a brand with no
+    // conversations at all has lost the *copy*, so the hint says so — and the
+    // report still opens.
+    const threadLanded = hasBrandContextThreads !== false
 
     return (
       <div>
-        {reportLanded ? (
-          <Button variant="ghost" size="sm" className={rowClass} asChild>
-            <Link to="/brands/$brandId/context" params={{ brandId }}>
-              <FileText className={iconClass} aria-hidden="true" />
-              <span className="min-w-0 truncate">{RESEARCH_REPORT_ROW_LABEL}</span>
-            </Link>
-          </Button>
-        ) : (
-          // Not a link and not a button: there is nowhere to go and nothing to
-          // press. It stays on the same grid as the rows around it so a run that
-          // half-worked does not look like a different kind of thing.
-          <div
-            className={cn(
-              rowClass,
-              'flex h-8 items-center text-sm font-medium text-muted-foreground',
-            )}
-          >
-            <FileText className={iconClass} aria-hidden="true" />
-            <span className="min-w-0 truncate">{RESEARCH_FINISHED_ROW_LABEL}</span>
-          </div>
-        )}
-        {/* The missing-report line always shows — it explains an anomaly rather
-            than teaching a gesture, so the rule that retires the hint below does
-            not apply to it. */}
-        {!reportLanded ? (
+        <Button variant="ghost" size="sm" className={rowClass} onClick={onReadReport}>
+          <FileText className={iconClass} aria-hidden="true" />
+          <span className="min-w-0 truncate">{RESEARCH_REPORT_ROW_LABEL}</span>
+        </Button>
+        {/* The missing-conversation line always shows — it explains an anomaly
+            rather than teaching a gesture, so the rule that retires the hint below
+            does not apply to it. */}
+        {!threadLanded ? (
           <p className="px-2.5 pb-1 text-xs leading-snug text-muted-foreground">
             {RESEARCH_REPORT_MISSING_HINT}
           </p>

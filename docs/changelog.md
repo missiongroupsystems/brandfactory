@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.14.0** — 2026-07-30 — The report opens in a modal; `View in brand context` links straight at its thread. Migration 0007. 986 tests.
 - **1.13.2** — 2026-07-30 — 1.13.1 review remediation: shaping outcomes logged, the report row checked, ticker shutdown awaited. 955 tests.
 - **1.13.1** — 2026-07-30 — In-flight clock unfrozen, pace + ceiling states, the finished-run row. 936 tests.
 - **1.13.0** — 2026-07-30 — Research visibility, create-dialog opt-in, production light-up (Fly secrets). 897 tests.
@@ -44,6 +45,163 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.14.0 — 2026-07-30
+
+**The report was never hidden, and nobody could find it.**
+
+3F landed a finished run's report as the first message of a new brand-context
+thread — the right home, and still the right home: capture works on it by
+construction, and `routes/agent.ts` re-reads the transcript every turn, so the
+next thing you say in that thread is answered against the research. What it never
+gave anybody was a way to *get there*. The rail's row —
+`Research finished — read the report` — was a `<Link>` to `/brands/:id/context`,
+which is the **list of every conversation the brand has.**
+
+So reading the artefact a $0.40 run produced went: leave the hub → land on a page
+headed `Brand context` that does not mention research anywhere → work out which
+card is the report by recognising a date inside
+`Brand research — Casa Vostra, 30 Jul 2026` → open it → scroll one
+68,000-character assistant bubble in a workspace built for chatting. Reported
+twice from the outside: *"I can't see the research results anywhere"* (1.13.1),
+then *"right now not intuitive enough"* after 1.13.2 had answered the version of
+the complaint it could see.
+
+The row opens the report, and the conversation becomes the way **onward** rather
+than the way in.
+
+Detail in
+[`docs/completions/the-report-in-a-modal.md`](completions/the-report-in-a-modal.md).
+
+### 1. The report gets a wire of its own
+
+`ResearchJobSummary` still carries no report and that decision is **not** being
+reversed — 3A's run came back at 67,780 characters and the hub re-reads the
+summary every 5 seconds, so a report on that wire is a novel per poll to render
+one footer row. `GET /brands/:id/research/:jobId/report` is the other half of the
+same decision: the two reads have opposite shapes, ~200 bytes every five seconds
+against ~68 kB **once, when a human asks**. Which is what makes
+`staleTime: Infinity` correct rather than optimistic — re-asking a finished run
+for its report can only return the same bytes.
+
+Still narrower than the row: no `externalId`, no provider, no `websiteUrl`.
+Nothing usable to poll the vendor directly leaves this server, as since 3C. And
+it serves **any** status, not only `COMPLETED`: `NO_FINDINGS` has a real report —
+the finder saying plainly that the site gave it too little — and 404ing there
+would be this repo withholding an answer it has.
+
+### 2. Migration 0007 — the thread id stops going nowhere
+
+`landReportInThread` has computed the project id since 3F and handed it to a
+caller that ignores it, which is the *only* reason the rail could point at a list
+rather than at a conversation. 1.13.2 named persisting it the better answer and
+deferred it for a stated reason; the modal is what made it worth taking, because
+a dialog that shows you the report needs somewhere honest to send you afterwards.
+
+**`ON DELETE set null`, not cascade.** Deleting the conversation must not delete
+the job: the row is the only record money was spent, and it holds the report
+itself. A stale pointer going null is the *correct* outcome, and it is why every
+reader treats null as "offer the conversation list" rather than as an error.
+Written **last, after the message** — a job pointing at a thread with no report in
+it is a worse lie than one pointing at nothing — and inside the same swallowed
+`try` as the rest of that function, because losing a link is not worth failing a
+paid run over.
+
+**Nothing is backfilled, on purpose.** The thread's name is derived, so an
+`UPDATE` could match old rows on it via
+`to_char(started_at AT TIME ZONE 'UTC', 'FMDD Mon YYYY')` — whose month
+abbreviations depend on the deployment's `lc_time`. A locale-dependent join that
+either silently matches nothing or links a run to the **wrong** thread is worse
+than the null the column already handles. Existing completed runs get the
+conversation list, exactly as before.
+
+**The snapshot is hand-authored, and verified rather than assumed.** No Postgres
+here, so `db:generate` could not run against a live schema;
+`0007_snapshot.json` was written from 0006's by hand. `drizzle-kit generate`
+against a dummy `DATABASE_URL` (never connected to) then reported
+**`No schema changes, nothing to migrate`** — drizzle diffing that snapshot
+against the real schema definition and finding them identical.
+
+### 3. The dialog
+
+`sm:max-w-3xl`, and **only the body scrolls**: `flex` overrides `DialogContent`'s
+`grid` so the footer holding the way onward is never 40 screens of prose away.
+The header carries one line of provenance — `Casa Vostra · 30 Jul 2026 ·
+19 sources · $0.38` — which **omits rather than defaults**, because `$0.00` and
+`0 sources` are both statements this repo has no business making: the citation
+count is the honest signal about a report the whole feature warns can be
+confidently wrong (decision 4), and the cost is a bill. Dated by `startedAt` in
+UTC, matching `researchThreadName`, or one run appears under two dates for anyone
+west of Greenwich in the evening.
+
+**Typography by descendant selector, not `prose`.** This repo has no
+`@tailwindcss/typography` — `ChatPane`'s `prose prose-sm` is *inert*, and its
+`[&_p]:my-1` overrides are what actually do the work there. Adding the plugin
+would restyle every markdown surface in the app as a side effect of shipping a
+modal, so the rules live at the one call site that needs them, in the product's
+register (14px body, headings at weight 500 and barely larger than the text —
+a report's `##` is a section marker, not a headline). Confirmed in the compiled
+CSS. No new dependency: `react-markdown` and `remark-gfm` were already there.
+
+`View in brand context` is a real `<Link>`, so the Cmd-click-to-a-new-tab the old
+row had moves one step in rather than disappearing. Sources are **collapsed** at
+the foot — `ResearchReviewSheet` puts citations beside the decision to accept
+because decision 4 demands it, and nothing is accepted here; the count is already
+in the header doing the at-a-glance work. `Done` rather than a second `Close`,
+since `DialogContent` already ships an X with that accessible name. No accent, no
+tint, no status colour: a finished run is not an alert.
+
+### 4. And a correction to 1.13.2, which was one layer too high
+
+1.13.2 found that `hasReportToRead` is `status === 'COMPLETED'` while
+`landReportInThread` swallows its own failure, so a completed job could send you
+to a Brand context that never received anything. Correct about the bug. Its
+remedy was to **drop the affordance** — no link, no button, `Research finished`,
+and *"Researching again produces a fresh report."*
+
+**The report is not in the thread. It is on the job row, and the thread was only
+ever a copy of it.** So a failed landing costs the *conversation*, never the
+report — and suppressing the row meant hiding a readable document in order to
+report a missing copy of it, leaving a $0.40 re-run as the only move.
+
+Reading the report off the row removes the fallible step the inference crossed, so
+there is no reason left to suppress. `hasBrandContextThreads` survives doing
+something smaller and honest: it decides **which sentence** sits under a row that
+works either way. `undefined` still reads as "landed", for the same asymmetry
+1.13.2 identified one turn on — flashing an anomaly notice onto a healthy brand on
+every navigation is worse than being briefly quiet about a real one.
+
+### Verification
+
+```
+pnpm typecheck                    10/10 workspaces
+pnpm lint / format:check          clean
+pnpm test                         986 passed | 49 skipped (108 files)
+pnpm -F @brandfactory/web build   clean
+drizzle-kit generate              No schema changes, nothing to migrate
+```
+
+955 → **986 (+31)**: server **+10** (7 route, 3 thread), db **+2** live, web
+**+19**. Six web assertions changed from `link` to `button` and three changed
+meaning per §4 — the only pre-existing tests this pass rewrites, and each one was
+encoding the behaviour being replaced.
+
+The 49 skips are live-Postgres and **were not run** — no Docker daemon and no
+`.env` here, so 1.11.2's warning stands: a plain `pnpm test` silently skips them,
+and the two new ones (0007's `set null`, which is SQL and not TypeScript) are
+unproven in this environment.
+
+**No live pass.** No database means the app cannot boot, so the dialog has never
+been on a screen: its layout is reasoned from the tokens and confirmed only as far
+as the compiled CSS. What reasoning cannot settle is how 68,000 characters of real
+Perplexity markdown — heading depth, table widths, `[1]` markers — reads in a 3xl
+column; that is the first thing to look at on the next run. Unchanged from 1.13.2
+and still the more important open question: **the shaping pass has never been
+observed to work against a real model**, so a `COMPLETED` run with zero drafts
+remains the expected production outcome — which is exactly the state this dialog
+now makes readable rather than silent.
 
 ---
 

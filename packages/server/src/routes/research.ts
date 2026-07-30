@@ -11,6 +11,7 @@ import {
   readResearchJob,
   startResearch,
   toResearchJobSummary,
+  toResearchReport,
   type ResearchServiceDeps,
 } from '../research/service'
 
@@ -97,6 +98,48 @@ export function createResearchRouter(deps: ResearchRoutesDeps) {
         const job = await readResearchJob(deps, id, jobId)
         if (!job) throw new NotFoundError('research job not found', 'RESEARCH_JOB_NOT_FOUND')
         return c.json(toResearchJobSummary(job))
+      })
+
+      /**
+       * The report itself — **the read the wire has refused since 3C.**
+       *
+       * `toResearchJobSummary` leaves the report off because the hub polls that
+       * shape every 5 seconds and 3A's came back at 67,780 characters. The
+       * consequence, unintended and shipped for three releases: the *only* way to
+       * read a $0.40 artefact was to leave the hub for the list of every
+       * conversation the brand has, recognise which card was the research by its
+       * date, open it, and scroll one enormous assistant bubble. Nothing was
+       * broken, and nobody could find it.
+       *
+       * A separate route rather than a field, because the two reads have opposite
+       * shapes: the summary is small and asked for constantly, this is large and
+       * asked for once. **A terminal job's report never changes**, so the client
+       * caches it indefinitely and the size stops mattering.
+       *
+       * **Any state, not just `COMPLETED`.** The route reports what is on the row;
+       * deciding that an empty report is not worth showing is the client's call,
+       * and 1.13.1 is a whole release about a state the UI had no drawing for.
+       * `NO_FINDINGS` in particular has a real report — the finder saying plainly
+       * that the site gave it too little — and a 404 there would be this repo
+       * withholding an answer it has.
+       *
+       * `report` is the literal at a position no sibling route parameterises, the
+       * same 1.11.1 check `drafts` below passes: `RegExpRouter` still compiles, and
+       * `app.test.ts` asserts that directly.
+       */
+      .get('/:id/research/:jobId/report', zValidator('param', JobParam), async (c) => {
+        const userId = c.var.userId
+        if (!userId) throw new UnauthorizedError()
+        const { id, jobId } = c.req.valid('param')
+        await requireBrandAccess(userId, id, deps.db)
+
+        // `readResearchJob` rather than a bare read, for consistency with the
+        // sibling above — reconciling is a no-op on every job this route is
+        // usefully called for, since `reconcileResearchJob` returns immediately
+        // for anything that is not `IN_PROGRESS`.
+        const job = await readResearchJob(deps, id, jobId)
+        if (!job) throw new NotFoundError('research job not found', 'RESEARCH_JOB_NOT_FOUND')
+        return c.json(toResearchReport(job))
       })
 
       /**

@@ -256,7 +256,7 @@ describe('BrandHubView — does the report exist', () => {
     sourceCount: 3,
   }
 
-  it('keeps the report link when a brand-context thread is there', () => {
+  it('says nothing about a missing conversation when a context thread is there', () => {
     render(
       <BrandHubView
         brand={brand()}
@@ -266,12 +266,16 @@ describe('BrandHubView — does the report exist', () => {
         {...handlers}
       />,
     )
-    expect(screen.getByRole('link', { name: /read the report/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /read the report/ })).toBeTruthy()
+    expect(screen.queryByText(/failed to land or has been deleted/)).toBeNull()
   })
 
   // A thread under a *different* template does not count: the report lands as a
   // brand-context thread specifically, and the copy names that surface.
-  it('drops the promise when the brand has threads but none of them are context', () => {
+  //
+  // **The report still opens.** 1.13.2 suppressed the row here; the report is on
+  // the job row rather than in the thread, so what is missing is the conversation.
+  it('names the missing conversation when none of the brand’s threads are context', () => {
     render(
       <BrandHubView
         brand={brand()}
@@ -281,16 +285,17 @@ describe('BrandHubView — does the report exist', () => {
         {...handlers}
       />,
     )
-    expect(screen.queryByRole('link', { name: /read the report/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /read the report/ })).toBeTruthy()
     expect(screen.getByText(/either failed to land or has been deleted/)).toBeTruthy()
   })
 
-  // Pending, not empty. Suppressing here would flash the row back to a bare
-  // entry point on every navigation, which is the bug the row exists to fix.
-  it('keeps the promise while the project list is unknown', () => {
+  // Pending, not empty. Claiming an anomaly here would put a missing-conversation
+  // notice on a healthy brand on every navigation.
+  it('stays quiet while the project list is unknown', () => {
     render(
       <BrandHubView brand={brand()} research={completed} onStartResearch={vi.fn()} {...handlers} />,
     )
-    expect(screen.getByRole('link', { name: /read the report/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /read the report/ })).toBeTruthy()
+    expect(screen.queryByText(/failed to land or has been deleted/)).toBeNull()
   })
 })

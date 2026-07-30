@@ -11,6 +11,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 import { brands } from './brands'
+import { projects } from './projects'
 
 // The job's own status vocabulary, which is **ours and wider than any vendor's**
 // (see `ResearchStatus` in `@brandfactory/shared`). `NO_FINDINGS` is a completed
@@ -65,6 +66,22 @@ export const brandResearchJobs = pgTable(
     citations: jsonb('citations'),
     drafts: jsonb('drafts'),
     error: text('error'),
+    // **The thread 3F made of the report, recorded — migration 0007.**
+    //
+    // `landReportInThread` has created that thread since 3F and returned its id
+    // to nobody, so the only way back to a specific run's report was the *list*
+    // of every conversation the brand has, with the user matching a date in a
+    // card title. 1.13.2 wrote persisting this up as the better answer and left
+    // it; the report modal is what made it worth taking.
+    //
+    // **`set null`, not `cascade`.** Deleting the conversation must not delete
+    // the job: the row is the only record that money was spent, and it still
+    // holds the report itself. The pointer going stale is the correct outcome —
+    // and it is why every reader treats `null` as "offer the list" rather than as
+    // an error.
+    reportProjectId: uuid('report_project_id').references(() => projects.id, {
+      onDelete: 'set null',
+    }),
     // **The ledger decision 12 asked for, made billable by 3A.** The vendor
     // reports its own per-run cost, so this is a recorded number rather than an
     // estimate — `numeric` because money in a float is a bug waiting for a

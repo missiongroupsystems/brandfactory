@@ -82,7 +82,14 @@ export const ResearchDraftSchema = z.object({
 })
 export type ResearchDraft = z.infer<typeof ResearchDraftSchema>
 
-/** What the rail's footer row and the review sheet read. */
+/**
+ * What the rail's footer row and the review sheet read.
+ *
+ * **Still no report here.** The report is tens of thousands of characters and
+ * this shape is re-read every 5 seconds while a run is in flight, which is why
+ * `ResearchReportSchema` below is a separate, once-per-open read rather than a
+ * field added to this one.
+ */
 export const ResearchJobSummarySchema = z.object({
   id: ResearchJobIdSchema,
   status: ResearchStatusSchema,
@@ -96,6 +103,55 @@ export const ResearchJobSummarySchema = z.object({
   sourceCount: z.number().int().nonnegative(),
 })
 export type ResearchJobSummary = z.infer<typeof ResearchJobSummarySchema>
+
+/**
+ * The expensive artefact itself — **read once, when somebody asks to read it.**
+ *
+ * `ResearchJobSummary` deliberately carries no report: 3A's live run came back
+ * at 67,780 characters and the hub polls the summary every 5 seconds, so a
+ * report on that wire is a novel per poll to render one footer row. This is the
+ * other half of that decision rather than a reversal of it — one request, on
+ * open, for a document that never changes again once the run is terminal.
+ *
+ * **`reportProjectId` is the thread 3F created, recorded.** It was not persisted
+ * until now, which is why the rail's report row could only ever point at the
+ * *list* of a brand's conversations and let the user work out which card was the
+ * research. 1.13.2 named persisting it as the better answer and deferred it; the
+ * modal is what made it worth taking, because a dialog that shows the report
+ * needs somewhere honest to send you afterwards.
+ *
+ * `null` means one of two things and the client must not distinguish them: the
+ * landing failed (`landReportInThread` swallows its own failure on purpose), or
+ * the run predates the column. Both are handled the same way — offer the
+ * conversation list, which is a true statement about where research threads live
+ * and not a claim that a particular one exists.
+ */
+export const ResearchReportSchema = z.object({
+  jobId: ResearchJobIdSchema,
+  /** The brand name **as it was at submission** — see the job row's `input`. */
+  brandName: z.string(),
+  /**
+   * Null on a completed run only if `finishResearchJob` recorded no report,
+   * which no live path produces. Nullable because the column is, and a surface
+   * that assumes otherwise crashes rather than explains.
+   */
+  report: z.string().nullable(),
+  /** Every distinct citation the finder returned, for the report's own list. */
+  sources: z.array(ResearchSourceSchema),
+  /** What the vendor said this run cost. `null` is unknown, never zero. */
+  costUsd: z.number().nullable(),
+  /**
+   * When the run **started**, not when it finished — and that is the same choice
+   * `researchThreadName` makes, for the same reason. A run submitted at 23:58 and
+   * reconciled at 00:04 is the research you asked for yesterday, and dating the
+   * report one way while the conversation it created is named the other would
+   * show one run under two dates.
+   */
+  startedAt: z.iso.datetime().nullable(),
+  /** The brand-context thread 3F landed the report in, if it landed. */
+  reportProjectId: z.string().nullable(),
+})
+export type ResearchReport = z.infer<typeof ResearchReportSchema>
 
 // ---------------------------------------------------------------------------
 // Accessors — the two questions every research surface asks
@@ -126,10 +182,16 @@ export function hasDraftsReady(job: ResearchJobSummary | null | undefined): bool
  *   2. **The drafts were already dealt with**, which is what empties `drafts`
  *      by design since 1.11.2.
  *
- * Both still have the report, and the report is the expensive artefact: 3F lands
- * it as a brand-context thread the moment the run completes. `COMPLETED` is the
- * exact condition that thread is created under, which is what makes this a fact
- * rather than a guess.
+ * Both still have the report, and the report is the expensive artefact: it is on
+ * the job row, written in the same `finishResearchJob` call that set this status.
+ *
+ * **That is what makes this a fact, and it is a narrower fact than it used to
+ * be.** It was justified against 3F's thread — `COMPLETED` is the condition
+ * `landReportInThread` runs under — and that function swallows its own failure,
+ * so the claim was one silent error away from wrong (1.13.2 finding 2). The
+ * report row now reads `ResearchReportSchema` off the row rather than sending the
+ * user to look for a conversation, so the status and the readable artefact are
+ * written together and the inference no longer crosses a fallible step.
  *
  * `NO_FINDINGS` is excluded and gets no thread — its "report" is the finder
  * saying the site gave it too little, which the rail already says in four words.

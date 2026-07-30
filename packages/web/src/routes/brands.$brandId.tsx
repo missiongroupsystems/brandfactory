@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { createRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
-import { logoAsset } from '@brandfactory/shared'
+import { hasReportToRead, logoAsset } from '@brandfactory/shared'
 import { rootRoute } from './__root'
 import { getAuthToken } from '@/auth/store'
 import { AppError } from '@/api/client'
@@ -10,6 +10,7 @@ import { useBrand, useBrandProjects, useDeleteBrand, useUpdateBrand } from '@/ap
 import { useBrandResearch, useStartResearch } from '@/api/queries/research'
 import { BrandHubView } from '@/components/brand/BrandHubView'
 import { EditGuidelinesDialog } from '@/components/brand/EditGuidelinesDialog'
+import { ResearchReportDialog } from '@/components/brand/ResearchReportDialog'
 import { ResearchReviewSheet } from '@/components/brand/ResearchReviewSheet'
 import { useDraftLanding } from '@/components/brand/useDraftLanding'
 import { DeleteBrandDialog } from '@/components/entity/DeleteBrandDialog'
@@ -63,6 +64,7 @@ function BrandHubPage() {
   const [renameOpen, setRenameOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
   const update = useUpdateBrand(brandId, brand?.workspaceId ?? '')
   const del = useDeleteBrand(brandId, brand?.workspaceId ?? '')
 
@@ -156,6 +158,13 @@ function BrandHubPage() {
         // opens by itself on a curated brand — one surface, two ways in, so a
         // dismissed sheet is never a lost report.
         onReviewDrafts={() => landing.setReviewOpen(true)}
+        // The finished-run row, which used to navigate to the *list* of the
+        // brand's conversations and leave the user to find the report in it.
+        // Gated on there being a job to read a report from, so the row cannot
+        // open a dialog with no job id — which is also what keeps the report
+        // query keyed on a real run. The rail decides *whether the row exists*
+        // from the job's status; this only decides whether it can be pressed.
+        onReadReport={research?.job ? () => setReportOpen(true) : undefined}
       />
 
       <EditGuidelinesDialog
@@ -168,6 +177,26 @@ function BrandHubPage() {
         // in the guidelines, so the save is what stops the rail offering them.
         onSaved={landing.onGuidelinesSaved}
       />
+
+      {/* Mounted only once there is a job, so the dialog never holds an empty
+          `jobId` — and remounted on a re-run's *new* job id, which drops the
+          previous report's cache subscription rather than repointing it. The
+          report query is keyed by job, so nothing stale can be served either.
+
+          **`open` is gated on the job still having a report**, not on the flag
+          alone. `reportOpen` outlives the job it was set for: a re-run started
+          from another tab arrives on the 5-second poll, and the dialog would
+          remount around an `IN_PROGRESS` job and report that the run recorded
+          nothing. Deriving `open` from the same predicate the rail's row uses
+          makes that unrepresentable rather than merely unlikely. */}
+      {research?.job && (
+        <ResearchReportDialog
+          open={reportOpen && hasReportToRead(research.job)}
+          onOpenChange={setReportOpen}
+          brandId={brandId}
+          jobId={research.job.id}
+        />
+      )}
 
       <ResearchReviewSheet
         open={landing.reviewOpen}

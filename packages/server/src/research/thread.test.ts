@@ -24,6 +24,7 @@ function job(over: Partial<ResearchJob> = {}): ResearchJob {
     citations: [],
     drafts: [],
     error: null,
+    reportProjectId: null,
     costUsd: 0.377,
     createdBy: null,
     createdAt: '2026-07-29T09:58:00.000Z',
@@ -43,13 +44,18 @@ function fakeDb(over: Partial<ResearchThreadDbDeps> = {}) {
   const appendAgentMessage = vi.fn((_input: Record<string, unknown>) =>
     Promise.resolve({ id: 'm-1' }),
   )
+  const setResearchJobReportProject = vi.fn((_jobId: string, _projectId: string) =>
+    Promise.resolve(null),
+  )
   return {
     createProjectWithCanvas,
     appendAgentMessage,
+    setResearchJobReportProject,
     ...over,
   } as unknown as ResearchThreadDbDeps & {
     createProjectWithCanvas: typeof createProjectWithCanvas
     appendAgentMessage: typeof appendAgentMessage
+    setResearchJobReportProject: typeof setResearchJobReportProject
   }
 }
 
@@ -116,6 +122,41 @@ describe('landReportInThread', () => {
       content: '# Brand Profile\n\nA long report.',
     })
     expect(projectId).toBe('p-1')
+  })
+
+  // Migration 0007. The id was already computed here and handed to a caller that
+  // ignored it, which is why every surface downstream could only offer the *list*
+  // of a brand's conversations.
+  it('records the thread on the job row', async () => {
+    const db = fakeDb()
+    await landReportInThread({ db }, job())
+
+    expect(db.setResearchJobReportProject).toHaveBeenCalledWith('job-1', 'p-1')
+  })
+
+  // A job pointing at a thread with no report in it would be a worse lie than a
+  // job pointing at nothing, so the pointer is written last.
+  it('records the thread only after the report is in it', async () => {
+    const db = fakeDb()
+    await landReportInThread({ db }, job())
+
+    const [message] = db.appendAgentMessage.mock.invocationCallOrder
+    const [pointer] = db.setResearchJobReportProject.mock.invocationCallOrder
+    expect(message).toBeLessThan(pointer!)
+  })
+
+  // Same refusal as the two below, one write further along: the thread exists and
+  // is reachable from Brand context, and the report is on the job row either way.
+  // Losing a link is not worth failing a paid run over.
+  it('survives the pointer write failing after the report landed', async () => {
+    const logger = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }
+    const db = fakeDb({
+      setResearchJobReportProject: vi.fn(() => Promise.reject(new Error('nope'))),
+    } as Partial<ResearchThreadDbDeps>)
+
+    expect(await landReportInThread({ db, logger: logger as never }, job())).toBeNull()
+    expect(db.appendAgentMessage).toHaveBeenCalledOnce()
+    expect(logger.error).toHaveBeenCalledOnce()
   })
 
   // The report is not a person's turn, and the column is nullable for exactly

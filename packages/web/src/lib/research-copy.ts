@@ -72,28 +72,141 @@ export const RESEARCH_POLL_UNREACHABLE =
  */
 export const RESEARCH_REPORT_ROW_LABEL = 'Research finished — read the report'
 
+/**
+ * The hint under the row, and it used to be **directions rather than a hint.**
+ *
+ * *"The full report is a conversation in Brand context. Read it there…"* was an
+ * accurate description of a three-step errand: leave the hub, land on the list of
+ * every conversation the brand has, recognise which card was the research by the
+ * date in its title, open it, scroll one 68,000-character bubble. The row now
+ * opens the report where you are, so the sentence that told you where to go has
+ * nothing left to say and the one thing worth teaching is what to do with it.
+ */
 export const RESEARCH_REPORT_ROW_HINT =
-  'The full report is a conversation in Brand context. Read it there and capture what matters into the guidelines.'
+  'Opens here in full. Capture what matters into the guidelines as you read.'
 
 /**
- * The same finished run, when the report is **not** where the row would send
- * you.
+ * The same finished run, when the **conversation** is not there.
  *
- * `hasReportToRead` is `status === 'COMPLETED'`, justified as a fact rather than
- * a guess because that is the exact condition `landReportInThread` runs under.
- * It is not quite a fact: that function logs and swallows its own failure — on
- * purpose, since a failed project insert must not fail a run already paid for —
- * so a completed job can point at a Brand context that never received anything.
- * The row then makes the one claim it exists to stop being made: it says a $0.40
- * run left something to read, and sends you to an empty list.
+ * 1.13.2 added this because `hasReportToRead` is `status === 'COMPLETED'` and
+ * `landReportInThread` swallows its own failure, so a completed job could send
+ * you to a Brand context that never received anything. Its answer was to drop
+ * the affordance: no link, no button, just the words `Research finished`.
  *
- * So the claim is checked against the brand's actual conversations, and when
- * there are none the row keeps the finished state and drops the promise. The
- * copy names both ways to get here, because a deleted thread and a landing that
- * failed are indistinguishable from the client and guessing between them is the
- * mistake `RESEARCH_REPORT_ROW_HINT` already refuses to make about drafts.
+ * **That answer was one layer too high, and this is the correction.** The report
+ * is not in the thread — it is on the job row, and the thread was only ever a
+ * copy of it. So a failed landing costs the *conversation*, never the report,
+ * and hiding the report to report a missing conversation was the release telling
+ * the user to spend $0.40 again for a document sitting in the database.
+ *
+ * The row keeps working. What changes is one sentence and what it recommends:
+ * the anomaly is named, the report is offered anyway, and re-running is no
+ * longer the advice. Both ways to get here still go unnamed individually — a
+ * deleted thread and a landing that failed are indistinguishable from the
+ * client, and guessing between them is the mistake `RESEARCH_REPORT_ROW_HINT`
+ * already refuses to make about drafts.
  */
-export const RESEARCH_FINISHED_ROW_LABEL = 'Research finished'
-
 export const RESEARCH_REPORT_MISSING_HINT =
-  'No conversation from this run is in Brand context — it either failed to land or has been deleted. Researching again produces a fresh report.'
+  'The conversation from this run is not in Brand context — it either failed to land or has been deleted. The report itself is still here.'
+
+// ---------------------------------------------------------------------------
+// The report dialog
+// ---------------------------------------------------------------------------
+//
+// **The report used to be three navigations away from the surface that announced
+// it**, and the first of them landed on a page that does not mention research.
+// It opens here instead, and the way onward to the conversation is a footer
+// action rather than the only route in.
+
+export const RESEARCH_REPORT_DIALOG_TITLE = 'Research report'
+
+/**
+ * The dialog's one line of provenance: **which brand, when, how well sourced, and
+ * what it cost.**
+ *
+ * Every part is omitted rather than defaulted when it is not known. `0 sources`
+ * and `$0.00` are both statements this repo has no business making — the citation
+ * count is the honest signal about a report the whole feature warns can be
+ * confidently wrong (research decision 4), and the cost is a bill.
+ *
+ * **UTC, matching `researchThreadName` on the server**, and dated by `startedAt`
+ * for the same reason: the conversation this report created is named for the day
+ * the run was asked for, and a local-time render would put one run under two
+ * dates for anyone west of Greenwich after 5pm.
+ */
+export function researchReportMeta(input: {
+  brandName: string
+  startedAt: string | null
+  sourceCount: number
+  costUsd: number | null
+}): string {
+  const parts = [input.brandName]
+
+  if (input.startedAt) {
+    const at = new Date(input.startedAt)
+    if (!Number.isNaN(at.getTime())) {
+      parts.push(
+        new Intl.DateTimeFormat('en-GB', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          timeZone: 'UTC',
+        }).format(at),
+      )
+    }
+  }
+
+  if (input.sourceCount > 0) {
+    parts.push(`${input.sourceCount} ${input.sourceCount === 1 ? 'source' : 'sources'}`)
+  }
+
+  // Two decimals on a number recorded to six. The row keeps the precision that
+  // makes the ledger add up; a human reading one run wants the price.
+  if (input.costUsd !== null) parts.push(`$${input.costUsd.toFixed(2)}`)
+
+  return parts.join(' · ')
+}
+
+/**
+ * The way through to the thread, which is where the report becomes *usable*: the
+ * interviewer can already read it there (`routes/agent.ts` re-reads the
+ * transcript every turn), so follow-up questions are answered against the
+ * research, and 1.5.0's capture gesture works on the message.
+ *
+ * Named for the destination rather than the action — `View in brand context`
+ * rather than `Open conversation` — because Brand context is a place the user
+ * already knows from the rail's own heading and from `Talk it through`.
+ */
+export const RESEARCH_REPORT_VIEW_IN_CONTEXT = 'View in brand context'
+
+/** Under the action, when the deep link is known. */
+export const RESEARCH_REPORT_THREAD_HINT =
+  'The report is also a conversation there — ask it follow-ups, or capture parts of it into the guidelines.'
+
+/**
+ * Under the action when `reportProjectId` is null, which is two histories a
+ * client must not tell apart: the landing failed, or the run predates migration
+ * 0007. The link degrades to the conversation list, which is a true statement
+ * about where research threads live and not a claim that this run's is one of
+ * them.
+ */
+export const RESEARCH_REPORT_THREAD_UNKNOWN_HINT =
+  'This run has no conversation to open directly — Brand context lists whatever is there.'
+
+export const RESEARCH_REPORT_LOADING = 'Loading the report…'
+
+/**
+ * The fetch failed, which is **not** the same statement as "there is nothing to
+ * read". The report is on a row on a server; a failed request says something
+ * about this browser's last few seconds and nothing about the artefact.
+ */
+export const RESEARCH_REPORT_LOAD_FAILED =
+  'Could not load the report just now. It is stored with the run, so trying again shortly should work.'
+
+/**
+ * `COMPLETED` with a null report. No live path produces it — `finishResearchJob`
+ * writes the status and the report in one statement — so this exists to say so
+ * rather than to render an empty document as though that were the answer.
+ */
+export const RESEARCH_REPORT_EMPTY =
+  'This run recorded no report. Nothing was lost that researching again would not rebuild.'

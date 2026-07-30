@@ -13,7 +13,9 @@ import {
   hasActiveResearchJob,
   listInFlightResearchJobs,
   setResearchJobExternalId,
+  setResearchJobReportProject,
 } from './queries/research'
+import { createProjectWithCanvas, deleteProject } from './queries/projects'
 import { seed } from './seed'
 
 // Live-DB test, in its own file for the same reason as the others: each owns
@@ -26,7 +28,8 @@ import { seed } from './seed'
 //   - the "terminal states are terminal" `WHERE`, which is what makes two
 //     racing finishers safe;
 //   - `now() - interval '24 hours'`, which is SQL and not TypeScript;
-//   - the FK cascade, so a deleted brand takes its jobs with it.
+//   - the FK cascade, so a deleted brand takes its jobs with it — and 0007's
+//     opposite choice, where a deleted *conversation* leaves its job standing.
 const hasDb = !!process.env.DATABASE_URL
 
 describe.skipIf(!hasDb)('brand_research_jobs (live DB)', () => {
@@ -343,6 +346,53 @@ describe.skipIf(!hasDb)('brand_research_jobs (live DB)', () => {
       })
 
       expect(await clearResearchJobDrafts(brand.id, job.id)).toBeNull()
+    })
+  })
+
+  // Migration 0007. The interesting half is the FK's `ON DELETE set null`, which
+  // is SQL and not TypeScript: deleting the conversation must leave the job — the
+  // only record that money was spent, and the holder of the report itself —
+  // standing, with a pointer that has honestly gone missing.
+  describe('setResearchJobReportProject', () => {
+    async function completedJobWithThread() {
+      const brand = await scratchBrand()
+      const job = await createResearchJob({
+        brandId: brand.id,
+        provider: 'perplexity',
+        model: 'm',
+        input,
+        createdBy: null,
+      })
+      await finishResearchJob(job.id, { status: 'COMPLETED', report: 'a real report' })
+      const { project } = await createProjectWithCanvas({
+        brandId: brand.id,
+        kind: 'standardized',
+        templateId: 'brand-context',
+        name: 'Brand research — Casa Vostra, 30 Jul 2026',
+      })
+      return { brand, job, project }
+    }
+
+    it('records the thread on the job', async () => {
+      const { brand, job, project } = await completedJobWithThread()
+
+      expect((await setResearchJobReportProject(job.id, project.id))?.reportProjectId).toBe(
+        project.id,
+      )
+      expect((await getResearchJob(brand.id, job.id))?.reportProjectId).toBe(project.id)
+    })
+
+    it('survives the conversation being deleted, and forgets it', async () => {
+      const { brand, job, project } = await completedJobWithThread()
+      await setResearchJobReportProject(job.id, project.id)
+
+      await deleteProject(project.id)
+
+      const after = await getResearchJob(brand.id, job.id)
+      expect(after?.reportProjectId).toBeNull()
+      // The paid artefact is untouched — losing the link is not losing the report.
+      expect(after?.report).toBe('a real report')
+      expect(after?.status).toBe('COMPLETED')
     })
   })
 

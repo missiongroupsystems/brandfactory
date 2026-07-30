@@ -454,6 +454,7 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         citations: [],
         drafts: [],
         error: null,
+        reportProjectId: null,
         costUsd: null,
         createdBy: input.createdBy,
         // **Not `NOW`, unlike every other fake in this file** — and this is the
@@ -528,6 +529,16 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         costUsd: input.costUsd ?? null,
         completedAt: NOW,
       }
+      state.researchJobs.set(jobId, updated)
+      return updated
+    },
+    // Unscoped by status and by brand, like the real query — see it for why. The
+    // row is already `COMPLETED` when this runs, and the one thing a writer called
+    // from a swallowed `try` must not do is invent a reason to reject.
+    async setResearchJobReportProject(jobId, projectId) {
+      const job = state.researchJobs.get(jobId)
+      if (!job) return null
+      const updated = { ...job, reportProjectId: projectId }
       state.researchJobs.set(jobId, updated)
       return updated
     },

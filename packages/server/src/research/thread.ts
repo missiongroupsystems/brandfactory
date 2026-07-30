@@ -33,7 +33,10 @@ import type { Logger } from '../logger'
 // 67,780-character report to the conversation you happen to have open is a
 // louder version of the same mistake.
 
-export type ResearchThreadDbDeps = Pick<Db, 'createProjectWithCanvas' | 'appendAgentMessage'>
+export type ResearchThreadDbDeps = Pick<
+  Db,
+  'createProjectWithCanvas' | 'appendAgentMessage' | 'setResearchJobReportProject'
+>
 
 export interface ResearchThreadDeps {
   db: ResearchThreadDbDeps
@@ -101,6 +104,19 @@ export async function landReportInThread(
       role: 'assistant',
       content: job.report,
     })
+
+    // **Migration 0007, and the return value stops going nowhere.** This id was
+    // already computed here and handed back to a caller that ignored it, which is
+    // why every surface downstream could only offer the *list* of a brand's
+    // conversations and let the user match a date in a card title. Recorded last,
+    // after the message: a job pointing at a thread with no report in it would be
+    // a worse lie than a job pointing at nothing.
+    //
+    // Inside the same `try`, so a failure here is swallowed with the rest — the
+    // thread exists and is reachable from Brand context either way, and the
+    // report is on the job row regardless. Losing a link is not worth failing a
+    // paid run over.
+    await deps.db.setResearchJobReportProject(job.id, project.id)
 
     return project.id
   } catch (cause) {

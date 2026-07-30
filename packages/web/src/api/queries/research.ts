@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import type { BrandResearchState, ResearchConfig, ResearchJobSummary } from '@brandfactory/shared'
+import type {
+  BrandResearchState,
+  ResearchConfig,
+  ResearchJobSummary,
+  ResearchReport,
+} from '@brandfactory/shared'
 import { api, callJson } from '@/api/client'
 import { brandKeys } from '@/api/queries/brands'
 
@@ -60,6 +65,39 @@ export function useBrandResearch(brandId: string) {
       return callJson<BrandResearchState>(res)
     },
     refetchInterval: (query) => researchRefetchInterval(query.state.data),
+  })
+}
+
+/**
+ * The report itself — **the read that only happens because somebody asked.**
+ *
+ * The counterpart to `useBrandResearch`, and deliberately nothing like it. That
+ * one is small and polls; this one is a ~68,000-character document that never
+ * changes once its run is terminal, so:
+ *
+ * - **`staleTime: Infinity`**, and no `refetchInterval`. Re-asking for a finished
+ *   run's report can only ever return the same bytes.
+ * - **No `enabled` flag.** The caller mounts this inside `DialogContent`, which
+ *   Radix unmounts when closed — so "fetch when the modal opens" is the component
+ *   tree saying it rather than a boolean that has to be kept in step with `open`.
+ *   Same reason `ResearchReviewSheet` keeps its tick state one level down.
+ *
+ * `retry` is the client default (twice on 5xx, never on 4xx). A failed fetch is
+ * reported in the dialog rather than swallowed: the report is the artefact the run
+ * was paid for, and "we cannot show it right now" is a different statement from
+ * "there is nothing to show".
+ */
+export function useResearchReport(brandId: string, jobId: string) {
+  return useQuery({
+    queryKey: brandKeys.researchReport(brandId, jobId),
+    enabled: !!brandId && !!jobId,
+    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: async () => {
+      const res = await api.brands[':id'].research[':jobId'].report.$get({
+        param: { id: brandId, jobId },
+      })
+      return callJson<ResearchReport>(res)
+    },
   })
 }
 

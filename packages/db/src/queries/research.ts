@@ -1,5 +1,6 @@
 import type {
   BrandId,
+  ProjectId,
   ResearchDraft,
   ResearchJobId,
   ResearchSource,
@@ -37,6 +38,15 @@ export interface ResearchJob {
   citations: ResearchSource[]
   drafts: ResearchDraft[]
   error: string | null
+  /**
+   * The brand-context thread the report was landed in (3F), or `null`.
+   *
+   * Null on three different histories and readers must not tell them apart: the
+   * run has not finished, the landing failed, or the row predates migration
+   * 0007. All three mean the same thing to a client — there is no thread to link
+   * straight to — and the report itself is on this row either way.
+   */
+  reportProjectId: ProjectId | null
   /** What the vendor said this run cost. `null` means unknown, never zero. */
   costUsd: number | null
   createdBy: UserId | null
@@ -60,6 +70,7 @@ function rowToResearchJob(row: Row): ResearchJob {
     citations: (row.citations ?? []) as ResearchSource[],
     drafts: (row.drafts ?? []) as ResearchDraft[],
     error: row.error,
+    reportProjectId: (row.reportProjectId as ProjectId | null) ?? null,
     // `numeric` comes back as a string from pg — it is arbitrary precision and
     // a float would silently round it. Parsed here, at the one boundary that
     // knows the column's scale.
@@ -200,6 +211,32 @@ export async function setResearchJobExternalId(
   const [row] = await db
     .update(brandResearchJobs)
     .set({ externalId })
+    .where(eq(brandResearchJobs.id, jobId))
+    .returning()
+  return row ? rowToResearchJob(row) : null
+}
+
+/**
+ * Record which thread the report was landed in.
+ *
+ * **Not folded into `finishResearchJob`, and the ordering is the reason.** That
+ * write is the arbiter — `WHERE status = 'IN_PROGRESS'` is what makes exactly one
+ * caller the finisher, and 3F hangs the thread creation off *winning* it. So the
+ * project does not exist yet when the job is finished, and the only honest place
+ * for its id is a second, narrow write afterwards.
+ *
+ * **Deliberately unscoped by status.** The row is `COMPLETED` by the time this
+ * runs, so a `WHERE` on it would be decoration — and `landReportInThread` must
+ * never fail a paid run, which means the one thing this must not do is find a
+ * reason to reject a thread that already exists.
+ */
+export async function setResearchJobReportProject(
+  jobId: ResearchJobId,
+  projectId: ProjectId,
+): Promise<ResearchJob | null> {
+  const [row] = await db
+    .update(brandResearchJobs)
+    .set({ reportProjectId: projectId })
     .where(eq(brandResearchJobs.id, jobId))
     .returning()
   return row ? rowToResearchJob(row) : null

@@ -120,6 +120,8 @@ export interface BrandHubViewProps {
   research?: ResearchJobSummary | null
   onStartResearch?: () => void
   onReviewDrafts?: () => void
+  /** Opens the report dialog — see `BrandContextRailProps.onReadReport`. */
+  onReadReport?: () => void
   /**
    * A start request is in flight. Disables the row, because until the POST
    * resolves nothing in the cache has changed and the row still invites a second
@@ -147,6 +149,7 @@ export function BrandHubView({
   research,
   onStartResearch,
   onReviewDrafts,
+  onReadReport,
   researchStarting = false,
   researchMaxMinutes,
   researchUnreachable = false,
@@ -170,7 +173,8 @@ export function BrandHubView({
   // Derived here rather than passed as a second prop, for the reason the palette
   // is: two props would make "the rail thinks the report landed but the tiles
   // disagree" representable. `undefined` while the list is unknown — the rail
-  // reads that as "keep the promise", see `hasBrandContextThreads`.
+  // reads that as "keep the promise", see `hasBrandContextThreads`, which now
+  // decides one sentence rather than whether the report is reachable at all.
   const hasBrandContextThreads = projects && projects.some(isBrandContextThread)
 
   return (
@@ -260,6 +264,7 @@ export function BrandHubView({
             research={research}
             onStartResearch={onStartResearch}
             onReviewDrafts={onReviewDrafts}
+            onReadReport={onReadReport}
             researchStarting={researchStarting}
             researchMaxMinutes={researchMaxMinutes}
             researchUnreachable={researchUnreachable}
