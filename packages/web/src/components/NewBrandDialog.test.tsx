@@ -20,6 +20,8 @@ import { Button } from '@/components/ui/button'
 
 const navigate = vi.fn()
 const post = vi.fn()
+const researchPost = vi.fn()
+const researchConfigGet = vi.fn()
 const toastError = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
@@ -37,6 +39,10 @@ vi.mock('@/api/client', () => ({
     workspaces: {
       ':workspaceId': { brands: { $post: (...args: unknown[]) => post(...args) } },
     },
+    brands: {
+      ':id': { research: { $post: (...args: unknown[]) => researchPost(...args) } },
+    },
+    research: { $get: (...args: unknown[]) => researchConfigGet(...args) },
   },
   // The real one parses a Response; the fake `$post` already resolves the body.
   callJson: (res: unknown) => res,
@@ -61,11 +67,28 @@ function renderDialog(props: Partial<Parameters<typeof NewBrandDialog>[0]> = {})
 
 describe('NewBrandDialog', () => {
   beforeEach(() => {
-    qc = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    qc = new QueryClient({
+      defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+    })
     navigate.mockReset()
+    // navigate().then(...) — return a thenable so research starts after nav.
+    navigate.mockResolvedValue(undefined)
     toastError.mockReset()
     post.mockReset()
-    post.mockResolvedValue({ id: 'b-new' })
+    post.mockResolvedValue({ id: 'b-new', websiteUrl: null })
+    researchPost.mockReset()
+    researchPost.mockResolvedValue({
+      id: 'j-1',
+      status: 'IN_PROGRESS',
+      startedAt: '2026-07-30T12:00:00.000Z',
+      completedAt: null,
+      error: null,
+      drafts: [],
+      sourceCount: 0,
+    })
+    researchConfigGet.mockReset()
+    // Default: research is on for create-dialog tests that need the checkbox.
+    researchConfigGet.mockResolvedValue({ enabled: true })
   })
 
   it('opens from its own trigger when given one', async () => {
@@ -195,5 +218,81 @@ describe('NewBrandDialog', () => {
     expect(await screen.findByLabelText('Name')).toHaveProperty('value', '')
     expect(screen.getByLabelText('Website (optional)')).toHaveProperty('value', '')
     expect(screen.queryByText(/starting with http/)).toBeNull()
+  })
+
+  // Decision 1: the checkbox is the create-dialog entry point. Absent when the
+  // deployment cannot research — same gate as the rail's row.
+  it('hides the research opt-in when research is not enabled', async () => {
+    researchConfigGet.mockResolvedValue({ enabled: false })
+    renderDialog({ open: true, onOpenChange: () => undefined })
+
+    await waitFor(() => expect(researchConfigGet).toHaveBeenCalled())
+    expect(screen.queryByRole('checkbox', { name: /Research this brand/ })).toBeNull()
+  })
+
+  it('disables the research opt-in until a website is present', async () => {
+    const user = userEvent.setup()
+    renderDialog({ open: true, onOpenChange: () => undefined })
+
+    const box = await screen.findByRole('checkbox', { name: /Research this brand/ })
+    expect(box).toHaveProperty('disabled', true)
+    expect(box).toHaveProperty('checked', false)
+
+    await user.type(screen.getByLabelText('Website (optional)'), 'casavostra.com')
+    expect(box).toHaveProperty('disabled', false)
+    // Default-checked once a website is there — still opt-out via uncheck.
+    expect(box).toHaveProperty('checked', true)
+  })
+
+  it('starts research after create when opted in with a website', async () => {
+    post.mockResolvedValue({ id: 'b-new', websiteUrl: 'https://casavostra.com' })
+    const user = userEvent.setup()
+    renderDialog({ open: true, onOpenChange: () => undefined })
+
+    await user.type(screen.getByLabelText('Name'), 'Casa Vostra')
+    await user.type(screen.getByLabelText('Website (optional)'), 'casavostra.com')
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith({
+        to: '/brands/$brandId',
+        params: { brandId: 'b-new' },
+      })
+    })
+    await waitFor(() => {
+      expect(researchPost).toHaveBeenCalledWith({ param: { id: 'b-new' } })
+    })
+  })
+
+  it('does not start research when the opt-in is unchecked', async () => {
+    post.mockResolvedValue({ id: 'b-new', websiteUrl: 'https://casavostra.com' })
+    const user = userEvent.setup()
+    renderDialog({ open: true, onOpenChange: () => undefined })
+
+    await user.type(screen.getByLabelText('Name'), 'Casa Vostra')
+    await user.type(screen.getByLabelText('Website (optional)'), 'casavostra.com')
+    await user.click(await screen.findByRole('checkbox', { name: /Research this brand/ }))
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => expect(navigate).toHaveBeenCalled())
+    // Give the post-nav thenable a turn; research must still not have fired.
+    await waitFor(() => expect(post).toHaveBeenCalled())
+    expect(researchPost).not.toHaveBeenCalled()
+  })
+
+  it('creates the brand even when research start fails', async () => {
+    post.mockResolvedValue({ id: 'b-new', websiteUrl: 'https://casavostra.com' })
+    researchPost.mockRejectedValue(new FakeAppError('Research is not enabled'))
+    const user = userEvent.setup()
+    renderDialog({ open: true, onOpenChange: () => undefined })
+
+    await user.type(screen.getByLabelText('Name'), 'Casa Vostra')
+    await user.type(screen.getByLabelText('Website (optional)'), 'casavostra.com')
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => expect(navigate).toHaveBeenCalled())
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith('Research is not enabled')
+    })
   })
 })

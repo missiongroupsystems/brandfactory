@@ -320,6 +320,9 @@ describe('BrandContextRail — the research row', () => {
       />,
     )
     expect(screen.getByText(/^Researching…/)).toBeTruthy()
+    // Expectation, not a fake progress meter — the vendor has no partial payload.
+    expect(screen.getByText(/Usually 3–15 minutes/)).toBeTruthy()
+    expect(screen.getByText(/Draft guideline sections and a full report/)).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Research/ })).toBeNull()
   })
 

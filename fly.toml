@@ -36,6 +36,12 @@ kill_signal    = "SIGINT"
 
 # Non-secret defaults. Provider/runtime selection; all secret material
 # lives in `fly secrets`.
+#
+# RESEARCH_PROVIDER is deliberately unset here: it defaults to `none` in
+# EnvSchema, so brand research ships dark (no rail row, no ticker, 501 on
+# POST). To enable paid Perplexity runs in production:
+#   fly secrets set PERPLEXITY_API_KEY=pplx-... RESEARCH_PROVIDER=perplexity
+# Do not flip this on casually — each run is ~$0.40 and 3–15 minutes.
 [env]
   HOST              = "0.0.0.0"
   PORT              = "3001"

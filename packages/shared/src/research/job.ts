@@ -142,3 +142,30 @@ export const BrandResearchStateSchema = z.object({
   job: ResearchJobSummarySchema.nullable(),
 })
 export type BrandResearchState = z.infer<typeof BrandResearchStateSchema>
+
+/**
+ * Deployment-level research availability — no brand required.
+ *
+ * `GET /brands/:id/research` already returns `enabled`, but the create dialog
+ * needs the answer **before a brand exists**. One boolean, same meaning as the
+ * brand envelope's field: `RESEARCH_PROVIDER !== 'none'`.
+ */
+export const ResearchConfigSchema = z.object({
+  enabled: z.boolean(),
+})
+export type ResearchConfig = z.infer<typeof ResearchConfigSchema>
+
+// ---------------------------------------------------------------------------
+// Honest cost / duration — the numbers the UI states *before* a paid run
+// ---------------------------------------------------------------------------
+//
+// Measured, not guessed: 3A at $0.377 / 4.0 min, 3G at $0.4157 / 5.2 min, vendor
+// ceiling 3–15 min. The create-dialog checkbox and the in-flight rail row both
+// speak these; inventing a friendlier "$0.30" or "a few minutes" would be a
+// different product from the one that bills ~$0.40.
+
+/** Rough per-run cost shown before the user spends money. */
+export const RESEARCH_COST_ESTIMATE = '≈$0.40'
+
+/** Wall-clock range the UI promises while a job is in flight. */
+export const RESEARCH_DURATION_RANGE = '3–15 minutes'

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import type { BrandResearchState, ResearchJobSummary } from '@brandfactory/shared'
+import type { BrandResearchState, ResearchConfig, ResearchJobSummary } from '@brandfactory/shared'
 import { api, callJson } from '@/api/client'
 import { brandKeys } from '@/api/queries/brands'
 
@@ -14,6 +14,29 @@ import { brandKeys } from '@/api/queries/brands'
  * $0.377, all of them served from a table.
  */
 export const RESEARCH_POLL_MS = 5_000
+
+export const researchKeys = {
+  config: () => ['research', 'config'] as const,
+}
+
+/**
+ * Deployment-level: is research on at all?
+ *
+ * The create dialog needs this **before a brand exists** — brand-scoped
+ * `GET /brands/:id/research` is useless until after create. Stale time is long
+ * on purpose: the answer only changes with a server redeploy.
+ */
+export function useResearchConfig(opts?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: researchKeys.config(),
+    enabled: opts?.enabled !== false,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const res = await api.research.$get()
+      return callJson<ResearchConfig>(res)
+    },
+  })
+}
 
 /**
  * The brand's research state: whether this deployment can research at all, and
@@ -41,9 +64,19 @@ export function useBrandResearch(brandId: string) {
 }
 
 /**
+ * POST a research run. Extracted so both entry points of decision 1 — the rail
+ * and the create dialog — share one call site without either owning a hook
+ * keyed on a brand id that the create dialog does not have yet.
+ */
+export async function startResearchJob(brandId: string): Promise<ResearchJobSummary> {
+  const res = await api.brands[':id'].research.$post({ param: { id: brandId } })
+  return callJson<ResearchJobSummary>(res)
+}
+
+/**
  * Start a run. Serves **both** entry points of decision 1 — the rail's action
- * and (later) the create dialog — because the server takes no body: everything
- * the run needs is already on the brand.
+ * and the create dialog — because the server takes no body: everything the run
+ * needs is already on the brand.
  *
  * The response is written straight into the cache rather than invalidated: it
  * *is* the new state, and a refetch would ask the same question one round trip
@@ -52,10 +85,7 @@ export function useBrandResearch(brandId: string) {
 export function useStartResearch(brandId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async () => {
-      const res = await api.brands[':id'].research.$post({ param: { id: brandId } })
-      return callJson<ResearchJobSummary>(res)
-    },
+    mutationFn: () => startResearchJob(brandId),
     onSuccess: (job) => applyStartedJobToCache(qc, brandId, job),
   })
 }

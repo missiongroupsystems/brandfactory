@@ -17,6 +17,7 @@ import { requestIdMiddleware } from './middleware/request-id'
 import type { AgentConcurrencyGuard } from './agent/concurrency'
 import { createAgentRouter } from './routes/agent'
 import { createBrandAssetsRouter } from './routes/assets'
+import { createResearchConfigRouter } from './routes/research-config'
 import { createResearchRouter } from './routes/research'
 import { createResearchShaper, type ShapeResearchFn } from './research/shape'
 import { createBlobsRouter } from './routes/blobs'
@@ -90,10 +91,14 @@ export function createApp(deps: AppDeps) {
   app.use('/brands/*', authRequired)
   app.use('/projects/*', authRequired)
   app.use('/blob-urls/*', authRequired)
+  app.use('/research/*', authRequired)
 
   const composed = app
     .route('/health', createHealthRouter())
     .route('/me', createMeRouter({ auth: deps.auth }))
+    // Deployment-level: is research on at all? Needed by the create dialog
+    // before a brand exists; the brand-scoped GET still carries the same flag.
+    .route('/research', createResearchConfigRouter({ env: deps.env }))
     .route('/workspaces', createWorkspacesRouter({ db: deps.db }))
     .route('/workspaces', createWorkspaceBrandsRouter({ db: deps.db, storage: deps.storage }))
     .route('/workspaces', createWorkspaceProjectsRouter({ db: deps.db, storage: deps.storage }))

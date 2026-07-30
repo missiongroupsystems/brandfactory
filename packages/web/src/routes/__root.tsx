@@ -3,6 +3,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { AuthBoundary } from '@/auth/AuthBoundary'
 import { BreadcrumbProvider, Breadcrumbs } from '@/components/Breadcrumbs'
+import { ResearchInFlightIndicator } from '@/components/ResearchInFlightIndicator'
 import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher'
 import { BrandSwitcher } from '@/components/BrandSwitcher'
 import { useActiveWorkspaceId } from '@/lib/workspace-context'
@@ -41,6 +42,9 @@ function RootLayout() {
             <BrandSwitcher />
             <Breadcrumbs />
           </div>
+          {/* Survives leaving the hub rail — only while the active brand has a
+              run in flight. Absent elsewhere, like BrandSwitcher. */}
+          <ResearchInFlightIndicator />
           <ThemeToggle />
         </header>
         <main className="flex flex-1 overflow-hidden">

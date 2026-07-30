@@ -95,23 +95,25 @@ Every key is documented inline in [`.env.example`](.env.example). A drift
 guard (`packages/server/src/env.example.test.ts`) fails CI if the schema
 widens without the example following.
 
-| Var                    | Required                             | Default            | Notes                                                            |
-| ---------------------- | ------------------------------------ | ------------------ | ---------------------------------------------------------------- |
-| `DATABASE_URL`         | yes                                  | —                  | Postgres 16+ connection string.                                  |
-| `AUTH_PROVIDER`        | yes                                  | `local`            | `local` (dev UUID bearer) or `supabase` (JWT).                   |
-| `STORAGE_PROVIDER`     | yes                                  | `local-disk`       | `local-disk` or `supabase`.                                      |
-| `REALTIME_PROVIDER`    | yes                                  | `native-ws`        | Only impl shipping today.                                        |
-| `LLM_PROVIDER`         | yes                                  | `openrouter`       | `openrouter` · `anthropic` · `openai` · `ollama`.                |
-| `LLM_MODEL`            | yes                                  | —                  | Provider-specific model id (e.g. `anthropic/claude-sonnet-4.6`). |
-| `OPENROUTER_API_KEY`   | when `LLM_PROVIDER=openrouter`       | —                  | Per-provider keys: set the one matching `LLM_PROVIDER`.          |
-| `BLOB_LOCAL_DISK_ROOT` | when `STORAGE_PROVIDER=local-disk`   | —                  | Filesystem path for uploaded blobs.                              |
-| `BLOB_SIGNING_SECRET`  | when `STORAGE_PROVIDER=local-disk`   | —                  | HMAC secret for signed URLs.                                     |
-| `BLOB_PUBLIC_BASE_URL` | when `STORAGE_PROVIDER=local-disk`   | —                  | Base URL the signed `/blobs/:key?sig=…` route is served from.    |
-| `BLOB_MAX_BYTES`       | no                                   | 25 MiB             | Hard cap on upload size; 413 before body is read.                |
-| `SUPABASE_*`           | when matching provider is `supabase` | —                  | Auth + storage share these. See `.env.example` for the grouping. |
-| `CORS_ALLOWED_ORIGINS` | no                                   | _(CORS off)_       | Comma-separated exact-match allowlist. Gates HTTP + WS upgrade.  |
-| `PORT` / `HOST`        | no                                   | `3001` / `0.0.0.0` | Hono listener.                                                   |
-| `LOG_LEVEL`            | no                                   | `info`             | `debug` · `info` · `warn` · `error`.                             |
+| Var                    | Required                             | Default            | Notes                                                             |
+| ---------------------- | ------------------------------------ | ------------------ | ----------------------------------------------------------------- |
+| `DATABASE_URL`         | yes                                  | —                  | Postgres 16+ connection string.                                   |
+| `AUTH_PROVIDER`        | yes                                  | `local`            | `local` (dev UUID bearer) or `supabase` (JWT).                    |
+| `STORAGE_PROVIDER`     | yes                                  | `local-disk`       | `local-disk` or `supabase`.                                       |
+| `REALTIME_PROVIDER`    | yes                                  | `native-ws`        | Only impl shipping today.                                         |
+| `LLM_PROVIDER`         | yes                                  | `openrouter`       | `openrouter` · `anthropic` · `openai` · `ollama`.                 |
+| `LLM_MODEL`            | yes                                  | —                  | Provider-specific model id (e.g. `anthropic/claude-sonnet-4.6`).  |
+| `OPENROUTER_API_KEY`   | when `LLM_PROVIDER=openrouter`       | —                  | Per-provider keys: set the one matching `LLM_PROVIDER`.           |
+| `BLOB_LOCAL_DISK_ROOT` | when `STORAGE_PROVIDER=local-disk`   | —                  | Filesystem path for uploaded blobs.                               |
+| `BLOB_SIGNING_SECRET`  | when `STORAGE_PROVIDER=local-disk`   | —                  | HMAC secret for signed URLs.                                      |
+| `BLOB_PUBLIC_BASE_URL` | when `STORAGE_PROVIDER=local-disk`   | —                  | Base URL the signed `/blobs/:key?sig=…` route is served from.     |
+| `BLOB_MAX_BYTES`       | no                                   | 25 MiB             | Hard cap on upload size; 413 before body is read.                 |
+| `SUPABASE_*`           | when matching provider is `supabase` | —                  | Auth + storage share these. See `.env.example` for the grouping.  |
+| `CORS_ALLOWED_ORIGINS` | no                                   | _(CORS off)_       | Comma-separated exact-match allowlist. Gates HTTP + WS upgrade.   |
+| `RESEARCH_PROVIDER`    | no                                   | `none`             | `none` (off) or `perplexity`. Paid ~$0.40/run; off by default.    |
+| `PERPLEXITY_API_KEY`   | when `RESEARCH_PROVIDER=perplexity`  | —                  | Deep-research vendor key. See `.env.example` for the full recipe. |
+| `PORT` / `HOST`        | no                                   | `3001` / `0.0.0.0` | Hono listener.                                                    |
+| `LOG_LEVEL`            | no                                   | `info`             | `debug` · `info` · `warn` · `error`.                              |
 
 ### Frontend env (`packages/web/.env`)
 

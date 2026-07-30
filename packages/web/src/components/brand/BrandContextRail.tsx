@@ -22,6 +22,7 @@ import { ColorSwatches, paletteSummary } from '@/components/brand/ColorSwatches'
 import { iconForSection } from '@/components/brand/guidelineIcons'
 import { Button } from '@/components/ui/button'
 import { defaultExtensions } from '@/editor/proseMirrorSchema'
+import { researchInFlightExpectation } from '@/lib/research-copy'
 import { formatRelativeTime } from '@/lib/relative-time'
 import { cn } from '@/lib/utils'
 
@@ -330,15 +331,19 @@ export function BrandContextRail({
  * ```
  * idle         🔍  Research this brand
  * running      ◌   Researching… started 2 minutes ago
+ *                  Usually 3–15 minutes. Drafts + report land here when ready.
  * ready        ✦   5 drafts ready — Review
  * no findings  ⌀   Nothing found — Try again
  * failed       ⚠   Research failed — Try again
  * ```
  *
- * **None of these may look alarming.** A rail that is on screen the whole time
- * you are choosing what to work on cannot carry a red banner about a background
- * job you opted into; a failed run gets one tinted 14px glyph and a muted line
- * of reason, and everything else stays in the rail's neutral register.
+ * The running state has **no progress and no partial results** — the vendor's
+ * poll is `{ status: 'running' }` until completion — so the second line is
+ * expectation, not a fake meter. **None of these may look alarming.** A rail
+ * that is on screen the whole time you are choosing what to work on cannot
+ * carry a red banner about a background job you opted into; a failed run gets
+ * one tinted 14px glyph and a muted line of reason, and everything else stays
+ * in the rail's neutral register.
  *
  * `IDLE` is deliberately not a status — it is `research === null`, which is
  * what the query returns for a brand nobody has researched, and it means a hub
@@ -367,18 +372,23 @@ function ResearchRow({
   if (research?.status === 'IN_PROGRESS') {
     return (
       <div
-        className="flex items-center gap-2.5 px-2.5 py-2 text-sm text-muted-foreground"
+        className="flex gap-2.5 px-2.5 py-2 text-sm text-muted-foreground"
         // The row is the status, so it announces changes rather than waiting
         // for a poll to be noticed.
         aria-live="polite"
       >
-        <Loader2 className={cn(iconClass, 'animate-spin')} aria-hidden="true" />
-        <span className="min-w-0 truncate">
-          Researching…{' '}
-          {research.startedAt
-            ? `started ${formatRelativeTime(research.startedAt)}`
-            : 'just started'}
-        </span>
+        <Loader2 className={cn(iconClass, 'mt-0.5 animate-spin')} aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="truncate">
+            Researching…{' '}
+            {research.startedAt
+              ? `started ${formatRelativeTime(research.startedAt)}`
+              : 'just started'}
+          </p>
+          {/* No partial payload exists until COMPLETED — this is expectation,
+              not progress. Same muted register as the failed reason line. */}
+          <p className="mt-0.5 text-xs leading-snug">{researchInFlightExpectation()}</p>
+        </div>
       </div>
     )
   }

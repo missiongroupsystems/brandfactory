@@ -4,7 +4,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type { Brand, CreateBrandInput } from '@brandfactory/shared'
 import { api, AppError, callJson } from '@/api/client'
+import { applyStartedJobToCache, startResearchJob, useResearchConfig } from '@/api/queries/research'
 import { workspaceKeys } from '@/api/queries/workspaces'
+import {
+  RESEARCH_NEEDS_WEBSITE,
+  RESEARCH_OPT_IN_LABEL,
+  researchOptInHint,
+} from '@/lib/research-copy'
 import { normalizeWebsiteUrl } from '@/lib/website-url'
 import { Button } from '@/components/ui/button'
 import {
@@ -36,6 +42,12 @@ export interface NewBrandDialogProps {
  *
  * Lived inside `routes/workspaces.$wsId.index.tsx` until the switcher became a
  * second caller.
+ *
+ * **Research opt-in (decision 1).** Creating a brand with a URL does **not**
+ * start research by itself — a silent auto-start would spend ≈$0.40 on every
+ * create. The checkbox is the first entry point of decision 1; the rail is the
+ * second. Brand is created first either way (decision 2); research is a second
+ * call after navigate, so a vendor outage never stands between you and a brand.
  */
 export function NewBrandDialog({ wsId, open, onOpenChange, trigger }: NewBrandDialogProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
@@ -43,11 +55,19 @@ export function NewBrandDialog({ wsId, open, onOpenChange, trigger }: NewBrandDi
   const [description, setDescription] = useState('')
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [websiteError, setWebsiteError] = useState<string | null>(null)
+  // Default checked: the design mockup shows `[x]` once a website is present.
+  // Still opt-in — empty website disables and unchecks the control.
+  const [researchOptIn, setResearchOptIn] = useState(true)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
   const isControlled = open !== undefined
   const resolvedOpen = isControlled ? open : uncontrolledOpen
+  // Only ask the deployment while the dialog can be seen — the answer is
+  // deployment config and does not change while typing a name.
+  const { data: researchConfig } = useResearchConfig({ enabled: resolvedOpen })
+  const researchEnabled = researchConfig?.enabled === true
+
   const setOpen = (next: boolean) => {
     // Clear on close, not only on success — see NewWorkspaceDialog. The header
     // pill makes this reachable from every page in a brand, so a cancelled
@@ -58,6 +78,7 @@ export function NewBrandDialog({ wsId, open, onOpenChange, trigger }: NewBrandDi
       setDescription('')
       setWebsiteUrl('')
       setWebsiteError(null)
+      setResearchOptIn(true)
     }
     if (!isControlled) setUncontrolledOpen(next)
     onOpenChange?.(next)
@@ -71,15 +92,37 @@ export function NewBrandDialog({ wsId, open, onOpenChange, trigger }: NewBrandDi
       })
       return callJson<Brand>(res)
     },
-    onSuccess: (brand) => {
+    onSuccess: (brand, variables) => {
       void queryClient.invalidateQueries({ queryKey: workspaceKeys.brands(wsId) })
+      // Capture before setOpen clears the form — researchOptIn is form state.
+      const startResearch =
+        researchEnabled && researchOptIn && Boolean(variables.websiteUrl ?? brand.websiteUrl)
       setOpen(false)
-      void navigate({ to: '/brands/$brandId', params: { brandId: brand.id } })
+      // Decision 2: brand first, then research. Navigate lands the hub; the
+      // second call seeds the research cache so the rail does not flash idle.
+      void navigate({ to: '/brands/$brandId', params: { brandId: brand.id } }).then(async () => {
+        if (!startResearch) return
+        try {
+          const job = await startResearchJob(brand.id)
+          applyStartedJobToCache(queryClient, brand.id, job)
+        } catch (err) {
+          // The brand exists. A failed start is a toast, not a failed create.
+          toast.error(
+            err instanceof AppError ? err.message : 'Brand created, but research could not start.',
+          )
+        }
+      })
     },
     onError: (err) => {
       toast.error(err instanceof AppError ? err.message : 'Failed to create brand')
     },
   })
+
+  // Live check against the field, not the last successful submit: the checkbox
+  // must disable the moment the website is cleared, before Create.
+  const websitePreview = normalizeWebsiteUrl(websiteUrl)
+  const hasWebsite = websitePreview.ok && websitePreview.value !== null
+  const researchChecked = researchOptIn && hasWebsite
 
   return (
     <Dialog open={resolvedOpen} onOpenChange={setOpen}>
@@ -147,6 +190,38 @@ export function NewBrandDialog({ wsId, open, onOpenChange, trigger }: NewBrandDi
               </p>
             )}
           </div>
+
+          {/* Gated on deployment, not on website: when research is off the
+              whole control is absent (1.7.0 dead-affordance rule), not disabled. */}
+          {researchEnabled && (
+            <div className="flex items-start gap-3 rounded-lg border bg-muted/30 px-3 py-2.5">
+              <input
+                id="brand-research"
+                type="checkbox"
+                checked={researchChecked}
+                disabled={!hasWebsite}
+                onChange={(e) => setResearchOptIn(e.target.checked)}
+                className="mt-0.5 size-4 shrink-0 accent-primary disabled:opacity-50"
+              />
+              <div className="min-w-0 flex-1">
+                <label
+                  htmlFor="brand-research"
+                  className={
+                    hasWebsite
+                      ? 'block cursor-pointer text-sm font-medium'
+                      : 'block cursor-not-allowed text-sm font-medium text-muted-foreground'
+                  }
+                >
+                  {RESEARCH_OPT_IN_LABEL}
+                  <span className="font-normal text-muted-foreground">
+                    {' '}
+                    — {researchOptInHint()}
+                  </span>
+                </label>
+                <p className="mt-0.5 text-xs text-muted-foreground">{RESEARCH_NEEDS_WEBSITE}</p>
+              </div>
+            </div>
+          )}
         </form>
         <DialogFooter>
           <Button variant="outline" type="button" onClick={() => setOpen(false)}>
