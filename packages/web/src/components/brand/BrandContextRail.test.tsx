@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { BrandAsset, BrandWithSections, ResearchJobSummary } from '@brandfactory/shared'
 import { SUGGESTED_SECTIONS } from '@brandfactory/shared'
@@ -315,7 +315,12 @@ describe('BrandContextRail — the research row', () => {
       <BrandContextRail
         brand={brand([])}
         onEdit={vi.fn()}
-        research={researchJob('IN_PROGRESS')}
+        // **Stamped fresh, and that is the point.** The shared fixture uses a
+        // fixed date in 2026-07-29, which was inert until a job's age became
+        // behaviour — the same trap 1.11.2 recorded against the db test fake.
+        // A stale `startedAt` now renders the *overdue* row, so a test about the
+        // ordinary case has to say when the run started.
+        research={researchJob('IN_PROGRESS', { startedAt: new Date().toISOString() })}
         onStartResearch={vi.fn()}
       />,
     )
@@ -412,6 +417,7 @@ describe('BrandContextRail — the research row', () => {
   it.each([
     ['FAILED' as const, 'Research failed — Try again'],
     ['NO_FINDINGS' as const, 'Nothing found — Try again'],
+    ['COMPLETED' as const, 'Research again'],
   ])('disables the %s retry while a start is in flight', (status, name) => {
     render(
       <BrandContextRail
@@ -424,5 +430,171 @@ describe('BrandContextRail — the research row', () => {
     )
 
     expect(screen.getByRole('button', { name }).hasAttribute('disabled')).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The finished run — the state that used to render as "nothing ever happened"
+// ---------------------------------------------------------------------------
+//
+// `COMPLETED` with an empty `drafts` array fell through to the bare entry point,
+// so a $0.40 run that produced a full report left the rail identical to a brand
+// nobody had ever researched. Two ordinary paths reach it: shaping produced
+// nothing (deliberate — a paid report is never discarded over a failed second
+// stage) and drafts already taken (1.11.2's clear route).
+
+describe('BrandContextRail — the finished run', () => {
+  it('points at the report when a completed run has no drafts', () => {
+    render(
+      <BrandContextRail
+        brand={brand([])}
+        onEdit={vi.fn()}
+        research={researchJob('COMPLETED')}
+        onStartResearch={vi.fn()}
+      />,
+    )
+
+    const link = screen.getByRole('link', { name: /Research finished — read the report/ })
+    expect(link.getAttribute('href')).toBe('/brands/b-1/context')
+    expect(screen.getByText(/full report is a conversation in Brand context/)).toBeTruthy()
+  })
+
+  // The old fall-through offered exactly one next move, and it was the one that
+  // spends $0.40 again. A finished run has two.
+  it('offers a re-run underneath the report, not instead of it', async () => {
+    const onStartResearch = vi.fn()
+    render(
+      <BrandContextRail
+        brand={brand([])}
+        onEdit={vi.fn()}
+        research={researchJob('COMPLETED')}
+        onStartResearch={onStartResearch}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Research again' }))
+    expect(onStartResearch).toHaveBeenCalledOnce()
+    expect(screen.getByRole('link', { name: /read the report/ })).toBeTruthy()
+  })
+
+  // Drafts are the urgent thing and keep the row. The report is still reachable
+  // from Brand context; it just does not compete with the review action.
+  it('still leads with the drafts when there are drafts', () => {
+    render(
+      <BrandContextRail
+        brand={brand([])}
+        onEdit={vi.fn()}
+        research={researchJob('COMPLETED', {
+          drafts: [{ label: 'Voice & tone', html: '<p>x</p>', text: 'x', sources: [] }],
+        })}
+        onStartResearch={vi.fn()}
+        onReviewDrafts={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: /1 draft ready — Review/ })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /read the report/ })).toBeNull()
+  })
+
+  // `NO_FINDINGS` gets no thread — its report is the finder saying the site gave
+  // it too little, which the rail already says in four words.
+  it('does not offer a report for a run that found nothing', () => {
+    render(
+      <BrandContextRail
+        brand={brand([])}
+        onEdit={vi.fn()}
+        research={researchJob('NO_FINDINGS')}
+        onStartResearch={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('link', { name: /read the report/ })).toBeNull()
+  })
+
+  // A brand nobody has researched must look exactly as it did before any of
+  // this existed.
+  it('leaves a brand with no job on the plain entry point', () => {
+    render(<BrandContextRail brand={brand([])} onEdit={vi.fn()} onStartResearch={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Research this brand' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /read the report/ })).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The in-flight clock
+// ---------------------------------------------------------------------------
+
+describe('BrandContextRail — the in-flight clock', () => {
+  const START = '2026-07-30T09:00:00.000Z'
+  const at = (minutes: number) => Date.parse(START) + minutes * 60_000
+
+  const inFlight = (props: Partial<React.ComponentProps<typeof BrandContextRail>> = {}) => (
+    <BrandContextRail
+      brand={brand([])}
+      onEdit={vi.fn()}
+      research={researchJob('IN_PROGRESS', { startedAt: START })}
+      onStartResearch={vi.fn()}
+      {...props}
+    />
+  )
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  // **The regression.** Nothing about the job changes while it runs, so React
+  // Query hands back the same `data` reference on every poll and the row never
+  // re-rendered. It read `started 1 second ago` for the length of the run.
+  it('counts up with nothing else changing', () => {
+    vi.setSystemTime(at(4))
+    render(inFlight())
+    expect(screen.getByText(/Researching… 4m 00s/)).toBeTruthy()
+
+    act(() => void vi.advanceTimersByTime(12_000))
+    expect(screen.getByText(/Researching… 4m 12s/)).toBeTruthy()
+  })
+
+  it('says what to expect inside the quoted window', () => {
+    vi.setSystemTime(at(4))
+    render(inFlight({ researchMaxMinutes: 60 }))
+    expect(screen.getByText(/Usually 3–15 minutes/)).toBeTruthy()
+  })
+
+  it('says so once past the quoted window', () => {
+    vi.setSystemTime(at(18))
+    render(inFlight({ researchMaxMinutes: 60 }))
+    expect(screen.getByText(/Longer than the usual 3–15 minutes/)).toBeTruthy()
+    expect(screen.queryByText(/^Usually 3–15 minutes/)).toBeNull()
+  })
+
+  // The ceiling has been enforced since 1.11.2 and no surface ever mentioned it,
+  // so minute 4 and minute 47 of a stuck run looked identical.
+  it('names the automatic close near the ceiling', () => {
+    vi.setSystemTime(at(47))
+    render(inFlight({ researchMaxMinutes: 60 }))
+    expect(screen.getByText(/closes on its own in about 13 minutes/)).toBeTruthy()
+  })
+
+  // Absent means not known. Degrading to a plausible default would state a
+  // number with confidence that nobody configured.
+  it('never names a ceiling it was not given', () => {
+    vi.setSystemTime(at(47))
+    render(inFlight())
+    expect(screen.queryByText(/closes on its own/)).toBeNull()
+    expect(screen.getByText(/Longer than the usual/)).toBeTruthy()
+  })
+
+  // A ticking clock over a dead connection is a worse lie than a frozen one: it
+  // reads as live confirmation the run is progressing.
+  it('reports a failing poll instead of the pace line', () => {
+    vi.setSystemTime(at(4))
+    render(inFlight({ researchMaxMinutes: 60, researchUnreachable: true }))
+    expect(screen.getByText(/Cannot reach the server for an update/)).toBeTruthy()
+    expect(screen.queryByText(/Usually 3–15 minutes/)).toBeNull()
+    // The run is a row on a server; this browser is not what keeps it alive.
+    expect(screen.getByText(/Researching… 4m 00s/)).toBeTruthy()
   })
 })

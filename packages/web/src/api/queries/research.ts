@@ -107,6 +107,11 @@ export function applyStartedJobToCache(
     // — and the alternative, defaulting to `false`, would make the rail's row
     // vanish at the exact moment it has something to report.
     enabled: prev?.enabled ?? true,
+    // Carried, never invented. The POST response is the *job*; it says nothing
+    // about the deployment's ceiling, and a brand researched straight from the
+    // create dialog has no previous entry to carry from. `undefined` is the
+    // honest answer for the one poll interval it survives — see the field.
+    maxMinutes: prev?.maxMinutes,
     job,
   }))
 }

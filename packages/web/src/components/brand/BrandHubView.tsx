@@ -121,6 +121,10 @@ export interface BrandHubViewProps {
    * click — which used to buy a second paid run.
    */
   researchStarting?: boolean
+  /** `RESEARCH_JOB_MAX_MINUTES` — see `BrandContextRailProps.researchMaxMinutes`. */
+  researchMaxMinutes?: number
+  /** The status poll is failing — see `BrandContextRailProps.researchUnreachable`. */
+  researchUnreachable?: boolean
 }
 
 export function BrandHubView({
@@ -139,6 +143,8 @@ export function BrandHubView({
   onStartResearch,
   onReviewDrafts,
   researchStarting = false,
+  researchMaxMinutes,
+  researchUnreachable = false,
 }: BrandHubViewProps) {
   const countsKnown = projects !== undefined
   // Same rule as the palette: `undefined` is "not known", `[]` is "none".
@@ -245,6 +251,8 @@ export function BrandHubView({
             onStartResearch={onStartResearch}
             onReviewDrafts={onReviewDrafts}
             researchStarting={researchStarting}
+            researchMaxMinutes={researchMaxMinutes}
+            researchUnreachable={researchUnreachable}
           />
         </div>
       </div>

@@ -111,6 +111,34 @@ export function hasDraftsReady(job: ResearchJobSummary | null | undefined): bool
 }
 
 /**
+ * Did this run produce a report a human can go and read?
+ *
+ * **The question the rail never asked, and the reason a finished run could look
+ * like a run that never happened.** The footer had one success state — *N drafts
+ * ready* — so a `COMPLETED` job with an empty `drafts` array fell through to the
+ * bare `Research this brand` entry point, pixel-identical to a brand nobody has
+ * ever researched. Two ordinary paths land there:
+ *
+ *   1. **Shaping produced nothing.** `reconcileResearchJob` completes the job
+ *      with zero drafts when the writing model throws or times out — deliberate,
+ *      because a paid report must not be discarded over a failed second stage.
+ *      3G hit exactly this against a real 48,607-character report.
+ *   2. **The drafts were already dealt with**, which is what empties `drafts`
+ *      by design since 1.11.2.
+ *
+ * Both still have the report, and the report is the expensive artefact: 3F lands
+ * it as a brand-context thread the moment the run completes. `COMPLETED` is the
+ * exact condition that thread is created under, which is what makes this a fact
+ * rather than a guess.
+ *
+ * `NO_FINDINGS` is excluded and gets no thread — its "report" is the finder
+ * saying the site gave it too little, which the rail already says in four words.
+ */
+export function hasReportToRead(job: ResearchJobSummary | null | undefined): boolean {
+  return job?.status === 'COMPLETED'
+}
+
+/**
  * Is another run allowed?
  *
  * Every terminal state re-runs — including `NO_FINDINGS`, because a brand that
@@ -139,6 +167,27 @@ export function canStartResearch(job: ResearchJobSummary | null | undefined): bo
  */
 export const BrandResearchStateSchema = z.object({
   enabled: z.boolean(),
+  /**
+   * `RESEARCH_JOB_MAX_MINUTES` — the age at which `abandonIfStale` closes a run
+   * that the provider never finished.
+   *
+   * On the wire because the in-flight surface states it out loud. That ceiling
+   * has existed since 1.11.2 and the UI has never mentioned it, so minute 4 and
+   * minute 47 of a stuck run looked identical: same spinner, same sentence, no
+   * indication that anything would ever end it. Deployment configuration, like
+   * `enabled` beside it — not a per-brand fact — and read by the same component
+   * in the same breath, which is why it rides the same envelope.
+   *
+   * **Optional, though the server always sends it.** The client also *writes*
+   * this cache entry, from the `POST` response, which carries the job and
+   * nothing about the deployment — and a run started from the create dialog has
+   * no previous entry to inherit from. Absent therefore means *not yet known*,
+   * which the in-flight row already renders as "claim no ceiling"; the 5-second
+   * poll fills it in one tick later. The alternative is a default, and a
+   * defaulted ceiling is a number the UI states with confidence and nobody
+   * configured.
+   */
+  maxMinutes: z.number().int().positive().optional(),
   job: ResearchJobSummarySchema.nullable(),
 })
 export type BrandResearchState = z.infer<typeof BrandResearchStateSchema>
@@ -167,5 +216,17 @@ export type ResearchConfig = z.infer<typeof ResearchConfigSchema>
 /** Rough per-run cost shown before the user spends money. */
 export const RESEARCH_COST_ESTIMATE = '≈$0.40'
 
+/**
+ * The promised window, as numbers.
+ *
+ * `RESEARCH_DURATION_RANGE` used to be the only form and it was a *sentence* —
+ * fine while the sole consumer was copy beside a checkbox, useless the moment a
+ * surface had to answer *"is this run late?"*. Parsing minutes back out of a
+ * string with an en-dash in it is the kind of second source of truth this file
+ * already refuses twice, so the numbers are primary and the sentence is derived.
+ */
+export const RESEARCH_DURATION_MIN_MINUTES = 3
+export const RESEARCH_DURATION_MAX_MINUTES = 15
+
 /** Wall-clock range the UI promises while a job is in flight. */
-export const RESEARCH_DURATION_RANGE = '3–15 minutes'
+export const RESEARCH_DURATION_RANGE = `${RESEARCH_DURATION_MIN_MINUTES}–${RESEARCH_DURATION_MAX_MINUTES} minutes`

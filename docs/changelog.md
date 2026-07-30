@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.13.1** — 2026-07-30 — In-flight clock unfrozen, pace + ceiling states, the finished-run row. 936 tests.
 - **1.13.0** — 2026-07-30 — Research visibility, create-dialog opt-in, production light-up (Fly secrets). 897 tests.
 - **1.12.0** — 2026-07-30 — `New brand…` in the brand switcher; dialog extracted to `components/`.
 - **1.11.2** — 2026-07-30 — Stage 3 hardening (drafts lifecycle, spend guards, unique in-flight index, timeouts). Migration 0006.
@@ -42,6 +43,95 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.13.1 — 2026-07-30
+
+**The first real post-1.13 run, watched.** 1.13.0 closed by saying production
+was now capable of a live run and that the next one was the verification. It
+was, and it found two bugs — reported as *"the UI seems stuck here"* and, six
+minutes later, *"looks like research finished or died, but I can't see the
+research results anywhere"*. Both reports were right, and both are the same
+mistake in two places: a state the user was in that the rail had no drawing for.
+
+Detail in
+[`docs/completions/research-progress-and-the-finished-run.md`](completions/research-progress-and-the-finished-run.md).
+
+### 1. The clock was stopped, not slow
+
+The in-flight row rendered `formatRelativeTime(startedAt)` **during render**,
+and nothing re-rendered it for the length of a run: React Query v5 has
+structural sharing *and* tracked properties on by default, and an `IN_PROGRESS`
+summary is deeply identical on every 5-second poll — same `startedAt`,
+`drafts: []`, `sourceCount: 0`, `error: null`. Same reference, no re-render.
+`started 1 second ago` still read *1 second ago* twelve minutes in. A poll is
+not a clock; `lib/use-now.ts` is.
+
+There is still **no vendor progress** — the poll is `{ status: 'running' }`
+until it is not — so the row states what is actually known:
+
+| Pace | When | Line |
+| --- | --- | --- |
+| `normal` | ≤ 15 min | *Usually 3–15 minutes…* |
+| `over` | > 15 min | *Longer than the usual 3–15 minutes. Still checking…* |
+| `ceiling` | ≥ ½ `RESEARCH_JOB_MAX_MINUTES` | *…closes on its own in about N minutes so you can try again.* |
+
+The meter is `aria-hidden` with no `progressbar` role — a spoken "62% complete"
+would be 1.13.0's rejected fake meter arriving through another channel. The
+clock sits **outside** the live region and the pace line inside it, or a screen
+reader would announce the elapsed time once per second.
+
+`RESEARCH_JOB_MAX_MINUTES` now rides the research envelope as `maxMinutes`. That
+ceiling has closed stuck runs since 1.11.2 and **no surface ever mentioned it**,
+so minute 4 and minute 47 of a hung run looked identical. It is optional on the
+schema though the server always sends it: the client also *writes* that cache
+entry from the `POST` response, which knows nothing about the deployment, and a
+defaulted ceiling would be a number stated with confidence that nobody
+configured.
+
+New failure mode closed in the same pass: a clock ticking over a *failing* poll
+is a worse lie than a frozen one, so `researchUnreachable` replaces the pace
+line with a statement about the connection — and does not claim the run died.
+
+### 2. A finished run reported itself as never having happened
+
+`COMPLETED` with `drafts.length === 0` fell through to the bare
+`Research this brand` entry point, pixel-identical to a brand nobody had ever
+researched. Two ordinary paths land there — shaping produced nothing (swallowed
+on purpose: *a paid-for report is not lost because the second stage failed*), and
+drafts already taken (1.11.2). The branch's comment only ever claimed the second.
+
+The report was never lost. 3F has landed it as a brand-context thread since it
+existed; it was simply counted nowhere the hub looked, because brand-context
+threads are filtered out of the tiles by design. `hasReportToRead` asks the
+question the rail never asked, and the row links to Brand context with
+`Research again` underneath rather than instead — a finished run has two
+reasonable next moves and the fall-through offered only the one that spends
+$0.40 again. **No migration:** the list link works retroactively for runs that
+have already happened, which persisting a project id would not.
+
+Also: the header chip carries the clock; `RESEARCH_DURATION_RANGE` is now
+derived from numeric constants rather than being the only form; and a rail
+fixture's fixed past date became behaviour — the same trap 1.11.2 recorded
+against the db test fake, in a different fixture.
+
+### Verification
+
+```
+pnpm typecheck                    10/10 workspaces
+pnpm lint / format:check          clean
+pnpm test                         936 passed | 47 skipped (106 files)
+```
+
+897 → **936 (+39)**. Skips are live-Postgres and **were not run** — no Docker,
+Postgres or `.env` in this environment, so 1.11.2's warning stands unchanged.
+**No live pass**; the app cannot boot here. That the Temper run reached
+`COMPLETED` with zero drafts is inferred from which row rendered plus Fly logs
+showing no polling at either page load, and is confirmed by finding
+`Brand research — Temper, 30 Jul 2026` under *Talk it through*. Why shaping
+produced nothing is not established — the log line falls just outside the
+retained window.
 
 ---
 

@@ -4,6 +4,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import {
   ChevronDown,
   CircleAlert,
+  FileText,
   Loader2,
   MessagesSquare,
   Plus,
@@ -17,13 +18,19 @@ import type {
   BrandWithSections,
   ResearchJobSummary,
 } from '@brandfactory/shared'
-import { SUGGESTED_SECTIONS } from '@brandfactory/shared'
+import { hasReportToRead, SUGGESTED_SECTIONS } from '@brandfactory/shared'
 import { ColorSwatches, paletteSummary } from '@/components/brand/ColorSwatches'
 import { iconForSection } from '@/components/brand/guidelineIcons'
 import { Button } from '@/components/ui/button'
 import { defaultExtensions } from '@/editor/proseMirrorSchema'
-import { researchInFlightExpectation } from '@/lib/research-copy'
-import { formatRelativeTime } from '@/lib/relative-time'
+import {
+  RESEARCH_POLL_UNREACHABLE,
+  RESEARCH_REPORT_ROW_HINT,
+  RESEARCH_REPORT_ROW_LABEL,
+  researchPaceLine,
+} from '@/lib/research-copy'
+import { formatElapsed, researchProgress, type ResearchPace } from '@/lib/research-progress'
+import { useNow } from '@/lib/use-now'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -106,6 +113,25 @@ export interface BrandContextRailProps {
   onReviewDrafts?: () => void
   /** A start request is in flight — see `BrandHubViewProps.researchStarting`. */
   researchStarting?: boolean
+  /**
+   * `RESEARCH_JOB_MAX_MINUTES`, off the research envelope.
+   *
+   * **Optional, and absent means the row never promises an automatic close.**
+   * A deployment that has not told us its ceiling still gets the clock and the
+   * over-time line; what it does not get is a sentence naming a number nobody
+   * supplied. Degrading to a plausible default would be the confabulation this
+   * whole feature is built to avoid, one layer down.
+   */
+  researchMaxMinutes?: number
+  /**
+   * The status poll itself is failing.
+   *
+   * Surfaced because a clock that keeps ticking over a dead connection is a
+   * *worse* lie than the frozen one it replaces — it reads as live confirmation
+   * that the run is progressing. The run almost certainly is: it is a row on a
+   * server and a reconciling ticker, neither of which needs this browser.
+   */
+  researchUnreachable?: boolean
 }
 
 /**
@@ -151,6 +177,8 @@ export function BrandContextRail({
   onStartResearch,
   onReviewDrafts,
   researchStarting = false,
+  researchMaxMinutes,
+  researchUnreachable = false,
 }: BrandContextRailProps) {
   const [openId, setOpenId] = useState<string | null>(null)
   const headingId = useId()
@@ -304,10 +332,13 @@ export function BrandContextRail({
 
           {onStartResearch && (
             <ResearchRow
+              brandId={brand.id}
               research={research ?? null}
               researchStarting={researchStarting}
               onStartResearch={onStartResearch}
               onReviewDrafts={onReviewDrafts}
+              maxMinutes={researchMaxMinutes}
+              unreachable={researchUnreachable}
             />
           )}
         </div>
@@ -330,35 +361,67 @@ export function BrandContextRail({
  *
  * ```
  * idle         🔍  Research this brand
- * running      ◌   Researching… started 2 minutes ago
+ * running      ◌   Researching… 4m 12s
+ *                  ▁▁▁▁▁▂▂▂▂▂▂▂▂▂▂▂▂  (elapsed across the quoted window)
  *                  Usually 3–15 minutes. Drafts + report land here when ready.
  * ready        ✦   5 drafts ready — Review
+ * finished     ▤   Research finished — read the report
+ *              🔍  Research again
  * no findings  ⌀   Nothing found — Try again
  * failed       ⚠   Research failed — Try again
  * ```
  *
- * The running state has **no progress and no partial results** — the vendor's
- * poll is `{ status: 'running' }` until completion — so the second line is
- * expectation, not a fake meter. **None of these may look alarming.** A rail
- * that is on screen the whole time you are choosing what to work on cannot
- * carry a red banner about a background job you opted into; a failed run gets
- * one tinted 14px glyph and a muted line of reason, and everything else stays
- * in the rail's neutral register.
+ * **Two of these rows are repairs, and both were the same mistake: a state the
+ * user was in that the rail had no drawing for.**
+ *
+ * The running state showed `started N minutes ago` computed at render time,
+ * which never re-ran — see `useNow` for why the poll cannot stand in for a
+ * clock. It said *1 second ago* for the length of a 5-minute run. It now counts,
+ * which is also the only honest liveness signal available: there is still **no
+ * vendor progress** (`{ status: 'running' }` until completion) and the meter
+ * measures elapsed time against the quoted window, not work done. Past that
+ * window it says so, and near `RESEARCH_JOB_MAX_MINUTES` it says the run will
+ * close itself — a ceiling that has been enforced since 1.11.2 and that no
+ * surface has ever mentioned.
+ *
+ * The finished state did not exist at all. `COMPLETED` with an empty `drafts`
+ * array — shaping produced nothing, or the drafts were already taken — fell
+ * through to the bare entry point, so a finished $0.40 run rendered identically
+ * to a brand nobody had ever researched. See `hasReportToRead`.
+ *
+ * **None of these may look alarming.** A rail that is on screen the whole time
+ * you are choosing what to work on cannot carry a red banner about a background
+ * job you opted into; a failed run gets one tinted 14px glyph and a muted line
+ * of reason, and everything else stays in the rail's neutral register. The
+ * over-time meter is the same one glyph's worth of tint, for the same reason.
+ *
+ * **The no-meter rule this appears to break is a different rule.** D2 (see
+ * `GuidelineMeter`, and this component's own doc comment) forbids scoring *the
+ * brand* — no percentage of completeness, nothing that reads as a brand being
+ * deficient for having four sections instead of five. A paid background job's
+ * elapsed time is a fact about a job, not a judgement about the brand, and the
+ * quantity it draws is one the row already states in words.
  *
  * `IDLE` is deliberately not a status — it is `research === null`, which is
  * what the query returns for a brand nobody has researched, and it means a hub
  * that has never run research looks exactly as it does today.
  */
 function ResearchRow({
+  brandId,
   research,
   onStartResearch,
   onReviewDrafts,
   researchStarting = false,
+  maxMinutes,
+  unreachable = false,
 }: {
+  brandId: string
   research: ResearchJobSummary | null
   onStartResearch: () => void
   onReviewDrafts?: () => void
   researchStarting?: boolean
+  maxMinutes?: number
+  unreachable?: boolean
 }) {
   const rowClass = 'w-full justify-start gap-2.5 px-2.5'
   const iconClass = 'size-4 shrink-0 text-muted-foreground'
@@ -369,25 +432,38 @@ function ResearchRow({
   // a second click was a second paid run.
   const startProps = { disabled: researchStarting, onClick: onStartResearch } as const
 
+  // Unconditional, because hooks are: `active` is what makes a hub with no run
+  // in flight hold no timer.
+  const inFlight = research?.status === 'IN_PROGRESS'
+  const now = useNow(inFlight)
+
   if (research?.status === 'IN_PROGRESS') {
+    // No ceiling on the wire means no ceiling *claimed* — `Infinity` keeps the
+    // clock and the over-time line and removes only the sentence that would
+    // name a number nobody supplied.
+    const { elapsedMs, fraction, pace, minutesToCeiling } = researchProgress(
+      research.startedAt,
+      now,
+      maxMinutes ?? Number.POSITIVE_INFINITY,
+    )
+
     return (
-      <div
-        className="flex gap-2.5 px-2.5 py-2 text-sm text-muted-foreground"
-        // The row is the status, so it announces changes rather than waiting
-        // for a poll to be noticed.
-        aria-live="polite"
-      >
+      <div className="flex gap-2.5 px-2.5 py-2 text-sm text-muted-foreground">
         <Loader2 className={cn(iconClass, 'mt-0.5 animate-spin')} aria-hidden="true" />
-        <div className="min-w-0">
-          <p className="truncate">
-            Researching…{' '}
-            {research.startedAt
-              ? `started ${formatRelativeTime(research.startedAt)}`
-              : 'just started'}
+        <div className="min-w-0 flex-1">
+          {/* **Not inside the live region.** This changes every second, and a
+              polite region wrapping it would have a screen reader announce the
+              clock once per tick for the length of the run. */}
+          <p className="truncate">Researching… {formatElapsed(elapsedMs)}</p>
+
+          <ResearchPaceMeter fraction={fraction} pace={pace} />
+
+          {/* The live region is *this* line, which changes only when the run
+              crosses a threshold or the poll stops getting through — three or
+              four times across a run, each of them worth saying out loud. */}
+          <p className="mt-1 text-xs leading-snug" aria-live="polite">
+            {unreachable ? RESEARCH_POLL_UNREACHABLE : researchPaceLine(pace, minutesToCeiling)}
           </p>
-          {/* No partial payload exists until COMPLETED — this is expectation,
-              not progress. Same muted register as the failed reason line. */}
-          <p className="mt-0.5 text-xs leading-snug">{researchInFlightExpectation()}</p>
         </div>
       </div>
     )
@@ -402,6 +478,33 @@ function ResearchRow({
           {n === 1 ? '1 draft ready' : `${n} drafts ready`} — Review
         </span>
       </Button>
+    )
+  }
+
+  // Reached only with `drafts.length === 0`, because the branch above claims
+  // every `COMPLETED` job that still has drafts. Two ways to be here and they
+  // are indistinguishable on the wire — shaping produced nothing, or the drafts
+  // have already been taken — so the row speaks to what is true in both cases:
+  // the report exists and is worth reading. Re-run sits underneath rather than
+  // replacing it; a finished run has two reasonable next moves and the old
+  // fall-through offered only the one that spends $0.40 again.
+  if (hasReportToRead(research)) {
+    return (
+      <div>
+        <Button variant="ghost" size="sm" className={rowClass} asChild>
+          <Link to="/brands/$brandId/context" params={{ brandId }}>
+            <FileText className={iconClass} aria-hidden="true" />
+            <span className="min-w-0 truncate">{RESEARCH_REPORT_ROW_LABEL}</span>
+          </Link>
+        </Button>
+        <p className="px-2.5 pb-1 text-xs leading-snug text-muted-foreground">
+          {RESEARCH_REPORT_ROW_HINT}
+        </p>
+        <Button variant="ghost" size="sm" className={rowClass} {...startProps}>
+          <Search className={iconClass} aria-hidden="true" />
+          <span className="min-w-0 truncate">Research again</span>
+        </Button>
+      </div>
     )
   }
 
@@ -436,12 +539,49 @@ function ResearchRow({
     )
   }
 
-  // Everything else — no job, a cancelled one, or a completed run whose drafts
-  // have already been dealt with — is the entry point again.
+  // Everything else — no job, or a cancelled one — is the entry point again.
+  // A *completed* run no longer arrives here: it has its own row above, which
+  // is the whole point of `hasReportToRead`.
   return (
     <Button variant="ghost" size="sm" className={rowClass} {...startProps}>
       <Search className={iconClass} aria-hidden="true" />
       <span className="min-w-0 truncate">Research this brand</span>
     </Button>
+  )
+}
+
+/**
+ * Elapsed time across the quoted window. **Decorative, and deliberately so.**
+ *
+ * `aria-hidden`, with no `progressbar` role and no value: a progress bar
+ * announces a *proportion of work done*, and this is not that — the vendor
+ * reports nothing until it reports everything. The authoritative statement is
+ * the text beside it, which a screen reader already gets as a running clock and
+ * a spoken pace line. Drawing a bar that assistive tech would read as "62%
+ * complete" would be exactly the fake meter 1.13.0 refused to ship.
+ *
+ * Once past the window it is full and carries the same warning tint as the
+ * failed row's glyph — one 14px-equivalent of colour, which is the rail's whole
+ * accent budget for a background job.
+ */
+function ResearchPaceMeter({ fraction, pace }: { fraction: number; pace: ResearchPace }) {
+  return (
+    <div
+      className="mt-1.5 h-0.5 w-full overflow-hidden rounded-full bg-muted-foreground/20"
+      aria-hidden="true"
+    >
+      <div
+        className={cn(
+          'h-full rounded-full',
+          // Matches the 1s tick, so the fill glides instead of stepping. Linear
+          // because a run has no acceleration to imply.
+          'transition-[width] duration-1000 ease-linear',
+          pace === 'normal'
+            ? 'bg-muted-foreground/60'
+            : 'bg-[var(--color-status-warning)] opacity-70',
+        )}
+        style={{ width: `${Math.round(fraction * 100)}%` }}
+      />
+    </div>
   )
 }

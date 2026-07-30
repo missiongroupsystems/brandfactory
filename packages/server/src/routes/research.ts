@@ -78,6 +78,12 @@ export function createResearchRouter(deps: ResearchRoutesDeps) {
         const job = await readLatestResearchJob(deps, id)
         return c.json({
           enabled: deps.env.RESEARCH_PROVIDER !== 'none',
+          // The third fact the same component reads in the same breath: *when
+          // does a run that never finishes get closed*. `abandonIfStale` has
+          // enforced this since 1.11.2 and nothing ever told the user it
+          // existed, which is what made a stuck run indistinguishable from a
+          // slow one all the way to the ceiling.
+          maxMinutes: deps.env.RESEARCH_JOB_MAX_MINUTES,
           job: job ? toResearchJobSummary(job) : null,
         })
       })

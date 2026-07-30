@@ -202,14 +202,26 @@ describe('GET /brands/:id/research', () => {
     const { latest } = await seed()
     const res = await latest()
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ enabled: true, job: null })
+    // `maxMinutes` rides the same envelope: the in-flight row states the age at
+    // which `abandonIfStale` closes a run, and it cannot state a number it was
+    // never sent. Default from `EnvSchema`.
+    expect(await res.json()).toEqual({ enabled: true, maxMinutes: 60, job: null })
+  })
+
+  it('reports the configured ceiling, not a hardcoded one', async () => {
+    const { latest } = await seed({ env: { RESEARCH_JOB_MAX_MINUTES: 25 } })
+    expect(await (await latest()).json()).toMatchObject({ maxMinutes: 25 })
   })
 
   // The callback gate, at its source: a deployment with no provider reports
   // `enabled: false`, and the hub renders no research row at all.
   it('reports the feature as unavailable when no provider is configured', async () => {
     const { latest } = await seed({ env: { RESEARCH_PROVIDER: 'none' } })
-    expect(await (await latest()).json()).toEqual({ enabled: false, job: null })
+    expect(await (await latest()).json()).toEqual({
+      enabled: false,
+      maxMinutes: 60,
+      job: null,
+    })
   })
 
   // Reconcile-on-read: the ticker only exists in a process that has been up the

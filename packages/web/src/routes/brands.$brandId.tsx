@@ -54,7 +54,11 @@ function BrandHubPage() {
     isError: projectsError,
   } = useBrandProjects(brandId)
   const { data: assets, isPending: assetsPending, isError: assetsError } = useBrandAssets(brandId)
-  const { data: research } = useBrandResearch(brandId)
+  // `isError` rather than a bespoke staleness clock: React Query already tracks
+  // "the last attempt failed" across the retry policy, and with data in cache it
+  // is exactly the condition under which the row's ticking clock would otherwise
+  // keep implying a healthy run.
+  const { data: research, isError: researchUnreachable } = useBrandResearch(brandId)
   const startResearch = useStartResearch(brandId)
   const [renameOpen, setRenameOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -146,6 +150,8 @@ function BrandHubPage() {
         // $0.40 run. Migration 0006's unique index is what actually makes that
         // impossible; this is what keeps the ordinary user from meeting it.
         researchStarting={startResearch.isPending}
+        researchMaxMinutes={research?.maxMinutes}
+        researchUnreachable={researchUnreachable}
         // The rail's `N drafts ready — Review` row. The same sheet the arrival
         // opens by itself on a curated brand — one surface, two ways in, so a
         // dismissed sheet is never a lost report.

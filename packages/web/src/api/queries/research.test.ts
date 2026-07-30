@@ -59,6 +59,26 @@ describe('applyStartedJobToCache', () => {
     expect(qc.getQueryData<BrandResearchState>(brandKeys.research(BRAND_ID))?.enabled).toBe(true)
   })
 
+  // The POST response is the *job*. It says nothing about the deployment, so
+  // the ceiling has to be carried across or the in-flight row loses the sentence
+  // naming it the moment a run is started from this screen.
+  it('carries the deployment ceiling across a start', () => {
+    qc.setQueryData(brandKeys.research(BRAND_ID), { enabled: true, maxMinutes: 25, job: null })
+    applyStartedJobToCache(qc, BRAND_ID, job('IN_PROGRESS'))
+    expect(qc.getQueryData<BrandResearchState>(brandKeys.research(BRAND_ID))?.maxMinutes).toBe(25)
+  })
+
+  // A brand researched straight from the create dialog has no previous entry to
+  // carry from. Absent is the honest answer for the one poll interval it
+  // survives — a default would be a number stated with confidence that nobody
+  // configured, which is the fabrication this whole feature guards against.
+  it('does not invent a ceiling when nothing is cached yet', () => {
+    applyStartedJobToCache(qc, BRAND_ID, job('IN_PROGRESS'))
+    expect(
+      qc.getQueryData<BrandResearchState>(brandKeys.research(BRAND_ID))?.maxMinutes,
+    ).toBeUndefined()
+  })
+
   it('replaces a finished job with the new run', () => {
     qc.setQueryData(brandKeys.research(BRAND_ID), { enabled: true, job: job('NO_FINDINGS') })
     applyStartedJobToCache(qc, BRAND_ID, job('IN_PROGRESS'))
