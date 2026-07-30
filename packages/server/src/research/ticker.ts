@@ -35,19 +35,27 @@ export interface ResearchTicker {
   /** One sweep. Exported so a test never has to wait on a timer. */
   tick: () => Promise<void>
   start: () => void
-  stop: () => void
+  /**
+   * Stop sweeping, **and wait for the sweep already in flight**.
+   *
+   * Async for the reason `main.ts` calls it first at shutdown: clearing the
+   * interval does nothing about the sweep that is currently sitting inside a
+   * vendor poll, which the adapter allows up to 30 seconds. That sweep resumes
+   * after `pool.end()` and writes against a dead pool — and the write it loses
+   * is `finishResearchJob` for a run that had genuinely completed, leaving a
+   * paid job `IN_PROGRESS` until the ceiling closes it an hour later.
+   */
+  stop: () => Promise<void>
 }
 
 export function createResearchTicker(deps: ResearchTickerDeps): ResearchTicker {
   let timer: NodeJS.Timeout | null = null
-  let running = false
+  // The sweep in flight, or `null`. Doubles as the overlap guard the `running`
+  // boolean used to be — holding the promise rather than a flag is what lets
+  // `stop()` await it.
+  let sweep: Promise<void> | null = null
 
-  async function tick(): Promise<void> {
-    // Overlap guard. A sweep that runs long — one slow vendor call against a
-    // handful of jobs — must not have the next interval start a second one on
-    // the same rows.
-    if (running) return
-    running = true
+  async function runSweep(): Promise<void> {
     try {
       const jobs = await deps.db.listInFlightResearchJobs()
       for (const job of jobs) {
@@ -67,9 +75,24 @@ export function createResearchTicker(deps: ResearchTickerDeps): ResearchTicker {
       deps.logger?.error('research ticker sweep failed', {
         err: cause instanceof Error ? cause.message : String(cause),
       })
-    } finally {
-      running = false
     }
+  }
+
+  // Overlap guard, unchanged in behaviour: a sweep that runs long — one slow
+  // vendor call against a handful of jobs — must not have the next interval
+  // start a second one on the same rows. A refused tick still **returns
+  // immediately** rather than joining the sweep in flight; joining would make
+  // `tick()` block for as long as the vendor takes, which is not what any caller
+  // of a "sweep now" method wants and would deadlock a test driving both.
+  function tick(): Promise<void> {
+    if (sweep) return Promise.resolve()
+    // `runSweep` catches everything, so this promise never rejects — which is
+    // what makes `await sweep` in `stop()` safe without a handler of its own.
+    const started = runSweep().finally(() => {
+      sweep = null
+    })
+    sweep = started
+    return started
   }
 
   return {
@@ -80,10 +103,13 @@ export function createResearchTicker(deps: ResearchTickerDeps): ResearchTicker {
       // The sweep must not be the reason a process stays alive at shutdown.
       timer.unref?.()
     },
-    stop() {
-      if (!timer) return
-      clearInterval(timer)
-      timer = null
+    async stop() {
+      if (timer) {
+        clearInterval(timer)
+        timer = null
+      }
+      // Read once: the `finally` above may have nulled it between these lines.
+      await sweep
     },
   }
 }

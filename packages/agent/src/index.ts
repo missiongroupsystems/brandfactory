@@ -26,5 +26,7 @@ export {
   buildShapePrompt,
   DRAFT_TARGET_MAX_CHARS,
   type ShapeResearchInput,
+  type ShapeResearchResult,
+  type ShapeOutcome,
 } from './research/shape'
 export { markdownToDraftBody } from './research/markdown'

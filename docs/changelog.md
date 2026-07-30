@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.13.2** — 2026-07-30 — 1.13.1 review remediation: shaping outcomes logged, the report row checked, ticker shutdown awaited. 955 tests.
 - **1.13.1** — 2026-07-30 — In-flight clock unfrozen, pace + ceiling states, the finished-run row. 936 tests.
 - **1.13.0** — 2026-07-30 — Research visibility, create-dialog opt-in, production light-up (Fly secrets). 897 tests.
 - **1.12.0** — 2026-07-30 — `New brand…` in the brand switcher; dialog extracted to `components/`.
@@ -43,6 +44,143 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.13.2 — 2026-07-30
+
+**A review of 1.13.1, and the one thing it got wrong was its own premise.**
+1.13.1 was justified as the release that makes the next live run diagnosable. It
+is not, on the most likely failure path — and it closed with an investigation
+plan that would have come back clean and pointed the wrong way. Four of the five
+findings sit one layer *underneath* the code that release wrote, in the parts of
+the lifecycle it depended on and did not touch.
+
+Detail in
+[`docs/completions/research-observability-and-the-report-that-was-not-there.md`](completions/research-observability-and-the-report-that-was-not-there.md).
+
+### 1. A completed run with no drafts could not be explained
+
+1.13.1 said the way to catch the next zero-draft run was to stream
+`fly logs -a brandfactory` and watch for `research shaping failed`. That line
+fires **only from the `catch`**, and shaping had four ways to come back empty
+without throwing at all:
+
+| Path | Logged before |
+| --- | --- |
+| Model answered outside the schema (`safeParse` failed) | **no** |
+| Model returned a valid, empty section list | **no** |
+| Every section rejected here (empty body, blank label) | **no** |
+| Brand row missing at shaping time | **no** |
+| Model threw, or timed out | yes |
+
+So the plan produced a clean log on four of five paths, and the reasonable
+reading of a clean log is *shaping was not the problem*. Wrong conclusion, drawn
+confidently, at $0.40 a run.
+
+`shapeResearchIntoSections` now returns **why** alongside what —
+`ShapeOutcome` is `ok | invalid-shape | no-sections | sections-dropped`, plus
+`reportChars` and `sectionsReturned` — and `reconcileNow` logs it where the job
+id lives, with `model` off the row rather than off env (3C still paying off).
+`invalid-shape` is `error` because it is *our* configuration; the other two are
+`warn` because both can be the honest answer about a thin website.
+`sectionsReturned` is `0` on `invalid-shape` on purpose: nothing was returned to
+count, and any other number sends an operator looking for sections the model
+never produced. The fifth path — `createResearchShaper`'s `if (!brand) return []`
+— now **throws** into the existing line rather than earning new vocabulary for an
+anomaly that already had a home.
+
+**The likely branch, and why it is only likely.** Production runs
+`LLM_PROVIDER=openrouter` with `anthropic/claude-sonnet-4.6`; the schema handed
+to `generateObject` emits `$schema` and a `default: []` (verified locally), and
+structured-output support on OpenRouter varies by model. A provider that ignores
+`response_format` answers in prose, which parses to nothing and lands exactly on
+`!parsed.success`. Worth stating plainly because it sets up what the next run is
+for: **the shaping pass has never been observed to work against a real model** —
+3G threw `Unauthorized`, Temper produced nothing, every passing test uses a fake.
+
+### 2. The finished-run row could promise a report that was not there
+
+`hasReportToRead` is `status === 'COMPLETED'`, called *"a fact rather than a
+guess"* because that is the condition `landReportInThread` runs under. It is one
+swallowed failure short of a fact: that function logs and returns `null` rather
+than throwing — correctly, a failed insert must not fail a paid run — so a
+completed job can send you to a Brand context that never received anything. The
+exact class of claim the row exists to stop being made, one turn on.
+
+The hub already holds the project list, so it is the layer that can check. Zero
+brand-context threads → the row keeps `Research finished` and `Research again`,
+drops the link, and says the report *either failed to land or has been deleted*
+— both, because they are indistinguishable from the client. Derived in
+`BrandHubView` rather than passed as a second prop (two props would make "the
+rail thinks it landed but the tiles disagree" representable), and **`undefined`
+keeps the promise**, against this repo's usual rule: suppressing on a pending
+query flashes the bare entry point back on every navigation, which is the 1.13.1
+bug itself.
+
+**No migration.** Persisting the project id would make this a per-job fact *and*
+buy a direct link; it is the better answer and it is written up rather than
+taken, because 1.13.1 rejected it for a stated reason and the cheap check closes
+the falsifiable claim without reopening that. Residual, stated: a brand with
+*other* context threads that lost this run's still shows the link.
+
+### 3. `researchTicker.stop()` did not wait for the sweep it claimed to
+
+`main.ts` stops the ticker before `pool.end()` with a comment saying why — and
+`stop()` only cleared the interval. A sweep already inside a vendor poll (30s
+ceiling) resumed after the pool closed, and the write it lost is
+`finishResearchJob` for a run that had **completed and been billed**: stranding a
+paid job `IN_PROGRESS` until `abandonIfStale` closes it an hour later, which is
+the permanently-stuck state 1.11.2 added that ceiling to prevent. `stop()` is now
+async and awaits it; the internals hold the promise instead of a `running` flag,
+because a flag cannot be awaited. **`tick()` is unchanged** — a refused tick still
+returns immediately rather than joining, which is what any caller of a "sweep
+now" method wants and what keeps the overlap test from deadlocking.
+
+### 4 and 5. Two smaller ones on the rail
+
+- **The meter kept gliding over a dead connection.** 1.13.1 replaced the pace
+  line when the poll fails, on the grounds that a live-looking signal over a dead
+  connection is a worse lie than a frozen one — and left a bar smoothly advancing
+  underneath it, in the one element that is `aria-hidden` by design. It dims and
+  steps now. The clock keeps counting, which is consistent rather than an
+  oversight: elapsed time stays true without a connection; *work happening right
+  now* does not.
+- **The finished row was permanent chrome.** `COMPLETED` is forever, so the hint
+  *read it there and capture what matters into the guidelines* sat on every brand
+  ever researched, teaching a gesture the sections prove was already performed.
+  It retires once the brand has sections. The missing-report line from finding 2
+  is exempt — it explains an anomaly rather than teaching a gesture.
+
+### What did not change (on purpose)
+
+- No migration, no route, no schema, no wire change. The client surface gains one
+  derived prop and two strings.
+- No retry of a failed thread landing — a second attempt against a run that did
+  land is a duplicate 68,000-character thread, which is worse than the bug.
+- No logger inside `@brandfactory/agent`. The job id and model live on the
+  server, and a log line without them is not actionable.
+
+### Verification
+
+```
+pnpm typecheck                    10/10 workspaces
+pnpm lint / format:check          clean
+pnpm test                         955 passed | 47 skipped (106 files)
+```
+
+936 → **955 (+19)**: agent **+4** (one per outcome member), server **+6** (four
+for the log line's level and fields, two for `stop()`), web **+9**. Every
+pre-existing test passed **unchanged**, which is load-bearing for finding 2:
+`hasBrandContextThreads` defaults to `undefined`, so 1.13.1's three report-link
+assertions still hold and the new behaviour is additive rather than a changed
+default.
+
+The 47 skips are live-Postgres and **were not run** — no Docker and no `.env`
+here either, so 1.11.2's warning stands unchanged. Nothing in this pass touches
+`packages/db` or a migration. **No live pass**, and **no measured vendor run**:
+the next $0.40 is the verification, and it should be spent watching
+`fly logs -a brandfactory` rather than the UI.
 
 ---
 

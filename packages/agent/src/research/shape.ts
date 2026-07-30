@@ -68,6 +68,41 @@ export interface ShapeResearchInput {
   signal?: AbortSignal
 }
 
+/**
+ * Why a shaping pass produced what it produced.
+ *
+ * **This exists because "zero drafts" used to be unspeakable.** The pass had
+ * four ways to return an empty list and one way to throw, and only the throw
+ * reached a log — so a $0.40 run that finished with no drafts left an operator
+ * with a completed job, an empty review sheet and nothing to read. That is not
+ * hypothetical: the first watched production run (1.13.1) landed exactly there,
+ * and the cause is still unknown *because the code could not say*.
+ *
+ * The three failures are genuinely different events and want different
+ * responses, which is the whole reason they are named apart:
+ *
+ * - `invalid-shape` — the model did not answer in the schema at all. A
+ *   configuration fact about the writing model (structured-output support on
+ *   the configured provider), not a fact about the brand, and the only one that
+ *   is nobody's fault but ours.
+ * - `no-sections` — the model answered correctly with an empty list. Rule 1 of
+ *   the prompt is *omit rather than invent*, so this is the pass doing as it was
+ *   told over a report that had nothing solid in it.
+ * - `sections-dropped` — sections came back and this file rejected every one of
+ *   them (empty body, whitespace-only label). A bug or a prompt drift here, and
+ *   invisible before now because the drop is deliberately silent per section.
+ */
+export type ShapeOutcome = 'ok' | 'invalid-shape' | 'no-sections' | 'sections-dropped'
+
+export interface ShapeResearchResult {
+  drafts: ResearchDraft[]
+  outcome: ShapeOutcome
+  /** Report characters handed to the model — 3A measured a real one at 67,780. */
+  reportChars: number
+  /** Sections the model returned, **before** this file's own filtering. */
+  sectionsReturned: number
+}
+
 export function buildShapePrompt(input: {
   brandName: string
   citations: ResearchSource[]
@@ -97,8 +132,11 @@ ${sources || '- (none)'}`
 }
 
 /**
- * Report → drafts. Returns `[]` rather than throwing on an empty result, and the
- * caller treats that as "nothing shaped", never as "nothing found".
+ * Report → drafts. Returns an empty list rather than throwing on an empty
+ * result, and the caller treats that as "nothing shaped", never as "nothing
+ * found" — but it now returns **why** alongside, because an empty list with no
+ * explanation is what made the first production run undiagnosable. See
+ * `ShapeOutcome`.
  *
  * **Two rules are enforced here rather than trusted to the prompt**, because a
  * prompt is a request and this file is the boundary:
@@ -117,7 +155,8 @@ ${sources || '- (none)'}`
  */
 export async function shapeResearchIntoSections(
   input: ShapeResearchInput,
-): Promise<ResearchDraft[]> {
+): Promise<ShapeResearchResult> {
+  const reportChars = input.report.length
   const byUrl = new Map(input.citations.map((c) => [c.url, c]))
 
   // **JSON Schema rather than the zod object, and the result parsed here.**
@@ -139,7 +178,15 @@ export async function shapeResearchIntoSections(
   const parsed = ShapedSectionsSchema.safeParse(object)
   // A model that returns something else entirely is a failed shaping pass, not
   // a failed research run: the caller keeps the report and lands zero drafts.
-  if (!parsed.success) return []
+  //
+  // **The most likely branch on a provider that ignores `response_format`**, and
+  // therefore the one that most needed a name. It is reported, not thrown, for
+  // the same reason as ever — the report is already paid for — and the caller
+  // logs it at `error` because unlike the two below it is our configuration
+  // rather than the brand's website.
+  if (!parsed.success) {
+    return { drafts: [], outcome: 'invalid-shape', reportChars, sectionsReturned: 0 }
+  }
 
   const drafts: ResearchDraft[] = []
   for (const section of parsed.data.sections) {
@@ -156,5 +203,16 @@ export async function shapeResearchIntoSections(
     if (!label) continue
     drafts.push({ label, html, text, sources })
   }
-  return drafts
+
+  const sectionsReturned = parsed.data.sections.length
+  return {
+    drafts,
+    // `sections-dropped` is the one this file is answerable for: the model
+    // produced sections and every one of them was rejected above. Telling it
+    // apart from an honest empty answer is the difference between a bug here and
+    // a report with nothing in it.
+    outcome: drafts.length > 0 ? 'ok' : sectionsReturned === 0 ? 'no-sections' : 'sections-dropped',
+    reportChars,
+    sectionsReturned,
+  }
 }

@@ -17,6 +17,7 @@ import type {
   Project,
   ProjectId,
   ProjectSummary,
+  ResearchDraft,
   ResearchJobId,
   ShortlistView,
   Workspace,
@@ -37,6 +38,29 @@ import { createLogger, type Logger } from './logger'
 
 export function silentLogger(): Logger {
   return createLogger({ level: 'error', write: () => {} })
+}
+
+/**
+ * A `ShapeResearchResult` around a list of drafts, for the many tests that only
+ * care what the lifecycle *does* with them.
+ *
+ * The outcome is derived the same way the real shaper derives it, so a test
+ * cannot accidentally assert against a combination the production code would
+ * never produce — an empty draft list reporting `ok`, say. Tests that are
+ * specifically about the failure vocabulary build the result by hand.
+ */
+export function shaped(drafts: ResearchDraft[], sectionsReturned = drafts.length) {
+  return {
+    drafts,
+    outcome:
+      drafts.length > 0
+        ? ('ok' as const)
+        : sectionsReturned === 0
+          ? ('no-sections' as const)
+          : ('sections-dropped' as const),
+    reportChars: 2000,
+    sectionsReturned,
+  }
 }
 
 interface FakeUserRow {

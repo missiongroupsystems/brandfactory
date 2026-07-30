@@ -1,7 +1,8 @@
 import type { ResearchProvider } from '@brandfactory/adapter-research'
 import { describe, expect, it, vi } from 'vitest'
 import type { Env } from '../env'
-import { createTestApp, type TestHarness } from '../test-helpers'
+import type { ShapeResearchFn } from '../research/shape'
+import { createTestApp, shaped, type TestHarness } from '../test-helpers'
 
 // ---------------------------------------------------------------------------
 // The routes, and the three guards that stand between a click and a bill
@@ -317,7 +318,7 @@ describe('shaping, as the lifecycle sees it', () => {
     sources: [{ title: 'About', url: 'https://casavostra.example/about' }],
   }
 
-  async function seedWithShaper(shape: () => Promise<(typeof DRAFT)[]>) {
+  async function seedWithShaper(shape: ShapeResearchFn) {
     const research = fakeProvider({ poll: completedPoll() })
     const harness = createTestApp({
       users: [USER],
@@ -351,7 +352,7 @@ describe('shaping, as the lifecycle sees it', () => {
   // The drafts land in the same write as the report, so there is no window
   // where the rail says "ready" and the review sheet is empty.
   it('lands drafts in the same write that completes the job', async () => {
-    const { post, latest } = await seedWithShaper(() => Promise.resolve([DRAFT]))
+    const { post, latest } = await seedWithShaper(() => Promise.resolve(shaped([DRAFT])))
     await post()
 
     const body = (await (await latest()).json()) as {
@@ -374,7 +375,7 @@ describe('shaping, as the lifecycle sees it', () => {
   // "The shaper returned nothing" and "the site had nothing" are different
   // facts: one is our configuration, the other is the brand's website.
   it('does not let an empty shaping pass masquerade as NO_FINDINGS', async () => {
-    const { post, latest } = await seedWithShaper(() => Promise.resolve([]))
+    const { post, latest } = await seedWithShaper(() => Promise.resolve(shaped([])))
     await post()
 
     const body = (await (await latest()).json()) as { job: { status: string } }
@@ -517,7 +518,7 @@ describe('DELETE /brands/:id/research/:jobId/drafts', () => {
       users: [USER],
       env: { RESEARCH_PROVIDER: 'perplexity', PERPLEXITY_API_KEY: 'k' },
       research,
-      shapeResearch: () => Promise.resolve([DRAFT]),
+      shapeResearch: () => Promise.resolve(shaped([DRAFT])),
     })
     const { app } = harness
     const ws = (await (

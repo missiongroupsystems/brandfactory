@@ -87,7 +87,11 @@ async function main(): Promise<void> {
     log.info('shutdown: signal received', { signal })
     try {
       // Before the pool closes: a sweep mid-flight would query a dead pool.
-      researchTicker.stop()
+      // **Awaited**, because clearing the interval does not stop the sweep that
+      // is already inside a vendor poll — and the write that sweep is on its way
+      // to make is `finishResearchJob` for a run that has completed and been
+      // billed. Losing it strands a paid job `IN_PROGRESS` until the ceiling.
+      await researchTicker.stop()
       await ws.close()
       await new Promise<void>((resolve, reject) =>
         server.close((err) => (err ? reject(err) : resolve())),

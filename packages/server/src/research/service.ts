@@ -364,12 +364,45 @@ async function reconcileNow(
   let drafts: ResearchDraft[] = []
   if (deps.shape && status === 'COMPLETED') {
     try {
-      drafts = await deps.shape({
+      const shaped = await deps.shape({
         brandId: job.brandId,
         brandName: job.input.brandName,
         report: state.report,
         citations: state.sources,
       })
+      drafts = shaped.drafts
+
+      // **A completed run with no drafts must never again be silent.**
+      //
+      // 1.13.1 shipped a rail row for this state after a production run reached
+      // it, and closed by saying the next step was to stream `fly logs` for
+      // `research shaping failed`. That plan could not have worked: the line
+      // below was the *only* one, it fires only from the `catch`, and shaping
+      // had four ways to return an empty list without throwing at all. The most
+      // likely of them — the writing model answering outside the schema — would
+      // have produced a completed job, an empty review sheet, and a completely
+      // clean log.
+      //
+      // So the empty result is reported here, where the job id lives, with the
+      // three numbers that separate the causes: which outcome, how much report
+      // the model was given, and how many sections it returned before this
+      // repo's own filtering. `invalid-shape` is `error` because it is our
+      // configuration; the other two are `warn` because they can both be the
+      // honest answer about a thin website.
+      if (shaped.outcome !== 'ok') {
+        const detail = {
+          jobId: job.id,
+          outcome: shaped.outcome,
+          reportChars: shaped.reportChars,
+          sectionsReturned: shaped.sectionsReturned,
+          model: job.model,
+        }
+        if (shaped.outcome === 'invalid-shape') {
+          deps.logger?.error('research shaping produced no drafts', detail)
+        } else {
+          deps.logger?.warn('research shaping produced no drafts', detail)
+        }
+      }
     } catch (cause) {
       // A paid-for report is not lost because the second stage failed. The job
       // completes with zero drafts and the report is still on the row.

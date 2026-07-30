@@ -42,14 +42,25 @@ const CITATIONS: ResearchSource[] = [
   { title: 'Press', url: 'https://casavostra.example/press' },
 ]
 
-function shape(object: unknown, capture?: { opts?: DoGenerateOpts }) {
+const REPORT = '# Brand Profile\n\n## Voice & tone\n\nWarm, direct, a little wry.'
+
+function shapeResult(object: unknown, capture?: { opts?: DoGenerateOpts }) {
   return shapeResearchIntoSections({
     brandName: 'Casa Vostra',
-    report: '# Brand Profile\n\n## Voice & tone\n\nWarm, direct, a little wry.',
+    report: REPORT,
     citations: CITATIONS,
     llmProvider: provider(fakeModel(object, capture)),
     llmSettings: settings,
   })
+}
+
+/**
+ * Just the drafts. Most of these tests are about what *lands*, not about why —
+ * the outcome vocabulary has its own describe below, which is the half that
+ * exists so a zero-draft run is never again unexplainable in a log.
+ */
+async function shape(object: unknown, capture?: { opts?: DoGenerateOpts }) {
+  return (await shapeResult(object, capture)).drafts
 }
 
 describe('shapeResearchIntoSections', () => {
@@ -161,6 +172,63 @@ describe('shapeResearchIntoSections', () => {
     await shape({ sections: [] }, capture)
     const user = capture.opts?.prompt?.find((m) => m.role === 'user')
     expect(JSON.stringify(user?.content)).toContain('Warm, direct, a little wry')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Why a pass produced nothing — the half that used to be unspeakable
+// ---------------------------------------------------------------------------
+//
+// The first watched production run finished `COMPLETED` with zero drafts and
+// left no log line to explain it: four of the five ways to reach an empty list
+// returned rather than threw, and only the throw was reported. The completion
+// notes for that release proposed diagnosing the next run by watching for
+// `research shaping failed`, which on the most likely branch would never have
+// appeared. These are the names that make the difference legible.
+
+describe('shapeResearchIntoSections — the outcome', () => {
+  it('is ok when at least one draft survives', async () => {
+    const result = await shapeResult({
+      sections: [{ label: 'Voice & tone', markdown: 'Warm.', sourceUrls: [] }],
+    })
+    expect(result.outcome).toBe('ok')
+    expect(result.sectionsReturned).toBe(1)
+    expect(result.reportChars).toBe(REPORT.length)
+  })
+
+  // The branch that most needed a name. A provider that ignores `response_format`
+  // answers in prose, which parses to nothing and is a fact about *our*
+  // configuration — which is why the caller logs this one at `error`.
+  it('is invalid-shape when the model answered outside the schema', async () => {
+    const result = await shapeResult({ nonsense: true })
+    expect(result.outcome).toBe('invalid-shape')
+    expect(result.drafts).toEqual([])
+    // Nothing was returned to count, and claiming otherwise would send an
+    // operator looking for sections the model never produced.
+    expect(result.sectionsReturned).toBe(0)
+  })
+
+  // Rule 1 of the prompt is *omit rather than invent*, so this is the pass doing
+  // as it was told over a report with nothing solid in it.
+  it('is no-sections when the model correctly returned an empty list', async () => {
+    const result = await shapeResult({ sections: [] })
+    expect(result.outcome).toBe('no-sections')
+    expect(result.sectionsReturned).toBe(0)
+  })
+
+  // The one this file is answerable for: sections came back and every one was
+  // rejected here. Indistinguishable from an honest empty answer before now.
+  it('is sections-dropped when this file rejected every section it was given', async () => {
+    const result = await shapeResult({
+      sections: [
+        { label: 'Voice & tone', markdown: '   \n\n ', sourceUrls: [] },
+        { label: '   ', markdown: 'Body.', sourceUrls: [] },
+      ],
+    })
+    expect(result.outcome).toBe('sections-dropped')
+    expect(result.drafts).toEqual([])
+    // The count is what separates it from `no-sections` in a log line.
+    expect(result.sectionsReturned).toBe(2)
   })
 })
 

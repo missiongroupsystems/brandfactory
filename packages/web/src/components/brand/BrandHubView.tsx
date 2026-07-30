@@ -7,7 +7,12 @@ import {
 } from '@brandfactory/shared'
 import { BrandContextRail } from '@/components/brand/BrandContextRail'
 import { BrandIdentity } from '@/components/brand/BrandIdentity'
-import { TILE_APPS, isOrphanThread, type MiniApp } from '@/components/brand/miniApps'
+import {
+  TILE_APPS,
+  isBrandContextThread,
+  isOrphanThread,
+  type MiniApp,
+} from '@/components/brand/miniApps'
 import { MiniAppTile } from '@/components/brand/MiniAppTile'
 import { ProjectCard } from '@/components/project/ProjectCard'
 
@@ -162,6 +167,11 @@ export function BrandHubView({
   // `isOrphanThread` consults the full registry, so a hidden-surface thread
   // (brand context) is classified and therefore never lands here.
   const orphanThreads = projects?.filter(isOrphanThread) ?? []
+  // Derived here rather than passed as a second prop, for the reason the palette
+  // is: two props would make "the rail thinks the report landed but the tiles
+  // disagree" representable. `undefined` while the list is unknown — the rail
+  // reads that as "keep the promise", see `hasBrandContextThreads`.
+  const hasBrandContextThreads = projects && projects.some(isBrandContextThread)
 
   return (
     <div className="flex-1 overflow-auto">
@@ -253,6 +263,7 @@ export function BrandHubView({
             researchStarting={researchStarting}
             researchMaxMinutes={researchMaxMinutes}
             researchUnreachable={researchUnreachable}
+            hasBrandContextThreads={hasBrandContextThreads}
           />
         </div>
       </div>

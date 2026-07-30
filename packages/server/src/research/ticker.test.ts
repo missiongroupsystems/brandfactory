@@ -1,7 +1,9 @@
+import type { ShapeResearchResult } from '@brandfactory/agent'
 import type { ResearchProvider } from '@brandfactory/adapter-research'
 import type { ResearchJob } from '@brandfactory/db'
 import { describe, expect, it, vi } from 'vitest'
-import { createFakeDb } from '../test-helpers'
+import { createLogger } from '../logger'
+import { createFakeDb, shaped } from '../test-helpers'
 import { reconcileResearchJob, UNSUBMITTED_GRACE_MS } from './service'
 import { createResearchTicker } from './ticker'
 
@@ -119,7 +121,7 @@ describe('the ticker', () => {
     await second
   })
 
-  it('start is idempotent and stop clears the timer', () => {
+  it('start is idempotent and stop clears the timer', async () => {
     const { db } = createFakeDb()
     const ticker = createResearchTicker({
       db,
@@ -129,8 +131,60 @@ describe('the ticker', () => {
     })
     ticker.start()
     ticker.start()
-    ticker.stop()
-    ticker.stop()
+    await ticker.stop()
+    await ticker.stop()
+  })
+
+  // **Shutdown, and the write that used to be lost in it.** `main.ts` stops the
+  // ticker before `pool.end()` precisely so a sweep does not query a dead pool —
+  // but clearing an interval says nothing about the sweep already sitting inside
+  // a vendor poll, which the adapter allows 30 seconds. That sweep came back
+  // after the pool closed, and the write it was on its way to make is
+  // `finishResearchJob` for a run that had completed and been billed: losing it
+  // strands a paid job `IN_PROGRESS` until the hour-long ceiling closes it.
+  it('waits for the sweep already in flight before resolving', async () => {
+    const { db } = createFakeDb()
+    const job = await seedInFlightJob(db)
+    let release: (() => void) | null = null
+    const poll = vi.fn(
+      () =>
+        new Promise<{
+          status: 'completed'
+          report: string
+          sources: []
+          usage: typeof USAGE
+        }>((resolve) => {
+          release = () =>
+            resolve({ status: 'completed', report: REPORT, sources: [], usage: USAGE })
+        }),
+    )
+    const ticker = createResearchTicker({ db, research: { start: vi.fn(), poll }, env })
+
+    void ticker.tick()
+    await new Promise((r) => setTimeout(r, 20))
+
+    let stopped = false
+    const stopping = ticker.stop().then(() => {
+      stopped = true
+    })
+    // Still inside the vendor call: `stop()` must not have resolved yet, or the
+    // pool would close underneath the write below.
+    await new Promise((r) => setTimeout(r, 20))
+    expect(stopped).toBe(false)
+
+    release!()
+    await stopping
+    expect(stopped).toBe(true)
+    // The whole point of waiting: the sweep's write landed.
+    expect((await db.getResearchJob(job.brandId, job.id))?.status).toBe('COMPLETED')
+  })
+
+  // Nothing running, nothing to wait for — `stop()` on an idle ticker must not
+  // hang the shutdown path it sits on.
+  it('resolves immediately when no sweep is in flight', async () => {
+    const { db } = createFakeDb()
+    const ticker = createResearchTicker({ db, research: { start: vi.fn(), poll: vi.fn() }, env })
+    await ticker.stop()
   })
 })
 
@@ -184,7 +238,7 @@ describe('reconcileResearchJob', () => {
         usage: USAGE,
       }),
     )
-    const shape = vi.fn(() => Promise.resolve([]))
+    const shape = vi.fn(() => Promise.resolve(shaped([])))
     const deps = { db, research: { start: vi.fn(), poll }, env, shape }
 
     const results = await Promise.all([
@@ -243,6 +297,96 @@ describe('reconcileResearchJob', () => {
     const after = await reconcileResearchJob({ db, research, env }, finished)
     expect(after.status).toBe('FAILED')
     expect(research.poll).not.toHaveBeenCalled()
+  })
+
+  // -------------------------------------------------------------------------
+  // A completed run with no drafts, said out loud
+  // -------------------------------------------------------------------------
+  //
+  // The first watched production run reached `COMPLETED` with zero drafts and
+  // the release that responded to it proposed diagnosing the next one by
+  // streaming logs for `research shaping failed`. That could not have worked:
+  // the line fires only from the `catch`, and shaping had four ways to come back
+  // empty *without throwing*. The most likely of them — a writing model that
+  // answers outside the schema — produced a finished job, an empty review sheet
+  // and a clean log. These tests are the guarantee that never happens again.
+  describe('an empty shaping pass', () => {
+    async function reconcileWithShape(shape: () => Promise<ShapeResearchResult>) {
+      const { db } = createFakeDb()
+      const job = await seedInFlightJob(db)
+      const lines: { level: string; msg: string; outcome?: string }[] = []
+      const logger = createLogger({
+        level: 'debug',
+        write: (line) => lines.push(JSON.parse(line) as (typeof lines)[number]),
+      })
+      const poll = vi.fn(() =>
+        Promise.resolve({
+          status: 'completed' as const,
+          report: REPORT,
+          sources: [],
+          usage: USAGE,
+        }),
+      )
+      await reconcileResearchJob(
+        { db, research: { start: vi.fn(), poll }, env, shape, logger },
+        job,
+      )
+      return { lines, jobId: job.id }
+    }
+
+    // Our configuration, not the brand's website — which is why it is the one
+    // that gets `error`.
+    it('reports an out-of-schema answer at error, with the numbers to act on', async () => {
+      const { lines, jobId } = await reconcileWithShape(() =>
+        Promise.resolve({
+          drafts: [],
+          outcome: 'invalid-shape',
+          reportChars: 48_607,
+          sectionsReturned: 0,
+        }),
+      )
+
+      const line = lines.find((l) => l.msg === 'research shaping produced no drafts')
+      expect(line).toBeDefined()
+      expect(line).toMatchObject({
+        level: 'error',
+        outcome: 'invalid-shape',
+        reportChars: 48_607,
+        sectionsReturned: 0,
+        jobId,
+      })
+    })
+
+    // The prompt's first rule is *omit rather than invent*, so this can be the
+    // honest answer about a thin site. Reported, but not as a fault.
+    it('reports an honestly empty answer at warn', async () => {
+      const { lines } = await reconcileWithShape(() => Promise.resolve(shaped([])))
+      expect(lines.find((l) => l.msg === 'research shaping produced no drafts')).toMatchObject({
+        level: 'warn',
+        outcome: 'no-sections',
+      })
+    })
+
+    // Sections came back and every one was rejected on our side. Distinct from
+    // the above precisely so a prompt drift is not read as a thin website.
+    it('reports sections it dropped itself, and says how many there were', async () => {
+      const { lines } = await reconcileWithShape(() => Promise.resolve(shaped([], 4)))
+      expect(lines.find((l) => l.msg === 'research shaping produced no drafts')).toMatchObject({
+        level: 'warn',
+        outcome: 'sections-dropped',
+        sectionsReturned: 4,
+      })
+    })
+
+    // A successful pass must stay quiet, or the line means nothing.
+    it('says nothing at all when drafts landed', async () => {
+      const { lines } = await reconcileWithShape(() =>
+        Promise.resolve(
+          shaped([{ label: 'Voice & tone', html: '<p>Warm.</p>', text: 'Warm.', sources: [] }]),
+        ),
+      )
+      expect(lines.find((l) => l.msg === 'research shaping produced no drafts')).toBeUndefined()
+    })
   })
 
   // `IN_PROGRESS` had no ceiling once an `externalId` existed. A vendor that

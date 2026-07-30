@@ -517,6 +517,99 @@ describe('BrandContextRail — the finished run', () => {
     expect(screen.getByRole('button', { name: 'Research this brand' })).toBeTruthy()
     expect(screen.queryByRole('link', { name: /read the report/ })).toBeNull()
   })
+
+  // -------------------------------------------------------------------------
+  // …and when the report is not where the row says it is
+  // -------------------------------------------------------------------------
+  //
+  // `hasReportToRead` is `status === 'COMPLETED'`, called a fact because that is
+  // the condition `landReportInThread` runs under. It is one swallowed failure
+  // short of one: that function logs and returns null rather than throwing, so a
+  // completed job can point at a Brand context that never received anything —
+  // and the row makes the exact claim it exists to stop being made.
+
+  it('drops the promise when the brand has no conversation at all', () => {
+    render(
+      <BrandContextRail
+        brand={brand([])}
+        onEdit={vi.fn()}
+        research={researchJob('COMPLETED')}
+        onStartResearch={vi.fn()}
+        hasBrandContextThreads={false}
+      />,
+    )
+
+    // Nowhere to go, so nothing that looks like it goes somewhere.
+    expect(screen.queryByRole('link', { name: /read the report/ })).toBeNull()
+    expect(screen.getByText('Research finished')).toBeTruthy()
+    expect(screen.getByText(/either failed to land or has been deleted/)).toBeTruthy()
+    // Still not the bare entry point — the run happened, and re-running is the
+    // move that was always available.
+    expect(screen.getByRole('button', { name: 'Research again' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Research this brand' })).toBeNull()
+  })
+
+  it('keeps the report link once a conversation is there', () => {
+    render(
+      <BrandContextRail
+        brand={brand([])}
+        onEdit={vi.fn()}
+        research={researchJob('COMPLETED')}
+        onStartResearch={vi.fn()}
+        hasBrandContextThreads
+      />,
+    )
+    expect(screen.getByRole('link', { name: /read the report/ })).toBeTruthy()
+    expect(screen.queryByText(/failed to land/)).toBeNull()
+  })
+
+  // **`undefined` errs toward the promise, against this file's usual rule.** The
+  // two mistakes are not symmetric: suppressing on a pending query flashes the
+  // row back to a bare entry point on every navigation, which is the 1.13.1 bug
+  // itself. A briefly optimistic link is the cheaper wrong.
+  it('keeps the report link while the project list is still unknown', () => {
+    render(
+      <BrandContextRail
+        brand={brand([])}
+        onEdit={vi.fn()}
+        research={researchJob('COMPLETED')}
+        onStartResearch={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('link', { name: /read the report/ })).toBeTruthy()
+  })
+
+  // `COMPLETED` is forever, so the hint — *read it there, capture what matters
+  // into the guidelines* — is two permanent lines of instruction on every brand
+  // ever researched. It teaches a gesture the user has demonstrably performed.
+  it('retires the teaching hint once the brand has written sections', () => {
+    render(
+      <BrandContextRail
+        brand={brand([section('s-1', 'Voice & tone')])}
+        onEdit={vi.fn()}
+        research={researchJob('COMPLETED')}
+        onStartResearch={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: /read the report/ })).toBeTruthy()
+    expect(screen.queryByText(/full report is a conversation in Brand context/)).toBeNull()
+  })
+
+  // The missing-report line explains an anomaly rather than teaching a gesture,
+  // so the rule above must not silence it.
+  it('keeps the missing-report line even on a brand with sections', () => {
+    render(
+      <BrandContextRail
+        brand={brand([section('s-1', 'Voice & tone')])}
+        onEdit={vi.fn()}
+        research={researchJob('COMPLETED')}
+        onStartResearch={vi.fn()}
+        hasBrandContextThreads={false}
+      />,
+    )
+    expect(screen.getByText(/either failed to land or has been deleted/)).toBeTruthy()
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -596,5 +689,22 @@ describe('BrandContextRail — the in-flight clock', () => {
     expect(screen.queryByText(/Usually 3–15 minutes/)).toBeNull()
     // The run is a row on a server; this browser is not what keeps it alive.
     expect(screen.getByText(/Researching… 4m 00s/)).toBeTruthy()
+  })
+
+  // **The half the pace line did not cover.** The sentence changed, and beneath
+  // it a bar went on gliding — which is the same "work is happening right now"
+  // claim in the one element that cannot be read. It is `aria-hidden` and has no
+  // role, so this asserts against the class the glide lives in.
+  it('stops the meter gliding while the poll is failing', () => {
+    vi.setSystemTime(at(4))
+    const { container } = render(inFlight({ researchMaxMinutes: 60 }))
+    const fill = container.querySelector('[aria-hidden="true"] > div')
+    expect(fill?.className).toContain('transition-[width]')
+
+    const stalled = render(inFlight({ researchMaxMinutes: 60, researchUnreachable: true }))
+    const stalledFill = stalled.container.querySelector('[aria-hidden="true"] > div')
+    expect(stalledFill?.className).not.toContain('transition-[width]')
+    // Dimmed as well, so it stops reading as the live signal beside the clock.
+    expect(stalledFill?.className).toContain('opacity-30')
   })
 })

@@ -24,7 +24,9 @@ import { iconForSection } from '@/components/brand/guidelineIcons'
 import { Button } from '@/components/ui/button'
 import { defaultExtensions } from '@/editor/proseMirrorSchema'
 import {
+  RESEARCH_FINISHED_ROW_LABEL,
   RESEARCH_POLL_UNREACHABLE,
+  RESEARCH_REPORT_MISSING_HINT,
   RESEARCH_REPORT_ROW_HINT,
   RESEARCH_REPORT_ROW_LABEL,
   researchPaceLine,
@@ -132,6 +134,23 @@ export interface BrandContextRailProps {
    * server and a reconciling ticker, neither of which needs this browser.
    */
   researchUnreachable?: boolean
+  /**
+   * Does Brand context hold **any** conversation for this brand?
+   *
+   * The finished-run row tells you the report is a conversation in Brand
+   * context, and `hasReportToRead` infers that from `COMPLETED` alone — which is
+   * one swallowed failure away from being wrong (see
+   * `RESEARCH_REPORT_MISSING_HINT`). This is the cheap half of the check: with
+   * zero conversations on the brand, the report is definitively not there and
+   * the row must not send anyone looking.
+   *
+   * **`undefined` means not known, and errs toward showing the report row.** The
+   * usual rule here is that unknown renders nothing, but the two mistakes are not
+   * symmetric: suppressing on a pending query flashes the row back to a bare
+   * entry point, which is the exact 1.13.1 bug, and it would do it on every
+   * navigation. A link that is briefly optimistic is the cheaper wrong.
+   */
+  hasBrandContextThreads?: boolean
 }
 
 /**
@@ -179,6 +198,7 @@ export function BrandContextRail({
   researchStarting = false,
   researchMaxMinutes,
   researchUnreachable = false,
+  hasBrandContextThreads,
 }: BrandContextRailProps) {
   const [openId, setOpenId] = useState<string | null>(null)
   const headingId = useId()
@@ -339,6 +359,13 @@ export function BrandContextRail({
               onReviewDrafts={onReviewDrafts}
               maxMinutes={researchMaxMinutes}
               unreachable={researchUnreachable}
+              hasBrandContextThreads={hasBrandContextThreads}
+              // The report row's hint is onboarding — *read it there, capture
+              // what matters into the guidelines* — and `COMPLETED` is forever,
+              // so on a brand that already has sections it is two permanent
+              // lines of instruction for something the user has demonstrably
+              // already done. The row itself stays; only the teaching goes.
+              showReportHint={sections.length === 0}
             />
           )}
         </div>
@@ -414,6 +441,8 @@ function ResearchRow({
   researchStarting = false,
   maxMinutes,
   unreachable = false,
+  hasBrandContextThreads,
+  showReportHint = true,
 }: {
   brandId: string
   research: ResearchJobSummary | null
@@ -422,6 +451,8 @@ function ResearchRow({
   researchStarting?: boolean
   maxMinutes?: number
   unreachable?: boolean
+  hasBrandContextThreads?: boolean
+  showReportHint?: boolean
 }) {
   const rowClass = 'w-full justify-start gap-2.5 px-2.5'
   const iconClass = 'size-4 shrink-0 text-muted-foreground'
@@ -456,7 +487,7 @@ function ResearchRow({
               clock once per tick for the length of the run. */}
           <p className="truncate">Researching… {formatElapsed(elapsedMs)}</p>
 
-          <ResearchPaceMeter fraction={fraction} pace={pace} />
+          <ResearchPaceMeter fraction={fraction} pace={pace} stalled={unreachable} />
 
           {/* The live region is *this* line, which changes only when the run
               crosses a threshold or the poll stops getting through — three or
@@ -489,17 +520,50 @@ function ResearchRow({
   // replacing it; a finished run has two reasonable next moves and the old
   // fall-through offered only the one that spends $0.40 again.
   if (hasReportToRead(research)) {
+    // **The one claim in this row that can be checked, checked.** `COMPLETED` is
+    // the condition `landReportInThread` runs under, but that function swallows
+    // its own failure, so the report row can send you to a Brand context that
+    // never received anything. With zero conversations on the brand it did not
+    // land; `undefined` is a pending query and keeps the promise, because
+    // suppressing on pending would flash the bare entry point back — the exact
+    // thing this row exists to prevent.
+    const reportLanded = hasBrandContextThreads !== false
+
     return (
       <div>
-        <Button variant="ghost" size="sm" className={rowClass} asChild>
-          <Link to="/brands/$brandId/context" params={{ brandId }}>
+        {reportLanded ? (
+          <Button variant="ghost" size="sm" className={rowClass} asChild>
+            <Link to="/brands/$brandId/context" params={{ brandId }}>
+              <FileText className={iconClass} aria-hidden="true" />
+              <span className="min-w-0 truncate">{RESEARCH_REPORT_ROW_LABEL}</span>
+            </Link>
+          </Button>
+        ) : (
+          // Not a link and not a button: there is nowhere to go and nothing to
+          // press. It stays on the same grid as the rows around it so a run that
+          // half-worked does not look like a different kind of thing.
+          <div
+            className={cn(
+              rowClass,
+              'flex h-8 items-center text-sm font-medium text-muted-foreground',
+            )}
+          >
             <FileText className={iconClass} aria-hidden="true" />
-            <span className="min-w-0 truncate">{RESEARCH_REPORT_ROW_LABEL}</span>
-          </Link>
-        </Button>
-        <p className="px-2.5 pb-1 text-xs leading-snug text-muted-foreground">
-          {RESEARCH_REPORT_ROW_HINT}
-        </p>
+            <span className="min-w-0 truncate">{RESEARCH_FINISHED_ROW_LABEL}</span>
+          </div>
+        )}
+        {/* The missing-report line always shows — it explains an anomaly rather
+            than teaching a gesture, so the rule that retires the hint below does
+            not apply to it. */}
+        {!reportLanded ? (
+          <p className="px-2.5 pb-1 text-xs leading-snug text-muted-foreground">
+            {RESEARCH_REPORT_MISSING_HINT}
+          </p>
+        ) : showReportHint ? (
+          <p className="px-2.5 pb-1 text-xs leading-snug text-muted-foreground">
+            {RESEARCH_REPORT_ROW_HINT}
+          </p>
+        ) : null}
         <Button variant="ghost" size="sm" className={rowClass} {...startProps}>
           <Search className={iconClass} aria-hidden="true" />
           <span className="min-w-0 truncate">Research again</span>
@@ -563,8 +627,23 @@ function ResearchRow({
  * Once past the window it is full and carries the same warning tint as the
  * failed row's glyph — one 14px-equivalent of colour, which is the rail's whole
  * accent budget for a background job.
+ *
+ * **`stalled` is the poll failing, and it takes the glide away.** The clock
+ * beside it keeps counting, because elapsed-since-`startedAt` stays true whether
+ * or not this browser can reach the server — but a bar smoothly advancing is
+ * read as *live confirmation that work is happening*, which is the one thing a
+ * dead connection cannot attest to. It dims and steps instead of gliding, so the
+ * row keeps its height and stops making the claim.
  */
-function ResearchPaceMeter({ fraction, pace }: { fraction: number; pace: ResearchPace }) {
+function ResearchPaceMeter({
+  fraction,
+  pace,
+  stalled = false,
+}: {
+  fraction: number
+  pace: ResearchPace
+  stalled?: boolean
+}) {
   return (
     <div
       className="mt-1.5 h-0.5 w-full overflow-hidden rounded-full bg-muted-foreground/20"
@@ -575,10 +654,11 @@ function ResearchPaceMeter({ fraction, pace }: { fraction: number; pace: Researc
           'h-full rounded-full',
           // Matches the 1s tick, so the fill glides instead of stepping. Linear
           // because a run has no acceleration to imply.
-          'transition-[width] duration-1000 ease-linear',
+          !stalled && 'transition-[width] duration-1000 ease-linear',
           pace === 'normal'
             ? 'bg-muted-foreground/60'
             : 'bg-[var(--color-status-warning)] opacity-70',
+          stalled && 'opacity-30',
         )}
         style={{ width: `${Math.round(fraction * 100)}%` }}
       />

@@ -74,3 +74,26 @@ export const RESEARCH_REPORT_ROW_LABEL = 'Research finished — read the report'
 
 export const RESEARCH_REPORT_ROW_HINT =
   'The full report is a conversation in Brand context. Read it there and capture what matters into the guidelines.'
+
+/**
+ * The same finished run, when the report is **not** where the row would send
+ * you.
+ *
+ * `hasReportToRead` is `status === 'COMPLETED'`, justified as a fact rather than
+ * a guess because that is the exact condition `landReportInThread` runs under.
+ * It is not quite a fact: that function logs and swallows its own failure — on
+ * purpose, since a failed project insert must not fail a run already paid for —
+ * so a completed job can point at a Brand context that never received anything.
+ * The row then makes the one claim it exists to stop being made: it says a $0.40
+ * run left something to read, and sends you to an empty list.
+ *
+ * So the claim is checked against the brand's actual conversations, and when
+ * there are none the row keeps the finished state and drops the promise. The
+ * copy names both ways to get here, because a deleted thread and a landing that
+ * failed are indistinguishable from the client and guessing between them is the
+ * mistake `RESEARCH_REPORT_ROW_HINT` already refuses to make about drafts.
+ */
+export const RESEARCH_FINISHED_ROW_LABEL = 'Research finished'
+
+export const RESEARCH_REPORT_MISSING_HINT =
+  'No conversation from this run is in Brand context — it either failed to land or has been deleted. Researching again produces a fresh report.'

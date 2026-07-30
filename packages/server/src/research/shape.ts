@@ -1,6 +1,6 @@
-import { shapeResearchIntoSections } from '@brandfactory/agent'
+import { shapeResearchIntoSections, type ShapeResearchResult } from '@brandfactory/agent'
 import type { LLMProvider } from '@brandfactory/adapter-llm'
-import type { BrandId, ResearchDraft, ResearchSource } from '@brandfactory/shared'
+import type { BrandId, ResearchSource } from '@brandfactory/shared'
 import type { Db } from '../db'
 import type { Env } from '../env'
 import { resolveLLMSettings } from '../settings'
@@ -19,7 +19,7 @@ export type ShapeResearchFn = (input: {
   brandName: string
   report: string
   citations: ResearchSource[]
-}) => Promise<ResearchDraft[]>
+}) => Promise<ShapeResearchResult>
 
 /**
  * How long the writing model gets before the shaping pass is abandoned.
@@ -57,7 +57,14 @@ export interface ResearchShaperDeps {
 export function createResearchShaper(deps: ResearchShaperDeps): ShapeResearchFn {
   return async ({ brandId, brandName, report, citations }) => {
     const brand = await deps.db.getBrandById(brandId)
-    if (!brand) return []
+    // **Thrown, not returned as an empty list.** A job being reconciled whose
+    // brand has vanished is a genuine anomaly — `brand_research_jobs.brand_id`
+    // cascades, so the row would be gone too — and returning `[]` made it the
+    // fifth silent way to finish a paid run with no drafts. Throwing routes it
+    // into `reconcileNow`'s existing catch, which logs `research shaping
+    // failed` with the job id, and costs the run nothing it was not already
+    // going to lose.
+    if (!brand) throw new Error(`brand ${brandId} not found while shaping research drafts`)
     const settings = await resolveLLMSettings(brand.workspaceId, deps.env, deps.db)
     return shapeResearchIntoSections({
       brandName,

@@ -1,9 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { Palette } from 'lucide-react'
-import type { BrandAsset, BrandWithSections, ProjectSummary } from '@brandfactory/shared'
+import type {
+  BrandAsset,
+  BrandWithSections,
+  ProjectSummary,
+  ResearchJobSummary,
+} from '@brandfactory/shared'
 import { BrandHubView } from './BrandHubView'
-import { TILE_APPS } from '@/components/brand/miniApps'
+import { BRAND_CONTEXT_TEMPLATE_ID, TILE_APPS } from '@/components/brand/miniApps'
 
 // `BrandAsset` moved to `@brandfactory/shared` in 2A, where — like every other
 // domain entity — it carries branded ids and the two timestamp columns the DB
@@ -225,5 +230,67 @@ describe('BrandHubView', () => {
     const tile = screen.getByRole('link', { name: /Visual identity/ })
     expect(tile.getAttribute('href')).toBe('/elsewhere')
     expect(screen.queryByText('Soon')).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The finished-run row's one checkable claim
+// ---------------------------------------------------------------------------
+//
+// The rail tells you a finished run's report is a conversation in Brand context,
+// inferred from `COMPLETED` alone — and `landReportInThread` swallows its own
+// failure, so that inference can be wrong. The hub already holds the project
+// list, so it is the layer that can check. Derived here rather than passed as a
+// second prop, for the reason the palette is: two props would make "the rail
+// thinks the report landed but the tiles disagree" representable.
+
+describe('BrandHubView — does the report exist', () => {
+  // Branded in 3B with the types; fixtures state the id, nothing reads it.
+  const completed: ResearchJobSummary = {
+    id: 'j-1' as ResearchJobSummary['id'],
+    status: 'COMPLETED',
+    startedAt: '2026-07-30T09:00:00.000Z',
+    completedAt: '2026-07-30T09:05:00.000Z',
+    error: null,
+    drafts: [],
+    sourceCount: 3,
+  }
+
+  it('keeps the report link when a brand-context thread is there', () => {
+    render(
+      <BrandHubView
+        brand={brand()}
+        projects={[thread('p-1', BRAND_CONTEXT_TEMPLATE_ID)]}
+        research={completed}
+        onStartResearch={vi.fn()}
+        {...handlers}
+      />,
+    )
+    expect(screen.getByRole('link', { name: /read the report/ })).toBeTruthy()
+  })
+
+  // A thread under a *different* template does not count: the report lands as a
+  // brand-context thread specifically, and the copy names that surface.
+  it('drops the promise when the brand has threads but none of them are context', () => {
+    render(
+      <BrandHubView
+        brand={brand()}
+        projects={[thread('p-1', 'copywriting')]}
+        research={completed}
+        onStartResearch={vi.fn()}
+        {...handlers}
+      />,
+    )
+    expect(screen.queryByRole('link', { name: /read the report/ })).toBeNull()
+    expect(screen.getByText(/either failed to land or has been deleted/)).toBeTruthy()
+  })
+
+  // Pending, not empty. Suppressing here would flash the row back to a bare
+  // entry point on every navigation, which is the bug the row exists to fix.
+  it('keeps the promise while the project list is unknown', () => {
+    render(
+      <BrandHubView brand={brand()} research={completed} onStartResearch={vi.fn()} {...handlers} />,
+    )
+    expect(screen.getByRole('link', { name: /read the report/ })).toBeTruthy()
   })
 })
