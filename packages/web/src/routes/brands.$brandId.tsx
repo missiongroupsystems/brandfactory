@@ -140,6 +140,12 @@ function BrandHubPage() {
                 })
             : undefined
         }
+        // **The click-twice guard, and the cheap half of a two-sided fix.**
+        // Nothing in the cache changes until the POST resolves, so until then the
+        // row still reads `Research this brand` and a second click was a second
+        // $0.40 run. Migration 0006's unique index is what actually makes that
+        // impossible; this is what keeps the ordinary user from meeting it.
+        researchStarting={startResearch.isPending}
         // The rail's `N drafts ready — Review` row. The same sheet the arrival
         // opens by itself on a curated brand — one surface, two ways in, so a
         // dismissed sheet is never a lost report.
@@ -152,6 +158,9 @@ function BrandHubPage() {
         onOpenChange={setEditOpen}
         staged={landing.staged}
         onStagedConsumed={landing.clearStaged}
+        // The other half of E2's landing: the save is what puts accepted drafts
+        // in the guidelines, so the save is what stops the rail offering them.
+        onSaved={landing.onGuidelinesSaved}
       />
 
       <ResearchReviewSheet

@@ -1,5 +1,15 @@
 import { sql } from 'drizzle-orm'
-import { index, jsonb, numeric, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  index,
+  jsonb,
+  numeric,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core'
 import { brands } from './brands'
 
 // The job's own status vocabulary, which is **ours and wider than any vendor's**
@@ -73,7 +83,18 @@ export const brandResearchJobs = pgTable(
     // Both of the guards that run before an outbound call, and the ticker's
     // sweep. All three ask the same question — which jobs are still in flight —
     // so they share one partial index rather than each scanning the table.
-    index('brand_research_jobs_in_flight_idx')
+    //
+    // **`unique`, as of migration 0006 — the index is the guard, not just its
+    // fast path.** `hasActiveResearchJob` is a `SELECT` followed by an `INSERT`,
+    // which is a check-then-act with a window between the two, and what fits in
+    // that window is a second $0.40 vendor submission. Two clicks inside one
+    // round trip was enough: neither request saw the other's row, both passed,
+    // both submitted. A partial unique index is the only place that race can be
+    // settled, because it is the only participant that sees both writes.
+    //
+    // Partial on `IN_PROGRESS` so it constrains exactly what the guard means: a
+    // brand may have any number of *finished* runs and at most one in flight.
+    uniqueIndex('brand_research_jobs_in_flight_idx')
       .on(table.brandId)
       .where(sql`${table.status} = 'IN_PROGRESS'`),
   ],

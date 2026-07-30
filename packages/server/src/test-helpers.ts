@@ -432,8 +432,18 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         error: null,
         costUsd: null,
         createdBy: input.createdBy,
-        createdAt: NOW,
-        startedAt: NOW,
+        // **Not `NOW`, unlike every other fake in this file** — and this is the
+        // one place that distinction is behaviour rather than tidiness. The
+        // lifecycle reasons about a job's *age*: `UNSUBMITTED_GRACE_MS` closes a
+        // row that never got submitted, and `RESEARCH_JOB_MAX_MINUTES` closes
+        // one the vendor never finished. `NOW` is a fixed date in the past, so a
+        // job stamped with it is born months stale and every reconcile test
+        // would assert against a job the code is right to abandon.
+        //
+        // The two tests that care about age pass `now` explicitly, which is what
+        // keeps them deterministic; this only has to be recent, not fixed.
+        createdAt: new Date().toISOString(),
+        startedAt: new Date().toISOString(),
         completedAt: null,
       }
       state.researchJobs.set(id, job)
@@ -497,10 +507,13 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       state.researchJobs.set(jobId, updated)
       return updated
     },
-    async setResearchJobDrafts(jobId, drafts) {
+    // Mirrors the real query's `WHERE`, both halves of it — brand scope and the
+    // COMPLETED requirement. A fake that cleared drafts on any row would let a
+    // test pass against a race the real column refuses.
+    async clearResearchJobDrafts(brandId, jobId) {
       const job = state.researchJobs.get(jobId)
-      if (!job) return null
-      const updated = { ...job, drafts }
+      if (!job || job.brandId !== brandId || job.status !== 'COMPLETED') return null
+      const updated = { ...job, drafts: [] }
       state.researchJobs.set(jobId, updated)
       return updated
     },
@@ -808,6 +821,7 @@ export function testEnv(overrides: Partial<Env> = {}): Env {
     RESEARCH_MODEL: 'sonar-deep-research',
     RESEARCH_MAX_ACTIVE_PER_WORKSPACE: 2,
     RESEARCH_MAX_JOBS_PER_DAY: 10,
+    RESEARCH_JOB_MAX_MINUTES: 60,
     ...overrides,
   } as Env
 }

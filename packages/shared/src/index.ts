@@ -30,9 +30,6 @@ export * from './asset/reorder'
 // Brand research
 export * from './research/job'
 
-// Brand research
-export * from './research/job'
-
 // Project
 export * from './project/project'
 export * from './project/summary'

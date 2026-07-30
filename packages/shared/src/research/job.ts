@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { ResearchJobIdSchema } from '../ids'
+import { GUIDELINE_LABEL_MAX_CHARS } from '../brand/guideline-section'
 
 // ---------------------------------------------------------------------------
 // Brand research — the job as the client reads it
@@ -67,8 +68,14 @@ export type ResearchSource = z.infer<typeof ResearchSourceSchema>
  * second one.
  */
 export const ResearchDraftSchema = z.object({
-  /** Prefers a `SUGGESTED_SECTIONS` label. 3D is told to omit, never invent. */
-  label: z.string().min(1).max(200),
+  /**
+   * Prefers a `SUGGESTED_SECTIONS` label. 3D is told to omit, never invent.
+   *
+   * Capped at `GUIDELINE_LABEL_MAX_CHARS`, **because a draft's only destination
+   * is a guideline section** and this schema used to allow 80 characters more
+   * than that destination accepts. See the constant for what that cost.
+   */
+  label: z.string().min(1).max(GUIDELINE_LABEL_MAX_CHARS),
   html: z.string(),
   text: z.string(),
   sources: z.array(ResearchSourceSchema),

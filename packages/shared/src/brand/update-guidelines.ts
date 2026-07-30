@@ -1,14 +1,14 @@
 import { z } from 'zod'
 import { SectionIdSchema } from '../ids'
 import { ProseMirrorDocSchema } from '../json'
-import { GuidelineSectionCreatedBySchema } from './guideline-section'
+import { GUIDELINE_LABEL_MAX_CHARS, GuidelineSectionCreatedBySchema } from './guideline-section'
 
 // Upsert-and-reorder over the full section list. `id` present → update that
 // row; `id` absent → insert. Section deletion is out of scope for Phase 4 and
 // arrives with shortlist promotion (Phase 5/6).
 export const UpdateBrandGuidelinesSectionInputSchema = z.object({
   id: SectionIdSchema.optional(),
-  label: z.string().min(1).max(120),
+  label: z.string().min(1).max(GUIDELINE_LABEL_MAX_CHARS),
   body: ProseMirrorDocSchema,
   priority: z.number().int(),
   /**

@@ -24,6 +24,7 @@ const env = {
   RESEARCH_MODEL: 'sonar-deep-research',
   RESEARCH_MAX_ACTIVE_PER_WORKSPACE: 2,
   RESEARCH_MAX_JOBS_PER_DAY: 10,
+  RESEARCH_JOB_MAX_MINUTES: 60,
 }
 
 async function seedInFlightJob(db: ReturnType<typeof createFakeDb>['db'], externalId = 'ext-1') {
@@ -167,34 +168,69 @@ describe('reconcileResearchJob', () => {
     expect(after.error).toMatch(/never submitted/)
   })
 
-  // The ticker and a reconcile-on-read hitting one job is the ordinary case.
-  it('lets the first finisher win a race, and the second write nothing', async () => {
+  // The guard the shaping spend did not have. Concurrent reconciles of one job
+  // are the ordinary case — a 5-second client poll against a 30-second sweep —
+  // and each one used to buy its own vendor poll and its own `generateObject`
+  // pass over a report measured at 67,780 characters. Only one write could land,
+  // so every other pass was paid for and discarded.
+  it('collapses concurrent reconciles into one poll and one shaping pass', async () => {
     const { db } = createFakeDb()
     const job = await seedInFlightJob(db)
-    const deps = {
-      db,
-      research: {
-        start: vi.fn(),
-        poll: vi.fn(() =>
-          Promise.resolve({
-            status: 'completed' as const,
-            report: REPORT,
-            sources: [],
-            usage: USAGE,
-          }),
-        ),
-      },
-      env,
-    }
+    const poll = vi.fn(() =>
+      Promise.resolve({
+        status: 'completed' as const,
+        report: REPORT,
+        sources: [],
+        usage: USAGE,
+      }),
+    )
+    const shape = vi.fn(() => Promise.resolve([]))
+    const deps = { db, research: { start: vi.fn(), poll }, env, shape }
 
-    const [a, b] = await Promise.all([
+    const results = await Promise.all([
+      reconcileResearchJob(deps, job),
       reconcileResearchJob(deps, job),
       reconcileResearchJob(deps, job),
     ])
-    // Both callers get a job back; only one `completedAt` was ever written.
-    expect(a.status).toBe('COMPLETED')
-    expect(b.status).toBe('IN_PROGRESS')
+
+    expect(poll).toHaveBeenCalledTimes(1)
+    expect(shape).toHaveBeenCalledTimes(1)
+    // Every caller gets the real outcome, not a stale row — they share the work
+    // rather than one of them losing a race.
+    expect(results.map((r) => r.status)).toEqual(['COMPLETED', 'COMPLETED', 'COMPLETED'])
     expect((await db.getResearchJob(job.brandId, job.id))?.status).toBe('COMPLETED')
+  })
+
+  // The de-duplication above is in-process, so it is an optimisation of spend.
+  // **This is the correctness guarantee underneath it**, and it has to keep
+  // working independently: if a deployment ever runs two instances past the
+  // single-instance invariant, `finishResearchJob`'s `WHERE status =
+  // 'IN_PROGRESS'` is what stops a second finisher overwriting the first — and
+  // what makes 3F's one-thread-per-run true.
+  it('still lets only the first finisher write, whatever raced above it', async () => {
+    const { db } = createFakeDb()
+    const job = await seedInFlightJob(db)
+
+    const first = await db.finishResearchJob(job.id, { status: 'COMPLETED', report: REPORT })
+    const second = await db.finishResearchJob(job.id, { status: 'FAILED', error: 'too late' })
+
+    expect(first?.status).toBe('COMPLETED')
+    expect(second).toBeNull()
+    expect((await db.getResearchJob(job.brandId, job.id))?.status).toBe('COMPLETED')
+  })
+
+  // The map is keyed by job id and cleared on settle, so it must never stop a
+  // *later* sweep asking again — the vendor's answer is what changes.
+  it('asks again on the next sweep, once the previous answer has settled', async () => {
+    const { db } = createFakeDb()
+    const job = await seedInFlightJob(db)
+    const poll = vi.fn(() => Promise.resolve({ status: 'running' as const }))
+    const deps = { db, research: { start: vi.fn(), poll }, env }
+
+    await reconcileResearchJob(deps, job)
+    await reconcileResearchJob(deps, job)
+
+    expect(poll).toHaveBeenCalledTimes(2)
   })
 
   it('is a no-op on a job that already finished', async () => {
@@ -207,5 +243,78 @@ describe('reconcileResearchJob', () => {
     const after = await reconcileResearchJob({ db, research, env }, finished)
     expect(after.status).toBe('FAILED')
     expect(research.poll).not.toHaveBeenCalled()
+  })
+
+  // `IN_PROGRESS` had no ceiling once an `externalId` existed. A vendor that
+  // purges the job (every poll 404s) or never leaves its running state left the
+  // row in flight forever — and that row permanently fails the per-brand guard
+  // *and* holds a slot in a workspace cap that defaults to 2.
+  describe('the stale ceiling', () => {
+    const staleNow = (job: ResearchJob, minutes: number) =>
+      Date.parse(job.createdAt) + minutes * 60 * 1000
+
+    it('leaves a job the vendor is still working on alone', async () => {
+      const { db } = createFakeDb()
+      const job = await seedInFlightJob(db)
+      const research: ResearchProvider = {
+        start: vi.fn(),
+        poll: vi.fn(() => Promise.resolve({ status: 'running' as const })),
+      }
+
+      const after = await reconcileResearchJob({ db, research, env }, job, staleNow(job, 59))
+      expect(after.status).toBe('IN_PROGRESS')
+    })
+
+    it('closes a run the vendor never finished, so the brand is researchable again', async () => {
+      const { db } = createFakeDb()
+      const job = await seedInFlightJob(db)
+      const research: ResearchProvider = {
+        start: vi.fn(),
+        poll: vi.fn(() => Promise.resolve({ status: 'running' as const })),
+      }
+
+      const after = await reconcileResearchJob({ db, research, env }, job, staleNow(job, 61))
+      expect(after.status).toBe('FAILED')
+      expect(after.error).toMatch(/did not finish this run within 60 minutes/)
+      // The whole point: the guard that was permanently blocked lets go.
+      expect(await db.hasActiveResearchJob(job.brandId)).toBe(false)
+      // And the pointer to a report that may well exist — and have been billed —
+      // survives being closed.
+      expect(after.externalId).toBe('ext-1')
+    })
+
+    // The case that motivated the ceiling: the vendor purged the job, so no poll
+    // will ever answer. Below the ceiling this must still change nothing.
+    it('closes a job whose polls have stopped answering, but only past the ceiling', async () => {
+      const { db } = createFakeDb()
+      const job = await seedInFlightJob(db)
+      const research: ResearchProvider = {
+        start: vi.fn(),
+        poll: vi.fn(() => Promise.reject(new Error('404 job not found'))),
+      }
+      const deps = { db, research, env }
+
+      expect((await reconcileResearchJob(deps, job, staleNow(job, 10))).status).toBe('IN_PROGRESS')
+      expect((await reconcileResearchJob(deps, job, staleNow(job, 61))).status).toBe('FAILED')
+    })
+
+    // A misconfigured ceiling must be a no-op, never "abandon everything" —
+    // `ageMs < NaN` is `false`, which would fail every job on its first poll.
+    it('does nothing at all when the ceiling is not a usable number', async () => {
+      const { db } = createFakeDb()
+      const job = await seedInFlightJob(db)
+      const research: ResearchProvider = {
+        start: vi.fn(),
+        poll: vi.fn(() => Promise.resolve({ status: 'running' as const })),
+      }
+      const broken = { ...env, RESEARCH_JOB_MAX_MINUTES: undefined as unknown as number }
+
+      const after = await reconcileResearchJob(
+        { db, research, env: broken },
+        job,
+        staleNow(job, 999),
+      )
+      expect(after.status).toBe('IN_PROGRESS')
+    })
   })
 })

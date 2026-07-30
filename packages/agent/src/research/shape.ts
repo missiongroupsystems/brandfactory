@@ -1,7 +1,12 @@
 import { generateObject, jsonSchema } from 'ai'
 import { z } from 'zod'
 import type { LLMProvider, LLMProviderSettings } from '@brandfactory/adapter-llm'
-import { SUGGESTED_SECTIONS, type ResearchDraft, type ResearchSource } from '@brandfactory/shared'
+import {
+  GUIDELINE_LABEL_MAX_CHARS,
+  SUGGESTED_SECTIONS,
+  type ResearchDraft,
+  type ResearchSource,
+} from '@brandfactory/shared'
 import { markdownToDraftBody } from './markdown'
 
 // ---------------------------------------------------------------------------
@@ -22,9 +27,17 @@ import { markdownToDraftBody } from './markdown'
 // into a rail row built for a paragraph. So this is a *compression* pass, and
 // the prompt and the schema both say so.
 
-/** What the model is allowed to return. Deliberately narrow. */
+/**
+ * What the model is allowed to return. Deliberately narrow.
+ *
+ * **`label` carries no maximum, and that is the deliberate part.** This schema
+ * validates one *batch*: `safeParse` is all-or-nothing, so a bound here turns a
+ * single over-long label into zero drafts for the entire run. The real bound is
+ * `GUIDELINE_LABEL_MAX_CHARS`, applied by clamping below — where it costs the
+ * one label its tail instead of costing the batch everything.
+ */
 const ShapedSectionSchema = z.object({
-  label: z.string().min(1).max(200),
+  label: z.string().min(1),
   /** Short markdown: paragraphs and bullets. See `markdownToDraftBody`. */
   markdown: z.string().min(1),
   /** URLs the section rests on. Resolved against the report's own citations. */
@@ -76,6 +89,7 @@ Rules, in order of importance:
 4. **Cite only from this list.** Every URL you attach must appear here verbatim; anything else is dropped.
 5. **No colour values.** Never write hex codes or RGB values into any section — this product stores colours as structured data with their own editor, and prose that restates them puts one fact in two places. Describe the thinking and the references instead.
 6. Write plain markdown: paragraphs, and bullet lists where a list is genuinely the shape. No headings, no tables, no images.
+7. **Labels are short** — a few words, at most ${GUIDELINE_LABEL_MAX_CHARS} characters. A label names a section; it does not summarise it.
 
 Sources available for citation:
 
@@ -96,6 +110,10 @@ ${sources || '- (none)'}`
  *   rather than a gate on the text.
  * - **A section with an empty body is dropped.** A label with nothing under it
  *   is a row in the review sheet that wastes the reviewer's only decision.
+ * - **A label is clamped to `GUIDELINE_LABEL_MAX_CHARS`**, not rejected for
+ *   exceeding it. The drafts' only destination is a guideline section, the wire
+ *   into it takes the brand's *complete* list, and so a label this boundary lets
+ *   through over-long does not fail itself — it fails every draft beside it.
  */
 export async function shapeResearchIntoSections(
   input: ShapeResearchInput,
@@ -130,7 +148,13 @@ export async function shapeResearchIntoSections(
     const sources = section.sourceUrls
       .map((url) => byUrl.get(url))
       .filter((s): s is ResearchSource => !!s)
-    drafts.push({ label: section.label.trim(), html, text, sources })
+    // Clamped, never rejected — see the note above. `trim` first so the cap is
+    // spent on characters rather than on the model's trailing whitespace.
+    const label = section.label.trim().slice(0, GUIDELINE_LABEL_MAX_CHARS)
+    // A label that was *only* whitespace has nothing to name the section with,
+    // and the wire's `min(1)` would refuse the batch for it.
+    if (!label) continue
+    drafts.push({ label, html, text, sources })
   }
   return drafts
 }

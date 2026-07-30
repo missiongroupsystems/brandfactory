@@ -381,4 +381,45 @@ describe('BrandContextRail — the research row', () => {
     expect(screen.getByRole('link', { name: 'Talk it through' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Research this brand' })).toBeTruthy()
   })
+
+  // Nothing in the cache changes until the POST resolves, so in that window the
+  // row still invites a click — and a second click was a second $0.40 run.
+  // Migration 0006's unique index is what makes it impossible; this is what keeps
+  // an ordinary user from meeting it.
+  it('refuses a second click while a start is in flight', async () => {
+    const onStartResearch = vi.fn()
+    render(
+      <BrandContextRail
+        brand={brand([])}
+        onEdit={vi.fn()}
+        onStartResearch={onStartResearch}
+        researchStarting
+      />,
+    )
+
+    const row = screen.getByRole('button', { name: 'Research this brand' })
+    expect(row.hasAttribute('disabled')).toBe(true)
+    await userEvent.click(row)
+    expect(onStartResearch).not.toHaveBeenCalled()
+  })
+
+  // **Every row that can start a run, not just the idle one.** `Try again` after a
+  // failure is reached with the *old* job still in the cache, so it invites a
+  // double click exactly as readily.
+  it.each([
+    ['FAILED' as const, 'Research failed — Try again'],
+    ['NO_FINDINGS' as const, 'Nothing found — Try again'],
+  ])('disables the %s retry while a start is in flight', (status, name) => {
+    render(
+      <BrandContextRail
+        brand={brand([])}
+        onEdit={vi.fn()}
+        research={researchJob(status)}
+        onStartResearch={vi.fn()}
+        researchStarting
+      />,
+    )
+
+    expect(screen.getByRole('button', { name }).hasAttribute('disabled')).toBe(true)
+  })
 })

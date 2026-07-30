@@ -186,3 +186,49 @@ describe('extractSources', () => {
     expect(sources.every((s) => s.title && s.url.startsWith('https://'))).toBe(true)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Both calls are bounded
+// ---------------------------------------------------------------------------
+//
+// **Why this is not a nicety.** `poll` is awaited inside the ticker's sweep, and
+// the sweep holds a `running` flag it releases in a `finally`. A `fetch` with no
+// timeout never settles, so the `finally` never runs and **every later sweep in
+// the process no-ops** — one unresponsive socket silently retiring the only thing
+// that finishes a job nobody is watching.
+//
+// This is the async Sonar line, so neither call waits for the 3-15 minutes of
+// actual research: `start` submits and `poll` reads a status row. A call still
+// outstanding after the timeout is a hung socket, not slow work.
+
+describe('request timeouts', () => {
+  it('passes an abort signal on the submission', async () => {
+    const { provider, calls } = providerWith(() => SUBMITTED)
+    await provider.start(REQ)
+
+    expect(calls[0]!.init.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('passes an abort signal on the poll', async () => {
+    const { provider, calls } = providerWith(() => COMPLETED)
+    await provider.poll('abc-123')
+
+    expect(calls[0]!.init.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  // An abort surfaces as a provider error, which is what the reconciler already
+  // treats as "we do not know" — so a timed-out poll leaves the paid-for job
+  // alone rather than marking it dead.
+  it('reports a timed-out call as unreachable, not as a failed job', async () => {
+    const fakeFetch = vi.fn(() =>
+      Promise.reject(new DOMException('The operation was aborted.', 'TimeoutError')),
+    ) as unknown as typeof fetch
+    const provider = createPerplexityResearchProvider({
+      apiKey: 'k',
+      fetch: fakeFetch,
+      timeoutMs: 1,
+    })
+
+    await expect(provider.poll('abc-123')).rejects.toThrow(/Could not reach the research provider/)
+  })
+})

@@ -103,6 +103,8 @@ export interface BrandContextRailProps {
   onStartResearch?: () => void
   /** Opens the review sheet from the `ready` state (research E2). */
   onReviewDrafts?: () => void
+  /** A start request is in flight — see `BrandHubViewProps.researchStarting`. */
+  researchStarting?: boolean
 }
 
 /**
@@ -147,6 +149,7 @@ export function BrandContextRail({
   research,
   onStartResearch,
   onReviewDrafts,
+  researchStarting = false,
 }: BrandContextRailProps) {
   const [openId, setOpenId] = useState<string | null>(null)
   const headingId = useId()
@@ -301,6 +304,7 @@ export function BrandContextRail({
           {onStartResearch && (
             <ResearchRow
               research={research ?? null}
+              researchStarting={researchStarting}
               onStartResearch={onStartResearch}
               onReviewDrafts={onReviewDrafts}
             />
@@ -344,13 +348,21 @@ function ResearchRow({
   research,
   onStartResearch,
   onReviewDrafts,
+  researchStarting = false,
 }: {
   research: ResearchJobSummary | null
   onStartResearch: () => void
   onReviewDrafts?: () => void
+  researchStarting?: boolean
 }) {
   const rowClass = 'w-full justify-start gap-2.5 px-2.5'
   const iconClass = 'size-4 shrink-0 text-muted-foreground'
+  // **Every row that can start a run carries this**, not just the idle one. The
+  // window is between the click and the POST resolving, and in that window the
+  // job in the cache is still the *old* one — so `Try again` after a failure
+  // invites a second click exactly as readily as `Research this brand` does, and
+  // a second click was a second paid run.
+  const startProps = { disabled: researchStarting, onClick: onStartResearch } as const
 
   if (research?.status === 'IN_PROGRESS') {
     return (
@@ -386,7 +398,7 @@ function ResearchRow({
   if (research?.status === 'NO_FINDINGS') {
     return (
       <div>
-        <Button variant="ghost" size="sm" className={rowClass} onClick={onStartResearch}>
+        <Button variant="ghost" size="sm" className={rowClass} {...startProps}>
           <SearchX className={iconClass} aria-hidden="true" />
           <span className="min-w-0 truncate">Nothing found — Try again</span>
         </Button>
@@ -400,7 +412,7 @@ function ResearchRow({
   if (research?.status === 'FAILED') {
     return (
       <div>
-        <Button variant="ghost" size="sm" className={rowClass} onClick={onStartResearch}>
+        <Button variant="ghost" size="sm" className={rowClass} {...startProps}>
           <CircleAlert
             className="size-4 shrink-0 text-[var(--color-status-warning)]"
             aria-hidden="true"
@@ -417,7 +429,7 @@ function ResearchRow({
   // Everything else — no job, a cancelled one, or a completed run whose drafts
   // have already been dealt with — is the entry point again.
   return (
-    <Button variant="ghost" size="sm" className={rowClass} onClick={onStartResearch}>
+    <Button variant="ghost" size="sm" className={rowClass} {...startProps}>
       <Search className={iconClass} aria-hidden="true" />
       <span className="min-w-0 truncate">Research this brand</span>
     </Button>

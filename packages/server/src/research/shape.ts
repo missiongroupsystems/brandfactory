@@ -21,6 +21,23 @@ export type ShapeResearchFn = (input: {
   citations: ResearchSource[]
 }) => Promise<ResearchDraft[]>
 
+/**
+ * How long the writing model gets before the shaping pass is abandoned.
+ *
+ * Generous, because the input is genuinely large — 3A's real report was 67,780
+ * characters, roughly 17k tokens in, and a compression pass over that is tens of
+ * seconds of honest work. The ceiling is not about impatience; it is that
+ * `generateObject` inherits no timeout of its own and this call is awaited
+ * inside the ticker's sweep, whose `running` flag is released in a `finally`. An
+ * unbounded call that never settles takes the whole reconciler with it for the
+ * life of the process.
+ *
+ * Abandoning it costs a shaping pass, never the run: the report is on the row
+ * before this is reached and `reconcileResearchJob` already completes the job
+ * with zero drafts when shaping throws.
+ */
+export const SHAPE_TIMEOUT_MS = 3 * 60 * 1000
+
 export interface ResearchShaperDeps {
   db: Pick<Db, 'getBrandById' | 'getWorkspaceSettings'>
   llm: LLMProvider
@@ -48,6 +65,9 @@ export function createResearchShaper(deps: ResearchShaperDeps): ShapeResearchFn 
       citations,
       llmProvider: deps.llm,
       llmSettings: { providerId: settings.llmProviderId, modelId: settings.llmModel },
+      // `ShapeResearchInput` has accepted a signal since 3D and nothing ever
+      // passed one. See `SHAPE_TIMEOUT_MS`.
+      signal: AbortSignal.timeout(SHAPE_TIMEOUT_MS),
     })
   }
 }

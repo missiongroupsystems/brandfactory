@@ -9,12 +9,20 @@ import type {
 import { useDraftLanding, useResearchArrival } from './useDraftLanding'
 
 const mutate = vi.hoisted(() => vi.fn())
+const clearDrafts = vi.hoisted(() => vi.fn())
 const toastSuccess = vi.hoisted(() => vi.fn())
 const toastError = vi.hoisted(() => vi.fn())
 const toastInfo = vi.hoisted(() => vi.fn())
 
 vi.mock('@/api/queries/brands', () => ({
   useUpdateBrandGuidelines: () => ({ mutate, isPending: false }),
+}))
+
+// The writer that stops the rail advertising drafts it has already handed over.
+// Mocked at the same level as the guidelines mutation, for the same reason: what
+// is under test is *when* the hook decides drafts have landed, not React Query.
+vi.mock('@/api/queries/research', () => ({
+  useClearResearchDrafts: () => ({ mutate: clearDrafts, isPending: false }),
 }))
 
 vi.mock('sonner', () => ({
@@ -66,6 +74,7 @@ const lastToastAction = () =>
 
 beforeEach(() => {
   mutate.mockClear()
+  clearDrafts.mockClear()
   toastSuccess.mockClear()
   toastError.mockClear()
   toastInfo.mockClear()
@@ -263,6 +272,85 @@ describe('useDraftLanding — E2, the curated brand', () => {
     act(() => result.current.clearStaged())
 
     expect(result.current.staged).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Landing them means the rail stops offering them
+// ---------------------------------------------------------------------------
+//
+// The rail's `N drafts ready — Review` row reads `COMPLETED && drafts.length >
+// 0`, and until this pass **nothing ever emptied `drafts`**. So a brand that had
+// already taken its drafts advertised them forever, and taking them a second time
+// wrote a second copy of every section. `BrandContextRail`'s own fall-through
+// comment described "a completed run whose drafts have already been dealt with" —
+// a state the code could not reach.
+//
+// The rule these tests pin down is *when* "dealt with" is true, and it is not the
+// same moment on the two paths.
+
+describe('useDraftLanding — recording that the drafts landed', () => {
+  it('records E1 the moment the sections are written', () => {
+    const { update } = landing([])
+
+    update(job())
+    act(() => handlers().onSuccess([section('a')]))
+
+    expect(clearDrafts).toHaveBeenCalledWith('job-1')
+  })
+
+  // Nothing was written, so nothing has landed. The drafts are still the only
+  // copy of a $0.40 run's output that a re-run would be needed to rebuild.
+  it('does not record E1 when the write failed', () => {
+    const { update } = landing([])
+
+    update(job())
+    act(() => handlers().onError(new Error('nope')))
+
+    expect(clearDrafts).not.toHaveBeenCalled()
+  })
+
+  // **The E2 rule.** Accepting stages into an editor the user may still close, so
+  // accept is an arming, not a landing.
+  it('does not record E2 on accept alone', async () => {
+    const { result } = landing([section('a')])
+
+    act(() => result.current.acceptDrafts([draft('Positioning')]))
+    await waitFor(() => expect(result.current.staged).not.toBeNull())
+
+    expect(clearDrafts).not.toHaveBeenCalled()
+  })
+
+  it('records E2 once the editor reports a save', async () => {
+    const { result } = landing([section('a')])
+    act(() => result.current.acceptDrafts([draft('Positioning')]))
+    await waitFor(() => expect(result.current.staged).not.toBeNull())
+
+    act(() => result.current.onGuidelinesSaved())
+
+    expect(clearDrafts).toHaveBeenCalledWith('job-1')
+  })
+
+  // The callback fires on *every* guidelines save. Somebody editing their own
+  // sections has nothing to do with a research run, and clearing the drafts then
+  // would silently discard a review the user never opened.
+  it('ignores a save that no accept armed', () => {
+    const { result } = landing([section('a')])
+
+    act(() => result.current.onGuidelinesSaved())
+
+    expect(clearDrafts).not.toHaveBeenCalled()
+  })
+
+  it('records once, not on every subsequent save', async () => {
+    const { result } = landing([section('a')])
+    act(() => result.current.acceptDrafts([draft('Positioning')]))
+    await waitFor(() => expect(result.current.staged).not.toBeNull())
+
+    act(() => result.current.onGuidelinesSaved())
+    act(() => result.current.onGuidelinesSaved())
+
+    expect(clearDrafts).toHaveBeenCalledTimes(1)
   })
 })
 

@@ -15,7 +15,8 @@ import {
 } from '../research/service'
 
 export interface ResearchRoutesDeps extends ResearchServiceDeps {
-  db: ResearchServiceDeps['db'] & Pick<Db, 'getBrandById' | 'getWorkspaceById'>
+  db: ResearchServiceDeps['db'] &
+    Pick<Db, 'getBrandById' | 'getWorkspaceById' | 'clearResearchJobDrafts'>
 }
 
 /**
@@ -36,58 +37,106 @@ export function createResearchRouter(deps: ResearchRoutesDeps) {
   const BrandParam = z.object({ id: BrandIdSchema })
   const JobParam = z.object({ id: BrandIdSchema, jobId: ResearchJobIdSchema })
 
-  return new Hono<AppEnv>()
-    .post('/:id/research', zValidator('param', BrandParam), async (c) => {
-      const userId = c.var.userId
-      if (!userId) throw new UnauthorizedError()
-      const { id } = c.req.valid('param')
-      const { brand, workspace } = await requireBrandAccess(userId, id, deps.db)
+  return (
+    new Hono<AppEnv>()
+      .post('/:id/research', zValidator('param', BrandParam), async (c) => {
+        const userId = c.var.userId
+        if (!userId) throw new UnauthorizedError()
+        const { id } = c.req.valid('param')
+        const { brand, workspace } = await requireBrandAccess(userId, id, deps.db)
 
-      // No body. Everything the run needs is on the brand — which is decision
-      // 3's point: one new column, and everything else is job input derived
-      // from the row, so there is nothing for a client to get wrong or to
-      // tamper with.
-      const job = await startResearch(deps, {
-        brandId: brand.id,
-        workspaceId: workspace.id,
-        brandName: brand.name,
-        websiteUrl: brand.websiteUrl,
-        // `c.var.userId` is the auth middleware's string; every other route
-        // takes it the same way.
-        userId: userId as UserId,
+        // No body. Everything the run needs is on the brand — which is decision
+        // 3's point: one new column, and everything else is job input derived
+        // from the row, so there is nothing for a client to get wrong or to
+        // tamper with.
+        const job = await startResearch(deps, {
+          brandId: brand.id,
+          workspaceId: workspace.id,
+          brandName: brand.name,
+          websiteUrl: brand.websiteUrl,
+          // `c.var.userId` is the auth middleware's string; every other route
+          // takes it the same way.
+          userId: userId as UserId,
+        })
+        return c.json(toResearchJobSummary(job), 201)
       })
-      return c.json(toResearchJobSummary(job), 201)
-    })
 
-    .get('/:id/research', zValidator('param', BrandParam), async (c) => {
-      const userId = c.var.userId
-      if (!userId) throw new UnauthorizedError()
-      const { id } = c.req.valid('param')
-      await requireBrandAccess(userId, id, deps.db)
+      .get('/:id/research', zValidator('param', BrandParam), async (c) => {
+        const userId = c.var.userId
+        if (!userId) throw new UnauthorizedError()
+        const { id } = c.req.valid('param')
+        await requireBrandAccess(userId, id, deps.db)
 
-      // An envelope, because two facts are read together and by the same
-      // component: *can this deployment research at all*, and *where did this
-      // brand's last run get to*. `enabled` is what the hub turns into the
-      // presence of a callback — which is what makes the rail's research row
-      // not exist on a deployment with no key, rather than exist and fail.
-      //
-      // `job: null` is the ordinary state of almost every brand, and it renders
-      // as silence rather than as an empty state.
-      const job = await readLatestResearchJob(deps, id)
-      return c.json({
-        enabled: deps.env.RESEARCH_PROVIDER !== 'none',
-        job: job ? toResearchJobSummary(job) : null,
+        // An envelope, because two facts are read together and by the same
+        // component: *can this deployment research at all*, and *where did this
+        // brand's last run get to*. `enabled` is what the hub turns into the
+        // presence of a callback — which is what makes the rail's research row
+        // not exist on a deployment with no key, rather than exist and fail.
+        //
+        // `job: null` is the ordinary state of almost every brand, and it renders
+        // as silence rather than as an empty state.
+        const job = await readLatestResearchJob(deps, id)
+        return c.json({
+          enabled: deps.env.RESEARCH_PROVIDER !== 'none',
+          job: job ? toResearchJobSummary(job) : null,
+        })
       })
-    })
 
-    .get('/:id/research/:jobId', zValidator('param', JobParam), async (c) => {
-      const userId = c.var.userId
-      if (!userId) throw new UnauthorizedError()
-      const { id, jobId } = c.req.valid('param')
-      await requireBrandAccess(userId, id, deps.db)
+      .get('/:id/research/:jobId', zValidator('param', JobParam), async (c) => {
+        const userId = c.var.userId
+        if (!userId) throw new UnauthorizedError()
+        const { id, jobId } = c.req.valid('param')
+        await requireBrandAccess(userId, id, deps.db)
 
-      const job = await readResearchJob(deps, id, jobId)
-      if (!job) throw new NotFoundError('research job not found', 'RESEARCH_JOB_NOT_FOUND')
-      return c.json(toResearchJobSummary(job))
-    })
+        const job = await readResearchJob(deps, id, jobId)
+        if (!job) throw new NotFoundError('research job not found', 'RESEARCH_JOB_NOT_FOUND')
+        return c.json(toResearchJobSummary(job))
+      })
+
+      /**
+       * The drafts have landed — stop offering them.
+       *
+       * **The route the rail's `N drafts ready — Review` row was always missing.**
+       * That row reads `status === 'COMPLETED' && drafts.length > 0`, nothing ever
+       * emptied `drafts`, and so a brand that had already taken its drafts went on
+       * advertising them forever; accepting a second time wrote a second copy of
+       * every section. `clearResearchJobDrafts` existed from 3E under another name
+       * with no caller at all.
+       *
+       * `DELETE` on the sub-collection rather than a status field, because that is
+       * what it is — and it takes **no body**, which is the point of a narrow verb
+       * here: a `PATCH … { drafts }` would hand a client the ability to write
+       * section bodies attributed to `createdBy: 'agent'` that no shaping pass ever
+       * produced.
+       *
+       * **Idempotent, and a second call is a success rather than a 404.** The
+       * client calls this after a save it has already been told succeeded, so the
+       * ordinary way to arrive twice is a retry — and failing that would put an
+       * error toast on a screen where everything worked. A job that is not this
+       * brand's, or not finished, still 404s: those are wrong, not repeated.
+       *
+       * Spelling checked against 1.11.1's lesson: the literal `drafts` sits at a
+       * position no sibling route parameterises, so `RegExpRouter` still compiles
+       * and the app is not silently downgraded to `TrieRouter`. `app.test.ts`
+       * asserts the router choice directly, and the blob read-url test remains the
+       * canary that caught it last time.
+       */
+      .delete('/:id/research/:jobId/drafts', zValidator('param', JobParam), async (c) => {
+        const userId = c.var.userId
+        if (!userId) throw new UnauthorizedError()
+        const { id, jobId } = c.req.valid('param')
+        await requireBrandAccess(userId, id, deps.db)
+
+        const cleared = await deps.db.clearResearchJobDrafts(id, jobId)
+        if (cleared) return c.json(toResearchJobSummary(cleared))
+
+        // Tell "already cleared" apart from "never existed here". Only the first
+        // is allowed to look like success.
+        const job = await deps.db.getResearchJob(id, jobId)
+        if (!job || job.status !== 'COMPLETED') {
+          throw new NotFoundError('research job not found', 'RESEARCH_JOB_NOT_FOUND')
+        }
+        return c.json(toResearchJobSummary(job))
+      })
+  )
 }

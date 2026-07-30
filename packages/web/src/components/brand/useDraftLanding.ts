@@ -4,6 +4,7 @@ import type { BrandGuidelineSection, ResearchDraft, ResearchJobSummary } from '@
 import { hasDraftsReady } from '@brandfactory/shared'
 import { AppError } from '@/api/client'
 import { useUpdateBrandGuidelines } from '@/api/queries/brands'
+import { useClearResearchDrafts } from '@/api/queries/research'
 import type { StagedSection } from '@/components/brand/BrandGuidelinesEditor'
 import {
   draftsToSections,
@@ -93,6 +94,11 @@ export interface DraftLanding {
   clearStaged: () => void
   /** What the review sheet's *Accept selected* hands back. */
   acceptDrafts: (drafts: ResearchDraft[]) => void
+  /**
+   * The guidelines editor saved. **The other half of E2's landing** — see
+   * `onGuidelinesSaved`.
+   */
+  onGuidelinesSaved: () => void
 }
 
 export function useDraftLanding({
@@ -108,6 +114,28 @@ export function useDraftLanding({
   const [reviewOpen, setReviewOpen] = useState(false)
   const [staged, setStaged] = useState<StagedSection[] | null>(null)
   const mutation = useUpdateBrandGuidelines(brandId)
+  const clearDrafts = useClearResearchDrafts(brandId)
+
+  // **Which job's drafts are waiting to be recorded as landed.**
+  //
+  // Held rather than acted on immediately, because "landed" is not the same
+  // moment on the two paths. E1 writes the sections itself, so its `onSuccess`
+  // *is* the landing. E2 only stages them into the editor — the user still names,
+  // trims and saves, and may close the dialog instead. Clearing on accept would
+  // make an unsaved cancel cost a $0.40 re-run; clearing on the save that
+  // consumed them costs nothing and is true.
+  const pendingLandRef = useRef<string | null>(null)
+  const clearDraftsRef = useRef(clearDrafts.mutate)
+  useEffect(() => {
+    clearDraftsRef.current = clearDrafts.mutate
+  })
+
+  const recordLanded = useCallback((jobId: string) => {
+    pendingLandRef.current = null
+    // Fire-and-forget: the sections are already saved, and the mutation swallows
+    // its own failure. See `useClearResearchDrafts`.
+    clearDraftsRef.current(jobId)
+  }, [])
 
   // Both of these are read at fire time — an arrival lands minutes after the
   // render that armed it, and Undo lands seconds after the toast. Closing over
@@ -115,11 +143,16 @@ export function useDraftLanding({
   // precisely the question being asked.
   const sectionsRef = useRef(sections)
   const mutateRef = useRef(mutation.mutate)
+  // The job, for the same reason: accepting drafts arms a landing that is
+  // recorded on a later save, and the 5-second poll may have replaced the object
+  // by then.
+  const jobRef = useRef(job)
   // Declared above `useResearchArrival`, so this commit's sections are in the
   // ref before the arrival effect reads them — see the note on `onArriveRef`.
   useEffect(() => {
     sectionsRef.current = sections
     mutateRef.current = mutation.mutate
+    jobRef.current = job
   })
 
   /**
@@ -154,6 +187,10 @@ export function useDraftLanding({
         { sections: draftsToSections(arrived.drafts) },
         {
           onSuccess: (saved: BrandGuidelineSection[]) => {
+            // Written, so the rail must stop offering them. Undo does **not** put
+            // them back, and that is the honest reading of the gesture: Undo means
+            // "I did not want these", so re-advertising them would be arguing.
+            recordLanded(arrived.id)
             toast.success(
               `${plural(saved.length, 'section')} added from ${plural(arrived.sourceCount, 'source')}`,
               { action: { label: 'Undo', onClick: () => undo(saved) } },
@@ -170,7 +207,7 @@ export function useDraftLanding({
         },
       )
     },
-    [undo],
+    [undo, recordLanded],
   )
 
   useResearchArrival(
@@ -194,11 +231,28 @@ export function useDraftLanding({
     // drafts in the ordinary editor with an ordinary Save, which is what keeps
     // `PATCH /brands/:id/guidelines` down to one caller on the client.
     setStaged(draftsToStaged(drafts))
+    // Armed, not recorded. The save is what makes them landed — see
+    // `pendingLandRef`. Read from the ref at fire time because the job can be
+    // re-polled between accepting and saving.
+    pendingLandRef.current = jobRef.current?.id ?? null
   }, [])
 
   const clearStaged = useCallback(() => setStaged(null), [])
 
-  return { reviewOpen, setReviewOpen, staged, clearStaged, acceptDrafts }
+  /**
+   * E2's landing, completed. The editor saved, and if that save was the one
+   * carrying accepted drafts, they are now in the guidelines.
+   *
+   * Fires on **every** guidelines save, and the `pendingLandRef` check is what
+   * makes that harmless: a save with nothing armed is somebody editing their own
+   * sections, which has no bearing on a research run.
+   */
+  const onGuidelinesSaved = useCallback(() => {
+    const jobId = pendingLandRef.current
+    if (jobId) recordLanded(jobId)
+  }, [recordLanded])
+
+  return { reviewOpen, setReviewOpen, staged, clearStaged, acceptDrafts, onGuidelinesSaved }
 }
 
 function plural(n: number, noun: string): string {

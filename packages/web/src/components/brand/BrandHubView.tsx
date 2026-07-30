@@ -115,6 +115,12 @@ export interface BrandHubViewProps {
   research?: ResearchJobSummary | null
   onStartResearch?: () => void
   onReviewDrafts?: () => void
+  /**
+   * A start request is in flight. Disables the row, because until the POST
+   * resolves nothing in the cache has changed and the row still invites a second
+   * click — which used to buy a second paid run.
+   */
+  researchStarting?: boolean
 }
 
 export function BrandHubView({
@@ -132,6 +138,7 @@ export function BrandHubView({
   research,
   onStartResearch,
   onReviewDrafts,
+  researchStarting = false,
 }: BrandHubViewProps) {
   const countsKnown = projects !== undefined
   // Same rule as the palette: `undefined` is "not known", `[]` is "none".
@@ -237,6 +244,7 @@ export function BrandHubView({
             research={research}
             onStartResearch={onStartResearch}
             onReviewDrafts={onReviewDrafts}
+            researchStarting={researchStarting}
           />
         </div>
       </div>

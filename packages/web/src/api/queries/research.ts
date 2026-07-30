@@ -80,3 +80,39 @@ export function applyStartedJobToCache(
     job,
   }))
 }
+
+/**
+ * The drafts have landed in the brand's guidelines — stop offering them.
+ *
+ * **This closes the loop the rail's `N drafts ready — Review` row never had.**
+ * That row renders on `COMPLETED && drafts.length > 0` and nothing ever emptied
+ * `drafts`, so a brand that had already taken its drafts kept advertising them
+ * and taking them again wrote a second copy of every section.
+ *
+ * Called only after a write the server has already confirmed — E1's populate, or
+ * an editor save that consumed staged drafts. Never on *accept*, which stages
+ * into an editor the user may still close: a run costs $0.40 and the drafts are
+ * the only thing on the row that a re-run is needed to rebuild.
+ *
+ * Failure is deliberately silent. The user's sections are saved; the only casualty
+ * is a stale rail row, and an error toast here would report a problem about
+ * something the user did not ask for and cannot act on.
+ */
+export function useClearResearchDrafts(brandId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (jobId: string) => {
+      const res = await api.brands[':id'].research[':jobId'].drafts.$delete({
+        param: { id: brandId, jobId },
+      })
+      return callJson<ResearchJobSummary>(res)
+    },
+    onSuccess: (job) =>
+      qc.setQueryData(brandKeys.research(brandId), (prev: BrandResearchState | undefined) =>
+        // Only if this is still the job the cache is about. A re-run started in
+        // the meantime is newer, and overwriting it with a cleared older run
+        // would erase an in-flight spinner.
+        prev?.job?.id === job.id ? { ...prev, job } : prev,
+      ),
+  })
+}

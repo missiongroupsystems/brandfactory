@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { pool } from './client'
 import { createBrand, deleteBrand } from './queries/brands'
 import {
+  clearResearchJobDrafts,
   countActiveResearchJobsForWorkspace,
   countResearchJobsTodayForWorkspace,
   createResearchJob,
@@ -11,7 +12,6 @@ import {
   getResearchJob,
   hasActiveResearchJob,
   listInFlightResearchJobs,
-  setResearchJobDrafts,
   setResearchJobExternalId,
 } from './queries/research'
 import { seed } from './seed'
@@ -161,6 +161,75 @@ describe.skipIf(!hasDb)('brand_research_jobs (live DB)', () => {
     expect(await countResearchJobsTodayForWorkspace(workspaceId)).toBe(before)
   })
 
+  // Migration 0006. `hasActiveResearchJob` is a check-then-act, and what fits in
+  // the window between the check and the insert is a second $0.40 vendor
+  // submission — two clicks inside one HTTP round trip. Only the index sees both
+  // writes, so only the index can settle it, and only real Postgres can prove it.
+  describe('one run in flight per brand, as a constraint', () => {
+    it('refuses a second in-flight row for the same brand', async () => {
+      const brand = await scratchBrand()
+      const make = () =>
+        createResearchJob({
+          brandId: brand.id,
+          provider: 'perplexity',
+          model: 'm',
+          input,
+          createdBy: null,
+        })
+
+      await make()
+      await expect(make()).rejects.toMatchObject({
+        code: '23505',
+        constraint: 'brand_research_jobs_in_flight_idx',
+      })
+    })
+
+    // The partial `WHERE` is the whole design: a brand may be researched over and
+    // over, just not twice at once. A unique index on `brand_id` alone would make
+    // the second run of a brand's life impossible.
+    it('allows any number of finished runs for one brand', async () => {
+      const brand = await scratchBrand()
+      const first = await createResearchJob({
+        brandId: brand.id,
+        provider: 'perplexity',
+        model: 'm',
+        input,
+        createdBy: null,
+      })
+      await finishResearchJob(first.id, { status: 'COMPLETED', report: 'one' })
+
+      const second = await createResearchJob({
+        brandId: brand.id,
+        provider: 'perplexity',
+        model: 'm',
+        input,
+        createdBy: null,
+      })
+      await finishResearchJob(second.id, { status: 'NO_FINDINGS', report: 'two' })
+
+      const third = await createResearchJob({
+        brandId: brand.id,
+        provider: 'perplexity',
+        model: 'm',
+        input,
+        createdBy: null,
+      })
+      expect(third.status).toBe('IN_PROGRESS')
+    })
+
+    // Two brands researching at once is the ordinary case, and the reason the
+    // index is on `brand_id` rather than on the workspace.
+    it('does not constrain two different brands', async () => {
+      const a = await scratchBrand()
+      const b = await scratchBrand()
+      const make = (brandId: BrandId) =>
+        createResearchJob({ brandId, provider: 'perplexity', model: 'm', input, createdBy: null })
+
+      await make(a.id)
+      expect((await make(b.id)).status).toBe('IN_PROGRESS')
+    })
+  })
+
   it('lists in-flight jobs for the ticker, and drops them as they finish', async () => {
     const brand = await scratchBrand()
     const job = await createResearchJob({
@@ -197,6 +266,8 @@ describe.skipIf(!hasDb)('brand_research_jobs (live DB)', () => {
     expect((await getLatestResearchJob(brand.id))?.id).toBe(second.id)
   })
 
+  // The round trip 3E depends on: drafts go out as jsonb and come back as the
+  // same objects, sources and all.
   it('stores drafts as jsonb, for 3E to land', async () => {
     const brand = await scratchBrand()
     const job = await createResearchJob({
@@ -214,8 +285,65 @@ describe.skipIf(!hasDb)('brand_research_jobs (live DB)', () => {
         sources: [{ title: 'About', url: 'https://casavostra.example/about' }],
       },
     ]
-    const updated = await setResearchJobDrafts(job.id, drafts)
-    expect(updated?.drafts).toEqual(drafts)
+    const finished = await finishResearchJob(job.id, { status: 'COMPLETED', report: 'r', drafts })
+    expect(finished?.drafts).toEqual(drafts)
+  })
+
+  // The writer the rail's `N drafts ready` row needed and did not have. Both
+  // halves of its `WHERE` are asserted here, because both are load-bearing: the
+  // brand scope keeps one brand from clearing another's job, and the COMPLETED
+  // requirement keeps this from racing `finishResearchJob`, which is the write
+  // that *produces* the drafts.
+  describe('clearResearchJobDrafts', () => {
+    const DRAFTS = [{ label: 'Voice & tone', html: '<p>Warm.</p>', text: 'Warm.', sources: [] }]
+
+    async function completedJob() {
+      const brand = await scratchBrand()
+      const job = await createResearchJob({
+        brandId: brand.id,
+        provider: 'perplexity',
+        model: 'm',
+        input,
+        createdBy: null,
+      })
+      await finishResearchJob(job.id, {
+        status: 'COMPLETED',
+        report: 'a real report',
+        drafts: DRAFTS,
+      })
+      return { brand, job }
+    }
+
+    it('empties the drafts and leaves the report alone', async () => {
+      const { brand, job } = await completedJob()
+
+      const cleared = await clearResearchJobDrafts(brand.id, job.id)
+
+      expect(cleared?.drafts).toEqual([])
+      // The paid artefact survives; only the derived one goes.
+      expect(cleared?.report).toBe('a real report')
+      expect(cleared?.status).toBe('COMPLETED')
+    })
+
+    it('will not clear a job through another brand', async () => {
+      const { job } = await completedJob()
+      const other = await scratchBrand()
+
+      expect(await clearResearchJobDrafts(other.id, job.id)).toBeNull()
+    })
+
+    it('refuses a job that is still in flight', async () => {
+      const brand = await scratchBrand()
+      const job = await createResearchJob({
+        brandId: brand.id,
+        provider: 'perplexity',
+        model: 'm',
+        input,
+        createdBy: null,
+      })
+
+      expect(await clearResearchJobDrafts(brand.id, job.id)).toBeNull()
+    })
   })
 
   it('takes its jobs with it when the brand is deleted', async () => {

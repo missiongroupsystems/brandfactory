@@ -45,6 +45,7 @@ export type ResearchEnv = Pick<
   | 'RESEARCH_MODEL'
   | 'RESEARCH_MAX_ACTIVE_PER_WORKSPACE'
   | 'RESEARCH_MAX_JOBS_PER_DAY'
+  | 'RESEARCH_JOB_MAX_MINUTES'
 >
 
 export interface ResearchServiceDeps {
@@ -113,6 +114,22 @@ export function toResearchJobSummary(job: ResearchJob): ResearchJobSummary {
   }
 }
 
+/**
+ * Postgres `23505 unique_violation`, narrowed to the one index that means
+ * "someone else started this brand's run a moment ago".
+ *
+ * **Checked by constraint name, not by code alone.** Any other unique violation
+ * reaching this line is a bug, and reporting it as a friendly 409 would hide it
+ * behind a message about research already running. `pg` puts both fields on the
+ * error, and neither is typed, so this reads them defensively rather than
+ * importing a driver type into the service layer.
+ */
+export function isInFlightUniqueViolation(cause: unknown): boolean {
+  if (typeof cause !== 'object' || cause === null) return false
+  const err = cause as { code?: unknown; constraint?: unknown }
+  return err.code === '23505' && err.constraint === 'brand_research_jobs_in_flight_idx'
+}
+
 export interface StartResearchInput {
   brandId: BrandId
   workspaceId: WorkspaceId
@@ -165,13 +182,32 @@ export async function startResearch(
 
   // Recorded before submitted — see `createResearchJob`. A row with no
   // `externalId` is recoverable; a paid run with no row is not.
-  const job = await deps.db.createResearchJob({
-    brandId: input.brandId,
-    provider: deps.env.RESEARCH_PROVIDER,
-    model: deps.env.RESEARCH_MODEL,
-    input: { brandName: input.brandName, websiteUrl: input.websiteUrl },
-    createdBy: input.userId,
-  })
+  //
+  // **The insert is also the last guard.** Guard 1 above is a check-then-act, and
+  // what fits between the check and this line is a second submission: two clicks
+  // inside one round trip, neither request seeing the other's row. Migration 0006
+  // makes `(brand_id) WHERE status = 'IN_PROGRESS'` unique so the database
+  // settles it, and the loser is turned back into the 409 the non-racing path
+  // already returns — reported identically, because from the user's side it is
+  // the same fact.
+  let job: ResearchJob
+  try {
+    job = await deps.db.createResearchJob({
+      brandId: input.brandId,
+      provider: deps.env.RESEARCH_PROVIDER,
+      model: deps.env.RESEARCH_MODEL,
+      input: { brandName: input.brandName, websiteUrl: input.websiteUrl },
+      createdBy: input.userId,
+    })
+  } catch (cause) {
+    if (isInFlightUniqueViolation(cause)) {
+      throw new ConflictError(
+        'This brand already has research running.',
+        'RESEARCH_ALREADY_RUNNING',
+      )
+    }
+    throw cause
+  }
 
   try {
     const { externalId } = await deps.research.start({
@@ -203,23 +239,86 @@ export async function startResearch(
 export const UNSUBMITTED_GRACE_MS = 2 * 60 * 1000
 
 /**
+ * Reconciles in flight, keyed by job id — **the guard the shaping spend did not
+ * have.**
+ *
+ * `finishResearchJob` arbitrates the *write*, which is what keeps two finishers
+ * from overwriting each other and what makes 3F's one-thread-per-run true. It
+ * arbitrates nothing above itself, and above itself is a vendor poll and a full
+ * `generateObject` pass over a ~68,000-character report.
+ *
+ * That was not an edge case, it was the ordinary path. The client polls its
+ * summary every 5 seconds and the ticker sweeps every 30, while a shaping pass
+ * over that much input runs for tens of seconds:
+ *
+ * ```
+ * t+0s    vendor finishes
+ * t+5s    client poll   → reconcile → poll vendor → SHAPE  (paid)
+ * t+30s   ticker sweep  → row still IN_PROGRESS → SHAPE    (paid, discarded)
+ * t+60s   ticker sweep  → row still IN_PROGRESS → SHAPE    (paid, discarded)
+ * ```
+ *
+ * Stage 3's own rule is that *every guard fires above the line that spends* —
+ * and `RESEARCH_MAX_JOBS_PER_DAY` guards the $0.40 search while nothing guarded
+ * the inference stacked on top of it. `routes/research.test.ts`'s
+ * "creates exactly one thread when two reconcilers finish the same job" fired
+ * three concurrent reads and asserted one thread; there were three shaping
+ * passes, and nothing was watching that number.
+ *
+ * **In-process, and that is sufficient rather than a compromise.** The ticker
+ * pins this server to one instance (see `ticker.ts`), so the racers are always
+ * threads of one process. A restart mid-shape loses the entry, which costs one
+ * repeated pass rather than a wrong answer — the same trade `getFreshAuthToken`
+ * makes for token refresh, and the same idiom: de-dupe by *sharing the promise*,
+ * so the second caller gets the first caller's result instead of its own copy of
+ * the work.
+ */
+const reconcilesInFlight = new Map<ResearchJobId, Promise<ResearchJob>>()
+
+/**
  * Ask the vendor where a job got to, and record it if it is finished.
  *
- * Safe to call from anywhere, including twice at once: `finishResearchJob`
- * requires `IN_PROGRESS`, so the loser of a race gets `null` back and the
- * outcome that landed first stands. That is not a theoretical race — the ticker
- * and a reconcile-on-read hitting the same job is the ordinary case.
+ * Safe to call from anywhere, including twice at once — and now **cheap** to,
+ * which it was not. Two layers, doing different jobs:
+ *
+ * - `reconcilesInFlight` collapses concurrent calls for one job into one piece
+ *   of work, so the vendor is polled once and the writing model is paid once.
+ * - `finishResearchJob` still requires `IN_PROGRESS`, so even if a future
+ *   deployment runs two instances past the single-instance invariant, the write
+ *   remains arbitrated by the database rather than by this map.
+ *
+ * The second is not made redundant by the first. In-process de-duplication is an
+ * optimisation of spend; the `WHERE` clause is the correctness guarantee, and
+ * they are kept separate on purpose.
  */
-export async function reconcileResearchJob(
+export function reconcileResearchJob(
   deps: ResearchServiceDeps,
   job: ResearchJob,
   now: number = Date.now(),
 ): Promise<ResearchJob> {
-  if (job.status !== 'IN_PROGRESS') return job
+  if (job.status !== 'IN_PROGRESS') return Promise.resolve(job)
+
+  const existing = reconcilesInFlight.get(job.id)
+  if (existing) return existing
+
+  const run = reconcileNow(deps, job, now).finally(() => {
+    // Cleared on settle, so this de-dupes *concurrent* callers only. A later
+    // sweep must always be able to ask again — the vendor's answer changes.
+    reconcilesInFlight.delete(job.id)
+  })
+  reconcilesInFlight.set(job.id, run)
+  return run
+}
+
+async function reconcileNow(
+  deps: ResearchServiceDeps,
+  job: ResearchJob,
+  now: number,
+): Promise<ResearchJob> {
+  const ageMs = now - Date.parse(job.createdAt)
 
   if (!job.externalId) {
-    const age = now - Date.parse(job.createdAt)
-    if (age < UNSUBMITTED_GRACE_MS) return job
+    if (ageMs < UNSUBMITTED_GRACE_MS) return job
     return (
       (await deps.db.finishResearchJob(job.id, {
         status: 'FAILED',
@@ -234,15 +333,16 @@ export async function reconcileResearchJob(
   } catch (cause) {
     // A poll that could not reach the vendor says nothing about the job, which
     // is very likely still running — and already paid for. Leave it alone; the
-    // next sweep asks again.
+    // next sweep asks again, unless the job is past the age at which "still
+    // running" has stopped being credible.
     deps.logger?.warn('research poll failed', {
       jobId: job.id,
       err: cause instanceof Error ? cause.message : String(cause),
     })
-    return job
+    return abandonIfStale(deps, job, ageMs)
   }
 
-  if (state.status === 'running') return job
+  if (state.status === 'running') return abandonIfStale(deps, job, ageMs)
 
   if (state.status === 'failed') {
     return (
@@ -303,6 +403,59 @@ export async function reconcileResearchJob(
   if (finished?.status === 'COMPLETED') await landReportInThread(deps, finished)
 
   return finished ?? job
+}
+
+/**
+ * Declare a job dead once "still running" has stopped being credible.
+ *
+ * **The gap this closes: `IN_PROGRESS` had no ceiling.** `UNSUBMITTED_GRACE_MS`
+ * covered the window before an `externalId` exists and nothing covered the one
+ * after it. A vendor that purges the job (so every poll 404s), or that simply
+ * never leaves its running state, left the row `IN_PROGRESS` **forever** — and
+ * that row is not inert:
+ *
+ *   - `hasActiveResearchJob` permanently refuses to research that brand again
+ *   - it permanently occupies a slot in `RESEARCH_MAX_ACTIVE_PER_WORKSPACE`,
+ *     which defaults to **2**
+ *
+ * So two stuck rows disabled research for a whole workspace, with no cancel
+ * route, no `CANCELLED` producer and no way out short of a database console.
+ * That is a worse failure than being wrong about a slow run, which is the
+ * trade-off being made here and the reason the default is generous: the vendor
+ * documents 3–15 minutes and 3G measured 5.2, so an hour is four times the
+ * documented ceiling.
+ *
+ * **`externalId` is deliberately left on the row.** The run may well have
+ * completed and been billed, so the pointer to a recoverable report has to
+ * survive the row being closed — which is also why the message says what
+ * happened rather than claiming the research failed.
+ */
+async function abandonIfStale(
+  deps: ResearchServiceDeps,
+  job: ResearchJob,
+  ageMs: number,
+): Promise<ResearchJob> {
+  const maxMs = deps.env.RESEARCH_JOB_MAX_MINUTES * 60 * 1000
+  // `loadEnv` validates and defaults this, so a non-number cannot reach here in
+  // a running server. Checked anyway because of which way the comparison fails:
+  // `ageMs < NaN` is `false`, so a missing value does not disable the ceiling —
+  // it abandons **every job on its first poll**. A guard that turns a
+  // configuration slip into a no-op is worth two lines when the alternative
+  // silently fails every paid run in the deployment.
+  if (!Number.isFinite(maxMs) || maxMs <= 0) return job
+  if (ageMs < maxMs) return job
+
+  deps.logger?.warn('research job abandoned as stale', {
+    jobId: job.id,
+    externalId: job.externalId,
+    ageMinutes: Math.round(ageMs / 60_000),
+  })
+  return (
+    (await deps.db.finishResearchJob(job.id, {
+      status: 'FAILED',
+      error: `The provider did not finish this run within ${deps.env.RESEARCH_JOB_MAX_MINUTES} minutes. It has been closed so the brand can be researched again.`,
+    })) ?? job
+  )
 }
 
 /**

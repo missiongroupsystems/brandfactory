@@ -39,7 +39,7 @@ export interface Db {
   listInFlightResearchJobs: typeof db.listInFlightResearchJobs
   setResearchJobExternalId: typeof db.setResearchJobExternalId
   finishResearchJob: typeof db.finishResearchJob
-  setResearchJobDrafts: typeof db.setResearchJobDrafts
+  clearResearchJobDrafts: typeof db.clearResearchJobDrafts
 
   // Brand assets
   listAssetsByBrand: typeof db.listAssetsByBrand
@@ -107,7 +107,7 @@ export function buildDbDeps(): Db {
     listInFlightResearchJobs: db.listInFlightResearchJobs,
     setResearchJobExternalId: db.setResearchJobExternalId,
     finishResearchJob: db.finishResearchJob,
-    setResearchJobDrafts: db.setResearchJobDrafts,
+    clearResearchJobDrafts: db.clearResearchJobDrafts,
     listAssetsByBrand: db.listAssetsByBrand,
     createAsset: db.createAsset,
     updateAsset: db.updateAsset,

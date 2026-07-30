@@ -91,6 +91,19 @@ async function newBrand(app: ReturnType<typeof createTestApp>['app'], wsId: stri
 const completedPoll = (report = REPORT, sources: { title: string; url: string }[] = []) =>
   vi.fn(() => Promise.resolve({ status: 'completed' as const, report, sources, usage: USAGE }))
 
+// A brand's threads. Module-scoped because two suites read them now — 3F's, which
+// asserts the report becomes one, and the drafts-clearing suite, which asserts
+// clearing the drafts does *not* disturb it.
+//
+// `TestHarness['app']`, not `Awaited<ReturnType<typeof seed>>['app']`: resolving
+// the latter walks hono's route generics far enough to hit TS2589 ("type
+// instantiation is excessively deep"). The named type is the same app.
+const threads = async (
+  app: TestHarness['app'],
+  brandId: string,
+): Promise<{ id: string; name: string; kind: string; templateId?: string }[]> =>
+  (await (await app.request(`/brands/${brandId}/projects`, { headers: auth() })).json()) as never
+
 describe('POST /brands/:id/research', () => {
   it('starts a run and returns the job summary', async () => {
     const { post, research } = await seed()
@@ -318,6 +331,8 @@ describe('shaping, as the lifecycle sees it', () => {
     return {
       post: () => app.request(`/brands/${brand.id}/research`, { method: 'POST', headers: auth() }),
       latest: () => app.request(`/brands/${brand.id}/research`, { headers: auth() }),
+      brandId: brand.id,
+      app,
     }
   }
 
@@ -365,15 +380,6 @@ describe('shaping, as the lifecycle sees it', () => {
 // 1.5.0 capture gesture needs follows from those two words being true.
 
 describe('research — the report as a thread', () => {
-  // `TestHarness['app']`, not `Awaited<ReturnType<typeof seed>>['app']`:
-  // resolving the latter walks hono's route generics far enough to hit TS2589
-  // ("type instantiation is excessively deep"). The named type is the same app.
-  const threads = async (
-    app: TestHarness['app'],
-    brandId: string,
-  ): Promise<{ id: string; name: string; kind: string; templateId?: string }[]> =>
-    (await (await app.request(`/brands/${brandId}/projects`, { headers: auth() })).json()) as never
-
   it('lands a completed report as the first message of a new brand-context thread', async () => {
     const { app, brandId, post, latest } = await seed({
       research: fakeProvider({ poll: completedPoll(REPORT) }),
@@ -471,5 +477,130 @@ describe('research — the report as a thread', () => {
 
     const body = (await (await harness.latest()).json()) as { job: { status: string } }
     expect(body.job.status).toBe('COMPLETED')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// DELETE /brands/:id/research/:jobId/drafts
+// ---------------------------------------------------------------------------
+//
+// The rail's `N drafts ready — Review` row reads `COMPLETED && drafts.length >
+// 0`, and until this route existed nothing ever emptied `drafts`. So a brand
+// that had already taken its drafts advertised them forever, and accepting a
+// second time wrote a second copy of every section. The db writer had been
+// sitting there since 3E with no caller — the same shape 1.11.1 found in
+// `reorderAssets`.
+
+describe('DELETE /brands/:id/research/:jobId/drafts', () => {
+  const DRAFT = {
+    label: 'Voice & tone',
+    html: '<p>Warm, direct.</p>',
+    text: 'Warm, direct.',
+    sources: [],
+  }
+
+  async function seedCompleted() {
+    const research = fakeProvider({ poll: completedPoll() })
+    const harness = createTestApp({
+      users: [USER],
+      env: { RESEARCH_PROVIDER: 'perplexity', PERPLEXITY_API_KEY: 'k' },
+      research,
+      shapeResearch: () => Promise.resolve([DRAFT]),
+    })
+    const { app } = harness
+    const ws = (await (
+      await app.request('/workspaces', {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ name: 'W' }),
+      })
+    ).json()) as { id: string }
+    const brand = (await (
+      await app.request(`/workspaces/${ws.id}/brands`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ name: 'Casa Vostra', websiteUrl: 'https://casavostra.example' }),
+      })
+    ).json()) as { id: string }
+
+    await app.request(`/brands/${brand.id}/research`, { method: 'POST', headers: auth() })
+    const state = (await (
+      await app.request(`/brands/${brand.id}/research`, { headers: auth() })
+    ).json()) as { job: { id: string; status: string; drafts: unknown[] } }
+    expect(state.job.status).toBe('COMPLETED')
+    expect(state.job.drafts).toHaveLength(1)
+
+    return {
+      app,
+      workspaceId: ws.id,
+      brandId: brand.id,
+      jobId: state.job.id,
+      clear: (brandId = brand.id, jobId = state.job.id) =>
+        app.request(`/brands/${brandId}/research/${jobId}/drafts`, {
+          method: 'DELETE',
+          headers: auth(),
+        }),
+      latest: () => app.request(`/brands/${brand.id}/research`, { headers: auth() }),
+    }
+  }
+
+  it('forgets the drafts, so the rail stops offering them', async () => {
+    const { clear, latest } = await seedCompleted()
+
+    const res = await clear()
+    expect(res.status).toBe(200)
+    expect(((await res.json()) as { drafts: unknown[] }).drafts).toEqual([])
+
+    // And the state the hub re-reads agrees — this is the actual defect.
+    const after = (await (await latest()).json()) as { job: { status: string; drafts: unknown[] } }
+    expect(after.job.status).toBe('COMPLETED')
+    expect(after.job.drafts).toEqual([])
+  })
+
+  // The report is the $0.40 artefact; the drafts are derived from it and cost a
+  // shaping pass to rebuild. Clearing one must never touch the other — which is
+  // also the only reason clearing is an acceptable way to record "dealt with".
+  it('leaves the report and its thread alone', async () => {
+    const { app, brandId, clear } = await seedCompleted()
+    const before = await threads(app, brandId)
+    expect(before).toHaveLength(1)
+
+    await clear()
+
+    expect(await threads(app, brandId)).toHaveLength(1)
+  })
+
+  // The client calls this after a save it has already been told succeeded, so a
+  // retry is the ordinary way to arrive twice. Failing it would put an error
+  // toast on a screen where everything worked.
+  it('is idempotent — clearing twice is still a success', async () => {
+    const { clear } = await seedCompleted()
+
+    expect((await clear()).status).toBe(200)
+    const second = await clear()
+    expect(second.status).toBe(200)
+    expect(((await second.json()) as { drafts: unknown[] }).drafts).toEqual([])
+  })
+
+  it('does not clear a job through another brand', async () => {
+    const { app, workspaceId, clear } = await seedCompleted()
+    const other = await newBrand(app, workspaceId, 'https://other.example')
+
+    const res = await clear(other.id)
+    expect(res.status).toBe(404)
+  })
+
+  it('404s an unknown job', async () => {
+    const { clear } = await seedCompleted()
+    const res = await clear(undefined, '11111111-1111-4111-8111-111111111111')
+    expect(res.status).toBe(404)
+  })
+
+  it('requires a token', async () => {
+    const { app, brandId, jobId } = await seedCompleted()
+    const res = await app.request(`/brands/${brandId}/research/${jobId}/drafts`, {
+      method: 'DELETE',
+    })
+    expect(res.status).toBe(401)
   })
 })

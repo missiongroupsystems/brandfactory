@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LanguageModel } from 'ai'
 import type { LLMProvider, LLMProviderSettings } from '@brandfactory/adapter-llm'
-import type { ResearchSource } from '@brandfactory/shared'
+import { GUIDELINE_LABEL_MAX_CHARS, type ResearchSource } from '@brandfactory/shared'
 import { buildShapePrompt, DRAFT_TARGET_MAX_CHARS, shapeResearchIntoSections } from './shape'
 
 // A minimal `LanguageModelV1` that answers `doGenerate` with a fixed JSON
@@ -111,6 +111,41 @@ describe('shapeResearchIntoSections', () => {
 
   // Omitting is the point: a brand with nothing solid in the report should come
   // back with fewer sections, not with padded ones.
+  // **The bound mismatch that would have cost a whole batch.** This boundary
+  // allowed a 200-character label while `UpdateBrandGuidelinesSectionInputSchema`
+  // — the drafts' only destination — allows 120. That wire takes the brand's
+  // *complete* section list, so one long label 400'd the entire payload and lost
+  // every draft beside it to a toast. Clamped, not rejected, for exactly that
+  // reason: the cost has to fall on the one label, never on the batch.
+  it('clamps an over-long label instead of failing the batch', async () => {
+    const long = 'Messaging framework — '.repeat(20)
+    expect(long.length).toBeGreaterThan(GUIDELINE_LABEL_MAX_CHARS)
+
+    const drafts = await shape({
+      sections: [
+        { label: long, markdown: 'Compressed.', sourceUrls: [] },
+        { label: 'Voice & tone', markdown: 'Warm.', sourceUrls: [] },
+      ],
+    })
+
+    expect(drafts[0]!.label).toHaveLength(GUIDELINE_LABEL_MAX_CHARS)
+    expect(long.startsWith(drafts[0]!.label)).toBe(true)
+    // The one that was always fine is still there — that is the whole point.
+    expect(drafts.map((d) => d.label)).toContain('Voice & tone')
+  })
+
+  // `min(1)` on the destination would refuse the batch for it.
+  it('drops a label that is only whitespace', async () => {
+    const drafts = await shape({
+      sections: [
+        { label: '   ', markdown: 'Body.', sourceUrls: [] },
+        { label: 'Voice & tone', markdown: 'Warm.', sourceUrls: [] },
+      ],
+    })
+
+    expect(drafts.map((d) => d.label)).toEqual(['Voice & tone'])
+  })
+
   it('returns an empty list when the model omitted everything', async () => {
     expect(await shape({ sections: [] })).toEqual([])
   })

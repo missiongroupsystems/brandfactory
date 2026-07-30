@@ -243,15 +243,49 @@ export async function finishResearchJob(
   return row ? rowToResearchJob(row) : null
 }
 
-/** 3E writes drafts onto an already-completed job; nothing else may. */
-export async function setResearchJobDrafts(
+/**
+ * Forget the drafts, once they have landed in the brand's guidelines.
+ *
+ * **This is the writer the rail's `N drafts ready — Review` row always needed
+ * and never had.** That row renders on `status === 'COMPLETED' && drafts.length
+ * > 0`, and nothing ever emptied `drafts` — so after research populated an empty
+ * brand, or after you accepted and saved, the rail went on offering the same five
+ * drafts forever, and taking them again wrote a second copy of every section.
+ * `BrandContextRail`'s own fall-through comment described "a completed run whose
+ * drafts have already been dealt with", a state the code could not reach.
+ *
+ * A predecessor existed as `setResearchJobDrafts` from 3E, wired into `Db` and
+ * faked in `test-helpers`, and called by **nothing** — the same reachable-from-
+ * nothing shape 1.11.1 found in `reorderAssets`. It is narrowed rather than
+ * revived: the only operation anyone needs is *forget*, and a general setter on
+ * this column would let a route hand the client a way to write draft bodies the
+ * shaping pass never produced.
+ *
+ * **The report is deliberately untouched.** Drafts are derived from it and cost a
+ * shaping pass to rebuild; the report is the $0.40 artefact and stays on the row,
+ * as does the thread 3F made of it. So this destroys something cheap and
+ * re-derivable, which is the only reason clearing is an acceptable way to record
+ * "dealt with" at all.
+ *
+ * Scoped by brand as well as id, like `getResearchJob`, and restricted to a
+ * finished run: an `IN_PROGRESS` job's drafts are about to be written by
+ * `finishResearchJob`, so clearing them there would be a race with the write
+ * that produces them.
+ */
+export async function clearResearchJobDrafts(
+  brandId: BrandId,
   jobId: ResearchJobId,
-  drafts: ResearchDraft[],
 ): Promise<ResearchJob | null> {
   const [row] = await db
     .update(brandResearchJobs)
-    .set({ drafts })
-    .where(eq(brandResearchJobs.id, jobId))
+    .set({ drafts: [] })
+    .where(
+      and(
+        eq(brandResearchJobs.brandId, brandId),
+        eq(brandResearchJobs.id, jobId),
+        eq(brandResearchJobs.status, 'COMPLETED'),
+      ),
+    )
     .returning()
   return row ? rowToResearchJob(row) : null
 }

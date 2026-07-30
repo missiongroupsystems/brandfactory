@@ -28,6 +28,11 @@ export interface EditGuidelinesDialogProps {
    */
   staged?: StagedSection[] | null
   onStagedConsumed?: () => void
+  /**
+   * Forwarded to the editor. Another pure pass-through, for the same reason as
+   * `staged` above — see `BrandGuidelinesEditorProps.onSaved` for what it is for.
+   */
+  onSaved?: () => void
 }
 
 // Frames the guidelines editor in a dialog. The editor already owns its own
@@ -40,6 +45,7 @@ export function EditGuidelinesDialog({
   onOpenChange,
   staged,
   onStagedConsumed,
+  onSaved,
 }: EditGuidelinesDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -55,6 +61,7 @@ export function EditGuidelinesDialog({
           brand={brand}
           staged={staged}
           onStagedConsumed={onStagedConsumed}
+          onSaved={onSaved}
         />
         <DialogFooter>
           <DialogClose asChild>

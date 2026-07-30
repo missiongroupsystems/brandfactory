@@ -75,6 +75,12 @@ const EnvObject = z.object({
   // overrun too late to stop it.
   RESEARCH_MAX_ACTIVE_PER_WORKSPACE: z.coerce.number().int().min(1).default(2),
   RESEARCH_MAX_JOBS_PER_DAY: z.coerce.number().int().min(1).default(10),
+  // The ceiling `IN_PROGRESS` never had. A row that cannot reach a terminal
+  // state is not inert — it fails the per-brand guard forever and holds a slot
+  // in the cap above forever, and the cap above defaults to 2. Four times the
+  // vendor's documented 15-minute ceiling, because being wrong about a slow run
+  // costs one re-run while being stuck costs a database console.
+  RESEARCH_JOB_MAX_MINUTES: z.coerce.number().int().min(1).default(60),
 
   // LLM provider keys.
   ANTHROPIC_API_KEY: NonEmpty.optional(),

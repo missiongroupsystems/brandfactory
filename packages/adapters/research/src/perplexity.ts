@@ -28,9 +28,28 @@ import { buildResearchPrompt } from './prompt'
 
 const DEFAULT_BASE_URL = 'https://api.perplexity.ai'
 
+/**
+ * How long either call may take before it is abandoned.
+ *
+ * **Both calls here are short by construction** — this is the *async* Sonar
+ * line, so `start` submits a job and returns an id, and `poll` reads a status
+ * row. Neither waits for the 3–15 minutes of actual research; that is what the
+ * job row and the ticker are for. So a call still outstanding after 30 seconds
+ * is a hung socket, not slow work.
+ *
+ * The default matters because of where these run. `poll` is awaited inside the
+ * ticker's sweep, which holds a `running` flag released in a `finally` — and a
+ * `fetch` with no timeout never settles, so `finally` never runs and **every
+ * later sweep in the process no-ops.** One unresponsive socket would have
+ * silently retired the only thing that finishes a job nobody is watching.
+ */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
+
 export interface PerplexityResearchConfig {
   apiKey: string
   baseUrl?: string
+  /** Per-request timeout. See `DEFAULT_REQUEST_TIMEOUT_MS`. */
+  timeoutMs?: number
   /** Test seam. Defaults to the global `fetch`. */
   fetch?: typeof fetch
 }
@@ -143,6 +162,7 @@ export function createPerplexityResearchProvider(
 ): ResearchProvider {
   const baseUrl = (config.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, '')
   const doFetch = config.fetch ?? fetch
+  const timeoutMs = config.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
 
   async function call(
     method: 'GET' | 'POST',
@@ -158,11 +178,15 @@ export function createPerplexityResearchProvider(
           ...(body ? { 'Content-Type': 'application/json' } : {}),
         },
         body: body ? JSON.stringify(body) : undefined,
+        // A bounded call, so the sweep that awaits it always returns. See
+        // `DEFAULT_REQUEST_TIMEOUT_MS` for why that is the load-bearing part.
+        signal: AbortSignal.timeout(timeoutMs),
       })
     } catch (cause) {
       // A network error is not a job failure — the job may well be running at
       // the vendor. It is thrown so the ticker retries rather than marking a
-      // paid-for run dead.
+      // paid-for run dead. A timeout lands here too and says the same thing:
+      // we do not know, so change nothing.
       throw new ResearchProviderError(
         `Could not reach the research provider: ${cause instanceof Error ? cause.message : String(cause)}`,
       )

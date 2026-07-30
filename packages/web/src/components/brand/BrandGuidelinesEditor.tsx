@@ -239,12 +239,26 @@ export interface BrandGuidelinesEditorProps {
   staged?: StagedSection[] | null
   /** Called once `staged` has been taken, so the caller can clear it. */
   onStagedConsumed?: () => void
+  /**
+   * A save landed on the server.
+   *
+   * Exists for research's E2 landing: accepting drafts stages them here, and the
+   * *save* — not the accept — is the moment they are actually in the brand's
+   * guidelines and the rail must stop offering them. The editor is the only
+   * thing that knows when that happened.
+   *
+   * Fires on every successful save, not only ones carrying staged content. The
+   * caller decides whether it means anything, which keeps this a plain fact about
+   * the editor rather than a research-shaped callback bolted onto it.
+   */
+  onSaved?: () => void
 }
 
 export function BrandGuidelinesEditor({
   brand,
   staged,
   onStagedConsumed,
+  onSaved,
 }: BrandGuidelinesEditorProps) {
   const [sections, setSections] = useState<LocalSection[]>(() => brand.sections.map(toLocal))
   // Keyed by section `_key`. A payload waiting for its row's editor to mount.
@@ -394,6 +408,7 @@ export function BrandGuidelinesEditor({
       onSuccess: (serverSections: BrandGuidelineSection[]) => {
         setSections(serverSections.map(toLocal))
         toast.success('Guidelines saved')
+        onSaved?.()
       },
       onError: (err) =>
         toast.error(err instanceof AppError ? err.message : 'Failed to save guidelines'),
