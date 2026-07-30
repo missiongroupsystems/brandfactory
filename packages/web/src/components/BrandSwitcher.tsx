@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { ChevronsUpDown } from 'lucide-react'
 import { useAuthStore } from '@/auth/store'
@@ -5,6 +6,7 @@ import { useBrand } from '@/api/queries/brands'
 import { useWorkspaceBrands } from '@/api/queries/workspaces'
 import { useActiveBrandId } from '@/lib/active-brand'
 import { useActiveWorkspaceId } from '@/lib/workspace-context'
+import { NewBrandDialog } from '@/components/NewBrandDialog'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -35,6 +37,7 @@ export function BrandSwitcher() {
   // instead of waiting on the workspace-wide list.
   const { data: brand } = useBrand(brandId ?? '')
   const navigate = useNavigate()
+  const [newOpen, setNewOpen] = useState(false)
 
   const label = brands?.find((b) => b.id === brandId)?.name ?? brand?.name
 
@@ -92,6 +95,22 @@ export function BrandSwitcher() {
             ))}
           </DropdownMenuRadioGroup>
           <DropdownMenuSeparator />
+          {/* Create sits above the way out, as it does in `WorkspaceSwitcher`:
+              the switcher is the one affordance reachable from every page in a
+              brand, and adding a brand previously meant navigating up to
+              workspace home first — the trip this pill exists to remove. */}
+          <DropdownMenuItem
+            disabled={!workspaceId}
+            onSelect={() => {
+              if (!workspaceId) return
+              // Deferred for the same reason as WorkspaceSwitcher's: opening the
+              // dialog in this tick leaves the menu's focus scope fighting the
+              // dialog's. See `deferUntilMenuClosed`.
+              setTimeout(() => setNewOpen(true), 0)
+            }}
+          >
+            New brand…
+          </DropdownMenuItem>
           <DropdownMenuItem
             disabled={!workspaceId}
             onSelect={() => {
@@ -103,6 +122,11 @@ export function BrandSwitcher() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      {/* No workspace resolved means no target for the POST, which is why the
+          item above is disabled and this is not rendered at all. */}
+      {workspaceId ? (
+        <NewBrandDialog wsId={workspaceId} open={newOpen} onOpenChange={setNewOpen} />
+      ) : null}
     </>
   )
 }

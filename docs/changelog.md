@@ -4,6 +4,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 ## Index
 
+- **1.12.0** — 2026-07-30 — **`New brand…` in the brand switcher**: the pill could switch between brands but not add one, so creating a brand meant leaving the brand you were in — up to workspace home, create, come back — which is exactly the trip 1.6.0 added the pill to remove. The item is the missing half, and it mirrors `WorkspaceSwitcher` line for line: create above the way out, opening **deferred a tick** because a dialog opened inside `onSelect` leaves the menu's focus scope fighting the dialog's, and `disabled` when no workspace has resolved — `useActiveWorkspaceId` reads the workspace off the brand detail, so on a deep link it can still be null while the name has already arrived from the workspace-wide list, and with no workspace there is no `POST` target. To have two callers, `NewBrandDialog` **moves out of `routes/workspaces.$wsId.index.tsx`** into `components/` and takes the controlled/uncontrolled + `trigger` shape `NewWorkspaceDialog` already had; the route now passes its own `+ Brand` button in. The move is what earned the one behaviour change: the inline version cleared its fields **only on success**, which is survivable on a page you had to navigate to and wrong on an affordance reachable from every page in a brand — a cancelled attempt handed the next one a half-typed name and a website error about a field that was now empty. It had **zero tests** inside the route and has nine here, including 1A's `javascript:alert(1)` gate from the form's side. No migration, no route, no server change; `packages/web` only. 921 → **932 tests (+11)**. **No live pass** — no Docker or Postgres in this environment, so the app cannot boot; the menu's rhythm under 30+ brands is reasoned, not observed.
 - **1.11.2** — 2026-07-30 — Stage 3 hardening, the review of the one stage nobody had reviewed: 1.11.1 read Stages 1–2 against the shipped code and Stage 3 shipped the same day reviewed by **its own completion notes**, which is not a review. Six findings, all fixed, and **none of them blocked the deploy** — `fly.toml` sets no `RESEARCH_PROVIDER`, so it defaults to `none` and Stage 3 ships dark; this gates *enabling research*, not the release. Three of the six are one mistake in three places — **a rule stated in a comment and enforced nowhere**. The rail advertised `N drafts ready — Review` **forever**, because nothing ever emptied `drafts`: re-accepting wrote a second copy of every section, `BrandContextRail` already commented a state ("drafts have already been dealt with") the code could not reach, and the db writer had sat there since 3E **called by nothing** — the `reorderAssets` shape one stage later. Its fix turns on **"landed" not being the same moment on the two paths**: E1's write is a landing, E2's *accept* is not, because accept stages into an editor the user may close and clearing there would cost a $0.40 re-run. **The shaping spend had no guard at all** — `finishResearchJob` arbitrates the write and above the write sits a `generateObject` pass over a 67,780-character report, so a 5-second client poll against a 30-second sweep paid for it two and three times over and discarded all but one; 3G's own three-concurrent-reads test asserted one *thread* and never counted the three shaping passes. `IN_PROGRESS` had **no ceiling** once an `externalId` existed, so a vendor that purges a job left a row that permanently fails the per-brand guard *and* holds a slot in a cap that **defaults to 2** — two stuck rows disabled a whole workspace with no cancel route and no way out but a database console. `label` was **200 at the producer and 120 at the destination** over a payload that is the brand's complete list, so one long label 400'd all five drafts — 3G's `min(1)` bug, one bound over — fixed by clamping, and by giving the model-facing schema **no maximum at all**, because a bound there makes `safeParse` all-or-nothing and turns one label into zero drafts. **Migration 0006** makes the in-flight index `UNIQUE`, because the one-job-per-brand guard was a check-then-act and two clicks inside one round trip bought two runs; it is **0006 and not an edit to 0005** since 0005 is already applied and nothing here can prove what production's journal holds. The generated SQL **was not shippable as generated** — against the duplicate rows the fix prevents, `CREATE UNIQUE INDEX` aborts and takes the release with it (verified: `23505`), so the migration closes the older row as `FAILED` first, **closed and not deleted**, because the row is the only record money was spent. And nothing had a **timeout**: `ShapeResearchInput.signal` existed since 3D and nothing ever passed one, so a hung socket inside the sweep meant `running` never cleared in its `finally` and **every later sweep no-opped for the life of the process**. Also: `shared/index.ts` exported `research/job` **twice**; the test fake stamped research jobs with a **fixed date in the past**, harmless until a job's age became behaviour; and `app.test.ts` now asserts the app compiles to `RegExpRouter`, stating the property 1.11.1 discovered by luck. 887 → **921 tests (+34)**, zero skipped against a live database. **A plain `pnpm test` silently skips all 41 live-DB tests** with Postgres up and `DATABASE_URL` in `.env` — so every "zero skipped" claim in this file holds only with the variable exported by hand. **No live pass**: everything here is behind a flag that is `none` in production. Detail in [`docs/completions/stage-3-hardening.md`](completions/stage-3-hardening.md).
 - **1.11.1** — 2026-07-30 — Stages 1–2 review remediation, run against the shipped code before production: nine findings, eight fixed here and one already closed by 3G. The one that would have shipped broken is a **deployment gap, not a code defect** — `fly.toml` runs `STORAGE_PROVIDER = "supabase"` while every Stage 2 live pass ran on `local-disk`, and the two providers derive a blob's content type from **different fields of the same request** (the key's extension vs the header this server mints), so `{ filename: 'logo.svg', contentType: 'image/png' }` served as a *document* on one and an image on the other; `keyWithCanonicalExtension` makes them agree at the only place that can guarantee it, the mint. A colour value was never checked to be a colour and was rendered through the **`background` shorthand**, which includes `background-image` — so a stored `url(…)` painted as an outbound request on a privacy-first product; fixed on all three sides (schema allowlist, the `backgroundColor` longhand, the inline arm). `kind` and `source` were orthogonal in the table and not in reality, so `{ kind: 'color', source: 'link' }` passed the schema, the CHECK *and* the route. The blob sweep could **destroy bytes it did not own**, because Stage 2 turned a client-supplied `blobKey` into something the brand cascade deletes — closed by subtracting what still points at a key *after* the cascade, which does not depend on keys being unguessable or workspaces staying single-owner. Delete finally gets the **Undo 1.10.0 asked for** (`restoreAsset`, plus the three `deletedAt` guards that were missing from every soft-delete writer), and `reorderAssets` — transactional and live-tested since 2A, reachable from **nothing** — gets a route, replacing N racing patches. The route spelling turned out to be load-bearing: `POST /:id/assets/reorder` puts a literal where a sibling has a parameter, which Hono's `RegExpRouter` refuses, silently downgrading **the whole app** to `TrieRouter` — and the visible symptom was `GET /blob-urls/:key/read-url` 404ing in a file the change never opened. Its existing test caught it. Also: the rail could print "6 of 5 suggested sections", and `VisualIdentityPage` — the data half holding the upload loop and the reorder arithmetic — had **zero tests** against its view's 24. No migration. 817 → **887 tests (+70)**, zero skipped against a clean database. Detail in [`docs/completions/stage-1-2-review-remediation.md`](completions/stage-1-2-review-remediation.md).
 - **1.11.0** — 2026-07-30 — Brand research end to end (Stage 3, phases 3A–3G): a brand can be **researched from its website**, and what comes back lands in three places — draft guideline sections, the full report as a conversation, and a row in the rail that says where the run got to. **Migration 0005** lands `brand_research_jobs` (one table, one enum, two indexes, one of them partial) under three routes, a fifth adapter, an in-process ticker and a paid vendor. The load-bearing rule is that **every guard fires above the line that spends money** — provider off, no `website_url`, brand already running, workspace at its active cap, workspace at its daily cap — because below it the money is gone and all a check can do is hide the result; and the row is written **before** the submission, because a row with no `externalId` is recoverable and a paid run with no row is not. 3D is a **compression pass, not a partition**: 3A measured a real report at 67,780 characters across five `##` headings, so the obvious reading of "one heading per section" produces a 16,000-character *Voice & tone* in a rail row built for a paragraph. 3E answers *"is this brand empty?"* **when the drafts land, not at submission** — a deep run takes 3–15 minutes, which is ample time to start typing a Voice section by hand — and its Undo is a full-list write of `[]` guarded on ids **and** `updatedAt`, because between the toast appearing and being clicked that `[]` stops meaning "take back what research added". 3F makes the report the first message of a **new** brand-context thread, which buys capture and agent-awareness **by construction** rather than by code. **A real vendor call was made** at 3G: $0.4157, 48,607 characters, 17 citations, 5.2 minutes — 10% dearer and 30% slower than 3A's sample of one, and the report was about the company at the URL it was given, which is the confabulation the hard URL gate exists to prevent. Shaping threw `Unauthorized` on a placeholder key, which **verified 3D's refusal on a real paid report**: the run still completed and all 48,607 characters survived. Three bugs the live passes found and no test would have: accepting drafts landed them **below the fold**, so it looked like nothing happened; a captured section is **nameless by design** and `label` is `min(1)` over a payload that is the brand's *complete* list, so one capture 400'd the whole save and showed a toast reading `Bad Request` — reachable since 1.5.0 and made the ordinary path by 3F; and the brand switcher's menu had **no width cap**, so one 90-character brand name opened it 670px wide with 32 short names rattling inside. Also fixed: `fileParallelism` in a project config is **silently ignored**, so `packages/db`'s live tests had been racing each other since 0.9.1 and "all green" was worker timing. **The mockup is demolished** — `src/demo/`, its route, the `import.meta.env.DEV` ternary and both `/* @__PURE__ */` annotations — and 1.8.0's invariant is formally closed: every prop it added is fed by the real route. 688 → **887 tests**, zero skipped with a `DATABASE_URL`. Detail in [`docs/completions/stage-3g-verification-and-demolition.md`](completions/stage-3g-verification-and-demolition.md) and the six phase notes beside it.
@@ -38,6 +39,70 @@ Latest releases at the top. Each version has a one-line entry in the index below
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` lands — drizzle schema for 8 tables, singleton pg `Pool`, 18 query helpers, local-dev docker Postgres, and an end-to-end smoke check.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` lands as the single source of truth for domain types and zod schemas, consumed by both `server` and `web`.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture blueprint, scaffolding plan, and Phase 0 repo foundation.
+
+---
+
+## 1.12.0 — 2026-07-30
+
+**The brand pill could switch brands but not add one.** 1.6.0 added it on the
+grounds that a brand is as much a *place* as a workspace is, and gave it the same
+pill — but creating a brand still meant going up to workspace home and back down,
+which is the trip the pill exists to remove.
+
+### The item, and the three things it copies
+
+`New brand…` sits between the brand list and `All brands`, mirroring
+`WorkspaceSwitcher` rather than inventing a second convention:
+
+- **Create above the way out**, as in the workspace menu.
+- **Opening is deferred a tick.** A dialog opened inside `onSelect` leaves the
+  menu's focus scope fighting the dialog's — the reason `deferUntilMenuClosed`
+  exists in `EntityMenu`, and the same `setTimeout(…, 0)` the workspace switcher
+  uses.
+- **Disabled with no workspace**, like `All brands` beside it.
+  `useActiveWorkspaceId` resolves the workspace *from the brand detail*, so on a
+  deep link it can be null while the name has already arrived from the
+  workspace-wide list. There is no `POST` target then, which is also why the
+  dialog is not mounted at all rather than mounted with an empty `wsId`.
+
+### The dialog moved, and that is what earned the behaviour change
+
+`NewBrandDialog` lived inside `routes/workspaces.$wsId.index.tsx`. It moves to
+`components/NewBrandDialog.tsx` and takes the controlled/uncontrolled + `trigger`
+shape `NewWorkspaceDialog` already had for exactly this situation — the route
+passes its `+ Brand` button in as `trigger`, the switcher passes `open` and no
+trigger, because a menu item is the opener and a second button in the header
+would be wrong.
+
+One behaviour changed with it: the inline version cleared its fields **only on
+success**. Survivable on a page you had to navigate to; wrong on an affordance
+reachable from every page in a brand, where a cancelled attempt handed the next
+one a half-typed name — and a website error about a field that was now empty. It
+now clears on close, which is the convention `NewWorkspaceDialog` already
+documented.
+
+### Verification
+
+```
+pnpm typecheck                    10/10 workspaces
+pnpm lint / format:check          clean
+pnpm test                         885 passed | 47 skipped (102 files)
+```
+
+921 → **932 (+11)**: nine for the extracted dialog, which had **none** while it
+sat in the route, and two for the switcher. The nine include 1A's stored-XSS gate
+from the form's side — `javascript:alert(1)` is reported inline and never
+posted — and the clear-on-close above.
+
+**The 47 skips are all live-Postgres files**, and are this environment rather
+than this change: there is no Docker and no `.env`, so `DATABASE_URL` is unset.
+The change is `packages/web` only — no migration, no route, no server change —
+so nothing in it is reachable from those files.
+
+**No live pass**, for the same reason: without Postgres the app cannot boot. What
+went unobserved is presentation only — where the item sits once the list scrolls
+past `max-h-80`, and whether the separator still reads correctly with two items
+below it instead of one.
 
 ---
 

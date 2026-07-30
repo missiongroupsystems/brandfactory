@@ -14,7 +14,14 @@ const state: {
   project: ProjectDetail | undefined
   brands: BrandSummary[] | undefined
   brand: BrandWithSections | undefined
-} = { params: {}, project: undefined, brands: undefined, brand: undefined }
+  workspaceId: string | null
+} = {
+  params: {},
+  project: undefined,
+  brands: undefined,
+  brand: undefined,
+  workspaceId: 'ws-1',
+}
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigate,
@@ -38,7 +45,15 @@ vi.mock('@/api/queries/workspaces', () => ({
 }))
 
 vi.mock('@/lib/workspace-context', () => ({
-  useActiveWorkspaceId: () => 'ws-1',
+  useActiveWorkspaceId: () => state.workspaceId,
+}))
+
+// Stubbed rather than rendered: the real one pulls the api client and a
+// mutation, and its own suite covers the form. What matters here is the wiring —
+// that the menu item opens it, and hands it the workspace it will POST to.
+vi.mock('@/components/NewBrandDialog', () => ({
+  NewBrandDialog: ({ wsId, open }: { wsId: string; open?: boolean }) =>
+    open ? <div data-testid="new-brand-dialog">{wsId}</div> : null,
 }))
 
 function brandSummary(id: string, name: string): BrandSummary {
@@ -64,6 +79,7 @@ describe('BrandSwitcher', () => {
     state.project = undefined
     state.brands = brands
     state.brand = undefined
+    state.workspaceId = 'ws-1'
   })
 
   it('names the trigger after the active brand', () => {
@@ -141,5 +157,41 @@ describe('BrandSwitcher', () => {
     await user.click(screen.getByRole('menuitem', { name: 'All brands' }))
 
     expect(navigate).toHaveBeenCalledWith({ to: '/workspaces/$wsId', params: { wsId: 'ws-1' } })
+  })
+
+  // Adding a brand meant navigating up to workspace home first, from wherever
+  // you were — the trip this pill exists to remove for switching.
+  it('opens the new-brand dialog from the menu, against the active workspace', async () => {
+    const user = userEvent.setup()
+    render(<BrandSwitcher />)
+    await user.click(screen.getByRole('button', { name: /Casa Vostra/ }))
+
+    expect(screen.queryByTestId('new-brand-dialog')).toBeNull()
+    await user.click(screen.getByRole('menuitem', { name: 'New brand…' }))
+
+    // Opening is deferred a tick so the menu's focus scope unwinds first.
+    const dialog = await screen.findByTestId('new-brand-dialog')
+    expect(dialog.textContent).toBe('ws-1')
+    // Creating is not switching: the pill must not navigate on its own here.
+    expect(navigate).not.toHaveBeenCalled()
+  })
+
+  // Both items target the workspace, and `useActiveWorkspaceId` resolves it from
+  // the brand detail — so on a deep link it can still be null while the name has
+  // already arrived from the workspace-wide list.
+  it('disables both workspace-scoped items until a workspace resolves', async () => {
+    state.workspaceId = null
+    const user = userEvent.setup()
+    render(<BrandSwitcher />)
+    await user.click(screen.getByRole('button', { name: /Casa Vostra/ }))
+
+    expect(screen.getByRole('menuitem', { name: 'New brand…' }).getAttribute('aria-disabled')).toBe(
+      'true',
+    )
+    expect(screen.getByRole('menuitem', { name: 'All brands' }).getAttribute('aria-disabled')).toBe(
+      'true',
+    )
+    // No workspace means no POST target, so the dialog is not even mounted.
+    expect(screen.queryByTestId('new-brand-dialog')).toBeNull()
   })
 })
