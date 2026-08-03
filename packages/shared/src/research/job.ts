@@ -279,6 +279,21 @@ export type ResearchConfig = z.infer<typeof ResearchConfigSchema>
 export const RESEARCH_COST_ESTIMATE = '≈$0.40'
 
 /**
+ * The ceiling a generated draft is asked to fit, and the reason it exists.
+ *
+ * Not enforced by truncation — a sentence cut in half is worse than a long one
+ * — but stated to the model and measured in the tests, because "keep it short"
+ * without a number is how a 16,000-character section happens.
+ *
+ * Lives here rather than in `@brandfactory/agent` because two packages state
+ * it to two different models: the shaping pass compresses the deep report to
+ * this target, and the research adapter's section search asks the vendor for
+ * it directly. Neither package depends on the other; both depend on this one —
+ * the `LLM_PROVIDER_IDS` arrangement, for the same reason.
+ */
+export const DRAFT_TARGET_MAX_CHARS = 1200
+
+/**
  * The promised window, as numbers.
  *
  * `RESEARCH_DURATION_RANGE` used to be the only form and it was a *sentence* —

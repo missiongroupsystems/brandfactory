@@ -56,4 +56,24 @@ describe('BrandContextPane', () => {
     renderPane()
     expect(screen.getAllByRole('button', { name: /save/i })).toHaveLength(1)
   })
+
+  // The `onAutofill` pass-through (Phase D) — the pane adds nothing to the
+  // channel, and the sparkle appearing on an empty labelled row proves the prop
+  // arrived. Its twin for the dialog forwarder lives in the editor's test file.
+  it('forwards onAutofill to the editor', () => {
+    const b = brand()
+    b.sections.push({
+      ...b.sections[0]!,
+      id: 's-2' as BrandWithSections['sections'][number]['id'],
+      label: 'Target audience',
+      body: { type: 'doc', content: [{ type: 'paragraph' }] },
+      priority: 2000,
+    })
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <BrandContextPane brand={b} onAutofill={() => Promise.reject(new Error('unused'))} />
+      </QueryClientProvider>,
+    )
+    expect(screen.getByRole('button', { name: 'Auto-fill Target audience with AI' })).toBeTruthy()
+  })
 })

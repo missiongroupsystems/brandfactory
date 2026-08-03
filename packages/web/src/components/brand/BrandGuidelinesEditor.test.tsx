@@ -2,19 +2,26 @@ import { StrictMode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { BrandWithSections } from '@brandfactory/shared'
+import type { AutofillSectionResult, BrandWithSections } from '@brandfactory/shared'
+import { AppError } from '@/api/client'
 import { BrandGuidelinesEditor, type StagedSection } from './BrandGuidelinesEditor'
 import { EditGuidelinesDialog } from './EditGuidelinesDialog'
 
 const mutate = vi.hoisted(() => vi.fn())
 const toastError = vi.hoisted(() => vi.fn())
+const toastSuccess = vi.hoisted(() => vi.fn())
+const toastInfo = vi.hoisted(() => vi.fn())
 
 vi.mock('@/api/queries/brands', () => ({
   useUpdateBrandGuidelines: () => ({ mutate, isPending: false }),
 }))
 
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: (...args: unknown[]) => toastError(...args) },
+  toast: {
+    success: (...args: unknown[]) => toastSuccess(...args),
+    error: (...args: unknown[]) => toastError(...args),
+    info: (...args: unknown[]) => toastInfo(...args),
+  },
 }))
 
 // jsdom has no `DataTransfer` constructor.
@@ -82,6 +89,37 @@ function brandWithAgentSection(): BrandWithSections {
 
 const savedSections = () =>
   (mutate.mock.calls[0]?.[0] as { sections: { label: string; createdBy: string }[] }).sections
+
+/** The brand above plus an empty, labelled section — the sparkle's home row. */
+function brandWithEmptySection(label = 'Target audience'): BrandWithSections {
+  const base = brand()
+  return {
+    ...base,
+    sections: [
+      ...base.sections,
+      {
+        ...base.sections[0]!,
+        id: 's-empty' as BrandWithSections['sections'][number]['id'],
+        label,
+        body: { type: 'doc', content: [{ type: 'paragraph' }] },
+        priority: 2000,
+      },
+    ],
+  }
+}
+
+const okResult = (label = 'Target audience'): AutofillSectionResult => ({
+  outcome: 'ok',
+  source: 'search',
+  draft: {
+    label,
+    html: '<p>Neighbourhood regulars, not destination diners.</p>',
+    text: 'Neighbourhood regulars, not destination diners.',
+    sources: [{ title: 'About', url: 'https://acme.example/about' }],
+  },
+})
+
+const autofillButtons = () => screen.queryAllByRole('button', { name: /^Auto-fill / })
 
 // ---------------------------------------------------------------------------
 // Provenance (Stage 1B)
@@ -440,5 +478,169 @@ describe('BrandGuidelinesEditor staged drafts', () => {
 
     await waitFor(() => expect(sectionLabels()).toHaveLength(1))
     expect(onStagedConsumed).not.toHaveBeenCalled()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Auto-fill (guideline auto-fill, Phase D)
+// ---------------------------------------------------------------------------
+//
+// The editor's half of the feature: a labelled, empty row grows a sparkle, the
+// draft lands through the same one-shot insert channel a capture uses, and
+// nothing is saved until the user's ordinary Save. The server's half — path
+// selection, guards, the ledger — has its own suite; `onAutofill` here is a
+// promise the tests control.
+
+describe('BrandGuidelinesEditor auto-fill', () => {
+  beforeEach(() => {
+    mutate.mockClear()
+    toastSuccess.mockClear()
+    toastError.mockClear()
+    toastInfo.mockClear()
+  })
+
+  it('renders no sparkle when the prop is absent', () => {
+    render(<BrandGuidelinesEditor brand={brandWithEmptySection()} />)
+    expect(autofillButtons()).toHaveLength(0)
+  })
+
+  it('offers auto-fill only on an empty row that has a label', async () => {
+    render(<BrandGuidelinesEditor brand={brandWithEmptySection()} onAutofill={vi.fn()} />)
+    // A blank-labelled row (the capture shape) gets no sparkle either.
+    await userEvent.click(screen.getByRole('button', { name: '+ Add section' }))
+
+    const buttons = autofillButtons()
+    expect(buttons).toHaveLength(1)
+    // Not the filled `Voice & tone` row, not the nameless one.
+    expect(buttons[0]?.getAttribute('aria-label')).toBe('Auto-fill Target audience with AI')
+  })
+
+  it('inserts the draft, flips provenance to agent, and saves nothing on its own', async () => {
+    const onAutofill = vi.fn(() => Promise.resolve(okResult()))
+    render(<BrandGuidelinesEditor brand={brandWithEmptySection()} onAutofill={onAutofill} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Auto-fill Target audience with AI' }))
+
+    expect(onAutofill).toHaveBeenCalledWith('Target audience')
+    expect(await screen.findByText('Neighbourhood regulars, not destination diners.')).toBeTruthy()
+    // A draft gesture, like capture: the commit is the user's Save.
+    expect(mutate).not.toHaveBeenCalled()
+    expect(toastSuccess).toHaveBeenCalledWith(expect.stringContaining('drafted from 1 source'))
+    // The row now has content, so the sparkle is gone (empty rows only, v1).
+    await waitFor(() => expect(autofillButtons()).toHaveLength(0))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save guidelines' }))
+    expect(savedSections()[1]).toMatchObject({ label: 'Target audience', createdBy: 'agent' })
+  })
+
+  it('disables every sparkle while one row is filling', async () => {
+    let resolve: (r: AutofillSectionResult) => void = () => {}
+    const onAutofill = vi.fn(() => new Promise<AutofillSectionResult>((r) => (resolve = r)))
+    const two = brandWithEmptySection()
+    two.sections.push({
+      ...two.sections[1]!,
+      id: 's-empty-2' as BrandWithSections['sections'][number]['id'],
+      label: 'Messaging frameworks',
+      priority: 3000,
+    })
+    render(<BrandGuidelinesEditor brand={two} onAutofill={onAutofill} />)
+    expect(autofillButtons()).toHaveLength(2)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Auto-fill Target audience with AI' }))
+
+    // One in flight at a time — the client half of the double-click guard.
+    await waitFor(() =>
+      expect(autofillButtons().every((b) => (b as HTMLButtonElement).disabled)).toBe(true),
+    )
+
+    resolve(okResult())
+    await screen.findByText('Neighbourhood regulars, not destination diners.')
+    // The other row's sparkle is usable again.
+    await waitFor(() =>
+      expect(
+        (
+          screen.getByRole('button', {
+            name: 'Auto-fill Messaging frameworks with AI',
+          }) as HTMLButtonElement
+        ).disabled,
+      ).toBe(false),
+    )
+  })
+
+  it('keeps the row empty on no-material and toasts honestly', async () => {
+    const onAutofill = vi.fn(() =>
+      Promise.resolve({ outcome: 'no-material', source: 'report', draft: null } as const),
+    )
+    render(<BrandGuidelinesEditor brand={brandWithEmptySection()} onAutofill={onAutofill} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Auto-fill Target audience with AI' }))
+
+    await waitFor(() =>
+      expect(toastInfo).toHaveBeenCalledWith(expect.stringContaining("doesn't cover")),
+    )
+    // Nothing landed, so the row is still fillable — and still unsaved.
+    expect(autofillButtons()).toHaveLength(1)
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it("surfaces the server's own message when the fill fails", async () => {
+    const onAutofill = vi.fn(() =>
+      Promise.reject(
+        new AppError(
+          'This workspace has used its 20 section auto-fills for today.',
+          'RESEARCH_LIMIT',
+          429,
+        ),
+      ),
+    )
+    render(<BrandGuidelinesEditor brand={brandWithEmptySection()} onAutofill={onAutofill} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Auto-fill Target audience with AI' }))
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'This workspace has used its 20 section auto-fills for today.',
+      ),
+    )
+    // The row is untouched and the sparkle is back for a retry.
+    expect(autofillButtons()).toHaveLength(1)
+  })
+
+  // The draft rides the same `pendingInserts` channel a capture does, whose
+  // `insertedRef` keys on payload identity — the 1.5.0 StrictMode lesson,
+  // inherited. This pins that the new producer actually gets that guard.
+  it('inserts the draft exactly once under StrictMode', async () => {
+    const onAutofill = vi.fn(() => Promise.resolve(okResult()))
+    render(
+      <StrictMode>
+        <BrandGuidelinesEditor brand={brandWithEmptySection()} onAutofill={onAutofill} />
+      </StrictMode>,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Auto-fill Target audience with AI' }))
+
+    await waitFor(() =>
+      expect(document.body.textContent).toContain(
+        'Neighbourhood regulars, not destination diners.',
+      ),
+    )
+    expect(
+      (document.body.textContent ?? '').split('Neighbourhood regulars, not destination diners.')
+        .length - 1,
+    ).toBe(1)
+  })
+
+  // The dialog forwarder — the same pure pass-through `staged` already proves,
+  // for the new prop. `BrandContextPane` has its own twin in its test file.
+  it('reaches the editor through EditGuidelinesDialog', async () => {
+    render(
+      <EditGuidelinesDialog
+        brand={brandWithEmptySection()}
+        open
+        onOpenChange={vi.fn()}
+        onAutofill={vi.fn(() => Promise.resolve(okResult()))}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Auto-fill Target audience with AI' })).toBeTruthy()
   })
 })

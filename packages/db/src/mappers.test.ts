@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { ProseMirrorDoc } from '@brandfactory/shared'
+import { SocialPostSchema } from '@brandfactory/shared'
+import type { BrandAssetId, ProseMirrorDoc } from '@brandfactory/shared'
 import {
   rowToAgentMessage,
   rowToBrand,
@@ -10,6 +11,7 @@ import {
   rowToGuidelineSection,
   rowToProject,
   rowToProjectSummary,
+  rowToSocialPost,
   rowToWorkspace,
 } from './mappers'
 
@@ -295,6 +297,44 @@ describe('rowToBrandAsset', () => {
     ['link', { source: 'link' as const, value: null, url: null }, /missing url/],
   ])('throws when a %s row has lost its source column', (_name, columns, message) => {
     expect(() => rowToBrandAsset({ ...assetRow, ...columns })).toThrow(message)
+  })
+})
+
+describe('rowToSocialPost', () => {
+  const postRow = {
+    id: 'p-1',
+    brandId: 'b-1',
+    platform: 'instagram' as const,
+    scheduledAt: null,
+    body: '',
+    status: 'draft' as const,
+    deletedAt: null,
+    createdAt: TS,
+    updatedAt: TS,
+  }
+
+  // The wire shape is the proof: Postgres-format timestamps normalised to ISO
+  // (or `bySchedule`'s string comparison breaks), null slot and caller-order
+  // assetIds carried through.
+  it('parses as SocialPost with Postgres-format timestamps normalised', () => {
+    const p = rowToSocialPost(
+      {
+        ...postRow,
+        scheduledAt: '2026-08-14 10:30:00.123456+00',
+        createdAt: '2026-07-22 07:57:59.635905+00',
+        updatedAt: '2026-07-22 07:57:59.635905+00',
+      },
+      ['a-2', 'a-1'] as BrandAssetId[],
+    )
+    expect(SocialPostSchema.safeParse(p).success).toBe(true)
+    expect(p.scheduledAt).toBe('2026-08-14T10:30:00.123Z')
+    expect(p.assetIds).toEqual(['a-2', 'a-1'])
+  })
+
+  it('leaves null scheduledAt and deletedAt null', () => {
+    const p = rowToSocialPost(postRow, [])
+    expect(p.scheduledAt).toBeNull()
+    expect(p.deletedAt).toBeNull()
   })
 })
 

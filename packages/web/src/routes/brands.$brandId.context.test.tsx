@@ -25,6 +25,8 @@ const h = vi.hoisted(() => ({
   // Swapped per test so the brand query's pending / error states are reachable;
   // the page gates its list on the brand (ProjectCard needs workspaceId).
   brand: { data: undefined as unknown, isPending: false, isError: false },
+  // What `useBrandResearch` answers — the auto-fill gate's other half.
+  research: undefined as unknown,
 }))
 
 vi.mock('@tanstack/react-router', () => ({
@@ -57,7 +59,14 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('@/api/queries/brands', () => ({
   useBrand: () => h.brand,
   useBrandProjects: () => ({ data: h.projects, isPending: false, isError: false }),
+  useAutofillSection: () => ({ mutateAsync: vi.fn() }),
 }))
+
+// `canAutofillSections` stays real — it is the gate under test below.
+vi.mock('@/api/queries/research', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>
+  return { ...actual, useBrandResearch: () => ({ data: h.research }) }
+})
 
 vi.mock('@/api/queries/projects', () => ({
   useCreateProject: () => ({ mutate: vi.fn(), isPending: false }),
@@ -89,8 +98,12 @@ vi.mock('@/components/project/NewProjectDialog', () => ({
 // live TipTap instance. What matters here is the wiring — that the rail's
 // `onEdit` reaches this dialog's `open`.
 vi.mock('@/components/brand/EditGuidelinesDialog', () => ({
-  EditGuidelinesDialog: ({ open }: { open: boolean }) => (
-    <div data-testid="edit-guidelines" data-open={String(open)} />
+  EditGuidelinesDialog: ({ open, onAutofill }: { open: boolean; onAutofill?: unknown }) => (
+    <div
+      data-testid="edit-guidelines"
+      data-open={String(open)}
+      data-autofill={String(typeof onAutofill === 'function')}
+    />
   ),
 }))
 
@@ -126,6 +139,7 @@ describe('brand context route', () => {
     h.params = { brandId: 'b-1' }
     h.projects = []
     h.brand = { data: BRAND, isPending: false, isError: false }
+    h.research = undefined
   })
 
   it('lists only this brand’s conversations', () => {
@@ -213,5 +227,29 @@ describe('brand context route', () => {
     h.brand = { data: undefined, isPending: false, isError: true }
     render(<BrandContextPage />)
     expect(screen.queryByRole('complementary', { name: 'Brand context' })).toBeNull()
+  })
+
+  // Phase D wiring: the dialog's auto-fill exists iff this page computed that
+  // a fill can succeed. The rule (`canAutofillSections`) has its own unit
+  // tests; these pin that the page feeds it the right facts and forwards the
+  // callback — the callback-is-the-gate convention.
+  it('hands the dialog auto-fill when the search path is open', () => {
+    h.brand = {
+      data: { ...BRAND, websiteUrl: 'https://acme.example' },
+      isPending: false,
+      isError: false,
+    }
+    h.research = { enabled: true, job: null }
+    render(<BrandContextPage />)
+
+    expect(screen.getByTestId('edit-guidelines').getAttribute('data-autofill')).toBe('true')
+  })
+
+  it('hands the dialog no auto-fill when nothing could serve it', () => {
+    // Provider off, no report, no website: the server would refuse every path.
+    h.research = { enabled: false, job: null }
+    render(<BrandContextPage />)
+
+    expect(screen.getByTestId('edit-guidelines').getAttribute('data-autofill')).toBe('false')
   })
 })

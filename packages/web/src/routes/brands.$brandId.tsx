@@ -6,8 +6,14 @@ import { rootRoute } from './__root'
 import { getAuthToken } from '@/auth/store'
 import { AppError } from '@/api/client'
 import { useAssetUrl, useBrandAssets } from '@/api/queries/assets'
-import { useBrand, useBrandProjects, useDeleteBrand, useUpdateBrand } from '@/api/queries/brands'
-import { useBrandResearch, useStartResearch } from '@/api/queries/research'
+import {
+  useAutofillSection,
+  useBrand,
+  useBrandProjects,
+  useDeleteBrand,
+  useUpdateBrand,
+} from '@/api/queries/brands'
+import { canAutofillSections, useBrandResearch, useStartResearch } from '@/api/queries/research'
 import { BrandHubView } from '@/components/brand/BrandHubView'
 import { EditGuidelinesDialog } from '@/components/brand/EditGuidelinesDialog'
 import { ResearchReportDialog } from '@/components/brand/ResearchReportDialog'
@@ -61,6 +67,7 @@ function BrandHubPage() {
   // keep implying a healthy run.
   const { data: research, isError: researchUnreachable } = useBrandResearch(brandId)
   const startResearch = useStartResearch(brandId)
+  const autofillSection = useAutofillSection(brandId)
   const [renameOpen, setRenameOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -176,6 +183,15 @@ function BrandHubPage() {
         // The other half of E2's landing: the save is what puts accepted drafts
         // in the guidelines, so the save is what stops the rail offering them.
         onSaved={landing.onGuidelinesSaved}
+        // Absent unless a report exists to re-read or the search path is open
+        // (provider on + website recorded) — the same callback-is-the-gate
+        // convention as `onStartResearch` above. `mutateAsync`, because the
+        // editor owns turning the result into an insert and a toast.
+        onAutofill={
+          canAutofillSections(research, brand.websiteUrl)
+            ? (label) => autofillSection.mutateAsync(label)
+            : undefined
+        }
       />
 
       {/* Mounted only once there is a job, so the dialog never holds an empty

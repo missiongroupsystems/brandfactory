@@ -3,7 +3,8 @@ import { createRoute, redirect } from '@tanstack/react-router'
 import { MessagesSquare } from 'lucide-react'
 import { rootRoute } from './__root'
 import { getAuthToken } from '@/auth/store'
-import { useBrand, useBrandProjects } from '@/api/queries/brands'
+import { useAutofillSection, useBrand, useBrandProjects } from '@/api/queries/brands'
+import { canAutofillSections, useBrandResearch } from '@/api/queries/research'
 import { BrandContextRail } from '@/components/brand/BrandContextRail'
 import { EditGuidelinesDialog } from '@/components/brand/EditGuidelinesDialog'
 import { BRAND_CONTEXT_TEMPLATE_ID, isBrandContextThread } from '@/components/brand/miniApps'
@@ -41,6 +42,11 @@ function BrandContextPage() {
     isPending: threadsPending,
     isError: threadsError,
   } = useBrandProjects(brandId)
+  // For the dialog's auto-fill gate. The 5-second poll self-stops when nothing
+  // is in flight (the interval is a function of the job's status), so mounting
+  // this here costs one request per visit for almost every brand.
+  const { data: research } = useBrandResearch(brandId)
+  const autofillSection = useAutofillSection(brandId)
   const [editOpen, setEditOpen] = useState(false)
 
   // Client-side filter, per the 1.4.0 non-goal: the threads endpoint is
@@ -125,7 +131,18 @@ function BrandContextPage() {
             />
           </div>
 
-          <EditGuidelinesDialog brand={brand} open={editOpen} onOpenChange={setEditOpen} />
+          <EditGuidelinesDialog
+            brand={brand}
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            // Same gate as the hub's dialog: absent unless a report exists or
+            // the search path is open. The callback is the gate.
+            onAutofill={
+              canAutofillSections(research, brand.websiteUrl)
+                ? (label) => autofillSection.mutateAsync(label)
+                : undefined
+            }
+          />
         </>
       )}
     </div>

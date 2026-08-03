@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.19.0** — 2026-08-03 — Guideline sections auto-fill from the brand's research, or from a targeted search of its site. Migration 0008.
 - **1.18.1** — 2026-08-03 — Nested nav threads read as children: inset child pill, inked parent row. 1054 tests.
 - **1.18.0** — 2026-08-03 — The report reads the way Perplexity renders it: `[n]` markers become linked citation chips, one markdown register across chat and modal. 1051 tests.
 - **1.17.0** — 2026-08-03 — The context page shows the guideline blocks beside the conversations; the rail's self-link goes. 1042 tests.
@@ -51,6 +52,157 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.19.0 — 2026-08-03
+
+**Every guideline section is a blank box the brand already has the answer to.**
+
+The ask came off two screenshots — the brand-context pane of a research thread,
+and the Overview page's Brand context sections — and was the same in both:
+*Voice & tone and all the others should be AI auto-populatable.* The text
+exists. For a brand that has been researched it is sitting in a 48,000-character
+report nobody re-reads; for one that has not, it is on the brand's own website.
+What was missing was the two lines of plumbing between either source and the row
+the user is looking at.
+
+Ships Phases A–E of
+[`docs/executing/guideline-section-autofill.md`](executing/guideline-section-autofill.md).
+
+### 1. One sparkle, three surfaces, two paths
+
+`BrandGuidelinesEditor` is the single implementation behind all three mounts, so
+the affordance is one component's change: a labelled row with an empty body
+grows a `Sparkles` button beside its delete control. Click it, the text arrives
+in the TipTap editor, and **nothing is saved** — the ordinary *Save guidelines*
+is still the commit, through the one client writer every other landing path
+funnels through.
+
+Where the text comes from is decided **on the server, per request**, and the
+client never asks:
+
+- **Path R — a completed research report exists.** A single-section variant of
+  the 3D shaping pass runs on the workspace's own configured model and extracts
+  just the requested label. Cents of the user's own LLM tokens, seconds, and it
+  works with `RESEARCH_PROVIDER=none` — the report is already paid for.
+- **Path S — no report.** A targeted `sonar-pro` search of the brand's site,
+  synchronously. ~$0.01 and 5–8 seconds, not a $0.38 deep run per click.
+
+Availability is the absent-and-explained convention: the routes compute
+`hasReportToRead(job) || (enabled && websiteUrl)` from queries they already run
+and pass `onAutofill` only when true. No prop, no sparkle.
+
+### 2. The A0 spike bought the correctness requirement, not the cost estimate
+
+The plan sized the spike as *does the model follow the format, what does it
+cost*. The format never failed. What failed was the company: the same prompt run
+without pinning search to the brand's domain retrieved 19 generic "brand voice
+examples" articles and wrote a confident, cited `Voice & tone` section **about a
+same-named other business**. Pinned, all 11 sources were the brand's own pages
+and the text quoted the site's own words.
+
+So `search_domain_filter` is not a tuning knob here — it is the enforcement, and
+`searchDomainFor` **throws rather than searching unpinned** on a URL it cannot
+parse. The URL in the prompt is only a suggestion. Total spike spend: $0.021,
+against a bug that would have shipped 1,000 plausible characters about the wrong
+company into a brand's permanent guidelines.
+
+### 3. `section_autofill_events` — migration 0008
+
+A spend ledger rather than a `kind` column on `brand_research_jobs`, whose
+partial unique in-flight index and three readers all assume one row-kind.
+Append-only: label, source, model, `numeric(12,6)` cost, sources, author, time.
+Only `source='search'` counts against `RESEARCH_SECTION_MAX_PER_DAY` (default
+20) — the cap protects vendor money and Path R spends none.
+
+It also carries the provenance guideline sections refuse: sections stay
+`{label, body, priority, createdBy}`, because a `sources` column on a table
+whose `PATCH` is a complete-list write would be silently wiped by the first
+ordinary edit. `createdBy` does flip to `'agent'` on a filled row — a
+user-created blank row that a machine fills was written by the machine.
+
+### 4. The live pass found a ship-blocker, and it was the model being right
+
+Docker and a working `PERPLEXITY_API_KEY` were both present for the first time
+since 1.13.x, so migration 0008 ran against real Postgres and the whole
+live-suite backlog ran with it. Then, asked for a `Franchise fee schedule` a
+Singapore F&B group does not have, `sonar-pro` obeyed the prompt's *"say so
+plainly and stop"* **exactly** — and wrote 600 characters explaining why it
+would not invent franchise terms.
+
+Right judgement, useless artefact, and *non-empty* — so it classified as `ok`,
+and the client was one click from pasting the model's apology into the brand's
+guidelines as agent-written text and toasting *"drafted from 10 sources"*. The
+instruction is correct in the deep prompt, where a human reads the paragraph.
+Reused per-section it produces prose where the caller needs a signal.
+
+The fix is a sentinel: the prompt now demands `NO_MATERIAL` *"and nothing else —
+no explanation, no apology"*, and `isNoMaterial` matches it on the whole body,
+normalised on both sides. Not a substring search — a real `Values` section may
+legitimately mention "no material waste". Re-validated live: the same label came
+back `no-material` in 2.6s, and a real section arrived at 1,168 characters,
+under the 1,200 target for the first time.
+
+**Five real searches, $0.044820, every row on the ledger.** Latency 4.6–8.0s.
+The cap returned `429` without calling the vendor; a brand with no website
+returned `400` without calling the vendor; `RESEARCH_PROVIDER=none` returned
+`501` without a report and **worked** with one.
+
+### 5. Post-review hardening: the same judgement on both paths
+
+A review pass after Phase E closed three gaps the live session could not have
+found, because the environment could not reach them:
+
+- **The prose-refusal reader now runs on Path R too.** The batch schema gives
+  that model a compliant way to say nothing (an empty `markdown`), which is why
+  `!text.trim()` was thought sufficient — but a writing model answering *"The
+  report does not cover Visual guidelines."* is in-schema, non-empty, and
+  exactly the artefact the sentinel exists to catch. One judgement, both paths.
+- **Upstream failures are `502 AUTOFILL_UPSTREAM`, not a bare 500.** Auto-fill
+  is the first synchronous outbound call in this repo — the deep run's failures
+  land on a job row — so it is the first place a vendor's bad afternoon reaches
+  someone watching a spinner, and what they got was *"Internal Server Error"*.
+  Now: *"The research provider is rate-limiting us right now"* at 429, *"could
+  not be reached"* otherwise, and *"check the model settings and its API key"*
+  for a Path R model failure. The cause is logged with the request id and never
+  returned.
+- **A failed ledger write no longer discards a paid draft.** The record happens
+  after the work; a throwing insert used to 500 a request whose expensive half
+  had already succeeded. It is logged loudly and the draft is returned — a cap
+  that under-counts beats a user billed twice for one section.
+
+### Verification
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean
+pnpm test                         autofill stream green (521 server/agent/adapter/shared/db,
+                                  66 across the web surfaces it touches)
+pnpm -F @brandfactory/web build   clean
+pnpm -F @brandfactory/db db:migrate   0008 applied against real Postgres
+```
+
+The live-Postgres suites, including this feature's own `autofill.live.test.ts`,
+ran with `DATABASE_URL` set during the Phase E pass: **1299 passed, 0 skipped**.
+
+### Caveats
+
+- **Path R has never produced a draft against a real model.** `OPENROUTER_API_KEY`
+  in `.env` is a placeholder, so every `generateObject` call dies at the vendor.
+  Routing is proven — the request reaches `shapeSectionFromReport` — but no
+  report-derived section has been seen, and `no-material` / `invalid-shape` on
+  that path are unexercised live. **The headline gap in this release**, and it
+  is one section fill and one screenshot away from closed.
+- **The sentinel is validated on one vendor, one model, four labels.** A model
+  that pads it with a sentence still classifies as `ok`.
+- **`PERPLEXITY_API_KEY` is the temporary key** and must be rotated before
+  production.
+- A test brand remains in the dev database —
+  `Ebb & Flow Group (Phase E Path S)`, `49247390-91bd-4fc7-ab05-e3c8a3974d9e` —
+  left deliberately as the pass's evidence.
+- On rows that show a sparkle the delete button sits ~28px lower than on rows
+  that do not; the two share a flex column. Minor, unresolved.
 
 ---
 

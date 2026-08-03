@@ -2,9 +2,14 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
-import { createPerplexityResearchProvider, extractSources, toJobState } from './perplexity'
+import {
+  createPerplexityResearchProvider,
+  extractSources,
+  searchDomainFor,
+  toJobState,
+} from './perplexity'
 import { ResearchProviderError } from './port'
-import { buildResearchPrompt } from './prompt'
+import { buildResearchPrompt, buildSectionSearchPrompt } from './prompt'
 
 // ---------------------------------------------------------------------------
 // Against the captured run, not against a hand-written mock
@@ -21,12 +26,25 @@ const fixture = (name: string) =>
 
 const SUBMITTED = fixture('deep-research-submit.json')
 const COMPLETED = fixture('deep-research-completed.json')
+// Guideline auto-fill Phase A's spike, 2026-08-03: `sonar-pro`, one section,
+// 7.1 s, $0.011 — with search pinned to the brand's domain, which is the run
+// the adapter reproduces. See fixtures/README.md for the unpinned control.
+const SECTION_COMPLETED = fixture('section-search-completed.json')
 
 const REQ = {
   jobId: 'job-1',
   brandName: 'Casa Vostra',
   websiteUrl: 'https://casavostra.example',
   model: 'sonar-deep-research',
+}
+
+const SECTION_REQ = {
+  brandName: 'Ebb & Flow Group',
+  websiteUrl: 'https://www.ebbflowgroup.com',
+  label: 'Voice & tone',
+  description: 'How the brand sounds — personality, phrasing rules, do/don’t examples.',
+  existingLabels: ['Target audience', 'Values & positioning'],
+  model: 'sonar-pro',
 }
 
 function providerWith(handler: (url: string, init: RequestInit) => unknown, status = 200) {
@@ -108,6 +126,78 @@ describe('poll', () => {
     // Thrown, so the ticker retries. Resolving `failed` here would bury a job
     // that is still running at the vendor — and still being paid for.
     await expect(provider.poll('x')).rejects.toBeInstanceOf(ResearchProviderError)
+  })
+})
+
+describe('searchSection', () => {
+  it('posts one chat completion with the section prompt and the requested model', async () => {
+    const { provider, calls } = providerWith(() => SECTION_COMPLETED)
+    await provider.searchSection(SECTION_REQ)
+
+    expect(calls[0]!.url).toBe('https://api.perplexity.ai/chat/completions')
+    expect(calls[0]!.init.method).toBe('POST')
+    const body = JSON.parse(String(calls[0]!.init.body)) as {
+      model: string
+      messages: { role: string; content: string }[]
+    }
+    expect(body.model).toBe('sonar-pro')
+    expect(body.messages[0]!.content).toBe(buildSectionSearchPrompt(SECTION_REQ))
+  })
+
+  // The load-bearing parameter. A0 ran the identical prompt without it and the
+  // vendor wrote a confident, cited section about a same-named other company —
+  // 19 of its 20 sources were generic "brand voice examples" articles. The URL
+  // in the prompt is a suggestion; this is the enforcement.
+  it('pins the search to the brand domain, www stripped', async () => {
+    const { provider, calls } = providerWith(() => SECTION_COMPLETED)
+    await provider.searchSection(SECTION_REQ)
+
+    const body = JSON.parse(String(calls[0]!.init.body)) as { search_domain_filter: string[] }
+    expect(body.search_domain_filter).toEqual(['ebbflowgroup.com'])
+  })
+
+  it('reads content, sources and vendor-reported cost off the captured run', async () => {
+    const { provider } = providerWith(() => SECTION_COMPLETED)
+    const result = await provider.searchSection(SECTION_REQ)
+
+    expect(result.content.length).toBeGreaterThan(500)
+    // The pinned run's whole point: every source is the brand's own domain.
+    expect(result.sources.length).toBe(11)
+    expect(result.sources.every((s) => s.url.includes('ebbflowgroup.com'))).toBe(true)
+    expect(result.usage.costUsd).toBeGreaterThan(0)
+    expect(result.usage.costUsd).toBeLessThan(0.05)
+  })
+
+  // Decision 7's seam: "the model found too little" is the service's
+  // classification, not an adapter guess — unlike a COMPLETED deep run with no
+  // report, where the vendor contradicts its own status.
+  it('passes an empty completion through as a result, not an error', async () => {
+    const { provider } = providerWith(() => ({ choices: [{ message: { content: '' } }] }))
+    const result = await provider.searchSection(SECTION_REQ)
+    expect(result.content).toBe('')
+    expect(result.sources).toEqual([])
+    expect(result.usage.costUsd).toBeNull()
+  })
+
+  it('carries the HTTP status on a rejection, so a caller can tell 401 from 429', async () => {
+    const { provider } = providerWith(() => ({ error: 'nope' }), 429)
+    await expect(provider.searchSection(SECTION_REQ)).rejects.toMatchObject({ status: 429 })
+  })
+
+  it('refuses an unparseable website URL before spending anything', async () => {
+    const fakeFetch = vi.fn() as unknown as typeof fetch
+    const provider = createPerplexityResearchProvider({ apiKey: 'k', fetch: fakeFetch })
+    await expect(
+      provider.searchSection({ ...SECTION_REQ, websiteUrl: 'not a url' }),
+    ).rejects.toBeInstanceOf(ResearchProviderError)
+    expect(fakeFetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('searchDomainFor', () => {
+  it('derives the bare domain from the brand website URL', () => {
+    expect(searchDomainFor('https://www.ebbflowgroup.com')).toBe('ebbflowgroup.com')
+    expect(searchDomainFor('https://shop.example.co.uk/about')).toBe('shop.example.co.uk')
   })
 })
 
@@ -214,6 +304,28 @@ describe('request timeouts', () => {
     await provider.poll('abc-123')
 
     expect(calls[0]!.init.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  // The section search is the one *synchronous* call — the vendor searches and
+  // writes inside it, and a user is watching a spinner — so it gets its own,
+  // longer ceiling rather than sharing the async line's 30 seconds.
+  it('bounds the section search too, on its own timeout', async () => {
+    const { provider, calls } = providerWith(() => SECTION_COMPLETED)
+    await provider.searchSection(SECTION_REQ)
+
+    expect(calls[0]!.init.signal).toBeInstanceOf(AbortSignal)
+
+    const fakeFetch = vi.fn(() =>
+      Promise.reject(new DOMException('The operation was aborted.', 'TimeoutError')),
+    ) as unknown as typeof fetch
+    const slow = createPerplexityResearchProvider({
+      apiKey: 'k',
+      fetch: fakeFetch,
+      sectionTimeoutMs: 1,
+    })
+    await expect(slow.searchSection(SECTION_REQ)).rejects.toThrow(
+      /Could not reach the research provider/,
+    )
   })
 
   // An abort surfaces as a provider error, which is what the reconciler already

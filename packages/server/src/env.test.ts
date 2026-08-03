@@ -177,4 +177,19 @@ describe('research env', () => {
       loadEnv({ ...baseLocal, RESEARCH_MAX_JOBS_PER_DAY: '0' } as NodeJS.ProcessEnv),
     ).toThrow()
   })
+
+  // Guideline auto-fill's Path S (Phase A). A search-grounded model, not the
+  // deep researcher: the spike measured ~$0.01 / 5–7 s per section against
+  // $0.38 / 4 min per run.
+  it('defaults the section search to sonar-pro with its own capped per-day count', () => {
+    const env = loadEnv(baseLocal as NodeJS.ProcessEnv)
+    expect(env.RESEARCH_SECTION_MODEL).toBe('sonar-pro')
+    expect(env.RESEARCH_SECTION_MAX_PER_DAY).toBe(20)
+  })
+
+  it('refuses a zero section cap, same reasoning as the run cap', () => {
+    expect(() =>
+      loadEnv({ ...baseLocal, RESEARCH_SECTION_MAX_PER_DAY: '0' } as NodeJS.ProcessEnv),
+    ).toThrow()
+  })
 })

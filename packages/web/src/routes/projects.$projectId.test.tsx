@@ -8,6 +8,10 @@ import { projectRoute } from './projects.$projectId'
 
 const h = vi.hoisted(() => ({
   detail: { data: undefined as unknown, isLoading: false, error: null as unknown },
+  // What `useBrandResearch` answers, and which brand ids it was asked about —
+  // '' is the disabled query an ordinary thread must stick to.
+  research: undefined as unknown,
+  researchCalls: [] as string[],
 }))
 
 vi.mock('@tanstack/react-router', () => ({
@@ -27,6 +31,23 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('@/api/queries/projects', () => ({
   useProjectDetail: () => h.detail,
 }))
+
+vi.mock('@/api/queries/brands', () => ({
+  useAutofillSection: () => ({ mutateAsync: vi.fn() }),
+}))
+
+// `canAutofillSections` stays real — the gate is the thing under test — while
+// the query hook is a recorder, so the poll-gating is assertable per thread.
+vi.mock('@/api/queries/research', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>
+  return {
+    ...actual,
+    useBrandResearch: (brandId: string) => {
+      h.researchCalls.push(brandId)
+      return { data: h.research }
+    },
+  }
+})
 
 vi.mock('@/realtime/useProjectStream', () => ({ useProjectStream: () => undefined }))
 // The two panes and the surrounding chrome are stubbed to markers: this test is
@@ -66,11 +87,18 @@ vi.mock('@/components/canvas/CanvasPane', () => ({ CanvasPane: () => <div>canvas
 vi.mock('@/components/brand/BrandContextPane', () => ({
   // The channel is a list since Stage 3E; this route still puts exactly one
   // thing on it, and reading `[0]` is what keeps that assertable.
-  BrandContextPane: ({ staged }: { staged?: StagedSection[] | null }) => (
+  BrandContextPane: ({
+    staged,
+    onAutofill,
+  }: {
+    staged?: StagedSection[] | null
+    onAutofill?: unknown
+  }) => (
     <div>
       <div>brand-context-pane</div>
       <div>{`pane-staged:${staged?.[0]?.payload.text ?? 'none'}`}</div>
       <div>{`pane-staged-count:${staged?.length ?? 0}`}</div>
+      <div>{`pane-autofill:${String(typeof onAutofill === 'function')}`}</div>
     </div>
   ),
 }))
@@ -126,6 +154,8 @@ function detail(kind: ProjectDetail['kind'], templateId?: string): ProjectDetail
 describe('project route right pane', () => {
   beforeEach(() => {
     h.detail = { data: undefined, isLoading: false, error: null }
+    h.research = undefined
+    h.researchCalls = []
   })
 
   it('renders the guidelines pane for a brand-context thread', () => {
@@ -178,11 +208,77 @@ describe('project route right pane', () => {
   })
 })
 
+// Phase D of guideline auto-fill: the pane's sparkle exists iff this route
+// computed that a fill can succeed — a report to re-read, or provider+website
+// for the search path. The rule itself (`canAutofillSections`) is unit-tested
+// with the research queries; what is pinned here is the wiring and the gating.
+describe('project route auto-fill wiring', () => {
+  beforeEach(() => {
+    h.detail = { data: undefined, isLoading: false, error: null }
+    h.research = undefined
+    h.researchCalls = []
+  })
+
+  const completedJob = {
+    id: 'j-1',
+    status: 'COMPLETED',
+    startedAt: null,
+    completedAt: null,
+    error: null,
+    drafts: [],
+    sourceCount: 0,
+  }
+
+  it('offers auto-fill in a brand-context thread once a report exists', () => {
+    h.detail = { data: detail('standardized', 'brand-context'), isLoading: false, error: null }
+    // Research off, report present: Path R is the user's own tokens.
+    h.research = { enabled: false, job: completedJob }
+    render(<ProjectPage />)
+
+    expect(screen.getByText('pane-autofill:true')).toBeTruthy()
+  })
+
+  it('offers auto-fill when the search path is open (provider on, website recorded)', () => {
+    const d = detail('standardized', 'brand-context')
+    d.brand.websiteUrl = 'https://acme.example'
+    h.detail = { data: d, isLoading: false, error: null }
+    h.research = { enabled: true, job: null }
+    render(<ProjectPage />)
+
+    expect(screen.getByText('pane-autofill:true')).toBeTruthy()
+  })
+
+  it('offers nothing without a report, a provider, or a website', () => {
+    // Provider on but no website (the fixture's default), no report — the
+    // server would refuse the search, so the sparkle never renders.
+    h.detail = { data: detail('standardized', 'brand-context'), isLoading: false, error: null }
+    h.research = { enabled: true, job: null }
+    render(<ProjectPage />)
+
+    expect(screen.getByText('pane-autofill:false')).toBeTruthy()
+  })
+
+  it('polls research only for brand-context threads', () => {
+    h.detail = { data: detail('standardized', 'brand-context'), isLoading: false, error: null }
+    const { unmount } = render(<ProjectPage />)
+    expect(h.researchCalls).toContain(BRAND_ID)
+    unmount()
+
+    h.researchCalls = []
+    h.detail = { data: detail('freeform'), isLoading: false, error: null }
+    render(<ProjectPage />)
+    // '' is the disabled query: an ordinary thread never asks.
+    expect(h.researchCalls.every((id) => id === '')).toBe(true)
+  })
+})
+
 // Phase E. Capture works in every thread; what differs is where the editor is
 // when the payload arrives.
 describe('project route capture destination', () => {
   beforeEach(() => {
     h.detail = { data: undefined, isLoading: false, error: null }
+    h.research = undefined
+    h.researchCalls = []
   })
 
   it('brings up the guidelines dialog, staged, from a thread whose pane is the canvas', async () => {

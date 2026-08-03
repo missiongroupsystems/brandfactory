@@ -43,6 +43,10 @@ export interface Db {
   setResearchJobReportProject: typeof db.setResearchJobReportProject
   clearResearchJobDrafts: typeof db.clearResearchJobDrafts
 
+  // Section auto-fill events (guideline auto-fill, Phase C)
+  recordSectionAutofill: typeof db.recordSectionAutofill
+  countSectionAutofillsTodayForWorkspace: typeof db.countSectionAutofillsTodayForWorkspace
+
   // Brand assets
   listAssetsByBrand: typeof db.listAssetsByBrand
   createAsset: typeof db.createAsset
@@ -50,6 +54,13 @@ export interface Db {
   softDeleteAsset: typeof db.softDeleteAsset
   restoreAsset: typeof db.restoreAsset
   reorderAssets: typeof db.reorderAssets
+
+  // Social posts
+  listSocialPostsByBrand: typeof db.listSocialPostsByBrand
+  createSocialPost: typeof db.createSocialPost
+  updateSocialPost: typeof db.updateSocialPost
+  softDeleteSocialPost: typeof db.softDeleteSocialPost
+  restoreSocialPost: typeof db.restoreSocialPost
 
   // Blob references, across every table that holds a key
   listStillReferencedBlobKeys: typeof db.listStillReferencedBlobKeys
@@ -112,12 +123,19 @@ export function buildDbDeps(): Db {
     finishResearchJob: db.finishResearchJob,
     setResearchJobReportProject: db.setResearchJobReportProject,
     clearResearchJobDrafts: db.clearResearchJobDrafts,
+    recordSectionAutofill: db.recordSectionAutofill,
+    countSectionAutofillsTodayForWorkspace: db.countSectionAutofillsTodayForWorkspace,
     listAssetsByBrand: db.listAssetsByBrand,
     createAsset: db.createAsset,
     updateAsset: db.updateAsset,
     softDeleteAsset: db.softDeleteAsset,
     restoreAsset: db.restoreAsset,
     reorderAssets: db.reorderAssets,
+    listSocialPostsByBrand: db.listSocialPostsByBrand,
+    createSocialPost: db.createSocialPost,
+    updateSocialPost: db.updateSocialPost,
+    softDeleteSocialPost: db.softDeleteSocialPost,
+    restoreSocialPost: db.restoreSocialPost,
     listStillReferencedBlobKeys: db.listStillReferencedBlobKeys,
     getProjectById: db.getProjectById,
     listProjectsByBrand: db.listProjectsByBrand,

@@ -17,9 +17,15 @@ import { requestIdMiddleware } from './middleware/request-id'
 import type { AgentConcurrencyGuard } from './agent/concurrency'
 import { createAgentRouter } from './routes/agent'
 import { createBrandAssetsRouter } from './routes/assets'
+import { createSocialPostsRouter } from './routes/social-posts'
 import { createResearchConfigRouter } from './routes/research-config'
 import { createResearchRouter } from './routes/research'
-import { createResearchShaper, type ShapeResearchFn } from './research/shape'
+import {
+  createResearchShaper,
+  createSectionShaper,
+  type ShapeResearchFn,
+  type ShapeSectionFn,
+} from './research/shape'
 import { createBlobsRouter } from './routes/blobs'
 import { createBlobUrlsRouter } from './routes/blobs-auth'
 import { createBrandsRouter, createWorkspaceBrandsRouter } from './routes/brands'
@@ -49,6 +55,11 @@ export interface AppDeps {
    * model; the default composes the real one from `db` + `llm` + `env`.
    */
   shapeResearch?: ShapeResearchFn
+  /**
+   * Path R of guideline auto-fill — the single-section shaper. Same seam, same
+   * reason, same default composition as `shapeResearch`.
+   */
+  shapeSection?: ShapeSectionFn
   agentGuard: AgentConcurrencyGuard
 }
 
@@ -103,10 +114,25 @@ export function createApp(deps: AppDeps) {
     .route('/workspaces', createWorkspaceBrandsRouter({ db: deps.db, storage: deps.storage }))
     .route('/workspaces', createWorkspaceProjectsRouter({ db: deps.db, storage: deps.storage }))
     .route('/workspaces', createSettingsRouter({ db: deps.db, env: deps.env }))
-    .route('/brands', createBrandsRouter({ db: deps.db, storage: deps.storage }))
+    .route(
+      '/brands',
+      createBrandsRouter({
+        db: deps.db,
+        storage: deps.storage,
+        // The guidelines auto-fill (Phase C). Path S spends vendor cents, so
+        // the provider and env guards ride in; Path R's shaper composes from
+        // what the app already holds, exactly like `shapeResearch` below.
+        research: deps.research,
+        env: deps.env,
+        shapeSection:
+          deps.shapeSection ?? createSectionShaper({ db: deps.db, llm: deps.llm, env: deps.env }),
+      }),
+    )
     .route('/brands', createBrandProjectsRouter({ db: deps.db, storage: deps.storage }))
     // No `storage`: asset delete is a soft delete and must not sweep bytes.
     .route('/brands', createBrandAssetsRouter({ db: deps.db }))
+    // Same shape and same scoping; posts never see a platform API or a file.
+    .route('/brands', createSocialPostsRouter({ db: deps.db }))
     // The only router that can spend money. Its guards live in
     // `research/service.ts` rather than in the handler, because the ticker
     // needs the same lifecycle and a guard inside a handler is one the

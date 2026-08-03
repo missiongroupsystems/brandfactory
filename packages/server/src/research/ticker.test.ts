@@ -21,6 +21,13 @@ const USAGE = {
 }
 const REPORT = 'x'.repeat(2000)
 
+// The ticker reconciles jobs; it never section-searches. Spread into every
+// fake so the port's third method (guideline auto-fill Phase A) fails by name
+// if a reconcile path ever reaches it.
+const neverSearches = () => ({
+  searchSection: vi.fn(() => Promise.reject(new Error('searchSection not expected in a sweep'))),
+})
+
 const env = {
   RESEARCH_PROVIDER: 'perplexity' as const,
   RESEARCH_MODEL: 'sonar-deep-research',
@@ -45,6 +52,7 @@ describe('the ticker', () => {
     const { db } = createFakeDb()
     const job = await seedInFlightJob(db)
     const research: ResearchProvider = {
+      ...neverSearches(),
       start: vi.fn(),
       poll: vi.fn(() =>
         Promise.resolve({
@@ -68,6 +76,7 @@ describe('the ticker', () => {
     const bad = await seedInFlightJob(db, 'ext-bad')
     const good = await seedInFlightJob(db, 'ext-good')
     const research: ResearchProvider = {
+      ...neverSearches(),
       start: vi.fn(),
       poll: vi.fn((id: string) =>
         id === 'ext-bad'
@@ -99,7 +108,11 @@ describe('the ticker', () => {
           release = () => resolve({ status: 'running' })
         }),
     )
-    const ticker = createResearchTicker({ db, research: { start: vi.fn(), poll }, env })
+    const ticker = createResearchTicker({
+      db,
+      research: { start: vi.fn(), poll, ...neverSearches() },
+      env,
+    })
 
     const first = ticker.tick()
     // The first sweep has to actually reach the provider before a second one
@@ -125,7 +138,7 @@ describe('the ticker', () => {
     const { db } = createFakeDb()
     const ticker = createResearchTicker({
       db,
-      research: { start: vi.fn(), poll: vi.fn() },
+      research: { start: vi.fn(), poll: vi.fn(), ...neverSearches() },
       env,
       periodMs: 10_000,
     })
@@ -158,7 +171,11 @@ describe('the ticker', () => {
             resolve({ status: 'completed', report: REPORT, sources: [], usage: USAGE })
         }),
     )
-    const ticker = createResearchTicker({ db, research: { start: vi.fn(), poll }, env })
+    const ticker = createResearchTicker({
+      db,
+      research: { start: vi.fn(), poll, ...neverSearches() },
+      env,
+    })
 
     void ticker.tick()
     await new Promise((r) => setTimeout(r, 20))
@@ -183,7 +200,11 @@ describe('the ticker', () => {
   // hang the shutdown path it sits on.
   it('resolves immediately when no sweep is in flight', async () => {
     const { db } = createFakeDb()
-    const ticker = createResearchTicker({ db, research: { start: vi.fn(), poll: vi.fn() }, env })
+    const ticker = createResearchTicker({
+      db,
+      research: { start: vi.fn(), poll: vi.fn(), ...neverSearches() },
+      env,
+    })
     await ticker.stop()
   })
 })
@@ -192,7 +213,7 @@ describe('reconcileResearchJob', () => {
   it('leaves a just-created job alone while its submission is still in flight', async () => {
     const { db } = createFakeDb()
     const job = await seedInFlightJob(db, '')
-    const research: ResearchProvider = { start: vi.fn(), poll: vi.fn() }
+    const research: ResearchProvider = { start: vi.fn(), poll: vi.fn(), ...neverSearches() }
 
     // One second after it was created: the submission is a single round trip,
     // so this is the ordinary in-between state, not a stuck job. (The fake
@@ -211,7 +232,7 @@ describe('reconcileResearchJob', () => {
   it('fails a job that never got an external id, once the grace has passed', async () => {
     const { db } = createFakeDb()
     const job = await seedInFlightJob(db, '')
-    const research: ResearchProvider = { start: vi.fn(), poll: vi.fn() }
+    const research: ResearchProvider = { start: vi.fn(), poll: vi.fn(), ...neverSearches() }
 
     const after = await reconcileResearchJob(
       { db, research, env },
@@ -239,7 +260,7 @@ describe('reconcileResearchJob', () => {
       }),
     )
     const shape = vi.fn(() => Promise.resolve(shaped([])))
-    const deps = { db, research: { start: vi.fn(), poll }, env, shape }
+    const deps = { db, research: { start: vi.fn(), poll, ...neverSearches() }, env, shape }
 
     const results = await Promise.all([
       reconcileResearchJob(deps, job),
@@ -279,7 +300,7 @@ describe('reconcileResearchJob', () => {
     const { db } = createFakeDb()
     const job = await seedInFlightJob(db)
     const poll = vi.fn(() => Promise.resolve({ status: 'running' as const }))
-    const deps = { db, research: { start: vi.fn(), poll }, env }
+    const deps = { db, research: { start: vi.fn(), poll, ...neverSearches() }, env }
 
     await reconcileResearchJob(deps, job)
     await reconcileResearchJob(deps, job)
@@ -292,7 +313,7 @@ describe('reconcileResearchJob', () => {
     const job = await seedInFlightJob(db)
     await db.finishResearchJob(job.id, { status: 'FAILED', error: 'done already' })
     const finished = (await db.getResearchJob(job.brandId, job.id))!
-    const research: ResearchProvider = { start: vi.fn(), poll: vi.fn() }
+    const research: ResearchProvider = { start: vi.fn(), poll: vi.fn(), ...neverSearches() }
 
     const after = await reconcileResearchJob({ db, research, env }, finished)
     expect(after.status).toBe('FAILED')
@@ -328,7 +349,7 @@ describe('reconcileResearchJob', () => {
         }),
       )
       await reconcileResearchJob(
-        { db, research: { start: vi.fn(), poll }, env, shape, logger },
+        { db, research: { start: vi.fn(), poll, ...neverSearches() }, env, shape, logger },
         job,
       )
       return { lines, jobId: job.id }
@@ -401,6 +422,7 @@ describe('reconcileResearchJob', () => {
       const { db } = createFakeDb()
       const job = await seedInFlightJob(db)
       const research: ResearchProvider = {
+        ...neverSearches(),
         start: vi.fn(),
         poll: vi.fn(() => Promise.resolve({ status: 'running' as const })),
       }
@@ -413,6 +435,7 @@ describe('reconcileResearchJob', () => {
       const { db } = createFakeDb()
       const job = await seedInFlightJob(db)
       const research: ResearchProvider = {
+        ...neverSearches(),
         start: vi.fn(),
         poll: vi.fn(() => Promise.resolve({ status: 'running' as const })),
       }
@@ -433,6 +456,7 @@ describe('reconcileResearchJob', () => {
       const { db } = createFakeDb()
       const job = await seedInFlightJob(db)
       const research: ResearchProvider = {
+        ...neverSearches(),
         start: vi.fn(),
         poll: vi.fn(() => Promise.reject(new Error('404 job not found'))),
       }
@@ -448,6 +472,7 @@ describe('reconcileResearchJob', () => {
       const { db } = createFakeDb()
       const job = await seedInFlightJob(db)
       const research: ResearchProvider = {
+        ...neverSearches(),
         start: vi.fn(),
         poll: vi.fn(() => Promise.resolve({ status: 'running' as const })),
       }

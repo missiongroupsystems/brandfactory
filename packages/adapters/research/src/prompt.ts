@@ -1,4 +1,5 @@
-import { SUGGESTED_SECTIONS } from '@brandfactory/shared'
+import { DRAFT_TARGET_MAX_CHARS, SUGGESTED_SECTIONS } from '@brandfactory/shared'
+import type { SectionSearchRequest } from './port'
 
 // ---------------------------------------------------------------------------
 // The find prompt — written against a report that actually came back
@@ -44,4 +45,80 @@ Rules:
 - Under "${SUGGESTED_SECTIONS[3].label}", describe the thinking and the references — not hex values.
 - Keep each section tight. Prefer the brand's own phrasing over your summary of it.
 - If the site gives you too little to work with, say so plainly and stop. Do not fill the gaps.`
+}
+
+// ---------------------------------------------------------------------------
+// The section-search prompt — one section, synchronously, cents not dollars
+// ---------------------------------------------------------------------------
+//
+// The auto-fill counterpart (guideline auto-fill Phase A). Same vendor, a
+// different job: not a report for a human to read but **one section body a
+// TipTap row is about to receive** — so where the deep prompt asks for
+// headings, this one forbids them, and where the deep report's `[n]` markers
+// become citation chips (1.18.0), here they would render as debris and are
+// excluded by instruction (and stripped again by the shaper's post-process,
+// belt and braces).
+//
+// It keeps the deep prompt's load-bearing rules in section-sized form —
+// hex stays out, and an honest `no-material` outcome stays reachable
+// (decision 7). The A0 spike's captured run
+// (`fixtures/section-search-completed.json`) followed all of them.
+
+/**
+ * What the vendor must return when it has nothing grounded to write —
+ * **a sentinel, not a plain-language refusal.**
+ *
+ * The deep prompt's *"say so plainly and stop"* is right for a report a human
+ * reads: a paragraph explaining that the site gave it too little is a useful
+ * artefact. Reused verbatim for a section, it produced the Phase E live pass's
+ * ship-blocker. Asked for a `Franchise fee schedule` the brand does not have,
+ * `sonar-pro` obeyed perfectly and answered:
+ *
+ *   "I cannot find any information on the … website … that defines a franchise
+ *    model, franchise fees, royalty structure … Because no franchise-related
+ *    details are provided by the brand itself, there is not enough grounded
+ *    information to write a … section without inventing or extrapolating terms."
+ *
+ * — 600 characters of honest prose, which is *non-empty content*. The service
+ * classified it `ok`, and the client was one click from pasting the model's
+ * apology into a guideline row, attributing it to the agent, and toasting
+ * "drafted from 10 sources". The refusal was right; only its **shape** made it
+ * indistinguishable from a section.
+ *
+ * A sentinel makes the distinction machine-checkable, which is the same move
+ * `shapeSectionFromReport` already makes by instructing an *empty* `markdown`
+ * — there the schema gives the model a compliant way to say nothing; a chat
+ * completion has none, so one is defined here.
+ */
+export const SECTION_NO_MATERIAL_SENTINEL = 'NO_MATERIAL'
+
+export function buildSectionSearchPrompt(
+  input: Pick<
+    SectionSearchRequest,
+    'brandName' | 'websiteUrl' | 'label' | 'description' | 'existingLabels'
+  >,
+): string {
+  const lines = [
+    `Research the brand "${input.brandName}" (${input.websiteUrl}) and write the "${input.label}" section of its brand guidelines.`,
+  ]
+  if (input.description) {
+    lines.push('', `${input.label}: ${input.description}`)
+  }
+  lines.push(
+    '',
+    'Rules:',
+    `- Write the section body only — no heading, no preamble, at most ${DRAFT_TARGET_MAX_CHARS} characters of markdown.`,
+    "- Ground every claim in what you find about this brand. Prefer the brand's own site and its own words.",
+    '- Do not put citation markers like [1] or [2] in the text.',
+    '- Do not include hex colour values.',
+  )
+  if (input.existingLabels.length > 0) {
+    lines.push(
+      `- This brand's guidelines already have sections for: ${input.existingLabels.join(', ')}. Do not restate what belongs there.`,
+    )
+  }
+  lines.push(
+    `- If you cannot find enough about this brand to write this section, reply with exactly ${SECTION_NO_MATERIAL_SENTINEL} and nothing else — no explanation, no apology. Do not fill the gaps.`,
+  )
+  return lines.join('\n')
 }

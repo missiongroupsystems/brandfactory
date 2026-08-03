@@ -20,7 +20,7 @@ import {
  * Deferring by one macrotask lets Radix finish closing and restoring focus
  * before the dialog mounts and installs its own trap.
  */
-function deferUntilMenuClosed(fn: () => void): void {
+export function deferUntilMenuClosed(fn: () => void): void {
   setTimeout(fn, 0)
 }
 

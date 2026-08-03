@@ -81,6 +81,18 @@ const EnvObject = z.object({
   // vendor's documented 15-minute ceiling, because being wrong about a slow run
   // costs one re-run while being stuck costs a database console.
   RESEARCH_JOB_MAX_MINUTES: z.coerce.number().int().min(1).default(60),
+  // Guideline auto-fill's Path S (no report to read → one targeted search).
+  // A different model tier from RESEARCH_MODEL on purpose: search-grounded,
+  // synchronous, cents per call — Phase A's spike measured `sonar-pro` at
+  // ~$0.01 and 5–7 seconds per section against the deep run's $0.38 and
+  // 4 minutes.
+  RESEARCH_SECTION_MODEL: NonEmpty.default('sonar-pro'),
+  // Per-workspace, rolling 24h, counting only searches (Path R re-reads a
+  // report already paid for and spends the user's own LLM tokens, which
+  // shaping and chat already spend ungated). Twenty at ~$0.01 bounds a runaway
+  // day at pocket change while letting a real brand fill every section twice
+  // over.
+  RESEARCH_SECTION_MAX_PER_DAY: z.coerce.number().int().min(1).default(20),
 
   // LLM provider keys.
   ANTHROPIC_API_KEY: NonEmpty.optional(),

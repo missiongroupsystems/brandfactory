@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import type {
+  AutofillSectionResult,
   Brand,
   BrandGuidelineSection,
   BrandWithSections,
@@ -15,6 +16,7 @@ export const brandKeys = {
   detail: (id: string) => ['brands', id] as const,
   projects: (brandId: string) => ['brands', brandId, 'projects'] as const,
   assets: (brandId: string) => ['brands', brandId, 'assets'] as const,
+  socialPosts: (brandId: string) => ['brands', brandId, 'social-posts'] as const,
   research: (brandId: string) => ['brands', brandId, 'research'] as const,
   // Keyed by job as well as brand: a re-run is a different report, and a key that
   // only named the brand would serve the previous run's document from cache.
@@ -87,6 +89,32 @@ export function useUpdateBrandGuidelines(brandId: string) {
       return callJson<BrandGuidelineSection[]>(res)
     },
     onSuccess: (sections) => applyGuidelinesToCache(queryClient, brandId, sections),
+  })
+}
+
+/**
+ * Auto-fill one guideline section: label in, draft (or an honest `no-material`)
+ * out.
+ *
+ * **A plain mutation with no cache write, and that is the design, not an
+ * omission**: the server persists nothing — the draft's destination is the
+ * row's local editor state, and the user's ordinary Save is the commit through
+ * `useUpdateBrandGuidelines`, the one guidelines writer. Writing anything into
+ * the query cache here would claim a save that has not happened.
+ *
+ * Failure handling lives at the call site (the editor's toast), which is also
+ * where the outcome vocabulary — `ok` / `no-material` / `invalid-shape` — is
+ * turned into words.
+ */
+export function useAutofillSection(brandId: string) {
+  return useMutation({
+    mutationFn: async (label: string) => {
+      const res = await api.brands[':id'].guidelines.autofill.$post({
+        param: { id: brandId },
+        json: { label },
+      })
+      return callJson<AutofillSectionResult>(res)
+    },
   })
 }
 

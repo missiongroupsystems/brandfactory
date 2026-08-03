@@ -1,5 +1,9 @@
 import type { BrandWithSections } from '@brandfactory/shared'
-import { BrandGuidelinesEditor, type StagedSection } from '@/components/brand/BrandGuidelinesEditor'
+import {
+  BrandGuidelinesEditor,
+  type BrandGuidelinesEditorProps,
+  type StagedSection,
+} from '@/components/brand/BrandGuidelinesEditor'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -33,6 +37,12 @@ export interface EditGuidelinesDialogProps {
    * `staged` above — see `BrandGuidelinesEditorProps.onSaved` for what it is for.
    */
   onSaved?: () => void
+  /**
+   * Auto-fill, forwarded (Phase D). The route computes availability and this
+   * dialog adds nothing to the channel — typed off the editor's own prop so
+   * widening one without the other does not compile, the 3E coupling pattern.
+   */
+  onAutofill?: BrandGuidelinesEditorProps['onAutofill']
 }
 
 // Frames the guidelines editor in a dialog. The editor already owns its own
@@ -46,6 +56,7 @@ export function EditGuidelinesDialog({
   staged,
   onStagedConsumed,
   onSaved,
+  onAutofill,
 }: EditGuidelinesDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -62,6 +73,7 @@ export function EditGuidelinesDialog({
           staged={staged}
           onStagedConsumed={onStagedConsumed}
           onSaved={onSaved}
+          onAutofill={onAutofill}
         />
         <DialogFooter>
           <DialogClose asChild>

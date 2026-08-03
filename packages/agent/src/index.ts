@@ -30,3 +30,15 @@ export {
   type ShapeOutcome,
 } from './research/shape'
 export { markdownToDraftBody } from './research/markdown'
+// Guideline auto-fill, Phase B: the single-section shaper (Path R — extract one
+// label from the stored report, on the workspace's model). `stripCitationMarkers`
+// is exported for Phase C, whose Path S applies the same rule to the section
+// search's output.
+export {
+  shapeSectionFromReport,
+  buildSectionShapePrompt,
+  stripCitationMarkers,
+  type ShapeSectionInput,
+  type ShapeSectionResult,
+  type SectionShapeOutcome,
+} from './research/shapeSection'

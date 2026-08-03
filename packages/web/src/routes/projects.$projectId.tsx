@@ -2,7 +2,9 @@ import { useCallback, useState } from 'react'
 import { createRoute, redirect } from '@tanstack/react-router'
 import { rootRoute } from './__root'
 import { getAuthToken } from '@/auth/store'
+import { useAutofillSection } from '@/api/queries/brands'
 import { useProjectDetail } from '@/api/queries/projects'
+import { canAutofillSections, useBrandResearch } from '@/api/queries/research'
 import { useProjectStream } from '@/realtime/useProjectStream'
 import { SplitScreen } from '@/components/project/SplitScreen'
 import { TopBar } from '@/components/project/TopBar'
@@ -32,6 +34,27 @@ function ProjectPage() {
 
   useProjectStream(projectId)
 
+  // ProjectDetail intersects the `kind`-discriminated ProjectSchema, so this
+  // narrows without an API change. A brand-context thread swaps the canvas for
+  // the live guidelines — you cannot drop into a target you cannot see, which is
+  // what makes the Phase C capture gesture possible at all.
+  //
+  // Only the right pane branches. ChatPane is identical in every thread; the
+  // capture handles it grows in Phase C are not brand-context-specific.
+  //
+  // Computed above the early returns because the two hooks below hang off it —
+  // hooks cannot come after a conditional return, and the research poll must
+  // not mount for the threads that will never show the editor.
+  const isBrandContext =
+    data?.kind === 'standardized' && data.templateId === BRAND_CONTEXT_TEMPLATE_ID
+
+  // Gated on the pane actually being a brand-context pane: an empty id
+  // disables the query, so an ordinary thread never polls research at all.
+  // Where it does mount, the 5-second interval self-stops when nothing is in
+  // flight — the same behaviour the hub relies on.
+  const { data: research } = useBrandResearch(isBrandContext && data ? data.brand.id : '')
+  const autofillSection = useAutofillSection(data?.brand.id ?? '')
+
   if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
@@ -47,16 +70,6 @@ function ProjectPage() {
       </div>
     )
   }
-
-  // ProjectDetail intersects the `kind`-discriminated ProjectSchema, so this
-  // narrows without an API change. A brand-context thread swaps the canvas for
-  // the live guidelines — you cannot drop into a target you cannot see, which is
-  // what makes the Phase C capture gesture possible at all.
-  //
-  // Only the right pane branches. ChatPane is identical in every thread; the
-  // capture handles it grows in Phase C are not brand-context-specific.
-  const isBrandContext =
-    data.kind === 'standardized' && data.templateId === BRAND_CONTEXT_TEMPLATE_ID
 
   // One capture destination, reached two ways. In a brand-context thread the
   // editor is already the right pane, so the payload just goes to it; anywhere
@@ -92,7 +105,19 @@ function ProjectPage() {
           isBrandContext ? (
             // `data.brand` is already a full BrandWithSections, so this needs
             // no extra fetch.
-            <BrandContextPane brand={data.brand} staged={staged} onStagedConsumed={clearStaged} />
+            <BrandContextPane
+              brand={data.brand}
+              staged={staged}
+              onStagedConsumed={clearStaged}
+              // Absent unless a report exists or the search path is open —
+              // the callback-is-the-gate convention, computed from the poll
+              // this route mounts only for brand-context threads.
+              onAutofill={
+                canAutofillSections(research, data.brand.websiteUrl)
+                  ? (label) => autofillSection.mutateAsync(label)
+                  : undefined
+              }
+            />
           ) : (
             <CanvasPane
               projectId={data.id}

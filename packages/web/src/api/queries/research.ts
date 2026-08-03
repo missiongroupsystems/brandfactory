@@ -5,6 +5,7 @@ import type {
   ResearchJobSummary,
   ResearchReport,
 } from '@brandfactory/shared'
+import { hasReportToRead } from '@brandfactory/shared'
 import { api, callJson } from '@/api/client'
 import { brandKeys } from '@/api/queries/brands'
 
@@ -54,6 +55,26 @@ export function useResearchConfig(opts?: { enabled?: boolean }) {
  */
 export function researchRefetchInterval(state: BrandResearchState | undefined): number | false {
   return state?.job?.status === 'IN_PROGRESS' ? RESEARCH_POLL_MS : false
+}
+
+/**
+ * Can this brand's guideline sections be auto-filled?
+ *
+ * The availability rule (decision 8), stated once and called by all three
+ * routes that mount the editor: a stored report can always be re-read (Path R
+ * costs the user's own LLM tokens, so it works even with the provider off),
+ * and otherwise the search path needs both a provider and a website — the same
+ * hard URL gate the deep run enforces, decided here so the button never
+ * renders for a request the server would refuse.
+ *
+ * `undefined` state (query not answered yet) is `false`: the sparkle appearing
+ * a poll-tick late is better than one that renders and then 501s.
+ */
+export function canAutofillSections(
+  state: BrandResearchState | undefined,
+  websiteUrl: string | null | undefined,
+): boolean {
+  return hasReportToRead(state?.job) || Boolean(state?.enabled && websiteUrl)
 }
 
 export function useBrandResearch(brandId: string) {

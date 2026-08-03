@@ -22,5 +22,8 @@ export function createNoopResearchProvider(): ResearchProvider {
     poll() {
       return Promise.reject(new ResearchNotConfiguredError())
     },
+    searchSection() {
+      return Promise.reject(new ResearchNotConfiguredError())
+    },
   }
 }

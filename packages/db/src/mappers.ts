@@ -15,6 +15,8 @@ import {
   type ProjectSummary,
   type ProseMirrorDoc,
   type SectionId,
+  type SocialPost,
+  type SocialPostId,
   type UserId,
   type Workspace,
   type WorkspaceId,
@@ -27,6 +29,7 @@ import type {
   canvases,
   guidelineSections,
   projects,
+  socialPosts,
   workspaces,
 } from './schema'
 
@@ -38,6 +41,7 @@ type ProjectRow = typeof projects.$inferSelect
 type CanvasRow = typeof canvases.$inferSelect
 type CanvasBlockRow = typeof canvasBlocks.$inferSelect
 type AgentMessageRow = typeof agentMessages.$inferSelect
+type SocialPostRow = typeof socialPosts.$inferSelect
 
 // Parse JSON columns at the trust boundary on read. Writes are gated by
 // zod at route boundaries, but a corrupted row (bad migration, direct DB
@@ -173,6 +177,24 @@ export function rowToBrandAsset(row: BrandAssetRow): BrandAsset {
     case 'link':
       if (row.url === null) throw new Error(`Link asset ${row.id} missing url`)
       return { ...base, source: 'link', url: row.url }
+  }
+}
+
+// `assetIds` come from the caller, not the row — the wire shape carries the
+// join table's ids in `position` order, and only the query layer has both
+// halves of the aggregate in hand.
+export function rowToSocialPost(row: SocialPostRow, assetIds: BrandAssetId[]): SocialPost {
+  return {
+    id: row.id as SocialPostId,
+    brandId: row.brandId as BrandId,
+    platform: row.platform,
+    scheduledAt: toIsoTimestampOrNull(row.scheduledAt),
+    body: row.body,
+    status: row.status,
+    assetIds,
+    deletedAt: toIsoTimestampOrNull(row.deletedAt),
+    createdAt: toIsoTimestamp(row.createdAt),
+    updatedAt: toIsoTimestamp(row.updatedAt),
   }
 }
 

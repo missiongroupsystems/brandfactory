@@ -20,15 +20,19 @@ import type {
   ResearchDraft,
   ResearchJobId,
   ShortlistView,
+  SocialPost,
+  SocialPostId,
   Workspace,
   WorkspaceId,
   WorkspaceSettings,
 } from '@brandfactory/shared'
+import { bySchedule } from '@brandfactory/shared'
 import { createAgentConcurrencyGuard, type AgentConcurrencyGuard } from './agent/concurrency'
 import { createApp, type AppDeps } from './app'
-import type { ResearchJob } from '@brandfactory/db'
+import { AssetNotInBrandError } from '@brandfactory/db'
+import type { ResearchJob, SectionAutofillEvent } from '@brandfactory/db'
 import type { Db } from './db'
-import type { ShapeResearchFn } from './research/shape'
+import type { ShapeResearchFn, ShapeSectionFn } from './research/shape'
 import type { Env } from './env'
 import { createLogger, type Logger } from './logger'
 
@@ -96,6 +100,16 @@ export interface FakeDbState {
   sections: Map<string, BrandGuidelineSection>
   assets: Map<string, BrandAsset>
   researchJobs: Map<string, ResearchJob>
+  sectionAutofillEvents: SectionAutofillEvent[]
+  /**
+   * Make the next ledger write throw. **The only failure switch in this fake**,
+   * and it earns the exception: the autofill ledger is written *after* a paid
+   * vendor call, so "the insert failed" is the one db error whose handling
+   * decides whether a user loses something they were billed for. Every other
+   * query in here fails the request and costs nothing.
+   */
+  failNextSectionAutofillRecord?: boolean
+  socialPosts: Map<string, SocialPost>
   projects: Map<string, Project>
   canvases: Map<string, Canvas>
   settings: Map<string, WorkspaceSettings>
@@ -112,6 +126,8 @@ export function createFakeDbState(): FakeDbState {
     sections: new Map(),
     assets: new Map(),
     researchJobs: new Map(),
+    sectionAutofillEvents: [],
+    socialPosts: new Map(),
     projects: new Map(),
     canvases: new Map(),
     settings: new Map(),
@@ -125,6 +141,21 @@ let counter = 0
 function nextId(prefix: string): string {
   counter += 1
   return `${prefix}-${counter.toString().padStart(6, '0')}`
+}
+
+// The fake half of `assertAssetsInBrand` — same two rules (brand ownership
+// and not-soft-deleted), same typed error, so the route's `instanceof` catch
+// behaves identically against fake and real db.
+function assertFakeAssetsInBrand(
+  state: FakeDbState,
+  brandId: BrandId,
+  assetIds: readonly BrandAssetId[],
+): void {
+  const missing = assetIds.filter((id) => {
+    const asset = state.assets.get(id)
+    return !asset || asset.brandId !== brandId || asset.deletedAt !== null
+  })
+  if (missing.length > 0) throw new AssetNotInBrandError([...missing])
 }
 
 const NOW = '2026-04-19T00:00:00.000Z'
@@ -240,6 +271,9 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       }
       for (const [aid, asset] of state.assets) {
         if (asset.brandId === id) state.assets.delete(aid)
+      }
+      for (const [pid, post] of state.socialPosts) {
+        if (post.brandId === id) state.socialPosts.delete(pid)
       }
       for (const [pid, project] of [...state.projects.entries()]) {
         if (project.brandId === id) {
@@ -436,6 +470,81 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       return db.listAssetsByBrand(brandId)
     },
 
+    // Social posts. `assetIds` stored inline — the fake has no join table, but
+    // it must mirror the real scoping exactly: brand-scoped writes, `deletedAt
+    // IS NULL` filters, and the asset-ownership gate (cross-brand *and*
+    // soft-deleted assets rejected, with the same typed error the route
+    // converts to 400).
+    async listSocialPostsByBrand(brandId) {
+      // Soft-deleted rows out; `bySchedule` *is* the real SQL ordering
+      // (`scheduled_at asc nulls first, created_at asc`). The fake clock never
+      // ticks, so `sort`'s stability stands in for the `createdAt` tie-break —
+      // insertion order, as the research fakes already rely on.
+      return [...state.socialPosts.values()]
+        .filter((p) => p.brandId === brandId && p.deletedAt === null)
+        .sort(bySchedule)
+    },
+    async createSocialPost(brandId, input) {
+      assertFakeAssetsInBrand(state, brandId, input.assetIds ?? [])
+      const id = nextId('sp') as SocialPostId
+      const row: SocialPost = {
+        id,
+        brandId,
+        platform: input.platform,
+        scheduledAt: input.scheduledAt ?? null,
+        body: input.body ?? '',
+        status: input.status ?? 'draft',
+        assetIds: input.assetIds ?? [],
+        deletedAt: null,
+        createdAt: NOW,
+        updatedAt: NOW,
+      }
+      state.socialPosts.set(id, row)
+      return row
+    },
+    async updateSocialPost(brandId, id, patch) {
+      // The ownership gate runs before the row lookup, as the real query runs
+      // it before the row update — a bad assetId rejects the whole patch even
+      // when the post itself would miss.
+      if (patch.assetIds !== undefined) {
+        assertFakeAssetsInBrand(state, brandId, patch.assetIds)
+      }
+      const existing = state.socialPosts.get(id)
+      // Scoped by brand as well as id, and by `deletedAt IS NULL` — a patch
+      // cannot land on a row no read path returns.
+      if (!existing || existing.brandId !== brandId || existing.deletedAt !== null) return null
+      // `undefined` leaves a key alone; `assetIds` is a full replacement.
+      const updated: SocialPost = {
+        ...existing,
+        ...(patch.platform !== undefined ? { platform: patch.platform } : {}),
+        ...(patch.scheduledAt !== undefined ? { scheduledAt: patch.scheduledAt } : {}),
+        ...(patch.body !== undefined ? { body: patch.body } : {}),
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        ...(patch.assetIds !== undefined ? { assetIds: patch.assetIds } : {}),
+        updatedAt: NOW,
+      }
+      state.socialPosts.set(id, updated)
+      return updated
+    },
+    async softDeleteSocialPost(brandId, id) {
+      const existing = state.socialPosts.get(id)
+      // Already-hidden rows miss, so a double delete 404s rather than moving
+      // `deletedAt` forward under an Undo that is still on screen.
+      if (!existing || existing.brandId !== brandId || existing.deletedAt !== null) return null
+      // `assetIds` stay on the row — join rows are untouched by a soft delete.
+      const updated: SocialPost = { ...existing, deletedAt: NOW, updatedAt: NOW }
+      state.socialPosts.set(id, updated)
+      return updated
+    },
+    async restoreSocialPost(brandId, id) {
+      const existing = state.socialPosts.get(id)
+      // Only matches a row that is actually hidden, so a replayed Undo is inert.
+      if (!existing || existing.brandId !== brandId || existing.deletedAt === null) return null
+      const updated: SocialPost = { ...existing, deletedAt: null, updatedAt: NOW }
+      state.socialPosts.set(id, updated)
+      return updated
+    },
+
     // Brand research jobs. Same rule as the assets fakes above: mirror the real
     // query, do not do the obvious thing. `finishResearchJob` in particular has
     // to keep the "terminal states are terminal" `WHERE`, or a test would pass
@@ -556,6 +665,35 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       const updated = { ...job, drafts: [] }
       state.researchJobs.set(jobId, updated)
       return updated
+    },
+
+    // Section auto-fill events. Append-only, like the real table.
+    async recordSectionAutofill(input) {
+      if (state.failNextSectionAutofillRecord) {
+        state.failNextSectionAutofillRecord = false
+        throw new Error('ledger insert failed')
+      }
+      const event: SectionAutofillEvent = {
+        id: nextId('safe'),
+        brandId: input.brandId,
+        label: input.label,
+        source: input.source,
+        model: input.model,
+        costUsd: input.costUsd,
+        sources: input.sources,
+        createdBy: input.createdBy,
+        createdAt: NOW,
+      }
+      state.sectionAutofillEvents.push(event)
+      return event
+    },
+    async countSectionAutofillsTodayForWorkspace(workspaceId) {
+      // Only searches — the cap protects vendor money and Path R spends none.
+      // The fake clock never advances, so every row is inside the rolling
+      // window, same as the research count above.
+      return state.sectionAutofillEvents.filter(
+        (e) => e.source === 'search' && state.brands.get(e.brandId)?.workspaceId === workspaceId,
+      ).length
     },
 
     async getProjectById(id) {
@@ -834,6 +972,7 @@ export function createFakeAdapters(overrides: Partial<AppDeps> = {}): Omit<AppDe
   const research: ResearchProvider = overrides.research ?? {
     start: () => Promise.reject(new Error('research.start not expected in test')),
     poll: () => Promise.reject(new Error('research.poll not expected in test')),
+    searchSection: () => Promise.reject(new Error('research.searchSection not expected in test')),
   }
   const { db } = overrides.db ? { db: overrides.db } : createFakeDb()
   const auth = overrides.auth ?? createFakeAuth({})
@@ -862,6 +1001,8 @@ export function testEnv(overrides: Partial<Env> = {}): Env {
     RESEARCH_MAX_ACTIVE_PER_WORKSPACE: 2,
     RESEARCH_MAX_JOBS_PER_DAY: 10,
     RESEARCH_JOB_MAX_MINUTES: 60,
+    RESEARCH_SECTION_MODEL: 'sonar-pro',
+    RESEARCH_SECTION_MAX_PER_DAY: 20,
     ...overrides,
   } as Env
 }
@@ -883,6 +1024,8 @@ export function createTestApp(
     research?: ResearchProvider
     /** 3D's stage 2. Absent means the app's real shaper, which needs a model. */
     shapeResearch?: ShapeResearchFn
+    /** Path R's single-section shaper. Absent means the real one — needs a model. */
+    shapeSection?: ShapeSectionFn
     agentGuard?: AgentConcurrencyGuard
   } = {},
 ): TestHarness {
@@ -914,6 +1057,7 @@ export function createTestApp(
     env,
     log: silentLogger(),
     ...(opts.shapeResearch ? { shapeResearch: opts.shapeResearch } : {}),
+    ...(opts.shapeSection ? { shapeSection: opts.shapeSection } : {}),
   })
   return { app, state, auth, tokens }
 }

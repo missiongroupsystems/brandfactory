@@ -1,5 +1,9 @@
 import type { BrandWithSections } from '@brandfactory/shared'
-import { BrandGuidelinesEditor, type StagedSection } from '@/components/brand/BrandGuidelinesEditor'
+import {
+  BrandGuidelinesEditor,
+  type BrandGuidelinesEditorProps,
+  type StagedSection,
+} from '@/components/brand/BrandGuidelinesEditor'
 
 /**
  * The right pane of a brand-context thread: the live guidelines editor where
@@ -29,9 +33,21 @@ export interface BrandContextPaneProps {
    */
   staged?: StagedSection[] | null
   onStagedConsumed?: () => void
+  /**
+   * Auto-fill, forwarded (Phase D). Same pure pass-through as `staged`; the
+   * route computes availability. Typed off the editor's own prop — the 3E
+   * coupling pattern, so widening the editor without this forwarder does not
+   * compile.
+   */
+  onAutofill?: BrandGuidelinesEditorProps['onAutofill']
 }
 
-export function BrandContextPane({ brand, staged, onStagedConsumed }: BrandContextPaneProps) {
+export function BrandContextPane({
+  brand,
+  staged,
+  onStagedConsumed,
+  onAutofill,
+}: BrandContextPaneProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* Matches CanvasPane's header strip so the two right panes read as the
@@ -43,6 +59,7 @@ export function BrandContextPane({ brand, staged, onStagedConsumed }: BrandConte
           brand={brand}
           staged={staged}
           onStagedConsumed={onStagedConsumed}
+          onAutofill={onAutofill}
         />
       </div>
     </div>

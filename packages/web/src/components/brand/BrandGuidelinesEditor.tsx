@@ -17,9 +17,10 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Trash2 } from 'lucide-react'
+import { GripVertical, Loader2, Sparkles, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type {
+  AutofillSectionResult,
   BrandGuidelineSection,
   BrandWithSections,
   GuidelineSectionCreatedBy,
@@ -65,6 +66,24 @@ type LocalSection = {
 }
 
 const EMPTY_DOC: ProseMirrorDoc = { type: 'doc', content: [{ type: 'paragraph' }] }
+
+/**
+ * Is this body the empty doc — the state auto-fill is allowed to write into?
+ *
+ * Deliberately strict (decision 5 / Q2): only paragraphs with no content count
+ * as empty, so anything the user has typed — or anything that is not plain
+ * empty paragraphs — keeps its row's sparkle away. Filling a non-empty row
+ * means replace/append/merge semantics and an undo; the lazy-populate case is
+ * by definition the empty row, and the cheap escape hatch is deleting the body.
+ */
+function isEmptyDoc(doc: ProseMirrorDoc): boolean {
+  const content = (doc as { content?: unknown[] }).content
+  if (!content || content.length === 0) return true
+  return content.every((node) => {
+    const n = node as { type?: string; content?: unknown[] }
+    return n.type === 'paragraph' && (!n.content || n.content.length === 0)
+  })
+}
 
 function toLocal(s: BrandGuidelineSection): LocalSection {
   return {
@@ -112,6 +131,9 @@ function SectionRow({
   onLabelChange,
   onBodyChange,
   onRemove,
+  onAutofill,
+  autofillPending,
+  autofillDisabled,
 }: {
   section: LocalSection
   /** Content captured from a message, to insert into this row's editor once. */
@@ -120,6 +142,12 @@ function SectionRow({
   onLabelChange: (key: string, label: string) => void
   onBodyChange: (key: string, body: ProseMirrorDoc) => void
   onRemove: (key: string) => void
+  /** Absent prop = no sparkle, same convention as the rail's `onStartResearch`. */
+  onAutofill?: (key: string, label: string) => void
+  /** This row is being filled — spinner instead of sparkle. */
+  autofillPending: boolean
+  /** Another row is being filled — one in-flight at a time. */
+  autofillDisabled: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: section._key,
@@ -212,14 +240,37 @@ function SectionRow({
         </div>
       </div>
 
-      <button
-        type="button"
-        className="mt-6 text-muted-foreground hover:text-destructive"
-        aria-label="Remove section"
-        onClick={() => onRemove(section._key)}
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
+      <div className="mt-6 flex flex-col items-center gap-3">
+        {/* The lazy path's whole affordance: a labelled, empty row grows a
+            sparkle. Shown only when all three facts hold — the route offered
+            the capability, the row has a name to fill, and there is nothing in
+            it to overwrite (decision 5). The draft lands in the editor
+            un-saved; the ordinary Save is the commit. */}
+        {onAutofill && section.label.trim() !== '' && isEmptyDoc(section.body) && (
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-primary disabled:pointer-events-none disabled:opacity-50"
+            aria-label={`Auto-fill ${section.label} with AI`}
+            title="Draft this section with AI — from the brand's research when it exists, otherwise a targeted search of the brand's site."
+            disabled={autofillPending || autofillDisabled}
+            onClick={() => onAutofill(section._key, section.label)}
+          >
+            {autofillPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+          </button>
+        )}
+        <button
+          type="button"
+          className="text-muted-foreground hover:text-destructive"
+          aria-label="Remove section"
+          onClick={() => onRemove(section._key)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   )
 }
@@ -252,6 +303,17 @@ export interface BrandGuidelinesEditorProps {
    * the editor rather than a research-shaped callback bolted onto it.
    */
   onSaved?: () => void
+  /**
+   * Auto-fill one section (guideline auto-fill, Phase D). Label in, result out;
+   * the editor owns turning the outcome into an insert and a toast.
+   *
+   * **Absent prop = no sparkle**, exactly like the rail's `onStartResearch`:
+   * the routes compute availability from data they already hold, and a
+   * deployment (or brand) that cannot fill gets the affordance absent rather
+   * than present-and-failing. The editor stays presentational — it never asks
+   * which path the server took, it just renders what came back.
+   */
+  onAutofill?: (label: string) => Promise<AutofillSectionResult>
 }
 
 export function BrandGuidelinesEditor({
@@ -259,6 +321,7 @@ export function BrandGuidelinesEditor({
   staged,
   onStagedConsumed,
   onSaved,
+  onAutofill,
 }: BrandGuidelinesEditorProps) {
   const [sections, setSections] = useState<LocalSection[]>(() => brand.sections.map(toLocal))
   // Keyed by section `_key`. A payload waiting for its row's editor to mount.
@@ -266,6 +329,10 @@ export function BrandGuidelinesEditor({
   const [newSectionDropActive, setNewSectionDropActive] = useState(false)
   // The row a staging gesture should bring into view; see the effect below.
   const [scrollToKey, setScrollToKey] = useState<string | null>(null)
+  // The row currently being auto-filled. One at a time: the others' sparkles
+  // disable, which is also the double-click guard the plan puts on the client
+  // (the per-day cap on the server is the backstop).
+  const [autofillKey, setAutofillKey] = useState<string | null>(null)
   const mutation = useUpdateBrandGuidelines(brand.id)
 
   // Capture into brand-new sections: append a blank row per item and stage the
@@ -363,6 +430,55 @@ export function BrandGuidelinesEditor({
     setSections((prev) => prev.filter((s) => s._key !== key))
   }, [])
 
+  // The click half of auto-fill. The draft arrives through the row's existing
+  // one-shot insert channel — `pendingInserts` is already keyed by `_key`, and
+  // `insertedRef` keys on payload identity, so the fresh object below is
+  // inserted exactly once even under StrictMode (the 1.5.0 lesson, inherited
+  // rather than re-learned). Nothing is saved: the same draft-gesture rule as
+  // capture, and the same Save commits it.
+  const handleAutofill = useCallback(
+    async (key: string, label: string) => {
+      if (!onAutofill) return
+      setAutofillKey(key)
+      try {
+        const result = await onAutofill(label.trim())
+        if (result.outcome === 'ok' && result.draft) {
+          const draft = result.draft
+          setPendingInserts((prev) => ({ ...prev, [key]: { html: draft.html, text: draft.text } }))
+          // A machine filled the row, so the row says so (decision 6) — the
+          // same authorship fact `draftsToSections` records, from the other
+          // producer. Edits afterwards do not flip it back.
+          setSections((prev) =>
+            prev.map((s) => (s._key === key ? { ...s, createdBy: 'agent' } : s)),
+          )
+          toast.success(
+            draft.sources.length > 0
+              ? `${draft.label} drafted from ${draft.sources.length} ${
+                  draft.sources.length === 1 ? 'source' : 'sources'
+                } — review and save.`
+              : `${draft.label} drafted — review and save.`,
+          )
+        } else if (result.outcome === 'no-material') {
+          // The honest toast (decision 7): the source genuinely has nothing
+          // solid for this label. Not an error — inventing text would be one.
+          toast.info(
+            result.source === 'report'
+              ? `The research doesn't cover ${label.trim()}.`
+              : `The search found nothing solid for ${label.trim()} on the brand's site.`,
+          )
+        } else {
+          // `invalid-shape`: a fact about the configured writing model.
+          toast.error('The writing model returned something unusable. Try again.')
+        }
+      } catch (err) {
+        toast.error(err instanceof AppError ? err.message : 'Auto-fill failed.')
+      } finally {
+        setAutofillKey(null)
+      }
+    },
+    [onAutofill],
+  )
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -453,6 +569,9 @@ export function BrandGuidelinesEditor({
                 onLabelChange={handleLabelChange}
                 onBodyChange={handleBodyChange}
                 onRemove={handleRemove}
+                onAutofill={onAutofill ? handleAutofill : undefined}
+                autofillPending={autofillKey === s._key}
+                autofillDisabled={autofillKey !== null && autofillKey !== s._key}
               />
             ))}
           </div>

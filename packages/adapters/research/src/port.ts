@@ -77,9 +77,58 @@ export type ResearchJobState =
     }
   | { status: 'failed'; error: string }
 
+/**
+ * What one section's auto-fill needs (guideline auto-fill, Phase A).
+ *
+ * The deep run profiles a whole brand; this asks for **one guideline section**,
+ * synchronously — the caller is a user watching a spinner, not a ticker
+ * sweeping job rows. `websiteUrl` is the same hard gate as `ResearchRequest`'s
+ * and it works harder here: the A0 spike ran the identical prompt with and
+ * without pinning search to this URL's domain, and the unpinned run wrote a
+ * confident, cited section about a same-named other company. The URL in the
+ * prompt is a suggestion; the domain filter derived from it is the enforcement.
+ *
+ * `existingLabels` keeps the vendor from restating a neighbouring section's
+ * content — the same job `buildShapePrompt` does for the shaping pass.
+ *
+ * No `jobId` and no idempotency key, deliberately: nothing is persisted at the
+ * vendor to retry into, and a double-send costs cents, not $0.38 — the plan
+ * puts the double-click guard on the client and the per-day cap behind it.
+ */
+export interface SectionSearchRequest {
+  brandName: string
+  /** The hard gate (decision 4 / the Casa Vostra rule). Enforced upstream. */
+  websiteUrl: string
+  /** The section's label, e.g. "Voice & tone". Prompt input, echoed back by the caller. */
+  label: string
+  /** The `SUGGESTED_SECTIONS` description when the label matches one. */
+  description?: string
+  /** Labels the brand's guidelines already have, so the text does not restate them. */
+  existingLabels: string[]
+  model: string
+}
+
+/**
+ * What the search wrote.
+ *
+ * **An empty `content` is a result, not an error** — the prompt tells the
+ * model to say so plainly and stop when it finds too little, and classifying
+ * that (`no-material`, per decision 7) is the service's domain judgement, not
+ * an adapter guess. Network and HTTP failures still throw, same as the other
+ * two methods.
+ */
+export interface SectionSearchResult {
+  /** The section body, as markdown. May carry the model's "too little to go on". */
+  content: string
+  sources: ResearchSource[]
+  usage: ResearchUsage
+}
+
 export interface ResearchProvider {
   start(req: ResearchRequest): Promise<{ externalId: string }>
   poll(externalId: string): Promise<ResearchJobState>
+  /** One section, synchronously, on a search-grounded model. Seconds and cents. */
+  searchSection(req: SectionSearchRequest): Promise<SectionSearchResult>
 }
 
 /**

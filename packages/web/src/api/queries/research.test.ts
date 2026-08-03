@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { QueryClient } from '@tanstack/react-query'
 import type { BrandResearchState, ResearchJobSummary } from '@brandfactory/shared'
 import { brandKeys } from './brands'
-import { applyStartedJobToCache, RESEARCH_POLL_MS, researchRefetchInterval } from './research'
+import {
+  applyStartedJobToCache,
+  canAutofillSections,
+  RESEARCH_POLL_MS,
+  researchRefetchInterval,
+} from './research'
 
 const BRAND_ID = '22222222-2222-4222-8222-222222222222'
 
@@ -40,6 +45,36 @@ describe('researchRefetchInterval', () => {
   it('does not poll a brand with no job, or a query that has not answered', () => {
     expect(researchRefetchInterval({ enabled: true, job: null })).toBe(false)
     expect(researchRefetchInterval(undefined)).toBe(false)
+  })
+})
+
+// The availability rule (decision 8), stated once and called by all three
+// routes that mount the editor. The server enforces the same gates; this is
+// what keeps the sparkle from rendering for a request the server would refuse.
+describe('canAutofillSections', () => {
+  const URL = 'https://acme.example'
+
+  it('allows a brand with a report, even when research is off', () => {
+    // Path R spends the user's own LLM tokens; the report is already paid for.
+    expect(canAutofillSections({ enabled: false, job: job('COMPLETED') }, null)).toBe(true)
+  })
+
+  it('allows the search path only with a provider and a website', () => {
+    expect(canAutofillSections({ enabled: true, job: null }, URL)).toBe(true)
+    // The Casa Vostra rule: no website, no search — the server would 400.
+    expect(canAutofillSections({ enabled: true, job: null }, null)).toBe(false)
+    expect(canAutofillSections({ enabled: false, job: null }, URL)).toBe(false)
+  })
+
+  it('does not treat NO_FINDINGS or a failed run as a report', () => {
+    // Their "report" is the finder's apology; the server falls through to
+    // search, so the gate asks the search path's questions instead.
+    expect(canAutofillSections({ enabled: false, job: job('NO_FINDINGS') }, URL)).toBe(false)
+    expect(canAutofillSections({ enabled: false, job: job('FAILED') }, URL)).toBe(false)
+  })
+
+  it('is closed while the query has not answered', () => {
+    expect(canAutofillSections(undefined, URL)).toBe(false)
   })
 })
 

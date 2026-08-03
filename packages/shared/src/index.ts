@@ -19,6 +19,7 @@ export * from './brand/suggested-categories'
 export * from './brand/create'
 export * from './brand/update'
 export * from './brand/update-guidelines'
+export * from './brand/autofill'
 
 // Brand assets
 export * from './asset/asset'
@@ -29,6 +30,11 @@ export * from './asset/reorder'
 
 // Brand research
 export * from './research/job'
+
+// Social posts
+export * from './social/post'
+export * from './social/create'
+export * from './social/update'
 
 // Project
 export * from './project/project'

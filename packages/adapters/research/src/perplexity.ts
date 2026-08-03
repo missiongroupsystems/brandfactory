@@ -5,8 +5,10 @@ import {
   ResearchProviderError,
   type ResearchRequest,
   type ResearchUsage,
+  type SectionSearchRequest,
+  type SectionSearchResult,
 } from './port'
-import { buildResearchPrompt } from './prompt'
+import { buildResearchPrompt, buildSectionSearchPrompt } from './prompt'
 
 // ---------------------------------------------------------------------------
 // Perplexity, against the async Sonar line
@@ -45,34 +47,57 @@ const DEFAULT_BASE_URL = 'https://api.perplexity.ai'
  */
 export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
 
+/**
+ * The section search's own, longer ceiling.
+ *
+ * Unlike `start`/`poll`, `searchSection` is **synchronous work**: the vendor
+ * searches and writes inside the one HTTP call, and a user is watching a
+ * spinner on the other end. The A0 spike measured 5–7 seconds; sixty is the
+ * slow-vendor-day allowance, after which a spinner has become a lie and the
+ * honest move is the error toast.
+ */
+export const DEFAULT_SECTION_TIMEOUT_MS = 60_000
+
 export interface PerplexityResearchConfig {
   apiKey: string
   baseUrl?: string
-  /** Per-request timeout. See `DEFAULT_REQUEST_TIMEOUT_MS`. */
+  /** Per-request timeout for `start`/`poll`. See `DEFAULT_REQUEST_TIMEOUT_MS`. */
   timeoutMs?: number
+  /** Per-request timeout for `searchSection`. See `DEFAULT_SECTION_TIMEOUT_MS`. */
+  sectionTimeoutMs?: number
   /** Test seam. Defaults to the global `fetch`. */
   fetch?: typeof fetch
 }
 
 // --- the vendor's wire shapes, named so the parser reads as a parser ---------
 
+/**
+ * The completion payload both lines share. The async line nests it under
+ * `response`; the chat line (`POST /chat/completions`, used by
+ * `searchSection`) **is** this shape at the top level — the A0 capture
+ * (`fixtures/section-search-completed.json`) confirms the same
+ * `choices`/`citations`/`search_results`/`usage` field names, which is what
+ * lets `extractSources`/`extractUsage` serve both.
+ */
+interface VendorPayload {
+  choices?: { message?: { content?: string } }[]
+  citations?: string[]
+  search_results?: { title?: string; url?: string }[]
+  usage?: {
+    prompt_tokens?: number
+    completion_tokens?: number
+    reasoning_tokens?: number
+    citation_tokens?: number
+    num_search_queries?: number
+    cost?: { total_cost?: number }
+  }
+}
+
 interface VendorEnvelope {
   id?: string
   status?: string
   error_message?: string | null
-  response?: {
-    choices?: { message?: { content?: string } }[]
-    citations?: string[]
-    search_results?: { title?: string; url?: string }[]
-    usage?: {
-      prompt_tokens?: number
-      completion_tokens?: number
-      reasoning_tokens?: number
-      citation_tokens?: number
-      num_search_queries?: number
-      cost?: { total_cost?: number }
-    }
-  } | null
+  response?: VendorPayload | null
 }
 
 /**
@@ -110,6 +135,28 @@ export function extractSources(response: VendorEnvelope['response']): ResearchSo
   for (const r of response?.search_results ?? []) push(r.url, r.title)
   for (const url of response?.citations ?? []) push(url, undefined)
   return out
+}
+
+/**
+ * The domain the section search is pinned to, from the brand's website URL.
+ *
+ * Refuses an unparseable URL rather than searching unpinned, because unpinned
+ * is the A0 failure mode: a confident, cited section about a same-named other
+ * company. Upstream validation (`BrandWebsiteUrlSchema`) makes this
+ * unreachable through the routes; a direct caller in a test can still find it.
+ *
+ * `www.` is stripped because the filter is a *site*, not a host: the vendor
+ * matches subdomains under the bare domain, and the live capture pinned to
+ * `ebbflowgroup.com` returned `www.` pages.
+ */
+export function searchDomainFor(websiteUrl: string): string {
+  try {
+    return new URL(websiteUrl).hostname.replace(/^www\./, '')
+  } catch {
+    throw new ResearchProviderError(
+      `Cannot derive a search domain from website URL "${websiteUrl}" — refusing to search unpinned.`,
+    )
+  }
 }
 
 function extractUsage(response: VendorEnvelope['response']): ResearchUsage {
@@ -163,12 +210,14 @@ export function createPerplexityResearchProvider(
   const baseUrl = (config.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, '')
   const doFetch = config.fetch ?? fetch
   const timeoutMs = config.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+  const sectionTimeoutMs = config.sectionTimeoutMs ?? DEFAULT_SECTION_TIMEOUT_MS
 
-  async function call(
+  async function call<T>(
     method: 'GET' | 'POST',
     path: string,
-    body?: unknown,
-  ): Promise<VendorEnvelope> {
+    body: unknown,
+    callTimeoutMs: number,
+  ): Promise<T> {
     let res: Response
     try {
       res = await doFetch(`${baseUrl}${path}`, {
@@ -180,7 +229,7 @@ export function createPerplexityResearchProvider(
         body: body ? JSON.stringify(body) : undefined,
         // A bounded call, so the sweep that awaits it always returns. See
         // `DEFAULT_REQUEST_TIMEOUT_MS` for why that is the load-bearing part.
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: AbortSignal.timeout(callTimeoutMs),
       })
     } catch (cause) {
       // A network error is not a job failure — the job may well be running at
@@ -199,21 +248,26 @@ export function createPerplexityResearchProvider(
         res.status,
       )
     }
-    return (await res.json()) as VendorEnvelope
+    return (await res.json()) as T
   }
 
   return {
     async start(req: ResearchRequest) {
-      const body = await call('POST', '/v1/async/sonar', {
-        request: {
-          model: req.model,
-          messages: [{ role: 'user', content: buildResearchPrompt(req) }],
+      const body = await call<VendorEnvelope>(
+        'POST',
+        '/v1/async/sonar',
+        {
+          request: {
+            model: req.model,
+            messages: [{ role: 'user', content: buildResearchPrompt(req) }],
+          },
+          // **The job id, deliberately.** A `start` retried after a timeout is
+          // the ordinary failure mode of a two-minute HTTP call, and without this
+          // it buys a second $0.38 report for one row.
+          idempotency_key: req.jobId,
         },
-        // **The job id, deliberately.** A `start` retried after a timeout is
-        // the ordinary failure mode of a two-minute HTTP call, and without this
-        // it buys a second $0.38 report for one row.
-        idempotency_key: req.jobId,
-      })
+        timeoutMs,
+      )
       if (!body.id) {
         throw new ResearchProviderError('Research provider accepted the job but returned no id.')
       }
@@ -221,7 +275,43 @@ export function createPerplexityResearchProvider(
     },
 
     async poll(externalId: string) {
-      return toJobState(await call('GET', `/v1/async/sonar/${encodeURIComponent(externalId)}`))
+      return toJobState(
+        await call<VendorEnvelope>(
+          'GET',
+          `/v1/async/sonar/${encodeURIComponent(externalId)}`,
+          undefined,
+          timeoutMs,
+        ),
+      )
+    },
+
+    async searchSection(req: SectionSearchRequest): Promise<SectionSearchResult> {
+      const body = await call<VendorPayload>(
+        'POST',
+        '/chat/completions',
+        {
+          model: req.model,
+          messages: [{ role: 'user', content: buildSectionSearchPrompt(req) }],
+          // **The load-bearing parameter, and A0 is why.** The same prompt ran
+          // twice on the same day: unpinned, the vendor retrieved 19 generic
+          // "brand voice examples" articles and wrote a confident, cited
+          // section about a same-named other company; pinned to the brand's
+          // domain, all 11 sources were the brand's own pages and the text
+          // quoted the site's own words. The URL in the prompt is a
+          // suggestion; this is the enforcement.
+          search_domain_filter: [searchDomainFor(req.websiteUrl)],
+        },
+        sectionTimeoutMs,
+      )
+      // An empty completion passes through: classifying "the model found too
+      // little" is the service's call (decision 7), not an adapter guess —
+      // unlike `toJobState`, where an empty *report* contradicts a COMPLETED
+      // status the vendor itself asserted.
+      return {
+        content: body.choices?.[0]?.message?.content ?? '',
+        sources: extractSources(body),
+        usage: extractUsage(body),
+      }
     },
   }
 }

@@ -2,6 +2,7 @@ import { generateObject, jsonSchema } from 'ai'
 import { z } from 'zod'
 import type { LLMProvider, LLMProviderSettings } from '@brandfactory/adapter-llm'
 import {
+  DRAFT_TARGET_MAX_CHARS,
   GUIDELINE_LABEL_MAX_CHARS,
   SUGGESTED_SECTIONS,
   type ResearchDraft,
@@ -48,14 +49,11 @@ const ShapedSectionsSchema = z.object({
   sections: z.array(ShapedSectionSchema),
 })
 
-/**
- * The ceiling the prompt asks for and the reason it exists.
- *
- * Not enforced by truncation — a sentence cut in half is worse than a long one
- * — but stated to the model and measured in the tests, because "keep it short"
- * without a number is how a 16,000-character section happens.
- */
-export const DRAFT_TARGET_MAX_CHARS = 1200
+// The draft-length target moved to `@brandfactory/shared` when the section
+// search (guideline auto-fill Phase A) started stating the same number to a
+// different model. Re-exported so this file remains where shaping callers
+// find it.
+export { DRAFT_TARGET_MAX_CHARS }
 
 export interface ShapeResearchInput {
   brandName: string
@@ -101,6 +99,21 @@ export interface ShapeResearchResult {
   reportChars: number
   /** Sections the model returned, **before** this file's own filtering. */
   sectionsReturned: number
+}
+
+/**
+ * Model-cited URLs → the report's own citations, by exact URL.
+ *
+ * The failure mode this exists to catch: a model that invents a plausible URL
+ * the report never cited. Anything not in the citation list is dropped, and a
+ * section with no surviving citation still lands — the citations are provenance
+ * for a human reviewer, not a gate on the text. Shared by the batch shaper
+ * below and the single-section shaper (`shapeSection.ts`), factored rather than
+ * copied so the rule cannot drift between them.
+ */
+export function resolveCitedSources(urls: string[], citations: ResearchSource[]): ResearchSource[] {
+  const byUrl = new Map(citations.map((c) => [c.url, c]))
+  return urls.map((url) => byUrl.get(url)).filter((s): s is ResearchSource => !!s)
 }
 
 export function buildShapePrompt(input: {
@@ -157,7 +170,6 @@ export async function shapeResearchIntoSections(
   input: ShapeResearchInput,
 ): Promise<ShapeResearchResult> {
   const reportChars = input.report.length
-  const byUrl = new Map(input.citations.map((c) => [c.url, c]))
 
   // **JSON Schema rather than the zod object, and the result parsed here.**
   // The installed `ai` 4.0.20 types (and its internal converter) expect a zod
@@ -192,9 +204,7 @@ export async function shapeResearchIntoSections(
   for (const section of parsed.data.sections) {
     const { html, text } = markdownToDraftBody(section.markdown)
     if (!text.trim()) continue
-    const sources = section.sourceUrls
-      .map((url) => byUrl.get(url))
-      .filter((s): s is ResearchSource => !!s)
+    const sources = resolveCitedSources(section.sourceUrls, input.citations)
     // Clamped, never rejected — see the note above. `trim` first so the cap is
     // spent on characters rather than on the model's trailing whitespace.
     const label = section.label.trim().slice(0, GUIDELINE_LABEL_MAX_CHARS)

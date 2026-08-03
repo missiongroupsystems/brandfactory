@@ -32,6 +32,7 @@ function fakeProvider(over: Partial<ResearchProvider> = {}): ResearchProvider {
   return {
     start: vi.fn(() => Promise.resolve({ externalId: 'ext-1' })),
     poll: vi.fn(() => Promise.resolve({ status: 'running' as const })),
+    searchSection: vi.fn(() => Promise.reject(new Error('searchSection not expected here'))),
     ...over,
   }
 }
