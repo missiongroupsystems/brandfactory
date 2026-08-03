@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.15.0** — 2026-08-03 — Two-column side-nav; header strip and breadcrumbs retired; both dashboards stop being navigation. 1024 tests.
 - **1.14.0** — 2026-07-30 — The report opens in a modal; `View in brand context` links straight at its thread. Migration 0007. 986 tests.
 - **1.13.2** — 2026-07-30 — 1.13.1 review remediation: shaping outcomes logged, the report row checked, ticker shutdown awaited. 955 tests.
 - **1.13.1** — 2026-07-30 — In-flight clock unfrozen, pace + ceiling states, the finished-run row. 936 tests.
@@ -45,6 +46,109 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.15.0 — 2026-08-03
+
+**BrandFactory navigated through a 48-pixel strip.**
+
+Since 0.9.0 the shell has been a header band holding a wordmark, a workspace
+pill, a brand pill and a one-segment breadcrumb tail, and every pass since has
+added one more thing to it — create in 1.12.0, the research chip in 1.13.0 —
+because a strip is the only furniture a shell with no other furniture has.
+Underneath it both dashboards were doing double duty: workspace home opened on a
+grid of brand cards because the grid was the only way to *reach* a brand, and the
+brand hub opened on a 2×2 of app tiles for the same reason.
+
+This gives the app the shape the Mission Systems styleguide has described all
+along (§7.1 — persistent left side-nav, scrollable content, **no top bar**) and
+then takes the navigation out of the two pages that were carrying it.
+
+Detail in
+[`docs/completions/the-sidebar-and-the-dashboards.md`](completions/the-sidebar-and-the-dashboards.md).
+
+### 1. Two stacked columns
+
+**Rail (56px): every brand in the workspace, one click from anywhere.** The first
+column could have been anything; it is the brands because `docs/vision.md` opens
+on the brand being the centre of gravity, which makes switching between them the
+motion this product makes most often. It also gives `BrandMark` the job it was
+designed for — the hue derives from the brand **id** so a rename cannot recolour
+a mark somebody has learned. Workspace tile at the head (§7.2), theme toggle and
+the panel fold at the foot.
+
+**Panel (240px): where you are.** Inside a brand — overview, the apps with their
+counts, brand context, and the **threads of the category you are in, nested under
+it**. Outside one — overview, the brands by name, settings. Derived from
+`TILE_APPS` rather than hand-written, so a mini-app cannot be on a tile and
+invisible in the nav.
+
+**The panel is scoped, not routed**, and that matters on exactly one route: a
+project path names no brand and no category, so a route-keyed panel would empty
+itself the moment you opened a thread — the page a persistent nav is most worth
+having. `useActiveBrandId` resolves it from the loaded project, as the header
+pill already did.
+
+Two brand switchers survive on purpose: the rail is **recognition** (a mark you
+know, one click, no menu), the panel header is **recall** (the full list by name,
+with create and the way out). A 56px rail cannot hold thirty legible names; a
+dropdown cannot be hit without being opened.
+
+### 2. The strip is gone, and the breadcrumbs with it
+
+The wordmark became the rail's tile, the two pills became the tile's menu and the
+panel's header, the research chip moved beside the brand it belongs to, the theme
+toggle went to the rail's foot. **`Breadcrumbs.tsx` is deleted**, not moved: the
+trail was one segment deep by construction, and every route that set one now has
+its own row in the panel, lit, with its siblings under it — the argument its own
+doc comment made when it dropped the brand crumb, applied to the trail itself.
+
+A cost this introduced and pays back: the sidebar puts a row per brand and per
+app ahead of the content in DOM order, so `__root` opens with a **skip link** and
+`<main>` takes `tabIndex={-1}`.
+
+### 3. Both dashboards stop being menus
+
+The brand hub keeps what a nav row cannot do — a sentence saying what a category
+is *for* and a way to start one (`Apps` → `Start something`) — and gives up what
+it duplicates: the per-tile thread count, now permanently on screen in the nav,
+and the `Other threads` catch-all, now a group in the panel beside the categories
+it is defined against. It gains **`Recent threads`**: the counts said how much
+there was, this says what you were last doing.
+
+Workspace home gains `Pick up where you left off` above the grid — the one thing
+the sidebar cannot show — and a summary line that is **counts, never a score**
+(`4 brands · 18 threads`, summed off a wire that already carries it). `BrandCard`
+gains the monogram, which is what lets a name and a coloured square be learned as
+one thing here and used as a destination everywhere else.
+
+`BrandContextRail` is untouched: *what do we know about this brand* is not
+navigation and never was.
+
+### Verification
+
+```
+pnpm typecheck                    10/10 workspaces
+pnpm lint / format:check          clean
+pnpm test                         1024 passed | 49 skipped (113 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+986 → **1024 (+38)**. New suites for the rail, both panels, the sidebar's scope
+choice, the active-row resolver and `PageHeader`; `Breadcrumbs`' five removed.
+The two `BrandHubView` tests rewritten were both encoding the behaviour this pass
+replaces.
+
+The 49 skips are live-Postgres and were not run — no Docker daemon and no `.env`
+here. Nothing in this pass touches SQL.
+
+**No live pass.** No database means the app cannot boot, so none of this has been
+on a screen: the DOM, the compiled CSS and the production build are what is
+verified. Four things reasoning cannot settle are listed at the foot of the
+completion doc — the rail under thirty-plus brands, the two panel headers meeting
+at `h-16`, the `lg` handover from drawer to static sidebar, and whether eight is
+the right cap on nested threads.
 
 ---
 

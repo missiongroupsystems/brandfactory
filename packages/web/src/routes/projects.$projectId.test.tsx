@@ -29,8 +29,6 @@ vi.mock('@/api/queries/projects', () => ({
 }))
 
 vi.mock('@/realtime/useProjectStream', () => ({ useProjectStream: () => undefined }))
-vi.mock('@/components/Breadcrumbs', () => ({ useBreadcrumbTrail: () => undefined }))
-
 // The two panes and the surrounding chrome are stubbed to markers: this test is
 // about which pane the route picks, not what either renders. Both real panes
 // pull in TipTap / dnd-kit / mutation hooks that would drown the signal.

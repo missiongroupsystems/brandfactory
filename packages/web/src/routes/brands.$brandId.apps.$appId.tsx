@@ -2,10 +2,10 @@ import { createRoute, redirect } from '@tanstack/react-router'
 import { rootRoute } from './__root'
 import { getAuthToken } from '@/auth/store'
 import { useBrand, useBrandProjects } from '@/api/queries/brands'
-import { useBreadcrumbTrail } from '@/components/Breadcrumbs'
 import type { MiniApp } from '@/components/brand/miniApps'
 import { miniAppById } from '@/components/brand/miniApps'
 import { VisualIdentityPage } from '@/components/brand/VisualIdentityPage'
+import { PageHeader } from '@/components/layout/PageHeader'
 import { NewProjectDialog } from '@/components/project/NewProjectDialog'
 import { ProjectCard } from '@/components/project/ProjectCard'
 import { Button } from '@/components/ui/button'
@@ -22,13 +22,15 @@ import { Button } from '@/components/ui/button'
 // They are separate components rather than one with branches, because each owns
 // a different set of queries: the thread page needs `useBrandProjects`, the
 // library needs `useBrandAssets` and four mutations, and neither should pay for
-// the other's. `useBreadcrumbTrail` stays up here, unconditional, because both
-// shapes occupy the same `leaf` slot.
+// the other's.
+//
+// The breadcrumb trail this used to publish is gone with the header that
+// rendered it: the side-nav lights this category's own row, and the threads
+// under it, which is the same fact with somewhere to click.
 
 function MiniAppPage() {
   const { brandId, appId } = miniAppRoute.useParams()
   const app = miniAppById(appId)
-  useBreadcrumbTrail(app ? { leaf: { name: app.title } } : {})
 
   if (!app) {
     return (
@@ -68,24 +70,23 @@ function ThreadListPage({ brandId, app }: { brandId: string; app: MiniApp }) {
 
   return (
     <div className="flex-1 overflow-auto p-6">
-      <header className="mb-6 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-2">
-            <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-            {app.title}
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{app.description}</p>
-        </div>
-        {app.enabled && brand && (
-          <NewProjectDialog
-            brandId={brand.id}
-            workspaceId={brand.workspaceId}
-            templateId={app.create.kind === 'standardized' ? app.create.templateId : undefined}
-            title="New thread"
-            trigger={<Button size="sm">New thread</Button>}
-          />
-        )}
-      </header>
+      <PageHeader
+        title={app.title}
+        icon={Icon}
+        description={app.description}
+        action={
+          app.enabled &&
+          brand && (
+            <NewProjectDialog
+              brandId={brand.id}
+              workspaceId={brand.workspaceId}
+              templateId={app.create.kind === 'standardized' ? app.create.templateId : undefined}
+              title="New thread"
+              trigger={<Button size="sm">New thread</Button>}
+            />
+          )
+        }
+      />
 
       {!app.enabled && (
         <div className="mb-6 rounded-lg border border-dashed bg-card p-6">

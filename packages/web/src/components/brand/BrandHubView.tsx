@@ -7,21 +7,23 @@ import {
 } from '@brandfactory/shared'
 import { BrandContextRail } from '@/components/brand/BrandContextRail'
 import { BrandIdentity } from '@/components/brand/BrandIdentity'
-import {
-  TILE_APPS,
-  isBrandContextThread,
-  isOrphanThread,
-  type MiniApp,
-} from '@/components/brand/miniApps'
+import { TILE_APPS, isBrandContextThread, type MiniApp } from '@/components/brand/miniApps'
 import { MiniAppTile } from '@/components/brand/MiniAppTile'
 import { ProjectCard } from '@/components/project/ProjectCard'
+
+/**
+ * How many threads the hub resumes from. Four is two rows of the `minmax(220px)`
+ * grid at hub width — enough to recognise the one you want, short enough that
+ * the rail stays beside the section rather than above a scroll of cards.
+ */
+const RECENT_THREADS = 4
 
 // ---------------------------------------------------------------------------
 // Brand hub — three zones, answering three questions in reading order
 // ---------------------------------------------------------------------------
 //
 //   who is this?      identity band     — mark, name, TL;DR
-//   what can I do?    main column       — the app tiles
+//   what can I do?    main column       — start something, then resume something
 //   what do we know?  right rail        — brand context, always on screen
 //
 // The two lower zones are columns rather than bands because the rail's job is
@@ -34,6 +36,27 @@ import { ProjectCard } from '@/components/project/ProjectCard'
 // edge and its ⋯ menu at the other with nothing between them. The container
 // lives here rather than in the shell because widening the *other* routes is a
 // change to pages this pass has no business touching.
+//
+// ---------------------------------------------------------------------------
+// What the side-nav took, and what it gave back
+// ---------------------------------------------------------------------------
+//
+// The tile grid was this page's *navigation*, and it no longer has to be: the
+// panel two columns left lists the same five categories on every page of the
+// brand, lit on the one you are in, with each category's threads nested under
+// it. So the hub keeps the half a nav row cannot do and gives up the half it
+// duplicates:
+//
+//   kept       a sentence saying what a category is for, and a way to start one
+//   given up   the per-tile thread count — the same number, 200px away, now
+//              permanently on screen in the nav (`BrandNavPanel`)
+//   given up   the `Other threads` catch-all, which was a list of *threads*
+//              filed by what they are not; the panel carries it as a group,
+//              where it sits beside the categories it is defined against
+//   gained     `Recent threads` — the brand's last few, newest first, across
+//              every category. The counts said how much there was; this says
+//              what you were last doing, which is the question someone opening
+//              a brand at 9am is actually asking.
 //
 // ---------------------------------------------------------------------------
 // Why this is a view and not a page
@@ -76,8 +99,15 @@ import { ProjectCard } from '@/components/project/ProjectCard'
 export interface BrandHubViewProps {
   brand: BrandWithSections
   /**
-   * `undefined` = thread counts are not known (still loading, or the query
-   * failed). Tiles stay silent rather than claiming zero.
+   * The brand's threads.
+   *
+   * `undefined` = not known (still loading, or the query failed), and it is not
+   * `[]`: `Recent threads` stays silent rather than telling a brand with forty
+   * of them that it has none, and `hasBrandContextThreads` reads the same
+   * distinction to decide whether to claim a missing report copy.
+   *
+   * It no longer feeds the tiles — the counts moved to the nav; see the note at
+   * the top of this file.
    */
   projects?: ProjectSummary[]
   projectsError?: boolean
@@ -91,13 +121,12 @@ export interface BrandHubViewProps {
   websiteUrl?: string | null
   /**
    * The brand's assets — all kinds, `proposed` included. Fed by the real route
-   * since Stage 2C (colours) and 2E (the tile count).
+   * since Stage 2C.
    *
-   * **One prop rather than two.** 2C passed a pre-filtered `colors`; 2E needs
-   * the total as well, for `Visual identity`'s tile. Deriving both from one
-   * list keeps a single source and one pending state — passing `colors` and
-   * `assets` separately would make "the palette knows but the tile does not" a
-   * representable state that means nothing.
+   * 2E widened it from a pre-filtered `colors` to the whole list because
+   * `Visual identity`'s tile counted assets; that count is the nav's now, and
+   * the whole list stays anyway — the palette is derived from it, and narrowing
+   * the prop back would be churn for one `filter` moved across a file boundary.
    *
    * `undefined` = not known (pending or failed), `[]` = the brand has none.
    * Neither renders a palette block — see `BrandContextRailProps`.
@@ -154,7 +183,6 @@ export function BrandHubView({
   researchMaxMinutes,
   researchUnreachable = false,
 }: BrandHubViewProps) {
-  const countsKnown = projects !== undefined
   // Same rule as the palette: `undefined` is "not known", `[]` is "none".
   const colors = assets && assetsOfKind(assets, 'color')
   // The rail's `Palette` heading links to the surface that owns colours — but
@@ -165,11 +193,16 @@ export function BrandHubView({
   const visualHref = tiles.find((a) => a.id === 'visual')?.enabled
     ? `/brands/${brand.id}/apps/visual`
     : undefined
-  // Threads whose templateId matches no registered mini-app would otherwise be
-  // reachable from nowhere; surface them under a catch-all below the tiles.
-  // `isOrphanThread` consults the full registry, so a hidden-surface thread
-  // (brand context) is classified and therefore never lands here.
-  const orphanThreads = projects?.filter(isOrphanThread) ?? []
+  // The brand's last few threads, newest first — every category, including the
+  // ones no category claims. `RECENT_THREADS` rather than the whole list: this
+  // is a resume affordance, not an index, and the index is the nav.
+  //
+  // Sorted on a copy. `projects` is React Query's cached array and an in-place
+  // sort would mutate it, which is invisible until something else reads the
+  // same key expecting the server's order.
+  const recentThreads = [...(projects ?? [])]
+    .sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt))
+    .slice(0, RECENT_THREADS)
   // Derived here rather than passed as a second prop, for the reason the palette
   // is: two props would make "the rail thinks the report landed but the tiles
   // disagree" representable. `undefined` while the list is unknown — the rail
@@ -190,13 +223,7 @@ export function BrandHubView({
 
         <div className="mt-8 flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
           <main className="min-w-0 flex-1">
-            <h2 className="mb-3 text-sm font-medium text-muted-foreground">Apps</h2>
-
-            {projectsError && (
-              <p className="mb-3 text-sm text-destructive">
-                Failed to load threads. Thread counts are unavailable.
-              </p>
-            )}
+            <h2 className="mb-3 text-sm font-medium text-muted-foreground">Start something</h2>
 
             {/* A fixed 2-up, not `auto-fill`: four tiles into a column this
                 wide fits three across and drops the fourth onto a row of
@@ -208,27 +235,30 @@ export function BrandHubView({
                   key={app.id}
                   app={app}
                   brandId={brand.id}
-                  // Each tile counts its own `unit`. `Visual identity` is a
-                  // collection of assets, not of threads, so counting threads
-                  // there would print `0 threads` on a page that has none to
-                  // have — see `MiniApp.unit`.
-                  threadCount={
-                    app.unit === 'asset'
-                      ? (assets?.length ?? null)
-                      : countsKnown
-                        ? projects.filter(app.match).length
-                        : null
-                  }
+                  // **`null` on every tile, on purpose** — see the note at the
+                  // top of this file. The count lives in the nav row for the
+                  // same category, which is on screen right now and stays there
+                  // on every other page of the brand. `null` is already this
+                  // component's "not known, say nothing" value, so nothing in
+                  // `MiniAppTile` had to change to stop counting.
+                  threadCount={null}
                   href={tileHref?.(app)}
                 />
               ))}
             </div>
 
-            {orphanThreads.length > 0 && (
-              <div className="mt-8">
-                <h3 className="mb-3 text-sm font-medium text-muted-foreground">Other threads</h3>
+            <div className="mt-8">
+              <h2 className="mb-3 text-sm font-medium text-muted-foreground">Recent threads</h2>
+
+              {projectsError && (
+                <p className="text-sm text-destructive">
+                  Failed to load this brand&apos;s threads.
+                </p>
+              )}
+
+              {!projectsError && recentThreads.length > 0 && (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-                  {orphanThreads.map((p) => (
+                  {recentThreads.map((p) => (
                     <ProjectCard
                       key={p.id}
                       id={p.id}
@@ -241,8 +271,18 @@ export function BrandHubView({
                     />
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+
+              {/* Only once the list is *known* to be empty. While `projects` is
+                  undefined the section says nothing at all, rather than telling
+                  a brand with forty threads that it has none for the 100ms
+                  before the query lands. */}
+              {!projectsError && projects !== undefined && recentThreads.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Nothing yet. Every thread you start above shows up here, newest first.
+                </p>
+              )}
+            </div>
           </main>
 
           <BrandContextRail

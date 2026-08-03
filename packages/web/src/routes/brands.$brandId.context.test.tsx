@@ -51,10 +51,6 @@ vi.mock('@/api/queries/projects', () => ({
   useDeleteProject: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
-vi.mock('@/components/Breadcrumbs', () => ({
-  useBreadcrumbTrail: () => undefined,
-}))
-
 // Stubbed so the templateId this page creates with is assertable. The dialog's
 // own behaviour (including that templateId reaches the mutation) is covered in
 // NewProjectDialog.test.tsx; what matters here is that the page creates under

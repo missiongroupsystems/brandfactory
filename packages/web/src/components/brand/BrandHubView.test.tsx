@@ -66,7 +66,11 @@ function brand(overrides: Partial<BrandWithSections> = {}): BrandWithSections {
   }
 }
 
-function thread(id: string, templateId: string | null): ProjectSummary {
+function thread(
+  id: string,
+  templateId: string | null,
+  lastActivityAt = '2026-07-01T00:00:00.000Z',
+): ProjectSummary {
   const base = {
     id: id as ProjectSummary['id'],
     brandId: 'b-1' as ProjectSummary['brandId'],
@@ -74,7 +78,7 @@ function thread(id: string, templateId: string | null): ProjectSummary {
     brandName: 'Casa Vostra',
     createdAt: '2026-07-01T00:00:00.000Z',
     updatedAt: '2026-07-01T00:00:00.000Z',
-    lastActivityAt: '2026-07-01T00:00:00.000Z',
+    lastActivityAt,
   }
   return templateId === null
     ? { ...base, kind: 'freeform' }
@@ -176,7 +180,11 @@ describe('BrandHubView', () => {
     expect(link.getAttribute('href')).toBe('https://casavostra.com')
   })
 
-  it('counts threads per tile and files an unregistered one under the catch-all', () => {
+  // **The counts left this page for the nav**, which lists the same five
+  // categories on every page of the brand — so a tile that also counted would
+  // be the same number twice, 200px apart. `MiniAppTile` needed no change: the
+  // hub passes the `null` that already meant "say nothing".
+  it('puts no count on any tile — the nav row owns it now', () => {
     render(
       <BrandHubView
         brand={brand()}
@@ -184,19 +192,51 @@ describe('BrandHubView', () => {
         {...handlers}
       />,
     )
-
-    // Copywriting and Open canvas take one each; the third belongs to neither.
-    expect(screen.getAllByText('1 thread')).toHaveLength(2)
-    expect(screen.getByRole('heading', { name: 'Other threads' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: /Thread p-3/ })).toBeTruthy()
+    expect(screen.queryByText(/^\d+ threads?$/)).toBeNull()
   })
 
-  // `undefined` is "not known", not "zero" — a tile that claims zero threads
-  // while the query is in flight is worse than a tile that says nothing.
-  it('stays silent about counts when threads are not known', () => {
+  // The catch-all heading is gone with the counts — an unregistered thread is
+  // listed by the panel's `Other threads` group, and it reaches this page the
+  // way every other thread does: by being recent.
+  it('resumes the brand’s threads newest first, whatever category they are in', () => {
+    render(
+      <BrandHubView
+        brand={brand()}
+        projects={[
+          thread('p-1', 'copywriting', '2026-07-01T09:00:00.000Z'),
+          thread('p-2', null, '2026-07-03T09:00:00.000Z'),
+          thread('p-3', 'press-kit', '2026-07-02T09:00:00.000Z'),
+        ]}
+        {...handlers}
+      />,
+    )
+
+    const names = screen
+      .getAllByRole('link', { name: /Thread p-/ })
+      .map((el) => el.textContent ?? '')
+    expect(names[0]).toContain('Thread p-2')
+    expect(names[1]).toContain('Thread p-3')
+    expect(names[2]).toContain('Thread p-1')
+    expect(screen.queryByRole('heading', { name: 'Other threads' })).toBeNull()
+  })
+
+  // `undefined` is "not known", not "zero": a brand with forty threads must not
+  // be told it has none for the 100ms before the query lands.
+  it('says nothing about recent threads until the list is known', () => {
+    render(<BrandHubView brand={brand()} {...handlers} />)
+    expect(screen.getByRole('heading', { name: 'Recent threads' })).toBeTruthy()
+    expect(screen.queryByText(/Nothing yet/)).toBeNull()
+  })
+
+  it('reports a failed thread query instead of an empty list', () => {
     render(<BrandHubView brand={brand()} projectsError {...handlers} />)
-    expect(screen.queryByText(/^\d+ threads?$/)).toBeNull()
-    expect(screen.getByText(/Thread counts are unavailable/)).toBeTruthy()
+    expect(screen.getByText(/Failed to load this brand's threads/)).toBeTruthy()
+    expect(screen.queryByText(/Nothing yet/)).toBeNull()
+  })
+
+  it('invites a first thread once the list is known to be empty', () => {
+    render(<BrandHubView brand={brand()} projects={[]} {...handlers} />)
+    expect(screen.getByText(/Nothing yet/)).toBeTruthy()
   })
 
   // The tile list is a prop so the demo can enable `Visual identity` without

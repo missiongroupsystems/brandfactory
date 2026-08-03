@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import type { BrandSummary } from '@brandfactory/shared'
 import { AppError } from '@/api/client'
 import { useDeleteBrand, useUpdateBrand } from '@/api/queries/brands'
+import { BrandMark } from '@/components/brand/BrandMark'
 import { GuidelineMeter } from '@/components/brand/GuidelineMeter'
 import { DeleteBrandDialog } from '@/components/entity/DeleteBrandDialog'
 import { EntityMenu } from '@/components/entity/EntityMenu'
@@ -33,6 +34,13 @@ export function BrandCard({ brand }: { brand: BrandSummary }) {
           className="flex flex-1 flex-col gap-3 pr-8 text-left before:absolute before:inset-0 before:content-['']"
         >
           <div className="min-w-0">
+            {/* The same monogram the rail draws, from the same `brandHue(id)` —
+                which is the point: the grid is where a name and a coloured
+                square are learned as one thing, and the rail is where that
+                square then works as a one-click destination on every other
+                page. `aria-hidden` by construction, so it adds no noise to the
+                card's accessible name. */}
+            <BrandMark name={brand.name} seed={brand.id} size="sm" className="mb-3" />
             <div className="font-medium group-hover:text-accent-foreground">{brand.name}</div>
             {brand.description && (
               <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">

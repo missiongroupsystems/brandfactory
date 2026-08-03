@@ -3,8 +3,8 @@ import { MessagesSquare } from 'lucide-react'
 import { rootRoute } from './__root'
 import { getAuthToken } from '@/auth/store'
 import { useBrand, useBrandProjects } from '@/api/queries/brands'
-import { useBreadcrumbTrail } from '@/components/Breadcrumbs'
 import { BRAND_CONTEXT_TEMPLATE_ID, isBrandContextThread } from '@/components/brand/miniApps'
+import { PageHeader } from '@/components/layout/PageHeader'
 import { NewProjectDialog } from '@/components/project/NewProjectDialog'
 import { ProjectCard } from '@/components/project/ProjectCard'
 import { Button } from '@/components/ui/button'
@@ -31,10 +31,6 @@ function BrandContextPage() {
     isError: threadsError,
   } = useBrandProjects(brandId)
 
-  // A conversation list has no entity id of its own, so it occupies the
-  // breadcrumb's `leaf` slot rather than the project one — same as a mini-app.
-  useBreadcrumbTrail({ leaf: { name: 'Brand context' } })
-
   // Client-side filter, per the 1.4.0 non-goal: the threads endpoint is
   // per-brand and the list is small enough that a server-side template filter
   // would be premature.
@@ -49,27 +45,22 @@ function BrandContextPage() {
 
   return (
     <div className="flex-1 overflow-auto p-6">
-      <header className="mb-6 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-2">
-            <MessagesSquare className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-            Brand context
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Talk the brand out with an agent that already knows it. Anything that lands, you capture
-            into the guidelines yourself.
-          </p>
-        </div>
-        {brand && (
-          <NewProjectDialog
-            brandId={brand.id}
-            workspaceId={brand.workspaceId}
-            templateId={BRAND_CONTEXT_TEMPLATE_ID}
-            title="New conversation"
-            trigger={<Button size="sm">New conversation</Button>}
-          />
-        )}
-      </header>
+      <PageHeader
+        title="Brand context"
+        icon={MessagesSquare}
+        description="Talk the brand out with an agent that already knows it. Anything that lands, you capture into the guidelines yourself."
+        action={
+          brand && (
+            <NewProjectDialog
+              brandId={brand.id}
+              workspaceId={brand.workspaceId}
+              templateId={BRAND_CONTEXT_TEMPLATE_ID}
+              title="New conversation"
+              trigger={<Button size="sm">New conversation</Button>}
+            />
+          )
+        }
+      />
 
       {listError && (
         <p className="text-sm text-destructive">

@@ -3,7 +3,6 @@ import { createRoute, redirect } from '@tanstack/react-router'
 import { rootRoute } from './__root'
 import { getAuthToken } from '@/auth/store'
 import { useProjectDetail } from '@/api/queries/projects'
-import { useBreadcrumbTrail } from '@/components/Breadcrumbs'
 import { useProjectStream } from '@/realtime/useProjectStream'
 import { SplitScreen } from '@/components/project/SplitScreen'
 import { TopBar } from '@/components/project/TopBar'
@@ -32,8 +31,6 @@ function ProjectPage() {
   const [captureDialogOpen, setCaptureDialogOpen] = useState(false)
 
   useProjectStream(projectId)
-  // Brand omitted on purpose — it is the header's brand switcher now.
-  useBreadcrumbTrail(data ? { project: { id: data.id, name: data.name } } : {})
 
   if (isLoading) {
     return (

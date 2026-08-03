@@ -8,6 +8,7 @@ import { getAuthToken } from '@/auth/store'
 import { AppError } from '@/api/client'
 import { useWorkspaceSettings, useUpdateWorkspaceSettings } from '@/api/queries/settings'
 import { useUpdateWorkspace, useWorkspace } from '@/api/queries/workspaces'
+import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -93,9 +94,7 @@ function WorkspaceSettingsPage() {
 
   return (
     <div className="flex-1 overflow-auto p-6">
-      <div className="mb-6">
-        <h1>Workspace settings</h1>
-      </div>
+      <PageHeader title="Workspace settings" />
 
       {workspace && (
         <form onSubmit={handleNameSubmit} className="mb-10 max-w-md space-y-4">

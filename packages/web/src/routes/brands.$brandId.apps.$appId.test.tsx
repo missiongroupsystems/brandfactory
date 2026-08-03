@@ -59,10 +59,6 @@ vi.mock('@/api/queries/projects', () => ({
   useDeleteProject: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
-vi.mock('@/components/Breadcrumbs', () => ({
-  useBreadcrumbTrail: () => undefined,
-}))
-
 const MiniAppPage = (miniAppRoute as unknown as { component: () => React.ReactElement }).component
 const beforeLoad = (
   miniAppRoute as unknown as {

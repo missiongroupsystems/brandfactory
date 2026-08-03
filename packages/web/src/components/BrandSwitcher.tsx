@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { ChevronsUpDown } from 'lucide-react'
 import { useAuthStore } from '@/auth/store'
@@ -6,8 +6,8 @@ import { useBrand } from '@/api/queries/brands'
 import { useWorkspaceBrands } from '@/api/queries/workspaces'
 import { useActiveBrandId } from '@/lib/active-brand'
 import { useActiveWorkspaceId } from '@/lib/workspace-context'
+import { BrandMark } from '@/components/brand/BrandMark'
 import { NewBrandDialog } from '@/components/NewBrandDialog'
-import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,13 +19,21 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 /**
- * Brand peer of `WorkspaceSwitcher`. Present only while the shell is inside a
- * brand — a brand hub, a mini-app page, a brand-context thread, or a project —
- * and absent everywhere else.
+ * The **header of the brand panel** — the brand you are inside, and the way to
+ * any other one by name. Present only while the shell is in a brand (a hub, a
+ * mini-app page, a conversation list, a project), and absent everywhere else.
  *
- * Each header segment renders its own **leading** separator, so a segment that
- * returns `null` cannot strand a divider next to it. `Breadcrumbs` follows the
- * same rule for the tail.
+ * **It was a pill in the header strip until the sidebar landed.** The move is
+ * not decoration: a panel header is a full row, so the name gets ~200px instead
+ * of a 56px `max-w` before the ellipsis, and the mark beside it is the same
+ * monogram the rail draws — which is what ties "the coloured square I clicked"
+ * to "the brand I am now in" instead of leaving the user to infer it.
+ *
+ * **Two ways to switch brands, and they are different gestures.** The rail is
+ * recognition — one click to a mark you know, from any page, no menu. This is
+ * recall — the full list by name, capped and scrolling, with create and the way
+ * out attached. The rail cannot hold 30 legible names and a dropdown cannot be
+ * hit without opening; a workspace of sibling brands wants both.
  */
 export function BrandSwitcher() {
   const token = useAuthStore((s) => s.token)
@@ -38,10 +46,11 @@ export function BrandSwitcher() {
   const { data: brand } = useBrand(brandId ?? '')
   const navigate = useNavigate()
   const [newOpen, setNewOpen] = useState(false)
+  const hintId = useId()
 
   const label = brands?.find((b) => b.id === brandId)?.name ?? brand?.name
 
-  // No name yet means no pill: a placeholder here would flash on every
+  // No name yet means no header: a placeholder here would flash on every
   // navigation into a brand, and unlike the workspace switcher there is no
   // "select one" state worth offering — you are either in a brand or you
   // aren't.
@@ -49,22 +58,21 @@ export function BrandSwitcher() {
 
   return (
     <>
-      <span aria-hidden="true" className="shrink-0 text-sm text-muted-foreground">
-        /
-      </span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 max-w-56 justify-between gap-1.5 font-normal"
-            // Same reasoning as WorkspaceSwitcher: no `aria-label`, or the
-            // active brand's name stops being the accessible name.
-            aria-description="Switch brand"
+          <button
+            type="button"
+            // Same reasoning as WorkspaceSwitcher, both halves: no `aria-label`,
+            // or the active brand's name stops being the accessible name — and
+            // `aria-describedby` at a sibling rather than the draft
+            // `aria-description`, which a `button` does not support.
+            aria-describedby={hintId}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors duration-150 hover:bg-accent"
           >
-            <span className="truncate">{label}</span>
-            <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
-          </Button>
+            <BrandMark name={label} seed={brandId} size="sm" />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">{label}</span>
+            <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" aria-hidden="true" />
+          </button>
         </DropdownMenuTrigger>
         {/* **`max-w-80` is the half that was missing, and only a long name
             shows it.** The items have said `truncate` since 1.6.0, but a
@@ -75,7 +83,7 @@ export function BrandSwitcher() {
             the content is what makes the `truncate` on each row mean something.
             `max-h-80` was already here and is why 30+ brands scroll instead of
             running off the viewport; this is its horizontal twin. */}
-        <DropdownMenuContent align="start" className="max-h-80 min-w-48 max-w-80 overflow-y-auto">
+        <DropdownMenuContent align="start" className="max-h-80 min-w-56 max-w-80 overflow-y-auto">
           {/* Radio semantics for the same reason as the workspace list — the
               check mark is opacity-only and would otherwise be visual-only. */}
           <DropdownMenuRadioGroup value={brandId}>
@@ -122,6 +130,9 @@ export function BrandSwitcher() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <span id={hintId} className="sr-only">
+        Switch brand
+      </span>
       {/* No workspace resolved means no target for the POST, which is why the
           item above is disabled and this is not rendered at all. */}
       {workspaceId ? (

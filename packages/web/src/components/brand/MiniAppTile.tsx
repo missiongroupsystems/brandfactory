@@ -52,9 +52,9 @@ export function MiniAppTile({ app, brandId, threadCount, href }: MiniAppTileProp
       <div className="flex items-center gap-2">
         <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="truncate font-medium">{app.title}</span>
-        {/* Sentence case, 12px/500, neutral beige (§0.4, §12.4). The only
-            uppercase text the CI allows is a side-nav section eyebrow, and
-            this app has no side nav — so nothing here is ever caps. */}
+        {/* Sentence case, 12px/500, neutral beige (§0.4, §12.4). The one
+            uppercase string the CI allows is a side-nav section eyebrow —
+            which this app now has (`NavGroup`), and this is still not one. */}
         {!app.enabled && (
           <span className="ml-auto rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium text-muted-foreground">
             Soon
