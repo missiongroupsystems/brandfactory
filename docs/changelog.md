@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.20.0** — 2026-08-03 — The `Social calendar` tile stops saying Soon: a month grid, a list with an unscheduled tray, and a post editor. Migration 0009. 1332 tests.
 - **1.19.0** — 2026-08-03 — Guideline sections auto-fill from the brand's research, or from a targeted search of its site. Migration 0008.
 - **1.18.1** — 2026-08-03 — Nested nav threads read as children: inset child pill, inked parent row. 1054 tests.
 - **1.18.0** — 2026-08-03 — The report reads the way Perplexity renders it: `[n]` markers become linked citation chips, one markdown register across chat and modal. 1051 tests.
@@ -52,6 +53,206 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.20.0 — 2026-08-03
+
+**The last `Soon` tile in the registry.**
+
+`Social calendar` has advertised itself on the brand hub since 1.4.0 and opened
+a stub every time. Four tiles shipped that way; `visual` turned on at 2E,
+`studio` at 1.16.0, and this is the fourth and last — the pill now has no
+wearer, and the machinery behind it (`NavItem`'s `badge`, `ThreadListPage`'s
+Coming-soon panel) stays for an app that does not yet exist.
+
+What is behind it is the proposal's *conceptual* scheduling tool: the plan is
+the product. Nothing here talks to a platform API, nothing publishes, and
+nothing flips its own status when a time passes — a `ready` post whose slot has
+gone is a plan that slipped, which is information, not an error.
+
+Ships Phases 1–7 of
+[`docs/executing/social-calendar-implementation.md`](executing/social-calendar-implementation.md)
+against the proposal in
+[`social-calendar.md`](executing/social-calendar.md); per-phase detail is in
+the seven notes under `docs/completions/`.
+
+### 1. The row is deliberately small, and has no title
+
+`social_posts` is `{platform, scheduledAt, body, status, assetIds}` over the
+usual soft-delete and timestamp columns. **There is no title field**: the copy
+*is* the artifact, and every surface that needs a caption composes one from
+platform + time + a body excerpt. That single decision is why `postExcerpt`
+exists and why `body: ''` — a claimed slot with the copy still to come — falls
+back to the platform name rather than rendering a blank chip that reads as a
+fault.
+
+Three states, all set by a person: `draft` claims the slot, `ready` approves
+what is written, `posted` is the done-marker someone ticked. `scheduledAt` is
+nullable, and **`null` is a first-class state, not a missing value** — it is
+the unscheduled tray, where an idea waits until it has a slot.
+
+### 2. Attachments ride as ids, in display order
+
+`social_post_assets` is a join table keyed `(post_id, asset_id)` with an
+explicit `position`; the wire carries `assetIds` in display order and the
+client joins against the brand's asset list through a `Map`. A second copy of
+asset rows in the post cache would be one `applyAssetToCache` could never
+reach — an asset renamed or restored would go stale on every post referencing
+it.
+
+The PK makes a duplicate attachment unrepresentable, which Phase 2 noticed and
+Phase 1 could not have: `SocialPostAssetIdsSchema` gained a no-duplicates
+`.refine` so `[a, a]` is a 400 at the boundary rather than a unique-violation
+500 from the insert.
+
+### 3. Migration 0009, after an explicit gate
+
+The proposal reserved 0008 for guideline auto-fill and this stream stopped
+rather than guess. The gate was put to the user, who chose to wait; 0008
+landed the same day and this generated as **0009** — `social_posts`,
+`social_post_assets`, two pgEnums, cascading FKs, and a partial index on
+`(brand_id, scheduled_at) WHERE deleted_at IS NULL`.
+
+### 4. Five routes, the asset library's matrix verbatim
+
+`GET`/`POST` on the collection, `PATCH`/`DELETE` on `:postId`, and
+`POST :postId/restore`, each behind `requireBrandAccess`. `ASSET_NOT_IN_BRAND`
+(400) and `SOCIAL_POST_NOT_FOUND` (404) are the two codes. 29 route tests run
+the full `assets.test.ts` matrix — 401 and 403 on all five methods, cross-brand
+and soft-deleted `assetIds` refused on create *and* patch, `scheduledAt: null`
+unscheduling, omitted `assetIds` keeping attachments while `[]` clears them,
+double delete 404ing, replayed restore 404ing.
+
+`deletedAt` is deliberately absent from the patch schema: deletion is its own
+verb, never a field.
+
+### 5. The cache applier re-sorts, which the asset one never had to
+
+`applySocialPostToCache` is `applyAssetToCache`'s shape — insert-or-replace,
+drop on `deletedAt` — **plus a sort**. A post patch routinely changes where the
+row belongs: rescheduling to another day, or clearing the slot to send it back
+to the tray. Splicing it back where it sat would leave the calendar showing a
+post under the wrong date until something forced a refetch. The comparator is
+the shared `bySchedule`, which mirrors `listSocialPostsByBrand`'s SQL, so a
+re-sorted cache and a refetch agree.
+
+### 6. Dates: no library, and one invariant
+
+Nothing in this monorepo parses dates, and a month grid plus two converters
+does not earn a dependency. New `lib/calendar.ts` is native `Date` + `Intl`,
+built around the invariant that **wire timestamps are UTC but a calendar is
+local**: a post at `23:30Z` belongs to different days in Berlin and London, and
+the cell has to be the reader's. No key in that file comes from
+`toISOString().slice(0, 10)`, which is the shortest way to write the bug.
+
+The second rule is arithmetical: days are added *by day*, never by 86 400 000
+milliseconds, or a DST boundary duplicates or skips a cell twice a year. Its 44
+tests are timezone-agnostic on purpose — pinning `TZ` would hide the exact
+class of defect the module exists to prevent — so the DST case asserts that
+every cell is one *calendar* day after the last, which holds in every zone.
+
+### 7. Two readings of one list
+
+The **month grid** shows scheduled posts as chips (`HH:mm · Platform` over the
+copy), a today ring, and a per-cell add affordance that fills whatever space
+the chips leave — invisible until hover or focus, and absent on padding days,
+which belong to a month the grid is not showing.
+
+Its one blind spot is stated rather than hidden: an unscheduled post has no
+cell it could honestly occupy, so the header counts them and links to the
+**list view**, which leads with the tray for exactly that reason. The list then
+runs Upcoming forward and Past backward — both halves running *away* from now,
+so neither buries today under a year of history. The split is on the day key,
+not the timestamp: an 18:30 post is still today at noon.
+
+The **editor** is one dialog for create and edit, because a post being created
+is a post being edited that has no id yet. It does not close itself on submit —
+the page closes it when the write lands, so a rejected save leaves the copy in
+place — and it diffs the patch, because `UpdateSocialPostInputSchema` refuses
+`{}` and an untouched form would otherwise return a 400 about a request nobody
+knowingly made.
+
+Two smaller decisions worth the line: the view toggle is built from `Button`
+primitives with `aria-pressed` rather than radix tabs (two renderings of one
+list is not a tab-panel relationship), and delete offers an Undo toast rather
+than a confirmation dialog — the row is soft-deleted with its join rows intact,
+so restore brings the post back with its attachments.
+
+**An unresolved attachment gets a visible tile in the editor**, unlike the
+read-only surfaces that skip it. The editor is a write path: an id kept
+invisibly in state rides along on the next save, and the server refuses a
+soft-deleted asset with a 400 about an attachment the author cannot see.
+
+### 8. The flip, in one commit
+
+The route dispatches on `MiniApp.unit` while the Soon stub keys off `enabled`,
+so splitting those edits ships a half-state — a tile that says Soon over a page
+that is a calendar, or the reverse. `unit` gains `'post'` (a fourth answer,
+counted like `'asset'`), the route gains a fourth branch, and `BrandNavPanel`
+counts posts — without which the row would count *threads* and read `0` for a
+brand with a full month planned.
+
+`create`/`match` stay on the row for classification only, as on `visual` and
+`studio`: a legacy `templateId: 'social'` thread is still filed rather than
+landing in the hub's catch-all, though the page behind the tile is a calendar
+now and lists no threads at all.
+
+Three suites had borrowed the live `social` row as their *disabled* fixture and
+each is corrected at its own altitude — the nav asserts the badge's absence,
+the route asserts dispatch, and `MiniAppTile` gets a **synthetic** disabled app
+so the next registry flip does not take three unrelated tile tests with it a
+third time.
+
+### Verification
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1332 passed | 64 skipped (117 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+Per-phase deltas as recorded in the completion notes: **+24** shared wire types,
+**+2** mappers (and +12 live tests among the skips), **+29** route tests,
+**+12** cache applier, **+92** the pure pieces, **+44** assembly, **+9** the
+flip. The absolute tree numbers through this stream are **shared with the
+guideline auto-fill stream**, which was landing its own phases in the same
+checkout on the same day; the deltas are what is attributable here.
+
+`test-setup.ts` gained the pointer-capture, `scrollIntoView` and
+`ResizeObserver` stubs jsdom lacks — `PostEditorDialog` is the first component
+under test in this repo to open a Radix `Select`, and it throws before a single
+assertion runs without them.
+
+### Deployment
+
+**Migration 0009 has not reached production.** Fly's `release_command` runs
+`migrate.mjs` on deploy, so 0008 and 0009 both apply to Supabase the next time
+the server ships — no manual step, but also nothing applied yet. Until that
+deploy the five routes 500 against prod.
+
+### Caveats
+
+- **No live pass on this stream, and for the first time that is a choice
+  rather than a limitation.** Every note here repeats the standing *"no Docker,
+  no `.env`"* line inherited since 1.13.x — but 1.19.0's Phase E established
+  that both exist on this machine, and a Postgres container is running now.
+  `social-posts.live.test.ts` (11 tests: mapper round-trips including a null
+  `scheduledAt`, cross-brand `assetId` rejection, join-row cascade) has skipped
+  in every run of this stream and is **unrun**, as is migration 0009 against a
+  real Postgres. One `db:migrate` and one `pnpm test` with `DATABASE_URL` close
+  both.
+- **Nothing here has been seen in a browser.** Chip legibility in a ~130px
+  cell, the discoverability of a hover-only add button as the primary create
+  gesture, and six rows of cells beside the two-column side nav are all tuned
+  on theory.
+- **Timezone is the browser's**, per proposal §9 — a brand whose audience is
+  elsewhere plans in the planner's local time.
+- Carried forward as future work, unchanged from proposal §9: drag-and-drop
+  rescheduling, a week view, URL state for view and month, brand timezone,
+  past-due highlighting, a warning when an attached asset is soft-deleted,
+  publishing, and agent chat in the calendar.
 
 ---
 
