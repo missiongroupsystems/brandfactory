@@ -28,7 +28,7 @@ import type {
   SectionId,
   UpdateBrandGuidelinesInput,
 } from '@brandfactory/shared'
-import { SUGGESTED_SECTIONS } from '@brandfactory/shared'
+import { sameSectionLabel, SUGGESTED_SECTIONS } from '@brandfactory/shared'
 import { AppError } from '@/api/client'
 import { useUpdateBrandGuidelines } from '@/api/queries/brands'
 import { defaultExtensions } from '@/editor/proseMirrorSchema'
@@ -551,8 +551,12 @@ export function BrandGuidelinesEditor({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // `sameSectionLabel`, not `===`: this compared raw strings while the rail
+  // compared trimmed-and-lowercased ones, so the two surfaces the rail's own
+  // comment claims agree could offer a chip for a section already on screen.
+  // Same helper on both sides now.
   const unusedSuggestions = SUGGESTED_SECTIONS.filter(
-    (sg) => !sections.some((s) => s.label === sg.label),
+    (sg) => !sections.some((s) => sameSectionLabel(s.label, sg.label)),
   )
 
   return (

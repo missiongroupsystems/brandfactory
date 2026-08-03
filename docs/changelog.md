@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.21.0** — 2026-08-03 — `TL;DR` and `Overview` join the section list, and summary sections stop being told not to summarise. No migration. 1376 tests.
 - **1.20.0** — 2026-08-03 — The `Social calendar` tile stops saying Soon: a month grid, a list with an unscheduled tray, and a post editor. Migration 0009. 1332 tests.
 - **1.19.0** — 2026-08-03 — Guideline sections auto-fill from the brand's research, or from a targeted search of its site. Migration 0008.
 - **1.18.1** — 2026-08-03 — Nested nav threads read as children: inset child pill, inked parent row. 1054 tests.
@@ -53,6 +54,190 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.21.0 — 2026-08-03
+
+**Two sections that read across the other five.**
+
+The ask was one sentence — *"add a TLDR section/field as well as an Overview
+attached to each brand"* — with the purpose stated for later: the TL;DR is meant
+to become a perpetual system-context injection once there is something to inject
+it into. It arrived against a screenshot of the Brand context card reading *3
+written · 2 suggested*, and the two new entries belong in that list rather than
+beside it.
+
+Ships [`docs/completions/brand-tldr-and-overview.md`](completions/brand-tldr-and-overview.md).
+**No migration, no new route, no new component** — the work is entirely in the
+four places where a section that *summarises the others* behaves differently
+from one that describes an aspect of the brand.
+
+### 1. Sections, not columns on the brand row
+
+The ask says *field*, and a `brands.tldr` column was the obvious reading. The
+sentence after it is what rejected the idea: *"like all other context sections,
+can be edited manually or AI generated"* describes machinery that already exists
+and hangs off `guideline_sections`. A column would have needed a migration, a
+wire type, a route, an editor control, its own AI path and its own answer to
+*what does the sparkle do here* — all to arrive at a text field the section list
+already is.
+
+So `TL;DR` and `Overview` are ordinary `SUGGESTED_SECTIONS` entries at the head
+of the list, and everything that already works on a section works on them the
+day they land: the rail row and its `+`, the editor row, drag-to-reorder, the
+sparkle, capture-from-a-thread, research drafts, `createdBy` provenance, the
+system prompt. The price is that a brand can delete, rename or duplicate its
+TL;DR, which §4 answers.
+
+### 2. `kind: 'aspect' | 'synthesis'` — the change that makes the feature work
+
+Both auto-fill paths tell the model which sections the brand already has, and
+then: ***Do not restate what belongs there.*** That is exactly right for an
+aspect and exactly backwards for a summary. A TL;DR forbidden from mentioning
+voice, audience or values has been asked to summarise nothing — and the
+instruction gets **stronger the more the brand has written**. Left unflagged the
+sparkle would have failed hardest on the most complete brands and returned
+`no-material` on the ones it should work best on: a bug that reads as *the
+feature is broken*, not as *the brand is empty*.
+
+The same list is now introduced two ways, and only the instruction about it
+flips:
+
+> *…This section sits above them and summarises across all of them — draw on
+> that ground freely, but write it as one coherent whole rather than a list of
+> the other sections.*
+
+The flag reaches **three** generators, because three places write a section body
+and all of them had the assumption baked in. `buildSectionShapePrompt` (Path R)
+also **swaps its rule 2**: *"Compress"* / *"the version someone reads in a
+sidebar"* aims a model at one passage, and rule 1 then gives it a compliant way
+to return nothing when it cannot find that passage. A summary is told to
+compress the whole report instead. `buildSectionSearchPrompt` (Path S) takes the
+same inversion. `buildShapePrompt` — the batch pass — has no `existingLabels` to
+invert, its neighbours being its own output, so it gets a rule 8 naming the
+summary labels as reading across the whole report.
+
+A custom label the user invents resolves to no `kind` and gets aspect
+behaviour, which is what every label got before this existed.
+
+### 3. 400 characters, because of where the TL;DR is going
+
+Every other section targets `DRAFT_TARGET_MAX_CHARS` (1200) — a comfortable
+paragraph or two in a sidebar. The TL;DR is the one section written to be
+*injected* rather than read, so its cost is paid on every request forever and
+its job is to be the shortest true statement of the brand. `Overview` is
+deliberately uncapped: it is the long version of the same thing.
+
+A generator's ceiling, **not a schema bound** — a TL;DR typed by hand is as long
+as its author wants, and nothing in this repo has ever enforced the target.
+
+### 4. One lookup, because `TL;DR` is the label nobody types twice the same way
+
+The canonical label is `TL;DR`. What people type is `TLDR`. Under the previous
+comparison (`label.toLowerCase()`) those were two different sections: the row
+got no `description`, aspect rules and a 1200-character ceiling — precisely the
+combination that produces a bad TL;DR — the rail offered to *add* a TL;DR to a
+brand that had one, and the icon collapsed to the generic `FileText`.
+
+New `packages/shared/src/brand/canonical-sections.ts` is the one place that
+decides this. `normaliseSectionLabel` lowercases and drops punctuation, so
+`TL;DR`, `TLDR`, `tl;dr` and `TL-DR` are one section; it is deliberately not
+clever, because inventing an equivalence between `Voice and tone` and
+`Voice & tone` would merge two rows a user meant to keep apart. The rule is
+*punctuation and case are noise; words are not* — which is why the class is
+`\p{L}\p{N}` and not `a-z0-9`: an ASCII class does not keep letters, it keeps
+English, and a brand naming its sections in Japanese or Cyrillic would have had
+every label normalise to the empty string and every pair of them compare equal.
+
+**This fixed a real disagreement on the way past.** `BrandContextRail`'s comment
+claimed its unwritten-suggestion filter matched "the same way the editor's
+quick-add chips decide what to offer, so the rail and the dialog never
+disagree" — and they did: the rail trimmed and lowercased, the editor compared
+`s.label === sg.label` raw. A brand with `voice & tone` in lower case got no
+rail suggestion *and* a chip that would append a second copy of a section
+already on screen. Both call `sameSectionLabel` now, and the comment is true.
+
+### 5. Ordering, and the positional reference it broke
+
+The two summaries lead `SUGGESTED_SECTIONS`, which puts them first in the rail's
+unwritten rows, first in the editor's quick-add chips and first in the deep
+report's headings. A brand's one-paragraph answer to *"what is this?"* is what
+everything else is a detail of.
+
+Putting them at the head is also what surfaced a live hazard.
+`buildResearchPrompt` aimed its no-hex rule with `SUGGESTED_SECTIONS[3].label`,
+and inserting two entries above index 3 re-points that rule from
+`Visual guidelines` to `Voice & tone` — **silently**, passing every type check,
+lint and test that reads the constant rather than the string. The label is a
+named export now (`VISUAL_GUIDELINES_SECTION_LABEL`) and a test asserts the rule
+names it.
+
+### 6. A lightning bolt and an open book
+
+`Zap` for `TL;DR`, `BookOpen` for `Overview` — the short version and the long
+version of the same thing, reading as a pair in a rail whose other five glyphs
+are all nouns. Keyword fallbacks cover the labels people write instead
+(`summary`, `in a nutshell`, `about`, `background`). The exact map is keyed on
+the *normalised* label so `TLDR` finds its glyph; the keyword pass stays on the
+plain lowercase string, because removing spaces first makes every word junction
+a possible match — `Custom Erasure` normalises to `customerasure`, which
+contains `customer`.
+
+`background` sits **below** the visual keywords rather than up with `about`: it
+reads as an Overview synonym in `Company background` and as a surface in
+`Background colour`, and up top it claimed both.
+
+### 7. The injection is not wired, and the seam is named anyway
+
+The ask puts the perpetual-system-prompt role explicitly in the future, so it is
+not built here. The TL;DR **already reaches the model** as an ordinary
+`### TL;DR` inside `buildSystemPrompt`'s section block, because every section
+does. What it does not have is the standing-context role: hoisted above the
+guidelines, carried into surfaces that do not render the full section list, and
+priced as a fixed per-request cost.
+
+`brandTldrSection` exists with no production caller for exactly that reason. Its
+only consumer today is a test. When the injection is built it will not have to
+re-decide what counts as a TL;DR, which is the fourth place that decision would
+otherwise have been made by hand.
+
+### Verification
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1376 passed | 64 skipped (134 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+17 files modified, 3 added. Tests 1332 → **1376**.
+
+### Caveats
+
+- **Nothing here has been seen in a browser.** Seven rows in the rail instead of
+  five, seven dots in `GuidelineMeter`, and whether `TL;DR` reads as a label or
+  as an abbreviation someone forgot to expand. All one look away.
+- **No live AI pass on either path.** The inversion is asserted at the prompt
+  string, not at a model's response — nobody has clicked the sparkle on a real
+  `TL;DR` row and read what came back. It is the cheap end of the feature (Path
+  R is cents of the workspace's own tokens; Path S ~$0.01) and it is the only
+  way to find out whether 400 characters is the right ceiling.
+- **The deep report now asks for seven headings instead of five**, on a run that
+  costs ~$0.38 and has not been re-run since. The two extra headings are cheap
+  for the finder and their absence is already handled — *omit a heading entirely
+  rather than guess* is unchanged — but the first paid run after this is the
+  first evidence.
+- **The quick-add chip appends**, so a TL;DR added to a brand that already has
+  sections lands last in the editor, last among the rail's written rows and last
+  in the system prompt's section block, which is the opposite of the order §5
+  puts it in. Drag-to-reorder recovers it. Known and unfixed — inserting a
+  `synthesis` section at the head instead is a small change waiting on the
+  browser pass.
+- **A brand can still delete, rename or duplicate its TL;DR**, which is the
+  price of §1. `brandTldrSection` returns the first match and `undefined` when
+  there is none; the future injection has to be honest about a brand that has
+  not written one rather than manufacture a substitute.
 
 ---
 

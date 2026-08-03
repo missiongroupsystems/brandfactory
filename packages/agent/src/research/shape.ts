@@ -123,6 +123,16 @@ export function buildShapePrompt(input: {
   const labels = SUGGESTED_SECTIONS.map((s) => `- ${s.label}: ${s.description}`).join('\n')
   const sources = input.citations.map((c) => `- ${c.url} — ${c.title}`).join('\n')
 
+  // The batch pass writes every section in one call, so unlike the two
+  // single-section builders it has no `existingLabels` line to invert — the
+  // "neighbours" are its own output. What it does need is the length: a `TL;DR`
+  // shaped to the same 1200 characters as `Voice & tone` is not a TL;DR, and
+  // rule 2's single number cannot say so.
+  const perSectionCaps = SUGGESTED_SECTIONS.filter((s) => s.targetMaxChars !== undefined)
+    .map((s) => `"${s.label}" is at most ${s.targetMaxChars} characters`)
+    .join('; ')
+  const synthesis = SUGGESTED_SECTIONS.filter((s) => s.kind === 'synthesis').map((s) => s.label)
+
   return `You are turning a long research report about the brand "${input.brandName}" into short, usable brand guideline sections.
 
 Use these section labels where the report supports them, and prefer them over inventing your own:
@@ -132,12 +142,17 @@ ${labels}
 Rules, in order of importance:
 
 1. **Omit a section rather than invent one.** If the report has nothing solid for a label, leave it out. A missing section is honest; a padded one is a lie the user has to find.
-2. **Compress.** The report is long and repetitive by design; a section is 3–6 sentences, under ${DRAFT_TARGET_MAX_CHARS} characters. You are writing the version someone reads in a sidebar, not a summary of everything the report says.
+2. **Compress.** The report is long and repetitive by design; a section is 3–6 sentences, under ${DRAFT_TARGET_MAX_CHARS} characters${perSectionCaps ? `, except that ${perSectionCaps}` : ''}. You are writing the version someone reads in a sidebar, not a summary of everything the report says.
 3. **Quote the brand's own words** where the report gives them. Their phrasing is the asset; yours is a paraphrase of it.
 4. **Cite only from this list.** Every URL you attach must appear here verbatim; anything else is dropped.
 5. **No colour values.** Never write hex codes or RGB values into any section — this product stores colours as structured data with their own editor, and prose that restates them puts one fact in two places. Describe the thinking and the references instead.
 6. Write plain markdown: paragraphs, and bullet lists where a list is genuinely the shape. No headings, no tables, no images.
-7. **Labels are short** — a few words, at most ${GUIDELINE_LABEL_MAX_CHARS} characters. A label names a section; it does not summarise it.
+7. **Labels are short** — a few words, at most ${GUIDELINE_LABEL_MAX_CHARS} characters. A label names a section; it does not summarise it.${
+    synthesis.length > 0
+      ? `
+8. **${synthesis.map((l) => `"${l}"`).join(' and ')} summarise across the whole report**, not one passage of it, and they are written as one coherent whole rather than a list of the other sections. Rule 1 retires them only when the report has nothing in it at all.`
+      : ''
+  }
 
 Sources available for citation:
 

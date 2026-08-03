@@ -5,7 +5,7 @@ import {
   type ShapeSectionResult,
 } from '@brandfactory/agent'
 import type { LLMProvider } from '@brandfactory/adapter-llm'
-import type { BrandId, ResearchSource } from '@brandfactory/shared'
+import type { BrandId, ResearchSource, SuggestedSectionKind } from '@brandfactory/shared'
 import type { Db } from '../db'
 import type { Env } from '../env'
 import { resolveLLMSettings } from '../settings'
@@ -101,6 +101,10 @@ export type ShapeSectionFn = (input: {
   label: string
   description?: string
   existingLabels: string[]
+  /** What the label is, when it is one of ours — see `SuggestedSectionKind`. */
+  kind?: SuggestedSectionKind
+  /** The section's own length ceiling; absent means `DRAFT_TARGET_MAX_CHARS`. */
+  maxChars?: number
   report: string
   citations: ResearchSource[]
 }) => Promise<ShapeSectionResult & { model: string }>
@@ -120,7 +124,17 @@ export const SHAPE_SECTION_TIMEOUT_MS = 60_000
  * as `shapeResearch` is.
  */
 export function createSectionShaper(deps: ResearchShaperDeps): ShapeSectionFn {
-  return async ({ brandId, brandName, label, description, existingLabels, report, citations }) => {
+  return async ({
+    brandId,
+    brandName,
+    label,
+    description,
+    existingLabels,
+    kind,
+    maxChars,
+    report,
+    citations,
+  }) => {
     const brand = await deps.db.getBrandById(brandId)
     if (!brand) throw new Error(`brand ${brandId} not found while auto-filling a guideline section`)
     const settings = await resolveLLMSettings(brand.workspaceId, deps.env, deps.db)
@@ -129,6 +143,8 @@ export function createSectionShaper(deps: ResearchShaperDeps): ShapeSectionFn {
       label,
       description,
       existingLabels,
+      kind,
+      maxChars,
       report,
       citations,
       llmProvider: deps.llm,

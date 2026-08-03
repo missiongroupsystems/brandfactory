@@ -5,6 +5,7 @@ import {
   DRAFT_TARGET_MAX_CHARS,
   type ResearchDraft,
   type ResearchSource,
+  type SuggestedSectionKind,
 } from '@brandfactory/shared'
 import { markdownToDraftBody } from './markdown'
 import { resolveCitedSources } from './shape'
@@ -75,6 +76,13 @@ export interface ShapeSectionInput {
   description?: string
   /** Labels the guidelines already have, so the text does not restate a neighbour. */
   existingLabels: string[]
+  /**
+   * The `SUGGESTED_SECTIONS` kind when the label matches one; absent is treated
+   * as `'aspect'`. Flips what `existingLabels` *means* — see the prompt builder.
+   */
+  kind?: SuggestedSectionKind
+  /** The section's own length ceiling; absent means `DRAFT_TARGET_MAX_CHARS`. */
+  maxChars?: number
   /** The stored deep-research report, verbatim. */
   report: string
   /** The report's citations. **The only URLs the draft may cite.** */
@@ -97,9 +105,13 @@ export function buildSectionShapePrompt(input: {
   label: string
   description?: string
   existingLabels: string[]
+  kind?: SuggestedSectionKind
+  maxChars?: number
   citations: ResearchSource[]
 }): string {
   const sources = input.citations.map((c) => `- ${c.url} — ${c.title}`).join('\n')
+  const maxChars = input.maxChars ?? DRAFT_TARGET_MAX_CHARS
+  const synthesis = input.kind === 'synthesis'
 
   const lines = [
     `You are extracting one brand guideline section from a long research report about the brand "${input.brandName}".`,
@@ -114,7 +126,15 @@ export function buildSectionShapePrompt(input: {
     'Rules, in order of importance:',
     '',
     '1. **Return an empty markdown string rather than invent.** If the report has nothing solid for this section, answer with an empty `markdown`. A missing section is honest; a padded one is a lie the user has to find.',
-    `2. **Compress.** The section is 3–6 sentences, under ${DRAFT_TARGET_MAX_CHARS} characters. You are writing the version someone reads in a sidebar, not a summary of everything the report says.`,
+    // **Rule 2 says a different thing to a summary, and rule 1 is why it has
+    // to.** "Extract" and "the version someone reads in a sidebar" both aim a
+    // model at one passage of the report; a TL;DR that finds no single passage
+    // saying what the brand is has been given a compliant way to return
+    // nothing, and would take it. A summary's material is the whole report, and
+    // the instruction has to say so before rule 1 lets it off the hook.
+    synthesis
+      ? `2. **Compress the whole report, not one passage.** Read across every part of it and write the summary that sits above all of them — under ${maxChars} characters, plain prose, no lists of the other sections. Rule 1 applies only if the report has nothing in it at all.`
+      : `2. **Compress.** The section is 3–6 sentences, under ${maxChars} characters. You are writing the version someone reads in a sidebar, not a summary of everything the report says.`,
     "3. **Quote the brand's own words** where the report gives them. Their phrasing is the asset; yours is a paraphrase of it.",
     '4. **Cite only from this list.** Every URL you put in `sourceUrls` must appear below verbatim; anything else is dropped.',
     '5. **No colour values.** Never write hex codes or RGB values — this product stores colours as structured data with their own editor. Describe the thinking and the references instead.',
@@ -122,9 +142,14 @@ export function buildSectionShapePrompt(input: {
     '7. Write plain markdown: paragraphs, and bullet lists where a list is genuinely the shape. No headings, no tables, no images.',
   )
   if (input.existingLabels.length > 0) {
+    // The same inversion `buildSectionSearchPrompt` makes, for the same reason:
+    // told not to restate its neighbours, a summary of its neighbours has been
+    // told not to exist.
     lines.push(
       '',
-      `The brand's guidelines already have sections for: ${input.existingLabels.join(', ')}. Do not restate what belongs there.`,
+      synthesis
+        ? `The brand's guidelines already have sections for: ${input.existingLabels.join(', ')}. This section sits above them and summarises across all of them — draw on that ground freely, but write it as one coherent whole rather than a list of the other sections.`
+        : `The brand's guidelines already have sections for: ${input.existingLabels.join(', ')}. Do not restate what belongs there.`,
     )
   }
   lines.push('', 'Sources available for citation:', '', sources || '- (none)')

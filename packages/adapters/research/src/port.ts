@@ -1,4 +1,4 @@
-import type { ResearchSource } from '@brandfactory/shared'
+import type { ResearchSource, SuggestedSectionKind } from '@brandfactory/shared'
 
 // ---------------------------------------------------------------------------
 // The research port — two methods, because a job is start-then-wait
@@ -105,6 +105,18 @@ export interface SectionSearchRequest {
   description?: string
   /** Labels the brand's guidelines already have, so the text does not restate them. */
   existingLabels: string[]
+  /**
+   * The `SUGGESTED_SECTIONS` kind when the label matches one; absent for a
+   * custom label, which is treated as `'aspect'`. It decides one prompt line —
+   * whether `existingLabels` is a fence or a foundation. See
+   * `SuggestedSectionKind`.
+   */
+  kind?: SuggestedSectionKind
+  /**
+   * The section's own length ceiling, when it has one (`TL;DR` does). Absent
+   * means `DRAFT_TARGET_MAX_CHARS`, which is every other section.
+   */
+  maxChars?: number
   model: string
 }
 

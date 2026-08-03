@@ -121,6 +121,52 @@ const okResult = (label = 'Target audience'): AutofillSectionResult => ({
 
 const autofillButtons = () => screen.queryAllByRole('button', { name: /^Auto-fill / })
 
+/** The fixture brand with its one section relabelled. */
+function brandLabelled(label: string): BrandWithSections {
+  const base = brand()
+  return { ...base, sections: [{ ...base.sections[0]!, label }] }
+}
+
+// ---------------------------------------------------------------------------
+// Quick-add chips
+// ---------------------------------------------------------------------------
+//
+// The chip row and the rail's unwritten rows answer the same question — what
+// has this brand not written? — and until `sameSectionLabel` they answered it
+// differently: this side compared raw strings while the rail trimmed and
+// lowercased, so a brand with `voice & tone` in lower case got a chip that
+// appended a second copy of a section already on screen.
+
+describe('BrandGuidelinesEditor quick-add suggestions', () => {
+  const chip = (label: string) => screen.queryByRole('button', { name: label })
+
+  it('offers the two summary sections first, and not one the brand has written', () => {
+    render(<BrandGuidelinesEditor brand={brand()} />)
+    expect(chip('TL;DR')).toBeTruthy()
+    expect(chip('Overview')).toBeTruthy()
+    expect(chip('Voice & tone')).toBeNull()
+  })
+
+  it('recognises a written section through case and punctuation', () => {
+    render(<BrandGuidelinesEditor brand={brandLabelled('  voice & TONE ')} />)
+    expect(chip('Voice & tone')).toBeNull()
+  })
+
+  it('treats TLDR as the TL;DR section', () => {
+    render(<BrandGuidelinesEditor brand={brandLabelled('TLDR')} />)
+    expect(chip('TL;DR')).toBeNull()
+    expect(chip('Overview')).toBeTruthy()
+  })
+
+  it('appends a labelled empty row when a chip is clicked', async () => {
+    render(<BrandGuidelinesEditor brand={brand()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'TL;DR' }))
+
+    await waitFor(() => expect(sectionLabels()).toHaveLength(2))
+    expect(sectionLabels().map((i) => i.value)).toEqual(['Voice & tone', 'TL;DR'])
+  })
+})
+
 // ---------------------------------------------------------------------------
 // Provenance (Stage 1B)
 // ---------------------------------------------------------------------------

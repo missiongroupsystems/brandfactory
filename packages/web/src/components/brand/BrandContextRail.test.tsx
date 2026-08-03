@@ -97,6 +97,16 @@ describe('BrandContextRail', () => {
     expect(screen.queryByRole('button', { name: 'Add Voice & tone' })).toBeNull()
   })
 
+  // Punctuation too, since `sameSectionLabel` replaced the two hand-rolled
+  // comparisons. A brand that wrote `TLDR` has a TL;DR, and the rail must not
+  // offer to add a second one.
+  it('treats TLDR as the TL;DR row', () => {
+    render(<BrandContextRail brand={brand([section('s-1', 'TLDR')])} onEdit={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'TLDR' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Add TL;DR' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Add Overview' })).toBeTruthy()
+  })
+
   it('counts what the list below it actually shows', () => {
     render(
       <BrandContextRail

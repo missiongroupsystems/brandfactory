@@ -184,3 +184,51 @@ describe('buildSectionShapePrompt', () => {
     expect(withDescription).not.toContain('already have sections')
   })
 })
+
+// ---------------------------------------------------------------------------
+// The synthesis branch — the one prompt line that inverts
+// ---------------------------------------------------------------------------
+//
+// Both halves name the same `existingLabels`; only the instruction about them
+// flips. Written as its own block because the failure it guards is silent: an
+// aspect-shaped prompt for `TL;DR` returns a plausible, compliant, empty
+// answer — the model doing exactly as told — and the bug surfaces as "the
+// sparkle does nothing on my most complete brand".
+describe('buildSectionShapePrompt — synthesis sections', () => {
+  const base = {
+    brandName: 'Casa Vostra',
+    label: 'TL;DR',
+    existingLabels: ['Voice & tone', 'Target audience'],
+    citations: CITATIONS,
+  }
+
+  it('tells an aspect not to restate its neighbours', () => {
+    const prompt = buildSectionShapePrompt({ ...base, label: 'Voice & tone', kind: 'aspect' })
+    expect(prompt).toContain('Do not restate what belongs there')
+    expect(prompt).not.toContain('summarises across all of them')
+  })
+
+  it('tells a synthesis section to draw on them instead', () => {
+    const prompt = buildSectionShapePrompt({ ...base, kind: 'synthesis' })
+    expect(prompt).toContain('Voice & tone, Target audience')
+    expect(prompt).toContain('summarises across all of them')
+    expect(prompt).not.toContain('Do not restate what belongs there')
+  })
+
+  it('replaces the extract-one-passage rule with compress-the-whole-report', () => {
+    const prompt = buildSectionShapePrompt({ ...base, kind: 'synthesis' })
+    expect(prompt).toContain('Compress the whole report, not one passage')
+    expect(prompt).not.toContain('the version someone reads in a sidebar')
+  })
+
+  // An omitted `kind` is a label the user invented, and it gets the behaviour
+  // every label had before this existed.
+  it('defaults to aspect when no kind is supplied', () => {
+    expect(buildSectionShapePrompt(base)).toContain('Do not restate what belongs there')
+  })
+
+  it('states the section’s own ceiling when it has one, the default otherwise', () => {
+    expect(buildSectionShapePrompt({ ...base, maxChars: 400 })).toContain('400 characters')
+    expect(buildSectionShapePrompt(base)).toContain(String(DRAFT_TARGET_MAX_CHARS))
+  })
+})

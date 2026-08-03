@@ -6,7 +6,8 @@ import {
 } from '@brandfactory/adapter-research'
 import {
   GUIDELINE_LABEL_MAX_CHARS,
-  SUGGESTED_SECTIONS,
+  sameSectionLabel,
+  suggestionForLabel,
   type AutofillSectionResult,
   type BrandId,
   type UserId,
@@ -177,20 +178,28 @@ export async function autofillSection(
     throw new ValidationError('The section needs a label before it can be auto-filled.')
   }
 
-  // The `SUGGESTED_SECTIONS` description when the label matches one — resolved
-  // here because both prompt builders render the line iff supplied, and the
-  // caller owns the match (the Phase A/B contract).
-  const description = SUGGESTED_SECTIONS.find(
-    (s) => s.label.toLowerCase() === label.toLowerCase(),
-  )?.description
+  // What the label *is*, when it is one of ours — resolved here because both
+  // prompt builders render each line iff supplied, and the caller owns the
+  // match (the Phase A/B contract). Three facts now travel where one did:
+  // `description` as before, plus the `kind` that decides whether the
+  // neighbours are a fence or a foundation, and the section's own length
+  // ceiling. A custom label resolves to nothing and gets every default.
+  //
+  // **Matched through `suggestionForLabel`, not `toLowerCase()`.** The row a
+  // user types `TLDR` into is the `TL;DR` row in every sense that matters here,
+  // and under the old comparison it would have been fed the generic prompt —
+  // no description, aspect rules, 1200 characters — which is precisely the
+  // combination that produces a bad TL;DR.
+  const suggestion = suggestionForLabel(label)
+  const description = suggestion?.description
+  const kind = suggestion?.kind
+  const maxChars = suggestion?.targetMaxChars
 
   // So the text does not restate a neighbouring section. The clicked row is
   // usually unsaved and absent; if it was saved empty first, it is excluded —
   // a section must not be told its own label is already covered.
   const sections = await deps.db.listSectionsByBrand(input.brandId)
-  const existingLabels = sections
-    .map((s) => s.label)
-    .filter((l) => l.toLowerCase() !== label.toLowerCase())
+  const existingLabels = sections.map((s) => s.label).filter((l) => !sameSectionLabel(l, label))
 
   // Path selection, on the server, at request time. `NO_FINDINGS` falls
   // through to Path S: its "report" is the finder saying the site gave it too
@@ -206,6 +215,8 @@ export async function autofillSection(
         label,
         ...(description !== undefined ? { description } : {}),
         existingLabels,
+        ...(kind !== undefined ? { kind } : {}),
+        ...(maxChars !== undefined ? { maxChars } : {}),
         report: latest.report,
         citations: latest.citations,
       })
@@ -290,6 +301,8 @@ export async function autofillSection(
       label,
       ...(description !== undefined ? { description } : {}),
       existingLabels,
+      ...(kind !== undefined ? { kind } : {}),
+      ...(maxChars !== undefined ? { maxChars } : {}),
       model: deps.env.RESEARCH_SECTION_MODEL,
     })
   } catch (cause) {

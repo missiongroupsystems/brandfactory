@@ -1,6 +1,11 @@
 import { ResearchProviderError, type ResearchProvider } from '@brandfactory/adapter-research'
 import type { ResearchJob } from '@brandfactory/db'
-import type { BrandGuidelineSection, BrandId, ResearchJobId } from '@brandfactory/shared'
+import {
+  TLDR_TARGET_MAX_CHARS,
+  type BrandGuidelineSection,
+  type BrandId,
+  type ResearchJobId,
+} from '@brandfactory/shared'
 import { describe, expect, it, vi } from 'vitest'
 import type { Env } from '../env'
 import type { ShapeSectionFn } from './shape'
@@ -211,6 +216,64 @@ describe('POST /brands/:id/guidelines/autofill — Path S (no report)', () => {
     await autofill('Menu philosophy')
     const custom = vi.mocked(research.searchSection).mock.calls[1]![0]
     expect(custom.description).toBeUndefined()
+  })
+
+  // Three facts travel where one used to. `kind` decides whether the
+  // neighbours line is a fence or a foundation, and `maxChars` is the ceiling
+  // TL;DR carries because of where it is destined to be read.
+  it('sends the kind and the length ceiling the label resolves to', async () => {
+    const research = fakeProvider({ searchSection: searchOk() })
+    const { autofill } = await seed({ research })
+
+    await autofill('TL;DR')
+    expect(research.searchSection).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'synthesis', maxChars: TLDR_TARGET_MAX_CHARS }),
+    )
+
+    // An aspect has no ceiling of its own; the builder falls back to the
+    // default rather than being told one here.
+    await autofill('Voice & tone')
+    const aspect = vi.mocked(research.searchSection).mock.calls[1]![0]
+    expect(aspect.kind).toBe('aspect')
+    expect(aspect.maxChars).toBeUndefined()
+
+    await autofill('Menu philosophy')
+    const custom = vi.mocked(research.searchSection).mock.calls[2]![0]
+    expect(custom.kind).toBeUndefined()
+    expect(custom.maxChars).toBeUndefined()
+  })
+
+  // The row a user types `TLDR` into is the TL;DR row. Under the old
+  // `toLowerCase()` match it was a custom label: no description, aspect rules,
+  // 1200 characters — the exact combination that produces a bad TL;DR.
+  it('resolves a canonical label however its punctuation was typed', async () => {
+    const research = fakeProvider({ searchSection: searchOk() })
+    const { autofill } = await seed({ research })
+
+    await autofill('TLDR')
+    expect(research.searchSection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: 'TLDR',
+        kind: 'synthesis',
+        maxChars: TLDR_TARGET_MAX_CHARS,
+      }),
+    )
+    // The *label* is still what the user typed — only the lookup is loosened.
+    expect(vi.mocked(research.searchSection).mock.calls[0]![0].description).toContain(
+      'The whole brand in a few sentences',
+    )
+  })
+
+  it('excludes a differently-punctuated spelling of the row being filled', async () => {
+    const research = fakeProvider({ searchSection: searchOk() })
+    const { autofill, state, brandId } = await seed({ research })
+    plantSection(state, brandId, 'Voice & tone')
+    plantSection(state, brandId, 'TLDR')
+
+    await autofill('TL;DR')
+    expect(research.searchSection).toHaveBeenCalledWith(
+      expect.objectContaining({ existingLabels: ['Voice & tone'] }),
+    )
   })
 
   it('tells the search which sections already exist — excluding the one being filled', async () => {
@@ -500,6 +563,24 @@ describe('POST /brands/:id/guidelines/autofill — Path R (a report exists)', ()
         citations: job.citations,
       }),
     )
+  })
+
+  // The same three facts Path S gets. Both paths resolve them from one lookup,
+  // so a section cannot be a summary to the search and an aspect to the shaper.
+  it('carries the kind and the ceiling into the shaper too', async () => {
+    const shapeSection = shaperOk()
+    const { autofill, state, brandId } = await seed({ shapeSection })
+    plantJob(state, brandId)
+
+    await autofill('TL;DR')
+    expect(shapeSection).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'synthesis', maxChars: TLDR_TARGET_MAX_CHARS }),
+    )
+
+    await autofill('Voice & tone')
+    const aspect = shapeSection.mock.calls[1]![0]
+    expect(aspect.kind).toBe('aspect')
+    expect(aspect.maxChars).toBeUndefined()
   })
 
   it('works even when research is off — the report is already paid for', async () => {

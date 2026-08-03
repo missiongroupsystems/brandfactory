@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { LanguageModel } from 'ai'
 import type { LLMProvider, LLMProviderSettings } from '@brandfactory/adapter-llm'
-import { GUIDELINE_LABEL_MAX_CHARS, type ResearchSource } from '@brandfactory/shared'
+import {
+  GUIDELINE_LABEL_MAX_CHARS,
+  TLDR_TARGET_MAX_CHARS,
+  type ResearchSource,
+} from '@brandfactory/shared'
 import { buildShapePrompt, DRAFT_TARGET_MAX_CHARS, shapeResearchIntoSections } from './shape'
 
 // A minimal `LanguageModelV1` that answers `doGenerate` with a fixed JSON
@@ -257,5 +261,18 @@ describe('buildShapePrompt', () => {
 
   it('says so plainly when the report cited nothing', () => {
     expect(buildShapePrompt({ brandName: 'B', citations: [] })).toContain('- (none)')
+  })
+
+  // The batch pass has no `existingLabels` to invert — its neighbours are its
+  // own output — so what it needs instead is a rule saying the two summary
+  // labels read across the rest, and their own length.
+  it('names the summary sections as reading across the whole report', () => {
+    expect(prompt).toContain('"TL;DR" and "Overview" summarise across the whole report')
+    expect(prompt).toMatch(/Rule 1 retires them only when the report has nothing in it at all/)
+  })
+
+  it('carries TL;DR’s own ceiling into the compression rule', () => {
+    expect(prompt).toContain(`"TL;DR" is at most ${TLDR_TARGET_MAX_CHARS} characters`)
+    expect(prompt).toContain(String(DRAFT_TARGET_MAX_CHARS))
   })
 })

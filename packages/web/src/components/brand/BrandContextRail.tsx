@@ -18,7 +18,7 @@ import type {
   BrandWithSections,
   ResearchJobSummary,
 } from '@brandfactory/shared'
-import { hasReportToRead, SUGGESTED_SECTIONS } from '@brandfactory/shared'
+import { hasReportToRead, sameSectionLabel, SUGGESTED_SECTIONS } from '@brandfactory/shared'
 import { ColorSwatches, paletteSummary } from '@/components/brand/ColorSwatches'
 import { iconForSection } from '@/components/brand/guidelineIcons'
 import { Button } from '@/components/ui/button'
@@ -236,8 +236,15 @@ export function BrandContextRail({
   // Suggestions the brand has not written yet. Matched on label, the same way
   // the editor's quick-add chips decide what to offer, so the rail and the
   // dialog never disagree about what counts as "already covered".
+  //
+  // **They did disagree, for as long as that sentence has been written.** This
+  // side trimmed and lowercased; the editor compared `s.label === sg.label`
+  // exactly, so a brand with `voice & tone` in lower case got no rail
+  // suggestion and a quick-add chip that would append a second one. Both now
+  // call `sameSectionLabel`, which is also what makes `TLDR` and `TL;DR` one
+  // section rather than two rows the user has to notice.
   const unwritten = SUGGESTED_SECTIONS.filter(
-    (sg) => !sections.some((s) => s.label.trim().toLowerCase() === sg.label.toLowerCase()),
+    (sg) => !sections.some((s) => sameSectionLabel(s.label, sg.label)),
   )
 
   return (
