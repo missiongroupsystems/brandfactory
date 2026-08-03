@@ -75,6 +75,10 @@ export function BrandNavPanel({ brandId }: { brandId: string }) {
   }
 
   function countOf(app: MiniApp): number | null {
+    // One surface, not a collection — there is nothing to count. `null` is the
+    // existing "not known, say nothing" value, so the row renders no number
+    // rather than a `0` that would read as "empty". See `MiniApp.unit`.
+    if (app.unit === 'canvas') return null
     if (app.unit === 'asset') return assets?.length ?? null
     return projects ? projects.filter(app.match).length : null
   }

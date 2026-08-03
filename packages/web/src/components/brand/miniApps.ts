@@ -1,4 +1,5 @@
 import {
+  Brush,
   CalendarDays,
   MessagesSquare,
   Palette,
@@ -51,7 +52,7 @@ export function isBrandContextThread(p: ProjectSummary): boolean {
 }
 
 export type MiniApp = {
-  id: 'copywriting' | 'visual' | 'social' | 'freeform' | 'context'
+  id: 'copywriting' | 'visual' | 'studio' | 'social' | 'freeform' | 'context'
   title: string
   description: string
   icon: LucideIcon
@@ -72,8 +73,14 @@ export type MiniApp = {
    * `create` and `match` are retained on that row so a legacy
    * `templateId: 'visual'` thread is still *classified* (and so never lands in
    * the hub's "we don't know what this is" catch-all), but nothing creates one.
+   *
+   * `'canvas'` is the third answer and a different shape again: `Studio` is not
+   * a collection of anything. It is one surface with one state, so there is no
+   * number a nav row could put beside it — `countOf` returns `null`, which is
+   * already this codebase's "not known, say nothing" value and renders no
+   * count at all. Do not read `'canvas'` as "a collection of canvases".
    */
-  unit: 'thread' | 'asset'
+  unit: 'thread' | 'asset' | 'canvas'
   /**
    * Where this category is presented. `'tile'` = the brand hub's Workspace grid
    * plus `/brands/$brandId/apps/$appId`. `'hidden'` = neither; it has its own
@@ -109,6 +116,20 @@ export const MINI_APPS: MiniApp[] = [
     // library rather than a thread list.
     enabled: true,
     unit: 'asset',
+    surface: 'tile',
+  },
+  {
+    id: 'studio',
+    title: 'Studio',
+    description: 'A canvas with controls — gradients, curves and colour, exported as an image.',
+    icon: Brush,
+    // Retained for classification only, exactly as the `visual` row's are: no
+    // surface creates a `templateId: 'studio'` thread, but if one ever exists
+    // it is classified here rather than landing in `Other threads`.
+    create: { kind: 'standardized', templateId: 'studio' },
+    match: (p) => p.kind === 'standardized' && p.templateId === 'studio',
+    enabled: true,
+    unit: 'canvas',
     surface: 'tile',
   },
   {

@@ -53,6 +53,14 @@ vi.mock('@/api/queries/brands', () => ({
   useBrandProjects: () => ({ data: h.projects, isPending: false, isError: false }),
 }))
 
+// The `unit: 'canvas'` branch's lazy chunk. Stubbed rather than loaded: the
+// real module pulls the whole vendored runtime — every control widget and a
+// canvas element jsdom has no 2D context for — to prove a dispatch this file is
+// the only place that makes. `studioSchema.test.ts` covers what it configures.
+vi.mock('@/components/brand/StudioSurface', () => ({
+  default: ({ brandId }: { brandId: string }) => <div data-testid="studio-surface">{brandId}</div>,
+}))
+
 vi.mock('@/api/queries/projects', () => ({
   useCreateProject: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateProject: () => ({ mutate: vi.fn(), isPending: false }),
@@ -158,6 +166,20 @@ describe('mini-app route', () => {
 
     expect(screen.getByText('Loading threads…')).toBeTruthy()
     expect(screen.queryByText(/No threads yet/)).toBeNull()
+  })
+
+  // The third shape. It is the only branch that renders no thread list, offers
+  // no `New thread`, and asks for no query at all — the header plus the lazy
+  // surface, and nothing else.
+  it('renders the canvas surface for a unit-canvas app, with no thread affordances', async () => {
+    h.params = { brandId: 'b-1', appId: 'studio' }
+    h.projects = [COPY_THREAD, FREEFORM_THREAD]
+    render(<MiniAppPage />)
+
+    expect(screen.getByRole('heading', { name: 'Studio' })).toBeTruthy()
+    expect((await screen.findByTestId('studio-surface')).textContent).toBe('b-1')
+    expect(screen.queryByRole('button', { name: 'New thread' })).toBeNull()
+    expect(screen.queryByText('Tagline round 1')).toBeNull()
   })
 
   it('handles an unregistered appId', () => {

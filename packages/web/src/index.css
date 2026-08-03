@@ -1,5 +1,13 @@
 @import 'tailwindcss';
 
+/* The vendored studio surface, then our bridge onto the tokens below it.
+   Order is load-bearing: `styles/toolcraft.css` remaps the handful of tokens
+   toolcraft reads differently than tier 3 writes them, at equal specificity to
+   the vendored rules, so it has to be imported last of the three. */
+@import './toolcraft/ui/styles.css';
+@import './toolcraft/runtime/styles.css';
+@import './styles/toolcraft.css';
+
 @plugin "tailwindcss-animate";
 
 @custom-variant dark (&:is(.dark *));

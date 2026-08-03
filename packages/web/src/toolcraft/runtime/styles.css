@@ -1,0 +1,28 @@
+/* LOCAL DELTA — the upstream theme block is deleted here, not overridden.
+ *
+ * Upstream declared ~40 colour tokens twice (a light block and a
+ * `[data-toolcraft-theme='dark']` block) in neutral greys with a blue accent.
+ * Leaving them in and overriding from our own stylesheet would mean restating
+ * every one of them just to neutralise it; deleting them lets the tokens
+ * cascade from `index.css` instead, which is what makes the studio follow the
+ * app's theme rather than keeping a second one.
+ *
+ * The seven tokens where toolcraft's convention differs from ours — and the
+ * `color-scheme` this file used to set — are remapped in
+ * `src/styles/toolcraft.css`. See that file, and this tree's README.
+ */
+
+[data-toolcraft-theme][data-toolcraft-theme],
+[data-toolcraft-theme][data-toolcraft-theme] *,
+[data-toolcraft-theme][data-toolcraft-theme] *::before,
+[data-toolcraft-theme][data-toolcraft-theme] *::after {
+  cursor: default !important;
+}
+
+[data-toolcraft-canvas-content] {
+  color-scheme: normal;
+}
+
+[data-toolcraft-generated-output] {
+  color-scheme: normal;
+}

@@ -21,6 +21,15 @@ export default tseslint.config(
       '**/*.config.ts',
       '**/scripts/*.mjs',
       '**/vitest.workspace.ts',
+      // Vendored upstream — pixel-point/toolcraft @ 682a159, MIT. Kept
+      // verbatim so it can be diffed against upstream when toolcraft moves;
+      // lint rules encode *our* authoring conventions and do not apply to code
+      // we did not author and intend to re-sync. See the tree's own README.
+      //
+      // **Types are deliberately NOT exempted.** `pnpm typecheck` covers this
+      // directory in full and passes — our code consumes these types, so they
+      // have to hold. Style is upstream's business; the contract is ours.
+      'packages/web/src/toolcraft/**',
     ],
   },
   js.configs.recommended,

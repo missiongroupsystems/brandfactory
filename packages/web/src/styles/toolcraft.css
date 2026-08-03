@@ -1,0 +1,84 @@
+/* ---------------------------------------------------------------------------
+   Toolcraft → Mission Systems
+
+   The vendored studio surface (`src/toolcraft`, see its README) is styled
+   entirely through the `--background` / `--foreground` / `--border` … token
+   contract — the same contract `index.css` tier 3 already publishes for the
+   shadcn primitives. So the studio inherits Mission Systems by cascade, and
+   this file is only the short list of places where toolcraft *reads* a token
+   differently than we *write* it.
+
+   Upstream's own theme block was deleted rather than overridden — the reason
+   is written at the top of `toolcraft/runtime/styles.css`.
+   --------------------------------------------------------------------------- */
+
+/* Tailwind scans the directory holding the CSS entry, which already covers the
+   vendored tree — stated explicitly so that moving `index.css` does not
+   silently drop every utility class inside `src/toolcraft`. */
+@source "../toolcraft";
+
+/* Scale entries the vendored components use that our `@theme` does not carry.
+   The radius scale is NOT restated: toolcraft's xs–xl and ours agree at every
+   step except `--radius-xs`, which upstream has and we do not. */
+@theme {
+  --spacing-field-control: 0.3125rem;
+  --radius-xs: 0.125rem;
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 0.875rem;
+  --text-xs-plus: 0.8125rem;
+  --text-xs-plus--line-height: 1.125rem;
+}
+
+/* ---------------------------------------------------------------------------
+   The seven remappings.
+
+   Doubled attribute selector to match the specificity of the vendored rules
+   that remain in `toolcraft/runtime/styles.css`.
+   --------------------------------------------------------------------------- */
+
+[data-toolcraft-theme][data-toolcraft-theme] {
+  /* **Dilution bases.** These three are never painted directly: every use site
+     is `color-mix(in oklab, var(--x) 8–25%, transparent)`. Toolcraft therefore
+     sets them to full-contrast ink and lets the mix do the work, where our
+     tier 3 hands out the *finished* colour — `--border` is already
+     `rgba(23, 23, 23, 0.16)`, and mixing that to 12% yields a border nobody
+     can see. Pointing them at the ink primitive keeps upstream's arithmetic
+     intact while sourcing the hue from tier 2. */
+  --secondary: var(--color-text-primary);
+  --border: var(--color-text-primary);
+  --input: var(--color-text-primary);
+
+  /* **`--accent` is a highlight here, not a hover surface.** Upstream ships
+     `#0c8ce9` and paints it on a checked switch, a selected layer row and the
+     text selection — the saturated "this is on" colour. Our `--accent` is
+     deliberately the opposite (`--surface-hover`, a beige), because pointing
+     shadcn's accent at the brand green would spray it across every hover and
+     blow the §4 accent budget. That reasoning does not reach in here: these
+     are a handful of genuine active states, which is exactly what §4 spends
+     the accent on. */
+  --accent: var(--color-brand-accent);
+  --accent-foreground: var(--color-text-inverse);
+
+  /* Toolcraft-only tokens with no tier-3 equivalent. `--link` is load-bearing
+     (44 use sites); `--chart-1` has exactly one and no chart. */
+  --link: var(--color-text-link);
+  --chart-1: var(--color-brand-accent);
+}
+
+/* **`color-scheme` follows the app, not the vendored provider.**
+   `ToolcraftThemeProvider` keeps a theme preference of its own — its own
+   storage key, defaulting to dark — and writes `color-scheme` as an inline
+   style, which only `!important` can outrank. Colour already cascades from
+   `.dark`, so without this the panels would render our light palette while
+   native scrollbars and form controls inside them rendered dark.
+
+   The provider's preference is otherwise inert: `toolbar.theme` is off in the
+   studio schema, so nothing can change it, and the app's own toggle (the rail
+   foot) is the only one on screen. */
+[data-toolcraft-theme][data-toolcraft-theme] {
+  color-scheme: light !important;
+}
+
+.dark [data-toolcraft-theme][data-toolcraft-theme] {
+  color-scheme: dark !important;
+}

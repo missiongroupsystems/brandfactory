@@ -18,3 +18,10 @@ packages/adapters/research/fixtures/*.json
 # Authored prose — don't auto-rewrap. Code-adjacent markdown (READMEs)
 # can opt back in explicitly if needed later.
 docs/
+
+# Vendored upstream — pixel-point/toolcraft @ 682a159, MIT. Same rule as the
+# captures above, for the same reason: this tree is double-quoted and
+# semicolon'd because upstream is, and reformatting 54k lines to our style
+# would make every future `git diff` against upstream unreadable. The boundary
+# we author (`components/brand/StudioPage.tsx`) is outside it and is formatted.
+packages/web/src/toolcraft/

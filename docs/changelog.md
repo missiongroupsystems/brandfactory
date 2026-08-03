@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.16.0** — 2026-08-03 — `Studio` under Apps: pixel-point/toolcraft vendored, re-tokenised, lazy-loaded. 1029 tests.
 - **1.15.0** — 2026-08-03 — Two-column side-nav; header strip and breadcrumbs retired; both dashboards stop being navigation. 1024 tests.
 - **1.14.0** — 2026-07-30 — The report opens in a modal; `View in brand context` links straight at its thread. Migration 0007. 986 tests.
 - **1.13.2** — 2026-07-30 — 1.13.1 review remediation: shaping outcomes logged, the report row checked, ticker shutdown awaited. 955 tests.
@@ -46,6 +47,108 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.16.0 — 2026-08-03
+
+**A brand operating system with no way to make a picture.**
+
+`Visual identity` has held a brand's colours, marks and photography since 2E,
+and every one of them arrives by upload or by URL — a very good filing cabinet
+attached to a product whose other four tiles all *make* something.
+
+[`pixel-point/toolcraft`](https://github.com/pixel-point/toolcraft) is a canvas
+with controls — upload, pan, zoom, radar, history, layers, keyframes, image and
+video export — driven by a declarative schema, MIT, and stack-compatible to a
+degree that is almost suspicious: React 19, Vite 8, TanStack Router, Tailwind 4,
+dnd-kit, sonner, cva, all already here. It is vendored and mounted under `Apps`
+as **Studio**.
+
+The canvas is **generic this pass, by decision**. Palette-from-brand-colours,
+the asset-library image picker and export-into-`brand_assets` are the follow-up,
+listed in the completion doc.
+
+Detail in
+[`docs/completions/the-studio-and-the-vendored-canvas.md`](completions/the-studio-and-the-vendored-canvas.md).
+
+### 1. Vendored, because there is nothing to depend on
+
+Upstream ships as a project generator, not a package — so vendoring is the only
+way to consume it, and what follows is that the tree must stay **diffable
+against upstream** forever. It is checked in verbatim at `682a159` with its
+licence, and `src/toolcraft/README.md` enumerates every local change.
+
+`.prettierignore` and `eslint.config.js` exempt it, each with its reason at the
+exemption: reformatting 54k lines to our style would make future upstream diffs
+unreadable, and 82 of the 87 lint findings are the React-compiler rules that
+arrived with `eslint-plugin-react-hooks@7`, which upstream is not on — satisfying
+them is a rewrite of the thing we vendored in order not to write.
+
+**Types are not exempted, and that is the load-bearing half.** `pnpm typecheck`
+covers the vendored tree in full and passes; it cost 23 one-line
+`noUncheckedIndexedAccess` guards, none of which changes behaviour, all tabulated
+in the README.
+
+### 2. The half that was dropped
+
+`ui/components/composites/` — 29 files, 4,390 lines. `ui` imports `runtime`
+zero times and `runtime` reaches into `ui` from six files, every one of them
+pulling only primitives, panel chrome and controls: the composites were
+reachable through a barrel and used by nothing. They were also a second
+`Dialog`, `Sidebar`, `Table`, `Tabs` and `Sonner` beside the Radix ones, which
+is how a codebase ends up with two answers to *which dialog do I import*.
+
+That removed **`cmdk` and `react-resizable-panels` entirely**; three new deps
+remain (`@base-ui/react`, `@phosphor-icons/react`, `motion`).
+
+### 3. `unit: 'canvas'`, and Mission Systems by cascade
+
+Studio is neither a category of threads nor a collection of assets — it is one
+surface, so `countOf` returns `null` and the nav row carries no number rather
+than a `0` that would read as "empty". One registry row added; because 1.15.0
+made the registry the nav, no second list was edited.
+
+The vendored surface is styled entirely through the same
+`--background` / `--foreground` / `--border` contract tier 3 already publishes,
+so it inherits the CI by cascade. Upstream's theme block is **deleted, not
+overridden** — 40 tokens restated to neutralise 40 tokens — leaving seven
+genuine remappings: three *dilution bases* (toolcraft mixes `--border` to 12% at
+the use site, where ours is already the finished colour) and `--accent`, which
+is a saturated highlight there and a hover surface here. Studio's active states
+are brand green.
+
+The vendored theme toggle is switched off via `toolbar.theme: false`; the rail's
+foot has owned the theme since 1.15.0, and two switches that disagree is worse
+than one.
+
+### 4. One route pays for it
+
+Mounted eagerly the runtime lands in the entry chunk — the login page paying for
+a gradient editor. `StudioSurface` is a `React.lazy` split point: the entry chunk
+is unchanged and Studio is a 1,171 kB (285 kB gzip) chunk fetched on its own
+route. CSS grows 23 kB and is not code-split.
+
+### Verification
+
+```
+pnpm typecheck                    10/10 workspaces
+pnpm lint / format:check          clean
+pnpm test                         1029 passed | 49 skipped (114 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+1024 → **1029 (+5)**. One existing `BrandHubView` assertion was *tightened*
+rather than dodged: `queryByText(/colour/)` meant the palette summary line but
+matched any tile description mentioning colours, which Studio's now does.
+
+The 49 skips are live-Postgres and were not run. Nothing in this pass touches
+SQL, the server, or any package other than `web`.
+
+**No live pass.** No database means the app cannot boot, so none of this has been
+on a screen — the re-tokenisation in particular is reasoned from reading every
+use site, not from looking at the result. Four open questions at the foot of the
+completion doc.
 
 ---
 

@@ -103,7 +103,13 @@ describe('BrandNavPanel', () => {
   it('renders a row per tile app, plus the hidden brand-context surface', () => {
     render(<BrandNavPanel brandId="b-1" />)
 
-    for (const title of ['Copywriting', 'Visual identity', 'Social calendar', 'Open canvas']) {
+    for (const title of [
+      'Copywriting',
+      'Visual identity',
+      'Studio',
+      'Social calendar',
+      'Open canvas',
+    ]) {
       expect(screen.getByRole('link', { name: new RegExp(title) })).toBeTruthy()
     }
     expect(screen.getByRole('link', { name: /Brand context/ }).getAttribute('href')).toBe(
@@ -138,6 +144,19 @@ describe('BrandNavPanel', () => {
     expect(screen.getByRole('link', { name: /Visual identity/ }).textContent).toBe(
       'Visual identity2',
     )
+  })
+
+  // The third `unit`. `Studio` is one surface, not a collection, so there is no
+  // number that would mean anything beside it — and `0` would actively mislead,
+  // since the canvas is never "empty" in the way a category with no threads is.
+  // Asserted against the loaded state, because the `null`-while-pending test
+  // below would pass on this row for the wrong reason.
+  it('renders no count for the canvas app, even with everything loaded', () => {
+    state.projects = [thread('p-1', 'copywriting')]
+    state.assets = [asset('a-1')]
+    render(<BrandNavPanel brandId="b-1" />)
+
+    expect(screen.getByRole('link', { name: /Studio/ }).textContent).toBe('Studio')
   })
 
   // `null` is "not known", and it must not render as `0`: a nav that tells a

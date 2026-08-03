@@ -133,7 +133,11 @@ describe('BrandHubView — the absent-prop invariant', () => {
   ])('renders no palette block when colors are %s', (_name, colors) => {
     render(<BrandHubView brand={brand()} projects={[]} assets={colors} {...handlers} />)
     expect(screen.queryByRole('heading', { name: 'Palette' })).toBeNull()
-    expect(screen.queryByText(/colour/)).toBeNull()
+    // The summary line the block would render (`1 colour · 1 proposed`), not
+    // the word. A bare /colour/ also matched any tile *description* that
+    // happened to mention colours — which the `Studio` row now does — so it was
+    // asserting something broader than the invariant it is named for.
+    expect(screen.queryByText(/\d+ colours?\b/)).toBeNull()
   })
 
   /**

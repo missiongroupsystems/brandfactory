@@ -129,6 +129,7 @@ describe('surface split', () => {
     expect(TILE_APPS.map((entry) => entry.id)).toEqual([
       'copywriting',
       'visual',
+      'studio',
       'social',
       'freeform',
     ])
@@ -159,7 +160,14 @@ describe('thread-count derivation', () => {
     const counts = Object.fromEntries(
       MINI_APPS.map((entry) => [entry.id, MIXED.filter(entry.match).length]),
     )
-    expect(counts).toEqual({ copywriting: 2, visual: 1, social: 0, freeform: 2, context: 1 })
+    expect(counts).toEqual({
+      copywriting: 2,
+      visual: 1,
+      studio: 0,
+      social: 0,
+      freeform: 2,
+      context: 1,
+    })
   })
 
   it('counts zero for every mini-app on a brand with no threads', () => {
