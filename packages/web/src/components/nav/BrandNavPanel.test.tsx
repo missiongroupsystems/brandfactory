@@ -207,6 +207,53 @@ describe('BrandNavPanel', () => {
     ).toBeNull()
   })
 
+  // The child pill is inset by margin, not padding: padding moves the text but
+  // leaves the fill spanning the full nav width, which is exactly what made a
+  // lit thread read as a stray top-level row rather than a child of its
+  // category.
+  it('insets a nested thread as a child pill, not a full-width row', () => {
+    state.projects = [thread('p-1', 'copywriting')]
+    state.pathname = '/projects/p-1'
+    render(<BrandNavPanel brandId="b-1" />)
+
+    expect(screen.getByRole('link', { name: 'Thread p-1' }).className).toContain('ml-6')
+    expect(screen.getByRole('link', { name: /^Copywriting/ }).className).not.toContain('ml-6')
+  })
+
+  // With a thread open, its category row anchors the lit child: primary ink,
+  // but no fill and no `aria-current` — the child owns the state, the parent
+  // just stops looking unrelated to it.
+  it('inks the parent row while one of its threads is open', () => {
+    state.projects = [thread('p-1', 'copywriting'), thread('p-2', null)]
+    state.pathname = '/projects/p-1'
+    render(<BrandNavPanel brandId="b-1" />)
+
+    // `text-muted-foreground` is the discriminator: every rest-state row has
+    // it, and the muted variant also carries `hover:text-foreground`, so
+    // asserting the presence of `text-foreground` alone would pass everywhere.
+    const parent = screen.getByRole('link', { name: /^Copywriting/ })
+    expect(parent.className).not.toContain('text-muted-foreground')
+    expect(parent.className).not.toContain('bg-surface-selected')
+    // An unrelated category stays muted — the anchor is the open thread's
+    // parent, not every row.
+    expect(screen.getByRole('link', { name: /^Open canvas/ }).className).toContain(
+      'text-muted-foreground',
+    )
+  })
+
+  it('inks the Brand context row while a context thread is open', () => {
+    state.projects = [thread('p-8', 'brand-context')]
+    state.pathname = '/projects/p-8'
+    render(<BrandNavPanel brandId="b-1" />)
+
+    const parent = screen.getByRole('link', { name: /^Brand context/ })
+    expect(parent.className).not.toContain('text-muted-foreground')
+    expect(parent.className).not.toContain('bg-surface-selected')
+    expect(screen.getByRole('link', { name: 'Thread p-8' }).getAttribute('aria-current')).toBe(
+      'page',
+    )
+  })
+
   // `isOrphanThread` consults the whole registry, so a hidden-surface thread
   // (brand context) is classified and never lands here.
   it('files a thread of unknown template under a catch-all group', () => {

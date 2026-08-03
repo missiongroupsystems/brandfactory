@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.18.1** — 2026-08-03 — Nested nav threads read as children: inset child pill, inked parent row. 1054 tests.
 - **1.18.0** — 2026-08-03 — The report reads the way Perplexity renders it: `[n]` markers become linked citation chips, one markdown register across chat and modal. 1051 tests.
 - **1.17.0** — 2026-08-03 — The context page shows the guideline blocks beside the conversations; the rail's self-link goes. 1042 tests.
 - **1.16.1** — 2026-08-03 — The artboard gets a surface, an opening zoom that fits it, and an empty state. 1036 tests.
@@ -50,6 +51,66 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.18.1 — 2026-08-03
+
+**The lit thread in the sidebar did not look like it belonged to anything.**
+
+Off a screenshot of the Temper nav: the open research thread — nested under
+Brand context since 1.15.0 — read as a stray top-level row. Two defects
+compounding. The depth-1 "indent" was `pl-9` (36px of padding), which is
+exactly where a top-level label lands after its icon (10px padding + 16px icon
++ 10px gap) — so a child row, which has no icon, aligned its text flush with
+its parent's label and the hierarchy existed only in the code. And the
+selected fill still spanned the full nav width, a big iconless pill among icon
+rows, starting left of its own text. Meanwhile the parent row showed nothing:
+`aria-current` correctly stays on the child, but visually nothing anchored the
+pill to Brand context two rows up.
+
+### 1. The child pill is inset by margin, not padding
+
+`NavItem` depth-1 becomes `ml-6 rounded-md py-1.5 pr-2.5 pl-3`: the margin
+insets the *fill*, which is the part padding can never do, and `pl-3` lands
+the text back at 36px — children stay aligned with their parent's label while
+the pill edge shows the nesting. The tighter vertical padding and smaller
+radius make the child read subordinate rather than like a second, differently
+sized top-level row.
+
+### 2. `childActive` — the parent anchors the lit child
+
+New `NavItem` prop: primary ink, no fill, no `aria-current` — the child owns
+the state; the parent just stops looking unrelated to the row hanging under
+it. `BrandNavPanel` wires it from what it already knows: an app row when the
+open project matches the app, Brand context when the open project is a context
+thread. On the category's own page `openProject` is null, so the prop never
+competes with `active`.
+
+**Noted, not done:** the thread's name spends its width on redundancy —
+`Brand research — Temper, 3 Aug 2026` inside Temper's own nav truncates away
+the date, the one part that distinguishes runs. The name is right in
+workspace-scoped lists, so trimming it is a nav-side display question, left
+open.
+
+### Verification
+
+```
+pnpm typecheck                    clean
+pnpm lint / format:check          clean
+pnpm test                         1054 passed | 49 skipped (116 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+1051 → **1054 (+3)**: the inset pill on a nested thread (and its absence on
+the parent), the parent row inked while its thread is open (asserting the
+*absence* of `text-muted-foreground`, since the muted variant carries
+`hover:text-foreground` and a presence check would pass everywhere), and the
+same anchor on Brand context with the child still carrying `aria-current`.
+
+**Still no live pass** (no Docker, no `.env`). The geometry is tuned against
+the screenshot that prompted this; the pill's optical weight beside real rows
+is unobserved.
 
 ---
 

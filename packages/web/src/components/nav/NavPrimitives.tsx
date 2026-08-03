@@ -80,6 +80,14 @@ export interface NavItemProps {
   badge?: string
   /** `1` indents the row as a child of the one above (a thread under its app). */
   depth?: 0 | 1
+  /**
+   * The page on screen is one of this row's children, not the row itself.
+   *
+   * Primary ink, no fill: the fill stays on the child that actually carries
+   * `aria-current`, and this keeps the parent from reading as unrelated to the
+   * lit row hanging under it. Purely visual — the child owns the state.
+   */
+  childActive?: boolean
 }
 
 export function NavItem({
@@ -90,6 +98,7 @@ export function NavItem({
   count,
   badge,
   depth = 0,
+  childActive = false,
 }: NavItemProps) {
   return (
     <Link
@@ -99,11 +108,18 @@ export function NavItem({
       // the same defect the switchers fixed with `menuitemradio`.
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group flex items-center gap-2.5 rounded-lg py-2 text-sm transition-colors duration-150',
-        depth === 1 ? 'pr-2.5 pl-9' : 'px-2.5',
+        'group flex items-center gap-2.5 text-sm transition-colors duration-150',
+        // A child row is a smaller pill hanging under its parent's label, not a
+        // full-width row with more left padding: the margin is what makes the
+        // nesting visible. `pl-3` lands the text at 36px — exactly where a
+        // top-level label sits after its icon — so children align with the
+        // parent's text while the pill edge shows the hierarchy.
+        depth === 1 ? 'ml-6 rounded-md py-1.5 pr-2.5 pl-3' : 'rounded-lg px-2.5 py-2',
         active
           ? 'bg-surface-selected font-medium text-foreground'
-          : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+          : childActive
+            ? 'text-foreground hover:bg-accent'
+            : 'text-muted-foreground hover:bg-accent hover:text-foreground',
       )}
     >
       {Icon && <Icon className="size-4 shrink-0" aria-hidden="true" />}

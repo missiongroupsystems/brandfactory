@@ -124,6 +124,7 @@ export function BrandNavPanel({ brandId }: { brandId: string }) {
                   label={app.title}
                   icon={app.icon}
                   active={activeKey === `app:${app.id}`}
+                  childActive={openProject ? app.match(openProject) : false}
                   // A not-yet-live app says `Soon` instead of a number: `0
                   // threads` on a page that has none to have is false rather
                   // than merely unhelpful (`MiniApp.unit`), and the pill is the
@@ -158,6 +159,7 @@ export function BrandNavPanel({ brandId }: { brandId: string }) {
                 label={contextApp.title}
                 icon={contextApp.icon}
                 active={activeKey === 'context'}
+                childActive={openProject ? isBrandContextThread(openProject) : false}
                 count={projects ? projects.filter(isBrandContextThread).length : null}
               />
               {contextCurrent
