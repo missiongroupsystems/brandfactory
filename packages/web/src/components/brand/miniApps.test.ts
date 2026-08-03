@@ -142,6 +142,21 @@ describe('surface split', () => {
     expect(TILE_APPS.some((entry) => entry.match(conversation))).toBe(false)
   })
 
+  // 1.4.0 shipped four `Soon` tiles; the calendar was the last of them. A row
+  // may only flip when there is a surface behind it, so this asserts the pair
+  // that makes the flip true rather than the flag alone: `enabled` opens the
+  // tile, and `unit: 'post'` is what routes it to the calendar and counts it
+  // in posts instead of in threads it does not have.
+  it('has the social calendar live, counted as posts', () => {
+    const social = app('social')
+    expect(social.enabled).toBe(true)
+    expect(social.unit).toBe('post')
+  })
+
+  it('carries no not-yet-live tile app at all', () => {
+    expect(TILE_APPS.filter((entry) => !entry.enabled)).toEqual([])
+  })
+
   it('declares a surface on every row', () => {
     for (const entry of MINI_APPS) {
       expect(['tile', 'hidden']).toContain(entry.surface)

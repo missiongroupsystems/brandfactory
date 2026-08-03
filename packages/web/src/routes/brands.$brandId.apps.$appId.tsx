@@ -8,6 +8,7 @@ import { VisualIdentityPage } from '@/components/brand/VisualIdentityPage'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { NewProjectDialog } from '@/components/project/NewProjectDialog'
 import { ProjectCard } from '@/components/project/ProjectCard'
+import { SocialCalendarPage } from '@/components/brand/SocialCalendarPage'
 import { StudioPage } from '@/components/brand/StudioPage'
 import { Button } from '@/components/ui/button'
 
@@ -15,16 +16,17 @@ import { Button } from '@/components/ui/button'
 // Mini-app page — a category workspace
 // ---------------------------------------------------------------------------
 //
-// Three shapes behind one route, chosen by the registry's `unit`:
+// Four shapes behind one route, chosen by the registry's `unit`:
 //
 //   unit: 'thread'  → the thread list this page has always been
 //   unit: 'asset'   → `VisualIdentityPage`, the asset library (2E)
 //   unit: 'canvas'  → `StudioPage`, the vendored toolcraft surface
+//   unit: 'post'    → `SocialCalendarPage`, the month grid and the list
 //
 // They are separate components rather than one with branches, because each owns
 // a different set of queries: the thread page needs `useBrandProjects`, the
-// library needs `useBrandAssets` and four mutations, and neither should pay for
-// the other's. `StudioPage` makes the point twice over — it needs no query at
+// library needs `useBrandAssets` and four mutations, the calendar needs both
+// plus five of its own, and none should pay for the others'. `StudioPage` makes the point twice over — it needs no query at
 // all, and it lazy-loads a chunk the other two must never pull in.
 //
 // The breadcrumb trail this used to publish is gone with the header that
@@ -48,6 +50,7 @@ function MiniAppPage() {
 
   if (app.unit === 'asset') return <VisualIdentityPage brandId={brandId} app={app} />
   if (app.unit === 'canvas') return <StudioPage brandId={brandId} app={app} />
+  if (app.unit === 'post') return <SocialCalendarPage brandId={brandId} app={app} />
   return <ThreadListPage brandId={brandId} app={app} />
 }
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
-import type { BrandAsset, ProjectSummary } from '@brandfactory/shared'
+import type { BrandAsset, ProjectSummary, SocialPost } from '@brandfactory/shared'
 import { BrandNavPanel } from './BrandNavPanel'
 
 // The panel is queries + `useLocation` and nothing else, so both are mocked and
@@ -10,10 +10,12 @@ const state: {
   pathname: string
   projects: ProjectSummary[] | undefined
   assets: BrandAsset[] | undefined
+  socialPosts: SocialPost[] | undefined
 } = {
   pathname: '/brands/b-1',
   projects: undefined,
   assets: undefined,
+  socialPosts: undefined,
 }
 
 vi.mock('@tanstack/react-router', () => ({
@@ -44,6 +46,10 @@ vi.mock('@/api/queries/brands', () => ({
 
 vi.mock('@/api/queries/assets', () => ({
   useBrandAssets: () => ({ data: state.assets }),
+}))
+
+vi.mock('@/api/queries/social-posts', () => ({
+  useBrandSocialPosts: () => ({ data: state.socialPosts }),
 }))
 
 // Both pull the api client and their own hooks; each has a suite of its own.
@@ -91,6 +97,20 @@ const asset = (id: string): BrandAsset =>
     updatedAt: '2026-07-01T00:00:00.000Z',
   }) as BrandAsset
 
+const socialPost = (id: string): SocialPost =>
+  ({
+    id: id as SocialPost['id'],
+    brandId: 'b-1' as SocialPost['brandId'],
+    platform: 'instagram',
+    scheduledAt: null,
+    body: '',
+    status: 'draft',
+    assetIds: [],
+    deletedAt: null,
+    createdAt: '2026-07-01T00:00:00.000Z',
+    updatedAt: '2026-07-01T00:00:00.000Z',
+  }) as SocialPost
+
 describe('BrandNavPanel', () => {
   beforeEach(() => {
     state.pathname = '/brands/b-1'
@@ -130,19 +150,25 @@ describe('BrandNavPanel', () => {
   // The counts the hub tiles gave up. `Visual identity` counts assets rather
   // than threads (`MiniApp.unit`) — counting threads there would print a number
   // for something the page behind it does not have.
-  it('counts threads per category and assets for the library', () => {
+  it('counts threads per category, assets for the library, posts for the calendar', () => {
     state.projects = [
       thread('p-1', 'copywriting'),
       thread('p-2', 'copywriting'),
       thread('p-3', null),
     ]
     state.assets = [asset('a-1'), asset('a-2')]
+    state.socialPosts = [socialPost('s-1'), socialPost('s-2'), socialPost('s-3')]
     render(<BrandNavPanel brandId="b-1" />)
 
     expect(screen.getByRole('link', { name: /Copywriting/ }).textContent).toBe('Copywriting2')
     expect(screen.getByRole('link', { name: /Open canvas/ }).textContent).toBe('Open canvas1')
     expect(screen.getByRole('link', { name: /Visual identity/ }).textContent).toBe(
       'Visual identity2',
+    )
+    // The fourth `unit`, and the reason it exists: counting the calendar's
+    // threads would say `0` for a brand with a full month planned.
+    expect(screen.getByRole('link', { name: /Social calendar/ }).textContent).toBe(
+      'Social calendar3',
     )
   })
 
@@ -167,13 +193,15 @@ describe('BrandNavPanel', () => {
     expect(screen.queryByText('0')).toBeNull()
   })
 
-  // A not-yet-live app says `Soon` rather than a number — `0 threads` on a page
-  // that has none to have is false, not merely unhelpful.
-  it('badges a disabled app instead of counting it', () => {
+  // The `Soon` badge outlived every app that wore it. `Social calendar` was
+  // the last one, and 1.4.0's placeholder pill leaves the nav with it — the
+  // machinery stays (`NavItem` still takes a `badge`, and `enabled: false`
+  // still suppresses the count), but no registered tile app is disabled, so
+  // asserting the badge's absence is the only honest version of this test.
+  it('badges nothing, now that no tile app is still coming', () => {
     state.projects = []
     render(<BrandNavPanel brandId="b-1" />)
-    const soon = screen.getByRole('link', { name: /Social calendar/ })
-    expect(soon.textContent).toBe('Social calendarSoon')
+    expect(screen.queryByText('Soon')).toBeNull()
   })
 
   it('nests the threads of the category you are in, and only that one', () => {

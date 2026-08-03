@@ -79,8 +79,13 @@ export type MiniApp = {
    * number a nav row could put beside it — `countOf` returns `null`, which is
    * already this codebase's "not known, say nothing" value and renders no
    * count at all. Do not read `'canvas'` as "a collection of canvases".
+   *
+   * `'post'` is the fourth, and reads like `'asset'`: `Social calendar` is a
+   * collection of **planned posts**, counted from its own query and pluralised
+   * from this value. Like the library it has no thread list and no `New
+   * thread` button — the thing you create there is a post.
    */
-  unit: 'thread' | 'asset' | 'canvas'
+  unit: 'thread' | 'asset' | 'canvas' | 'post'
   /**
    * Where this category is presented. `'tile'` = the brand hub's Workspace grid
    * plus `/brands/$brandId/apps/$appId`. `'hidden'` = neither; it has its own
@@ -137,10 +142,17 @@ export const MINI_APPS: MiniApp[] = [
     title: 'Social calendar',
     description: 'Plan and schedule a week of on-brand posts.',
     icon: CalendarDays,
+    // Retained for classification only, exactly as the `visual` and `studio`
+    // rows' are: nothing creates a `templateId: 'social'` thread, but a legacy
+    // one is still filed here rather than landing in `Other threads`.
     create: { kind: 'standardized', templateId: 'social' },
     match: (p) => p.kind === 'standardized' && p.templateId === 'social',
-    enabled: false,
-    unit: 'thread',
+    // The last `Soon` tile in the registry, on since 1.4.0. The same rule the
+    // `visual` row records applies: this may only flip when there is something
+    // behind it, and there now is —
+    // `/brands/$brandId/apps/social` renders the calendar.
+    enabled: true,
+    unit: 'post',
     surface: 'tile',
   },
   {

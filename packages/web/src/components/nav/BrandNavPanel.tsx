@@ -2,6 +2,7 @@ import { useLocation } from '@tanstack/react-router'
 import { LayoutGrid } from 'lucide-react'
 import type { ProjectSummary } from '@brandfactory/shared'
 import { useBrandAssets } from '@/api/queries/assets'
+import { useBrandSocialPosts } from '@/api/queries/social-posts'
 import { useBrandProjects } from '@/api/queries/brands'
 import { BrandSwitcher } from '@/components/BrandSwitcher'
 import {
@@ -43,12 +44,14 @@ const MAX_NESTED_THREADS = 8
 export function BrandNavPanel({ brandId }: { brandId: string }) {
   const pathname = useLocation({ select: (l) => l.pathname })
   const { data: projects } = useBrandProjects(brandId)
-  // The one query this panel adds to a page that would not otherwise make it —
-  // and only on the routes that are not the hub or the library, both of which
-  // ask for the same key. `Visual identity` counts assets, not threads
-  // (`MiniApp.unit`), and a nav row that could count but doesn't is the silent
-  // half-answer the hub tiles used to give.
+  // The two queries this panel adds to a page that would not otherwise make
+  // them — and only on the routes that are not the library or the calendar,
+  // both of which ask for the same keys. `Visual identity` counts assets and
+  // `Social calendar` counts posts, not threads (`MiniApp.unit`), and a nav
+  // row that could count but doesn't is the silent half-answer the hub tiles
+  // used to give.
   const { data: assets } = useBrandAssets(brandId)
+  const { data: socialPosts } = useBrandSocialPosts(brandId)
 
   const activeKey = brandNavKey(pathname, brandId)
   const openProjectId = projectNavId(pathname)
@@ -80,6 +83,7 @@ export function BrandNavPanel({ brandId }: { brandId: string }) {
     // rather than a `0` that would read as "empty". See `MiniApp.unit`.
     if (app.unit === 'canvas') return null
     if (app.unit === 'asset') return assets?.length ?? null
+    if (app.unit === 'post') return socialPosts?.length ?? null
     return projects ? projects.filter(app.match).length : null
   }
 

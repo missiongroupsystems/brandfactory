@@ -237,25 +237,25 @@ reachable — the registry still says Soon.
 dispatch keys off `unit` and the Soon stub keys off `enabled`; splitting
 these ships a half-state, so 7.1–7.6 land together.*
 
-- [ ] 7.1 `components/brand/miniApps.ts`: `MiniApp.unit` union gains
+- [x] 7.1 `components/brand/miniApps.ts`: `MiniApp.unit` union gains
       `'post'` (doc comment gains its fourth answer); `social` row flips to
       `enabled: true, unit: 'post'`; `create`/`match` retained for
       classification only, with the `visual` row's comment.
-- [ ] 7.2 `routes/brands.$brandId.apps.$appId.tsx`: fourth branch —
+- [x] 7.2 `routes/brands.$brandId.apps.$appId.tsx`: fourth branch —
       `if (app.unit === 'post') return <SocialCalendarPage …/>`; header
       comment updated.
-- [ ] 7.3 `components/nav/BrandNavPanel.tsx`:
+- [x] 7.3 `components/nav/BrandNavPanel.tsx`:
       `useBrandSocialPosts(brandId)` beside the unconditional
       `useBrandAssets`; `countOf` arm `if (app.unit === 'post') return
       posts?.length ?? null`.
-- [ ] 7.4 Update `routes/brands.$brandId.apps.$appId.test.tsx`: Soon-stub
+- [x] 7.4 Update `routes/brands.$brandId.apps.$appId.test.tsx`: Soon-stub
       cases become "dispatches to SocialCalendarPage" (mock the page
       module); rewrite or retire the stub describe block (no
       `enabled: false` tile app remains).
-- [ ] 7.5 Update `nav/BrandNavPanel.test.tsx`: Soon-badge assertion
+- [x] 7.5 Update `nav/BrandNavPanel.test.tsx`: Soon-badge assertion
       inverts; `useBrandSocialPosts` joins the mocks; post-count case
       added.
-- [ ] 7.6 Update `brand/miniApps.test.ts`: social row enabled/unit
+- [x] 7.6 Update `brand/miniApps.test.ts`: social row enabled/unit
       expectations.
 
 **Done when:** full verification green; the tile opens the calendar; nav

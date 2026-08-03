@@ -61,6 +61,15 @@ vi.mock('@/components/brand/StudioSurface', () => ({
   default: ({ brandId }: { brandId: string }) => <div data-testid="studio-surface">{brandId}</div>,
 }))
 
+// The `unit: 'post'` branch's page. Stubbed for the same reason the studio
+// surface is: its own suite covers it, and the real module pulls five
+// mutations and a blob-signing query this file has no business standing up.
+vi.mock('@/components/brand/SocialCalendarPage', () => ({
+  SocialCalendarPage: ({ brandId }: { brandId: string }) => (
+    <div data-testid="social-calendar">{brandId}</div>
+  ),
+}))
+
 vi.mock('@/api/queries/projects', () => ({
   useCreateProject: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateProject: () => ({ mutate: vi.fn(), isPending: false }),
@@ -122,30 +131,31 @@ describe('mini-app route', () => {
     expect(screen.getByRole('button', { name: 'New thread' })).toBeTruthy()
   })
 
-  it('renders the stub for a not-yet-live mini-app', () => {
+  // Was two Soon-stub tests until the calendar landed. `social` was the last
+  // `enabled: false` tile app in the registry, so the stub is now unreachable
+  // from any registered row — the branch that renders it stays in
+  // `ThreadListPage` for the next app that needs it, with nothing to assert.
+  it('dispatches the calendar app to its own page, not to a thread list', () => {
     h.params = { brandId: 'b-1', appId: 'social' }
     h.projects = [COPY_THREAD, FREEFORM_THREAD]
     render(<MiniAppPage />)
 
-    expect(screen.getByText('Coming soon')).toBeTruthy()
-    // No create affordance, and no other category's threads leak in.
+    expect(screen.getByTestId('social-calendar').textContent).toBe('b-1')
+    expect(screen.queryByText('Coming soon')).toBeNull()
     expect(screen.queryByRole('button', { name: 'New thread' })).toBeNull()
-    expect(screen.queryByText('Tagline round 1')).toBeNull()
-    expect(screen.queryByText('Scratch canvas')).toBeNull()
   })
 
-  // The hub tile advertises a count for a Soon app that has threads, so this
-  // page has to list them — otherwise the count points at unreachable data.
-  it('still lists existing threads under a not-yet-live mini-app', () => {
+  // `create`/`match` are retained on the row for classification only, exactly
+  // as on `visual` and `studio`: a legacy `templateId: 'social'` thread is
+  // still filed under this app rather than landing in the hub's catch-all —
+  // but the page behind it is a calendar now, and lists no threads at all.
+  it('shows the calendar even for a brand carrying a legacy social thread', () => {
     h.params = { brandId: 'b-1', appId: 'social' }
     h.projects = [SOCIAL_THREAD, COPY_THREAD]
     render(<MiniAppPage />)
 
-    expect(screen.getByText('Coming soon')).toBeTruthy()
-    expect(screen.getByText('Launch week posts')).toBeTruthy()
-    expect(screen.queryByText('Tagline round 1')).toBeNull()
-    // Listing them is not the same as letting you make more.
-    expect(screen.queryByRole('button', { name: 'New thread' })).toBeNull()
+    expect(screen.getByTestId('social-calendar')).toBeTruthy()
+    expect(screen.queryByText('Launch week posts')).toBeNull()
   })
 
   it('explains a failed brand fetch instead of rendering a blank page', () => {
