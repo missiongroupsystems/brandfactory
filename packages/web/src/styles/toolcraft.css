@@ -65,6 +65,46 @@
   --chart-1: var(--color-brand-accent);
 }
 
+/* ---------------------------------------------------------------------------
+   The artboard, given a surface.
+
+   `canvas-shell.tsx` renders the editable canvas with an inline width and
+   height and no paint of any kind — no fill, no edge — so it is a transparent
+   rectangle sitting on the viewport's own `--background`. Upstream's generated
+   apps never look like this because their schema always drives something into
+   the canvas; ours is generic by decision, so an untouched Studio was a beige
+   field with two floating panels on it and nothing between them.
+
+   This is *not* a token our re-tokenisation dropped: upstream's
+   `runtime/styles.css` at `682a159` carries the same two canvas rules we kept
+   (`color-scheme: normal`) and no surface either. Which is why the fix is here
+   and not in the vendored tree — that tree stays diffable.
+
+   Tier-2 names on purpose. Inside `[data-toolcraft-theme]` the block above
+   points `--border` at full-contrast ink so toolcraft's `color-mix(…12%…)` call
+   sites still work; reading `--border` here would paint that ink neat.
+   `--border-default` is the finished colour, and is what a hairline means
+   everywhere else in this app.
+
+   `box-shadow` rather than `border`, because the element's width and height are
+   the *output* size in pixels — a border would quietly spend two of them. */
+[data-toolcraft-editable-canvas] {
+  background: var(--surface-base);
+  box-shadow:
+    0 0 0 1px var(--border-default),
+    var(--elevation-2);
+}
+
+/* The canvas slot is decorative here — `StudioCanvasIntro`, which is a hint and
+   a measuring anchor. Upstream stacks the slot at `z-20`, above the media
+   layers' own select buttons, so leaving it hit-testable would mean passing
+   `canvasContent` silently cost you the ability to click an image to select it.
+   The component's subtree is already `pointer-events-none`; this is the wrapper
+   it does not own. */
+[data-toolcraft-canvas-slot] {
+  pointer-events: none;
+}
+
 /* **`color-scheme` follows the app, not the vendored provider.**
    `ToolcraftThemeProvider` keeps a theme preference of its own — its own
    storage key, defaulting to dark — and writes `color-scheme` as an inline

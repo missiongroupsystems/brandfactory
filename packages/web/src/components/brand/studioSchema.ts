@@ -1,4 +1,5 @@
 import { defineToolcraft } from '@/toolcraft/runtime'
+import type { ToolcraftLocalStoragePersistenceSchema } from '@/toolcraft/runtime'
 
 // ---------------------------------------------------------------------------
 // The studio's schema — every choice the Studio mini-app actually makes
@@ -9,6 +10,22 @@ import { defineToolcraft } from '@/toolcraft/runtime'
 // the canvas, the panels and every control widget. That split is also why this
 // file must never import from `runtime/react` — it would put the lazy chunk back
 // into the eager graph through the back door.
+
+/**
+ * Where a brand's canvas is kept.
+ *
+ * Exported rather than inlined below because `StudioSurface` has to ask a
+ * question the runtime does not answer: *has this brand's canvas ever been
+ * opened?* — which is what decides whether it may choose the opening zoom. Two
+ * readers, one definition of the key.
+ *
+ * Typed off the runtime's own key rather than as `string`, so the
+ * `toolcraft:…:state:v…` shape it insists on is checked here rather than at the
+ * one call site that happens to assign it.
+ */
+export function studioStorageKey(brandId: string): ToolcraftLocalStoragePersistenceSchema['key'] {
+  return `toolcraft:brandfactory-studio-${brandId}:state:v1`
+}
 
 /**
  * No brand context is wired this pass — the canvas is generic, and the palette,
@@ -36,7 +53,7 @@ export function studioSchema(brandId: string) {
     },
     persistence: {
       storage: 'localStorage',
-      key: `toolcraft:brandfactory-studio-${brandId}:state:v1`,
+      key: studioStorageKey(brandId),
       version: 1,
       include: ['canvas', 'layers', 'media', 'panels', 'values'],
     },

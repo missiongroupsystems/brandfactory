@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.16.1** — 2026-08-03 — The artboard gets a surface, an opening zoom that fits it, and an empty state. 1036 tests.
 - **1.16.0** — 2026-08-03 — `Studio` under Apps: pixel-point/toolcraft vendored, re-tokenised, lazy-loaded. 1029 tests.
 - **1.15.0** — 2026-08-03 — Two-column side-nav; header strip and breadcrumbs retired; both dashboards stop being navigation. 1024 tests.
 - **1.14.0** — 2026-07-30 — The report opens in a modal; `View in brand context` links straight at its thread. Migration 0007. 986 tests.
@@ -47,6 +48,117 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.16.1 — 2026-08-03
+
+**Studio shipped a canvas nobody could see.**
+
+Reported from the outside, one release later, in five words: *"when I click onto
+the new Studio tab, nothing shows up"*. It was not a mount failure, and the
+screenshot proved it in the same frame that reported it — the `Controls` panel
+and the zoom toolbar were both on screen, and those are `absolute` against the
+runtime's root (`panel-host-config.ts`). Their being there at all says the lazy
+chunk arrived, the reducer ran, and the surface filled its container.
+
+What was missing was the artboard, and it was missing for **three true things
+compounding**, none of which is visible from reading any one of them.
+
+This is the bill for 1.16.0's own closing sentence — *"No live pass. No database
+means the app cannot boot, so none of this has been on a screen."*
+
+### 1. The artboard had no surface of its own
+
+`canvas-shell.tsx` renders the editable canvas with an inline width, an inline
+height and no paint of any kind: no fill, no edge, `relative z-10
+overflow-hidden` and nothing else. On the viewport's own `--background` that is a
+transparent rectangle on a beige field.
+
+**This is not a token the re-tokenisation dropped**, and that was worth checking
+rather than assuming, because 1.16.0 deleted forty of them. Upstream's
+`runtime/styles.css` at `682a159` was fetched and compared: it carries the same
+two canvas rules we kept (`color-scheme: normal`) and no surface either.
+Upstream's generated apps never look like this because their schema always drives
+something *into* the canvas — ours is generic by decision, so ours was the first
+toolcraft app with nothing to draw.
+
+Which is why the fix is in `styles/toolcraft.css` and **the vendored tree is
+untouched**: that tree stays diffable against upstream, and a difference between
+toolcraft's tokens and ours is exactly what that file already is.
+
+Two details it turns on. **Tier-2 names** — inside `[data-toolcraft-theme]` the
+existing block points `--border` at full-contrast ink so toolcraft's
+`color-mix(…12%…)` call sites still work, so reading `--border` here would paint
+that ink neat; `--border-default` is the finished hairline. And **`box-shadow`
+rather than `border`**, because the element's width and height *are* the output
+size in pixels — a border would quietly spend two of them.
+
+### 2. …and its edges were off-screen anyway
+
+Zoom opens at 100% (`canvas-zoom.ts`) against a default 1920×1080 artboard, so on
+any normal window the artboard is larger than the viewport in both axes and
+centred. **Section 1 alone would have fixed nothing** — it would have turned a
+beige field into a white one, edge to edge, with the border it had just been
+given sitting outside the visible region in every direction. There is no
+fit-to-view anywhere in the runtime; `canvas.resetZoom` returns to 100%, not to
+fit.
+
+`StudioCanvasIntro` is passed as `canvasContent` and chooses an opening zoom that
+puts the whole artboard on screen with a gutter — an artboard flush to every edge
+reads as a background. It only ever zooms **out**: a viewport big enough to hold
+the artboard at 100% should show it at 100%, and enlarging past that is a
+decision for the person, not for the opening frame.
+
+**Gated on persistence, not on state**, which is the one choice here worth
+arguing. The runtime hands back a zoom either way; only the *absence* of a
+snapshot separates *nobody has been here* from *somebody set it to this*. Keyed
+off `studioStorageKey`, now exported so the schema and this share one definition,
+and typed off the runtime's own `` `toolcraft:${string}:state:v${number}` ``
+rather than `string`. Re-fitting on every visit would overrule the zoom control
+every time the page was opened.
+
+The same component says what to do with an empty canvas. The sentence is
+counter-scaled by `100/zoom` out of the canvas transform: everything else in
+there is artboard content and *should* zoom with it, but a line about how to
+begin is chrome, and at 25% it would be unreadable.
+
+### 3. A cost `canvasContent` introduced, paid in the same pass
+
+Passing it at all is not free. Upstream wraps the slot in
+`absolute inset-0 z-20` — **above** the media layers' own select buttons — so
+Studio would have silently traded "click an image to select it" for a hint. One
+rule, `[data-toolcraft-canvas-slot] { pointer-events: none }`, beside the reason:
+our slot content is decorative, and the component's own subtree was already
+inert.
+
+### Verification
+
+```
+pnpm typecheck                    clean
+pnpm lint / format:check          clean
+pnpm test                         1036 passed | 49 skipped (115 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+1029 → **1036 (+7)**. The lazy split still holds: entry chunk unchanged, Studio
+still its own chunk at 1,172 kB (286 kB gzip), +1 kB. The compiled CSS was
+grepped rather than assumed — both new rules are in `dist/assets/index-*.css`
+with their tokens intact.
+
+**The fit itself has no test, and cannot have one here.** jsdom reports
+`clientWidth: 0`, so `studioFitZoom` correctly returns `null` and the dispatch
+never runs. The maths is therefore a pure exported function with four cases
+pinned — including that `null` means *leave the zoom alone*, never *fall back to
+a guess* — and the half that measures a real element through `closest` is
+reasoned, not observed.
+
+**Still no live pass**, so this release fixes a bug found on a screen without
+being confirmed on one. One thing the screenshot raised and reading could not
+settle: the page was ~2,400px tall, and since the panels pin to the runtime
+root's edges, the root really was that tall — correct if the window was, a second
+bug if it was not. An attempt to measure the live DOM through the browser
+extension timed out and was abandoned rather than retried.
 
 ---
 
