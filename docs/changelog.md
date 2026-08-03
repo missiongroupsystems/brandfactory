@@ -227,10 +227,26 @@ assertion runs without them.
 
 ### Deployment
 
-**Migration 0009 has not reached production.** Fly's `release_command` runs
-`migrate.mjs` on deploy, so 0008 and 0009 both apply to Supabase the next time
-the server ships — no manual step, but also nothing applied yet. Until that
-deploy the five routes 500 against prod.
+**Shipped as Fly release v50, 2026-08-03 12:22Z**, from `f6ec5e9`. Fly's
+`release_command` runs `migrate.mjs`, and its machine reported
+`✔ release_command completed successfully` — so **0008 and 0009 are applied to
+Supabase**, both app machines came up healthy, and the five routes are live.
+
+**Pushing to `main` is the deploy.** `.github/workflows/deploy-backend.yml`
+fires on every push, and a manual `fly deploy` from a laptop **collides with
+it**: this release produced a failed v49 (`fly deploy`) thirteen seconds before
+the successful v50 (Actions), with the manual attempt's release machine
+destroyed mid-start — *"aborted: machine destroyed, cannot add any more
+events"*. The workflow's `concurrency: {group: deploy-backend,
+cancel-in-progress: false}` serialises CI runs against each other and can do
+nothing about a deploy started outside CI. The same pair appears at v43/v44 and
+v45/v46 earlier the same day, which is three collisions before anyone read the
+error as a race rather than as a broken migration. If a manual deploy is ever
+needed, wait for the Actions run to finish.
+
+The successful releases are attributed to the owner of `FLY_API_TOKEN`, not to
+whoever pushed — worth knowing before reading `fly releases` as a record of who
+deployed what.
 
 ### Caveats
 
@@ -240,8 +256,11 @@ deploy the five routes 500 against prod.
   that both exist on this machine, and a Postgres container is running now.
   `social-posts.live.test.ts` (11 tests: mapper round-trips including a null
   `scheduledAt`, cross-brand `assetId` rejection, join-row cascade) has skipped
-  in every run of this stream and is **unrun**, as is migration 0009 against a
-  real Postgres. One `db:migrate` and one `pnpm test` with `DATABASE_URL` close
+  in every run of this stream and is **unrun**. Migration 0009 itself is no
+  longer in that category — it applied cleanly to Supabase in release v50 — but
+  applying DDL is not the same as exercising the queries over it: the partial
+  index, the cascade and the `position` ordering have been read and never run.
+  One `db:migrate` and one `pnpm test` with `DATABASE_URL` close
   both.
 - **Nothing here has been seen in a browser.** Chip legibility in a ~130px
   cell, the discoverability of a hover-only add button as the primary create
