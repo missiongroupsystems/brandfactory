@@ -65,6 +65,32 @@ describe('ChatPane capture affordances', () => {
   })
 })
 
+// The research report lands as an ordinary assistant message (3F), so its
+// Perplexity `[n]` markers render here — as citation chips, linked when the
+// caller supplies the run's sources (`ProjectDetail.researchSources`).
+describe('ChatPane citations', () => {
+  it('links assistant [n] markers to the thread’s research sources', () => {
+    render(
+      <ChatPane
+        projectId="p-1"
+        messages={[msg('m-1', 'assistant', 'Wine pours deep.[1]')]}
+        citationSources={[{ title: 'About', url: 'https://temper.example/about' }]}
+      />,
+    )
+
+    const chip = screen.getByRole('link', { name: '1' })
+    expect(chip.getAttribute('href')).toBe('https://temper.example/about')
+    expect(chip.getAttribute('title')).toBe('About')
+  })
+
+  it('still chips the markers, unlinked, when the thread has no sources', () => {
+    render(<ChatPane projectId="p-1" messages={[msg('m-1', 'assistant', 'Deep pours.[7]')]} />)
+
+    expect(screen.queryByRole('link', { name: '7' })).toBeNull()
+    expect(screen.getByText('7').getAttribute('data-citation')).toBe('7')
+  })
+})
+
 // ---------------------------------------------------------------------------
 // Excerpt capture (Phase D)
 // ---------------------------------------------------------------------------

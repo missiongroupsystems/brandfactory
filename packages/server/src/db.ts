@@ -33,6 +33,7 @@ export interface Db {
   createResearchJob: typeof db.createResearchJob
   getResearchJob: typeof db.getResearchJob
   getLatestResearchJob: typeof db.getLatestResearchJob
+  getResearchJobByReportProject: typeof db.getResearchJobByReportProject
   hasActiveResearchJob: typeof db.hasActiveResearchJob
   countActiveResearchJobsForWorkspace: typeof db.countActiveResearchJobsForWorkspace
   countResearchJobsTodayForWorkspace: typeof db.countResearchJobsTodayForWorkspace
@@ -102,6 +103,7 @@ export function buildDbDeps(): Db {
     createResearchJob: db.createResearchJob,
     getResearchJob: db.getResearchJob,
     getLatestResearchJob: db.getLatestResearchJob,
+    getResearchJobByReportProject: db.getResearchJobByReportProject,
     hasActiveResearchJob: db.hasActiveResearchJob,
     countActiveResearchJobsForWorkspace: db.countActiveResearchJobsForWorkspace,
     countResearchJobsTodayForWorkspace: db.countResearchJobsTodayForWorkspace,

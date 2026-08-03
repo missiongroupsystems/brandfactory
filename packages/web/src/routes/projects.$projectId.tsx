@@ -83,6 +83,9 @@ function ProjectPage() {
             // Only a brand-context thread has the editor on screen to drop
             // into; elsewhere the dialog is closed until a capture opens it.
             hasDropTarget={isBrandContext}
+            // Present only when this thread is a landed research report: the
+            // run's citations, so the report's `[n]` markers link out.
+            citationSources={data.researchSources}
           />
         }
         right={

@@ -140,6 +140,28 @@ export async function getLatestResearchJob(brandId: BrandId): Promise<ResearchJo
 }
 
 /**
+ * The run whose report was landed in this thread (3F), if any.
+ *
+ * The chat surface's read: a brand-context thread that *is* a research report
+ * renders that report's `[n]` markers, and the citations they number live on
+ * the job row, not in the message. Threads are created fresh per run, so at
+ * most one row matches; `createdAt DESC` is belt-and-braces against a manual
+ * repoint, not an expected tie. No brand scope — the caller has already passed
+ * `requireProjectAccess`, and the project id *is* the boundary being read.
+ */
+export async function getResearchJobByReportProject(
+  projectId: ProjectId,
+): Promise<ResearchJob | null> {
+  const [row] = await db
+    .select()
+    .from(brandResearchJobs)
+    .where(eq(brandResearchJobs.reportProjectId, projectId))
+    .orderBy(desc(brandResearchJobs.createdAt))
+    .limit(1)
+  return row ? rowToResearchJob(row) : null
+}
+
+/**
  * Guard 1 — one active job per brand.
  *
  * **In the table, not process memory**, unlike `AgentConcurrencyGuard`: this job

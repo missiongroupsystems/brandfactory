@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.18.0** — 2026-08-03 — The report reads the way Perplexity renders it: `[n]` markers become linked citation chips, one markdown register across chat and modal. 1051 tests.
 - **1.17.0** — 2026-08-03 — The context page shows the guideline blocks beside the conversations; the rail's self-link goes. 1042 tests.
 - **1.16.1** — 2026-08-03 — The artboard gets a surface, an opening zoom that fits it, and an empty state. 1036 tests.
 - **1.16.0** — 2026-08-03 — `Studio` under Apps: pixel-point/toolcraft vendored, re-tokenised, lazy-loaded. 1029 tests.
@@ -49,6 +50,82 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.18.0 — 2026-08-03
+
+**The $0.40 report rendered its own citations as debris.**
+
+The research thread's opening message *is* the Perplexity report (3F), and the
+chat bubble was rendering it twice wrong. Its `prose prose-sm` classes were
+inert — this repo has no `@tailwindcss/typography`, a fact the report dialog
+wrote down in 1.14.0 while solving the same problem for itself — so the
+report's `#` title fell through to the global 24px `h1`, a headline register
+inside a chat bubble. And Perplexity's `[20][1][7]` citation markers, 1-based
+indexes into a source list the vendor sends alongside the report, arrived as
+raw bracket runs: the text's strongest claims wearing its worst typography.
+The ask, off a screenshot of the Temper thread: *"format it nicer like
+Perplexity natively does"* — which native rendering is exactly two things,
+document typography and markers that are chips linking their sources.
+
+### 1. `CitedMarkdown` — one markdown register, grown from the dialog's
+
+New `components/markdown/`: the dialog's `ReportProse` rules — 14px body,
+headings at weight 500 barely larger than the text (§5.1), scrolling tables —
+promoted to a shared `CitedMarkdown` and adopted by both surfaces, so the
+report reads identically in the bubble and the modal. The dialog's local copy
+is deleted; `ChatPane`'s inert `prose` classes go with it.
+
+The citation half is `remarkCitations`, a plugin over the **syntax tree, not
+the string** — a string pass cannot tell a marker from the same characters
+inside inline code or a link label. Text nodes split around `[n]`; each marker
+becomes a superscript chip: linked (new tab, source title as tooltip) when
+`sources[n − 1]` exists, a plain unlinked `<span>` when it does not — a styled
+marker that goes nowhere is honest, a link to `#` is not. `sources[n − 1]` is
+best-effort and says so in place: the stored list is URL-deduplicated, so a
+vendor response citing one page under two numbers would shift what follows;
+the live captures show 19 markers, 19 sources, same order.
+
+### 2. The sources reach the thread — `ProjectDetail.researchSources`
+
+The chips need targets, and the thread never had them: `landReportInThread`
+writes only `job.report` into the message, and the citations stay on the job
+row. Rather than re-land reports, the detail read learns the join: new db
+query `getResearchJobByReportProject`, and `GET /projects/:id` attaches the
+run's citations as an optional `researchSources` — only for a brand-context
+thread some job's `reportProjectId` names, and omitted rather than `[]`
+everywhere else, because the field is a statement that *these messages cite
+these sources* and an empty list would make "no citations" and "not a research
+thread" one state. `ChatPane` takes them as `citationSources`, knowing nothing
+about research — the same ignorance it maintains about brands.
+
+A run that predates migration 0007 has no `reportProjectId`, so its thread
+gets styled-but-unlinked chips; its dialog, which reads sources off the job
+row directly, links fully either way.
+
+### Verification
+
+```
+pnpm typecheck                    clean
+pnpm lint / format:check          clean
+pnpm test                         1051 passed | 49 skipped (116 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+1042 → **1051 (+9)**: five on `CitedMarkdown` (linked chip with tooltip, a
+`[2][1]` run splitting into distinct chips, the unlinked fallback, ordinary
+links and `[TBD]` untouched, inline code left alone), two on `ChatPane`
+(linked with sources, chipped without), one pinning the dialog's markers to
+its sources, and one on the server for `researchSources` riding the landing
+test's detail read plus its absence on an ordinary brand-context thread. The
+whole-message capture tests pass unchanged — the bubble's rendered HTML is
+still the capture payload, chips and all.
+
+**Still no live pass** (no Docker, no `.env`). Unobserved: the chip's optical
+size against real report density — `align-[0.25em]` and 10px type are tuned on
+theory — and whether a 68,000-character report wants the bubble's `max-w-[85%]`
+loosened now that it reads like a document.
 
 ---
 

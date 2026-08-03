@@ -1,3 +1,4 @@
+import { BRAND_CONTEXT_TEMPLATE_ID } from '@brandfactory/agent'
 import {
   BrandIdSchema,
   CreateProjectInputSchema,
@@ -101,11 +102,17 @@ export function createProjectsRouter(deps: ProjectsDeps) {
       const { project, brand } = await requireProjectAccess(userId, id, deps.db)
       const canvas = await deps.db.getCanvasByProject(project.id)
       if (!canvas) throw new NotFoundError('canvas not found', 'CANVAS_NOT_FOUND')
-      const [blocks, shortlist, sections, recentMessages] = await Promise.all([
+      // Only a brand-context thread can be a research run's landing (3F), so
+      // every other project skips the lookup rather than asking a question
+      // whose answer is known to be null.
+      const isBrandContextThread =
+        project.kind === 'standardized' && project.templateId === BRAND_CONTEXT_TEMPLATE_ID
+      const [blocks, shortlist, sections, recentMessages, researchJob] = await Promise.all([
         deps.db.listActiveBlocks(canvas.id),
         deps.db.getShortlistView(project.id),
         deps.db.listSectionsByBrand(brand.id),
         deps.db.listAgentMessages(project.id),
+        isBrandContextThread ? deps.db.getResearchJobByReportProject(project.id) : null,
       ])
       const brandWithSections: BrandWithSections = { ...brand, sections }
       return c.json({
@@ -115,6 +122,13 @@ export function createProjectsRouter(deps: ProjectsDeps) {
         shortlistBlockIds: shortlist.blockIds,
         recentMessages,
         brand: brandWithSections,
+        // The report message's `[n]` markers, given their targets. Omitted —
+        // not `[]` — when this thread is not a landed report: the field is a
+        // statement that these messages cite these sources, and an empty list
+        // would make "no citations" and "not a research thread" one state.
+        ...(researchJob && researchJob.citations.length > 0
+          ? { researchSources: researchJob.citations }
+          : {}),
       })
     })
     .patch(

@@ -485,6 +485,11 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       // not tick, so the real ordering column cannot break the tie.
       return jobs.length ? jobs[jobs.length - 1]! : null
     },
+    async getResearchJobByReportProject(projectId) {
+      const jobs = [...state.researchJobs.values()].filter((j) => j.reportProjectId === projectId)
+      // Insertion order stands in for `createdAt DESC`, as in the fake above.
+      return jobs.length ? jobs[jobs.length - 1]! : null
+    },
     async hasActiveResearchJob(brandId) {
       return [...state.researchJobs.values()].some(
         (j) => j.brandId === brandId && j.status === 'IN_PROGRESS',

@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { Send, Square } from 'lucide-react'
-import type { AgentMessage } from '@brandfactory/shared'
+import type { AgentMessage, ResearchSource } from '@brandfactory/shared'
 import { useAgentChat } from '@/agent/useAgentChat'
+import { CitedMarkdown } from '@/components/markdown/CitedMarkdown'
 import {
   MessageCapture,
   SelectionCaptureButton,
@@ -28,9 +27,22 @@ export interface ChatPaneProps {
   onCapture?: (payload: CapturePayload) => void
   /** Whether the capture destination is a *visible* drop target. See `MessageCapture`. */
   hasDropTarget?: boolean
+  /**
+   * Citation targets for `[n]` markers in assistant messages — the research
+   * report thread's sources (`ProjectDetail.researchSources`). `ChatPane`
+   * knows nothing about research, same as it knows nothing about brands: a
+   * caller with no sources gets unlinked chips, not an error.
+   */
+  citationSources?: ResearchSource[]
 }
 
-export function ChatPane({ projectId, messages, onCapture, hasDropTarget }: ChatPaneProps) {
+export function ChatPane({
+  projectId,
+  messages,
+  onCapture,
+  hasDropTarget,
+  citationSources,
+}: ChatPaneProps) {
   const { status, send, stop } = useAgentChat(projectId)
   const [draft, setDraft] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -79,6 +91,7 @@ export function ChatPane({ projectId, messages, onCapture, hasDropTarget }: Chat
                 message={m}
                 onCapture={onCapture}
                 hasDropTarget={hasDropTarget}
+                citationSources={citationSources}
               />
             ))}
             {status === 'streaming' ? (
@@ -132,10 +145,12 @@ function MessageBubble({
   message,
   onCapture,
   hasDropTarget,
+  citationSources,
 }: {
   message: AgentMessage
   onCapture?: (payload: CapturePayload) => void
   hasDropTarget?: boolean
+  citationSources?: ResearchSource[]
 }) {
   const isUser = message.role === 'user'
   // The assistant flavor of a capture is this element's rendered HTML, which is
@@ -180,13 +195,18 @@ function MessageBubble({
             {message.content}
           </div>
         ) : (
-          <div
+          // `CitedMarkdown` since 1.18.0 — one markdown register across chat
+          // and the report modal, and the research report's `[n]` markers
+          // become citation chips instead of raw brackets. The old `prose
+          // prose-sm` classes were inert (no typography plugin), so headings
+          // fell through to the global 24px scale.
+          <CitedMarkdown
             ref={contentRef}
             {...captureRoleProps(message.role)}
-            className="prose prose-sm max-w-none break-words dark:prose-invert [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1"
-          >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
-          </div>
+            markdown={message.content}
+            sources={citationSources}
+            className="max-w-none"
+          />
         )}
       </div>
       {!isUser && capture}

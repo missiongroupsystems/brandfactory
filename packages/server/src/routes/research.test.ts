@@ -395,7 +395,9 @@ describe('shaping, as the lifecycle sees it', () => {
 describe('research — the report as a thread', () => {
   it('lands a completed report as the first message of a new brand-context thread', async () => {
     const { app, brandId, post, latest } = await seed({
-      research: fakeProvider({ poll: completedPoll(REPORT) }),
+      research: fakeProvider({
+        poll: completedPoll(REPORT, [{ title: 'About', url: 'https://casavostra.example/about' }]),
+      }),
     })
     await post()
     // Reconcile-on-read is what finishes the job, and therefore what creates it.
@@ -414,10 +416,42 @@ describe('research — the report as a thread', () => {
     // that capture works on it by construction, with no code to make it so.
     const detail = (await (
       await app.request(`/projects/${thread!.id}`, { headers: auth() })
-    ).json()) as { recentMessages: { role: string; content: string }[] }
+    ).json()) as {
+      recentMessages: { role: string; content: string }[]
+      researchSources?: { title: string; url: string }[]
+    }
     expect(detail.recentMessages).toHaveLength(1)
     expect(detail.recentMessages[0]?.role).toBe('assistant')
     expect(detail.recentMessages[0]?.content).toBe(REPORT)
+    // The run's citations ride the detail, so the report's `[n]` markers can
+    // render as links to what they cite.
+    expect(detail.researchSources).toEqual([
+      { title: 'About', url: 'https://casavostra.example/about' },
+    ])
+  })
+
+  // The field is a statement that these messages cite these sources — a thread
+  // that is not a landed report must not carry it, not even as `[]`.
+  it('puts no researchSources on an ordinary brand-context thread', async () => {
+    const { app, brandId } = await seed({
+      research: fakeProvider({ poll: completedPoll(REPORT) }),
+    })
+    const thread = (await (
+      await app.request(`/brands/${brandId}/projects`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({
+          kind: 'standardized',
+          templateId: 'brand-context',
+          name: 'Voice & tone',
+        }),
+      })
+    ).json()) as { id: string }
+
+    const detail = (await (
+      await app.request(`/projects/${thread.id}`, { headers: auth() })
+    ).json()) as Record<string, unknown>
+    expect('researchSources' in detail).toBe(false)
   })
 
   // The rail already says "Nothing found" in four words. A conversation named

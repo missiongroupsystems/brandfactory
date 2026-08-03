@@ -95,6 +95,16 @@ describe('ResearchReportDialog', () => {
     expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toContain('Warm')
   })
 
+  // 1.18.0 — `CitedMarkdown` renders the body, so the vendor's `[n]` markers
+  // stop being raw brackets and start being the citations they claim to be.
+  it('links the report’s [n] markers at the sources they number', async () => {
+    renderDialog({ report: 'A **neighbourhood** trattoria.[2]' })
+
+    const chip = await screen.findByRole('link', { name: '2' })
+    expect(chip.getAttribute('href')).toBe('https://food.example/casa-vostra')
+    expect(chip.getAttribute('title')).toBe('Trattoria review')
+  })
+
   it('asks for the report by brand and job', async () => {
     renderDialog()
     await screen.findByRole('heading', { name: 'Positioning' })

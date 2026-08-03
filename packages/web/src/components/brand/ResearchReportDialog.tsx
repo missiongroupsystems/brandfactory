@@ -1,10 +1,9 @@
 import { Link } from '@tanstack/react-router'
 import { ExternalLink } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import type { ResearchSource } from '@brandfactory/shared'
 import { useResearchReport } from '@/api/queries/research'
 import { Button } from '@/components/ui/button'
+import { CitedMarkdown } from '@/components/markdown/CitedMarkdown'
 import {
   Dialog,
   DialogContent,
@@ -23,7 +22,6 @@ import {
   RESEARCH_REPORT_VIEW_IN_CONTEXT,
   researchReportMeta,
 } from '@/lib/research-copy'
-import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
 // ResearchReportDialog — the $0.40 artefact, where the run is announced
@@ -143,7 +141,7 @@ function ReportBody({
           <p className="text-sm text-muted-foreground">{RESEARCH_REPORT_EMPTY}</p>
         ) : (
           <>
-            <ReportProse markdown={data.report} />
+            <CitedMarkdown markdown={data.report} sources={data.sources} />
             {data.sources.length > 0 && <ReportSources sources={data.sources} />}
           </>
         )}
@@ -181,76 +179,6 @@ function ReportBody({
         </div>
       </DialogFooter>
     </>
-  )
-}
-
-/**
- * The report, rendered.
- *
- * **Typography by descendant selector, not by `prose`.** This repo has no
- * `@tailwindcss/typography` — `ChatPane` reaches for `prose prose-sm`, which is
- * inert here, and its `[&_p]:my-1` overrides are what actually do the work. A
- * plugin would restyle every markdown surface in the app as a side effect of
- * shipping a modal, so the rules live at the one call site that needs them and
- * read from the same tokens everything else does.
- *
- * The register is the product's, not a blog's: 14px body (§0.7), headings at
- * weight 500 and barely larger than the text (§5.1 — never 600, and a report's
- * `##` is a section marker rather than a headline), everything on the 4px scale.
- *
- * `remarkGfm` for the tables and strikethrough Perplexity's reports actually use.
- * URL sanitisation is `react-markdown`'s own `defaultUrlTransform`, which drops
- * anything that is not http/https/mailto/tel — the same protection `ChatPane`
- * already relies on for assistant messages, and the same class of gate
- * `ResearchSourceSchema` applies to citations one layer up.
- */
-function ReportProse({ markdown }: { markdown: string }) {
-  return (
-    <div
-      className={cn(
-        'text-sm leading-relaxed break-words',
-        '[&>*:first-child]:mt-0',
-        '[&_h1]:mt-6 [&_h1]:mb-2 [&_h1]:text-base [&_h1]:font-medium',
-        '[&_h2]:mt-6 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-medium',
-        '[&_h3]:mt-5 [&_h3]:mb-1.5 [&_h3]:text-sm [&_h3]:font-medium',
-        '[&_h4]:mt-4 [&_h4]:mb-1 [&_h4]:text-sm [&_h4]:font-medium',
-        '[&_p]:my-2',
-        '[&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5',
-        '[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5',
-        '[&_li]:my-1',
-        '[&_strong]:font-medium',
-        '[&_hr]:my-5 [&_hr]:border-t',
-        '[&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground',
-        '[&_code]:rounded-md [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs',
-        '[&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-3',
-        '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
-        // A report's tables are wide and the dialog is not. Scroll the table, not
-        // the page — the same rule the canvas already follows for overflow.
-        '[&_table]:my-3 [&_table]:w-full [&_table]:text-xs',
-        '[&_th]:border-b [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-medium',
-        '[&_td]:border-b [&_td]:px-2 [&_td]:py-1.5 [&_td]:align-top',
-      )}
-    >
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          // A report is dense with outbound citations, and following one in this
-          // tab throws the modal — and the reading position — away.
-          a: ({ children, ...props }) => (
-            <a
-              {...props}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="text-[var(--color-text-link)] hover:underline"
-            >
-              {children}
-            </a>
-          ),
-        }}
-      >
-        {markdown}
-      </ReactMarkdown>
-    </div>
   )
 }
 
