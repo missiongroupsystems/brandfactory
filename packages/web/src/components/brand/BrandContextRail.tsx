@@ -145,6 +145,16 @@ export interface BrandContextRailProps {
    */
   researchUnreachable?: boolean
   /**
+   * Whether the footer offers `Talk it through`, the link to
+   * `/brands/$brandId/context`. Defaults to true — the hub wants it. The brand
+   * context page itself passes `false`, because there the link would point at
+   * the page it is on: a self-link reads as an affordance, goes nowhere, and
+   * the conversations it promises are already the main column beside the rail.
+   * With the link off and no `onStartResearch`, the footer has no rows and is
+   * omitted entirely rather than rendered as an empty bordered band.
+   */
+  showTalkLink?: boolean
+  /**
    * Does Brand context hold **any** conversation for this brand?
    *
    * **It no longer gates the report row, and that is the correction.** 1.13.2
@@ -212,6 +222,7 @@ export function BrandContextRail({
   researchStarting = false,
   researchMaxMinutes,
   researchUnreachable = false,
+  showTalkLink = true,
   hasBrandContextThreads,
 }: BrandContextRailProps) {
   const [openId, setOpenId] = useState<string | null>(null)
@@ -356,33 +367,42 @@ export function BrandContextRail({
           </div>
         )}
 
-        <div className="border-t p-1.5">
-          <Button variant="ghost" size="sm" className="w-full justify-start gap-2.5 px-2.5" asChild>
-            <Link to="/brands/$brandId/context" params={{ brandId: brand.id }}>
-              <MessagesSquare className="size-4 text-muted-foreground" aria-hidden="true" />
-              Talk it through
-            </Link>
-          </Button>
+        {(showTalkLink || onStartResearch) && (
+          <div className="border-t p-1.5">
+            {showTalkLink && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start gap-2.5 px-2.5"
+                asChild
+              >
+                <Link to="/brands/$brandId/context" params={{ brandId: brand.id }}>
+                  <MessagesSquare className="size-4 text-muted-foreground" aria-hidden="true" />
+                  Talk it through
+                </Link>
+              </Button>
+            )}
 
-          {onStartResearch && (
-            <ResearchRow
-              research={research ?? null}
-              researchStarting={researchStarting}
-              onStartResearch={onStartResearch}
-              onReviewDrafts={onReviewDrafts}
-              onReadReport={onReadReport}
-              maxMinutes={researchMaxMinutes}
-              unreachable={researchUnreachable}
-              hasBrandContextThreads={hasBrandContextThreads}
-              // The report row's hint is onboarding — *read it there, capture
-              // what matters into the guidelines* — and `COMPLETED` is forever,
-              // so on a brand that already has sections it is two permanent
-              // lines of instruction for something the user has demonstrably
-              // already done. The row itself stays; only the teaching goes.
-              showReportHint={sections.length === 0}
-            />
-          )}
-        </div>
+            {onStartResearch && (
+              <ResearchRow
+                research={research ?? null}
+                researchStarting={researchStarting}
+                onStartResearch={onStartResearch}
+                onReviewDrafts={onReviewDrafts}
+                onReadReport={onReadReport}
+                maxMinutes={researchMaxMinutes}
+                unreachable={researchUnreachable}
+                hasBrandContextThreads={hasBrandContextThreads}
+                // The report row's hint is onboarding — *read it there, capture
+                // what matters into the guidelines* — and `COMPLETED` is forever,
+                // so on a brand that already has sections it is two permanent
+                // lines of instruction for something the user has demonstrably
+                // already done. The row itself stays; only the teaching goes.
+                showReportHint={sections.length === 0}
+              />
+            )}
+          </div>
+        )}
       </div>
     </aside>
   )

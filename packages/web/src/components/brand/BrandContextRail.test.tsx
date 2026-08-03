@@ -223,6 +223,29 @@ describe('BrandContextRail', () => {
     expect(link.getAttribute('href')).toBe('/brands/b-1/context')
   })
 
+  // The brand context page renders this rail beside the conversation list, so
+  // there the link would point at the page it is on. With the link off and no
+  // research either, the footer band disappears rather than rendering empty.
+  it('drops the conversation link when showTalkLink is false', () => {
+    render(<BrandContextRail brand={brand([])} onEdit={vi.fn()} showTalkLink={false} />)
+    expect(screen.queryByRole('link', { name: 'Talk it through' })).toBeNull()
+  })
+
+  // The two footer rows gate independently: turning the talk link off must not
+  // take the research entry point with it.
+  it('keeps the research row when the talk link is off', () => {
+    render(
+      <BrandContextRail
+        brand={brand([])}
+        onEdit={vi.fn()}
+        showTalkLink={false}
+        onStartResearch={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Research this brand' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Talk it through' })).toBeNull()
+  })
+
   it('labels the rail as a region', () => {
     render(<BrandContextRail brand={brand([])} onEdit={vi.fn()} />)
     expect(screen.getByRole('complementary', { name: 'Brand context' })).toBeTruthy()

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.17.0** — 2026-08-03 — The context page shows the guideline blocks beside the conversations; the rail's self-link goes. 1042 tests.
 - **1.16.1** — 2026-08-03 — The artboard gets a surface, an opening zoom that fits it, and an empty state. 1036 tests.
 - **1.16.0** — 2026-08-03 — `Studio` under Apps: pixel-point/toolcraft vendored, re-tokenised, lazy-loaded. 1029 tests.
 - **1.15.0** — 2026-08-03 — Two-column side-nav; header strip and breadcrumbs retired; both dashboards stop being navigation. 1024 tests.
@@ -48,6 +49,103 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.17.0 — 2026-08-03
+
+**The page named Brand context did not show the brand's context.**
+
+`/brands/$brandId/context` has been a list of conversations since 1.4.0 — the
+threads where context gets talked out — while the thing those threads exist to
+build, the guideline blocks, lived one navigation away on the Overview page's
+rail. Arriving at "Brand context" and seeing only thread cards answers "where
+did we talk?" and not "what do we know?", and the ask that prompted this
+release was exactly that: clicking the nav entry should show the blocks —
+Voice & tone, Target audience, Values & positioning, Visual guidelines,
+Messaging frameworks.
+
+### 1. The same rail, not a second rendering of the same data
+
+`routes/brands.$brandId.context.tsx` becomes a two-column layout in the hub's
+shape: the conversation grid stays as `<main>`, and **the existing
+`BrandContextRail` mounts as the right column** — written sections as
+disclosure rows, unwritten suggestions with the `+` affordance, `Edit` on top.
+Nothing about the blocks was rebuilt, and that is the point: the rail and the
+editor already agree on what counts as "already covered" (the trimmed,
+case-insensitive label match), and a second component would be a second place
+for that agreement to break.
+
+`Edit` and every `+` row open the same `EditGuidelinesDialog` the Overview page
+uses, mounted by this route with its own `editOpen` state. Saves go through
+`useUpdateBrandGuidelines` → `applyGuidelinesToCache`, so an edit made here is
+already correct on the hub when you navigate back — one cache entry, two
+surfaces reading it.
+
+**What this page's rail deliberately does not get**: no `colors`, no
+`research`, no `onStartResearch`. Those blocks are gated on their props, and
+the props are fed by queries the hub route owns. Wiring them here would mean a
+second copy of the hub's research plumbing (start guard, report dialog, review
+sheet, draft landing) for a page whose job is the conversations; the hub
+remains the full-featured surface, and the rail's prop-gating is what makes the
+smaller mount a supported state rather than a broken one.
+
+**Gated with the list, on purpose.** The rail needs `brand.sections`, and the
+page already collapses the brand and threads queries into one pending/error
+pair (the 1.4.0 I2 lesson: `ProjectCard` needs `workspaceId`, so a failed brand
+fetch must say so rather than render blank). The rail joins that gate — a
+failed brand fetch shows the error line and no rail, rather than a rail with no
+brand behind it.
+
+### 2. `showTalkLink`, because the rail now renders on its own destination
+
+The rail's footer link — `Talk it through` → `/brands/$brandId/context` — is
+correct on the hub and a **self-link here**: an affordance that goes nowhere,
+promising conversations that are already the main column beside it. New prop
+`showTalkLink` (default `true`, so the hub is untouched); this page passes
+`false`.
+
+Two details worth pinning. **The footer's rows gate independently** — the
+research row keys off `onStartResearch` exactly as before, so a caller that
+turns the link off but wires research still gets the row. And **with both off,
+the footer band is omitted entirely** rather than rendered as an empty
+bordered strip — the same "no dead affordance, no placeholder scolding" rule
+the rail has carried since 1.7.0.
+
+### 3. Width discipline, inherited
+
+Below `lg` the columns stack, and a full-width rail is the 1.4.0
+`BrandContextBar` shape the rail was written to replace — chevrons at the far
+edge of a stretched hit area. The hub caps its stacked rail at one tile-grid
+column; this page has no tile grid to align with, so the cap is `sm:max-w-sm`,
+with the same `lg:w-80 lg:shrink-0` column when side by side.
+
+### Verification
+
+```
+pnpm typecheck                    clean
+pnpm lint / format:check          clean
+pnpm test                         1042 passed | 49 skipped (115 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+1036 → **1042 (+6)**: two on the rail (`showTalkLink={false}` drops the link;
+the research row survives it) and four on the route (the blocks render beside
+the conversations with the written/unwritten split intact, `Edit` reaches the
+dialog's `open`, no self-link, no rail on a failed brand fetch). The route test
+mounts the **real** rail — the written/suggested split is asserted through the
+page, not through a stub — while `EditGuidelinesDialog` is stubbed to its
+`open` prop, the same boundary the hub's tests draw.
+
+**One environment note, not a code change**: `pnpm typecheck` first failed in
+the vendored toolcraft tree — `@phosphor-icons/react` and `motion` unresolved —
+because this checkout had never run `pnpm install` since 1.16.0 added those
+dependencies. An install fixed it; nothing in the vendored tree was touched.
+
+**Still no live pass** (no Docker, no `.env`, the app cannot boot), so what
+went unobserved is presentation: how the stacked rail sits under the thread
+grid below `lg`, and whether the page's `Brand context` heading directly above
+the rail's own `Brand context` heading reads as structure or as a stutter.
 
 ---
 

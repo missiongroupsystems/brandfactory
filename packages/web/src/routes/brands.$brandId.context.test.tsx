@@ -1,9 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ProjectSummary } from '@brandfactory/shared'
 import { brandContextRoute } from './brands.$brandId.context'
 
 const BRAND = { id: 'b-1', workspaceId: 'ws-1', name: 'Acme', description: null, sections: [] }
+
+// A written section, so the rail's written/unwritten split is assertable from
+// the page. The body is never disclosed here, so a minimal doc suffices.
+const SECTION = {
+  id: 's-1',
+  brandId: 'b-1',
+  label: 'Voice & tone',
+  body: { type: 'doc', content: [] },
+  priority: 1000,
+  createdBy: 'user',
+  createdAt: '2026-07-24T00:00:00.000Z',
+  updatedAt: '2026-07-24T00:00:00.000Z',
+}
 
 const h = vi.hoisted(() => ({
   params: { brandId: 'b-1' },
@@ -67,6 +81,16 @@ vi.mock('@/components/project/NewProjectDialog', () => ({
     <div data-testid="new-conversation" data-template-id={templateId}>
       {trigger}
     </div>
+  ),
+}))
+
+// Stubbed for the same reason as NewProjectDialog: the editor's behaviour is
+// covered in its own tests, and mounting the real one drags in dnd-kit and a
+// live TipTap instance. What matters here is the wiring — that the rail's
+// `onEdit` reaches this dialog's `open`.
+vi.mock('@/components/brand/EditGuidelinesDialog', () => ({
+  EditGuidelinesDialog: ({ open }: { open: boolean }) => (
+    <div data-testid="edit-guidelines" data-open={String(open)} />
   ),
 }))
 
@@ -152,5 +176,42 @@ describe('brand context route', () => {
 
     expect(screen.getByText('Loading conversations…')).toBeTruthy()
     expect(screen.queryByText(/No conversations yet/)).toBeNull()
+  })
+
+  // The blocks overview beside the conversations: the same rail the hub shows,
+  // written sections and unwritten suggestions in one list, so arriving here
+  // answers "what do we know?" without a detour back to Overview.
+  it('shows the brand context blocks beside the conversations', () => {
+    h.brand = { data: { ...BRAND, sections: [SECTION] }, isPending: false, isError: false }
+    h.projects = [CONVERSATION]
+    render(<BrandContextPage />)
+
+    expect(screen.getByRole('complementary', { name: 'Brand context' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Voice & tone' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add Target audience' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Add Voice & tone' })).toBeNull()
+  })
+
+  it('routes the rail’s Edit to the guidelines dialog', async () => {
+    render(<BrandContextPage />)
+
+    expect(screen.getByTestId('edit-guidelines').getAttribute('data-open')).toBe('false')
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByTestId('edit-guidelines').getAttribute('data-open')).toBe('true')
+  })
+
+  // The rail's footer link points at /brands/:id/context — this page. A
+  // self-link reads as an affordance and goes nowhere, so the page turns it off.
+  it('does not offer a link to itself', () => {
+    render(<BrandContextPage />)
+    expect(screen.queryByRole('link', { name: 'Talk it through' })).toBeNull()
+  })
+
+  // The rail needs the brand's sections, so it is gated with the list: a
+  // failed brand fetch shows the error line and nothing else.
+  it('shows no rail on a failed brand fetch', () => {
+    h.brand = { data: undefined, isPending: false, isError: true }
+    render(<BrandContextPage />)
+    expect(screen.queryByRole('complementary', { name: 'Brand context' })).toBeNull()
   })
 })
