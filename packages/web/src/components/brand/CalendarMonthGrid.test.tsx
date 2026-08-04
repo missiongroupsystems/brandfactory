@@ -159,7 +159,7 @@ describe('CalendarMonthGrid — creating from a cell', () => {
     const onNewPost = vi.fn()
     renderGrid({ onNewPost })
 
-    // The 3rd holds a chip; the add button fills what the chip leaves.
+    // The 3rd holds a chip; the cell is the target all the same.
     await user.click(screen.getByLabelText('New post on Today'))
     expect(onNewPost).toHaveBeenCalledWith('2026-08-03')
   })
@@ -167,5 +167,38 @@ describe('CalendarMonthGrid — creating from a cell', () => {
   it('renders no add affordance at all without the callback', () => {
     renderGrid()
     expect(screen.queryByLabelText(/^New post on/)).toBeNull()
+  })
+
+  it('lays the target over the whole cell, not under the date strip', () => {
+    renderGrid({ onNewPost: vi.fn() })
+
+    const add = screen.getByLabelText('New post on Mon 10 Aug')
+    // Over the cell rather than after its contents, so the date number and
+    // every gap between the chips resolve to the same click.
+    expect(add.className).toContain('absolute')
+    expect(add.className).toContain('inset-0')
+
+    const cell = add.parentElement as HTMLElement
+    const date = within(cell).getByText('10')
+    // The number is a sibling the button covers, not a row stacked above it —
+    // and transparent to the pointer, so a click on it reaches the button.
+    expect(date.parentElement).toBe(cell)
+    expect(date.className).toContain('pointer-events-none')
+  })
+
+  it('leaves a chip its own click through the cell-wide target', async () => {
+    const user = userEvent.setup()
+    const onNewPost = vi.fn()
+    const onEditPost = vi.fn()
+    renderGrid({ onNewPost, onEditPost })
+
+    const chip = screen.getByRole('button', { name: 'Edit Tonight’s service' })
+    // `relative`, because an absolutely positioned sibling paints over static
+    // content whatever the source order says — the chip would be unclickable.
+    expect(chip.className).toContain('relative')
+
+    await user.click(chip)
+    expect(onEditPost).toHaveBeenCalledWith(today)
+    expect(onNewPost).not.toHaveBeenCalled()
   })
 })

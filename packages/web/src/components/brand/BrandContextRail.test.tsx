@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { BrandAsset, BrandWithSections, ResearchJobSummary } from '@brandfactory/shared'
 import { SUGGESTED_SECTIONS } from '@brandfactory/shared'
@@ -105,6 +105,146 @@ describe('BrandContextRail', () => {
     expect(screen.getByRole('button', { name: 'TLDR' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Add TL;DR' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Add Overview' })).toBeTruthy()
+  })
+
+  // -------------------------------------------------------------------------
+  // The two bands — `TL;DR` and `Overview` above the rule, the aspects below
+  // -------------------------------------------------------------------------
+
+  const summaryBand = () => screen.getByRole('list', { name: 'Brand summary' })
+  const detailBand = () => screen.getByRole('list', { name: 'Brand details' })
+  const rowsIn = (list: HTMLElement) =>
+    within(list)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent)
+
+  /**
+   * The regression this split exists for. 1.21.0 put the two summaries at the
+   * head of `SUGGESTED_SECTIONS`, but the rail drew written sections first and
+   * suggestions second — so that head-of-list position only ordered the
+   * *unwritten tail*, and a brand with three written aspects showed `TL;DR` at
+   * row four, wedged between written aspects above and unwritten ones below.
+   *
+   * It got worse as the brand improved: each aspect written pushed the summary
+   * further down, so the row sank precisely as there came to be more for it to
+   * summarise.
+   */
+  it('leads with the summaries even when every aspect is written and they are not', () => {
+    render(
+      <BrandContextRail
+        brand={brand([
+          section('s-1', 'Voice & tone'),
+          section('s-2', 'Target audience'),
+          section('s-3', 'Values & positioning'),
+        ])}
+        onEdit={vi.fn()}
+      />,
+    )
+
+    expect(rowsIn(summaryBand())).toEqual(['TL;DR', 'Overview'])
+    // Document order across both lists: the summaries come first on the page,
+    // not merely first within a box that happens to be drawn second.
+    const all = screen.getAllByRole('listitem').map((li) => li.textContent)
+    expect(all.slice(0, 2)).toEqual(['TL;DR', 'Overview'])
+  })
+
+  // Order inside the band is the taxonomy's, not written-ness: the short
+  // version precedes the long one whichever a brand happened to write first.
+  it('keeps TL;DR above Overview when only Overview is written', () => {
+    render(<BrandContextRail brand={brand([section('s-1', 'Overview')])} onEdit={vi.fn()} />)
+    expect(rowsIn(summaryBand())).toEqual(['TL;DR', 'Overview'])
+  })
+
+  it('keeps TL;DR above Overview when only TL;DR is written', () => {
+    render(<BrandContextRail brand={brand([section('s-1', 'TL;DR')])} onEdit={vi.fn()} />)
+    expect(rowsIn(summaryBand())).toEqual(['TL;DR', 'Overview'])
+  })
+
+  // The placement inherits `sameSectionLabel`'s punctuation tolerance. A brand
+  // that typed `TLDR` has a summary and must have it drawn where summaries are
+  // — otherwise the one spelling people actually use lands in the detail band.
+  it('puts a hand-typed TLDR in the summary band', () => {
+    render(<BrandContextRail brand={brand([section('s-1', 'TLDR')])} onEdit={vi.fn()} />)
+    expect(rowsIn(summaryBand())).toEqual(['TLDR', 'Overview'])
+    expect(rowsIn(detailBand())).not.toContain('TLDR')
+  })
+
+  /**
+   * The detail band's order is **unchanged**, and deliberately so: written
+   * sections in the user's own `priority` order, then the taxonomy's order for
+   * what is unwritten. Re-sorting these would overrule a drag performed in the
+   * editor, which the rail has no standing to do — the summaries lead because
+   * of what they *are*, not because the rail has opinions about ordering.
+   */
+  it('leaves the detail band in priority-then-suggestion order', () => {
+    render(
+      <BrandContextRail
+        brand={brand([section('s-1', 'Values & positioning'), section('s-2', 'Voice & tone')])}
+        onEdit={vi.fn()}
+      />,
+    )
+    expect(rowsIn(detailBand())).toEqual([
+      'Values & positioning',
+      'Voice & tone',
+      'Target audience',
+      'Visual guidelines',
+      'Messaging frameworks',
+    ])
+  })
+
+  // A custom label is never `synthesis`, so it is a detail. `Brand overview`
+  // does not normalise to `Overview` — words are not noise — so it stays below
+  // as a section of the user's own.
+  it('keeps a custom section out of the summary band', () => {
+    render(
+      <BrandContextRail
+        brand={brand([section('s-1', 'Photography'), section('s-2', 'Brand overview')])}
+        onEdit={vi.fn()}
+      />,
+    )
+    expect(rowsIn(summaryBand())).toEqual(['TL;DR', 'Overview'])
+    expect(rowsIn(detailBand()).slice(0, 2)).toEqual(['Photography', 'Brand overview'])
+  })
+
+  // Nothing in the schema stops a brand having two rows with the same label,
+  // and both belong on screen: dropping the second would hide a section the
+  // user can see in the editor and cannot find here.
+  it('draws both of a duplicated summary label', () => {
+    render(
+      <BrandContextRail
+        brand={brand([section('s-1', 'TL;DR'), section('s-2', 'TLDR')])}
+        onEdit={vi.fn()}
+      />,
+    )
+    expect(rowsIn(summaryBand())).toEqual(['TL;DR', 'TLDR', 'Overview'])
+  })
+
+  // The split is on a different axis from written/unwritten, so it does not
+  // change what the header counts — the list is still the meter, drawn in two
+  // pieces.
+  it('counts both bands together in the header', () => {
+    render(
+      <BrandContextRail
+        brand={brand([section('s-1', 'TL;DR'), section('s-2', 'Voice & tone')])}
+        onEdit={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(`2 written · ${SUGGESTED_SECTIONS.length - 2} suggested`)).toBeTruthy()
+    expect(rowsIn(summaryBand())).toHaveLength(2)
+    expect(rowsIn(detailBand())).toHaveLength(SUGGESTED_SECTIONS.length - 2)
+  })
+
+  // A summary row opens like any other written section — the band is a place
+  // to draw rows, not a different kind of row.
+  it('discloses a written summary in place', async () => {
+    render(
+      <BrandContextRail
+        brand={brand([section('s-1', 'TL;DR', 'The whole brand')])}
+        onEdit={vi.fn()}
+      />,
+    )
+    await userEvent.click(within(summaryBand()).getByRole('button', { name: 'TL;DR' }))
+    expect(screen.getByText('The whole brand')).toBeTruthy()
   })
 
   it('counts what the list below it actually shows', () => {

@@ -3,8 +3,11 @@ import {
   brandOverviewSection,
   brandTldrSection,
   findSectionByLabel,
+  isSynthesisLabel,
   normaliseSectionLabel,
   sameSectionLabel,
+  sectionKindForLabel,
+  suggestedSectionIndex,
   suggestionForLabel,
 } from './canonical-sections'
 import {
@@ -12,6 +15,7 @@ import {
   SUGGESTED_SECTIONS,
   TLDR_SECTION_LABEL,
   TLDR_TARGET_MAX_CHARS,
+  VISUAL_GUIDELINES_SECTION_LABEL,
 } from './suggested-categories'
 
 describe('normaliseSectionLabel', () => {
@@ -122,5 +126,71 @@ describe('findSectionByLabel and the two named lookups', () => {
   it('is undefined on a brand that has written neither', () => {
     expect(brandTldrSection([{ label: 'Values & positioning' }])).toBeUndefined()
     expect(brandOverviewSection([])).toBeUndefined()
+  })
+})
+
+describe('sectionKindForLabel and isSynthesisLabel', () => {
+  it('reads the kind off the taxonomy', () => {
+    expect(sectionKindForLabel(TLDR_SECTION_LABEL)).toBe('synthesis')
+    expect(sectionKindForLabel(OVERVIEW_SECTION_LABEL)).toBe('synthesis')
+    expect(sectionKindForLabel(VISUAL_GUIDELINES_SECTION_LABEL)).toBe('aspect')
+  })
+
+  // The fallback `SuggestedSectionKind` documents: a label the taxonomy has
+  // never proposed is one facet of the brand, which is how every label behaved
+  // before `kind` existed. Never `undefined` — a surface branching on this must
+  // not have a third case that drops a row off the screen.
+  it('calls an unknown label an aspect', () => {
+    expect(sectionKindForLabel('Franchise fee schedule')).toBe('aspect')
+    expect(sectionKindForLabel('')).toBe('aspect')
+  })
+
+  // The placement question inherits the punctuation tolerance. A brand that
+  // typed `TLDR` has a summary, and it has to be drawn where summaries are.
+  it('recognises a summary under any spelling of its label', () => {
+    expect(isSynthesisLabel('TLDR')).toBe(true)
+    expect(isSynthesisLabel('tl;dr')).toBe(true)
+    expect(isSynthesisLabel('  overview  ')).toBe(true)
+  })
+
+  // Tracks the constant rather than restating it — *which* entries are
+  // synthesis is asserted above; this says the predicate agrees with them, so a
+  // third summary section added later needs no edit here.
+  it('agrees with the taxonomy on every entry', () => {
+    for (const s of SUGGESTED_SECTIONS) {
+      expect(isSynthesisLabel(s.label)).toBe(s.kind === 'synthesis')
+    }
+    expect(isSynthesisLabel('Voice & tone')).toBe(false)
+    expect(isSynthesisLabel('Franchise fee schedule')).toBe(false)
+  })
+})
+
+describe('suggestedSectionIndex', () => {
+  // Derived from the constant rather than hard-coded, which is the point of the
+  // function: 1.21.0's §5 hazard was a literal index that stayed valid-looking
+  // after two entries were inserted above it.
+  it('agrees with the taxonomy for every entry', () => {
+    SUGGESTED_SECTIONS.forEach((s, i) => {
+      expect(suggestedSectionIndex(s.label)).toBe(i)
+    })
+  })
+
+  // The one ordering fact the rail's summary band depends on: the short version
+  // precedes the long one, whichever a brand wrote first.
+  it('puts TL;DR ahead of Overview', () => {
+    expect(suggestedSectionIndex(TLDR_SECTION_LABEL)).toBeLessThan(
+      suggestedSectionIndex(OVERVIEW_SECTION_LABEL),
+    )
+    expect(suggestedSectionIndex('TLDR')).toBe(suggestedSectionIndex(TLDR_SECTION_LABEL))
+  })
+
+  // Infinity rather than -1, so a custom label sorts *last* under a plain
+  // numeric comparator instead of jumping to the front of the list.
+  it('sorts a custom label last', () => {
+    expect(suggestedSectionIndex('Franchise fee schedule')).toBe(Number.POSITIVE_INFINITY)
+    const sorted = ['Photography', TLDR_SECTION_LABEL, 'Legal', OVERVIEW_SECTION_LABEL].sort(
+      (a, b) => suggestedSectionIndex(a) - suggestedSectionIndex(b),
+    )
+    expect(sorted).toEqual([TLDR_SECTION_LABEL, OVERVIEW_SECTION_LABEL, 'Photography', 'Legal'])
   })
 })

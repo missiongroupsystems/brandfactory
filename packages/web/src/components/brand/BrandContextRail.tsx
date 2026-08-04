@@ -17,8 +17,15 @@ import type {
   BrandGuidelineSection,
   BrandWithSections,
   ResearchJobSummary,
+  SuggestedSection,
 } from '@brandfactory/shared'
-import { hasReportToRead, sameSectionLabel, SUGGESTED_SECTIONS } from '@brandfactory/shared'
+import {
+  hasReportToRead,
+  isSynthesisLabel,
+  sameSectionLabel,
+  suggestedSectionIndex,
+  SUGGESTED_SECTIONS,
+} from '@brandfactory/shared'
 import { ColorSwatches, paletteSummary } from '@/components/brand/ColorSwatches'
 import { iconForSection } from '@/components/brand/guidelineIcons'
 import { Button } from '@/components/ui/button'
@@ -63,6 +70,77 @@ function SectionReadPanel({ section }: { section: BrandGuidelineSection }) {
       <EditorContent editor={editor} />
     </div>
   )
+}
+
+// ---------------------------------------------------------------------------
+// Rows — one list entry, in either of the two states the rail draws
+// ---------------------------------------------------------------------------
+
+/**
+ * A row of the section list, before anything decides *where* it goes.
+ *
+ * The rail has always drawn two kinds of row — a written section as a
+ * disclosure, an unwritten suggestion as a `+` — and drew them as two adjacent
+ * `.map`s over two arrays, which is why the render order was *written first,
+ * then suggested*. That order was never chosen; it was the shape of the JSX.
+ *
+ * Normalising both into one type is what lets the rail sort and split them on
+ * something it actually means (`kind`), and it makes `state` the axis it is —
+ * *has this been written?* — rather than a position in the file.
+ */
+type RailRow =
+  | { state: 'written'; key: string; label: string; section: BrandGuidelineSection }
+  | { state: 'suggested'; key: string; label: string; suggestion: SuggestedSection }
+
+function writtenRow(section: BrandGuidelineSection): RailRow {
+  return { state: 'written', key: section.id, label: section.label, section }
+}
+
+function suggestedRow(suggestion: SuggestedSection): RailRow {
+  return { state: 'suggested', key: suggestion.label, label: suggestion.label, suggestion }
+}
+
+/**
+ * The two bands the rail draws, from the brand's sections and the suggestions
+ * it has not taken.
+ *
+ * **`summary` is sorted by the taxonomy; `aspects` is not, and the asymmetry is
+ * the decision.** `TL;DR` before `Overview` is a fact about the two sections —
+ * the short version precedes the long one — and it must hold whichever of them
+ * a brand happens to have written first, so the band is sorted by
+ * `suggestedSectionIndex` and ignores both `priority` and written-ness. The
+ * aspects below keep the existing order exactly: the user's own `priority` for
+ * what they have written, then the taxonomy's order for what they have not.
+ * Nothing about the details was wrong, and re-sorting them would quietly
+ * overrule a drag the user performed in the editor.
+ *
+ * A custom label is never `synthesis` (`sectionKindForLabel` defaults to
+ * `aspect`), so the band holds at most the brand's `TL;DR` and `Overview` — and
+ * at least the suggestion rows for both, since a label absent from `sections` is
+ * by construction present in `unwritten`. **The band is therefore never empty**,
+ * which is what makes the hairline below it unconditional in practice.
+ *
+ * Duplicates survive. Nothing in the schema stops a brand having two rows
+ * labelled `TL;DR`, and both belong in the band: dropping the second would hide
+ * a section the user can see in the editor and cannot find here.
+ */
+function splitRailRows(
+  sections: readonly BrandGuidelineSection[],
+  unwritten: readonly SuggestedSection[],
+): { summary: RailRow[]; aspects: RailRow[] } {
+  const isSummary = (label: string) => isSynthesisLabel(label)
+
+  const summary = [
+    ...sections.filter((s) => isSummary(s.label)).map(writtenRow),
+    ...unwritten.filter((sg) => isSummary(sg.label)).map(suggestedRow),
+  ].sort((a, b) => suggestedSectionIndex(a.label) - suggestedSectionIndex(b.label))
+
+  const aspects = [
+    ...sections.filter((s) => !isSummary(s.label)).map(writtenRow),
+    ...unwritten.filter((sg) => !isSummary(sg.label)).map(suggestedRow),
+  ]
+
+  return { summary, aspects }
 }
 
 // ---------------------------------------------------------------------------
@@ -193,6 +271,27 @@ export interface BrandContextRailProps {
  * why there is no meter here: five rows, two of them written, *is* the meter,
  * and it is the version you can click.
  *
+ * **That list is split once, by `kind`, and the hairline is where.** `TL;DR` and
+ * `Overview` sit above the rule; the five aspects sit below it. The split is on
+ * a *different axis* from the one above and therefore does not contradict it —
+ * written and unwritten rows appear in both bands, and the header still counts
+ * all of them, because the list is still the meter.
+ *
+ * The reason is the reason `SuggestedSectionKind` exists: these two sections
+ * read **across** the other five rather than describing a facet, so everything
+ * below them is a detail of what they say. Ordering them by written-ness put
+ * that relationship exactly backwards, and got worse as the brand improved —
+ * writing three aspects pushed the TL;DR *down*, so the summary sank precisely
+ * as there came to be more for it to summarise. That is the same failure 1.21.0
+ * fixed in the generators, where the "do not restate the other sections"
+ * instruction grew stronger the more a brand had written; the prompt half was
+ * corrected and the ordering half shipped with the bug intact.
+ *
+ * It also matters for where the `TL;DR` is going. It is the one section with a
+ * machine consumer, a 400-character budget and a stated future as standing
+ * context on every request. Row four of seven says *one of the facets*; the top
+ * of the card, under its own rule, says *this is the line everything reads*.
+ *
  * Consistent with the D2 decision recorded on `GuidelineMeter`: no percentage,
  * no progress bar, no red/green, no "incomplete" copy. An unwritten row is
  * quiet and dashed, not a warning. A brand with zero sections is a legitimate
@@ -247,6 +346,82 @@ export function BrandContextRail({
     (sg) => !sections.some((s) => sameSectionLabel(s.label, sg.label)),
   )
 
+  const { summary, aspects } = splitRailRows(sections, unwritten)
+
+  // Both bands draw the same two row types, so the row lives here — closed over
+  // the disclosure state — rather than as a component taking six props. Called
+  // as a function and not rendered as `<Row />`: it is a fragment of this
+  // component's own JSX, and making it a nested component would remount every
+  // row on each render of the rail, taking the open section's editor with it.
+  function renderRow(row: RailRow) {
+    const Icon = iconForSection(row.label)
+
+    if (row.state === 'suggested') {
+      return (
+        <li key={row.key}>
+          {/* Opens the same dialog as Edit, where the quick-add chip for
+              this label already exists. Seeding the row from here would
+              mean a second staging channel into the editor alongside
+              `staged`, for one click saved. */}
+          <button
+            type="button"
+            onClick={onEdit}
+            title={row.suggestion.description}
+            aria-label={`Add ${row.label}`}
+            className="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
+          >
+            <Icon
+              className="size-4 shrink-0 opacity-50 group-hover:opacity-100"
+              aria-hidden="true"
+            />
+            <span className="min-w-0 flex-1 truncate">{row.label}</span>
+            {/* Visible at rest, not only on hover. Hover-only would leave
+                an unwritten row looking like a written one that simply has
+                nothing to disclose — the two states have to be tellable
+                apart without a pointer, and on touch there is no hover at
+                all. */}
+            <Plus
+              className="size-3.5 shrink-0 opacity-40 group-hover:opacity-100"
+              aria-hidden="true"
+            />
+          </button>
+        </li>
+      )
+    }
+
+    const isOpen = row.section.id === openId
+    return (
+      <li key={row.key}>
+        {/* A disclosure, not a toggle button: the body genuinely is
+            hidden when collapsed, so `aria-expanded` is the honest
+            state. (The 1.4.0 chip row used `aria-pressed` precisely
+            because nothing there was ever hidden.) */}
+        <button
+          type="button"
+          aria-expanded={isOpen}
+          aria-controls={isOpen ? panelId : undefined}
+          onClick={() => setOpenId(isOpen ? null : row.section.id)}
+          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors duration-150 hover:bg-accent"
+        >
+          <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate">{row.label}</span>
+          <ChevronDown
+            className={cn(
+              'size-3.5 shrink-0 text-muted-foreground transition-transform duration-150',
+              isOpen && 'rotate-180',
+            )}
+            aria-hidden="true"
+          />
+        </button>
+        {isOpen && open ? (
+          <div id={panelId}>
+            <SectionReadPanel key={open.id} section={open} />
+          </div>
+        ) : null}
+      </li>
+    )
+  }
+
   return (
     <aside aria-labelledby={headingId} className={cn('min-w-0', className)}>
       <div className="overflow-hidden rounded-xl border bg-card">
@@ -276,76 +451,27 @@ export function BrandContextRail({
           </Button>
         </div>
 
-        <ul className="flex flex-col p-1.5">
-          {sections.map((s) => {
-            const Icon = iconForSection(s.label)
-            const isOpen = s.id === openId
-            return (
-              <li key={s.id}>
-                {/* A disclosure, not a toggle button: the body genuinely is
-                    hidden when collapsed, so `aria-expanded` is the honest
-                    state. (The 1.4.0 chip row used `aria-pressed` precisely
-                    because nothing there was ever hidden.) */}
-                <button
-                  type="button"
-                  aria-expanded={isOpen}
-                  aria-controls={isOpen ? panelId : undefined}
-                  onClick={() => setOpenId(isOpen ? null : s.id)}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors duration-150 hover:bg-accent"
-                >
-                  <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  <span className="min-w-0 flex-1 truncate">{s.label}</span>
-                  <ChevronDown
-                    className={cn(
-                      'size-3.5 shrink-0 text-muted-foreground transition-transform duration-150',
-                      isOpen && 'rotate-180',
-                    )}
-                    aria-hidden="true"
-                  />
-                </button>
-                {isOpen && open ? (
-                  <div id={panelId}>
-                    <SectionReadPanel key={open.id} section={open} />
-                  </div>
-                ) : null}
-              </li>
-            )
-          })}
+        {/* The two bands are labelled because the split is otherwise only
+            visible: a screen reader hears "list, 2 items" then "list, 5 items"
+            with nothing saying why, and an unexplained division reads worse
+            than a named one. The names describe what the rows are rather than
+            introducing vocabulary the card never shows — there is deliberately
+            no visible heading here, since two rows reading `TL;DR` and
+            `Overview` under a rule already say it. */}
+        {summary.length > 0 && (
+          <ul aria-label="Brand summary" className="flex flex-col p-1.5">
+            {summary.map(renderRow)}
+          </ul>
+        )}
 
-          {unwritten.map((sg) => {
-            const Icon = iconForSection(sg.label)
-            return (
-              <li key={sg.label}>
-                {/* Opens the same dialog as Edit, where the quick-add chip for
-                    this label already exists. Seeding the row from here would
-                    mean a second staging channel into the editor alongside
-                    `staged`, for one click saved. */}
-                <button
-                  type="button"
-                  onClick={onEdit}
-                  title={sg.description}
-                  aria-label={`Add ${sg.label}`}
-                  className="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
-                >
-                  <Icon
-                    className="size-4 shrink-0 opacity-50 group-hover:opacity-100"
-                    aria-hidden="true"
-                  />
-                  <span className="min-w-0 flex-1 truncate">{sg.label}</span>
-                  {/* Visible at rest, not only on hover. Hover-only would leave
-                      an unwritten row looking like a written one that simply has
-                      nothing to disclose — the two states have to be tellable
-                      apart without a pointer, and on touch there is no hover at
-                      all. */}
-                  <Plus
-                    className="size-3.5 shrink-0 opacity-40 group-hover:opacity-100"
-                    aria-hidden="true"
-                  />
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+        {aspects.length > 0 && (
+          <ul
+            aria-label="Brand details"
+            className={cn('flex flex-col p-1.5', summary.length > 0 && 'border-t')}
+          >
+            {aspects.map(renderRow)}
+          </ul>
+        )}
 
         {colors && colors.length > 0 && (
           // A block, not a row. The section list above is the meter — written

@@ -58,8 +58,16 @@ export function BrandRail({ workspaceId, panelCollapsed, onTogglePanel }: BrandR
       {/* The list scrolls; the tiles above and the controls below do not. A
           workspace with 40 brands must not push the theme toggle off the
           bottom of the viewport, and `min-h-0` is what lets this column
-          actually shrink inside the flex parent rather than overflowing it. */}
-      <div className="flex min-h-0 flex-1 flex-col items-center gap-1.5 overflow-y-auto py-1">
+          actually shrink inside the flex parent rather than overflowing it.
+          `w-full` and the padding are the selected tile's ring: `overflow-y`
+          set to anything but `visible` computes `overflow-x` to `auto`, so this
+          box clips horizontally whether or not it was asked to. Left to size to
+          its content it is exactly one 36px tile wide, and the ring — 2px of
+          offset and 2px of ring, on all four sides — was being sliced flat
+          against both edges. The box is the full 56px of the rail now, and the
+          padding is ≥4px on every side so the first and last tiles keep their
+          ring at the scroll boundaries too. */}
+      <div className="flex w-full min-h-0 flex-1 flex-col items-center gap-1.5 overflow-y-auto px-1 py-1.5">
         {(brands ?? []).map((b) => {
           const active = b.id === activeBrandId
           return (

@@ -6,6 +6,9 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.21.3** — 2026-08-04 — A calendar day is clickable everywhere, not just below its date. No migration. 1394 tests.
+- **1.21.2** — 2026-08-04 — The brand rail stops slicing the selected tile's ring: its scrolling column was one tile wide. No migration. 1392 tests.
+- **1.21.1** — 2026-08-04 — `TL;DR` and `Overview` lead the Brand context card, under a hairline of their own. No migration. 1392 tests.
 - **1.21.0** — 2026-08-03 — `TL;DR` and `Overview` join the section list, and summary sections stop being told not to summarise. No migration. 1376 tests.
 - **1.20.0** — 2026-08-03 — The `Social calendar` tile stops saying Soon: a month grid, a list with an unscheduled tray, and a post editor. Migration 0009. 1332 tests.
 - **1.19.0** — 2026-08-03 — Guideline sections auto-fill from the brand's research, or from a targeted search of its site. Migration 0008.
@@ -54,6 +57,315 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.21.3 — 2026-08-04
+
+**The click target was the leftover space, not the day.**
+
+Off two screenshots of the month grid: the hover affordance on 11 August drawn
+as a rounded box that starts *below* the date number and stops short of the
+cell's edges. The ask: *"the entire date box should be clickable vs what we
+have rn which is the click box is below the date strip… just make the entire
+box for each date clickable for ease of use."*
+
+**No migration, no new route, no new component, no wire change** — one
+component, `CalendarMonthGrid.tsx`.
+
+### 1. The affordance was sized by what was left over
+
+1.20.0 gave the add button `flex-1` and put it last in the cell, so it took
+whatever vertical space the date number and the chips did not. That is a
+reasonable way to fill a cell and a poor way to define a target: the region you
+can click was an artifact of how much else the day happened to hold, and it
+**shrank as the day filled up** — the row you most want to add to is the row
+with the least of it left. The date number itself, the strip beside it, and
+every gap between chips were all dead.
+
+### 2. Under the contents, not after them
+
+The button is now `absolute inset-0`: one element covering the cell edge to
+edge, laid *under* the day's contents rather than appended to them. Nothing is
+nested — a cell-wide `<button>` wrapping the chips would put buttons inside a
+button, which is invalid and would fire both handlers on one click.
+
+Stacking is what makes it work, and it needed three things stated:
+
+- The date number gets `pointer-events-none`, so a click on it falls through to
+  the button beneath. Without it the most obvious thing to aim at is the one
+  thing that still does nothing.
+- The chips get `relative`. A positioned element paints above static siblings
+  **whatever the source order**, so the overlay would otherwise cover the chips
+  and swallow their own click. This is the failure the second new test guards.
+- The focus ring is `-outline-offset-2`, inset. The grid is `gap-px`, so cells
+  butt against each other; an outward ring on a full-bleed button would be
+  drawn into the neighbour.
+
+### 3. What the hover looks like now
+
+The whole cell tints on hover instead of a rounded inner box appearing, which
+is the honest picture: the tinted region and the clickable region are now the
+same region. The `+` stays where it was, in flow below the chips, revealed by
+`group-hover` on the cell — it says what the tint means without covering
+anything, and centring it over the cell would have put it behind the chips.
+
+Chips also pick up `bg-card` so the hover tint passes behind them rather than
+through them; a transparent chip over an accent cell reads as though the chip
+itself were hovered, which is the wrong answer about what a click would hit.
+
+Padding days are unchanged and still have no target at all — 1.20.0's reason
+holds, that creating there writes into a month nobody is looking at.
+
+### Verification
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1394 passed | 64 skipped (134 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+2 files modified, 0 added. 1392 → **1394 (+2)**, both structural, because the
+behaviour this changes is hit-testing and jsdom does not do layout: one asserts
+the button covers the cell and the date is a transparent sibling rather than a
+row above it, the other that a chip keeps `relative` and its click reaches
+`onEditPost` without also firing `onNewPost`. The existing "day that already
+has posts" test passed before and after — it was never the case that was broken.
+
+### Caveats
+
+- **Not seen in a browser.** The stacking is the whole change and jsdom cannot
+  confirm it; what wants a look is the full-cell hover tint at density — the
+  previous affordance was a small inner box, and edge-to-edge across a 42-cell
+  grid is a louder gesture. The `+` on a day that already holds chips is the
+  other thing to check, since it now sits in whatever gap is left rather than
+  in a box of its own.
+
+---
+
+## 1.21.2 — 2026-08-04
+
+**The selected brand's ring was being cut flat against both edges of the rail.**
+
+Off a screenshot of Temper's nav: the active tile in the 56px brand rail wore
+its accent ring on the top and bottom but not the sides, where it stopped in two
+straight vertical lines a few pixels from the tile. The ask was that the rail
+looked *"a bit squeezed"* — which is the right reading of it. The rail is not too
+narrow. The column inside it is.
+
+**No migration, no new route, no new component, no test change** — one element's
+classes in `BrandRail.tsx`.
+
+### 1. `overflow-y` is never only `overflow-y`
+
+The scrolling list carried `overflow-y-auto`, for the reason its comment gives:
+a workspace with 40 brands must not push the theme toggle off the bottom. But a
+box whose `overflow-y` is anything other than `visible` computes its `overflow-x`
+to `auto` as well — the CSS Overflow spec does not let one axis overflow visibly
+while the other scrolls, because there is nowhere for the visible part to go.
+So the column clipped horizontally, having never been asked to, and nothing in
+the class list said `overflow-x` anywhere.
+
+That is the whole failure mode of this bug: the clip is invisible in the source,
+it lands on a property nobody wrote, and it only shows up on the one tile in the
+list that draws outside its own box.
+
+### 2. The column was exactly one tile wide
+
+`flex flex-col items-center` on the rail means its children are centred rather
+than stretched, so the scrolling column had no width of its own and sized to its
+content: one 36px `size-9` tile. The tiles fit that perfectly, which is why the
+rail has looked correct since 1.15.0 — every unselected mark ends at its own
+edge.
+
+The ring does not. `ring-2 ring-offset-2` paints 4px beyond the tile on all four
+sides, a 44px footprint inside a 36px box, and §1's clip took the 4px off the
+left and the right. The top and bottom survived because the column scrolls
+vertically — that overflow has somewhere to go, so it went there.
+
+**Both halves were needed.** A stretched column that did not clip would have been
+fine, and so would a clipping column that was wide enough. The rail had neither,
+and each half is individually invisible: `items-center` is a deliberate choice
+that is correct for every other child, and `overflow-y-auto` is a deliberate
+choice whose horizontal consequence is unwritten.
+
+### 3. `w-full`, and asymmetric padding
+
+`w-full px-1 py-1.5` in place of `py-1`. The column is the rail's full 56px now;
+`px-1` leaves a 48px content box for a 44px ring, and `items-center` still
+centres the tiles inside it.
+
+The padding is asymmetric because the two axes are answering different questions.
+Horizontally it is slack — 2px a side past what the ring needs, so a future tile
+size or a thicker ring does not put this back. Vertically it is the scroll
+boundary: `py-1` was 4px, exactly the ring's reach, so the first and last tiles
+sat flush against the ends of the scrollport with nothing to spare. `py-1.5`
+gives them the same 2px, at the cost of moving the list down 2px.
+
+Ring geometry, not tile geometry — the ring is what needs the room, so the
+padding is derived from `ring-2 ring-offset-2` and the comment says so. Anyone
+widening the ring has one number to change and one place to find it.
+
+### Verification
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1392 passed | 64 skipped (134 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+1 file modified, 0 added. **1392 → 1392 (+0), and that is the honest number.**
+The six existing `BrandRail` tests still pass, including the one asserting
+`ring-2` on the active link — it passed throughout, because the ring was always
+*applied*; it was being clipped by an ancestor two levels up. jsdom has no layout
+and no painting, so there is no assertion available here that would have caught
+this or would catch its return. A test on the container's `w-full` would assert
+the fix's spelling rather than its effect, and would pass just as happily if
+`overflow-y-auto` moved somewhere that clipped again.
+
+### Caveats
+
+- **Not seen in a browser** — the same standing caveat as 1.21.0 and 1.21.1. The
+  geometry is derived from the class list and checked against the screenshot's
+  proportions, not observed.
+- **A classic scrollbar re-narrows it.** On a platform without overlay
+  scrollbars, a workspace with enough brands to scroll takes ~15px out of the
+  48px content box and the clip returns. Not fixed here: hiding the scrollbar is
+  a decision about a 56px column that has never had to make it, and the repo's
+  `.no-scrollbar` lives in the vendored toolcraft styles rather than in the app's
+  own vocabulary. Worth doing when the rail is next looked at on Windows.
+
+---
+
+## 1.21.1 — 2026-08-04
+
+**The summaries were fourth and fifth, and 1.21.0 is the reason.**
+
+Off a screenshot of the Brand context card reading *3 written · 4 suggested*,
+with `TL;DR` at row four and `Overview` at row five — below three written
+aspects, above two unwritten ones. The ask: *"should be visually/hierarchically
+at the top and perhaps even separated with a subtle line from the rest."*
+
+Ships [`docs/completions/brand-summary-sections-lead-the-rail.md`](completions/brand-summary-sections-lead-the-rail.md).
+**No migration, no new route, no new component, no wire change** — three
+functions in `@brandfactory/shared` and one component restructured.
+
+### 1. First in the unwritten rows is not first in the list
+
+1.21.0 §5 put the two summaries at the head of `SUGGESTED_SECTIONS` and said so:
+*"which puts them first in the rail's unwritten rows."* Every word true, and the
+missing sentence is the one that matters. `BrandContextRail` drew two adjacent
+`.map`s inside one `<ul>` — every written section, then every unwritten
+suggestion — so head-of-taxonomy only ever ordered the **unwritten tail**. The
+order was never chosen; it was the shape of the JSX, and written-before-unwritten
+is a fine default for five peers that produces exactly the wrong answer for two
+that are not peers.
+
+**It degraded as the brand improved.** Each aspect written pushed the summaries
+one row down, so the TL;DR sank precisely as there came to be more for it to
+summarise — the *same failure shape* 1.21.0 §2 fixed one layer below, where the
+"do not restate what belongs there" instruction grew stronger the more a brand
+had written. That pass corrected the prompt half and shipped the ordering half
+with the bug intact.
+
+### 2. A rule, on a different axis from the one the rail already promises
+
+The rail's stated design — its own doc comment, and a test — is that **written
+sections and unwritten suggestions are one list, and that list is the meter**; a
+previous pass kept the palette swatches out of it for exactly that reason.
+Splitting on `kind` does not contradict it, because written/unwritten is
+*progress* and `aspect`/`synthesis` is *kind*: both bands hold both states, and
+the header still counts all seven. The list is still the meter, drawn in two
+pieces.
+
+`border-t` is also the vocabulary the card already speaks — the `Palette` block
+and the footer each earn one. Top to bottom it now reads **identity → what this
+is → the details → the palette → ways to find out more**. No visible heading
+above the band: two rows reading `TL;DR` and `Overview` under a rule already say
+it, and a `Summary` label would be a word spent explaining a hierarchy the
+position conveys.
+
+### 3. Three functions, because placement is a taxonomy question
+
+Into `canonical-sections.ts`, the module 1.21.0 §4 created to stop this class of
+decision being made a fourth time by hand. `sectionKindForLabel` names the
+`?? 'aspect'` fallback so it is not re-typed per call site — one omission yields
+`undefined`, falls out of both branches and drops a row off the screen.
+`isSynthesisLabel` is the predicate the rail calls, rather than a third
+hand-rolled comparison against the two label constants.
+
+`suggestedSectionIndex` is **1.21.0 §5's hazard turned into a function**. That
+section recorded `SUGGESTED_SECTIONS[3].label` silently re-pointing at the wrong
+section when two entries were inserted above it, "passing every type check, lint
+and test that reads the constant rather than the string". A position resolved
+from the *label* at comparison time cannot drift that way. `Infinity` rather than
+`-1`, so a custom label sorts last under a plain numeric comparator instead of
+jumping to the front.
+
+All three inherit `normaliseSectionLabel`, so a hand-typed `TLDR` is placed in
+the summary band — the spelling §4 already identified as the one people actually
+type, and the one whose misplacement would have reproduced the original bug for
+the majority case.
+
+### 4. One row type, and an asymmetry between the two bands
+
+A `RailRow` union (`state: 'written' | 'suggested'`) is the enabling change: two
+maps over two arrays cannot interleave, and the summary band has to — with only
+`Overview` written, `TL;DR` must still draw above it.
+
+`splitRailRows` **sorts the summary band** by `suggestedSectionIndex`, ignoring
+`priority` and written-ness, because *the short version precedes the long one* is
+a fact about the two sections and must hold whichever was written first. It
+**does not sort the aspects**: they keep the user's own `priority`, then the
+taxonomy's order for what is unwritten. The summaries lead because of what they
+*are*; that is not a licence to overrule a drag the user performed in the editor.
+
+Both `<ul>`s carry an `aria-label` — the split is otherwise only visual, and a
+screen reader hearing "list, 2 items" then "list, 5 items" with nothing saying
+why is worse off than before.
+
+### 5. The rail hoists; the editor does not
+
+`BrandGuidelinesEditor` renders the same list and is deliberately untouched: its
+rows are drag-reorderable and the drag writes `priority` on save, so hoisting
+there would fight the user every time they dragged. The two surfaces can
+therefore order differently — the same shape of disagreement 1.21.0 §4 fixed,
+except that one was accidental (two hand-rolled comparisons meant to match) and
+this one is stated: the rail presents an editorial hierarchy, the editor presents
+the user's own order. The editor's quick-add chips already lead with the
+summaries, iterating `SUGGESTED_SECTIONS` directly.
+
+### Verification
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1392 passed | 64 skipped (134 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+4 files modified, 0 added. 1376 → **1392 (+16)**: +7 on the new shared helpers
+(kind resolution, the `aspect` fallback, punctuation-tolerant placement, index
+derived from the constant rather than hard-coded), +9 on the rail (summaries
+lead with every aspect written, band order under either one written first, a
+hand-typed `TLDR` placed as a summary, the detail band's order unchanged, a
+custom label kept out, duplicates both drawn, the header counting both bands).
+The new rail tests are genuinely coupled: under the previous ordering the summary
+band does not resolve at all.
+
+**The pre-change baseline measured here is 1376**, which settles a disagreement
+on the way past — 1.21.0's commit subject claims 1381 and its changelog entry
+claims 1376. The changelog was right.
+
+### Caveats
+
+- **Not seen in a browser**, the same caveat 1.21.0 shipped with, still open for
+  the rows this moves. Structure is confirmed from the rendered DOM; what wants a
+  look is **hairline density** — a brand with colours now draws four rules in one
+  card where it drew three. If that reads busy, the palette block's rule is the
+  one to reconsider, since a heading already separates it.
 
 ---
 

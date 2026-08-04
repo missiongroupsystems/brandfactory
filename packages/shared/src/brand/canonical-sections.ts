@@ -3,6 +3,7 @@ import {
   SUGGESTED_SECTIONS,
   TLDR_SECTION_LABEL,
   type SuggestedSection,
+  type SuggestedSectionKind,
 } from './suggested-categories'
 
 // ---------------------------------------------------------------------------
@@ -73,6 +74,59 @@ export function sameSectionLabel(a: string, b: string): boolean {
 export function suggestionForLabel(label: string): SuggestedSection | undefined {
   const key = normaliseSectionLabel(label)
   return SUGGESTED_SECTIONS.find((s) => normaliseSectionLabel(s.label) === key)
+}
+
+/**
+ * What kind of question a label's section answers. **`aspect` for anything
+ * unrecognised**, which is the fallback `SuggestedSectionKind` already
+ * documents: a label the user invented is one facet of the brand until told
+ * otherwise, and that is how every label behaved before `kind` existed.
+ *
+ * The two-line version of `suggestionForLabel(label)?.kind` that the *readers*
+ * of the taxonomy want. Generators reach for the whole suggestion because they
+ * also need `description` and `targetMaxChars`; a surface deciding where to draw
+ * a row needs only this, and asking for it by name keeps the `?? 'aspect'`
+ * default from being re-typed at each call site — where one omission reads as
+ * `undefined`, falls out of both branches, and drops a row off the screen.
+ */
+export function sectionKindForLabel(label: string): SuggestedSectionKind {
+  return suggestionForLabel(label)?.kind ?? 'aspect'
+}
+
+/**
+ * Does this label name a section that reads **across** the brand rather than
+ * describing one facet of it? True for `TL;DR` and `Overview` and nothing else.
+ *
+ * The question `BrandContextRail` asks to decide which of its two bands a row
+ * belongs in. Worth its own name because the alternative — testing the label
+ * against the two constants — is the third hand-rolled comparison this module
+ * exists to prevent, and it would silently stop being true the day a third
+ * synthesis section is added to `SUGGESTED_SECTIONS`.
+ */
+export function isSynthesisLabel(label: string): boolean {
+  return sectionKindForLabel(label) === 'synthesis'
+}
+
+/**
+ * Where this label sits in the curated taxonomy, or `Infinity` for a label the
+ * taxonomy has never proposed.
+ *
+ * **A comparator input, not an index anyone should store.** 1.21.0's §5 is the
+ * warning: `buildResearchPrompt` held `SUGGESTED_SECTIONS[3].label` and adding
+ * two entries at the head re-pointed its rule at the wrong section without
+ * failing a type, a lint or a test. A function that resolves the position *at
+ * comparison time* from the label cannot drift that way — insert, remove or
+ * reorder entries and every caller keeps meaning what it said.
+ *
+ * `Infinity` sorts custom labels last as a group, and `Array.prototype.sort` is
+ * stable, so their relative order is whatever the caller handed in — for
+ * sections that is the user's own `priority`, which is the only ordering a
+ * custom section has ever had.
+ */
+export function suggestedSectionIndex(label: string): number {
+  const key = normaliseSectionLabel(label)
+  const i = SUGGESTED_SECTIONS.findIndex((s) => normaliseSectionLabel(s.label) === key)
+  return i === -1 ? Number.POSITIVE_INFINITY : i
 }
 
 /**

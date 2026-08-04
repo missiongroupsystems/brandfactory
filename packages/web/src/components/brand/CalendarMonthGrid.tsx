@@ -160,13 +160,35 @@ function DayCell({
   onEditPost?: (post: SocialPost) => void
   onNewPost?: (dayKey: string) => void
 }) {
+  const addable = inMonth && Boolean(onNewPost)
   return (
     <div
-      className={cn('flex min-h-24 flex-col gap-1 bg-card p-1.5', !inMonth && 'bg-surface-sunken')}
+      className={cn(
+        'group relative flex min-h-24 flex-col gap-1 bg-card p-1.5',
+        !inMonth && 'bg-surface-sunken',
+      )}
     >
+      {/* The add affordance is the **whole cell**, not the space the chips
+          leave: it is laid under the day's contents rather than after them, so
+          the date number and the gaps between chips all mean what the cell as
+          a whole means. Everything above it is `pointer-events-none` except
+          the chips, which have their own click and keep it. Only inside the
+          month: a padding day belongs to a month this grid is not showing, and
+          creating there would silently write into a view nobody is looking at.
+          The focus ring is inset — offset outwards it would be clipped by the
+          neighbouring cells, which butt right up against this one. */}
+      {addable && onNewPost && (
+        <button
+          type="button"
+          onClick={() => onNewPost(dayKey)}
+          aria-label={`New post on ${formatDayHeading(dayKey, now)}`}
+          className="absolute inset-0 transition-colors duration-150 hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--border-focus)]"
+        />
+      )}
+
       <span
         className={cn(
-          'self-start rounded-full px-1.5 text-xs tabular-nums',
+          'pointer-events-none relative self-start rounded-full px-1.5 text-xs tabular-nums',
           !inMonth && 'text-tertiary',
           isToday && 'bg-primary font-medium text-primary-foreground',
         )}
@@ -178,21 +200,15 @@ function DayCell({
         <Chip key={post.id} post={post} onEditPost={onEditPost} />
       ))}
 
-      {/* The add affordance fills whatever space the chips leave, so clicking
-          an empty cell means what it looks like it means. Only inside the
-          month: a padding day belongs to a month this grid is not showing, and
-          creating there would silently write into a view nobody is looking at.
-          Invisible until hovered or focused — 31 permanent `+` glyphs is
-          clutter, but a keyboard user still has to be able to reach it. */}
-      {inMonth && onNewPost && (
-        <button
-          type="button"
-          onClick={() => onNewPost(dayKey)}
-          aria-label={`New post on ${formatDayHeading(dayKey, now)}`}
-          className="flex min-h-6 flex-1 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity duration-150 hover:bg-accent hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
-        >
+      {/* The `+` still sits in flow below the chips, where it was — it marks
+          what the hover means without covering anything. Invisible until the
+          cell is hovered or something inside it is focused: 31 permanent `+`
+          glyphs is clutter, but a keyboard user has to be told the cell is
+          live once they arrive on it. */}
+      {addable && (
+        <span className="pointer-events-none relative flex min-h-6 flex-1 items-center justify-center text-muted-foreground opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
           <Plus className="size-3.5" aria-hidden="true" />
-        </button>
+        </span>
       )}
     </div>
   )
@@ -219,8 +235,11 @@ function Chip({ post, onEditPost }: { post: SocialPost; onEditPost?: (post: Soci
       </span>
     </>
   )
+  // `relative` so the chip paints above the cell's full-bleed add button and
+  // keeps its own click — an absolutely positioned sibling otherwise wins
+  // regardless of source order.
   const className = cn(
-    'w-full rounded-md border px-1.5 py-1 text-left text-xs',
+    'relative w-full rounded-md border bg-card px-1.5 py-1 text-left text-xs',
     post.status === 'posted' && 'opacity-60',
   )
   if (!onEditPost) {
