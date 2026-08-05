@@ -4,14 +4,20 @@ import { brands } from './brands'
 
 export const assetKind = pgEnum('asset_kind', ['color', 'image', 'file'])
 export const assetSource = pgEnum('asset_source', ['inline', 'blob', 'link'])
-export const assetRole = pgEnum('asset_role', ['logo', 'mark', 'primary'])
+// `typeface` joined in 0011, which is its own file and adds nothing else:
+// Postgres permits `ALTER TYPE … ADD VALUE` inside a transaction but forbids
+// *using* the new value in that same transaction, and the migrator runs the
+// whole pending batch in one. So no `UPDATE` anywhere may reference it — not in
+// 0011, and not in 0010.
+export const assetRole = pgEnum('asset_role', ['logo', 'mark', 'primary', 'typeface'])
 export const assetStatus = pgEnum('asset_status', ['proposed', 'active'])
+export const assetLibrary = pgEnum('asset_library', ['identity', 'photography', 'collateral'])
 
-// One wide table on three orthogonal axes — `kind` (what it is), `source`
-// (where the bytes live), `status` (how settled) — mirroring the shared
-// `BrandAsset` discriminated union. Same shape and same reasoning as
-// `canvas_blocks`: nullable per-variant columns beat table-per-variant when the
-// read path wants all of them at once.
+// One wide table on four orthogonal axes — `kind` (what it is), `source`
+// (where the bytes live), `status` (how settled), `library` (which shelf it is
+// filed on) — mirroring the shared `BrandAsset` discriminated union. Same shape
+// and same reasoning as `canvas_blocks`: nullable per-variant columns beat
+// table-per-variant when the read path wants all of them at once.
 export const brandAssets = pgTable(
   'brand_assets',
   {
@@ -25,6 +31,11 @@ export const brandAssets = pgTable(
     // `AssetRoleSchema`. `position` is what orders competing roles.
     role: assetRole('role'),
     status: assetStatus('status').notNull().default('active'),
+    // **No `.default()`, deliberately.** A DB default would be a fourth home for
+    // a rule that already lives in `defaultLibraryFor` and 0010's `CASE`, and it
+    // would be wrong for two of the three shelves. The column is `NOT NULL` and
+    // the server always supplies a value — see `POST /brands/:id/assets`.
+    library: assetLibrary('library').notNull(),
     label: text('label').notNull(),
     // Exactly one of these three is set, per `source`. Enforced by the CHECK
     // below and by the shared union at the wire.
@@ -53,6 +64,13 @@ export const brandAssets = pgTable(
     // The read path: every asset of a brand, by kind, in order.
     index('brand_assets_brand_kind_position_active_idx')
       .on(table.brandId, table.kind, table.position)
+      .where(sql`${table.deletedAt} IS NULL`),
+    // The shelf path: one library's rows, in order. The `(kind, position)`
+    // index above stays and stays the read order — `listAssetsByBrand` returns
+    // the whole brand and the client sections it, so this one is here for the
+    // per-shelf counts and any future server-side filter.
+    index('brand_assets_brand_library_position_active_idx')
+      .on(table.brandId, table.library, table.position)
       .where(sql`${table.deletedAt} IS NULL`),
     // `BrandMark`'s path: the brand's logo, which is a role lookup.
     index('brand_assets_brand_role_active_idx')

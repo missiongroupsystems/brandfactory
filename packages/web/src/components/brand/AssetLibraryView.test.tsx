@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { BrandAsset, BrandWithSections } from '@brandfactory/shared'
 import { AssetLibraryView, formatBytes } from './AssetLibraryView'
 
@@ -26,6 +27,7 @@ const uploaded: BrandAsset = {
   id: 'a-1' as BrandAsset['id'],
   brandId: 'b-1' as BrandAsset['brandId'],
   kind: 'image',
+  library: 'photography',
   source: 'blob',
   role: null,
   status: 'active',
@@ -41,6 +43,7 @@ const linked: BrandAsset = {
   id: 'a-2' as BrandAsset['id'],
   brandId: 'b-1' as BrandAsset['brandId'],
   kind: 'image',
+  library: 'photography',
   source: 'link',
   role: null,
   status: 'active',
@@ -54,9 +57,25 @@ const linked: BrandAsset = {
 const resolve = (key: string) => `/blob/${key}`
 
 describe('AssetLibraryView', () => {
-  it('says so plainly when a brand has no assets', () => {
-    render(<AssetLibraryView brand={brand} assets={[]} resolveBlob={resolve} />)
-    expect(screen.getByText(/This brand has no assets recorded/)).toBeTruthy()
+  // Three shelves, three empty states — the one thing besides the section list
+  // that differs by shelf. A single "no assets recorded" would be the shelves
+  // reading as one page again, filtered.
+  it.each([
+    ['identity', /Upload a mark, add a colour/],
+    ['photography', /No photography yet/],
+    ['collateral', /No collateral yet/],
+  ] as const)('says what belongs on the %s shelf when it is empty', (library, text) => {
+    render(<AssetLibraryView brand={brand} library={library} assets={[]} resolveBlob={resolve} />)
+    expect(screen.getByText(text)).toBeTruthy()
+  })
+
+  it.each([
+    ['identity', 'Visual identity'],
+    ['photography', 'Photography'],
+    ['collateral', 'Collateral'],
+  ] as const)('heads the %s shelf with its own title', (library, title) => {
+    render(<AssetLibraryView brand={brand} library={library} assets={[]} resolveBlob={resolve} />)
+    expect(screen.getByRole('heading', { level: 1, name: title })).toBeTruthy()
   })
 
   // The assets rule is that a link is first-class for reference while a blob is
@@ -64,13 +83,27 @@ describe('AssetLibraryView', () => {
   // UI, not enforced in the schema. A rule the UI cannot show is a rule nobody
   // can follow, so it is a pill on the card and not a tooltip.
   it('distinguishes an uploaded asset from a linked one on the card', () => {
-    render(<AssetLibraryView brand={brand} assets={[uploaded, linked]} resolveBlob={resolve} />)
+    render(
+      <AssetLibraryView
+        brand={brand}
+        library="photography"
+        assets={[uploaded, linked]}
+        resolveBlob={resolve}
+      />,
+    )
     expect(screen.getByText('Uploaded')).toBeTruthy()
     expect(screen.getByText('Linked')).toBeTruthy()
   })
 
   it('resolves a blob through the accessor and a link straight through', () => {
-    render(<AssetLibraryView brand={brand} assets={[uploaded, linked]} resolveBlob={resolve} />)
+    render(
+      <AssetLibraryView
+        brand={brand}
+        library="photography"
+        assets={[uploaded, linked]}
+        resolveBlob={resolve}
+      />,
+    )
     expect(screen.getByAltText('The back room').getAttribute('src')).toBe('/blob/k-1')
     expect(screen.getByAltText('Terrace at dusk').getAttribute('src')).toBe(
       'https://cdn.example.com/terrace.svg',
@@ -81,32 +114,115 @@ describe('AssetLibraryView', () => {
   // render is the expected outcome of the link path, and the grid has to say so
   // without leaving the browser's broken-image glyph in it.
   it('degrades a broken image to a caption rather than a broken glyph', () => {
-    render(<AssetLibraryView brand={brand} assets={[linked]} resolveBlob={resolve} />)
+    render(
+      <AssetLibraryView
+        brand={brand}
+        library="photography"
+        assets={[linked]}
+        resolveBlob={resolve}
+      />,
+    )
     fireEvent.error(screen.getByAltText('Terrace at dusk'))
     expect(screen.getByText('Did not render')).toBeTruthy()
   })
 
-  it('separates marks from photography', () => {
+  /**
+   * **This replaces `separates marks from photography`**, which asserted the
+   * derivation the `library` column removed: *an image with no role is a
+   * photograph*. The section now comes from where the asset is filed, so a mark
+   * is a mark on the shelf it was filed to and the other two shelves have no
+   * `Marks` heading to give it.
+   */
+  it('draws Marks only on the identity shelf', () => {
+    const mark = { ...uploaded, library: 'identity' as const, role: 'logo' as const }
+    render(
+      <AssetLibraryView brand={brand} library="identity" assets={[mark]} resolveBlob={resolve} />,
+    )
+    expect(screen.getByRole('heading', { name: 'Marks' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Photographs' })).toBeNull()
+  })
+
+  /**
+   * **An identity image with no role must still render**, and this is the case
+   * that catches it: an image dropped on this shelf has no role until someone
+   * clicks `Use as mark`, so a Marks grid filtered to `role: logo | mark` would
+   * show nothing for it — an asset counted in the nav, filed on this shelf, and
+   * visible nowhere, with the one control that would give it a role unreachable.
+   *
+   * Found by mutation-testing this file, not by writing it.
+   */
+  it('shows an identity image that has no role yet, with the way to mark it', () => {
+    const unmarked = { ...uploaded, library: 'identity' as const, role: null }
     render(
       <AssetLibraryView
         brand={brand}
-        assets={[{ ...uploaded, role: 'logo', label: 'Primary mark' }, linked]}
+        library="identity"
+        assets={[unmarked]}
         resolveBlob={resolve}
+        onUpdateAsset={vi.fn()}
+        onDeleteAsset={vi.fn()}
       />,
     )
-    expect(screen.getByRole('heading', { name: 'Marks' })).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'Photography' })).toBeTruthy()
+    expect(screen.getByText('The back room')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Use as mark' })).toBeTruthy()
   })
+
+  /**
+   * **The proposal's §2 table, as an assertion.** A printable menu exported as
+   * a PNG is the ask's own example, and under the old derivation it was
+   * photography — an image with no role. Filed to collateral it appears under
+   * Collateral's grid, and Photography does not claim it.
+   */
+  it('shows a PNG filed as collateral under Collateral, not Photography', () => {
+    const menu = { ...uploaded, library: 'collateral' as const, label: 'Menu, A4' }
+    const { unmount } = render(
+      <AssetLibraryView brand={brand} library="collateral" assets={[menu]} resolveBlob={resolve} />,
+    )
+    expect(screen.getByRole('heading', { name: 'Printed and designed' })).toBeTruthy()
+    expect(screen.getByText('Menu, A4')).toBeTruthy()
+    unmount()
+
+    // The photography shelf is handed the rows filed to *it*, so the menu is
+    // simply not among them — which is the whole point of the column.
+    render(
+      <AssetLibraryView brand={brand} library="photography" assets={[]} resolveBlob={resolve} />,
+    )
+    expect(screen.queryByText('Menu, A4')).toBeNull()
+  })
+
+  // The palette, the marks grid and the Add-colour row are identity's alone.
+  // On another shelf they are not merely empty — there is no heading for them.
+  it.each(['photography', 'collateral'] as const)(
+    'draws no palette or marks section on the %s shelf',
+    (library) => {
+      render(
+        <AssetLibraryView
+          brand={brand}
+          library={library}
+          assets={[uploaded]}
+          resolveBlob={resolve}
+          onAddColor={vi.fn()}
+          onUpdateAsset={vi.fn()}
+          onDeleteAsset={vi.fn()}
+        />,
+      )
+      expect(screen.queryByRole('heading', { name: 'Palette' })).toBeNull()
+      expect(screen.queryByRole('heading', { name: 'Marks' })).toBeNull()
+      expect(screen.queryByRole('heading', { name: 'Typefaces' })).toBeNull()
+    },
+  )
 
   it('renders a file with no preview as a row, not an empty tile', () => {
     render(
       <AssetLibraryView
         brand={brand}
+        library="collateral"
         assets={[
           {
             id: 'a-3' as BrandAsset['id'],
             brandId: 'b-1' as BrandAsset['brandId'],
             kind: 'file',
+            library: 'collateral',
             source: 'blob',
             role: null,
             status: 'active',
@@ -155,6 +271,7 @@ const colour: BrandAsset = {
   id: 'c-1' as BrandAsset['id'],
   brandId: 'b-1' as BrandAsset['brandId'],
   kind: 'color',
+  library: 'identity',
   source: 'inline',
   role: null,
   status: 'active',
@@ -167,7 +284,14 @@ const colour: BrandAsset = {
 
 describe('AssetLibraryView — the absent-callback invariant', () => {
   it('renders no intake zone, no editing and no delete when given no callbacks', () => {
-    render(<AssetLibraryView brand={brand} assets={[colour, uploaded]} resolveBlob={resolve} />)
+    render(
+      <AssetLibraryView
+        brand={brand}
+        library="identity"
+        assets={[colour, uploaded]}
+        resolveBlob={resolve}
+      />,
+    )
     expect(screen.queryByRole('button', { name: 'Choose files' })).toBeNull()
     expect(screen.queryByLabelText(/paste a URL/i)).toBeNull()
     expect(screen.queryByRole('button', { name: /Delete/ })).toBeNull()
@@ -188,6 +312,7 @@ describe('AssetLibraryView — palette editing', () => {
     render(
       <AssetLibraryView
         brand={brand}
+        library="identity"
         assets={[colour]}
         resolveBlob={resolve}
         {...props}
@@ -253,6 +378,7 @@ describe('AssetLibraryView — palette editing', () => {
     render(
       <AssetLibraryView
         brand={brand}
+        library="identity"
         assets={[]}
         resolveBlob={resolve}
         onAddColor={vi.fn()}
@@ -270,6 +396,7 @@ describe('AssetLibraryView — recording a link', () => {
     render(
       <AssetLibraryView
         brand={brand}
+        library="photography"
         assets={[]}
         resolveBlob={resolve}
         onRecordLink={onRecordLink}
@@ -289,6 +416,7 @@ describe('AssetLibraryView — recording a link', () => {
     render(
       <AssetLibraryView
         brand={brand}
+        library="photography"
         assets={[]}
         resolveBlob={resolve}
         onRecordLink={onRecordLink}
@@ -309,6 +437,7 @@ describe('AssetLibraryView — uploading', () => {
     render(
       <AssetLibraryView
         brand={brand}
+        library="photography"
         assets={[]}
         resolveBlob={resolve}
         onUploadFiles={onUploadFiles}
@@ -325,7 +454,13 @@ describe('AssetLibraryView — uploading', () => {
   // proxy from the eye and not from a screen reader, which is the wrong half.
   it('keeps the hidden file input out of the tab order', () => {
     const { container } = render(
-      <AssetLibraryView brand={brand} assets={[]} resolveBlob={resolve} onUploadFiles={vi.fn()} />,
+      <AssetLibraryView
+        brand={brand}
+        library="photography"
+        assets={[]}
+        resolveBlob={resolve}
+        onUploadFiles={vi.fn()}
+      />,
     )
     const input = container.querySelector('input[type=file]')!
     expect(input.getAttribute('tabindex')).toBe('-1')
@@ -338,6 +473,7 @@ describe('AssetLibraryView — uploading', () => {
     render(
       <AssetLibraryView
         brand={brand}
+        library="photography"
         assets={[]}
         resolveBlob={resolve}
         onUploadFiles={vi.fn()}
@@ -354,6 +490,7 @@ describe('AssetLibraryView — promoting a mark', () => {
     const { rerender } = render(
       <AssetLibraryView
         brand={brand}
+        library="photography"
         assets={[uploaded]}
         resolveBlob={resolve}
         onUpdateAsset={onUpdateAsset}
@@ -366,6 +503,7 @@ describe('AssetLibraryView — promoting a mark', () => {
     rerender(
       <AssetLibraryView
         brand={brand}
+        library="photography"
         assets={[{ ...uploaded, role: 'logo' }]}
         resolveBlob={resolve}
         onUpdateAsset={onUpdateAsset}
@@ -374,5 +512,188 @@ describe('AssetLibraryView — promoting a mark', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Brand mark' }))
     expect(onUpdateAsset).toHaveBeenLastCalledWith('a-1', { role: null })
+  })
+})
+
+describe('AssetLibraryView — Move to…', () => {
+  const font: BrandAsset = {
+    id: 'f-1' as BrandAsset['id'],
+    brandId: 'b-1' as BrandAsset['brandId'],
+    kind: 'file',
+    library: 'identity',
+    source: 'blob',
+    role: 'typeface',
+    status: 'active',
+    label: 'Satoshi — headings',
+    blobKey: 'k-font',
+    filename: 'satoshi.woff2',
+    mime: 'font/woff2',
+    position: 100,
+    deletedAt: null,
+    ...ASSET_STAMPS,
+  }
+
+  /**
+   * **The whole feature is one `PATCH`**, because C3 already made it work. What
+   * this asserts is the two things the menu itself owes: the current shelf is
+   * not offered (moving somewhere to where it already is), and the patch names
+   * the destination and nothing else.
+   */
+  it('offers the two shelves an asset is not on, and patches the library', async () => {
+    const user = userEvent.setup()
+    const onUpdateAsset = vi.fn()
+    render(
+      <AssetLibraryView
+        brand={brand}
+        library="photography"
+        assets={[uploaded]}
+        resolveBlob={resolve}
+        onUpdateAsset={onUpdateAsset}
+        onDeleteAsset={vi.fn()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Move The back room' }))
+
+    const items = await screen.findAllByRole('menuitem')
+    expect(items.map((i) => i.textContent)).toEqual([
+      'Move to Visual identity',
+      'Move to Collateral',
+    ])
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move to Collateral' }))
+    await waitFor(() =>
+      expect(onUpdateAsset).toHaveBeenCalledWith('a-1', { library: 'collateral' }),
+    )
+  })
+
+  it('offers Move to… on a file row as well as a grid card', async () => {
+    const user = userEvent.setup()
+    const onUpdateAsset = vi.fn()
+    render(
+      <AssetLibraryView
+        brand={brand}
+        library="identity"
+        assets={[font]}
+        resolveBlob={resolve}
+        onUpdateAsset={onUpdateAsset}
+        onDeleteAsset={vi.fn()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Move Satoshi — headings' }))
+    const items = await screen.findAllByRole('menuitem')
+    expect(items.map((i) => i.textContent)).toEqual(['Move to Photography', 'Move to Collateral'])
+  })
+
+  // Same rule as every other write on this page: the affordance exists exactly
+  // when its callback does.
+  it('renders no Move control without onUpdateAsset', () => {
+    render(
+      <AssetLibraryView
+        brand={brand}
+        library="photography"
+        assets={[uploaded]}
+        resolveBlob={resolve}
+        onDeleteAsset={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /^Move / })).toBeNull()
+  })
+})
+
+describe('AssetLibraryView — typefaces', () => {
+  const font: BrandAsset = {
+    id: 'f-1' as BrandAsset['id'],
+    brandId: 'b-1' as BrandAsset['brandId'],
+    kind: 'file',
+    library: 'identity',
+    source: 'blob',
+    role: null,
+    status: 'active',
+    label: 'Satoshi',
+    blobKey: 'k-font',
+    filename: 'satoshi.woff2',
+    mime: 'font/woff2',
+    position: 100,
+    deletedAt: null,
+    ...ASSET_STAMPS,
+  }
+
+  /**
+   * **The role is the declaration, and the toggle is how it is made.** An
+   * uploaded `.woff2` is an identity file until someone says it is the brand's
+   * typeface — nothing here sniffs the mime, for the same reason migration 0011
+   * backfills nothing.
+   */
+  it('files an unmarked font under Identity files, with a way to declare it', () => {
+    const onUpdateAsset = vi.fn()
+    render(
+      <AssetLibraryView
+        brand={brand}
+        library="identity"
+        assets={[font]}
+        resolveBlob={resolve}
+        onUpdateAsset={onUpdateAsset}
+        onDeleteAsset={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('heading', { name: 'Identity files' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Typefaces' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use as typeface' }))
+    expect(onUpdateAsset).toHaveBeenCalledWith('f-1', { role: 'typeface' })
+  })
+
+  it('moves a declared typeface into its own section, and offers to undeclare it', () => {
+    const onUpdateAsset = vi.fn()
+    render(
+      <AssetLibraryView
+        brand={brand}
+        library="identity"
+        assets={[{ ...font, role: 'typeface' }]}
+        resolveBlob={resolve}
+        onUpdateAsset={onUpdateAsset}
+        onDeleteAsset={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('heading', { name: 'Typefaces' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Identity files' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Typeface' }))
+    expect(onUpdateAsset).toHaveBeenLastCalledWith('f-1', { role: null })
+  })
+})
+
+describe('AssetLibraryView — the connected-sources note', () => {
+  /**
+   * **Copy, not a disabled `Connect a source` button with a `Soon` pill.** A
+   * sentence tells the user the direction of travel *and* the thing they can do
+   * right now, which is paste a URL; a disabled button tells them only the
+   * first, and this repo has spent two passes removing affordances that go
+   * nowhere.
+   */
+  it.each(['identity', 'photography', 'collateral'] as const)(
+    'names connected sources as a later pass on the %s shelf',
+    (library) => {
+      render(
+        <AssetLibraryView
+          brand={brand}
+          library={library}
+          assets={[]}
+          resolveBlob={resolve}
+          onRecordLink={vi.fn()}
+        />,
+      )
+      expect(
+        screen.getByText(/Connected sources — Google Drive, Dropbox — are a later pass/),
+      ).toBeTruthy()
+      expect(screen.queryByRole('button', { name: /Connect a source/ })).toBeNull()
+    },
+  )
+
+  // Gated with the intake zone it belongs to: a note about how to add things,
+  // on a page that cannot add things, is worse than silence.
+  it('says nothing when there is no way to record a link', () => {
+    render(<AssetLibraryView brand={brand} library="identity" assets={[]} resolveBlob={resolve} />)
+    expect(screen.queryByText(/Connected sources/)).toBeNull()
   })
 })

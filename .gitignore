@@ -13,6 +13,14 @@ out/
 .env.local
 .env.*.local
 
+# Local blob store
+#
+# `LocalDiskBlobStore`'s root. Every file uploaded through a dev server lands
+# here as real bytes — a `.woff2` from the 1.22.0 browser pass is what put this
+# entry in the file, having been staged for commit as though it were source.
+# The directory is created on demand and holds nothing anyone should carry.
+.data/
+
 # Logs
 logs/
 *.log

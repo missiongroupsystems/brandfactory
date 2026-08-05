@@ -20,6 +20,7 @@ function base(id: string, position: number) {
     brandId: BRAND,
     role: null,
     status: 'active' as const,
+    library: 'identity' as const,
     label: id,
     position,
     deletedAt: null,

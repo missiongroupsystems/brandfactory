@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SocialPostSchema } from '@brandfactory/shared'
+import { BrandAssetSchema, SocialPostSchema } from '@brandfactory/shared'
 import type { BrandAssetId, ProseMirrorDoc } from '@brandfactory/shared'
 import {
   rowToAgentMessage,
@@ -216,6 +216,7 @@ describe('rowToBrandAsset', () => {
     source: 'inline' as const,
     role: null,
     status: 'active' as const,
+    library: 'identity' as const,
     label: 'Terracotta',
     value: '#b5573c',
     blobKey: null,
@@ -280,6 +281,22 @@ describe('rowToBrandAsset', () => {
       mime: 'image/jpeg',
       filename: 'back-room.jpg',
     })
+  })
+
+  // A dropped `library` is not a null at the wire, it is an *absent* key, and
+  // the row schema requires it — so every asset in the app would fail to parse
+  // on a one-line omission here. Asserted through `BrandAssetSchema` rather than
+  // on the property, because parsing is what the omission actually breaks.
+  it('carries library through, on every arm', () => {
+    for (const over of [
+      {},
+      { kind: 'image' as const, source: 'blob' as const, value: null, blobKey: 'k/1' },
+      { kind: 'image' as const, source: 'link' as const, value: null, url: 'https://x.test/a.svg' },
+    ]) {
+      const mapped = rowToBrandAsset({ ...assetRow, library: 'collateral', ...over })
+      expect(mapped.library).toBe('collateral')
+      expect(BrandAssetSchema.safeParse(mapped).success).toBe(true)
+    }
   })
 
   it('normalises deletedAt without turning null into a date', () => {

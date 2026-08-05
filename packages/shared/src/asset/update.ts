@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AssetRoleSchema, AssetStatusSchema } from './asset'
+import { AssetLibrarySchema, AssetRoleSchema, AssetStatusSchema } from './asset'
 
 /**
  * Partial asset patch. At least one key must be present so a bare `{}` is
@@ -15,6 +15,11 @@ import { AssetRoleSchema, AssetStatusSchema } from './asset'
  * which an in-place rewrite would not.
  *
  * `null` clears `role` and `alt`; omitting a key leaves the column alone.
+ *
+ * **`library` is here, and it is the whole of Move to….** A lone
+ * `{ library }` patch is the feature, which is why it needs its own clause in
+ * the `.refine` below — without one the only call the feature ever makes is
+ * rejected as an empty body.
  */
 export const UpdateBrandAssetInputSchema = z
   .object({
@@ -23,6 +28,7 @@ export const UpdateBrandAssetInputSchema = z
     role: AssetRoleSchema.nullable().optional(),
     status: AssetStatusSchema.optional(),
     alt: z.string().max(1000).nullable().optional(),
+    library: AssetLibrarySchema.optional(),
   })
   .refine(
     (v) =>
@@ -30,8 +36,9 @@ export const UpdateBrandAssetInputSchema = z
       v.position !== undefined ||
       v.role !== undefined ||
       v.status !== undefined ||
-      v.alt !== undefined,
-    { message: 'At least one of label, position, role, status or alt is required' },
+      v.alt !== undefined ||
+      v.library !== undefined,
+    { message: 'At least one of label, position, role, status, alt or library is required' },
   )
 
 export type UpdateBrandAssetInput = z.infer<typeof UpdateBrandAssetInputSchema>

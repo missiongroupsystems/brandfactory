@@ -53,6 +53,7 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
       brandId,
       kind: 'image',
       source: 'blob',
+      library: 'photography',
       label,
       blobKey: `brands/${label}.jpg`,
       position,

@@ -13,7 +13,6 @@ import {
   Sparkles,
 } from 'lucide-react'
 import type {
-  BrandAsset,
   BrandGuidelineSection,
   BrandWithSections,
   ResearchJobSummary,
@@ -26,7 +25,6 @@ import {
   suggestedSectionIndex,
   SUGGESTED_SECTIONS,
 } from '@brandfactory/shared'
-import { ColorSwatches, paletteSummary } from '@/components/brand/ColorSwatches'
 import { iconForSection } from '@/components/brand/guidelineIcons'
 import { Button } from '@/components/ui/button'
 import { defaultExtensions } from '@/editor/proseMirrorSchema'
@@ -151,31 +149,6 @@ export interface BrandContextRailProps {
   brand: BrandWithSections
   onEdit: () => void
   className?: string
-  /**
-   * Inline colour assets, `proposed` ones included.
-   *
-   * **`undefined` and `[]` are different, and neither renders a block.**
-   * `undefined` means *not known* — the query is pending or failed — and `[]`
-   * means the brand has no colours. Both are silence rather than a placeholder:
-   * a brand with an empty palette is a legitimate brand (`docs/vision.md:28`)
-   * and a "no colours yet" box would be the scolding this rail spent 1.7.0
-   * removing. The distinction still matters because a block that flashes empty
-   * on every navigation is worse than one that appears 100ms late.
-   */
-  colors?: BrandAsset[]
-  /**
-   * Where the `Palette` heading goes — the surface that *owns* colours, where
-   * they are added, labelled, reordered and proposed. Read here, write there.
-   *
-   * **Gated on the prop, not on the job**, the same way `onStartResearch` gates
-   * the research row. In 2C the Visual identity page is still a `Coming soon`
-   * stub, so `BrandHubView` passes nothing and the heading is plain text: a
-   * link from the one surface that shows you your colours to a page that says
-   * "later" is worse than no link, and it is the affordance class 1.7.0 spent a
-   * pass removing. 2E flips `visual.enabled` and the heading becomes a link
-   * with no edit here.
-   */
-  paletteHref?: string
   /**
    * The latest research job, or `null` for a brand nobody has researched.
    * Absent on the real route; there is no research query yet.
@@ -312,8 +285,6 @@ export function BrandContextRail({
   brand,
   onEdit,
   className,
-  colors,
-  paletteHref,
   research,
   onStartResearch,
   onReviewDrafts,
@@ -473,32 +444,14 @@ export function BrandContextRail({
           </ul>
         )}
 
-        {colors && colors.length > 0 && (
-          // A block, not a row. The section list above is the meter — written
-          // sections and unwritten suggestions, one list — and a swatch row
-          // inside it would be neither, which is the one rule this rail
-          // promises. Its own `border-t` and heading keep it outside the count.
-          <div className="border-t px-4 py-3">
-            <div className="flex items-baseline justify-between gap-2">
-              {/* Read-only either way — no `Edit` button here. The rail shows
-                  the palette; the library owns it. */}
-              <h3 className="text-sm font-medium">
-                {paletteHref ? (
-                  <a
-                    href={paletteHref}
-                    className="rounded-sm transition-colors duration-150 hover:text-muted-foreground"
-                  >
-                    Palette
-                  </a>
-                ) : (
-                  'Palette'
-                )}
-              </h3>
-              <span className="text-xs text-muted-foreground">{paletteSummary(colors)}</span>
-            </div>
-            <ColorSwatches colors={colors} className="mt-2.5" />
-          </div>
-        )}
+        {/* **The palette block was here, and it is `VisualIdentityCard` now.**
+            It sat under its own hairline since 1.8.0 because there was nowhere
+            else on the hub for it, and the comment it carried conceded the
+            point: the section list is the meter — written sections and unwritten
+            suggestions, one list — and a swatch row inside it was neither. It
+            was always a guest. It now has a card where it is the tenant, two
+            hundred pixels down the same column, and this card is back to one
+            rule with no exception. */}
 
         {(showTalkLink || onStartResearch) && (
           <div className="border-t p-1.5">

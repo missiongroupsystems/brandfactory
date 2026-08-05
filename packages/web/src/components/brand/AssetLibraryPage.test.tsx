@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
-import { Palette } from 'lucide-react'
-import type { BrandAsset, BrandAssetId, UpdateBrandAssetInput } from '@brandfactory/shared'
-import type { MiniApp } from './miniApps'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import type {
+  AssetLibrary,
+  BrandAsset,
+  BrandAssetId,
+  UpdateBrandAssetInput,
+} from '@brandfactory/shared'
 
 // ---------------------------------------------------------------------------
-// VisualIdentityPage — the half that had no tests
+// AssetLibraryPage — the half that had no tests
 // ---------------------------------------------------------------------------
 //
 // The Stage 1–2 review's fifth finding. `AssetLibraryView` shipped 2E with 24
@@ -97,6 +100,12 @@ vi.mock('@/components/brand/AssetLibraryView', () => ({
       <button onClick={() => props.onAddColor?.({ label: 'Olive', value: '#5d6b42' })}>
         fire add colour
       </button>
+      <span data-testid="has-add-colour">{props.onAddColor ? 'yes' : 'no'}</span>
+      <button
+        onClick={() => props.onUpdateAsset?.('a-1' as BrandAssetId, { library: 'collateral' })}
+      >
+        fire move
+      </button>
       <button
         onClick={() => props.onReorderColors?.(['a-3', 'a-1', 'a-2'] as unknown as BrandAssetId[])}
       >
@@ -106,7 +115,7 @@ vi.mock('@/components/brand/AssetLibraryView', () => ({
   ),
 }))
 
-const { VisualIdentityPage } = await import('./VisualIdentityPage')
+const { AssetLibraryPage } = await import('./AssetLibraryPage')
 
 const T0 = '2026-07-29T00:00:00.000Z'
 const BRAND = {
@@ -120,7 +129,12 @@ const BRAND = {
   sections: [],
 }
 
-function color(id: string, label: string, position: number): BrandAsset {
+function color(
+  id: string,
+  label: string,
+  position: number,
+  library: AssetLibrary = 'identity',
+): BrandAsset {
   return {
     id: id as BrandAssetId,
     brandId: 'b-1' as BrandAsset['brandId'],
@@ -129,6 +143,7 @@ function color(id: string, label: string, position: number): BrandAsset {
     value: '#b5573c',
     role: null,
     status: 'active',
+    library,
     label,
     position,
     deletedAt: null,
@@ -137,16 +152,14 @@ function color(id: string, label: string, position: number): BrandAsset {
   } as BrandAsset
 }
 
-const APP = { id: 'visual', title: 'Visual identity', icon: Palette } as MiniApp
-
 const COLORS = [
   color('a-1', 'Terracotta', 100),
   color('a-2', 'Olive', 200),
   color('a-3', 'Ink', 300),
 ]
 
-function renderPage() {
-  return render(<VisualIdentityPage brandId="b-1" app={APP} />)
+function renderPage(library: AssetLibrary = 'identity') {
+  return render(<AssetLibraryPage brandId="b-1" library={library} />)
 }
 
 beforeEach(() => {
@@ -158,7 +171,7 @@ beforeEach(() => {
   state.brandError = false
 })
 
-describe('VisualIdentityPage — gating', () => {
+describe('AssetLibraryPage — gating', () => {
   // Both queries, not just the assets one: `AssetLibraryView` needs the brand
   // for its header, so a loaded asset list over a failed brand is not a page.
   it.each([
@@ -184,9 +197,31 @@ describe('VisualIdentityPage — gating', () => {
     expect(screen.getByTestId('asset-count').textContent).toBe('3')
     expect(screen.getByTestId('resolved').textContent).toBe('/signed/k-1')
   })
+
+  /**
+   * **The shelf is a filter over one query.** `useBrandAssets` returns the whole
+   * brand — the nav panel has it mounted on every page anyway — and each shelf
+   * slices it. Without this the three routes would render the same page three
+   * times under different headings.
+   */
+  it('renders only the assets filed on its own shelf', () => {
+    state.assets = [
+      color('a-1', 'Terracotta', 100),
+      color('a-2', 'Menu', 100, 'collateral'),
+      color('a-3', 'Storefront', 100, 'photography'),
+    ]
+    renderPage('collateral')
+    expect(screen.getByTestId('asset-count').textContent).toBe('1')
+  })
+
+  it('renders an empty shelf without borrowing another’s rows', () => {
+    state.assets = [color('a-1', 'Terracotta', 100)]
+    renderPage('photography')
+    expect(screen.getByTestId('asset-count').textContent).toBe('0')
+  })
 })
 
-describe('VisualIdentityPage — reorder arithmetic', () => {
+describe('AssetLibraryPage — reorder arithmetic', () => {
   /**
    * The reorder was N independent `PATCH`es until this pass and is now one
    * transactional call. What did not change is the arithmetic, and it had never
@@ -238,7 +273,7 @@ describe('VisualIdentityPage — reorder arithmetic', () => {
   })
 })
 
-describe('VisualIdentityPage — delete offers a way back', () => {
+describe('AssetLibraryPage — delete offers a way back', () => {
   /**
    * 1.10.0: *"a misclick is a disappearance. The fix is an Undo, not a
    * dialog."* The row was always recoverable — nothing sweeps its bytes — and
@@ -276,7 +311,7 @@ describe('VisualIdentityPage — delete offers a way back', () => {
   })
 })
 
-describe('VisualIdentityPage — the other writes', () => {
+describe('AssetLibraryPage — the other writes', () => {
   it('passes a patch straight through', () => {
     renderPage()
     fireEvent.click(screen.getByText('fire update'))
@@ -291,5 +326,85 @@ describe('VisualIdentityPage — the other writes', () => {
       source: 'inline',
       label: 'Olive',
     })
+  })
+
+  /**
+   * **Filed explicitly, not left to the server's default.**
+   *
+   * `defaultLibraryFor` would also answer `identity` for a colour, so omitting
+   * the key would look correct today — and would make the page's filing depend
+   * on a rule written for rows that predate the column. The literal is the
+   * point, and it is `'identity'` rather than the page's `library` prop: a
+   * colour is identity wherever you happen to be standing.
+   *
+   * Phase F added the other half of this guard — the page withholds
+   * `onAddColor` from the other two shelves entirely — so the two together mean
+   * a mis-shelved swatch is unrepresentable rather than merely unlikely.
+   */
+  it('files a colour as identity explicitly', () => {
+    renderPage('identity')
+    fireEvent.click(screen.getByText('fire add colour'))
+    expect(mutations.create.mock.calls[0]?.[0]).toMatchObject({
+      kind: 'color',
+      library: 'identity',
+    })
+  })
+})
+
+describe('AssetLibraryPage — Move to… offers a way back', () => {
+  /**
+   * A move takes the row **off the page you are looking at**, which is the same
+   * disappearance a delete is — so it gets the same treatment: a toast naming
+   * the destination, and an Undo. 1.10.0 shipped a delete without one and named
+   * the gap; a misfile with no way back is that failure wearing a different verb.
+   *
+   * The Undo is a second `updateAsset` rather than a `restoreAsset`: nothing was
+   * deleted, so the way back is the same door in the other direction.
+   */
+  it('names the destination and moves it back on Undo', () => {
+    renderPage()
+    fireEvent.click(screen.getByText('fire move'))
+    const [, opts] = mutations.update.mock.calls[0] as [
+      unknown,
+      { onSuccess: () => void; onError: (e: unknown) => void },
+    ]
+    opts.onSuccess()
+
+    const [message, config] = toastFn.mock.calls[0] as [
+      string,
+      { action: { label: string; onClick: () => void } },
+    ]
+    expect(message).toBe('Moved Terracotta to Collateral')
+    expect(config.action.label).toBe('Undo')
+
+    config.action.onClick()
+    // Back to the shelf it came from — read off the row, not assumed to be the
+    // page's own library, so an Undo is correct even from a stale render.
+    expect(mutations.update.mock.calls[1]?.[0]).toEqual({
+      id: 'a-1',
+      patch: { library: 'identity' },
+    })
+  })
+
+  // An ordinary patch is not a move, and must not raise a toast claiming one.
+  it('says nothing for a patch that is not a move', () => {
+    renderPage()
+    fireEvent.click(screen.getByText('fire update'))
+    const [, opts] = mutations.update.mock.calls[0] as [unknown, { onSuccess: () => void }]
+    opts.onSuccess()
+    expect(toastFn).not.toHaveBeenCalled()
+  })
+})
+
+describe('AssetLibraryPage — the Add-colour gate', () => {
+  // A colour belongs to the identity shelf and nowhere else. The gate is the
+  // callback rather than a branch in the view, which is the view's own rule:
+  // an affordance exists exactly when its callback does.
+  it('passes onAddColor on identity and withholds it elsewhere', () => {
+    renderPage('identity')
+    expect(screen.getByTestId('has-add-colour').textContent).toBe('yes')
+    cleanup()
+    renderPage('photography')
+    expect(screen.getByTestId('has-add-colour').textContent).toBe('no')
   })
 })

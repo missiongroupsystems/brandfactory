@@ -5,10 +5,12 @@ import { useBrandAssets } from '@/api/queries/assets'
 import { useBrandSocialPosts } from '@/api/queries/social-posts'
 import { useBrandProjects } from '@/api/queries/brands'
 import { BrandSwitcher } from '@/components/BrandSwitcher'
+import { assetsOfLibrary } from '@brandfactory/shared'
 import {
   BRAND_CONTEXT_TEMPLATE_ID,
   isBrandContextThread,
   isOrphanThread,
+  LIBRARY_APPS,
   miniAppById,
   TILE_APPS,
   type MiniApp,
@@ -78,6 +80,12 @@ export function BrandNavPanel({ brandId }: { brandId: string }) {
   }
 
   function countOf(app: MiniApp): number | null {
+    // **The library case comes first, and the order is the whole of it.** All
+    // three shelves are `unit: 'asset'` (one storage concept, one word), so the
+    // arm below would answer every one of them with the brand's *total* asset
+    // count — three identical numbers, none of them the shelf you are looking
+    // at.
+    if (app.library) return assets ? assetsOfLibrary(assets, app.library).length : null
     // One surface, not a collection — there is nothing to count. `null` is the
     // existing "not known, say nothing" value, so the row renders no number
     // rather than a `0` that would read as "empty". See `MiniApp.unit`.
@@ -155,9 +163,36 @@ export function BrandNavPanel({ brandId }: { brandId: string }) {
           })}
         </NavGroup>
 
+        {/* **Singular.** It is one library with three shelves, not three
+            libraries — which is what lets the group later grow a fourth row
+            that is somebody else's drive without the label becoming a lie.
+            (That row is not built: it exists only once there is something
+            behind it.)
+
+            No nested children, unlike the Apps group. A shelf has no threads,
+            and nesting twelve colours under a nav row would be a second, worse
+            Visual identity page. */}
+        <NavGroup label="Library">
+          {LIBRARY_APPS.map((app) => (
+            <NavItem
+              key={app.id}
+              link={app.to(brandId)}
+              label={app.title}
+              icon={app.icon}
+              active={activeKey === `library:${app.library}`}
+              count={countOf(app)}
+            />
+          ))}
+        </NavGroup>
+
         <NavGroup label="Brand">
           {contextApp && (
             <>
+              {/* The literal, not `contextApp.to(brandId)`. `miniAppById`
+                  returns the whole union, where `to` is absent on tile rows —
+                  so reading it here needs a `?.` and a fallback literal, which
+                  is two spellings of one path where there was one. The library
+                  rows above come off `LIBRARY_APPS`, which is narrowed. */}
               <NavItem
                 link={{ to: '/brands/$brandId/context', params: { brandId } }}
                 label={contextApp.title}

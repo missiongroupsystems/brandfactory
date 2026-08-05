@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
-import type { BrandAsset, ProjectSummary, SocialPost } from '@brandfactory/shared'
+import type { AssetLibrary, BrandAsset, ProjectSummary, SocialPost } from '@brandfactory/shared'
 import { BrandNavPanel } from './BrandNavPanel'
 
 // The panel is queries + `useLocation` and nothing else, so both are mocked and
@@ -81,7 +81,7 @@ function thread(
     : { ...base, kind: 'standardized', templateId }
 }
 
-const asset = (id: string): BrandAsset =>
+const asset = (id: string, library: AssetLibrary = 'identity'): BrandAsset =>
   ({
     id: id as BrandAsset['id'],
     brandId: 'b-1' as BrandAsset['brandId'],
@@ -89,6 +89,7 @@ const asset = (id: string): BrandAsset =>
     source: 'inline',
     role: 'primary',
     status: 'active',
+    library,
     label: 'Terracotta',
     value: '#b5573c',
     position: 100,
@@ -119,8 +120,11 @@ describe('BrandNavPanel', () => {
   })
 
   // The registry is the nav — a hand-written second list is how a mini-app ends
-  // up on a tile and nowhere in the navigation.
-  it('renders a row per tile app, plus the hidden brand-context surface', () => {
+  // up on a tile and nowhere in the navigation. Every row, across all three
+  // groups: `Visual identity` is here as a shelf now rather than as a tile, and
+  // the nav is where that distinction is invisible to the user, which is the
+  // point.
+  it('renders a row for every registered surface, whichever group it sits in', () => {
     render(<BrandNavPanel brandId="b-1" />)
 
     for (const title of [
@@ -147,10 +151,10 @@ describe('BrandNavPanel', () => {
     expect(screen.getByRole('link', { name: /Overview/ }).getAttribute('aria-current')).toBeNull()
   })
 
-  // The counts the hub tiles gave up. `Visual identity` counts assets rather
-  // than threads (`MiniApp.unit`) — counting threads there would print a number
-  // for something the page behind it does not have.
-  it('counts threads per category, assets for the library, posts for the calendar', () => {
+  // The counts the hub tiles gave up. A shelf counts the assets **on it**
+  // rather than threads (`MiniApp.unit`) — counting threads there would print a
+  // number for something the page behind it does not have.
+  it('counts threads per category, and posts for the calendar', () => {
     state.projects = [
       thread('p-1', 'copywriting'),
       thread('p-2', 'copywriting'),
@@ -169,6 +173,51 @@ describe('BrandNavPanel', () => {
     // threads would say `0` for a brand with a full month planned.
     expect(screen.getByRole('link', { name: /Social calendar/ }).textContent).toBe(
       'Social calendar3',
+    )
+  })
+
+  /**
+   * **Each shelf counts its own rows, and the ordering inside `countOf` is what
+   * makes that true.** All three are `unit: 'asset'`, so if the library case did
+   * not come first every row would read the brand's *total* — three identical
+   * numbers, none of them the shelf you are looking at. This fixture is the one
+   * that fails if that order is reversed.
+   */
+  it('counts each shelf separately, not the brand’s whole asset list', () => {
+    state.assets = [asset('a-1', 'identity'), asset('a-2', 'identity'), asset('a-3', 'collateral')]
+    render(<BrandNavPanel brandId="b-1" />)
+
+    expect(screen.getByRole('link', { name: /Visual identity/ }).textContent).toBe(
+      'Visual identity2',
+    )
+    expect(screen.getByRole('link', { name: /Collateral/ }).textContent).toBe('Collateral1')
+    // Zero is a count, not silence — the query resolved and the shelf is empty.
+    expect(screen.getByRole('link', { name: /Photography/ }).textContent).toBe('Photography0')
+  })
+
+  // The group is singular on purpose: one library with three shelves, which is
+  // what lets a connected source become a fourth row later without the label
+  // becoming a lie.
+  it('renders the three shelves under one Library group, each at its own path', () => {
+    render(<BrandNavPanel brandId="b-1" />)
+    const group = screen.getByRole('navigation', { name: 'Library' })
+    const links = within(group).getAllByRole('link')
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([
+      '/brands/b-1/identity',
+      '/brands/b-1/photography',
+      '/brands/b-1/collateral',
+    ])
+  })
+
+  it.each([
+    ['/brands/b-1/identity', 'Visual identity'],
+    ['/brands/b-1/photography', 'Photography'],
+    ['/brands/b-1/collateral', 'Collateral'],
+  ])('lights the shelf row on %s', (pathname, title) => {
+    state.pathname = pathname
+    render(<BrandNavPanel brandId="b-1" />)
+    expect(screen.getByRole('link', { name: new RegExp(title) }).getAttribute('aria-current')).toBe(
+      'page',
     )
   })
 

@@ -55,6 +55,37 @@ describe('POST /blob-urls/upload-url', () => {
     expect(body.code).toBe('INVALID_CONTENT_TYPE')
   })
 
+  /**
+   * **A `.woff2` could not be uploaded at all before the Typefaces section
+   * existed** — the signed write URL was refused here, before any of the library
+   * was reached. Four types, because a brand's typeface arrives as whichever one
+   * the foundry supplied.
+   */
+  it.each(['font/woff2', 'font/woff', 'font/otf', 'font/ttf'])(
+    'mints a write URL for %s',
+    async (contentType) => {
+      const { app } = makeHarness()
+      const res = await app.request('/blob-urls/upload-url', {
+        method: 'POST',
+        headers: AUTH,
+        body: JSON.stringify({ filename: 'satoshi.woff2', contentType, size: 40_000 }),
+      })
+      expect(res.status).toBe(200)
+    },
+  )
+
+  // The allowlist is still an allowlist. `font/collection` is a real IANA type
+  // and is not one of the four — a widened gate would have taken it too.
+  it('still refuses a font type that is not on the list', async () => {
+    const { app } = makeHarness()
+    const res = await app.request('/blob-urls/upload-url', {
+      method: 'POST',
+      headers: AUTH,
+      body: JSON.stringify({ filename: 'all.ttc', contentType: 'font/collection', size: 40_000 }),
+    })
+    expect(res.status).toBe(400)
+  })
+
   it('returns 413 when size exceeds limit', async () => {
     const { app } = makeHarness()
     const maxBytes = 25 * 1024 * 1024

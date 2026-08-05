@@ -1,5 +1,4 @@
 import {
-  assetsOfKind,
   type BrandAsset,
   type BrandWithSections,
   type ProjectSummary,
@@ -7,6 +6,7 @@ import {
 } from '@brandfactory/shared'
 import { BrandContextRail } from '@/components/brand/BrandContextRail'
 import { BrandIdentity } from '@/components/brand/BrandIdentity'
+import { VisualIdentityCard } from '@/components/brand/VisualIdentityCard'
 import { TILE_APPS, isBrandContextThread, type MiniApp } from '@/components/brand/miniApps'
 import { MiniAppTile } from '@/components/brand/MiniAppTile'
 import { ProjectCard } from '@/components/project/ProjectCard'
@@ -183,16 +183,12 @@ export function BrandHubView({
   researchMaxMinutes,
   researchUnreachable = false,
 }: BrandHubViewProps) {
-  // Same rule as the palette: `undefined` is "not known", `[]` is "none".
-  const colors = assets && assetsOfKind(assets, 'color')
-  // The rail's `Palette` heading links to the surface that owns colours — but
-  // only once that surface exists. `Visual identity` is a `Coming soon` stub
-  // until 2E flips `enabled`, and the registry is the single place that knows,
-  // so the link is derived from it rather than from a second flag. `tiles` is
-  // a prop, so the demo's own copy answers for the demo.
-  const visualHref = tiles.find((a) => a.id === 'visual')?.enabled
-    ? `/brands/${brand.id}/apps/visual`
-    : undefined
+  // **`colors` and `visualHref` are gone with the palette block they fed.** The
+  // hub derived both to hand down to `BrandContextRail`; `VisualIdentityCard`
+  // takes the whole `assets` list and derives its own, which is the same work in
+  // the component that owns the question. This view no longer knows what a
+  // colour is.
+  //
   // The brand's last few threads, newest first — every category, including the
   // ones no category claims. `RECENT_THREADS` rather than the whole list: this
   // is a resume affordance, not an index, and the index is the nav.
@@ -285,31 +281,41 @@ export function BrandHubView({
             </div>
           </main>
 
-          <BrandContextRail
-            brand={brand}
-            onEdit={onEdit}
-            // **The stacked rail is one tile column wide, not the whole page.**
-            // Below `lg` the two columns stack and the rail was taking the full
-            // ~830px, which turned every section row into a stretched hit area
-            // with its chevron at the far end and put `Edit` back across the
-            // page — precisely the 1.4.0 `BrandContextBar` shape this component
-            // was written to replace (see its doc comment). 1.7.0 logged it,
-            // 1.8.0 measured it, 2C narrowed it to the section list; this caps
-            // it. `calc(50% - 0.375rem)` is one column of the `sm:grid-cols-2
-            // gap-3` tile grid above, so the card's right edge lands on the
-            // grid's. Below `sm` the tiles are one column and so is this.
-            className="sm:max-w-[calc(50%-0.375rem)] lg:w-80 lg:max-w-none lg:shrink-0"
-            colors={colors}
-            paletteHref={visualHref}
-            research={research}
-            onStartResearch={onStartResearch}
-            onReviewDrafts={onReviewDrafts}
-            onReadReport={onReadReport}
-            researchStarting={researchStarting}
-            researchMaxMinutes={researchMaxMinutes}
-            researchUnreachable={researchUnreachable}
-            hasBrandContextThreads={hasBrandContextThreads}
-          />
+          {/* **The right column holds two cards now, and the width moved to the
+            column.** It was on the rail, which was the only thing in it; a
+            second card had to inherit the same measure or the two would step on
+            each other at every breakpoint. Same values, one level up.
+
+            **The stacked column is one tile column wide, not the whole page.**
+            Below `lg` the two columns stack and the rail was taking the full
+            ~830px, which turned every section row into a stretched hit area
+            with its chevron at the far end and put `Edit` back across the
+            page — precisely the 1.4.0 `BrandContextBar` shape this component
+            was written to replace (see its doc comment). 1.7.0 logged it,
+            1.8.0 measured it, 2C narrowed it to the section list; this caps
+            it. `calc(50% - 0.375rem)` is one column of the `sm:grid-cols-2
+            gap-3` tile grid above, so the card's right edge lands on the
+            grid's. Below `sm` the tiles are one column and so is this. */}
+          <aside className="flex flex-col gap-3 sm:max-w-[calc(50%-0.375rem)] lg:w-80 lg:max-w-none lg:shrink-0">
+            <BrandContextRail
+              brand={brand}
+              onEdit={onEdit}
+              research={research}
+              onStartResearch={onStartResearch}
+              onReviewDrafts={onReviewDrafts}
+              onReadReport={onReadReport}
+              researchStarting={researchStarting}
+              researchMaxMinutes={researchMaxMinutes}
+              researchUnreachable={researchUnreachable}
+              hasBrandContextThreads={hasBrandContextThreads}
+            />
+
+            {/* Renders nothing at all for a brand with no mark, no colours and no
+              typefaces, so the column is one card again on a brand that has not
+              started — which is the state the palette block was already silent
+              in, now applied to the whole card. */}
+            <VisualIdentityCard brand={brand} assets={assets} logoSrc={logoSrc} />
+          </aside>
         </div>
       </div>
     </div>

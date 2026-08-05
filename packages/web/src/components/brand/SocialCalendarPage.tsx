@@ -30,7 +30,7 @@ import { postExcerpt } from '@/lib/social-copy'
 // SocialCalendarPage — the data half
 // ---------------------------------------------------------------------------
 //
-// `VisualIdentityPage`'s shape: this file owns every query, every mutation and
+// `AssetLibraryPage`'s shape: this file owns every query, every mutation and
 // all of the local state; `SocialCalendarView` owns the layout and takes
 // callbacks. The split is what lets the whole surface be tested without a
 // QueryClient, and what lets this file be tested with the view stubbed.
@@ -115,7 +115,7 @@ export function SocialCalendarPage({ brandId, app }: { brandId: string; app: Min
   }
 
   /**
-   * Delete with the way back attached, `VisualIdentityPage`'s rule: a dialog
+   * Delete with the way back attached, `AssetLibraryPage`'s rule: a dialog
    * taxes every deliberate delete to catch the rare accidental one, while the
    * row is soft-deleted and its join rows are never swept — so restore brings
    * the post back with its attachments intact.
@@ -147,7 +147,7 @@ export function SocialCalendarPage({ brandId, app }: { brandId: string; app: Min
    * Upload straight into the brand's asset library, then hand the ids back to
    * the dialog to attach.
    *
-   * Sequential rather than `Promise.all`, `VisualIdentityPage`'s reason
+   * Sequential rather than `Promise.all`, `AssetLibraryPage`'s reason
    * verbatim: the server appends `position` by reading the current maximum, so
    * N concurrent creates of one kind would race onto the same number.
    *

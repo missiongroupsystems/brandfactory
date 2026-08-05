@@ -13,6 +13,19 @@ export const ALLOWED_UPLOAD_MIMES = [
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'text/plain',
+  // The brand's typefaces. Refused until the identity shelf had a section for
+  // them, which meant a `.woff2` could not be uploaded at all — the signed write
+  // URL was denied before any of the library was reached.
+  //
+  // **`CONTENT_TYPE_BY_EXTENSION` is deliberately left alone.** That map names
+  // the types a browser may render *inline* from user bytes, and a font is not
+  // one of those — it is a download, exactly as `text/plain` and the two Word
+  // types already are. `application/octet-stream` is the correct answer for
+  // serving these back.
+  'font/woff2',
+  'font/woff',
+  'font/otf',
+  'font/ttf',
 ] as const
 
 export type AllowedUploadMime = (typeof ALLOWED_UPLOAD_MIMES)[number]

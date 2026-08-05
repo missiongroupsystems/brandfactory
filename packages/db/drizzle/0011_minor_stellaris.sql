@@ -1,0 +1,16 @@
+--
+-- Its own file, and it does exactly one thing.
+--
+-- The migrator (`packages/db/scripts/migrate.mjs` → drizzle's node-postgres
+-- migrator) runs the whole pending batch inside one transaction. Postgres 12+
+-- permits `ALTER TYPE … ADD VALUE` in a transaction but forbids *using* the new
+-- value in that same transaction — so no `UPDATE` in this batch may reference
+-- 'typeface', not here and not in 0010. Folding this into 0010 would have made
+-- 0010's backfill unable to mention it either, for no gain.
+--
+-- Nothing is backfilled. A role is a declaration about one asset and there is
+-- no rule that infers one from bytes: `defaultLibraryFor` files a typeface as
+-- identity, but it cannot tell you that a given `.woff2` *is* the brand's. A
+-- user marks it, from the Typefaces section.
+--
+ALTER TYPE "public"."asset_role" ADD VALUE 'typeface';

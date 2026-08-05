@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import {
   AssetKindSchema,
+  AssetLibrarySchema,
   AssetLinkUrlSchema,
   AssetRoleSchema,
   AssetStatusSchema,
@@ -37,6 +38,13 @@ const CreateBrandAssetBaseShape = {
    * about placement — a drag-reorder — sends the value it wants.
    */
   position: z.number().int().optional(),
+  /**
+   * Optional here and required on the row: a client that knows which shelf it
+   * is standing on says so, and one that does not gets `defaultLibraryFor`
+   * applied by the route. That asymmetry is the whole reason the column could
+   * be added without a wire break.
+   */
+  library: AssetLibrarySchema.optional(),
 }
 
 const CreateBrandAssetUnion = z.discriminatedUnion('source', [

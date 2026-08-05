@@ -208,17 +208,26 @@ describe('mini-app route beforeLoad', () => {
     vi.mocked(redirect).mockClear()
   })
 
-  it('redirects a hidden-surface app to the surface it actually lives on', () => {
+  /**
+   * **The destination comes off the row now, not from a literal in the guard.**
+   * `/apps/visual` is the case that matters: live since 1.10.0, linked from the
+   * rail and plausibly bookmarked, and it must land on the identity shelf rather
+   * than on the *Unknown mini-app* page. That it still resolves at all is why
+   * the `visual` row kept its id when its shelf became `identity`.
+   */
+  it.each([
+    ['context', '/brands/$brandId/context'],
+    ['visual', '/brands/$brandId/identity'],
+    ['photography', '/brands/$brandId/photography'],
+    ['collateral', '/brands/$brandId/collateral'],
+  ])('redirects /apps/%s to the surface it actually lives on', (appId, to) => {
     try {
-      beforeLoad({ params: { brandId: 'b-1', appId: 'context' } })
+      beforeLoad({ params: { brandId: 'b-1', appId } })
     } catch {
       // The real `redirect` return value is thrown, not returned; the mock's is
       // `undefined`. The call itself is what we assert on.
     }
-    expect(vi.mocked(redirect)).toHaveBeenCalledWith({
-      to: '/brands/$brandId/context',
-      params: { brandId: 'b-1' },
-    })
+    expect(vi.mocked(redirect)).toHaveBeenCalledWith({ to, params: { brandId: 'b-1' } })
   })
 
   it('lets a tile app through', () => {

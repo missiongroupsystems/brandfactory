@@ -14,7 +14,7 @@ import type { MiniApp } from './miniApps'
 // SocialCalendarPage — the data half
 // ---------------------------------------------------------------------------
 //
-// `VisualIdentityPage.test.tsx`'s shape: the view is **stubbed**, one button
+// `AssetLibraryPage.test.tsx`'s shape: the view is **stubbed**, one button
 // per callback, so each can be fired with known input. Its own suite covers
 // the layout; what is untested otherwise is the callbacks it is handed — the
 // dialog's open/seed choreography, which failures toast, the Undo, and the

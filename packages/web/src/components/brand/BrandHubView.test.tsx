@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { Palette } from 'lucide-react'
 import type {
   BrandAsset,
@@ -8,7 +8,7 @@ import type {
   ResearchJobSummary,
 } from '@brandfactory/shared'
 import { BrandHubView } from './BrandHubView'
-import { BRAND_CONTEXT_TEMPLATE_ID, TILE_APPS } from '@/components/brand/miniApps'
+import { BRAND_CONTEXT_TEMPLATE_ID } from '@/components/brand/miniApps'
 
 // `BrandAsset` moved to `@brandfactory/shared` in 2A, where — like every other
 // domain entity — it carries branded ids and the two timestamp columns the DB
@@ -89,6 +89,7 @@ const color: BrandAsset = {
   id: 'c-1' as BrandAsset['id'],
   brandId: 'b-1' as BrandAsset['brandId'],
   kind: 'color',
+  library: 'identity',
   source: 'inline',
   role: 'primary',
   status: 'proposed',
@@ -114,12 +115,34 @@ describe('BrandHubView — the absent-prop invariant', () => {
     expect(screen.queryByRole('button', { name: /Research this brand/ })).toBeNull()
   })
 
-  // 2C: `railVariant` is gone and the rail block is the survivor, so a brand
-  // with colours gets exactly one palette — in the rail, never under the mark.
-  it('puts the palette in the rail and nowhere else', () => {
+  // Still exactly one palette on the page — it has simply moved down the same
+  // column, out of the Brand context card and into the one where it is the
+  // tenant rather than a guest under its own hairline.
+  it('puts the palette in the Visual identity card and nowhere else', () => {
     render(<BrandHubView brand={brand()} projects={[]} assets={[color]} {...handlers} />)
     expect(screen.getAllByRole('heading', { name: 'Palette' })).toHaveLength(1)
     expect(screen.getAllByText('1 colour · 1 proposed')).toHaveLength(1)
+
+    const card = screen.getByRole('region', { name: 'Visual identity' })
+    expect(within(card).getByRole('heading', { name: 'Palette' })).toBeTruthy()
+  })
+
+  // Both cards, in one column, in reading order: what we know in prose, then
+  // what the brand looks like.
+  it('renders both rail cards for a brand with an identity', () => {
+    render(<BrandHubView brand={brand()} projects={[]} assets={[color]} {...handlers} />)
+    expect(screen.getByRole('complementary', { name: 'Brand context' })).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'Visual identity' })).toBeTruthy()
+  })
+
+  // The card is silent for a brand that has not started one — an empty identity
+  // is a legitimate brand, and the Brand context card is still there to say what
+  // the page is. See `VisualIdentityCard`'s own suite for the three shapes of
+  // "no identity yet".
+  it('omits the Visual identity card entirely for a brand with none', () => {
+    render(<BrandHubView brand={brand()} projects={[]} assets={[]} {...handlers} />)
+    expect(screen.queryByRole('region', { name: 'Visual identity' })).toBeNull()
+    expect(screen.getByRole('complementary', { name: 'Brand context' })).toBeTruthy()
   })
 
   // Both halves of the surviving invariant, and they are different states:
@@ -141,29 +164,22 @@ describe('BrandHubView — the absent-prop invariant', () => {
   })
 
   /**
-   * The heading links only when the surface that owns colours exists — gated on
-   * the registry, not on a second flag.
+   * The heading links to the surface that owns colours — now the identity
+   * shelf, directly, rather than `/apps/visual` and a redirect.
    *
-   * **2E flipped `visual.enabled`, so the default is now the linked case.** The
-   * gate itself is still live and still worth a test: a registry where the tile
-   * is off must produce plain text, because a link to a page that says "later"
-   * is the dead affordance 1.7.0 spent a pass removing. That is the state this
-   * asserts, by passing a tile list with it off.
+   * **The unlinked case is gone with the gate that produced it.** That gate read
+   * `visual.enabled` off `tiles`, and existed for one state: the `Coming soon`
+   * stub before 2E, where a link to a page saying "later" would have been the
+   * dead affordance 1.7.0 spent a pass removing. A shelf has no such state — it
+   * exists on every brand — so there is no longer a registry that can produce
+   * plain text here, and a test asserting one would be asserting a case the code
+   * cannot reach.
    */
-  it('links the Palette heading, because Visual identity is enabled', () => {
+  it('links the Palette heading straight at the identity shelf', () => {
     render(<BrandHubView brand={brand()} projects={[]} assets={[color]} {...handlers} />)
     expect(screen.getByRole('link', { name: 'Palette' }).getAttribute('href')).toBe(
-      '/brands/b-1/apps/visual',
+      '/brands/b-1/identity',
     )
-  })
-
-  it('leaves it unlinked for a registry where Visual identity is off', () => {
-    const tiles = TILE_APPS.map((a) => (a.id === 'visual' ? { ...a, enabled: false } : a))
-    render(
-      <BrandHubView brand={brand()} projects={[]} assets={[color]} tiles={tiles} {...handlers} />,
-    )
-    expect(screen.queryByRole('link', { name: 'Palette' })).toBeNull()
-    expect(screen.getByRole('heading', { name: 'Palette' })).toBeTruthy()
   })
 })
 

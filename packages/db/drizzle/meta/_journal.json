@@ -71,6 +71,20 @@
       "when": 1785753111810,
       "tag": "0009_dear_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785831527480,
+      "tag": "0010_lumpy_fixer",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785831685583,
+      "tag": "0011_minor_stellaris",
+      "breakpoints": true
     }
   ]
 }

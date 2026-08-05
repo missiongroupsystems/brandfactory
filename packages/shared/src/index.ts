@@ -25,6 +25,7 @@ export * from './brand/autofill'
 // Brand assets
 export * from './asset/asset'
 export * from './asset/color'
+export * from './asset/library'
 export * from './asset/create'
 export * from './asset/update'
 export * from './asset/reorder'

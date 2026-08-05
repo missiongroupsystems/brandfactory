@@ -1,5 +1,6 @@
-import { BrandAssetSchema } from '@brandfactory/shared'
-import type { BrandAssetId, BrandId, WorkspaceId } from '@brandfactory/shared'
+import { BrandAssetSchema, defaultLibraryFor } from '@brandfactory/shared'
+import type { AssetKind, AssetRole, BrandAssetId, BrandId, WorkspaceId } from '@brandfactory/shared'
+import { readFileSync, readdirSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { pool } from './client'
 import {
@@ -54,6 +55,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     await createAsset({
       brandId: brand.id,
       kind: 'color',
+      library: 'identity',
       source: 'inline',
       label: 'Terracotta',
       value: '#b5573c',
@@ -63,6 +65,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     await createAsset({
       brandId: brand.id,
       kind: 'image',
+      library: 'photography',
       source: 'blob',
       label: 'Primary mark',
       blobKey: 'brands/x/mark.svg',
@@ -78,6 +81,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     await createAsset({
       brandId: brand.id,
       kind: 'image',
+      library: 'photography',
       source: 'link',
       label: 'Wordmark on the agency CDN',
       url: 'https://cdn.example.com/wordmark.svg',
@@ -107,6 +111,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     const asset = await createAsset({
       brandId: brand.id,
       kind: 'color',
+      library: 'identity',
       source: 'inline',
       label: 'Olive',
       value: '#6b7248',
@@ -133,10 +138,15 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     ],
   ])('brand_assets_source_exactly_one rejects %s', async (_name, columns) => {
     const brand = await scratchBrand()
+    // `library` is in the column list because it is `NOT NULL` with no default
+    // (0010). Omit it and every one of these rows is rejected by the not-null
+    // constraint *before* the CHECK is reached — the assertion below would still
+    // fail, but for the wrong reason, and the CHECK would go back to being
+    // something nobody has watched fire.
     await expect(
       pool.query(
-        `insert into brand_assets (brand_id, kind, source, label, position, value, blob_key, url)
-         values ($1, 'color', $2, 'violating row', 100, $3, $4, $5)`,
+        `insert into brand_assets (brand_id, kind, source, library, label, position, value, blob_key, url)
+         values ($1, 'color', $2, 'identity', 'violating row', 100, $3, $4, $5)`,
         [
           brand.id,
           columns.source,
@@ -153,6 +163,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     const asset = await createAsset({
       brandId: brand.id,
       kind: 'color',
+      library: 'identity',
       source: 'inline',
       label: 'Vermillion',
       value: '#c4442b',
@@ -177,6 +188,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     const asset = await createAsset({
       brandId: owner.id,
       kind: 'color',
+      library: 'identity',
       source: 'inline',
       label: 'Ink',
       value: '#231f1c',
@@ -193,6 +205,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     const asset = await createAsset({
       brandId: brand.id,
       kind: 'color',
+      library: 'identity',
       source: 'inline',
       label: 'Amber',
       value: '#dda03f',
@@ -213,6 +226,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     await createAsset({
       brandId: brand.id,
       kind: 'color',
+      library: 'identity',
       source: 'inline',
       label: 'Floated',
       value: '#123456',
@@ -228,6 +242,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     const first = await createAsset({
       brandId: brand.id,
       kind: 'color',
+      library: 'identity',
       source: 'inline',
       label: 'First',
       value: '#111111',
@@ -236,6 +251,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     const second = await createAsset({
       brandId: brand.id,
       kind: 'color',
+      library: 'identity',
       source: 'inline',
       label: 'Second',
       value: '#222222',
@@ -267,6 +283,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     await createAsset({
       brandId: brand.id,
       kind: 'image',
+      library: 'photography',
       source: 'blob',
       label: 'Uploaded logo',
       blobKey: 'brands/sweep-me.svg',
@@ -275,6 +292,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     await createAsset({
       brandId: brand.id,
       kind: 'image',
+      library: 'photography',
       source: 'link',
       label: 'Somebody else’s host',
       url: 'https://cdn.example.com/not-ours.svg',
@@ -283,6 +301,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     await createAsset({
       brandId: brand.id,
       kind: 'color',
+      library: 'identity',
       source: 'inline',
       label: 'A colour owns no bytes',
       value: '#b5573c',
@@ -298,6 +317,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     const asset = await createAsset({
       brandId: brand.id,
       kind: 'file',
+      library: 'collateral',
       source: 'blob',
       label: 'Brand deck, v3',
       blobKey: 'brands/deck-v3.pdf',
@@ -320,6 +340,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     const asset = await createAsset({
       brandId: brand.id,
       kind: 'color',
+      library: 'identity',
       source: 'inline',
       label: 'Misclicked',
       value: '#b5573c',
@@ -358,6 +379,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
       await createAsset({
         brandId: brand.id,
         kind: 'image',
+        library: 'photography',
         source: 'blob',
         label: 'Mark',
         blobKey: shared,
@@ -367,6 +389,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     const soleOwner = await createAsset({
       brandId: going.id,
       kind: 'image',
+      library: 'photography',
       source: 'blob',
       label: 'Only ours',
       blobKey: 'brands/only-ours.svg',
@@ -376,6 +399,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     await createAsset({
       brandId: keeper.id,
       kind: 'image',
+      library: 'photography',
       source: 'link',
       label: 'Elsewhere',
       url: 'https://cdn.example.com/elsewhere.svg',
@@ -397,6 +421,7 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     const hidden = await createAsset({
       brandId: keeper.id,
       kind: 'image',
+      library: 'photography',
       source: 'blob',
       label: 'Hidden',
       blobKey: 'brands/hidden.svg',
@@ -410,11 +435,128 @@ describe.skipIf(!hasDb)('brand_assets (live DB)', () => {
     expect(await listStillReferencedBlobKeys([])).toEqual([])
   })
 
+  /**
+   * **The mirror, closed.** `defaultLibraryFor` and 0010's `CASE` are the same
+   * rule written twice, and they have to agree at the moment the backfill runs.
+   *
+   * The `CASE` is **read out of the migration file and executed**, rather than
+   * restated here. A test that retyped the expression would pass while the
+   * migration said something else, which is the entire failure it exists to
+   * catch. And it is evaluated over a `VALUES` list rather than over rows in the
+   * table: `library` is `NOT NULL` with no default, so there is no way to get a
+   * row past the insert with the column unset and no reason to drop the
+   * constraint to manufacture one.
+   */
+  it('0010’s CASE agrees with defaultLibraryFor on every shape it could meet', async () => {
+    const dir = new URL('../drizzle/', import.meta.url)
+    const file = readdirSync(dir).find((f) => f.startsWith('0010_'))
+    expect(file).toBeDefined()
+    const sql = readFileSync(new URL(file!, dir), 'utf8')
+
+    const caseExpr = /SET "library" = (CASE[\s\S]*?END::"asset_library")/.exec(sql)?.[1]
+    expect(caseExpr).toBeDefined()
+
+    // Every shape a row could have carried when 0010 ran. `typeface` is
+    // deliberately absent — see below.
+    const shapes: Array<{ kind: AssetKind; role: AssetRole }> = [
+      { kind: 'color', role: null },
+      { kind: 'color', role: 'primary' },
+      { kind: 'image', role: 'logo' },
+      { kind: 'image', role: 'mark' },
+      { kind: 'image', role: 'primary' },
+      { kind: 'image', role: null },
+      { kind: 'file', role: 'logo' },
+      { kind: 'file', role: 'mark' },
+      { kind: 'file', role: null },
+    ]
+
+    const values = shapes
+      .map((_, i) => `($${i * 2 + 1}::asset_kind, $${i * 2 + 2}::asset_role)`)
+      .join(', ')
+    const { rows } = await pool.query<{ library: string }>(
+      `select ${caseExpr} as library from (values ${values}) as "brand_assets"("kind", "role")`,
+      shapes.flatMap((s) => [s.kind, s.role]),
+    )
+
+    expect(rows.map((r) => r.library)).toEqual(shapes.map(defaultLibraryFor))
+  })
+
+  /**
+   * The one place the two rules disagree, **observed rather than asserted in a
+   * comment** — the same discipline the CHECK tests above follow.
+   *
+   * `defaultLibraryFor` files a typeface as identity; 0010's `CASE` files it as
+   * collateral, because `file` falls through. That is safe for exactly one
+   * reason: 0011 is what adds `'typeface'` to `asset_role`, so no row in the
+   * table could carry it when 0010 ran. Putting the branch in the SQL would be
+   * dead code that reads as a rule.
+   */
+  it('diverges from the CASE on typeface, which no row could have held', async () => {
+    expect(defaultLibraryFor({ kind: 'file', role: 'typeface' })).toBe('identity')
+
+    const dir = new URL('../drizzle/', import.meta.url)
+    const zeroTen = readFileSync(
+      new URL(readdirSync(dir).find((f) => f.startsWith('0010_'))!, dir),
+      'utf8',
+    )
+    expect(zeroTen).not.toContain('typeface')
+    // And the value it does not mention is added by a *later* migration, which
+    // is what makes the branch unreachable at backfill time rather than missing.
+    const zeroEleven = readFileSync(
+      new URL(readdirSync(dir).find((f) => f.startsWith('0011_'))!, dir),
+      'utf8',
+    )
+    expect(zeroEleven).toContain(`ADD VALUE 'typeface'`)
+  })
+
+  it('round-trips library, and a lone library patch is Move to…', async () => {
+    const brand = await scratchBrand()
+    const menu = await createAsset({
+      brandId: brand.id,
+      kind: 'image',
+      source: 'blob',
+      library: 'photography',
+      label: 'Menu, A4',
+      blobKey: 'brands/menu.png',
+      mime: 'image/png',
+      position: 100,
+    })
+    expect(menu.library).toBe('photography')
+    expect(BrandAssetSchema.safeParse(menu).success).toBe(true)
+
+    // The whole of Move to…: one key, and the row is on another shelf.
+    const moved = await updateAsset(brand.id, menu.id, { library: 'collateral' })
+    expect(moved?.library).toBe('collateral')
+    // And nothing else moved with it — `undefined` leaves a column alone.
+    expect(moved?.label).toBe('Menu, A4')
+    expect(moved?.position).toBe(100)
+
+    const [reread] = await listAssetsByBrand(brand.id)
+    expect(reread?.library).toBe('collateral')
+  })
+
+  it('accepts the typeface role 0011 adds', async () => {
+    const brand = await scratchBrand()
+    const font = await createAsset({
+      brandId: brand.id,
+      kind: 'file',
+      source: 'blob',
+      library: 'identity',
+      label: 'Satoshi — headings',
+      blobKey: 'brands/satoshi.woff2',
+      role: 'typeface',
+      position: 100,
+    })
+    expect(font.role).toBe('typeface')
+    expect(BrandAssetSchema.safeParse(font).success).toBe(true)
+  })
+
   it('cascades assets when the brand is deleted', async () => {
     const brand = await createBrand({ workspaceId, name: SCRATCH_BRAND_NAME })
     await createAsset({
       brandId: brand.id,
       kind: 'color',
+      library: 'identity',
       source: 'inline',
       label: 'Doomed',
       value: '#000000',

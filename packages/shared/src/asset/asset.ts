@@ -3,7 +3,7 @@ import { BrandAssetIdSchema, BrandIdSchema } from '../ids'
 import { AssetColorValueSchema } from './color'
 
 // ---------------------------------------------------------------------------
-// BrandAsset — three orthogonal axes
+// BrandAsset — four orthogonal axes
 // ---------------------------------------------------------------------------
 //
 // Lifted from `packages/web/src/demo/assetTypes.ts`, which existed to be lifted:
@@ -15,13 +15,18 @@ import { AssetColorValueSchema } from './color'
 //
 // The axes are deliberately independent:
 //
-//   kind    what it is       — a colour, an image, a file
-//   source  where it lives   — in the row, in our blob store, on somebody else's host
-//   status  how settled      — `proposed` is `docs/vision.md:28`'s brand-in-progress
+//   kind     what it is       — a colour, an image, a file
+//   source   where it lives   — in the row, in our blob store, on somebody else's host
+//   status   how settled      — `proposed` is `docs/vision.md:28`'s brand-in-progress
+//   library  where it is filed — which of the three shelves it sits on
 //
 // `status` is a column rather than something derived from presence because a
 // brand that arrives as a rough idea has floated colours, and "we are thinking
 // about this one" is not expressible by a row existing.
+//
+// `library` is a column for the same class of reason and it is spelled out at
+// `./library.ts`: filing is a human judgement about purpose, and a PNG menu and
+// a PNG storefront photo are byte-for-byte the same kind of thing.
 
 /** What the asset is. */
 export const AssetKindSchema = z.enum(['color', 'image', 'file'])
@@ -42,13 +47,34 @@ export type AssetSource = z.infer<typeof AssetSourceSchema>
  * among active*. No singular accessor named `primaryColor` may exist in any
  * layer; a caller that wants one colour takes the head of the list at the call
  * site, where the arbitrariness is visible.
+ *
+ * `'typeface'` is the newest and is here for exactly the reason the others are:
+ * it is the value a future `@font-face` injection would resolve. Without it a
+ * font file on the identity shelf is distinguishable from a brand-guidelines
+ * PDF only by sniffing its mime. Added by migration 0011, which is its own file
+ * — see the note there.
  */
-export const AssetRoleSchema = z.enum(['logo', 'mark', 'primary'])
+export const AssetRoleSchema = z.enum(['logo', 'mark', 'primary', 'typeface'])
 export type AssetRole = z.infer<typeof AssetRoleSchema> | null
 
 /** How settled it is. */
 export const AssetStatusSchema = z.enum(['proposed', 'active'])
 export type AssetStatus = z.infer<typeof AssetStatusSchema>
+
+/**
+ * Which shelf it is filed on. Every asset is on exactly one, always — which is
+ * the property that makes this a column and not a nullable `role` value.
+ *
+ * The enum lives here, beside the three axes it is a peer of; the *rule* that
+ * derives a default and the filter that reads it live in `./library.ts`. That
+ * split is not taste: `BrandAssetBaseShape` below needs this schema at module
+ * evaluation time, so a `library.ts` that owned it would have to be imported by
+ * this file, while `assetsOfLibrary` needs `byPosition` from this file — a
+ * runtime cycle whose failure mode is a `ReferenceError` decided by whichever
+ * module an importer happens to reach first. One direction only.
+ */
+export const AssetLibrarySchema = z.enum(['identity', 'photography', 'collateral'])
+export type AssetLibrary = z.infer<typeof AssetLibrarySchema>
 
 /**
  * Somebody else's host — bring-your-own-hosting (`docs/vision.md:94`).
@@ -69,6 +95,12 @@ const BrandAssetBaseShape = {
   kind: AssetKindSchema,
   role: AssetRoleSchema.nullable(),
   status: AssetStatusSchema,
+  /**
+   * Required and non-nullable, unlike `role`. A row off the wire is always
+   * filed; the server resolves a default when the client omits one, and 0010's
+   * backfill did the same for every row that predates the column.
+   */
+  library: AssetLibrarySchema,
   /** "Primary", "Wordmark, dark bg". A caption, not a description — see `alt`. */
   label: z.string().min(1).max(200),
   /** Sparse integer ordering, as `guideline_sections.priority` already is. */

@@ -4,6 +4,7 @@ import {
   CreateBrandAssetInputSchema,
   ReorderBrandAssetsInputSchema,
   UpdateBrandAssetInputSchema,
+  defaultLibraryFor,
 } from '@brandfactory/shared'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
@@ -66,25 +67,38 @@ export function createBrandAssetsRouter(deps: AssetsDeps) {
           await requireBrandAccess(userId, id, deps.db)
           const body = c.req.valid('json')
 
+          // **The second of `defaultLibraryFor`'s two callers**; the other is
+          // migration 0010's backfill. `library` is optional at the wire and
+          // required on the row, and this line is the whole of that asymmetry —
+          // it is what lets every client written before the column keep posting
+          // unchanged.
+          const library =
+            body.library ?? defaultLibraryFor({ kind: body.kind, role: body.role ?? null })
+
           // Append when the client did not choose a position. Scoped to the
-          // asset's own `kind`, because the surfaces order within a kind — a
-          // palette is a list of colours, a grid is a list of images — so a new
-          // colour landing after the twelfth photo would sort to the front of a
-          // list it was meant to join the end of.
+          // asset's own `library` *and* `kind`, because the surfaces order
+          // within a kind on one shelf — a palette is a list of colours, a grid
+          // is a list of images — so a new colour landing after the twelfth
+          // photo would sort to the front of a list it was meant to join the end
+          // of. Adding `library` is cosmetic rather than a correctness fix
+          // (positions are only ever compared within a rendered section), but
+          // without it the first photograph filed on a brand takes its number
+          // from the collateral shelf, which is an ordering nobody chose.
           let position = body.position
           if (position === undefined) {
             const existing = await deps.db.listAssetsByBrand(id)
-            const sameKind = existing.filter((a) => a.kind === body.kind)
+            const sameShelf = existing.filter((a) => a.library === library && a.kind === body.kind)
             position =
-              sameKind.length === 0
+              sameShelf.length === 0
                 ? POSITION_STEP
-                : Math.max(...sameKind.map((a) => a.position)) + POSITION_STEP
+                : Math.max(...sameShelf.map((a) => a.position)) + POSITION_STEP
           }
 
           const row = await deps.db.createAsset({
             ...body,
             brandId: id,
             position,
+            library,
             role: body.role ?? null,
           })
           return c.json(row, 201)
@@ -154,6 +168,12 @@ export function createBrandAssetsRouter(deps: AssetsDeps) {
           const { id, assetId } = c.req.valid('param')
           await requireBrandAccess(userId, id, deps.db)
           const body = c.req.valid('json')
+          // **`{ library }` alone is Move to…** — the whole feature, and the
+          // reason `UpdateBrandAssetInputSchema` grew a sixth `.refine` clause
+          // rather than just a sixth key. Nothing here branches on it; it is
+          // named so the next reader knows the one-key patch is a product
+          // feature and not a stray column that leaked into the wire.
+          //
           // `updateAsset` is scoped by brand as well as id, so an asset id from
           // another brand misses here rather than being patched across the
           // boundary `requireBrandAccess` just checked.

@@ -385,6 +385,11 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         kind: input.kind,
         label: input.label,
         position: input.position,
+        // Taken from the input and **never defaulted here.** The real
+        // `createAsset` requires it, and a fake that resolved
+        // `defaultLibraryFor` itself would let every route test pass with the
+        // route's own resolution deleted.
+        library: input.library,
         role: input.role ?? null,
         status: input.status ?? 'active',
         alt: input.alt ?? null,
@@ -427,6 +432,7 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         ...(patch.role !== undefined ? { role: patch.role } : {}),
         ...(patch.status !== undefined ? { status: patch.status } : {}),
         ...(patch.alt !== undefined ? { alt: patch.alt } : {}),
+        ...(patch.library !== undefined ? { library: patch.library } : {}),
         updatedAt: NOW,
       }
       state.assets.set(id, updated)

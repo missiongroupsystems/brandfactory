@@ -1,17 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { BrandAsset, BrandWithSections, ResearchJobSummary } from '@brandfactory/shared'
+import type { BrandWithSections, ResearchJobSummary } from '@brandfactory/shared'
 import { SUGGESTED_SECTIONS } from '@brandfactory/shared'
 import { BrandContextRail } from './BrandContextRail'
 
-// `BrandAsset` moved to `@brandfactory/shared` in 2A, where — like every other
-// domain entity — it carries branded ids and the two timestamp columns the DB
-// writes. Fixtures state them; nothing in this file reads them.
-const ASSET_STAMPS = {
-  createdAt: '2026-07-01T00:00:00.000Z',
-  updatedAt: '2026-07-01T00:00:00.000Z',
-} as const
+// The asset fixtures went with the palette block, to
+// `VisualIdentityCard.test.tsx`. This file no longer knows what an asset is,
+// which is the same thing `BrandContextRail` can now say about itself.
 
 // The rail's conversation entry point is a real `<Link>`, which needs a router
 // context this component test does not stand up. Same stub the mini-app route
@@ -406,22 +402,6 @@ describe('BrandContextRail', () => {
 // The front-end mockup's additions — structure A and the research footer row
 // ---------------------------------------------------------------------------
 
-function color(id: string, status: BrandAsset['status'] = 'active'): BrandAsset {
-  return {
-    id: id as BrandAsset['id'],
-    brandId: 'b-1' as BrandAsset['brandId'],
-    kind: 'color',
-    source: 'inline',
-    role: null,
-    status,
-    label: `Colour ${id}`,
-    value: '#b5573c',
-    position: 100,
-    deletedAt: null,
-    ...ASSET_STAMPS,
-  }
-}
-
 function researchJob(
   status: ResearchJobSummary['status'],
   overrides: Partial<ResearchJobSummary> = {},
@@ -440,27 +420,28 @@ function researchJob(
   }
 }
 
-describe('BrandContextRail — the palette block (structure A)', () => {
-  // The invariant. Absent → the rail is 1.7.0 exactly, which is what the real
-  // route renders and what structures B and C render here.
-  it('renders no palette block when given no colours', () => {
+/**
+ * **The palette block left this component; its cases moved to
+ * `VisualIdentityCard.test.tsx` rather than being deleted**, so what they proved
+ * is not quietly lost with the block.
+ *
+ * What stays here is the one assertion that only makes sense from this side: the
+ * rail draws no swatches *at all* now, for a brand that has colours. Without it,
+ * re-adding the block — or a well-meant `colors` prop — would go unnoticed,
+ * because every remaining test in this file passes a brand with no assets.
+ */
+describe('BrandContextRail — the palette is gone', () => {
+  it('renders no palette, even for a brand that has one', () => {
     render(<BrandContextRail brand={brand([])} onEdit={vi.fn()} />)
     expect(screen.queryByRole('heading', { name: 'Palette' })).toBeNull()
+    expect(screen.queryByText(/\d+ colours?\b/)).toBeNull()
   })
 
-  it('renders one when given some', () => {
-    render(
-      <BrandContextRail brand={brand([])} onEdit={vi.fn()} colors={[color('c-1', 'proposed')]} />,
-    )
-    expect(screen.getByRole('heading', { name: 'Palette' })).toBeTruthy()
-    expect(screen.getByText('1 colour · 1 proposed')).toBeTruthy()
-  })
-
-  // The section list has a stated meaning — written sections and unwritten
-  // suggestions, one list, which *is* the meter. A swatch row inside it would
-  // be neither, and would break the one rule the rail promises.
-  it('keeps the palette out of the section list', () => {
-    render(<BrandContextRail brand={brand([])} onEdit={vi.fn()} colors={[color('c-1')]} />)
+  // The card's rule, restated from the side that used to break it: written
+  // sections and unwritten suggestions, one list, and that list is the meter —
+  // now with no exception to carry.
+  it('keeps the section list to sections', () => {
+    render(<BrandContextRail brand={brand([])} onEdit={vi.fn()} />)
     const rows = screen.getAllByRole('listitem')
     expect(rows.some((r) => r.textContent?.includes('Palette'))).toBe(false)
   })

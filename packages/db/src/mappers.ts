@@ -155,6 +155,7 @@ export function rowToBrandAsset(row: BrandAssetRow): BrandAsset {
     kind: row.kind,
     role: row.role,
     status: row.status,
+    library: row.library,
     label: row.label,
     position: row.position,
     deletedAt: toIsoTimestampOrNull(row.deletedAt),

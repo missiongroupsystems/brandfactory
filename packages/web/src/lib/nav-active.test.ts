@@ -33,6 +33,30 @@ describe('brandNavKey', () => {
     expect(brandNavKey('/brands/b-1/apps/copywriting/extra', 'b-1')).toBeNull()
   })
 
+  // Without this arm every shelf route returned `null` and no nav row lit on
+  // any of the three new pages — the panel would look like you had navigated
+  // out of the brand entirely.
+  it.each([
+    ['identity', 'library:identity'],
+    ['photography', 'library:photography'],
+    ['collateral', 'library:collateral'],
+  ])('names the %s shelf', (segment, key) => {
+    expect(brandNavKey(`/brands/b-1/${segment}`, 'b-1')).toBe(key)
+    expect(brandNavKey(`/brands/b-1/${segment}/`, 'b-1')).toBe(key)
+  })
+
+  /**
+   * **A literal alternation, not `([^/]+)`.** A wildcard in that position would
+   * turn every unrecognised brand-scoped path into `library:whatever` and light
+   * a row that does not exist; `null` is the honest answer for a path this
+   * function does not know.
+   */
+  it('does not invent a shelf for an unknown segment', () => {
+    expect(brandNavKey('/brands/b-1/moodboard', 'b-1')).toBeNull()
+    expect(brandNavKey('/brands/b-1/identity/extra', 'b-1')).toBeNull()
+    expect(brandNavKey('/brands/b-2/identity', 'b-1')).toBeNull()
+  })
+
   // Ids are UUIDs today. They are also interpolated into a pattern, and "the id
   // format will never change" is how an injected pattern gets written.
   it('escapes the id rather than interpolating it raw', () => {

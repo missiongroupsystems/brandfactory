@@ -9,6 +9,11 @@ import { workspaceSettingsRoute } from '@/routes/workspaces.$wsId.settings'
 import { brandEditorRoute } from '@/routes/brands.$brandId'
 import { miniAppRoute } from '@/routes/brands.$brandId.apps.$appId'
 import { brandContextRoute } from '@/routes/brands.$brandId.context'
+import {
+  collateralLibraryRoute,
+  identityLibraryRoute,
+  photographyLibraryRoute,
+} from '@/routes/brands.$brandId.library'
 import { projectRoute } from '@/routes/projects.$projectId'
 
 const appRoutes = [
@@ -20,6 +25,9 @@ const appRoutes = [
   brandEditorRoute,
   miniAppRoute,
   brandContextRoute,
+  identityLibraryRoute,
+  photographyLibraryRoute,
+  collateralLibraryRoute,
   projectRoute,
 ] as const
 

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import type { ProjectSummary } from '@brandfactory/shared'
+import { AssetLibrarySchema, type ProjectSummary } from '@brandfactory/shared'
 import {
   BRAND_CONTEXT_TEMPLATE_ID,
+  LIBRARY_APPS,
   MINI_APPS,
   TILE_APPS,
   isOrphanThread,
   miniAppById,
+  shelfName,
 } from './miniApps'
 
 function base(id: string) {
@@ -121,19 +123,23 @@ describe('isOrphanThread', () => {
 })
 
 // The two halves of the classification/display split, kept in one place because
-// they are the pair most likely to drift: a hidden row must classify its threads
-// (so they are never "Other threads") while never reaching the hub grid or an
-// /apps/ page.
+// they are the pair most likely to drift: a non-tile row must still classify its
+// threads (so they are never "Other threads") while never reaching the hub grid
+// or an /apps/ page.
 describe('surface split', () => {
-  it('keeps the brand-context row out of TILE_APPS', () => {
+  // **Four, and the 2×2 the hub grid's own comment describes.** `visual` left
+  // when the shelves landed: the grid is headed *Start something* and every card
+  // in it produces something new, which a library does not.
+  it('keeps the non-tile rows out of TILE_APPS', () => {
     expect(TILE_APPS.map((entry) => entry.id)).toEqual([
       'copywriting',
-      'visual',
       'studio',
       'social',
       'freeform',
     ])
-    expect(MINI_APPS.map((entry) => entry.id)).toContain('context')
+    for (const id of ['context', 'visual', 'photography', 'collateral']) {
+      expect(MINI_APPS.map((entry) => entry.id)).toContain(id)
+    }
   })
 
   it('does not orphan a brand-context thread despite it having no tile', () => {
@@ -159,13 +165,66 @@ describe('surface split', () => {
 
   it('declares a surface on every row', () => {
     for (const entry of MINI_APPS) {
-      expect(['tile', 'hidden']).toContain(entry.surface)
+      expect(['tile', 'library', 'brand']).toContain(entry.surface)
     }
   })
 
   it('derives TILE_APPS from MINI_APPS rather than duplicating rows', () => {
     for (const entry of TILE_APPS) {
       expect(MINI_APPS).toContain(entry)
+    }
+  })
+
+  // Same derived-view discipline, and the same reason: a shelf that appeared in
+  // the nav without being in the registry would be presented without being
+  // classified.
+  it('derives LIBRARY_APPS from MINI_APPS, in registry order', () => {
+    expect(LIBRARY_APPS.map((entry) => entry.id)).toEqual(['visual', 'photography', 'collateral'])
+    for (const entry of LIBRARY_APPS) {
+      expect(MINI_APPS).toContain(entry)
+    }
+  })
+
+  /**
+   * **The row id and the shelf are different strings, and one of them matters.**
+   * `visual` is the `identity` shelf: renaming the row would make
+   * `miniAppById('visual')` miss, and that lookup is what turns
+   * `/brands/:id/apps/visual` — live since 1.10.0 — into a redirect rather than
+   * the *Unknown mini-app* page. Two of three happen to match; nothing derives
+   * one from the other.
+   */
+  it('names each shelf explicitly, and visual is identity', () => {
+    expect(LIBRARY_APPS.map((entry) => entry.library)).toEqual([
+      'identity',
+      'photography',
+      'collateral',
+    ])
+    expect(miniAppById('visual')?.library).toBe('identity')
+  })
+
+  // Every non-tile row has somewhere to be. This is what `/apps/$appId`'s
+  // `beforeLoad` redirects to, and the type requires it — the test is here so
+  // the *paths* are asserted, not merely their presence.
+  it('gives every non-tile row a typed destination', () => {
+    const destinations = MINI_APPS.filter((entry) => entry.surface !== 'tile').map((entry) =>
+      entry.to?.('b-1'),
+    )
+    expect(destinations).toEqual([
+      { to: '/brands/$brandId/identity', params: { brandId: 'b-1' } },
+      { to: '/brands/$brandId/photography', params: { brandId: 'b-1' } },
+      { to: '/brands/$brandId/collateral', params: { brandId: 'b-1' } },
+      { to: '/brands/$brandId/context', params: { brandId: 'b-1' } },
+    ])
+    // And no tile row has one: a tile lives at `/apps/$id` and nowhere else.
+    for (const entry of TILE_APPS) expect(entry.to).toBeUndefined()
+  })
+
+  // The two new rows classify nothing, unlike `visual`, which keeps a real
+  // `templateId` because a 1.4.0-era thread may exist under it. These ids have
+  // never existed, so a `match` that could fire would be claiming otherwise.
+  it('claims no threads for the two shelves that never had any', () => {
+    for (const id of ['photography', 'collateral']) {
+      expect(MIXED.filter(app(id).match)).toEqual([])
     }
   })
 })
@@ -181,6 +240,8 @@ describe('thread-count derivation', () => {
       studio: 0,
       social: 0,
       freeform: 2,
+      photography: 0,
+      collateral: 0,
       context: 1,
     })
   })
@@ -189,5 +250,29 @@ describe('thread-count derivation', () => {
     for (const entry of MINI_APPS) {
       expect([].filter(entry.match).length).toBe(0)
     }
+  })
+})
+
+/**
+ * The name of a shelf is said on five surfaces — the nav row, the page heading,
+ * the loading frame, each `Move to …` item, and the toast one of them raises —
+ * and `shelfName` is the single place all five read it from.
+ *
+ * These two cases are what make the fallback in it unreachable rather than
+ * merely unlikely, which is the claim its doc comment makes.
+ */
+describe('shelfName', () => {
+  it('covers every shelf, so the fallback is unreachable', () => {
+    for (const library of AssetLibrarySchema.options) {
+      const row = LIBRARY_APPS.find((app) => app.library === library)
+      expect(row, `no registry row for the ${library} shelf`).toBeDefined()
+      expect(shelfName(library)).toBe(row?.title)
+    }
+  })
+
+  it('is the name the nav row renders, not a second spelling of it', () => {
+    expect(LIBRARY_APPS.map((app) => shelfName(app.library))).toEqual(
+      LIBRARY_APPS.map((app) => app.title),
+    )
   })
 })

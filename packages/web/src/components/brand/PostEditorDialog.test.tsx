@@ -15,6 +15,7 @@ function asset(id: string, label: string): BrandAsset {
     id: id as BrandAsset['id'],
     brandId: 'b-1' as BrandAsset['brandId'],
     kind: 'image',
+    library: 'photography',
     source: 'blob',
     role: null,
     status: 'active',

@@ -6,6 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.22.1** — 2026-08-05 — Pre-release review of 1.22.0: one shelf name, five surfaces; a dev blob out of the commit. No migration. 1482 tests.
+- **1.22.0** — 2026-08-05 — `Visual identity` stops being a tile and becomes a card; one library, three shelves, filed by a column. Migrations 0010 + 0011. 1480 tests.
 - **1.21.3** — 2026-08-04 — A calendar day is clickable everywhere, not just below its date. No migration. 1394 tests.
 - **1.21.2** — 2026-08-04 — The brand rail stops slicing the selected tile's ring: its scrolling column was one tile wide. No migration. 1392 tests.
 - **1.21.1** — 2026-08-04 — `TL;DR` and `Overview` lead the Brand context card, under a hairline of their own. No migration. 1392 tests.
@@ -57,6 +59,418 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.22.1 — 2026-08-05
+
+**A review pass over 1.22.0, before either of them was pushed.**
+
+1.22.0 was staged and unpushed when it was read end to end against
+[its plan](executing/visual-identity-and-the-library.md). Six findings; four
+fixed here, one deferred with its reasoning, one housekeeping. **No migration,
+no route change, no wire change** — nothing a user can see moves.
+
+The gate was re-run from scratch rather than taken from the completion notes,
+including the part of it that had only ever been reported: see §5.
+
+### 1. A dev artifact was staged for commit, and nothing was stopping it
+
+`packages/server/.data/blobs/uploads/2026/08/…-inter.woff2` — 52KB of Inter,
+uploaded through the browser during Phase G to prove the `font/woff2` gate had
+opened, and then `git add`-ed along with the source it was proving.
+
+The file is the symptom. **`.data/` was not in `.gitignore` at all**, and it is
+`LocalDiskBlobStore`'s root: every byte anyone uploads to a dev server lands
+there as a real file, so the default state of this repo was that a developer's
+uploads appeared in `git status` as untracked source awaiting a decision. Once
+is an accident; the entry now in `.gitignore` is what makes it not recur.
+
+### 2. One shelf has one name, and it had four
+
+The name of a shelf is said on five surfaces: the nav row, the page's `<h1>`,
+the loading frame behind it, each `Move to …` item, and the toast one of those
+raises. Those five read from **four separate literals** — `miniApps.ts`'s row
+titles, `SHELF_COPY.title`, `SHELF_COPY.moveLabel`, and the page's own
+`SHELF_NAMES`.
+
+Two of the four carried a comment defending themselves, which is how this got
+past its own author. The defence held for `SHELF_NAMES` in isolation — a toast
+sentence is not a page heading — but not against the whole set, and the route
+file made a claim that was simply not true:
+
+> Titles come from the registry rather than being restated here … a heading
+> that disagreed with the nav row you clicked would be the classification /
+> display drift `miniApps.ts` exists to prevent.
+
+The registry title reached only the **loading frame**. The real `<h1>` was
+`SHELF_COPY`'s. Rename `Collateral` in the registry and the nav row and the
+loading state say the new name while the page you land on says the old one —
+precisely the drift the comment promised to prevent, in the one file that
+claimed to have prevented it.
+
+New `shelfName(library)` in the registry is the single source, and all five
+surfaces read it. `SHELF_COPY` keeps `standfirst` and `empty` — genuine page
+copy, sentences that exist on one screen and are nobody else's business — and
+`AssetLibraryPage`'s `title` prop is **deleted rather than rethreaded**: a prop
+would have been the route agreeing with the registry rather than the page
+reading it, which is one more link to keep in step.
+
+Two tests hold it, and the second is the one that matters: the first walks
+`AssetLibrarySchema.options` so a fourth shelf without a registry row fails
+rather than silently returning the fallback, and the second asserts
+`shelfName` returns what the nav row renders — the drift itself, as an
+assertion.
+
+### 3. Six comments pointed at a file that no longer exists
+
+`VisualIdentityPage` became `AssetLibraryPage` in Phase D, and six present-tense
+references to the old name survived — including `AssetLibraryView`'s own header
+comment naming its counterpart, and four in the social calendar, which was built
+by copying its shape and says so.
+
+Worth fixing rather than tolerating because of what comments are for in this
+repo: they carry the reasoning, they name files by name, and a reader who greps
+for the file `AssetLibraryView.tsx` says owns its queries finds nothing. The one
+surviving mention is in `AssetLibraryPage` itself — *"It was `VisualIdentityPage`
+until the split"* — which is history and correct.
+
+### 4. Deferred, with the reason, rather than fixed
+
+**A colour filed onto a non-identity shelf renders nowhere.** The Palette
+section is gated on `library === 'identity'`, and nothing validates `kind`
+against `library`, so `POST /brands/:id/assets` with
+`{kind: 'color', library: 'photography'}` is accepted, counted in the nav row,
+and visible on no page.
+
+It is the same invisible-row class Phase F's mutation testing caught for an
+identity image with no role — but that one was reachable by dropping a logo on
+a page, and this one is reachable only by hand-writing the request. Colours are
+created `'identity'` in the one place that creates them, and `Move to …` is not
+offered on a colour row. **Left as-is deliberately**: the fix is a coercion in
+the create route (`kind === 'color'` ⇒ `'identity'`), it is a behaviour change
+to a validated boundary, and it belongs in a pass that can argue for it rather
+than riding in on a review of something else.
+
+### 5. What was re-run, and the one thing that had only been reported
+
+Everything below was executed, not read off the completion notes.
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1482 passed | 68 skipped (136 files)
+pnpm -F @brandfactory/web build   clean
+DATABASE_URL=… pnpm -F db test    96 passed (9 files)
+```
+
+**The migration checkpoint was reproduced from scratch**, because it is the only
+irreversible part of 1.22.0 and §2.5 of the plan had flagged it as a
+checkpoint rather than an assumption:
+
+- **Clean database**, 0000→0011 in one migrator batch: applies. `asset_role`
+  ends as `logo,mark,primary,typeface`; `library` is `NOT NULL` with no default;
+  all three partial indexes present. So `ALTER TYPE … ADD VALUE` inside the
+  batch transaction is fine on this Postgres, which is the specific thing 0011
+  was split out to survive.
+- **Populated database** — the production shape, which a clean run does not
+  exercise at all. 0000–0009 applied, nine rows seeded covering every
+  `kind` × `role` combination, then 0010 + 0011 in **one** transaction. It
+  commits, and every row lands where `defaultLibraryFor` says: including the two
+  the plan singles out — an image with `role: 'logo'` files as `identity` rather
+  than photography (the branch-ordering hazard, observed rather than trusted),
+  and a file with `role: 'logo'` files as `identity` (the PDF lockup).
+
+1482 is 1480 **+2**, both from §2. No existing assertion changed meaning; the
+only test edit was dropping the removed `title` prop from one render helper.
+
+### Caveats
+
+- **Not re-checked in a browser.** Phase G's pass stands and nothing here moves
+  a pixel — the four fixes are a gitignore entry, a function that returns the
+  string four literals already returned, and six comments. The strings were
+  verified identical to what they replaced rather than looked at.
+- **Phase B's scratch databases `mig_clean` and `mig_backfill` are still on the
+  dev Postgres.** This pass created two of its own and dropped them; those two
+  predate it and are somebody else's to remove.
+
+---
+
+## 1.22.0 — 2026-08-05
+
+**`Visual identity` was never a thing you start.**
+
+The brand hub's Workspace grid is headed *Start something*, and four of its five
+tiles were: a copywriting thread, a studio canvas, a week of posts, a freeform
+split-screen. The fifth was a place the brand's facts already live. 2E had to
+write an entire `unit` axis onto the registry to describe that one row, and the
+registry has carried a comment about it ever since — the tile has been the odd
+one out since the day it turned on.
+
+Raised off a screenshot of Temper's hub, in three asks:
+
+> Visual Identity, which ought to contain logos, fonts etc, should be separated
+> from Assets/Collaterals. In fact, perhaps we can add a Photography
+> section/page, as well as an Assets/Collaterals one (for things like printable
+> menus and so on). And then Visual Identity could become a separate righthand
+> side block instead of an "App" because it's arguably the more immutable
+> identity of the brand.
+
+The third carries the other two, and everything here follows from taking it
+literally. Ships Phases A–G of
+[`docs/executing/visual-identity-and-the-library.md`](executing/visual-identity-and-the-library.md)
+against the proposal in
+[`docs/plans/visual-identity-and-the-library.md`](plans/visual-identity-and-the-library.md);
+per-phase detail is in the seven notes under `docs/completions/`.
+
+### 1. Filing is a judgement, so it is a column — Phase A
+
+The page already had a Photography section. It was defined as *"an image that
+is not the logo"*, and that definition holds exactly until a brand uploads a
+printable menu as a PNG — which is the ask's own example.
+
+`library` is the fourth axis on `BrandAsset`, beside `kind` (what it is),
+`source` (where the bytes live) and `status` (how settled): `identity` ·
+`photography` · `collateral`. **Required and non-nullable** — every asset is on
+exactly one shelf, always, which is the property that makes this a column rather
+than another `role` value.
+
+Three cases the old derivation misfiled, none of them exotic:
+
+| The thing | Where it landed | Where it belongs |
+| --- | --- | --- |
+| A printable menu exported as PNG | Photography (an image with no role) | Collateral |
+| A `.woff2` of the brand's typeface | Nowhere — the upload was refused | Visual identity |
+| A logo lockup delivered as a PDF | Files (`kind: 'file'`) | Visual identity |
+
+`defaultLibraryFor` is the rule for a new asset when nobody said, and its doc
+comment **names its two callers** — the create route, and 0010's backfill —
+because that count is the whole safety argument. It is optional at the wire and
+required on the row, which is the asymmetry that let the column ship without a
+wire break: every client written before it keeps posting unchanged.
+
+### 2. Two migrations, and the split is load-bearing — Phase B
+
+**0010** adds the enum, the column, the backfill and a
+`(brand_id, library, position)` partial index. It is hand-authored on top of
+what `drizzle-kit` emitted, which was a single
+`ADD COLUMN … NOT NULL` that aborts on any table with rows in it. Add nullable,
+fill, then tighten — the column is never briefly `NOT NULL` and empty, and it is
+`NOT NULL` by the end of the file.
+
+**The `role` branch precedes the `kind` branch**, and a comment in the SQL says
+why: the two orderings differ only in that the wrong one files every brand mark
+in the table as a photograph — the most visible row there is, and the one nobody
+would think to check.
+
+**0011** adds `'typeface'` to `asset_role` and does nothing else. Postgres 12+
+permits `ALTER TYPE … ADD VALUE` inside a transaction but forbids *using* the
+new value in that same transaction, and the migrator wraps the whole pending
+batch in one — so no `UPDATE` in the batch may mention it, here or in 0010.
+Folding the two together would have bought nothing and cost 0010 its backfill.
+
+The mirror between the SQL `CASE` and the TypeScript is closed by a live test
+that **reads the expression out of the migration file and executes it** against
+a `VALUES` list of every shape a row could have carried. A test that retyped the
+expression would pass while the migration said something else, which is the
+entire failure it exists to catch. A second test observes the one place the two
+deliberately disagree — `defaultLibraryFor` files a typeface as identity, 0010
+does not mention typefaces — and proves it safe by asserting 0011 is what adds
+the value, so no row could have held it when the backfill ran.
+
+### 3. One line in the route, and an append scope — Phase C
+
+`body.library ?? defaultLibraryFor(…)` is the second caller and the whole of the
+server's part. The patch route needed **nothing at all**: `library` on the
+update schema plus a sixth clause in its `.refine` is Move to…, and without that
+clause the only call the feature ever makes is rejected as an empty body.
+
+The append scope became `(library, kind)` rather than `kind`. Cosmetic rather
+than a correctness fix — positions are only compared within a rendered section —
+but without it the first photograph filed on a brand takes its number from the
+collateral shelf, which is an ordering nobody chose.
+
+The fake db mirrors the real query and **does not default `library` itself**,
+per that file's standing rule: a fake that resolved the rule would let every
+route test pass with the route's own resolution deleted.
+
+### 4. The registry became a union — Phase D
+
+`MiniApp.surface` was `'tile' | 'hidden'`, where `'hidden'` had one member and
+was never really hidden — `context` is presented, just somewhere else. There are
+now two somewhere-elses, so the value says which: `'tile' | 'library' | 'brand'`,
+and **`surface` is the nav group**.
+
+The three arms are a **discriminated union rather than one object with optional
+keys**, and that is what turns two conventions into compile errors: a non-tile
+row cannot exist without a `to`, and a library row cannot exist without naming
+its shelf. Narrowing on `surface !== 'tile'` is what lets `/apps/$appId`'s
+`beforeLoad` redirect with no runtime guard for a case the type has ruled out.
+
+`to` carries **the router's own props** — `Pick<LinkProps, 'to' | 'params'>` —
+not a formatted path. `NavPrimitives` already stated the reason: TanStack's
+`Link` is type-safe over the route tree, and a `path: (brandId) => string` would
+launder every typo in this app's navigation past the compiler. One value
+satisfies both consumers, `NavItem` and `redirect()`, with no cast at either end.
+
+Two decisions that look like details and are not:
+
+- **The row keeps `id: 'visual'` while its shelf is `identity`.** Renaming it
+  would make `miniAppById('visual')` miss, and that lookup is exactly what turns
+  `/brands/:id/apps/visual` — live since 1.10.0, bookmarked, linked from the
+  rail — into a redirect rather than the *Unknown mini-app* page. Two rows of
+  three have `id === library`; nothing may derive one from the other.
+- **`brandNavKey` gained a fourth arm**, matched off a literal alternation of
+  the three segments rather than `([^/]+)`. A wildcard would light a nav row for
+  any unrecognised `/brands/:id/anything`; `null` is the honest answer for a
+  path this function does not know. Without the arm at all, no row lights on any
+  of the three new pages and the panel looks like you had navigated out of the
+  brand.
+
+The three shelves are one route file over one component, a deliberate exception
+to one-route-per-file: they differ in a path literal and a constant, and as
+three files they would be three copies of one auth guard. The paths are static
+rather than `/library/$library` — a param route accepts `/library/moodboard` at
+the type level and needs a runtime guard to 404 it.
+
+`countOf` learns the library case **before** its `unit === 'asset'` arm. All
+three shelves are `unit: 'asset'`, so the wrong order answers every one of them
+with the brand's total asset count: three identical numbers, none of them the
+shelf you are looking at.
+
+### 5. The palette stopped being a guest — Phase E
+
+The Brand context card has held the brand's palette since 1.8.0 because there
+was nowhere else on the hub for it, under a hairline of its own, and the card's
+own comment conceded the point: *"the section list above is the meter … a swatch
+row inside it would be neither."*
+
+`VisualIdentityCard` is where it lives now — the mark, the palette, the
+typefaces, and two quiet links with counts into the other two shelves. The rail
+goes back to one rule with no exception, and the hub's right column became an
+`aside` holding both cards, with the width moved up from the rail that used to
+be the only thing in it.
+
+**The card renders `null`** for a brand with no mark, no colours and no
+typefaces, and the two shelf links go with it — they are its footer, not a fifth
+block, and a footer with no card is a floating pair of counts. An empty identity
+is a legitimate brand (`vision.md:28`) and a card enumerating what is missing is
+the scolding 1.7.0 spent a pass removing.
+
+It is read-only, which is the same split the palette block already had: the rail
+shows the palette, the library owns it.
+
+### 6. Three shelves, one component — Phase F
+
+**If a shelf ever needs its own component, the shelf is wrong** — a constraint
+in the file's header, not an observation. What differs is the copy above the
+fold and which sections render below the intake; the intake zone, the
+`Uploaded`/`Linked` pill, delete-with-Undo and Move to… are identical on all
+three.
+
+| Shelf | Sections |
+| --- | --- |
+| `identity` | Marks · Palette · **Typefaces** · Identity files |
+| `photography` | One grid |
+| `collateral` | An image grid, plus the file list |
+
+The old derivations are **deleted, not demoted to a secondary sort** — leaving
+that rule anywhere is how it comes back.
+
+**Typefaces is a `role` lookup; Marks is not**, and Phase F's mutation testing
+is what found the difference. An image dropped on the identity shelf has no role
+until someone clicks `Use as mark`, so a Marks grid of only `role: logo | mark`
+renders nothing for it — an asset filed on the shelf, counted in the nav, and
+visible nowhere, with the one control that would give it a role unreachable. The
+grid holds every identity image and its own toggle is how one becomes the mark.
+
+The same shape is why `Use as typeface` sits on **Identity files** as well as on
+Typefaces: an uploaded `.woff2` has no role, so it lands in the file list, and
+if the only way to declare a typeface were the Typefaces section then nothing
+could ever get into it.
+
+**Move to…** is a dropdown on every card and file row offering the two shelves
+the asset is not on. It follows the delete idiom exactly — fire, then a toast
+naming the destination with an Undo that moves it back — because a misfile with
+no way back is the failure mode this repo has already paid for once, in 1.10.0.
+The Undo is a second `updateAsset`, not a restore: nothing was deleted, so the
+way back is the same door in the other direction. `deferUntilMenuClosed`, per
+`SocialPostList`, because a Radix menu that unmounts mid-handler drops focus and
+the toast is a second live focus scope.
+
+Font MIMEs joined `ALLOWED_UPLOAD_MIMES` — before this a `.woff2` was refused at
+the signed-write-URL, before any of the library was reached.
+**`CONTENT_TYPE_BY_EXTENSION` is deliberately left alone**, with the reason
+beside it: that map names types a browser may render *inline* from user bytes,
+and a font is a download, exactly as `text/plain` already is.
+
+Connected sources are **one sentence of copy**, not a disabled `Connect a
+source` button with a `Soon` pill. A line says the direction of travel *and* the
+thing you can do right now, which is paste a URL; a disabled button says only
+the first, and this repo has spent two passes removing affordances that go
+nowhere.
+
+### 7. Seen in a browser — Phase G
+
+**Non-skippable, and it earned that.** 1.21.0, 1.21.2 and 1.21.3 each shipped
+with a standing *"not seen in a browser"* caveat, and this pass moved a card,
+removed a tile, added three routes and put a dropdown on every asset — the wrong
+one to make four in a row.
+
+Run at 1440×1000, both themes, on a seeded brand with assets on all three
+shelves. Everything on the list passed and **no code changed in the phase**: the
+2×2 grid, both rail cards, the card absent on an identity-less brand, per-shelf
+counts moving live, `/apps/visual` redirecting, a `.woff2` uploading and then
+being declared a typeface, a PNG moved Photography → Collateral and undone, and
+a keyboard walk of Move to… that dropped no focus across two live focus scopes.
+
+Two things it saw that were not on the list, neither a defect: `Use as mark`
+renders on every photograph (it always did, and a photo legitimately can be a
+mark), and `Use as typeface` renders on a brand-guidelines PDF (the alternative
+is filtering by mime, which is the sniffing a `role` exists to replace — a role
+is a declaration, not an inference). One string is flagged rather than quietly
+kept: `Printed and designed`, above the collateral grid, is the only heading in
+the library that reads like a category invented for the layout.
+
+Two things it fixed that were the operator's, not the code's, and are recorded
+so they are not mistaken for findings: the demo blobs went to `.data/blob` while
+the configured root is `.data/blobs`, so every image 404'd and both identity
+surfaces fell back to the monogram; and the demo rows broke
+`queries.live.test.ts`, which asserts the seeded brand carries no blob keys. A
+live pass that leaves fixtures in the dev database is a live pass that breaks the
+next person's suite run.
+
+### Verification
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1480 passed | 68 skipped (136 files)
+pnpm -F @brandfactory/web build   clean
+DATABASE_URL=… pnpm -F db test    96 passed (9 files)
+```
+
+**1394 → 1480 (+86)**, skipped 64 → 68. The live suite was run this stream
+rather than skipped, which closes the standing caveat every entry since 1.13.x
+has carried.
+
+### Caveats
+
+- **Not deployed.** Migrations 0010 and 0011 are applied to the dev Postgres and
+  **not** to Supabase. Pushing to `main` is the deploy and `migrate.mjs` runs as
+  Fly's `release_command`; per 1.20.0's note, do not run `fly deploy` by hand
+  alongside it.
+- **The post editor's image picker is unfiltered** (Q4). `assetsOfKind(assets,
+  'image')` is now photography *and* identity marks *and* image collateral,
+  undifferentiated. Left that way on purpose — a post legitimately wants the
+  logo sometimes — and grouping it by library is a later pass.
+- **Renaming `Visual guidelines`** (prose) to `Art direction` (Q5) is not done:
+  a data migration wearing a copy change, and it deserves its own argument.
+- Stated non-goals, unbuilt and unchanged: connected external sources (no
+  `connections` table, no OAuth, no fourth `source` value — the seam is stated,
+  not built), sync in any direction, a fourth or user-defined shelf, type
+  specimens and `@font-face` injection, bulk re-filing, and any change to how
+  the agent consumes brand context. It still reads no assets.
 
 ---
 

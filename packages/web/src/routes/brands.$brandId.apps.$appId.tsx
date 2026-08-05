@@ -4,7 +4,6 @@ import { getAuthToken } from '@/auth/store'
 import { useBrand, useBrandProjects } from '@/api/queries/brands'
 import type { MiniApp } from '@/components/brand/miniApps'
 import { miniAppById } from '@/components/brand/miniApps'
-import { VisualIdentityPage } from '@/components/brand/VisualIdentityPage'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { NewProjectDialog } from '@/components/project/NewProjectDialog'
 import { ProjectCard } from '@/components/project/ProjectCard'
@@ -16,18 +15,23 @@ import { Button } from '@/components/ui/button'
 // Mini-app page — a category workspace
 // ---------------------------------------------------------------------------
 //
-// Four shapes behind one route, chosen by the registry's `unit`:
+// Three shapes behind one route, chosen by the registry's `unit`:
 //
 //   unit: 'thread'  → the thread list this page has always been
-//   unit: 'asset'   → `VisualIdentityPage`, the asset library (2E)
 //   unit: 'canvas'  → `StudioPage`, the vendored toolcraft surface
 //   unit: 'post'    → `SocialCalendarPage`, the month grid and the list
 //
+// It was four. `unit: 'asset'` dispatched to the asset library until the shelves
+// landed and every `'asset'` row became `surface: 'library'` — so that branch is
+// now unreachable by construction (no `'tile'` row has `unit: 'asset'`), and the
+// `beforeLoad` below redirects those ids before this component runs at all.
+//
 // They are separate components rather than one with branches, because each owns
 // a different set of queries: the thread page needs `useBrandProjects`, the
-// library needs `useBrandAssets` and four mutations, the calendar needs both
-// plus five of its own, and none should pay for the others'. `StudioPage` makes the point twice over — it needs no query at
-// all, and it lazy-loads a chunk the other two must never pull in.
+// calendar needs that plus `useBrandAssets` and five mutations of its own, and
+// neither should pay for the other's. `StudioPage` makes the point twice over —
+// it needs no query at all, and it lazy-loads a chunk the others must never
+// pull in.
 //
 // The breadcrumb trail this used to publish is gone with the header that
 // rendered it: the side-nav lights this category's own row, and the threads
@@ -48,7 +52,6 @@ function MiniAppPage() {
     )
   }
 
-  if (app.unit === 'asset') return <VisualIdentityPage brandId={brandId} app={app} />
   if (app.unit === 'canvas') return <StudioPage brandId={brandId} app={app} />
   if (app.unit === 'post') return <SocialCalendarPage brandId={brandId} app={app} />
   return <ThreadListPage brandId={brandId} app={app} />
@@ -155,13 +158,20 @@ export const miniAppRoute = createRoute({
   beforeLoad: ({ params }) => {
     if (!getAuthToken()) throw redirect({ to: '/login' })
     // `miniAppById` resolves by id with no surface check, so without this a
-    // hidden row would render a second, unintended surface for its threads
-    // under /apps/ — exactly the "it's a peer tile after all" framing the
-    // hidden surface exists to prevent. Redirect to the row's real home.
+    // non-tile row would render a second, unintended surface for its threads
+    // under /apps/ — exactly the "it's a peer tile after all" framing those
+    // surfaces exist to prevent. Redirect to the row's real home.
     // An unregistered id still falls through to the unknown-app branch above.
+    //
+    // **The destination comes off the row, not from a literal here.** It used to
+    // be a hard-coded `/context`, correct while `context` was the only non-tile
+    // row. `visual` is now another, and `/brands/:id/apps/visual` has been live
+    // since 1.10.0 — bookmarked, and linked from the rail — so it redirects to
+    // `/identity` rather than 404-ing. Any future non-tile row is covered by
+    // having been given a `to`, which the type requires of it.
     const app = miniAppById(params.appId)
     if (app && app.surface !== 'tile') {
-      throw redirect({ to: '/brands/$brandId/context', params: { brandId: params.brandId } })
+      throw redirect(app.to(params.brandId))
     }
   },
   component: MiniAppPage,

@@ -16,22 +16,42 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Check, Copy, FileText, GripVertical, Link2, Trash2, Upload } from 'lucide-react'
+import {
+  Check,
+  Copy,
+  FileText,
+  GripVertical,
+  Link2,
+  MoveRight,
+  Trash2,
+  Type,
+  Upload,
+  type LucideIcon,
+} from 'lucide-react'
 import {
   assetsOfKind,
+  type AssetLibrary,
   type BrandAsset,
   type BrandAssetId,
   type BrandWithSections,
   type UpdateBrandAssetInput,
 } from '@brandfactory/shared'
 import { ColorSwatches, paletteSummary } from '@/components/brand/ColorSwatches'
+import { shelfName } from '@/components/brand/miniApps'
+import { deferUntilMenuClosed } from '@/components/entity/EntityMenu'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { assetUrl } from '@/lib/asset-url'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
-// AssetLibraryView — what the `Visual identity` tile opens
+// AssetLibraryView — one shelf of the library
 // ---------------------------------------------------------------------------
 //
 // Assets question 2 asked where a brand's assets render. A photo grid is not
@@ -39,6 +59,27 @@ import { cn } from '@/lib/utils'
 // two proposals, written days apart, independently named it as the thing they
 // would turn on and each deferred it to the other. 2E is the pass that turned
 // it on, and this is the page behind it.
+//
+// ---------------------------------------------------------------------------
+// One component, three configurations
+// ---------------------------------------------------------------------------
+//
+// **If a shelf ever needs its own component, the shelf is wrong.** That is a
+// constraint, not an observation: the three shelves are one component over one
+// table filtered three ways, and the moment one of them grows a file of its own
+// the claim that this is *one* library with three shelves stops being true in
+// the code even if it stays true in the nav.
+//
+// What differs by shelf is two things and no more: the header copy, and which
+// sections render below the intake. The intake zone, the `Uploaded`/`Linked`
+// pill, delete-with-Undo and Move to… are identical on all three.
+//
+// **The derived sections are gone, not adjusted.** Until the `library` column
+// this page sectioned one list by `kind` and `role` — `photos = images where
+// role is not logo` — which is an approximation of filing that misfiles every
+// ordinary case where purpose and bytes disagree: a printable menu exported as
+// a PNG was photography, a logo lockup delivered as a PDF was a file. Keeping
+// that rule as a secondary sort is exactly how it would come back.
 //
 // **Read here, write there — and *there* is this page.** The hub rail shows a
 // brand's palette and links up here; everything that *changes* an asset lives
@@ -58,11 +99,43 @@ import { cn } from '@/lib/utils'
 // its callback is absent — the same invariant `BrandHubView` carries, and what
 // once let the mockup render this component against fixtures with no QueryClient
 // in sight. The mockup is gone; the invariant is what the tests now hold onto.
-// `VisualIdentityPage` owns the queries and the mutations; this file owns the
+// `AssetLibraryPage` owns the queries and the mutations; this file owns the
 // layout and nothing else.
+
+/**
+ * The only thing that differs above the fold. Three standfirsts and three empty
+ * states — kept as one record beside the component so adding a fourth shelf
+ * would be a data change rather than a JSX change, and so the three can be read
+ * against each other.
+ *
+ * **The shelf's own name is not in here**, and that is the point of the record
+ * being this short. A heading and a `Move to …` item are the same word the nav
+ * row uses, so they come from `shelfName` — one place, checked against the
+ * registry. What is left is genuine page copy: sentences that exist only on this
+ * screen and are nobody else's business.
+ */
+const SHELF_COPY: Record<AssetLibrary, { standfirst: string; empty: string }> = {
+  identity: {
+    standfirst: 'Marks, palette, typefaces and identity files — the half a brand settles.',
+    empty: 'Nothing here yet. Upload a mark, add a colour, or link one hosted elsewhere.',
+  },
+  photography: {
+    standfirst: 'Photographs shot for the brand, or picked for it.',
+    empty: 'No photography yet. Drop images here, or link ones hosted elsewhere.',
+  },
+  collateral: {
+    standfirst: 'Menus, one-pagers, decks and templates — things made from the identity.',
+    empty: 'No collateral yet. Drop a menu, a deck or a one-pager here.',
+  },
+}
 
 export interface AssetLibraryViewProps {
   brand: BrandWithSections
+  /**
+   * Which shelf this is. The assets are **already filtered** to it by
+   * `AssetLibraryPage`; this decides the copy and the section list.
+   */
+  library: AssetLibrary
   assets: BrandAsset[]
   /**
    * Signed-read-URL lookup for a `blob` asset. Returns `''` for a key whose URL
@@ -92,6 +165,7 @@ export interface AssetLibraryViewProps {
 
 export function AssetLibraryView({
   brand,
+  library,
   assets,
   resolveBlob,
   backHref,
@@ -103,13 +177,28 @@ export function AssetLibraryView({
   onReorderColors,
   uploading = false,
 }: AssetLibraryViewProps) {
+  const copy = SHELF_COPY[library]
   const colors = assetsOfKind(assets, 'color')
   const images = assetsOfKind(assets, 'image')
-  const logos = images.filter((a) => a.role === 'logo' || a.role === 'mark')
-  const photos = images.filter((a) => a.role !== 'logo' && a.role !== 'mark')
   const files = assetsOfKind(assets, 'file')
+  // **Typefaces is a `role` lookup; Marks is the identity shelf's image grid.**
+  //
+  // The distinction matters, and getting it wrong hides rows. `role` means
+  // *what the app may reach for*, so Typefaces asks a question about the asset
+  // — a font with no role is an identity file, and the toggle to declare it
+  // sits on that row.
+  //
+  // Marks cannot work the same way. An image dropped on the identity shelf has
+  // **no role until someone clicks `Use as mark`**, so a grid of only
+  // `role: logo | mark` would render nothing for it — leaving an asset that is
+  // counted in the nav, filed on this shelf, and visible nowhere, with the one
+  // control that would give it a role unreachable. So every identity image is
+  // here, and the grid's own toggle is how one becomes the mark.
+  const typefaces = files.filter((a) => a.role === 'typeface')
+  const identityFiles = files.filter((a) => a.role !== 'typeface')
   const empty = assets.length === 0
   const editable = !!onUpdateAsset && !!onDeleteAsset
+  const move = onUpdateAsset ? { library, onUpdateAsset } : undefined
 
   return (
     <div className="flex-1 overflow-auto">
@@ -123,9 +212,9 @@ export function AssetLibraryView({
               ← {brand.name}
             </a>
           )}
-          <h1 className="mt-2">Visual identity</h1>
+          <h1 className="mt-2">{shelfName(library)}</h1>
           <p className="mt-1.5 max-w-prose text-sm text-pretty text-muted-foreground">
-            Colours, marks, photography and files. Anything the brand looks like, in one place.
+            {copy.standfirst}
           </p>
         </header>
 
@@ -137,13 +226,9 @@ export function AssetLibraryView({
           />
         )}
 
-        {empty && (
-          <p className="mt-8 text-sm text-muted-foreground">
-            Nothing here yet. This brand has no assets recorded.
-          </p>
-        )}
+        {empty && <p className="mt-8 text-sm text-muted-foreground">{copy.empty}</p>}
 
-        {(colors.length > 0 || onAddColor) && (
+        {library === 'identity' && (colors.length > 0 || onAddColor) && (
           <section className="mt-10">
             <SectionHeading
               title="Palette"
@@ -184,51 +269,77 @@ export function AssetLibraryView({
           </section>
         )}
 
-        {logos.length > 0 && (
+        {library === 'identity' && images.length > 0 && (
           <section className="mt-10">
-            <SectionHeading title="Marks" detail={`${logos.length}`} />
+            <SectionHeading title="Marks" detail={`${images.length}`} />
             <AssetGrid
-              assets={logos}
+              assets={images}
               resolveBlob={resolveBlob}
               onDeleteAsset={onDeleteAsset}
               onUpdateAsset={onUpdateAsset}
+              move={move}
             />
           </section>
         )}
 
-        {photos.length > 0 && (
+        {library === 'identity' && typefaces.length > 0 && (
           <section className="mt-10">
-            <SectionHeading title="Photography" detail={`${photos.length}`} />
-            <AssetGrid
-              assets={photos}
-              resolveBlob={resolveBlob}
+            <SectionHeading title="Typefaces" detail={`${typefaces.length}`} />
+            <FileList
+              files={typefaces}
+              icon={Type}
               onDeleteAsset={onDeleteAsset}
               onUpdateAsset={onUpdateAsset}
+              roleToggle={{ role: 'typeface', on: 'Typeface', off: 'Use as typeface' }}
+              move={move}
             />
           </section>
         )}
 
-        {files.length > 0 && (
+        {/* The other two shelves' image grid. Identity's is `Marks` above —
+            one grid per shelf, under the heading that shelf calls it.
+            Photography's *is* the page; collateral's is the PNG menu, which is
+            the example the whole column exists for. */}
+        {library !== 'identity' && images.length > 0 && (
           <section className="mt-10">
-            <SectionHeading title="Files" detail={`${files.length}`} />
-            <ul className="mt-3 flex flex-col gap-2">
-              {files.map((f) => (
-                <li
-                  key={f.id}
-                  className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-elevation-1"
-                >
-                  <FileText className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{f.label}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {[f.filename, f.mime, formatBytes(f.sizeBytes)].filter(Boolean).join(' · ')}
-                    </p>
-                  </div>
-                  <SourcePill asset={f} />
-                  {onDeleteAsset && <DeleteButton asset={f} onDeleteAsset={onDeleteAsset} />}
-                </li>
-              ))}
-            </ul>
+            <SectionHeading
+              title={library === 'photography' ? 'Photographs' : 'Printed and designed'}
+              detail={`${images.length}`}
+            />
+            <AssetGrid
+              assets={images}
+              resolveBlob={resolveBlob}
+              onDeleteAsset={onDeleteAsset}
+              onUpdateAsset={onUpdateAsset}
+              move={move}
+            />
+          </section>
+        )}
+
+        {(library === 'identity' ? identityFiles : files).length > 0 && (
+          <section className="mt-10">
+            <SectionHeading
+              title={library === 'identity' ? 'Identity files' : 'Files'}
+              detail={`${(library === 'identity' ? identityFiles : files).length}`}
+            />
+            <FileList
+              files={library === 'identity' ? identityFiles : files}
+              icon={FileText}
+              onDeleteAsset={onDeleteAsset}
+              onUpdateAsset={onUpdateAsset}
+              // **The toggle is here as well as on Typefaces, and it has to
+              // be.** An uploaded `.woff2` has no role, so it lands in this
+              // section — and if the only way to declare a typeface were the
+              // Typefaces section, nothing could ever get into it. Same shape
+              // as `Use as mark` on the grid: the declaration is made where the
+              // file actually sits.
+              roleToggle={
+                library === 'identity'
+                  ? { role: 'typeface', on: 'Typeface', off: 'Use as typeface' }
+                  : undefined
+              }
+              move={move}
+            />
           </section>
         )}
       </div>
@@ -282,95 +393,111 @@ function IntakeZone({
   }
 
   return (
-    <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-      {onUploadFiles && (
-        <div
-          onDragOver={(e) => {
-            e.preventDefault()
-            setOver(true)
-          }}
-          onDragLeave={() => setOver(false)}
-          onDrop={(e) => {
-            e.preventDefault()
-            setOver(false)
-            take(e.dataTransfer.files)
-          }}
-          className={cn(
-            'flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center transition-colors duration-150',
-            over && 'border-foreground/40 bg-accent',
-          )}
-        >
-          <p className="text-sm text-muted-foreground">Drop images or files here</p>
-          {/* Out of the tab order, and hidden from AT. `Choose files` below is
+    <div className="mt-6">
+      <div className="flex flex-col gap-3 sm:flex-row">
+        {onUploadFiles && (
+          <div
+            onDragOver={(e) => {
+              e.preventDefault()
+              setOver(true)
+            }}
+            onDragLeave={() => setOver(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setOver(false)
+              take(e.dataTransfer.files)
+            }}
+            className={cn(
+              'flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center transition-colors duration-150',
+              over && 'border-foreground/40 bg-accent',
+            )}
+          >
+            <p className="text-sm text-muted-foreground">Drop images or files here</p>
+            {/* Out of the tab order, and hidden from AT. `Choose files` below is
               the control; leaving this in as well put an **unnamed file input**
               between the theme toggle and that button — found by 2F's keyboard
               walk, which is the first one any pass has run. `sr-only` hides it
               from the eye and not from a screen reader, which is the wrong half
               for a proxy. */}
-          <input
-            ref={fileInput}
-            type="file"
-            multiple
-            className="sr-only"
-            tabIndex={-1}
-            aria-hidden="true"
-            onChange={(e) => {
-              take(e.target.files)
-              // Same file twice in a row fires no `change` unless the value is
-              // cleared — a re-upload after a delete would silently do nothing.
-              e.target.value = ''
-            }}
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            disabled={uploading}
-            onClick={() => fileInput.current?.click()}
-          >
-            <Upload className="size-4" aria-hidden="true" />
-            {uploading ? 'Uploading…' : 'Choose files'}
-          </Button>
-        </div>
-      )}
-
-      {onRecordLink && (
-        <div className="flex flex-1 flex-col justify-center rounded-xl border border-dashed p-6">
-          <label htmlFor="asset-link" className="text-sm text-muted-foreground">
-            …or paste a URL to something hosted elsewhere
-          </label>
-          <div className="mt-3 flex gap-2">
-            <Input
-              id="asset-link"
-              value={url}
-              placeholder="https://…"
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
               onChange={(e) => {
-                setUrl(e.target.value)
-                setError(null)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void submitLink()
+                take(e.target.files)
+                // Same file twice in a row fires no `change` unless the value is
+                // cleared — a re-upload after a delete would silently do nothing.
+                e.target.value = ''
               }}
             />
-            {/* `Add link`, not `Add`. The live pass tripped over the ambiguity
-                first — a name-based query matched this and `Add colour` — and a
-                button announced as just "Add" is the same problem for anyone
-                tabbing through with a screen reader. */}
             <Button
               variant="outline"
               size="sm"
-              disabled={checking || !url.trim()}
-              onClick={() => void submitLink()}
+              className="mt-3"
+              disabled={uploading}
+              onClick={() => fileInput.current?.click()}
             >
-              {checking ? 'Checking…' : 'Add link'}
+              <Upload className="size-4" aria-hidden="true" />
+              {uploading ? 'Uploading…' : 'Choose files'}
             </Button>
           </div>
-          {error && (
-            <p role="alert" className="mt-2 text-xs text-destructive">
-              {error}
-            </p>
-          )}
-        </div>
+        )}
+
+        {onRecordLink && (
+          <div className="flex flex-1 flex-col justify-center rounded-xl border border-dashed p-6">
+            <label htmlFor="asset-link" className="text-sm text-muted-foreground">
+              …or paste a URL to something hosted elsewhere
+            </label>
+            <div className="mt-3 flex gap-2">
+              <Input
+                id="asset-link"
+                value={url}
+                placeholder="https://…"
+                onChange={(e) => {
+                  setUrl(e.target.value)
+                  setError(null)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void submitLink()
+                }}
+              />
+              {/* `Add link`, not `Add`. The live pass tripped over the ambiguity
+                first — a name-based query matched this and `Add colour` — and a
+                button announced as just "Add" is the same problem for anyone
+                tabbing through with a screen reader. */}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={checking || !url.trim()}
+                onClick={() => void submitLink()}
+              >
+                {checking ? 'Checking…' : 'Add link'}
+              </Button>
+            </div>
+            {error && (
+              <p role="alert" className="mt-2 text-xs text-destructive">
+                {error}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* **Copy, not a `Connect a source` button with a `Soon` pill.**
+          A connected Google Drive or Dropbox is a real later pass — a fourth
+          `source` value plus a `connections` table holding an OAuth grant — and
+          this repo has spent two passes removing affordances that go nowhere.
+          A sentence tells the user the direction of travel *and* the thing they
+          can do right now, which is paste a URL; a disabled button tells them
+          only the first. */}
+      {onRecordLink && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Anything hosted elsewhere can be linked today. Connected sources — Google Drive, Dropbox —
+          are a later pass.
+        </p>
       )}
     </div>
   )
@@ -597,6 +724,126 @@ function AddColorRow({
   )
 }
 
+// ---------------------------------------------------------------------------
+// Move to… — the whole of it
+// ---------------------------------------------------------------------------
+
+/**
+ * What the `library` column bought, and it is one `PATCH`.
+ *
+ * **A misfile with no way back is the failure mode this repo has already paid
+ * for once** — 1.10.0 shipped delete with no undo and named it in the changelog
+ * — so this follows the delete idiom exactly: fire, then a toast naming the
+ * destination with an Undo that moves it back. The toast is the caller's, for
+ * the same reason the delete toast is: this file owns layout and nothing else.
+ *
+ * One row at a time. Bulk re-filing is a stated non-goal.
+ */
+const MOVE_TARGETS: AssetLibrary[] = ['identity', 'photography', 'collateral']
+
+function MoveToMenu({
+  asset,
+  library,
+  onUpdateAsset,
+}: {
+  asset: BrandAsset
+  library: AssetLibrary
+  onUpdateAsset: (id: BrandAssetId, patch: UpdateBrandAssetInput) => void
+}) {
+  const targets = MOVE_TARGETS.filter((t) => t !== library)
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="size-8 shrink-0 p-0"
+          aria-label={`Move ${asset.label}`}
+        >
+          <MoveRight className="size-4" aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {targets.map((target) => (
+          <DropdownMenuItem
+            key={target}
+            // `deferUntilMenuClosed` for the reason `SocialPostList` documents:
+            // a Radix menu that unmounts mid-handler drops focus, and the toast
+            // this raises is the second live focus scope.
+            onSelect={() =>
+              deferUntilMenuClosed(() => onUpdateAsset(asset.id, { library: target }))
+            }
+          >
+            Move to {shelfName(target)}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+/**
+ * A list of file rows — the identity shelf's `Identity files` and `Typefaces`,
+ * and the other two shelves' `Files`.
+ *
+ * `roleToggle` is how Typefaces gets its declaration without a second renderer:
+ * the same shape `AssetGrid`'s `Use as mark` has, because it is the same
+ * question asked of a different role.
+ */
+function FileList({
+  files,
+  icon: Icon,
+  onDeleteAsset,
+  onUpdateAsset,
+  roleToggle,
+  move,
+}: {
+  files: BrandAsset[]
+  icon: LucideIcon
+  onDeleteAsset?: (id: BrandAssetId) => void
+  onUpdateAsset?: (id: BrandAssetId, patch: UpdateBrandAssetInput) => void
+  roleToggle?: { role: 'typeface'; on: string; off: string }
+  move?: {
+    library: AssetLibrary
+    onUpdateAsset: (id: BrandAssetId, patch: UpdateBrandAssetInput) => void
+  }
+}) {
+  return (
+    <ul className="mt-3 flex flex-col gap-2">
+      {files.map((f) => (
+        <li
+          key={f.id}
+          className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-elevation-1"
+        >
+          <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{f.label}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {[f.filename, f.mime, formatBytes(f.sizeBytes)].filter(Boolean).join(' · ')}
+            </p>
+          </div>
+          {roleToggle && onUpdateAsset && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0 text-xs"
+              aria-pressed={f.role === roleToggle.role}
+              onClick={() =>
+                onUpdateAsset(f.id, { role: f.role === roleToggle.role ? null : roleToggle.role })
+              }
+            >
+              {f.role === roleToggle.role ? roleToggle.on : roleToggle.off}
+            </Button>
+          )}
+          <SourcePill asset={f} />
+          {move && <MoveToMenu asset={f} {...move} />}
+          {onDeleteAsset && <DeleteButton asset={f} onDeleteAsset={onDeleteAsset} />}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function DeleteButton({
   asset,
   onDeleteAsset,
@@ -632,11 +879,16 @@ function AssetGrid({
   resolveBlob,
   onDeleteAsset,
   onUpdateAsset,
+  move,
 }: {
   assets: BrandAsset[]
   resolveBlob: (key: string) => string
   onDeleteAsset?: (id: BrandAssetId) => void
   onUpdateAsset?: (id: BrandAssetId, patch: UpdateBrandAssetInput) => void
+  move?: {
+    library: AssetLibrary
+    onUpdateAsset: (id: BrandAssetId, patch: UpdateBrandAssetInput) => void
+  }
 }) {
   return (
     <ul className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
@@ -662,7 +914,7 @@ function AssetGrid({
             <SourcePill asset={a} />
           </div>
           {(onUpdateAsset || onDeleteAsset) && (
-            <div className="flex items-center justify-between gap-2 border-t px-3 py-2">
+            <div className="flex items-center gap-1 border-t px-3 py-2">
               {onUpdateAsset ? (
                 // One brand, one mark: promoting an image to `logo` is the
                 // action this page exists to make possible, and it is where
@@ -679,6 +931,8 @@ function AssetGrid({
               ) : (
                 <span />
               )}
+              <span className="flex-1" />
+              {move && <MoveToMenu asset={a} {...move} />}
               {onDeleteAsset && <DeleteButton asset={a} onDeleteAsset={onDeleteAsset} />}
             </div>
           )}

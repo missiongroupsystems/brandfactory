@@ -49,6 +49,7 @@ function spyStorage() {
 
 const COLOR = { kind: 'color', source: 'inline', label: 'Terracotta', value: '#b5573c' }
 const LOGO = { kind: 'image', source: 'blob', label: 'Mark', blobKey: 'brands/mark.svg' }
+const FILE = { kind: 'file', source: 'blob', label: 'Brand deck', blobKey: 'brands/deck.pdf' }
 
 // `TestHarness['app']` rather than `ReturnType<typeof seedBrand>['app']`: the
 // composed Hono type carries every route's signature, and asking TypeScript to
@@ -225,6 +226,62 @@ describe('POST /brands/:id/assets', () => {
     const row = (await (await post(app, brandId, { ...COLOR, position: 50 })).json()) as BrandAsset
     expect(row.position).toBe(50)
   })
+
+  /**
+   * `library` is optional at the wire and required on the row, and the route is
+   * what closes the gap. These cases are what pin it to `defaultLibraryFor`
+   * rather than to a copy of the rule that happens to agree today — the fake
+   * takes `library` straight off its input and defaults nothing, so a route that
+   * stopped resolving would fail here rather than quietly file everything as
+   * identity.
+   */
+  it.each([
+    ['a colour', COLOR, 'identity'],
+    ['an image with no role', { ...LOGO, role: null }, 'photography'],
+    ['an image marked as the logo', { ...LOGO, role: 'logo' }, 'identity'],
+    ['an image marked as a mark', { ...LOGO, role: 'mark' }, 'identity'],
+    ['a file with no role', FILE, 'collateral'],
+    ['a logo lockup delivered as a file', { ...FILE, role: 'logo' }, 'identity'],
+    ['a typeface', { ...FILE, role: 'typeface' }, 'identity'],
+  ])('files %s with no library given', async (_name, body, library) => {
+    const { app, brandId } = await seedBrand()
+    const row = (await (await post(app, brandId, body)).json()) as BrandAsset
+    expect(row.library).toBe(library)
+  })
+
+  // Filing is a human judgement (that is the whole reason it is a column), so a
+  // client that states one wins over the rule that guesses.
+  it('takes an explicit library over the default it disagrees with', async () => {
+    const { app, brandId } = await seedBrand()
+    const menu = (await (
+      await post(app, brandId, { ...LOGO, label: 'Menu, A4', library: 'collateral' })
+    ).json()) as BrandAsset
+    expect(menu.library).toBe('collateral')
+  })
+
+  it('400s on a library that is not a shelf', async () => {
+    const { app, brandId } = await seedBrand()
+    expect((await post(app, brandId, { ...COLOR, library: 'moodboard' })).status).toBe(400)
+  })
+
+  // The append scope is `(library, kind)`, not `kind`. Both rows here are
+  // images, so the `kind` half cannot separate them: without the `library`
+  // clause the new photograph would take its number from the collateral shelf
+  // and land at 600, an ordering nobody chose.
+  it('appends within the shelf, not across the brand’s images', async () => {
+    const { app, brandId } = await seedBrand()
+    await post(app, brandId, { ...LOGO, label: 'Menu', library: 'collateral', position: 500 })
+    const photo = (await (
+      await post(app, brandId, { ...LOGO, label: 'Storefront', library: 'photography' })
+    ).json()) as BrandAsset
+    expect(photo.position).toBe(100)
+
+    // And within one shelf it still runs on, which is the half that already worked.
+    const next = (await (
+      await post(app, brandId, { ...LOGO, label: 'Back room', library: 'photography' })
+    ).json()) as BrandAsset
+    expect(next.position).toBe(200)
+  })
 })
 
 describe('GET /brands/:id/assets', () => {
@@ -339,6 +396,57 @@ describe('PATCH /brands/:id/assets/:assetId', () => {
       body: JSON.stringify({}),
     })
     expect(res.status).toBe(400)
+  })
+
+  /**
+   * **Move to…, end to end.** A patch carrying nothing but `library` — which is
+   * the only call that feature ever makes, and which the schema rejected as an
+   * empty body until `UpdateBrandAssetInputSchema` grew its sixth `.refine`
+   * clause. The 400 case above is the other half of the same guard.
+   */
+  it('moves an asset to another shelf on a library-only patch', async () => {
+    const { app, brandId } = await seedBrand()
+    const menu = (await (await post(app, brandId, { ...LOGO, label: 'Menu, A4' })).json()) as
+      | BrandAsset
+      | undefined
+    expect(menu?.library).toBe('photography')
+
+    const res = await app.request(`/brands/${brandId}/assets/${menu!.id}`, {
+      method: 'PATCH',
+      headers: auth(),
+      body: JSON.stringify({ library: 'collateral' }),
+    })
+    expect(res.status).toBe(200)
+    const moved = (await res.json()) as BrandAsset
+    expect(moved.library).toBe('collateral')
+    // Nothing rode along with it — `undefined` leaves a column alone.
+    expect(moved).toMatchObject({ label: 'Menu, A4', position: 100, role: null })
+
+    const [reread] = await listAssets(app, brandId)
+    expect(reread?.library).toBe('collateral')
+  })
+
+  // The existing brand scoping, re-asserted through the new key: a shelf is not
+  // a way around the boundary every other column already respects.
+  it('404s on a library patch aimed at another brand’s asset', async () => {
+    const { app, workspaceId, brandId } = await seedBrand()
+    const other = (await (
+      await app.request(`/workspaces/${workspaceId}/brands`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ name: 'Other' }),
+      })
+    ).json()) as { id: string }
+    const row = (await (await post(app, brandId, COLOR)).json()) as BrandAsset
+
+    const res = await app.request(`/brands/${other.id}/assets/${row.id}`, {
+      method: 'PATCH',
+      headers: auth(),
+      body: JSON.stringify({ library: 'collateral' }),
+    })
+    expect(res.status).toBe(404)
+    const [still] = await listAssets(app, brandId)
+    expect(still?.library).toBe('identity')
   })
 
   // `requireBrandAccess` passes — the caller owns both brands — so the only

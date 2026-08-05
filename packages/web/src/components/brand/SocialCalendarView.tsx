@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 // Header, the two readings of one list, and the editor dialog. Every piece of
 // state it renders belongs to `SocialCalendarPage`; this file decides only
 // what is on screen, which is what keeps the whole surface testable without a
-// QueryClient — the seam `AssetLibraryView` established and `VisualIdentityPage`
+// QueryClient — the seam `AssetLibraryView` established and `AssetLibraryPage`
 // proved out.
 
 export type SocialCalendarViewMode = 'calendar' | 'list'

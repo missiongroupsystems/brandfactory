@@ -19,6 +19,7 @@
  * - `'overview'` — the brand hub
  * - `'context'` — the brand's conversation list
  * - `` `app:${id}` `` — a mini-app page
+ * - `` `library:${shelf}` `` — one of the three asset shelves
  * - `null` — a brand-scoped page with no row of its own (a project thread), or
  *   a path belonging to some other brand entirely
  *
@@ -32,6 +33,15 @@ export function brandNavKey(pathname: string, brandId: string): string | null {
   const base = `/brands/${brandId}`
   if (pathname === base || pathname === `${base}/`) return 'overview'
   if (pathname === `${base}/context`) return 'context'
+  // The three shelves, matched off a **literal alternation** rather than
+  // `([^/]+)`. A wildcard here would turn any unrecognised
+  // `/brands/:id/anything` into `library:anything` and light a nav row that does
+  // not exist; `null` — "a brand-scoped page with no row of its own" — is the
+  // honest answer for a path this function does not know.
+  const shelf = pathname.match(
+    new RegExp(`^${escapeForRegExp(base)}/(identity|photography|collateral)/?$`),
+  )
+  if (shelf?.[1]) return `library:${shelf[1]}`
   const app = pathname.match(new RegExp(`^${escapeForRegExp(base)}/apps/([^/]+)/?$`))
   if (app?.[1]) return `app:${decodeURIComponent(app[1])}`
   return null

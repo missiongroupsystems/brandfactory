@@ -1,5 +1,6 @@
 import type {
   AssetKind,
+  AssetLibrary,
   AssetRole,
   AssetStatus,
   BrandAsset,
@@ -43,6 +44,14 @@ export type CreateAssetInput = (
   kind: AssetKind
   label: string
   position: number
+  /**
+   * **Required, unlike its optional counterpart on the wire.** The route is the
+   * only caller and it always resolves a value — `body.library ?? defaultLibraryFor(…)`.
+   * Making it optional here would put a second copy of the default rule in the
+   * query layer, which is the one thing `defaultLibraryFor`'s doc comment
+   * forbids by naming its callers.
+   */
+  library: AssetLibrary
   role?: AssetRole
   status?: AssetStatus
   alt?: string | null
@@ -60,6 +69,7 @@ export async function createAsset(input: CreateAssetInput): Promise<BrandAsset> 
     source: input.source,
     label: input.label,
     position: input.position,
+    library: input.library,
     role: input.role ?? null,
     ...(input.status !== undefined ? { status: input.status } : {}),
     alt: input.alt ?? null,
@@ -105,6 +115,8 @@ export type UpdateAssetPatch = Partial<{
   role: AssetRole
   status: AssetStatus
   alt: string | null
+  /** Move to… — refiling one asset onto another shelf is this key and nothing else. */
+  library: AssetLibrary
 }>
 
 export async function updateAsset(
@@ -120,6 +132,7 @@ export async function updateAsset(
       ...(patch.role !== undefined ? { role: patch.role } : {}),
       ...(patch.status !== undefined ? { status: patch.status } : {}),
       ...(patch.alt !== undefined ? { alt: patch.alt } : {}),
+      ...(patch.library !== undefined ? { library: patch.library } : {}),
       updatedAt: sql`now()`,
     })
     // Scoped by brand as well as id: the route resolves access against the
