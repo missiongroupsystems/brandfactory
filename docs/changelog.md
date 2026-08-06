@@ -6,6 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.23.1** — 2026-08-06 — Pre-release review of 1.23.0: a horizon line that read *"Global are curated"*, a marker visible on a padding day and absent from the accessibility tree, twelve stated rules now asserted. No migration. 1637 tests.
+- **1.23.0** — 2026-08-06 — The social calendar borrows the year: 92 curated dates in three sets, seasons above the grid and days inside it, colour-coded and switched per brand. No migration. 1622 tests.
 - **1.22.1** — 2026-08-05 — Pre-release review of 1.22.0: one shelf name, five surfaces; a dev blob out of the commit. No migration. 1482 tests.
 - **1.22.0** — 2026-08-05 — `Visual identity` stops being a tile and becomes a card; one library, three shelves, filed by a column. Migrations 0010 + 0011. 1480 tests.
 - **1.21.3** — 2026-08-04 — A calendar day is clickable everywhere, not just below its date. No migration. 1394 tests.
@@ -59,6 +61,378 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.23.1 — 2026-08-06
+
+**A review pass over 1.23.0, before either of them was pushed.**
+
+1.23.0 was staged and unpushed when it was read end to end against
+[its plan](executing/key-dates-implementation-plan.md). The gate was re-run from
+scratch rather than taken from the completion notes, and four claims a green
+gate does not cover were checked independently. Three defects, all fixed here.
+**No migration, no route, no wire change, no data row moved** — one sentence of
+copy changes, one attribute becomes conditional.
+
+### 1. What was verified rather than believed
+
+The gate is not the interesting part; these four are, because each is a thing
+the six phases *asserted* about themselves.
+
+- **The colour tokens produce actual CSS.** All nine `keydate-*` utilities are
+  in the built stylesheet and the full four-tier chain resolves in both themes
+  (`.bg-keydate-sg-holidays-tint` → `--ds-sg-holidays-tint` →
+  `--color-dateset-sg-holidays-tint` → `#fbeef3` light, `#38222c` dark). This is
+  the silent failure `appearance.ts` warns about at length — a composed class
+  name yields a colourless pill and no build error — and it did not happen.
+- **The six contrast ratios, recomputed from the hexes**: 6.71 / 6.09 / 6.44
+  light, 5.87 / 5.51 / 6.01 dark. Identical to Phase B's table to two decimals,
+  so those numbers were measured rather than estimated.
+- **The dataset's twelve computable rows**, checked against the calendar — see
+  §4, which turns the check into a test rather than leaving it in this entry.
+- **All four Sunday-falling gazetted holidays have an in-lieu Monday**, all four
+  in-lieu rows are Mondays following a Sunday, and there are no spurious ones.
+
+Phase F's teardown claim also holds: no `.env`, no `.data/`, no untracked file,
+no leftover container.
+
+### 2. `Global are curated through December 2027.`
+
+The beyond-horizon line interpolated the set's label into
+`{label} are curated through …`. That reads correctly for *Singapore holidays*
+and *Singapore events* and not for *Global*, which is the one label in the map
+that is not grammatically plural — and the only one the tests never rendered,
+because `sg-events` is the set with the near horizon and therefore the set every
+example used.
+
+It is reachable by pressing the next-month arrow into January 2028. The fix is a
+colon — `Global: curated through December 2027.` — chosen over adding a
+per-set copy field because it is agnostic to every label the map will ever hold,
+including the `us-events` §11 already anticipates.
+
+The same line had a second defect underneath the first: with two sets stale, the
+sentences were separated by `mr-1` and nothing else, so the text content read
+`December 2027.Singapore holidays`. That is precisely the margin-instead-of-text
+bug `SocialPostList`'s day heading carries a paragraph of comment about, one
+file over, and Phase F had already fixed its mirror image in the same feature.
+A real space now separates them, and a test asserts the space rather than the
+margin.
+
+### 3. A marker on a padding day was on screen and nowhere in the accessibility tree
+
+A cell marker is `aria-hidden` on purpose: the cell's full-bleed add button
+already names the day's key dates, and un-hiding the marker would have it read
+twice. That reasoning is exactly right — and it silently assumed the button
+exists.
+
+On a padding day it does not. `addable` is `inMonth && Boolean(onNewPost)`, and
+a day belonging to a neighbouring month is deliberately not clickable, so
+nothing was left to carry the name. **Ten days in the curated range land in a
+neighbouring month's grid this way** — New Year's Day 2027 in the December 2026
+view, Good Friday and Easter Sunday in the March 2026 one — each of them
+visible, coloured, and invisible to a screen reader.
+
+`aria-hidden` is now conditional on the button existing. Each of those days is
+still announced properly in its own month; this closes the other eleven-twelfths.
+
+### 4. Twelve rows stated a rule, and nothing held them to it
+
+`data.test.ts` opens by saying that nothing in it can catch a date that is
+simply *incorrect*, and that everything mechanically checkable is checked. The
+first half is true of Deepavali. It is not true of the twelve rows whose
+`source` is a **rule rather than a link** — `Fixed: 4th Thursday in November`,
+`Fixed: 2nd Sunday in May`, `Western computus; Good Friday + 2 days`.
+
+Those twelve are also the rows a curator hand-writes for a new year with nothing
+to look up, which makes them the likeliest place for a slipped date in the 2028
+pass. They are now asserted against the rule their own `source` claims, plus
+every `Fixed: <day> <month>` row parsed out of its source string rather than
+restated — a second copy of the dataset in the tests would only be another thing
+to keep in step.
+
+This is **not** the rule engine the proposal rejected. The data stays literal and
+hand-curated; the tests only hold a literal to the rule it advertises. Mutation
+checks confirm both new guards fail on a one-day slip.
+
+### 5. The gate
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1637 passed | 68 skipped (134 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+1622 → 1637 (**+15**): three for §2 and §3, twelve for §4. No existing assertion
+changed meaning; the one edit to an existing test is the horizon line's copy.
+
+### Caveats
+
+- **Not re-checked in a browser.** Phase F's pass stands. §2 changes one
+  sentence of copy that only renders past a horizon, and §3 changes an attribute,
+  not a pixel — both were verified by rendering in jsdom and reading the output,
+  which is the right instrument for both.
+- **§1's dataset checks are a re-verification, not a new source.** They confirm
+  the data is internally consistent and agrees with its own stated rules. Whether
+  MOM really gazetted 27 May 2026 is still what the `source` field is for.
+
+---
+
+## 1.23.0 — 2026-08-06
+
+**The dates a marketer plans around but does not own.**
+
+The social calendar shipped in 1.20.0 knowing only what you put in it. Every
+brand planning a year around Deepavali, Black Friday or the F1 weekend was
+holding those dates somewhere else — and re-deriving "is there anything in
+November I should be building toward" every time they opened the month.
+
+The ask was a toggle showing or hiding three sets: the recurring global
+commercial year, Singapore's cultural and civic calendar, and Singapore's
+mutable events calendar — the F1 weekend, the festivals, the trade shows. Ships
+Phases A–F of
+[`docs/executing/key-dates-implementation-plan.md`](executing/key-dates-implementation-plan.md)
+against the proposal in
+[`docs/executing/key-dates-on-the-social-calendar.md`](executing/key-dates-on-the-social-calendar.md);
+per-phase detail is in the six notes under `docs/completions/`.
+
+### 1. What this is not — and the reason it is one folder
+
+**No migration, no route, no wire type, no server code.** The whole feature is a
+static dataset, a filter over it, three colour tokens and two render paths in
+`components/brand/`. That is worth saying first because the calendar's own plan
+was a five-package vertical slice, and the instinct to reach for
+`packages/shared` and a `key_dates` table is the wrong one here:
+
+- These are **not brand data**. Deepavali is 8 November 2026 for every brand in
+  every workspace. A per-brand table would store the same rows N times and hand
+  every self-hoster a seeding problem.
+- They are **not user data** either — nobody edits them. Editing your own
+  important dates is a different feature, and a genuinely good one (§11 of the
+  proposal).
+- They never cross the wire, so they need no zod schema at a boundary that does
+  not exist.
+
+The one genuinely per-user fact is *which sets are on*, and that is a UI
+preference — `sidebar-prefs.ts`'s precedent, not a column.
+
+### 2. Curated, never computed — Phase A
+
+**92 entries. Every date is a literal. Nothing is derived at runtime.**
+
+Roughly a third of the global set is expressible as a rule. The other two-thirds
+are not: Chinese New Year, both Hari Rayas, Vesak, Deepavali, Qingming and
+Mid-Autumn are lunar or Islamic-calendar dates, and `calendar.ts` states plainly
+that no date library exists in this monorepo and a month grid did not earn one.
+A lunisolar ephemeris earns it far less. Two mechanisms for one list would also
+mean every reader has to know which half a row came from before trusting it.
+
+**The gazetted holidays are announcements, not computations.** MOM gazettes
+them, moon-sighting moves the Hari Raya dates, and a holiday landing on a Sunday
+produces a gazetted Monday no rule predicts — so all four in-lieu Mondays are
+their own entries, because a long weekend is the fact a marketer actually plans
+around and it is not derivable from the holiday row.
+
+`source` is **required** on every entry. Half this data is a government gazette
+and half a festival organiser's announcement, and in twelve months somebody has
+to re-verify each row without re-deriving where it came from. One line per entry
+turns the annual refresh from archaeology into a mechanical job.
+
+**Six rows were dropped rather than guessed**, and each drop is asserted absent
+so re-adding one is a deliberate act with a test to update: Ramadan 2027 (the
+start is 9 *or* 10 February and MUIS announces which), Thaipusam 2027 (sources
+split between two dates a fortnight apart), Pongal both years, the Singapore
+Food Festival and the Orchard Road light-up (both sites still on their 2025
+edition). A row whose dates are invented renders exactly like one that is
+gazetted, which is the confusion worth avoiding. The Great Singapore Sale is
+absent on the same rule.
+
+The primary that did most of the work was the **Hong Kong Observatory's
+Gregorian-Lunar conversion table**, downloaded and parsed rather than eyeballed
+— a government astronomical authority publishing machine-readable data is a
+different class of source from the festival blogs that carry these dates
+otherwise. It resolved both rows the plan had named as the likeliest drops.
+
+### 3. A day key is not an instant
+
+Every date is `YYYY-MM-DD`, never an ISO instant, and the reason is the inverse
+of the invariant `calendar.ts` opens with. Wire timestamps are UTC and a
+calendar is local — but **a holiday has no time**. Stored as
+`2026-11-08T00:00:00.000Z`, Deepavali renders on 7 November for a reader in Los
+Angeles: exactly the bug `localDayKey` exists to prevent, reintroduced through a
+different door.
+
+The trade-off is stated rather than hidden. These are Singapore calendar days, so
+a viewer in London sees Deepavali on the cell marked 8 November regardless of
+their own timezone. That is correct — the date is a fact about Singapore, not
+about the reader.
+
+### 4. The horizon, made visible
+
+The price of curation is that the table goes stale, and the design answers that
+instead of ignoring it. `CURATED_THROUGH` is **per set, not global** — a finding
+from the research rather than a guess: MOM gazetted 2027's holidays on 18 June
+2026, while almost nothing in the events set beyond December 2026 has been
+announced. One shared horizon would either claim 2027 coverage the events data
+does not have, or throw away the year of holiday data it does.
+
+Each horizon is pinned to exactly the maximum date in its set, asserted in both
+directions, so a horizon and its data cannot drift either way. When the cursor
+passes an enabled set's horizon, one muted line under the month header says so.
+An empty November 2027 that looks identical to a November with nothing scheduled
+is the dishonest empty state this repo has removed twice already; that line is
+the feature's shelf life, made visible.
+
+**No test reads the current date.** A test asserting the horizon is still in the
+future passes today and fails on an unrelated Tuesday in 2028, which trains
+people to ignore it.
+
+### 5. Three hues, and the budget they cost — Phase B
+
+Each set carries a colour used identically on five surfaces: the cell marker,
+the season band, the list block, the day-heading dot and the swatch beside its
+checkbox. That consistency is the whole point — a colour is only useful if it is
+learnable, and only learnable if the menu that switches a set on shows the same
+swatch the calendar paints. This is the failure 1.22.1 §2 had to go back and fix
+for a shelf name, so it is one map here.
+
+**Three new hues is the largest palette addition since the Mission Systems
+pass**, and the cheaper route was rejected on purpose: the feedback tints are
+unused by any component today, but they *mean* error, warning, success and
+information, and a calendar painting Deepavali in the success colour spends a
+semantic token on a category. The first real warning state on that page would
+then be indistinguishable from a public holiday.
+
+Violet, rose and teal, through all four token tiers in both themes, with every
+hex in tier 1 so a re-tune is six lines. All six label-ink-on-tint pairs were
+**measured**: 6.71 / 6.09 / 6.44 light, 5.87 / 5.51 / 6.01 dark, against a 4.5:1
+bar. None needed adjusting.
+
+**Colour is never the only signal.** Under simulated protanopia the rose and
+teal inks sit at ΔE 8.4 — barely separable — so every surface carries the set in
+text as well: the band's accessible name, the list row's trailing label, the
+menu row's own words. The colour is the fast path, never the only path.
+
+### 6. A day is not a season — Phases D and E
+
+The most consequential decision in the build. Set C alone contains a 24-day
+light festival and a 16-day night festival; set B contains a four-week ghost
+month. Painting a pill into every covered cell would put a marker on 29 of
+August's 31 days and bury the posts the grid exists to show.
+
+So the surface splits **by shape, not by set**:
+
+- **Multi-day entries become a strip above the grid** — one band per season
+  overlapping the visible month, name plus range. A season is a property of the
+  month, so that is where it goes. Rendering it on its first day only was
+  rejected for the opposite reason: the event vanishes the moment you land
+  mid-season, which is when you are most likely to be planning inside it.
+- **Single-day entries become a marker in their cell**, above the chips, tinted
+  and distinct from a post chip so nobody reads Deepavali as something they
+  scheduled. Capped at two drawn per cell, with the cap stated in the code —
+  nothing is silently lost, because the `aria-label` names every one however
+  many there are.
+
+Markers are `pointer-events-none`, so the cell's existing full-bleed add button
+keeps the click: pressing a cell marked *Deepavali* opens "new post on
+8 November", which is exactly what a marketer clicking it wants, with no new
+interaction to build, learn or test.
+
+The list view gets both halves of the same fact — a suffix on day headings you
+have already planned into, and a **Key dates** block at the head of *Upcoming*.
+The block is the part that earns the feature: suffixes only appear on days that
+already have posts, so without it a Deepavali nobody has planned for is
+invisible on the one surface whose job is to say what is coming.
+
+**One deviation from the plan, argued in Phase E's note**: that block is
+chronological rather than grouped by set. Grouping would scatter the timeline —
+with six entries over three sets the earliest date can land at the bottom — and
+*when* is the axis the block exists to answer. The named label on each row
+satisfies the never-colour-alone rule just as completely.
+
+### 7. The preference — Phase C
+
+A dropdown of three checkbox items in the header, using the
+`DropdownMenuCheckboxItem` already built and exported: no new primitive, no new
+dependency. **Default is `global` on, both Singapore sets off** — the global set
+is never *wrong* for a brand in any market, so it makes the feature discoverable
+without the app assuming where the brand sells.
+
+Persisted in `localStorage` **keyed by brand**, because an agency running a
+Singapore client and an Australian one wants different answers per brand.
+Reading **validates rather than casts**: a stored set name that no longer exists
+is dropped rather than reaching a `Record` lookup that colours nothing, and a key
+holding the empty string returns `[]` rather than the default — that is a user
+who deliberately switched everything off, and handing them the default back would
+make the menu look broken on every reload.
+
+The seed **re-reads when `brandId` changes**, in render rather than an effect. A
+bare `useState` initialiser runs once for the life of the component: switch
+brands inside the app and the surface would keep the previous brand's sets while
+writing them back under the new brand's key, which is how a per-brand preference
+quietly becomes a global one. Phase F confirmed it live — a second brand opens on
+the default with nothing written under its key.
+
+### 8. The live pass — Phase F
+
+Non-skippable per 1.22.0 §7: this feature moved colour onto a surface that had
+none, and colour is the one thing a test cannot check. Run at 1440×1000 in both
+themes, Chromium via Playwright, machine timezone **Asia/Singapore** — the right
+timezone for this dataset, which made the day-key invariant observable rather
+than theoretical. Today was 6 August 2026, so the calendar opened on the
+worst-case month with no navigation at all.
+
+**One defect found and fixed**, and it is the exact inverse of one the Phase E
+tests had already caught, which makes the pair worth recording together. Phase E's
+bug: the day-heading separator was CSS `gap` with no text node, so the screen was
+right and the accessible name read `Today·Deepavali`. Phase F's bug: the real
+text node was placed *inside* an `inline-flex` span, where it becomes a flex item
+— and a flex item's surrounding whitespace is stripped, so the accessible name
+was right and the screen read `Sun 9 Aug· National Day`. `textContent` saw the
+separator either way, so the Phase E test kept passing throughout.
+
+One is invisible to the eye, the other invisible to the DOM. The separator now
+lives in the heading's own flow, and a test asserts it is a **direct text-node
+child of the heading** — the one structural fact that tells the two renderings
+apart.
+
+**One check could not be run**: no day anywhere in the deduped dataset carries
+three single-day entries, so the two-marker cap has no reachable third. Recorded
+as unreachable rather than ticked.
+
+Nothing was left behind — the whole dev environment was created for the pass and
+then removed, container and volume, after 1.22.0 Phase G's demo rows broke
+`queries.live.test.ts` for the next person.
+
+### 9. The gate
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1622 passed | 68 skipped
+pnpm -F @brandfactory/web build   clean
+```
+
+**1482 → 1622 (+140)**, against the plan's estimate of ~1532. The overshoot is
+almost entirely Phase A, where `it.each` expands the gazetted-holiday table into
+24 named cases. Per phase: A +78, B +7, C +21, D +24, E +9, F +1. The existing
+`CalendarMonthGrid`, `SocialCalendarView`, `SocialCalendarPage` and
+`SocialPostList` suites pass **unmodified** — every new prop is optional with an
+empty default, so the old suites are themselves the proof that the default
+renders what the calendar rendered before.
+
+### Caveats
+
+- **The dataset's own correctness is unverified by anything here.** Phase F
+  looked at how dates render, not at whether they are the right dates. That is
+  what the required `source` field and the drop-rather-than-guess rule are for.
+- **`sg-events` expires in under five months** from this release. The horizon
+  line is the only thing standing between a user and a calendar that looks
+  broken; the next curation pass is the real test of it.
+- **One machine, one browser, one resolution.** Chromium at 1440×1000. The month
+  grid was already responsive and nothing here changed its layout, but
+  "responsive" was not re-checked.
 
 ---
 

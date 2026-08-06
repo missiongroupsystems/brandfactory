@@ -144,3 +144,39 @@ describe('SocialCalendarView — the dialog', () => {
     expect(screen.getByLabelText('Copy')).toHaveProperty('value', 'Tonight’s service')
   })
 })
+
+describe('SocialCalendarView — the key-dates menu', () => {
+  it('is absent until the page hands it both a value and a handler', () => {
+    // A menu without a handler would be a control that silently does nothing,
+    // so it is both props or neither.
+    renderView()
+    expect(screen.queryByRole('button', { name: /Key dates/ })).toBeNull()
+
+    renderView({ enabledSets: ['global'] })
+    expect(screen.queryByRole('button', { name: /Key dates/ })).toBeNull()
+  })
+
+  it('mounts in the header with the page’s sets, and reports a change', async () => {
+    const user = userEvent.setup()
+    const onEnabledSetsChange = vi.fn()
+    renderView({ enabledSets: ['global'], onEnabledSetsChange })
+
+    await user.click(screen.getByRole('button', { name: 'Key dates, 1 of 3 on' }))
+    await user.click(screen.getByRole('menuitemcheckbox', { name: /Singapore events/ }))
+    expect(onEnabledSetsChange).toHaveBeenCalledWith(['global', 'sg-events'])
+  })
+
+  it('passes its key dates through to the grid', () => {
+    renderView({
+      keyDates: [
+        { id: 'k-1', set: 'sg-holidays', name: 'National Day', start: '2026-08-09', source: 't' },
+      ],
+    })
+    expect(screen.getByText('National Day')).toBeTruthy()
+  })
+
+  it('passes a stale set through to the grid', () => {
+    renderView({ staleSets: ['sg-events'] })
+    expect(screen.getByText(/curated through December 2026/)).toBeTruthy()
+  })
+})

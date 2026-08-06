@@ -8,11 +8,13 @@ import type {
   UpdateSocialPostInput,
 } from '@brandfactory/shared'
 import { CalendarMonthGrid } from '@/components/brand/CalendarMonthGrid'
+import { KeyDatesMenu } from '@/components/brand/KeyDatesMenu'
 import { PostEditorDialog } from '@/components/brand/PostEditorDialog'
 import { SocialPostList } from '@/components/brand/SocialPostList'
 import type { MiniApp } from '@/components/brand/miniApps'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
+import type { KeyDate, KeyDateSet } from '@/lib/key-dates'
 
 // ---------------------------------------------------------------------------
 // SocialCalendarView — the pure half of the social calendar
@@ -42,6 +44,15 @@ export interface SocialCalendarViewProps {
   onPrevMonth: () => void
   onNextMonth: () => void
   onToday: () => void
+
+  // ---- key dates ----------------------------------------------------------
+  /** The enabled sets' dates, already filtered and deduped by the page. */
+  keyDates?: KeyDate[]
+  /** Enabled sets whose data stops before the visible month. */
+  staleSets?: KeyDateSet[]
+  /** Which sets the menu shows as on. Absent = no menu at all. */
+  enabledSets?: KeyDateSet[]
+  onEnabledSetsChange?: (sets: KeyDateSet[]) => void
 
   /** `null` seeds an unscheduled post; a `localDayKey` seeds that day. */
   onNewPost: (dayKey: string | null) => void
@@ -74,6 +85,10 @@ export function SocialCalendarView({
   onPrevMonth,
   onNextMonth,
   onToday,
+  keyDates = [],
+  staleSets = [],
+  enabledSets,
+  onEnabledSetsChange,
   onNewPost,
   onEditPost,
   onMarkPosted,
@@ -97,6 +112,13 @@ export function SocialCalendarView({
           icon={app.icon}
           action={
             <div className="flex items-center gap-2">
+              {/* Left of the view toggle: it changes *what is on* the calendar,
+                  where the toggle changes how the same thing is drawn. Both
+                  props or neither — the menu without a handler would be a
+                  control that silently does nothing. */}
+              {enabledSets && onEnabledSetsChange && (
+                <KeyDatesMenu enabled={enabledSets} onChange={onEnabledSetsChange} />
+              )}
               <ViewToggle view={view} onViewChange={onViewChange} />
               <Button onClick={() => onNewPost(null)}>
                 <Plus className="size-4" aria-hidden="true" />
@@ -118,6 +140,8 @@ export function SocialCalendarView({
             onEditPost={onEditPost}
             onNewPost={onNewPost}
             onShowUnscheduled={() => onViewChange('list')}
+            keyDates={keyDates}
+            staleSets={staleSets}
           />
         ) : (
           <SocialPostList
@@ -125,6 +149,7 @@ export function SocialCalendarView({
             assets={assets}
             resolveBlob={resolveBlob}
             now={now}
+            keyDates={keyDates}
             onEditPost={onEditPost}
             onMarkPosted={onMarkPosted}
             onDeletePost={onDeletePost}

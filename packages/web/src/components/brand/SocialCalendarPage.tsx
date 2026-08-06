@@ -24,6 +24,8 @@ import {
   type SocialCalendarViewMode,
 } from '@/components/brand/SocialCalendarView'
 import { localDayKey, shiftMonth } from '@/lib/calendar'
+import { keyDatesForSets, staleSets, type KeyDateSet } from '@/lib/key-dates'
+import { getEnabledSets, setEnabledSets } from '@/lib/key-dates-prefs'
 import { postExcerpt } from '@/lib/social-copy'
 
 // ---------------------------------------------------------------------------
@@ -55,6 +57,22 @@ export function SocialCalendarPage({ brandId, app }: { brandId: string; app: Min
     const now = new Date()
     return { year: now.getFullYear(), month: now.getMonth() }
   })
+  // Seeded from storage, and **re-seeded when the brand changes**. A bare
+  // `useState(() => getEnabledSets(brandId))` initialises once for the life of
+  // the component: switch brands inside the app and this surface would keep the
+  // previous brand's sets while writing them back under the new brand's key,
+  // which is how a per-brand preference quietly becomes a global one.
+  //
+  // The `seededFor` companion is the render-phase form of that reset — cheaper
+  // and flicker-free next to a `useEffect`, which would paint one frame of the
+  // wrong brand's sets before correcting itself.
+  const [enabledSets, setEnabled] = useState<KeyDateSet[]>(() => getEnabledSets(brandId))
+  const [seededFor, setSeededFor] = useState(brandId)
+  if (seededFor !== brandId) {
+    setSeededFor(brandId)
+    setEnabled(getEnabledSets(brandId))
+  }
+
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingPost, setEditingPost] = useState<SocialPost | null>(null)
   const [seedDayKey, setSeedDayKey] = useState<string | null>(null)
@@ -79,6 +97,12 @@ export function SocialCalendarPage({ brandId, app }: { brandId: string; app: Min
     // nowhere, and the date is one click away from being cleared again.
     setSeedDayKey(dayKey ?? localDayKey(new Date()))
     setDialogOpen(true)
+  }
+
+  /** State and storage move together — the menu is the only writer of either. */
+  function handleEnabledSetsChange(sets: KeyDateSet[]) {
+    setEnabled(sets)
+    setEnabledSets(brandId, sets)
   }
 
   function handleEditPost(post: SocialPost) {
@@ -204,6 +228,12 @@ export function SocialCalendarPage({ brandId, app }: { brandId: string; app: Min
         const now = new Date()
         setCursor({ year: now.getFullYear(), month: now.getMonth() })
       }}
+      // No `useMemo`: ~90 entries filtered once per render is the budget
+      // `groupByDay` already spends on every post on the page.
+      keyDates={keyDatesForSets(enabledSets)}
+      staleSets={staleSets(enabledSets, cursor.year, cursor.month)}
+      enabledSets={enabledSets}
+      onEnabledSetsChange={handleEnabledSetsChange}
       onNewPost={handleNewPost}
       onEditPost={handleEditPost}
       onMarkPosted={handleMarkPosted}

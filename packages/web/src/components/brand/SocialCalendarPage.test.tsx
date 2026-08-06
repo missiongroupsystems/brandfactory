@@ -107,9 +107,19 @@ vi.mock('@/components/brand/SocialCalendarView', () => ({
     onNextMonth: () => void
     onToday: () => void
     onUploadFiles?: (files: File[]) => Promise<string[]>
+    keyDates?: { id: string }[]
+    staleSets?: string[]
+    enabledSets?: string[]
+    onEnabledSetsChange?: (sets: string[]) => void
   }) => (
     <div>
       <span data-testid="post-count">{props.posts.length}</span>
+      <span data-testid="enabled-sets">{(props.enabledSets ?? []).join(',') || 'none'}</span>
+      <span data-testid="key-date-count">{props.keyDates?.length ?? 0}</span>
+      <span data-testid="stale-sets">{(props.staleSets ?? []).join(',') || 'none'}</span>
+      <button onClick={() => props.onEnabledSetsChange?.(['sg-holidays', 'sg-events'])}>
+        fire sets change
+      </button>
       <span data-testid="resolved">{props.resolveBlob('k-1')}</span>
       <span data-testid="dialog-open">{String(props.dialogOpen)}</span>
       <span data-testid="editing">{props.editingPost?.id ?? 'none'}</span>
@@ -190,10 +200,34 @@ const POST = {
 
 const APP = { id: 'social', title: 'Social calendar', icon: CalendarDays } as MiniApp
 
-const renderPage = () => render(<SocialCalendarPage brandId="b-1" app={APP} />)
+const renderPage = (brandId = 'b-1') => render(<SocialCalendarPage brandId={brandId} app={APP} />)
+
+/** In-memory Storage — `theme.test.ts`'s helper, same reason. */
+function installMemoryLocalStorage() {
+  const store = new Map<string, string>()
+  const ls: Storage = {
+    get length() {
+      return store.size
+    },
+    clear: () => {
+      store.clear()
+    },
+    getItem: (key) => store.get(key) ?? null,
+    setItem: (key, value) => {
+      store.set(key, String(value))
+    },
+    removeItem: (key) => {
+      store.delete(key)
+    },
+    key: (index) => [...store.keys()][index] ?? null,
+  }
+  Object.defineProperty(globalThis, 'localStorage', { value: ls, configurable: true })
+  Object.defineProperty(window, 'localStorage', { value: ls, configurable: true })
+}
 
 beforeEach(() => {
   vi.clearAllMocks()
+  installMemoryLocalStorage()
   state.posts = [POST]
   state.postsPending = false
   state.postsError = false
@@ -398,5 +432,56 @@ describe('SocialCalendarPage — uploads', () => {
 
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Could not add one.png'))
     expect(uploadResult.ids).toEqual([])
+  })
+})
+
+describe('SocialCalendarPage — key dates', () => {
+  it('opens a brand nobody has touched on the default set', () => {
+    renderPage()
+    expect(screen.getByTestId('enabled-sets').textContent).toBe('global')
+    // And the default set actually resolves to dates, rather than a lit menu
+    // over an empty calendar.
+    expect(Number(screen.getByTestId('key-date-count').textContent)).toBeGreaterThan(0)
+  })
+
+  it('writes a toggle through to storage under the brand’s own key', () => {
+    renderPage()
+    fireEvent.click(screen.getByText('fire sets change'))
+
+    expect(screen.getByTestId('enabled-sets').textContent).toBe('sg-holidays,sg-events')
+    expect(localStorage.getItem('bf_key_dates_b-1')).toBe('sg-holidays,sg-events')
+  })
+
+  it('re-reads the sets when the brand changes', () => {
+    // D8, and the reason a bare `useState(() => getEnabledSets(brandId))` is
+    // wrong: it initialises once, so the second brand would inherit the first
+    // brand's sets *and* write them back under its own key — which is how a
+    // per-brand preference quietly becomes a global one.
+    localStorage.setItem('bf_key_dates_b-1', 'sg-events')
+    localStorage.setItem('bf_key_dates_b-2', 'sg-holidays')
+
+    const { rerender } = renderPage('b-1')
+    expect(screen.getByTestId('enabled-sets').textContent).toBe('sg-events')
+
+    rerender(<SocialCalendarPage brandId="b-2" app={APP} />)
+    expect(screen.getByTestId('enabled-sets').textContent).toBe('sg-holidays')
+  })
+
+  it('keeps a brand that switched everything off switched off', () => {
+    localStorage.setItem('bf_key_dates_b-1', '')
+    renderPage()
+    expect(screen.getByTestId('enabled-sets').textContent).toBe('none')
+    expect(screen.getByTestId('key-date-count').textContent).toBe('0')
+  })
+
+  it('reports a stale set against the month the cursor is on, not against today', () => {
+    localStorage.setItem('bf_key_dates_b-1', 'sg-events')
+    renderPage()
+    // The cursor opens on the current month, which the events set still covers.
+    expect(screen.getByTestId('stale-sets').textContent).toBe('none')
+
+    // Walk forward far enough to outrun the events horizon (2026-12-31).
+    for (let i = 0; i < 14; i++) fireEvent.click(screen.getByText('fire next'))
+    expect(screen.getByTestId('stale-sets').textContent).toBe('sg-events')
   })
 })

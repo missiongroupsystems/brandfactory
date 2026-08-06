@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { BrandAsset, SocialPost } from '@brandfactory/shared'
+import type { KeyDate, KeyDateSet } from '@/lib/key-dates'
 import { SocialPostList } from './SocialPostList'
 
 const STAMPS = {
@@ -191,5 +192,129 @@ describe('SocialPostList — the row menu', () => {
     renderList({ posts: [today] })
     expect(screen.queryByRole('button', { name: 'Tonight’s service' })).toBeNull()
     expect(screen.getByText('Tonight’s service')).toBeTruthy()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Key dates — the same list, with the borrowed dates switched on
+// ---------------------------------------------------------------------------
+//
+// Every assertion above this line runs with `keyDates` omitted and is the proof
+// that the default renders exactly what the list rendered before.
+
+function keyDay(name: string, start: string, set: KeyDateSet = 'sg-holidays'): KeyDate {
+  return { id: `${set}/${name}`, set, name, start, source: 'test' }
+}
+function keySeason(
+  name: string,
+  start: string,
+  end: string,
+  set: KeyDateSet = 'sg-events',
+): KeyDate {
+  return { id: `${set}/${name}`, set, name, start, end, source: 'test' }
+}
+
+describe('SocialPostList — key dates', () => {
+  it('suffixes a day heading that already has a post', () => {
+    // 3 August is `today`'s day, and it has a post, so the heading exists to
+    // be annotated.
+    renderList({ keyDates: [keyDay('National Day', '2026-08-03')] })
+    const heading = screen
+      .getAllByRole('heading', { level: 3 })
+      .find((h) => h.textContent?.includes('Today'))
+    expect(heading?.textContent).toBe('Today · National Day')
+  })
+
+  it('keeps the heading separator in the heading’s own flow, not inside the flex span', () => {
+    // The Phase F live pass caught this rendering as "Sun 9 Aug· National Day".
+    // `textContent` could not see it: the literal ' · ' was present either way,
+    // so the assertion above passed while the screen was wrong. A string placed
+    // inside an `inline-flex` becomes a flex item and its surrounding
+    // whitespace is stripped — only its position in the tree distinguishes the
+    // two, so that is what this asserts.
+    renderList({ keyDates: [keyDay('National Day', '2026-08-03')] })
+    const heading = screen
+      .getAllByRole('heading', { level: 3 })
+      .find((h) => h.textContent?.includes('Today'))!
+    const ownText = Array.from(heading.childNodes)
+      .filter((n) => n.nodeType === Node.TEXT_NODE)
+      .map((n) => n.textContent)
+      .join('')
+    expect(ownText).toContain(' · ')
+  })
+
+  it('never creates a day group for a key date nobody has planned into', () => {
+    // E4. The list is a plan of *your* posts; forty empty day groups would bury
+    // it. The Upcoming block below is what stops that being a silence.
+    renderList({ keyDates: [keyDay('Deepavali', '2026-08-05')] })
+    const headings = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
+    expect(headings.some((h) => h?.includes('Deepavali'))).toBe(false)
+    // and it is still visible, in the block — which is what makes E4 safe
+    expect(screen.getByText('Deepavali')).toBeTruthy()
+  })
+
+  it('lists what is coming, in date order, with dates and sets named', () => {
+    renderList({
+      keyDates: [
+        keyDay('Deepavali', '2026-08-20'),
+        keySeason('Night Festival', '2026-08-05', '2026-08-09'),
+      ],
+    })
+    const block = screen.getByText('Night Festival').closest('ul')!
+    const rows = within(block).getAllByRole('listitem')
+    expect(rows[0]!.textContent).toContain('Night Festival')
+    expect(rows[0]!.textContent).toContain('5–9 Aug')
+    // The set in words, never colour alone.
+    expect(rows[0]!.textContent).toContain('Singapore events')
+    expect(rows[1]!.textContent).toContain('Deepavali')
+    expect(rows[1]!.textContent).toContain('Singapore holidays')
+  })
+
+  it('caps the block at six and drops what has already passed', () => {
+    // From the 12th, so none of these lands on a day that already has a post —
+    // a suffixed heading would match the block's own row by text.
+    const many = Array.from({ length: 9 }, (_, i) =>
+      keyDay(`Date ${i}`, `2026-08-${String(12 + i).padStart(2, '0')}`),
+    )
+    renderList({ keyDates: [keyDay('Long gone', '2026-07-01'), ...many] })
+    const block = screen.getByText('Date 0').closest('ul')!
+    expect(within(block).getAllByRole('listitem')).toHaveLength(6)
+    expect(screen.queryByText('Long gone')).toBeNull()
+  })
+
+  it('keeps a season that is running right now', () => {
+    // `end ?? start`: a four-week ghost month you are three days into is the
+    // most relevant thing on the list, not something that has been and gone.
+    renderList({ keyDates: [keySeason('Hungry Ghost', '2026-08-01', '2026-08-28')] })
+    expect(screen.getByText('Hungry Ghost')).toBeTruthy()
+  })
+
+  it('opens Upcoming for key dates even when every post is in the past', () => {
+    renderList({ posts: [older, gone], keyDates: [keyDay('Deepavali', '2026-08-20')] })
+    const regions = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+    expect(regions).toEqual(['Upcoming', 'Past'])
+    expect(screen.getByText('Deepavali')).toBeTruthy()
+  })
+
+  it('still reads as empty of your work with no posts and eight key dates', () => {
+    // E3. The sentence is about *your* posts, and a populated Key dates block
+    // above it would contradict it.
+    const eight = Array.from({ length: 8 }, (_, i) => keyDay(`Date ${i}`, `2026-08-${10 + i}`))
+    renderList({ posts: [], keyDates: eight })
+    expect(screen.getByText(/Nothing planned yet/)).toBeTruthy()
+    expect(screen.queryByText('Date 0')).toBeNull()
+  })
+
+  it('shows no block at all when every set is off', () => {
+    renderList()
+    expect(screen.queryByText('Singapore holidays')).toBeNull()
+  })
+
+  it('suffixes a past day too', () => {
+    renderList({ keyDates: [keyDay('National Day', '2026-07-28')] })
+    const heading = screen
+      .getAllByRole('heading', { level: 3 })
+      .find((h) => h.textContent?.includes('28 Jul'))
+    expect(heading?.textContent).toContain('National Day')
   })
 })

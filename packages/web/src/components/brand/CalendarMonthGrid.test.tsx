@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { SocialPost } from '@brandfactory/shared'
+import type { KeyDate, KeyDateSet } from '@/lib/key-dates'
 import { CalendarMonthGrid } from './CalendarMonthGrid'
 
 const STAMPS = {
@@ -200,5 +201,146 @@ describe('CalendarMonthGrid — creating from a cell', () => {
     await user.click(chip)
     expect(onEditPost).toHaveBeenCalledWith(today)
     expect(onNewPost).not.toHaveBeenCalled()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Key dates — the same grid, with the borrowed dates switched on
+// ---------------------------------------------------------------------------
+//
+// No mocks: real selectors, real appearance map, hand-built `KeyDate` fixtures.
+// Every assertion above this line runs with `keyDates` omitted and is the proof
+// that the default renders exactly what the grid rendered before.
+
+function day(id: string, start: string, set: KeyDateSet = 'sg-holidays'): KeyDate {
+  return { id, set, name: id, start, source: 'test' }
+}
+function span(id: string, start: string, end: string, set: KeyDateSet = 'sg-events'): KeyDate {
+  return { id, set, name: id, start, end, source: 'test' }
+}
+
+describe('CalendarMonthGrid — key dates', () => {
+  it('puts a single day in its own cell and a season in neither cell', () => {
+    renderGrid({
+      onNewPost: vi.fn(),
+      keyDates: [day('Deepavali', '2026-08-20'), span('i Light', '2026-08-05', '2026-08-09')],
+    })
+
+    // The single day is a marker in the cell it belongs to.
+    expect(screen.getByText('Deepavali')).toBeTruthy()
+    // The season is in the strip above, and in **no** cell — painting it into
+    // every covered day would bury the posts the grid exists to show.
+    const strip = screen.getByRole('list')
+    expect(within(strip).getByText('i Light')).toBeTruthy()
+    expect(screen.getAllByText('i Light')).toHaveLength(1)
+  })
+
+  it('leaves a marked cell’s add button its click, seeded to that day', async () => {
+    const user = userEvent.setup()
+    const onNewPost = vi.fn()
+    renderGrid({ onNewPost, keyDates: [day('Deepavali', '2026-08-20')] })
+
+    // The marker is `pointer-events-none`, so the cell-wide button under it
+    // still takes the press — which is exactly what a marketer clicking a day
+    // marked *Deepavali* wants, with no new interaction to learn.
+    expect(screen.getByText('Deepavali').className).toContain('pointer-events-none')
+    await user.click(screen.getByLabelText(/New post on Thu 20 Aug/))
+    expect(onNewPost).toHaveBeenCalledWith('2026-08-20')
+  })
+
+  it('carries the day’s key dates in the add button’s accessible name', () => {
+    renderGrid({
+      onNewPost: vi.fn(),
+      keyDates: [
+        day('National Day', '2026-08-09'),
+        day('National Day Parade', '2026-08-09', 'sg-events'),
+      ],
+    })
+    // The full names, so the fall-through is announced rather than merely
+    // convenient — and so a truncated marker loses nothing.
+    expect(
+      screen.getByLabelText('New post on Sun 9 Aug — National Day, National Day Parade'),
+    ).toBeTruthy()
+  })
+
+  it('draws at most two markers on a day but names every one of them', () => {
+    renderGrid({
+      onNewPost: vi.fn(),
+      keyDates: [
+        day('First', '2026-08-09'),
+        day('Second', '2026-08-09'),
+        day('Third', '2026-08-09'),
+      ],
+    })
+    expect(screen.getByText('First')).toBeTruthy()
+    expect(screen.getByText('Second')).toBeTruthy()
+    // Capped for space, not dropped from the record: the label still has it.
+    expect(screen.queryByText('Third')).toBeNull()
+    expect(screen.getByLabelText('New post on Sun 9 Aug — First, Second, Third')).toBeTruthy()
+  })
+
+  it('shows a season that starts before the visible month, at its true range', () => {
+    renderGrid({ keyDates: [span('Hungry Ghost', '2026-07-13', '2026-08-10')] })
+    // Overlap, not containment — and the band states 13 Jul, not a range
+    // clipped to the 1st.
+    expect(screen.getByRole('listitem').textContent).toContain('13 Jul – 10 Aug')
+  })
+
+  it('omits a season that does not touch the visible month', () => {
+    renderGrid({ keyDates: [span('Art Week', '2026-01-22', '2026-01-31')] })
+    expect(screen.queryByRole('listitem')).toBeNull()
+  })
+
+  it('says so when an enabled set has run out of data', () => {
+    renderGrid({ staleSets: ['sg-events'] })
+    expect(screen.getByText(/Singapore events: curated through December 2026\./)).toBeTruthy()
+  })
+
+  it('names each stale set without assuming its label is plural', () => {
+    // `{label} are curated through …` read "Global are curated through", which
+    // is the one label in the map that is not grammatically plural. The colon
+    // form is agnostic to every label, so this asserts the awkward one.
+    renderGrid({ staleSets: ['global'] })
+    expect(screen.getByText(/Global: curated through December 2027\./)).toBeTruthy()
+    expect(screen.queryByText(/Global are curated/)).toBeNull()
+  })
+
+  it('separates two horizon sentences with a real space, not a margin', () => {
+    // A margin is what the eye sees; this is what the text content says, and
+    // `2027.Singapore` is the same bug the day heading in `SocialPostList`
+    // carries a paragraph of comment about.
+    renderGrid({ staleSets: ['global', 'sg-events'] })
+    const line = screen.getByText(/curated through/).textContent ?? ''
+    expect(line).toContain('December 2027. Singapore events')
+    expect(line).not.toContain('2027.Singapore')
+  })
+
+  it('says nothing about the horizon while every set still has data', () => {
+    renderGrid({ keyDates: [day('Deepavali', '2026-08-20')] })
+    expect(screen.queryByText(/curated through/)).toBeNull()
+  })
+
+  it('announces a marker on a padding day, which has no button to carry it', () => {
+    // 31 July is a padding cell in the August grid: no add button, because
+    // creating there would write into a month this grid is not showing. The
+    // marker was `aria-hidden` regardless, which put it on screen and nowhere
+    // in the accessibility tree — ten days in the curated range land in a
+    // neighbouring month's grid this way.
+    renderGrid({
+      onNewPost: vi.fn(),
+      keyDates: [day('National Day', '2026-07-31'), day('Deepavali', '2026-08-20')],
+    })
+    expect(screen.getByText('National Day').getAttribute('aria-hidden')).toBeNull()
+    // The in-month one stays hidden: its cell's add button already names it,
+    // and un-hiding it would have it read twice.
+    expect(screen.getByText('Deepavali').getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('colours a marker from its own set', () => {
+    renderGrid({
+      keyDates: [day('Deepavali', '2026-08-20'), day('Halloween', '2026-08-21', 'global')],
+    })
+    expect(screen.getByText('Deepavali').className).toContain('keydate-sg-holidays')
+    expect(screen.getByText('Halloween').className).toContain('keydate-global')
   })
 })

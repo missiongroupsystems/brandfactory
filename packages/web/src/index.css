@@ -86,6 +86,19 @@
   --c-info-600: #335a7a;
   --c-info-50: #eaf0f5;
 
+  /* Key-date set primitives — the three hues the social calendar files its
+     borrowed dates under (global / Singapore holidays / Singapore events).
+     Chosen for maximum distance from the five hues already spoken for above:
+     brand green, error brick, warning amber, success green, info slate.
+     Every pair is label-ink-on-its-own-tint at >= 4.5:1 in both themes,
+     measured rather than assumed — the ratios are in the Phase B note. */
+  --c-violet-600: #5b4a7a;
+  --c-violet-50: #f0edf6;
+  --c-rose-600: #8f3f63;
+  --c-rose-50: #fbeef3;
+  --c-teal-600: #1f5f66;
+  --c-teal-50: #e9f3f3;
+
   /* Dark-theme primitives — consumed only by the [§16] dark alias map below */
   --c-dark-base: #1a1a17;
   --c-dark-sunken: #121210;
@@ -97,6 +110,20 @@
   --c-dark-ink-500: #96938b;
   --c-dark-ink-700: #6b6962;
   --c-green-500: #3d6b52;
+
+  /* Dark key-date primitives. The number tracks lightness, as it does for
+     --c-dark-ink-*, so the roles INVERT against the light ramp above: -300 is
+     the label ink (light on a dark surface) and -900 is its tint. Naming these
+     -600/-50 to mirror the light block would put a near-white under a name
+     that means "dark" everywhere else in this file.
+     Declared here rather than inlined into .dark — tier 1 is the only place a
+     raw hex may live, and the feedback block below predates that rule. */
+  --c-dark-violet-300: #a99ac9;
+  --c-dark-violet-900: #282338;
+  --c-dark-rose-300: #d18aa6;
+  --c-dark-rose-900: #38222c;
+  --c-dark-teal-300: #6fb3ba;
+  --c-dark-teal-900: #172e30;
 
   /* Type + spacing scales */
   --font-satoshi:
@@ -163,6 +190,20 @@
   --color-feedback-info: var(--c-info-600);
   --color-feedback-info-tint: var(--c-info-50);
 
+  /* Key-date sets — a category colour, deliberately NOT a feedback colour.
+     The feedback tints were the cheaper route and were rejected: they mean
+     error, warning, success and information, and a calendar painting Deepavali
+     in the success colour spends a semantic token on a category. The first real
+     warning state on that page would then be indistinguishable from a public
+     holiday. The alias names match `KeyDateSet` verbatim, so the CSS and the
+     TypeScript union are read as one list. */
+  --color-dateset-global: var(--c-violet-600);
+  --color-dateset-global-tint: var(--c-violet-50);
+  --color-dateset-sg-holidays: var(--c-rose-600);
+  --color-dateset-sg-holidays-tint: var(--c-rose-50);
+  --color-dateset-sg-events: var(--c-teal-600);
+  --color-dateset-sg-events-tint: var(--c-teal-50);
+
   /* Elevation (§8) — ink-tinted, never black */
   --elevation-0: none;
   --elevation-1: 0 1px 2px rgba(23, 23, 23, 0.05), 0 1px 1px rgba(23, 23, 23, 0.04);
@@ -208,6 +249,13 @@
   --color-feedback-success-tint: #1c2f23;
   --color-feedback-info: #7ba6c7;
   --color-feedback-info-tint: #1b2831;
+
+  --color-dateset-global: var(--c-dark-violet-300);
+  --color-dateset-global-tint: var(--c-dark-violet-900);
+  --color-dateset-sg-holidays: var(--c-dark-rose-300);
+  --color-dateset-sg-holidays-tint: var(--c-dark-rose-900);
+  --color-dateset-sg-events: var(--c-dark-teal-300);
+  --color-dateset-sg-events-tint: var(--c-dark-teal-900);
 }
 
 /* ---------------------------------------------------------------------------
@@ -268,6 +316,15 @@
     --fb-success-tint: var(--color-feedback-success-tint);
     --fb-info: var(--color-feedback-info);
     --fb-info-tint: var(--color-feedback-info-tint);
+    /* Same hop, same reason, for the key-date sets. Not optional: the tier-2
+       names are already in Tailwind's `--color-*` namespace, so a @theme entry
+       pointing at one would be self-referential. */
+    --ds-global: var(--color-dateset-global);
+    --ds-global-tint: var(--color-dateset-global-tint);
+    --ds-sg-holidays: var(--color-dateset-sg-holidays);
+    --ds-sg-holidays-tint: var(--color-dateset-sg-holidays-tint);
+    --ds-sg-events: var(--color-dateset-sg-events);
+    --ds-sg-events-tint: var(--color-dateset-sg-events-tint);
     --text-tertiary: var(--color-text-tertiary);
   }
 }
@@ -313,6 +370,17 @@
   --color-status-success-tint: var(--fb-success-tint);
   --color-status-info: var(--fb-info);
   --color-status-info-tint: var(--fb-info-tint);
+
+  /* Key-date sets, giving `text-keydate-global` / `bg-keydate-global-tint` and
+     their four siblings. `keydate-` rather than the tier-2 `dateset-`: the two
+     names must differ or the @theme entry resolves to itself, exactly as
+     `--fb-*` -> `--color-status-*` already does above. */
+  --color-keydate-global: var(--ds-global);
+  --color-keydate-global-tint: var(--ds-global-tint);
+  --color-keydate-sg-holidays: var(--ds-sg-holidays);
+  --color-keydate-sg-holidays-tint: var(--ds-sg-holidays-tint);
+  --color-keydate-sg-events: var(--ds-sg-events);
+  --color-keydate-sg-events-tint: var(--ds-sg-events-tint);
 
   --shadow-elevation-1: var(--elevation-1);
   --shadow-elevation-2: var(--elevation-2);

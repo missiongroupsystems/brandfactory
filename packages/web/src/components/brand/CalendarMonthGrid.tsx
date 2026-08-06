@@ -1,5 +1,7 @@
+import { Fragment } from 'react'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import type { SocialPost } from '@brandfactory/shared'
+import { KeyDateStrip } from '@/components/brand/KeyDateStrip'
 import { Button } from '@/components/ui/button'
 import {
   formatDayHeading,
@@ -10,8 +12,29 @@ import {
   monthLabel,
   WEEKDAY_LABELS,
 } from '@/lib/calendar'
+import {
+  curatedThroughLabel,
+  keyDatesByDay,
+  KEY_DATE_APPEARANCE,
+  KEY_DATE_SET_LABELS,
+  seasonsInMonth,
+  splitByShape,
+  type KeyDate,
+  type KeyDateSet,
+} from '@/lib/key-dates'
 import { PLATFORM_LABELS, postExcerpt } from '@/lib/social-copy'
 import { cn } from '@/lib/utils'
+
+/**
+ * How many key-date markers one cell will draw.
+ *
+ * A cell is roughly 130px wide and already carries a date number and its post
+ * chips; a third marker crowds out the day's actual plan, which is what the
+ * grid is for. **Nothing is silently lost** — the strip above carries every
+ * season, the list view carries every entry, and the cell's `aria-label` names
+ * all of them however many there are. Two is the drawn cap, not the known one.
+ */
+const MAX_CELL_MARKERS = 2
 
 // ---------------------------------------------------------------------------
 // CalendarMonthGrid — what the month is shaped like
@@ -46,6 +69,14 @@ export interface CalendarMonthGridProps {
   /** Where "N unscheduled" goes — the list view, which is the only surface
    * that can show them. Absent = the count is stated but not a link. */
   onShowUnscheduled?: () => void
+  /**
+   * The enabled sets' dates, already filtered and deduped by
+   * `keyDatesForSets`. Empty renders exactly what this grid rendered before
+   * the feature existed, which is the house rule for every prop here.
+   */
+  keyDates?: KeyDate[]
+  /** Enabled sets whose data stops before the visible month — see `staleSets`. */
+  staleSets?: KeyDateSet[]
 }
 
 export function CalendarMonthGrid({
@@ -59,11 +90,19 @@ export function CalendarMonthGrid({
   onEditPost,
   onNewPost,
   onShowUnscheduled,
+  keyDates = [],
+  staleSets = [],
 }: CalendarMonthGridProps) {
   const days = monthGridDays(year, month)
   const byDay = groupByDay(posts)
   const todayKey = localDayKey(now)
   const unscheduled = posts.filter((p) => p.scheduledAt === null).length
+
+  // Split by shape, not by set: a season goes in the strip, a day goes in its
+  // cell. `seasonsInMonth` is what stops a June festival banding across August.
+  const { days: keyDays, seasons } = splitByShape(keyDates)
+  const keyDatesForDay = keyDatesByDay(keyDays)
+  const visibleSeasons = seasonsInMonth(seasons, year, month)
 
   return (
     <div>
@@ -107,6 +146,36 @@ export function CalendarMonthGrid({
           ))}
       </div>
 
+      <KeyDateStrip seasons={visibleSeasons} />
+
+      {/* The data running out is a fact, not a fault, so this is muted rather
+          than a warning colour. It exists because an empty November 2027 that
+          looks identical to a November with nothing scheduled is the dishonest
+          empty state this repo has removed twice already — the line is the
+          feature's shelf life, made visible. */}
+      {staleSets.length > 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {staleSets.map((set, i) => (
+            <Fragment key={set}>
+              {/* A real space, not `mr-1`. Three stale sets in one paragraph
+                  read as `December 2027.Singapore holidays` to anything that
+                  takes the text content — the same margin-instead-of-text bug
+                  `SocialPostList`'s day heading documents at length, one file
+                  over. The margin is what the eye sees; this is what the DOM
+                  says, and both have to be right. */}
+              {i > 0 && ' '}
+              {/* A colon rather than `{label} are curated through …`: the
+                  labels do not share a grammatical number, so the sentence form
+                  read *"Global are curated through December 2027"* for the one
+                  set whose label is not plural. A colon is agnostic to every
+                  label this map will ever hold, including a future
+                  `us-events`. */}
+              {KEY_DATE_SET_LABELS[set]}: curated through {curatedThroughLabel(set)}.
+            </Fragment>
+          ))}
+        </p>
+      )}
+
       <div className="mt-4 grid grid-cols-7 gap-px overflow-hidden rounded-xl border bg-border">
         {WEEKDAY_LABELS.map((label) => (
           <div
@@ -124,6 +193,7 @@ export function CalendarMonthGrid({
               day={day}
               dayKey={dayKey}
               posts={byDay.get(dayKey) ?? []}
+              keyDates={keyDatesForDay.get(dayKey) ?? []}
               inMonth={day.getMonth() === ((month % 12) + 12) % 12}
               isToday={dayKey === todayKey}
               now={now}
@@ -145,6 +215,7 @@ function DayCell({
   day,
   dayKey,
   posts,
+  keyDates,
   inMonth,
   isToday,
   now,
@@ -154,6 +225,7 @@ function DayCell({
   day: Date
   dayKey: string
   posts: SocialPost[]
+  keyDates: KeyDate[]
   inMonth: boolean
   isToday: boolean
   now: Date
@@ -161,6 +233,14 @@ function DayCell({
   onNewPost?: (dayKey: string) => void
 }) {
   const addable = inMonth && Boolean(onNewPost)
+  // Every key date on this day, however many are drawn: the label is what
+  // carries the full name a truncated marker loses, and the third one the cell
+  // does not draw at all.
+  const heading = formatDayHeading(dayKey, now)
+  const label =
+    keyDates.length > 0
+      ? `New post on ${heading} — ${keyDates.map((d) => d.name).join(', ')}`
+      : `New post on ${heading}`
   return (
     <div
       className={cn(
@@ -181,7 +261,7 @@ function DayCell({
         <button
           type="button"
           onClick={() => onNewPost(dayKey)}
-          aria-label={`New post on ${formatDayHeading(dayKey, now)}`}
+          aria-label={label}
           className="absolute inset-0 transition-colors duration-150 hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--border-focus)]"
         />
       )}
@@ -195,6 +275,40 @@ function DayCell({
       >
         {day.getDate()}
       </span>
+
+      {/* Above the chips and below the date number: a key date is context for
+          the day, not something you scheduled, so it reads before the plan
+          rather than among it.
+
+          `pointer-events-none` is what makes this cost no interaction at all —
+          the cell's full-bleed add button keeps the click, so pressing a cell
+          marked *Deepavali* opens "new post on 8 November", which is exactly
+          what a marketer clicking it wants. The name is in the button's
+          `aria-label` above, so the fall-through is announced rather than
+          merely convenient.
+
+          The visible label is `aria-hidden` for that reason: it would otherwise
+          be read twice, once here and once inside the button's name.
+
+          **Only while that button exists.** A padding cell has no add button —
+          it belongs to a month this grid is not showing — so nothing else
+          carries the name, and hiding the marker there put it on screen and
+          nowhere in the accessibility tree. Ten days in the curated range land
+          in a neighbouring month's grid this way, New Year's Day 2027 in the
+          December 2026 view among them. Each is announced properly in its own
+          month; this is what closes the other eleven-twelfths. */}
+      {keyDates.slice(0, MAX_CELL_MARKERS).map((keyDate) => (
+        <span
+          key={keyDate.id}
+          aria-hidden={addable ? 'true' : undefined}
+          className={cn(
+            'pointer-events-none relative truncate rounded px-1 text-[10px] leading-4 font-medium',
+            KEY_DATE_APPEARANCE[keyDate.set].label,
+          )}
+        >
+          {keyDate.name}
+        </span>
+      ))}
 
       {posts.map((post) => (
         <Chip key={post.id} post={post} onEditPost={onEditPost} />
