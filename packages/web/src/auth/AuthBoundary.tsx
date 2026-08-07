@@ -1,13 +1,11 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { queryClient } from '@/api/client'
+import { type Me, meKeys } from '@/api/queries/me'
 import { useAuthStore } from './store'
 import { getFreshAuthToken, startSessionSync } from './session'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '/api') as string
-
-interface MeResponse {
-  id: string
-}
 
 export function AuthBoundary({ children }: { children: ReactNode }) {
   const setAuth = useAuthStore((s) => s.setAuth)
@@ -24,7 +22,18 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
   useEffect(() => {
     return useAuthStore.subscribe((state, prev) => {
       if (prev.token && !state.token) {
-        void navigate({ to: '/login' })
+        // **Cleared after the navigation, not before it.** Every cached row
+        // belonged to the user who just left, and signing in as a second user
+        // in the same tab would otherwise open on the first user's workspaces
+        // while the refetches land. Clearing it here rather than inside
+        // `signOut` covers the 401 paths too, which are the *other* three
+        // callers of `logout()`.
+        //
+        // The order matters: `clear()` while the app's pages are still mounted
+        // restarts every live query with no token behind it, which is a screen
+        // of spinners and a burst of 401s on the way out the door. At `/login`
+        // nothing is subscribed and the reset is silent.
+        void navigate({ to: '/login' }).finally(() => queryClient.clear())
       }
     })
   }, [navigate])
@@ -55,8 +64,13 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
           await navigate({ to: '/login' })
           return
         }
-        const data = (await res.json()) as MeResponse
+        const data = (await res.json()) as Me
         setAuth(token, data.id)
+        // The probe already holds the whole row. `useMe` reads this key and
+        // would otherwise fetch the identical response a second time on every
+        // page load, purely because this one was parsed for its `id` and
+        // dropped.
+        queryClient.setQueryData(meKeys.me(), data)
         setReady(true)
       })
       .catch((err: unknown) => {

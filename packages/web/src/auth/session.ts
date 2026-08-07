@@ -73,6 +73,39 @@ export async function getFreshAuthToken(): Promise<string | null> {
   return inFlight
 }
 
+/**
+ * End the session — the identity provider first, the local store second.
+ *
+ * **The order is the whole function.** `logout()` is what the app reacts to:
+ * `AuthBoundary` watches the token go null and redirects to `/login`, where
+ * `SupabaseAuthProvider`'s mount effect calls `getSession()` and signs the user
+ * straight back in if a session is still there. Clearing the local copy while
+ * the refresh token in localStorage is still alive therefore races the sign-out
+ * against itself, and the race is one the sign-in wins about as often as not.
+ *
+ * The fallback to `scope: 'local'` covers a sign-out attempted offline. The
+ * global call revokes every refresh token for the user and needs the network to
+ * do it; the local one only empties localStorage, which is what actually has to
+ * happen before the store is cleared. A revoked-server-side session is the
+ * better outcome, so the global call is tried first and the local one only
+ * catches what it drops.
+ *
+ * Note that `supabase.auth.signOut()` also fires `SIGNED_OUT`, which
+ * `startSessionSync` turns into a `logout()` of its own. The explicit call
+ * below is not redundant: the sync only runs when a token existed at mount, and
+ * local dev auth has no session behind it and no event to emit at all.
+ */
+export async function signOut(): Promise<void> {
+  if (supabase) {
+    const failed = await supabase.auth
+      .signOut()
+      .then(({ error }) => !!error)
+      .catch(() => true)
+    if (failed) await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
+  }
+  useAuthStore.getState().logout()
+}
+
 let syncStarted = false
 
 // Mirrors supabase-js session events into the auth store, so a background

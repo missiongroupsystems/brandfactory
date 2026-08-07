@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.25.0** — 2026-08-07 — The session gets a face and a door: an account tile at the foot of the rail, the only round thing in a column of squares, holding the identity the boot probe had been fetching and discarding. No migration. 1688 tests.
 - **1.24.0** — 2026-08-07 — A brand stops being asked to describe itself twice: the `TL;DR` becomes the description line on the hub, on the workspace cards and in the prompt. No migration. 1674 tests.
 - **1.23.1** — 2026-08-06 — Pre-release review of 1.23.0: a horizon line that read *"Global are curated"*, a marker visible on a padding day and absent from the accessibility tree, twelve stated rules now asserted. No migration. 1637 tests.
 - **1.23.0** — 2026-08-06 — The social calendar borrows the year: 92 curated dates in three sets, seasons above the grid and days inside it, colour-coded and switched per brand. No migration. 1622 tests.
@@ -62,6 +63,146 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.25.0 — 2026-08-07
+
+**You could sign in. You could not sign out, and the app never said who you
+were.**
+
+The request arrived as a complaint that the UI had *hidden* the user profile and
+the way in and out. It had not hidden them. Signing in worked and always had —
+every authenticated route redirects to `/login` without a token. The other two
+had never been built.
+
+`useAuthStore.logout()` has existed since the store did, with four callers, and
+every one of them is a failure: a 401 in `callJson`, a 401 in `useAgentChat`, a
+401 in `blobs`, and a dead session in `AuthBoundary`. Ending a session
+deliberately was not something the product could do — you signed out by closing
+the tab, because the token lives in `sessionStorage`. Meanwhile `AuthBoundary`
+fetched the whole `users` row from `GET /api/me` on every boot, declared
+`interface MeResponse { id: string }`, and dropped the email and the display name
+on the floor. Two other files declared the same three-line interface for the same
+reason.
+
+1.15.0 retired the header strip and moved each of its controls into the rail or
+the panel. The account was not one of the strip's controls, so it was not one of
+the things that pass moved. It has never existed in any layout this repo has
+shipped.
+
+**No migration, no new route, no server change.** One query module, one function
+in `session.ts`, one component, and four lines in files that were already there.
+Full detail in
+[`docs/completions/account-tile-and-sign-out.md`](completions/account-tile-and-sign-out.md).
+
+### 1. The shape, and the three constraints that produced it
+
+**An account tile at the foot of `BrandRail`, under a hairline of its own.**
+
+The rail already reads top to bottom as *container → contents → controls*: the
+workspace tile, a hairline, the brand marks, then the panel fold and the theme
+toggle. The account is the fourth thing and the lowest — it is the outermost
+container of all, the one the workspace itself hangs from. It is also a control
+used twice a session, and it must not sit where the ones used forty times a
+session belong.
+
+Three constraints, each of which is visible in the result:
+
+1. **It is a circle, and it is the only round thing in the rail.** Everything
+   else in the column is a ~10px-radius square — the workspace tile at the head
+   and every brand mark between. A person is neither a workspace nor a brand,
+   and at 36 pixels the shape says so before the initials are read.
+2. **It does not spend the accent.** §4 keeps the product green scarce. The
+   workspace tile spends it; the brand marks carry the customer's own hue. A
+   third coloured tile would leave the rail with no unspent colour at all, so
+   this one is `bg-muted` with a border.
+3. **It renders before its query resolves.** A sign-out control that appears one
+   round trip after the page does is a control the user cannot rely on being
+   there. The tile draws a person glyph immediately and swaps in the initials
+   when `/me` answers — the menu underneath works either way, because signing
+   out needs no knowledge of who is signing out.
+
+The initials come from `brandInitials`, imported rather than reimplemented: one
+rule for splitting a name into a monogram, one copy of it. It is also exactly
+right for the fallback, since an email is a single word and yields one letter.
+
+### 2. `signOut` — the order is the whole function
+
+**Supabase first, store second, and the obvious order is a live defect.**
+`logout()` is what the app reacts to: `AuthBoundary` watches the token go null
+and redirects to `/login`, where `SupabaseAuthProvider`'s mount effect calls
+`getSession()` and signs the user straight back in if a session is still there.
+Clearing the local copy while the refresh token in localStorage is still alive
+races the sign-out against itself, and it is a race the sign-in wins about as
+often as not. Written the natural way, this would have been a button that works
+on the local dev provider and fails intermittently in production.
+
+The fallback to `scope: 'local'` covers a sign-out attempted offline: the global
+call revokes every refresh token and needs the network to do it, the local one
+only empties localStorage — which is the part that has to happen before the
+store is cleared. Revoking server-side is the better outcome, so it is tried
+first and the local call catches what it drops.
+
+### 3. The identity was already on the wire
+
+`api/queries/me.ts` is keyed `['me']` at `staleTime: Infinity` — nothing writes
+to `users`, and a sign-out empties the cache, so no refetch could return anything
+different.
+
+Its type is `InferResponseType<typeof api.me.$get>`, not an interface. CLAUDE.md
+forbids a second copy of a response shape in `packages/web`, and this shape is
+the `users` row, which `packages/web` has no dependency on and must not grow one
+for. The three hand-written `MeResponse` declarations were each individually true
+and collectively the reason the email stayed invisible.
+
+**`AuthBoundary` primes the key from the probe it already makes**, so the tile
+costs no extra round trip on a page load. The query keeps a real `queryFn`
+anyway, because a *fresh sign-in* does not go through that path — the boundary's
+effect ran at mount, before there was a token to probe with.
+
+### 4. The cache is emptied after the redirect, not before it
+
+```ts
+void navigate({ to: '/login' }).finally(() => queryClient.clear())
+```
+
+Every cached row belongs to the user who just left. Signing in as a second user
+in the same tab would otherwise open on the first user's workspaces while the
+refetches land — in a product whose vision document promises *privacy first*,
+that is not a cosmetic flicker.
+
+**Chained onto the navigation rather than run beside it.** `clear()` while the
+app's pages are still mounted restarts every live query with no token behind it:
+a screen of spinners and a burst of 401s on the way out the door. At `/login`
+nothing is subscribed and the reset is silent. It sits in the boundary's store
+subscription rather than inside `signOut`, so it covers the three 401 paths too.
+
+One test-only consequence: `AuthBoundary.test.tsx` mocked `useNavigate` as a bare
+`vi.fn()`, modelling the router as returning `undefined`. It returns
+`Promise<void>` and always has. The mock was corrected rather than the code
+defended against a router that does not exist.
+
+### 5. What this deliberately does not do
+
+**No profile editing.** `PATCH /me` does not exist, `displayName` has no write
+path anywhere in the product, and inventing one is a different piece of work with
+a route, a validator and a form in it. The menu states the identity and ends the
+session.
+
+### 6. Verified
+
+The full gate: `typecheck` (10 packages), `lint`, `format:check`, `test`
+(**1688 passed, 75 skipped**), `pnpm -F @brandfactory/web build`. Fourteen tests
+are new — seven on `AccountMenu`, four on `signOut`, two on the boundary's cache
+handling, one on the rail.
+
+Beyond the gate, the change was driven in a real browser against real Postgres —
+a throwaway database on 5433, migrated and seeded, app on the dev stack. The
+menu shows the display name over the email; with `display_name` set to null it
+shows **one** line rather than the email twice; sign-out clears `bf_token`,
+lands on `/login`, and the back button does not restore the session; at 390×700
+the tile is inside the drawer and fully visible.
 
 ---
 

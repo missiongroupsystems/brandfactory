@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { PanelLeftClose, PanelLeftOpen, Plus } from 'lucide-react'
 import { useWorkspaceBrands } from '@/api/queries/workspaces'
 import { useActiveBrandId } from '@/lib/active-brand'
+import { AccountMenu } from '@/components/nav/AccountMenu'
 import { BrandMark } from '@/components/brand/BrandMark'
 import { NewBrandDialog } from '@/components/NewBrandDialog'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -131,6 +132,14 @@ export function BrandRail({ workspaceId, panelCollapsed, onTogglePanel }: BrandR
           <PanelIcon className="size-4" />
         </Button>
         <ThemeToggle />
+
+        {/* The same hairline as the one under the workspace tile, and it does
+            the same job at the other end: the two icon buttons above act on
+            *this* page, and the tile below acts on the session. `my-0.5` rather
+            than the head's `gap-2`, because a 4px foot group cannot afford the
+            head's spacing without pushing the tile into the padding. */}
+        <div className="my-0.5 h-px w-6 shrink-0 bg-border" />
+        <AccountMenu />
       </div>
 
       {workspaceId ? (

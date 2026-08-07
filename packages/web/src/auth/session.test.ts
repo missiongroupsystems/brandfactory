@@ -8,12 +8,19 @@ const supa = vi.hoisted(() => ({
   clientsCreated: 0,
   getSession: vi.fn(),
   onAuthStateChange: vi.fn(),
+  signOut: vi.fn(),
 }))
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => {
     supa.clientsCreated++
-    return { auth: { getSession: supa.getSession, onAuthStateChange: supa.onAuthStateChange } }
+    return {
+      auth: {
+        getSession: supa.getSession,
+        onAuthStateChange: supa.onAuthStateChange,
+        signOut: supa.signOut,
+      },
+    }
   },
 }))
 
@@ -134,6 +141,81 @@ describe('getFreshAuthToken', () => {
     await expect(session.getFreshAuthToken()).resolves.toBe('dev-token')
     expect(supa.clientsCreated).toBe(0)
     expect(supa.getSession).not.toHaveBeenCalled()
+  })
+})
+
+describe('signOut', () => {
+  beforeEach(() => {
+    sessionStorage.clear()
+    supa.clientsCreated = 0
+    supa.getSession.mockReset()
+    supa.onAuthStateChange.mockReset()
+    supa.signOut.mockReset()
+    supa.signOut.mockResolvedValue({ error: null })
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('revokes the Supabase session before it clears the local token', async () => {
+    // The order is the whole function. Clearing the store first redirects to
+    // `/login`, whose provider calls `getSession()` — and a session that is
+    // still alive signs the user straight back in.
+    const { session, useAuthStore } = await load(true)
+    useAuthStore.setState({ token: 'live', userId: 'u1' })
+
+    let tokenWhenRevoked: string | null = null
+    supa.signOut.mockImplementation(() => {
+      tokenWhenRevoked = useAuthStore.getState().token
+      return Promise.resolve({ error: null })
+    })
+
+    await session.signOut()
+
+    expect(tokenWhenRevoked).toBe('live')
+    expect(useAuthStore.getState().token).toBeNull()
+    expect(useAuthStore.getState().userId).toBeNull()
+    expect(sessionStorage.getItem('bf_token')).toBeNull()
+  })
+
+  it('falls back to a local sign-out when the global one cannot reach the network', async () => {
+    // The global call revokes every refresh token and needs the network to do
+    // it. The local one only empties localStorage — which is the part that has
+    // to happen before the store is cleared.
+    const { session, useAuthStore } = await load(true)
+    useAuthStore.setState({ token: 'live', userId: 'u1' })
+    supa.signOut.mockResolvedValueOnce({ error: { message: 'offline' } })
+
+    await session.signOut()
+
+    expect(supa.signOut).toHaveBeenNthCalledWith(1)
+    expect(supa.signOut).toHaveBeenNthCalledWith(2, { scope: 'local' })
+    expect(useAuthStore.getState().token).toBeNull()
+  })
+
+  it('clears the store even when both sign-out calls reject', async () => {
+    // Offline and unable to revoke anything: the local session is the one the
+    // user asked to end, and it must end.
+    const { session, useAuthStore } = await load(true)
+    useAuthStore.setState({ token: 'live', userId: 'u1' })
+    supa.signOut.mockRejectedValue(new Error('network down'))
+
+    await session.signOut()
+
+    expect(useAuthStore.getState().token).toBeNull()
+  })
+
+  it('clears the store without a provider call when Supabase is not configured', async () => {
+    // Local dev auth is a static server-printed token with no session behind
+    // it and nothing to revoke.
+    const { session, useAuthStore } = await load(false)
+    useAuthStore.setState({ token: 'dev-token', userId: 'u1' })
+
+    await session.signOut()
+
+    expect(supa.signOut).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().token).toBeNull()
   })
 })
 

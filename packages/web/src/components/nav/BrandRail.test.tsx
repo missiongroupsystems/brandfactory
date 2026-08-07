@@ -46,6 +46,10 @@ vi.mock('@/components/ThemeToggle', () => ({
   ThemeToggle: () => <div data-testid="theme-toggle" />,
 }))
 
+vi.mock('@/components/nav/AccountMenu', () => ({
+  AccountMenu: () => <div data-testid="account-menu" />,
+}))
+
 vi.mock('@/components/NewBrandDialog', () => ({
   NewBrandDialog: ({ wsId, open }: { wsId: string; open?: boolean }) =>
     open ? <div data-testid="new-brand-dialog">{wsId}</div> : null,
@@ -114,6 +118,18 @@ describe('BrandRail', () => {
     render(<BrandRail {...props} workspaceId={null} />)
     expect(screen.getByRole('button', { name: 'New brand' }).hasAttribute('disabled')).toBe(true)
     expect(screen.queryByTestId('new-brand-dialog')).toBeNull()
+  })
+
+  // The rail is the only place the account tile is mounted, and the tile is
+  // the only way out of the session. A workspace that has not resolved yet
+  // must not take it away with it — a first-run user with no workspace has an
+  // empty rail and still has to be able to sign out.
+  it('carries the account tile whether or not a workspace has resolved', () => {
+    const { rerender } = render(<BrandRail {...props} />)
+    expect(screen.getByTestId('account-menu')).toBeTruthy()
+
+    rerender(<BrandRail {...props} workspaceId={null} />)
+    expect(screen.getByTestId('account-menu')).toBeTruthy()
   })
 
   it('reports the panel’s folded state on the toggle, and asks the shell to flip it', async () => {
