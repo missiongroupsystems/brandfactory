@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { toast } from 'sonner'
-import type { BrandSummary } from '@brandfactory/shared'
+import { brandDescriptionLine, type BrandSummary } from '@brandfactory/shared'
 import { AppError } from '@/api/client'
 import { useDeleteBrand, useUpdateBrand } from '@/api/queries/brands'
 import { BrandMark } from '@/components/brand/BrandMark'
@@ -16,6 +16,11 @@ export function BrandCard({ brand }: { brand: BrandSummary }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const update = useUpdateBrand(brand.id, brand.workspaceId)
   const del = useDeleteBrand(brand.id, brand.workspaceId)
+
+  // Same precedence as the hub header, from the same function — the grid and
+  // the page it links to must not disagree about what a brand says it is.
+  // `brand.tldr` arrives pre-flattened from the list query; see `BrandSummary`.
+  const line = brandDescriptionLine({ tldr: brand.tldr, description: brand.description })
 
   return (
     <>
@@ -42,11 +47,7 @@ export function BrandCard({ brand }: { brand: BrandSummary }) {
                 card's accessible name. */}
             <BrandMark name={brand.name} seed={brand.id} size="sm" className="mb-3" />
             <div className="font-medium group-hover:text-accent-foreground">{brand.name}</div>
-            {brand.description && (
-              <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                {brand.description}
-              </div>
-            )}
+            {line && <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{line}</div>}
             {brand.websiteUrl && (
               // Text, not an anchor. The whole card is already a link to the
               // brand (the `before:` overlay above), so a nested `<a>` would be

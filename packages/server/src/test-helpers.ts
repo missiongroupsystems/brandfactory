@@ -26,7 +26,7 @@ import type {
   WorkspaceId,
   WorkspaceSettings,
 } from '@brandfactory/shared'
-import { bySchedule } from '@brandfactory/shared'
+import { brandTldrLine, bySchedule } from '@brandfactory/shared'
 import { createAgentConcurrencyGuard, type AgentConcurrencyGuard } from './agent/concurrency'
 import { createApp, type AppDeps } from './app'
 import { AssetNotInBrandError } from '@brandfactory/db'
@@ -225,13 +225,21 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       return [...state.brands.values()]
         .filter((b) => b.workspaceId === workspaceId)
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-        .map(
-          (b): BrandSummary => ({
+        .map((b): BrandSummary => {
+          // The real query resolves this with a filtered aggregate and its
+          // mapper; the fake reaches the same answer through the same shared
+          // helper, over the sections already in `state`. Hard-coding `null`
+          // here would make every route test blind to the field.
+          const sections = [...state.sections.values()]
+            .filter((s) => s.brandId === b.id)
+            .sort((x, y) => x.priority - y.priority)
+          return {
             ...b,
-            sectionCount: [...state.sections.values()].filter((s) => s.brandId === b.id).length,
+            sectionCount: sections.length,
             projectCount: [...state.projects.values()].filter((p) => p.brandId === b.id).length,
-          }),
-        )
+            tldr: brandTldrLine(sections),
+          }
+        })
     },
     async createBrand(input) {
       const id = nextId('br') as BrandId

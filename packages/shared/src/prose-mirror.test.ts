@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { ProseMirrorDoc } from '@brandfactory/shared'
-import { proseMirrorDocToPlainText } from './prose-mirror-to-text'
+import type { ProseMirrorDoc } from './json'
+import { proseMirrorDocToPlainText } from './prose-mirror'
 
 const doc = (content: unknown[]): ProseMirrorDoc => ({ type: 'doc', content }) as ProseMirrorDoc
 

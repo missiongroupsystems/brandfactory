@@ -1,6 +1,9 @@
-import type { BrandWithSections } from '@brandfactory/shared'
+import {
+  brandTldrLine,
+  proseMirrorDocToPlainText,
+  type BrandWithSections,
+} from '@brandfactory/shared'
 import { BRAND_CONTEXT_TEMPLATE_ID } from '../templates'
-import { proseMirrorDocToPlainText } from './prose-mirror-to-text'
 
 export interface SystemPromptOptions {
   /** The project's template id, when it is a standardized thread. */
@@ -11,7 +14,7 @@ export interface SystemPromptOptions {
 //
 // Shape (intentionally fixed so Phase 6 route wiring doesn't shift):
 //   1. Role preamble
-//   2. Brand header (name, optional description)
+//   2. Brand header (name, plus the description when no `TL;DR` supersedes it)
 //   3. Guideline sections, in ascending `priority` order, each rendered
 //      as `## <label>\n<plain-text body>`
 //   4. Canvas-awareness contract — OR, in a brand-context thread, the
@@ -28,8 +31,21 @@ export function buildSystemPrompt(brand: BrandWithSections, opts?: SystemPromptO
     `You are the creative partner for brand "${brand.name}". Every response must be consistent with the brand's guidelines below.`,
   )
 
+  // The header carries `brands.description` only when the brand has no `TL;DR`,
+  // which is the same precedence every surface applies (`brandDescriptionLine`).
+  //
+  // **The TL;DR is not pushed here**, because part 3 below already renders it as
+  // `### TL;DR` — repeating it would buy nothing and cost the tokens twice. What
+  // this suppresses is the other half: a `description` typed before the TL;DR
+  // existed is the older copy of the same sentence, no screen shows it any more,
+  // and pushing it here handed the model two competing answers to *what is this
+  // brand* with no way for the user to see, or fix, the one that disagreed.
+  //
+  // An empty `TL;DR` row is not a TL;DR — `brandTldrLine` returns `null` for one
+  // — so a labelled-but-unwritten section leaves the description in place, which
+  // is exactly what the hub header does with the same brand.
   const header: string[] = [`# Brand: ${brand.name}`]
-  if (brand.description) header.push(brand.description)
+  if (!brandTldrLine(brand.sections) && brand.description) header.push(brand.description)
   parts.push(header.join('\n\n'))
 
   if (brand.sections.length > 0) {

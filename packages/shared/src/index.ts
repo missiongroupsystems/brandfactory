@@ -1,5 +1,6 @@
 // Primitives
 export * from './json'
+export * from './prose-mirror'
 export * from './ids'
 
 // LLM
@@ -17,6 +18,7 @@ export * from './brand/summary'
 export * from './brand/guideline-section'
 export * from './brand/suggested-categories'
 export * from './brand/canonical-sections'
+export * from './brand/description-line'
 export * from './brand/create'
 export * from './brand/update'
 export * from './brand/update-guidelines'

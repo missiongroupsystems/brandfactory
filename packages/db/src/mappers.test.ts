@@ -21,6 +21,30 @@ const TEXT_DOC: ProseMirrorDoc = {
   content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hello' }] }],
 }
 
+const pmDoc = (...paragraphs: string[]): ProseMirrorDoc => ({
+  type: 'doc',
+  content: paragraphs.map((text) => ({ type: 'paragraph', content: [{ type: 'text', text }] })),
+})
+
+// The shape `listBrandSummariesByWorkspace` selects. `tldrSection` defaults to
+// `null` — the SQL result for the brands that have written no TL;DR, which is
+// most of them.
+const summaryRow = (
+  overrides: { tldrSection?: { label: string; body: unknown } | null } = {},
+): Parameters<typeof rowToBrandSummary>[0] => ({
+  id: 'b-1',
+  workspaceId: 'ws-1',
+  name: 'Brand',
+  description: null,
+  websiteUrl: null,
+  createdAt: TS,
+  updatedAt: TS,
+  sectionCount: 3,
+  projectCount: 1,
+  tldrSection: null,
+  ...overrides,
+})
+
 describe('mappers — happy paths', () => {
   it('rowToWorkspace passes through fields with branded ids', () => {
     const row = {
@@ -66,22 +90,46 @@ describe('mappers — happy paths', () => {
   })
 
   it('rowToBrandSummary attaches section and project counts', () => {
-    const row = {
-      id: 'b-1',
-      workspaceId: 'ws-1',
-      name: 'Brand',
-      description: null,
-      websiteUrl: null,
-      createdAt: TS,
-      updatedAt: TS,
-      sectionCount: 3,
-      projectCount: 1,
-    }
-    expect(rowToBrandSummary(row)).toMatchObject({
+    expect(rowToBrandSummary(summaryRow())).toMatchObject({
       id: 'b-1',
       sectionCount: 3,
       projectCount: 1,
     })
+  })
+
+  // The `jsonb_agg(…) -> 0` arm. The query's regex narrows the rows; this
+  // mapper is what decides whether the row it got back is really the TL;DR.
+  it('rowToBrandSummary flattens the TL;DR section to one line', () => {
+    const row = summaryRow({
+      tldrSection: { label: 'TL;DR', body: pmDoc('A wine bar.', 'Warm, never precious.') },
+    })
+    expect(rowToBrandSummary(row).tldr).toBe('A wine bar. Warm, never precious.')
+  })
+
+  it('rowToBrandSummary reports no TL;DR when the query found none', () => {
+    expect(rowToBrandSummary(summaryRow()).tldr).toBeNull()
+  })
+
+  it('rowToBrandSummary reports no TL;DR for a section with an empty body', () => {
+    const row = summaryRow({
+      tldrSection: { label: 'TL;DR', body: { type: 'doc', content: [{ type: 'paragraph' }] } },
+    })
+    expect(rowToBrandSummary(row).tldr).toBeNull()
+  })
+
+  it('rowToBrandSummary accepts however the TL;DR label was punctuated', () => {
+    for (const spelling of ['TLDR', 'tl;dr', 'TL-DR']) {
+      const row = summaryRow({ tldrSection: { label: spelling, body: pmDoc('A wine bar.') } })
+      expect(rowToBrandSummary(row).tldr).toBe('A wine bar.')
+    }
+  })
+
+  // The prefilter is deliberately looser than `normaliseSectionLabel`, so a row
+  // the SQL let through must still lose here. Without this re-check the query's
+  // regex would be the rule, in a second place, in another language.
+  it('rowToBrandSummary discards a row the shared label rule rejects', () => {
+    const row = summaryRow({ tldrSection: { label: 'Voice & tone', body: pmDoc('Warm.') } })
+    expect(rowToBrandSummary(row).tldr).toBeNull()
   })
 
   it('rowToProjectSummary normalizes Date lastActivityAt to ISO string', () => {

@@ -42,6 +42,7 @@ function summary(overrides: Partial<BrandSummary> = {}): BrandSummary {
     updatedAt: '2026-07-01T00:00:00.000Z',
     sectionCount: 2,
     projectCount: 1,
+    tldr: null,
     ...overrides,
   }
 }
@@ -69,5 +70,36 @@ describe('BrandCard — website', () => {
     for (const link of screen.getAllByRole('link')) {
       expect(link.getAttribute('href')).not.toContain('casavostra.com')
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The grid and the hub must not disagree about what a brand says it is, so the
+// card runs the same `brandDescriptionLine` the header does. It differs in
+// where the TL;DR comes from: `BrandSummary.tldr`, flattened in the db mapper,
+// because shipping every section body of every brand to draw two clamped lines
+// would cost the workspace home its one round trip.
+// ---------------------------------------------------------------------------
+
+describe('BrandCard — the description line is the TL;DR', () => {
+  it('shows the TL;DR when no description was ever typed', () => {
+    render(<BrandCard brand={summary({ description: null, tldr: 'A wine bar in Tiong Bahru.' })} />)
+    expect(screen.getByText('A wine bar in Tiong Bahru.')).toBeTruthy()
+  })
+
+  it('prefers the TL;DR over a description that was typed', () => {
+    render(<BrandCard brand={summary({ tldr: 'A wine bar in Tiong Bahru.' })} />)
+    expect(screen.getByText('A wine bar in Tiong Bahru.')).toBeTruthy()
+    expect(screen.queryByText('Neighbourhood trattoria.')).toBeNull()
+  })
+
+  it('keeps the description when the brand has no TL;DR', () => {
+    render(<BrandCard brand={summary()} />)
+    expect(screen.getByText('Neighbourhood trattoria.')).toBeTruthy()
+  })
+
+  it('renders no line at all when the brand has neither', () => {
+    render(<BrandCard brand={summary({ description: null })} />)
+    expect(screen.queryByText('Neighbourhood trattoria.')).toBeNull()
   })
 })

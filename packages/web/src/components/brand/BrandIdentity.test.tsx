@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { BrandWithSections } from '@brandfactory/shared'
+import type { BrandGuidelineSection, BrandWithSections, ProseMirrorDoc } from '@brandfactory/shared'
 import { BrandIdentity } from './BrandIdentity'
 
 function brand(overrides: Partial<BrandWithSections> = {}): BrandWithSections {
@@ -18,6 +18,26 @@ function brand(overrides: Partial<BrandWithSections> = {}): BrandWithSections {
   }
 }
 
+const doc = (...paragraphs: string[]): ProseMirrorDoc => ({
+  type: 'doc',
+  content: paragraphs.map((text) => ({ type: 'paragraph', content: [{ type: 'text', text }] })),
+})
+
+const EMPTY_DOC: ProseMirrorDoc = { type: 'doc', content: [{ type: 'paragraph' }] }
+
+function section(label: string, body: ProseMirrorDoc = doc('A wine bar.')): BrandGuidelineSection {
+  return {
+    id: `s-${label}` as BrandGuidelineSection['id'],
+    brandId: 'b-1' as BrandGuidelineSection['brandId'],
+    label,
+    body,
+    priority: 0,
+    createdBy: 'user',
+    createdAt: '2026-07-24T00:00:00.000Z',
+    updatedAt: '2026-07-24T00:00:00.000Z',
+  }
+}
+
 describe('BrandIdentity', () => {
   it('renders the mark, the name and the description', () => {
     render(<BrandIdentity brand={brand()} onRename={vi.fn()} onDelete={vi.fn()} />)
@@ -27,9 +47,9 @@ describe('BrandIdentity', () => {
     expect(screen.getByText('MG')).toBeTruthy()
   })
 
-  // The description is the brand's TL;DR, so its absence is offered as an
-  // action rather than rendered as a gap.
-  it('offers to add a description when there is none', async () => {
+  // Neither field written: the gap is offered as an action rather than left
+  // blank. `onRename` because `RenameDialog` owns `brands.description`.
+  it('offers to add a description when there is neither', async () => {
     const onRename = vi.fn()
     render(
       <BrandIdentity brand={brand({ description: null })} onRename={onRename} onDelete={vi.fn()} />,
@@ -42,6 +62,108 @@ describe('BrandIdentity', () => {
   it('does not offer it when a description exists', () => {
     render(<BrandIdentity brand={brand()} onRename={vi.fn()} onDelete={vi.fn()} />)
     expect(screen.queryByRole('button', { name: 'Add a description' })).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The description line resolves to the TL;DR. The precedence itself is settled
+// in `shared/brand/description-line.ts` and tested there; these assert that the
+// band is wired to it — which is the half a shared unit test cannot see.
+// ---------------------------------------------------------------------------
+
+describe('BrandIdentity — the description line is the TL;DR', () => {
+  // Casa Vostra's case, and the one that produced the change: a brand with a
+  // filled-in TL;DR whose header still asked it to add a description.
+  it('shows the TL;DR when no description was ever typed', () => {
+    render(
+      <BrandIdentity
+        brand={brand({ description: null, sections: [section('TL;DR')] })}
+        onRename={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('A wine bar.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Add a description' })).toBeNull()
+  })
+
+  it('prefers the TL;DR over a description that was typed', () => {
+    render(
+      <BrandIdentity
+        brand={brand({ sections: [section('TL;DR')] })}
+        onRename={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('A wine bar.')).toBeTruthy()
+    expect(screen.queryByText('This is the core Mission Group brand.')).toBeNull()
+  })
+
+  it('keeps the description when the brand has no TL;DR', () => {
+    render(
+      <BrandIdentity
+        brand={brand({ sections: [section('Voice & tone')] })}
+        onRename={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('This is the core Mission Group brand.')).toBeTruthy()
+  })
+
+  // A rail suggestion chip creates the labelled row before anyone types into
+  // it. If existence were the signal, clicking the chip would blank a working
+  // description — the description must survive until the TL;DR says something.
+  it('keeps the description when the TL;DR row exists but is empty', () => {
+    render(
+      <BrandIdentity
+        brand={brand({ sections: [section('TL;DR', EMPTY_DOC)] })}
+        onRename={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('This is the core Mission Group brand.')).toBeTruthy()
+  })
+
+  it('finds the TL;DR however its label was punctuated', () => {
+    render(
+      <BrandIdentity
+        brand={brand({ description: null, sections: [section('TLDR')] })}
+        onRename={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('A wine bar.')).toBeTruthy()
+  })
+
+  // A multi-paragraph TL;DR must not arrive as one run with a gap in it — the
+  // blank-line join is right for a prompt and wrong for a `<p>`.
+  it('collapses a multi-paragraph TL;DR onto one line', () => {
+    render(
+      <BrandIdentity
+        brand={brand({
+          description: null,
+          sections: [section('TL;DR', doc('A wine bar.', 'Warm, never precious.'))],
+        })}
+        onRename={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('A wine bar. Warm, never precious.')).toBeTruthy()
+  })
+
+  // The band answers one question. A 400-character TL;DR at `max-w-prose` runs
+  // six lines and takes the page over, so the paragraph clamps — the full text
+  // is the rail's own TL;DR row, one card down.
+  it('clamps the line so a long TL;DR cannot take over the band', () => {
+    render(
+      <BrandIdentity
+        brand={brand({ description: null, sections: [section('TL;DR', doc('x'.repeat(600)))] })}
+        onRename={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('x'.repeat(600)).className).toContain('line-clamp-3')
   })
 
   // Counts live where they can be acted on — sections in the rail, threads on

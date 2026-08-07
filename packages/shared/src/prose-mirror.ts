@@ -1,10 +1,19 @@
-import type { ProseMirrorDoc } from '@brandfactory/shared'
+import type { ProseMirrorDoc } from './json'
 
 // Walk a ProseMirror / TipTap JSON doc and flatten it to plain text.
 // Deliberately lossy — this is LLM context, not a faithful rendering.
 // Every block-level node (paragraph, heading, list_item, blockquote,
 // code block, …) becomes its own block; text nodes concatenate into
 // the block currently being built.
+//
+// **It lives in `shared` rather than in `agent`, where it was written, because
+// it stopped having one consumer.** The prompt builders were the only callers
+// while the only thing anyone flattened a section body *for* was a model. The
+// brand hub's description line flattens one for a person, and `packages/web`
+// must not import `packages/agent` (architecture.md: agent is backend-consumed,
+// server-side only). A pure walk over JSON with no dependency beyond a type is
+// exactly what `shared` is for; copying it into `web` would have left two
+// flatteners to keep in step, differing in which node types they call blocks.
 export function proseMirrorDocToPlainText(doc: ProseMirrorDoc): string {
   const blocks: string[] = []
   const state = { current: '' }

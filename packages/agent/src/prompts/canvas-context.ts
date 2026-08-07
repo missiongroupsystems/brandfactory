@@ -1,5 +1,9 @@
-import type { CanvasBlock, CanvasBlockId, CanvasOp } from '@brandfactory/shared'
-import { proseMirrorDocToPlainText } from './prose-mirror-to-text'
+import {
+  proseMirrorDocToPlainText,
+  type CanvasBlock,
+  type CanvasBlockId,
+  type CanvasOp,
+} from '@brandfactory/shared'
 
 // Cap on how many unpinned blocks we render into the prompt. Exported so
 // it's easy to re-tune (swap for a character-budget truncator later — see

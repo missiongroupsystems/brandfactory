@@ -1,12 +1,13 @@
-import type {
-  Brand,
-  BrandGuidelineSection,
-  BrandId,
-  BrandSummary,
-  GuidelineSectionCreatedBy,
-  ProseMirrorDoc,
-  SectionId,
-  WorkspaceId,
+import {
+  TLDR_SECTION_KEY,
+  type Brand,
+  type BrandGuidelineSection,
+  type BrandId,
+  type BrandSummary,
+  type GuidelineSectionCreatedBy,
+  type ProseMirrorDoc,
+  type SectionId,
+  type WorkspaceId,
 } from '@brandfactory/shared'
 import { and, eq, isNotNull, notInArray, sql } from 'drizzle-orm'
 import { db } from '../client'
@@ -23,10 +24,40 @@ export async function listBrandsByWorkspace(workspaceId: WorkspaceId): Promise<B
   return rows.map(rowToBrand)
 }
 
+/**
+ * The `TL;DR` row of the brand being aggregated, as `{label, body}` or SQL
+ * `null` — a filtered aggregate over the `guideline_sections` join the query
+ * already has, so it costs no extra scan and no extra round trip.
+ *
+ * **The `where` clause is a prefilter and the mapper is the authority.** The
+ * label rule lives in `normaliseSectionLabel`, which cannot run inside
+ * Postgres, so the character strip is restated here — the *label* is not, it
+ * arrives as `TLDR_SECTION_KEY`. The two can disagree only in the safe
+ * direction: `[:alnum:]` is at worst looser than `\p{L}\p{N}`, so this can
+ * return a row the shared rule rejects, and `rowToBrandSummary` re-checks with
+ * `sameSectionLabel` before believing it. A missed section is impossible; an
+ * over-fetched one is discarded.
+ *
+ * `jsonb_agg(… order by priority) -> 0` rather than `min`/`limit`: a brand may
+ * hold two rows labelled `TL;DR`, and `brandTldrSection` documents that the
+ * first by priority is *the* one. This picks the same one, and returning label
+ * and body as a single jsonb object keeps that pairing atomic — two scalar
+ * aggregates could in principle answer from different rows.
+ */
+const tldrSectionJson = sql<{ label: string; body: unknown } | null>`
+  (jsonb_agg(
+     jsonb_build_object('label', ${guidelineSections.label}, 'body', ${guidelineSections.body})
+     order by ${guidelineSections.priority}
+   ) filter (
+     where lower(regexp_replace(${guidelineSections.label}, '[^[:alnum:]]', '', 'g'))
+           = ${TLDR_SECTION_KEY}
+   )) -> 0
+`
+
 // One round-trip brand grid for the workspace home: brand row + section and
-// project counts. Left joins + `count(distinct …)::int` so brands with no
-// sections or projects still appear with zeros (and `::int` keeps node-pg
-// from returning bigint counts as strings).
+// project counts + the TL;DR line. Left joins + `count(distinct …)::int` so
+// brands with no sections or projects still appear with zeros (and `::int`
+// keeps node-pg from returning bigint counts as strings).
 export async function listBrandSummariesByWorkspace(
   workspaceId: WorkspaceId,
 ): Promise<BrandSummary[]> {
@@ -41,6 +72,7 @@ export async function listBrandSummariesByWorkspace(
       updatedAt: brands.updatedAt,
       sectionCount: sql<number>`count(distinct ${guidelineSections.id})::int`.mapWith(Number),
       projectCount: sql<number>`count(distinct ${projects.id})::int`.mapWith(Number),
+      tldrSection: tldrSectionJson,
     })
     .from(brands)
     .leftJoin(guidelineSections, eq(guidelineSections.brandId, brands.id))

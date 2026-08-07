@@ -1,5 +1,8 @@
 import {
   ProseMirrorDocSchema,
+  TLDR_SECTION_LABEL,
+  sameSectionLabel,
+  sectionBodyToLine,
   type AgentMessage,
   type Brand,
   type BrandAsset,
@@ -109,13 +112,30 @@ export function rowToBrand(row: BrandRow): Brand {
 // `section_count` / `project_count` come from `count(*)::int`. The cast
 // matters: bare `count()` is bigint and node-pg returns it as a string,
 // which fails BrandSummarySchema at the route boundary.
+//
+// `tldrSection` is the `jsonb_agg(…) -> 0` from `listBrandSummariesByWorkspace`
+// — the section row its SQL prefilter believes is the TL;DR, or `null`. This is
+// where that belief is checked: the label goes through `sameSectionLabel`, the
+// one rule that decides what counts as a TL;DR anywhere in the repo, so the
+// regex in the query can only ever cost an over-fetched row. See the note over
+// `tldrSectionJson` for why the prefilter is loose on purpose.
 export function rowToBrandSummary(
-  row: BrandRow & { sectionCount: number; projectCount: number },
+  row: BrandRow & {
+    sectionCount: number
+    projectCount: number
+    tldrSection: { label: string; body: unknown } | null
+  },
 ): BrandSummary {
+  const tldrRow = row.tldrSection
+  const isTldr = tldrRow !== null && sameSectionLabel(tldrRow.label, TLDR_SECTION_LABEL)
   return {
     ...rowToBrand(row),
     sectionCount: row.sectionCount,
     projectCount: row.projectCount,
+    // `body` is `unknown` off the jsonb column and `ProseMirrorDoc` is `JsonValue`,
+    // so anything that survived the round trip is one by construction — the same
+    // reasoning `rowToGuidelineSection` applies to the column it reads directly.
+    tldr: isTldr ? sectionBodyToLine(tldrRow.body as ProseMirrorDoc) : null,
   }
 }
 

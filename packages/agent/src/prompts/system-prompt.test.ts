@@ -100,6 +100,51 @@ describe('buildSystemPrompt', () => {
     expect(prompt).not.toContain('## Brand guidelines')
   })
 
+  // The header applies the same precedence every surface does. A brand holding
+  // both fields must not hand the model two competing answers to *what is this
+  // brand* — least of all when the losing one is invisible on every screen and
+  // the user therefore cannot see, or fix, the disagreement.
+  describe('the description defers to the TL;DR', () => {
+    const tldr = (body?: ReturnType<typeof pmParagraph>) =>
+      makeSection({ label: 'TL;DR', priority: 0, body })
+
+    it('drops the typed description when the brand has written a TL;DR', () => {
+      const prompt = buildSystemPrompt(makeBrand([tldr(pmParagraph('A specialty roaster.'))]))
+
+      expect(prompt).not.toContain('Specialty roaster with a minimalist aesthetic.')
+      // Dropped from the header, not from the prompt: part 3 still carries it.
+      expect(prompt).toContain('### TL;DR\nA specialty roaster.')
+    })
+
+    it('does not repeat the TL;DR in the header', () => {
+      const prompt = buildSystemPrompt(makeBrand([tldr(pmParagraph('A specialty roaster.'))]))
+      expect(prompt.split('A specialty roaster.')).toHaveLength(2)
+    })
+
+    it('keeps the description when the brand has no TL;DR', () => {
+      const prompt = buildSystemPrompt(makeBrand([makeSection({ label: 'Voice', priority: 10 })]))
+      expect(prompt).toContain('Specialty roaster with a minimalist aesthetic.')
+    })
+
+    // The rail's suggestion chip creates the labelled row before anyone types
+    // into it. The prompt must agree with the header about that brand.
+    it('keeps the description when the TL;DR row exists but is empty', () => {
+      const prompt = buildSystemPrompt(makeBrand([tldr({ type: 'doc', content: [] })]))
+      expect(prompt).toContain('Specialty roaster with a minimalist aesthetic.')
+    })
+
+    it('finds the TL;DR however its label was punctuated', () => {
+      const section = makeSection({
+        label: 'tldr',
+        priority: 0,
+        body: pmParagraph('A specialty roaster.'),
+      })
+      expect(buildSystemPrompt(makeBrand([section]))).not.toContain(
+        'Specialty roaster with a minimalist aesthetic.',
+      )
+    })
+  })
+
   // Phase F2. The canvas block is *replaced*, not supplemented: a thread with no
   // canvas must not be told how to use one.
   it('swaps the canvas contract for the interview contract in a brand-context thread', () => {

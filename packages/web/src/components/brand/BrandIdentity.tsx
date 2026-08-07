@@ -1,5 +1,5 @@
 import { ExternalLink } from 'lucide-react'
-import type { BrandWithSections } from '@brandfactory/shared'
+import { brandDescriptionLine, brandTldrLine, type BrandWithSections } from '@brandfactory/shared'
 import { BrandMark } from '@/components/brand/BrandMark'
 import { EntityMenu } from '@/components/entity/EntityMenu'
 import { displayHost } from '@/lib/website-url'
@@ -31,10 +31,18 @@ export interface BrandIdentityProps {
  * on them. The band answers one question — *whose page is this* — and the two
  * zones below answer the other two.
  *
- * The description is the brand's TL;DR, so an empty one is offered as an action
- * rather than rendered as absence: `Rename` is the dialog that owns the field
- * (`RenameDialog` takes `initialDescription`), which is why the affordance
- * routes to `onRename` rather than growing an editor of its own.
+ * **The description line *is* the brand's `TL;DR` when it has written one.**
+ * This comment used to say that as an analogy while the code kept the two
+ * apart, which is how a brand whose TL;DR was already filled in — by hand, or
+ * by a research run — still got a header asking it to *Add a description*.
+ * `brandDescriptionLine` now resolves the pair: the TL;DR wins, the typed
+ * `brands.description` is the fallback, and the affordance appears only when
+ * there is genuinely neither. See `shared/brand/description-line.ts` for why
+ * that order and not the other.
+ *
+ * The affordance still routes to `onRename`, because `RenameDialog` is what
+ * owns `description` — the field it writes is the one still reachable in the
+ * no-TL;DR case. Writing the TL;DR instead is the rail's job, one card down.
  *
  * **The palette is not here, and that was a decision rather than an omission.**
  * 1.8.0 built it three ways so two could be deleted: under this mark (B), in the
@@ -52,6 +60,11 @@ export function BrandIdentity({
   websiteUrl,
   logoSrc,
 }: BrandIdentityProps) {
+  const line = brandDescriptionLine({
+    tldr: brandTldrLine(brand.sections),
+    description: brand.description,
+  })
+
   return (
     <header className="flex items-start gap-4">
       <BrandMark name={brand.name} seed={brand.id} size="lg" src={logoSrc} />
@@ -60,9 +73,17 @@ export function BrandIdentity({
           the ⋯ menu off the container. */}
       <div className="min-w-0 flex-1 pt-1">
         <h1 className="truncate">{brand.name}</h1>
-        {brand.description ? (
-          <p className="mt-1.5 max-w-prose text-sm text-pretty text-muted-foreground">
-            {brand.description}
+        {line ? (
+          // `line-clamp-3`, which the hand-typed description never needed and
+          // the TL;DR does: `TLDR_TARGET_MAX_CHARS` lets a generated one reach
+          // 400 characters and a hand-written one has no ceiling at all, so at
+          // `max-w-prose` this paragraph can run six lines and turn a band that
+          // answers *whose page is this* into the tallest thing above the fold.
+          // Clamping is safe **here specifically** because the full text is not
+          // hidden — it is the rail's own `TL;DR` row, one card down on the same
+          // page. It would not be safe on a surface that had nowhere to send you.
+          <p className="mt-1.5 line-clamp-3 max-w-prose text-sm text-pretty text-muted-foreground">
+            {line}
           </p>
         ) : (
           <button

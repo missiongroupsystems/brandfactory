@@ -59,6 +59,7 @@ function brandSummary(id: string, name: string, projectCount = 0): BrandSummary 
     updatedAt: '2026-01-01T00:00:00.000Z',
     sectionCount: 0,
     projectCount,
+    tldr: null,
   }
 }
 

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.24.0** — 2026-08-07 — A brand stops being asked to describe itself twice: the `TL;DR` becomes the description line on the hub, on the workspace cards and in the prompt. No migration. 1674 tests.
 - **1.23.1** — 2026-08-06 — Pre-release review of 1.23.0: a horizon line that read *"Global are curated"*, a marker visible on a padding day and absent from the accessibility tree, twelve stated rules now asserted. No migration. 1637 tests.
 - **1.23.0** — 2026-08-06 — The social calendar borrows the year: 92 curated dates in three sets, seasons above the grid and days inside it, colour-coded and switched per brand. No migration. 1622 tests.
 - **1.22.1** — 2026-08-05 — Pre-release review of 1.22.0: one shelf name, five surfaces; a dev blob out of the commit. No migration. 1482 tests.
@@ -61,6 +62,198 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.24.0 — 2026-08-07
+
+**The brand had already said what it was. The header asked again.**
+
+The request arrived as a screenshot of the brand hub: the monogram, the name
+*Casa Vostra*, and under it the dotted-underline affordance **Add a
+description**. The brand had a `TL;DR` written. Two fields had been answering
+the same question since 1.21.0 put `TL;DR` in the section taxonomy — a nullable
+`brands.description` column editable only in a dialog named *Rename*, and a
+guideline section whose own description reads *"the whole brand in a few
+sentences — what it is, who it is for, how it sounds."* `BrandIdentity`'s doc
+comment had already conceded the overlap in prose while the code kept the two
+entirely apart. That sentence was the specification; nothing implemented it.
+
+**No migration, no new route, no column added or dropped.** One wire field, one
+shared module, one file moved between packages, and three places that stop
+reading `brands.description` directly. Full detail in
+[`docs/completions/brand-description-is-the-tldr.md`](completions/brand-description-is-the-tldr.md).
+
+### 1. The precedence, and the cost of choosing it
+
+A brand holding **both** fields raises a question the request did not settle, so
+it went back to the user before any code was written. **The TL;DR wins** — it is
+the section the guidelines layer calls finalized output, the one a research run
+fills in on its own, and the one already destined to become standing context. A
+description typed before the TL;DR existed is the older, weaker copy of the same
+sentence.
+
+The cost is real and is written into the module header rather than buried: a
+brand holding both keeps a `description` nobody sees, and editing it in the
+rename dialog changes nothing on screen. What is **not** traded away is the text
+— nothing here writes to either field, so clearing the TL;DR brings the
+description straight back. That is what makes this a display rule and not a
+migration.
+
+### 2. `shared/brand/description-line.ts` — one rule, three functions
+
+`sectionBodyToLine` flattens a section body and **collapses it, rather than
+truncating it**. `proseMirrorDocToPlainText` joins blocks with a blank line,
+which is right for a prompt and wrong for a `<p>`: HTML folds the newlines but
+not the spacing around them, so a two-paragraph TL;DR would render as one run
+with a gap in the middle of it. Length is deliberately untouched —
+`TLDR_TARGET_MAX_CHARS` binds what a *generator* writes, not what a person
+types, so the ceiling belongs to the surface that has to fit the text.
+
+`brandTldrLine` returns `null` for an **empty** body. A section row exists from
+the moment its label is typed, and the rail's suggestion chips create labelled
+rows with empty bodies on purpose. If the row's existence were the signal,
+clicking the `TL;DR` chip would blank a working description instantly, before
+the user wrote a word.
+
+`brandDescriptionLine` takes two resolved strings rather than a brand, because
+its callers hold different shapes — which is what lets three surfaces meet at
+one rule instead of stating it three times.
+
+The flattener itself moved from `packages/agent/src/prompts/` to
+`packages/shared/src/prose-mirror.ts`. It was written in `agent` when the only
+reason to flatten a section body was to feed a model; the hub flattens one for a
+person, and `packages/web` must not import `packages/agent`.
+
+### 3. The SQL is a prefilter; the mapper is the authority
+
+`BrandSummary` gained a resolved `tldr: string | null` — not the section, and
+not its ProseMirror doc. The workspace grid exists to be one round trip, and
+shipping every section body of every brand to draw two clamped lines would trade
+that away. It rides the `guideline_sections` join the query already has, as a
+filtered aggregate:
+
+```sql
+(jsonb_agg(jsonb_build_object('label', gs.label, 'body', gs.body)
+           order by gs.priority)
+ filter (where lower(regexp_replace(gs.label, '[^[:alnum:]]', '', 'g')) = 'tldr')) -> 0
+```
+
+The label rule lives in `normaliseSectionLabel` and cannot run inside Postgres.
+Rather than let a regex in SQL quietly become a second definition of *what
+counts as a TL;DR*, the halves split by responsibility: the `where` clause
+**narrows** (and duplicates only the character strip — the label arrives bound
+as `TLDR_SECTION_KEY`, so the query never spells `TL;DR` at all), and
+`rowToBrandSummary` **decides**, re-checking the returned label with
+`sameSectionLabel`. POSIX `[:alnum:]` is at worst looser than `\p{L}\p{N}`, so
+the two can disagree only in the safe direction: an over-fetched row is
+discarded, a missed section is impossible.
+
+The server needed no change at all — `listBrandSummariesByWorkspace` is a
+`typeof` pass-through, so the field arrived at the route through the type.
+
+### 4. The three surfaces
+
+**The hub header** resolves both halves locally and gained a `line-clamp-3` it
+never had. A hand-typed description never needed one; a generated TL;DR reaches
+400 characters and a hand-written one has no ceiling, which at `max-w-prose`
+runs about six lines and turns a band whose whole job is *whose page is this*
+into the tallest thing above the fold. Clamping is safe **here specifically**
+because nothing is hidden — the full text is the rail's own `TL;DR` row, one
+card to the right on the same page.
+
+**The workspace cards** read the pre-flattened `brand.tldr` through the same
+function and keep their existing `line-clamp-2`. The grid and the page it links
+to must not disagree about what a brand says it is.
+
+**The system prompt** applies the same precedence, which the review pass in §5
+found it was not doing.
+
+### 5. What the review pass changed
+
+1.24.0 was staged and unpushed when it was read end to end against its
+completion note. The gate was re-run from scratch rather than taken from the
+note, and the raw SQL was executed against real Postgres rather than reasoned
+about — compose up, migrate, seed: **108 passed, zero skips** in the `db`
+project. One defect, in a file the change had otherwise only touched to move
+something out of:
+
+`buildSystemPrompt` pushed `brand.description` into the brand header while the
+section block rendered `### TL;DR` separately. For a brand holding both, the
+model therefore received **two competing answers to what the brand is** — and
+the losing one was invisible on every screen, so the user could neither see the
+conflict nor fix it. The completion note had stated the cost of §1 as *"a
+description nobody sees"*; the model saw it.
+
+The header now carries the description only when `brandTldrLine` finds no TL;DR.
+The TL;DR is **not** pushed in its place, because part 3 of the prompt already
+renders it — suppression removes the contradiction without paying for the text
+twice. Both new guards were confirmed to fail on the defect they exist to catch:
+restoring the old condition fails two, and pushing the TL;DR into the header
+fails the third.
+
+Also verified rather than believed: the aggregate in §3 fans out against the
+`projects` join — a brand with two `TL;DR` rows and four projects builds eight
+jsonb objects and discards seven. The **result is correct** (`-> 0` picked the
+right row, and `count(distinct …)` keeps both counts right), and the fan-out is
+bounded by the project count. It is recorded here rather than fixed.
+
+### 6. `docs/archive/` was pruned
+
+Thirty of its thirty-two documents were removed — the social calendar and visual
+identity plans and their phase notes, the guideline-autofill set, and the older
+one-off notes. This is a deliberate pruning and not part of the feature. Every
+one of them remains in git history, and the changelog entry for each release is
+the surviving account of it.
+
+### 7. Tests
+
+1637 → 1674 (**+37**). The precedence is asserted at every level it passes
+through — shared unit, hub component, card component, db mapper, and now the
+prompt builder — which is deliberate: a rule stated once and wired four times
+can be wired backwards once.
+
+| File | Covers |
+| --- | --- |
+| `shared/brand/description-line.test.ts` (16) | the rule itself: precedence, blank strings on both sides, empty-body TL;DR, punctuation tolerance, no truncation |
+| `web/…/BrandIdentity.test.tsx` (+7) | the band is wired to it, the multi-paragraph collapse, the clamp |
+| `web/…/BrandCard.test.tsx` (+4) | the card agrees with the band |
+| `db/mappers.test.ts` (+5) | the mapper's re-check, including a row the SQL let through and the rule rejects |
+| `db/brand-tldr.live.test.ts` (7, live) | **the SQL, executed** |
+| `agent/…/system-prompt.test.ts` (+5) | §5 — the header defers, and does not repeat |
+
+The live file is not optional coverage. The aggregate is a raw string that no
+type checks, no lint reads and no unit test executes; a typo in it, a `->` where
+`->>` belonged, or a bracket expression Postgres rejects would leave the whole
+suite green and every workspace grid returning a 500.
+
+### 8. The gate
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1674 passed | 75 skipped (144 files)
+pnpm test  (DATABASE_URL set)     db project: 108 passed | 0 skipped
+pnpm -F @brandfactory/web build   clean
+```
+
+Teardown after the live pass: no `.env`, no `.data/`, no untracked file, no
+container and no volume left behind.
+
+### 9. Follow-ups, not done here
+
+- **Retire `description` from the brand rename dialog.** The case for it is that
+  an invisible editable field is a trap; the case against doing it now is that
+  it changes the update contract and strands existing rows.
+- **The `TL;DR` still has no standing-context wiring.** `brandTldrSection`'s own
+  comment says the seam exists and the role does not. This is the second real
+  caller of that seam, not the delivery of the role.
+- **Two links in the 1.23.x entries** still point at
+  `docs/executing/key-dates-on-the-social-calendar.md`, which moved to
+  `docs/archive/`. `docs/executing/key-dates-implementation-plan.md` stayed
+  behind while its proposal and six phase notes were archived.
+- **The `tldrSectionJson` doc comment** says the aggregate costs no extra scan,
+  which is true, without noting the §5 fan-out.
 
 ---
 
