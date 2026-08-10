@@ -51,9 +51,40 @@ function schemaFor<T>(schema: z.ZodType<T>) {
  * model asked to report its own outcome would be able to claim `ok` over an
  * empty list.
  */
+/** One pillar name, as the model may return it. */
+const PillarNameSchema = z.string().min(1).max(CONTENT_PILLAR_MAX_CHARS)
+
 const ThemesResponseSchema = z.object({
   ideas: z.array(PostIdeaSchema),
-  pillars: z.array(z.string().min(1).max(CONTENT_PILLAR_MAX_CHARS)).default([]),
+  pillars: z.array(PillarNameSchema).default([]),
+})
+
+/**
+ * What pass 1's answer is *read* with — deliberately not what it was asked for.
+ *
+ * `ThemesResponseSchema` above is the contract the model is given, and it stays
+ * strict: `maxLength` on every string is how the model learns that an `angle` is
+ * a sentence and not an essay.
+ *
+ * This is what the server accepts back, and it validates the **envelope only**.
+ * Each idea is then parsed alone, and a bad one is dropped rather than taken as
+ * proof that the whole answer is off-schema.
+ *
+ * **One malformed idea used to discard the batch.** `safeParse` over the whole
+ * response is all-or-nothing, and the caps it enforces are ones the prompt never
+ * states and tool-use decoding does not enforce — so an `angle` one character
+ * over 600 threw away every other idea in the same answer, after the user had
+ * waited out the entire call, and told them to change model. `applyBoundaries`
+ * already drops per idea for the rules it enforces, and `writePostCopy` already
+ * clamps rather than reject a paid batch. This is that same rule, applied one
+ * step earlier.
+ *
+ * `pillars` is tolerated the same way and for the same reason: an over-long
+ * pillar name is not a reason to lose eighteen good ideas.
+ */
+const ThemesEnvelopeSchema = z.object({
+  ideas: z.array(z.unknown()),
+  pillars: z.array(z.unknown()).default([]),
 })
 
 /** Pass 2's, for the same reason. */
@@ -244,6 +275,11 @@ export function applyBoundaries(
  * off-schema is `invalid-shape`, and a model that answers in-schema with
  * nothing is `no-ideas`; neither is an exception, because neither is a fault
  * the user can do anything about by retrying.
+ *
+ * **`invalid-shape` means every idea failed, not that one did.** A partly
+ * malformed answer is read for the ideas it does carry — see
+ * `ThemesEnvelopeSchema` for why an all-or-nothing parse was the wrong reading
+ * of a paid call.
  */
 export async function ideatePostThemes(input: IdeateThemesAgentInput): Promise<IdeateThemesResult> {
   const { object } = await generateObject({
@@ -256,10 +292,25 @@ export async function ideatePostThemes(input: IdeateThemesAgentInput): Promise<I
     abortSignal: input.signal,
   })
 
-  const parsed = ThemesResponseSchema.safeParse(object)
-  if (!parsed.success) return { ideas: [], pillars: [], outcome: 'invalid-shape' }
+  // The envelope is the one part that cannot be salvaged: no `ideas` array
+  // means there is nothing to read ideas out of.
+  const envelope = ThemesEnvelopeSchema.safeParse(object)
+  if (!envelope.success) return { ideas: [], pillars: [], outcome: 'invalid-shape' }
 
-  const ideas = applyBoundaries(parsed.data.ideas, input)
+  const usable = envelope.data.ideas.flatMap((candidate) => {
+    const parsed = PostIdeaSchema.safeParse(candidate)
+    return parsed.success ? [parsed.data] : []
+  })
+
+  // **An answer that carried ideas and lost every one of them is off-schema; an
+  // answer that carried none is the model saying it has nothing.** Those are
+  // different sentences to the user — one names the model, the other names the
+  // month — so the empty list must not collapse into the failure.
+  if (usable.length === 0 && envelope.data.ideas.length > 0) {
+    return { ideas: [], pillars: [], outcome: 'invalid-shape' }
+  }
+
+  const ideas = applyBoundaries(usable, input)
   if (ideas.length === 0) return { ideas: [], pillars: [], outcome: 'no-ideas' }
 
   // **The brand's own pillars are never marked proposed**, whatever the model
@@ -267,7 +318,12 @@ export async function ideatePostThemes(input: IdeateThemesAgentInput): Promise<I
   // answer is not the model's to make; when it has not, every pillar in the
   // answer is an invention and is labelled one. Reading `proposed` off the
   // model would let a run quietly present its own inventions as the brand's.
-  const pillars = (input.pillars.length > 0 ? input.pillars : parsed.data.pillars).map((name) => ({
+  const proposed = envelope.data.pillars.flatMap((candidate) => {
+    const parsed = PillarNameSchema.safeParse(candidate)
+    return parsed.success ? [parsed.data] : []
+  })
+
+  const pillars = (input.pillars.length > 0 ? input.pillars : proposed).map((name) => ({
     name,
     proposed: input.pillars.length === 0,
   }))

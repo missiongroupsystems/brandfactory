@@ -348,6 +348,59 @@ describe('ideatePostThemes', () => {
     expect(result).toEqual({ ideas: [], pillars: [], outcome: 'invalid-shape' })
   })
 
+  it('keeps the good ideas when one of them is malformed', async () => {
+    // The bound the batch used to die on: `angle` is capped at 600 characters,
+    // the prompt never says so, and tool-use decoding does not enforce it. One
+    // verbose card must not cost the user the other two and the whole call.
+    const result = await themes({
+      ideas: [
+        idea({ title: 'good' }),
+        idea({ title: 'verbose', date: '2026-08-13', angle: 'x'.repeat(601) }),
+        idea({ title: 'also good', date: '2026-08-14' }),
+      ],
+      pillars: [],
+    })
+    expect(result.outcome).toBe('ok')
+    expect(result.ideas.map((i) => i.title)).toEqual(['good', 'also good'])
+  })
+
+  it('drops an idea missing a nullable field, and keeps the rest', async () => {
+    // `pillar`, `date` and `keyDateName` are nullable but not optional, so an
+    // omitted one is off-schema for that idea alone.
+    const result = await themes({
+      ideas: [
+        { ...idea({ title: 'no pillar key' }), pillar: undefined },
+        idea({ title: 'good', date: '2026-08-14' }),
+      ],
+      pillars: [],
+    })
+    expect(result.ideas.map((i) => i.title)).toEqual(['good'])
+  })
+
+  it('reports `invalid-shape` only when every idea failed', async () => {
+    const result = await themes({
+      ideas: [idea({ angle: 'x'.repeat(601) }), idea({ title: 'y'.repeat(121) })],
+      pillars: [],
+    })
+    expect(result).toEqual({ ideas: [], pillars: [], outcome: 'invalid-shape' })
+  })
+
+  it('keeps `no-ideas` distinct from `invalid-shape` on an empty list', async () => {
+    // An empty array is the model answering that it has nothing, and that is a
+    // fact about the month. Losing every idea is a fact about the model. The
+    // panel has a different line for each, so they must not collapse.
+    expect((await themes({ ideas: [], pillars: [] })).outcome).toBe('no-ideas')
+  })
+
+  it('drops a malformed pillar rather than the ideas beside it', async () => {
+    const result = await themes(
+      { ideas: [idea()], pillars: ['Behind the pass', 'z'.repeat(200)] },
+      { ...BRIEF, pillars: [] },
+    )
+    expect(result.outcome).toBe('ok')
+    expect(result.pillars).toEqual([{ name: 'Behind the pass', proposed: true }])
+  })
+
   it('enforces the boundaries the prompt asks for', async () => {
     const result = await themes({
       ideas: [

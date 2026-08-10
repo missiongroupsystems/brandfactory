@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.26.1** — 2026-08-10 — A brainstorm stopped throwing away two good ideas because the third ran long: pass 1 parses per idea, the way it already filtered per idea. No migration. 1978 tests.
 - **1.26.0** — 2026-08-10 — The calendar learns to plan: a month becomes a brief, a brief becomes ideas, and ideas become drafts that say who wrote them. Three doors, two passes, one stateless route. Migration 0012. 1973 tests.
 - **1.25.0** — 2026-08-07 — The session gets a face and a door: an account tile at the foot of the rail, the only round thing in a column of squares, holding the identity the boot probe had been fetching and discarding. No migration. 1688 tests.
 - **1.24.0** — 2026-08-07 — A brand stops being asked to describe itself twice: the `TL;DR` becomes the description line on the hub, on the workspace cards and in the prompt. No migration. 1674 tests.
@@ -64,6 +65,49 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.26.1 — 2026-08-10
+
+**The first real model run of 1.26.0 failed, and the failure was ours.**
+
+1.26.0 shipped with §6 stating that no real model had run the feature. One did.
+A brainstorm in the `New post` dialog answered *"The model did not answer in the
+expected shape"*, with nothing in the browser console and nothing in Vercel.
+
+The Fly log had it, and it was a success:
+`POST /brands/…/ideate/themes  status 200  durationMs 23247`. The model
+answered. `ideatePostThemes` then read that answer with a single `safeParse`
+over the whole response, so **one malformed idea discarded every other idea in
+the same batch** — after a 23-second wait — and told the user to change model.
+
+The likely trigger is a string cap. `angle` is capped at 600 characters and
+`reason` at 400; the JSON Schema carries both to the model as an Anthropic tool
+parameter, but tool-use decoding constrains structure and not string length, and
+`buildThemesPrompt` never states the bounds in words.
+
+The same file already disagreed with itself. `writePostCopy` clamps an over-long
+caption rather than lose a paid batch, and `applyBoundaries` already drops per
+idea for the four rules it enforces. The parse was the one step that treated one
+bad card as proof the whole answer was worthless.
+
+Pass 1 now validates the envelope, then each idea alone, and drops what fails.
+`invalid-shape` means every idea failed; an empty list is still `no-ideas`,
+because one is a fact about the model and the other is a fact about the month.
+**The schema the model is given is unchanged** — the strict caps are how it
+learns an `angle` is a sentence, and the JSON Schema on the wire is identical.
+
+Still open: nothing on this path logs anything, so an `invalid-shape` remains
+undiagnosable from the outside; the prompt still does not state the caps; and
+the exact field that run overran was never confirmed, because the local
+OpenRouter key answered `401 User not found` and the call could not be
+reproduced against the real model.
+
+Full detail in
+[`docs/completions/ideate-partial-parse.md`](completions/ideate-partial-parse.md).
+
+**No migration.** 1978 passed | 78 skipped.
 
 ---
 
