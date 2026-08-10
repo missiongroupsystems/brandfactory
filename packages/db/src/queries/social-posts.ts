@@ -139,6 +139,11 @@ export async function createSocialPost(
         scheduledAt: input.scheduledAt ?? null,
         ...(input.body !== undefined ? { body: input.body } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),
+        // Unconditional, unlike its neighbours: the schema's `.default('user')`
+        // has already run by the time the input reaches here, so the key is
+        // always present and a spread guard would be dead code. The column's
+        // own default exists for the migration's sake, not for this path.
+        createdBy: input.createdBy,
       })
       .returning()
     if (!row) throw new Error('createSocialPost returned no row')

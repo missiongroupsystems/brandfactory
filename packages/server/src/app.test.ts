@@ -34,6 +34,32 @@ describe('the app’s router', () => {
     expect(app.router.name).toBe('SmartRouter + RegExpRouter')
   })
 
+  // Phase E adds `POST /brands/:id/ideate/themes` and `.../copy` — a literal
+  // at the position where `social-posts`, `assets`, `guidelines` and
+  // `research` already sit, which is the permitted shape. Asserted rather than
+  // assumed, because "permitted" is a claim about a router internal and this
+  // file is where that claim is checked.
+  it('matches the planner’s routes without downgrading', async () => {
+    const { app } = createTestApp({ users: [{ id: 'u-1', token: 't-1' }] })
+
+    const res = await app.request('/brands/00000000-0000-4000-8000-000000000000/ideate/themes', {
+      method: 'POST',
+      headers: { authorization: 'Bearer t-1', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        window: { start: '2026-08-01', end: '2026-08-31' },
+        platforms: ['instagram'],
+        cadencePerWeek: 3,
+        count: 6,
+      }),
+    })
+
+    // 404 on the *brand*, not on the route: the handler ran and
+    // `requireBrandAccess` refused. A router downgrade shows up as the app
+    // still reporting `RegExpRouter` above and the blob key below failing.
+    expect(res.status).toBe(404)
+    expect(app.router.name).toBe('SmartRouter + RegExpRouter')
+  })
+
   // The canary from 1.11.1, kept as a behavioural statement rather than a
   // side effect of the blob suite: this is the route the downgrade breaks.
   it('still matches a multi-segment blob key', async () => {

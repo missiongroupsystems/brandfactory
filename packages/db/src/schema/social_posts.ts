@@ -27,6 +27,12 @@ export const socialPlatform = pgEnum('social_platform', [
 ])
 export const socialPostStatus = pgEnum('social_post_status', ['draft', 'ready', 'posted'])
 
+// Who wrote the row. **The word is `agent`, not `planner`** — the same two
+// members `guideline_section_created_by` and `canvas_block_created_by` already
+// carry, and CLAUDE.md's one-word-one-meaning rule outranks the fact that this
+// particular writer is called the Post Planner.
+export const socialPostCreatedBy = pgEnum('social_post_created_by', ['user', 'agent'])
+
 // A planned post, not a published one — the social calendar is a conceptual
 // scheduling tool (`docs/executing/social-calendar.md`), so the row is
 // deliberately small: destination, slot, copy, status. Nothing publishes and
@@ -49,6 +55,19 @@ export const socialPosts = pgTable(
     // `''` = slot claimed, copy pending.
     body: text('body').notNull().default(''),
     status: socialPostStatus('status').notNull().default('draft'),
+    // Provenance, and it cannot be backfilled — a column added after the
+    // planner ships starts empty for every row the planner already wrote.
+    //
+    // The default is what makes the migration honest rather than merely
+    // convenient: every row in this table today was typed by a person, so
+    // `'user'` is the true value for all of them.
+    //
+    // Paired with `status`, this is the question a marketer actually asks:
+    // `created_by = 'agent' AND status = 'draft'` is the unreviewed pile, and
+    // it is the only pile that matters before something goes out under the
+    // brand's name. That composition is why the column exists — see
+    // `SocialPostCreatedBySchema`.
+    createdBy: socialPostCreatedBy('created_by').notNull().default('user'),
     // Soft-delete — a discarded post hides, it does not vanish
     // (`docs/vision.md:51`); its join rows stay put so restore brings the
     // attachments back intact.

@@ -24,6 +24,7 @@ function post(id: string, local: Date | null, overrides: Partial<SocialPost> = {
     scheduledAt: local === null ? null : local.toISOString(),
     body: `Copy for ${id}`,
     status: 'draft',
+    createdBy: 'user',
     assetIds: [],
     deletedAt: null,
     ...STAMPS,
@@ -342,5 +343,45 @@ describe('CalendarMonthGrid — key dates', () => {
     })
     expect(screen.getByText('Deepavali').className).toContain('keydate-sg-holidays')
     expect(screen.getByText('Halloween').className).toContain('keydate-global')
+  })
+})
+
+describe('CalendarMonthGrid — Brainstorm this day', () => {
+  it('renders no button without the callback', () => {
+    renderGrid({ onNewPost: vi.fn() })
+    expect(screen.queryByLabelText(/^Brainstorm this day/)).toBeNull()
+  })
+
+  it('opens the day it sits in', async () => {
+    const user = userEvent.setup()
+    const onBrainstormDay = vi.fn()
+    renderGrid({ onNewPost: vi.fn(), onBrainstormDay })
+
+    await user.click(screen.getByLabelText('Brainstorm this day — Thu 20 Aug'))
+    expect(onBrainstormDay).toHaveBeenCalledWith('2026-08-20')
+  })
+
+  it('keeps its own click rather than falling through to the cell', async () => {
+    const user = userEvent.setup()
+    const onNewPost = vi.fn()
+    const onBrainstormDay = vi.fn()
+    renderGrid({ onNewPost, onBrainstormDay })
+
+    await user.click(screen.getByLabelText('Brainstorm this day — Thu 20 Aug'))
+    expect(onNewPost).not.toHaveBeenCalled()
+  })
+
+  it('stays out of the padding days', () => {
+    // A padding day belongs to a month this grid is not showing, `addable`'s
+    // reason verbatim: brainstorming there would seed a dialog for a day
+    // nobody is looking at.
+    renderGrid({ onNewPost: vi.fn(), onBrainstormDay: vi.fn() })
+    expect(screen.queryByLabelText('Brainstorm this day — Mon 27 Jul')).toBeNull()
+    expect(screen.getByLabelText('Brainstorm this day — Sat 1 Aug')).toBeTruthy()
+  })
+
+  it('appears on every day of the month, posts or none', () => {
+    renderGrid({ onBrainstormDay: vi.fn() })
+    expect(screen.getAllByLabelText(/^Brainstorm this day/)).toHaveLength(31)
   })
 })

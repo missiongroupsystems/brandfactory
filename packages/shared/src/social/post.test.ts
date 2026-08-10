@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   SocialPlatformSchema,
+  SocialPostCreatedBySchema,
   SocialPostSchema,
   SocialPostStatusSchema,
   bySchedule,
@@ -21,6 +22,7 @@ function post(id: string, over: Partial<SocialPost> = {}): SocialPost {
     scheduledAt: null,
     body: '',
     status: 'draft',
+    createdBy: 'user',
     assetIds: [],
     deletedAt: null,
     createdAt: T0,
@@ -47,6 +49,14 @@ describe('SocialPlatformSchema', () => {
 describe('SocialPostStatusSchema', () => {
   it('carries exactly the three manual states', () => {
     expect(SocialPostStatusSchema.options).toEqual(['draft', 'ready', 'posted'])
+  })
+})
+
+describe('SocialPostCreatedBySchema', () => {
+  it('spells the writer `agent`, matching the guideline and canvas enums', () => {
+    // One word for one meaning, across three tables. The product name for this
+    // particular writer is the Post Planner, and it does not appear here.
+    expect(SocialPostCreatedBySchema.options).toEqual(['user', 'agent'])
   })
 })
 

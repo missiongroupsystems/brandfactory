@@ -33,6 +33,7 @@ import { AssetNotInBrandError } from '@brandfactory/db'
 import type { ResearchJob, SectionAutofillEvent } from '@brandfactory/db'
 import type { Db } from './db'
 import type { ShapeResearchFn, ShapeSectionFn } from './research/shape'
+import type { IdeateCopyFn, IdeateThemesFn } from './social/ideate'
 import type { Env } from './env'
 import { createLogger, type Logger } from './logger'
 
@@ -508,6 +509,10 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         scheduledAt: input.scheduledAt ?? null,
         body: input.body ?? '',
         status: input.status ?? 'draft',
+        // No `??` here, unlike its neighbours: the schema's `.default('user')`
+        // has already run, so the fake and the real query agree that this key
+        // is always present by the time a create reaches the data layer.
+        createdBy: input.createdBy,
         assetIds: input.assetIds ?? [],
         deletedAt: null,
         createdAt: NOW,
@@ -1040,6 +1045,9 @@ export function createTestApp(
     shapeResearch?: ShapeResearchFn
     /** Path R's single-section shaper. Absent means the real one — needs a model. */
     shapeSection?: ShapeSectionFn
+    /** The planner's two passes. Absent means the real ones, which need a model. */
+    ideateThemes?: IdeateThemesFn
+    ideateCopy?: IdeateCopyFn
     agentGuard?: AgentConcurrencyGuard
   } = {},
 ): TestHarness {
@@ -1072,6 +1080,8 @@ export function createTestApp(
     log: silentLogger(),
     ...(opts.shapeResearch ? { shapeResearch: opts.shapeResearch } : {}),
     ...(opts.shapeSection ? { shapeSection: opts.shapeSection } : {}),
+    ...(opts.ideateThemes ? { ideateThemes: opts.ideateThemes } : {}),
+    ...(opts.ideateCopy ? { ideateCopy: opts.ideateCopy } : {}),
   })
   return { app, state, auth, tokens }
 }

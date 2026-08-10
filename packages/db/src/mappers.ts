@@ -212,6 +212,7 @@ export function rowToSocialPost(row: SocialPostRow, assetIds: BrandAssetId[]): S
     scheduledAt: toIsoTimestampOrNull(row.scheduledAt),
     body: row.body,
     status: row.status,
+    createdBy: row.createdBy,
     assetIds,
     deletedAt: toIsoTimestampOrNull(row.deletedAt),
     createdAt: toIsoTimestamp(row.createdAt),

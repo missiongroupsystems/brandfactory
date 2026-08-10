@@ -90,6 +90,42 @@ describe('buildSystemPrompt', () => {
     `)
     expect(buildSystemPrompt(brand, {})).toBe(buildSystemPrompt(brand))
     expect(buildSystemPrompt(brand, { templateId: 'copywriting' })).toBe(buildSystemPrompt(brand))
+    // `surfaceContract: true` is the default stated out loud, not a fourth
+    // behaviour.
+    expect(buildSystemPrompt(brand, { surfaceContract: true })).toBe(buildSystemPrompt(brand))
+  })
+
+  // The Post Planner sits in front of neither a canvas nor an interview: it is
+  // a stateless `generateObject` call with no tools. Told a `CANVAS STATE`
+  // block follows (none does) and to call `add_canvas_block` rather than put
+  // content in its reply, it would be instructed to do the exact opposite of
+  // what a structured-output call must do.
+  it('withholds the surface contract, keeping the brand and nothing else', () => {
+    const brand = makeBrand([])
+    const prompt = buildSystemPrompt(brand, { surfaceContract: false })
+
+    expect(prompt).toContain('Northstar Coffee')
+    expect(prompt).toContain('# Brand: Northstar Coffee')
+    expect(prompt).not.toContain('## Canvas awareness')
+    expect(prompt).not.toContain('CANVAS STATE')
+    expect(prompt).not.toContain('add_canvas_block')
+    // It is a prefix of the default, which is what "parts 1–3, verbatim"
+    // means: the planner's brand header cannot drift from every other
+    // surface's.
+    expect(buildSystemPrompt(brand).startsWith(prompt)).toBe(true)
+  })
+
+  it('keeps the guideline sections when the contract is withheld', () => {
+    const brand = makeBrand([
+      makeSection({
+        label: 'Voice & tone',
+        priority: 10,
+        body: pmParagraph('Warm, direct, a little wry.'),
+      }),
+    ])
+    const prompt = buildSystemPrompt(brand, { surfaceContract: false })
+    expect(prompt).toContain('### Voice & tone')
+    expect(prompt).toContain('Warm, direct, a little wry.')
   })
 
   it('still renders the canvas-awareness contract when the brand has zero sections', () => {

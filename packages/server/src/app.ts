@@ -18,6 +18,13 @@ import type { AgentConcurrencyGuard } from './agent/concurrency'
 import { createAgentRouter } from './routes/agent'
 import { createBrandAssetsRouter } from './routes/assets'
 import { createSocialPostsRouter } from './routes/social-posts'
+import { createSocialIdeateRouter } from './routes/social-ideate'
+import {
+  createCopyWriter,
+  createThemeIdeator,
+  type IdeateCopyFn,
+  type IdeateThemesFn,
+} from './social/ideate'
 import { createResearchConfigRouter } from './routes/research-config'
 import { createResearchRouter } from './routes/research'
 import {
@@ -60,6 +67,13 @@ export interface AppDeps {
    * reason, same default composition as `shapeResearch`.
    */
   shapeSection?: ShapeSectionFn
+  /**
+   * The Post Planner's two passes. Same seam and same reason as the two above:
+   * a route test drives the whole handler chain without a model, and the
+   * default composes the real thing from `db` + `llm` + `env`.
+   */
+  ideateThemes?: IdeateThemesFn
+  ideateCopy?: IdeateCopyFn
   agentGuard: AgentConcurrencyGuard
 }
 
@@ -133,6 +147,18 @@ export function createApp(deps: AppDeps) {
     .route('/brands', createBrandAssetsRouter({ db: deps.db }))
     // Same shape and same scoping; posts never see a platform API or a file.
     .route('/brands', createSocialPostsRouter({ db: deps.db }))
+    // The planner that fills that calendar. Stateless — it writes no row, so
+    // it sits beside the posts router rather than owning any part of it.
+    .route(
+      '/brands',
+      createSocialIdeateRouter({
+        db: deps.db,
+        ideateThemes:
+          deps.ideateThemes ?? createThemeIdeator({ db: deps.db, llm: deps.llm, env: deps.env }),
+        ideateCopy:
+          deps.ideateCopy ?? createCopyWriter({ db: deps.db, llm: deps.llm, env: deps.env }),
+      }),
+    )
     // The only router that can spend money. Its guards live in
     // `research/service.ts` rather than in the handler, because the ticker
     // needs the same lifecycle and a guard inside a handler is one the

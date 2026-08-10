@@ -54,6 +54,12 @@ export type SuggestedSection = {
 export const TLDR_SECTION_LABEL = 'TL;DR'
 export const OVERVIEW_SECTION_LABEL = 'Overview'
 export const VISUAL_GUIDELINES_SECTION_LABEL = 'Visual guidelines'
+/**
+ * The section the Post Planner reads before it proposes anything, and the one
+ * it offers to write when the brand has not. Named rather than indexed for the
+ * reason directly above.
+ */
+export const CONTENT_PILLARS_SECTION_LABEL = 'Content pillars'
 
 /**
  * `TL;DR`'s own length target, against `DRAFT_TARGET_MAX_CHARS`'s 1200.
@@ -112,6 +118,26 @@ export const SUGGESTED_SECTIONS: readonly SuggestedSection[] = [
     description: 'Who the brand is for — personas, contexts, what they care about.',
     exampleBody:
       'Primary: solo founders shipping their first product. Secondary: early-stage marketers at 2–10 person teams.',
+    kind: 'aspect',
+  },
+  {
+    // Directly after `Target audience`, because the two are read together: who
+    // the brand talks to, then what it recurrently talks to them *about*.
+    //
+    // **This entry is the whole storage cost of content pillars.** They are a
+    // brand fact, not a fact about one planner run — a model that invents three
+    // new pillars every Monday produces a month that is individually plausible
+    // and collectively incoherent, which is the exact failure this product
+    // exists to prevent, arriving through the product's own planner. One row in
+    // this array buys the rail's suggestion chip, the editor's quick-add and
+    // guideline auto-fill's ability to write it from a report the brand has
+    // already paid for. A field that lived inside the planner would buy none of
+    // them.
+    label: CONTENT_PILLARS_SECTION_LABEL,
+    description:
+      'The three to five themes the brand posts about again and again — the recurring subjects, not one campaign.',
+    exampleBody:
+      'Behind the pass: how a dish is built. The room: regulars, staff, the tiled floor at 6pm. Sourcing: who grew it, who caught it. Occasions: what to book us for.',
     kind: 'aspect',
   },
   {

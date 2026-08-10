@@ -43,6 +43,7 @@ function post(id: string, local: Date | null, overrides: Partial<SocialPost> = {
     scheduledAt: local === null ? null : local.toISOString(),
     body: `Copy for ${id}`,
     status: 'draft',
+    createdBy: 'user',
     assetIds: [],
     deletedAt: null,
     ...STAMPS,
@@ -71,12 +72,21 @@ describe('SocialPostList', () => {
     expect(screen.getByText(/Nothing planned yet/)).toBeTruthy()
   })
 
-  it('leads with the unscheduled tray — the grid cannot show those at all', () => {
+  it('leads with today, then the tray the grid cannot show at all', () => {
     renderList()
     const regions = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
-    expect(regions).toEqual(['Unscheduled', 'Upcoming', 'Past'])
-    expect(screen.getByText('1 post')).toBeTruthy()
+    // On the daily clock the first question is what goes out today; the tray
+    // comes next because those posts are invisible everywhere else.
+    expect(regions).toEqual(['Today', 'Unscheduled', 'Upcoming', 'Past'])
+    // One in each of the first two regions.
+    expect(screen.getAllByText('1 post')).toHaveLength(2)
     expect(screen.getByText('An idea with no date')).toBeTruthy()
+  })
+
+  it('omits the Today region entirely when nothing is scheduled today', () => {
+    // A quiet day reads exactly as this list read before the region existed.
+    renderList({ posts: [tray, soon, gone] })
+    expect(screen.queryByRole('heading', { name: 'Today' })).toBeNull()
   })
 
   it('omits the tray region entirely when every post has a slot', () => {
@@ -87,17 +97,19 @@ describe('SocialPostList', () => {
   it('splits on today and runs both halves away from now', () => {
     renderList()
     const headings = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
-    // Today first and forward; then yesterday-ward, most recent first — the
-    // rows nearest the present sit nearest the middle.
-    expect(headings).toEqual(['Today', 'Mon 10 Aug', 'Tue 28 Jul', 'Mon 20 Jul'])
+    // Today has its own region and no day group — the heading would say Today
+    // twice. What is left runs forward, then yesterday-ward most recent first,
+    // so the rows nearest the present sit nearest the middle.
+    expect(headings).toEqual(['Mon 10 Aug', 'Tue 28 Jul', 'Mon 20 Jul'])
   })
 
-  it('counts a post later today as upcoming, not as past', () => {
+  it('counts a post later today as today, not as past', () => {
     // 18:30 today is still ahead of 12:00 today, and grouping by day is what
     // keeps a morning post from falling out of Today the moment noon passes.
     renderList({ posts: [today] })
     expect(screen.getByRole('heading', { name: 'Today' })).toBeTruthy()
     expect(screen.queryByRole('heading', { name: 'Past' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Upcoming' })).toBeNull()
   })
 
   it('shows a scheduled post’s local time, and none in the tray', () => {
@@ -195,6 +207,94 @@ describe('SocialPostList — the row menu', () => {
   })
 })
 
+describe('SocialPostList — dispatch', () => {
+  // `today` and `soon` with a real attachment, so `Download` has something
+  // behind it. Everything above this line runs with both callbacks omitted and
+  // is the proof that the default renders what the list rendered before.
+  const withImage = { assetIds: [assets[0]!.id] }
+  const todayWithImage = post('p-today', new Date(2026, 7, 3, 18, 30), {
+    body: 'Tonight’s service',
+    ...withImage,
+  })
+  const soonWithImage = post('p-soon', new Date(2026, 7, 10, 9, 0), {
+    body: 'Next Monday',
+    ...withImage,
+  })
+
+  const dispatch = { onCopyBody: vi.fn(), onDownloadAssets: vi.fn() }
+
+  it('shows the two actions as buttons inside Today', () => {
+    // Dispatch fails by being hard to *find* at 8am, not by being hard to use
+    // once found.
+    renderList({ posts: [todayWithImage], ...dispatch })
+    expect(screen.getByRole('button', { name: 'Copy Tonight’s service' })).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Download attachments for Tonight’s service' }),
+    ).toBeTruthy()
+  })
+
+  it('keeps them in the row menu everywhere else', async () => {
+    const user = userEvent.setup()
+    renderList({ posts: [soonWithImage], ...dispatch })
+
+    // Not buttons out here — the row is a week away.
+    expect(screen.queryByRole('button', { name: /^Copy / })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Actions for Next Monday' }))
+    expect(screen.getByRole('menuitem', { name: 'Copy' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Download' })).toBeTruthy()
+  })
+
+  it('never offers the same action twice on one row', async () => {
+    const user = userEvent.setup()
+    renderList({ posts: [todayWithImage], ...dispatch, onEditPost: vi.fn() })
+
+    await user.click(screen.getByRole('button', { name: 'Actions for Tonight’s service' }))
+    expect(screen.queryByRole('menuitem', { name: 'Copy' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Download' })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeTruthy()
+  })
+
+  it('reports the post the buttons belong to', async () => {
+    const user = userEvent.setup()
+    const onCopyBody = vi.fn().mockResolvedValue(undefined)
+    const onDownloadAssets = vi.fn()
+    renderList({ posts: [todayWithImage], onCopyBody, onDownloadAssets })
+
+    await user.click(screen.getByRole('button', { name: 'Copy Tonight’s service' }))
+    await waitFor(() => expect(onCopyBody).toHaveBeenCalledWith(todayWithImage))
+
+    await user.click(
+      screen.getByRole('button', { name: 'Download attachments for Tonight’s service' }),
+    )
+    expect(onDownloadAssets).toHaveBeenCalledWith(todayWithImage)
+  })
+
+  it('offers no Download on a post whose attachment cannot be resolved', () => {
+    // Same rule the thumbnails follow: a soft-deleted asset resolves to
+    // nothing, and a control with nothing behind it is not drawn.
+    const orphan = post('p-today', new Date(2026, 7, 3, 18, 30), {
+      body: 'Tonight’s service',
+      assetIds: ['a-vanished' as BrandAsset['id']],
+    })
+    renderList({ posts: [orphan], ...dispatch })
+    expect(screen.queryByRole('button', { name: /^Download/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Copy Tonight’s service' })).toBeTruthy()
+  })
+
+  it('draws no menu for a row whose only offer is a Copy it cannot make', async () => {
+    // No copy written, no resolvable file, no other callback — a ⋯ trigger over
+    // an empty menu is the dead affordance this list keeps refusing to draw.
+    renderList({ posts: [post('p-soon', new Date(2026, 7, 10, 9, 0), { body: '' })], ...dispatch })
+    expect(screen.queryByRole('button', { name: /^Actions for/ })).toBeNull()
+  })
+
+  it('renders no dispatch controls when the caller passes neither callback', () => {
+    renderList({ posts: [todayWithImage] })
+    expect(screen.queryByRole('button', { name: /^Copy / })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Download/ })).toBeNull()
+  })
+})
+
 // ---------------------------------------------------------------------------
 // Key dates — the same list, with the borrowed dates switched on
 // ---------------------------------------------------------------------------
@@ -218,9 +318,12 @@ describe('SocialPostList — key dates', () => {
   it('suffixes a day heading that already has a post', () => {
     // 3 August is `today`'s day, and it has a post, so the heading exists to
     // be annotated.
+    // Today's rows moved into a region of their own, so the annotation moved
+    // with them — onto the region heading, which is the one day heading left
+    // that names 3 August.
     renderList({ keyDates: [keyDay('National Day', '2026-08-03')] })
     const heading = screen
-      .getAllByRole('heading', { level: 3 })
+      .getAllByRole('heading', { level: 2 })
       .find((h) => h.textContent?.includes('Today'))
     expect(heading?.textContent).toBe('Today · National Day')
   })
@@ -234,7 +337,7 @@ describe('SocialPostList — key dates', () => {
     // two, so that is what this asserts.
     renderList({ keyDates: [keyDay('National Day', '2026-08-03')] })
     const heading = screen
-      .getAllByRole('heading', { level: 3 })
+      .getAllByRole('heading', { level: 2 })
       .find((h) => h.textContent?.includes('Today'))!
     const ownText = Array.from(heading.childNodes)
       .filter((n) => n.nodeType === Node.TEXT_NODE)
@@ -316,5 +419,39 @@ describe('SocialPostList — key dates', () => {
       .getAllByRole('heading', { level: 3 })
       .find((h) => h.textContent?.includes('28 Jul'))
     expect(heading?.textContent).toContain('National Day')
+  })
+})
+
+describe('SocialPostList — provenance', () => {
+  const written = post('p-agent', new Date(2026, 7, 10, 9, 0), {
+    body: 'The planner wrote this',
+    createdBy: 'agent',
+  })
+
+  it('marks a row the agent wrote, and names the marker', () => {
+    renderList({ posts: [written] })
+    // The name, not the glyph: a shape is the fast path and never the only one.
+    expect(screen.getByRole('img', { name: 'Written by the agent' })).toBeTruthy()
+  })
+
+  it('leaves a person’s rows unmarked', () => {
+    // The default is that a person wrote it. A marker on every row would say
+    // nothing on any of them.
+    renderList({ posts: [soon] })
+    expect(screen.queryByRole('img', { name: 'Written by the agent' })).toBeNull()
+  })
+
+  it('does not replace the status — the two together are the review question', () => {
+    // `createdBy === 'agent' && status === 'draft'` is the unreviewed pile, so
+    // an agent row still has to say which of the three states it is in.
+    renderList({ posts: [written] })
+    expect(screen.getByText('Draft')).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'Written by the agent' })).toBeTruthy()
+  })
+
+  it('keeps the marker on a row the agent wrote and a person approved', () => {
+    renderList({ posts: [{ ...written, status: 'ready' as const }] })
+    expect(screen.getByText('Ready')).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'Written by the agent' })).toBeTruthy()
   })
 })

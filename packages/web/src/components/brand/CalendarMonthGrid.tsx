@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Sparkles } from 'lucide-react'
 import type { SocialPost } from '@brandfactory/shared'
 import { KeyDateStrip } from '@/components/brand/KeyDateStrip'
 import { Button } from '@/components/ui/button'
@@ -66,6 +66,16 @@ export interface CalendarMonthGridProps {
   onEditPost?: (post: SocialPost) => void
   /** The day whose empty space was clicked, as a `localDayKey`. */
   onNewPost?: (dayKey: string) => void
+  /**
+   * Open the editor on this day with the brainstorm column already showing.
+   *
+   * **A separate control rather than a second meaning for the cell**, because
+   * the cell already means one thing and it is the common one: most days a
+   * marketer clicks a square to type a post. This is the door to Door 3, and
+   * without it nobody would find the toggle inside a dialog they had to open
+   * first. Absent = no button, the house rule for every prop here.
+   */
+  onBrainstormDay?: (dayKey: string) => void
   /** Where "N unscheduled" goes — the list view, which is the only surface
    * that can show them. Absent = the count is stated but not a link. */
   onShowUnscheduled?: () => void
@@ -77,6 +87,23 @@ export interface CalendarMonthGridProps {
   keyDates?: KeyDate[]
   /** Enabled sets whose data stops before the visible month — see `staleSets`. */
   staleSets?: KeyDateSet[]
+  /**
+   * One line about the visible month, drawn between the month's name and the
+   * grid — `MonthPlanSummary` today.
+   *
+   * **A slot rather than the sentence itself**, so this file keeps knowing only
+   * about layout and callbacks: the arithmetic behind the line is the view's,
+   * and the grid cannot be made to state a fact about a month it is not
+   * showing. Absent renders exactly what this grid rendered before, the house
+   * rule for every prop here.
+   *
+   * It sits *under* the `‹ August 2026 ›` row and not above the grid's
+   * container, because a sentence reading "31 days · 4 posts planned" placed
+   * before the month is named is a sentence about no particular month. The two
+   * lines already here — the season strip and the beyond-horizon note — are
+   * month-scoped for the same reason and sit in the same place.
+   */
+  summary?: React.ReactNode
 }
 
 export function CalendarMonthGrid({
@@ -89,9 +116,11 @@ export function CalendarMonthGrid({
   onToday,
   onEditPost,
   onNewPost,
+  onBrainstormDay,
   onShowUnscheduled,
   keyDates = [],
   staleSets = [],
+  summary,
 }: CalendarMonthGridProps) {
   const days = monthGridDays(year, month)
   const byDay = groupByDay(posts)
@@ -146,6 +175,8 @@ export function CalendarMonthGrid({
           ))}
       </div>
 
+      {summary}
+
       <KeyDateStrip seasons={visibleSeasons} />
 
       {/* The data running out is a fact, not a fault, so this is muted rather
@@ -199,6 +230,7 @@ export function CalendarMonthGrid({
               now={now}
               onEditPost={onEditPost}
               onNewPost={onNewPost}
+              onBrainstormDay={onBrainstormDay}
             />
           )
         })}
@@ -221,6 +253,7 @@ function DayCell({
   now,
   onEditPost,
   onNewPost,
+  onBrainstormDay,
 }: {
   day: Date
   dayKey: string
@@ -231,8 +264,13 @@ function DayCell({
   now: Date
   onEditPost?: (post: SocialPost) => void
   onNewPost?: (dayKey: string) => void
+  onBrainstormDay?: (dayKey: string) => void
 }) {
   const addable = inMonth && Boolean(onNewPost)
+  // Only inside the month, `addable`'s reason verbatim: a padding day belongs
+  // to a month this grid is not showing, and brainstorming into it would seed a
+  // dialog for a day nobody is looking at.
+  const brainstormable = inMonth && Boolean(onBrainstormDay)
   // Every key date on this day, however many are drawn: the label is what
   // carries the full name a truncated marker loses, and the third one the cell
   // does not draw at all.
@@ -318,10 +356,27 @@ function DayCell({
           what the hover means without covering anything. Invisible until the
           cell is hovered or something inside it is focused: 31 permanent `+`
           glyphs is clutter, but a keyboard user has to be told the cell is
-          live once they arrive on it. */}
-      {addable && (
-        <span className="pointer-events-none relative flex min-h-6 flex-1 items-center justify-center text-muted-foreground opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
-          <Plus className="size-3.5" aria-hidden="true" />
+          live once they arrive on it.
+
+          The brainstorm button rides in the same row and appears under the same
+          condition. It is a **real** button and `relative`, like the chips, so
+          it paints above the cell's full-bleed add button and keeps its own
+          click — an absolutely positioned sibling otherwise wins whatever the
+          source order. Focusing it reveals the row, because the reveal is
+          `group-focus-within` and the button is inside the group. */}
+      {(addable || brainstormable) && (
+        <span className="pointer-events-none relative flex min-h-6 flex-1 items-center justify-center gap-1 text-muted-foreground opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
+          {addable && <Plus className="size-3.5" aria-hidden="true" />}
+          {brainstormable && onBrainstormDay && (
+            <button
+              type="button"
+              onClick={() => onBrainstormDay(dayKey)}
+              aria-label={`Brainstorm this day — ${heading}`}
+              className="pointer-events-auto rounded-md p-0.5 transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-[var(--border-focus)]"
+            >
+              <Sparkles className="size-3.5" aria-hidden="true" />
+            </button>
+          )}
         </span>
       )}
     </div>

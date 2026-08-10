@@ -35,8 +35,44 @@ export type SocialPlatform = z.infer<typeof SocialPlatformSchema>
 export const SocialPostStatusSchema = z.enum(['draft', 'ready', 'posted'])
 export type SocialPostStatus = z.infer<typeof SocialPostStatusSchema>
 
+/**
+ * Who wrote the post — a person, or the planner.
+ *
+ * **The word is `agent`, not `planner`.** `GuidelineSectionCreatedBySchema` and
+ * the canvas block enum both spell it that way, and one word for one meaning
+ * outranks the fact that this particular writer has a product name.
+ *
+ * **This is a provenance label, not a security boundary.** The client sets it,
+ * and nothing on the server checks that a row claiming `'agent'` came from one.
+ * The product is single-owner: a user who forges the field is lying only to
+ * themselves, and the alternative — deriving it from the route that wrote the
+ * row — would put the planner's identity into every create path that is not the
+ * planner.
+ *
+ * **The reason the field exists is a composition, not the field alone.** The
+ * marketer's question is not *which of these did I write?* It is *which of next
+ * week's posts has a human actually read?*, and that is
+ * `createdBy === 'agent' && status === 'draft'` — the unreviewed pile, the only
+ * pile that matters before something goes out under the brand's name. Marking a
+ * post `ready` then becomes a real act of approval rather than a status that was
+ * always there. Neither field answers it alone, which is why there is no fourth
+ * status.
+ */
+export const SocialPostCreatedBySchema = z.enum(['user', 'agent'])
+export type SocialPostCreatedBy = z.infer<typeof SocialPostCreatedBySchema>
+
+/**
+ * The longest caption the column will hold.
+ *
+ * **Named rather than inline, because a second reader clamps to it.** The copy
+ * pass trims what the model returns instead of rejecting a whole paid batch over
+ * twenty characters, and a `slice(0, 5000)` written out there would be a second
+ * copy of this number free to drift from the schema that enforces it.
+ */
+export const SOCIAL_POST_BODY_MAX_CHARS = 5000
+
 /** Shared by the row and both input schemas so the max cannot drift. */
-export const SocialPostBodySchema = z.string().max(5000)
+export const SocialPostBodySchema = z.string().max(SOCIAL_POST_BODY_MAX_CHARS)
 
 /**
  * Attachments ride the wire as **ids, not rows**, in display order. The
@@ -66,6 +102,7 @@ export const SocialPostSchema = z.object({
   /** `''` = slot claimed, copy pending. */
   body: SocialPostBodySchema,
   status: SocialPostStatusSchema,
+  createdBy: SocialPostCreatedBySchema,
   /** Ordered; order is the array order. */
   assetIds: SocialPostAssetIdsSchema,
   deletedAt: z.iso.datetime().nullable(),

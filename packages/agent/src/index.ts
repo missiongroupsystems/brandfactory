@@ -42,3 +42,16 @@ export {
   type ShapeSectionResult,
   type SectionShapeOutcome,
 } from './research/shapeSection'
+
+// The Post Planner's engine (Phase E). Two stateless passes over a brand and a
+// window: ideas, then copy. No DB, no project, no canvas — the caller hands in
+// `BrandWithSections` and gets structured objects back.
+export {
+  ideatePostThemes,
+  writePostCopy,
+  buildThemesPrompt,
+  buildCopyPrompt,
+  applyBoundaries,
+  type IdeateThemesAgentInput,
+  type IdeateCopyAgentInput,
+} from './social/ideate'

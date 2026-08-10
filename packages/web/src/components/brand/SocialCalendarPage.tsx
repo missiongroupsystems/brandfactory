@@ -19,11 +19,15 @@ import {
 } from '@/api/queries/social-posts'
 import { useBrand } from '@/api/queries/brands'
 import type { MiniApp } from '@/components/brand/miniApps'
+import { PostPlannerPanel } from '@/components/brand/PostPlannerPanel'
 import {
   SocialCalendarView,
   type SocialCalendarViewMode,
 } from '@/components/brand/SocialCalendarView'
+import { usePostBrainstorm } from '@/components/brand/usePostBrainstorm'
+import { usePostPlanner } from '@/components/brand/usePostPlanner'
 import { localDayKey, shiftMonth } from '@/lib/calendar'
+import { downloadUrl, postDownloads } from '@/lib/download'
 import { keyDatesForSets, staleSets, type KeyDateSet } from '@/lib/key-dates'
 import { getEnabledSets, setEnabledSets } from '@/lib/key-dates-prefs'
 import { postExcerpt } from '@/lib/social-copy'
@@ -76,6 +80,7 @@ export function SocialCalendarPage({ brandId, app }: { brandId: string; app: Min
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingPost, setEditingPost] = useState<SocialPost | null>(null)
   const [seedDayKey, setSeedDayKey] = useState<string | null>(null)
+  const [brainstormOpen, setBrainstormOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
 
   // Every blob key on the page in one `useQueries`, each with its own
@@ -85,9 +90,27 @@ export function SocialCalendarPage({ brandId, app }: { brandId: string; app: Min
     .filter((k): k is string => k !== null)
   const urls = useSignedReadUrls(blobKeys)
 
+  // No `useMemo`: ~90 entries filtered once per render is the budget
+  // `groupByDay` already spends on every post on the page. Hoisted out of the
+  // JSX because the planner reads the same array — one filter, two readers, and
+  // the panel's chips cannot disagree with the grid's markers.
+  const keyDates = keyDatesForSets(enabledSets)
+
   function fail(err: unknown, fallback: string) {
     toast.error(err instanceof AppError ? err.message : fallback)
   }
+
+  const planner = usePostPlanner({
+    brandId,
+    brand,
+    posts: posts ?? [],
+    keyDates,
+    cursor,
+    createPost: create.mutateAsync,
+    onError: fail,
+  })
+
+  const brainstorm = usePostBrainstorm({ brandId, brand, keyDates, onError: fail })
 
   /** Open the editor on nothing, seeded with a day (or the tray). */
   function handleNewPost(dayKey: string | null) {
@@ -96,6 +119,18 @@ export function SocialCalendarPage({ brandId, app }: { brandId: string; app: Min
     // started from the header is far more often meant for today than for
     // nowhere, and the date is one click away from being cleared again.
     setSeedDayKey(dayKey ?? localDayKey(new Date()))
+    // Every other way into the dialog opens it with the column off: the toggle
+    // is a decision about *this* dialog, not a preference that follows the
+    // user around. Only `Brainstorm this day` turns it on.
+    setBrainstormOpen(false)
+    setDialogOpen(true)
+  }
+
+  /** The calendar cell's sparkles: the same dialog, with the column already on. */
+  function handleBrainstormDay(dayKey: string) {
+    setEditingPost(null)
+    setSeedDayKey(dayKey)
+    setBrainstormOpen(true)
     setDialogOpen(true)
   }
 
@@ -108,6 +143,7 @@ export function SocialCalendarPage({ brandId, app }: { brandId: string; app: Min
   function handleEditPost(post: SocialPost) {
     setEditingPost(post)
     setSeedDayKey(null)
+    setBrainstormOpen(false)
     setDialogOpen(true)
   }
 
@@ -136,6 +172,43 @@ export function SocialCalendarPage({ brandId, app }: { brandId: string; app: Min
       { id: post.id, patch: { status: 'posted' } },
       { onError: (err) => fail(err, 'Could not mark that post') },
     )
+  }
+
+  /**
+   * The post's copy onto the clipboard.
+   *
+   * **Rejects rather than swallowing a refusal.** The clipboard is
+   * permission-gated and can simply say no; `PostDispatchActions` is where that
+   * is judged a non-event, and if this caught the rejection here every refusal
+   * would come back up as a `Copied` that never happened.
+   */
+  async function handleCopyBody(post: SocialPost) {
+    await navigator.clipboard.writeText(post.body)
+  }
+
+  /**
+   * The post's attachments onto the user's disk.
+   *
+   * **Sequentially, not `Promise.all`.** Two reasons, and the second is the one
+   * that matters: a browser silently drops a burst of parallel programmatic
+   * downloads — it treats the second and third clicks as an unrequested
+   * multi-download — and a partial failure has to be able to name the file that
+   * did not arrive. A loop is what makes both true.
+   *
+   * A failed file is toasted and the loop continues, `handleUploadFiles`'
+   * judgment verbatim: the ones that landed are real files on the user's disk
+   * and are worth keeping.
+   */
+  async function handleDownloadAssets(post: SocialPost) {
+    const files = postDownloads(post, assets ?? [], (key) => urls[key] ?? '')
+    if (files.length === 0) return
+    for (const file of files) {
+      try {
+        await downloadUrl(file.url, file.filename)
+      } catch (err) {
+        fail(err, `Could not download ${file.filename}`)
+      }
+    }
   }
 
   /**
@@ -218,6 +291,10 @@ export function SocialCalendarPage({ brandId, app }: { brandId: string; app: Min
       posts={posts ?? []}
       assets={assets ?? []}
       resolveBlob={(key) => urls[key] ?? ''}
+      // The brand was loaded to gate this page and then used for nothing else.
+      // It carries every guideline section, which is exactly what the dialog
+      // needs to state how much context a post is being written with.
+      brand={brand}
       view={view}
       onViewChange={setView}
       year={cursor.year}
@@ -228,16 +305,21 @@ export function SocialCalendarPage({ brandId, app }: { brandId: string; app: Min
         const now = new Date()
         setCursor({ year: now.getFullYear(), month: now.getMonth() })
       }}
-      // No `useMemo`: ~90 entries filtered once per render is the budget
-      // `groupByDay` already spends on every post on the page.
-      keyDates={keyDatesForSets(enabledSets)}
+      keyDates={keyDates}
       staleSets={staleSets(enabledSets, cursor.year, cursor.month)}
       enabledSets={enabledSets}
       onEnabledSetsChange={handleEnabledSetsChange}
+      // Mounted only while it is open: a run's state lives in the hook above,
+      // so there is nothing for a hidden panel to remember.
+      planner={planner.open ? <PostPlannerPanel brand={brand} {...planner.panel} /> : undefined}
+      onOpenPlanner={planner.onOpen}
       onNewPost={handleNewPost}
+      onBrainstormDay={handleBrainstormDay}
       onEditPost={handleEditPost}
       onMarkPosted={handleMarkPosted}
       onDeletePost={handleDelete}
+      onCopyBody={handleCopyBody}
+      onDownloadAssets={(post) => void handleDownloadAssets(post)}
       dialogOpen={dialogOpen}
       onDialogOpenChange={setDialogOpen}
       editingPost={editingPost}
@@ -247,6 +329,10 @@ export function SocialCalendarPage({ brandId, app }: { brandId: string; app: Min
       onCreate={handleCreate}
       onUpdate={handleUpdate}
       onUploadFiles={handleUploadFiles}
+      brainstormOpen={brainstormOpen}
+      onBrainstormOpenChange={setBrainstormOpen}
+      onBrainstorm={brainstorm.onBrainstorm}
+      onWriteCopy={brainstorm.onWriteCopy}
     />
   )
 }

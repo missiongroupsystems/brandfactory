@@ -27,6 +27,7 @@ const scheduled: SocialPost = {
   scheduledAt: new Date(2026, 7, 3, 18, 30).toISOString(),
   body: 'Tonight’s service',
   status: 'draft',
+  createdBy: 'user',
   assetIds: [],
   deletedAt: null,
   ...STAMPS,
@@ -178,5 +179,94 @@ describe('SocialCalendarView — the key-dates menu', () => {
   it('passes a stale set through to the grid', () => {
     renderView({ staleSets: ['sg-events'] })
     expect(screen.getByText(/curated through December 2026/)).toBeTruthy()
+  })
+})
+
+describe('SocialCalendarView — the month summary', () => {
+  it('states the month under the grid’s own header', () => {
+    renderView()
+    // One scheduled post in August; the tray post is in no month.
+    expect(screen.getByText(/31 days · 1 post planned\./)).toBeTruthy()
+  })
+
+  it('names an unclaimed key date the page handed the grid', () => {
+    renderView({
+      keyDates: [
+        { id: 'k-1', set: 'sg-holidays', name: 'National Day', start: '2026-08-09', source: 't' },
+      ],
+    })
+    expect(screen.getByText(/National Day \(9 Aug\) has no post\./)).toBeTruthy()
+  })
+
+  it('is absent in the list view — the sentence is about the visible month', () => {
+    renderView({ view: 'list' })
+    expect(screen.queryByText(/posts? planned/)).toBeNull()
+  })
+})
+
+describe('SocialCalendarView — the planner', () => {
+  it('offers no Plan button without a handler for it', () => {
+    renderView()
+    expect(screen.queryByRole('button', { name: 'Plan' })).toBeNull()
+  })
+
+  it('opens the planner from the header, left of New post', () => {
+    const onOpenPlanner = vi.fn()
+    renderView({ onOpenPlanner })
+    const buttons = screen.getAllByRole('button', { name: /^(Plan|New post)$/ })
+    // *Decide, then execute* — and deliberately not a third segment in the
+    // `Calendar | List` toggle, which is two readings of one list.
+    expect(buttons.map((b) => b.textContent)).toEqual(['Plan', 'New post'])
+  })
+
+  it('renders the panel beside the grid, and says it is open', () => {
+    const onOpenPlanner = vi.fn()
+    renderView({ onOpenPlanner, planner: <div>the planner</div> })
+    expect(screen.getByText('the planner')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Plan' }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('drops the page’s width cap only while the panel is open', () => {
+    renderView({ onOpenPlanner: vi.fn() })
+    // The grid keeps roughly the width it had: the cap comes off so the panel
+    // takes the space the page was not using (Q4).
+    expect(document.querySelector('.max-w-6xl')).not.toBeNull()
+
+    document.body.innerHTML = ''
+    renderView({ onOpenPlanner: vi.fn(), planner: <div>the planner</div> })
+    expect(document.querySelector('.max-w-6xl')).toBeNull()
+  })
+})
+
+describe('SocialCalendarView — Door 3, threaded through', () => {
+  it('puts a brainstorm button on every cell of the grid', async () => {
+    const user = userEvent.setup()
+    const onBrainstormDay = vi.fn()
+    renderView({ onBrainstormDay })
+
+    await user.click(screen.getByLabelText('Brainstorm this day — Thu 20 Aug'))
+    expect(onBrainstormDay).toHaveBeenCalledWith('2026-08-20')
+  })
+
+  it('leaves the grid alone when the page passes nothing', () => {
+    renderView()
+    expect(screen.queryByLabelText(/^Brainstorm this day/)).toBeNull()
+  })
+
+  it('hands the dialog the column and the two calls', () => {
+    renderView({
+      dialogOpen: true,
+      brainstormOpen: true,
+      onBrainstormOpenChange: vi.fn(),
+      onBrainstorm: vi.fn(async () => null),
+      onWriteCopy: vi.fn(async () => null),
+    })
+    expect(screen.getByRole('region', { name: 'Brainstorm' })).toBeTruthy()
+  })
+
+  it('opens the dialog with the column off by default', () => {
+    renderView({ dialogOpen: true })
+    expect(screen.queryByRole('region', { name: 'Brainstorm' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Brainstorm' })).toBeNull()
   })
 })

@@ -106,6 +106,7 @@ const socialPost = (id: string): SocialPost =>
     scheduledAt: null,
     body: '',
     status: 'draft',
+    createdBy: 'user',
     assetIds: [],
     deletedAt: null,
     createdAt: '2026-07-01T00:00:00.000Z',

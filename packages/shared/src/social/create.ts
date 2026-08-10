@@ -3,6 +3,7 @@ import {
   SocialPostAssetIdsSchema,
   SocialPostBodySchema,
   SocialPlatformSchema,
+  SocialPostCreatedBySchema,
   SocialPostStatusSchema,
 } from './post'
 
@@ -22,6 +23,22 @@ export const CreateSocialPostInputSchema = z.object({
   scheduledAt: z.iso.datetime().nullable().optional(),
   body: SocialPostBodySchema.optional(),
   status: SocialPostStatusSchema.optional(),
+  /**
+   * Who is writing this row. `.default('user')` rather than `.optional()`, the
+   * `UpdateBrandGuidelinesSectionInput` precedent: the same field, on the same
+   * kind of input, with the same default and for the same reason — a payload
+   * that omits the key means *a person wrote this*, which is what every client
+   * written before the planner existed meant.
+   *
+   * The default also means the value is present by the time the query layer
+   * reads it, so there is no third place deciding what an absent author is.
+   *
+   * **Deliberately absent from the patch schema.** Provenance is a fact about
+   * creation, and editing a post the planner wrote does not make the editor its
+   * author — it makes them its reviewer, which is what `status: 'ready'`
+   * records.
+   */
+  createdBy: SocialPostCreatedBySchema.default('user'),
   assetIds: SocialPostAssetIdsSchema.optional(),
 })
 

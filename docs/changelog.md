@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.26.0** — 2026-08-10 — The calendar learns to plan: a month becomes a brief, a brief becomes ideas, and ideas become drafts that say who wrote them. Three doors, two passes, one stateless route. Migration 0012. 1973 tests.
 - **1.25.0** — 2026-08-07 — The session gets a face and a door: an account tile at the foot of the rail, the only round thing in a column of squares, holding the identity the boot probe had been fetching and discarding. No migration. 1688 tests.
 - **1.24.0** — 2026-08-07 — A brand stops being asked to describe itself twice: the `TL;DR` becomes the description line on the hub, on the workspace cards and in the prompt. No migration. 1674 tests.
 - **1.23.1** — 2026-08-06 — Pre-release review of 1.23.0: a horizon line that read *"Global are curated"*, a marker visible on a padding day and absent from the accessibility tree, twelve stated rules now asserted. No migration. 1637 tests.
@@ -63,6 +64,127 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.26.0 — 2026-08-10
+
+**The social calendar could hold a plan. It could not help you make one.**
+
+1.20.0 gave the calendar a grid, a list and an editor, and 1.23.0 gave it 92
+curated dates. Between them they answer *what is scheduled* perfectly and *what
+should be* not at all. Filling a month meant opening the dialog thirty-one times
+and re-explaining the brand to a generic tool in between.
+
+Seven phases, each independently shippable, each with its own note in
+`docs/completions/`. The argument is
+[`docs/plans/planning-and-dispatch-on-the-social-calendar.md`](plans/planning-and-dispatch-on-the-social-calendar.md);
+the work is
+[`docs/executing/planning-and-dispatch-implementation-plan.md`](executing/planning-and-dispatch-implementation-plan.md).
+
+**Migration 0012.** 1973 passed | 78 skipped.
+
+### 1. Three doors into one engine
+
+**Door 1 — the Post Planner.** A side panel beside the grid. It states its brief
+before it spends anything: which brand, how many of its guideline sections are
+actually written, the key dates in the window, and the posts already there. Then
+a batch of ideas grouped under content pillars, half of which you are expected to
+reject, and a commit that writes one row per (idea × platform) chip.
+
+**Door 2 — the honest month.** One sentence under the header, and no model
+behind it: *National Day (9 Aug) has no post. 31 days · 4 posts planned · 3 key
+dates unclaimed.* Every term was already on the page; nothing is fetched and
+nothing is spent. It shipped two phases before the engine because it is worth
+having on its own.
+
+**Door 3 — brainstorm inside `New post`.** A toggle splits the dialog: three
+angles for the day you are standing on, then the copy for the one you pick,
+dropped into a field you can still edit.
+
+### 2. Two passes, and the split is the point
+
+`POST /brands/:id/ideate/themes` decides what to say and when.
+`POST /brands/:id/ideate/copy` writes the words, once you have agreed to the
+posts. A model asked for both at once writes twelve captions before anybody has
+kept twelve ideas, and you pay for every one you throw away.
+
+**The route is stateless and writes nothing** — no row, no job, no draft. The
+accepted ideas become posts through `POST /brands/:id/social-posts`, the one
+writer this table has ever had. That is what makes both handlers safe to retry.
+
+**The brand header is `buildSystemPrompt`'s, verbatim.** A planner that
+assembled its own would be the second answer to *what does the model know about
+this brand*, and the first to drift.
+
+**The boundaries are enforced in code, not trusted to the prompt.** Ideas dated
+outside the window, ideas on a day+platform that already has a post, ideas on a
+platform nobody asked for, and ideas colliding with each other inside one batch
+are all dropped after parsing. The prompt states the rules because a model that
+understands them proposes better; the filter exists because an instruction is
+not a guarantee.
+
+### 3. Dispatch, and who wrote what
+
+There is no publishing integration and none is planned. So the product's job on
+the daily clock is a clean handoff: a `Today` region at the head of the list,
+`Copy` and `Download` as visible buttons inside it and menu items everywhere
+else, and `Mark posted` where it always was.
+
+`Download` fetches the bytes before saving them. A bare `<a download>` is
+ignored on a cross-origin URL, and a signed blob URL is cross-origin under every
+storage provider but `local-disk` — the naive version opens the image in a tab
+in production and saves the file in development, which is the worst possible
+split.
+
+**Migration 0012** adds `social_posts.created_by`
+(`pgEnum('social_post_created_by', ['user', 'agent'])`, default `'user'`).
+Existing rows backfill to `'user'`, which is true rather than merely convenient.
+It cannot be backfilled later, which is why it landed three phases before the
+planner that needed it. Paired with `status` it answers the question that
+matters: `created_by = 'agent' AND status = 'draft'` is the unreviewed pile.
+
+### 4. Content pillars
+
+A new `Content pillars` entry in `SUGGESTED_SECTIONS` — the whole storage cost of
+the idea. When the brand has written them the run groups ideas under them; when
+it has not, the run proposes three to five, marks them `proposed`, and offers to
+save them. **That save is the only guidelines write in the whole feature**, and
+it happens because you pressed a button, never as a side effect of planning.
+
+### 5. Pre-release review
+
+A review pass before the release found one defect that could write a wrong row
+and four quality faults. Full detail in
+[`docs/completions/planning-and-dispatch-review-hardening.md`](completions/planning-and-dispatch-review-hardening.md).
+
+The defect: `takenSlots` truncated the *never propose onto this* list to 400
+pairs without filtering to the window first. Since the post list is unbounded and
+ordered oldest-first, the surviving 400 were the pairs that could never collide,
+and the dropped ones were the only pairs that could — so a brand with roughly
+sixteen months of history would have the planner double-book a slot it was built
+never to touch. Now filtered to the window, which puts the ceiling out of reach
+of any window the product offers.
+
+Also: `applyBoundaries` now enforces its collision rule against its own batch and
+not only against the table; four bounds that had two copies each are
+single-sourced; two source files that used a literal NUL byte as a key separator
+use the `\0` escape, so git stops treating them as binary and their diffs can be
+read; and a local named `window` no longer shadows the DOM global.
+
+### 6. Not verified
+
+**No real model has run this feature**, and nothing has run in a browser. Every
+test drives a fake composer, so `IDEATE_THEMES_TIMEOUT_MS = 90_000` is an
+unmeasured judgement against the largest `generateObject` call in the repo, and
+the two viewport traps the plan named are open.
+
+### 7. Verified
+
+`typecheck` (10 packages), `lint`, `format:check`, `test`
+(**1973 passed, 78 skipped**), `pnpm -F @brandfactory/web build`. Beyond the
+standard gate, the live database suite was run against real Postgres with 0012
+applied: **112 passed, 0 skipped**.
 
 ---
 

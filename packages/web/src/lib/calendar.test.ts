@@ -39,6 +39,7 @@ function postAt(id: string, local: Date | null): SocialPost {
     scheduledAt: local === null ? null : local.toISOString(),
     body: '',
     status: 'draft',
+    createdBy: 'user',
     assetIds: [],
     deletedAt: null,
     ...STAMPS,

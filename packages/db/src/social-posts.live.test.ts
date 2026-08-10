@@ -1,5 +1,10 @@
-import { SocialPostSchema } from '@brandfactory/shared'
-import type { BrandId, SocialPostId, WorkspaceId } from '@brandfactory/shared'
+import { CreateSocialPostInputSchema, SocialPostSchema } from '@brandfactory/shared'
+import type {
+  BrandId,
+  CreateSocialPostInput,
+  SocialPostId,
+  WorkspaceId,
+} from '@brandfactory/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { pool } from './client'
 import { createAsset, softDeleteAsset } from './queries/assets'
@@ -48,6 +53,20 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
     return brand
   }
 
+  /**
+   * `createSocialPost` with the author defaulted, so each call below states
+   * only the thing it is testing.
+   *
+   * The wrapper exists because `CreateSocialPostInput` is the schema's
+   * **output** type, where `createdBy` is required — `.default('user')` runs at
+   * the wire, not in TypeScript. The two provenance tests pass the field
+   * through and one of them goes through `CreateSocialPostInputSchema.parse`
+   * instead, which is the only way to exercise the default itself.
+   */
+  async function newPost(brandId: BrandId, input: Omit<CreateSocialPostInput, 'createdBy'>) {
+    return createSocialPost(brandId, { createdBy: 'user', ...input })
+  }
+
   async function scratchAsset(brandId: BrandId, label: string, position: number) {
     return createAsset({
       brandId,
@@ -62,13 +81,13 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
 
   it('round-trips scheduled and unscheduled posts, in calendar order, each parsing as the wire shape', async () => {
     const brand = await scratchBrand()
-    const late = await createSocialPost(brand.id, {
+    const late = await newPost(brand.id, {
       platform: 'instagram',
       scheduledAt: '2026-08-20T10:00:00.000Z',
       body: 'Launch day.',
     })
-    const tray = await createSocialPost(brand.id, { platform: 'other' })
-    const early = await createSocialPost(brand.id, {
+    const tray = await newPost(brand.id, { platform: 'other' })
+    const early = await newPost(brand.id, {
       platform: 'linkedin',
       scheduledAt: '2026-08-05T08:00:00.000Z',
       status: 'ready',
@@ -87,12 +106,43 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
 
   it('defaults body to empty, status to draft, scheduledAt to null', async () => {
     const brand = await scratchBrand()
-    const post = await createSocialPost(brand.id, { platform: 'tiktok' })
+    const post = await newPost(brand.id, { platform: 'tiktok' })
     expect(post.body).toBe('')
     expect(post.status).toBe('draft')
     expect(post.scheduledAt).toBeNull()
     expect(post.assetIds).toEqual([])
     expect(post.deletedAt).toBeNull()
+  })
+
+  it('reads back `user` when the wire never mentioned an author', async () => {
+    const brand = await scratchBrand()
+    // Through `parse`, not through `newPost`: the whole claim is that a payload
+    // with no `createdBy` key becomes `'user'`, and the wrapper would supply
+    // the value this test exists to show the schema supplying.
+    const input = CreateSocialPostInputSchema.parse({ platform: 'tiktok' })
+    const post = await createSocialPost(brand.id, input)
+    expect(post.createdBy).toBe('user')
+  })
+
+  it('round-trips an agent-written post', async () => {
+    const brand = await scratchBrand()
+    const post = await createSocialPost(brand.id, { platform: 'linkedin', createdBy: 'agent' })
+    expect(post.createdBy).toBe('agent')
+    // Through the read path too — the column is on the wire shape, so a post
+    // the planner wrote is attributable from the list the calendar renders.
+    const [listed] = await listSocialPostsByBrand(brand.id)
+    expect(listed?.createdBy).toBe('agent')
+    expect(SocialPostSchema.safeParse(listed).success).toBe(true)
+  })
+
+  it('does not let an edit rewrite the author', async () => {
+    // Provenance is a fact about creation. The patch schema has no
+    // `createdBy` key, so this is a type-level guarantee as much as a runtime
+    // one — the assertion pins the behaviour the absence produces.
+    const brand = await scratchBrand()
+    const post = await createSocialPost(brand.id, { platform: 'x', createdBy: 'agent' })
+    const edited = await updateSocialPost(brand.id, post.id, { body: 'A human rewrote this.' })
+    expect(edited?.createdBy).toBe('agent')
   })
 
   it('attachment order is the array order, and survives the round trip', async () => {
@@ -102,7 +152,7 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
       scratchAsset(brand.id, 'second', 200),
       scratchAsset(brand.id, 'third', 300),
     ])
-    const post = await createSocialPost(brand.id, {
+    const post = await newPost(brand.id, {
       platform: 'pinterest',
       assetIds: [c!.id, a!.id, b!.id],
     })
@@ -123,9 +173,9 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
   it('rejects a cross-brand assetId and rolls the whole create back', async () => {
     const [owner, other] = [await scratchBrand(), await scratchBrand()]
     const foreign = await scratchAsset(other.id, 'not-yours', 100)
-    await expect(
-      createSocialPost(owner.id, { platform: 'x', assetIds: [foreign.id] }),
-    ).rejects.toThrow(AssetNotInBrandError)
+    await expect(newPost(owner.id, { platform: 'x', assetIds: [foreign.id] })).rejects.toThrow(
+      AssetNotInBrandError,
+    )
     // The transaction rolled the post back with the join rows.
     expect(await listSocialPostsByBrand(owner.id)).toHaveLength(0)
   })
@@ -135,10 +185,10 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
     const hidden = await scratchAsset(brand.id, 'hidden', 100)
     await softDeleteAsset(brand.id, hidden.id)
     await expect(
-      createSocialPost(brand.id, { platform: 'facebook', assetIds: [hidden.id] }),
+      newPost(brand.id, { platform: 'facebook', assetIds: [hidden.id] }),
     ).rejects.toThrow(AssetNotInBrandError)
 
-    const post = await createSocialPost(brand.id, { platform: 'facebook' })
+    const post = await newPost(brand.id, { platform: 'facebook' })
     await expect(updateSocialPost(brand.id, post.id, { assetIds: [hidden.id] })).rejects.toThrow(
       AssetNotInBrandError,
     )
@@ -150,7 +200,7 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
       scratchAsset(brand.id, 'a', 100),
       scratchAsset(brand.id, 'b', 200),
     ])
-    const post = await createSocialPost(brand.id, {
+    const post = await newPost(brand.id, {
       platform: 'youtube',
       scheduledAt: '2026-08-14T10:30:00.000Z',
       body: 'Cut one.',
@@ -176,7 +226,7 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
 
   it('will not patch or delete a post through the wrong brand', async () => {
     const [owner, other] = [await scratchBrand(), await scratchBrand()]
-    const post = await createSocialPost(owner.id, { platform: 'instagram', body: 'Mine.' })
+    const post = await newPost(owner.id, { platform: 'instagram', body: 'Mine.' })
     expect(await updateSocialPost(other.id, post.id, { body: 'Hijacked.' })).toBeNull()
     expect(await softDeleteSocialPost(other.id, post.id)).toBeNull()
     const [still] = await listSocialPostsByBrand(owner.id)
@@ -186,7 +236,7 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
   it('refuses to patch or re-delete a hidden post, and restores it once, attachments intact', async () => {
     const brand = await scratchBrand()
     const asset = await scratchAsset(brand.id, 'kept', 100)
-    const post = await createSocialPost(brand.id, {
+    const post = await newPost(brand.id, {
       platform: 'linkedin',
       body: 'Misclicked.',
       assetIds: [asset.id],
@@ -213,7 +263,7 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
   it('cascades posts and join rows when the brand is deleted', async () => {
     const brand = await createBrand({ workspaceId, name: SCRATCH_BRAND_NAME })
     const asset = await scratchAsset(brand.id, 'doomed', 100)
-    const post = await createSocialPost(brand.id, {
+    const post = await newPost(brand.id, {
       platform: 'instagram',
       assetIds: [asset.id],
     })
@@ -231,7 +281,7 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
   it('cascades join rows when an asset is hard-deleted, leaving the post standing', async () => {
     const brand = await scratchBrand()
     const asset = await scratchAsset(brand.id, 'yanked', 100)
-    const post = await createSocialPost(brand.id, { platform: 'x', assetIds: [asset.id] })
+    const post = await newPost(brand.id, { platform: 'x', assetIds: [asset.id] })
     await pool.query('delete from brand_assets where id = $1', [asset.id])
     const [listed] = await listSocialPostsByBrand(brand.id)
     expect(listed?.id).toBe(post.id)

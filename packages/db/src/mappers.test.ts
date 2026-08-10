@@ -373,6 +373,7 @@ describe('rowToSocialPost', () => {
     scheduledAt: null,
     body: '',
     status: 'draft' as const,
+    createdBy: 'user' as const,
     deletedAt: null,
     createdAt: TS,
     updatedAt: TS,
@@ -400,6 +401,10 @@ describe('rowToSocialPost', () => {
     const p = rowToSocialPost(postRow, [])
     expect(p.scheduledAt).toBeNull()
     expect(p.deletedAt).toBeNull()
+  })
+
+  it('carries the author through unchanged', () => {
+    expect(rowToSocialPost({ ...postRow, createdBy: 'agent' }, []).createdBy).toBe('agent')
   })
 })
 

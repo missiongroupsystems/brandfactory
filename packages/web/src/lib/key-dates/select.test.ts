@@ -4,6 +4,7 @@ import {
   formatKeyDateRange,
   keyDatesByDay,
   keyDatesForSets,
+  keyDatesOnDay,
   seasonsInMonth,
   splitByShape,
   staleSets,
@@ -144,6 +145,47 @@ describe('seasonsInMonth', () => {
     const inSeptember = seasonsInMonth(seasons, 2026, 8).map((d) => d.name)
     expect(inAugust).toContain('Hungry Ghost Festival')
     expect(inSeptember).toContain('Hungry Ghost Festival')
+  })
+})
+
+describe('keyDatesOnDay', () => {
+  const nationalDay = date('national-day', '2026-08-09')
+  const deepavali = date('deepavali', '2026-11-08')
+  const hungryGhost = date('hungry-ghost', '2026-08-08', '2026-09-06')
+
+  const dates = [nationalDay, deepavali, hungryGhost]
+
+  it('matches a single day only on its own key', () => {
+    expect(keyDatesOnDay(dates, '2026-08-09').days.map((d) => d.id)).toEqual(['national-day'])
+    expect(keyDatesOnDay(dates, '2026-08-10').days).toEqual([])
+  })
+
+  it('returns a season on its first, a middle and its last day', () => {
+    for (const day of ['2026-08-08', '2026-08-20', '2026-09-06']) {
+      expect(
+        keyDatesOnDay(dates, day).seasons.map((d) => d.id),
+        day,
+      ).toEqual(['hungry-ghost'])
+    }
+  })
+
+  it('drops a season the day after it ends, and the day before it starts', () => {
+    expect(keyDatesOnDay(dates, '2026-09-07').seasons).toEqual([])
+    expect(keyDatesOnDay(dates, '2026-08-07').seasons).toEqual([])
+  })
+
+  it('keeps the two claims apart — a day inside a season is both, separately', () => {
+    // 9 August 2026 is National Day *and* sits inside the Hungry Ghost month.
+    // Two facts, and a caller that renders them alike can still concatenate.
+    const onNationalDay = keyDatesOnDay(dates, '2026-08-09')
+    expect(onNationalDay.days.map((d) => d.id)).toEqual(['national-day'])
+    expect(onNationalDay.seasons.map((d) => d.id)).toEqual(['hungry-ghost'])
+  })
+
+  it('matches nothing for an empty day key', () => {
+    // What an empty date field in a form must show: no chips, rather than
+    // every season in the set.
+    expect(keyDatesOnDay(dates, '')).toEqual({ days: [], seasons: [] })
   })
 })
 

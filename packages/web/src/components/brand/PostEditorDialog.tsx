@@ -1,17 +1,23 @@
 import { useRef, useState } from 'react'
-import { ImagePlus, Upload, X } from 'lucide-react'
+import { ImagePlus, Sparkles, Upload, X } from 'lucide-react'
 import {
   assetsOfKind,
   SocialPostBodySchema,
   type BrandAsset,
   type BrandAssetId,
+  type BrandWithSections,
   type CreateSocialPostInput,
+  type IdeateOutcome,
+  type IdeateThemesResult,
+  type PostIdea,
   type SocialPlatform,
   type SocialPost,
   type SocialPostId,
   type SocialPostStatus,
   type UpdateSocialPostInput,
 } from '@brandfactory/shared'
+import { BrandContextStrip } from '@/components/brand/BrandContextStrip'
+import { PostBrainstormPanel } from '@/components/brand/PostBrainstormPanel'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -30,9 +36,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { DEFAULT_POST_TIME, isoToLocalParts, localPartsToIso } from '@/lib/calendar'
+import { DEFAULT_POST_TIME, isoToLocalParts, localDayKey, localPartsToIso } from '@/lib/calendar'
+import { keyDatesOnDay, type KeyDate } from '@/lib/key-dates'
 import { PLATFORM_OPTIONS, STATUS_OPTIONS } from '@/lib/social-copy'
 import { assetUrl } from '@/lib/asset-url'
+import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
 // PostEditorDialog — one dialog for create and edit
@@ -70,6 +78,21 @@ export interface PostEditorDialogProps {
    * header's "New post". `null` seeds an unscheduled post — the tray.
    */
   seedDayKey?: string | null
+  /**
+   * The brand this post is written for, with its guideline sections.
+   *
+   * **Optional, and absent renders the dialog exactly as it read before this
+   * prop existed** — the house rule every affordance in this folder carries.
+   * The page that opens the dialog already holds this object: it loads the
+   * brand to gate the whole surface and then used it for nothing else.
+   */
+  brand?: BrandWithSections
+  /**
+   * The enabled sets' dates, whole — the same array the grid paints. The form
+   * narrows it to the day in its **own date field**, not to `seedDayKey`,
+   * because a label that does not follow the field is a stale label.
+   */
+  keyDates?: KeyDate[]
   /** The brand's assets: the picker's inventory and the thumbnails' source. */
   assets: BrandAsset[]
   resolveBlob: (key: string) => string
@@ -88,6 +111,39 @@ export interface PostEditorDialogProps {
    * ever saved — by design (proposal §5): it is a library asset, not an orphan.
    */
   onUploadFiles?: (files: File[]) => Promise<BrandAssetId[]>
+
+  // ---- Door 3: brainstorm, beside the form --------------------------------
+  /** Injectable clock. The day a brainstorm uses when the form has no date. */
+  now?: Date
+  /**
+   * Whether the ideation column is showing. **Off by default, and the dialog
+   * with it off is the dialog Phase A shipped** — same width, same fields, same
+   * order.
+   *
+   * The page owns it, like every other piece of this dialog's state, because
+   * `Brainstorm this day` on a calendar cell has to be able to open the dialog
+   * with the column already on.
+   */
+  brainstormOpen?: boolean
+  onBrainstormOpenChange?: (open: boolean) => void
+  /**
+   * Pass 1 for one day and one platform — `POST /brands/:id/ideate/themes`
+   * through `brainstormRequest`.
+   *
+   * `null` resolves when the call failed and the page has already said so; an
+   * `IdeateThemesResult` carries its own honest outcome for the two answers
+   * that are not failures.
+   *
+   * **All three of `onBrainstorm`, `onWriteCopy` and `onBrainstormOpenChange`
+   * or none of them.** The toggle appears only with the whole set, the house
+   * rule that no affordance renders without the callback that makes it work.
+   */
+  onBrainstorm?: (request: {
+    dayKey: string
+    platform: SocialPlatform
+  }) => Promise<IdeateThemesResult | null>
+  /** Pass 2 for one angle. `null` = it failed and the page has said so. */
+  onWriteCopy?: (idea: PostIdea, platform: SocialPlatform) => Promise<string | null>
 }
 
 export function PostEditorDialog({
@@ -95,6 +151,8 @@ export function PostEditorDialog({
   onOpenChange,
   post = null,
   seedDayKey = null,
+  brand,
+  keyDates = [],
   assets,
   resolveBlob,
   pending = false,
@@ -102,12 +160,56 @@ export function PostEditorDialog({
   onCreate,
   onUpdate,
   onUploadFiles,
+  now,
+  brainstormOpen = false,
+  onBrainstormOpenChange,
+  onBrainstorm,
+  onWriteCopy,
 }: PostEditorDialogProps) {
+  // The whole set or nothing: a toggle that opens a column whose button cannot
+  // spend anything is a control that does not work.
+  const brainstormable = Boolean(onBrainstorm && onWriteCopy && onBrainstormOpenChange)
+  const brainstorming = brainstormable && brainstormOpen
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby={undefined} className="sm:max-w-xl">
+      {/* The context strip is two more rows on a form that was already tall.
+          `DialogContent` is centred and unbounded in height, so it clips
+          against the viewport rather than scrolling — visible at 800px with the
+          attachment picker open, and now reachable one row sooner. Capped and
+          scrolled here rather than in the primitive: every other dialog in the
+          app is short, and widening the blast radius to fix one form is how a
+          shared component acquires a rule it does not need.
+
+          The ideation column is what widens it, and only while it is open: a
+          form that is permanently 3xl wide to hold a column nobody asked for
+          is a form whose fields have grown a 700px measure for no reason. */}
+      <DialogContent
+        aria-describedby={undefined}
+        className={cn(
+          'max-h-[calc(100dvh-4rem)] overflow-y-auto',
+          brainstorming ? 'sm:max-w-3xl' : 'sm:max-w-xl',
+        )}
+      >
         <DialogHeader>
-          <DialogTitle>{post ? 'Edit post' : 'New post'}</DialogTitle>
+          {/* `pr-8` clears the primitive's own close button, which is absolutely
+              positioned at `top-4 right-4` and would otherwise sit under the
+              toggle at every width. */}
+          <div className="flex items-center justify-between gap-2 pr-8">
+            <DialogTitle>{post ? 'Edit post' : 'New post'}</DialogTitle>
+            {brainstormable && (
+              <Button
+                type="button"
+                variant={brainstorming ? 'secondary' : 'outline'}
+                size="sm"
+                aria-pressed={brainstorming}
+                onClick={() => onBrainstormOpenChange?.(!brainstorming)}
+              >
+                <Sparkles className="size-4" aria-hidden="true" />
+                Brainstorm
+              </Button>
+            )}
+          </div>
         </DialogHeader>
         {/* The conditional mount re-seeds the fields, `RenameDialog`'s reason
             verbatim: closing unmounts the form, so reopening always reads the
@@ -120,6 +222,8 @@ export function PostEditorDialog({
             key={post?.id ?? 'new'}
             post={post}
             seedDayKey={seedDayKey}
+            brand={brand}
+            keyDates={keyDates}
             assets={assets}
             resolveBlob={resolveBlob}
             pending={pending}
@@ -128,6 +232,13 @@ export function PostEditorDialog({
             onUpdate={onUpdate}
             onUploadFiles={onUploadFiles}
             onCancel={() => onOpenChange(false)}
+            now={now}
+            // **The flag, not the column.** The form stays mounted while the
+            // toggle goes off and on, so three angles somebody paid for survive
+            // a change of mind about the layout.
+            brainstorming={brainstorming}
+            onBrainstorm={onBrainstorm}
+            onWriteCopy={onWriteCopy}
           />
         ) : null}
       </DialogContent>
@@ -145,6 +256,8 @@ interface Errors {
 function PostEditorForm({
   post,
   seedDayKey,
+  brand,
+  keyDates,
   assets,
   resolveBlob,
   pending,
@@ -153,9 +266,15 @@ function PostEditorForm({
   onUpdate,
   onUploadFiles,
   onCancel,
+  now,
+  brainstorming,
+  onBrainstorm,
+  onWriteCopy,
 }: {
   post: SocialPost | null
   seedDayKey: string | null
+  brand?: BrandWithSections
+  keyDates: KeyDate[]
   assets: BrandAsset[]
   resolveBlob: (key: string) => string
   pending: boolean
@@ -164,6 +283,10 @@ function PostEditorForm({
   onUpdate: (id: SocialPostId, patch: UpdateSocialPostInput) => void
   onUploadFiles?: (files: File[]) => Promise<BrandAssetId[]>
   onCancel: () => void
+  now?: Date
+  brainstorming: boolean
+  onBrainstorm?: PostEditorDialogProps['onBrainstorm']
+  onWriteCopy?: PostEditorDialogProps['onWriteCopy']
 }) {
   const seeded = post?.scheduledAt
     ? isoToLocalParts(post.scheduledAt)
@@ -182,8 +305,99 @@ function PostEditorForm({
   const [assetIds, setAssetIds] = useState<BrandAssetId[]>(post?.assetIds ?? [])
   const [errors, setErrors] = useState<Errors>({})
 
+  // ---- the brainstorm's own state ----------------------------------------
+  //
+  // It lives here rather than in the page because the question it answers is
+  // made of two fields on this form — the day and the platform — and the answer
+  // lands in a third. Lifting it would mean teaching the page what is currently
+  // typed into a form it deliberately knows nothing about.
+  const [angles, setAngles] = useState<PostIdea[] | null>(null)
+  const [outcome, setOutcome] = useState<IdeateOutcome | null>(null)
+  const [running, setRunning] = useState(false)
+  const [writingIndex, setWritingIndex] = useState<number | null>(null)
+  /** Which card's caption is in `Copy` — a highlight, and nothing more. */
+  const [usedIndex, setUsedIndex] = useState<number | null>(null)
+  /**
+   * The caption in `Copy` came from an angle.
+   *
+   * Separate from `usedIndex` because the two stop agreeing the moment a second
+   * run replaces the list: the cards change, the words in the field do not, and
+   * it is the words that decide who the post is by.
+   */
+  const [fromAgent, setFromAgent] = useState(false)
+  /** What an angle overwrote, when a person had typed it. `null` = nothing. */
+  const [replaced, setReplaced] = useState<string | null>(null)
+
   function clear(key: keyof Errors) {
     setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev))
+  }
+
+  // **The day the brainstorm is about is the field's, not the seed's** — the
+  // rule the key-date chips already follow, one paragraph down. An unscheduled
+  // post has no day of its own, so it borrows today: the same judgment
+  // `handleNewPost` makes when the header's `New post` seeds a date.
+  const brainstormDay = date.trim() || localDayKey(now ?? new Date())
+
+  // A run answers one question — *this day, this platform* — so changing either
+  // makes the cards on screen an answer to a question nobody is asking. The
+  // render-phase reset is `SocialCalendarPage`'s idiom, and for its reason: a
+  // `useEffect` would paint one frame of the stale angles first.
+  //
+  // `fromAgent` and `replaced` survive it on purpose. They are facts about the
+  // words in the `Copy` field, which this reset does not touch.
+  const asked = `${brainstormDay} ${platform}`
+  const [askedFor, setAskedFor] = useState(asked)
+  if (askedFor !== asked) {
+    setAskedFor(asked)
+    setAngles(null)
+    setOutcome(null)
+    setUsedIndex(null)
+  }
+
+  async function runBrainstorm() {
+    if (!onBrainstorm || !platform || running) return
+    setRunning(true)
+    setOutcome(null)
+    try {
+      const result = await onBrainstorm({ dayKey: brainstormDay, platform })
+      // `null` is a failure the page has already toasted. An `IdeateThemesResult`
+      // that is not `ok` is an honest answer, and the column has a line for it.
+      if (!result) return
+      setOutcome(result.outcome)
+      if (result.outcome !== 'ok') return
+      setAngles(result.ideas)
+      setUsedIndex(null)
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  async function pickAngle(index: number) {
+    const idea = angles?.[index]
+    if (!onWriteCopy || !idea || !platform || writingIndex !== null) return
+    setWritingIndex(index)
+    try {
+      const written = await onWriteCopy(idea, platform)
+      if (written === null) return
+      // Remembered only when a person typed it, and only the first time: a
+      // second angle overwrites the model's own words, which nobody would want
+      // back and which the Undo would otherwise offer as if they were theirs.
+      if (!fromAgent && body.trim()) setReplaced(body)
+      setBody(written)
+      setFromAgent(true)
+      setUsedIndex(index)
+      clear('body')
+    } finally {
+      setWritingIndex(null)
+    }
+  }
+
+  function undoAngle() {
+    if (replaced === null) return
+    setBody(replaced)
+    setReplaced(null)
+    setFromAgent(false)
+    setUsedIndex(null)
   }
 
   function submit() {
@@ -220,6 +434,13 @@ function PostEditorForm({
         // Stated rather than omitted: `CreateSocialPostInputSchema` accepts an
         // explicit `null` precisely so "create unscheduled" is one shape.
         scheduledAt,
+        // **Who wrote the copy, not who pressed the button.** A caption that
+        // came out of an angle is the agent's whether or not the person then
+        // edited it — the same rule D3 states for keeping `createdBy` off the
+        // patch schema: an edit does not make you the author of what the agent
+        // wrote. Pressing *Put my copy back* clears it, because at that point
+        // the agent's words are no longer the ones being saved.
+        createdBy: fromAgent ? 'agent' : 'user',
         ...(copy ? { body: copy } : {}),
         ...(assetIds.length > 0 ? { assetIds } : {}),
       })
@@ -248,143 +469,186 @@ function PostEditorForm({
     onUpdate(post.id, patch)
   }
 
+  // **Read from `date`, never from `seedDayKey`.** The seed is what the dialog
+  // opened on; the field is what the post is for, and the two part company the
+  // moment anyone touches the date picker. A chip that keeps announcing the day
+  // you opened on is worse than no chip: it is a fact that has quietly stopped
+  // being one.
+  //
+  // The two lists are concatenated with the days first — a day is the stronger
+  // claim, and `keyDatesOnDay` already returns them in that order within each
+  // half.
+  const onDay = keyDatesOnDay(keyDates, date)
+  const dayKeyDates = [...onDay.days, ...onDay.seasons]
+
   return (
     <>
-      <form
-        id="post-editor-form"
-        className="flex flex-col gap-4"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (!pending) submit()
-        }}
+      {/* G4: the strip stays exactly where it is, above the split. The brand
+          and the day are facts about the whole dialog — which column they were
+          put in would be an accident of layout. */}
+      {brand && <BrandContextStrip brand={brand} keyDates={dayKeyDates} />}
+
+      <div
+        className={cn(brainstorming && 'flex flex-col-reverse gap-4 sm:flex-row sm:items-start')}
       >
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="post-platform">Platform</Label>
-          <Select
-            value={platform}
-            onValueChange={(value) => {
-              setPlatform(value as SocialPlatform)
-              clear('platform')
-            }}
-          >
-            <SelectTrigger
-              id="post-platform"
-              className="w-full"
-              aria-invalid={errors.platform ? true : undefined}
-              aria-describedby={errors.platform ? 'post-platform-error' : undefined}
-            >
-              <SelectValue placeholder="Choose a platform" />
-            </SelectTrigger>
-            <SelectContent>
-              {PLATFORM_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.platform && (
-            <p id="post-platform-error" className="text-xs text-destructive">
-              {errors.platform}
-            </p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="post-date">Date and time (optional)</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              id="post-date"
-              type="date"
-              value={date}
-              className="flex-1"
-              onChange={(e) => {
-                setDate(e.target.value)
-                // Picking a day without a time means that day's usual slot,
-                // the same answer an empty cell click gives.
-                if (e.target.value && !time) setTime(DEFAULT_POST_TIME)
-                clear('schedule')
-              }}
-              aria-invalid={errors.schedule ? true : undefined}
-              aria-describedby={errors.schedule ? 'post-schedule-error' : undefined}
-            />
-            <Input
-              id="post-time"
-              type="time"
-              aria-label="Time"
-              value={time}
-              className="w-32"
-              onChange={(e) => {
-                setTime(e.target.value)
-                clear('schedule')
-              }}
-            />
-          </div>
-          {errors.schedule ? (
-            <p id="post-schedule-error" className="text-xs text-destructive">
-              {errors.schedule}
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {date.trim()
-                ? 'Clear the date to move this post to the unscheduled tray.'
-                : 'Unscheduled — it waits in the tray until it has a slot.'}
-            </p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="post-body">Copy</Label>
-          <Textarea
-            id="post-body"
-            value={body}
-            placeholder="What this post says…"
-            onChange={(e) => {
-              setBody(e.target.value)
-              clear('body')
-            }}
-            aria-invalid={errors.body ? true : undefined}
-            aria-describedby={errors.body ? 'post-body-error' : undefined}
+        {/* Left of the form on a wide dialog, and **below** it on a narrow one:
+            stacked, the fields are what the user came for and the column is the
+            help, so the help must not push the form off the first screen. */}
+        {brainstorming && (
+          <PostBrainstormPanel
+            dayKey={brainstormDay}
+            platform={platform || null}
+            now={now}
+            ideas={angles}
+            outcome={outcome}
+            running={running}
+            writingIndex={writingIndex}
+            usedIndex={usedIndex}
+            onRun={() => void runBrainstorm()}
+            onUse={(index) => void pickAngle(index)}
+            onUndo={replaced === null ? undefined : undoAngle}
           />
-          {errors.body && (
-            <p id="post-body-error" className="text-xs text-destructive">
-              {errors.body}
-            </p>
-          )}
-        </div>
+        )}
 
-        {/* Create mode has no status control: a post is a `draft` the moment it
-            exists, and offering `Posted` before the copy does is offering to
-            record something that did not happen. */}
-        {post && (
+        <form
+          id="post-editor-form"
+          className="flex min-w-0 flex-1 flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (!pending) submit()
+          }}
+        >
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="post-status">Status</Label>
-            <Select value={status} onValueChange={(value) => setStatus(value as SocialPostStatus)}>
-              <SelectTrigger id="post-status" className="w-full">
-                <SelectValue />
+            <Label htmlFor="post-platform">Platform</Label>
+            <Select
+              value={platform}
+              onValueChange={(value) => {
+                setPlatform(value as SocialPlatform)
+                clear('platform')
+              }}
+            >
+              <SelectTrigger
+                id="post-platform"
+                className="w-full"
+                aria-invalid={errors.platform ? true : undefined}
+                aria-describedby={errors.platform ? 'post-platform-error' : undefined}
+              >
+                <SelectValue placeholder="Choose a platform" />
               </SelectTrigger>
               <SelectContent>
-                {STATUS_OPTIONS.map((option) => (
+                {PLATFORM_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {errors.platform && (
+              <p id="post-platform-error" className="text-xs text-destructive">
+                {errors.platform}
+              </p>
+            )}
           </div>
-        )}
 
-        <Attachments
-          assetIds={assetIds}
-          setAssetIds={setAssetIds}
-          assets={assets}
-          resolveBlob={resolveBlob}
-          uploading={uploading}
-          onUploadFiles={onUploadFiles}
-          error={errors.attachments}
-          setError={(message) => setErrors((prev) => ({ ...prev, attachments: message }))}
-        />
-      </form>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="post-date">Date and time (optional)</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="post-date"
+                type="date"
+                value={date}
+                className="flex-1"
+                onChange={(e) => {
+                  setDate(e.target.value)
+                  // Picking a day without a time means that day's usual slot,
+                  // the same answer an empty cell click gives.
+                  if (e.target.value && !time) setTime(DEFAULT_POST_TIME)
+                  clear('schedule')
+                }}
+                aria-invalid={errors.schedule ? true : undefined}
+                aria-describedby={errors.schedule ? 'post-schedule-error' : undefined}
+              />
+              <Input
+                id="post-time"
+                type="time"
+                aria-label="Time"
+                value={time}
+                className="w-32"
+                onChange={(e) => {
+                  setTime(e.target.value)
+                  clear('schedule')
+                }}
+              />
+            </div>
+            {errors.schedule ? (
+              <p id="post-schedule-error" className="text-xs text-destructive">
+                {errors.schedule}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {date.trim()
+                  ? 'Clear the date to move this post to the unscheduled tray.'
+                  : 'Unscheduled — it waits in the tray until it has a slot.'}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="post-body">Copy</Label>
+            <Textarea
+              id="post-body"
+              value={body}
+              placeholder="What this post says…"
+              onChange={(e) => {
+                setBody(e.target.value)
+                clear('body')
+              }}
+              aria-invalid={errors.body ? true : undefined}
+              aria-describedby={errors.body ? 'post-body-error' : undefined}
+            />
+            {errors.body && (
+              <p id="post-body-error" className="text-xs text-destructive">
+                {errors.body}
+              </p>
+            )}
+          </div>
+
+          {/* Create mode has no status control: a post is a `draft` the moment it
+            exists, and offering `Posted` before the copy does is offering to
+            record something that did not happen. */}
+          {post && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="post-status">Status</Label>
+              <Select
+                value={status}
+                onValueChange={(value) => setStatus(value as SocialPostStatus)}
+              >
+                <SelectTrigger id="post-status" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <Attachments
+            assetIds={assetIds}
+            setAssetIds={setAssetIds}
+            assets={assets}
+            resolveBlob={resolveBlob}
+            uploading={uploading}
+            onUploadFiles={onUploadFiles}
+            error={errors.attachments}
+            setError={(message) => setErrors((prev) => ({ ...prev, attachments: message }))}
+          />
+        </form>
+      </div>
 
       <DialogFooter>
         <Button variant="outline" type="button" onClick={onCancel}>

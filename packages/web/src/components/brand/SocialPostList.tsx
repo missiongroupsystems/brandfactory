@@ -1,6 +1,7 @@
 import { Fragment } from 'react'
-import { MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal, Sparkles } from 'lucide-react'
 import type { BrandAsset, SocialPost, SocialPostStatus } from '@brandfactory/shared'
+import { hasDispatchActions, PostDispatchActions } from '@/components/brand/PostDispatchActions'
 import { deferUntilMenuClosed } from '@/components/entity/EntityMenu'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { assetUrl } from '@/lib/asset-url'
 import { formatDayHeading, formatTimeOfDay, groupByDay, localDayKey } from '@/lib/calendar'
+import { postDownloads } from '@/lib/download'
 import {
   formatKeyDateRange,
   KEY_DATE_APPEARANCE,
@@ -37,20 +39,25 @@ const UPCOMING_KEY_DATES_SHOWN = 6
 // ---------------------------------------------------------------------------
 //
 // The month grid answers "what is this month shaped like"; this answers "what
-// is next, and what did we say we would do". Three regions, in the order a
+// is next, and what did we say we would do". Four regions, in the order a
 // planner reads them:
 //
+//   Today       — what goes out in the next few hours. It leads because on the
+//                 daily clock it is the only question, and because dispatch
+//                 fails by being hard to *find* at 8am rather than hard to use
+//                 once found. Absent when nothing is scheduled today, so a
+//                 quiet day reads exactly as it did before this region existed.
 //   Unscheduled — the tray. Posts with no slot are **invisible in the grid**,
-//                 which is exactly why the list leads with them: an idea
+//                 which is why they come before everything with a date: an idea
 //                 written down and never scheduled must not quietly vanish
 //                 behind a month someone has stopped looking at.
-//   Upcoming    — today first, then forward.
+//   Upcoming    — tomorrow first, then forward.
 //   Past        — yesterday first, then backwards. Both halves run *away* from
 //                 now, so the rows nearest the present are nearest the middle
 //                 and neither half buries today under a year of history.
 //
-// Pure, like every `components/brand` view: no queries, and every affordance
-// renders only when its callback prop does.
+// Pure, like every `components/brand` view: no queries, no clipboard call and
+// no fetch, and every affordance renders only when its callback prop does.
 
 export interface SocialPostListProps {
   /** In `bySchedule` order, as the query and the cache applier keep it. */
@@ -72,6 +79,15 @@ export interface SocialPostListProps {
   onEditPost?: (post: SocialPost) => void
   onMarkPosted?: (post: SocialPost) => void
   onDeletePost?: (post: SocialPost) => void
+  /**
+   * Put the post's body on the clipboard. **The list does not touch the
+   * clipboard itself** — this stays pure, and the page owns every side effect
+   * on this surface. Rejects when the clipboard refuses, which
+   * `PostDispatchActions` treats as a non-event.
+   */
+  onCopyBody?: (post: SocialPost) => void | Promise<void>
+  /** Save the post's attachments. The page fetches; this list only asks. */
+  onDownloadAssets?: (post: SocialPost) => void
 }
 
 export function SocialPostList({
@@ -83,13 +99,21 @@ export function SocialPostList({
   onEditPost,
   onMarkPosted,
   onDeletePost,
+  onCopyBody,
+  onDownloadAssets,
 }: SocialPostListProps) {
   const unscheduled = posts.filter((p) => p.scheduledAt === null)
   const byDay = [...groupByDay(posts).entries()]
   const todayKey = localDayKey(now)
   // `YYYY-MM-DD` compares lexicographically the way it compares chronologically,
   // which is the whole reason the key has that shape.
-  const upcoming = byDay.filter(([key]) => key >= todayKey)
+  //
+  // Today comes out of Upcoming rather than sitting at its head: `>=` became
+  // `>`. The rows are the same rows — what changes is that they get a region of
+  // their own, at the top, where the dispatch controls are visible rather than
+  // one menu click away.
+  const todayPosts = byDay.find(([key]) => key === todayKey)?.[1] ?? []
+  const upcoming = byDay.filter(([key]) => key > todayKey)
   const past = byDay.filter(([key]) => key < todayKey).reverse()
 
   // Two readings of the same dates, and they answer different questions.
@@ -106,7 +130,15 @@ export function SocialPostList({
   const byKeyDay = keyDatesByDay(splitByShape(keyDates).days)
   const upcomingKeys = upcomingKeyDates(keyDates, now, UPCOMING_KEY_DATES_SHOWN)
 
-  const rowProps = { assets, resolveBlob, onEditPost, onMarkPosted, onDeletePost }
+  const rowProps = {
+    assets,
+    resolveBlob,
+    onEditPost,
+    onMarkPosted,
+    onDeletePost,
+    onCopyBody,
+    onDownloadAssets,
+  }
 
   // **Before anything key-date-shaped renders.** A calendar with no posts and
   // eight key dates is still empty of *your* work, which is the only thing this
@@ -122,6 +154,29 @@ export function SocialPostList({
 
   return (
     <div className="mt-6 flex flex-col gap-8">
+      {/* No `DayGroups` around these, deliberately: the region heading already
+          says Today, and a day group inside it would render `formatDayHeading`'s
+          answer to the same question one line lower. The rows keep `showTime`,
+          which is the part of a day group that is still worth something here. */}
+      {todayPosts.length > 0 && (
+        <section>
+          <RegionHeading
+            title={
+              <>
+                Today
+                <KeyDateSuffix keyDates={byKeyDay.get(todayKey) ?? []} />
+              </>
+            }
+            detail={`${todayPosts.length} ${todayPosts.length === 1 ? 'post' : 'posts'}`}
+          />
+          <ul className="mt-3 flex flex-col gap-2">
+            {todayPosts.map((post) => (
+              <PostRow key={post.id} post={post} showTime dispatch="buttons" {...rowProps} />
+            ))}
+          </ul>
+        </section>
+      )}
+
       {unscheduled.length > 0 && (
         <section>
           <RegionHeading
@@ -165,7 +220,13 @@ export function SocialPostList({
 
 type RowProps = Pick<
   SocialPostListProps,
-  'assets' | 'resolveBlob' | 'onEditPost' | 'onMarkPosted' | 'onDeletePost'
+  | 'assets'
+  | 'resolveBlob'
+  | 'onEditPost'
+  | 'onMarkPosted'
+  | 'onDeletePost'
+  | 'onCopyBody'
+  | 'onDownloadAssets'
 >
 
 /**
@@ -234,30 +295,7 @@ function DayGroups({
                 one of them is an `aria-label`, where a dot and a middot would
                 be read aloud as punctuation. */}
             {formatDayHeading(dayKey, now)}
-            {(byKeyDay.get(dayKey) ?? []).map((keyDate) => (
-              <Fragment key={keyDate.id}>
-                {/* The separator is a real text node **outside** the flex span,
-                    and both halves of that matter. A heading's accessible name
-                    is its text content, so CSS `gap` alone would read
-                    "Today·Deepavali" to a screen reader — hence a literal
-                    string. But a string placed *inside* an `inline-flex`
-                    becomes a flex item, and a flex item's surrounding
-                    whitespace is stripped: that rendered "Sun 9 Aug· National
-                    Day", with the middot welded to the date. Out here in the
-                    heading's normal flow the spaces survive. */}
-                {' · '}
-                <span className="inline-flex items-baseline gap-1">
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      'size-1.5 shrink-0 rounded-full',
-                      KEY_DATE_APPEARANCE[keyDate.set].dot,
-                    )}
-                  />
-                  {keyDate.name}
-                </span>
-              </Fragment>
-            ))}
+            <KeyDateSuffix keyDates={byKeyDay.get(dayKey) ?? []} />
           </h3>
           <ul className="mt-2 flex flex-col gap-2">
             {dayPosts.map((post) => (
@@ -270,7 +308,42 @@ function DayGroups({
   )
 }
 
-function RegionHeading({ title, detail }: { title: string; detail?: string }) {
+/**
+ * The `· National Day` a heading carries when the day it names is one.
+ *
+ * **Extracted because `Today` stopped being a day group.** Its rows moved into
+ * a region of their own, and a region heading that could not carry the suffix
+ * would drop the annotation on the one day it matters most — the day you are
+ * dispatching. One renderer, two headings.
+ *
+ * The separator is a real text node **outside** the flex span, and both halves
+ * of that matter. A heading's accessible name is its text content, so CSS `gap`
+ * alone would read "Today·Deepavali" to a screen reader — hence a literal
+ * string. But a string placed *inside* an `inline-flex` becomes a flex item and
+ * its surrounding whitespace is stripped: that rendered "Sun 9 Aug· National
+ * Day", with the middot welded to the date. In the heading's normal flow the
+ * spaces survive.
+ */
+function KeyDateSuffix({ keyDates }: { keyDates: KeyDate[] }) {
+  return (
+    <>
+      {keyDates.map((keyDate) => (
+        <Fragment key={keyDate.id}>
+          {' · '}
+          <span className="inline-flex items-baseline gap-1">
+            <span
+              aria-hidden="true"
+              className={cn('size-1.5 shrink-0 rounded-full', KEY_DATE_APPEARANCE[keyDate.set].dot)}
+            />
+            {keyDate.name}
+          </span>
+        </Fragment>
+      ))}
+    </>
+  )
+}
+
+function RegionHeading({ title, detail }: { title: React.ReactNode; detail?: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
       <h2 className="text-sm font-medium text-muted-foreground">{title}</h2>
@@ -282,16 +355,25 @@ function RegionHeading({ title, detail }: { title: string; detail?: string }) {
 function PostRow({
   post,
   showTime = false,
+  dispatch = 'menu',
   assets,
   resolveBlob,
   onEditPost,
   onMarkPosted,
   onDeletePost,
+  onCopyBody,
+  onDownloadAssets,
 }: {
   post: SocialPost
   showTime?: boolean
+  /** `buttons` inside `Today`, `menu` everywhere else. */
+  dispatch?: 'buttons' | 'menu'
 } & RowProps) {
   const excerpt = postExcerpt(post)
+  // The same function the page downloads through, so a control that is drawn is
+  // a control that has something behind it.
+  const canDownload = postDownloads(post, assets, resolveBlob).length > 0
+  const dispatchProps = { post, excerpt, canDownload, onCopyBody, onDownloadAssets }
   return (
     <li className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-elevation-1">
       {showTime && post.scheduledAt && (
@@ -301,6 +383,7 @@ function PostRow({
       )}
       <span className="shrink-0 text-sm font-medium">{PLATFORM_LABELS[post.platform]}</span>
       <StatusPill status={post.status} />
+      <AgentMark post={post} />
       {/* The excerpt doubles as the edit affordance — a whole clickable row
           would have to nest the ⋯ trigger inside it, and a button inside a
           button is invalid in both the DOM and the accessibility tree. */}
@@ -326,12 +409,19 @@ function PostRow({
         </p>
       )}
       <Thumbs post={post} assets={assets} resolveBlob={resolveBlob} />
+      {dispatch === 'buttons' && <PostDispatchActions variant="buttons" {...dispatchProps} />}
       <PostRowMenu
         post={post}
         excerpt={excerpt}
         onEditPost={onEditPost}
         onMarkPosted={onMarkPosted}
         onDeletePost={onDeletePost}
+        // Only the presentation this row is *not* using goes in the menu, so
+        // the same action is never offered twice on one row.
+        dispatchActions={
+          dispatch === 'menu' ? <PostDispatchActions variant="menu" {...dispatchProps} /> : null
+        }
+        hasDispatch={dispatch === 'menu' && hasDispatchActions(dispatchProps)}
       />
     </li>
   )
@@ -354,6 +444,38 @@ function StatusPill({ status }: { status: SocialPostStatus }) {
       className={cn('shrink-0 rounded-full px-2 py-0.5 text-xs font-medium', STATUS_PILL[status])}
     >
       {STATUS_LABELS[status]}
+    </span>
+  )
+}
+
+/**
+ * The marker on a row the planner wrote.
+ *
+ * **Beside the status pill and not inside it — there is no fourth status.** The
+ * question a marketer actually asks is *which of next week's posts has a human
+ * read?*, and neither field answers it alone: `createdBy === 'agent'` **and**
+ * `status === 'draft'` is the unreviewed pile, and it is the only pile that
+ * matters before something goes out under the brand's name. Folding the author
+ * into the status would destroy exactly that composition — an `Agent` status
+ * could not also be `Ready`.
+ *
+ * A person's rows carry nothing. The default is that a person wrote it, and a
+ * marker on every row would say nothing on any of them.
+ *
+ * `title` and `aria-label` both, on a `<span role="img">`: the glyph is the
+ * fast path for the eye, and the name is the one that always works — the rule
+ * `KeyDateStrip` states for colour, applied to a shape.
+ */
+function AgentMark({ post }: { post: SocialPost }) {
+  if (post.createdBy !== 'agent') return null
+  return (
+    <span
+      role="img"
+      aria-label="Written by the agent"
+      title="Written by the agent"
+      className="shrink-0 text-muted-foreground"
+    >
+      <Sparkles className="size-3.5" />
     </span>
   )
 }
@@ -407,14 +529,24 @@ function PostRowMenu({
   onEditPost,
   onMarkPosted,
   onDeletePost,
+  dispatchActions,
+  hasDispatch,
 }: {
   post: SocialPost
   excerpt: string
+  /** `Copy` and `Download`, when this row is not showing them as buttons. */
+  dispatchActions?: React.ReactNode
+  /** Whether `dispatchActions` will render anything — see below. */
+  hasDispatch?: boolean
 } & Pick<RowProps, 'onEditPost' | 'onMarkPosted' | 'onDeletePost'>) {
   // `Mark posted` is absent on a post already marked, rather than disabled: a
   // menu item that does nothing is the dead affordance 1.7.0 went to remove.
   const canMarkPosted = onMarkPosted && post.status !== 'posted'
-  if (!onEditPost && !canMarkPosted && !onDeletePost) return null
+  // **A node cannot be asked whether it will render anything**, so emptiness
+  // arrives as a boolean beside it rather than being inferred from
+  // `dispatchActions !== null`. Without it, a row with nothing but a Copy this
+  // post cannot offer would draw a ⋯ trigger over an empty menu.
+  if (!onEditPost && !canMarkPosted && !onDeletePost && !hasDispatch) return null
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -436,6 +568,10 @@ function PostRowMenu({
             Edit
           </DropdownMenuItem>
         )}
+        {/* Before the done-marker, because that is the order the three are
+            performed in: copy the copy, download the image, mark it posted.
+            Delete stays last, where a destructive item belongs. */}
+        {dispatchActions}
         {canMarkPosted && (
           <DropdownMenuItem onSelect={() => onMarkPosted(post)}>Mark posted</DropdownMenuItem>
         )}

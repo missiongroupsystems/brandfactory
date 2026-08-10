@@ -85,6 +85,13 @@
       "when": 1785831685583,
       "tag": "0011_minor_stellaris",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786329651782,
+      "tag": "0012_clever_crystal",
+      "breakpoints": true
     }
   ]
 }

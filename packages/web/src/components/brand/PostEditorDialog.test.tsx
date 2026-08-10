@@ -1,9 +1,38 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { BrandAsset, SocialPost } from '@brandfactory/shared'
-import { PostEditorDialog } from './PostEditorDialog'
+import type {
+  BrandAsset,
+  BrandGuidelineSection,
+  BrandWithSections,
+  SocialPost,
+} from '@brandfactory/shared'
+import { PostEditorDialog, type PostEditorDialogProps } from './PostEditorDialog'
 import { isoToLocalParts, localPartsToIso } from '@/lib/calendar'
+import type { KeyDate } from '@/lib/key-dates'
+
+// The context strip carries a `Link` when a brand's sections are thin. Same
+// stub the rail's and the card's tests use — the dialog renders from props
+// alone and must not need a router context.
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({
+    children,
+    to,
+    params,
+    ...props
+  }: {
+    children: React.ReactNode
+    to: string
+    params?: Record<string, string>
+  }) => (
+    <a
+      href={Object.entries(params ?? {}).reduce((p, [k, v]) => p.replace(`$${k}`, v), to)}
+      {...props}
+    >
+      {children}
+    </a>
+  ),
+}))
 
 const STAMPS = {
   createdAt: '2026-07-01T00:00:00.000Z',
@@ -39,6 +68,7 @@ function post(overrides: Partial<SocialPost> = {}): SocialPost {
     scheduledAt: new Date(2026, 7, 3, 9, 0).toISOString(),
     body: 'Sunday roast, from three o’clock.',
     status: 'draft',
+    createdBy: 'user',
     assetIds: [],
     deletedAt: null,
     ...STAMPS,
@@ -47,6 +77,56 @@ function post(overrides: Partial<SocialPost> = {}): SocialPost {
 }
 
 const resolve = (key: string) => `/blob/${key}`
+
+function guideline(label: string): BrandGuidelineSection {
+  return {
+    id: `s-${label}` as BrandGuidelineSection['id'],
+    brandId: 'b-1' as BrandGuidelineSection['brandId'],
+    label,
+    body: {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Written.' }] }],
+    } as BrandGuidelineSection['body'],
+    priority: 100,
+    createdBy: 'user',
+    ...STAMPS,
+  }
+}
+
+const BRAND: BrandWithSections = {
+  id: 'b-1' as BrandWithSections['id'],
+  workspaceId: 'w-1' as BrandWithSections['workspaceId'],
+  name: 'Casa Vostra',
+  description: null,
+  websiteUrl: null,
+  sections: [guideline('TL;DR'), guideline('Overview')],
+  ...STAMPS,
+}
+
+const KEY_DATES: KeyDate[] = [
+  {
+    id: 'sg/national-day',
+    set: 'sg-holidays',
+    name: 'National Day',
+    start: '2026-08-09',
+    source: 'test',
+  },
+  {
+    id: 'global/valentines',
+    set: 'global',
+    name: "Valentine's Day",
+    start: '2027-02-14',
+    source: 'test',
+  },
+  {
+    id: 'sg/hungry-ghost',
+    set: 'sg-holidays',
+    name: 'Hungry Ghost Festival',
+    start: '2026-08-08',
+    end: '2026-09-06',
+    source: 'test',
+  },
+]
 
 function setup(props: Partial<React.ComponentProps<typeof PostEditorDialog>> = {}) {
   const onCreate = vi.fn()
@@ -99,6 +179,9 @@ describe('PostEditorDialog — create', () => {
       // The seed is a local day; what goes on the wire is the UTC instant it
       // names, which is only the same string in one timezone.
       scheduledAt: localPartsToIso('2026-08-10', '09:00'),
+      // A person typed this into a form — the one authorship claim on this
+      // surface that is never in doubt.
+      createdBy: 'user',
     })
   })
 
@@ -113,7 +196,11 @@ describe('PostEditorDialog — create', () => {
     await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1))
     // `null` stated, not the key omitted — the create schema takes an explicit
     // null so "create unscheduled" is one shape rather than two.
-    expect(onCreate.mock.calls[0]?.[0]).toEqual({ platform: 'instagram', scheduledAt: null })
+    expect(onCreate.mock.calls[0]?.[0]).toEqual({
+      platform: 'instagram',
+      scheduledAt: null,
+      createdBy: 'user',
+    })
   })
 
   it('offers no status control before the post exists', () => {
@@ -317,6 +404,53 @@ describe('PostEditorDialog — attachments', () => {
   })
 })
 
+describe('PostEditorDialog — the context strip', () => {
+  it('names the brand and states how much of its context is written', () => {
+    setup({ brand: BRAND, seedDayKey: '2026-08-09' })
+    expect(screen.getByText('Casa Vostra')).toBeTruthy()
+    expect(screen.getByText('Brand context loaded — 2 sections')).toBeTruthy()
+  })
+
+  it('shows the key dates on the seeded day, days before seasons', () => {
+    setup({ brand: BRAND, keyDates: KEY_DATES, seedDayKey: '2026-08-09' })
+    expect(screen.getByText('National Day')).toBeTruthy()
+    // 9 August 2026 sits inside the Hungry Ghost month as well.
+    expect(screen.getByText('Hungry Ghost Festival')).toBeTruthy()
+    // A date in another year is not on this day.
+    expect(screen.queryByText("Valentine's Day")).toBeNull()
+  })
+
+  it('follows the date field rather than the day it opened on', async () => {
+    setup({ brand: BRAND, keyDates: KEY_DATES, seedDayKey: '2026-08-09' })
+    expect(screen.getByText('National Day')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Date and time (optional)'), {
+      target: { value: '2027-02-14' },
+    })
+
+    // The seed said 9 August. The post is now for 14 February, and a chip that
+    // kept announcing the seed would be a fact that had stopped being one.
+    await waitFor(() => expect(screen.queryByText('National Day')).toBeNull())
+    expect(screen.getByText("Valentine's Day")).toBeTruthy()
+    expect(screen.queryByText('Hungry Ghost Festival')).toBeNull()
+  })
+
+  it('shows no chips at all when the date is cleared', async () => {
+    setup({ brand: BRAND, keyDates: KEY_DATES, seedDayKey: '2026-08-09' })
+    fireEvent.change(screen.getByLabelText('Date and time (optional)'), { target: { value: '' } })
+    await waitFor(() => expect(screen.queryByText('National Day')).toBeNull())
+    // Row 1 survives: the brand is a fact about the dialog, not about the day.
+    expect(screen.getByText('Casa Vostra')).toBeTruthy()
+  })
+
+  it('renders the dialog unchanged with no brand prop', () => {
+    setup({ keyDates: KEY_DATES, seedDayKey: '2026-08-09' })
+    expect(screen.queryByText('Casa Vostra')).toBeNull()
+    expect(screen.queryByText('National Day')).toBeNull()
+    expect(screen.queryByText(/Brand context/)).toBeNull()
+  })
+})
+
 describe('PostEditorDialog — re-seeding', () => {
   it('picks up the next post when the dialog is reopened on another one', () => {
     const first = post({ body: 'First copy' })
@@ -351,5 +485,263 @@ describe('PostEditorDialog — re-seeding', () => {
     )
 
     expect(screen.getByLabelText('Copy')).toHaveProperty('value', 'Second copy')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Door 3 — the brainstorm column
+// ---------------------------------------------------------------------------
+
+const ANGLE = {
+  title: 'The pass at service',
+  angle: 'Hands in frame, no faces.',
+  pillar: null,
+  date: '2026-08-10',
+  platforms: ['instagram'],
+  keyDateName: null,
+  reason: 'It is the one thing this kitchen has that nobody else does.',
+} as const
+
+/** The dialog with the whole callback set, so the toggle exists. */
+function brainstormSetup(
+  props: Partial<React.ComponentProps<typeof PostEditorDialog>> = {},
+  answers: {
+    themes?: Awaited<ReturnType<NonNullable<PostEditorDialogProps['onBrainstorm']>>>
+    copy?: string | null
+  } = {},
+) {
+  const onBrainstorm = vi.fn<NonNullable<PostEditorDialogProps['onBrainstorm']>>(async () =>
+    answers.themes === undefined
+      ? { ideas: [{ ...ANGLE, platforms: [...ANGLE.platforms] }], pillars: [], outcome: 'ok' }
+      : answers.themes,
+  )
+  const onWriteCopy = vi.fn<NonNullable<PostEditorDialogProps['onWriteCopy']>>(async () =>
+    answers.copy === undefined ? 'Service starts at six.' : answers.copy,
+  )
+  const onBrainstormOpenChange = vi.fn()
+  const rest = setup({
+    seedDayKey: '2026-08-10',
+    now: new Date(2026, 7, 10, 9, 0),
+    brainstormOpen: true,
+    onBrainstormOpenChange,
+    onBrainstorm,
+    onWriteCopy,
+    ...props,
+  })
+  return { ...rest, onBrainstorm, onWriteCopy, onBrainstormOpenChange }
+}
+
+describe('PostEditorDialog — the brainstorm toggle', () => {
+  it('is absent without the callbacks, and the dialog is the one Phase A shipped', () => {
+    setup({ brand: BRAND, keyDates: KEY_DATES, seedDayKey: '2026-08-09' })
+    expect(screen.queryByRole('button', { name: 'Brainstorm' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Brainstorm' })).toBeNull()
+    // Everything the dialog had before is still exactly where it was.
+    expect(screen.getByText('Casa Vostra')).toBeTruthy()
+    expect(screen.getByText('National Day')).toBeTruthy()
+    expect(screen.getByLabelText('Copy')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Create post' })).toBeTruthy()
+  })
+
+  it('renders the column closed by default, and reports the toggle', async () => {
+    const user = userEvent.setup()
+    const { onBrainstormOpenChange } = brainstormSetup({ brainstormOpen: false })
+    expect(screen.queryByRole('region', { name: 'Brainstorm' })).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Brainstorm' }))
+    // The page owns the flag, so a cell can open the dialog with it already on.
+    expect(onBrainstormOpenChange).toHaveBeenCalledWith(true)
+  })
+
+  it('opens with the column showing when the page says so', () => {
+    brainstormSetup()
+    expect(screen.getByRole('region', { name: 'Brainstorm' })).toBeTruthy()
+    // G3's seed: the day the cell was clicked, in the date field and in the column.
+    expect(screen.getByLabelText('Date and time (optional)')).toHaveProperty('value', '2026-08-10')
+  })
+
+  it('keeps the context strip above both halves', () => {
+    brainstormSetup({ brand: BRAND, keyDates: KEY_DATES })
+    // One strip, not one per column — the brand and the day are facts about the
+    // whole dialog.
+    expect(screen.getAllByText('Casa Vostra')).toHaveLength(1)
+    expect(screen.getByRole('region', { name: 'Brainstorm' })).toBeTruthy()
+  })
+})
+
+describe('PostEditorDialog — running a brainstorm', () => {
+  it('asks for the day and platform in the form, not for the seed', async () => {
+    const user = userEvent.setup()
+    const { onBrainstorm } = brainstormSetup()
+
+    await choose(user, 'Platform', 'LinkedIn')
+    fireEvent.change(screen.getByLabelText('Date and time (optional)'), {
+      target: { value: '2026-08-12' },
+    })
+    await user.click(screen.getByRole('button', { name: /Three angles/ }))
+
+    await waitFor(() => expect(onBrainstorm).toHaveBeenCalledTimes(1))
+    expect(onBrainstorm.mock.calls[0]?.[0]).toEqual({
+      dayKey: '2026-08-12',
+      platform: 'linkedin',
+    })
+  })
+
+  it('borrows today when the post has no day of its own', async () => {
+    const user = userEvent.setup()
+    const { onBrainstorm } = brainstormSetup()
+
+    fireEvent.change(screen.getByLabelText('Date and time (optional)'), { target: { value: '' } })
+    await choose(user, 'Platform', 'Instagram')
+    await user.click(screen.getByRole('button', { name: /Three angles/ }))
+
+    await waitFor(() => expect(onBrainstorm).toHaveBeenCalledTimes(1))
+    expect(onBrainstorm.mock.calls[0]?.[0]?.dayKey).toBe('2026-08-10')
+  })
+
+  it('throws the angles away when the question changes', async () => {
+    const user = userEvent.setup()
+    brainstormSetup()
+
+    await choose(user, 'Platform', 'Instagram')
+    await user.click(screen.getByRole('button', { name: /Three angles/ }))
+    expect(await screen.findByText('The pass at service')).toBeTruthy()
+
+    // The cards were an answer about 10 August; they are not an answer about
+    // the 12th, and leaving them up would be a stale label.
+    fireEvent.change(screen.getByLabelText('Date and time (optional)'), {
+      target: { value: '2026-08-12' },
+    })
+    await waitFor(() => expect(screen.queryByText('The pass at service')).toBeNull())
+  })
+
+  it('shows the honest line and no cards when nothing comes back', async () => {
+    const user = userEvent.setup()
+    brainstormSetup({}, { themes: { ideas: [], pillars: [], outcome: 'no-ideas' } })
+
+    await choose(user, 'Platform', 'Instagram')
+    await user.click(screen.getByRole('button', { name: /Three angles/ }))
+
+    expect(await screen.findByText(/Nothing came back for this day/)).toBeTruthy()
+  })
+
+  it('says nothing extra when the page has already toasted', async () => {
+    const user = userEvent.setup()
+    brainstormSetup({}, { themes: null })
+
+    await choose(user, 'Platform', 'Instagram')
+    await user.click(screen.getByRole('button', { name: /Three angles/ }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Three angles/ })).toHaveProperty(
+        'disabled',
+        false,
+      ),
+    )
+    expect(screen.queryByText(/Nothing came back/)).toBeNull()
+    expect(screen.queryByText(/expected shape/)).toBeNull()
+  })
+})
+
+describe('PostEditorDialog — using an angle', () => {
+  /** Run a brainstorm and pick the one angle it returns. */
+  async function pick(user: ReturnType<typeof userEvent.setup>) {
+    await choose(user, 'Platform', 'Instagram')
+    await user.click(screen.getByRole('button', { name: /Three angles/ }))
+    await user.click(await screen.findByRole('button', { name: 'Use The pass at service' }))
+  }
+
+  it('fills Copy and leaves it editable', async () => {
+    const user = userEvent.setup()
+    const { onWriteCopy } = brainstormSetup()
+    await pick(user)
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Copy')).toHaveProperty('value', 'Service starts at six.'),
+    )
+    expect(onWriteCopy.mock.calls[0]?.[1]).toBe('instagram')
+
+    // Still a plain textarea: the caption is a starting point, not a verdict.
+    await user.type(screen.getByLabelText('Copy'), ' Sharp.')
+    expect(screen.getByLabelText('Copy')).toHaveProperty('value', 'Service starts at six. Sharp.')
+  })
+
+  it('creates the post as the agent, and an edit does not take that back', async () => {
+    const user = userEvent.setup()
+    const { onCreate } = brainstormSetup()
+    await pick(user)
+    await waitFor(() =>
+      expect(screen.getByLabelText('Copy')).toHaveProperty('value', 'Service starts at six.'),
+    )
+
+    await user.type(screen.getByLabelText('Copy'), ' Sharp.')
+    await user.click(screen.getByRole('button', { name: 'Create post' }))
+
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1))
+    // The same rule D3 states for keeping `createdBy` off the patch schema: an
+    // edit does not make you the author of what the agent wrote.
+    expect(onCreate.mock.calls[0]?.[0]?.createdBy).toBe('agent')
+  })
+
+  it('leaves a post written by hand as the user', async () => {
+    const user = userEvent.setup()
+    const { onCreate } = brainstormSetup()
+
+    await choose(user, 'Platform', 'Instagram')
+    await user.type(screen.getByLabelText('Copy'), 'Mine.')
+    await user.click(screen.getByRole('button', { name: 'Create post' }))
+
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1))
+    expect(onCreate.mock.calls[0]?.[0]?.createdBy).toBe('user')
+  })
+
+  it('offers no undo when there was nothing to replace', async () => {
+    const user = userEvent.setup()
+    brainstormSetup()
+    await pick(user)
+    await waitFor(() =>
+      expect(screen.getByLabelText('Copy')).toHaveProperty('value', 'Service starts at six.'),
+    )
+    expect(screen.queryByRole('button', { name: /Put my copy back/ })).toBeNull()
+  })
+
+  it('puts back typed copy an angle overwrote, provenance included', async () => {
+    const user = userEvent.setup()
+    const { onCreate } = brainstormSetup()
+
+    await choose(user, 'Platform', 'Instagram')
+    await user.type(screen.getByLabelText('Copy'), 'What I wrote.')
+    await user.click(screen.getByRole('button', { name: /Three angles/ }))
+    await user.click(await screen.findByRole('button', { name: 'Use The pass at service' }))
+    await waitFor(() =>
+      expect(screen.getByLabelText('Copy')).toHaveProperty('value', 'Service starts at six.'),
+    )
+
+    await user.click(screen.getByRole('button', { name: /Put my copy back/ }))
+    expect(screen.getByLabelText('Copy')).toHaveProperty('value', 'What I wrote.')
+
+    await user.click(screen.getByRole('button', { name: 'Create post' }))
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1))
+    // The agent's words are no longer the ones being saved.
+    expect(onCreate.mock.calls[0]?.[0]?.createdBy).toBe('user')
+  })
+
+  it('does not touch Copy when the caption did not arrive', async () => {
+    const user = userEvent.setup()
+    brainstormSetup({}, { copy: null })
+
+    await choose(user, 'Platform', 'Instagram')
+    await user.type(screen.getByLabelText('Copy'), 'What I wrote.')
+    await user.click(screen.getByRole('button', { name: /Three angles/ }))
+    await user.click(await screen.findByRole('button', { name: 'Use The pass at service' }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Use The pass at service' })).toHaveProperty(
+        'disabled',
+        false,
+      ),
+    )
+    expect(screen.getByLabelText('Copy')).toHaveProperty('value', 'What I wrote.')
+    expect(screen.queryByRole('button', { name: /Put my copy back/ })).toBeNull()
   })
 })

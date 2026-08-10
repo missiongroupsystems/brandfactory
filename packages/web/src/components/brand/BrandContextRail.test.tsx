@@ -183,6 +183,9 @@ describe('BrandContextRail', () => {
       'Values & positioning',
       'Voice & tone',
       'Target audience',
+      // Directly after the audience, which is where `SUGGESTED_SECTIONS` puts
+      // it: who the brand talks to, then what it recurrently talks about.
+      'Content pillars',
       'Visual guidelines',
       'Messaging frameworks',
     ])
