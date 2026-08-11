@@ -159,8 +159,16 @@ export function SocialCalendarView({
     <div className="flex-1 overflow-auto">
       {/* **The panel takes the width the page was not using** (Q4). The cap
           comes off while it is open, so the grid keeps roughly the size it has
-          today on a normal desktop instead of losing 400px of it. */}
-      <div className={cn('mx-auto p-6 lg:p-8', planner ? 'max-w-none' : 'max-w-6xl')}>
+          today on a normal desktop instead of losing 400px of it.
+
+          The padding is `p-6` at every width, and it is not the hub's
+          `p-6 lg:p-8`. This page is one of the five side-nav sections, and the
+          other four — brand context, the thread lists, the asset library and
+          the studio — inset their title by 24px. Eight more here read as a
+          title that slips right and down as you move between the rows of one
+          panel. The cap stays: it decides how wide the grid gets, not where
+          the page starts. */}
+      <div className={cn('mx-auto p-6', planner ? 'max-w-none' : 'max-w-6xl')}>
         <PageHeader
           title={app.title}
           description={app.description}

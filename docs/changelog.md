@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.26.2** — 2026-08-11 — The social calendar stops insetting its title 8px further than the other four sections of the same panel. No migration. 1978 tests.
 - **1.26.1** — 2026-08-10 — A brainstorm stopped throwing away two good ideas because the third ran long: pass 1 parses per idea, the way it already filtered per idea. No migration. 1978 tests.
 - **1.26.0** — 2026-08-10 — The calendar learns to plan: a month becomes a brief, a brief becomes ideas, and ideas become drafts that say who wrote them. Three doors, two passes, one stateless route. Migration 0012. 1973 tests.
 - **1.25.0** — 2026-08-07 — The session gets a face and a door: an account tile at the foot of the rail, the only round thing in a column of squares, holding the identity the boot probe had been fetching and discarding. No migration. 1688 tests.
@@ -65,6 +66,96 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.26.2 — 2026-08-11
+
+**Moving between the rows of one nav panel, the title moved with you.**
+
+Off a screenshot of the social calendar's header: the page title sat further
+from the left edge, and further from the top, than the title on every other
+section of the same brand. The ask was that it looked *"shifted a bit"*, which
+is the exact size of it — 8 pixels, in both axes, above the `lg` breakpoint.
+
+**No migration, no new route, no new component, no test change** — one
+element's classes in `SocialCalendarView.tsx`.
+
+### 1. Two containers, and the calendar joined the wrong one
+
+The brand nav panel lists five sections. Four of them open a surface that
+begins `flex-1 overflow-auto p-6`: brand context, the thread lists under each
+mini-app, the asset library and the studio. The fifth, the social calendar,
+began `mx-auto p-6 lg:p-8` under a `max-w-6xl` cap.
+
+That container is not an accident and it is not the calendar's own. It is the
+brand hub's, written in 1.7.0 with a comment saying so — *"This is the first
+route in the app to constrain its width. Every other surface is `flex-1
+overflow-auto p-6`, which at 2000px leaves a title at one edge and its ⋯ menu
+at the other."* The calendar copied it whole in 1.20.0, cap and padding
+together, because the hub was the nearest page that had solved the width
+question.
+
+The cap was the part worth copying. The padding was not. **The hub is not one
+of the five rows**; it is the page those rows hang from, reached by clicking
+the brand mark rather than a row, and a step in from its own children reads as
+depth. The calendar is a peer of the four, and 8px of depth between peers reads
+as drift.
+
+### 2. `p-6` at every width
+
+`mx-auto p-6` in place of `mx-auto p-6 lg:p-8`. The title now starts 24px from
+the content edge, the same as the four rows above it in the panel.
+
+**The cap stays, and the `max-w-none` swap with it.** Those answer a different
+question — how wide the month grid gets, and what happens to the width the page
+was not using when the Plan panel opens (1.26.0 §1, Q4). Where the page starts
+and how wide it runs are separable, and only the first one was wrong. The
+comment above the element now states both rules, so the next reader does not
+have to infer that the padding was reasoned about and the cap inherited.
+
+### 3. The half that is not fixed
+
+`mx-auto` centres the block once the cap binds. The content area is the viewport
+less the 56px rail and the 240px panel, so at a viewport wider than roughly
+1496px the calendar centres inside it and its title moves right again — by half
+the slack, growing with the window, while the other four stay at 24px.
+
+**This is deliberate and it was the user's call.** Taking `mx-auto` off would
+align the title at every width, at the cost of a 1152px block hugging the left
+edge of a 2000px screen. Dropping the cap as well would match the four exactly
+and stretch the month grid — a state the page already enters whenever the Plan
+panel is open, so it is not unthinkable, but it is a change to the calendar and
+not to its margins. The reported defect was the 8px. The 8px is what changed.
+
+### Verification
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1978 passed | 78 skipped (159 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+1 file modified, 0 added. **1978 → 1978 (+0), and that is the honest number.**
+The existing cap test still passes, because it asserts `.max-w-6xl` appears
+without the panel and disappears with it, and neither fact moved. No test was
+added: jsdom has no layout, so the only assertion available is on the class
+string itself — which would pin the fix's spelling, would pass just as happily
+if a parent re-introduced the inset, and says nothing about the four pages this
+one now agrees with. The agreement is the thing worth protecting, and it has no
+home in a per-component test.
+
+### Caveats
+
+- **Not seen in a browser.** The 8px is read off the class lists of the five
+  surfaces and checked against the screenshot; it is not measured. The standing
+  caveat since 1.21.0.
+- **Nothing enforces the shared inset.** Five files spell `p-6` independently,
+  which is how this drifted in the first place. A `PageBody` wrapper — the same
+  move `PageHeader` made in 1.15.0, for the same reason — would end the class,
+  and would have to decide what the hub and the workspace home do about their
+  `lg:p-8`. Worth doing when a sixth section is added.
 
 ---
 
