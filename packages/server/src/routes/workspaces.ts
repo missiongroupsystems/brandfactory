@@ -23,7 +23,9 @@ export function createWorkspacesRouter(deps: WorkspacesDeps) {
     .get('/', async (c) => {
       const userId = c.var.userId
       if (!userId) throw new UnauthorizedError()
-      const rows = await deps.db.listWorkspacesByOwner(userId as UserId)
+      // Interim shared-access model (see `authz.ts`): every authenticated user
+      // sees every workspace. Passport will scope this list by org membership.
+      const rows = await deps.db.listAllWorkspaces()
       return c.json(rows)
     })
     .post('/', zValidator('json', CreateWorkspaceInputSchema), async (c) => {

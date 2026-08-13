@@ -441,7 +441,7 @@ describe('POST /brands/:id/guidelines/autofill — the guards, above the money l
     expect(research.searchSection).not.toHaveBeenCalled()
   })
 
-  it('is scoped by workspace ownership, like every brand route', async () => {
+  it('admits any authenticated user (shared access); 501 without a research provider', async () => {
     const { app } = createTestApp({ users: [USER, { id: 'u-2', token: 't-2' }] })
     const ws = (await (
       await app.request('/workspaces', {
@@ -458,14 +458,15 @@ describe('POST /brands/:id/guidelines/autofill — the guards, above the money l
       })
     ).json()) as { id: string }
 
-    // The other user's token resolves the brand and is refused at its
-    // workspace — the same boundary every brand route enforces.
+    // The other user's token resolves the brand and, under shared access, is
+    // admitted — so it reaches the handler, which 501s because no research
+    // provider is configured in this test.
     const res = await app.request(`/brands/${brand.id}/guidelines/autofill`, {
       method: 'POST',
       headers: { authorization: 'Bearer t-2', 'content-type': 'application/json' },
       body: JSON.stringify({ label: 'Voice & tone' }),
     })
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(501)
   })
 })
 

@@ -16,7 +16,7 @@ describe('workspaces routes', () => {
     expect(body.ownerUserId).toBe('u-1')
   })
 
-  it('GET /workspaces returns only mine', async () => {
+  it('GET /workspaces returns all workspaces (shared access)', async () => {
     const { app, state } = createTestApp({ users: [{ id: 'u-1', token: 't-1' }] })
     state.workspaces.set('w-mine', {
       id: 'w-mine' as never,
@@ -37,10 +37,10 @@ describe('workspaces routes', () => {
     })
     expect(res.status).toBe(200)
     const list = (await res.json()) as Array<{ id: string }>
-    expect(list.map((w) => w.id)).toEqual(['w-mine'])
+    expect(list.map((w) => w.id).sort()).toEqual(['w-mine', 'w-theirs'])
   })
 
-  it('GET /workspaces/:id forbids a non-owner', async () => {
+  it('GET /workspaces/:id is visible to any authenticated user (shared access)', async () => {
     const { app, state } = createTestApp({
       users: [
         { id: 'u-1', token: 't-1' },
@@ -57,7 +57,7 @@ describe('workspaces routes', () => {
     const res = await app.request('/workspaces/w-theirs', {
       headers: { authorization: 'Bearer t-1' },
     })
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
   it('POST /workspaces rejects an empty name with 400 VALIDATION', async () => {
@@ -89,7 +89,7 @@ describe('workspaces routes', () => {
     expect(((await res.json()) as { name: string }).name).toBe('Acme Renamed')
   })
 
-  it('PATCH /workspaces/:id forbids a non-owner and 404s unknown', async () => {
+  it('PATCH /workspaces/:id updates for any authenticated user and 404s unknown', async () => {
     const { app, state } = createTestApp({
       users: [
         { id: 'u-1', token: 't-1' },
@@ -104,12 +104,12 @@ describe('workspaces routes', () => {
       updatedAt: 't',
     })
 
-    const forbidden = await app.request('/workspaces/w-theirs', {
+    const allowed = await app.request('/workspaces/w-theirs', {
       method: 'PATCH',
       headers: { authorization: 'Bearer t-1', 'content-type': 'application/json' },
-      body: JSON.stringify({ name: 'Nope' }),
+      body: JSON.stringify({ name: 'Renamed by another user' }),
     })
-    expect(forbidden.status).toBe(403)
+    expect(allowed.status).toBe(200)
 
     const missing = await app.request('/workspaces/w-ghost', {
       method: 'PATCH',

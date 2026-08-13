@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.29.0** — 2026-08-13 — The silos come down: the one owner gate opens, so every signed-in user sees and edits every workspace and brand. Ownership stays on the row for the Passport migration. No migration. 1978 tests.
 - **1.28.0** — 2026-08-13 — The sign-in page puts on the CI: the Mission Systems mark, the one brand green, a real Google button, and the form in the order its sibling apps use. No migration. 1978 tests.
 - **1.27.0** — 2026-08-13 — A second door opens beside the magic link: one Google button reuses the code-exchange the link already ran, and needs no email — so the broken SMTP stops being a wall. No migration. 1978 tests.
 - **1.26.2** — 2026-08-11 — The social calendar stops insetting its title 8px further than the other four sections of the same panel. No migration. 1978 tests.
@@ -68,6 +69,67 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.29.0 — 2026-08-13
+
+**The app put every user in a private silo — each saw only the workspaces they
+owned. The team needs to work on shared brands together, so, until Passport,
+every signed-in user now sees and edits everything.**
+
+This is an interim model on the way to Passport, which will bring org membership
+and per-user permission scopes. Until then the team is a single trusted tenant.
+
+### 1. Two edits, because authz is centralised
+
+`authz.ts` holds the only access rules. `requireWorkspaceAccess` drops its
+`ownerUserId !== userId` throw and keeps the not-found check; that is the whole
+gate. Every other check — `requireBrandAccess`, `requireProjectAccess`, and the
+realtime `authorizeChannel` — chains up through it, and so do the asset,
+research, social and canvas routes, so opening the one function opens all of
+them. The second edit is the list: `GET /workspaces` swaps
+`listWorkspacesByOwner(userId)` for a new `listAllWorkspaces()`.
+
+### 2. Ownership is kept, it just stops gating
+
+`workspaces.ownerUserId` is still written on create, for provenance and for the
+Passport migration — which will reintroduce scoping in `requireWorkspaceAccess`,
+the one place it belongs. `userId` stays in that function's signature for the
+same reason. `listWorkspacesByOwner` is kept too; Passport will scope the list
+by org membership rather than owner.
+
+### 3. This is read *and* write
+
+Because the one gate covers reads and writes, every authenticated user now has
+full read, write and delete on every workspace and brand — not view-only. That
+is what shared collaboration needs, and it is the honest shape of the change:
+there is no per-user permission layer yet. Auth is still required — no token is
+still a 401; only ownership stopped gating.
+
+### Verification
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1978 passed | 78 skipped (159 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+18 assertions across 10 test files encoded the old cross-owner `403`; each now
+asserts the shared-access contract — a non-owner is admitted, and reaches the
+handler (a `200`/`201`, or the handler's own `404`/`501` for a missing asset or
+an unconfigured provider). Net test count is unchanged: the behaviour flipped,
+the coverage did not move.
+
+### Caveats
+
+- **Trust-the-tenant.** Any signed-in user can delete any brand or workspace.
+  Acceptable for the current closed team; it is not a permission model, and must
+  not outlive the arrival of Passport's per-user scopes.
+- **Provisioning is unchanged.** A first Google sign-in still mints a user row;
+  it just no longer starts an empty private silo — the new user lands in the
+  shared space.
 
 ---
 

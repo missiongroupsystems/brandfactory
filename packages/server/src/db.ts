@@ -15,6 +15,7 @@ export interface Db {
   // Workspaces
   getWorkspaceById: typeof db.getWorkspaceById
   listWorkspacesByOwner: typeof db.listWorkspacesByOwner
+  listAllWorkspaces: typeof db.listAllWorkspaces
   createWorkspace: typeof db.createWorkspace
   updateWorkspace: typeof db.updateWorkspace
 
@@ -100,6 +101,7 @@ export function buildDbDeps(): Db {
     getUserById: db.getUserById,
     getWorkspaceById: db.getWorkspaceById,
     listWorkspacesByOwner: db.listWorkspacesByOwner,
+    listAllWorkspaces: db.listAllWorkspaces,
     createWorkspace: db.createWorkspace,
     updateWorkspace: db.updateWorkspace,
     getBrandById: db.getBrandById,

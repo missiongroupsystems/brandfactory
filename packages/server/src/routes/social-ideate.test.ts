@@ -105,15 +105,15 @@ describe('POST /brands/:id/ideate/themes', () => {
     expect(ideateThemes).not.toHaveBeenCalled()
   })
 
-  it('403s for a user who does not own the workspace', async () => {
-    // The aggregate chain: the brand row exists, so `requireWorkspaceAccess`
-    // is what refuses, and it refuses with `ForbiddenError`. A brand id that
-    // matches nothing at all is the 404 above.
+  it('lets any authenticated user run theme ideation (shared access)', async () => {
+    // The aggregate chain resolves the brand and, under the shared-access
+    // model, admits any authenticated user — so the planner runs. A brand id
+    // that matches nothing at all is still the 404 above.
     const ideateThemes = vi.fn()
     const { app, brandId } = await seedBrand({ ideateThemes })
     const res = await themes(app, brandId, THEMES_BODY, OTHER.token)
-    expect(res.status).toBe(403)
-    expect(ideateThemes).not.toHaveBeenCalled()
+    expect(res.status).toBe(200)
+    expect(ideateThemes).toHaveBeenCalled()
   })
 
   it('400s on a malformed body, without calling the planner', async () => {
@@ -165,11 +165,11 @@ describe('POST /brands/:id/ideate/copy', () => {
     expect(res.status).toBe(401)
   })
 
-  it('403s for a user who does not own the workspace', async () => {
+  it('lets any authenticated user run copy ideation (shared access)', async () => {
     const ideateCopy = vi.fn()
     const { app, brandId } = await seedBrand({ ideateCopy })
-    expect((await copy(app, brandId, body, OTHER.token)).status).toBe(403)
-    expect(ideateCopy).not.toHaveBeenCalled()
+    expect((await copy(app, brandId, body, OTHER.token)).status).toBe(200)
+    expect(ideateCopy).toHaveBeenCalled()
   })
 
   it('400s on an empty batch and on a batch over the ceiling', async () => {

@@ -6,7 +6,7 @@ import type {
   Workspace,
   WorkspaceId,
 } from '@brandfactory/shared'
-import { ForbiddenError, NotFoundError } from './errors'
+import { NotFoundError } from './errors'
 
 // Dependency surface: the narrow slice of `@brandfactory/db`'s query helpers
 // we actually call. Keeping the shape explicit lets tests inject fakes
@@ -24,7 +24,14 @@ export async function requireWorkspaceAccess(
 ): Promise<Workspace> {
   const workspace = await deps.getWorkspaceById(workspaceId)
   if (!workspace) throw new NotFoundError('workspace not found', 'WORKSPACE_NOT_FOUND')
-  if (workspace.ownerUserId !== userId) throw new ForbiddenError('not the workspace owner')
+  // Interim shared-access model: every authenticated user may reach every
+  // workspace, and through the aggregate chain (brand → workspace, project →
+  // brand → workspace) every brand and project. `ownerUserId` is still written
+  // on the row for provenance and for the coming Passport migration, which will
+  // reintroduce org membership and per-user permission scopes *here* — this
+  // function is the one place the whole app gates aggregate access, so the
+  // scoping lands in one edit. `userId` stays in the signature for that reason.
+  void userId
   return workspace
 }
 

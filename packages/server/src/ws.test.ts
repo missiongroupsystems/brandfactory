@@ -35,9 +35,9 @@ describe('authorizeChannel', () => {
     expect(await authorizeChannel(owner, `project:${pr.id}`, db)).toBe(true)
   })
 
-  it('denies the wrong user on an existing channel', async () => {
+  it('allows any authenticated user on an existing channel (shared access)', async () => {
     const { db, pr } = await seed()
-    expect(await authorizeChannel('stranger', `project:${pr.id}`, db)).toBe(false)
+    expect(await authorizeChannel('stranger', `project:${pr.id}`, db)).toBe(true)
   })
 
   it('denies a missing aggregate', async () => {

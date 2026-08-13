@@ -33,7 +33,7 @@ describe('brands routes', () => {
     expect(brandId).toMatch(/^br-/)
   })
 
-  it('POST /workspaces/:id/brands forbids a non-owner', async () => {
+  it('POST /workspaces/:id/brands succeeds for any authenticated user (shared access)', async () => {
     const { app, state } = createTestApp({
       users: [
         { id: 'u-1', token: 't-1' },
@@ -52,7 +52,7 @@ describe('brands routes', () => {
       headers: { authorization: 'Bearer t-1', 'content-type': 'application/json' },
       body: JSON.stringify({ name: 'X' }),
     })
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(201)
   })
 
   it('GET /workspaces/:id/brands returns section and project counts', async () => {
@@ -111,7 +111,7 @@ describe('brands routes', () => {
     expect(empty).toMatchObject({ sectionCount: 0, projectCount: 0 })
   })
 
-  it('GET /workspaces/:id/brands forbids a non-owner', async () => {
+  it('GET /workspaces/:id/brands is visible to any authenticated user (shared access)', async () => {
     const { app, state } = createTestApp({
       users: [
         { id: 'u-1', token: 't-1' },
@@ -128,7 +128,7 @@ describe('brands routes', () => {
     const res = await app.request('/workspaces/w-theirs/brands', {
       headers: { authorization: 'Bearer t-1' },
     })
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
   it('GET /brands/:id hydrates sections', async () => {
@@ -459,7 +459,7 @@ describe('brands routes', () => {
     expect(res.status).toBe(400)
   })
 
-  it('PATCH /brands/:id forbids a non-owner', async () => {
+  it('PATCH /brands/:id succeeds for any authenticated user (shared access)', async () => {
     const { app, state } = createTestApp({
       users: [
         { id: 'u-1', token: 't-1' },
@@ -490,6 +490,6 @@ describe('brands routes', () => {
       headers: { authorization: 'Bearer t-1', 'content-type': 'application/json' },
       body: JSON.stringify({ name: 'Stolen' }),
     })
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 })

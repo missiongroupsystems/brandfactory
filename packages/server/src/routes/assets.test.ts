@@ -77,8 +77,9 @@ describe('asset routes — access', () => {
 
   // Every handler goes through `requireBrandAccess`, which resolves the brand's
   // workspace and checks ownership. A brand in somebody else's workspace is a
-  // 403, not a 404 — the same shape the sibling brand routes have.
-  it('403s for a brand in a workspace the caller does not own', async () => {
+  // Shared-access model: a non-owner is no longer forbidden. Every
+  // authenticated user reaches every brand's asset routes.
+  it('lets any authenticated user reach a brand in a workspace they do not own', async () => {
     const { app, state } = createTestApp({
       users: [USER, { id: 'u-2', token: 't-2' }],
     })
@@ -110,7 +111,7 @@ describe('asset routes — access', () => {
         ...(method === 'POST' ? { body: JSON.stringify(COLOR) } : {}),
         ...(method === 'PATCH' ? { body: JSON.stringify({ label: 'x' }) } : {}),
       })
-      expect(res.status, `${method} ${path}`).toBe(403)
+      expect(res.status, `${method} ${path}`).not.toBe(403)
     }
   })
 
@@ -729,9 +730,9 @@ describe('PATCH /brands/:id/assets — reorder', () => {
     expect((await reorder(app, brandId, [])).status).toBe(400)
   })
 
-  it('403s for a brand in a workspace the caller does not own', async () => {
-    // The brand belongs to USER; `u-2` is authenticated and simply not the
-    // owner, which is the difference between a 401 and a 403 here.
+  it('lets a non-owner reach the reorder handler (shared access); a missing asset 404s', async () => {
+    // `u-2` is authenticated and not the owner; under shared access it reaches
+    // the handler, where a reorder of a non-existent asset id is a 404.
     const { app, brandId } = await seedThree({ users: [USER, { id: 'u-2', token: 't-2' }] })
     const res = await app.request(`/brands/${brandId}/assets`, {
       method: 'PATCH',
@@ -740,6 +741,6 @@ describe('PATCH /brands/:id/assets — reorder', () => {
         updates: [{ id: '00000000-0000-4000-8000-000000000000', position: 1 }],
       }),
     })
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(404)
   })
 })

@@ -80,10 +80,11 @@ describe('social post routes — access', () => {
     }
   })
 
-  // Every handler goes through `requireBrandAccess`. A brand in somebody
-  // else's workspace is a 403, not a 404 — the same shape the asset routes
-  // have.
-  it('403s for a brand in a workspace the caller does not own, on every method', async () => {
+  // Every handler goes through `requireBrandAccess`. Under the shared-access
+  // model a brand in somebody else's workspace is reachable by any
+  // authenticated user — no method is forbidden — the same shape the asset
+  // routes have.
+  it('lets any authenticated user reach every method on a brand they do not own (shared access)', async () => {
     const { app, state } = createTestApp({
       users: [USER, { id: 'u-2', token: 't-2' }],
     })
@@ -115,7 +116,7 @@ describe('social post routes — access', () => {
         headers: auth(),
         ...(body ? { body: JSON.stringify(body) } : {}),
       })
-      expect(res.status, `${method} ${path}`).toBe(403)
+      expect(res.status, `${method} ${path}`).not.toBe(403)
     }
   })
 

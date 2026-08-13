@@ -14,6 +14,14 @@ export async function listWorkspacesByOwner(ownerUserId: UserId): Promise<Worksp
   return rows.map(rowToWorkspace)
 }
 
+// Every workspace, regardless of owner. The interim shared-access model (see
+// `authz.ts`) shows all users all workspaces; `listWorkspacesByOwner` is kept
+// for the Passport migration, which will scope the list by org membership.
+export async function listAllWorkspaces(): Promise<Workspace[]> {
+  const rows = await db.select().from(workspaces)
+  return rows.map(rowToWorkspace)
+}
+
 export async function createWorkspace(input: {
   name: string
   ownerUserId: UserId

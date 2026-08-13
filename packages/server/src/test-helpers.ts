@@ -195,6 +195,9 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
     async listWorkspacesByOwner(ownerUserId) {
       return [...state.workspaces.values()].filter((w) => w.ownerUserId === ownerUserId)
     },
+    async listAllWorkspaces() {
+      return [...state.workspaces.values()]
+    },
     async createWorkspace(input) {
       const id = nextId('ws') as WorkspaceId
       const row: Workspace = {

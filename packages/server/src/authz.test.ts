@@ -1,7 +1,7 @@
 import type { BrandId, ProjectId, UserId, WorkspaceId } from '@brandfactory/shared'
 import { describe, expect, it } from 'vitest'
 import { requireBrandAccess, requireProjectAccess, requireWorkspaceAccess } from './authz'
-import { ForbiddenError, NotFoundError } from './errors'
+import { NotFoundError } from './errors'
 import { createFakeDb } from './test-helpers'
 
 async function seed() {
@@ -24,11 +24,10 @@ describe('requireWorkspaceAccess', () => {
     expect(got.id).toBe(workspace.id)
   })
 
-  it('throws ForbiddenError for a non-owner', async () => {
+  it('returns the workspace for any authenticated user (shared access)', async () => {
     const { db, workspace } = await seed()
-    await expect(requireWorkspaceAccess('stranger', workspace.id, db)).rejects.toBeInstanceOf(
-      ForbiddenError,
-    )
+    const got = await requireWorkspaceAccess('stranger', workspace.id, db)
+    expect(got.id).toBe(workspace.id)
   })
 
   it('throws NotFoundError for a missing workspace', async () => {
@@ -46,11 +45,10 @@ describe('requireBrandAccess', () => {
     expect(got.brand.id).toBe(brand.id)
   })
 
-  it('forbids a non-owner on an existing brand', async () => {
+  it('returns the brand for any authenticated user (shared access)', async () => {
     const { db, brand } = await seed()
-    await expect(requireBrandAccess('stranger', brand.id, db)).rejects.toBeInstanceOf(
-      ForbiddenError,
-    )
+    const got = await requireBrandAccess('stranger', brand.id, db)
+    expect(got.brand.id).toBe(brand.id)
   })
 
   it('404s a missing brand', async () => {
@@ -68,11 +66,10 @@ describe('requireProjectAccess', () => {
     expect(got.project.id).toBe(project.id)
   })
 
-  it('forbids a non-owner', async () => {
+  it('returns the project for any authenticated user (shared access)', async () => {
     const { db, project } = await seed()
-    await expect(requireProjectAccess('stranger', project.id, db)).rejects.toBeInstanceOf(
-      ForbiddenError,
-    )
+    const got = await requireProjectAccess('stranger', project.id, db)
+    expect(got.project.id).toBe(project.id)
   })
 
   it('404s a missing project', async () => {

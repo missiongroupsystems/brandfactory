@@ -192,7 +192,7 @@ describe('projects routes', () => {
       expect(tooBig.status).toBe(400)
     })
 
-    it('forbids a non-owner and 404s an unknown workspace', async () => {
+    it('is visible to any authenticated user and 404s an unknown workspace', async () => {
       const { app, state } = createTestApp({
         users: [
           { id: 'u-1', token: 't-1' },
@@ -207,10 +207,10 @@ describe('projects routes', () => {
         updatedAt: '2026-01-01T00:00:00.000Z',
       })
 
-      const forbidden = await app.request('/workspaces/w-theirs/projects', {
+      const allowed = await app.request('/workspaces/w-theirs/projects', {
         headers: { authorization: 'Bearer t-1' },
       })
-      expect(forbidden.status).toBe(403)
+      expect(allowed.status).toBe(200)
 
       const missing = await app.request('/workspaces/w-ghost/projects', {
         headers: { authorization: 'Bearer t-1' },
@@ -249,7 +249,7 @@ describe('projects routes', () => {
       expect(((await res.json()) as { name: string }).name).toBe('New')
     })
 
-    it('deletes a project and 404s unknown / 403s non-owner', async () => {
+    it('deletes a project and 404s unknown / any authenticated user may delete (shared access)', async () => {
       const { app, state, brandId } = await seedBrand('t-1', 'u-1')
       const created = (await (
         await app.request(`/brands/${brandId}/projects`, {
@@ -307,11 +307,11 @@ describe('projects routes', () => {
         updatedAt: '2026-01-01T00:00:00.000Z',
       })
 
-      const forbidden = await app2.request(`/projects/${prId}`, {
+      const allowed = await app2.request(`/projects/${prId}`, {
         method: 'DELETE',
         headers: { authorization: 'Bearer t-1' },
       })
-      expect(forbidden.status).toBe(403)
+      expect(allowed.status).toBe(200)
     })
 
     it('sweeps the blobs held by the deleted project canvas', async () => {
