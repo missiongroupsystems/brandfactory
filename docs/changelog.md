@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.28.0** — 2026-08-13 — The sign-in page puts on the CI: the Mission Systems mark, the one brand green, a real Google button, and the form in the order its sibling apps use. No migration. 1978 tests.
 - **1.27.0** — 2026-08-13 — A second door opens beside the magic link: one Google button reuses the code-exchange the link already ran, and needs no email — so the broken SMTP stops being a wall. No migration. 1978 tests.
 - **1.26.2** — 2026-08-11 — The social calendar stops insetting its title 8px further than the other four sections of the same panel. No migration. 1978 tests.
 - **1.26.1** — 2026-08-10 — A brainstorm stopped throwing away two good ideas because the third ran long: pass 1 parses per idea, the way it already filtered per idea. No migration. 1978 tests.
@@ -67,6 +68,73 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.28.0 — 2026-08-13
+
+**BrandFactory ships the Mission Systems CI everywhere except the one page every
+user sees first. The sign-in page now wears it, in the shape its sibling apps
+already use.**
+
+The login was a bare `<h1>BrandFactory</h1>` over an unlabelled form. Grapestack
+and the other Mission Systems tools open on a logo lockup, a product tagline, and
+a form whose primary action sits above a divider with the OAuth button under it.
+This release brings the sign-in page into that pattern, using the CI tokens the
+app already carries — no re-theme, only layout and a mark.
+
+### 1. The mark is the parent's, because the product has none
+
+Each sibling app shows its own logo — Grapestack its grape, Workforce its own.
+BrandFactory has no product mark: the branding drive holds only the **Mission
+Systems** umbrella logo. So the umbrella icon stands in, beside a set-text
+`BrandFactory` wordmark (there is no wordmark asset either). The icon is inlined
+as a component with `fill="currentColor"`, so it takes the one brand green
+(`text-primary`) and follows the light/dark theme, rather than shipping a flat
+black raster that fights the surface. `BrandMark.tsx` was the wrong tool — that
+is the *customer's* brand monogram, not the app's.
+
+### 2. The form now reads in the siblings' order
+
+Email field with a label, then the green primary — `Send magic link` — then an
+`OR CONTINUE WITH` divider, then the Google button as an outline with the real
+four-colour Google mark inlined. That is a re-order of the two buttons 1.27.0
+added; the Google handler and the `?code=` exchange behind it are unchanged. The
+tagline is `Brand Operating System`, the product's own framing from
+`docs/vision.md`.
+
+### 3. The favicon, and the locations still bare
+
+The browser tab now carries the Mission Systems mark (`public/favicon.svg`,
+linked from `index.html`) instead of the Vite default. Two app-shell spots — the
+nav rail head and the account tile at its foot — still show no mark; they are a
+deliberate follow-up so this change stays scoped to the sign-in surface.
+
+### Verification
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1978 passed | 78 skipped (159 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+Rendered from the running dev server with a headless Chromium and checked
+against the Grapestack reference: the lockup, the green primary (in its enabled
+state), the divider and the Google mark all match. **1978 → 1978 (+0):** the
+change is presentational — a logo component, a re-ordered form, an `index.html`
+link — with no branch a unit test can drive that jsdom (no layout) would render
+meaningfully.
+
+### Caveats
+
+- **Dark mode is inferred, not eyeballed.** Every colour is a CI token
+  (`text-primary`, `border`, `muted-foreground`), so it themes by construction,
+  but the screenshot was taken in light only.
+- **The wordmark is set text, not a vector.** If a real `BrandFactory` wordmark
+  lands, it replaces the `<span>` and the geometry holds.
+- **The rail and account tile still carry no mark.** Named above; not in scope
+  here.
 
 ---
 
