@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.27.0** — 2026-08-13 — A second door opens beside the magic link: one Google button reuses the code-exchange the link already ran, and needs no email — so the broken SMTP stops being a wall. No migration. 1978 tests.
 - **1.26.2** — 2026-08-11 — The social calendar stops insetting its title 8px further than the other four sections of the same panel. No migration. 1978 tests.
 - **1.26.1** — 2026-08-10 — A brainstorm stopped throwing away two good ideas because the third ran long: pass 1 parses per idea, the way it already filtered per idea. No migration. 1978 tests.
 - **1.26.0** — 2026-08-10 — The calendar learns to plan: a month becomes a brief, a brief becomes ideas, and ideas become drafts that say who wrote them. Three doors, two passes, one stateless route. Migration 0012. 1973 tests.
@@ -66,6 +67,86 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.27.0 — 2026-08-13
+
+**Non-technical testers could not sign in, and the fault was not in the app: the
+magic link's email leg was broken end to end. So the login page grew a second
+door that needs no email.**
+
+Eight of nine invited users sat at *"Waiting for verification"* in Supabase. The
+email arrived, but every confirmation link pointed at `url5617.supainc.co` — a
+SendGrid click-tracking domain that does not resolve (NXDOMAIN). A custom SMTP,
+configured on a placeholder sender domain (`hello@supainc.co`), rewrote each
+one-time link through a branded-link host that was never wired in DNS. The
+`/verify` endpoint was therefore never reached, and no user was ever confirmed.
+That is a mail/DNS fault, not a code fault, and it lives in the SendGrid and
+Supabase dashboards, not this repo.
+
+Rather than wait on the SMTP repair, this release adds Google sign-in — the path
+the sibling projects (Grapestack, Supaschedule) already use for the same team —
+because it carries no email at all.
+
+### 1. The button reuses the exchange the magic link already ran
+
+`SupabaseAuthProvider` already runs the whole PKCE handshake: it reads `?code=`
+off `/login` on mount and calls `exchangeCodeForSession` by hand, because the
+client is built with `detectSessionInUrl: false`. Google OAuth returns the
+**same** `?code=` to the **same** `/login`. So `signInWithOAuth({ provider:
+'google', options: { redirectTo: \`${origin}/login\` } })` hands the return leg
+straight to the effect that was already there. One `handleGoogle`, one
+"Continue with Google" button above the email form, an "or" divider. No new
+route, no new component.
+
+### 2. Nothing on the server changed
+
+The server verifies a Supabase JWT against the project JWKS
+(`packages/adapters/auth/src/supabase.ts`), and provisions the `public.users`
+row on first verified request. A Google-issued Supabase JWT is the same shape as
+a magic-link one, so the adapter, the auth middleware, and `/me` are untouched.
+No migration.
+
+### 3. Why this sidesteps the failure, not papers over it
+
+Google sign-in stays inside one browser tab: click → Google → back to `/login`.
+The PKCE verifier that lives in that tab's storage is present for the exchange,
+and no email, SMTP, or tracking domain is in the path. The class of failure that
+stranded the magic link cannot occur on this route. The magic link stays in
+place; its email leg is still broken until the SendGrid tracking/sender domain
+is fixed, and Google is the working door until then.
+
+### Verification
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1978 passed | 78 skipped (159 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+1 file modified, 0 added. **1978 → 1978 (+0).** No test was added: the button's
+only behaviour is a call that navigates the tab to Google, and jsdom has no
+navigation and no OAuth provider to drive, so the sole available assertion would
+pin the call's spelling and prove nothing about the round trip. The existing
+`?code=` exchange — the part that actually does the work — is already covered.
+
+### Caveats
+
+- **The provider config is dashboard state, not repo state.** Google sign-in
+  needs the Google provider enabled in Supabase (project `spffglhadlkfrkmbhzdv`)
+  with a client ID + secret, and an OAuth client in Google Cloud whose redirect
+  URI is `https://spffglhadlkfrkmbhzdv.supabase.co/auth/v1/callback`. The
+  consent screen is **Internal**; it works for both team domains because
+  `ebbflowgroup.com` and `missiongroup.com` are one Google Workspace org. None
+  of this is enforced by the build.
+- **Not yet exercised against the live provider.** The button is verified to
+  compile, lint, and pass the suite; the end-to-end Google round trip is
+  confirmed only after the web change deploys to Vercel.
+- **The magic link is left in place and still broken.** Repairing SendGrid
+  (disable click tracking, or move the sender to an authenticated real domain)
+  is separate work, no longer on the critical path.
 
 ---
 

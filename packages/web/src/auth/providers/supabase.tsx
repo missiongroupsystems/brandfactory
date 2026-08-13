@@ -107,6 +107,18 @@ export function SupabaseAuthProvider() {
     )
   }
 
+  const handleGoogle = async () => {
+    setError(null)
+    // signInWithOAuth redirects the tab to Google, then back to `/login` with
+    // `?code=`, which the mount effect above exchanges — the same path the
+    // magic link uses. No email, so it sidesteps the SMTP flow entirely.
+    const { error: oauthError } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/login` },
+    })
+    if (oauthError) setError(oauthError.message)
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -130,22 +142,37 @@ export function SupabaseAuthProvider() {
   }
 
   return (
-    <form onSubmit={(e) => void handleSubmit(e)} className="w-full space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          required
-        />
-      </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button type="submit" className="w-full" disabled={loading || !email.trim()}>
-        {loading ? 'Sending…' : 'Send magic link'}
+    <div className="w-full space-y-4">
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        onClick={() => void handleGoogle()}
+      >
+        Continue with Google
       </Button>
-    </form>
+      <div className="flex items-center gap-3">
+        <span className="h-px flex-1 bg-border" />
+        <span className="text-xs text-muted-foreground">or</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+          />
+        </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button type="submit" className="w-full" disabled={loading || !email.trim()}>
+          {loading ? 'Sending…' : 'Send magic link'}
+        </Button>
+      </form>
+    </div>
   )
 }
