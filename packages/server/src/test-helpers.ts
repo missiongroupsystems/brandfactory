@@ -217,6 +217,28 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       state.workspaces.set(id, row)
       return row
     },
+    async deleteWorkspace(id) {
+      const existing = state.workspaces.get(id)
+      if (!existing) return null
+      state.workspaces.delete(id)
+      state.settings.delete(id)
+      for (const brand of [...state.brands.values()]) {
+        // Cascade through the same helper so brands → projects → canvases →
+        // blocks and assets/posts/sections go too, exactly as the FK chain does.
+        if (brand.workspaceId === id) await db.deleteBrand(brand.id)
+      }
+      return existing
+    },
+    async listBlobKeysByWorkspace(workspaceId) {
+      const keys: string[] = []
+      for (const brand of state.brands.values()) {
+        // Union of the per-brand arms — the real query does this in one SQL
+        // pass joined up to `brands.workspaceId`; the fake reuses the helper.
+        if (brand.workspaceId === workspaceId)
+          keys.push(...(await db.listBlobKeysByBrand(brand.id)))
+      }
+      return keys
+    },
 
     async getBrandById(id) {
       return state.brands.get(id) ?? null

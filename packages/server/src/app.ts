@@ -124,7 +124,7 @@ export function createApp(deps: AppDeps) {
     // Deployment-level: is research on at all? Needed by the create dialog
     // before a brand exists; the brand-scoped GET still carries the same flag.
     .route('/research', createResearchConfigRouter({ env: deps.env }))
-    .route('/workspaces', createWorkspacesRouter({ db: deps.db }))
+    .route('/workspaces', createWorkspacesRouter({ db: deps.db, storage: deps.storage }))
     .route('/workspaces', createWorkspaceBrandsRouter({ db: deps.db, storage: deps.storage }))
     .route('/workspaces', createWorkspaceProjectsRouter({ db: deps.db, storage: deps.storage }))
     .route('/workspaces', createSettingsRouter({ db: deps.db, env: deps.env }))

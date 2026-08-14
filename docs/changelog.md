@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.30.0** — 2026-08-14 — Workspace delete lands, the top of the aggregate: the same gate as brand delete, the same read-then-sweep for blobs, one level up. No migration. 1982 tests.
 - **1.29.0** — 2026-08-13 — The silos come down: the one owner gate opens, so every signed-in user sees and edits every workspace and brand. Ownership stays on the row for the Passport migration. No migration. 1978 tests.
 - **1.28.0** — 2026-08-13 — The sign-in page puts on the CI: the Mission Systems mark, the one brand green, a real Google button, and the form in the order its sibling apps use. No migration. 1978 tests.
 - **1.27.0** — 2026-08-13 — A second door opens beside the magic link: one Google button reuses the code-exchange the link already ran, and needs no email — so the broken SMTP stops being a wall. No migration. 1978 tests.
@@ -72,6 +73,68 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
+## 1.30.0 — 2026-08-14
+
+**A workspace was the one aggregate with no delete. You could delete a brand and
+everything under it, but never the workspace above. This release adds
+`DELETE /workspaces/:id`, built to the brand-delete pattern exactly, one level
+up.**
+
+1.29.0 opened the gates but did not add a delete route; the earlier note that
+"any user can delete any workspace" was wrong, because no such route existed.
+This release makes the statement true on purpose, with the same guards a brand
+delete already carries.
+
+### 1. The same gate, the same sweep
+
+The route runs the brand-delete steps, one aggregate higher:
+
+1. No token → `401`.
+2. `requireWorkspaceAccess(userId, id, db)` — the one gate, shared-access today,
+   Passport-scoped later. No new authz surface.
+3. `listBlobKeysByWorkspace(id)` — read the blob keys **before** the cascade
+   destroys the pointers.
+4. `deleteWorkspace(id)` — one `DELETE`. FK `onDelete: 'cascade'` removes brands
+   → projects → canvases → blocks, plus assets, posts, sections, research and
+   `workspace_settings`. Null row → `404`.
+5. `listStillReferencedBlobKeys` + `sweepBlobs` — delete only bytes no surviving
+   row outside this workspace still names.
+
+`listBlobKeysByWorkspace` is `listBlobKeysByBrand` with one more join, up to
+`brands.workspaceId`: canvas blocks via project → canvas → brand, and brand
+assets filtered to `source = 'blob'`. Both arms carry soft-deleted rows, because
+the workspace is going away and every byte it owned goes with it.
+
+### 2. One wiring change the brand route did not need
+
+`WorkspacesDeps` gained `storage`, because the sweep needs the blob store. The
+mount in `app.ts` now passes `deps.storage`, the way the brands and projects
+routers already do. No migration: the cascades already exist in the schema.
+
+### 3. No stronger guard than brand delete, on purpose
+
+A workspace is the largest blast radius in the app — one call removes the whole
+tenant tree. This release does **not** add an empty-check or a confirm-by-name
+guard, so the delete idiom stays identical across aggregates. Under the current
+trust-the-tenant model that is the honest shape. The natural place for an
+"owner-or-admin only" rule is this one route, when Passport adds real roles.
+
+### Verification
+
+```
+pnpm typecheck                    clean (all 10 packages)
+pnpm lint / format:check          clean (whole repo)
+pnpm test                         1982 passed | 78 skipped (159 files)
+pnpm -F @brandfactory/web build   clean
+```
+
+Four new tests on `DELETE /workspaces/:id`: `401` without a token, `404` on an
+unknown id without touching the store, cascade to the brands under it by a
+non-owner (shared access), and a two-arm blob sweep across the workspace. Net
+`+4` — 1978 to 1982.
+
+---
+
 ## 1.29.0 — 2026-08-13
 
 **The app put every user in a private silo — each saw only the workspaces they
@@ -102,10 +165,16 @@ by org membership rather than owner.
 ### 3. This is read *and* write
 
 Because the one gate covers reads and writes, every authenticated user now has
-full read, write and delete on every workspace and brand — not view-only. That
-is what shared collaboration needs, and it is the honest shape of the change:
-there is no per-user permission layer yet. Auth is still required — no token is
-still a 401; only ownership stopped gating.
+full read and write on every workspace and brand — not view-only. That is what
+shared collaboration needs, and it is the honest shape of the change: there is
+no per-user permission layer yet. Auth is still required — no token is still a
+401; only ownership stopped gating.
+
+Delete follows the routes that exist. A user can delete a brand (and projects,
+assets, social posts, research drafts, canvas blocks), because those routes have
+a `DELETE`. A user **cannot** delete a workspace — the workspaces router has no
+`DELETE` and the `Db` interface has no `deleteWorkspace`. The only way to remove
+a workspace is direct SQL, which cascades to its brands and settings.
 
 ### Verification
 
@@ -124,9 +193,11 @@ the coverage did not move.
 
 ### Caveats
 
-- **Trust-the-tenant.** Any signed-in user can delete any brand or workspace.
-  Acceptable for the current closed team; it is not a permission model, and must
-  not outlive the arrival of Passport's per-user scopes.
+- **Trust-the-tenant.** Any signed-in user can delete any brand (and its
+  projects, assets and posts), because those routes exist and no longer gate on
+  owner. Workspaces have no delete route, so no user can delete one through the
+  app. This is acceptable for the current closed team; it is not a permission
+  model, and must not outlive the arrival of Passport's per-user scopes.
 - **Provisioning is unchanged.** A first Google sign-in still mints a user row;
   it just no longer starts an empty private silo — the new user lands in the
   shared space.

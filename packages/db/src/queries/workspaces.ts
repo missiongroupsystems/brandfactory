@@ -1,8 +1,8 @@
 import type { UserId, Workspace, WorkspaceId } from '@brandfactory/shared'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, isNotNull, sql } from 'drizzle-orm'
 import { db } from '../client'
 import { rowToWorkspace } from '../mappers'
-import { workspaces } from '../schema'
+import { brandAssets, brands, canvasBlocks, canvases, projects, workspaces } from '../schema'
 
 export async function getWorkspaceById(id: WorkspaceId): Promise<Workspace | null> {
   const [row] = await db.select().from(workspaces).where(eq(workspaces.id, id))
@@ -44,4 +44,51 @@ export async function updateWorkspace(
     .where(eq(workspaces.id, id))
     .returning()
   return row ? rowToWorkspace(row) : null
+}
+
+// Cascades brands → projects → canvases → blocks / messages, plus assets, posts,
+// sections, research and `workspace_settings`, all via FK `onDelete: 'cascade'`.
+// Blobs held by those rows live in object storage, outside the FK graph — the
+// caller must collect `listBlobKeysByWorkspace` *before* this delete and sweep
+// them, or the bytes orphan forever. This mirrors `deleteBrand` one level up.
+export async function deleteWorkspace(id: WorkspaceId): Promise<Workspace | null> {
+  const [row] = await db.delete(workspaces).where(eq(workspaces.id, id)).returning()
+  return row ? rowToWorkspace(row) : null
+}
+
+/**
+ * Storage keys held by everything under this workspace. Read before the row
+ * delete cascades them away. Same two arms as `listBlobKeysByBrand`, each with
+ * one more join up to `brands.workspaceId`:
+ *
+ * - **canvas blocks**, via project → canvas → project.brandId → brand.
+ * - **brand assets**, filtered to `source = 'blob'` — a `link` row's `url` is
+ *   someone else's host, and its `blobKey` is null anyway.
+ *
+ * Soft-deleted rows are included on purpose: the workspace is going away, so
+ * every byte it ever owned goes with it. The final sweep still subtracts keys a
+ * surviving row outside this workspace still names (see `listStillReferencedBlobKeys`).
+ */
+export async function listBlobKeysByWorkspace(workspaceId: WorkspaceId): Promise<string[]> {
+  const blockRows = await db
+    .select({ blobKey: canvasBlocks.blobKey })
+    .from(canvasBlocks)
+    .innerJoin(canvases, eq(canvases.id, canvasBlocks.canvasId))
+    .innerJoin(projects, eq(projects.id, canvases.projectId))
+    .innerJoin(brands, eq(brands.id, projects.brandId))
+    .where(and(eq(brands.workspaceId, workspaceId), isNotNull(canvasBlocks.blobKey)))
+
+  const assetRows = await db
+    .select({ blobKey: brandAssets.blobKey })
+    .from(brandAssets)
+    .innerJoin(brands, eq(brands.id, brandAssets.brandId))
+    .where(
+      and(
+        eq(brands.workspaceId, workspaceId),
+        eq(brandAssets.source, 'blob'),
+        isNotNull(brandAssets.blobKey),
+      ),
+    )
+
+  return [...blockRows, ...assetRows].map((r) => r.blobKey).filter((k): k is string => k !== null)
 }

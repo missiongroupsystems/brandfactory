@@ -18,6 +18,8 @@ export interface Db {
   listAllWorkspaces: typeof db.listAllWorkspaces
   createWorkspace: typeof db.createWorkspace
   updateWorkspace: typeof db.updateWorkspace
+  deleteWorkspace: typeof db.deleteWorkspace
+  listBlobKeysByWorkspace: typeof db.listBlobKeysByWorkspace
 
   // Brands + guideline sections
   getBrandById: typeof db.getBrandById
@@ -104,6 +106,8 @@ export function buildDbDeps(): Db {
     listAllWorkspaces: db.listAllWorkspaces,
     createWorkspace: db.createWorkspace,
     updateWorkspace: db.updateWorkspace,
+    deleteWorkspace: db.deleteWorkspace,
+    listBlobKeysByWorkspace: db.listBlobKeysByWorkspace,
     getBrandById: db.getBrandById,
     listBrandsByWorkspace: db.listBrandsByWorkspace,
     listBrandSummariesByWorkspace: db.listBrandSummariesByWorkspace,
