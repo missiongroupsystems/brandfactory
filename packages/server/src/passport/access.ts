@@ -70,6 +70,23 @@ export interface PassportAccess {
   /** `unitId -> 'Manager' | 'Staff'`. A MAP; there is no effective role. */
   rolesByUnit: Record<string, string>
   hasAccess: boolean
+  /**
+   * The org-level kill switch ALONE — is this app entitled in this organisation?
+   *
+   * Plan: phase 8d. Decision: proposal §8 `D1-b`.
+   *
+   * `hasAccess` is not a substitute, and the difference is exactly what `D1-b` needs.
+   * `hasAccess` conflates the entitlement, an active membership **and** at least one unit
+   * carrying this app. That last clause is right for a linked brand and a category error for
+   * an **unlinked** one: an unlinked brand sits at no unit, so requiring unit-level app
+   * access to see it would deny every member of an organisation whose units are all still
+   * waiting to be promoted — which is precisely the state after an outage, and precisely the
+   * state `D1-b` exists to keep workable.
+   *
+   * A missing entitlement row is `false`. Defaulting the other way grants everything in an
+   * organisation this app was never entitled to.
+   */
+  entitled: boolean
 }
 
 /**
@@ -177,6 +194,9 @@ export function createPassportAccess(deps: PassportAccessDeps = {}) {
       orgRole,
       rolesByUnit: rolesAtUnits(input),
       hasAccess: hasAppAccess(input),
+      // Read off the same value the SDK is given, so the two can never disagree about what
+      // "entitled" means.
+      entitled: input.entitlementStatus === 'active',
     }
   }
 
