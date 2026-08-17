@@ -30,6 +30,8 @@ const OTHER_ORG = '22222222-2222-4222-8222-222222222222'
 const BRAND = '33333333-3333-4333-8333-333333333333'
 const ENTITY = '44444444-4444-4444-8444-444444444444'
 const OUTLET = '55555555-5555-4555-8555-555555555555'
+const LOCAL_UNLINKED = '66666666-6666-4666-8666-666666666666'
+const FOREIGN_BRAND = '77777777-7777-4777-8777-777777777777'
 
 function env(): Env {
   return {
@@ -74,6 +76,45 @@ function client(over: Partial<StructureWriteClient> = {}): StructureWriteClient 
   }
 }
 
+/**
+ * Local brands, as `getBrandStructure` answers them.
+ *
+ * `LOCAL_UNLINKED` is the one that matters: a brand created while Passport was unreachable.
+ * It has a display label and no unit, which is the state promotion exists to resolve.
+ */
+const LOCAL_BRANDS = [
+  {
+    brandId: BRAND,
+    workspaceId: 'ws-1',
+    displayName: 'Casa Vostra',
+    unitId: BRAND,
+    organizationId: ORG,
+    legalName: 'Casa Vostra Pte. Ltd.',
+    unitStatus: 'active',
+    unitType: 'brand',
+  },
+  {
+    brandId: LOCAL_UNLINKED,
+    workspaceId: 'ws-1',
+    displayName: 'Made During An Outage',
+    unitId: null,
+    organizationId: ORG,
+    legalName: null,
+    unitStatus: null,
+    unitType: null,
+  },
+  {
+    brandId: FOREIGN_BRAND,
+    workspaceId: 'ws-9',
+    displayName: 'Someone Else',
+    unitId: null,
+    organizationId: OTHER_ORG,
+    legalName: null,
+    unitStatus: null,
+    unitType: null,
+  },
+]
+
 const UNITS = [
   { id: BRAND, organizationId: ORG, name: 'Acme', type: 'brand', status: 'active' },
   { id: ENTITY, organizationId: ORG, name: 'Acme Pte Ltd', type: 'entity', status: 'active' },
@@ -102,6 +143,7 @@ function harness(
     memberOfNothing?: boolean
     ambiguous?: boolean
     attempt?: unknown
+    unlinked?: number
   } = {},
 ): Harness {
   const c = client(opts.client)
@@ -130,6 +172,9 @@ function harness(
     reader: {
       getUserById: (async () => ({ id: 'local-1', email: 'admin@acme.test' })) as never,
       listUnits: (async (organizationId: string) => (organizationId === ORG ? UNITS : [])) as never,
+      getBrandStructure: (async (brandId: string) =>
+        LOCAL_BRANDS.find((b) => b.brandId === brandId)) as never,
+      countUnlinkedBrands: (async () => opts.unlinked ?? 0) as never,
     },
     queue: queue as never,
   })
@@ -636,5 +681,174 @@ describe('the response', () => {
     for (const res of responses) {
       expect(((await res.json()) as { pending?: boolean }).pending).toBe(true)
     }
+  })
+})
+
+/**
+ * Promotion — the Admin half of `D1-b`'s split create.
+ *
+ * Plan 8e; proposal §6.1. A brand made while Passport was unreachable exists here with no
+ * unit and is usable. Anyone who may create a brand can make one; **only an org Admin on a
+ * hosted-login session may promote it.**
+ */
+describe('promoting a local brand', () => {
+  it('creates the unit AND switches the app on at it', async () => {
+    const { app, client: c } = harness()
+    const res = await post(app, `/brands/${LOCAL_UNLINKED}/promote`)
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({
+      unitId: BRAND,
+      pending: true,
+      appAccessEnabled: true,
+    })
+    // Not optional: a unit carrying no `unit_app_access` row confers access to NOBODY, not
+    // even an org Owner — so a promotion without it makes the brand less reachable, not more.
+    expect(c.enableApp).toHaveBeenCalled()
+  })
+
+  it('sends the brand id as external_ref, which is what the link resolves on', async () => {
+    // `UnitCreate.id` is super-admin gated, so this is the only key we control. The prefix is
+    // the documented `"<app>:<legacy pk>"` convention.
+    const { app, client: c } = harness()
+    await post(app, `/brands/${LOCAL_UNLINKED}/promote`)
+
+    expect(c.createUnit).toHaveBeenCalledWith(
+      expect.anything(),
+      ORG,
+      expect.objectContaining({ externalRef: `brandfactory:${LOCAL_UNLINKED}` }),
+    )
+  })
+
+  it('sends the DISPLAY label as the unit name', async () => {
+    // The honest default for a brand Passport has never seen: there is no legal name to
+    // preserve. An Admin corrects it in the console afterwards.
+    const { app, client: c } = harness()
+    await post(app, `/brands/${LOCAL_UNLINKED}/promote`)
+
+    expect(c.createUnit).toHaveBeenCalledWith(
+      expect.anything(),
+      ORG,
+      expect.objectContaining({ name: 'Made During An Outage', type: 'brand' }),
+    )
+  })
+
+  it('says pending, because the LINK arrives by event', async () => {
+    // Passport emits `unit.upserted`; `passport/link-brand.ts` sets the link. Reporting the
+    // brand as linked here would be a lie for about a second, and the UI would then "correct"
+    // itself in a way that reads as a bug.
+    const { app } = harness()
+    expect(
+      (
+        (await (await post(app, `/brands/${LOCAL_UNLINKED}/promote`)).json()) as {
+          pending: boolean
+        }
+      ).pending,
+    ).toBe(true)
+  })
+
+  // ── The gate ──────────────────────────────────────────────────────────────
+
+  it('refuses a Member', async () => {
+    const { app, client: c } = harness({ role: 'Member' })
+    expect((await post(app, `/brands/${LOCAL_UNLINKED}/promote`)).status).toBe(403)
+    expect(c.createUnit).not.toHaveBeenCalled()
+  })
+
+  it('refuses an app-native session', async () => {
+    // ⚠️ The security property of the split. A non-Admin, or anyone without a Passport
+    // session, can CREATE a local brand — but promoting it would let a consumer app add a
+    // unit to an organisation's structure with no org Admin involved, and every sibling app
+    // in the suite would then read it.
+    const { app, client: c } = harness({ role: 'Owner', issuer: 'app-native' })
+    const res = await post(app, `/brands/${LOCAL_UNLINKED}/promote`)
+
+    expect(res.status).toBe(403)
+    expect(await res.text()).toMatch(/Passport sign-in/i)
+    expect(c.createUnit).not.toHaveBeenCalled()
+  })
+
+  it('404s a brand belonging to another organisation', async () => {
+    // Cross-org denial, through the same read the rest of the router uses.
+    const { app, client: c } = harness()
+    expect((await post(app, `/brands/${FOREIGN_BRAND}/promote`)).status).toBe(404)
+    expect(c.createUnit).not.toHaveBeenCalled()
+  })
+
+  it('404s a brand that does not exist', async () => {
+    const { app } = harness()
+    expect((await post(app, `/brands/${OUTLET}/promote`)).status).toBe(404)
+  })
+
+  // ── Idempotence and failure ───────────────────────────────────────────────
+
+  it('is idempotent for an ALREADY linked brand', async () => {
+    // Two Admins pressing the button, or a retry after a lost response, must not read as a
+    // failure — and must not create a second unit.
+    const { app, client: c } = harness()
+    const res = await post(app, `/brands/${BRAND}/promote`)
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ alreadyLinked: true })
+    expect(c.createUnit).not.toHaveBeenCalled()
+  })
+
+  it('queues an outage and leaves the brand usable', async () => {
+    const { app, queue } = harness({
+      client: {
+        createUnit: vi.fn(async () => ({
+          ok: false as const,
+          error: { kind: 'unavailable', message: 'timeout' } as StructureWriteFailure,
+        })),
+      },
+    })
+    const res = await post(app, `/brands/${LOCAL_UNLINKED}/promote`)
+
+    // A failed promotion is NOT a failed create. The brand is untouched and still works.
+    expect(res.status).toBe(400)
+    expect(queue.record).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'unit.create', unitId: null }),
+    )
+  })
+
+  it('reports a half-promotion rather than hiding it', async () => {
+    // The unit exists in Passport and the app is not switched on at it — so under the linked
+    // rules it is visible to nobody. Worse than staying unlinked, because the local access
+    // rule stops applying the moment the link lands.
+    const { app, client: c } = harness({
+      client: {
+        enableApp: vi.fn(async () => ({
+          ok: false as const,
+          error: { kind: 'unavailable', message: 'timeout' } as StructureWriteFailure,
+        })),
+      },
+    })
+    const res = await post(app, `/brands/${LOCAL_UNLINKED}/promote`)
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { appAccessEnabled: boolean; warning: string }
+    expect(body.appAccessEnabled).toBe(false)
+    expect(body.warning).toMatch(/switched on/i)
+    // NOT rolled back: sibling apps may already hold the event.
+    expect(c.archiveUnit).not.toHaveBeenCalled()
+  })
+})
+
+describe('the unlinked count', () => {
+  it('reports how many brands Passport does not know about', async () => {
+    // Not optional under `D1-b`: a queue nobody drains leaves a growing set of brands that
+    // exist here and nowhere else, invisible to every sibling app, with nothing failing.
+    const { app } = harness({ unlinked: 3 })
+    const res = await app.request('/passport/structure/workspaces/ws-1/unlinked', { headers: AUTH })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ workspaceId: 'ws-1', unlinked: 3 })
+  })
+
+  it('is behind the same gate as the writes', async () => {
+    const { app } = harness({ role: 'Member' })
+    expect(
+      (await app.request('/passport/structure/workspaces/ws-1/unlinked', { headers: AUTH })).status,
+    ).toBe(403)
   })
 })

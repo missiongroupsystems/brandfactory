@@ -160,18 +160,46 @@ describe('the structure write client', () => {
     expect(lastRequest().body).toEqual({ name: 'Renamed' })
   })
 
-  it('never sends description or external_ref on any body', async () => {
-    // `description`: Passport ACCEPTS it and deliberately never syncs it back, so writing it
+  it('never sends description, on any body', async () => {
+    // Passport ACCEPTS `description` and deliberately never syncs it back, so writing it
     // creates a copy this app can never read — a save that silently did nothing.
-    // `external_ref`: phase 8's bridge key, which this app's row resolution depends on.
     const client = createStructureWriteClient(env())
-    const forbidden = { description: 'nope', external_ref: 'bf:1' } as object
+    const forbidden = { description: 'nope' } as object
 
     await client.createUnit(PASSPORT_PERSON, 'org-1', { name: 'A', type: 'brand', ...forbidden })
     expect(Object.keys(lastRequest().body ?? {})).toEqual(['name', 'type'])
 
     await client.updateUnit(PASSPORT_PERSON, 'org-1', 'u1', { name: 'B', ...forbidden })
     expect(Object.keys(lastRequest().body ?? {})).toEqual(['name'])
+  })
+
+  it('sends external_ref on a CREATE, because it is the only key we control', async () => {
+    // `UnitCreate.id` is super-admin gated, so this app cannot choose the unit's UUID.
+    // `external_ref` is the only place our identifier travels, and it is what the returning
+    // `unit.upserted` links a waiting local brand on (`passport/link-brand.ts`).
+    const client = createStructureWriteClient(env())
+    await client.createUnit(PASSPORT_PERSON, 'org-1', {
+      name: 'A',
+      type: 'brand',
+      externalRef: 'brandfactory:b-1',
+    })
+    expect(lastRequest().body).toEqual({
+      name: 'A',
+      type: 'brand',
+      external_ref: 'brandfactory:b-1',
+    })
+  })
+
+  it('NEVER sends external_ref on an update, even when handed one', async () => {
+    // Set once, at creation. Changing it later orphans a local brand from its own unit, with
+    // nothing failing — the link simply stops resolving. `UnitUpdate` is `extra="forbid"`
+    // besides, so it would be a 422.
+    const client = createStructureWriteClient(env())
+    await client.updateUnit(PASSPORT_PERSON, 'org-1', 'u1', {
+      name: 'B',
+      ...({ externalRef: 'brandfactory:b-1', external_ref: 'brandfactory:b-1' } as object),
+    })
+    expect(lastRequest().body).toEqual({ name: 'B' })
   })
 
   it('omits an absent field rather than sending null', async () => {

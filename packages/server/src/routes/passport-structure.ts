@@ -1,6 +1,8 @@
 import {
   bumpWriteAttempt,
+  countUnlinkedBrands,
   deleteWriteAttempt,
+  getBrandStructure,
   getUserById,
   getWriteAttempt,
   listPassportUnits,
@@ -14,6 +16,7 @@ import type { AppEnv } from '../context'
 import type { Env } from '../env'
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors'
 import { createPassportAccess, type PassportAccessService } from '../passport/access'
+import { createBrandPromoter } from '../passport/promote-brand'
 import {
   attachRelationBodySchema,
   canWriteStructure,
@@ -82,6 +85,8 @@ export interface PassportStructureDeps {
   reader?: {
     getUserById: typeof getUserById
     listUnits: typeof listPassportUnits
+    getBrandStructure: typeof getBrandStructure
+    countUnlinkedBrands: typeof countUnlinkedBrands
   }
   queue?: {
     record: typeof recordWriteAttempt
@@ -110,7 +115,12 @@ interface Actor {
 export function createPassportStructureRouter(deps: PassportStructureDeps) {
   const access = deps.access ?? createPassportAccess()
   const client = deps.client ?? createStructureWriteClient(deps.env)
-  const reader = deps.reader ?? { getUserById, listUnits: listPassportUnits }
+  const reader = deps.reader ?? {
+    getUserById,
+    listUnits: listPassportUnits,
+    getBrandStructure,
+    countUnlinkedBrands,
+  }
   const queue =
     deps.queue ??
     ({
@@ -120,6 +130,10 @@ export function createPassportStructureRouter(deps: PassportStructureDeps) {
       bump: bumpWriteAttempt,
       remove: deleteWriteAttempt,
     } as const)
+
+  // Built from the SAME client and queue as the routes below, so a promotion and a direct
+  // create cannot diverge on what "retryable" means or where a failure is recorded.
+  const promote = createBrandPromoter({ client, record: queue.record })
 
   const router = new Hono<AppEnv>()
 
@@ -421,6 +435,84 @@ export function createPassportStructureRouter(deps: PassportStructureDeps) {
       return c.json({ unitId, pending: true })
     })
 
+    /**
+     * Promote a locally created brand into a Passport unit.
+     *
+     * Plan 8e; decision proposal §6.1. **This is the Admin half of the split create.**
+     *
+     * A brand authored while Passport was unreachable exists here with no unit, and is
+     * usable. Anyone who may create a brand can make one; **only an org Admin on a
+     * hosted-login session can promote it**, which `actor()` enforces before this body runs.
+     *
+     * That asymmetry is the security property, not an inconvenience: a non-Admin create that
+     * reached Passport unattended would let a consumer app add units to an organisation's
+     * structure with no org Admin involved, and every sibling app in the suite would then
+     * read them.
+     */
+    .post('/brands/:brandId/promote', async (c) => {
+      const who = await actor(c)
+      const brandId = c.req.param('brandId')
+
+      const brand = await reader.getBrandStructure(brandId)
+      if (!brand) throw new NotFoundError('brand not found')
+
+      // Cross-org denial, through the same read the rest of this router uses. A brand whose
+      // workspace belongs to another organisation must not be promotable from this session.
+      if (brand.organizationId !== who.organizationId) throw new NotFoundError('brand not found')
+
+      // Already linked. Idempotent rather than an error: two Admins pressing the button, or a
+      // retry after a response was lost, must not read as a failure.
+      if (brand.unitId) return c.json({ brandId, unitId: brand.unitId, alreadyLinked: true })
+
+      const result = await promote({
+        person: who.person,
+        organizationId: who.organizationId,
+        brandId,
+        // The DISPLAY label goes up as the unit's LEGAL name. That is the honest default for
+        // a brand Passport has never seen — there is no legal name to preserve — and an Admin
+        // corrects it in the console or through the update route afterwards.
+        name: brand.displayName,
+        type: 'brand',
+        attemptedBy: who.localUserId,
+      })
+
+      if (!result.ok) {
+        // The brand is untouched and still usable. A failed promotion is not a failed create,
+        // and must not read as one.
+        throw new ValidationError(result.message)
+      }
+
+      return c.json({
+        brandId,
+        unitId: result.unitId,
+        // `pending`, because the LINK arrives by event: Passport emits `unit.upserted` and
+        // `passport/link-brand.ts` sets `brands.passport_unit_id`. Reporting the brand as
+        // linked here would be a lie for about a second, and the UI would then "correct"
+        // itself in a way that reads as a bug.
+        pending: true,
+        ...('appAccessEnabled' in result
+          ? { appAccessEnabled: false, warning: result.message }
+          : { appAccessEnabled: true }),
+      })
+    })
+
+    /**
+     * How many brands in a workspace Passport does not know about.
+     *
+     * **Not optional under `D1-b`** (proposal §7.6). A queue nobody drains leaves a growing
+     * set of brands that exist here and nowhere else — invisible to every sibling app, with
+     * nothing failing. This is the number that makes that visible.
+     *
+     * Separate from the failed-write queue, and they must not be merged: an unlinked brand is
+     * usually just waiting for an Admin, while a queued row is a write that actually failed.
+     */
+    .get('/workspaces/:workspaceId/unlinked', async (c) => {
+      const who = await actor(c)
+      void who
+      const workspaceId = c.req.param('workspaceId')
+      return c.json({ workspaceId, unlinked: await reader.countUnlinkedBrands(workspaceId) })
+    })
+
     // ── The retry surface ───────────────────────────────────────────────────
     //
     // The **only** reader of `passport_write_attempts`. That is what keeps the table from
@@ -499,14 +591,27 @@ export function createPassportStructureRouter(deps: PassportStructureDeps) {
     const body = (payload ?? {}) as Record<string, unknown>
     switch (operation) {
       case 'unit.create': {
-        const parsed = createUnitBodySchema.safeParse(body)
+        // `externalRef` is split off BEFORE parsing, and is not part of the wire schema.
+        //
+        // A queued create comes from one of two places: a route body a client sent, which
+        // must never carry a ref, or a promotion (`passport/promote-brand.ts`), which always
+        // does. `createUnitBodySchema` is `.strict()` precisely so a client cannot choose a
+        // unit's `external_ref` — and leaving it in would make every promoted retry fail to
+        // parse, which presents as "the retry button does nothing".
+        const { externalRef, ...rest } = body as { externalRef?: unknown }
+        const parsed = createUnitBodySchema.safeParse(rest)
         if (!parsed.success) {
           return {
             ok: false,
             error: { kind: 'invalid', message: 'the queued body is no longer valid' },
           }
         }
-        const created = await client.createUnit(who.person, who.organizationId, parsed.data)
+        const created = await client.createUnit(who.person, who.organizationId, {
+          ...parsed.data,
+          // Carried through verbatim. Re-deriving it would break the link for a brand whose
+          // id the queue already recorded.
+          ...(typeof externalRef === 'string' ? { externalRef } : {}),
+        })
         if (!created.ok) return created
         // The second call again, for the same reason it is not optional above.
         const enabled = await client.enableApp(who.person, who.organizationId, created.value.id)

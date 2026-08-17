@@ -77,6 +77,20 @@ export interface CreateUnitInput {
   name: string
   type: UnitType
   profile?: UnitProfile
+  /**
+   * Our own key for this unit, set **on create only**.
+   *
+   * `UnitCreate.id` is super-admin gated, so this app cannot choose the unit's UUID.
+   * `external_ref` is the only place our identifier can travel — which is what makes the
+   * `D1-b` link possible at all (`passport/link-brand.ts`).
+   *
+   * The convention is `"<app>:<legacy pk>"`, so `brandfactory:<brands.id>`. The prefix earns
+   * its bytes: an operator reading a unit in the Passport console can tell which consumer
+   * created it, and an unmatched ref is attributable rather than anonymous.
+   *
+   * **Settable on create, never on update** — see `updateUnit` below.
+   */
+  externalRef?: string
 }
 
 export interface UpdateUnitInput {
@@ -310,13 +324,18 @@ export function createStructureWriteClient(env: Env): StructureWriteClient {
       send<UnitConsoleRead>(person, 'POST', `/api/v1/orgs/${orgId}/units`, {
         name: input.name,
         type: input.type,
+        ...(input.externalRef ? { external_ref: input.externalRef } : {}),
         ...(input.profile ? { profile: input.profile } : {}),
       }),
 
     // **`type` is absent, and that is not an omission.** `UnitUpdate` is `extra="forbid"`,
     // so sending it is a `422` even when the value is unchanged — and a brand cannot become
-    // an outlet in any case. `external_ref` is absent for a different reason: phase 8's
-    // bridge sets it and this app's row resolution depends on it, so it is read-only here.
+    // an outlet in any case.
+    //
+    // **`external_ref` is absent for a different reason, and it is `D1-b`-critical.** It is
+    // set once, at creation, to `brandfactory:<brands.id>`, and the link between a local
+    // brand and its unit resolves through it. Changing it after the fact would orphan the
+    // brand from its own unit with nothing failing.
     updateUnit: (person, orgId, unitId, input) =>
       send<UnitConsoleRead>(person, 'PATCH', `/api/v1/orgs/${orgId}/units/${unitId}`, {
         ...(input.name === undefined ? {} : { name: input.name }),
