@@ -122,8 +122,36 @@ export const realPassportWriter: PassportProjectionWriter = {
   deleteUnitAppAccess: deletePassportUnitAppAccess,
 }
 
+/**
+ * What to do beyond projecting, when Passport says somebody was removed.
+ *
+ * Rule 6 asks for the person's local unit-scoped grants AND their live sessions to be
+ * revoked. The first half is already satisfied by arithmetic: BrandFactory holds no
+ * local grants — the projection *is* the grant model — so the very next derivation for
+ * that org returns an empty map the moment the tombstone lands.
+ *
+ * The second half is where this app has a real gap, and it is not the one the generic
+ * advice describes. **`authorize` runs once per channel at subscribe time and never
+ * again**, so a revoked member with an open websocket keeps receiving canvas events for
+ * a brand they have lost, however correctly their HTTP reads are now denied.
+ *
+ * **Ours only.** We hold no service-role key for Passport's project, must never be
+ * given one, and do not need one: closing a socket forces re-authorization without
+ * touching the person's token, so somebody removed from ONE organisation reconnects and
+ * gets exactly what they are still entitled to.
+ */
+export interface PassportSyncHooks {
+  /**
+   * Called after the tombstone is committed, never before — the disconnect is only
+   * correct once the projection already says they are gone, or they would reconnect
+   * and be re-authorized against stale data.
+   */
+  onMembershipRemoved?: (payload: MembershipPayload) => Promise<void>
+}
+
 export function createPassportSyncHandlers(
   writer: PassportProjectionWriter = realPassportWriter,
+  hooks: PassportSyncHooks = {},
 ): SyncHandlers {
   // Declared before the object so `resyncOrg` can fan out to them without `this`.
   const upsertOrg = (p: OrgPayload) =>
@@ -229,13 +257,16 @@ export function createPassportSyncHandlers(
     /**
      * TRAP 1 — an UPSERT keeping `status='removed'`, never a delete.
      *
-     * Rule 6 also asks for the user's live sessions to be revoked here, so a
-     * removal takes effect immediately rather than at token expiry. Not wired
-     * yet: BrandFactory's sessions are still issued by its own project and there
-     * is no session to revoke on Passport's behalf until phase 6. Phase 7 builds
-     * the subject denylist. Recorded rather than silently skipped.
+     * Then the offboarding hook, **after the commit**. Errors from the hook are
+     * deliberately NOT swallowed: a failed disconnect leaves a revoked person
+     * receiving events, and a 500 here makes Passport redeliver, which retries the
+     * disconnect. Acking an event whose side effect failed is the one outcome worth
+     * avoiding.
      */
-    removeMembership: upsertMembership,
+    removeMembership: async (p: MembershipPayload): Promise<void> => {
+      await upsertMembership(p)
+      await hooks.onMembershipRemoved?.(p)
+    },
 
     // --- entitlements -----------------------------------------------------
     /** TRAP 2 — revocation arrives HERE with `status != 'active'`. */

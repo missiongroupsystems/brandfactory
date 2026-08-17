@@ -88,7 +88,6 @@ function passportApp(
         calls.verify++
         return token === 'passport-token' ? { sub: 'passport-sub', email: 'bob@acme.test' } : null
       },
-      isForeignIssuer: () => true,
       isExpired: (err) => err instanceof Expired,
       resolveUser: async (email) => {
         calls.resolve++

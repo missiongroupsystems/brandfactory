@@ -11,6 +11,7 @@ import { loadEnv } from './env'
 import { createLogger } from './logger'
 import { createPassportReconciler } from './passport/reconcile'
 import { loadPassportPlacement } from './passport/registry'
+import { createPassportBearerVerifier } from './passport/verify-bearer'
 import { createResearchShaper } from './research/shape'
 import { createResearchTicker } from './research/ticker'
 import { mountRealtime, type MountRealtimeHandle } from './ws'
@@ -39,6 +40,12 @@ async function main(): Promise<void> {
   // Plan: `docs/executing/passport-sync-consumer-plan.md`, phase 4a.
   await loadPassportPlacement(env, log)
 
+  // ONE verifier, handed to BOTH the HTTP middleware and the websocket upgrade. Two
+  // instances would be harmless; two code paths would not — that asymmetry is what
+  // gave a hosted-login user working requests and a socket that silently refused to
+  // open.
+  const verifyBearer = createPassportBearerVerifier(env, adapters.auth)
+
   const app = createApp({
     env,
     log,
@@ -49,6 +56,7 @@ async function main(): Promise<void> {
     llm: adapters.llm,
     research: adapters.research,
     agentGuard,
+    verifyBearer,
   })
 
   // Decision 7's other half: the row survives a closed browser, and this is
@@ -104,6 +112,7 @@ async function main(): Promise<void> {
         db,
         log,
         allowedOrigins,
+        verifyBearer,
       })
       break
     default: {

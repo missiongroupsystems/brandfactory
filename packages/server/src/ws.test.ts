@@ -5,6 +5,7 @@ import type { Duplex } from 'node:stream'
 import { describe, expect, it, vi } from 'vitest'
 import { authorizeChannel, mountRealtime } from './ws'
 import { createFakeAuth, createFakeDb, silentLogger } from './test-helpers'
+import { createBearerVerifier } from './passport/verify-bearer'
 
 async function seed() {
   const { db } = createFakeDb()
@@ -74,6 +75,11 @@ describe('mountRealtime: upgrade origin guard', () => {
       db,
       log: silentLogger(),
       allowedOrigins: ['https://app.example.com'],
+      // The SHARED two-issuer verifier. Only the app-native issuer exists here, which
+      // is the point: the websocket must resolve a token through the same code path as
+      // HTTP, whether or not Passport is configured — otherwise a hosted-login user
+      // gets working HTTP and a dead socket.
+      verifyBearer: createBearerVerifier(createFakeAuth({})),
     })
 
     const destroy = vi.fn()

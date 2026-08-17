@@ -8,7 +8,7 @@ import {
 import { Hono } from 'hono'
 import type { AppEnv } from '../context'
 import type { Env } from '../env'
-import { passportSyncHandlers } from '../passport/handlers'
+import { createPassportSyncHandlers, type PassportSyncHooks } from '../passport/handlers'
 import { reconcilePassportProjection, type ReconcileSummary } from '../passport/reconcile'
 
 /**
@@ -70,6 +70,13 @@ export interface PassportSyncDeps {
    */
   handlers?: SyncHandlers
   /**
+   * Offboarding side effects, supplied by `app.ts` because they need the realtime
+   * bus. Absent, `membership.removed` still projects the tombstone correctly — the
+   * hook is what closes the already-open-socket gap, not what makes the projection
+   * right.
+   */
+  hooks?: PassportSyncHooks
+  /**
    * Injectable so the endpoint's GUARD can be tested without a snapshot read.
    *
    * The guard is the part worth testing here: the reconciliation itself has its own
@@ -91,7 +98,7 @@ function secretMatches(provided: string | undefined, expected: string): boolean 
 }
 
 export function createPassportSyncRouter(deps: PassportSyncDeps) {
-  const handlers = deps.handlers ?? passportSyncHandlers
+  const handlers = deps.handlers ?? createPassportSyncHandlers(undefined, deps.hooks)
 
   const router = new Hono<AppEnv>().post('/passport/sync', async (c) => {
     const secret = deps.env.PASSPORT_WEBHOOK_SECRET

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.38.0** — 2026-08-17 — Offboarding closes the gap the HTTP path cannot: a revoked member's OPEN socket. And the two-issuer resolution becomes one shared function, fixing an asymmetry 1.37.0 shipped — hosted-login users would have had working requests and a dead websocket. No migration. 2190 tests.
 - **1.37.0** — 2026-08-17 — The email-first login arrives server-side and lands DARK: two routes and never three, PKCE whose verifier never reaches the browser, and a second accepted issuer. Three bugs found — two by reading, one by curling. Migration 0014. 2168 tests.
 - **1.36.0** — 2026-08-17 — Reconciliation lands as all three parts — function, secret-guarded endpoint, and a schedule that survives a deploy — and was proven by curling it against the live API, with a 404 control to show the routes are real. No migration. 2122 tests.
 - **1.35.0** — 2026-08-17 — Placement stops being an assumption: the registry read lands at startup and confirms all three unit types with no cascade — and returns `unit_scope: null`, the trap this app was built to ignore. Access derivation and identity linking arrive behind it. No migration. 2101 tests.
@@ -79,6 +80,61 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.38.0 — 2026-08-17
+
+**Two things: a bug 1.37.0 shipped, and rule 6's session half — which turned out to be a
+different mechanism from the one the plan sketched.** No migration.
+
+Full write-up:
+[`docs/completions/passport-sync-consumer-phase-7.md`](completions/passport-sync-consumer-phase-7.md).
+
+### 1. The asymmetry 1.37.0 shipped
+
+The two-issuer fallthrough went into the HTTP middleware only; the websocket upgrade
+kept calling the auth adapter directly, and the adapter knows only BrandFactory's own
+issuer. **A hosted-login user's requests would have worked perfectly while their socket
+was refused with `4401`** — the app loading, the brand hub rendering, and the canvas
+simply never updating, with nothing wrong in any log.
+
+The resolution now lives in one shared function that both transports call, and
+`mountRealtime` takes it as a **required** dependency, so the type system refused to
+compile until every entry point had it. A test asserts both transports get the same
+answer.
+
+### 2. Half of rule 6 needs no code, and that is the payoff
+
+Rule 6 asks for local grants and live sessions to be revoked on `membership.removed`.
+The grants need nothing: BrandFactory holds none, because the projection *is* the grant
+model, so the next derivation for that org returns an empty map the moment the tombstone
+commits. A consumer that had kept its own `user_brands` table would have real work there.
+
+### 3. The plan's denylist would have been wrong
+
+The sketched design — refuse every request from a token issued before the revocation —
+would sign the person out of BrandFactory **entirely**, even though they may still belong
+to other organisations here. That is the over-broad revocation rule 6 warns against.
+
+**The real gap is the websocket:** `authorize` runs once per channel at subscribe time
+and never again, so a revoked member with an open subscription keeps receiving events for
+a brand they have lost, however correctly their HTTP reads are denied. Nothing on the HTTP
+path can close that.
+
+So the bus gained `disconnectUser`, and **a disconnect is a re-authorization rather than
+a logout**: the token is untouched, the client reconnects, and every channel is
+re-authorized on the way back in — leaving the person exactly what they are still
+entitled to, with no credential of Passport's involved. The close code is `4403` and not
+`4401`, because a client reading an auth failure would sign them out.
+
+Resolution is by the payload's embedded email, not the identity link — sockets are keyed
+by the *local* user id, which for a hosted-login session is not `identity_link.subject`.
+
+### 4. Ordering, and a failure that must not be swallowed
+
+The tombstone commits before the hook runs; reversed, the client would reconnect and be
+re-authorized against stale data, walking back into the channel it just lost. And a hook
+failure propagates: a failed disconnect leaves a revoked person receiving events, and
+Passport's retry retries the disconnect.
 
 ## 1.37.0 — 2026-08-17
 

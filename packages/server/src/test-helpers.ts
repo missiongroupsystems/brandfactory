@@ -1003,6 +1003,7 @@ export function createFakeAdapters(overrides: Partial<AppDeps> = {}): Omit<AppDe
   const realtime: RealtimeBus = overrides.realtime ?? {
     async publish() {},
     subscribe: () => () => {},
+    disconnectUser: () => 0,
   }
   const llm: LLMProvider = overrides.llm ?? {
     // Return a placeholder object; tests that call it will fail loudly.

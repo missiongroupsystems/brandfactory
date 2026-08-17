@@ -23,6 +23,15 @@ const DEFAULT_HEARTBEAT_MS = 30_000
 export function createNativeWsRealtimeBus(): NativeWsRealtimeBus {
   const channels = new Map<string, Set<RealtimeHandler>>()
 
+  /**
+   * Live sockets per authenticated user, for `disconnectUser`.
+   *
+   * A registry rather than a scan of `wss.clients`, because the user id is known
+   * only inside `onConnection`'s closure — the socket itself carries no identity,
+   * and tagging it would put auth state on a `ws` object that other code touches.
+   */
+  const socketsByUser = new Map<string, Set<WebSocket>>()
+
   function subscribe(channel: string, handler: RealtimeHandler): () => void {
     let set = channels.get(channel)
     if (!set) {
@@ -106,6 +115,13 @@ export function createNativeWsRealtimeBus(): NativeWsRealtimeBus {
       return
     }
 
+    let forUser = socketsByUser.get(userId)
+    if (!forUser) {
+      forUser = new Set()
+      socketsByUser.set(userId, forUser)
+    }
+    forUser.add(socket)
+
     const unsubscribers = new Map<string, () => void>()
 
     socket.on('message', (raw: Buffer | ArrayBuffer | Buffer[]) => {
@@ -174,8 +190,44 @@ export function createNativeWsRealtimeBus(): NativeWsRealtimeBus {
     socket.on('close', () => {
       for (const off of unsubscribers.values()) off()
       unsubscribers.clear()
+      // Drop the registry entry too, or a long-lived process accumulates one empty
+      // Set per user who has ever connected.
+      const set = socketsByUser.get(userId)
+      if (set) {
+        set.delete(socket)
+        if (set.size === 0) socketsByUser.delete(userId)
+      }
     })
   }
 
-  return { publish, subscribe, bindToNodeWebSocketServer }
+  /**
+   * Close this user's sockets so the client reconnects and re-authorizes.
+   *
+   * `4403` rather than `4401`: a client that reads this as an auth failure would
+   * sign the person out, which is precisely what must not happen — they may still
+   * be entitled to most of what they had. A distinct code lets the client
+   * reconnect quietly.
+   *
+   * The `close` handler clears each socket's subscriptions, so the registry tidies
+   * itself; the entry is deleted here as well for the case where a socket is
+   * already gone.
+   */
+  function disconnectUser(userId: string): number {
+    const sockets = socketsByUser.get(userId)
+    if (!sockets) return 0
+
+    let closed = 0
+    for (const socket of [...sockets]) {
+      try {
+        socket.close(4403, 'access-changed')
+        closed += 1
+      } catch {
+        // Already tearing down; its `close` handler still clears subscriptions.
+      }
+    }
+    socketsByUser.delete(userId)
+    return closed
+  }
+
+  return { publish, subscribe, bindToNodeWebSocketServer, disconnectUser }
 }

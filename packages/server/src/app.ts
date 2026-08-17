@@ -40,13 +40,8 @@ import { createCanvasRouter } from './routes/canvas'
 import { createHealthRouter } from './routes/health'
 import { createMeRouter } from './routes/me'
 import { createPassportAccess } from './passport/access'
-import { createPassportProvisioner } from './passport/provision'
-import {
-  isExpiredError,
-  isForeignIssuerError,
-  ssoActive,
-  verifyPassportToken,
-} from './passport/token'
+import { createPassportOffboarding } from './passport/offboard'
+import { createPassportBearerVerifier, type BearerVerifier } from './passport/verify-bearer'
 import { createMessagesRouter } from './routes/messages'
 import { createPassportAuthRouter } from './routes/passport-auth'
 import { createPassportSyncRouter } from './routes/passport-sync'
@@ -85,6 +80,14 @@ export interface AppDeps {
   ideateThemes?: IdeateThemesFn
   ideateCopy?: IdeateCopyFn
   agentGuard: AgentConcurrencyGuard
+  /**
+   * The shared two-issuer bearer verifier.
+   *
+   * Injected so `main.ts` can hand the SAME instance to the websocket upgrade. HTTP
+   * and realtime resolving a token differently is a silent, asymmetric failure: the
+   * app loads and never receives an event.
+   */
+  verifyBearer?: BearerVerifier
 }
 
 export function createApp(deps: AppDeps) {
@@ -120,24 +123,12 @@ export function createApp(deps: AppDeps) {
   // behind a sub-app at `/`) keeps `/blobs`, `/health`, and `/rt`'s HTTP
   // surface outside the auth gate — the signed URL is the capability for
   // blobs, and `/rt` terminates at the ws upgrade handler, not HTTP.
-  // The second accepted issuer. Built unconditionally and gated on `active()`, so an
-  // environment without Passport's project behaves exactly as before — SSO is
-  // reversible in both directions, which is what makes `PASSPORT_SSO_ENABLED` a safe
-  // kill switch rather than a one-way door.
+  // ONE verifier for both transports. `main.ts` passes the instance it also gives to
+  // `mountRealtime`; the default here exists so a test app needs no wiring.
   const passportAccess = createPassportAccess()
-  const provisionPassportUser = createPassportProvisioner({ access: passportAccess })
-  const authRequired = createAuthMiddleware(deps.auth, {
-    active: () => ssoActive(deps.env),
-    verify: (token) => verifyPassportToken(deps.env, token),
-    isForeignIssuer: isForeignIssuerError,
-    isExpired: isExpiredError,
-    resolveUser: async (email) => {
-      const resolved = await provisionPassportUser(email)
-      return resolved.ok
-        ? { ok: true as const, userId: resolved.user.id }
-        : { ok: false as const, reason: resolved.reason }
-    },
-  })
+  const verifyBearer =
+    deps.verifyBearer ?? createPassportBearerVerifier(deps.env, deps.auth, passportAccess)
+  const authRequired = createAuthMiddleware(deps.auth, verifyBearer)
   app.use('/me/*', authRequired)
   app.use('/workspaces/*', authRequired)
   app.use('/brands/*', authRequired)
@@ -228,7 +219,17 @@ export function createApp(deps: AppDeps) {
     // when `PASSPORT_WEBHOOK_SECRET` is unset rather than being absent — a
     // missing route answers 404, which reads to an operator as "wrong URL"
     // instead of "not configured".
-    .route('/webhooks', createPassportSyncRouter({ env: deps.env }))
+    .route(
+      '/webhooks',
+      createPassportSyncRouter({
+        env: deps.env,
+        // Offboarding (rule 6). The tombstone alone denies every HTTP read, but
+        // `authorize` runs once per channel at subscribe time — so a revoked member's
+        // OPEN socket keeps receiving events until it is closed. The hook needs the
+        // realtime bus, which is why it is supplied here rather than inside the route.
+        hooks: createPassportOffboarding({ realtime: deps.realtime, log: deps.log }),
+      }),
+    )
     // The email-first login router. OUTSIDE the auth gate by necessity: every route
     // here runs before anybody has proven anything. It behaves correctly with Passport
     // unconfigured — `/resolve-login` answers `app-native` for everybody, and

@@ -24,6 +24,7 @@ function captureBus(): {
       published.push({ channel, event })
     },
     subscribe: () => () => {},
+    disconnectUser: () => 0,
   }
   return { bus, published }
 }

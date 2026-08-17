@@ -204,3 +204,94 @@ describe('native-ws realtime bus', () => {
     expect(closeCode).toBe(4401)
   })
 })
+
+// ---------------------------------------------------------------------------
+// disconnectUser — forcing RE-AUTHORIZATION, not signing anybody out
+// ---------------------------------------------------------------------------
+//
+// `authorize` runs once per channel at subscribe time and never again, so a person
+// whose access changed mid-session keeps receiving events on channels they have since
+// lost. Denying their HTTP reads does nothing about an already-open subscription; the
+// only way to re-check is to make the client reconnect.
+//
+// Used by Passport offboarding on `membership.removed`
+// (`packages/server/src/passport/offboard.ts`).
+
+describe('disconnectUser', () => {
+  it('closes that user’s sockets and stops the fan-out reaching them', async () => {
+    const { bus, url, close } = await startBus({ authenticate: () => 'user-1' })
+    const client = await makeClient(url)
+    client.send(JSON.stringify({ type: 'subscribe', channel: 'chan' }))
+    await new Promise((r) => setTimeout(r, 30))
+
+    const closed = new Promise<number>((resolve) => client.once('close', (code) => resolve(code)))
+    expect(bus.disconnectUser('user-1')).toBe(1)
+
+    // `4403`, not `4401`: a client reading this as an auth failure would sign the
+    // person out, which is exactly what must not happen — they may still be entitled
+    // to most of what they had.
+    expect(await closed).toBe(4403)
+
+    // The socket's `close` handler cleared its subscriptions, so a later publish
+    // reaches nobody rather than a dead send buffer.
+    await bus.publish('chan', helloEvent)
+    await close()
+  })
+
+  it('leaves other users connected', async () => {
+    let next = 0
+    const users = ['user-1', 'user-2']
+    const { bus, url, close } = await startBus({ authenticate: () => users[next++] ?? null })
+
+    const first = await makeClient(url)
+    const second = await makeClient(url)
+    await new Promise((r) => setTimeout(r, 20))
+
+    // Removal from ONE organisation must not end anybody else's session, and must not
+    // end this person's other connections either.
+    expect(bus.disconnectUser('user-1')).toBe(1)
+    await new Promise((r) => setTimeout(r, 20))
+
+    expect(first.readyState).not.toBe(WebSocket.OPEN)
+    expect(second.readyState).toBe(WebSocket.OPEN)
+
+    // Close the survivor before tearing the server down: `wss.close()` waits for its
+    // clients, so a deliberately-still-open socket hangs the teardown rather than the
+    // assertion — which reads as a mysteriously slow test.
+    second.close()
+    await new Promise((r) => setTimeout(r, 20))
+    await close()
+  })
+
+  it('closes every socket a user holds, not just the newest', async () => {
+    const { bus, url, close } = await startBus({ authenticate: () => 'user-1' })
+    await makeClient(url)
+    await makeClient(url)
+    await new Promise((r) => setTimeout(r, 20))
+
+    // Two tabs is the ordinary case, and leaving one open would be the whole bug.
+    expect(bus.disconnectUser('user-1')).toBe(2)
+    await close()
+  })
+
+  it('is a no-op for a user with no live socket', async () => {
+    const { bus, close } = await startBus()
+    // The common case: most people are not connected when they are removed.
+    expect(bus.disconnectUser('nobody')).toBe(0)
+    await close()
+  })
+
+  it('forgets a user once their last socket closes', async () => {
+    const { bus, url, close } = await startBus({ authenticate: () => 'user-1' })
+    const client = await makeClient(url)
+    await new Promise((r) => setTimeout(r, 20))
+
+    client.close()
+    await new Promise((r) => setTimeout(r, 40))
+
+    // Otherwise a long-lived process accumulates one empty Set per user who has ever
+    // connected.
+    expect(bus.disconnectUser('user-1')).toBe(0)
+    await close()
+  })
+})
