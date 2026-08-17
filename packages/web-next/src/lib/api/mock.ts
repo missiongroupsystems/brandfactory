@@ -31,8 +31,9 @@
  * layer we are keeping.
  */
 
+import { contracts, isCurrent, vendors } from "@/fixtures/contracts";
 import { dashboard } from "@/fixtures/dashboard";
-import { agencies, influencers } from "@/fixtures/influencers";
+import { influencers } from "@/fixtures/influencers";
 import { licenses, licenseTypes } from "@/fixtures/licenses";
 import {
   addMarketingRequest,
@@ -97,6 +98,16 @@ const ROUTES: [RegExp, Handler][] = [
   // real empty states. Restoring a fixture for it would be an Ops decision, not a
   // BrandFactory one.
 
+  // Outlets -----------------------------------------------------------------
+  // **The `/outlets` *screens* no longer read this.** They moved to
+  // `features/outlets/`, the Hono server and a real `outlets` table. What is
+  // still served here is the Operations Hub's own outlet, which twenty-six files
+  // across fourteen cut-from-nav areas resolve an `outlet_id` against through
+  // `features/registry/hooks.ts` — contracts, licences, tenancies, networks,
+  // service reports, the review queue. Without it every one of those would render
+  // `…` in its first column.
+  //
+  // This shrinks when those screens do, not before.
   [
     /^\/outlets$/,
     (_p, search) =>
@@ -112,7 +123,14 @@ const ROUTES: [RegExp, Handler][] = [
   ],
   // Both, because the list links by slug and the detail page's own children fetch by id.
   [/^\/outlets\/([^/]+)$/, ([key]) => outlets.find((o) => o.id === key || o.slug === key)],
-  [/^\/outlets\/([^/]+)\/related-contracts$/, () => []],
+  // What a close of this outlet would have to dispose of, so the disposition dialog stops
+  // saying "nothing" about a site three live agreements cover. Open work only — `isCurrent`,
+  // the same definition the contracts list defaults to — because a terminated contract is not
+  // something a close has to decide about.
+  [
+    /^\/outlets\/([^/]+)\/related-contracts$/,
+    ([id]) => contracts.filter((c) => c.outlet_ids.includes(id!) && isCurrent(c)),
+  ],
   [/^\/outlets\/([^/]+)\/license-suggestions$/, () => []],
   [
     /^\/outlets\/([^/]+)\/license-readiness$/,
@@ -208,11 +226,18 @@ const ROUTES: [RegExp, Handler][] = [
   // separate decision about the Vendors area: `ContactsBrowser` groups by vendor and resolves
   // each id through `useVendorIndex`, so without this every group header would render `…`.
   // The Vendors screen reads the same route and is populated as a consequence.
+  //
+  // It reads `vendors` from `fixtures/contracts.ts` rather than `agencies` from
+  // `fixtures/influencers.ts`, and the two are not interchangeable: that list is the talent
+  // agencies **plus** the three providers only a contract makes exist, each carrying the four
+  // aggregates derived from the contracts below. `agencies` still ships every aggregate at 0,
+  // which was the true answer for as long as there were no contracts and is now a number this
+  // route would be contradicting.
   [
     /^\/vendors$/,
     (_p, search) =>
       page(
-        agencies.filter(
+        vendors.filter(
           (v) =>
             matches(v.name, search.get("q")) &&
             // `kind` is a view control on that screen and is always sent; "all" is the
@@ -223,15 +248,66 @@ const ROUTES: [RegExp, Handler][] = [
         ),
       ),
   ],
-  [/^\/vendors\/([^/]+)$/, ([id]) => agencies.find((v) => v.id === id)],
-  [/^\/vendors\/([^/]+)\/contracts$/, () => page([])],
+  [/^\/vendors\/([^/]+)$/, ([id]) => vendors.find((v) => v.id === id)],
+  [
+    /^\/vendors\/([^/]+)\/contracts$/,
+    ([id]) => page(contracts.filter((c) => c.vendor_id === id)),
+  ],
+
+  // Contracts --------------------------------------------------------------
+  // Seven filters and a view, because every one of them is a control on screen and a filter
+  // the table offers but the fixture ignores is worse than no data: the reader narrows, the
+  // rows do not move, and the screen looks broken rather than empty.
+  [
+    /^\/contracts$/,
+    (_p, search) =>
+      page(
+        contracts.filter((c) => {
+          const q = search.get("q");
+          // Title plus the name of the one party that identifies it — the rule AGENTS.md
+          // records and `contract_operations` implements. `HighlightMatch` marks the vendor
+          // hit in the row, so the reader can see why a title that does not match matched.
+          const vendor = vendors.find((v) => v.id === c.vendor_id);
+          const hit = matches(c.title, q) || matches(vendor?.name, q);
+
+          // Brand is two hops: a contract carries none of its own, so the API joins through
+          // the coverage. Every fixture outlet has `brand_id: null`, so this narrows to
+          // nothing today — it is written because the join is the rule, not the data.
+          const brandId = search.get("brand_id");
+          const brandHit =
+            !brandId ||
+            c.outlet_ids.some(
+              (outletId) => outlets.find((o) => o.id === outletId)?.brand_id === brandId,
+            );
+
+          return (
+            hit &&
+            brandHit &&
+            (!search.get("category") || c.category === search.get("category")) &&
+            (!search.get("status") || c.status === search.get("status")) &&
+            (!search.get("renewal_type") || c.renewal_type === search.get("renewal_type")) &&
+            (!search.get("vendor_id") || c.vendor_id === search.get("vendor_id")) &&
+            (!search.get("outlet_id") || c.outlet_ids.includes(search.get("outlet_id")!)) &&
+            // The review queue's `contract_notice_period_missing` predicate. `true` or
+            // absent, never `false` — the API reads `false` as "do not narrow", and the
+            // table has been bitten once by a reader that disagreed with it.
+            (search.get("notice_gap") !== "true" ||
+              (c.renewal_type === "auto" && c.notice_period_days == null)) &&
+            // The default is `current`, not `all`. Anything else is a malformed value and
+            // falls back to the default rather than widening the list.
+            (search.get("view") === "all" || isCurrent(c))
+          );
+        }),
+      ),
+  ],
+  [/^\/contracts\/([^/]+)$/, ([id]) => contracts.find((c) => c.id === id)],
 
   [
     /^\/contacts$/,
     (_p, search) =>
       page(
         influencers.filter((c) => {
-          const agency = c.vendor_id ? agencies.find((v) => v.id === c.vendor_id) : undefined;
+          const agency = c.vendor_id ? vendors.find((v) => v.id === c.vendor_id) : undefined;
           const q = search.get("q");
           // Own name plus the name of the one party that identifies them — the rule
           // `contact_operations` implements and AGENTS.md records. Not full text over

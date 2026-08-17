@@ -35,5 +35,8 @@ export type ResearchJobId = z.infer<typeof ResearchJobIdSchema>
 export const SocialPostIdSchema = brandedId('SocialPostId')
 export type SocialPostId = z.infer<typeof SocialPostIdSchema>
 
+export const OutletIdSchema = brandedId('OutletId')
+export type OutletId = z.infer<typeof OutletIdSchema>
+
 export const UserIdSchema = brandedId('UserId')
 export type UserId = z.infer<typeof UserIdSchema>

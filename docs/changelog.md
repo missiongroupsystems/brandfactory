@@ -6,6 +6,9 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.36.2** — 2026-08-17 — Pre-push review of 1.36.0 and 1.36.1: a delete that drew an error over its own success, two surfaces that read a failed brand request as `No brand`, and a fixture wired to array order. No migration. 2190 tests.
+- **1.36.1** — 2026-08-17 — Contracts stops being an empty table, on 14 marketing agreements and the 3 providers only a contract makes exist; the vendor aggregates `influencers.ts` pinned at zero are now derived, because the number they could not contradict finally exists. No migration. 2190 tests (12 of them this change).
+- **1.36.0** — 2026-08-17 — Outlets stop being borrowed UI over a fixture and become an aggregate: a table, five routes and a feature folder that reads the server. The holding-entity dimension goes, the thirteen-card detail page becomes the outlet, and `New outlet` becomes an `Import or sync` placeholder. Migration 0013. 2190 tests.
 - **1.35.1** — 2026-08-17 — `Brand pillars` stops rendering `Values & positioning` under a second name: the section goes back to the grid under its own label, and the band becomes a stated placeholder. No migration. 2122 tests.
 - **1.35.0** — 2026-08-17 — The Brand Profile stops being a sample and starts being the brand: it reads the server's sections, moves into the Registry above Outlets, and gains an editor — one route that deletes what it is not sent, so the payload is built from a fresh read. No migration. 2121 tests.
 - **1.34.1** — 2026-08-17 — Quotations moves above Vendors, and the ordering invariant the nav had written down for three releases finally has a test; Influencers stops being an empty table, on 19 people and the 6 agencies that had to arrive with them. `next dev` hydrates — the defect open since 1.31.0 does not reproduce. No migration. 2091 tests.
@@ -78,6 +81,334 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.36.2 — 2026-08-17
+
+**Three findings from the review of the two releases above, and all three are one shape: a state
+the code could not tell apart from a different one.**
+
+Nothing here was found by the suite, because none of it is a thing the suite can see. No
+migration, no route change, no server change, no wire change — three files in
+`packages/web-next`.
+
+### 1. A successful delete drew an error over itself
+
+`OutletDetail`'s delete awaits the cache sweep, and the sweep refetches the row that was just
+deleted. The 404 that came back landed on `useOutlet` **before** `router.push("/outlets")` ran,
+so the page drew its error panel over a delete that had worked — for the length of the
+navigation, with the success toast beside it.
+
+An `isDeleting` flag now suppresses that one error and nothing else. It is set when the delete
+starts and cleared only when the delete is *refused*, because a reader still sitting on the row
+is owed the page's error states back.
+
+### 2. `No brand` was stated about outlets that have one
+
+The detail page resolved the name as `brand?.name ?? (brandsLoading ? PENDING : undefined)` and
+rendered **No brand** on `undefined`. A *failed* brands request leaves the list empty and
+`brandsLoading` false, so an outlet carrying a real `brandId` was described as unbranded. That is
+the class 1.33.1 already closed twice — two switchers that read a failed request as an empty
+account.
+
+Only a null `brandId` is `No brand` now. An id the list does not hold renders `PENDING` whatever
+the reason, per the rule that a cached index which has not arrived is a pending request and never
+a missing fact. The table's rows made the same test with the milder symptom — the brand line
+simply vanished — and are fixed with it; the grouped view's band already read this way, so this
+is the row catching up with the rail above it.
+
+### 3. The contract fixture was wired to array order
+
+`const [northlight, kite, …] = agencies.map((a) => a.id)` is one reordered array away from
+attaching every agreement to the wrong agency, and silently: the suite asserts that each
+reference *resolves*, not that it resolves to the row it was written for. The three providers
+`contracts.ts` declares itself were destructured off their own array the same way.
+
+Ids are looked up by name (agencies) and by slug (outlets) now, and the lookup throws on a miss.
+A reorder or an insertion is harmless; a rename fails at import, so `contracts.test.ts` stops
+collecting rather than passing over re-pointed data.
+
+### 4. Verification
+
+```
+pnpm typecheck                         clean (11 packages)
+pnpm lint                              clean (whole repo)
+pnpm format:check                      clean
+pnpm test                              2190 passed | 92 skipped (182 files)
+pnpm -F @brandfactory/web build        clean
+pnpm -F @brandfactory/web-next lint    clean
+pnpm -F @brandfactory/web-next build   clean — /outlets static, /outlets/[slug] dynamic
+```
+
+The count does not move. Finding 3's guard is the throw at import rather than an assertion, and
+findings 1 and 2 are screen behaviour this package does not test.
+
+**Still no browser pass.** The wall is the one 1.36.0 §9 records, and its seven checks stand
+unchanged.
+
+---
+
+## 1.36.1 — 2026-08-17
+
+**A screen with eleven columns, six filters, a grouping control and a column picker, over no
+rows at all.**
+
+`/contracts` rendered "No contracts yet" and had done since the shell arrived in 1.31.0. Nothing
+was broken: `mock.ts` never registered the route, so the request fell through to its rule 2 and
+took `EMPTY` like the other unfixtured Ops areas. That rule is right — an area with no data
+should render its real empty state rather than throw — but it is the wrong answer for a screen
+this size. Six filters that narrow nothing and a column picker over an empty table are not an
+empty state; they are a screen that looks broken.
+
+There is no backend to wire instead. The Hono server holds no contracts routes, the FastAPI
+service these screens were written against is not in this repository, and `schema.d.ts` is frozen.
+So this is a fixture, the same standing as Licences and Influencers, and the same call 1.34.1 made
+for the Influencers table. Outlets left that standing one release ago, in 1.36.0, which is the
+shape replacing this eventually takes.
+
+No migration, no route change, no server change, no wire change. Two new files in
+`packages/web-next/src/fixtures/`, plus `mock.ts` and one docstring.
+
+Full detail in `docs/completions/contracts-on-fixture-data.md`. There is no plan in
+`docs/executing/`: this was one open question, asked and answered before any code was written.
+
+### 1. Fourteen agreements, each row earning its place
+
+The rows are marketing agreements — retainers, campaigns, production and tooling — held with the
+six creator agencies `influencers.ts` already carries. The alternative was the Operations Hub's
+own subject, aircon and pest control at the outlets, which is what the screen was built for and
+what its page description still argues for. Marketing won on the grounds the shell has been
+moving on since 1.34.0: the product is Marketing Hub, its vendors are talent agencies, and a book
+of facilities contracts inside it would be data about a different company.
+
+The spread is the deliberate half. Every branch the table carries has a row that reaches it:
+
+- **Coverage in all three shapes.** Five group-level retainers cover no outlet at all, so the
+  worded "No outlets" is on screen rather than only in `CoverageCell`'s comments; five cover one,
+  so the cell shows the site over its holding company; three cover several and collapse to
+  `⌂ n · 🏢 n`. Two of those span two holding companies, which is the case the merged column
+  exists for.
+- **Both notice states.** Four auto-renewing rows carry a period and print a date with its
+  arithmetic beneath it; **two carry none**, which is the ochre "No notice period" badge and the
+  only rows `?notice_gap=true` returns. Without them that filter narrows an already-empty table
+  to nothing and the checkbox reads as dead.
+- **Every status, including the one that is not a status.** One expiry has neither a successor nor
+  a close-off, so its Status cell renders the Renew / Close off buttons instead of a badge — the
+  branch 0.15's worklist argument was written for. One expiry *was* renewed and one contract is
+  terminated, so "Current" hides two rows that "All" shows and the toggle does something.
+- **A renewal pair**, linked both ways, which is the only place `renewed_by_id` and
+  `renewed_from_id` are non-null.
+- **One contract with no fee agreed**, so the Value column shows the em dash beside eleven figures
+  and the billing-frequency subtext is absent on exactly the row that has no number to qualify.
+
+Three fields are **derived, never typed**: `has_value` follows from `value`, `created_at` from the
+term, and `notice_due_date` is counted back from the end date in explicit `Date.UTC` off the split
+parts. A hand-written deadline is one that can silently disagree with the period it is supposedly
+counted from, and `lib/format.ts` opens with why a business date may not be handed to the
+local-time constructor.
+
+### 2. The vendor aggregates stop being zero
+
+`influencers.ts` shipped every agency at `contracts_active: 0` and said why: *"a row claiming two
+active contracts would be a number the Contracts screen flatly contradicts."* That was the true
+answer for as long as there were no contracts. It is not the true answer now, and the constraint
+behind it has not softened — only the value that satisfies it has changed.
+
+So the counts are **derived rather than typed a second time**. `contracts.ts` re-maps the vendor
+list with the aggregates its own rows imply, and `mock.ts` serves that on `/vendors`. The three
+counts answer three different questions and are counted over three different sets: `contracts_total`
+includes history, because it is the denominator of "1 active of 4" and a denominator that hid the
+terminated ones would be smaller than the list behind the click-through; `contracts_active` is
+`status === "active"` only, because a draft is not cover; `outlets_covered` is distinct outlets
+across the active ones, because the question is what they cover now.
+
+Four routes changed in `mock.ts`: `/contracts` with all seven filters and the `current` / `all`
+view, `/contracts/:id`, and two that had been returning empty lists next to data that now exists —
+`/vendors/:id/contracts` and `/outlets/:id/related-contracts`, the latter narrowed to open work so
+a disposition dialog does not offer to dispose of settled history.
+
+### 3. Three providers that are not agencies, and the screen that pays for them
+
+A scheduling tool, a photo studio and a press office. They are declared in `contracts.ts` rather
+than in `influencers.ts` because that file's own docstring explains why the agencies sit beside
+their creators — neither set is legible without the other — and a tool holds no roster. The only
+thing that makes these three exist in the product is the contract.
+
+Both screens read one `/vendors` route, so the cost is visible and is worth stating: the
+Influencers filter offers agencies from `useVendorIndex` and now lists three vendors that manage
+nobody. That screen is a mockup of a door BrandFactory has not built. The alternative — a
+scheduling subscription held by a talent agency — would be a false record rather than an untidy
+dropdown.
+
+### 4. Category is two values, and that is the enum's fault
+
+`ServiceCategory` is the Operations Hub's vocabulary of *trades* — aircon, pest control, grease
+trap — frozen in the generated `schema.d.ts`, which this app does not own and may not edit. Of its
+thirteen values exactly two are true of a marketing agreement: `software` for a tool subscription
+and `other` for everything a creative agency does. So the glyph in front of each title is honest
+and nearly monotone, its filter narrows to two buckets, and the twelve-row legend in the Columns
+popover describes a vocabulary this data cannot speak.
+
+This is `influencers.ts`'s note applied one screen over, and it is recorded rather than papered
+over. Mapping a photography retainer onto `cleaning` to spread the glyphs would put a mop beside a
+menu shoot; inventing a marketing enum would put a slug on screen that no server would accept. The
+fix is an enum on a backend that does not exist yet.
+
+### 5. Verification
+
+```
+pnpm typecheck                         clean (11 packages)
+pnpm lint                              clean (whole repo)
+pnpm test                              2190 passed | 92 skipped (182 files)
+pnpm -F @brandfactory/web build        clean
+pnpm -F @brandfactory/web-next lint    clean
+pnpm -F @brandfactory/web-next build   clean
+```
+
+`pnpm format:check` fails on three files, none of them this change's:
+`packages/db/src/queries/outlets.ts`, `packages/server/src/routes/outlets.test.ts` and
+`packages/shared/src/outlet/outlet.test.ts`, all from 1.36.0.
+
+Net twelve tests, in `fixtures/contracts.test.ts`, and the test count above is shared with 1.36.0
+because both landed in one tree. They assert what a browser pass cannot see, which is the same
+category the rest of this package's suite holds: the notice arithmetic against the period it is
+counted from, the renewal pair resolving in both directions, `value` present as a key on every row
+including the one where it is `null` — the presence test `hasContractValue()` narrows on — and
+every vendor aggregate against the contract list behind the click-through. The last of those is
+the invariant `influencers.ts` wrote down and could not test, because there was nothing to
+disagree with.
+
+### 6. What is not verified
+
+**Still no browser pass.** The wall is the one 1.34.0 §6, 1.34.1 §5, 1.35.0 §5 and 1.35.1 §5 all
+record: the shell is behind sign-in and the only door is a *Dev token* field. Every claim above
+about what a cell renders is read from the component and pinned by a fixture assertion, not seen.
+
+---
+
+## 1.36.0 — 2026-08-17
+
+**Outlets stop being borrowed UI over a fixture.** The screen that arrived with the Operations
+Hub shell in 1.31.0 now reads and writes a BrandFactory aggregate: a table, a migration, shared
+types, five routes and a feature folder on the Hono client. `New outlet` becomes **Import or sync
+outlets**, a placeholder whose backend is deliberately not designed here.
+
+Full detail in `docs/completions/outlets-on-real-data.md`. Migration **0013**. `packages/web` is
+untouched.
+
+### 1. Two answers shaped most of it
+
+The Operations Hub's outlet carries two things this product has no home for, and both were settled
+before any code.
+
+**The holding-entity dimension goes.** BrandFactory has no entities table, and 1.34.0 cut the
+Entities item from the nav — so `entity_id` would be a foreign key pointing at nothing. The column,
+the filter, the *By entity* grouping and the detail page's company line all went with it. The
+outlet's only relation is its brand.
+
+**The detail page becomes the outlet.** It was 760 lines and thirteen cards over Contracts,
+Licences, Certifications, Tenancies, Networks, Spaces and Review — every one an Ops feature folder
+with no backend here and no door in the sidebar. Keeping them would have meant thirteen panels
+rendering nothing over a record whose own fields are real.
+
+### 2. Workspace-scoped, and no new authz
+
+`outlets` hangs off the **workspace** with a nullable `brand_id`, which is the one place this
+aggregate departs from every other in the schema. The screen filters by brand and groups by brand,
+and neither is a question a list already holding one brand can answer; a site whose brand is
+undecided is a normal state, not a row waiting for a key.
+
+All five routes therefore mount under `/workspaces`, in **one** router rather than the usual
+workspace-scoped/id-scoped pair — an outlet is reachable by slug, a slug is unique per workspace
+only, so every handler needs the workspace anyway.
+
+**`authz.ts` is unchanged and there is no `requireOutletAccess`.** The gate is
+`requireWorkspaceAccess` plus a query layer that takes the workspace on every helper, so an id
+from another workspace *misses* rather than being read or written across the boundary — the
+property `updateSocialPost(brandId, id, …)` already has. Four route tests hold it, including one
+asserting the row is untouched afterwards.
+
+### 3. Four decisions in the table
+
+**`brand_id` is `ON DELETE SET NULL`, not cascade.** A lease outlives its branding: deleting a
+brand must not delete the premises, which is the record the next brand gets attached to. Tested
+live and at the route, because a cascade here would be silent and unrecoverable.
+
+**The three dates are `date`.** An outlet opens on a day where it stands, not at an instant two
+readers see as two days. `rowToOutlet` is the only mapper in that file that does not call
+`toIsoTimestamp`, and `z.iso.date()` rejects a timestamp at the wire.
+
+**`attributes` is `text[]` and the wire accepts any key.** `OUTLET_ATTRIBUTES` is twelve rows of
+static data in `shared` — no table, no route, the `lib/key-dates/` precedent — and it is the
+*offered* catalogue, not the permitted one. Outlets will arrive by import, and refusing a batch
+because a source system spells one tag its own way would be a sync failing on the data it exists
+to carry. An unknown key renders as itself; nothing says "Unknown".
+
+**The slug is generated at create and frozen after.** That is the only reason to carry one rather
+than routing on the id: a link written today survives a rename. `UpdateOutletInputSchema` has no
+`slug` key and `updateOutlet` never touches the column, with a test on each end.
+
+### 4. The list is exhaustive, and that is the interesting part
+
+`GET /workspaces/:id/outlets` returns every outlet in name order — no cursor, no query parameters.
+The client narrows an array it holds completely, and three of the Ops screen's problems stop
+existing rather than being solved: the footer can say `6 outlets` and mean it (**the only place in
+`packages/web-next` allowed a total**); the grouped view no longer needs a *second* exhaustive
+endpoint, because grouping a fetched page is the "Zephyr alone on page one" lie the repo bans for
+sorting; and the search box needs no debounce, because nothing is a request.
+
+**The cost is stated rather than hidden.** Fine at tens of rows, not at thousands — and when the
+estate outgrows one response the cursor and the SQL filters land *together*, or the first problem
+comes back. `listOutletsByWorkspace` says so where somebody would change it.
+
+### 5. Two things called an outlet
+
+`features/registry/` stays on the fixture, because **twenty-six files across fourteen
+cut-from-nav Ops areas** resolve an `outlet_id` to a name through its `useOutletIndex`. Deleting
+it is a decision about those screens, not about outlets. The four components the new feature
+replaced did go — two components named `OutletsBrowser` is the actual hazard.
+
+Three seams keep the pair apart: cache scopes prefixed on the new side (`bf-outlets` /
+`bf-outlet`, with `cache.test.ts` pinning every scope value as distinct), `lib/labels.ts` re-keyed
+to the shared unions, and `outletHref` typed structurally on `{id, slug}` so it does not have to
+pick a side.
+
+### 6. Verification
+
+```
+pnpm typecheck                         clean (11 packages)
+pnpm lint                              clean (whole repo)
+pnpm format:check                      clean
+pnpm test                              2190 passed | 92 skipped (182 files)
+pnpm test (with DATABASE_URL)          2282 passed | 0 skipped
+pnpm -F @brandfactory/web build        clean
+pnpm -F @brandfactory/web-next lint    clean
+pnpm -F @brandfactory/web-next build   clean — /outlets static, /outlets/[slug] dynamic
+```
+
+Seventy new tests in this change: 28 in `shared`, 14 live-DB in `db`, 22 route tests in `server`,
+6 in `web-next`.
+
+**The live-DB suite ran for real** — Postgres up, migration 0013 applied, the whole `db` project
+green with nothing skipped. That is what proves the parts a fake cannot: `date` columns returning
+`2024-03-01` rather than an instant, the `text[]` round trip, the per-workspace unique slug and its
+suffix, and `ON DELETE SET NULL` keeping an outlet when its brand is deleted.
+
+**And the wire was exercised end to end** against a running server on a real database: the six
+seeded outlets in name order, slug *and* id both resolving to one row, 404 on an unknown ref, 401
+with no token, a create from a name and a type answering `cafe-vostra-duxton` out of
+`Café Vostra — Duxton`, a rename that left the slug alone, `400` on an empty patch, `400
+BRAND_NOT_IN_WORKSPACE` on a foreign brand, and delete answering 200 then 404.
+
+### 7. What is not verified
+
+**No page has been seen rendered.** The shell is behind sign-in and the only door there is a *Dev
+token* field — the same wall 1.34.0 §6, 1.34.1 §5 and 1.35.0 §5 record. The build proves both
+routes compile and prerender and §6 proves every byte the screens read and write, but nobody has
+looked at the table. `outlets-on-real-data.md` §9 lists the seven things to check on the first real
+pass; the first two are the table's width at 1280 (its caps were measured against a table with one
+more column) and a save actually reaching the rows.
 
 ---
 

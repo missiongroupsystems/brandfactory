@@ -65,6 +65,14 @@ export interface Db {
   softDeleteSocialPost: typeof db.softDeleteSocialPost
   restoreSocialPost: typeof db.restoreSocialPost
 
+  // Outlets — workspace-scoped, so every helper takes the workspace and a row
+  // from another one misses rather than being reached across the boundary.
+  listOutletsByWorkspace: typeof db.listOutletsByWorkspace
+  getOutletByRef: typeof db.getOutletByRef
+  createOutlet: typeof db.createOutlet
+  updateOutlet: typeof db.updateOutlet
+  deleteOutlet: typeof db.deleteOutlet
+
   // Blob references, across every table that holds a key
   listStillReferencedBlobKeys: typeof db.listStillReferencedBlobKeys
 
@@ -142,6 +150,11 @@ export function buildDbDeps(): Db {
     updateSocialPost: db.updateSocialPost,
     softDeleteSocialPost: db.softDeleteSocialPost,
     restoreSocialPost: db.restoreSocialPost,
+    listOutletsByWorkspace: db.listOutletsByWorkspace,
+    getOutletByRef: db.getOutletByRef,
+    createOutlet: db.createOutlet,
+    updateOutlet: db.updateOutlet,
+    deleteOutlet: db.deleteOutlet,
     listStillReferencedBlobKeys: db.listStillReferencedBlobKeys,
     getProjectById: db.getProjectById,
     listProjectsByBrand: db.listProjectsByBrand,

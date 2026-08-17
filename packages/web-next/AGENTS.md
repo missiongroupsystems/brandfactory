@@ -161,6 +161,16 @@ something is.
   `createdBy` rides back on every row: synthesising `'user'` is the bug the *server* fixed in
   Stage 1B, and a client can reintroduce it from this side.
 
+- **`GET /workspaces/:id/outlets` returns the whole set, and that is what makes the outlets
+  screen's numbers true.** It has no cursor and no filters — the client narrows an array it holds
+  completely, so `4 outlets` is a total rather than "four so far", and a brand's group holds all of
+  that brand's outlets rather than the ones that landed on page one. That is the *only* place in
+  this app where a footer may state a total; every Ops list still must not, because their API
+  returns `next_cursor` and no count. Do not reach for `useCursorPages` or `listEvery` here —
+  both would wait on a `next_cursor` that never arrives. And when the estate outgrows one
+  response, the cursor and the SQL filters land **together**: a paginated list with client-side
+  filters is the "Zephyr alone on page one" failure this file bans for sorting.
+
 - **A guideline body is one document that two apps write.** `packages/web`'s TipTap editor and
   this app's `SectionEditorSheet` store into the same column, so `src/editor/extensions.ts` is a
   copy of `packages/web/src/editor/proseMirrorSchema.ts` and **must stay identical to it**. An
@@ -186,7 +196,8 @@ src/
       brand/               the BrandFactory brand, read and written — the profile of the brand
                            you are in, plus [id]/ for a named one. Singular: `/brands` is left
                            free for the workspace's brand *list*
-      outlets/             Phase 0 — list, plus [id]/ for the detail page
+      outlets/             the premises, read and written against the Hono server — list,
+                           plus [slug]/ for one outlet, keyed by slug *or* id
       entities|networks/   Phase 0 — list screens
       dashboard/           Phase 1–2 — the attention surface, filters in the URL
       licenses/            Phase 1 — three URL-selected views: held, requirements, library
@@ -237,6 +248,29 @@ src/
       schema.d.ts        GENERATED — never edit
       types.ts           named aliases over schema.d.ts
 ```
+
+**`features/outlets/` is BrandFactory's outlet. `features/registry/` holds the Operations
+Hub's** — the same split, made a second time and for the same reason. The real one is
+workspace-scoped with an optional `brandId`, camelCase, and reads the Hono server through
+`bf`; the Ops one is snake_case, carries an `entity_id` into a company table this product does
+not have, and is answered from `lib/api/mock.ts`. They share the word and nothing else.
+
+The Ops folder stays because **twenty-six files across fourteen cut-from-nav areas** resolve an
+`outlet_id` to a name through its `useOutletIndex` — contracts, licences, tenancies, networks,
+service reports, the review queue. Deleting it is a separate decision about those screens, not
+about outlets. What did go with the switch is the four components the real feature replaced
+(`outlets-browser`, `outlet-detail`, `outlet-form`, `attribute-picker`): two components named
+`OutletsBrowser` would be the actual hazard.
+
+The **cache scopes are prefixed on the new side** — `bf-outlets` / `bf-outlet` against the Ops
+`outlets` / `outlet` — because both families are live at once and a shared string would have each
+area refetching the other's lists forever. `lib/api/cache.test.ts` pins every scope value as
+distinct.
+
+**There is no entity dimension here, and that is a decision.** The Ops table had a Holding entity
+column, filter and "By entity" grouping; BrandFactory has no entities table and the nav cut the
+Entities item in 1.34.0, so an `entity_id` would be a foreign key pointing at nothing. The outlet's
+only relation is its brand.
 
 **`features/brands/` is BrandFactory's Brand. `features/registry-brands/` is the Operations
 Hub's** — the third registry dimension, a brand an *outlet* belongs to. They share the word and
@@ -527,7 +561,7 @@ A feature reads one or the other, never both.
 
 | | `lib/api/client.ts` — `apiFetch` | `lib/api/bf-client.ts` — `bf` |
 | --- | --- | --- |
-| Serves | the fifteen Operations Hub areas | BrandFactory: identity, workspaces, brands, the brand profile and its guidelines |
+| Serves | the remaining Operations Hub areas | BrandFactory: identity, workspaces, brands, the brand profile and its guidelines, outlets |
 | Backed by | fixtures in `src/fixtures/` (`mock.ts`) | the Hono server, `packages/server` |
 | Types from | `lib/api/schema.d.ts` (frozen, generated) | `@brandfactory/shared` + `AppType` |
 | Auth | nothing to send | `Authorization: Bearer <session token>` |

@@ -355,9 +355,16 @@ function embed(contact: Contact, vendorId: string): VendorContact {
  * disagreeing. Primary first, then by name: the order the backend's `order_by` uses, so both
  * doors put the same person at the top.
  *
- * **Every aggregate is 0, and that is a statement rather than a gap.** There are no contract
- * fixtures and no outlet links, so a row claiming two active contracts would be a number the
- * Contracts screen flatly contradicts. The vendors table renders each 0 as an em-dash.
+ * **Every aggregate is 0 here, and that is now a placeholder rather than a statement.** It was
+ * a statement while there were no contract fixtures — a row claiming two active contracts would
+ * have been a number the Contracts screen flatly contradicted. `fixtures/contracts.ts` exists,
+ * so the true number does too, and it is *derived* there: `vendors` re-maps this list with the
+ * counts its contracts imply, and `mock.ts` serves that on `/vendors`. The rule is unchanged —
+ * two screens may not disagree — only which value satisfies it.
+ *
+ * **So nothing should read `agencies` for its aggregates.** Read `vendors` from
+ * `fixtures/contracts.ts`. This export stays because it is what that list is built from, and
+ * because the influencer half of the fixture has no opinion about contracts at all.
  */
 export const agencies: VendorListItem[] = AGENCIES.map((agency) => ({
   id: agency.id,

@@ -37,6 +37,14 @@ export * from './asset/reorder'
 // Brand research
 export * from './research/job'
 
+// Outlets — the places the brand trades from. Workspace-scoped with an
+// optional brand; see `outlet/outlet.ts` on why it is not brand-scoped.
+export * from './outlet/outlet'
+export * from './outlet/attributes'
+export * from './outlet/slug'
+export * from './outlet/create'
+export * from './outlet/update'
+
 // Social posts
 export * from './social/post'
 export * from './social/create'

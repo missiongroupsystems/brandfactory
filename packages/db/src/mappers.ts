@@ -14,6 +14,8 @@ import {
   type CanvasBlock,
   type CanvasBlockId,
   type CanvasId,
+  type Outlet,
+  type OutletId,
   type ProjectId,
   type ProjectSummary,
   type ProseMirrorDoc,
@@ -31,6 +33,7 @@ import type {
   canvasBlocks,
   canvases,
   guidelineSections,
+  outlets,
   projects,
   socialPosts,
   workspaces,
@@ -45,6 +48,7 @@ type CanvasRow = typeof canvases.$inferSelect
 type CanvasBlockRow = typeof canvasBlocks.$inferSelect
 type AgentMessageRow = typeof agentMessages.$inferSelect
 type SocialPostRow = typeof socialPosts.$inferSelect
+type OutletRow = typeof outlets.$inferSelect
 
 // Parse JSON columns at the trust boundary on read. Writes are gated by
 // zod at route boundaries, but a corrupted row (bad migration, direct DB
@@ -215,6 +219,36 @@ export function rowToSocialPost(row: SocialPostRow, assetIds: BrandAssetId[]): S
     createdBy: row.createdBy,
     assetIds,
     deletedAt: toIsoTimestampOrNull(row.deletedAt),
+    createdAt: toIsoTimestamp(row.createdAt),
+    updatedAt: toIsoTimestamp(row.updatedAt),
+  }
+}
+
+/**
+ * **The three date columns pass through untouched**, and that is the point of
+ * declaring them `date` with `mode: 'string'` rather than `timestamp`. The driver
+ * hands back `'2026-11-02'` and it goes onto the wire as `'2026-11-02'` — no
+ * `Date`, no zone, no chance of an outlet opening a day earlier for a reader west
+ * of Greenwich. `toIsoTimestamp` is for `createdAt` / `updatedAt`, which really
+ * are instants.
+ */
+export function rowToOutlet(row: OutletRow): Outlet {
+  return {
+    id: row.id as OutletId,
+    workspaceId: row.workspaceId as WorkspaceId,
+    brandId: (row.brandId as BrandId | null) ?? null,
+    slug: row.slug,
+    name: row.name,
+    outletType: row.outletType,
+    status: row.status,
+    address: row.address,
+    unit: row.unit,
+    postalCode: row.postalCode,
+    attributes: row.attributes,
+    targetOpeningDate: row.targetOpeningDate,
+    openingDate: row.openingDate,
+    closingDate: row.closingDate,
+    notes: row.notes,
     createdAt: toIsoTimestamp(row.createdAt),
     updatedAt: toIsoTimestamp(row.updatedAt),
   }

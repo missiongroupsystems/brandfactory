@@ -14,6 +14,8 @@ import type {
   Canvas,
   CanvasBlock,
   CanvasBlockId,
+  Outlet,
+  OutletId,
   Project,
   ProjectId,
   ProjectSummary,
@@ -26,10 +28,10 @@ import type {
   WorkspaceId,
   WorkspaceSettings,
 } from '@brandfactory/shared'
-import { brandTldrLine, bySchedule } from '@brandfactory/shared'
+import { brandTldrLine, bySchedule, byOutletName, uniqueOutletSlug } from '@brandfactory/shared'
 import { createAgentConcurrencyGuard, type AgentConcurrencyGuard } from './agent/concurrency'
 import { createApp, type AppDeps } from './app'
-import { AssetNotInBrandError } from '@brandfactory/db'
+import { AssetNotInBrandError, BrandNotInWorkspaceError } from '@brandfactory/db'
 import type { ResearchJob, SectionAutofillEvent } from '@brandfactory/db'
 import type { Db } from './db'
 import type { ShapeResearchFn, ShapeSectionFn } from './research/shape'
@@ -111,6 +113,7 @@ export interface FakeDbState {
    */
   failNextSectionAutofillRecord?: boolean
   socialPosts: Map<string, SocialPost>
+  outlets: Map<string, Outlet>
   projects: Map<string, Project>
   canvases: Map<string, Canvas>
   settings: Map<string, WorkspaceSettings>
@@ -129,6 +132,7 @@ export function createFakeDbState(): FakeDbState {
     researchJobs: new Map(),
     sectionAutofillEvents: [],
     socialPosts: new Map(),
+    outlets: new Map(),
     projects: new Map(),
     canvases: new Map(),
     settings: new Map(),
@@ -157,6 +161,19 @@ function assertFakeAssetsInBrand(
     return !asset || asset.brandId !== brandId || asset.deletedAt !== null
   })
   if (missing.length > 0) throw new AssetNotInBrandError([...missing])
+}
+
+// The fake half of `assertBrandInWorkspace` — same rule (the brand exists *and*
+// is in this workspace), same typed error, so the route's `instanceof` catch
+// behaves identically against fake and real db.
+function assertFakeBrandInWorkspace(
+  state: FakeDbState,
+  workspaceId: WorkspaceId,
+  brandId: BrandId | null | undefined,
+): void {
+  if (!brandId) return
+  const brand = state.brands.get(brandId)
+  if (!brand || brand.workspaceId !== workspaceId) throw new BrandNotInWorkspaceError(brandId)
 }
 
 const NOW = '2026-04-19T00:00:00.000Z'
@@ -222,6 +239,12 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       if (!existing) return null
       state.workspaces.delete(id)
       state.settings.delete(id)
+      // `outlets.workspace_id` is ON DELETE CASCADE. Outlets go before the
+      // brands do, so nothing here observes the SET NULL below on a row that
+      // is on its way out anyway.
+      for (const [oid, outlet] of [...state.outlets.entries()]) {
+        if (outlet.workspaceId === id) state.outlets.delete(oid)
+      }
       for (const brand of [...state.brands.values()]) {
         // Cascade through the same helper so brands → projects → canvases →
         // blocks and assets/posts/sections go too, exactly as the FK chain does.
@@ -308,6 +331,12 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       }
       for (const [pid, post] of state.socialPosts) {
         if (post.brandId === id) state.socialPosts.delete(pid)
+      }
+      // `outlets.brand_id` is ON DELETE **SET NULL**, not cascade — a lease
+      // outlives its branding. Deleting the outlet here would make the fake
+      // agree with a schema this repo deliberately does not have.
+      for (const [oid, outlet] of state.outlets) {
+        if (outlet.brandId === id) state.outlets.set(oid, { ...outlet, brandId: null })
       }
       for (const [pid, project] of [...state.projects.entries()]) {
         if (project.brandId === id) {
@@ -587,6 +616,94 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       const updated: SocialPost = { ...existing, deletedAt: null, updatedAt: NOW }
       state.socialPosts.set(id, updated)
       return updated
+    },
+
+    // Outlets. Same rule as the assets and posts fakes: mirror the real query,
+    // not the obvious thing. Three properties are load-bearing and each has a
+    // route test that would pass against a looser fake — the workspace scoping
+    // on every write (an id from elsewhere *misses*), the cross-workspace brand
+    // gate throwing the same typed error the route converts to a 400, and the
+    // slug being chosen from what is already taken rather than from the name
+    // alone.
+    async listOutletsByWorkspace(workspaceId) {
+      return [...state.outlets.values()]
+        .filter((o) => o.workspaceId === workspaceId)
+        .sort(byOutletName)
+    },
+    async getOutletByRef(workspaceId, ref) {
+      return (
+        [...state.outlets.values()].find(
+          (o) => o.workspaceId === workspaceId && (o.slug === ref || o.id === ref),
+        ) ?? null
+      )
+    },
+    async createOutlet(workspaceId, input) {
+      assertFakeBrandInWorkspace(state, workspaceId, input.brandId)
+      const id = nextId('outlet') as OutletId
+      const taken = [...state.outlets.values()]
+        .filter((o) => o.workspaceId === workspaceId)
+        .map((o) => o.slug)
+      const row: Outlet = {
+        id,
+        workspaceId,
+        brandId: input.brandId ?? null,
+        slug: uniqueOutletSlug(input.name, taken),
+        name: input.name,
+        outletType: input.outletType,
+        // No `??`: the schema's `.default('pipeline')` has already run, so the
+        // fake and the real query agree the key is present by this point.
+        status: input.status,
+        address: input.address ?? null,
+        unit: input.unit ?? null,
+        postalCode: input.postalCode ?? null,
+        attributes: input.attributes ?? [],
+        targetOpeningDate: input.targetOpeningDate ?? null,
+        openingDate: input.openingDate ?? null,
+        closingDate: input.closingDate ?? null,
+        notes: input.notes ?? null,
+        createdAt: NOW,
+        updatedAt: NOW,
+      }
+      state.outlets.set(id, row)
+      return row
+    },
+    async updateOutlet(workspaceId, id, patch) {
+      // The brand gate runs before the row lookup, as the real query runs it
+      // before the update — a bad brandId rejects the whole patch even when the
+      // outlet itself would miss.
+      assertFakeBrandInWorkspace(state, workspaceId, patch.brandId)
+      const existing = state.outlets.get(id)
+      if (!existing || existing.workspaceId !== workspaceId) return null
+      // `undefined` leaves a key alone, `null` clears it; `attributes` is a full
+      // replacement. `slug` is not a patch key — the URL survives a rename.
+      const updated: Outlet = {
+        ...existing,
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.outletType !== undefined ? { outletType: patch.outletType } : {}),
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        ...(patch.brandId !== undefined ? { brandId: patch.brandId } : {}),
+        ...(patch.address !== undefined ? { address: patch.address } : {}),
+        ...(patch.unit !== undefined ? { unit: patch.unit } : {}),
+        ...(patch.postalCode !== undefined ? { postalCode: patch.postalCode } : {}),
+        ...(patch.attributes !== undefined ? { attributes: patch.attributes } : {}),
+        ...(patch.targetOpeningDate !== undefined
+          ? { targetOpeningDate: patch.targetOpeningDate }
+          : {}),
+        ...(patch.openingDate !== undefined ? { openingDate: patch.openingDate } : {}),
+        ...(patch.closingDate !== undefined ? { closingDate: patch.closingDate } : {}),
+        ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+        updatedAt: NOW,
+      }
+      state.outlets.set(id, updated)
+      return updated
+    },
+    async deleteOutlet(workspaceId, id) {
+      const existing = state.outlets.get(id)
+      // Hard delete, and scoped — a second attempt misses, which is what lets
+      // the route 404 rather than report success twice.
+      if (!existing || existing.workspaceId !== workspaceId) return null
+      state.outlets.delete(id)
+      return existing
     },
 
     // Brand research jobs. Same rule as the assets fakes above: mirror the real

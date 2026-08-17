@@ -23,6 +23,13 @@ import {
   ZapIcon,
 } from "lucide-react";
 
+// The outlet enums come from `@brandfactory/shared` and no longer from the Ops
+// `schema.d.ts`. The two lists are identical member for member, so the
+// fourteen cut-from-nav Ops screens that still index these records with an
+// `OutletRead.status` keep type-checking — and if the two ever diverge, those
+// call sites break, which is the signal worth having.
+import type { OutletStatus, OutletType } from "@brandfactory/shared";
+
 import type {
   AuthorityKind,
   BillingFrequency,
@@ -42,8 +49,6 @@ import type {
   Necessity,
   ObligationKind,
   ObligationStatus,
-  OutletStatus,
-  OutletType,
   RenewalType,
   RepairCategory,
   RequirementStatus,

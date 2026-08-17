@@ -168,6 +168,22 @@ export const SCOPES = {
   // the profile are two cache entries holding the same truth, and a guidelines write has to
   // invalidate both — the list carries `sectionCount` and the flattened `tldr`.
   bfBrand: "brand",
+  // BrandFactory's outlets, keyed `[bf-outlets, workspaceId]` and
+  // `[bf-outlet, workspaceId, ref]`.
+  //
+  // **Prefixed, because the Ops `outlets` / `outlet` above are still live.**
+  // `features/outlets` reads the Hono server and `features/registry` still
+  // answers fourteen cut-from-nav Ops screens from the fixtures, so both scope
+  // families exist at once. Reusing the plain word would make one create here
+  // invalidate every one of that folder's paginated lists, and one Ops write
+  // refetch this one — not a crash, just two areas quietly refetching each
+  // other's data forever. `cache.test.ts` pins every value in this object as
+  // distinct, which is the invariant that keeps the separation real.
+  //
+  // Distinctness is also *sufficient*: `matchesSerialised` compares the scope
+  // with its quotes on, so `"outlets"` cannot match inside `"bf-outlets"`.
+  bfOutlets: "bf-outlets",
+  bfOutlet: "bf-outlet",
   // A brand's latest research run (`GET /brands/:id/research`). Separate from the brand because
   // it is a separate aggregate on the server and is allowed to arrive late; no brand write
   // touches it.

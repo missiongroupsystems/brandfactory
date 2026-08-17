@@ -40,6 +40,7 @@ import { createCanvasRouter } from './routes/canvas'
 import { createHealthRouter } from './routes/health'
 import { createMeRouter } from './routes/me'
 import { createMessagesRouter } from './routes/messages'
+import { createWorkspaceOutletsRouter } from './routes/outlets'
 import {
   createBrandProjectsRouter,
   createProjectsRouter,
@@ -128,6 +129,10 @@ export function createApp(deps: AppDeps) {
     .route('/workspaces', createWorkspaceBrandsRouter({ db: deps.db, storage: deps.storage }))
     .route('/workspaces', createWorkspaceProjectsRouter({ db: deps.db, storage: deps.storage }))
     .route('/workspaces', createSettingsRouter({ db: deps.db, env: deps.env }))
+    // Outlets are workspace-scoped with an optional brand, so they mount here
+    // rather than under `/brands` — and no `storage`, because an outlet holds
+    // no blob keys and its delete has nothing to sweep.
+    .route('/workspaces', createWorkspaceOutletsRouter({ db: deps.db }))
     .route(
       '/brands',
       createBrandsRouter({

@@ -9,6 +9,7 @@
  *   - two freeform projects + canvases (one per brand)
  *   - two agent_messages under the second project so Recent work has real
  *     activity signal (D1) without manual chatting
+ *   - six outlets     (see SEED_OUTLETS for what each one is there to show)
  *
  * Deterministic ids (hard-coded UUIDs) so reruns stay stable and the
  * printed dev token never changes between seeds. `ON CONFLICT DO NOTHING`
@@ -26,6 +27,7 @@ import {
   brands,
   canvases,
   guidelineSections,
+  outlets,
   projects,
   users,
   workspaces,
@@ -83,6 +85,142 @@ const SECTIONS: SeedSection[] = [
       'Craft, transparency, zero pretension. Nothing is overhyped; quality speaks for itself.',
     ),
     priority: 3000,
+  },
+]
+
+/**
+ * Six outlets, so the Outlets screen has a shape rather than an empty state.
+ *
+ * Chosen to exercise the parts of that screen a single row cannot: all five
+ * statuses appear (`open` twice), so both date columns are populated and every
+ * badge tone renders; three brands' worth of grouping (Acme, Northwind and one
+ * unbranded) so the "By brand" view has more than one band **and** the "No brand"
+ * bucket; and one row with no address at all, because a table full of complete
+ * records never shows what a gap looks like.
+ *
+ * `slug` is written out rather than derived. The seed inserts directly and never
+ * calls `createOutlet`, so nothing here would pick one — and a hard-coded slug is
+ * also what keeps a screenshot's URL stable across reseeds, which is the same
+ * reason every id in this file is fixed.
+ */
+interface SeedOutlet {
+  id: string
+  brandId: string | null
+  slug: string
+  name: string
+  outletType: 'restaurant' | 'bar' | 'cafe' | 'central_kitchen' | 'office'
+  status: 'pipeline' | 'fitting_out' | 'open' | 'temporarily_closed' | 'closed'
+  address: string | null
+  unit: string | null
+  postalCode: string | null
+  attributes: string[]
+  targetOpeningDate: string | null
+  openingDate: string | null
+  closingDate: string | null
+  notes: string | null
+}
+
+const SEED_OUTLETS: SeedOutlet[] = [
+  {
+    id: '00000000-0000-4000-8000-000000000011',
+    brandId: DEMO_BRAND_ID,
+    slug: 'acme-coffee-marina',
+    name: 'Acme Coffee — Marina',
+    outletType: 'cafe',
+    status: 'open',
+    address: '12 Marina View',
+    unit: '#01-05',
+    postalCode: '018961',
+    attributes: ['prepares_food', 'outdoor_seating', 'takeaway', 'breakfast'],
+    targetOpeningDate: null,
+    openingDate: '2024-03-01',
+    closingDate: null,
+    notes: null,
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000012',
+    brandId: DEMO_BRAND_ID,
+    slug: 'acme-coffee-tanjong-pagar',
+    name: 'Acme Coffee — Tanjong Pagar',
+    outletType: 'cafe',
+    status: 'temporarily_closed',
+    address: '7 Wallich Street',
+    unit: '#B1-09',
+    postalCode: '078884',
+    attributes: ['prepares_food', 'takeaway'],
+    targetOpeningDate: null,
+    openingDate: '2024-11-20',
+    closingDate: null,
+    notes: 'Closed for aircon replacement; reopening targeted for October.',
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000013',
+    brandId: DEMO_BRAND_ID,
+    slug: 'acme-coffee-orchard',
+    name: 'Acme Coffee — Orchard',
+    outletType: 'cafe',
+    status: 'fitting_out',
+    address: '391 Orchard Road',
+    unit: '#04-18',
+    postalCode: '238872',
+    attributes: ['prepares_food', 'takeaway'],
+    targetOpeningDate: '2026-11-01',
+    openingDate: null,
+    closingDate: null,
+    notes: 'Handover from landlord confirmed for September.',
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000014',
+    brandId: DEMO_BRAND_2_ID,
+    slug: 'northwind-studio',
+    name: 'Northwind Studio',
+    outletType: 'office',
+    // The row with no address — the gap a full table would never show.
+    status: 'open',
+    address: null,
+    unit: null,
+    postalCode: null,
+    attributes: ['wheelchair_access'],
+    targetOpeningDate: null,
+    openingDate: '2022-06-01',
+    closingDate: null,
+    notes: null,
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000016',
+    brandId: DEMO_BRAND_ID,
+    slug: 'acme-coffee-holland-village',
+    name: 'Acme Coffee — Holland Village',
+    outletType: 'cafe',
+    // A site whose lease ended. `closed` is history, not an error — which is why
+    // its badge is neutral rather than red, and why it still shows an opening
+    // date.
+    status: 'closed',
+    address: '25 Lorong Mambong',
+    unit: null,
+    postalCode: '277677',
+    attributes: ['prepares_food', 'takeaway'],
+    targetOpeningDate: null,
+    openingDate: '2021-05-04',
+    closingDate: '2025-12-31',
+    notes: 'Lease not renewed; the espresso bar moved to Marina.',
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000015',
+    // No brand: a site taken before anyone decided what it trades as.
+    brandId: null,
+    slug: 'the-quay-bar',
+    name: 'The Quay Bar',
+    outletType: 'bar',
+    status: 'pipeline',
+    address: '60 Robertson Quay',
+    unit: '#01-11',
+    postalCode: '238252',
+    attributes: ['serves_alcohol', 'live_music', 'late_night'],
+    targetOpeningDate: '2027-02-15',
+    openingDate: null,
+    closingDate: null,
+    notes: null,
   },
 ]
 
@@ -196,6 +334,17 @@ export async function seed(): Promise<SeedResult> {
         userId: null,
       })
       .onConflictDoNothing({ target: agentMessages.id })
+
+    // Outlets last, because two of them reference both brands. Inserted
+    // directly rather than through `createOutlet` — a seed writes rows, and
+    // routing this through the query layer would mean a slug chosen from
+    // whatever happened to be in the table.
+    for (const outlet of SEED_OUTLETS) {
+      await tx
+        .insert(outlets)
+        .values({ ...outlet, workspaceId: DEMO_WORKSPACE_ID })
+        .onConflictDoNothing({ target: outlets.id })
+    }
   })
 
   return {
