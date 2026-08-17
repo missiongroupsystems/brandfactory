@@ -1,6 +1,5 @@
 import {
   BookOpen,
-  BookUser,
   ClipboardCheck,
   FileSignature,
   FileText,
@@ -8,6 +7,7 @@ import {
   Inbox,
   LayoutDashboard,
   Ruler,
+  Sparkles,
   Store,
 } from "lucide-react";
 
@@ -114,16 +114,20 @@ export const NAV_ITEMS: NavItem[] = [
     phase: 3,
     description: "Who we buy from, and who to call there",
   },
-  // Renamed from "Contacts". The route is still `/contacts` and the screen underneath is
-  // still the contacts browser — the label moved first because the noun BrandFactory cares
-  // about is the person you partner with, not the vendor's switchboard. Rename the route
-  // when the screen itself is rebuilt around that.
+  // **The route caught up with the label.** This pointed at `/contacts` — the Operations Hub's
+  // address book — for three releases, on the argument that the noun should move first and the
+  // model would follow. It has: the screen is `features/influencers/` on its own record, and
+  // folder, route, cache scope and wire path all say `influencers`.
+  //
+  // `Sparkles`, not `BookUser`. That glyph is an address book, which is what this used to be and
+  // is the thing it stopped being — a roster is chosen by reach and by subject, not read for a
+  // phone number.
   {
     title: "Influencers",
-    href: "/contacts",
-    icon: BookUser,
+    href: "/influencers",
+    icon: Sparkles,
     phase: 3,
-    description: "The people behind each partnership, and how to reach them",
+    description: "The creators each brand works with, and how far they reach",
   },
   {
     title: "Review",
@@ -179,7 +183,9 @@ export function isActivePath(pathname: string, href: string): boolean {
 
 /**
  * The sidebar's sections, in order, keyed by stable `href` so a title change never orphans an
- * item — which is why the Contacts → Influencers rename needed no edit here. Grouping is
+ * item — which is why the Contacts → Influencers *rename* needed no edit here, and why the later
+ * `/contacts` → `/influencers` **route** move did: the key is the href, so moving one is the one
+ * change this list has to be told about. Grouping is
  * presentation over the same {@link NAV_ITEMS} order: it inserts section eyebrows, it does
  * **not** reorder, so every adjacency the comments above justify is preserved. The first
  * group has no label: Dashboard is the home, not a section. Any live item missing from every
@@ -190,7 +196,7 @@ export const NAV_GROUPS: { label: string | null; hrefs: string[] }[] = [
   { label: "Registry", hrefs: ["/brand", "/outlets"] },
   {
     label: "Contracts & services",
-    hrefs: ["/contracts", "/quotations", "/vendors", "/contacts"],
+    hrefs: ["/contracts", "/quotations", "/vendors", "/influencers"],
   },
   { label: "Resources", hrefs: ["/review", "/marketing-requests", "/spaces"] },
 ];

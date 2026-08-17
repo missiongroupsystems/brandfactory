@@ -7,8 +7,8 @@ import type {
   VendorListItem,
 } from "@/lib/api/types";
 
+import { agencies } from "./agencies";
 import { brands } from "./brands";
-import { agencies } from "./influencers";
 
 /**
  * Contract fixtures — the rows `/contracts` renders, and the vendors they are held with.
@@ -21,17 +21,17 @@ import { agencies } from "./influencers";
  * Ids are fixed strings rather than generated, so a link into a detail page keeps working across
  * reloads and a screenshot taken today matches one taken next week — the rule `registry.ts` sets.
  *
- * **The three providers are here and not in `influencers.ts`** although both files end up on
- * `/vendors`. That file owns the *talent agencies*, and its docstring explains why they sit
- * beside the creators they hold: neither set is legible without the other. A scheduling tool and
- * a photo studio hold no creators and belong to no roster; they are here because the only thing
- * that makes them exist in this product is the contract. {@link vendors} is the union, and
- * `mock.ts` serves that — one list on the wire, whichever fixture declared the row.
+ * **The three providers are here and not in `agencies.ts`** although both files end up on
+ * `/vendors`. That file owns the *talent agencies*; a scheduling tool and a photo studio belong
+ * to no roster and are here because the only thing that makes them exist in this product is the
+ * contract. {@link vendors} is the union, and `mock.ts` serves that — one list on the wire,
+ * whichever fixture declared the row.
  *
- * The cost is visible on one screen and is worth stating: the Influencers filter offers agencies
- * from `useVendorIndex`, so it now lists three vendors that manage nobody. That screen is a
- * mockup of a door BrandFactory has not built, and the alternative — a software contract held by
- * a talent agency — would be a false record rather than an untidy dropdown.
+ * The cost this docstring used to record is **paid off**. It read: *"the Influencers filter
+ * offers agencies from `useVendorIndex`, so it now lists three vendors that manage nobody"*.
+ * That filter is gone. Influencers no longer resolves a vendor id, no longer groups by one and
+ * no longer offers one — an influencer is engaged for a brand, and the agencies moved out of
+ * `influencers.ts` into `agencies.ts` when the last thing joining the two files went.
  *
  * **`category` is a marketing vocabulary now, and this docstring used to argue it could not be.**
  * The argument was: `ServiceCategory` is the Operations Hub's list of *trades*, frozen in a
@@ -69,7 +69,7 @@ import { agencies } from "./influencers";
  */
 function agencyId(name: string): string {
   const row = agencies.find((agency) => agency.name === name);
-  if (!row) throw new Error(`No agency fixture named "${name}" — see fixtures/influencers.ts`);
+  if (!row) throw new Error(`No agency fixture named "${name}" — see fixtures/agencies.ts`);
   return row.id;
 }
 
@@ -104,9 +104,9 @@ const bellweather = "v3000000-0000-4000-8000-000000000003";
  * The vendors that are not talent agencies — a tool, a studio and a press office.
  *
  * `contacts` is empty on all three, which is a fact and not a gap: nobody has recorded a person
- * to call. The Influencers screen groups by *contact*, so an empty roster means these three
- * render no group there while still appearing on `/vendors`, which is where a service provider
- * belongs. The four aggregates are placeholders — {@link vendors} derives every one of them from
+ * to call. It is empty on the six agencies too, now that the influencer roster has stopped being
+ * read as their contact list — so this is no longer the one thing that distinguishes the two
+ * sets. The four aggregates are placeholders — {@link vendors} derives every one of them from
  * {@link contracts} below.
  */
 const PROVIDERS: VendorListItem[] = [
@@ -122,7 +122,7 @@ const PROVIDERS: VendorListItem[] = [
     contacts: [],
     contracts_active: 0,
     contracts_total: 0,
-    brands_covered: 0,
+    brand_ids_covered: [],
     next_contract_end: null,
     created_at: now,
     updated_at: now,
@@ -139,7 +139,7 @@ const PROVIDERS: VendorListItem[] = [
     contacts: [],
     contracts_active: 0,
     contracts_total: 0,
-    brands_covered: 0,
+    brand_ids_covered: [],
     next_contract_end: null,
     created_at: now,
     updated_at: now,
@@ -156,7 +156,7 @@ const PROVIDERS: VendorListItem[] = [
     contacts: [],
     contracts_active: 0,
     contracts_total: 0,
-    brands_covered: 0,
+    brand_ids_covered: [],
     next_contract_end: null,
     created_at: now,
     updated_at: now,
@@ -609,15 +609,21 @@ export function isCurrent(contract: ContractSensitive): boolean {
  *     denominator of "1 active of 4", and a denominator that hid the terminated ones would make
  *     the fraction smaller than the list behind the click-through.
  *   - `contracts_active` — `status === "active"` only. Not "current": a draft is not cover.
- *   - `brands_covered` — distinct brands across the **active** contracts, because the question is
- *     what they work on now. A vendor whose only agreement was terminated works on nothing.
+ *   - `brand_ids_covered` — the distinct brands across the **active** contracts, because the
+ *     question is what they work on now. A vendor whose only agreement was terminated works on
+ *     nothing.
  *
- * `brands_covered` was `outlets_covered` and is the one aggregate that changed shape rather than
- * value. The generated field counted premises, which a contract no longer names; the honest
- * replacement counts the dimension it does name. **A group-level agreement contributes nothing to
+ * `brand_ids_covered` was `outlets_covered` and is the one aggregate that changed shape rather
+ * than value. The generated field counted premises, which a contract no longer names; the honest
+ * replacement covers the dimension it does name. **A group-level agreement contributes nothing to
  * it**, which is right and worth saying out loud: Loopline's seat licence is held for everybody,
- * so "0 brands" is not a claim that Loopline is unused — the `1 active of 2` beside it is what
+ * so "no brands" is not a claim that Loopline is unused — the `1 active of 2` beside it is what
  * says otherwise. The table words the zero rather than printing it.
+ *
+ * **The ids, not the count.** It was `brands_covered: covered.size` for one release, and the
+ * count is now `brand_ids_covered.length` — the same number, derived from the thing the vendors
+ * table has to *name* on hover. Two values would be two chances to disagree, which is the whole
+ * argument of this docstring one field further down.
  *
  * `next_contract_end` is the earliest end date among the active ones, which is the next time
  * this relationship needs a decision.
@@ -635,7 +641,7 @@ export const vendors: VendorListItem[] = [...agencies, ...PROVIDERS].map((vendor
     ...vendor,
     contracts_total: held.length,
     contracts_active: active.length,
-    brands_covered: covered.size,
+    brand_ids_covered: [...covered],
     next_contract_end: ends[0] ?? null,
   };
 });

@@ -28,9 +28,10 @@ import type {
 export const vendorService = {
   list: (
     params: {
-      // `service_provider | landlord`. Omitted returns every kind (what `useVendorIndex`
-      // relies on to resolve landlord names); the `/vendors` screen sends its default control
-      // value explicitly rather than the API defaulting it — no hidden WHERE (tas.md §2.2).
+      // `service_provider | landlord`. Omitted returns every kind, which is what `useVendorIndex`
+      // relies on to resolve landlord names — and what the `/vendors` screen now sends: marketing
+      // buys from no landlords, so that screen dropped the dimension rather than pinning it to
+      // one value. The parameter stays for the tenancy screens, which narrow to landlords.
       kind?: VendorKind;
       status?: VendorStatus;
       // A closed vocabulary since 0.16.0 — the API answers an unknown value with a 422

@@ -6,6 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.39.0** — 2026-08-17 — Influencers stops being the address book under a new label: a creator record this app declares, grouped by reach tier because that tier is *derived*, and no vendor anywhere — the six agencies leave for a fixture of their own, where six contracts still need them. Route moves to `/influencers`. No migration. 2211 tests.
+- **1.38.0** — 2026-08-17 — The Vendors table stops asking which counterparty kind you want — marketing buys from no landlords — and its Brands column stops being a number: the contracts cell moves to a shared component and names the brands on hover. First browser pass since 1.35.1. No migration. 2196 tests.
 - **1.37.0** — 2026-08-17 — A contract stops being an agreement about premises and becomes one about a brand: `/contracts` groups, filters and creates by brand, the outlet dimension leaves with the service workflow that hung off it, and `category` gets a marketing vocabulary. No migration. 2193 tests.
 - **1.36.2** — 2026-08-17 — Pre-push review of 1.36.0 and 1.36.1: a delete that drew an error over its own success, two surfaces that read a failed brand request as `No brand`, and a fixture wired to array order. No migration. 2190 tests.
 - **1.36.1** — 2026-08-17 — Contracts stops being an empty table, on 14 marketing agreements and the 3 providers only a contract makes exist; the vendor aggregates `influencers.ts` pinned at zero are now derived, because the number they could not contradict finally exists. No migration. 2190 tests (12 of them this change).
@@ -82,6 +84,179 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.39.0 — 2026-08-17
+
+**The Influencers screen was the Operations Hub's address book wearing a new label, and the
+report against it was two sentences that are one complaint.**
+
+*"Grouping by vendor doesn't make any sense. Nor should those influencers be linked to
+Vendors."* Both are true, and both are the borrowed model showing through rather than a decision
+anyone made about creators. The rows were `ContactRead` — name, role, email, phone, `vendor_id`,
+`is_primary` — so the screen filed people by the company they sit with and offered a filter over
+`ServiceCategory`, the Ops Hub's thirteen building trades, of which the only true value for a
+talent agency is `other`.
+
+The same shape 1.37.0 fixed one aggregate over, one step further: that release re-pointed two
+fields of a generated record, and this replaces the record.
+
+No migration, no server change, no wire change. `packages/web` is untouched and still serves
+production. Full detail in `docs/completions/influencers-by-reach.md`; the three decisions the
+user settled first are its §0.
+
+### 1. The grouping is derived, which is why the component halved
+
+Reach tier — Mega / Macro / Mid-tier / Micro / Nano at 1M / 500k / 100k / 10k, the trade's own
+ladder — computed from `followers` rather than stored.
+
+**The user chose this over brand, and it is the better axis for a reason the recommendation
+missed.** `ContactsBrowser` was 701 lines and the vendor grouping is most of why: its buckets came
+from the data, so their existence, their order and their names were three separate questions, and
+it carried *three* tiers of group — a named vendor, the real null bucket, and **a group whose
+vendor had not resolved yet**, kept apart from the null one because folding a slow request into
+"has no agency" states something untrue about a creator.
+
+A tier is computed from a number the row already carries. No index to resolve, so no band can be
+pending; `followers` is not nullable, so there is no unknown bucket. The grouping is **total** —
+every loaded row lands in exactly one band, so the counts always sum to the rows, which is what
+lets the headers carry numbers honestly. `groupByTier` is a walk over a closed ordered list, and
+the walk *is* the sort.
+
+Largest first, the opposite of every other grouped table here, because reach descending is the
+order a budget conversation happens in. The rail is by **position** rather than hashed: `railFor`
+hashes for an open set of groups, and five fixed tiers want the ramp in the ladder's order.
+
+### 2. The agencies survived the row they left
+
+Dropping the agency nearly deleted six vendors that hold contracts. `fixtures/influencers.ts`
+owned them and justified it by the screen — an unresolved `vendor_id` renders `…`, so creators
+without agencies in the same fixture would have been twenty rows under a column of ellipses. That
+was true and is now false. But `fixtures/contracts.ts` looks those companies up **by name** as the
+counterparties of six of the sixteen agreements.
+
+So they moved to `fixtures/agencies.ts`, and the split is finally the honest one: an **agency** is
+a company you have an agreement with, an **influencer** is a person you engage for a brand.
+Nothing joins the two files. `contacts` is `[]` on all six — the roster used to be *derived* into
+the agency's contact list, which was the same wrong model read from the company side.
+
+### 3. Route, and what stayed behind
+
+Folder, route, cache scope **and wire path** all say `influencers` now. The wire path moves too,
+which is where this differs from `/registry-brands`: that one kept `/brands` because it is the Ops
+backend's, and there is no endpoint behind this one to be frozen by.
+
+`/contacts` is **not** redirected. It still means the address book —
+`useContactMutations` is live on the tenancy intake sheet and the review queue, both creating a
+person against a vendor, which is a fine model for a landlord and was only ever wrong for a
+creator. A redirect would claim the two screens are one under two names.
+
+Three surfaces answered for the change rather than absorbing it: `/vendors` lost its header
+cross-link, because "the people half of the directory" stopped being true; `mock.ts`' `/vendors`
+registration lost its stated reason and kept its route; and the primary action became
+`Import or sync creators` on 1.36.0's precedent, because a follower count is pulled from a
+platform, and a box asking somebody to type `1,240,000` invites a figure nobody can stand behind.
+
+### 4. Verification
+
+```
+pnpm typecheck                         clean (11 packages)
+pnpm lint                              clean (whole repo)
+pnpm format:check                      clean
+pnpm test                              2211 passed | 92 skipped (184 files)
+pnpm -F @brandfactory/web build        clean
+pnpm -F @brandfactory/web-next lint    clean
+pnpm -F @brandfactory/web-next build   clean — /influencers ○ (Static); /contacts gone
+```
+
+The count moves by fifteen, all in `tiers.test.ts`. Each boundary is asserted **twice** — the
+first count in the tier and the last below it — because a one-sided assertion passes against `>`
+where `>=` was meant, and a band that silently swallowed 100,000 into Micro looks completely
+correct on screen.
+
+**No browser pass.** What that leaves unseen: whether five bands read well at nineteen rows,
+whether ten vertical glyphs are distinguishable at 16px, whether the reach column's mixed `k`/`M`
+units scan down its length, and whether `Not engaged yet` reads as a decision rather than a gap.
+
+---
+
+## 1.38.0 — 2026-08-17
+
+**Two things on `/vendors`, and both are the Operations Hub's answer to a question marketing
+does not ask.**
+
+The screen led with a `Service providers | Landlords | All` segment, and its Brands column was a
+count. One is a dimension this product has no rows in; the other is a number where the table
+next door already renders names. No migration, no server change, no wire change —
+`packages/web` is untouched and still serves production.
+
+### 1. The counterparty kind leaves rather than being pinned
+
+A landlord is filed as a vendor in the Ops Hub so its contacts land in the ordinary address
+book, and the segment existed so one never disappeared from an unfiltered list. Marketing buys
+from agencies, studios, press offices and tools. Every vendor in the fixture is a
+`service_provider`, so the control offered **a view of nothing** beside a default that was every
+row — and sat in a filter row looking like a sixth filter.
+
+The dimension goes: the list sends no `kind` at all, so it holds every counterparty there is and
+hides nothing. Pinning `service_provider` was the tempting half-measure and is the **hidden
+WHERE the segment was built to avoid** — one release after the reason for it went away. Same
+call 1.37.0 made when the outlet dimension left the contracts table.
+
+`?kind=landlord` on an old link is now an unread key rather than a redirect: the table opens
+unfiltered instead of re-arranged, which is what `?group=outlet` was given one release ago.
+`FILTER_KEYS` drops to `q` and `status`, so `activeCount` is a plain sweep again and `onClear`
+is `clearAll` — the keyed `setFilters` existed only to protect a view control that no longer
+exists. The `kind` parameter stays on `vendorService.list` and in the mock, because the tenancy
+screens still narrow to landlords with it.
+
+### 2. `brands_covered` becomes `brand_ids_covered`
+
+A count can only be rendered as a count. The vendors row now carries the **ids**, and the count
+is `.length` — so the number and the names cannot disagree, which is the discipline
+`fixtures/contracts.ts` already states for the three aggregates beside it.
+
+`BrandCell`, `brandsFor` and `NamesTooltip` came out of `contracts-view.tsx`'s 1676 lines and
+became `features/registry-brands/components/brand-names-cell.tsx` and
+`components/layout/names-tooltip.tsx` — a promotion at the moment of second use, which is the
+rule `AGENTS.md` states for `components/`. The contracts table's rendering is unchanged.
+
+The cell takes one prop the contracts version did not need. **The vendors zero has two
+readings**: a vendor holding a live agreement works on no *named* brand, which is `Group level`
+and a stated fact; a vendor holding no live agreement has nothing to state, which is the em dash
+this table reads as "not recorded". So `empty` is the caller's node, and contracts keeps
+`Group level` as the default.
+
+### 3. One stale sentence
+
+`/vendors`' page description named *"how many outlets they cover"* as the third aggregate, and
+had done since 1.37.0 took the outlet off a contract. It described a number the table does not
+hold. No gate can see a string; a reader found it.
+
+### 4. Verification
+
+```
+pnpm typecheck                         clean (11 packages)
+pnpm lint                              clean (whole repo)
+pnpm format:check                      clean
+pnpm test                              2196 passed | 92 skipped (183 files)
+pnpm -F @brandfactory/web build        clean
+pnpm -F @brandfactory/web-next lint    clean
+pnpm -F @brandfactory/web-next build   clean
+```
+
+The count moves by three: `brand-names-cell.test.ts` pins the rule that one unresolved id makes
+the **whole** cell pending, which is invisible in a browser pass on any day the index happens to
+have arrived — the mistake the contracts table made once. `contracts.test.ts` asserts the
+covered ids rather than their count, because a list of the right *length* holding the wrong
+brands would now put a real name against the wrong vendor.
+
+**And there was a browser pass** — the wall standing since 1.36.0. Both tables were read against
+`next start` on the real stack: the segment is gone, the Brands column shows `Group level`, a
+single name, `⌂ 3` and the em dash in the four places each belongs, and the tooltip lists
+*Eastside Kitchens · Harbour Table · Kopi & Co* on hover in both. What that still leaves unseen
+is the rest of 1.37.0 §5 — the group bands at four brands and eleven category glyphs at 16px.
 
 ---
 

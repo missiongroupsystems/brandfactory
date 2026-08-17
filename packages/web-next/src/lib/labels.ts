@@ -1,8 +1,10 @@
 import {
   AirVentIcon,
+  BabyIcon,
   BrushCleaningIcon,
   BugIcon,
   CalendarHeartIcon,
+  CarIcon,
   CircleDashedIcon,
   CircleSlashIcon,
   ClapperboardIcon,
@@ -17,12 +19,15 @@ import {
   MonitorIcon,
   PaletteIcon,
   PenLineIcon,
+  PlaneIcon,
   RefreshCwIcon,
   RefrigeratorIcon,
   RepeatIcon,
   ShieldIcon,
   ShirtIcon,
   ShowerHeadIcon,
+  SofaIcon,
+  SparkleIcon,
   TargetIcon,
   Trash2Icon,
   TrendingUpIcon,
@@ -55,6 +60,9 @@ import type {
   EntityStatus,
   EntityType,
   HolderLevel,
+  InfluencerPlatform,
+  InfluencerStatus,
+  InfluencerVertical,
   LicenseStatus,
   Necessity,
   ObligationKind,
@@ -447,6 +455,82 @@ export const CONTRACT_CATEGORY_ICONS: Record<ContractCategory, LucideIcon> = {
 };
 
 /**
+ * The platforms, labelled the way the platforms label themselves.
+ *
+ * `Xiaohongshu` and not "RED" or "Little Red Book": it is what the app is called and what a
+ * Singapore marketing team says out loud. No icon map — lucide ships no brand marks, and a
+ * generic glyph per platform (a camera for Instagram, a play button for YouTube) would be six
+ * symbols that name a *medium* rather than a service, which is the "eleven moods at 16px"
+ * failure `CONTRACT_CATEGORY_ICONS` records one domain over. The platform is a short word and
+ * reads perfectly well as one.
+ */
+export const INFLUENCER_PLATFORM_LABELS: Record<InfluencerPlatform, string> = {
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  youtube: "YouTube",
+  xiaohongshu: "Xiaohongshu",
+  facebook: "Facebook",
+  linkedin: "LinkedIn",
+};
+
+/**
+ * The verticals, and these **do** get glyphs.
+ *
+ * The grammar is `CONTRACT_CATEGORY_ICONS`': name the subject, not the mood. A shirt for
+ * fashion, a plate for food, a flame for fitness, a car for motoring. Ten symbols is a
+ * vocabulary rather than decoration, so every cell using one keeps the label beside it as real
+ * text or as `sr-only` plus a tooltip.
+ *
+ * There is **no `other` entry, because the union has no `other` member** — an unclassified
+ * creator carries `null` and the cell renders the em dash through `Value`. That is a
+ * deliberate difference from the three maps above it: `other` there is a value somebody chose,
+ * and here "no vertical" is the absence of a choice. Giving it a bucket would file the
+ * generalists beside the unclassified and make the two unreadable apart.
+ */
+export const INFLUENCER_VERTICAL_LABELS: Record<InfluencerVertical, string> = {
+  beauty: "Beauty & skincare",
+  fashion: "Fashion",
+  food: "Food & dining",
+  fitness: "Fitness",
+  travel: "Travel",
+  home: "Home & interiors",
+  tech: "Tech",
+  parenting: "Parenting",
+  motoring: "Motoring",
+  family: "Family & lifestyle",
+};
+
+export const INFLUENCER_VERTICAL_ICONS: Record<InfluencerVertical, LucideIcon> = {
+  beauty: SparkleIcon,
+  fashion: ShirtIcon,
+  food: HandPlatterIcon,
+  fitness: FlameIcon,
+  travel: PlaneIcon,
+  home: SofaIcon,
+  tech: MonitorIcon,
+  parenting: BabyIcon,
+  motoring: CarIcon,
+  family: UsersIcon,
+};
+
+export const INFLUENCER_STATUS_LABELS: Record<InfluencerStatus, string> = {
+  active: "Active",
+  prospect: "Prospect",
+  past: "Past",
+};
+
+/**
+ * `prospect` is `info` and not `warning`: a creator on the shortlist is a normal state, not
+ * something anyone has to act on. `past` is the neutral pill for the same reason
+ * `CONTRACT_STATUS_TONES` gives `terminated` one — it was a decision, and it is over.
+ */
+export const INFLUENCER_STATUS_TONES: Record<InfluencerStatus, BadgeTone> = {
+  active: "success",
+  prospect: "info",
+  past: "default",
+};
+
+/**
  * The repair trades — a **separate** vocabulary from `ServiceCategory` (spec §4.8, the user's
  * call): repairs almost don't overlap with servicing, so their categories don't collide. Keyed by
  * the union exactly as `SERVICE_CATEGORY_*` are, so a new backend `RepairCategory` fails the
@@ -724,6 +808,9 @@ export const VENDOR_KIND_OPTIONS = optionsFrom(VENDOR_KIND_LABELS);
 export const BRAND_STATUS_OPTIONS = optionsFrom(BRAND_STATUS_LABELS);
 export const SERVICE_CATEGORY_OPTIONS = optionsFrom(SERVICE_CATEGORY_LABELS);
 export const CONTRACT_CATEGORY_OPTIONS = optionsFrom(CONTRACT_CATEGORY_LABELS);
+export const INFLUENCER_PLATFORM_OPTIONS = optionsFrom(INFLUENCER_PLATFORM_LABELS);
+export const INFLUENCER_VERTICAL_OPTIONS = optionsFrom(INFLUENCER_VERTICAL_LABELS);
+export const INFLUENCER_STATUS_OPTIONS = optionsFrom(INFLUENCER_STATUS_LABELS);
 export const REPAIR_CATEGORY_OPTIONS = optionsFrom(REPAIR_CATEGORY_LABELS);
 export const CONTRACT_STATUS_OPTIONS = optionsFrom(CONTRACT_STATUS_LABELS);
 export const TENANCY_KIND_OPTIONS = optionsFrom(TENANCY_KIND_LABELS);

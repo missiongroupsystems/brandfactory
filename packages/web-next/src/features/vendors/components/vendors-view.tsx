@@ -6,12 +6,7 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { AddMenuButton } from "@/components/layout/add-menu-button";
-import {
-  FilterBar,
-  FilterSelect,
-  SearchField,
-  SegmentedControl,
-} from "@/components/layout/filter-bar";
+import { FilterBar, FilterSelect, SearchField } from "@/components/layout/filter-bar";
 import { EmptyState, LoadingRows, QueryError } from "@/components/layout/query-states";
 import { LoadMore, TableCard, Value } from "@/components/layout/table-card";
 import { ConfirmDialog } from "@/components/ui/alert-dialog";
@@ -26,14 +21,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  BrandNamesCell,
+  GroupLevel,
+} from "@/features/registry-brands/components/brand-names-cell";
+import { useBrandIndex } from "@/features/registry-brands/hooks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { filterIdentity, useQueryFilters } from "@/hooks/use-query-filters";
 import { useSubmit } from "@/hooks/use-submit";
-import type { VendorKind, VendorListItem, VendorStatus } from "@/lib/api/types";
+import type { VendorListItem, VendorStatus } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
 import {
   SERVICE_CATEGORY_LABELS,
-  VENDOR_KIND_OPTIONS,
   VENDOR_STATUS_LABELS,
   VENDOR_STATUS_OPTIONS,
   VENDOR_STATUS_TONES,
@@ -48,46 +47,46 @@ import { VendorForm } from "./vendor-form";
  * views shared one URL and `q` was already the contracts table's. On a page of its own
  * that prefix buys nothing, and the redirect in `/contracts/page.tsx` translates old
  * links so nothing pasted before 0.13.0 stops working. */
-const FILTER_KEYS = ["q", "status", "kind"] as const;
+const FILTER_KEYS = ["q", "status"] as const;
 
-/** Which counterparty kind the list shows. A **view control, not a filter** — the default is
- * `service_provider`, shown on screen, so a landlord never silently disappears from an
- * unfiltered `/vendors` (tas.md §2.2). Selecting "Service providers" clears the param to keep
- * the default link clean; "Landlords" and "All" set it explicitly. */
-const KIND_VIEW_OPTIONS = [...VENDOR_KIND_OPTIONS, { value: "all", label: "All" }] as const;
-
-/** The counterparties. Service providers by default; landlords are one segment away. The
- * primary contact rides in the table — "who do I call" without opening anything. */
+/**
+ * The vendors — who marketing buys from, and who to call there. The primary contact rides in
+ * the table, so "who do I call" needs no click.
+ *
+ * **There is no counterparty-kind control, and that is a decision.** A `service_provider |
+ * landlord` segment led this screen while it was the Operations Hub's: a landlord is filed as a
+ * vendor there so its contacts land in the address book, and the segment existed so one never
+ * disappeared from an unfiltered list. Marketing buys from agencies, studios, press offices and
+ * tools, and from no landlords — so the segment offered a view of nothing beside a "Service
+ * providers" default that was every row, and it read as a filter the product has no use for.
+ *
+ * The dimension **leaves rather than being pinned**: the list sends no `kind`, so it holds every
+ * counterparty there is and hides nothing. Pinning `service_provider` would have been the hidden
+ * WHERE the segment was built to avoid, one release after the reason for it went away — the same
+ * call 1.37.0 made when the outlet dimension left the contracts table.
+ */
 export function VendorsView() {
-  const { filters, setFilter, setFilters } = useQueryFilters(FILTER_KEYS);
+  const { filters, setFilter, clearAll } = useQueryFilters(FILTER_KEYS);
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<VendorListItem | undefined>();
 
-  // Absent means the default, `service_provider` — not "all". That is the whole point: the
-  // filter is visible and defaulted, never a hidden WHERE.
-  const kind = filters.kind ?? "service_provider";
-
-  // `kind` is a view control, so it is excluded from the filter count and survives Clear —
-  // the same split the review queue and contracts make for their view controls.
-  const activeCount = ["q", "status"].filter((key) => filters[key as "q" | "status"]).length;
+  const activeCount = FILTER_KEYS.filter((key) => filters[key]).length;
 
   // Debounced *here*, above the remount boundary — see filterIdentity's docstring.
   const debouncedQ = useDebouncedValue(filters.q, 250);
   const resultsFilters = React.useMemo(
-    () => ({ ...filters, kind, q: debouncedQ }),
-    [filters, kind, debouncedQ],
+    () => ({ ...filters, q: debouncedQ }),
+    [filters, debouncedQ],
   );
   const resultsKey = filterIdentity(FILTER_KEYS, resultsFilters);
 
   return (
     <div className="flex flex-col gap-4 px-6 pb-8 md:px-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <FilterBar
-          activeCount={activeCount}
-          // `setFilters`, not `clearAll`: clearing the *filters* must not throw the reader out
-          // of the counterparty view they chose, exactly as the review queue keeps its view.
-          onClear={() => setFilters({ q: undefined, status: undefined })}
-        >
+        {/* `clearAll` again, and it can be: it used to be a keyed `setFilters` so that clearing
+            the filters did not throw the reader out of the counterparty view they had chosen.
+            There is no view to keep now, so every key this screen owns is a filter. */}
+        <FilterBar activeCount={activeCount} onClear={clearAll}>
           <SearchField
             label="Search vendors by name"
             placeholder="Vendor name"
@@ -104,14 +103,6 @@ export function VendorsView() {
         </FilterBar>
 
         <div className="flex flex-wrap items-center gap-2">
-          <SegmentedControl
-            label="Which vendors to show"
-            value={kind}
-            options={KIND_VIEW_OPTIONS}
-            onChange={(value) =>
-              setFilter("kind", value === "service_provider" ? undefined : value)
-            }
-          />
           {/* F3: the primary action is now a split button — Manual add (this form) or Upload
               (a drop-a-PDF popup, UI only). */}
           <AddMenuButton
@@ -158,13 +149,17 @@ function VendorResults({
   const { run, reset, isPending, formError } = useSubmit();
   const [deleting, setDeleting] = React.useState<VendorListItem | undefined>();
 
+  // No `kind`: this screen holds every counterparty there is — see `VendorsView` for why the
+  // segment went rather than being pinned to one value.
   const { items, error, isLoading, hasMore, isLoadingMore, loadMore } = useVendorPages({
-    // "all" is the one segment that sends no `kind` — it is the absence of the filter, not a
-    // value the API knows. `service_provider` and `landlord` go through verbatim.
-    kind: filters.kind === "all" ? undefined : (filters.kind as VendorKind | undefined),
     status: filters.status as VendorStatus | undefined,
     q: filters.q, // already debounced by the parent, which keys this component on it
   });
+
+  // The brands each vendor's live agreements are held for are `brand_ids_covered` on the row,
+  // and a name is one hop away through this index — the same resolution the contracts table
+  // makes, so an id that has not resolved is a pending request and never a missing brand.
+  const { byId: brandById } = useBrandIndex();
 
   async function handleDelete() {
     if (!deleting) return;
@@ -179,11 +174,9 @@ function VendorResults({
   if (isLoading) return <LoadingRows rows={4} />;
 
   if (items.length === 0) {
-    // `kind` is always set (it defaults to `service_provider`), so it cannot go in a
-    // truthiness sweep — the default view with no rows is "No vendors yet", not "no match".
-    // A non-default segment (landlords / all) or a real filter counts as filtered.
-    const filtered =
-      Boolean(filters.q || filters.status) || filters.kind !== "service_provider";
+    // A plain truthiness sweep again, now that every key here is a filter: there is no
+    // always-set view control to exclude from it.
+    const filtered = Boolean(filters.q || filters.status);
     return (
       <EmptyState
         message={filtered ? "No vendors match these filters" : "No vendors yet"}
@@ -270,18 +263,24 @@ function VendorResults({
                       <Value>{null}</Value>
                     )}
                   </TableCell>
-                  <TableCell className="text-ink-secondary">
-                    {/* Zero is a real answer here and not a gap — a vendor whose only live
-                        agreement is held at group level works on no *named* brand — so it is
-                        worded rather than left to the em dash, which this table reads as
-                        "not recorded". */}
-                    {vendor.brands_covered > 0 ? (
-                      `${vendor.brands_covered} ${vendor.brands_covered === 1 ? "brand" : "brands"}`
-                    ) : vendor.contracts_active > 0 ? (
-                      <span className="text-ink-tertiary">Group level</span>
-                    ) : (
-                      <Value>{null}</Value>
-                    )}
+                  {/* 18ch, the cap the contracts Brand column carries and for the same reason:
+                      brand names are short but they are free text, and one long one would
+                      otherwise set this column's width on behalf of a single row. */}
+                  <TableCell className="max-w-[18ch] text-ink-secondary">
+                    {/* The same cell the contracts table renders — one brand is its name, more
+                        than one is a count that unfolds on hover. What differs is the zero, and
+                        this table has **two** of them. A vendor holding a live agreement works
+                        on no *named* brand, which is `Group level`, a stated fact; a vendor
+                        holding no live agreement at all has nothing to state, which is the em
+                        dash this table reads as "not recorded". Collapsing the two would say one
+                        of them about the other. */}
+                    <BrandNamesCell
+                      brandIds={vendor.brand_ids_covered}
+                      brandById={brandById}
+                      empty={
+                        vendor.contracts_active > 0 ? <GroupLevel /> : <Value>{null}</Value>
+                      }
+                    />
                   </TableCell>
                   <TableCell className="text-ink-secondary">
                     <Value>

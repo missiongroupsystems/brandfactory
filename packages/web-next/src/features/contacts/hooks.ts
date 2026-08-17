@@ -3,16 +3,28 @@
 import * as React from "react";
 
 import { SCOPES, useInvalidate } from "@/lib/api/cache";
-import { useCursorPages } from "@/lib/api/use-cursor-pages";
-import type { Contact, ContactCreate, ContactUpdate } from "@/lib/api/types";
+import type { ContactCreate, ContactUpdate } from "@/lib/api/types";
 
-import { contactService, type ContactFilters } from "./api";
+import { contactService } from "./api";
 
-export function useContactPages(filters: ContactFilters = {}) {
-  return useCursorPages<Contact>(SCOPES.contacts, filters, (cursor) =>
-    contactService.list({ ...filters, cursor }),
-  );
-}
+/**
+ * **This folder has no screen any more, and what is left is deliberately only the writes.**
+ *
+ * `/contacts` was the Operations Hub's address book, and the Influencers nav item pointed at it
+ * for three releases — a creator filed under the talent agency holding their contract. That
+ * screen is now `features/influencers/`, on its own record and its own route, so
+ * `contacts-browser.tsx`, `contact-search.tsx`, `contact-form.tsx` and `useContactPages` are all
+ * gone with it.
+ *
+ * The mutations stay because two other features still call them: the tenancy intake sheet creates
+ * the landlord's contact as part of taking a lease, and the review queue's actions fill in a
+ * contact a migration could not confirm. Both create a person **against a vendor**, which is what
+ * this address book always was and is a perfectly good model for a landlord or a building
+ * manager. It was only ever the wrong model for a creator.
+ *
+ * `contactService.list` and `get` stay on the service layer for those routes' sake and have no
+ * caller here. Delete this folder when those two features go, not before.
+ */
 
 // A contact write can move a vendor row too: the same records ride embedded in
 // `VendorRead.contacts`, so the vendors table's "Primary contact" column and the vendor

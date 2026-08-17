@@ -107,15 +107,22 @@ export type Vendor = S["VendorRead"];
  * The list shape: a vendor plus the contract aggregates the table renders. The counts
  * reflect what the caller may see, so they always match the drill-down.
  *
- * **`brands_covered` replaces the generated `outlets_covered`**, because the number it
+ * **`brand_ids_covered` replaces the generated `outlets_covered`**, because the number it
  * counted stopped existing the day a contract stopped carrying outlets. Leaving the field
  * on the row at `0` would have been worse than removing it: a vendor holding three live
  * retainers would have read "0 outlets covered", which is a false statement that looks like
  * a true one. It is derived in `fixtures/contracts.ts` from the agreements themselves, the
  * same discipline the three counts beside it already follow.
+ *
+ * **It carries the ids and not a count**, and that is the second change to this field. A count
+ * can only be rendered as a count, and the vendors table needs to *name* the brands on hover the
+ * way the contracts table does — resolved through `useBrandIndex`, one hop, one place where a
+ * name can be pending. The count is `brand_ids_covered.length`, so the two can never disagree:
+ * the rule `fixtures/contracts.ts` states for the three counts beside it, applied to the one
+ * value that is not a count.
  */
 export type VendorListItem = Omit<S["VendorListItem"], "outlets_covered"> & {
-  brands_covered: number;
+  brand_ids_covered: string[];
 };
 export type VendorCreate = S["VendorCreate"];
 export type VendorUpdate = S["VendorUpdate"];
@@ -211,12 +218,117 @@ export type ContractUpdate = Omit<S["ContractUpdate"], "category"> & {
   category?: ContractCategory | null;
 };
 /**
+ * A creator the brand partners with — **the one record in this file with no schema type
+ * behind it at all**, which makes it a step further than {@link ContractCategory} beside it.
+ *
+ * That union re-pointed one field of a generated record. This replaces the record. The
+ * Influencers screen was the Operations Hub's *address book* (`ContactRead`: name, role,
+ * email, phone, `vendor_id`, `is_primary`) under a new label, and none of the six fields an
+ * influencer is actually chosen by — handle, platform, reach, engagement, vertical, the brand
+ * they work for — exists on that shape. So the screen filed people by the *company they sit
+ * with* and offered a filter over trades, of which the only true value for a talent agency is
+ * `other`. Both were the borrowed model showing through, not a decision anyone made about
+ * creators.
+ *
+ * Declaring it here is safe for exactly the reason {@link ContractCategory} gives and no
+ * other: **there is no server.** `schema.d.ts` is frozen against a FastAPI document this
+ * repository does not contain, the Hono server holds no influencer routes, and
+ * `fixtures/influencers.ts` is the only writer — so nothing can refuse a field. The day a
+ * real backend arrives it is generated against *this* shape.
+ *
+ * Three fields deserve their reasons stated:
+ *
+ *   - **`followers` is not nullable.** A creator's follower count is public and is the first
+ *     thing anyone looks up, so "we have not recorded it" is not a state this record needs to
+ *     carry. That is what makes the table's grouping *total* — every row lands in a reach tier
+ *     and there is no unknown bucket, which is the whole reason the tier can be derived rather
+ *     than stored. See `features/influencers/tiers.ts`.
+ *   - **There is no agency, and its absence is the change.** An influencer is engaged for a
+ *     brand; the manager you book through is not the axis you file them under. The six talent
+ *     agencies still exist as vendors in `fixtures/agencies.ts` — six agreements are held with
+ *     them, and a retainer with an agency is exactly what `/vendors` is for — but nothing on
+ *     this record points at one.
+ *   - **`brand_ids` is multi-valued, like a contract's.** A creator can work for two of the
+ *     group's brands and a prospect for none. An **empty array is a fact** ("not engaged
+ *     yet"), never a gap.
+ */
+export type Influencer = {
+  id: string;
+  name: string;
+  /** Without the `@`. The screen adds it, so the fixture cannot carry it on some rows only. */
+  handle: string;
+  platform: InfluencerPlatform;
+  followers: number;
+  /** Percent, as a number — `3.8` is 3.8%. Null where nobody has measured it, which is a
+   *  real state: a prospect you have not run a campaign with has no engagement history. */
+  engagement_rate: number | null;
+  vertical: InfluencerVertical | null;
+  /** The brands this creator is engaged for. Empty is a fact — see the note above. */
+  brand_ids: string[];
+  status: InfluencerStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * Where the reach is.
+ *
+ * The row carries **one** platform, not a set, and that is a deliberate simplification of a
+ * real many-to-many: a creator with an Instagram grid and a TikTok account has two different
+ * follower counts and two different engagement rates, so one row with a platform array would
+ * have to pick one number to show — and every reach figure on the screen would silently be
+ * "on whichever platform we happened to record". One row per platform keeps every number
+ * attributable, the same call `/contracts`' plan made for one idea per platform.
+ *
+ * `xiaohongshu` is in the list because this is a Singapore group and it is not optional here.
+ */
+export type InfluencerPlatform =
+  | "instagram"
+  | "tiktok"
+  | "youtube"
+  | "xiaohongshu"
+  | "facebook"
+  | "linkedin";
+
+/**
+ * What the creator is about — the vocabulary that replaces {@link ServiceCategory} on this
+ * screen.
+ *
+ * The old filter offered thirteen trades, of which a talent agency could only ever be
+ * `other`; these are the verticals the fixture's roster was already describing in prose, in
+ * the `role` free-text field (`"Creator — beauty and skincare"`, `"Creator — motoring"`). The
+ * data was there and unfilterable. Nullable, because a generalist genuinely has no vertical
+ * and inventing `other` for them would put them in a bucket beside the ones nobody classified.
+ */
+export type InfluencerVertical =
+  | "beauty"
+  | "fashion"
+  | "food"
+  | "fitness"
+  | "travel"
+  | "home"
+  | "tech"
+  | "parenting"
+  | "motoring"
+  | "family";
+
+/**
+ * Where the relationship stands.
+ *
+ * Three values and no `archived`: a creator you have worked with and stopped working with is
+ * `past`, which is a thing you look up rather than a thing you hide. `prospect` is the state
+ * the old address book had no way to hold — a person on a shortlist who has never been booked.
+ */
+export type InfluencerStatus = "active" | "prospect" | "past";
+
+/**
  * The Operations Hub's trades, still exactly as generated.
  *
- * Vendors, Influencers and the review queue read it and are not being re-pointed: a talent
- * agency filed under `other` is the same complaint one screen over, and the honest fix is a
- * vendor vocabulary nobody has asked for yet. Two enums that overlap in one member is the
- * same call `RepairCategory` already makes beside it.
+ * Vendors and the review queue read it and are not being re-pointed. **Influencers no longer
+ * does** — it reads {@link InfluencerVertical}, which is the change that closed the complaint
+ * this docstring used to record as a known cost ("a talent agency filed under `other` is the
+ * same complaint one screen over"). Vendors keeps it because a vendor vocabulary is a separate
+ * decision about a screen nobody has asked to change.
  */
 export type ServiceCategory = S["ServiceCategory"];
 export type ContractStatus = S["ContractStatus"];

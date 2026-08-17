@@ -231,22 +231,18 @@ const ROUTES: [RegExp, Handler][] = [
   ],
   [/^\/licenses\/([^/]+)$/, ([id]) => licenses.find((l) => l.id === id)],
 
-  // Influencers ------------------------------------------------------------
-  // The **Influencers** nav item, whose route is still `/contacts` — see
-  // `fixtures/influencers.ts` for why the two words disagree and why the agencies below are
-  // in the same fixture as the people.
-  //
-  // `/vendors` is registered here **because the Influencers screen needs it**, not as a
-  // separate decision about the Vendors area: `ContactsBrowser` groups by vendor and resolves
-  // each id through `useVendorIndex`, so without this every group header would render `…`.
-  // The Vendors screen reads the same route and is populated as a consequence.
+  // Vendors ----------------------------------------------------------------
+  // **Registered for the Vendors screen's own sake now.** It used to be registered *because the
+  // Influencers screen needed it*: that screen grouped creators by `contact.vendor_id` and
+  // resolved each id through `useVendorIndex`, so without a populated `/vendors` every group
+  // header would have rendered `…`. Influencers reads no vendor at all — see
+  // `fixtures/influencers.ts` — so this route is answering only the question it names.
   //
   // It reads `vendors` from `fixtures/contracts.ts` rather than `agencies` from
-  // `fixtures/influencers.ts`, and the two are not interchangeable: that list is the talent
+  // `fixtures/agencies.ts`, and the two are not interchangeable: that list is the talent
   // agencies **plus** the three providers only a contract makes exist, each carrying the four
-  // aggregates derived from the contracts below. `agencies` still ships every aggregate at 0,
-  // which was the true answer for as long as there were no contracts and is now a number this
-  // route would be contradicting.
+  // aggregates derived from the contracts below. `agencies` ships every aggregate at 0, which
+  // is a placeholder this route would be turning into a false statement.
   [
     /^\/vendors$/,
     (_p, search) =>
@@ -254,8 +250,9 @@ const ROUTES: [RegExp, Handler][] = [
         vendors.filter(
           (v) =>
             matches(v.name, search.get("q")) &&
-            // `kind` is a view control on that screen and is always sent; "all" is the
-            // absence of the filter, so the client omits the key rather than sending it.
+            // `kind` is kept because it is the frozen Ops route's parameter and the tenancy
+            // screens still narrow to landlords with it. `/vendors` no longer sends it —
+            // marketing has no landlords, so the segment went rather than being pinned.
             (!search.get("kind") || v.kind === search.get("kind")) &&
             (!search.get("status") || v.status === search.get("status")) &&
             (!search.get("category") || v.category === search.get("category")),
@@ -311,32 +308,51 @@ const ROUTES: [RegExp, Handler][] = [
   ],
   [/^\/contracts\/([^/]+)$/, ([id]) => contracts.find((c) => c.id === id)],
 
+  // Influencers ------------------------------------------------------------
+  // **`/influencers` and not `/contacts`.** This is the one path in this file that is *not* the
+  // Operations Hub's — there is no FastAPI endpoint behind it, so nothing about it is frozen and
+  // the rename that moved the folder, the route and the cache scope moved the wire path too. See
+  // `features/influencers/api.ts`.
+  //
+  // `/contacts` is deliberately **not** registered any more. It still means the address book —
+  // `useContactMutations` is live on the tenancy sheet and the review queue — so it falls through
+  // to rule 2 and answers empty, which is true: no screen reads that list.
+  //
+  // Four filters, one per control on screen, because a filter the table offers and the fixture
+  // ignores is worse than no data: the reader narrows, the rows do not move, and the screen looks
+  // broken rather than empty. There is deliberately no `tier` filter — the tier is the *grouping*,
+  // derived in `features/influencers/tiers.ts`, and a filter on the same axis as the bands would
+  // be a second way to ask one question.
   [
-    /^\/contacts$/,
+    /^\/influencers$/,
     (_p, search) =>
       page(
-        influencers.filter((c) => {
-          const agency = c.vendor_id ? vendors.find((v) => v.id === c.vendor_id) : undefined;
+        influencers.filter((i) => {
           const q = search.get("q");
-          // Own name plus the name of the one party that identifies them — the rule
-          // `contact_operations` implements and AGENTS.md records. Not full text over
-          // every field, and not a substitute for the two filters beside it.
-          const hit = matches(c.name, q) || matches(agency?.name, q);
-          // The trade is the *agency's*, reached by the join, which is why an independent
-          // creator matches no category rather than matching "other".
-          const category = search.get("category");
+          // Name **or handle**, and both are the row's own fields — so unlike every other `q`
+          // branch in this file there is no join. AGENTS.md's rule is "the thing's own name plus
+          // the name of the one entity that identifies it"; for a creator the handle *is* that
+          // identifier, and it is on the row.
+          const hit = matches(i.name, q) || matches(i.handle, q);
+
+          // The row holds an array, so brand is a `contains` test rather than an equality one —
+          // the same shape `/contracts` filters `brand_ids` with one aggregate over.
+          const brandId = search.get("brand_id");
+          const brandHit = !brandId || i.brand_ids.includes(brandId);
+
+          const vertical = search.get("vertical");
           return (
             hit &&
-            (!search.get("vendor_id") || c.vendor_id === search.get("vendor_id")) &&
-            (!category || agency?.category === category) &&
-            // `true` or absent, never `false` — the API takes `bool | None`, so `false`
-            // means unfiltered rather than "has a vendor".
-            (search.get("unlinked") !== "true" || c.vendor_id === null)
+            brandHit &&
+            (!search.get("platform") || i.platform === search.get("platform")) &&
+            (!search.get("status") || i.status === search.get("status")) &&
+            // A creator with no vertical matches no vertical filter, rather than falling into
+            // one — there is no `other` member for them to be swept into.
+            (!vertical || i.vertical === vertical)
           );
         }),
       ),
   ],
-  [/^\/contacts\/([^/]+)$/, ([id]) => influencers.find((c) => c.id === id)],
 
   // Marketing Requests -----------------------------------------------------
   // The inbox. Its two mutations are in {@link WRITES} below — the one exception to rule 3,

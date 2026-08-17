@@ -25,6 +25,7 @@ import {
 } from "@/components/layout/filter-bar";
 import { NEUTRAL_RAIL, railFor, type GroupRail } from "@/components/layout/group-rail";
 import { HighlightMatch } from "@/components/layout/highlight-match";
+import { NamesTooltip } from "@/components/layout/names-tooltip";
 import { EmptyState, LoadingRows, QueryError } from "@/components/layout/query-states";
 import { LoadMore, TableCard, Value } from "@/components/layout/table-card";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +41,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  BrandNamesCell,
+  GROUP_LEVEL,
+} from "@/features/registry-brands/components/brand-names-cell";
 import { useBrandIndex } from "@/features/registry-brands/hooks";
 import { useVendorIndex } from "@/features/vendors/hooks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -654,7 +659,10 @@ const COLUMNS: readonly ContractColumn[] = [
     // long one would otherwise set this column's width on behalf of a single row.
     cellClassName: "max-w-[18ch] text-ink-secondary",
     cell: ({ contract, brandById }) => (
-      <BrandCell brands={brandsFor(contract, brandById)} />
+      // The zero case takes the default — an agreement naming no brand is held at group level,
+      // which is a decision rather than a gap. The vendors table passes its own node there,
+      // because its zero has a second reading.
+      <BrandNamesCell brandIds={contract.brand_ids} brandById={brandById} />
     ),
   },
   {
@@ -1557,120 +1565,5 @@ function IconHeader({ icon: Icon, label }: { icon: LucideIcon; label: string }) 
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
-  );
-}
-
-/** A count that unfolds on hover — the tooltip lists the names behind it. The dashed
- * underline is the "there is more here" affordance; the trigger is a real button, so
- * keyboard focus opens it too. */
-function NamesTooltip({ label, names }: { label: React.ReactNode; names: string[] }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger className="rounded-md underline decoration-ink-tertiary/60 decoration-dashed underline-offset-4">
-        {label}
-      </TooltipTrigger>
-      <TooltipContent className="flex-col items-start gap-0.5">
-        {names.map((name, index) => (
-          <span key={index}>{name}</span>
-        ))}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-/**
- * The words for an agreement held for no brand in particular.
- *
- * *"Group level"*, not *"No brand"* and not *"No brand yet"*, and the difference is the whole
- * argument. Both of those describe an **unanswered question** — a row somebody has not got to —
- * which is what the phrase meant while brand was inherited from an outlet and half the estate was
- * unattributed. It is a *stated fact* now: a seat licence and a press office retainer are held
- * for the whole group, deliberately, and there is nothing here to fix. The em dash would be worse
- * again, because `Value` has taught this table to read it as "not recorded".
- *
- * The same string names the bucket, the band and the cell, so the three cannot drift.
- */
-const GROUP_LEVEL = "Group level";
-
-/**
- * Which brands an agreement is held for — the derivation, kept out of the cell.
- *
- * **One hop, so there is one way for a fact to be pending**: the `brand_ids` are on the row, and
- * the only thing that can be missing is a *name*. It was two — the covered outlet might not have
- * arrived, or might have arrived carrying a `brand_id` the brand index had not resolved — and the
- * third state that went with it (`unbranded`: an outlet that resolved and carries no brand) is
- * gone too, because there is no longer anything between the contract and its brands to be
- * half-resolved.
- *
- * What has not changed is the rule that made those states necessary: *"a cached index that has
- * not arrived is a pending request, never a missing fact"*. One unresolved name still makes the
- * whole cell unknown rather than shorter — with one of three names missing, "1 brand" and
- * "2 brands" are both wrong and neither looks it.
- */
-type BrandCoverage = {
-  /** Distinct brand names, sorted. Empty while `pending`. */
-  names: string[];
-  /** A `brand_id` on this row has no name in the index yet, so nothing here can be counted. */
-  pending: boolean;
-  /** The agreement names no brand at all — held at group level. A fact, not a gap. */
-  groupLevel: boolean;
-};
-
-function brandsFor(contract: ContractRecord, brandById: Map<string, Brand>): BrandCoverage {
-  const names = new Set<string>();
-  let pending = false;
-
-  for (const brandId of contract.brand_ids) {
-    const brand = brandById.get(brandId);
-    // A real reference with no name yet is a request in flight. Rendering the remaining
-    // names would state that this agreement covers fewer brands than it does.
-    if (!brand) pending = true;
-    else names.add(brand.name);
-  }
-
-  return {
-    names: [...names].sort((a, b) => a.localeCompare(b)),
-    pending,
-    groupLevel: contract.brand_ids.length === 0,
-  };
-}
-
-/**
- * The brands an agreement is held for. Four states, and three of them look alike at a glance,
- * which is why each says a different thing:
- *
- * - **Group level** → the words, in tertiary ink. Checked first, and never the em dash: an
- *   agreement held for everybody is a decision, and the em dash is this table's word for
- *   "not recorded".
- * - **Still loading** → the ellipsis, for the whole cell. See `brandsFor` for why a partial
- *   list is worse than none.
- * - **One brand** → the name. The common case, and the only one that reads as a value.
- * - **More than one** → glyph and count, with the names in the tooltip. Four is the most any
- *   row reaches, which is every brand there is — the group-wide tracking study, which is a
- *   different statement from `Group level` and has to look like one.
- */
-function BrandCell({ brands }: { brands: BrandCoverage }) {
-  if (brands.groupLevel) return <span className="text-ink-tertiary">{GROUP_LEVEL}</span>;
-  if (brands.pending) return PENDING;
-
-  if (brands.names.length === 1) {
-    return (
-      <span className="block truncate" title={brands.names[0]}>
-        {brands.names[0]}
-      </span>
-    );
-  }
-
-  return (
-    <NamesTooltip
-      label={
-        <span className="inline-flex items-center gap-1">
-          <TagIcon aria-hidden className="size-3.5 text-ink-tertiary" />
-          {brands.names.length}
-          <span className="sr-only">{brands.names.length} brands</span>
-        </span>
-      }
-      names={brands.names}
-    />
   );
 }

@@ -172,6 +172,39 @@ export function formatMoney(
   return currency === "SGD" ? `S$${number}` : `${currency} ${number}`;
 }
 
+/**
+ * `84200` → `"84.2k"`, `1240000` → `"1.24M"`, `931` → `"931"`.
+ *
+ * A follower count is read as a *magnitude*, not as a figure: nobody cares whether a creator
+ * has 84,231 or 84,190 followers, and the exact number changes hourly, so `Intl`'s grouped form
+ * spends eight characters to be precise about a digit that is wrong by the time it renders.
+ *
+ * Hand-rolled rather than `Intl.NumberFormat`'s `notation: "compact"`, for the same reason
+ * `formatRelativeShort` gives: the option does not do what its name suggests. `en-SG` compact
+ * renders 1.24M as `"1.2M"` — `maximumFractionDigits` is capped at 1 for compact notation
+ * regardless of what you ask for — and a reach column where 1.24M and 1.19M both read "1.2M"
+ * has stopped distinguishing the two rows it exists to compare. It also renders thousands as
+ * `"84K"` with a capital K, which is not how anyone writes a follower count.
+ *
+ * So: **two significant decimals under 10, one at or above it**, and trailing zeros trimmed, so
+ * the column reads `931` / `9.4k` / `84.2k` / `1.24M` rather than `931` / `9.40k` / `84.20k`.
+ * The unit letters are the platform convention — lowercase `k`, uppercase `M`.
+ */
+export function formatCompactNumber(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return EMPTY;
+
+  const abs = Math.abs(value);
+  const [divisor, unit] = abs >= 1_000_000 ? [1_000_000, "M"] : abs >= 1_000 ? [1_000, "k"] : [1, ""];
+  if (divisor === 1) return String(Math.round(value));
+
+  const scaled = value / divisor;
+  // Two decimals below 10 keeps 1.24M apart from 1.19M; one above it, because 84.23k is
+  // precision nobody asked for in a column that is scanned rather than read.
+  const digits = Math.abs(scaled) < 10 ? 2 : 1;
+  // `Number()` drops the trailing zeros `toFixed` insists on — `9.40` → `9.4`, `2.00` → `2`.
+  return `${Number(scaled.toFixed(digits))}${unit}`;
+}
+
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;

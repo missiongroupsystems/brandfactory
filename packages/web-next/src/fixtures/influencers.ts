@@ -1,390 +1,347 @@
-import type { Contact, ServiceCategory, VendorContact, VendorListItem } from "@/lib/api/types";
+import type { Influencer } from "@/lib/api/types";
+
+import { brands } from "./brands";
 
 /**
  * Influencer fixtures — the rows the **Influencers** screen renders.
  *
- * Named for the door, not the route. The nav item is Influencers; the route underneath is
- * still the Operations Hub's `/contacts` and the shapes are still `ContactRead` and
- * `VendorListItem`, because BrandFactory has no influencer table and no influencer route —
- * this is a mockup put up so the layout can be judged, and nothing here is stored.
- * See `nav.ts` for why the label moved before the route.
+ * Nothing here is stored. This is a mockup put up so the layout can be judged, the same
+ * standing as `contracts.ts` and for the same reason: BrandFactory has no influencer table and
+ * no influencer route, so there is no server to disagree with the shape. See
+ * {@link import("@/lib/api/types").Influencer} for why that makes the record safe to declare.
+ *
+ * **This file used to be the Operations Hub's address book under a new label**, and the
+ * rewrite is the point. The rows were `ContactRead` — name, role, email, phone, `vendor_id`,
+ * `is_primary` — so the screen filed creators by *the company they sit with* and offered a
+ * filter over thirteen building trades. The verticals were in the data all along and
+ * unfilterable, written into the `role` free-text as prose: `"Creator — beauty and skincare"`,
+ * `"Creator — motoring"`. Those are `vertical` now.
+ *
+ * Two things left with it, and both were load-bearing before they were not:
+ *
+ *   - **The agencies.** Six talent agencies lived in this file because the screen grouped by
+ *     them and would otherwise have rendered a column of `…`. Nothing here points at a vendor,
+ *     so they moved to `fixtures/agencies.ts` — where they still matter, because six contracts
+ *     are held with them.
+ *   - **Email and phone.** An influencer is reached at their handle. A creator's mobile number
+ *     is their agent's business, and a fixture carrying nineteen invented phone numbers put a
+ *     column on screen that the product has no reason to hold.
  *
  * Ids are fixed strings rather than generated, so a link into a detail page keeps working
- * across reloads and a screenshot taken today matches one taken next week — the same rule
- * `registry.ts` follows.
+ * across reloads and a screenshot taken today matches one taken next week — the rule
+ * `registry.ts` sets.
  *
- * **The agencies are here and not in a `vendors.ts` of their own** because the screen groups
- * by them. `ContactsBrowser` resolves `contact.vendor_id` through `useVendorIndex`, and an id
- * that resolves to nothing renders as `…` — *a pending request, never a missing fact*. So
- * contacts without agencies would have been twenty rows under a column of ellipses, which is
- * a worse picture than no data at all. The two sets are one fixture because neither is
- * legible without the other.
+ * ## What the roster is built to exercise
  *
- * **A note on `category`.** `ServiceCategory` is the Ops Hub's vocabulary of *trades* —
- * aircon, pest control, grease trap — frozen in the generated `schema.d.ts`, which this app
- * does not own and may not edit. None of its thirteen values names a talent agency, so the
- * only true one is `other`, and two agencies carry `null` because an independent manager has
- * no trade at all. The category filter is therefore honest and nearly useless on this data.
- * Real influencer verticals — beauty, fitness, food — need an enum on a backend that does not
- * exist yet, and inventing one here would put a slug on screen that no server would accept.
+ * The table groups by **reach tier** (`features/influencers/tiers.ts`), which is derived from
+ * `followers`, so the rows are chosen to put at least one in every band and to make each of the
+ * band's conditional parts appear somewhere:
+ *
+ *   - **Mega holds exactly one row**, so the count badge and the collapse toggle correctly
+ *     vanish there and render on the other four. That was a state the old fixture had to
+ *     arrange deliberately; here it is one follower count.
+ *   - **Every platform and every vertical appears**, so no filter option leads to an empty
+ *     table, and **two creators carry no vertical at all** — a photographer who shoots
+ *     everything and a B2B voice on LinkedIn — so the em dash is on screen rather than only in
+ *     `Value`'s tests.
+ *   - **Three rows have no engagement rate.** They are prospects nobody has run a campaign
+ *     with, which is the state that field is nullable for.
+ *   - **Five rows hold no brand.** Those are the prospects, and an empty array reads as
+ *     "Not engaged yet" rather than as the em dash — the same call `/contracts` makes for an
+ *     agreement held at group level.
+ *   - **Three rows name two brands**, and **three name the retired one.** Eastside Kitchens is
+ *     retired and still has creators against it: retiring a brand does not un-run the campaigns
+ *     made for it, which is the reading the brand filter is written not to hide.
+ *
+ * **Engagement falls as reach rises, on purpose.** A nano creator at 14% and a mega at 1.1% is
+ * how the two columns actually relate, and a roster where the rate wandered at random would
+ * make the one number on the screen that argues *against* the top band look like noise.
+ *
+ * The names are invented. None of them is a real person, and none of the handles resolves to a
+ * real account — a fixture that borrowed a real creator's name and handle would be a fabricated
+ * record about someone who never agreed to it.
  */
+
+/** Looked up rather than positioned, so an insertion in `brands.ts` is harmless and a rename is
+ *  loud — the throw fires at import. The same guard `contracts.ts` uses, and for the reason it
+ *  was added there: a destructured array is one reorder away from attaching every row to the
+ *  wrong brand, silently. */
+function brandId(name: string): string {
+  const row = brands.find((brand) => brand.name === name);
+  if (!row) throw new Error(`No brand fixture named "${name}" — see fixtures/brands.ts`);
+  return row.id;
+}
+
+const harbourTable = brandId("Harbour Table");
+const kopiCo = brandId("Kopi & Co");
+const quayBar = brandId("The Quay Bar");
+const eastside = brandId("Eastside Kitchens");
 
 const now = "2026-08-17T09:00:00Z";
 
-type Agency = {
-  id: string;
-  name: string;
-  category: ServiceCategory | null;
-  website: string | null;
-  notes: string | null;
-};
-
-/** The agencies, before their contacts are attached. */
-const AGENCIES: Agency[] = [
+export const influencers: Influencer[] = [
+  // ── Mega, 1M+ — one row, so the band shows neither a count nor a toggle ────────────────
   {
-    id: "v2000000-0000-4000-8000-000000000001",
-    name: "Northlight Talent Pte Ltd",
-    category: "other",
-    website: "https://northlighttalent.example.sg",
-    notes: "Handles the beauty and lifestyle roster. Rate card reviewed each quarter.",
-  },
-  {
-    id: "v2000000-0000-4000-8000-000000000002",
-    name: "Kite & Co Creator Management",
-    category: "other",
-    website: "https://kiteandco.example.sg",
-    notes: null,
-  },
-  {
-    id: "v2000000-0000-4000-8000-000000000003",
-    name: "Sunbeam Social",
-    // No trade in the Ops vocabulary fits a two-person management shop — see the note above.
-    category: null,
-    website: null,
-    notes: "Two managers, no office. Reach them on WhatsApp.",
-  },
-  {
-    id: "v2000000-0000-4000-8000-000000000004",
-    name: "Halcyon Media Group",
-    category: "other",
-    website: "https://halcyonmedia.example.sg",
-    notes: null,
-  },
-  {
-    id: "v2000000-0000-4000-8000-000000000005",
-    name: "Redpin Creators",
-    category: "other",
-    website: null,
-    notes: null,
-  },
-  {
-    id: "v2000000-0000-4000-8000-000000000006",
-    name: "Tidewater Talent LLP",
-    category: null,
-    website: null,
-    notes: null,
-  },
-];
-
-const [northlight, kite, sunbeam, halcyon, redpin, tidewater] = AGENCIES.map((a) => a.id);
-
-/**
- * The people.
- *
- * The spread is deliberate rather than decorative — every conditional the screen carries has
- * at least one row that exercises it:
- *
- *   - **Four agencies hold several creators**, so the count badge, the collapse toggle and
- *     the `Primary` chip all render. Two hold exactly one, where all three correctly vanish.
- *   - **One agency's manager is the primary**, which is what "who do I call first" means for
- *     a roster: the creators are who you book, the manager is who you ask.
- *   - **Six have no agency at all** — independent creators, the "No vendor" bucket.
- *   - **Some rows have no email or no phone**, so the em-dash empty cell is on screen rather
- *     than only in `Value`'s tests.
- *
- * The names are invented. None of them is a real person, and a fixture that borrowed a real
- * creator's name and handle would be a fabricated record about someone who never agreed to it.
- */
-export const influencers: Contact[] = [
-  // Northlight — a manager plus three creators.
-  {
-    id: "c2000000-0000-4000-8000-000000000001",
-    name: "Marisa Yeo",
-    role: "Talent manager",
-    email: "marisa@northlighttalent.example.sg",
-    phone: "+65 6812 4470",
-    vendor_id: northlight!,
-    is_primary: true,
-    created_at: now,
-    updated_at: now,
-  },
-  {
-    id: "c2000000-0000-4000-8000-000000000002",
+    id: "i1000000-0000-4000-8000-000000000001",
     name: "Priya Raman",
-    role: "Creator — beauty and skincare",
-    email: "priya@northlighttalent.example.sg",
-    phone: "+65 9114 2288",
-    vendor_id: northlight!,
-    is_primary: false,
-    created_at: now,
-    updated_at: now,
-  },
-  {
-    id: "c2000000-0000-4000-8000-000000000003",
-    name: "Devon Ang",
-    role: "Creator — menswear",
-    email: "devon@northlighttalent.example.sg",
-    phone: null,
-    vendor_id: northlight!,
-    is_primary: false,
-    created_at: now,
-    updated_at: now,
-  },
-  {
-    id: "c2000000-0000-4000-8000-000000000004",
-    name: "Hana Sulaiman",
-    role: "Creator — home and interiors",
-    email: "hana@northlighttalent.example.sg",
-    phone: "+65 9077 6512",
-    vendor_id: northlight!,
-    is_primary: false,
+    handle: "priyaskin",
+    platform: "instagram",
+    followers: 1_240_000,
+    engagement_rate: 1.1,
+    vertical: "beauty",
+    brand_ids: [harbourTable],
+    status: "active",
     created_at: now,
     updated_at: now,
   },
 
-  // Kite & Co — a manager plus two creators.
+  // ── Macro, 500k – 1M ──────────────────────────────────────────────────────────────────
   {
-    id: "c2000000-0000-4000-8000-000000000005",
-    name: "Tobias Lim",
-    role: "Founder and manager",
-    email: "tobias@kiteandco.example.sg",
-    phone: "+65 6229 1180",
-    vendor_id: kite!,
-    is_primary: true,
-    created_at: now,
-    updated_at: now,
-  },
-  {
-    id: "c2000000-0000-4000-8000-000000000006",
-    name: "Amelia Fong",
-    role: "Creator — food and travel",
-    email: "amelia@kiteandco.example.sg",
-    phone: "+65 9345 7701",
-    vendor_id: kite!,
-    is_primary: false,
-    created_at: now,
-    updated_at: now,
-  },
-  {
-    id: "c2000000-0000-4000-8000-000000000007",
-    name: "Rashid Karim",
-    role: "Creator — fitness",
-    email: null,
-    phone: "+65 9812 3390",
-    vendor_id: kite!,
-    is_primary: false,
-    created_at: now,
-    updated_at: now,
-  },
-
-  // Sunbeam — two, no trade on the agency.
-  {
-    id: "c2000000-0000-4000-8000-000000000008",
-    name: "Clara Boon",
-    role: "Manager",
-    email: "clara@sunbeamsocial.example.sg",
-    phone: "+65 9660 4417",
-    vendor_id: sunbeam!,
-    is_primary: true,
-    created_at: now,
-    updated_at: now,
-  },
-  {
-    id: "c2000000-0000-4000-8000-000000000009",
+    id: "i1000000-0000-4000-8000-000000000002",
     name: "Nikhil Menon",
-    role: "Creator — tech reviews",
-    email: "nikhil@sunbeamsocial.example.sg",
-    phone: null,
-    vendor_id: sunbeam!,
-    is_primary: false,
+    handle: "nikhilreviews",
+    platform: "youtube",
+    followers: 980_000,
+    engagement_rate: 0.9,
+    vertical: "tech",
+    brand_ids: [kopiCo],
+    status: "past",
     created_at: now,
     updated_at: now,
   },
-
-  // Halcyon — two creators, neither of them a manager.
   {
-    id: "c2000000-0000-4000-8000-000000000010",
+    id: "i1000000-0000-4000-8000-000000000003",
+    name: "Devon Ang",
+    handle: "devonang",
+    platform: "tiktok",
+    followers: 842_000,
+    engagement_rate: 2.4,
+    vertical: "fashion",
+    brand_ids: [kopiCo],
+    status: "active",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "i1000000-0000-4000-8000-000000000004",
+    name: "Amelia Fong",
+    handle: "ameliaeats",
+    platform: "instagram",
+    followers: 613_000,
+    engagement_rate: 1.8,
+    vertical: "food",
+    brand_ids: [harbourTable, quayBar],
+    status: "active",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "i1000000-0000-4000-8000-000000000005",
     name: "Josephine Tan",
-    role: "Creator — parenting",
-    email: "jo@halcyonmedia.example.sg",
-    phone: "+65 8123 9945",
-    vendor_id: halcyon!,
-    is_primary: true,
+    handle: "jotanfamily",
+    platform: "facebook",
+    followers: 517_000,
+    // A prospect nobody has run a campaign with — no measured rate.
+    engagement_rate: null,
+    vertical: "parenting",
+    brand_ids: [],
+    status: "prospect",
+    created_at: now,
+    updated_at: now,
+  },
+
+  // ── Mid-tier, 100k – 500k ─────────────────────────────────────────────────────────────
+  {
+    id: "i1000000-0000-4000-8000-000000000006",
+    name: "Hana Sulaiman",
+    handle: "hanaathome",
+    platform: "xiaohongshu",
+    followers: 318_000,
+    engagement_rate: 3.1,
+    vertical: "home",
+    brand_ids: [eastside],
+    status: "active",
     created_at: now,
     updated_at: now,
   },
   {
-    id: "c2000000-0000-4000-8000-000000000011",
+    id: "i1000000-0000-4000-8000-000000000007",
+    name: "Rashid Karim",
+    handle: "rashidmoves",
+    platform: "tiktok",
+    followers: 264_000,
+    engagement_rate: 4.2,
+    vertical: "fitness",
+    brand_ids: [quayBar],
+    status: "active",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "i1000000-0000-4000-8000-000000000008",
     name: "Wei Sheng Ho",
-    role: "Creator — motoring",
-    email: "weisheng@halcyonmedia.example.sg",
-    phone: "+65 8809 2264",
-    vendor_id: halcyon!,
-    is_primary: false,
+    handle: "weishengdrives",
+    platform: "youtube",
+    followers: 187_000,
+    engagement_rate: 2.0,
+    vertical: "motoring",
+    brand_ids: [eastside],
+    status: "past",
     created_at: now,
     updated_at: now,
   },
-
-  // Redpin and Tidewater hold one each — no count, no toggle, no Primary chip.
   {
-    id: "c2000000-0000-4000-8000-000000000012",
+    id: "i1000000-0000-4000-8000-000000000009",
     name: "Farah Idris",
-    role: "Creator — beauty",
-    email: "farah@redpin.example.sg",
-    phone: "+65 9231 0056",
-    vendor_id: redpin!,
-    is_primary: true,
+    handle: "farahidris",
+    platform: "instagram",
+    followers: 142_000,
+    engagement_rate: 2.9,
+    vertical: "beauty",
+    brand_ids: [harbourTable, kopiCo],
+    status: "active",
     created_at: now,
     updated_at: now,
   },
   {
-    id: "c2000000-0000-4000-8000-000000000013",
-    name: "Gerald Ong",
-    role: "Manager",
-    email: null,
-    phone: "+65 6771 3308",
-    vendor_id: tidewater!,
-    is_primary: true,
+    id: "i1000000-0000-4000-8000-000000000010",
+    name: "Marcus Teo",
+    handle: "marcusteotravels",
+    platform: "instagram",
+    followers: 118_000,
+    // Measured from public posts before any booking — which is why the rate is nullable and
+    // not simply absent on every prospect.
+    engagement_rate: 2.2,
+    vertical: "travel",
+    brand_ids: [],
+    status: "prospect",
     created_at: now,
     updated_at: now,
   },
 
-  // Independent — the "No vendor" bucket. Booked direct, no agency in between.
+  // ── Micro, 10k – 100k ─────────────────────────────────────────────────────────────────
   {
-    id: "c2000000-0000-4000-8000-000000000014",
-    name: "Sara Delacroix",
-    role: "Creator — food, 84k followers",
-    email: "hello@saradelacroix.example.com",
-    phone: "+65 9445 8812",
-    vendor_id: null,
-    is_primary: false,
+    id: "i1000000-0000-4000-8000-000000000011",
+    name: "Clara Boon",
+    handle: "claraboon",
+    platform: "xiaohongshu",
+    followers: 74_300,
+    engagement_rate: 5.4,
+    vertical: "food",
+    brand_ids: [harbourTable],
+    status: "active",
     created_at: now,
     updated_at: now,
   },
   {
-    id: "c2000000-0000-4000-8000-000000000015",
-    name: "Matthias Reuter",
-    role: "Creator — coffee and cafés",
-    email: "matthias@reuter.example.com",
-    phone: null,
-    vendor_id: null,
-    is_primary: false,
-    created_at: now,
-    updated_at: now,
-  },
-  {
-    id: "c2000000-0000-4000-8000-000000000016",
-    name: "Ayesha Noor",
-    role: "Creator — modest fashion",
-    email: "ayesha.noor@example.com",
-    phone: "+65 9558 2273",
-    vendor_id: null,
-    is_primary: false,
-    created_at: now,
-    updated_at: now,
-  },
-  {
-    id: "c2000000-0000-4000-8000-000000000017",
-    name: "Bryan Koh",
-    role: "Creator — street food",
-    email: null,
-    phone: "+65 9902 4416",
-    vendor_id: null,
-    is_primary: false,
-    created_at: now,
-    updated_at: now,
-  },
-  {
-    id: "c2000000-0000-4000-8000-000000000018",
+    id: "i1000000-0000-4000-8000-000000000012",
     name: "Liling Chua",
-    role: "Photographer and creator",
-    email: "liling@example.com",
-    phone: "+65 8244 7790",
-    vendor_id: null,
-    is_primary: false,
+    handle: "lilingshoots",
+    platform: "instagram",
+    followers: 52_800,
+    engagement_rate: 4.8,
+    // A photographer who shoots whatever the brief is. Genuinely no vertical — see the
+    // docstring on why that is `null` and not an `other` bucket.
+    vertical: null,
+    brand_ids: [quayBar],
+    status: "active",
     created_at: now,
     updated_at: now,
   },
   {
-    id: "c2000000-0000-4000-8000-000000000019",
+    id: "i1000000-0000-4000-8000-000000000013",
     name: "Oscar Villanueva",
-    role: "Creator — running and endurance",
-    email: "oscar@villanueva.example.com",
-    phone: null,
-    vendor_id: null,
-    is_primary: false,
+    handle: "oscarruns",
+    platform: "tiktok",
+    followers: 38_100,
+    engagement_rate: null,
+    vertical: "fitness",
+    brand_ids: [],
+    status: "prospect",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "i1000000-0000-4000-8000-000000000014",
+    name: "Tobias Lim",
+    handle: "tobiaslim",
+    platform: "linkedin",
+    followers: 24_600,
+    engagement_rate: 3.4,
+    // A B2B voice on hospitality operations. None of the ten consumer verticals is true of him.
+    vertical: null,
+    brand_ids: [kopiCo],
+    status: "active",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "i1000000-0000-4000-8000-000000000015",
+    name: "Serena Koh",
+    handle: "serenakoh",
+    platform: "instagram",
+    followers: 16_900,
+    engagement_rate: 5.9,
+    vertical: "fashion",
+    brand_ids: [harbourTable],
+    status: "past",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "i1000000-0000-4000-8000-000000000016",
+    name: "Adrian Pang",
+    handle: "adrianeats",
+    platform: "xiaohongshu",
+    followers: 11_200,
+    engagement_rate: 7.2,
+    vertical: "food",
+    brand_ids: [eastside, quayBar],
+    status: "active",
+    created_at: now,
+    updated_at: now,
+  },
+
+  // ── Nano, under 10k ───────────────────────────────────────────────────────────────────
+  {
+    id: "i1000000-0000-4000-8000-000000000017",
+    name: "Mei Ling Foo",
+    handle: "meilingfoo",
+    platform: "instagram",
+    followers: 8_400,
+    engagement_rate: 8.6,
+    vertical: "family",
+    brand_ids: [harbourTable],
+    status: "active",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "i1000000-0000-4000-8000-000000000018",
+    name: "Jonas Widjaja",
+    handle: "jonaswidjaja",
+    platform: "tiktok",
+    followers: 3_150,
+    engagement_rate: null,
+    vertical: "motoring",
+    brand_ids: [],
+    status: "prospect",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    // Under 1k, which the trade's ladder has no word for. `nano` holds it because a tier list
+    // with a gap at the bottom would drop the row out of the grouping — see `tiers.ts`.
+    id: "i1000000-0000-4000-8000-000000000019",
+    name: "Bianca Reyes",
+    handle: "biancareyes",
+    platform: "instagram",
+    followers: 940,
+    engagement_rate: 14.2,
+    vertical: "beauty",
+    brand_ids: [],
+    status: "prospect",
     created_at: now,
     updated_at: now,
   },
 ];
-
-/** The shape a vendor embeds. The same fields as `Contact` except that `vendor_id` is
- *  **not nullable** here — an embedded contact is by definition one of that vendor's, so the
- *  caller passes the id rather than the row carrying a `string | null` the narrowing would
- *  have to re-prove. Written out field by field rather than destructured, so a new column on
- *  `ContactRead` is a typecheck failure here instead of silently arriving on the copy. */
-function embed(contact: Contact, vendorId: string): VendorContact {
-  return {
-    id: contact.id,
-    name: contact.name,
-    role: contact.role,
-    email: contact.email,
-    phone: contact.phone,
-    is_primary: contact.is_primary,
-    vendor_id: vendorId,
-    created_at: contact.created_at,
-    updated_at: contact.updated_at,
-  };
-}
-
-/**
- * The agencies, as the vendor list and the vendor page read them.
- *
- * `contacts` is **derived** from {@link influencers} rather than written twice — the two
- * screens are two doors onto the same people, and a hand-copied list is how they start
- * disagreeing. Primary first, then by name: the order the backend's `order_by` uses, so both
- * doors put the same person at the top.
- *
- * **Every aggregate is 0 here, and that is now a placeholder rather than a statement.** It was
- * a statement while there were no contract fixtures — a row claiming two active contracts would
- * have been a number the Contracts screen flatly contradicted. `fixtures/contracts.ts` exists,
- * so the true number does too, and it is *derived* there: `vendors` re-maps this list with the
- * counts its contracts imply, and `mock.ts` serves that on `/vendors`. The rule is unchanged —
- * two screens may not disagree — only which value satisfies it.
- *
- * **So nothing should read `agencies` for its aggregates.** Read `vendors` from
- * `fixtures/contracts.ts`. This export stays because it is what that list is built from, and
- * because the influencer half of the fixture has no opinion about contracts at all.
- */
-export const agencies: VendorListItem[] = AGENCIES.map((agency) => ({
-  id: agency.id,
-  name: agency.name,
-  kind: "service_provider",
-  status: "active",
-  category: agency.category,
-  uen: null,
-  website: agency.website,
-  notes: agency.notes,
-  contacts: influencers
-    .filter((contact) => contact.vendor_id === agency.id)
-    .sort(
-      (a, b) => Number(b.is_primary) - Number(a.is_primary) || a.name.localeCompare(b.name),
-    )
-    .map((contact) => embed(contact, agency.id)),
-  contracts_active: 0,
-  contracts_total: 0,
-  brands_covered: 0,
-  next_contract_end: null,
-  created_at: now,
-  updated_at: now,
-}));

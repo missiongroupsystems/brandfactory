@@ -10,12 +10,12 @@ export const metadata = { title: "Contracts — Marketing Hub" };
 /**
  * Vendors left this page in 0.13.0, so `?view=vendors` redirects to `/vendors`.
  *
- * **The query is translated, not dropped.** Two links inside this product already
- * deep-link into the vendors tab *filtered* (`contract-detail.tsx` and
- * `contacts-browser.tsx`, both building `?view=vendors&vq=<name>`), and every shared link
- * anyone pasted before the move looks the same. A path-only redirect would turn "show me
- * this vendor" into "here is every vendor" — the "it got lost" failure this product exists
- * to fix, reintroduced by the fix for it.
+ * **The query is translated, not dropped.** A link inside this product already deep-links into
+ * the vendors tab *filtered* (`contract-detail.tsx`, building `?view=vendors&vq=<name>`), and
+ * every shared link anyone pasted before the move looks the same. A path-only redirect would turn
+ * "show me this vendor" into "here is every vendor" — the "it got lost" failure this product
+ * exists to fix, reintroduced by the fix for it. `contacts-browser.tsx` was the second such link
+ * and is gone: that screen became `/influencers`, which resolves no vendor and links to none.
  *
  * While translating it renames: `vq` → `q`, `vstatus` → `status`. Those prefixes only ever
  * existed because three views shared one URL and the contracts table had already taken

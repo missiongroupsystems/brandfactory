@@ -265,8 +265,8 @@ function VendorContractsCard({ vendor }: { vendor: VendorListItem }) {
     // Dropped entirely at zero rather than printed as "0 brands": a vendor working only on
     // group-level agreements is not a vendor working on nothing, and the count beside it
     // already says how much live work there is.
-    vendor.brands_covered > 0
-      ? `${vendor.brands_covered} ${vendor.brands_covered === 1 ? "brand" : "brands"}`
+    vendor.brand_ids_covered.length > 0
+      ? `${vendor.brand_ids_covered.length} ${vendor.brand_ids_covered.length === 1 ? "brand" : "brands"}`
       : null,
     vendor.next_contract_end ? `next end ${formatDate(vendor.next_contract_end)}` : null,
   ]

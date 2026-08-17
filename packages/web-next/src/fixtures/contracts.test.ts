@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { CONTRACT_CATEGORY_ICONS, CONTRACT_CATEGORY_LABELS } from "@/lib/labels";
 
+import { agencies } from "./agencies";
 import { brands } from "./brands";
 import { contracts, isCurrent, vendors } from "./contracts";
-import { agencies } from "./influencers";
 import { entities, outlets } from "./registry";
 
 /**
@@ -14,8 +14,8 @@ import { entities, outlets } from "./registry";
  * asserted here is the part that stays wrong while looking right: a notice deadline a day out
  * still renders as a date, a vendor claiming "1 active of 4" over a list of five still renders
  * as a badge, and a dangling `renewed_by_id` still renders as the word "Renewed". All three are
- * numbers two screens have to agree on, which is the rule `influencers.ts` shipped its zeroes
- * for and the reason they are now derived instead of typed.
+ * numbers two screens have to agree on, which is the rule `agencies.ts` ships its zeroes for and
+ * the reason they are derived here instead of typed there.
  */
 
 describe("the contract fixture's shape", () => {
@@ -137,8 +137,11 @@ describe("the vendor aggregates", () => {
       expect(vendor.contracts_total).toBe(held.length);
       expect(vendor.contracts_active).toBe(active.length);
       expect(vendor.contracts_active).toBeLessThanOrEqual(vendor.contracts_total);
-      expect(vendor.brands_covered).toBe(
-        new Set(active.flatMap((contract) => contract.brand_ids)).size,
+      // The ids, sorted, and not their count: the vendors table names these on hover, so an
+      // aggregate that happened to be the right *length* while holding the wrong brands would
+      // put a real name against the wrong vendor — and a size assertion cannot see that.
+      expect([...vendor.brand_ids_covered].sort()).toEqual(
+        [...new Set(active.flatMap((contract) => contract.brand_ids))].sort(),
       );
     }
   });

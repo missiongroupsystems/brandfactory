@@ -1,10 +1,7 @@
-import { BookUserIcon } from "lucide-react";
-import Link from "next/link";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { LoadingRows } from "@/components/layout/query-states";
-import { Button } from "@/components/ui/button";
 import { VendorsView } from "@/features/vendors/components/vendors-view";
 
 export const metadata = { title: "Vendors — Marketing Hub" };
@@ -20,22 +17,25 @@ export const metadata = { title: "Vendors — Marketing Hub" };
  * and two things needed a page rather than a sheet to link to: a repair names a vendor,
  * and a quotation requires one.
  *
- * **The company half of the Vendors & Contacts directory (E, light).** The header
- * cross-link opens the people half (Contacts, grouped by vendor); both nav items stay
- * until Tuesday decides whether they collapse into one Directory item.
+ * **This stopped being half of a "Vendors & Contacts directory", and the cross-link went with
+ * the idea.** The header carried a button to `/contacts` described as "the people half"; that
+ * was true while Contacts was an address book of the people *at these companies*. The screen it
+ * became is a roster of creators engaged for a brand, which is not the same book read from the
+ * company side — an agency you hold a talent retainer with is a vendor and appears on this table,
+ * and none of the creators is one of its contacts. A button promising the other half of a
+ * directory that no longer has two halves is worse than no button.
+ *
+ * The description below named *"how many outlets they cover"* as the third aggregate, and had
+ * done since 1.37.0 took the outlet off a contract. The column beside it counts brands, so the
+ * sentence was describing a number this table does not hold — the kind of drift only a reader
+ * finds, because no gate can see a string.
  */
 export default function VendorsPage() {
   return (
     <>
       <PageHeader
         title="Vendors"
-        description="The companies we buy from, and who to call at each — the company half of the Vendors & Contacts directory. The counts on every row are contract aggregates — how many agreements we hold, how many are live, and how many outlets they cover — so 'is this relationship still active' is answerable without opening anything. The people behind each sit under Contacts, grouped by vendor."
-        actions={
-          <Button variant="secondary" nativeButton={false} render={<Link href="/contacts" />}>
-            <BookUserIcon data-icon="inline-start" />
-            Contacts
-          </Button>
-        }
+        description="The companies we buy from — agencies, studios, tools and press offices. The counts on every row are contract aggregates: how many agreements we hold, how many are live, and which brands they work on, so 'is this relationship still active' is answerable without opening anything."
       />
       <Suspense fallback={<LoadingRows rows={6} />}>
         <VendorsView />

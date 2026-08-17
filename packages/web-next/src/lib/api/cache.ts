@@ -132,8 +132,16 @@ export const SCOPES = {
   dashboard: "dashboard",
   vendors: "vendors",
   vendor: "vendor",
+  // The Operations Hub's address book. **No longer read by a screen** — the Influencers page
+  // moved off it — but `useContactMutations` is still called by the tenancy intake sheet and the
+  // review queue's actions, both of which create a contact against a vendor. The scopes stay
+  // because those writes still have to invalidate the vendor lists that embed the rows.
   contacts: "contacts",
   contact: "contact",
+  // BrandFactory's creators. Its own scope and not `contacts` above, which is the same call
+  // `bfOutlets` makes against the Ops `outlets`: two families of rows, live at once, and a
+  // shared string would have each area refetching the other's lists forever.
+  influencers: "influencers",
   contracts: "contracts",
   contract: "contract",
   tenancies: "tenancies",
