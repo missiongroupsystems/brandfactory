@@ -211,6 +211,65 @@ describe('passport conformance detectors', () => {
     expect(dodge, '/apps/me/identity-links has no legal hit at all').toEqual([])
   })
 
+  /**
+   * §0d, the EXCEPTION — proposal §7.
+   *
+   * Rule 3 is no longer clean here, and reporting a clean tree would be the self-deception
+   * this file exists to prevent. There IS a write-through: `unit` create / update / archive,
+   * `unit_relation` attach / detach, and `unit_app_access` on / off, through Passport's **org
+   * API** with the acting person's own token.
+   *
+   * So the assertion is not "no writes" but **"only those, and only through that door"** —
+   * which makes the boundary enforceable rather than a paragraph in a document. A method
+   * added to the client fails these, which forces the exception to be re-argued instead of
+   * quietly widened.
+   */
+  describe('§0d — the documented exception is BOUNDED', () => {
+    const CLIENT = 'packages/server/src/passport/structure-write.ts'
+    const client = () => ALL_FILES.find((f) => f.path === CLIENT)
+
+    it('the write-through exists and is confined to one file', () => {
+      // Asserted to be PRESENT for the same reason as the block below: a sweeper removing
+      // "writes to Passport" would take the feature out, not fix a leak.
+      expect(client(), 'the structure write client was moved or deleted').toBeDefined()
+      // Every other file reaches Passport's write door through it, so `/orgs/` write paths
+      // appear in exactly one place.
+      const others = hits(/api\/v1\/orgs\/\$\{[^}]*\}\/(units|unit-relations)/, [CLIENT])
+      expect(others, 'a second file is writing structure to Passport directly').toEqual([])
+    })
+
+    it('touches none of the five aggregates that stay closed', () => {
+      // membership, entitlement, unit_app_membership, identity_link and organization are
+      // still rule 3 in full: edited in the console, arriving here by sync only.
+      const text = client()?.text ?? ''
+      for (const closed of [
+        'memberships',
+        'entitlements',
+        'unit-app-membership',
+        'identity-links',
+      ]) {
+        expect(text.includes(`/${closed}`), `${closed} is CLOSED — no consumer write`).toBe(false)
+      }
+    })
+
+    it('sends the person’s token and never the app’s API key', () => {
+      // If the app's own credential could change structure, every consumer holding a key
+      // becomes a way to edit an org's structure, and Passport's audit trail names
+      // BrandFactory rather than the person.
+      const text = client()?.text ?? ''
+      expect(text).toMatch(/authorization: `Bearer \$\{person\.token\}`/)
+      expect(text).not.toMatch(/['"`]?[xX]-[aA][pP][iI]-[kK]ey['"`]?\s*:/)
+      expect(text).not.toMatch(/PASSPORT_API_KEY/)
+    })
+
+    it('never sends `description`, which Passport accepts and never syncs back', () => {
+      // The trap: it is accepted, so it looks supported. Writing it creates a copy this app
+      // can never read, which presents as a save that silently did nothing.
+      const text = stripComments(client()?.text ?? '')
+      expect(text).not.toMatch(/\bdescription\b/)
+    })
+  })
+
   // §0e is covered by `packages/web/src/auth/signout-scope.test.ts`, which sweeps every
   // GoTrue sign-out call site. Asserted to EXIST rather than duplicated here, because a
   // deleted guard is the failure this would otherwise miss.

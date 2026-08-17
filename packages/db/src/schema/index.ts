@@ -17,6 +17,11 @@ export * from './agent_messages'
 // schema — nothing here arrives from a sync event.
 export * from './passport_login_attempts'
 
+// Structure writes to Passport that FAILED and may be retried. App-owned for the same
+// reason, and not a rule-7 shadow — a row exists only after a failure, nothing but the
+// retry UI reads it, and it is deleted on success. Read its header before adding a reader.
+export * from './passport_write_attempts'
+
 // Mission Passport's read model, in its own Postgres schema. Foreign data: only
 // the sync receiver and the nightly reconciliation write it. Read
 // `./passport/schema.ts` before touching anything under `passport/`.

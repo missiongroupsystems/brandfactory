@@ -29,3 +29,7 @@ export * from './queries/passport-read'
 // PKCE attempts for hosted login. App-owned, and the redemption is a single atomic
 // DELETE ... RETURNING so single-use is structural rather than conventional.
 export * from './queries/passport-login-attempts'
+// Structure writes to Passport that failed and may be retried. App-owned, and legitimate
+// only while the four properties in its schema header hold — chiefly that NOTHING but the
+// retry surface reads it.
+export * from './queries/passport-write-attempts'

@@ -44,6 +44,7 @@ import { createPassportOffboarding } from './passport/offboard'
 import { createPassportBearerVerifier, type BearerVerifier } from './passport/verify-bearer'
 import { createMessagesRouter } from './routes/messages'
 import { createPassportAuthRouter } from './routes/passport-auth'
+import { createPassportStructureRouter } from './routes/passport-structure'
 import { createPassportSyncRouter } from './routes/passport-sync'
 import {
   createBrandProjectsRouter,
@@ -135,6 +136,9 @@ export function createApp(deps: AppDeps) {
   app.use('/projects/*', authRequired)
   app.use('/blob-urls/*', authRequired)
   app.use('/research/*', authRequired)
+  // The structure write-through. Gated, unlike `/auth/*` beside it: the forwarded token
+  // is the acting person's, so there must BE an acting person.
+  app.use('/passport/structure/*', authRequired)
 
   const composed = app
     .route('/health', createHealthRouter())
@@ -235,6 +239,14 @@ export function createApp(deps: AppDeps) {
     // unconfigured — `/resolve-login` answers `app-native` for everybody, and
     // `/passport/start` redirects back with `?error=passport_unavailable`.
     .route('/auth', createPassportAuthRouter({ env: deps.env, access: passportAccess }))
+    // Structure write-through (proposal §7) — the documented rule 3 exception, and the
+    // ONLY writes this app makes to any Passport aggregate. Under the auth gate below,
+    // because every route needs the acting person's own Passport token: the app's
+    // `X-API-Key` must not be able to change an org's structure.
+    .route(
+      '/passport/structure',
+      createPassportStructureRouter({ env: deps.env, access: passportAccess }),
+    )
 
   if (deps.env.STORAGE_PROVIDER === 'local-disk') {
     // Blob routes are not auth-gated — the signed URL is the capability.

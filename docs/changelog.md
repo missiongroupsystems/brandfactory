@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.41.0** — 2026-08-18 — Structure write-back opens, and only that: units, relations and app access, through Passport's org API with the acting Admin's own token, never the app's key. The conformance test now BOUNDS the exception instead of reporting a clean tree — and one of its new detectors shipped fail-open and was caught by breaking it. Migration 0015. 2332 tests.
 - **1.40.0** — 2026-08-18 — The login becomes one email field, and building it found two silent sign-outs: the refresh had no client to run on, and a defaulted argument undid the fix on every page load. An error arrival would have bounced for ever. No migration. 2259 tests.
 - **1.39.0** — 2026-08-17 — The conformance detectors become a test, CI learns it needs a credential for the private SDK — without which every run would have failed at install — and Renovate is deliberately NOT wired, because the preset it would extend matches nothing here. No migration. 2204 tests.
 - **1.38.0** — 2026-08-17 — Offboarding closes the gap the HTTP path cannot: a revoked member's OPEN socket. And the two-issuer resolution becomes one shared function, fixing an asymmetry 1.37.0 shipped — hosted-login users would have had working requests and a dead websocket. No migration. 2190 tests.
@@ -82,6 +83,98 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.41.0 — 2026-08-18
+
+**The structure write-through — the documented exception to rule 3, server half.** Migration
+**0015**.
+
+Full write-up:
+[`docs/completions/passport-sync-consumer-phase-9.md`](completions/passport-sync-consumer-phase-9.md).
+Decision record: proposal §7.
+
+Lands dark: without a Passport-issued session no route will send a request.
+
+### 1. Scope, stated as a boundary and now enforced as one
+
+`unit` create / update / archive, `unit_relation` attach / detach, `unit_app_access` on / off.
+**Nothing else** — no membership, no entitlement, no `unit_app_membership`, no
+`identity_link`.
+
+Rule 3 is no longer clean here, so `conformance.test.ts` stops reporting a clean tree and
+instead asserts **only those, and only through that door**: the write-through exists, no
+second file writes structure, it touches none of the closed aggregates, it sends the person's
+token and never the app's key, and it never sends `description`. Each verified by breaking it.
+
+### 2. A second door, because the first has no unit routes at all
+
+`PassportClient` carries `X-API-Key` and cannot make these calls. So this is a thin client
+over Passport's **org API** with the acting person's bearer token and **no `X-API-Key`** — if
+the app's own credential could change structure, Passport's audit trail would name
+BrandFactory rather than the person, and every consumer holding a key would become a way to
+edit an organisation.
+
+An app-native token is refused **before** the request, and before the configuration check:
+Passport would answer `401`, which reads to the browser as an expired session and sends the
+person round a sign-in loop that cannot fix it.
+
+`403` and `404` are mapped to the **same sentence**, deliberately. Passport answers `404` to
+an outsider so that "this org exists and you are not an Admin" is indistinguishable from "no
+such org"; splitting them would rebuild the disclosure it prevents.
+
+### 3. The gate refuses a brand Manager, and that is the case worth having
+
+Two layers — the projection's `Owner`/`Admin` read verbatim, then Passport's own
+`require_org_access`, which wins. Layer 1 can only refuse what Passport would also refuse.
+
+`Manager` is a role at a unit **inside this app**, not on the org ladder. Conflating the two
+vocabularies — what rule 8 forbids — would let somebody who can edit a brand's guidelines
+rename the legal entity every other Mission Systems app reads, including for statutory
+output.
+
+### 4. A create is two calls, and the second is not optional
+
+A unit with no `unit_app_access` row for BrandFactory confers access to **nobody**, not even
+an org Owner. A failure of the second call therefore returns `201` **with the failure in the
+body** — the unit really was created, so a 4xx would be a lie and a bare 2xx would hide the
+half — and the enable is queued. The unit is never rolled back: sibling apps may already
+hold the event.
+
+### 5. The failure queue, and the sweep that stops it becoming a shadow
+
+`passport_write_attempts` holds attempted operations, never state: a row exists only after a
+failure, is deleted on success, expires, and **nothing reads it but the retry surface**. Only
+the last is mechanically enforceable, so it has a source sweep — because the regression
+looks like a feature ("Acme (renaming to Acme Group)" on the brand list) and gives the brand
+list a second source.
+
+Only an outage is queued. A `403` refuses again and a `422` fails identically until the input
+changes, so queueing either is a retry button that can never succeed. And a retry needs a
+live token from a live session, so it cannot be a background job — storing one would make
+the table credential-bearing.
+
+### 6. The UI half is BLOCKED, not deferred
+
+The drift view needs a correspondence between a local `brands` row and a `passport.unit`, and
+there is none — no `external_ref`, no `unit_id`. That bridge is **phase 8**, blocked on
+decision **D1**. The confirmation dialogs attach to unit forms that would put a second writer
+beside `brands`, which is the state phase 8 exists to remove. The routes are on `AppType`, so
+a UI needs no further server work.
+
+### 7. One of the new detectors shipped fail-open
+
+The `description` detector's `\b` became a literal backspace byte through a shell heredoc, so
+the regex was `/\x08description\x08/` and matched nothing. It passed on a file that did send
+`description` — a fail-open in the guard whose purpose is to prevent one, with a green test
+and a correct-looking assertion. Found only by trying to break it. The file is now swept for
+control bytes.
+
+### 8. Gate
+
+`pnpm typecheck`, `pnpm lint`, `pnpm format:check` and `pnpm -F @brandfactory/web build` all
+pass. `pnpm test` reports **2332 passed | 92 skipped** (+73). Migration 0015 was generated but
+**not applied to a live database here** — the local Postgres is unreachable on the port
+`.env` names; CI applies migrations against its own sidecar.
 
 ## 1.40.0 — 2026-08-18
 
