@@ -30,6 +30,12 @@ export default tseslint.config(
       // directory in full and passes — our code consumes these types, so they
       // have to hold. Style is upstream's business; the contract is ours.
       'packages/web/src/toolcraft/**',
+      // The Next frontend lints itself, with `eslint-config-next` and its own flat config
+      // (`pnpm -F @brandfactory/web-next lint`). It is exempt here for the same mechanical
+      // reason as the tree above — the root config's `projectService` has no tsconfig
+      // project covering these files, so type-aware rules error on every one of them
+      // rather than reporting anything real. See `docs/executing/next-frontend-adoption-plan.md`.
+      'packages/web-next/**',
     ],
   },
   js.configs.recommended,

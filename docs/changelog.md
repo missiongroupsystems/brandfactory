@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.31.0** — 2026-08-17 — A second frontend arrives whole: the Operations Hub's Next 16 shell becomes BrandFactory's, fixture-backed through one swapped function and trimmed to nine nav items, beside the Vite app it will replace. `next dev` does not hydrate; `next start` does. No migration. 1982 tests.
 - **1.30.0** — 2026-08-14 — Workspace delete lands, the top of the aggregate: the same gate as brand delete, the same read-then-sweep for blobs, one level up. No migration. 1982 tests.
 - **1.29.0** — 2026-08-13 — The silos come down: the one owner gate opens, so every signed-in user sees and edits every workspace and brand. Ownership stays on the row for the Passport migration. No migration. 1978 tests.
 - **1.28.0** — 2026-08-13 — The sign-in page puts on the CI: the Mission Systems mark, the one brand green, a real Google button, and the form in the order its sibling apps use. No migration. 1978 tests.
@@ -70,6 +71,123 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.31.0 — 2026-08-17
+
+**BrandFactory now has two frontends. The Mission Systems Operations Hub — a
+sibling product whose layout and structure we want — was adopted whole as
+`packages/web-next`, a Next 16 app that talks to nothing. The Vite app is
+untouched and still serves production; this is the shell the product moves into.**
+
+Full write-up:
+[`docs/completions/next-frontend-adoption.md`](completions/next-frontend-adoption.md).
+
+### 1. Choosing Next deleted the port
+
+The first plan was a port: rewrite the Ops screens into Vite + TanStack Router.
+That was costed — 36 files swapping `next/link`, 13 swapping `next/navigation`, 26
+server pages collapsing into route components. Standardising on Next instead made
+all of it unnecessary, because the Operations Hub *is* Next 16. What remained was
+packaging, a data layer and five gates.
+
+It also reversed the scope. Three areas had been chosen to cap the port's size;
+with no port, extracting three became the **expensive** option, because Dashboard,
+Outlets and Licences import from ten other feature folders. All eighteen areas came
+across. The three-area scope survives only as which areas have fixtures.
+
+### 2. One function was swapped, and nothing else in the data layer
+
+Every screen in that app reaches the network through a single `apiFetch`. The
+service layer, the twenty SWR hook files and every `features/<area>/api.ts` are
+**untouched**; `apiFetch` gained one branch on `NEXT_PUBLIC_API_MODE`, which
+defaults to `mock`.
+
+Three rules, and the second carries the fifteen areas with no fixtures:
+
+1. A registered `GET` returns its fixture.
+2. An unregistered `GET` returns an empty array that *also* carries `items` and
+   `next_cursor` — one value satisfying both `T[]` and `Page<T>`, so those screens
+   render their real empty states instead of throwing.
+3. Any mutation refuses with a `503` and an honest message, which the existing
+   `useSubmit` already turns into a toast. A form that appeared to save would be
+   the worst outcome available.
+
+Fixtures cover Dashboard, Outlets and Licences: 3 entities, 6 outlets, 5 licence
+types, 5 held licences, and a dashboard summary sized so every panel has rows.
+
+### 3. The chrome, and eight doors closed
+
+Nineteen files carry the rebrand, all of it strings — product name, metadata,
+monogram, and a root redirect to `/dashboard`. **Nothing was restyled**: the layout
+and the three-tier token contract in `globals.css` are the reason for the exercise.
+The sidebar badge reads `Mock`, once in the chrome rather than per page, because it
+is true of every screen.
+
+The nav was then cut from seventeen items to nine. Entities, Brands, Org chart,
+Networks, Tenancies and Servicing & Repairs went; the whole Compliance group
+(Licences *and* Certifications) went; Contacts became **Influencers**; the
+`Workspace` group became **Resources**.
+
+**The doors went, the rooms stayed.** Every removed route still exists and still
+answers. Deleting them is not a delete — `features/registry` holds Outlets *and*
+Entities, and the Dashboard is built on licence renewals.
+
+### 4. An eleventh package, and two exemptions
+
+`pnpm-workspace.yaml` already globs `packages/*`, so `typecheck` and `build` pick
+the package up with no edit and `pnpm typecheck` now covers **11 packages**. Two
+root gates walk the whole tree and needed exempting, each for a different reason
+written at the exemption: ESLint **mechanically** (the root config's
+`projectService` has no tsconfig project for these files, so type-aware rules error
+on every one), Prettier **stylistically** (33k lines are double-quoted because
+upstream is, and reformatting them would make every future diff against
+`missionsystems/operations` unreadable).
+
+`vitest.workspace.ts` gained nothing — the code is upstream's and the screens are
+data-less. Tests arrive with the first real BrandFactory feature.
+
+### 5. Two upgrades that fixed nothing, kept anyway
+
+`next` 16.2.12 → **16.3.1** and `react` 19.2.4 → **19.2.8**, both bumped while
+chasing the defect below and neither responsible for it. Kept because they are
+strictly newer and every gate passes on them.
+
+### Verification
+
+```
+pnpm typecheck                         clean (11 packages)
+pnpm lint / format:check               clean (whole repo)
+pnpm test                              1982 passed | 78 skipped (159 files)
+pnpm -F @brandfactory/web build        clean
+pnpm -F @brandfactory/web-next build   clean — 27 routes
+```
+
+Test count is unchanged, deliberately: no test was added. In the browser, against
+`next start`, all three fixture-backed areas render correctly, as does the nav cut.
+
+### Caveats
+
+- **`next dev` does not hydrate.** The server renders the subtree correctly, then
+  React discards it and leaves the page-level `<Suspense>` fallback up forever, so
+  every screen sits on skeletons. No console or server error. `next build` +
+  `next start` is reliable and is how this release was verified. Ten suspects were
+  tested and eliminated, including the mock itself (`live` mode with no backend
+  hangs identically, **with no error**, proving `apiFetch` is never reached), both
+  bundlers, Strict Mode, duplicate React, and Node 20 against Node 25 — a
+  hypothesis that was named prime suspect and turned out wrong. Untested: an
+  ordinary browser window, since every observation was made through browser
+  automation.
+- **The Dashboard is about a section with no door.** Its description reads
+  "licences approaching expiry" and its rows are licence renewals, but Compliance
+  was cut from the nav. The largest incoherence in the package; fixing it means
+  rebuilding the Dashboard.
+- **The Influencers screen still speaks Ops** — "No contacts yet", a `New contact`
+  button, and the route is still `/contacts`. Only the title changed.
+- **No tests and no auth** in the new package. It renders fixtures only.
+- **Nothing about the deploy changed.** `vercel.json`, `fly.toml` and the server
+  env are untouched, and production still serves the Vite app.
 
 ---
 

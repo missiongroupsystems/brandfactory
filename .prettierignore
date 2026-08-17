@@ -25,3 +25,11 @@ docs/
 # would make every future `git diff` against upstream unreadable. The boundary
 # we author (`components/brand/StudioPage.tsx`) is outside it and is formatted.
 packages/web/src/toolcraft/
+
+# The Next frontend, lifted from the Operations Hub @ 63fb261 and still being replaced
+# screen by screen. Same rule as the vendored tree above, for the same reason: those 33k
+# lines are double-quoted and semicolon'd because upstream is, and reformatting them to our
+# style would make every diff against `missionsystems/operations` unreadable at exactly the
+# moment we need to read one. See that package's README for the diff recipe. Revisit once
+# the Ops screens are gone and the tree is genuinely ours.
+packages/web-next/

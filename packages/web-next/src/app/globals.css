@@ -1,0 +1,418 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ===========================================================================
+   Mission Systems product CI.
+
+   Three token tiers (styleguide §2), and the direction of dependency is the whole point:
+
+     tier 1  --c-* primitives      the only place a hex literal is allowed
+     tier 2  semantic aliases      role -> primitive. Re-point THIS layer for a dark theme
+                                   or a tenant accent; components never move.
+     tier 3  component tokens      per-component knobs, referencing tier 2.
+
+   A component reading a raw hex or a raw --c-* is a bug. shadcn's own variable names
+   (--background, --primary, --sidebar-accent, …) are part of tier 2 here: they are aliases
+   onto Mission roles, which is what lets the generated components in components/ui stay
+   close to upstream and still be on-brand.
+   =========================================================================== */
+
+@theme inline {
+  /* ── Typefaces ──────────────────────────────────────────────────────────── */
+  --font-sans: var(--font-sans-family);
+  --font-mono: var(--font-mono-family);
+  --font-heading: var(--font-sans-family);
+
+  /* ── Type scale (§5.2) — fixed product sizes, no clamp() ─────────────────
+     xs/sm/base keep Tailwind's 12/14/16 and only gain Mission line-heights; the named
+     roles below carry the size, weight, tracking and leading together so a heading
+     cannot be half-applied. */
+  --text-xs--line-height: 1.4;
+  --text-sm--line-height: 1.5;
+  --text-base--line-height: 1.55;
+
+  --text-eyebrow: 0.6875rem; /* 11px — nav section eyebrow, the ONE uppercase role (§7.3) */
+  --text-eyebrow--line-height: 1.4;
+  --text-eyebrow--letter-spacing: 0.06em;
+  --text-eyebrow--font-weight: 500;
+
+  --text-helper: 0.8125rem; /* 13px — helper text, labels, table sub-text, mono data */
+  --text-helper--line-height: 1.45;
+
+  --text-h3: 1rem;
+  --text-h3--line-height: 1.35;
+  --text-h3--letter-spacing: -0.005em;
+  --text-h3--font-weight: 500;
+
+  --text-h2: 1.25rem;
+  --text-h2--line-height: 1.3;
+  --text-h2--letter-spacing: -0.01em;
+  --text-h2--font-weight: 500;
+
+  --text-h1: 1.5rem;
+  --text-h1--line-height: 1.25;
+  --text-h1--letter-spacing: -0.015em;
+  --text-h1--font-weight: 500;
+
+  --text-metric: 1.9375rem; /* 31px — standard stat card */
+  --text-metric--line-height: 1.1;
+  --text-metric--letter-spacing: -0.01em;
+  --text-metric--font-weight: 500;
+
+  --text-metric-hero: 2.375rem; /* 38px — the single hero metric */
+  --text-metric-hero--line-height: 1.05;
+  --text-metric-hero--letter-spacing: -0.02em;
+  --text-metric-hero--font-weight: 500;
+
+  /* ── Colour utilities (tier 2 roles, never primitives) ───────────────────── */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-surface: var(--surface-base);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-selected: var(--surface-selected);
+  --color-surface-accent: var(--surface-accent);
+  --color-scrim: var(--surface-scrim);
+
+  /* A link is the accent green, but it is not the accent *budget* — §4 counts filled
+     accent surfaces, and inline text is neither filled nor a surface. Bound separately
+     from `--color-brand` so a future link colour does not have to move the brand. */
+  --color-link: var(--color-text-link);
+
+  --color-ink: var(--color-text-primary);
+  --color-ink-secondary: var(--color-text-secondary);
+  --color-ink-tertiary: var(--color-text-tertiary);
+  --color-ink-disabled: var(--color-text-disabled);
+  --color-ink-inverse: var(--color-text-inverse);
+
+  --color-brand: var(--color-brand-accent);
+
+  --color-success: var(--color-feedback-success);
+  --color-success-tint: var(--color-feedback-success-tint);
+  --color-warning: var(--color-feedback-warning);
+  --color-warning-tint: var(--color-feedback-warning-tint);
+  --color-error: var(--color-feedback-error);
+  --color-error-tint: var(--color-feedback-error-tint);
+  --color-info: var(--color-feedback-info);
+  --color-info-tint: var(--color-feedback-info-tint);
+
+  --color-border: var(--border-default);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--border-input);
+  --color-ring: var(--border-focus);
+
+  --color-tooltip: var(--tooltip-bg);
+  --color-tooltip-foreground: var(--tooltip-text);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Categorical series (§13). #2f6b46 is the brand series colour, not the accent — the
+     accent is too dark to read as a small chart element. */
+  --color-chart-1: var(--c-series-1);
+  --color-chart-2: var(--c-series-2);
+  --color-chart-3: var(--c-series-3);
+  --color-chart-4: var(--c-series-4);
+  --color-chart-5: var(--c-series-5);
+  --color-chart-6: var(--c-series-6);
+  --color-chart-7: var(--c-series-7);
+  --color-chart-8: var(--c-series-8);
+
+  /* ── Radii (§9) — 8px is the functional default; pills only for status/avatars ─── */
+  --radius-sm: 4px; /* checkbox */
+  --radius-md: 6px; /* tooltip, inline code, small inset chip */
+  --radius-lg: 8px; /* buttons, inputs, selects, segments, menu items */
+  --radius-xl: 12px; /* cards, panels, popovers, dropdowns */
+  --radius-2xl: 16px; /* modals, drawers */
+  --radius-3xl: 20px;
+  --radius-4xl: 999px; /* badges, chips, count pills, avatars, toggles */
+
+  /* ── Elevation (§8) — ink-tinted, never black, one level per surface ────── */
+  --shadow-e1: var(--elevation-1);
+  --shadow-e2: var(--elevation-2);
+  --shadow-e3: var(--elevation-3);
+}
+
+/* ===========================================================================
+   Tier 1 — primitives. The only hex in the codebase.
+   =========================================================================== */
+
+:root {
+  --c-white: #ffffff;
+  --c-ink-900: #171717; /* 17.9:1 on white */
+  --c-ink-700: #55534c; /*  7.7:1 */
+  --c-ink-500: #6b6962; /*  5.5:1 */
+  --c-ink-300: #8d8a82; /*  3.5:1 — disabled/decorative only */
+  --c-ink-200: #807d76; /*  4.1:1 — control boundary, clears the 3:1 non-text minimum */
+  --c-beige-100: #f6f5f1;
+  --c-beige-200: #eef2ef; /* accent-tinted beige — selected rows and nav items */
+  --c-green-900: #1d3a2a; /* the one brand accent, 12.4:1 both ways against white */
+  --c-tooltip-900: #161512;
+
+  --c-error-600: #9a3b2e;
+  --c-error-50: #fbf1ef;
+  --c-warning-600: #8a5a1f;
+  --c-warning-50: #f8f1e3;
+  --c-success-600: #2f6b46;
+  --c-success-50: #ebf2ec;
+  --c-info-600: #335a7a;
+  --c-info-50: #eaf0f5;
+
+  --c-series-1: #2f6b46;
+  --c-series-2: #8a5a1f;
+  --c-series-3: #9a3b2e;
+  --c-series-4: #335a7a;
+  --c-series-5: #7a5c8a;
+  --c-series-6: #5a7d5f;
+  --c-series-7: #b0843f;
+  --c-series-8: #6b6962;
+
+  --font-sans-family: var(--font-satoshi), ui-sans-serif, system-ui, sans-serif;
+  --font-mono-family: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* 4px grid (§6.1) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px rgba(23, 23, 23, 0.05), 0 1px 1px rgba(23, 23, 23, 0.04);
+  --elevation-2: 0 4px 12px rgba(23, 23, 23, 0.08), 0 1px 3px rgba(23, 23, 23, 0.06);
+  --elevation-3: 0 24px 60px rgba(23, 23, 23, 0.12), 0 4px 12px rgba(23, 23, 23, 0.08);
+
+  /* =========================================================================
+     Tier 2 — semantic aliases. A dark theme or a tenant re-skin edits only this block.
+     ========================================================================= */
+
+  --color-text-primary: var(--c-ink-900);
+  --color-text-secondary: var(--c-ink-700);
+  --color-text-tertiary: var(--c-ink-500);
+  --color-text-disabled: var(--c-ink-300);
+  --color-text-inverse: var(--c-white);
+  --color-text-link: var(--c-green-900);
+
+  --surface-base: var(--c-white);
+  --surface-sunken: var(--c-beige-100);
+  --surface-hover: var(--c-beige-100);
+  --surface-selected: var(--c-beige-200);
+  --surface-accent: var(--color-brand-accent);
+  /* Behind a modal. Ink-tinted rather than black, and light enough that the workspace
+     stays legible underneath — the Spaces welcome dialog opens over a live plan and
+     covering it entirely would hide what the dialog is talking about. */
+  --surface-scrim: rgba(23, 23, 23, 0.34);
+
+  --border-subtle: rgba(23, 23, 23, 0.1);
+  --border-default: rgba(23, 23, 23, 0.16);
+  --border-strong: rgba(23, 23, 23, 0.28);
+  --border-input: var(--c-ink-200);
+  --border-focus: var(--color-brand-accent);
+
+  /* The one themeable surface (§16). A tenant accent must clear 4.5:1 behind white
+     button text before it is allowed in here. */
+  --color-brand-accent: var(--c-green-900);
+
+  --color-feedback-error: var(--c-error-600);
+  --color-feedback-error-tint: var(--c-error-50);
+  --color-feedback-warning: var(--c-warning-600);
+  --color-feedback-warning-tint: var(--c-warning-50);
+  --color-feedback-success: var(--c-success-600);
+  --color-feedback-success-tint: var(--c-success-50);
+  --color-feedback-info: var(--c-info-600);
+  --color-feedback-info-tint: var(--c-info-50);
+
+  --tooltip-bg: var(--c-tooltip-900);
+  --tooltip-text: var(--color-text-inverse);
+
+  /* shadcn's variable names, aliased onto the roles above. */
+  --background: var(--surface-sunken);
+  --foreground: var(--color-text-primary);
+  --card: var(--surface-base);
+  --card-foreground: var(--color-text-primary);
+  --popover: var(--surface-base);
+  --popover-foreground: var(--color-text-primary);
+  --primary: var(--color-brand-accent);
+  --primary-foreground: var(--color-text-inverse);
+  --secondary: var(--surface-base);
+  --secondary-foreground: var(--color-text-primary);
+  --muted: var(--surface-sunken);
+  --muted-foreground: var(--color-text-secondary);
+  --accent: var(--surface-hover);
+  --accent-foreground: var(--color-text-primary);
+  --destructive: var(--color-feedback-error);
+  --border: var(--border-default);
+  --input: var(--border-input);
+  --ring: var(--border-focus);
+  --radius: 8px;
+
+  --sidebar: var(--surface-base);
+  --sidebar-foreground: var(--color-text-secondary);
+  --sidebar-primary: var(--color-brand-accent);
+  --sidebar-primary-foreground: var(--color-text-inverse);
+  --sidebar-accent: var(--surface-hover);
+  --sidebar-accent-foreground: var(--color-text-primary);
+  --sidebar-border: var(--border-default);
+  --sidebar-ring: var(--border-focus);
+
+  /* =========================================================================
+     Tier 3 — component tokens.
+     ========================================================================= */
+
+  --button-primary-bg: var(--surface-accent);
+  --button-primary-fg: var(--color-text-inverse);
+  --input-border: var(--border-input);
+  --input-bg: var(--surface-base);
+  --table-row-hover: var(--surface-hover);
+  --table-row-selected: var(--surface-selected);
+  --nav-item-selected-bg: var(--surface-selected);
+  --card-padding: var(--space-5);
+}
+
+/* Dark theme (§16) goes here as a SECOND tier-2 map — `[data-theme="dark"]` re-pointing
+   surfaces, text and borders at dark primitives. Additive, and no component changes.
+   Deliberately absent rather than half-done: the product ships light-only today, and a
+   stale dark map is worse than none. */
+
+/* ===========================================================================
+   Modal entrance — the Spaces welcome dialog. Declared here, ABOVE the base
+   layer's prefers-reduced-motion block, which is what lets that block mute them:
+   a keyframe utility defined after it wins on specificity and animates anyway.
+   =========================================================================== */
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-scrim-in {
+  animation: scrim-in 160ms ease-out;
+}
+
+.animate-dialog-in {
+  animation: dialog-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@layer base {
+  * {
+    border-color: var(--border-default);
+  }
+
+  html {
+    font-family: var(--font-sans-family);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    /* Body is 14/1.5 at weight 400 (§0.7). 300 is display-only. */
+    font-size: 0.875rem;
+    line-height: 1.5;
+    font-weight: 400;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 500;
+    text-wrap: pretty;
+  }
+
+  /* §10.2 — focus is non-negotiable, and it is `:focus-visible`, not `:focus`. The ring
+     follows the element's own border-radius without being told to; the styleguide's
+     `border-radius: inherit` is deliberately left out, because on a control whose radius is
+     not a utility it flattens the corners the moment the control takes focus. */
+  :focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+  }
+
+  /* On an accent or dark fill the accent ring disappears, so it switches to white. */
+  [data-surface="accent"] :focus-visible {
+    outline-color: var(--color-text-inverse);
+  }
+
+  ::placeholder {
+    color: var(--color-text-tertiary);
+  }
+
+  ::selection {
+    background-color: var(--surface-selected);
+    color: var(--color-text-primary);
+  }
+
+  /* Numbers that align in a column or change in place must not jitter (§5.3). */
+  th,
+  td,
+  input[type="number"],
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-mono-family);
+  }
+
+  /* §14 — mandatory, and the aviation client is regulated. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
