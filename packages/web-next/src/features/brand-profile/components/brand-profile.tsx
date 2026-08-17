@@ -14,7 +14,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import { useBrandProfile } from "../hooks";
 import {
-  PILLARS_SECTION_LABEL,
   findSection,
   gridSections,
   isWritten,
@@ -61,14 +60,16 @@ import { VisualIdentityBand } from "./visual-identity-band";
  * Why bands rather than a grid of equal cards
  * ---------------------------------------------------------------------------
  *
- * The four bands above the grid are the sections something *other than a person* also reads, or
- * that a person reads first: the TL;DR rides into every generation, the pillars are what every
- * other section ends up agreeing with, the Overview is the long answer. Giving them the page's
- * full measure and giving the rest two columns is the hierarchy — six identical cards would say
- * the brand's positioning and its typography rules are the same size of fact.
+ * The bands above the grid are the sections something *other than a person* also reads, or that a
+ * person reads first: the TL;DR rides into every generation, the Overview is the long answer.
+ * Giving them the page's full measure and giving the rest two columns is the hierarchy — six
+ * identical cards would say the brand's positioning and its typography rules are the same size of
+ * fact.
  *
- * `Values & positioning` therefore appears **once**: in the pillar band. `gridSections` excludes
- * it along with the other three banded labels.
+ * **`Brand pillars` is a band that reads nothing.** It used to render `Values & positioning`, and
+ * that equation did not survive real data — see `pillars-band.tsx`. `Values & positioning` is now
+ * an ordinary grid card under its own label, and the band is a stated placeholder holding its
+ * place and its anchor.
  */
 export function BrandProfileScreen({ brandId }: { brandId?: string }) {
   const { profile, source, isLoading, error } = useBrandProfile(brandId);
@@ -118,13 +119,12 @@ export function BrandProfileScreen({ brandId }: { brandId?: string }) {
 
   const tldr = findSection(profile.sections, TLDR_SECTION_LABEL);
   const overview = findSection(profile.sections, OVERVIEW_SECTION_LABEL);
-  const pillars = findSection(profile.sections, PILLARS_SECTION_LABEL);
   const contentPillars = findSection(profile.sections, CONTENT_PILLARS_SECTION_LABEL);
   const grid = gridSections(profile.sections);
 
-  // Fixed anchors for the bands, derived ones for the grid. A band keeps its place in the rail
-  // even when its section is absent — `#pillars` has to point somewhere on a brand that has not
-  // written its values, because the empty state is what the reader is being sent to.
+  // Fixed anchors for the bands, derived ones for the grid. `#pillars` is unconditional because
+  // the band it points at is unconditional — a placeholder that is on the page for every brand
+  // and is what the reader is being sent to.
   const entries: ContentsEntry[] = [
     { anchor: "tldr", label: "TL;DR" },
     { anchor: "pillars", label: "Brand pillars" },
@@ -175,11 +175,7 @@ export function BrandProfileScreen({ brandId }: { brandId?: string }) {
           onEdit={() => editByLabel(TLDR_SECTION_LABEL, tldr)}
         />
 
-        <PillarsBand
-          section={pillars}
-          anchor="pillars"
-          onEdit={() => editByLabel(PILLARS_SECTION_LABEL, pillars)}
-        />
+        <PillarsBand anchor="pillars" />
 
         {overview && isWritten(overview) ? (
           <section aria-labelledby="overview" className="flex flex-col gap-3">

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.35.1** — 2026-08-17 — `Brand pillars` stops rendering `Values & positioning` under a second name: the section goes back to the grid under its own label, and the band becomes a stated placeholder. No migration. 2122 tests.
 - **1.35.0** — 2026-08-17 — The Brand Profile stops being a sample and starts being the brand: it reads the server's sections, moves into the Registry above Outlets, and gains an editor — one route that deletes what it is not sent, so the payload is built from a fresh read. No migration. 2121 tests.
 - **1.34.1** — 2026-08-17 — Quotations moves above Vendors, and the ordering invariant the nav had written down for three releases finally has a test; Influencers stops being an empty table, on 19 people and the 6 agencies that had to arrive with them. `next dev` hydrates — the defect open since 1.31.0 does not reproduce. No migration. 2091 tests.
 - **1.34.0** — 2026-08-17 — The Next shell takes its own name: it becomes Marketing Hub, wears the favicon's mark, drops the Mock badge and the workspace switcher, and turns Ops Forms into a Marketing Requests inbox with the form behind a button. No migration. 2091 tests.
@@ -77,6 +78,90 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.35.1 — 2026-08-17
+
+**A heading promised the brand's foundations and delivered its competitive set.**
+
+Off a screenshot of the Brand Profile: a band headed **Brand pillars**, subtitled *from Values &
+positioning*, over two paragraphs — the second of which explains where Temper sits between the
+hotel dining rooms and the seafood joints. That is a positioning argument. It is not a pillar, and
+nothing about the band said so.
+
+No migration, no route change, no server change. Four source files and two test files, all in
+`packages/web-next`.
+
+### 1. The equation did not survive real data
+
+`docs/archive/brand-profiles.md` §2 settled it: *"brand pillars are basically the brand values"*,
+so there is no ninth section and the band renders the row the product already has. The subtitle
+was §2.3 option (a) — be honest about where the words live, at the price of one line of chrome.
+
+The subtitle was the tell. `Values & positioning` answers **two** questions, and its own
+description in `suggested-categories.ts` says as much — *"what the brand stands for **and how it
+differs from the alternatives**"*. §2.1 split the section by shape to keep the halves apart, list
+items becoming cards and paragraphs staying prose, which is a sound rule and was working exactly
+as written. It cannot help when the brand writes both halves as paragraphs, which is what a
+research run produces: two paragraphs, no list, no cards, and the whole section — positioning
+included — sitting under a heading it does not answer.
+
+So the two are separated rather than the split being tuned. The archived plan carries a
+supersession note at §2 pointing here; §2.2, which keeps `Content pillars` a section of its own,
+still holds and is untouched.
+
+### 2. `Values & positioning` becomes an ordinary section
+
+It leaves `BANDED_LABELS`, which is the whole data change. `gridSections` already ordered by
+`suggestedSectionIndex`, so the row lands where the taxonomy puts it — after `Target audience`,
+before `Visual guidelines` — as one `SectionCard` under its own label, beside `Voice & tone`.
+
+Nothing was added to make that work. The card renders the list and the paragraph correctly because
+`RichText` always could, and the provenance chip, the copy action, the clamp and the edit sheet
+come with the card for free. The em-dash split that turned *"Provenance over provenance-speak — we
+name the mill"* into a card with a subtitle goes with the strip; in prose the clause belongs on its
+item.
+
+### 3. `Brand pillars` becomes a placeholder, and reads nothing
+
+The band keeps its place on the page and its anchor in the contents rail. It renders a dashed box
+saying pillars are not modelled yet and pointing at `Values & positioning` below.
+
+**It has no edit action, and that is the deliberate half.** A button would have to write a section,
+and the only label it could write is one no taxonomy knows: `suggestionForLabel` returns
+`undefined` for it, guideline auto-fill would never write it, the rail would never suggest it, and
+the planner would never read it. That is a row the product cannot maintain, created to make a box
+feel finished. The band goes live when there is a decision about what a pillar is and where it
+lives; `profile.ts` says so at the point where `PILLARS_SECTION_LABEL` used to be defined, which is
+the one line that reverses this.
+
+`splitPillars` and `MAX_PILLAR_CARDS` stay — `ContentPillarsBand` is their remaining caller, and
+the rule they carry (declared items become pillars, prose stays prose) is unchanged for it.
+
+### 4. Verification
+
+```
+pnpm typecheck                         clean (11 packages)
+pnpm lint                              clean (whole repo)
+pnpm format:check                      clean
+pnpm test                              2122 passed | 78 skipped (175 files)
+pnpm -F @brandfactory/web build        clean
+pnpm -F @brandfactory/web-next lint    clean
+pnpm -F @brandfactory/web-next build   clean
+```
+
+Net one test. `gridSections` gains a case asserting the row it must now **keep**, and its ordering
+case gains the third label. The screen test's two pillar cases invert: one reads `Values &
+positioning` as its own heading with its list item and its paragraph intact, the other asserts the
+pillar band's `<section>` contains neither — which is the regression this release fixes, stated as
+a test rather than as a screenshot.
+
+### 5. What is not verified
+
+**Still no browser pass.** The wall is the one 1.34.0 §6, 1.34.1 §5 and 1.35.0 §5 all record: the
+shell is behind sign-in and the only door is a *Dev token* field. This change was found from a
+screenshot the user took and is verified by tests only.
 
 ---
 

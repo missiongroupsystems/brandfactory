@@ -3,96 +3,40 @@ import { CompassIcon, MessageSquareTextIcon } from "lucide-react";
 import { splitPillars } from "../profile";
 import type { ProfileSection } from "../types";
 import { EditButton } from "./edit-button";
-import { RichText } from "./rich-text";
 import { SectionHeading } from "./section-heading";
 
 /**
- * Brand pillars — the cards, and the positioning prose under them.
+ * Brand pillars — **a placeholder, and it reads no section.**
  *
- * **Pillars are the brand's values.** Settled in `docs/plans/brand-profiles.md` §2, and the whole
- * reason this band reads `Values & positioning` instead of a ninth section holding the same idea
- * under a second name.
+ * `docs/plans/brand-profiles.md` §2 equated pillars with the brand's values, so this band used to
+ * render `Values & positioning` under a second name, subtitled *from Values & positioning*. On
+ * real data the equation broke: that section answers two questions — what the brand stands for,
+ * *and how it differs from the alternatives* — and the second half is a competitive-set argument
+ * that is not a pillar under any reading. The page was putting a paragraph about hotel dining
+ * rooms and seafood joints under a heading that promised the brand's foundations.
  *
- * `splitPillars` is why the prose is separate: the section deliberately holds a list *and* a
- * paragraph, and a band that turned both into cards would promote "how we differ from the
- * alternatives" into a fourth pillar. Cards for the list, prose beneath for the rest.
+ * `Values & positioning` therefore went back to being an ordinary section, rendered as one card in
+ * the grid under its own label. This band keeps its place in the page and its anchor in the
+ * contents rail, and says plainly that pillars are not defined yet.
  *
- * A brand that wrote its values as one paragraph gets no cards and its prose — correct, and the
- * nudge to press Return three times.
+ * **No edit action, on purpose.** A button here would have to write a section, and the only label
+ * it could write is one no taxonomy knows and no other surface reads — a row a research run will
+ * never fill and the rail will never suggest. The band goes live when the product decides what a
+ * pillar is and where it is stored; until then, an honest empty box is the smaller lie. The strip
+ * this file used to draw is in the history of this file, and `splitPillars` — which fed it — is
+ * still here, serving `ContentPillarsBand`.
  */
-export function PillarsBand({
-  section,
-  anchor,
-  onEdit,
-}: {
-  section: ProfileSection | undefined;
-  anchor: string;
-  onEdit: () => void;
-}) {
-  const { pillars, prose } = splitPillars(section);
-  if (pillars.length === 0 && prose.length === 0)
-    return <EmptyPillars anchor={anchor} onEdit={onEdit} />;
-
-  return (
-    <section aria-labelledby={anchor} className="flex flex-col gap-4">
-      <SectionHeading
-        id={anchor}
-        icon={CompassIcon}
-        title="Brand pillars"
-        // Says where the words live, because the editor still calls the row by its stored label.
-        // Plan §2.3 option (a): the page can read as the product speaks without orphaning every
-        // brand that already wrote a section under the old name.
-        note="from Values & positioning"
-        action={<EditButton onClick={onEdit} what="Values & positioning" />}
-      />
-
-      {pillars.length > 0 ? (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {pillars.map((pillar) => {
-            // The first clause is the pillar; whatever the brand wrote after the dash or the
-            // em dash is its supporting line. Split on the separator rather than on the first
-            // sentence: a value written as one plain phrase must stay one phrase.
-            const [name, ...rest] = pillar.split(/\s+[—–-]\s+/);
-            const support = rest.join(" — ");
-            return (
-              <li
-                key={pillar}
-                className="flex flex-col gap-1.5 rounded-xl border border-border bg-card px-4 py-3.5 shadow-e1"
-              >
-                <span className="text-sm font-medium text-ink">{name}</span>
-                {support ? (
-                  <span className="text-helper leading-relaxed text-ink-secondary">{support}</span>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
-
-      {prose.length > 0 ? <RichText blocks={prose} /> : null}
-    </section>
-  );
-}
-
-function EmptyPillars({ anchor, onEdit }: { anchor: string; onEdit: () => void }) {
+export function PillarsBand({ anchor }: { anchor: string }) {
   return (
     <section aria-labelledby={anchor} className="flex flex-col gap-3">
-      <SectionHeading id={anchor} icon={CompassIcon} title="Brand pillars" />
-      <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-border-input px-5 py-4">
+      <SectionHeading id={anchor} icon={CompassIcon} title="Brand pillars" note="Not defined yet" />
+      <div className="rounded-xl border border-dashed border-border-input px-5 py-4">
         <p className="max-w-[62ch] text-sm text-ink-secondary">
-          Name what this brand stands on — three to five, one per line. They are the sentences
-          every other section ends up agreeing with.
+          The three to five things this brand stands on — the sentences every other section ends up
+          agreeing with. They are not modelled yet, so nothing is written here. What the brand
+          stands for today reads under{" "}
+          <span className="text-ink">Values &amp; positioning</span> below.
         </p>
-        {/* "One per line" is not decoration in that sentence: `splitPillars` turns list items
-            into cards and leaves paragraphs as prose, so how they are typed decides how they
-            render. The editor's bullet list is what produces the strip. */}
-        <button
-          type="button"
-          onClick={onEdit}
-          className="rounded-lg border border-border-input px-2.5 py-1 text-helper text-ink-secondary hover:border-border-strong hover:text-ink"
-        >
-          Name the pillars
-        </button>
       </div>
     </section>
   );

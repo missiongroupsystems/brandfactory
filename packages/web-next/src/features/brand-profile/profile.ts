@@ -22,34 +22,38 @@ import type { BrandProfile, ProfileBlock, ProfileSection } from "./types";
  */
 
 /**
- * The section the pillar band renders.
+ * **The pillar band reads no section, and `Values & positioning` is not it.**
  *
- * **Brand pillars are the brand's values** — settled in `docs/plans/brand-profiles.md` §2 — so
- * the band reads the row the product already has instead of adding a ninth section for the same
- * idea.
+ * `docs/plans/brand-profiles.md` §2 equated the two — brand pillars *are* the brand's values —
+ * and the band therefore rendered that row under a second name. Seen on real data, the equation
+ * does not hold: `Values & positioning`'s own description is *"what the brand stands for **and how
+ * it differs from the alternatives**"*, which is two questions, and the positioning half is a
+ * competitive-set argument that nothing about it reads as a pillar. A band headed *Brand pillars*
+ * and subtitled *from Values & positioning* was the page admitting as much.
  *
- * A literal rather than an import because `shared` exports named constants only for the four
- * labels something addresses by name (`TL;DR`, `Overview`, `Visual guidelines`,
- * `Content pillars`), and this is now a fifth. Promote it there if a second caller appears; every
- * comparison below goes through `sameSectionLabel`, so the punctuation tolerance is the same
- * either way.
+ * So the two are separated. `Values & positioning` is now an ordinary section — one card in the
+ * grid, under its own label, beside `Voice & tone` — and **Brand pillars is a placeholder** until
+ * the product decides what a pillar is and where it is stored. Nothing addresses a
+ * `Brand pillars` label, no such row is written, and the band renders the same stated-empty box
+ * for every brand.
+ *
+ * That is why there is no `PILLARS_SECTION_LABEL` here any more. Re-introducing one is the change
+ * that makes the band live; it belongs with the product decision, not ahead of it.
  */
-export const PILLARS_SECTION_LABEL = "Values & positioning";
 
 /**
- * How many pillars the band draws before it stops.
+ * How many pillars a strip draws before it stops.
  *
- * A display cap, not a bound on the data: the strip is a row of cards and a brand that listed
- * nine values gets six cards and its own prose beneath them. `shared`'s `MAX_CONTENT_PILLARS`
- * (12) is the *planner's* limit on what it will accept, which is a different question.
+ * A display cap, not a bound on the data: a brand that listed nine content pillars gets six chips
+ * and no error. `shared`'s `MAX_CONTENT_PILLARS` (12) is the *planner's* limit on what it will
+ * accept, which is a different question.
  */
 export const MAX_PILLAR_CARDS = 6;
 
-/** The four labels the page renders in a band of their own, so the grid must not repeat them. */
+/** The three labels the page renders in a band of their own, so the grid must not repeat them. */
 const BANDED_LABELS = [
   TLDR_SECTION_LABEL,
   OVERVIEW_SECTION_LABEL,
-  PILLARS_SECTION_LABEL,
   CONTENT_PILLARS_SECTION_LABEL,
 ];
 
@@ -102,16 +106,16 @@ export function sectionAnchor(section: ProfileSection): string {
 }
 
 /**
- * The pillar band's two halves, from one section.
+ * A pillar section's two halves — the declared items, and everything else it says.
  *
- * `Values & positioning` deliberately holds two shapes: a list of values, and a paragraph saying
- * how the brand differs from the alternatives. A reader that flattened both into cards would
- * promote the positioning paragraph to a fourth pillar — a wrong statement rendered confidently,
- * which is the failure the plan's §2.1 exists to prevent.
+ * `Content pillars` is the one caller. The section deliberately holds two shapes: a list of
+ * themes, and whatever prose the brand wrote around them. A reader that flattened both into chips
+ * would promote a sentence of context into a fourth pillar — a wrong statement rendered
+ * confidently, which is the failure the plan's §2.1 exists to prevent.
  *
- * So **list items become cards and paragraphs stay prose**. A brand that wrote its values as one
- * paragraph gets no strip and a normal prose section, which is also the nudge to press Return
- * three times — exactly how `brandContentPillars()` already behaves for the planner.
+ * So **list items become pillars and paragraphs stay prose**. A brand that wrote its themes as one
+ * paragraph gets no strip at all, which is also the nudge to press Return three times — exactly
+ * how `brandContentPillars()` already behaves for the planner.
  */
 export function splitPillars(section: ProfileSection | undefined): {
   pillars: string[];
@@ -133,9 +137,10 @@ export function splitPillars(section: ProfileSection | undefined): {
  *
  * Two rules, and both are about not saying the same thing twice:
  *
- * - **The four banded labels are excluded.** TL;DR, Overview, the pillars and the content pillars
- *   each already have a band of their own further up the page. `Values & positioning` in
- *   particular must not reappear here — one row, one place on the page (plan §4.3).
+ * - **The three banded labels are excluded.** TL;DR, Overview and the content pillars each already
+ *   have a band of their own on the page. `Values & positioning` used to be a fourth and is not:
+ *   the pillar band reads no section now, so the grid is where that row belongs and the rule it
+ *   protects — one row, one place on the page (plan §4.3) — is what puts it there.
  * - **Empty rows are excluded.** A labelled section with nothing in it is reported once, in the
  *   footer, where it comes with something to do about it. Six grey cards saying nothing is not a
  *   brand book.

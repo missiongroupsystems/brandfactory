@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  PILLARS_SECTION_LABEL,
   completeness,
   findSection,
   gridSections,
@@ -83,19 +82,19 @@ describe("sectionAnchor", () => {
 });
 
 describe("splitPillars", () => {
-  it("takes cards from the list and leaves the positioning paragraph as prose", () => {
-    const values = section(PILLARS_SECTION_LABEL, [
-      list("Provenance over provenance-speak", "The room is the product"),
-      paragraph("We sit between the hotel dining rooms and the seafood joints."),
+  it("takes pillars from the list and leaves the surrounding paragraph as prose", () => {
+    const pillarSection = section("Content pillars", [
+      list("Behind the pass", "The room at six"),
+      paragraph("We do not post about the competition."),
     ]);
-    const { pillars, prose } = splitPillars(values);
-    expect(pillars).toEqual(["Provenance over provenance-speak", "The room is the product"]);
+    const { pillars, prose } = splitPillars(pillarSection);
+    expect(pillars).toEqual(["Behind the pass", "The room at six"]);
     expect(prose).toHaveLength(1);
   });
 
-  it("gives a values section written as one paragraph no cards at all", () => {
+  it("gives a section written as one paragraph no pillars at all", () => {
     const { pillars, prose } = splitPillars(
-      section(PILLARS_SECTION_LABEL, [paragraph("Honest over hypey, open over proprietary.")]),
+      section("Content pillars", [paragraph("Mostly the room, sometimes the sourcing.")]),
     );
     expect(pillars).toEqual([]);
     expect(prose).toHaveLength(1);
@@ -103,7 +102,9 @@ describe("splitPillars", () => {
 
   it("drops blank items and caps the strip", () => {
     const { pillars } = splitPillars(
-      section(PILLARS_SECTION_LABEL, [list("One", "  ", "Two", "Three", "Four", "Five", "Six", "Seven")]),
+      section("Content pillars", [
+        list("One", "  ", "Two", "Three", "Four", "Five", "Six", "Seven"),
+      ]),
     );
     expect(pillars).toEqual(["One", "Two", "Three", "Four", "Five", "Six"]);
   });
@@ -117,20 +118,25 @@ describe("gridSections", () => {
   const sections = [
     section("TL;DR", [paragraph("A bakery.")], { kind: "synthesis" }),
     section("Overview", [paragraph("Founded 2024.")], { kind: "synthesis" }),
-    section(PILLARS_SECTION_LABEL, [list("Craft")]),
+    section("Values & positioning", [list("Craft")]),
     section("Content pillars", [list("The room")]),
     section("Messaging frameworks", [paragraph("One line.")]),
     section("Target audience", [paragraph("Locals.")]),
     section("Voice & tone"),
   ];
 
-  it("excludes the four sections that have a band of their own", () => {
+  it("excludes the three sections that have a band of their own", () => {
     const labels = gridSections(sections).map((s) => s.label);
     expect(labels).not.toContain("TL;DR");
     expect(labels).not.toContain("Overview");
-    // The pillar band is this row, so the grid must not render it twice.
-    expect(labels).not.toContain(PILLARS_SECTION_LABEL);
     expect(labels).not.toContain("Content pillars");
+  });
+
+  it("keeps Values & positioning, which no band reads any more", () => {
+    // The pillar band used to render this row under a second name. It is an ordinary section
+    // now, so the grid is the one place it appears — and a grid that dropped it would leave the
+    // brand's positioning nowhere on the page at all.
+    expect(gridSections(sections).map((s) => s.label)).toContain("Values & positioning");
   });
 
   it("excludes empty rows, which the footer reports instead", () => {
@@ -138,10 +144,11 @@ describe("gridSections", () => {
   });
 
   it("orders by the curated taxonomy, not by the order the API returned", () => {
-    // `Target audience` sits ahead of `Messaging frameworks` in SUGGESTED_SECTIONS despite
-    // arriving after it here.
+    // `Target audience` sits ahead of `Values & positioning`, which sits ahead of
+    // `Messaging frameworks`, in SUGGESTED_SECTIONS — despite arriving in another order here.
     expect(gridSections(sections).map((s) => s.label)).toEqual([
       "Target audience",
+      "Values & positioning",
       "Messaging frameworks",
     ]);
   });

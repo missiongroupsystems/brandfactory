@@ -67,6 +67,12 @@ refactor (§2), and one platform decision (§6).
 
 ## 2. Pillars — settled, and what follows from it
 
+> **Reversed in 1.35.1.** This section is the record of what was decided, not what the code does.
+> Seen on real data, the pillar band read as a heading promising the brand's foundations over a
+> paragraph about the competitive set. `Values & positioning` is an ordinary grid section again and
+> `Brand pillars` is a placeholder that reads nothing. §2.1, §2.3 and §4.3 below are superseded;
+> §2.2 (`Content pillars` stays where it is) still holds. See `docs/changelog.md` 1.35.1.
+
 **Your steer: brand pillars are basically the brand values.** So there is no ninth section. The
 row that holds them already exists and is called `Values & positioning`, and the profile's pillar
 strip is a *rendering* of it rather than a new place to type.

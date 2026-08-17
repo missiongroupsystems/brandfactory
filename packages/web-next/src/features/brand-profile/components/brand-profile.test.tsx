@@ -137,20 +137,30 @@ describe("BrandProfileScreen", () => {
     expect(headings.slice(0, 3)).toEqual(["TL;DR", "Brand pillars", "Overview"]);
   });
 
-  it("shows the values as pillar cards and never the positioning paragraph as one", () => {
+  it("renders Values & positioning as its own section, list and paragraph both", () => {
     render(<BrandProfileScreen />);
-    // A card, because the section wrote it as a real list item — the distinction `docToBlocks`
-    // exists to preserve. The name is split off its supporting clause at the em dash, which is
-    // what makes a strip of cards readable.
-    expect(screen.getByText("Provenance over provenance-speak").closest("li")).not.toBeNull();
-    screen.getByText("we name the mill, we do not lecture");
+    screen.getByRole("heading", { name: "Values & positioning" });
+    // A list item, because the section wrote it as one — the distinction `docToBlocks` exists to
+    // preserve, and it survives the move out of the band. The clause after the em dash stays on
+    // the item rather than being split off it: this is prose now, not a card with a subtitle.
+    expect(
+      screen
+        .getByText("Provenance over provenance-speak — we name the mill, we do not lecture")
+        .closest("li"),
+    ).not.toBeNull();
     // Prose, because the section wrote it as a paragraph. A list item here would be the bug.
     expect(screen.getByText(/We sit between the hotel patisseries/).closest("li")).toBeNull();
   });
 
-  it("does not repeat the pillar section in the grid below", () => {
+  it("keeps the pillar band empty, and does not put the values under it", () => {
     render(<BrandProfileScreen />);
-    expect(screen.queryByRole("heading", { name: "Values & positioning" })).toBeNull();
+    // The regression this change fixes: a band headed `Brand pillars` that was in fact rendering
+    // the `Values & positioning` row. The band is a placeholder now, so the section it used to
+    // borrow must sit outside it.
+    const band = screen.getByRole("heading", { name: /Brand pillars/ }).closest("section");
+    expect(band).not.toBeNull();
+    expect(band?.textContent).not.toContain("Provenance over provenance-speak");
+    expect(band?.textContent).not.toContain("We sit between the hotel patisseries");
   });
 
   it("states the fraction rather than a bare count", () => {
