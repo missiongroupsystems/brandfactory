@@ -404,6 +404,19 @@
     font-family: var(--font-mono-family);
   }
 
+  /* The brand monogram's derived fill — see `components/brand/brand-mark.tsx`.
+     Deliberately *not* a token: tiers 1–3 are the product's palette, and this is the
+     customer's brand hue, computed per row from a brand id. A token holds one value; this
+     needs one per brand, so the component sets `--brand-hue` and these two lines read it.
+     oklch keeps every hue at the same lightness and chroma, so 30 sibling brands stay
+     legible and none of them shouts louder than another. There is no `.dark` twin yet
+     because this app has no dark theme; it belongs here beside the light rule when one
+     lands, as it already exists in the Vite app's `index.css`. */
+  .brand-mark {
+    background-color: oklch(0.93 0.045 var(--brand-hue));
+    color: oklch(0.42 0.13 var(--brand-hue));
+  }
+
   /* §14 — mandatory, and the aviation client is regulated. */
   @media (prefers-reduced-motion: reduce) {
     *,

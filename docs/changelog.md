@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.32.0** — 2026-08-17 — A brand toggle takes the second row of the Next shell's nav: the feature folder was already complete, so the data half is one fixture and two routes, and the selection is a preference rather than a route. No migration. 1982 tests.
 - **1.31.0** — 2026-08-17 — A second frontend arrives whole: the Operations Hub's Next 16 shell becomes BrandFactory's, fixture-backed through one swapped function and trimmed to nine nav items, beside the Vite app it will replace. `next dev` does not hydrate; `next start` does. No migration. 1982 tests.
 - **1.30.0** — 2026-08-14 — Workspace delete lands, the top of the aggregate: the same gate as brand delete, the same read-then-sweep for blobs, one level up. No migration. 1982 tests.
 - **1.29.0** — 2026-08-13 — The silos come down: the one owner gate opens, so every signed-in user sees and edits every workspace and brand. Ownership stays on the row for the Passport migration. No migration. 1978 tests.
@@ -71,6 +72,92 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.32.0 — 2026-08-17
+
+**The Next shell gets its first BrandFactory feature: a brand toggle at the top
+of the nav, under the product identity, switching which brand the shell is
+inside. Six fixture brands, a persisted selection, and nothing below the header
+responding to it yet.**
+
+Full write-up:
+[`docs/completions/brand-toggle-in-the-nav.md`](completions/brand-toggle-in-the-nav.md).
+
+### 1. The feature was already there, minus its data
+
+`features/brands/` arrived with the shell in 1.31.0 and was complete — service,
+hooks, mutations, and a `useBrandIndex` that walks the cursor to exhaustion. It
+answered nothing only because no mock route was registered for `/brands`.
+
+So the data half of this release is **one fixture file and two lines in the
+route table**, with `features/brands/` untouched. That is the shape the package
+already had doing its job, and it is the first thing to check before writing a
+hook here.
+
+### 2. The active brand is a preference, not a route
+
+Nothing in this shell is brand-scoped. There is no `/brands/:id` to navigate to
+— the Vite app's switcher navigates, this one cannot — so the selection lives in
+`localStorage`, the call `sidebar-prefs.ts` and `key-dates-prefs.ts` already
+record. It is read through `useSyncExternalStore`, not `useState` plus an
+effect: `react-hooks/set-state-in-effect` fails this build, and the server
+snapshot has to be `null` because there is no storage during SSR.
+
+`useActiveBrand()` is the seam every future brand-scoped screen reads. No
+context provider — SWR shares the index by key and the store is a module
+singleton, so both halves are already global.
+
+### 3. Two rows, and one accent budget
+
+The identity row is untouched; the toggle is a second row under a hairline. The
+product identity is fixed text and the brand is a control, and stacking them
+makes neither read as what it is.
+
+The monogram is on the trigger and on **nothing in the menu**. The brand hue is
+the customer's colour rather than the product's, and the accent rule is one
+element per surface — six coloured squares in a dropdown spends that budget six
+times. `BrandMark` is ported from the Vite app minus its declared-logo branch,
+with `brandInitials` and `brandHue` copied exactly so the two apps agree.
+
+### 4. A Radix-shaped bug that passed every gate
+
+The radio items were written with `onSelect`, which is Radix's API. Base UI
+reports selection through the **group's** `onValueChange`, and React has a real
+DOM `onSelect` (text selection) that absorbed the prop — so `typecheck`, `lint`
+and `build` all passed while the menu ticked, closed, and never switched brand.
+
+`AGENTS.md` already warns that shadcn here sits on Base UI, but the documented
+trap (`render=` vs `asChild`) fails loudly at the type check. This one does not
+fail at all. Found by clicking it.
+
+### Verification
+
+```
+pnpm typecheck                         clean (11 packages)
+pnpm lint / format:check               clean (whole repo)
+pnpm test                              1982 passed | 78 skipped (159 files)
+pnpm -F @brandfactory/web build        clean
+pnpm -F @brandfactory/web-next build   clean — 27 routes
+```
+
+Test count unchanged: no test was added, and the package still has none.
+Verified in the browser against `next start` — the menu, the badges, the hue
+change, persistence across a navigation, the accessible name, and a clean
+console on load.
+
+### Caveats
+
+- **Nothing responds to the selection yet.** Every screen here is fixture-backed
+  Operations Hub and none is brand-scoped. The toggle lands ahead of the screens
+  that will read it.
+- **The brands are fixtures**, not the Hono server's real ones. Wiring those
+  needs auth, which this package does not have.
+- **`entities.brand_id` is still `null`** on every row; linking the fixtures is
+  a change to a screen with no door in the nav.
+- **`next dev` still does not hydrate** — 1.31.0's open defect. Built and
+  verified against `next build` + `next start`.
 
 ---
 

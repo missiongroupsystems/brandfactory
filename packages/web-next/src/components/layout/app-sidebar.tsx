@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { TriangleAlertIcon } from "lucide-react";
 
+import { BrandSwitcher } from "@/components/layout/brand-switcher";
 import { CURRENT_PHASE, NAV_GROUPS, NAV_ITEMS, type NavItem } from "@/components/layout/nav";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -46,9 +47,13 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-3">
-        <div className="flex items-center gap-3">
-          {/* Workspace mark — accent-filled tile, one of the named accent roles (§4). */}
+      {/* Two rows, and the padding moved off the header onto each of them so the hairline
+          between can run the full width instead of stopping short at the inset. */}
+      <SidebarHeader className="gap-0 p-0">
+        <div className="flex items-center gap-3 p-3">
+          {/* Workspace mark — accent-filled tile, one of the named accent roles (§4). The
+              brand mark on the row below is a different thing: the customer's hue, not the
+              product's accent, so the two do not compete for the same budget. */}
           <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-surface-accent text-sm font-medium text-ink-inverse">
             B
           </div>
@@ -60,6 +65,13 @@ export function AppSidebar() {
               in the chrome, rather than a banner per page, because it is true of all of them.
               It comes off area by area as real screens replace these. */}
           <Badge className="ml-auto shrink-0">Mock</Badge>
+        </div>
+
+        {/* The brand you are inside. A row of its own rather than a third line in the block
+            above: the product identity is fixed and this is a control, and stacking a
+            clickable name under two static ones makes neither read as what it is. */}
+        <div className="border-t border-border-subtle p-3">
+          <BrandSwitcher />
         </div>
       </SidebarHeader>
 
