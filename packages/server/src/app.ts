@@ -39,7 +39,17 @@ import { createBrandsRouter, createWorkspaceBrandsRouter } from './routes/brands
 import { createCanvasRouter } from './routes/canvas'
 import { createHealthRouter } from './routes/health'
 import { createMeRouter } from './routes/me'
+import { createPassportAccess } from './passport/access'
+import { createPassportProvisioner } from './passport/provision'
+import {
+  isExpiredError,
+  isForeignIssuerError,
+  ssoActive,
+  verifyPassportToken,
+} from './passport/token'
 import { createMessagesRouter } from './routes/messages'
+import { createPassportAuthRouter } from './routes/passport-auth'
+import { createPassportSyncRouter } from './routes/passport-sync'
 import {
   createBrandProjectsRouter,
   createProjectsRouter,
@@ -110,7 +120,24 @@ export function createApp(deps: AppDeps) {
   // behind a sub-app at `/`) keeps `/blobs`, `/health`, and `/rt`'s HTTP
   // surface outside the auth gate — the signed URL is the capability for
   // blobs, and `/rt` terminates at the ws upgrade handler, not HTTP.
-  const authRequired = createAuthMiddleware(deps.auth)
+  // The second accepted issuer. Built unconditionally and gated on `active()`, so an
+  // environment without Passport's project behaves exactly as before — SSO is
+  // reversible in both directions, which is what makes `PASSPORT_SSO_ENABLED` a safe
+  // kill switch rather than a one-way door.
+  const passportAccess = createPassportAccess()
+  const provisionPassportUser = createPassportProvisioner({ access: passportAccess })
+  const authRequired = createAuthMiddleware(deps.auth, {
+    active: () => ssoActive(deps.env),
+    verify: (token) => verifyPassportToken(deps.env, token),
+    isForeignIssuer: isForeignIssuerError,
+    isExpired: isExpiredError,
+    resolveUser: async (email) => {
+      const resolved = await provisionPassportUser(email)
+      return resolved.ok
+        ? { ok: true as const, userId: resolved.user.id }
+        : { ok: false as const, reason: resolved.reason }
+    },
+  })
   app.use('/me/*', authRequired)
   app.use('/workspaces/*', authRequired)
   app.use('/brands/*', authRequired)
@@ -195,6 +222,18 @@ export function createApp(deps: AppDeps) {
       '/blob-urls',
       createBlobUrlsRouter({ storage: deps.storage, maxBytes: deps.env.BLOB_MAX_BYTES }),
     )
+    // Mission Passport's sync receive endpoint. Mounted unconditionally and
+    // OUTSIDE the auth gate: Passport authenticates with an HMAC over the raw
+    // body, not a JWT, and there is no user to scope to. It refuses with 503
+    // when `PASSPORT_WEBHOOK_SECRET` is unset rather than being absent — a
+    // missing route answers 404, which reads to an operator as "wrong URL"
+    // instead of "not configured".
+    .route('/webhooks', createPassportSyncRouter({ env: deps.env }))
+    // The email-first login router. OUTSIDE the auth gate by necessity: every route
+    // here runs before anybody has proven anything. It behaves correctly with Passport
+    // unconfigured — `/resolve-login` answers `app-native` for everybody, and
+    // `/passport/start` redirects back with `?error=passport_unavailable`.
+    .route('/auth', createPassportAuthRouter({ env: deps.env, access: passportAccess }))
 
   if (deps.env.STORAGE_PROVIDER === 'local-disk') {
     // Blob routes are not auth-gated — the signed URL is the capability.

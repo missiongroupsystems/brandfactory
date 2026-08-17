@@ -1,5 +1,5 @@
 import type { UserId } from '@brandfactory/shared'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { db } from '../client'
 import { users } from '../schema'
 
@@ -51,4 +51,27 @@ export async function upsertUserById(input: {
       displayName: input.displayName ?? null,
     })
     .onConflictDoNothing({ target: users.id })
+}
+
+/**
+ * Every local user whose email matches, compared case-INSENSITIVELY.
+ *
+ * Used by the Passport login path, and the plural return is the point.
+ *
+ * `users.email` is `unique` but not case-insensitively so, which means
+ * `Bob@x.com` and `bob@x.com` can both exist. On a path that hands out a session,
+ * refusing to guess is the only safe answer — picking "the first one" silently
+ * authenticates somebody as the wrong person. So the caller counts the matches and
+ * fails closed on more than one.
+ *
+ * **The durable fix is a case-insensitive unique index on `users.email`**, which
+ * would make the ambiguity impossible rather than merely detectable. Until then
+ * this is how the ambiguity is seen at all: `getUserByEmail` above compares
+ * exactly, so it cannot find a case-variant row and cannot report a conflict.
+ */
+export async function findUsersByEmail(email: string): Promise<User[]> {
+  return db
+    .select()
+    .from(users)
+    .where(sql`lower(${users.email}) = lower(${email})`)
 }

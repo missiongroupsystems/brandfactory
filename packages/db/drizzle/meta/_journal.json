@@ -92,6 +92,20 @@
       "when": 1786329651782,
       "tag": "0012_clever_crystal",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786961619183,
+      "tag": "0013_fine_sinister_six",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1786968794723,
+      "tag": "0014_great_james_howlett",
+      "breakpoints": true
     }
   ]
 }

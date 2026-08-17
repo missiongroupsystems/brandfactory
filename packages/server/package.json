@@ -26,8 +26,10 @@
     "@brandfactory/shared": "workspace:*",
     "@hono/node-server": "^1.13.7",
     "@hono/zod-validator": "^0.7.6",
+    "@missiongroupsystems/passport-client": "git+https://github.com/missiongroupsystems/passport.git#4754a77672d6d4214ef3d298ee6ddd53ed9b8b8f&path:/packages/passport-client/typescript",
     "dotenv": "^16.4.7",
     "hono": "^4.6.12",
+    "jose": "^5.9.6",
     "tsx": "^4.19.2",
     "ws": "^8.18.0",
     "zod": "^4.3.6"

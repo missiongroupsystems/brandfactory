@@ -6,6 +6,12 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.37.0** — 2026-08-17 — The email-first login arrives server-side and lands DARK: two routes and never three, PKCE whose verifier never reaches the browser, and a second accepted issuer. Three bugs found — two by reading, one by curling. Migration 0014. 2168 tests.
+- **1.36.0** — 2026-08-17 — Reconciliation lands as all three parts — function, secret-guarded endpoint, and a schedule that survives a deploy — and was proven by curling it against the live API, with a 404 control to show the routes are real. No migration. 2122 tests.
+- **1.35.0** — 2026-08-17 — Placement stops being an assumption: the registry read lands at startup and confirms all three unit types with no cascade — and returns `unit_scope: null`, the trap this app was built to ignore. Access derivation and identity linking arrive behind it. No migration. 2101 tests.
+- **1.34.0** — 2026-08-17 — The receiver opens: one signed endpoint, all 17 handlers, and a version guard checked as SQL, as behaviour, and by breaking it on purpose. Closures instead of a class, so the trap that ships broken elsewhere cannot occur. No migration. 2060 tests.
+- **1.33.0** — 2026-08-17 — The Passport read model lands: eight tables in their own `passport` schema, with no foreign key and no constraint beyond the primary key — both deliberate — and a test standing in for the `REVOKE` this architecture cannot use. Migration 0013. 2016 tests.
+- **1.32.0** — 2026-08-17 — The first Passport phase: the SDK pinned and proven, ten `PASSPORT_*` keys that refuse to be half-set, two variables refused by name, and the sign-out scope corrected before it can become a suite-wide logout. No migration. 1999 tests.
 - **1.31.0** — 2026-08-17 — A second frontend arrives whole: the Operations Hub's Next 16 shell becomes BrandFactory's, fixture-backed through one swapped function and trimmed to nine nav items, beside the Vite app it will replace. `next dev` does not hydrate; `next start` does. No migration. 1982 tests.
 - **1.30.0** — 2026-08-14 — Workspace delete lands, the top of the aggregate: the same gate as brand delete, the same read-then-sweep for blobs, one level up. No migration. 1982 tests.
 - **1.29.0** — 2026-08-13 — The silos come down: the one owner gate opens, so every signed-in user sees and edits every workspace and brand. Ownership stays on the row for the Passport migration. No migration. 1978 tests.
@@ -73,6 +79,374 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.37.0 — 2026-08-17
+
+**The standard email-first login, server half.** One email field routes a person either
+into Passport's hosted login or to BrandFactory's own sign-in. It **lands dark**:
+`PASSPORT_SUPABASE_URL` is unset, so SSO is inactive, everybody routes app-native, and
+the magic link and Google button behave exactly as before. Migration 0014.
+
+Full write-up:
+[`docs/completions/passport-sync-consumer-phase-6a.md`](completions/passport-sync-consumer-phase-6a.md).
+
+### 1. Two bugs found by reading, before they could bite
+
+Both are why the contract insists on resolving a user by **verified email** rather than
+by the token's subject.
+
+`upsertUserById` conflicts on `id` only — so a Passport subject for somebody who already
+has an app-native row with the same email violates the `users.email` unique index. The
+auth adapter *swallows* that failure, the lookup misses, and the person gets a 404 from
+`/me` holding a valid token. **Every member with a legacy local account would have been
+unable to sign in.**
+
+And `getUserByEmail` compares exactly, so it can neither find a case-variant row nor
+report the ambiguity. The new lookup is case-insensitive and returns **every** match,
+because the count is the point: on a path that hands out a session, picking the first
+silently authenticates somebody as the wrong person.
+
+### 2. One bug found by curling, which no test caught
+
+`/auth/passport/start` answered a **JSON 500** instead of redirecting — exactly what the
+"always redirect" rule exists to prevent, since the route is a browser navigation and
+that body renders as the whole page. `Response.redirect` requires an absolute URL and
+**throws** on a relative one, which is what an unset `APP_BASE_URL` produced.
+
+The fix is more than a patch: relative is not a degraded case here, it is **correct for
+one of two real topologies** — single-origin dev goes through the Vite proxy, so
+`/login` is right and an absolute URL would be wrong. Only a split-origin deploy needs
+`APP_BASE_URL`. Both browser-facing routes also gained a catch-all, so the
+*unanticipated* failures redirect too, with three regression tests.
+
+### 3. A latent breakage from 1.33.0, fixed
+
+`drizzle.config.ts` globs `src/schema/**/*.ts` and drizzle-kit `require()`s every match,
+so the projection test placed in that directory broke **`db:generate` on `main`** for
+anyone who ran it. Moved out, with the reason written at the file.
+
+### 4. The router's shape is the security control
+
+Two routes and never three, so a non-member and a nonexistent email are
+indistinguishable. No format validation before routing, because a different answer for a
+different class of input is still an oracle. Two rate-limit buckets, IP *and* email. And
+the membership lookup runs **unconditionally**, even with SSO off, because a two-valued
+endpoint is still an oracle if one branch hits the database and the other returns early.
+
+PKCE's verifier never reaches the browser, and single-use is structural — one atomic
+`DELETE ... RETURNING`, so two concurrent callbacks for one state cannot both succeed.
+
+### 5. The second issuer, and the clause order
+
+The request path now accepts Passport-issued tokens as well as its own. **An expired
+token is checked first and is terminal**: retrying it against the second issuer would
+fail there too and only hide the reason. The mirror of that ordering — a narrower check
+above the broader one — 401'd every Passport-authenticated request for another
+consumer's entire SSO rollout.
+
+### 6. What is NOT closed
+
+The magic link and Google button go **straight from the browser to GoTrue**, so a member
+can still authenticate around Passport entirely. The router is the decision, not the
+enforcement, and that is stated at the top of the route file rather than left implicit.
+Closing it needs a server-side proxy for the magic-link request, which lands with the
+frontend half.
+
+## 1.36.0 — 2026-08-17
+
+**Nightly reconciliation exists, is scheduled, and was verified by running it.** The
+backstop re-applies Passport's `snapshot()` through the receiver's own handlers. No
+migration, and no behaviour change — nothing reads the projection yet.
+
+Full write-up:
+[`docs/completions/passport-sync-consumer-phase-5.md`](completions/passport-sync-consumer-phase-5.md).
+
+### 1. Three parts, because two of them are useless alone
+
+The named failure here is writing the function and stopping: it passes its own unit
+test, so the suite is green and the write-up claims "nightly reconciliation built"
+while nothing ever runs it. So there is the function, a secret-guarded endpoint that
+exists **so the job can be verified by triggering it**, and the schedule itself.
+
+### 2. It never deletes, and an empty snapshot is never mistaken for health
+
+Asserted directly: no removal handler is reachable from this path. The snapshot's
+`identity_links` are a per-org subset and never authoritative — and this app writes
+its own link rows at login, with subjects Passport does not know — so a pruning
+reconciler would delete exactly the rows that make sessions resolve.
+
+An all-zero result is flagged and warned about in those words, because "reconciliation
+ran clean" over nothing is the most reassuring wrong conclusion available, and it is
+this app's actual state until an entitlement is granted. Logging is counts only, never
+rows: the snapshot carries staff emails.
+
+### 3. Six hours rather than twenty-four, for a deployment-specific reason
+
+A 24-hour interval measured from boot would **never fire** on a repo that deploys more
+than once a day, because Fly restarts the machine each time. Six hours costs one extra
+API call and cannot be defeated by an ordinary release cadence. There is also a sweep
+60 seconds after boot, so a fresh environment converges without waiting a full period.
+
+The scheduler copies the research ticker's shape — exported `tick`, the in-flight
+sweep held as a promise so `stop()` can await it before the pool closes, idempotent
+`start()`, overlapping sweeps coalesced, and a failed sweep logged rather than thrown.
+
+### 4. Proven by curling it, with a control
+
+Booted on the real `.env` and hit every route: 403 without the secret, 200 with it
+(`durationMs: 459` — a real round trip to Passport, returning `empty: true`), 401 for
+an unsigned delivery, and **404 for a path that should not exist**. The control is the
+point: it shows the other three are real routes rather than a catch-all.
+
+The secret check uses `timingSafeEqual`, with a length mismatch as its own branch —
+that function *throws* on unequal lengths, which would turn a wrong-length secret into
+a 500 rather than a 403, and that difference is itself a length oracle.
+
+## 1.35.0 — 2026-08-17
+
+**The Passport credentials arrived, so step 0 is now a fact rather than an assumption.**
+This app's placement is read from the live registry at startup, and the access
+derivation and identity linking are built behind it. Nothing calls the derivation yet —
+`authz.ts` is untouched — so no behaviour changes. No migration.
+
+Full write-up:
+[`docs/completions/passport-sync-consumer-phase-4.md`](completions/passport-sync-consumer-phase-4.md).
+
+### 1. Three findings from the registry, two of them surprises
+
+`GET /apps/me/registry` answered `200` with `unit_scopes: ["entity","brand","outlet"]`
+and `role_cascade: false`, confirming the operator's answer.
+
+**The app is registered as "Marketing Base" (`marketingbase`), not BrandFactory.** The
+id matches `PASSPORT_APP_ID` and the description is this product's positioning, so it is
+the right app under a different name — but whoever grants the entitlement will be
+looking for Marketing Base in the console.
+
+**`unit_scope` came back `null`**, which is exactly the trap phase 4 was designed
+against. The deprecated singular field cannot name a three-type shape, so a reader using
+it would fall back to `["brand"]` and silently narrow this app to brands, with no error
+to catch. The registry reader destructures the plural fields by name so the singular one
+is not in scope, and a test pins the real body — including a case where the two
+contradict each other.
+
+**`role_cascade: false` is forced, not chosen.** Passport answers `422` to `true` on any
+shape other than `{entity, outlet}` or `{brand, outlet}`, so on three types the cascade
+is unavailable. Both sides of that are pinned: a brand role does not reach its outlet
+today, and does once placement narrows — so changing it later is a console change plus a
+restart.
+
+### 2. The snapshot is empty, and that means one thing
+
+Eight empty collections. Not a problem and not health: the snapshot is
+entitlement-scoped, so it returns empty regardless. It means **no org is entitled to
+Marketing Base yet**, which is a super-admin action and the first step of the operator
+gate.
+
+### 3. Every gate has a test, because every gate fails silently
+
+The ladder (an Owner holds `Manager` everywhere with no role row — forget it and every
+Owner is denied), the suspension gate (suspension deliberately does not cascade to role
+rows, so `role ?? null` lets a disabled person keep working), cross-org denial, a unit
+that carries no `unit_app_access` row conferring nothing even to an Owner, an archived
+unit, a missing entitlement reading as inactive, and a removed role row being a tombstone
+rather than a grant.
+
+Plus the one check that catches a collapsed map: granted at unit A, `undefined` at unit
+B. A global-flag implementation passes every other case and fails that one.
+
+Identity linking resolves the platform user **by verified email**, case-insensitively,
+and **fails closed** on two case-variant matches — on a path that hands out a session,
+picking one silently authenticates somebody as the wrong person.
+
+### 4. The read runs at startup, proven by running it
+
+`main.ts` awaits the registry read before the server listens, and it was verified through
+the production code path against the live registry — `authoritative: true`, so the
+fallback did not fire. It never throws (an unreachable registry falls back to brand-only
+and says so, because refusing to boot would make Passport a hard dependency for serving
+app-native users), it validates the response rather than trusting it, and it logs an
+error if `PASSPORT_APP_ID` names a different app from the one the key authenticates.
+
+## 1.34.0 — 2026-08-17
+
+**`POST /webhooks/passport/sync` is live, and all 17 sync handlers project into the
+read model.** Nothing reads it yet, so no user-visible behaviour changes. No migration.
+
+Full write-up:
+[`docs/completions/passport-sync-consumer-phase-3.md`](completions/passport-sync-consumer-phase-3.md).
+
+### 1. The version guard, checked three ways
+
+Two silent failure modes live in about four lines: `<` instead of `<=` drops every
+equal-version replay (and Passport retries on any non-2xx, so replays are ordinary
+traffic), and a column missing from the `SET` clause stops updating while every other
+field stays fresh.
+
+So the `SET` clause is derived from the table definition rather than hand-listed —
+`passport.unit` has 13 updatable columns — and the guard is asserted as **generated
+SQL** (rendered through `PgDialect`, no database), as **behaviour** against a real
+Postgres, and finally **by sabotage**: changing `<=` to `<` fails six tests, five of
+them naming the exact fragment. Then reverted.
+
+### 2. Closures, not a class
+
+`applyEvent` calls a handler DETACHED — `const h = handlers[method]; await h(payload)`
+— so a class whose handlers delegate through `this.` throws on the first real
+delivery. Five of the seventeen would, because the archive and remove handlers reuse
+their upsert. `tsc` cannot see it and a test asserting the methods exist passes.
+
+The handlers are an object of closures, so there is no `this` to lose and the trap
+cannot occur, rather than being patched by a constructor that rebinds every method.
+The detached call is asserted anyway, so a future refactor cannot reintroduce it
+quietly.
+
+### 3. The SQL went to the db package, and the guard grew a second sweep
+
+`packages/server/src/db.ts` is a narrow facade of named helpers, not a Drizzle handle,
+so the projection's SQL belongs in `@brandfactory/db` with every other query — and the
+write helpers are deliberately absent from that facade, so a route cannot reach them
+through its deps. It would have to import them by name, which the write guard now
+sweeps for alongside the direct-SQL check.
+
+That guard then caught the phase's own live test — 34 violations, all in the one file
+whose job is exercising the write path. It is allowlisted **by name**, not by exempting
+`*.test.ts` as a class, which would have left a hole exactly where the mistake it
+exists to catch would appear.
+
+### 4. The mount is asserted, because a 404 there is silent
+
+An unconfigured receiver answers **503, not 404**, and an unsigned delivery is refused
+by the signature check rather than by auth middleware — the route sits outside the auth
+gate on purpose, since Passport sends an HMAC and no bearer token. Both are asserted
+against the real app: a 404 or a 401 there would mean Passport delivers, nothing
+receives, and the projection silently stays empty.
+
+Verified end to end with real signed deliveries against a migrated database, including
+a stale redelivery that correctly did not overwrite, an equal-version replay that did,
+an unknown event type answered 200, and a forged signature refused with 401.
+
+## 1.33.0 — 2026-08-17
+
+**Mission Passport's read model now exists: eight tables in a dedicated `passport`
+Postgres schema, adopting Passport's UUIDs verbatim as primary keys.** Nothing writes
+them yet — the receiver is the next phase — so no behaviour changes. Migration 0013.
+
+Full write-up:
+[`docs/completions/passport-sync-consumer-phase-2.md`](completions/passport-sync-consumer-phase-2.md).
+
+### 1. The absent constraints are the design
+
+There is **no foreign key between any of the eight tables, and no constraint beyond the
+primary key.** Sync events are replay- and out-of-order-safe by contract, so a
+`unit.upserted` may legitimately arrive before the `org.upserted` that would satisfy an
+FK. The constraint would reject the event, the receiver would answer 500, and Passport's
+delivery worker would retry it forever. Referential integrity is Passport's job on the
+write side.
+
+The same reasoning ruled out a unique index on `identity_link (subject, app_id)`, which
+our own writer will maintain anyway: **a constraint the wire does not promise converts a
+data condition into a retry storm.** Both decisions are recorded at the tables and in
+the migration header, because they read as omissions.
+
+### 2. Read-only by test, because a REVOKE would revoke the receiver too
+
+The canonical control is a schema-level `REVOKE` against the app role. That guidance
+comes from consumers where the browser holds a Postgres connection through PostgREST,
+so an untrusted role has real table privileges. BrandFactory has no such principal —
+its browser client is used for four authentication calls and touches no table — and it
+connects as one role, so a revoke could only exclude our own request path.
+
+So the enforcement is a test that sweeps for writes into `passport.*` from anywhere
+outside the three sanctioned modules, in both Drizzle-builder and raw-`sql` form. It
+reports a file and a line at CI time instead of a runtime error in production. The
+detector is unit-tested on fixtures rather than asserting it found something, because
+zero writes is the correct state until the handlers arrive.
+
+### 3. drizzle-kit had to be told the schema exists
+
+`schemaFilter` defaults to `['public']`, and left alone drizzle-kit does not merely skip
+the projection — it treats those tables as unmanaged and could later propose dropping
+them. The migration itself is generated, then annotated: a migration is where someone
+looks when they wonder why there are no foreign keys.
+
+### 4. A live test for "applied", not just "written"
+
+Those are different claims, and only the second stops the receiver 500ing on every
+delivery. The new live suite asserts the eight tables, the absent constraints, the UUID
+keys with no local default, and the identity indexes — against Postgres itself. It was
+proven by running it against a deliberately unmigrated database, where three of its four
+cases fail loudly.
+
+## 1.32.0 — 2026-08-17
+
+**BrandFactory starts becoming a Mission Passport sync consumer. This phase builds
+none of it: it makes the SDK resolve, makes the configuration impossible to
+half-set, and fixes one line that is harmless today and becomes a suite-wide logout
+the day hosted login lands.** No migration, and no behaviour an existing user can
+reach changes — except the sign-out scope, deliberately.
+
+Plan: [`docs/executing/passport-sync-consumer-plan.md`](executing/passport-sync-consumer-plan.md).
+Decision record: [`…-proposal.md`](executing/passport-sync-consumer-proposal.md).
+Full write-up:
+[`docs/completions/passport-sync-consumer-phase-1.md`](completions/passport-sync-consumer-phase-1.md).
+
+### 1. The SDK builds on install, and pnpm had to be told
+
+`@missiongroupsystems/passport-client` 3.0.0 is a git dependency pinned to an
+immutable commit. Its repository tracks `src/` but **not** `dist/`, so its `prepare`
+script is what produces the importable output — and pnpm 10 blocks build scripts for
+git-hosted packages. The first install failed outright with
+`ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED`, which is the good outcome: the alternative
+was an install that succeeded and left nothing to import. Four lines in
+`pnpm-workspace.yaml` fix it, and the entry is load-bearing rather than cosmetic.
+
+Verified by running it rather than reading it: `SCHEMA_VERSION` is 1, the dispatch
+table has 17 entries, all 17 handler names match the contract, and `isNewer(1, 1)`
+is `true` — the `>=` guard that has to accept an equal-version replay.
+
+### 2. Configuration that refuses to be half-set
+
+Ten optional `PASSPORT_*` keys. Optional matters: an unconfigured deployment boots
+and behaves exactly as before. Coherence is not optional, because each half fails
+silently and the symptom points away from the cause — a webhook secret with no API
+credentials projects every org and identity-links nobody (*N memberships, ~0
+links*), and API credentials with no webhook secret derive access from a projection
+that never receives an event. Both are boot failures now, naming the missing key.
+
+`PASSPORT_SSO_ENABLED` is parsed as an enum rather than with `z.coerce.boolean()`,
+which would coerce the string `"false"` to `true` and leave the break-glass kill
+switch permanently on.
+
+Two variables are **refused by name**, because zod strips undeclared keys and would
+otherwise make setting them a silent no-op: `PASSPORT_ORG_ID` (a configured org
+silently discards every other org's events) and `PASSPORT_UNIT_SCOPE` (placement is
+read from the registry at startup, and the singular form cannot express this app's
+shape at all). Each refusal names the alternative.
+
+### 3. The sign-out scope, fixed before it matters
+
+`signOut()` defaults to `scope: 'global'` in every GoTrue client, which revokes
+every refresh token the person holds **in the project**. Today BrandFactory owns its
+issuer, so that reaches only BrandFactory. Under Passport's hosted login a member's
+session comes from *Passport's* project, shared across the suite — so the default
+would sign them out of every other Mission Systems app and of Passport's console.
+
+The symptom is delayed by up to a token lifetime, because only the refresh token is
+revoked and the access JWT outlives it, so it gets filed as flaky sessions. Both
+calls now pass `scope: 'local'`, one existing test that was asserting the old
+behaviour was corrected, and a **source sweep** fails on any future call site that
+omits a scope — the failure mode is the next button somebody adds, not this one.
+
+The sweep was proven by deliberately breaking it: a temporary probe with one bare
+call and one `global` produced exactly two failures, each naming a file and line.
+
+### 4. What this phase does not do
+
+No `passport` schema, no read-model tables, no receive endpoint, no handlers, no
+access derivation, and no login change. Placement is not yet read from the registry,
+so the recorded answer — all three unit types, and therefore no role cascade, since
+Passport refuses one on any other shape — stands until phase 4 replaces it with the
+authoritative read.
 
 ## 1.31.0 — 2026-08-17
 

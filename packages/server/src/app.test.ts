@@ -73,3 +73,87 @@ describe('the app’s router', () => {
     expect(res.status).not.toBe(404)
   })
 })
+
+// ---------------------------------------------------------------------------
+// The Passport sync endpoint is MOUNTED, and outside the auth gate
+// ---------------------------------------------------------------------------
+//
+// `routes/passport-sync.test.ts` exercises the receive contract against the
+// router in isolation. It cannot see whether that router is actually wired into
+// the app, or whether it sits behind `authRequired` — and both failures are
+// silent in the same way: Passport delivers, gets a 404 or a 401, and the
+// projection simply stays empty while nothing in this app errors.
+//
+// The acceptance checklist for this integration is explicit that a 404 here is
+// the tell and that no unit test will show it to you. So this asserts the mount.
+//
+// Plan: `docs/executing/passport-sync-consumer-plan.md`, phase 3.
+
+describe('the Passport sync endpoint', () => {
+  it('is mounted, and answers 503 rather than 404 when unconfigured', async () => {
+    const { app } = createTestApp({ users: [{ id: 'u-1', token: 't-1' }] })
+
+    const res = await app.request('/webhooks/passport/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+
+    // 404 would mean the route was never built. 503 means it exists and is
+    // refusing because `PASSPORT_WEBHOOK_SECRET` is unset — which is the correct
+    // answer, and a distinguishable one for whoever is configuring it.
+    expect(res.status).toBe(503)
+    await expect(res.json()).resolves.toMatchObject({ code: 'NOT_CONFIGURED' })
+  })
+
+  it('requires no Authorization header, because Passport sends none', async () => {
+    const { app } = createTestApp({
+      users: [{ id: 'u-1', token: 't-1' }],
+      env: { PASSPORT_WEBHOOK_SECRET: 'whsec' },
+    })
+
+    // No bearer token. A delivery carries an HMAC over the body and nothing else,
+    // so if this route ever moved under an authenticated prefix every delivery
+    // would 401 for the rest of time.
+    const res = await app.request('/webhooks/passport/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Passport-Signature': 'hmac-sha256=nope' },
+      body: '{}',
+    })
+
+    // 401 from the SIGNATURE check, not from the auth middleware — proven by the
+    // body, which the auth middleware would never produce.
+    expect(res.status).toBe(401)
+    await expect(res.json()).resolves.toMatchObject({ code: 'BAD_SIGNATURE' })
+  })
+})
+
+// The reconciliation trigger has the same mount hazard as the sync endpoint, plus a
+// worse one of its own: the whole point of the endpoint is that the scheduled job can
+// be verified by TRIGGERING it, and a 404 there means the route was never built while
+// every test still passes.
+describe('the Passport reconcile trigger', () => {
+  it('is mounted, and answers 503 rather than 404 when unconfigured', async () => {
+    const { app } = createTestApp({ users: [{ id: 'u-1', token: 't-1' }] })
+
+    const res = await app.request('/webhooks/passport/reconcile', { method: 'POST' })
+
+    expect(res.status).toBe(503)
+    await expect(res.json()).resolves.toMatchObject({ code: 'NOT_CONFIGURED' })
+  })
+
+  it('refuses an unauthenticated caller once configured', async () => {
+    const { app } = createTestApp({
+      users: [{ id: 'u-1', token: 't-1' }],
+      env: { PASSPORT_RECONCILE_SECRET: 'rec' },
+    })
+
+    // No bearer token and no reconcile secret: 403 from the secret check, not 401
+    // from auth middleware — the route sits outside the auth gate because a
+    // scheduler is not a signed-in user.
+    const res = await app.request('/webhooks/passport/reconcile', { method: 'POST' })
+
+    expect(res.status).toBe(403)
+    await expect(res.json()).resolves.toMatchObject({ code: 'FORBIDDEN' })
+  })
+})

@@ -9,6 +9,8 @@ import { parseCorsAllowedOrigins } from './cors'
 import { buildDbDeps } from './db'
 import { loadEnv } from './env'
 import { createLogger } from './logger'
+import { createPassportReconciler } from './passport/reconcile'
+import { loadPassportPlacement } from './passport/registry'
 import { createResearchShaper } from './research/shape'
 import { createResearchTicker } from './research/ticker'
 import { mountRealtime, type MountRealtimeHandle } from './ws'
@@ -22,6 +24,21 @@ async function main(): Promise<void> {
   // out of the discriminated `RealtimeAdapter` here. The provider-specific
   // node-ws binder stays narrowed below.
   const agentGuard = createAgentConcurrencyGuard()
+
+  // Step 0 of the Passport integration: this app's PLACEMENT — which unit types
+  // may hold its roles, and whether a parent's role reaches the outlets beneath
+  // it. Read here and nowhere else, because the app registry is **not a synced
+  // aggregate**: no event announces a change and `snapshot()` does not carry it,
+  // so a re-scope needs a restart.
+  //
+  // Awaited before the server starts listening, so no request can reach the access
+  // derivation before the answer exists. It never throws — an unreachable registry
+  // falls back to brand-only and logs that it did, because refusing to boot would
+  // make Passport a hard dependency for serving app-native users.
+  //
+  // Plan: `docs/executing/passport-sync-consumer-plan.md`, phase 4a.
+  await loadPassportPlacement(env, log)
+
   const app = createApp({
     env,
     log,
@@ -47,6 +64,21 @@ async function main(): Promise<void> {
     logger: log,
   })
   if (env.RESEARCH_PROVIDER !== 'none') researchTicker.start()
+
+  // Part three of reconciliation: the SCHEDULE. The function and the endpoint are
+  // both useless without it, and writing only those two is the common failure —
+  // they pass their own tests, so the suite is green while nothing ever runs.
+  //
+  // Started only when the API credentials exist, because the function throws
+  // without them and a sweep that always fails is noise rather than a backstop.
+  // Single-instance, like the research ticker beside it and for the same reason —
+  // see `passport/reconcile.ts`.
+  const passportReconciler = createPassportReconciler({ env, log })
+  if (env.PASSPORT_API_URL && env.PASSPORT_API_KEY) {
+    passportReconciler.start()
+  } else {
+    log.info('passport reconcile: not scheduled (PASSPORT_API_URL / PASSPORT_API_KEY unset)')
+  }
 
   const server = serve(
     {
@@ -92,6 +124,9 @@ async function main(): Promise<void> {
       // to make is `finishResearchJob` for a run that has completed and been
       // billed. Losing it strands a paid job `IN_PROGRESS` until the ceiling.
       await researchTicker.stop()
+      // Same reason: a sweep sitting inside a snapshot read would otherwise
+      // resume after `pool.end()` and write against a dead pool.
+      await passportReconciler.stop()
       await ws.close()
       await new Promise<void>((resolve, reject) =>
         server.close((err) => (err ? reject(err) : resolve())),

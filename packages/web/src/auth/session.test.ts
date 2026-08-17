@@ -179,19 +179,41 @@ describe('signOut', () => {
     expect(sessionStorage.getItem('bf_token')).toBeNull()
   })
 
-  it('falls back to a local sign-out when the global one cannot reach the network', async () => {
-    // The global call revokes every refresh token and needs the network to do
-    // it. The local one only empties localStorage — which is the part that has
-    // to happen before the store is cleared.
+  it('retries locally when the first sign-out cannot reach the network', async () => {
+    // Both calls are `scope: 'local'`. The first still needs the network to
+    // reach GoTrue and revoke the refresh token; the retry only has to empty
+    // localStorage, which is the part that must happen before the store is
+    // cleared.
     const { session, useAuthStore } = await load(true)
     useAuthStore.setState({ token: 'live', userId: 'u1' })
     supa.signOut.mockResolvedValueOnce({ error: { message: 'offline' } })
 
     await session.signOut()
 
-    expect(supa.signOut).toHaveBeenNthCalledWith(1)
+    expect(supa.signOut).toHaveBeenNthCalledWith(1, { scope: 'local' })
     expect(supa.signOut).toHaveBeenNthCalledWith(2, { scope: 'local' })
     expect(useAuthStore.getState().token).toBeNull()
+  })
+
+  it('never signs the person out of the other apps sharing the issuer', async () => {
+    // This assertion used to read `toHaveBeenNthCalledWith(1)` — no arguments,
+    // which is `scope: 'global'` by GoTrue's default. It was correct only while
+    // BrandFactory owned its own issuer. Under Passport's hosted login a
+    // member's session comes from PASSPORT's project, shared by every consumer
+    // in the suite, so the default revokes their session in every other Mission
+    // Systems app and in Passport's console — and does it up to a token lifetime
+    // later, at their next refresh, where nobody attributes it to this button.
+    //
+    // `auth/signout-scope.test.ts` sweeps the source for the same rule; this one
+    // pins the behaviour of the call site that exists.
+    const { session } = await load(true)
+    supa.signOut.mockResolvedValue({ error: null })
+
+    await session.signOut()
+
+    for (const call of supa.signOut.mock.calls) {
+      expect(call[0]).toEqual({ scope: 'local' })
+    }
   })
 
   it('clears the store even when both sign-out calls reject', async () => {

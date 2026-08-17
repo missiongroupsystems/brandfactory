@@ -83,12 +83,39 @@ export async function getFreshAuthToken(): Promise<string | null> {
  * the refresh token in localStorage is still alive therefore races the sign-out
  * against itself, and the race is one the sign-in wins about as often as not.
  *
- * The fallback to `scope: 'local'` covers a sign-out attempted offline. The
- * global call revokes every refresh token for the user and needs the network to
- * do it; the local one only empties localStorage, which is what actually has to
- * happen before the store is cleared. A revoked-server-side session is the
- * better outcome, so the global call is tried first and the local one only
- * catches what it drops.
+ * ## `scope: 'local'` is not a detail — it is the difference between signing
+ * ## out of this app and signing out of the whole suite
+ *
+ * Every GoTrue client — `supabase-js` included — defaults `signOut()` to
+ * **`scope: 'global'`**, which revokes *every* refresh token that person holds
+ * **in the project**. Today BrandFactory's sessions come from its own Supabase
+ * project, so that only reaches BrandFactory's own tabs. Under Mission
+ * Passport's hosted login a member's session is issued by **Passport's**
+ * project, shared by every consumer app in the suite — so the default would
+ * make this button sign the person out of every other Mission Systems app and
+ * of Passport's own console.
+ *
+ * **The symptom is delayed, which is why nobody attributes it to this
+ * function.** Sign-out revokes the *refresh* token; the access token is a JWT
+ * that stays valid until it expires. The other apps keep working normally and
+ * then throw everyone out at their next refresh, up to a token lifetime later.
+ * "I signed out of BrandFactory at 09:05" and "the other app logged me out at
+ * 09:52" do not look like the same event, and it gets filed as flaky sessions.
+ *
+ * So: **`local`, always, on both calls.** `scope: 'others'` is not a middle
+ * ground — same blast radius, minus this tab. "Sign out everywhere" has exactly
+ * one home suite-wide, the Passport console's confirmed action, and a consumer
+ * never implements its own. Nor does this button redirect to Passport's
+ * `/logout`: that ends the person's *SSO session*, so the next app they open
+ * makes them sign in again — a different promise from "sign out of this app".
+ *
+ * `auth/signout-scope.test.ts` sweeps the source for any call site that omits
+ * the scope, because a behavioural test only covers the call sites that exist
+ * today and the real failure mode is the next one somebody adds.
+ *
+ * The second call is the offline path: the first needs the network to reach
+ * GoTrue, while the retry only has to empty localStorage, which is what must
+ * happen before the store is cleared.
  *
  * Note that `supabase.auth.signOut()` also fires `SIGNED_OUT`, which
  * `startSessionSync` turns into a `logout()` of its own. The explicit call
@@ -98,7 +125,7 @@ export async function getFreshAuthToken(): Promise<string | null> {
 export async function signOut(): Promise<void> {
   if (supabase) {
     const failed = await supabase.auth
-      .signOut()
+      .signOut({ scope: 'local' })
       .then(({ error }) => !!error)
       .catch(() => true)
     if (failed) await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)

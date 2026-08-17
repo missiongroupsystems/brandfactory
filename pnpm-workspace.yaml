@@ -1,3 +1,18 @@
 packages:
   - 'packages/*'
   - 'packages/adapters/*'
+
+# `@missiongroupsystems/passport-client` is a git dependency whose repository
+# tracks `src/` but **not** `dist/`, so its `prepare` script (`tsc -p
+# tsconfig.build.json`) is what produces the importable output. pnpm 10 blocks
+# build scripts for git-hosted packages unless they are named here, and the
+# install fails outright with ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED rather than
+# silently installing something unusable.
+#
+# The entry is therefore load-bearing, not a convenience: remove it and
+# `packages/server` cannot resolve the Passport SDK at all. The dependency is
+# pinned to an immutable commit in `packages/server/package.json`, which is what
+# makes running its build script an acceptable risk — it is our own private
+# monorepo at a SHA we chose, not a floating version.
+onlyBuiltDependencies:
+  - '@missiongroupsystems/passport-client'
