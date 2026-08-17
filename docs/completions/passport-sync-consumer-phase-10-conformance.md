@@ -102,6 +102,15 @@ Four things about how it is built:
   still here because retiring them is phase 8. So a *third* shadow fails this test, and
   phase 8 removing the two fails it as well — which forces the expectation to shrink
   rather than rot into a permanent exception.
+
+  > **Superseded 2026-08-18 by decision `D1-b`.** Phase 8 no longer retires them. The two
+  > tables are kept deliberately, so that a person can create a brand and work inside it
+  > while Passport is unreachable — proposal §8 `D1` carries the reasoning and the cost. So
+  > the expectation stays at exactly two and the exception *is* permanent, which is the
+  > opposite of what this bullet predicted. It is now a **bounded, decided** violation of
+  > rule 7 rather than a pending cleanup, and the boundary is what the test pins: a third
+  > shadow still fails, and membership, entitlement, unit-app-access, unit-app-membership and
+  > identity-link may never join the set. The rest of this document stands as written.
 - **One check asserts PRESENCE**, and it is the mirror-image failure. Rule 3 is proven by
   absence, so the instinct while sweeping is to delete everything that talks to Passport
   — and those five are reads and redemptions, not writes. Deleting any of them takes

@@ -139,8 +139,23 @@ describe('passport conformance detectors', () => {
   // §0b(A) — rule 7. A shadow table is any local table carrying an aggregate's name,
   // status, type, org linkage, structure, membership or role.
   //
-  // Asserted as an exact set rather than as emptiness, because two are still pending.
-  it('§0b — holds exactly the two shadow tables phase 8 retires, and no more', () => {
+  // Asserted as an exact set rather than as emptiness, and the reason CHANGED on 2026-08-18.
+  //
+  // It used to be "two are still pending, and phase 8 retires them", so the expectation would
+  // shrink to zero. Decision `D1-b` settled otherwise: `workspaces` and `brands` are **kept,
+  // knowingly**, so that a person can create a brand and work inside it while Passport is
+  // unreachable. Proposal §8 `D1` is the record, including what that costs.
+  //
+  // So this is now a **bounded, decided violation of rule 7** rather than a pending cleanup, and
+  // the set stays at exactly these two. A THIRD shadow still fails here, which is the whole point:
+  // the honest way to hold a decided exception is to pin its boundary, not to delete the detector
+  // because the rule no longer holds outright.
+  //
+  // What is NOT licensed by `D1-b`, and what this set must never grow to include: membership,
+  // entitlement, unit_app_access, unit_app_membership or identity_link. A unit is a name and an
+  // address; a membership is a key. A consumer that can write its own membership rows can grant
+  // itself access to an organisation.
+  it('§0b — holds exactly the two shadow tables `D1-b` keeps, and no more', () => {
     const declared = new Set<string>()
     for (const file of ALL_FILES) {
       if (!file.path.startsWith('packages/db/src/schema/')) continue

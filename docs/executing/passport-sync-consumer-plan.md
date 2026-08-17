@@ -128,7 +128,9 @@ Full gate. Confirm `pnpm typecheck` sees the SDK's types and that
 ## Phase 2 — the projection
 
 Eight tables in a dedicated `passport` Postgres schema. This is not a cache beside BrandFactory's org
-model; from phase 8 it **is** the org model.
+model; from phase 8 it is the **authoritative** org model — the only source of memberships,
+roles, entitlements and legal names. `D1-b` keeps a local structure table beside it for outage
+authoring, so "the only org model" would now be wrong; "the authoritative one" is not.
 
 ### 2a. The tables
 
@@ -743,6 +745,18 @@ Full gate. Test: deliver a real signed `membership.removed`, assert the row surv
 **Everything above is additive. Nothing below can ship until Passport holds the data.** Phase 8 against
 an empty projection is not the access shrink of proposal §6.2 — it is a **lockout of everyone**.
 
+> **Amended 2026-08-18 by `D1-b`.** The gate stands, and the reason is worth stating precisely, because
+> `D1-b` looks like it removes the danger and does not.
+>
+> `D1-b` keeps `workspaces` and `brands`, so an empty projection no longer means "no structure exists".
+> It means **every local row is unlinked** — and under 8d an unlinked brand is visible to any active
+> member of its workspace's organisation. With an empty projection there are no active members. So the
+> lockout is identical; it merely arrives by a different route.
+>
+> The gate query below is therefore unchanged and still a gate, not a report. What `D1-b` adds is a
+> fifth line worth checking: how many local rows will be unlinked on day one, from 8a. A large number
+> is not a blocker, but it is a large access widening arriving in one deploy.
+
 Three operator steps, in this order, and none of them is code:
 
 1. **Import the structure.** Prefer running it **from the Passport side**: the Admin API is
@@ -786,108 +800,176 @@ so a local row with a stale or absent email is a person who cannot be authorized
 
 ---
 
-## Phase 8 — retire the shadows (BREAKING; needs `D1`)
+## Phase 8 — the `structure` port and the link (BREAKING; `D1-b` decided)
 
-The behaviour change. Do not start it in the same pull request as anything above.
+**Rewritten 2026-08-18.** This phase was "retire the shadows". `D1-b` decided otherwise, on a
+requirement the retirement cannot meet: during a Passport outage a person must be able to create a
+brand **and work inside it**. So `workspaces` and `brands` **stay**, each gaining a nullable link to
+its Passport row, and every structure read goes through a resolver.
+
+Read `D1` in proposal §8 first. It carries the design, the costs, and the boundary — chiefly which
+aggregates the shadow may **never** grow to include.
+
+The behaviour change is still here and still breaking. Do not start it in the same pull request as
+anything above.
+
+**What did NOT change from the original phase 8:** the audit-first discipline (8a), the authorization
+rewiring (8d), the frontend work (8f), and the rule that a write is refused at the handler before its
+affordance is removed. None of those was ever about dropping the tables.
+
+**What is gone:** the bridge-split-re-key-drop migration. Nothing is re-keyed and nothing is dropped,
+because the local primary keys stay and stay stable. That removes the single largest risk this plan
+carried.
 
 ### 8a. Audit against real data first
 
-The schema says what is *possible*; only the data says what is *true*. Expect surprises — a column
-the code branches on constantly is very often empty in practice.
+Unchanged in spirit, narrower in purpose. The schema says what is *possible*; only the data says what
+is *true*, and this phase now needs the audit to size the **link**, not the migration.
 
 ```sql
 select count(*) from workspaces;
 select count(*) from brands;
--- brands whose name differs from the Passport unit's LEGAL name: each one is a display label
--- that exists nowhere in Passport and must be carried over BEFORE the drop.
+-- Which local rows can be resolved to a Passport unit at all? Everything unresolvable stays
+-- unlinked, which is now a supported state rather than a blocker — but the COUNT is the thing
+-- to know before shipping, because every unlinked brand is visible org-wide (D1-b).
 ```
 
-### 8b. Bridge, split, re-key, drop — in that order, in separate migrations
+Two questions the audit must answer, because the access rule below depends on both:
 
-1. **Bridge.** Resolve every local row to a Passport UUID via `unit.external_ref` (set to a
-   deterministic `"brandfactory:<legacy pk>"` during the import when no natural key exists).
-   **Get to zero unresolvable rows before anything is re-keyed** — an unresolvable row is dependent
-   data with nowhere to point, and that is the whole risk of this migration.
-2. **Split, don't drop.** `passport.unit` carries `id, organization_id, type, name, external_ref,
-   status, version` plus the seven sparse profile columns. It does **not** carry BrandFactory's
-   `description` or `website_url`. So `DROP TABLE brands` deletes columns nothing else holds — and
-   `1.24.0` wired the brand `TL;DR` into the hub, the workspace cards *and the agent prompt*.
+1. How many brands will be unlinked on day one? Each is a knowing access widening until it links.
+2. How many local brand names differ from their unit's legal name? Under `D1-b` that is fine and
+   permanent — but it sizes the drift view, and a large number means the view matters on day one
+   rather than eventually.
 
-   ```
-   passport.unit    id, organization_id, type, name, status   <- Passport owns
-   brand_profile    unit_id (PK, = the Passport UUID)
-                    description, website_url, short_name      <- we own
-   ```
+### 8b. The link columns, in one additive migration
 
-   `short_name` is backfilled from `brands.name` **only where it differs** from the unit's legal
-   name, and read as `coalesce(p.short_name, u.name)`. A display label distinct from the legal name is
-   a concept Passport has no notion of, so it is rule 7's carve-out used correctly. Skip it and every
-   picker, header, report and prompt silently switches to "Pte. Ltd." names, with nothing erroring and
-   the original strings gone.
+No bridge, no split, no re-key, no drop. One migration:
 
-   The same one level up: `workspace_settings` is re-keyed to the org UUID. Check its columns for
-   anything whose default differs from its stored value — a blind drop reverts them.
-3. **Re-key every FK in one migration** — `guideline_sections`, `brand_assets`,
-   `brand_research_jobs`, `section_autofill_events`, `social_posts`, `social_post_assets`, `projects`,
-   and everything below `projects`. **Add `organization_id` in the same migration** (rule 9): it
-   rewrites the same rows, and a second pass over them is pure waste. Non-null, indexed, and every
-   query filters on it.
-4. **Drop `workspaces` and `brands`**, and their Drizzle definitions, and their exports from
-   `schema/index.ts`. Both — a surviving definition resurrects the table on the next `db:generate`.
+```
+workspaces.passport_organization_id  uuid null                 -- indexed
+brands.passport_unit_id              uuid null unique          -- indexed; a unit links to
+                                                               -- at most one brand
+```
 
-   > **If a compatibility view is used instead of repointing call sites**, it needs
-   > `security_invoker = true` (PG15+) or it runs as its owner; and a view has **no foreign keys**, so
-   > anything resolving joins *through constraints* breaks. BrandFactory writes explicit Drizzle
-   > queries rather than constraint-resolved embeds, which makes this risk small here — but confirm
-   > by grep before relying on that.
+- **Nullable is the whole point.** `NULL` means "not yet in Passport", which is a first-class state,
+  not a defect. A `NOT NULL` column here would make the outage path impossible.
+- **`unique` on `brands.passport_unit_id`**, so two local brands cannot claim one unit. That is the
+  constraint that turns the link's failure mode (proposal `D1`) into an error instead of a silent
+  duplicate.
+- **No foreign key to `passport.unit`.** The projection carries no constraints by design, and a
+  cross-schema FK to a table the sync deletes rows from would fail a legitimate delete.
+- **No `organization_id` on the app-owned tables.** The original plan added it for rule 9 scoping. It
+  is unnecessary now: the org resolves through `brands.workspace_id → workspaces.passport_organization_id`.
+  Rule 9's real requirement — never pin the app to one org — holds either way. Record this in the
+  conformance test as met-by-resolution rather than leaving the checklist item ambiguous.
 
-### 8c. Delete the code the shadows existed for
+Backfill the links where a unit's `external_ref` matches `'brandfactory:<local id>'` or the local id
+itself. **Leave the rest unlinked**; do not guess by name.
 
-`POST /workspaces`, `DELETE /workspaces` (`1.30.0`), `POST /workspaces/:id/brands`, `NewWorkspaceDialog`,
-`NewBrandDialog`, the `/workspaces` first-run page, and the workspace/brand name and description
-editors' Passport-owned fields.
+### 8c. The `structure` port — the one new abstraction
 
-**Refuse at the handler first, remove the affordance second.** A route handler is an HTTP endpoint
-with a stable path — it stays callable whether or not anything renders it. Prove it the way an
-attacker would: `curl` the handler with a payload that used to work, as a user who used to be
-allowed. A `200` with no button in the UI is a failure, not a pass. And **the refusal is not
-selective** — it refuses for an org `Owner` too, or the old authority matrix has been reimplemented
-instead of the write being closed.
+`packages/adapters/structure/`, following the five existing ports. This is the file that rots if
+nobody watches it, so it gets the most attention in review.
 
-**Split the editors rather than deleting them.** A brand editor mixes Passport-owned fields (`name`,
-the type-dependent profile fields, structure) with app-owned refinements (`description`,
-`website_url`, `short_name`).
+It answers one question in two ways:
 
-In **this** phase the Passport-owned half becomes **read-only for everyone**, with a link to the
-console; the refinements keep their form. Phase 9 then reopens the Passport-owned half **for org
-Admins on a hosted-login session only**, writing through to Passport. Doing it in that order means
-phase 8 is a clean retirement that stands on its own, and phase 9 is a reviewable addition rather than
-a change buried inside a large migration.
+```
+resolveBrand(localId)  ->  { id, displayName, legalName | null, unitId | null, linked: boolean }
+```
 
-`POST /workspaces/:id/brands` still goes in this phase. Phase 9 replaces it with a route that creates a
-Passport unit, rather than restoring the local one.
+Three rules, and each has a failure mode that passes silently:
+
+1. **`displayName` always comes from `brands.name`.** For every brand, linked or not. It is the app's
+   label and it is allowed to differ from the legal name for ever (proposal §5, point 1).
+2. **`legalName` comes from `passport.unit.name` through the link, and is `null` when unlinked.**
+   Never defaulted to the display label. A `null` legal name is the honest answer for a brand Passport
+   has never seen, and any surface that needs a legal name must handle it rather than print a label
+   into a statutory field.
+3. **`status` is Passport's and is read through the link only.** Never copied to `brands`. A local
+   `status` column is the shadow arriving, and it is the most likely one to be added, because "the
+   list needs to grey out archived brands" is a reasonable-sounding request.
+
+**Every structure read goes through this.** A source sweep enforces it — the same shape as the
+sign-out and queue sweeps — because a direct `passport.unit` read that forgets the unlinked case
+returns nothing for a locally created brand, and shows an empty page rather than an error.
 
 ### 8d. Rewire `authz.ts`
 
-The one edit the file was built for. `requireWorkspaceAccess` stops comparing `ownerUserId` and starts
-asking the derivation; `requireBrandAccess` asks *"what is this user at this unit?"* —
-`rolesAtUnits(...)[unitId]`. The aggregate chain keeps its shape.
+The one edit the file was built for, and it now has **two** branches rather than one.
 
-Do **not** collapse the map into a boolean to "preserve behaviour". A user who could reach every
-workspace can now reach the units they hold a role at, plus everything if they are an org
-`Owner`/`Admin` via the ladder. **Access legitimately shrinks for some people. That is a bug fix and
-it will be reported as a regression** — enumerate the affected users from 8a and say so before
-shipping.
+`requireWorkspaceAccess` stops comparing `ownerUserId`. `requireBrandAccess` asks *"what is this user
+at this unit?"* — `rolesAtUnits(…)[unitId]`. The aggregate chain keeps its shape.
 
-### 8e. Frontend
+Then the branch `D1-b` forces:
 
-`WorkspaceSwitcher` becomes an org switcher over the orgs the person is a member of. `BrandRail` and
-`BrandSwitcher` list the units that carry BrandFactory and where the person holds a role. Any surface
-that assumed one workspace per user, or that every brand is reachable, is revisited.
+| Row | Rule |
+| --- | --- |
+| linked | the Passport derivation, with the org ladder above it. The only rule once the link lands. |
+| unlinked brand | any **active member of the workspace's organisation** with BrandFactory access at that org |
+| unlinked workspace | its **creator only** |
+
+**The unlinked-brand rule is a knowing widening and must be commented as one at the code.** During the
+unlinked window a brand is visible org-wide rather than to the people holding a role at it.
+
+Do **not** collapse the roles map into a boolean to "preserve behaviour". Access legitimately shrinks
+for some people. **That is a bug fix and it will be reported as a regression** — enumerate the
+affected users from 8a and say so before shipping.
+
+### 8e. What the shadows existed for — split, do not delete
+
+**Workspaces.** `POST /orgs` is `require_super_admin` in Passport, so no BrandFactory user of any role
+can mint an organisation *there*. But `D1-b` keeps local workspaces, so `POST /workspaces` **survives**
+— creating a local workspace that links when a super admin creates the matching org. `NewWorkspaceDialog`
+and the first-run page stay, with copy that says the workspace is local until Passport knows it.
+
+This is a change from the original plan, which deleted all three. Record it: the deletion was correct
+under `D1-a` and is wrong under `D1-b`.
+
+**Brands.** `POST /workspaces/:id/brands` survives and gains a second half: create the local row, then
+attempt the Passport create through phase 9's client. On success the event links it. On an outage the
+attempt is queued and the brand is unlinked but usable — the requirement `D1-b` exists for.
+
+**The privilege split is the part to get right** (proposal §6.1): the Passport-reaching create is
+org-Admin-and-hosted-login only; the local create is not, and cannot be. So a non-Admin can create a
+local brand, and **only an Admin can promote it.** Until an Admin drains the queue, the brand exists
+in BrandFactory alone. Build it that way — a non-Admin create that reaches Passport unattended hands a
+consumer app the power to add units to an org's structure with no org Admin involved.
+
+**Split the editors.** A brand editor mixes Passport-owned fields (the legal name, the type-dependent
+profile fields, structure) with app-owned ones (the display label, `description`, `website_url`). The
+Passport-owned half is read-only except through phase 9's write-through, for org Admins on a
+hosted-login session. The app-owned half keeps its form and works during an outage.
+
+**Refuse at the handler first, remove the affordance second.** A route handler is an HTTP endpoint with
+a stable path — it stays callable whether or not anything renders it. Prove it the way an attacker
+would: `curl` the handler with a payload that used to work, as a user who used to be allowed. A `200`
+with no button in the UI is a failure, not a pass. And the refusal is not selective — it refuses for an
+org `Owner` too, or the old authority matrix has been reimplemented instead of the write being closed.
+
+### 8f. Frontend
+
+`WorkspaceSwitcher` becomes an org switcher over the orgs the person is a member of, **plus any local
+workspaces they created**. `BrandRail` and `BrandSwitcher` list the units that carry BrandFactory and
+where the person holds a role, **plus the unlinked local brands** their org rule admits.
+
+**An unlinked row is labelled as unlinked, everywhere it appears.** Not as an error — as a state. A
+brand that exists only here, and that sibling apps cannot see, must not look identical to one Passport
+knows about.
+
+### 8g. Conformance — record the violation rather than hiding it
+
+The §0b shadow detector currently asserts **exactly** `brands` and `workspaces`. Under the original
+phase 8 it would have shrunk to zero. Under `D1-b` it **stays at exactly those two**, and the test's
+comment changes from "phase 8 retires these" to "`D1-b` keeps these, knowingly, for outage
+authoring — a THIRD one is still a failure".
+
+That is the honest form. The alternative — deleting the detector because the rule no longer holds — is
+how a bounded, decided violation becomes an unbounded, undecided one.
 
 ### Gate
-Full gate, plus the §0b and §0c detectors returning clean, plus a manual pass as three users: an org
-Owner, a `Manager` at one unit, and someone with no role at all.
+Full gate, plus the §0b and §0c detectors returning their expected states, plus the structure-read
+sweep, plus a manual pass as four users: an org Owner, a `Manager` at one unit, someone with no role
+at all, and someone looking at an **unlinked** brand.
 
 ---
 
@@ -961,8 +1043,10 @@ structure. Conflating the two vocabularies is exactly what rule 8 forbids.
 
 - **`type` is on the create form only.** `UnitUpdate` is `extra="forbid"`, so sending it on an edit is
   a `422`. A brand cannot become an outlet.
-- **`external_ref` is read-only in our UI.** Phase 8's bridge set it, and our row resolution depends
-  on it.
+- **`external_ref` is read-only in our UI.** Under `D1-b` it is **`brands.id`**, set by the push in
+  9c-bis, and the link depends on it. It was originally described as set by phase 8's bridge; that
+  bridge no longer exists, but the conclusion is unchanged and now stronger — editing it would break
+  the link between a local brand and its unit.
 - **`description` is never sent.** Passport accepts it and deliberately never syncs it back, so writing
   it would create a copy we can never read. It stays app-owned in `brand_profile`.
 - **Re-parenting is `DELETE` then `POST`** — relations are immutable. The delete is a destructive write
@@ -988,6 +1072,37 @@ Migration: `passport_write_attempts` — `id`, `organization_id`, `operation`, `
   saved — retry", retries one or all, and can discard.
 - **A row is never a source of truth for a screen.** The brand list always reads `passport.unit`.
 
+### 9c-bis. The link, on the returning event (`D1-b`)
+
+**New 2026-08-18.** `D1-b` makes the queue more than a retry buffer: it is the **promotion path** for a
+locally created brand. So the round trip has a fourth step that did not exist when this phase was
+written.
+
+1. Local create. `brands` row exists, `passport_unit_id` is `NULL`, the brand is usable.
+2. The push carries **`external_ref = brands.id`**. Stable per brand, so a replay is idempotent and a
+   duplicate answers `409` rather than making a second unit.
+3. Passport answers `201` and emits `unit.upserted`.
+4. **The receiver sets `brands.passport_unit_id`** where the event's `external_ref` matches an unlinked
+   local id.
+
+Four things about step 4:
+
+- **It writes `brands`, not `passport.unit`.** `brands` is app-owned, so the projection keeps exactly
+  one writer and the read-only enforcement is untouched. Do not be tempted to "complete" the link by
+  writing anything into `passport.*`.
+- **It is idempotent and version-independent.** The link is set once and never changes; a replayed
+  event finds the row already linked and does nothing. Do not put the link behind the version guard —
+  it is not a projected field.
+- **`unique` on the column is what makes a mismatch an error.** Without it, two local brands claiming
+  one unit is a silent duplicate.
+- **A unit whose `external_ref` matches nothing must not be dropped silently.** It is either a brand
+  created by another app, or the failure mode in proposal `D1` — a ref that never matched. Log it, and
+  report it from reconciliation as a unit carrying a `brandfactory:` ref with no local row.
+
+**The `unlinked` count is not optional under `D1-b`.** A queue nobody drains leaves a growing set of
+brands that exist in BrandFactory and nowhere else, invisible to every sibling app, with nothing
+failing. Surface it beside the failed-write queue in the same Admin view (9e).
+
 ### 9d. Nothing writes the projection
 
 The write goes to Passport; Passport emits `unit.upserted` / `unit_relation.created` /
@@ -998,7 +1113,26 @@ So the UI shows the row as **pending** between the `2xx` and the event — usual
 Passport's response body for optimistic client state only, and never persist it. **Show the pending
 state**, or a correct save reads as a failure and the Admin presses it again.
 
-### 9e. The drift view
+### 9e. The drift view — now buildable, and it has two jobs
+
+> **Amended 2026-08-18 by `D1-b`.** This section was blocked before the decision: there was no
+> correspondence between a local brand and a Passport unit, so "differs from what this app last
+> displayed" had nothing to compare. `brands.passport_unit_id` is that correspondence. The view now has
+> a data source and **two** distinct jobs, which should be two sections of one screen rather than one
+> merged list:
+>
+> 1. **Divergence** — linked brands where `brands.name` differs from `passport.unit.name`. Under
+>    `D1-b` this is **expected and permanent** for every brand whose label is shorter than its legal
+>    name, so the view must not present it as an error. Its purpose is to make a rename in Passport
+>    *visible*, since the app's label deliberately does not follow it (proposal §5, point 1).
+> 2. **Unlinked** — local rows with no Passport row, and the failed-write queue behind them. This is
+>    the half that needs attention, because an unlinked brand is both an access widening (8d) and
+>    invisible to sibling apps.
+>
+> Keeping them separate matters. Merging them produces a screen with dozens of permanent, correct
+> "divergences" hiding the two rows that need an Admin to act.
+
+### 9e-bis. The original statement of the view
 
 A read-only Admin screen listing units whose Passport values differ from what this app last displayed,
 plus anything sitting in the queue. This is the honest home for "are there changes?" — and it is also
