@@ -213,7 +213,7 @@ function EntityResults({
                   {entity.brand_id ? (
                     brandsById.has(entity.brand_id) ? (
                       <Link
-                        href={`/brands/${entity.brand_id}`}
+                        href={`/registry-brands/${entity.brand_id}`}
                         className="-mx-2 -my-1 inline-block max-w-full truncate rounded-md px-2 py-1 hover:text-brand hover:underline"
                       >
                         {brandsById.get(entity.brand_id)!.name}

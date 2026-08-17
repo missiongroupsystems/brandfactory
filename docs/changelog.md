@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.33.1** — 2026-08-17 — Pre-push review of 1.33.0: a sign-out sweep that could not reach the paginated lists, a form that blamed the network for the server's own refusal, two switchers that read a failed request as an empty account, and `/brands` pointing at the Operations Hub's. No migration. 2038 tests.
 - **1.33.0** — 2026-08-17 — The Next shell stops being a mock: it signs you in, knows its workspace, lists the brands the server actually holds, and can create one. Four phases, one release; no browser pass. No migration. 2023 tests.
 - **1.32.0** — 2026-08-17 — A brand toggle takes the second row of the Next shell's nav: the feature folder was already complete, so the data half is one fixture and two routes, and the selection is a preference rather than a route. No migration. 1982 tests.
 - **1.31.0** — 2026-08-17 — A second frontend arrives whole: the Operations Hub's Next 16 shell becomes BrandFactory's, fixture-backed through one swapped function and trimmed to nine nav items, beside the Vite app it will replace. `next dev` does not hydrate; `next start` does. No migration. 1982 tests.
@@ -73,6 +74,228 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.33.1 — 2026-08-17
+
+**A review pass over 1.33.0, before either of them was pushed.** Five defects in
+`packages/web-next`, four of which put a false statement on screen. **No migration, no server
+change, no wire change** — one page route renamed, one cache sweep corrected, three error paths
+taught that this app has two transports.
+
+1.33.0 shipped with an explicit caveat: no browser pass, and no run against a real server. That
+caveat still stands, and §7 says what it now costs. What this release does instead is re-run the
+gate from scratch and read the four phases against the two API clients they straddle. **The gate
+was green before these fixes and is green after them.** Every defect below passed `typecheck`,
+`lint`, `format:check`, 2023 tests and both production builds — which is the same sentence
+1.32.0's completion note wrote about the `onSelect` bug, and the reason the browser pass is still
+owed rather than discharged.
+
+Files touched: 14 source files modified, 2 test files added, 2 pages moved, plus `AGENTS.md` and
+this file. **No file in `packages/web`, `packages/server`, `packages/db` or `packages/shared` was
+changed** — see §3 for the one place that was tempting and was left alone.
+
+### 1. `mutate(() => true)` is not "clear everything", and the sign-out sweep believed it was
+
+`auth/auth-boundary.tsx` cleared the SWR cache on sign-out with
+`mutate(() => true, undefined, {revalidate: false})`, under a comment calling it "the documented
+clear-everything form". It is not. SWR filters the cache **before** it applies a caller's matcher:
+
+```js
+// swr@2.5.1 — config-context-s960zqob.js:266, inside internalMutate
+!/^\$(inf|sub)\$/.test(key) && keyFilter(cache.get(key)._k)
+```
+
+So no matcher — not `() => true`, not any other — can reach a `useSWRInfinite` entry. **Thirteen
+files in this package reach SWR through `lib/api/use-cursor-pages.ts`**, which is most of the
+product's list data. Sign out and back in as a second user in the same tab, and every one of those
+lists was still the first user's.
+
+This is the same blindness `lib/api/cache.ts` already documents at length and works around in
+`useInvalidate` — the bug that "survived eight releases and every gate". 1.33.0 reintroduced it in
+the one place where the cost is not a stale table but a previous person's rows.
+
+The fix is a sibling of the existing workaround rather than a second copy of it:
+`useClearCache()` in `lib/api/cache.ts` runs the matcher **and** sweeps the blind prefixes by
+name off `cache.keys()`. `$sub$` goes with `$inf$` because SWR's regex covers both and a
+`useSWRSubscription` here later would inherit the same hole silently. The boundary now calls
+that hook, and the navigate-then-clear ordering is unchanged — it is still the whole reason the
+call lives in the boundary rather than in `signOut`.
+
+**The regression test is the interesting half.** A cache holding only plain keys would let the old
+code pass, so `auth-boundary.test.tsx` seeds four keys, three of them `$inf$`/`$sub$`, and asserts
+each is mutated **by name** while the plain one is left to the matcher.
+
+### 2. A form blamed the network for a complaint about its own input
+
+`hooks/use-submit.ts` decided its form-level message with one type test:
+
+```ts
+if (error instanceof ApiError) return error.message;
+return "Could not reach the API. Check that the backend is running.";
+```
+
+`ApiError` is the **Operations Hub** client's class. `NewBrandSheet` is this package's first
+BrandFactory form and throws `AppError`, from `lib/api/bf-client.ts` — a different class from a
+different transport. So every BrandFactory refusal fell through to the last branch. Delete a
+workspace in a second tab (1.30.0 shipped that; 1.29.0 lets any user reach any workspace), then
+press **Create brand**: the server answers a correct 404 in under a millisecond and the form tells
+the reader the backend is not running.
+
+That is precisely the distinction `components/layout/query-states.tsx` exists to draw, inverted —
+a 403 and an unreachable API are different problems, and one message for both sends the reader to
+the wrong place.
+
+`formError` now recognises `AppError` as well, and the fetch-rejected branch stays last and stays
+narrow, with a comment saying why: it is a claim about the network and a lie about anything the
+server answered.
+
+**`fieldErrors()` was deliberately *not* extended.** It maps FastAPI's `detail` array onto input
+names. Mapping the BrandFactory server's issues onto fields as well would let an issue on a path
+the form does not render — a route param, say — populate `fields`, which suppresses the
+form-level message under this hook's existing precedence rule, and fail silently. That is the
+opposite of the bug being fixed. §3 makes the message itself carry the field name instead.
+
+**The same hole was open on the read side** and is closed in the same pass: `describe()` in
+`query-states.tsx` had the identical `ApiError`-only ladder, so a BrandFactory read error would
+have rendered "Could not reach the API" too. Nothing routes a BF error through it today. It is
+fixed now rather than left for the first screen that does.
+
+### 3. `callJson` could not read the shape most of its refusals arrive in
+
+Chasing §2 turned up why the message would often have been empty even once the class was
+recognised. The server refuses in **two** shapes, and `callJson` knew only the first:
+
+| | Shape | Sent by |
+| --- | --- | --- |
+| 1 | `{code, message, details?}` | `middleware/error.ts` — every `HttpError`, and a `ZodError` that reaches the handler |
+| 2 | `{success: false, error: {name, message}}`, **no top-level `code` or `message`** | `@hono/zod-validator`, which answers `c.json(result, 400)` itself and never throws |
+
+Shape 2 is every `zValidator('json', …)` and `zValidator('param', …)` on the server — which is
+every body this app posts. Under it the old reader found no `code`, no `message`, fell back to
+`res.statusText` (**empty over HTTP/2, which the Next rewrite speaks**), and produced an
+`AppError` whose message was the empty string. Even with §2's fix that renders as a blank alert:
+a form that looks like it did nothing.
+
+`callJson` now reads both, and one detail is worth recording because it is not guessable:
+**zod 4 does not serialise `issues`.** It is a getter, so `JSON.stringify` drops it and the wire
+shape is `{name: "ZodError", message: "<the issues as JSON text>"}`. Verified against the
+installed zod 4.3.6 rather than assumed. The reader parses that string, falls back to a literal
+`issues` array for zod 3, and builds a sentence naming the field — `name: Too small: expected
+string to have >=1 characters` — because "validation failed" does not say which of three inputs
+to look at. Three or more issues are summarised rather than concatenated; a form-level line is
+one line.
+
+Two smaller guarantees came with it: `AppError` now carries `details` and an `isValidation`
+getter, and **the message is never empty** — a body with nothing usable gets a sentence built from
+the status.
+
+`packages/web/src/api/client.ts` has the same shape-2 gap. It is **untouched on purpose**: it
+serves production, its `AppError` reaches TanStack Query rather than this hook, and widening a
+production error path is not what a pre-push review of the other app is for. It is written down
+here so it is a known gap rather than a surprise.
+
+### 4. A failed list rendered as an empty account
+
+`components/layout/workspace-switcher.tsx` and `components/layout/brand-switcher.tsx` both
+destructured `isLoading` and dropped `error`, which both hooks return. SWR reports a 500 or a
+dropped connection as `isLoading: false, data: undefined` — indistinguishable from a real empty
+answer unless `error` is read. So the sidebar said **"No workspaces yet"** and **"No brands
+yet — create one"** on a request that never succeeded.
+
+Both files already carry a paragraph about the pending case — *"a list in flight is a pending
+request, never a missing fact"* — and stopped one state short of the failed one.
+
+The brand row was the worse of the two, because its empty state is a **button**: a list that
+failed to load offered to create a brand into a workspace whose real contents the reader had
+never seen. Each switcher now has three branches, and the error one is a `role="alert"` line.
+A 401 does not reach either of them — `callJson` signs out and the boundary navigates.
+
+### 5. `/brands` was the Operations Hub's brands
+
+1.33.0 renamed `features/brands/` → `features/registry-brands/` so BrandFactory's central noun
+could have the plain word, and moved the cache scopes with it. **It stopped at the folder.** The
+page route did not move, so in a product whose central noun is Brand, `/brands` rendered a page
+titled *"Brands — BrandFactory"* reading *"The names over the doors… outlets and companies are
+assigned a brand"* — and, since the fixture was deleted in the same release, always empty.
+
+Nothing in the nav points at it (nine items), so nobody reached it by clicking. It is still the
+first place the next reader would look, which is the entire argument the rename was made on.
+
+`app/(app)/brands/` → `app/(app)/registry-brands/`, the title becomes **Outlet brands**, and the
+six `href`s that pointed at it move with it — in `brands-browser.tsx`, `brand-detail.tsx` (twice,
+including a `router.replace`), `org-chart-board.tsx`, `entities-browser.tsx` and
+`outlet-detail.tsx`. Next's typed routes made this verifiable rather than hopeful: a missed link
+is a build error, and the build named the two stale ones on the first run.
+
+**`features/registry-brands/api.ts` still calls `/brands` on the wire, and must.** That is the Ops
+backend's path, frozen in the generated `schema.d.ts`. The folder, the cache scope and the page
+route now agree; the transport path is not this app's to rename.
+
+One operational note: the route move left stale entries in `.next/dev/types/validator.ts` and the
+build failed on them until `.next/dev/types` was removed. `.next` is git-ignored, so this affects
+a working tree that has built before, not a clean checkout.
+
+### 6. A created brand did not become the brand you were in
+
+Creating a brand from the switcher invalidated the list and stopped. The stored preference still
+named the previous brand and that brand was still in the refreshed list, so `useActiveBrand`'s
+`find` went on resolving to it — a toast saying a brand was created, over a header that
+disagreed, and the reader left to check whether it had worked.
+
+`NewBrandSheet` gains an optional `onCreated?: (brandId: string) => void`, called with the id the
+server answered with. Optional with no default is the house rule for a new prop on an existing
+component: a caller that does not pass it gets exactly the previous behaviour. `BrandSwitcher`
+passes `select`.
+
+It fires **before** the research start and inside `run`, so the selection lands whether or not a
+run is requested and whether or not that run fails — the same ordering rule as §4 of the 1.33.0
+note, one level down.
+
+### 7. Verification
+
+```
+pnpm typecheck                         clean (11 packages)
+pnpm lint                              clean (whole repo)
+pnpm format:check                      clean
+pnpm test                              2038 passed | 78 skipped (166 files)
+pnpm -F @brandfactory/web build        clean
+pnpm -F @brandfactory/web-next lint    clean
+pnpm -F @brandfactory/web-next build   clean — 28 routes
+```
+
+2023 → 2038: **15 new tests, two new files.** `lib/api/bf-client.test.ts` (8) covers both refusal
+shapes, the zod-4 message-is-JSON representation, the never-empty message, and that a 401 signs
+out where a 403 does not. `hooks/use-submit.test.ts` (6) covers the branch that caused §2, and
+pins the unreachable-API message to a rejected `fetch` and nothing else.
+`auth/auth-boundary.test.tsx` gains the §1 regression test. No existing test changed except that
+file's `swr` mock, which now provides `useSWRConfig`, and its ordering assertion, which allows the
+sweep's several calls after the navigation instead of exactly one.
+
+Route count is unchanged at 28: `/brands` and `/brands/[id]` became `/registry-brands` and
+`/registry-brands/[id]`.
+
+### 8. What is still not verified, and it is the same thing as last time
+
+**There has still been no browser pass and no run against the real server.** Docker was
+unavailable again and the live check was cut by agreement, not by completion. This release makes
+that omission more pointed rather than less: §1 through §4 were all found by reading, all four
+were live in a release the gate called clean, and three of them are only visible at the moment
+something goes wrong — which is exactly when nobody is looking at a test suite.
+
+The six things to click are unchanged from 1.33.0 §5, against `next start` rather than
+`next dev` (1.31.0's hydration defect is still open). Four checks are now worth adding to them:
+
+1. Stop the server, then open the sidebar — the two rows must say *unavailable*, not *none*.
+2. Create a brand — the header must move to it.
+3. Sign out, sign in as a second seeded user, open a list screen — no rows from the first session.
+4. `/registry-brands` loads and `/brands` 404s.
+
+Everything else 1.33.0 listed as an open caveat is unchanged: `next dev` does not hydrate,
+prerendered HTML under `(app)` is the boundary's spinner, no screen below the header reads the
+brand, a research run reports nowhere in this app, and there is still no brand delete, brand edit
+or workspace create. `packages/web` is untouched and keeps serving production.
 
 ---
 

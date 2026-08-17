@@ -5,7 +5,13 @@ import { usePathname } from "next/navigation";
 
 import { AccountMenu } from "@/components/layout/account-menu";
 import { BrandSwitcher } from "@/components/layout/brand-switcher";
-import { CURRENT_PHASE, NAV_GROUPS, NAV_ITEMS, type NavItem } from "@/components/layout/nav";
+import {
+  CURRENT_PHASE,
+  NAV_GROUPS,
+  NAV_ITEMS,
+  isActivePath,
+  type NavItem,
+} from "@/components/layout/nav";
 import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -101,7 +107,7 @@ export function AppSidebar() {
                         composition prop takes the element to render as. */}
                     <SidebarMenuButton
                       render={<Link href={item.href} />}
-                      isActive={pathname.startsWith(item.href)}
+                      isActive={isActivePath(pathname, item.href)}
                       tooltip={item.description}
                     >
                       <item.icon />
@@ -131,7 +137,7 @@ export function AppSidebar() {
                       honest than letting them look finished. */}
                   <SidebarMenuButton
                     render={<Link href={item.href} />}
-                    isActive={pathname.startsWith(item.href)}
+                    isActive={isActivePath(pathname, item.href)}
                     tooltip={item.description}
                   >
                     <item.icon />

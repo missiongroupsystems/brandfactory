@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   BookUser,
   ClipboardCheck,
   FileSignature,
@@ -47,6 +48,22 @@ export type NavItem = {
 };
 
 export const NAV_ITEMS: NavItem[] = [
+  // First, above the Dashboard, because it is the one screen in this shell that is about the
+  // product's central noun. The switcher opens it on every brand change; this is the way back to
+  // it afterwards, and the reason the profile is not reachable only by re-picking the brand you
+  // are already in (a radio group reports changes, so re-selecting the current brand does
+  // nothing).
+  //
+  // **`/brand`, singular** — the brand you are inside, not a member of a list. The plural is
+  // left free for the brands-in-this-workspace screen this shell will want; see the route's note.
+  {
+    title: "Brand profile",
+    href: "/brand",
+    icon: BookOpen,
+    phase: 3,
+    tag: "Sample",
+    description: "The brand in one page — TL;DR, pillars, audience, voice, look",
+  },
   {
     title: "Dashboard",
     href: "/dashboard",
@@ -133,6 +150,21 @@ export const NAV_ITEMS: NavItem[] = [
 export const CURRENT_PHASE = 3;
 
 /**
+ * Is this nav item the page you are on?
+ *
+ * **A prefix test, but only on a path boundary**, and the difference is not hypothetical here:
+ * `"/brands".startsWith("/brand")` is true, so a plain prefix would light *Brand profile* on a
+ * `/brands` list — a route this shell has left free and will want. The boundary check answers the
+ * question the nav is actually asking: is the current page this item, or something *inside* it.
+ *
+ * A detail route stays lit under its list (`/outlets/abc` is `/outlets`), which is what the
+ * prefix was for and is preserved.
+ */
+export function isActivePath(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/**
  * The sidebar's sections, in order, keyed by stable `href` so a title change never orphans an
  * item — which is why the Contacts → Influencers rename needed no edit here. Grouping is
  * presentation over the same {@link NAV_ITEMS} order: it inserts section eyebrows, it does
@@ -141,7 +173,7 @@ export const CURRENT_PHASE = 3;
  * group here falls into a trailing unlabelled group in the sidebar rather than vanishing.
  */
 export const NAV_GROUPS: { label: string | null; hrefs: string[] }[] = [
-  { label: null, hrefs: ["/dashboard"] },
+  { label: null, hrefs: ["/brand", "/dashboard"] },
   { label: "Registry", hrefs: ["/outlets"] },
   {
     label: "Contracts & services",

@@ -345,7 +345,7 @@ function OutletHero({
                     <Badge variant="outline">{brandName}</Badge>
                   ) : (
                     <Link
-                      href={`/brands/${outlet.brand_id}`}
+                      href={`/registry-brands/${outlet.brand_id}`}
                       className="rounded-md hover:text-brand"
                     >
                       <Badge variant="outline">{brandName}</Badge>

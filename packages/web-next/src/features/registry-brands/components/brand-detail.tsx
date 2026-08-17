@@ -139,7 +139,7 @@ function BackLink() {
   return (
     <div className="px-6 pt-6 md:px-8 md:pt-8">
       <Link
-        href="/brands"
+        href="/registry-brands"
         className="-mx-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-helper text-ink-secondary hover:text-brand"
       >
         <ArrowLeftIcon aria-hidden className="size-3.5" />
@@ -300,7 +300,7 @@ function DeleteBrandButton({ brand }: { brand: Brand }) {
       toast.success(`${brand.name} deleted`);
       // `replace`, not `push`: this URL now 404s, so it must not stay in the history the Back
       // button walks.
-      router.replace("/brands");
+      router.replace("/registry-brands");
     } catch (err) {
       // The API refuses a brand anything still carries (409, naming both counts) — the common
       // answer here rather than an edge case, so it belongs in the dialog rather than in a toast

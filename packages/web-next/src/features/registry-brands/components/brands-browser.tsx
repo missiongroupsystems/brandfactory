@@ -161,7 +161,7 @@ function BrandResults({
                   {/* A link, not a button opening a sheet — middle-clickable, and its address
                       is copyable, which is the whole reason a brand needed an id. */}
                   <Link
-                    href={`/brands/${brand.id}`}
+                    href={`/registry-brands/${brand.id}`}
                     title={brand.name}
                     className="-mx-2 -my-1 block truncate rounded-md px-2 py-1 font-medium text-ink hover:text-brand hover:underline"
                   >

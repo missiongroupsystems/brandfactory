@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronsUpDownIcon, PlusIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { BrandMark } from "@/components/brand/brand-mark";
@@ -35,12 +36,19 @@ import { NewBrandSheet } from "@/features/brands/components/new-brand-sheet";
  * BrandFactory brands do not have one — and inventing a badge out of `sectionCount` or
  * `projectCount` would be a label that looks like a state and means nothing.
  *
- * **Nothing below the header responds to the selection yet**, and that is still the honest
- * state. Every screen in this shell is fixture-backed Operations Hub. `useActiveBrand()` is the
- * seam the brand-scoped screens will read it through.
+ * **Picking a brand now goes somewhere.** Until the brand profile there was nothing below the
+ * header that answered to the selection, so this control only wrote a preference. It still writes
+ * it — the preference is what `/brand` and every future brand-scoped screen reads — and it now
+ * also opens that brand's profile, because the profile is the brand's homepage and "which brand
+ * am I in" is a question you answer by going there.
+ *
+ * The write happens **before** the navigation rather than instead of it. The destination reads
+ * the route's id, but every other surface in the shell reads the preference, and a header
+ * disagreeing with the page under it would be worse than not navigating at all.
  */
 export function BrandSwitcher() {
-  const { brand, brands, workspaceId, isLoading, select } = useActiveBrand();
+  const { brand, brands, workspaceId, isLoading, error, select } = useActiveBrand();
+  const router = useRouter();
   const [creating, setCreating] = React.useState(false);
   const hintId = React.useId();
 
@@ -56,7 +64,20 @@ export function BrandSwitcher() {
     );
   }
 
-  // Genuinely no brands in this workspace. Distinct from the branch above and worth its own
+  // **A failed request is not an empty workspace**, and here that mattered more than on the row
+  // above: the empty state is a *button*, so a list that failed to load offered to create a brand
+  // into a workspace whose real contents the reader had never seen. SWR reports a 500 or a dropped
+  // connection as `isLoading: false, data: undefined`, which is indistinguishable from "none"
+  // unless `error` is read. A 401 does not reach here — `callJson` signs out instead.
+  if (error) {
+    return (
+      <p role="alert" className="px-2 py-1 text-xs text-error">
+        Brands unavailable
+      </p>
+    );
+  }
+
+  // Genuinely no brands in this workspace. Distinct from both branches above and worth its own
   // words — and unlike 1.32.0 it is no longer a dead end, because there is now something to
   // press.
   if (!brand) {
@@ -75,7 +96,12 @@ export function BrandSwitcher() {
             No brands yet — create one
           </span>
         </button>
-        <NewBrandSheet workspaceId={workspaceId} open={creating} onOpenChange={setCreating} />
+        <NewBrandSheet
+          workspaceId={workspaceId}
+          open={creating}
+          onOpenChange={setCreating}
+          onCreated={select}
+        />
       </>
     );
   }
@@ -111,7 +137,13 @@ export function BrandSwitcher() {
               item, and copying that shape here fails *silently* rather than at the type check —
               React has a real DOM `onSelect` (text selection) that absorbs the prop, so `tsc`,
               `eslint` and `next build` all pass and the menu simply never switches brand. */}
-          <DropdownMenuRadioGroup value={brand.id} onValueChange={(id: string) => select(id)}>
+          <DropdownMenuRadioGroup
+            value={brand.id}
+            onValueChange={(id: string) => {
+              select(id);
+              router.push(`/brand/${id}`);
+            }}
+          >
             {brands.map((b) => (
               <DropdownMenuRadioItem key={b.id} value={b.id}>
                 <span className="min-w-0 flex-1 truncate">{b.name}</span>

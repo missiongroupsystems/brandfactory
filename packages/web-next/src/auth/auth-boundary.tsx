@@ -7,7 +7,7 @@ import { mutate } from "swr";
 import { getFreshAuthToken, startSessionSync } from "@/auth/session";
 import { getAuthState, logout, setAuth, subscribeAuth } from "@/auth/store";
 import { BF_API_BASE_URL } from "@/lib/api/bf-client";
-import { SCOPES } from "@/lib/api/cache";
+import { SCOPES, useClearCache } from "@/lib/api/cache";
 
 import type { Me } from "@/features/me/hooks";
 
@@ -30,12 +30,15 @@ import type { Me } from "@/features/me/hooks";
  * was rewritten for. The signed-out branch navigates and sets nothing; the only state write is
  * `setProbed(true)`, and it happens in a promise callback after the round trip.
  *
- * **3. The cache reset is SWR's.** `mutate(() => true, undefined, {revalidate: false})` is the
- * documented clear-everything form. The ordering constraint is the Vite one and is the reason
- * it lives here rather than inside `signOut`: every cached row belonged to the user who just
- * left, and signing in as a second user in the same tab would otherwise open on the first
- * user's workspaces while the refetches land. Here it also covers the 401 path in `callJson`,
- * which is the other caller of `logout()`.
+ * **3. The cache reset goes through `useClearCache`, not through a bare matcher.** The ordering
+ * constraint is the Vite one and is the reason it lives here rather than inside `signOut`: every
+ * cached row belonged to the user who just left, and signing in as a second user in the same tab
+ * would otherwise open on the first user's workspaces while the refetches land. Here it also
+ * covers the 401 path in `callJson`, which is the other caller of `logout()`.
+ *
+ * `mutate(() => true, …)` looks like "clear everything" and is not: SWR skips every `$inf$` and
+ * `$sub$` key before it applies a matcher, so on its own it left every `useCursorPages` list —
+ * thirteen files — in the cache across a sign-out. `lib/api/cache.ts` owns both halves.
  *
  * The session stays client-side throughout — no cookies, no middleware, no server-side
  * fetching — which matches how every screen in this app already loads its data, and is why the
@@ -43,6 +46,7 @@ import type { Me } from "@/features/me/hooks";
  */
 export function AuthBoundary({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const clearCache = useClearCache();
   const [probed, setProbed] = React.useState(false);
 
   // Any 401 anywhere clears the token, but clearing it used to leave the user parked on the
@@ -60,9 +64,9 @@ export function AuthBoundary({ children }: { children: React.ReactNode }) {
       // Asked for after the navigation, not before it: dropping the cache while these pages
       // are still mounted restarts every live SWR key with no token behind it, which is a
       // screen of spinners and a burst of 401s on the way out the door.
-      void mutate(() => true, undefined, { revalidate: false });
+      void clearCache();
     });
-  }, [router]);
+  }, [router, clearCache]);
 
   React.useEffect(() => {
     // Read the store, not the hook: this runs once at mount and wants the value as it is now,

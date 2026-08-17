@@ -31,7 +31,7 @@ import { useActiveWorkspace } from "@/features/workspaces/active-workspace";
  * rows is that they are different things.
  */
 export function WorkspaceSwitcher() {
-  const { workspace, workspaces, isLoading, select } = useActiveWorkspace();
+  const { workspace, workspaces, isLoading, error, select } = useActiveWorkspace();
   const hintId = React.useId();
 
   // A list in flight is a pending request, never a missing fact — the house rule for every id
@@ -46,9 +46,22 @@ export function WorkspaceSwitcher() {
     );
   }
 
-  // Genuinely none. Distinct from the branch above and worth its own words: this is the empty
-  // state of a real answer, not a gap in a partial one. There is no "New workspace…" here yet —
-  // `packages/web` has that dialog and it can follow.
+  // **A failed request is not an empty account.** SWR answers a 500 or a dropped connection with
+  // `isLoading: false` and `data: undefined`, so without this branch the row fell straight through
+  // to "No workspaces yet" — a statement about the reader's account made from a request that never
+  // succeeded. It is the same rule AGENTS.md states for a pending index, applied to the failed
+  // one. A 401 does not reach here: `callJson` signs out and the boundary navigates.
+  if (error) {
+    return (
+      <p role="alert" className="px-2 py-1 text-xs text-error">
+        Workspaces unavailable
+      </p>
+    );
+  }
+
+  // Genuinely none. Distinct from both branches above and worth its own words: this is the empty
+  // state of a real answer, not a gap in a partial one and not a failure. There is no
+  // "New workspace…" here yet — `packages/web` has that dialog and it can follow.
   if (!workspace) {
     return <p className="px-2 py-1 text-xs text-ink-tertiary">No workspaces yet</p>;
   }

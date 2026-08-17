@@ -68,6 +68,45 @@ export function useInvalidate() {
   );
 }
 
+/**
+ * The prefixes SWR's own key matcher refuses to visit.
+ *
+ * `internalMutate` filters `cache.keys()` with `!/^\$(inf|sub)\$/.test(key)` before it applies a
+ * caller's matcher, so **no matcher can ever reach a `useSWRInfinite` or `useSWRSubscription`
+ * entry** — not `(key) => true`, not any other. Thirteen files here reach SWR through
+ * `useCursorPages`, so this is most of the product's list data.
+ */
+const MATCHER_BLIND_PREFIXES = /^\$(inf|sub)\$/;
+
+/**
+ * Empty the whole cache — every scope, and the paginated lists a matcher cannot see.
+ *
+ * **`mutate(() => true, …)` is not "clear everything", and reading it as such is the bug this
+ * exists to close.** The sign-out path used that call on its own, so a signed-out session left
+ * every `useCursorPages` list behind: sign in as a second user in the same tab and the first
+ * user's rows were still in the cache under the new session. It is the same blindness
+ * `useInvalidate` above already works around, in the one place where the cost is not a stale
+ * table but a previous person's data.
+ *
+ * `revalidate: false` throughout: there is deliberately nothing to refetch, because the point of
+ * calling this is that the session behind every one of those keys has ended.
+ */
+export function useClearCache() {
+  const { mutate, cache } = useSWRConfig();
+
+  return React.useCallback(async () => {
+    const blind: string[] = [];
+    for (const key of cache.keys()) {
+      if (MATCHER_BLIND_PREFIXES.test(key)) blind.push(key);
+    }
+
+    await Promise.all([
+      mutate(() => true, undefined, { revalidate: false }),
+      ...blind.map((key) => mutate(key, undefined, { revalidate: false })),
+    ]);
+  }, [mutate, cache]);
+}
+
 /** Scope names, in one place so a typo is a type error rather than a cache that never clears. */
 export const SCOPES = {
   outlets: "outlets",

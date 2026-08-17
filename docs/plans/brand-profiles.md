@@ -60,37 +60,65 @@ Nothing below needs a new table.
 - Visual facts are assets: `kind` (color / image / file), `role` (logo / mark / primary /
   typeface), `library` (identity / photography / collateral), `status` (proposed / active).
 
-So this is a **presentation** proposal, with one modelling question (pillars, §2) and one platform
-question (§6).
+So this is a **presentation** proposal. It carries no migration and no new table — one reader
+refactor (§2), and one platform decision (§6).
 
 ---
 
-## 2. The one modelling question: "Brand pillars"
+## 2. Pillars — settled, and what follows from it
 
-The brief lists **Brand Pillars** as a top-level block. The product already has a section called
-**Content pillars** — "the three to five themes the brand posts about again and again" — and it is
-load-bearing: `content-pillars.ts` parses that section one-line-per-pillar and feeds the Post
-Planner, which refuses to invent themes the brand has not declared.
+**Your steer: brand pillars are basically the brand values.** So there is no ninth section. The
+row that holds them already exists and is called `Values & positioning`, and the profile's pillar
+strip is a *rendering* of it rather than a new place to type.
 
-Those are two different things, and conflating them would quietly corrupt the planner.
+That closes the expensive half of this question and leaves two cheap ones.
 
-- **Brand pillars** — what the brand *stands on*. Three to five load-bearing ideas: craft,
-  provenance, hospitality. Strategy. Stable for years.
-- **Content pillars** — what the brand *posts about*. Behind the pass, the room, sourcing,
-  occasions. Editorial. Revisited each quarter.
+### 2.1 The strip reads the list, the prose stays prose
 
-**Recommendation: add `Brand pillars` as a ninth `SUGGESTED_SECTIONS` entry, directly after
-`Values & positioning`, and leave `Content pillars` exactly where it is.** Then generalise
-`brandContentPillars()` into a `sectionAsList()` reader in `shared` — the one-line-one-item rule, the
-list-marker strip, the clamp — and have both sections read through it. That buys the profile page
-a real pillar *strip* (3–5 cards, not a paragraph) for both, at the cost of one array entry and
-one refactor of a function that already exists.
+`Values & positioning` bundles two shapes on purpose: a list ("honest over hypey, open over
+proprietary") and a paragraph ("how we differ from the alternatives"). A reader that flattened the
+whole section into pillars would promote the positioning paragraph to a fourth pillar card, which
+is a wrong statement rendered confidently.
 
-Cost: one entry in `suggested-categories.ts`, one generalised reader, no migration, no route.
+So the band renders the section's **list blocks as cards, and its paragraphs as prose beneath
+them**. A brand that wrote its values as one paragraph gets a normal prose section and no strip —
+correct, and it is also the nudge to press Return three times, which is exactly how
+`brandContentPillars()` already behaves for the planner.
 
-Alternative if you disagree: treat "Brand pillars" as purely a *rendering* of
-`Values & positioning` when that section is written as a list. Cheaper, but then the two concepts
-share one row and a marketer cannot state a value and a pillar separately.
+Mechanically: generalise `brandContentPillars()` into a `sectionAsList()` reader in `shared` — the
+one-line-one-item rule, the list-marker strip, the clamp — and have the values band and the planner
+both read through it. One refactor of a function that exists; no schema change, no migration, no
+route.
+
+### 2.2 `Content pillars` stays where it is, and now needs the clearer label
+
+This is the one part of the original proposal that survives unchanged, and your steer makes it
+*more* important rather than less. `Content pillars` — "the three to five themes the brand posts
+about again and again" — is load-bearing: the Post Planner reads that section and refuses to invent
+themes the brand has not declared. It is editorial, revisited each quarter. Values are strategy,
+stable for years.
+
+Now that "pillars" means values in the product's own language, two sections both called pillars is
+the ambiguity to avoid. Two options, and I would take the first:
+
+- **Label the profile band "What we post about"** and leave the stored section name alone. Zero
+  code, and the planner's contract is untouched.
+- Or show the content strip only on the Social calendar, and link to it from the profile.
+
+### 2.3 The naming question I cannot settle for you
+
+The band heading on the page should say what you call it. If that is **Brand pillars**, but the
+editor dialog still says `Values & positioning`, a marketer edits a section under a different name
+from the one they read a moment earlier.
+
+| Option | What it costs |
+|---|---|
+| **(a) Band reads "Brand pillars", eyebrow reads "from Values & positioning"** | Nothing. Honest about where the words live, at the price of one extra line of chrome. |
+| **(b) Rename the suggestion to `Brand values`** | Labels are free text and matching is deliberately literal, so **every brand that already wrote `Values & positioning` falls out of the taxonomy** — losing its description, its `kind`, its order and its auto-fill prompt. Needs an enumerated alias in `canonical-sections.ts`, which that file argues against for good reasons. Decide it on its own merits, not as a side effect of this page. |
+| **(c) Two rows: `Brand values` + `Positioning`** | Cleanest semantics, largest cost: (b)'s orphaning plus every generator prompt that names the section. |
+
+**Recommended: (a) now, (b) later if the name still grates.** The page can be built and read either
+way, and (a) does not foreclose anything.
 
 ---
 
@@ -109,20 +137,21 @@ All three assume the same content. They differ in how a marketer moves through i
 │ ON THIS PAGE  │  ⚡ TL;DR                                            [copy]   │
 │               │  ┌────────────────────────────────────────────────────────┐  │
 │ ⚡ TL;DR       │  │  A neighbourhood bakery for people who read the        │  │
-│ ◆ Pillars     │  │  ingredient list. Warm, unhurried, never precious.     │  │
+│ 🧭 Pillars     │  │  ingredient list. Warm, unhurried, never precious.     │  │
 │ 📖 Overview    │  │  We sell the morning, not the pastry.                  │  │
 │ 👥 Audience    │  └────────────────────────────────────────────────────────┘  │
 │ 💬 Voice       │  Rides into every generation as standing context.            │
-│ 🧭 Values      │                                                              │
-│ 🎨 Visual      │  ◆ Brand pillars                                             │
-│ 💬 Messaging   │  ┌───────────┐ ┌───────────┐ ┌───────────┐                   │
-│ ▦ Identity    │  │ Craft     │ │ Provenance│ │ The room  │                   │
-│               │  │ one line… │ │ one line… │ │ one line… │                   │
-│ ─────────────  │  └───────────┘ └───────────┘ └───────────┘                   │
-│ 2 unwritten    │                                                              │
-│ · Messaging    │  📖 Overview                                                 │
-│ · Pillars      │  Full prose, 72ch measure, headings, lists, links.           │
-│ [ Fill these ] │                                                              │
+│ 🎨 Visual      │                                                              │
+│ 💬 Messaging   │  🧭 Brand pillars        (from Values & positioning)          │
+│ ▦ Identity    │  ┌───────────┐ ┌───────────┐ ┌───────────┐                   │
+│               │  │ Craft     │ │ Provenance│ │ The room  │                   │
+│ ─────────────  │  │ one line… │ │ one line… │ │ one line… │                   │
+│ 2 unwritten    │  └───────────┘ └───────────┘ └───────────┘                   │
+│ · Messaging    │  We are the alternative to the chain on the corner…          │
+│ · Audience     │                                                              │
+│ [ Fill these ] │  📖 Overview                                                 │
+│               │  Full prose, 72ch measure, headings, lists, links.           │
+│               │                                                              │
 │               │  👥 Target audience              💬 Voice & tone              │
 │ Research ran   │  ┌──────────────────────────┐  ┌──────────────────────────┐  │
 │ 12 Aug ·[read] │  │ prose                    │  │ prose                    │  │
@@ -202,15 +231,21 @@ reads"* — plus the auto-fill affordance when a research report exists.
 
 ### 4.3 Brand pillars — a strip of cards, not a paragraph
 
-Three to five cards, read from the section as a list (§2). Each card: the pillar, and the rest of
-its line as a supporting sentence if the brand wrote one.
+Three to five cards, read from `Values & positioning` as a list (§2.1). Each card: the pillar, and
+the rest of its line as a supporting sentence if the brand wrote one. Any paragraph in the same
+section renders as prose directly beneath the strip — that is the positioning half, and it belongs
+next to the values it qualifies rather than in a card pretending to be a fourth pillar.
 
-If `Brand pillars` is unwritten but `Values & positioning` is, offer *"Draw pillars out of your
-values"* — one auto-fill call against material the brand already owns, rather than a blank box.
+Because the pillars now come out of a section this band also *replaces*, `Values & positioning`
+does **not** appear again in the context grid below (§4.5). One row, one place on the page.
 
-Show `Content pillars` as a second, visually quieter strip further down, labelled *"What we post
-about"*, with a link to the Social calendar. The two strips side by side are also the clearest
-possible explanation of the difference.
+Empty state: the strip is absent, not a row of grey boxes. The call to action is *"Name what this
+brand stands on"*, plus the auto-fill affordance when a research report exists — the report already
+argues positioning, so this is one call against material the brand has paid for.
+
+`Content pillars` gets a second, visually quieter strip further down, labelled **"What we post
+about"** with a link to the Social calendar. Two strips, two names, and the distinction becomes
+obvious by being on screen together (§2.2).
 
 ### 4.4 Overview — full measure prose
 
@@ -218,8 +253,9 @@ possible explanation of the difference.
 
 ### 4.5 Context sections — two-up, in taxonomy order, custom labels last
 
-`Target audience`, `Voice & tone`, `Values & positioning`, `Visual guidelines`,
-`Messaging frameworks`, then anything the brand invented. Ordered by `suggestedSectionIndex()`
+`Target audience`, `Voice & tone`, `Visual guidelines`,
+`Messaging frameworks`, then anything the brand invented — `Values & positioning` is absent because
+the pillar band above already is it. Ordered by `suggestedSectionIndex()`
 (already exists, and returns `Infinity` for a custom label, so unknowns fall to the end), then by
 `priority`.
 
@@ -267,31 +303,49 @@ These are what make it a marketing team's homepage rather than a prettier record
 
 ---
 
-## 6. The platform question — decide this before anything is built
+## 6. The platform question — and 1.33.0 changed the answer
 
-The repository now has two frontends (1.31.0). This page can be built in either, and the answer
-changes the plan more than any layout choice.
+This section was written against 1.31.0, when the Next shell talked to nothing. Two releases have
+overtaken it and the recommendation flips.
+
+**What landed.** 1.32.0 put a brand row in the shell's nav with the active brand as a stored
+preference. 1.33.0 took the mock out: `bf-client.ts` is `hc<AppType>` against the real server, the
+shell signs you in, resolves a workspace, lists the brands the server actually holds, and creates
+one. `features/brands/` in `web-next` is BrandFactory's brand — the Ops namesake moved aside to
+`features/registry-brands/` to make room for it.
 
 | | `packages/web` (Vite, TanStack Router) | `packages/web-next` (Next 16) |
 |---|---|---|
-| Ships to users | **Yes — today** | No. Fixtures only, no auth, no tests |
-| Brand data | Real. `useBrand`, typed end-to-end off `AppType` | None. `apiFetch` is in `mock` mode; every mutation returns 503 |
-| Reusable parts | `VisualIdentityCard`, `BrandMark`, the section renderer, the editor dialog — all exist | shadcn-on-Base-UI kit, `PageHeader`, `DetailList`, `StatCard`, Mission tokens, the Satoshi type scale |
-| Known hazards | none new | `next dev` does not hydrate (documented caveat); no auth; no test setup |
+| Ships to users | Yes — today | Not yet, but no longer a mock |
+| Brand data | Real. `useBrand` → `BrandWithSections` | Real. `brandService.list` / `.create`, typed off `AppType`. **No `get(id)` yet** — one function |
+| Auth | Yes | Yes — sign-in, `AuthBoundary`, workspace resolution, and it is tested |
+| Reusable parts | `VisualIdentityCard`, `BrandMark`, the section renderer, `EditGuidelinesDialog` | the Mission token tiers, Satoshi, `PageHeader`, `DetailList`, `Card`, `StatCard`, the sidebar shell |
+| What is missing for this page | nothing | `GET /brands/:id` in the service, a ProseMirror read-only renderer, and the editor dialog |
+| Known hazards | it is the app being replaced | `next dev` still does not hydrate (open since 1.31.0); verify against `next start` |
 
-**Recommendation: build it in `packages/web` first.** It is where the brand data is, where the
-section renderer and the editor already live, and where a marketer can use it this month. The
-design work — the band order, the pillar strip, the density toggle, the export — is the expensive
-half and it transfers unchanged.
+**Revised recommendation: build the profile in `packages/web-next`.** The reason to prefer the Vite
+app was that it was the only place brands existed; that is no longer true. Building a substantial
+new document in the app the changelog calls "the Vite app it will replace" means building it twice,
+and the profile is the natural first *real screen* for the new shell — it is read-heavy, it needs no
+mutation beyond an edit dialog, and every band maps onto a primitive that shell already has.
 
-**But design it as a page, not as a set of cards.** The current hub is a launcher with a rail; the
-profile is a document. Keep them separate routes (`/brands/:id` stays the launcher,
-`/brands/:id/profile` is the document) so that moving the document to the Next shell later is a
-port of one route, not a re-litigation of the hub.
+Two costs to accept openly:
 
-If you would rather the Next shell get its first real feature here instead, that is a coherent
-choice — but it pulls in auth and a real `apiFetch` mode first, and those are the two open items
-the adoption release explicitly left out.
+1. **One service function** — `brandService.get(id)` over the existing `GET /brands/:id`, which
+   already hydrates sections into `BrandWithSections`. Small, and needed by every future brand
+   screen there regardless.
+2. **The section renderer travels.** `packages/web` reads bodies through a read-only TipTap editor.
+   The Next package has no TipTap. For a read-only profile a plain ProseMirror-to-JSX renderer is
+   enough and is smaller than the editor — but editing is then still a trip to the Vite app until
+   `EditGuidelinesDialog` is ported. **P0 should therefore link `Edit` to the existing app** rather
+   than pretend to own it, and say so on screen.
+
+**Either way, design it as a document and not as a set of cards**, and keep it on its own route
+(`/brands/:id/profile`) beside whatever the hub becomes. That is what keeps this from being a
+re-litigation of the hub.
+
+If you would rather not wait for the renderer, `packages/web` P0 remains coherent and the design
+transfers unchanged — but plan on porting it.
 
 ---
 
@@ -300,7 +354,8 @@ the adoption release explicitly left out.
 The profile is the page four of those seven items hang off, which is an argument for building it
 first.
 
-- **7. Brand values linked to brand profiles** — this *is* §4.5, plus the pillars decision in §2.
+- **7. Brand values linked to brand profiles** — this *is* the pillar band, §4.3. Values and
+  pillars being the same thing (§2) means that request and the brief's third bullet are one item.
 - **6. Decks (PDFs / Canva links) linked to brand profiles** — a `collateral` asset library already
   exists with `kind: 'file'` and `source: 'link'`. A "Decks & collateral" band on the profile is
   mostly a filtered view of assets the model already stores.
@@ -319,28 +374,30 @@ but only the first two are in scope for this proposal.
 
 | Phase | What lands | Depends on |
 |---|---|---|
-| **P0** | `/brands/:id/profile` in `packages/web`: identity band, TL;DR hero, Overview, context sections two-up, visual identity band, footer, contents rail with scroll-spy, anchors. Read-only; `Edit` opens the existing dialog. | nothing |
-| **P1** | `Brand pillars` as a suggested section, `sectionAsList()` generalised out of `brandContentPillars()`, both pillar strips. | §2 decision |
+| **P0** | `brandService.get(id)`, a read-only ProseMirror renderer, and `/brands/:id/profile` in `packages/web-next`: identity band, TL;DR hero, Overview, context sections two-up, visual identity band, footer, contents rail with scroll-spy, anchors. `Edit` links out to the Vite app. | §6 decision |
+| **P1** | `sectionAsList()` generalised out of `brandContentPillars()`; the pillar strip off `Values & positioning`, the quieter "What we post about" strip off `Content pillars`. | §2 |
 | **P2** | Copy-as-Markdown, density toggle, print stylesheet, provenance chips. | P0 |
-| **P3** | Decks / photography / resources bands. | asset-library work |
-| **P4** | Port the route to `packages/web-next`. | auth + live `apiFetch` in that package |
+| **P3** | Port `EditGuidelinesDialog`, so editing stops leaving the shell. | P0 |
+| **P4** | Decks / photography / resources bands. | asset-library work |
 
 P0 is a route plus roughly six presentational components, most of which have an existing sibling to
-copy from. No migration, no new endpoint — `GET /brands/:id` already returns the sections and the
-assets query already exists.
+copy from. **No migration and no new endpoint** — `GET /brands/:id` already returns the sections,
+and the assets route already exists.
 
 ---
 
 ## 9. Open questions for you
 
-1. **Pillars** — a new `Brand pillars` section beside `Content pillars` (recommended), or render
-   `Values & positioning` as a list?
+1. ~~**Pillars**~~ — **settled: pillars are the values.** §2 rewritten. What remains is the naming
+   sub-question in §2.3: band reads "Brand pillars" over a section still stored as
+   `Values & positioning` (recommended), or rename the section and pay for the orphaned labels?
 2. **Layout** — the brand book (A), tabs (B), or the dossier (C)?
 3. **Does the profile replace the hub, or sit beside it?** My recommendation is beside: the hub
-   stays the launcher at `/brands/:id`, and the profile is the document. The alternative — the
-   profile *becomes* `/brands/:id` and the mini-app tiles move into the sidebar nav — is defensible
-   and a bigger change.
-4. **Which app** — `packages/web` now (recommended), or `packages/web-next` with the auth work
-   first?
+   stays the launcher, and the profile is the document. The alternative — the profile *becomes* the
+   brand's landing page and the mini-app tiles move into the nav — is defensible and a bigger
+   change. Note that in the Next shell there is no hub yet, so choosing that shell makes this
+   question cheaper: the profile can simply *be* `/brands/:id` there.
+4. **Which app** — `packages/web-next` (revised recommendation, §6), or `packages/web` now and port
+   later?
 5. **Sharing** — is a read-only link a freelancer can open without an account in scope? It is the
    most-requested thing a brand book does and the only item here that needs real auth work.

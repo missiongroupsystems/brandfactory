@@ -31,3 +31,21 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 };
+
+/**
+ * Same treatment, for the brand profile's contents rail. Nothing intersects in a layout engine
+ * that lays nothing out, so an observer that never reports is the least surprising answer — the
+ * rail renders every entry and simply highlights none, which is its own honest "not scrolled
+ * anywhere yet" state.
+ */
+globalThis.IntersectionObserver ??= class {
+  readonly root = null;
+  readonly rootMargin = "";
+  readonly thresholds: number[] = [];
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords(): IntersectionObserverEntry[] {
+    return [];
+  }
+};

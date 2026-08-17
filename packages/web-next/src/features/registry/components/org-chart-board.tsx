@@ -209,7 +209,7 @@ function brandGroup(brand: Brand): BoardGroup {
     muted: brand.status !== "active",
     // A brand *does* have a detail page, so this is the record itself rather than a filtered
     // list. The asymmetry with the company card is a fact about the product, not an oversight.
-    href: `/brands/${brand.id}`,
+    href: `/registry-brands/${brand.id}`,
   };
 }
 

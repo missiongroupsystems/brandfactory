@@ -50,10 +50,17 @@ export function NewBrandSheet({
   workspaceId,
   open,
   onOpenChange,
+  onCreated,
 }: {
   workspaceId: string | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * The new brand's id, once the server has answered with it. Optional with no default, the
+   * house rule for a new prop on an existing component — a caller that does not pass it gets
+   * exactly what this component did before.
+   */
+  onCreated?: (brandId: string) => void;
 }) {
   const { create } = useBrandMutations(workspaceId);
   const { run, reset, isPending, formError, fieldErrors } = useSubmit();
@@ -109,6 +116,12 @@ export function NewBrandSheet({
         ...(website.value ? { websiteUrl: website.value } : {}),
       });
       toast.success(`${brand.name} created`);
+
+      // **Make it the brand you are in.** Without this the switcher went on showing the previous
+      // selection: the stored id still matched a brand in the refreshed list, so `useActiveBrand`'s
+      // `find` kept resolving to it and the header never moved. A toast saying a brand was created
+      // over a header that disagrees is the reader having to check whether it worked.
+      onCreated?.(brand.id);
 
       // **Brand first, research second, and never in the same call.** A vendor outage must
       // never stand between somebody and a brand — and creating a brand with a website does

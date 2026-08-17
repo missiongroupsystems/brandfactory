@@ -15,6 +15,12 @@ const h = vi.hoisted(() => ({
   token: "fresh-token" as string | null,
   startSessionSync: vi.fn(),
   mutate: vi.fn(),
+  /**
+   * The cache the boundary's sign-out sweep walks. Two of these keys are `$inf$` entries, which
+   * is the whole point: SWR's own matcher refuses to visit them, so a cache holding only plain
+   * keys would let the old `mutate(() => true)` pass this test.
+   */
+  cacheKeys: [] as string[],
 }));
 
 vi.mock("next/navigation", () => ({
@@ -28,6 +34,10 @@ vi.mock("./session", () => ({
 
 vi.mock("swr", () => ({
   mutate: (...args: unknown[]) => h.mutate(...args),
+  useSWRConfig: () => ({
+    mutate: (...args: unknown[]) => h.mutate(...args),
+    cache: { keys: () => h.cacheKeys[Symbol.iterator]() },
+  }),
 }));
 
 const fetchMock = vi.fn();
@@ -37,6 +47,7 @@ describe("AuthBoundary", () => {
     h.replace.mockReset();
     h.startSessionSync.mockReset();
     h.mutate.mockReset();
+    h.cacheKeys = ['@"outlets",', '$inf$@"contracts",', '$inf$@"outlets",', '$sub$@"live",'];
     h.token = "fresh-token";
     fetchMock.mockReset();
     fetchMock.mockResolvedValue(
@@ -176,8 +187,33 @@ describe("AuthBoundary", () => {
       logout();
     });
 
-    expect(order).toEqual(["navigate", "clear"]);
+    expect(order[0]).toBe("navigate");
+    expect(order.slice(1).every((step) => step === "clear")).toBe(true);
     expect(h.mutate).toHaveBeenCalledWith(expect.any(Function), undefined, { revalidate: false });
+  });
+
+  it("clears the paginated lists too, which a key matcher cannot reach", async () => {
+    // The regression this exists for. SWR filters `cache.keys()` with `!/^\$(inf|sub)\$/` before
+    // it applies a caller's matcher, so `mutate(() => true)` — however total it reads — leaves
+    // every `useCursorPages` list in the cache. Thirteen files here go through that hook, so a
+    // second user signing in on the same tab inherited the first one's rows.
+    render(
+      <AuthBoundary>
+        <p>app</p>
+      </AuthBoundary>,
+    );
+    await screen.findByText("app");
+    h.mutate.mockClear();
+
+    act(() => {
+      logout();
+    });
+
+    for (const key of ['$inf$@"contracts",', '$inf$@"outlets",', '$sub$@"live",']) {
+      expect(h.mutate).toHaveBeenCalledWith(key, undefined, { revalidate: false });
+    }
+    // And the plain keys are still left to the matcher rather than swept by name twice.
+    expect(h.mutate).not.toHaveBeenCalledWith('@"outlets",', undefined, { revalidate: false });
   });
 
   it("does not redirect on a token change that is a refresh, not a logout", async () => {

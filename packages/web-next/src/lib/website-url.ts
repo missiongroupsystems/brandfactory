@@ -34,3 +34,26 @@ export function normalizeWebsiteUrl(input: string): WebsiteUrlResult {
   const parsed = BrandWebsiteUrlSchema.safeParse(candidate);
   return parsed.success ? { ok: true, value: parsed.data } : { ok: false, error: WEBSITE_URL_ERROR };
 }
+
+/**
+ * A stored URL as a person reads it — `https://www.harbourtable.sg/` becomes `harbourtable.sg`.
+ *
+ * The second half of the Vite app's file, ported when the brand profile needed to *show* a
+ * website rather than collect one. The scheme and the `www.` carry no information on a page that
+ * has already said this is the brand's site, and a trailing slash is noise; a real path is kept,
+ * because a brand whose home is `/en` means it.
+ *
+ * Falls back to the raw string when `URL` refuses it. The value comes off a row the server
+ * validated, so this should not happen — and if it ever does, showing what is stored beats
+ * showing nothing.
+ */
+export function displayHost(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.host.replace(/^www\./, "");
+    const path = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/$/, "");
+    return `${host}${path}`;
+  } catch {
+    return url;
+  }
+}

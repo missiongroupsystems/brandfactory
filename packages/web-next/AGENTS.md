@@ -77,6 +77,29 @@ something is.
   hides it the moment you tab away and back — it was found by watching the API log during a
   browser pass, eight months after it shipped.
 
+  **This includes `mutate(() => true)`, which reads as "clear everything" and is not.** The filter
+  is `!/^\$(inf|sub)\$/` and it runs *before* your matcher, so a total matcher is exactly as blind
+  as a selective one. The sign-out path used it alone and left every `useCursorPages` list in the
+  cache across a session change; **use `useClearCache()` from `lib/api/cache.ts`**, which does both
+  halves. Never write a bare matcher when the intent is "nothing survives this".
+
+- **An error class belongs to a transport, and there are two.** `apiFetch` throws `ApiError`,
+  `bf-client` throws `AppError`, and any `instanceof` ladder that knows only one sends the other
+  down its fallback branch. Both fallbacks here claim the API was unreachable, so a perfectly
+  well-answered 403 or 404 from the Hono server told the reader the backend was not running —
+  live for a whole release on the one BrandFactory form there is. `use-submit.ts` (writes) and
+  `query-states.tsx` (reads) both test for both now. Add the branch when you add the third client,
+  and keep the network claim last.
+
+- **The Hono server refuses in two shapes, and `zValidator` is the one you will forget.**
+  `middleware/error.ts` sends `{code, message, details?}`; `@hono/zod-validator` answers
+  `c.json({success: false, error}, 400)` itself and **never throws**, so it never reaches that
+  handler and carries no top-level `code` or `message`. That is every `zValidator('json', …)` on
+  the server, which is every body this app posts. `callJson` reads both — do not hand-roll a
+  third reader. And note that **zod 4 does not serialise `issues`**: it is a getter, so the wire
+  shape is `{name: "ZodError", message: "<the issues as JSON text>"}` and the array has to be
+  parsed back out of the message.
+
 - **`Button render={<Link/>}` needs `nativeButton={false}`.** Base UI's Button assumes a real
   `<button>`; handed an `<a>` it logs a console error on every instance and keeps semantics the
   anchor cannot honour. The sidebar's links go through `SidebarMenuButton`, a different
@@ -177,7 +200,8 @@ src/
     api/
       client.ts          apiFetch, ApiError, fieldErrors, query() — the Ops transport
       bf-client.ts       hc<AppType>, AppError, callJson — the BrandFactory transport
-      cache.ts           invalidate-by-scope. One scope registry for both.
+      cache.ts           invalidate-by-scope, and useClearCache for a session change.
+                         One scope registry for both transports.
       use-cursor-pages.ts  useSWRInfinite wrapper
       schema.d.ts        GENERATED — never edit
       types.ts           named aliases over schema.d.ts
@@ -188,6 +212,12 @@ Hub's** — the third registry dimension, a brand an *outlet* belongs to. They s
 nothing else: different shapes, different backends, different lifetimes. The Ops one held the
 plain name until the real one needed it; eight screens still read `useBrandIndex` from it to
 resolve an outlet's or a company's `brand_id` to a name.
+
+**The route is `/registry-brands`, and the folder name alone was not enough.** 1.33.0 renamed the
+feature folder and left the page at `/brands`, so the product's central noun pointed at a screen
+about premises for a release. Folder, cache scope and route all say `registry-brands` now. The
+**wire path stays `/brands`** — that is the Ops backend's, frozen in `schema.d.ts`, and not this
+app's to rename. Keep the three in step and leave the fourth alone.
 
 **Native `<select>` and `<input type="checkbox">`, styled.** Not Base UI's popup Select. Every
 select here picks one value from a short closed enum and the attribute editor is twenty checkboxes
@@ -471,7 +501,8 @@ Three things that will bite:
   of a client-side session and it is paid once, in the shell. Server pages under the group still
   render their `PageHeader` on the server; it just does not reach the static HTML.
 - **A 401 anywhere signs you out.** `callJson` calls `logout()` on 401, the boundary watches the
-  token go null, and it navigates *then* clears the SWR cache. Do not reorder those two.
+  token go null, and it navigates *then* clears the SWR cache. Do not reorder those two, and clear
+  it through `useClearCache()` — a bare matcher cannot reach the paginated lists (see above).
 
 ## Running
 
@@ -496,8 +527,13 @@ it. jsdom, globals, the `@` alias, `src/test-setup.ts`.
 
 **Not the screens.** The Operations Hub half of this app has no tests and this is not where they
 would start. What is here is the logic that is invisible in a browser pass until the day it is
-wrong: a token refresh, a sign-out ordering, the boundary's three states, and the
-landing-workspace fallback.
+wrong: a token refresh, a sign-out ordering, the boundary's three states, the landing-workspace
+fallback, the two shapes a server refusal arrives in, and the cache keys a matcher cannot reach.
+
+**A cache test needs a `$inf$` key in it.** The sign-out sweep's regression test seeds four keys,
+three of them matcher-blind, because a fixture holding only plain keys passes against the broken
+implementation as readily as the fixed one. Same rule for anything that claims to clear or
+invalidate: put the key the mechanism is blind to in the fixture, or the test asserts nothing.
 
 ## Before committing
 

@@ -3,6 +3,7 @@
 import { InboxIcon, TriangleAlertIcon } from "lucide-react";
 import type * as React from "react";
 
+import { AppError } from "@/lib/api/bf-client";
 import { ApiError } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -68,7 +69,17 @@ function describe(error: unknown): { title: string; detail: string } {
     return { title: `Request failed (${error.status})`, detail: error.message };
   }
 
-  // Not an ApiError: `fetch` itself rejected, so the API was never reached. Saying so
+  // The BrandFactory server's refusals, which reach here through `bf-client.ts`. Without this
+  // branch every one of them fell through to "could not reach the API" below — the same defect
+  // `use-submit.ts` had on the write side, and the reason both are fixed together.
+  if (error instanceof AppError) {
+    if (error.isForbidden) return { title: "Not permitted", detail: error.message };
+    if (error.isNotFound) return { title: "Not found", detail: error.message };
+    if (error.isValidation) return { title: "The request was rejected", detail: error.message };
+    return { title: `Request failed (${error.status})`, detail: error.message };
+  }
+
+  // Neither client: `fetch` itself rejected, so the API was never reached. Saying so
   // saves someone reading backend logs for a request that never arrived.
   return {
     title: "Could not reach the API",

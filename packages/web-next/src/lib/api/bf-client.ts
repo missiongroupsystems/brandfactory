@@ -43,9 +43,16 @@ export class AppError extends Error {
     message: string,
     readonly code: string,
     readonly status: number,
+    /** Whatever the server attached — `HttpError.details`, or the issues of a rejected body. */
+    readonly details?: unknown,
   ) {
     super(message);
     this.name = "AppError";
+  }
+
+  /** 400 from `zValidator`, or a `ZodError` that reached `middleware/error.ts`. */
+  get isValidation() {
+    return this.code === "VALIDATION";
   }
 
   /** 403. The caller is known and not allowed. */
@@ -63,6 +70,65 @@ export class AppError extends Error {
   }
 }
 
+/** One issue out of a rejected body, as zod reports it. */
+interface ZodIssue {
+  path?: unknown[];
+  message?: string;
+}
+
+/**
+ * The server refuses a request in **two** shapes, and reading only the first is how a perfectly
+ * well-answered 400 came to be reported as an unreachable API.
+ *
+ * 1. `middleware/error.ts` — `{code, message, details?}`. Every `HttpError` and every `ZodError`
+ *    that reaches the handler. This is the shape the file used to assume was the only one.
+ * 2. `@hono/zod-validator` — `{success: false, error: {name, message}}`, with **no `code` and no
+ *    `message` at the top level**, because the validator answers `c.json(result, 400)` itself and
+ *    never throws. Every `zValidator('json', …)` and `zValidator('param', …)` on the server
+ *    rejects this way, which is every body this app posts.
+ *
+ * Under shape 2 the old reader found no `code` and no `message`, fell back to `res.statusText`
+ * (empty over HTTP/2, which the Next rewrite speaks), and handed `useSubmit` an `AppError` it did
+ * not recognise either — so the form blamed the network for a complaint about its own input.
+ */
+function readZodIssues(raw: unknown): ZodIssue[] | null {
+  // zod 4 serialises a `ZodError` as `{name, message}` where `message` is the *JSON text* of the
+  // issues — `issues` is a getter and does not survive `JSON.stringify`. zod 3 kept the array, so
+  // both are read.
+  if (Array.isArray(raw)) return raw as ZodIssue[];
+  if (typeof raw !== "object" || raw === null) return null;
+
+  const holder = raw as { issues?: unknown; message?: unknown };
+  if (Array.isArray(holder.issues)) return holder.issues as ZodIssue[];
+  if (typeof holder.message !== "string") return null;
+  try {
+    const parsed: unknown = JSON.parse(holder.message);
+    return Array.isArray(parsed) ? (parsed as ZodIssue[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A sentence a person can act on, out of a list of issues.
+ *
+ * Named per issue (`name: Too small…`) because "validation failed" tells the reader nothing about
+ * which of three fields to look at. Capped at two: a form-level line is one line.
+ */
+function describeIssues(issues: ZodIssue[]): string | null {
+  const parts = issues
+    .map((issue) => {
+      const message = typeof issue.message === "string" ? issue.message : null;
+      if (!message) return null;
+      const path = Array.isArray(issue.path) ? issue.path.filter((s) => s !== "").join(".") : "";
+      return path ? `${path}: ${message}` : message;
+    })
+    .filter((part): part is string => part !== null);
+
+  if (parts.length === 0) return null;
+  return parts.length > 2 ? `${parts.slice(0, 2).join("; ")}; and ${parts.length - 2} more` : parts.join("; ");
+}
+
 /**
  * Unwrap a `hono/client` response: parsed JSON on 2xx, `AppError` otherwise.
  *
@@ -70,26 +136,47 @@ export class AppError extends Error {
  * site rather than only from the boot probe. `AuthBoundary` watches the token go null and
  * moves the reader to `/sign-in`; nothing else has to know.
  *
- * `packages/server`'s `middleware/error.ts` answers with `{code, message}`, so both are read
- * rather than guessed — a `code` is what a caller can branch on, where a message is for a
- * person.
+ * **The message is never empty.** `res.statusText` is a legitimate answer over HTTP/1.1 and an
+ * empty string over HTTP/2, so a body that carries no message of its own gets a sentence built
+ * from the status rather than an `AppError` that renders as a blank alert.
  */
 export async function callJson<T>(res: Response): Promise<T> {
   if (res.ok) return res.json() as Promise<T>;
 
   let code = "UNKNOWN";
-  let message = res.statusText;
+  let message = "";
+  let details: unknown;
+
   try {
-    const body = (await res.json()) as { code?: string; message?: string };
+    const body = (await res.json()) as {
+      code?: string;
+      message?: string;
+      details?: unknown;
+      success?: boolean;
+      error?: unknown;
+    };
+
     if (body.code) code = body.code;
     if (body.message) message = body.message;
+    if (body.details !== undefined) details = body.details;
+
+    // Shape 2, and shape 1's `details` when it carried zod issues.
+    const issues = readZodIssues(body.success === false ? body.error : body.details);
+    if (issues) {
+      code = code === "UNKNOWN" ? "VALIDATION" : code;
+      details = issues;
+      const described = describeIssues(issues);
+      if (described) message = described;
+    }
   } catch {
-    // Not JSON — a proxy error page or an unhandled exception. The defaults are honest.
+    // Not JSON — a proxy error page or an unhandled exception. The fallback below is honest.
   }
+
+  if (!message) message = res.statusText || `The server refused the request (${res.status}).`;
 
   if (res.status === 401) logout();
 
-  throw new AppError(message, code, res.status);
+  throw new AppError(message, code, res.status, details);
 }
 
 /**
