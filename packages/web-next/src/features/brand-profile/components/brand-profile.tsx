@@ -4,8 +4,10 @@ import {
   CONTENT_PILLARS_SECTION_LABEL,
   OVERVIEW_SECTION_LABEL,
   TLDR_SECTION_LABEL,
+  type SectionId,
 } from "@brandfactory/shared";
-import { BookOpenIcon } from "lucide-react";
+import { BookOpenIcon, PlusIcon } from "lucide-react";
+import * as React from "react";
 
 import { EmptyState, QueryError } from "@/components/layout/query-states";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,13 +21,17 @@ import {
   profileToMarkdown,
   sectionAnchor,
 } from "../profile";
+import type { ProfileSection } from "../types";
+import { BrandIdentitySheet } from "./brand-identity-sheet";
 import { CopyButton } from "./copy-button";
+import { EditButton } from "./edit-button";
 import { ContentPillarsBand, PillarsBand } from "./pillars-band";
 import { ProfileContents, type ContentsEntry } from "./profile-contents";
 import { ProfileFooter } from "./profile-footer";
 import { ProfileIdentity } from "./profile-identity";
 import { RichText } from "./rich-text";
 import { SectionCard } from "./section-card";
+import { SectionEditorSheet, type EditTarget } from "./section-editor-sheet";
 import { SectionHeading } from "./section-heading";
 import { TldrBand } from "./tldr-band";
 import { VisualIdentityBand } from "./visual-identity-band";
@@ -39,17 +45,17 @@ import { VisualIdentityBand } from "./visual-identity-band";
  * version, then each facet, then the look.
  *
  * ---------------------------------------------------------------------------
- * What is real here and what is not
+ * Where the words come from
  * ---------------------------------------------------------------------------
  *
- * **The identity is real; every word of content is a fixture.** The name and the mark come from
- * the brand the shell actually holds, so the page agrees with the switcher that opened it; the
- * sections, colours and typefaces come from one of three samples (`fixtures.ts`). The badge in
- * the identity band and the line in the footer both say so, because a page that looked finished
- * is how somebody files a bug against a feature that was never wired.
+ * **The server.** `GET /brands/:id` answers the row and every guideline section; `map.ts`
+ * flattens each ProseMirror body into blocks and `hooks.ts` is the only file that knows either
+ * thing happened. No component below takes anything but a `BrandProfile`, which is what made the
+ * integration a change to one file and three new ones rather than a rewrite of eleven.
  *
- * The seam is `useBrandProfile()` and nothing else. No component below takes anything but a
- * `BrandProfile`.
+ * **Colours and typefaces are still empty**, because `BrandAsset` rows are not read yet — see
+ * `types.ts`. `VisualIdentityBand` renders nothing rather than an empty state, which is the
+ * correct behaviour for a brand that genuinely has neither and is why nothing here branches on it.
  *
  * ---------------------------------------------------------------------------
  * Why bands rather than a grid of equal cards
@@ -65,7 +71,39 @@ import { VisualIdentityBand } from "./visual-identity-band";
  * it along with the other three banded labels.
  */
 export function BrandProfileScreen({ brandId }: { brandId?: string }) {
-  const { profile, brandName, isLoading, error } = useBrandProfile(brandId);
+  const { profile, source, isLoading, error } = useBrandProfile(brandId);
+
+  /**
+   * What the editor is pointed at, and whether it is open — **two pieces of state, deliberately.**
+   *
+   * A sheet's content survives its close: it stays mounted through the exit animation. Clearing
+   * the target on close would therefore blank the panel while it is still on screen, and keying
+   * the sheet on the target instead is the other trap — a key that changes mid-dismissal breaks
+   * Base UI's dismissal and leaves the overlay eating clicks. So `open` closes it and `target`
+   * stays until the next open replaces it.
+   */
+  const [target, setTarget] = React.useState<EditTarget | null>(null);
+  const [editorOpen, setEditorOpen] = React.useState(false);
+  const [identityOpen, setIdentityOpen] = React.useState(false);
+
+  const editSection = React.useCallback((next: EditTarget) => {
+    setTarget(next);
+    setEditorOpen(true);
+  }, []);
+
+  /**
+   * Open the editor on a section named by *label*, whether or not the brand has it.
+   *
+   * The bands are addressed this way — `TldrBand` knows it renders the TL;DR and nothing about
+   * row ids — and it is the same call that adds the section when it is absent: an empty TL;DR
+   * band and a brand with no TL;DR row are the same gesture to the reader, and the sheet resolves
+   * which of the two it is by whether an id came with it.
+   */
+  const editByLabel = React.useCallback(
+    (label: string, section: ProfileSection | undefined) =>
+      editSection({ sectionId: section?.id as SectionId | undefined, label }),
+    [editSection],
+  );
 
   if (error) return <QueryError error={error} />;
   if (isLoading) return <ProfileSkeleton />;
@@ -104,24 +142,58 @@ export function BrandProfileScreen({ brandId }: { brandId?: string }) {
     <div className="flex gap-8 px-6 py-6 md:px-8 md:py-8">
       <div className="flex min-w-0 flex-1 flex-col gap-10">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <ProfileIdentity profile={profile} brandName={brandName} />
-          {/* The page's one primary action, and it works: whatever tool a marketer is using
-              today, copy is how the brand reaches it. */}
-          <CopyButton
-            text={() => profileToMarkdown(profile)}
-            label="Copy brand context"
-            confirmation="Brand context copied as Markdown"
-            className="rounded-lg border border-border-input px-3 py-1.5 text-ink-secondary"
-          />
+          <ProfileIdentity profile={profile} />
+
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <EditButton
+              onClick={() => setIdentityOpen(true)}
+              what="the brand"
+              className="rounded-lg border border-border-input px-3 py-1.5 text-ink-secondary"
+            />
+            <button
+              type="button"
+              onClick={() => editSection({ label: "" })}
+              className="flex items-center gap-1.5 rounded-lg border border-border-input px-3 py-1.5 text-helper text-ink-secondary transition-colors duration-[120ms] hover:border-border-strong hover:text-ink"
+            >
+              <PlusIcon aria-hidden className="size-3.5" />
+              Add section
+            </button>
+            {/* The page's one primary action, and it worked before any of the rest did: whatever
+                tool a marketer is using today, copy is how the brand reaches it. */}
+            <CopyButton
+              text={() => profileToMarkdown(profile)}
+              label="Copy brand context"
+              confirmation="Brand context copied as Markdown"
+              className="rounded-lg border border-border-input px-3 py-1.5 text-ink-secondary"
+            />
+          </div>
         </div>
 
-        <TldrBand section={tldr} anchor="tldr" />
+        <TldrBand
+          section={tldr}
+          anchor="tldr"
+          onEdit={() => editByLabel(TLDR_SECTION_LABEL, tldr)}
+        />
 
-        <PillarsBand section={pillars} anchor="pillars" />
+        <PillarsBand
+          section={pillars}
+          anchor="pillars"
+          onEdit={() => editByLabel(PILLARS_SECTION_LABEL, pillars)}
+        />
 
         {overview && isWritten(overview) ? (
           <section aria-labelledby="overview" className="flex flex-col gap-3">
-            <SectionHeading id="overview" icon={BookOpenIcon} title="Overview" />
+            <SectionHeading
+              id="overview"
+              icon={BookOpenIcon}
+              title="Overview"
+              action={
+                <EditButton
+                  onClick={() => editByLabel(OVERVIEW_SECTION_LABEL, overview)}
+                  what="the Overview"
+                />
+              }
+            />
             <RichText blocks={overview.blocks} />
           </section>
         ) : null}
@@ -132,19 +204,41 @@ export function BrandProfileScreen({ brandId }: { brandId?: string }) {
              fragments. */
           <div className="grid gap-4 md:grid-cols-2">
             {grid.map((section) => (
-              <SectionCard key={section.id} section={section} />
+              <SectionCard
+                key={section.id}
+                section={section}
+                onEdit={() => editByLabel(section.label, section)}
+              />
             ))}
           </div>
         ) : null}
 
-        <ContentPillarsBand section={contentPillars} anchor="content-pillars" />
+        <ContentPillarsBand
+          section={contentPillars}
+          anchor="content-pillars"
+          onEdit={() => editByLabel(CONTENT_PILLARS_SECTION_LABEL, contentPillars)}
+        />
 
         <VisualIdentityBand profile={profile} anchor="visual-identity" />
 
-        <ProfileFooter profile={profile} />
+        <ProfileFooter
+          profile={profile}
+          // The chip carries a label and the brand holds the row, so the lookup happens here
+          // rather than in the footer: an empty section is one that exists, so this always
+          // resolves and the sheet opens on an edit rather than on an add.
+          onEdit={(label) => editByLabel(label, findSection(profile.sections, label))}
+        />
       </div>
 
       <ProfileContents entries={entries} />
+
+      <SectionEditorSheet
+        target={target}
+        source={source}
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+      />
+      <BrandIdentitySheet profile={profile} open={identityOpen} onOpenChange={setIdentityOpen} />
     </div>
   );
 }

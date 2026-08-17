@@ -1,11 +1,11 @@
+import { TLDR_SECTION_LABEL } from "@brandfactory/shared";
 import { ExternalLinkIcon } from "lucide-react";
 
 import { BrandMark } from "@/components/brand/brand-mark";
-import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format";
 import { displayHost } from "@/lib/website-url";
 
-import { completeness } from "../profile";
+import { completeness, findSection, isWritten } from "../profile";
 import type { BrandProfile } from "../types";
 
 /**
@@ -21,15 +21,19 @@ import type { BrandProfile } from "../types";
  * brand?", and it costs one row. The values and their names stay in the band below, where there
  * is room to copy them.
  *
- * **The sample badge is not decoration.** Every word under this band is fixture content, and a
- * page that looked finished is how somebody files a bug against a feature that was never wired —
- * the same honesty the sidebar's `Mock` badge carries for the Operations Hub screens.
+ * **The description line is conditional, and the condition is a shared rule.**
+ * `brandDescriptionLine` settles which of two fields answers *what is this brand* — the `TL;DR`
+ * wins, and `brands.description` is the older, weaker copy of the same sentence. The TL;DR has
+ * the hero band directly below this one, so printing it here too would say the brand twice; the
+ * description appears only when the TL;DR is unwritten, which is the same precedence read from
+ * the other end.
  */
-export function ProfileIdentity({ profile, brandName }: { profile: BrandProfile; brandName?: string }) {
-  // The name the shell holds, when it holds one. See `useBrandProfile` — the identity is real so
-  // the page is coherent with the switcher; everything below it is the sample.
-  const name = brandName ?? profile.name;
+export function ProfileIdentity({ profile }: { profile: BrandProfile }) {
+  const name = profile.name;
   const state = completeness(profile.sections);
+
+  const tldr = findSection(profile.sections, TLDR_SECTION_LABEL);
+  const description = tldr && isWritten(tldr) ? null : profile.description?.trim();
 
   return (
     <div className="flex flex-col gap-5">
@@ -37,10 +41,9 @@ export function ProfileIdentity({ profile, brandName }: { profile: BrandProfile;
         <BrandMark name={name} seed={profile.id} size="lg" />
 
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-h1 text-ink">{name}</h1>
-            <Badge variant="outline">Sample content</Badge>
-          </div>
+          <h1 className="text-h1 text-ink">{name}</h1>
+
+          {description ? <p className="max-w-[68ch] text-sm text-ink-secondary">{description}</p> : null}
 
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-helper text-ink-secondary">
             {profile.websiteUrl ? (

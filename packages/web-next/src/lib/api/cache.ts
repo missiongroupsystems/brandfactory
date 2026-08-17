@@ -163,6 +163,15 @@ export const SCOPES = {
   // BrandFactory's brands, keyed `[brands, workspaceId]` — a brand id means nothing outside
   // its workspace, so the scope alone would serve one workspace's list under another's header.
   bfBrands: "brands",
+  // One brand with its guideline sections, keyed `[brand, brandId]`. Its own scope beside the
+  // list's, the same split every Ops area makes: the row in the switcher and the document on
+  // the profile are two cache entries holding the same truth, and a guidelines write has to
+  // invalidate both — the list carries `sectionCount` and the flattened `tldr`.
+  bfBrand: "brand",
+  // A brand's latest research run (`GET /brands/:id/research`). Separate from the brand because
+  // it is a separate aggregate on the server and is allowed to arrive late; no brand write
+  // touches it.
+  bfResearch: "brand-research",
   // The deployment's research config (`GET /research`). One boolean, and it is deployment
   // configuration rather than a brand fact — so it is its own scope and no brand write
   // touches it.

@@ -417,6 +417,60 @@
     color: oklch(0.42 0.13 var(--brand-hue));
   }
 
+  /* The guideline body editor's content — see `features/brand-profile/components/
+     rich-text-editor.tsx`.
+
+     Tailwind's preflight strips list markers and heading sizes, which is right everywhere a
+     component decides its own type and wrong inside a contenteditable: a writer pressing the
+     bullet shortcut would see nothing change, and a heading would look like a paragraph. These
+     rules restore just enough for what is typed to look like what was meant, on the product's
+     own type scale rather than on the browser's. Scoped to the editor so no rendered surface
+     inherits them — the read side is `rich-text.tsx`, which styles its own blocks. */
+  .rich-editor p {
+    margin-block: 0.5rem;
+  }
+
+  .rich-editor h1,
+  .rich-editor h2,
+  .rich-editor h3 {
+    margin-block: 0.75rem 0.25rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+
+  .rich-editor h1 {
+    font-size: 1.125rem;
+  }
+
+  .rich-editor h2 {
+    font-size: 1rem;
+  }
+
+  .rich-editor h3 {
+    font-size: 0.9375rem;
+  }
+
+  .rich-editor ul,
+  .rich-editor ol {
+    margin-block: 0.5rem;
+    padding-inline-start: 1.25rem;
+  }
+
+  .rich-editor ul {
+    list-style: disc;
+  }
+
+  .rich-editor ol {
+    list-style: decimal;
+  }
+
+  .rich-editor blockquote {
+    margin-block: 0.5rem;
+    border-inline-start: 2px solid var(--border-default);
+    padding-inline-start: 0.75rem;
+    color: var(--color-text-secondary);
+  }
+
   /* §14 — mandatory, and the aviation client is regulated. */
   @media (prefers-reduced-motion: reduce) {
     *,

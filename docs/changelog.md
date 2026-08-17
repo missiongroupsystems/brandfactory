@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.35.0** — 2026-08-17 — The Brand Profile stops being a sample and starts being the brand: it reads the server's sections, moves into the Registry above Outlets, and gains an editor — one route that deletes what it is not sent, so the payload is built from a fresh read. No migration. 2121 tests.
 - **1.34.1** — 2026-08-17 — Quotations moves above Vendors, and the ordering invariant the nav had written down for three releases finally has a test; Influencers stops being an empty table, on 19 people and the 6 agencies that had to arrive with them. `next dev` hydrates — the defect open since 1.31.0 does not reproduce. No migration. 2091 tests.
 - **1.34.0** — 2026-08-17 — The Next shell takes its own name: it becomes Marketing Hub, wears the favicon's mark, drops the Mock badge and the workspace switcher, and turns Ops Forms into a Marketing Requests inbox with the form behind a button. No migration. 2091 tests.
 - **1.33.1** — 2026-08-17 — Pre-push review of 1.33.0: a sign-out sweep that could not reach the paginated lists, a form that blamed the network for the server's own refusal, two switchers that read a failed request as an empty account, and `/brands` pointing at the Operations Hub's. No migration. 2038 tests.
@@ -76,6 +77,122 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.35.0 — 2026-08-17
+
+**The Brand Profile is wired.** Three phases, one release: the nav item moves into the Registry,
+the page reads `GET /brands/:id`, and the page can write back. No migration, no server change, no
+wire change — every route this uses has existed since 1.11.x. `packages/web` is untouched.
+
+Full detail in `docs/completions/brand-profile-in-the-registry.md`,
+`brand-profile-on-real-data.md` and `brand-profile-editing.md`; the plan is
+`docs/executing/brand-profile-integration-plan.md`.
+
+### 1. Brand profile joins the Registry
+
+Out of the first unlabelled group, where it sat above Dashboard, and into **Registry, above
+Outlets**. The registry is what the business keeps a record of, and every other row in it belongs
+to something — an outlet to a brand, a tenancy to an outlet. The brand belongs to nothing above
+it. Dashboard is then alone in the unlabelled group, which is what that group's docstring has
+always said it is for.
+
+**The invariant 1.34.1 added a test for one release early caught its first real edit.** The order
+lives in `NAV_ITEMS` and again in `NAV_GROUPS`, and grouping does not reorder — so moving one and
+not the other fails the suite rather than shipping a nav that disagrees with every comment
+explaining it.
+
+### 2. The page reads the brand
+
+`brand-profile-next.md` §10 listed four steps and this is all four. The seam held exactly as it
+was designed to: `hooks.ts` was the only file that knew where the data came from, its body became
+two `useSWR` calls and a mapper, and **no component moved**. `fixtures.ts`, `sampleProfileFor`, the
+`Sample content` badge, the footer's sample note and the nav's `Sample` tag all go in this commit.
+
+The hard half is `blocks.ts`. `shared`'s `proseMirrorDocToPlainText` **cannot** map a section body:
+it flattens every block type to a string, so four bullets and four paragraphs come out identical —
+and that is precisely `types.ts`'s rule 1, which the pillar band is built on. A flattener that
+could not tell them apart would promote *"we sit between the hotel dining rooms and the seafood
+joints"* into a fourth pillar. So the walk is its own file with ten tests: nested lists flatten
+into the enclosing one, an empty document is `[]` rather than a blank paragraph, and a body that
+is not a document answers rather than throws.
+
+**Marks are dropped and nothing is lost by it**, because the editor works on the *stored*
+document. `BrandProfileState` carries `source` beside `profile`: the view model is the read side,
+the ProseMirror doc is the write side, and they come from one request.
+
+Three mapper rules worth naming. An instant becomes the day the **server** named, by truncation
+and never by parsing — `new Date("…T02:00:00Z")` is yesterday west of Greenwich. A research date
+belongs only to a run that finished, which is two statuses (`COMPLETED` and `NO_FINDINGS`, *a
+success that found nothing*), and the status is tested as well as the timestamp. And `kind` comes
+from `shared`'s `sectionKindForLabel`, because a second opinion about whether `TLDR` is the
+`TL;DR` is the drift `canonical-sections.ts` exists to prevent.
+
+`brands.description` now renders under the name — **only when the TL;DR is unwritten**, which is
+`brandDescriptionLine`'s precedence read from the other end.
+
+**Assets are deliberately not read.** Colours and typefaces map to empty, so the Visual identity
+band renders nothing and the palette strip hides itself — which is what both already did for a
+brand that has neither. It is one request and one filter to reverse, and `types.ts` says so on the
+fields.
+
+### 3. The page can write
+
+`PATCH /brands/:id/guidelines` takes the brand's **complete section list and deletes what it is
+not sent**, and every decision in this phase follows from that. The risk is not a failed save; it
+is a successful one that silently deletes seven sections under a green toast.
+
+- **`guidelines.ts` is the only file that builds a payload.** Whole list in, whole list out.
+- **The list is built from a fresh read** — `saveGuidelines` re-fetches the brand immediately
+  before the write, never the SWR cache, which may be missing a section a research run has just
+  finished writing. This **narrows the window and does not close it**: closing it needs an
+  `expected_version` on the route, the shape `features/spaces` already has, and that is a server
+  change this release does not make.
+- **`createdBy` round-trips**, so editing an agent-drafted section does not rewrite its
+  provenance — the bug the server fixed one layer down in Stage 1B, arriving from the client this
+  time if it were not handled.
+
+Editing is **per-section sheets, not a list editor**. `packages/web`'s 665-line
+`BrandGuidelinesEditor` is deliberately not ported: it is a list editor and this page is a
+document. The cost is stated rather than hidden — **there is no reordering here**, `priority`
+round-trips untouched, and the page orders itself by the taxonomy anyway.
+
+**TipTap joins `packages/web-next`**, and the reason is data rather than polish: a section body is
+one document that *two apps write*, so a textarea would round-trip this page's own flattened
+blocks perfectly and destroy every bold run, link and heading written in the other app.
+`src/editor/extensions.ts` mirrors the Vite app's `StarterKit` configuration and must stay
+identical to it.
+
+Also here: `Add section` with chips for the suggested labels the brand does not hold, delete
+behind `ConfirmDialog`, a duplicate-label guard through `sameSectionLabel`, an identity sheet for
+name/description/website over `PATCH /brands/:id`, and the footer's still-empty chips finally
+doing what `brand-profile-next.md` §9 promised — opening the editor on that section.
+
+### 4. Verification
+
+```
+pnpm typecheck                         clean (11 packages)
+pnpm lint                              clean (whole repo)
+pnpm format:check                      clean
+pnpm test                              2121 passed | 78 skipped (175 files)
+pnpm -F @brandfactory/web build        clean
+pnpm -F @brandfactory/web-next lint    clean
+pnpm -F @brandfactory/web-next build   clean — /brand static, /brand/[id] dynamic
+```
+
+Thirty new tests: ten over the ProseMirror walk, nine over the mapper, eight over the
+complete-list payload builders, four over the read-before-write ordering, less the one screen-test
+case that was replaced.
+
+### 5. What is not verified
+
+**No editor has been typed into, and no page has been seen rendered.** The shell is behind
+sign-in and the only door there is a *Dev token* field; pasting a token into a credential field is
+not something this work will do — the same wall 1.34.0 §6, 1.34.1 §5 and `brand-profile-next.md`
+§8 all record. `brand-profile-editing.md` §7 lists the seven things to check on the first real
+pass, in the order they are most likely to be wrong; the first two are the section save reaching
+the switcher's row, and a typed bullet list coming back as pillar cards.
 
 ---
 

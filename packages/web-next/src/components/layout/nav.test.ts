@@ -21,8 +21,12 @@ describe("isActivePath", () => {
 });
 
 describe("the nav", () => {
-  it("opens on the brand profile", () => {
-    expect(NAV_ITEMS[0]?.href).toBe("/brand");
+  it("opens the Registry on the brand profile, above Outlets", () => {
+    // The brand is the record every other record is *for*, so it leads the registry rather than
+    // the whole nav; Dashboard is the home above it and is alone in the unlabelled group.
+    const registry = NAV_GROUPS.find((group) => group.label === "Registry");
+    expect(registry?.hrefs).toEqual(["/brand", "/outlets"]);
+    expect(NAV_GROUPS[0]?.hrefs).toEqual(["/dashboard"]);
   });
 
   it("names every grouped href, so nothing is filed under a group that does not hold it", () => {

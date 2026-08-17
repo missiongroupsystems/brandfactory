@@ -45,19 +45,28 @@ export type NavItem = {
    *
    * Two words, and they say different things. **"Mock"** is a façade — Quotations, a screen
    * with no data layer at all. **"Sample"** is a real screen reading placeholder content:
-   * Brand profile and Marketing Requests both render, filter and update, and both are wired
-   * to fixtures rather than to the server. Drop the tag when the data becomes real, not when
-   * the screen looks finished.
+   * Marketing Requests renders, filters and updates against a fixture rather than a server.
+   * Drop the tag when the data becomes real, not when the screen looks finished — which is
+   * why Brand profile no longer carries one: it reads and writes the brand the server holds.
    */
   tag?: string;
 };
 
 export const NAV_ITEMS: NavItem[] = [
-  // First, above the Dashboard, because it is the one screen in this shell that is about the
-  // product's central noun. The switcher opens it on every brand change; this is the way back to
-  // it afterwards, and the reason the profile is not reachable only by re-picking the brand you
-  // are already in (a radio group reports changes, so re-selecting the current brand does
-  // nothing).
+  {
+    title: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+    phase: 1,
+    description: "What needs attention — overdue, expiring, gaps",
+  },
+  // **First in the Registry, above Outlets**, because the registry's rows are the things the
+  // business keeps a record of and the brand is the one every other record is *for*. A location
+  // belongs to a brand; the brand belongs to nothing above it.
+  //
+  // It is also the way *back* to the profile: the switcher opens it on every brand change, and a
+  // radio group reports changes only — so re-selecting the brand you are already in does nothing
+  // and without this item the page would be reachable only by switching away and back.
   //
   // **`/brand`, singular** — the brand you are inside, not a member of a list. The plural is
   // left free for the brands-in-this-workspace screen this shell will want; see the route's note.
@@ -66,15 +75,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/brand",
     icon: BookOpen,
     phase: 3,
-    tag: "Sample",
     description: "The brand in one page — TL;DR, pillars, audience, voice, look",
-  },
-  {
-    title: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    phase: 1,
-    description: "What needs attention — overdue, expiring, gaps",
   },
   {
     title: "Outlets",
@@ -185,8 +186,8 @@ export function isActivePath(pathname: string, href: string): boolean {
  * group here falls into a trailing unlabelled group in the sidebar rather than vanishing.
  */
 export const NAV_GROUPS: { label: string | null; hrefs: string[] }[] = [
-  { label: null, hrefs: ["/brand", "/dashboard"] },
-  { label: "Registry", hrefs: ["/outlets"] },
+  { label: null, hrefs: ["/dashboard"] },
+  { label: "Registry", hrefs: ["/brand", "/outlets"] },
   {
     label: "Contracts & services",
     hrefs: ["/contracts", "/quotations", "/vendors", "/contacts"],

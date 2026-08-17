@@ -149,6 +149,27 @@ something is.
   not for things a client component under `<Suspense>` already reads from
   `useSearchParams`.
 
+- **`PATCH /brands/:id/guidelines` deletes every section you do not send.** It is not a patch: the
+  body is the brand's *complete* list, upserted-reordered-and-pruned in one transaction. So the
+  dangerous outcome is not a failed save, it is a **successful one that silently deletes seven
+  sections** with a green toast over it. Two rules follow and both are in
+  `features/brand-profile/guidelines.ts`, which is the only file allowed to build that payload:
+  whole list in, whole list out; and the list is built from a **fresh `GET /brands/:id`** taken
+  immediately before the write, never from the SWR cache, which may be missing a section a
+  research run has just finished writing. That narrows the window and does not close it — closing
+  it needs an `expected_version` on the route, the shape `features/spaces` already has. And
+  `createdBy` rides back on every row: synthesising `'user'` is the bug the *server* fixed in
+  Stage 1B, and a client can reintroduce it from this side.
+
+- **A guideline body is one document that two apps write.** `packages/web`'s TipTap editor and
+  this app's `SectionEditorSheet` store into the same column, so `src/editor/extensions.ts` is a
+  copy of `packages/web/src/editor/proseMirrorSchema.ts` and **must stay identical to it**. An
+  extension one editor knows and the other does not is a silent data loss on the next save. It is
+  also why the profile edits the stored `BrandWithSections` (`useBrandProfile().source`) and never
+  its own flattened `ProfileBlock[]` — those carry no marks, and saving them back would strip
+  every bold run and link written elsewhere. `immediatelyRender: false` is required on `useEditor`
+  here, or the server render and the client disagree.
+
 - **An SWR array key is truthy however empty its contents.** `useSWR([scope, "contract", ""])`
   fetches; only `null` does not. A "fetch this only while the dialog is open" hook has to return
   a null key, not an array holding an empty id — otherwise it takes a 422 on every render.
@@ -162,6 +183,9 @@ src/
     sign-in/             outside the group: the gate cannot gate its own door
     (app)/               route group: the sidebar shell
       layout.tsx           AuthBoundary + SidebarProvider + SidebarInset
+      brand/               the BrandFactory brand, read and written — the profile of the brand
+                           you are in, plus [id]/ for a named one. Singular: `/brands` is left
+                           free for the workspace's brand *list*
       outlets/             Phase 0 — list, plus [id]/ for the detail page
       entities|networks/   Phase 0 — list screens
       dashboard/           Phase 1–2 — the attention surface, filters in the URL
@@ -192,6 +216,8 @@ src/
     api.ts               service layer — the only place that calls a transport
     hooks.ts             SWR wrappers and mutations — the only place components call
     components/          the screens and forms for that area
+  editor/                the TipTap extension set. A copy of packages/web's, and the two must
+                         stay identical — see the note above on why
   hooks/                 use-query-filters, use-debounced-value, use-submit, use-mobile
   lib/
     labels.ts            enum -> label and badge tone. Keyed by the union, so a new
@@ -501,7 +527,7 @@ A feature reads one or the other, never both.
 
 | | `lib/api/client.ts` — `apiFetch` | `lib/api/bf-client.ts` — `bf` |
 | --- | --- | --- |
-| Serves | the fifteen Operations Hub areas | BrandFactory: identity, workspaces, brands |
+| Serves | the fifteen Operations Hub areas | BrandFactory: identity, workspaces, brands, the brand profile and its guidelines |
 | Backed by | fixtures in `src/fixtures/` (`mock.ts`) | the Hono server, `packages/server` |
 | Types from | `lib/api/schema.d.ts` (frozen, generated) | `@brandfactory/shared` + `AppType` |
 | Auth | nothing to send | `Authorization: Bearer <session token>` |

@@ -179,6 +179,7 @@ describe("profileToMarkdown", () => {
   const profile: BrandProfile = {
     id: "b1",
     name: "Harbour Table",
+    description: null,
     websiteUrl: "https://harbourtable.sg",
     updatedAt: "2026-08-14",
     research: null,

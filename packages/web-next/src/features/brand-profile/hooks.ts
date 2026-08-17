@@ -1,44 +1,38 @@
 "use client";
 
-import { brandHue } from "@/components/brand/brand-mark";
-import { useActiveBrand } from "@/features/brands/active-brand";
+import type { BrandWithSections } from "@brandfactory/shared";
+import * as React from "react";
+import useSWR from "swr";
 
-import { SAMPLE_PROFILES } from "./fixtures";
+import { useActiveBrand } from "@/features/brands/active-brand";
+import { SCOPES, useInvalidate } from "@/lib/api/cache";
+
+import { brandProfileService, type GuidelineWrite } from "./api";
+import { toBrandProfile } from "./map";
 import type { BrandProfile } from "./types";
 
 /**
- * **The one function that stands between this page and the API.**
+ * **The one seam between this page and the API**, as it was designed to be.
  *
- * Every component in `brand-profile/` takes a `BrandProfile` and knows nothing else. When the
- * profile is wired, this hook becomes `useSWR([SCOPES.bfBrands, id], () => brandService.get(id))`
- * plus a mapper from `BrandWithSections` + `BrandAsset[]`, and nothing else in the feature moves.
- * That is the same seam the whole package shipped on in 1.31.0, where one branch inside
- * `apiFetch` carried fifteen screens.
+ * Every component in `brand-profile/` takes a `BrandProfile` and knows nothing else, and that
+ * held: wiring the page replaced this file's body — `sampleProfileFor` and three fixtures — with
+ * two `useSWR` calls and `toBrandProfile`, and **no component moved**. That is the same seam the
+ * whole package shipped on in 1.31.0, where one branch inside `apiFetch` carried fifteen screens.
  */
-
-/**
- * Which sample a brand id gets — **deliberately a hash, not the first fixture.**
- *
- * The page is reached by picking a brand in the sidebar, so a resolver that answered the same
- * profile for every id would make the switcher look broken: pick another brand, watch the page
- * not change, file a bug against navigation. Hashing the id means switching brands visibly
- * switches the page and a given brand keeps *its* sample across reloads, which is what makes the
- * three states (written / half-written / near-empty) reviewable at all.
- *
- * `brandHue`'s FNV-1a is reused rather than re-rolled: it is already the function this shell
- * trusts to spread ids evenly, and a plain character sum collides constantly across sibling ids
- * from one generator.
- */
-export function sampleProfileFor(brandId: string): BrandProfile {
-  return SAMPLE_PROFILES[brandHue(brandId) % SAMPLE_PROFILES.length];
-}
 
 export interface BrandProfileState {
   profile: BrandProfile | undefined;
-  /** The brand's real name, when the shell knows one. See {@link useBrandProfile}. */
-  brandName: string | undefined;
   /** The brand id the profile stands for — the route's, or the shell's active brand. */
   brandId: string | undefined;
+  /**
+   * The stored brand, guideline bodies and all.
+   *
+   * The editor works on **this** and never on `profile.sections`: a `ProfileBlock[]` is a
+   * flattened rendering with no marks, no links and no headings, and saving one back would
+   * silently destroy formatting written in `packages/web`. The view model is the read side; this
+   * is the write side, and they come from the same request.
+   */
+  source: BrandWithSections | undefined;
   isLoading: boolean;
   error: unknown;
 }
@@ -47,28 +41,103 @@ export interface BrandProfileState {
  * The profile for a brand id, or for the brand the shell is currently inside.
  *
  * **The route wins and the preference is the fallback**, which is the shape `active-brand.ts`
- * says a brand-scoped route should have and the shape `packages/web` already uses. `/brand` has
- * no id and reads the selection; `/brand/:id` names one.
+ * predicted for the first brand-scoped route and the shape `packages/web` already uses. `/brand`
+ * has no id and reads the selection; `/brand/:id` names one, and an id the workspace does not
+ * hold falls through to the active brand rather than to an error — a stale link should land
+ * somewhere useful.
  *
- * **The name is real and the content is not**, and the split is on purpose. Landing on a page
- * headed *Harbour Table* after picking *Acme* in the switcher reads as a broken integration
- * rather than as a preview, so the identity band uses the brand the shell actually holds. Every
- * word below it comes from the fixture and the page says so in a badge — one sample story per
- * brand, honest about being one.
+ * **The id is resolved before anything is fetched**, and the wait is why. Firing at the route's
+ * id immediately would be a request for a brand this workspace may not hold, so a stale link
+ * would show the server's 404 for a moment and *then* correct itself to the right page. The list
+ * is almost always already in the cache — the sidebar's switcher reads the same key — so the
+ * common case waits for nothing.
  */
 export function useBrandProfile(brandId?: string): BrandProfileState {
-  const { brand, brands, isLoading, error } = useActiveBrand();
+  const { brand, brands, isLoading: brandsLoading, error: brandsError } = useActiveBrand();
 
-  // A named id resolves against the list the shell already has; an unknown id (a stale link, a
-  // brand from another workspace) falls through to the active brand rather than to nothing.
   const resolved = (brandId ? brands.find((b) => b.id === brandId) : undefined) ?? brand;
-  const id = resolved?.id ?? brandId;
+  const id = brandsLoading ? undefined : (resolved?.id ?? brandId);
+
+  // `null` means "do not fetch". An array key is truthy however empty its contents, so a key
+  // holding an empty id would fire a request for `/brands/` on every render.
+  const {
+    data: source,
+    error,
+    isLoading,
+  } = useSWR<BrandWithSections>(id ? [SCOPES.bfBrand, id] : null, () =>
+    brandProfileService.get(id!),
+  );
+
+  /**
+   * The research state, read separately and **allowed to be late**.
+   *
+   * Its error is deliberately dropped rather than returned: a deployment with no research
+   * provider is a normal deployment, the footer's one line about a past run is not worth an error
+   * page, and `enabled: false` is the answer that arrives in the ordinary case. The brand is what
+   * this page is; research is a footnote on it.
+   */
+  const { data: research } = useSWR(id ? [SCOPES.bfResearch, id] : null, () =>
+    brandProfileService.research(id!),
+  );
 
   return {
-    profile: id ? sampleProfileFor(id) : undefined,
-    brandName: resolved?.name,
+    profile: source ? toBrandProfile(source, research?.job ?? null) : undefined,
     brandId: id,
-    isLoading,
-    error,
+    source,
+    // The brand list has to land before the brand can even be asked for, so a page that reported
+    // "no brand selected" during that first leg would state something it has not checked.
+    isLoading: brandsLoading || isLoading,
+    error: brandsError ?? error,
   };
+}
+
+/**
+ * The profile's writes — plain async functions that call the service and then invalidate.
+ *
+ * **Nothing is optimistic**, the rule this app applies everywhere: the API enforces domain rules
+ * the client does not know, so the server's answer is the only one worth rendering.
+ *
+ * Both writes invalidate `bfBrands` as well as `bfBrand`, and that is not belt and braces. The
+ * workspace list carries `sectionCount` and the flattened `tldr`, so writing a section changes a
+ * row in the switcher; renaming the brand changes the name in the header. Leaving the list stale
+ * is how a page and the chrome above it come to disagree.
+ */
+export function useBrandProfileMutations(brandId: string | undefined) {
+  const invalidate = useInvalidate();
+
+  /**
+   * Save the brand's complete guideline list.
+   *
+   * ⚠️ **The list is built from a fresh read, not from the SWR cache.** `PATCH
+   * /brands/:id/guidelines` takes the brand's *whole* section list and deletes anything omitted,
+   * so sending a cached copy would delete a section added since it was fetched — in another tab,
+   * by a research run finishing, or by the agent. The caller hands in a function that receives
+   * the sections **as the server holds them right now** and returns the list to write.
+   *
+   * This narrows the window; it does not close it. A real close needs an `expected_version` on
+   * the route, the way the scheme editor's 409 works, and that does not exist here. Recorded as a
+   * limit rather than papered over.
+   */
+  const saveGuidelines = React.useCallback(
+    async (build: (current: BrandWithSections) => GuidelineWrite[]) => {
+      if (!brandId) throw new Error("No brand selected");
+      const current = await brandProfileService.get(brandId);
+      const sections = await brandProfileService.updateGuidelines(brandId, build(current));
+      await invalidate(SCOPES.bfBrand, SCOPES.bfBrands);
+      return sections;
+    },
+    [brandId, invalidate],
+  );
+
+  const updateBrand = React.useCallback(
+    async (input: Parameters<typeof brandProfileService.update>[1]) => {
+      if (!brandId) throw new Error("No brand selected");
+      const row = await brandProfileService.update(brandId, input);
+      await invalidate(SCOPES.bfBrand, SCOPES.bfBrands);
+      return row;
+    },
+    [brandId, invalidate],
+  );
+
+  return { saveGuidelines, updateBrand };
 }

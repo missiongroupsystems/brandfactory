@@ -11,13 +11,16 @@ import type { SuggestedSectionKind } from "@brandfactory/shared";
  * three paragraphs.
  *
  * So the seam is drawn here instead. Everything below is *already flattened*: a body is a list of
- * blocks, a TL;DR is a string, a date is a business date. When the profile is wired, one mapper —
- * `BrandWithSections` + `BrandAsset[]` → `BrandProfile` — replaces `features/brand-profile/
- * fixtures.ts` and **no component changes**. That mapper is the only thing that has to learn
- * ProseMirror.
+ * blocks, a TL;DR is a string, a date is a business date. The mapper is `map.ts` and the walk that
+ * learns ProseMirror is `blocks.ts`; the fixtures they replaced are deleted, and **no component
+ * moved** when they landed.
  *
- * The two rules the mapper will have to honour, recorded here because they are invisible from the
- * component side:
+ * **The view model is the read side only.** `SectionEditorSheet` writes the *stored* document,
+ * reached from the SWR cache rather than from a `ProfileBlock[]` — so the flattening below is
+ * lossy without ever losing anything: a mark this page cannot render survives every save.
+ *
+ * The two rules the mapper honours, recorded here because they are invisible from the component
+ * side:
  *
  * 1. A `list` block is a real list in the document — a bullet or ordered list — and each item is
  *    one line. It is *not* a paragraph that happens to start with a dash. `shared`'s
@@ -78,15 +81,31 @@ export interface ProfileTypeface {
 export interface BrandProfile {
   id: string;
   name: string;
+  /**
+   * `brands.description` — the nullable column edited in the identity sheet.
+   *
+   * Carried even though the TL;DR usually says the same thing, because `brandDescriptionLine`'s
+   * precedence needs both to apply it: **the TL;DR wins**, and the description is the older,
+   * weaker copy of the same sentence. The identity band renders this only when the TL;DR is
+   * unwritten, so the page never prints one brand summary twice.
+   */
+  description: string | null;
   /** `brands.website_url`. `null` renders no link rather than an empty one. */
   websiteUrl: string | null;
   /** Business date, as {@link ProfileSection.updatedAt}. */
   updatedAt: string;
   /**
-   * Every guideline section the brand has, written or not, in the order the API returned them.
-   * The page decides where each one goes; ordering is `profile.ts`'s job, not the fixture's.
+   * Every guideline section the brand has, written or not, in the order the API returned them —
+   * `priority`. The page decides where each one goes; ordering is `profile.ts`'s job.
    */
   sections: ProfileSection[];
+  /**
+   * **Both are empty today, deliberately.** Colours and typefaces are `BrandAsset` rows behind
+   * `GET /brands/:id/assets`, and the integration was asked to leave assets alone. Nothing
+   * degrades: `VisualIdentityBand` renders nothing when both are empty and the identity band's
+   * palette strip hides itself, so the page loses two bands rather than gaining two empty states.
+   * Filling them is one request and one filter in `map.ts`.
+   */
   colours: ProfileColour[];
   typefaces: ProfileTypeface[];
   /** The last completed deep-research run, or `null` for a brand that has never had one. */

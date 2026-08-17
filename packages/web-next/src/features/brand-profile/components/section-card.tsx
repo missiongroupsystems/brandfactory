@@ -9,6 +9,7 @@ import { formatDate } from "@/lib/format";
 import { sectionAnchor } from "../profile";
 import type { ProfileSection } from "../types";
 import { CopyButton } from "./copy-button";
+import { EditButton } from "./edit-button";
 import { RichText } from "./rich-text";
 
 /** How many blocks show before the card offers to expand. */
@@ -27,7 +28,13 @@ const CLAMP_AT = 3;
  * worse than no voice section, because the reader believes they have read it. So the fold is
  * counted ("2 more paragraphs") and reversible, and the copy action always takes the whole thing.
  */
-export function SectionCard({ section }: { section: ProfileSection }) {
+export function SectionCard({
+  section,
+  onEdit,
+}: {
+  section: ProfileSection;
+  onEdit: () => void;
+}) {
   const [expanded, setExpanded] = React.useState(false);
   const anchor = sectionAnchor(section);
   const hidden = section.blocks.length - CLAMP_AT;
@@ -46,12 +53,14 @@ export function SectionCard({ section }: { section: ProfileSection }) {
               Drafted by research
             </span>
           ) : null}
-          <CopyButton
-            className="ml-auto"
-            text={() => sectionToText(section)}
-            label="Copy"
-            confirmation={`${section.label} copied`}
-          />
+          <div className="ml-auto flex items-center gap-1">
+            <CopyButton
+              text={() => sectionToText(section)}
+              label="Copy"
+              confirmation={`${section.label} copied`}
+            />
+            <EditButton onClick={onEdit} what={section.label} />
+          </div>
         </div>
         <span className="text-helper text-ink-tertiary">
           Updated {formatDate(section.updatedAt)}

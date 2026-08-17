@@ -3,6 +3,7 @@ import { ZapIcon } from "lucide-react";
 import { isWritten } from "../profile";
 import type { ProfileSection } from "../types";
 import { CopyButton } from "./copy-button";
+import { EditButton } from "./edit-button";
 import { SectionHeading } from "./section-heading";
 
 /**
@@ -18,7 +19,15 @@ import { SectionHeading } from "./section-heading";
  * 18px at weight 400: the styleguide reserves weight 300 for ≥24px display moments, and this is
  * prose to be read rather than a headline.
  */
-export function TldrBand({ section, anchor }: { section: ProfileSection | undefined; anchor: string }) {
+export function TldrBand({
+  section,
+  anchor,
+  onEdit,
+}: {
+  section: ProfileSection | undefined;
+  anchor: string;
+  onEdit: () => void;
+}) {
   const text = section?.blocks
     .filter((block) => block.kind === "paragraph")
     .map((block) => block.text)
@@ -31,9 +40,12 @@ export function TldrBand({ section, anchor }: { section: ProfileSection | undefi
         icon={ZapIcon}
         title="TL;DR"
         action={
-          text ? (
-            <CopyButton text={() => text} label="Copy" confirmation="TL;DR copied" />
-          ) : undefined
+          <div className="flex items-center gap-1">
+            {text ? (
+              <CopyButton text={() => text} label="Copy" confirmation="TL;DR copied" />
+            ) : null}
+            <EditButton onClick={onEdit} what="the TL;DR" />
+          </div>
         }
       />
 
@@ -49,11 +61,20 @@ export function TldrBand({ section, anchor }: { section: ProfileSection | undefi
       ) : (
         /* Not a grey box. An empty TL;DR is the single most consequential gap a brand can have,
            so the empty state names the job rather than reporting the absence. */
-        <div className="rounded-xl border border-dashed border-border-input px-5 py-4">
+        <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-border-input px-5 py-4">
           <p className="max-w-[62ch] text-sm text-ink-secondary">
             Write the one paragraph every agent reads — what this brand is, who it is for, how it
             sounds. Three or four sentences is the whole job.
           </p>
+          {/* The empty state names the job, so the control repeats the verb rather than saying
+              "Edit". Nothing here opens a form that does nothing: this is the same sheet. */}
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-lg border border-border-input px-2.5 py-1 text-helper text-ink-secondary hover:border-border-strong hover:text-ink"
+          >
+            Write the TL;DR
+          </button>
         </div>
       )}
     </section>

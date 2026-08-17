@@ -16,7 +16,14 @@ import type { BrandProfile } from "../types";
  * the fraction would invite the reader to go looking for the rows it counts, and there are none.
  * `brandContextState` states the same rule at the shared layer.
  */
-export function ProfileFooter({ profile }: { profile: BrandProfile }) {
+export function ProfileFooter({
+  profile,
+  onEdit,
+}: {
+  profile: BrandProfile;
+  /** Open the editor on the named section — what the still-empty chips are for. */
+  onEdit: (label: string) => void;
+}) {
   const state = completeness(profile.sections);
 
   return (
@@ -59,24 +66,22 @@ export function ProfileFooter({ profile }: { profile: BrandProfile }) {
       {state.unwritten.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-helper text-ink-tertiary">Still empty:</span>
+          {/* Buttons, not labels. The name was always the actionable part — "a name is something
+              you can act on and a fraction is not" — and now the action exists: each chip opens
+              the editor on that section. */}
           {state.unwritten.map((label) => (
-            <span
+            <button
               key={label}
-              className="rounded-lg border border-dashed border-border-input px-2 py-0.5 text-helper text-ink-secondary"
+              type="button"
+              onClick={() => onEdit(label)}
+              className="rounded-lg border border-dashed border-border-input px-2 py-0.5 text-helper text-ink-secondary hover:border-border-strong hover:text-ink"
             >
               {label}
-            </span>
+            </button>
           ))}
         </div>
       ) : null}
 
-      {/* The honest footer note. These chips will open the editor on that section once
-          `EditGuidelinesDialog` comes across; until then they are a list, and saying so beats a
-          button that does nothing. */}
-      <p className="text-helper text-ink-tertiary">
-        This page renders sample content. Editing, and the brand&apos;s real guidelines, arrive
-        with the integration.
-      </p>
     </footer>
   );
 }

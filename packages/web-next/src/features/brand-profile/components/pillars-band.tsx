@@ -2,6 +2,7 @@ import { CompassIcon, MessageSquareTextIcon } from "lucide-react";
 
 import { splitPillars } from "../profile";
 import type { ProfileSection } from "../types";
+import { EditButton } from "./edit-button";
 import { RichText } from "./rich-text";
 import { SectionHeading } from "./section-heading";
 
@@ -22,12 +23,15 @@ import { SectionHeading } from "./section-heading";
 export function PillarsBand({
   section,
   anchor,
+  onEdit,
 }: {
   section: ProfileSection | undefined;
   anchor: string;
+  onEdit: () => void;
 }) {
   const { pillars, prose } = splitPillars(section);
-  if (pillars.length === 0 && prose.length === 0) return <EmptyPillars anchor={anchor} />;
+  if (pillars.length === 0 && prose.length === 0)
+    return <EmptyPillars anchor={anchor} onEdit={onEdit} />;
 
   return (
     <section aria-labelledby={anchor} className="flex flex-col gap-4">
@@ -39,6 +43,7 @@ export function PillarsBand({
         // Plan §2.3 option (a): the page can read as the product speaks without orphaning every
         // brand that already wrote a section under the old name.
         note="from Values & positioning"
+        action={<EditButton onClick={onEdit} what="Values & positioning" />}
       />
 
       {pillars.length > 0 ? (
@@ -69,15 +74,25 @@ export function PillarsBand({
   );
 }
 
-function EmptyPillars({ anchor }: { anchor: string }) {
+function EmptyPillars({ anchor, onEdit }: { anchor: string; onEdit: () => void }) {
   return (
     <section aria-labelledby={anchor} className="flex flex-col gap-3">
       <SectionHeading id={anchor} icon={CompassIcon} title="Brand pillars" />
-      <div className="rounded-xl border border-dashed border-border-input px-5 py-4">
+      <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-border-input px-5 py-4">
         <p className="max-w-[62ch] text-sm text-ink-secondary">
           Name what this brand stands on — three to five, one per line. They are the sentences
           every other section ends up agreeing with.
         </p>
+        {/* "One per line" is not decoration in that sentence: `splitPillars` turns list items
+            into cards and leaves paragraphs as prose, so how they are typed decides how they
+            render. The editor's bullet list is what produces the strip. */}
+        <button
+          type="button"
+          onClick={onEdit}
+          className="rounded-lg border border-border-input px-2.5 py-1 text-helper text-ink-secondary hover:border-border-strong hover:text-ink"
+        >
+          Name the pillars
+        </button>
       </div>
     </section>
   );
@@ -98,9 +113,11 @@ function EmptyPillars({ anchor }: { anchor: string }) {
 export function ContentPillarsBand({
   section,
   anchor,
+  onEdit,
 }: {
   section: ProfileSection | undefined;
   anchor: string;
+  onEdit: () => void;
 }) {
   const { pillars } = splitPillars(section);
   if (pillars.length === 0) return null;
@@ -112,6 +129,7 @@ export function ContentPillarsBand({
         icon={MessageSquareTextIcon}
         title="What we post about"
         note="Content pillars — the recurring subjects, not one campaign"
+        action={<EditButton onClick={onEdit} what="Content pillars" />}
       />
       <ul className="flex flex-wrap gap-2">
         {pillars.map((pillar) => (
