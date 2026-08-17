@@ -25,6 +25,7 @@ const BRAND = {
   name: 'Casa Vostra',
   description: null,
   websiteUrl: null,
+  linkedToPassport: false,
   ...STAMPS,
   sections: [],
 } as unknown as BrandWithSections

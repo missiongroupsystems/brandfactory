@@ -99,6 +99,7 @@ const BRAND: BrandWithSections = {
   name: 'Casa Vostra',
   description: null,
   websiteUrl: null,
+  linkedToPassport: false,
   sections: [guideline('TL;DR'), guideline('Overview')],
   ...STAMPS,
 }

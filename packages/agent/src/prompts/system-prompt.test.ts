@@ -37,6 +37,7 @@ function makeBrand(sections: BrandGuidelineSection[]): BrandWithSections {
     name: 'Northstar Coffee',
     description: 'Specialty roaster with a minimalist aesthetic.',
     websiteUrl: null,
+    linkedToPassport: false,
     createdAt: ts,
     updatedAt: ts,
     sections,

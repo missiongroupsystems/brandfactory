@@ -43,6 +43,7 @@ function seedDetail(qc: QueryClient): void {
       name: 'b',
       description: null,
       websiteUrl: null,
+      linkedToPassport: false,
       createdAt: '2026-04-20T00:00:00.000Z',
       updatedAt: '2026-04-20T00:00:00.000Z',
       sections: [],

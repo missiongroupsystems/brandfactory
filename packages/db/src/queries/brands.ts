@@ -68,6 +68,10 @@ export async function listBrandSummariesByWorkspace(
       name: brands.name,
       description: brands.description,
       websiteUrl: brands.websiteUrl,
+      // Selected so the summary carries `linkedToPassport`. A brand list that omitted it
+      // would render an unlinked brand identically to a linked one, which is the one thing
+      // phase 8f must not do.
+      passportUnitId: brands.passportUnitId,
       createdAt: brands.createdAt,
       updatedAt: brands.updatedAt,
       sectionCount: sql<number>`count(distinct ${guidelineSections.id})::int`.mapWith(Number),

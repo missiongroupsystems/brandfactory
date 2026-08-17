@@ -204,6 +204,10 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         id,
         name: input.name,
         ownerUserId: input.ownerUserId,
+        // A newly created workspace is ALWAYS unlinked. Passport learns about it later, if
+        // a super admin creates the matching organisation — `POST /orgs` is super-admin
+        // gated, so this app can never mint one. See proposal §8 `D1-b`.
+        linkedToPassport: false,
         createdAt: NOW,
         updatedAt: NOW,
       }
@@ -275,6 +279,11 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         name: input.name,
         description: input.description ?? null,
         websiteUrl: input.websiteUrl ?? null,
+        // A newly created brand is unlinked until Passport answers and the returning
+        // `unit.upserted` links it (plan 9c-bis). The fake models that honestly: it never
+        // links, so anything asserting "created and immediately linked" fails here rather
+        // than passing against a fake that is kinder than reality.
+        linkedToPassport: false,
         createdAt: NOW,
         updatedAt: NOW,
       }

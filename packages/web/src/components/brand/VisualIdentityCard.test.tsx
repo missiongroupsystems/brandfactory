@@ -38,6 +38,7 @@ function brand(): BrandWithSections {
     name: 'Casa Vostra',
     description: null,
     websiteUrl: null,
+    linkedToPassport: false,
     sections: [],
     ...ASSET_STAMPS,
   }

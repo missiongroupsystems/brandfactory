@@ -44,6 +44,7 @@ describe('brands routes', () => {
       id: 'w-theirs' as never,
       name: 'theirs',
       ownerUserId: 'u-2' as UserId,
+      linkedToPassport: false,
       createdAt: 't',
       updatedAt: 't',
     })
@@ -96,6 +97,7 @@ describe('brands routes', () => {
       name: 'Empty',
       description: null,
       websiteUrl: null,
+      linkedToPassport: false,
       createdAt: '2026-01-02T00:00:00.000Z',
       updatedAt: '2026-01-02T00:00:00.000Z',
     })
@@ -122,6 +124,7 @@ describe('brands routes', () => {
       id: 'w-theirs' as WorkspaceId,
       name: 'theirs',
       ownerUserId: 'u-2' as UserId,
+      linkedToPassport: false,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     })
@@ -423,6 +426,7 @@ describe('brands routes', () => {
     expect(await renamed.json()).toMatchObject({
       name: 'Renamed',
       websiteUrl: 'https://casavostra.com',
+      linkedToPassport: false,
     })
   })
 
@@ -472,6 +476,7 @@ describe('brands routes', () => {
       id: wsId,
       name: 'theirs',
       ownerUserId: 'u-2' as UserId,
+      linkedToPassport: false,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     })
@@ -481,6 +486,7 @@ describe('brands routes', () => {
       name: 'Theirs',
       description: null,
       websiteUrl: null,
+      linkedToPassport: false,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     })

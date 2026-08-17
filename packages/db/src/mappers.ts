@@ -92,6 +92,8 @@ export function rowToWorkspace(row: WorkspaceRow): Workspace {
     id: row.id as WorkspaceId,
     name: row.name,
     ownerUserId: row.ownerUserId as UserId,
+    // Derived, never published raw. See `linkedToPassport` in `@brandfactory/shared`.
+    linkedToPassport: row.passportOrganizationId !== null,
     createdAt: toIsoTimestamp(row.createdAt),
     updatedAt: toIsoTimestamp(row.updatedAt),
   }
@@ -104,6 +106,8 @@ export function rowToBrand(row: BrandRow): Brand {
     name: row.name,
     description: row.description,
     websiteUrl: row.websiteUrl,
+    // Derived, never published raw. See `linkedToPassport` in `@brandfactory/shared`.
+    linkedToPassport: row.passportUnitId !== null,
     createdAt: toIsoTimestamp(row.createdAt),
     updatedAt: toIsoTimestamp(row.updatedAt),
   }

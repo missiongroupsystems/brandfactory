@@ -37,6 +37,7 @@ const summaryRow = (
   name: 'Brand',
   description: null,
   websiteUrl: null,
+  passportUnitId: null,
   createdAt: TS,
   updatedAt: TS,
   sectionCount: 3,
@@ -51,6 +52,7 @@ describe('mappers — happy paths', () => {
       id: 'ws-1',
       name: 'Acme',
       ownerUserId: 'u-1',
+      passportOrganizationId: null,
       createdAt: TS,
       updatedAt: TS,
     }
@@ -66,6 +68,7 @@ describe('mappers — happy paths', () => {
       name: 'Brand',
       description: null,
       websiteUrl: null,
+      passportUnitId: null,
       createdAt: TS,
       updatedAt: TS,
     }
@@ -83,6 +86,7 @@ describe('mappers — happy paths', () => {
       name: 'Brand',
       description: null,
       websiteUrl: 'https://casavostra.com',
+      passportUnitId: null,
       createdAt: TS,
       updatedAt: TS,
     })
@@ -522,6 +526,7 @@ describe('mappers — timestamp normalisation', () => {
       id: 'ws-1',
       name: 'Acme',
       ownerUserId: 'u-1',
+      passportOrganizationId: null,
       createdAt: PG,
       updatedAt: PG,
     })
@@ -536,6 +541,7 @@ describe('mappers — timestamp normalisation', () => {
       name: 'Acme',
       description: null,
       websiteUrl: null,
+      passportUnitId: null,
       createdAt: ISO,
       updatedAt: ISO,
     })

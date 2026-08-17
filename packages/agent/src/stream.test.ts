@@ -97,6 +97,7 @@ function makeBrand(): BrandWithSections {
     name: 'Brand',
     description: null,
     websiteUrl: null,
+    linkedToPassport: false,
     createdAt: ts,
     updatedAt: ts,
     sections: [

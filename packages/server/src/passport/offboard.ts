@@ -64,7 +64,17 @@ export interface OffboardDeps {
   findUsers?: typeof findUsersByEmail
 }
 
-export function createPassportOffboarding(deps: OffboardDeps): Required<PassportSyncHooks> {
+/**
+ * `Pick<…, 'onMembershipRemoved'>` rather than `Required<PassportSyncHooks>`.
+ *
+ * This module answers ONE hook. `Required<>` made that read as "every hook", so adding
+ * `onUnitUpserted` to the interface broke this file — correctly, but for the wrong reason:
+ * the link is not offboarding's job, and satisfying the type here would have buried a
+ * structure concern inside a revocation module. `app.ts` composes the two instead.
+ */
+export function createPassportOffboarding(
+  deps: OffboardDeps,
+): Pick<Required<PassportSyncHooks>, 'onMembershipRemoved'> {
   const findUsers = deps.findUsers ?? findUsersByEmail
 
   return {

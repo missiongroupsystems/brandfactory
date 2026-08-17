@@ -57,6 +57,7 @@ function brand(sections: BrandGuidelineSection[] = []): BrandWithSections {
     name: 'Casa Vostra',
     description: null,
     websiteUrl: null,
+    linkedToPassport: false,
     sections,
     ...STAMPS,
   }

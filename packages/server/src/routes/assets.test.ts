@@ -87,6 +87,7 @@ describe('asset routes — access', () => {
       id: 'w-theirs' as never,
       name: 'theirs',
       ownerUserId: 'u-2' as UserId,
+      linkedToPassport: false,
       createdAt: 't',
       updatedAt: 't',
     })
@@ -96,6 +97,7 @@ describe('asset routes — access', () => {
       name: 'Theirs',
       description: null,
       websiteUrl: null,
+      linkedToPassport: false,
       createdAt: 't',
       updatedAt: 't',
     })

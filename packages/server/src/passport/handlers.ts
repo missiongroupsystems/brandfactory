@@ -147,6 +147,21 @@ export interface PassportSyncHooks {
    * and be re-authorized against stale data.
    */
   onMembershipRemoved?: (payload: MembershipPayload) => Promise<void>
+  /**
+   * Link a locally created brand to the unit it became (plan 9c-bis, decision `D1-b`).
+   *
+   * A brand authored while Passport was unreachable exists here with no unit. When the
+   * queued create is finally promoted, Passport answers `201` and emits `unit.upserted`
+   * carrying `external_ref = brands.id` — and **this is the only moment the two records can
+   * be joined**, because the local row is the only thing that knows it was waiting.
+   *
+   * Runs **after** the projection write, not before. The link's own read joins to
+   * `passport.unit`, so the unit must already exist; and the projection write is idempotent,
+   * so a hook that throws retries harmlessly.
+   *
+   * It writes `brands`, which is app-owned — the projection keeps exactly one writer.
+   */
+  onUnitUpserted?: (payload: UnitPayload) => Promise<void>
 }
 
 export function createPassportSyncHandlers(
@@ -163,7 +178,7 @@ export function createPassportSyncHandlers(
       version: p.version,
     })
 
-  const upsertUnit = (p: UnitPayload) =>
+  const writeUnit = (p: UnitPayload) =>
     writer.writeUnit({
       id: p.id,
       organizationId: p.organization_id,
@@ -180,6 +195,19 @@ export function createPassportSyncHandlers(
       contactPhone: p.contact_phone,
       kind: p.kind,
     })
+
+  /**
+   * Project the unit, then link any local brand waiting for it.
+   *
+   * The hook's errors PROPAGATE, exactly as `removeMembership`'s do. A failed link leaves a
+   * brand that exists here and nowhere the app can see it as linked, and acking an event
+   * whose side effect failed is the outcome worth avoiding — a 500 makes Passport redeliver,
+   * and the retry links it.
+   */
+  const upsertUnit = async (p: UnitPayload): Promise<void> => {
+    await writeUnit(p)
+    await hooks.onUnitUpserted?.(p)
+  }
 
   const upsertMembership = (p: MembershipPayload) =>
     writer.writeMembership({

@@ -11,6 +11,7 @@ function brand(overrides: Partial<BrandWithSections> = {}): BrandWithSections {
     name: 'Mission Group',
     description: 'This is the core Mission Group brand.',
     websiteUrl: null,
+    linkedToPassport: false,
     createdAt: '2026-07-24T00:00:00.000Z',
     updatedAt: '2026-07-24T00:00:00.000Z',
     sections: [],

@@ -45,6 +45,7 @@ import { createPassportBearerVerifier, type BearerVerifier } from './passport/ve
 import { createMessagesRouter } from './routes/messages'
 import { createPassportAuthRouter } from './routes/passport-auth'
 import { createPassportStructureRouter } from './routes/passport-structure'
+import { createBrandLinker } from './passport/link-brand'
 import { createPassportSyncRouter } from './routes/passport-sync'
 import {
   createBrandProjectsRouter,
@@ -231,7 +232,13 @@ export function createApp(deps: AppDeps) {
         // `authorize` runs once per channel at subscribe time — so a revoked member's
         // OPEN socket keeps receiving events until it is closed. The hook needs the
         // realtime bus, which is why it is supplied here rather than inside the route.
-        hooks: createPassportOffboarding({ realtime: deps.realtime, log: deps.log }),
+        hooks: {
+          // Offboarding (rule 6) and the `D1-b` brand link are composed here rather than
+          // in one module, because they are unrelated concerns that happen to share a
+          // hook bag: one revokes, the other joins two records.
+          ...createPassportOffboarding({ realtime: deps.realtime, log: deps.log }),
+          ...createBrandLinker({ log: deps.log }),
+        },
       }),
     )
     // The email-first login router. OUTSIDE the auth gate by necessity: every route

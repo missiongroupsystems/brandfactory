@@ -76,6 +76,7 @@ describe('workspaces routes', () => {
       id: 'w-mine' as never,
       name: 'mine',
       ownerUserId: 'u-1' as UserId,
+      linkedToPassport: false,
       createdAt: 't',
       updatedAt: 't',
     })
@@ -83,6 +84,7 @@ describe('workspaces routes', () => {
       id: 'w-theirs' as never,
       name: 'theirs',
       ownerUserId: 'u-2' as UserId,
+      linkedToPassport: false,
       createdAt: 't',
       updatedAt: 't',
     })
@@ -105,6 +107,7 @@ describe('workspaces routes', () => {
       id: 'w-theirs' as never,
       name: 'theirs',
       ownerUserId: 'u-2' as UserId,
+      linkedToPassport: false,
       createdAt: 't',
       updatedAt: 't',
     })
@@ -154,6 +157,7 @@ describe('workspaces routes', () => {
       id: 'w-theirs' as never,
       name: 'theirs',
       ownerUserId: 'u-2' as UserId,
+      linkedToPassport: false,
       createdAt: 't',
       updatedAt: 't',
     })

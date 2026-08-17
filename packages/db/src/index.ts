@@ -33,3 +33,7 @@ export * from './queries/passport-login-attempts'
 // only while the four properties in its schema header hold — chiefly that NOTHING but the
 // retry surface reads it.
 export * from './queries/passport-write-attempts'
+// The join between this app's own structure and Passport's, plus the link the sync sets.
+// ONE query, no mode switch: a row is linked or it is not, and both answer. Read its header
+// before adding a `passport.unit` read anywhere else — the LEFT JOIN is load-bearing.
+export * from './queries/structure'

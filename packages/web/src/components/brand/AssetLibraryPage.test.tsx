@@ -124,6 +124,7 @@ const BRAND = {
   name: 'Casa Vostra',
   description: null,
   websiteUrl: null,
+  linkedToPassport: false,
   createdAt: T0,
   updatedAt: T0,
   sections: [],
