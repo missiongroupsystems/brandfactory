@@ -205,7 +205,9 @@ function VendorResults({
               <TableHead className="pl-5">Vendor</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Contracts</TableHead>
-              <TableHead>Coverage</TableHead>
+              {/* Was "Coverage" and counted outlets. A contract names brands now, so the
+                  column counts what it can actually count — see `VendorListItem`. */}
+              <TableHead>Brands</TableHead>
               <TableHead>Next end</TableHead>
               <TableHead>Primary contact</TableHead>
               <TableHead>Status</TableHead>
@@ -269,8 +271,14 @@ function VendorResults({
                     )}
                   </TableCell>
                   <TableCell className="text-ink-secondary">
-                    {vendor.outlets_covered > 0 ? (
-                      `${vendor.outlets_covered} ${vendor.outlets_covered === 1 ? "outlet" : "outlets"}`
+                    {/* Zero is a real answer here and not a gap — a vendor whose only live
+                        agreement is held at group level works on no *named* brand — so it is
+                        worded rather than left to the em dash, which this table reads as
+                        "not recorded". */}
+                    {vendor.brands_covered > 0 ? (
+                      `${vendor.brands_covered} ${vendor.brands_covered === 1 ? "brand" : "brands"}`
+                    ) : vendor.contracts_active > 0 ? (
+                      <span className="text-ink-tertiary">Group level</span>
                     ) : (
                       <Value>{null}</Value>
                     )}

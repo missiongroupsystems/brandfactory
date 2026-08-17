@@ -2,14 +2,12 @@
 
 import Link from "next/link";
 import {
-  Building2Icon,
   ChevronDownIcon,
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
   Columns3Icon,
   LayersIcon,
   type LucideIcon,
-  StoreIcon,
   TagIcon,
 } from "lucide-react";
 import * as React from "react";
@@ -43,17 +41,14 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useBrandIndex } from "@/features/registry-brands/hooks";
-import { useEntityIndex, useOutletIndex } from "@/features/registry/hooks";
 import { useVendorIndex } from "@/features/vendors/hooks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { FLAG_ON, filterIdentity, isFlagOn, useQueryFilters } from "@/hooks/use-query-filters";
 import {
   type Brand,
-  type ServiceCategory,
+  type ContractCategory,
   type ContractStatus,
-  type Entity,
   hasContractValue,
-  type Outlet,
   type RenewalType,
   type Vendor,
 } from "@/lib/api/types";
@@ -67,9 +62,9 @@ import {
 import { cn } from "@/lib/utils";
 import {
   BILLING_FREQUENCY_LABELS,
-  SERVICE_CATEGORY_ICONS,
-  SERVICE_CATEGORY_LABELS,
-  SERVICE_CATEGORY_OPTIONS,
+  CONTRACT_CATEGORY_ICONS,
+  CONTRACT_CATEGORY_LABELS,
+  CONTRACT_CATEGORY_OPTIONS,
   CONTRACT_STATUS_LABELS,
   CONTRACT_STATUS_OPTIONS,
   CONTRACT_STATUS_TONES,
@@ -90,24 +85,25 @@ const FILTER_KEYS = [
   "status",
   "renewal",
   "vendor_id",
-  "outlet_id",
   "brand_id",
   "notice_gap",
 ] as const;
 
 /**
- * The seven that live in the Filters panel — `q` is the one filter that stays on the row,
+ * The five that live in the Filters panel — `q` is the one filter that stays on the row,
  * because search is what people reach for first and a search box behind a click is a
  * search box nobody uses. Also the set the trigger counts and the chips describe, which
  * is why counting `activeCount` from `useQueryFilters` would be wrong: it includes `q`,
  * and a "Filters ①" badge for a term already visible in the search box is a miscount.
+ *
+ * `outlet_id` is gone. It narrowed by *where the work happens*, which a marketing agreement
+ * does not record — the brand it is held for is the question that replaced it.
  */
 const PANEL_KEYS = [
   "category",
   "status",
   "renewal",
   "vendor_id",
-  "outlet_id",
   "brand_id",
   "notice_gap",
 ] as const;
@@ -165,6 +161,16 @@ const noticeGapOn = isFlagOn;
 // this page's tabs (contracts / vendors / health).
 const VIEW_KEYS = ["group", "show"] as const;
 
+/**
+ * The value `?group=` takes when grouping is on.
+ *
+ * It was `outlet` and is `brand`, and an old link carrying `?group=outlet` therefore lands
+ * ungrouped rather than grouped by a dimension that no longer exists. That is the honest
+ * failure: silently reading any truthy value as "group by brand" would re-arrange a table
+ * somebody linked to for a different reason, and the toggle is one click away.
+ */
+const GROUP_BY_BRAND = "brand";
+
 /** The agreements. Auto-renewal is flagged in the table with its notice period — until
  * the generator's deadline lands on the dashboard, the table saying so is the warning. */
 export function ContractsView() {
@@ -172,11 +178,9 @@ export function ContractsView() {
   const { filters: viewFilters, setFilter: setViewFilter } = useQueryFilters(VIEW_KEYS);
   const [formOpen, setFormOpen] = React.useState(false);
   const { vendors } = useVendorIndex();
-  const { outlets } = useOutletIndex();
-  // The same index the Brand column resolves names through, read here for the filter's
-  // options. One SWR key, so the page fetches the catalogue once whether the column is on
-  // or off — and the filter is the half worth more: it answers "what do we pay for Casa
-  // Vostra" without needing a column at all.
+  // The index every brand name on this screen resolves through — the column, the group
+  // bands and the filter's options, on one SWR key. It is load-bearing now in a way it was
+  // not when brand was an off-by-default column: the grouping cannot draw a band without it.
   const { brands } = useBrandIndex();
 
   // Which columns are on screen. Held **here**, not in `ContractResults` — that component is
@@ -199,19 +203,16 @@ export function ContractsView() {
   const resetColumns = React.useCallback(() => setVisibleColumns(DEFAULT_COLUMN_IDS), []);
 
   const showAll = viewFilters.show === "all";
-  const grouped = viewFilters.group === "outlet";
+  const grouped = viewFilters.group === GROUP_BY_BRAND;
 
   const vendorOptions = React.useMemo(
     () => vendors.map((v) => ({ value: v.id, label: v.name })),
     [vendors],
   );
-  const outletOptions = React.useMemo(
-    () => outlets.map((o) => ({ value: o.id, label: o.name })),
-    [outlets],
-  );
-  // Every brand, retired ones included. The API allows a retired brand to hold outlets —
-  // retiring is not un-branding — so a filter that hid them would answer "no contracts"
-  // about a brand with contracts, which is the reading this page exists to prevent.
+  // Every brand, retired ones included. Retiring a brand does not un-sign the agreements
+  // made for it — Eastside Kitchens is retired and is on three of them — so a filter that
+  // hid them would answer "no contracts" about a brand with contracts, which is the reading
+  // this page exists to prevent.
   const brandOptions = React.useMemo(
     () => brands.map((b) => ({ value: b.id, label: b.name })),
     [brands],
@@ -234,7 +235,7 @@ export function ContractsView() {
   const categoryFilter = React.useMemo(
     () => ({
       active: filters.category,
-      toggle: (category: ServiceCategory) =>
+      toggle: (category: ContractCategory) =>
         setFilter("category", filters.category === category ? undefined : category),
     }),
     [filters.category, setFilter],
@@ -262,11 +263,10 @@ export function ContractsView() {
       label: string;
       options: readonly { value: string; label: string }[];
     }[] = [
-      { key: "category", label: "Category", options: SERVICE_CATEGORY_OPTIONS },
+      { key: "category", label: "Category", options: CONTRACT_CATEGORY_OPTIONS },
       { key: "status", label: "Status", options: CONTRACT_STATUS_OPTIONS },
       { key: "renewal", label: "Renewal", options: RENEWAL_TYPE_OPTIONS },
       { key: "vendor_id", label: "Vendor", options: vendorOptions },
-      { key: "outlet_id", label: "Outlet", options: outletOptions },
       { key: "brand_id", label: "Brand", options: brandOptions },
     ];
 
@@ -298,7 +298,7 @@ export function ContractsView() {
     }
 
     return chips;
-  }, [filters, noticeGap, vendorOptions, outletOptions, brandOptions, setFilter]);
+  }, [filters, noticeGap, vendorOptions, brandOptions, setFilter]);
 
   /**
    * What the trigger's badge counts — `chips.length`, not a second pass over `PANEL_KEYS`.
@@ -351,11 +351,11 @@ export function ContractsView() {
               <ToggleButton
                 pressed={grouped}
                 onPressedChange={(next) =>
-                  setViewFilter("group", next ? "outlet" : undefined)
+                  setViewFilter("group", next ? GROUP_BY_BRAND : undefined)
                 }
               >
                 <LayersIcon data-icon="inline-start" />
-                Group by outlet
+                Group by brand
               </ToggleButton>
               {/* F3: the primary action is now a split button — Manual add (this form) or
                   Upload (a drop-a-PDF popup, UI only). */}
@@ -374,11 +374,22 @@ export function ContractsView() {
             onChange={(value) => setFilter("q", value)}
           />
           <FilterPopover activeCount={panelCount} onClear={clearPanel}>
+            {/* Brand leads the panel, because it is now the dimension the table is *about*
+                — the grouping, the band and the column that no longer has to earn its width.
+                It was last, beside Outlet, on the argument that both narrowed by where the
+                work happens; that argument left with the outlet. */}
+            <PanelFilter
+              label="Brand"
+              allLabel="All brands"
+              value={filters.brand_id}
+              options={brandOptions}
+              onChange={(value) => setFilter("brand_id", value)}
+            />
             <PanelFilter
               label="Category"
               allLabel="All categories"
               value={filters.category}
-              options={SERVICE_CATEGORY_OPTIONS}
+              options={CONTRACT_CATEGORY_OPTIONS}
               onChange={(value) => setFilter("category", value)}
             />
             <PanelFilter
@@ -401,23 +412,6 @@ export function ContractsView() {
               value={filters.vendor_id}
               options={vendorOptions}
               onChange={(value) => setFilter("vendor_id", value)}
-            />
-            <PanelFilter
-              label="Outlet"
-              allLabel="All outlets"
-              value={filters.outlet_id}
-              options={outletOptions}
-              onChange={(value) => setFilter("outlet_id", value)}
-            />
-            {/* Beside Outlet rather than beside Vendor, because it is the same question one
-                level up: both narrow by *where the work happens*, and the API answers this
-                one by joining through the very coverage the Outlet filter matches on. */}
-            <PanelFilter
-              label="Brand"
-              allLabel="All brands"
-              value={filters.brand_id}
-              options={brandOptions}
-              onChange={(value) => setFilter("brand_id", value)}
             />
             {/* A checkbox, not a `PanelFilter` — a Select holding "All / Missing" is the
                 "menu for a boolean" AGENTS.md calls out, and it would make the unset state
@@ -451,7 +445,7 @@ export function ContractsView() {
         key={resultsKey}
         filters={resultsFilters}
         showAll={showAll}
-        groupByOutlet={grouped}
+        groupByBrand={grouped}
         visibleColumns={visibleColumns}
         categoryFilter={categoryFilter}
       />
@@ -462,20 +456,20 @@ export function ContractsView() {
 }
 
 /**
- * The four cached indexes every derived cell reads.
+ * The two cached indexes every derived cell reads.
  *
  * They are handed to the column rather than resolved by the caller because a column has to be
  * one declaration — a cell that needed its own prop threaded down from `ContractResults` could
  * not be added or hidden without editing three places, which is exactly what this model exists
- * to stop. All four are already loaded for the page; nothing here issues a request.
+ * to stop. Both are already loaded for the page; nothing here issues a request.
+ *
+ * **It was four.** `outletById` and `entityById` went with the Coverage column, and with them
+ * went the two-hop resolution that made the brand cell the most fragile in the table: brand is
+ * one hop off the row's own `brand_ids` now, so "the index has not arrived" has exactly one way
+ * to be true rather than two.
  */
 type ColumnLookups = {
   vendorById: Map<string, Vendor>;
-  outletById: Map<string, Outlet>;
-  entityById: Map<string, Entity>;
-  /** Four now, because brand is **two** hops off the row: `contract → outlet → brand`.
-   *  The Brand cell is the only reader, and it needs `outletById` as well as this one —
-   *  which is why "the index has not arrived" has two ways to be true there. */
   brandById: Map<string, Brand>;
 };
 
@@ -490,7 +484,7 @@ type CategoryFilter = {
   /** The category the URL is currently narrowed to, if any. */
   active: string | undefined;
   /** Set it, or clear it when it is already the active one. */
-  toggle: (category: ServiceCategory) => void;
+  toggle: (category: ContractCategory) => void;
 };
 
 /**
@@ -636,38 +630,31 @@ const COLUMNS: readonly ContractColumn[] = [
   // What was lost is the ability to scan categories down a column. That reading is served by
   // clicking one glyph — which is now what filtering *is* — and the row order is unchanged, so
   // the eye can still run down the left edge of the titles where the glyphs line up.
+  // Coverage was a column here — outlets, and the companies holding them, merged into one
+  // cell after Stage 3's width work — and is not one any more, because a contract no longer
+  // names an outlet. What replaced it is the column below, and the trade is strictly in the
+  // table's favour: `⌂ 3 · 🏢 2` was two derived counts over two indexes, and every state it
+  // had to render was a way of saying "not yet".
   {
-    // Two columns became one. A contract's coverage and the companies behind that coverage
-    // were never independent facts — the second is derived from the first — and read side by
-    // side they cost two headers to say one thing.
-    id: "coverage",
-    header: "Coverage and holding companies",
-    headerIcon: StoreIcon,
-    defaultVisible: true,
-    cellClassName: "max-w-[20ch] text-ink-secondary",
-    cell: ({ contract, outletById, entityById }) => (
-      <CoverageCell coverage={coverageFor(contract, outletById, entityById)} />
-    ),
-  },
-  {
-    // The third registry dimension, and the one a contract does not carry: brand lives on
-    // `outlet` and `entity` only, so this is `contract → outlet → brand` and is therefore
-    // multi-valued — a shared pest-control contract genuinely spans two brands.
+    // **On by default, and it was not.** Brand was the third registry dimension, two hops off
+    // the row, off by default on the argument that the *filter* answered the useful question
+    // and the column only answered a rarer one — "which brands is *this* contract for" — at a
+    // width the table had fought six stages to reclaim.
     //
-    // **Off by default, and the filter matters more than the column.** "What do we pay for
-    // Casa Vostra" is answered by narrowing the table, which costs no width at all; the
-    // column answers the different, rarer question of "which brands is *this* contract for"
-    // and is a count with a hover popup for exactly the reason Coverage is one. That table
-    // fought from 1,499px to 954px across six stages and this is not where it is spent back.
+    // Both halves of that argument have changed. It is the row's own field, so the cell is a
+    // value rather than a derivation; and it is what the table groups by, so a reader who
+    // turns grouping off and finds no brand anywhere has lost the dimension the screen is
+    // organised around. A column that is hidden by default while the toggle beside it is
+    // named after the same word reads as a bug.
     id: "brand",
     header: "Brand",
     headerIcon: TagIcon,
-    defaultVisible: false,
-    // 16ch — brand names are short ("Casa Vostra" is 11) but they are free text and one long
-    // one would otherwise set this column's width on behalf of a single row.
-    cellClassName: "max-w-[16ch] text-ink-secondary",
-    cell: ({ contract, outletById, brandById }) => (
-      <BrandCell brands={brandsFor(contract, outletById, brandById)} />
+    defaultVisible: true,
+    // 18ch — brand names are short ("Harbour Table" is 13) but they are free text, and one
+    // long one would otherwise set this column's width on behalf of a single row.
+    cellClassName: "max-w-[18ch] text-ink-secondary",
+    cell: ({ contract, brandById }) => (
+      <BrandCell brands={brandsFor(contract, brandById)} />
     ),
   },
   {
@@ -875,11 +862,11 @@ function ColumnsPopover({
         </div>
 
         {/* The legend, and now also the only written notice that the glyphs are clickable.
-            Twelve glyphs is a vocabulary, not a hint — Stage 3 shipped it behind `sr-only` text
+            Eleven glyphs is a vocabulary, not a hint — Stage 3 shipped it behind `sr-only` text
             and a tooltip apiece, which answers "what is this one" and never "what are the
-            twelve". It stays in this panel although Category is no longer a column: this is
+            eleven". It stays in this panel although Category is no longer a column: this is
             still the panel a reader wondering about the table's presentation opens, and the
-            Filters popover is a `w-72` column of controls with no scroll, which twelve rows
+            Filters popover is a `w-72` column of controls with no scroll, which eleven rows
             would overflow off the bottom of. Labels wrap rather than truncate: a legend with a
             clipped word in it is not a legend. */}
         <div className="flex flex-col gap-2 border-t border-border-subtle pt-3">
@@ -889,8 +876,8 @@ function ColumnsPopover({
             category, and click it again to clear.
           </p>
           <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-            {SERVICE_CATEGORY_OPTIONS.map((option) => {
-              const Icon = SERVICE_CATEGORY_ICONS[option.value];
+            {CONTRACT_CATEGORY_OPTIONS.map((option) => {
+              const Icon = CONTRACT_CATEGORY_ICONS[option.value];
               return (
                 <li
                   key={option.value}
@@ -911,13 +898,13 @@ function ColumnsPopover({
 function ContractResults({
   filters,
   showAll,
-  groupByOutlet,
+  groupByBrand,
   visibleColumns,
   categoryFilter,
 }: {
   filters: Partial<Record<(typeof FILTER_KEYS)[number], string>>;
   showAll: boolean;
-  groupByOutlet: boolean;
+  groupByBrand: boolean;
   /** Ids, from the picker in the parent. Order comes from `COLUMNS`, never from the order a
    *  reader ticked them: the table's column order is a property of the table. */
   visibleColumns: ReadonlySet<string>;
@@ -931,63 +918,73 @@ function ContractResults({
   );
 
   const { byId: vendorById } = useVendorIndex();
-  const { byId: outletById } = useOutletIndex();
-  const { byId: entityById } = useEntityIndex();
   // Deduplicated against the parent's `useBrandIndex` by SWR — same key, one request. Read
   // unconditionally rather than behind `visibleColumns.has("brand")`: a hook cannot be
-  // conditional, and the catalogue is already being fetched for the filter's options.
+  // conditional, the catalogue is already being fetched for the filter's options, and the
+  // grouping below needs it whatever the column picker says.
   const { byId: brandById } = useBrandIndex();
 
-  // Bundled once rather than threaded as four props: a column declares what it derives, and
-  // the row hands it the same four maps whichever columns are on screen.
+  // Bundled once rather than threaded as two props: a column declares what it derives, and
+  // the row hands it the same maps whichever columns are on screen.
   const lookups: ColumnLookups = React.useMemo(
-    () => ({ vendorById, outletById, entityById, brandById }),
-    [vendorById, outletById, entityById, brandById],
+    () => ({ vendorById, brandById }),
+    [vendorById, brandById],
   );
 
   const { items, error, isLoading, hasMore, isLoadingMore, loadMore } = useContractPages({
     q: filters.q, // already debounced by the parent, which keys this component on it
-    category: filters.category as ServiceCategory | undefined,
+    category: filters.category as ContractCategory | undefined,
     status: filters.status as ContractStatus | undefined,
     renewal_type: filters.renewal as RenewalType | undefined,
     vendor_id: filters.vendor_id,
-    outlet_id: filters.outlet_id,
     brand_id: filters.brand_id,
     // `true` or nothing — never `false`. See `NOTICE_GAP_ON` and `ContractFilters`.
     notice_gap: filters.notice_gap ? true : undefined,
     view: showAll ? "all" : undefined,
   });
 
-  // Grouping fans a contract out under *each* outlet it covers — "what runs at this
-  // outlet" is the question being answered, and a shared pest-control contract runs at
-  // all of its outlets. Groups sort by name; contracts with no coverage close the table.
+  /**
+   * Grouping fans a contract out under *each* brand it is held for — "what do we spend on
+   * Kopi & Co" is the question being answered, and a tracking study bought for all four
+   * brands is genuinely part of each of their answers. A row therefore appears more than
+   * once when it names more than one brand, which is the same fan-out the outlet grouping
+   * did and for the same reason: the alternative is a "several brands" bucket that answers
+   * nobody's question.
+   *
+   * **`Group level` is a bucket, not a gap.** Six of the agreements name no brand at all —
+   * a seat licence, a press office retainer — and they are not unattributed data waiting to
+   * be fixed; they are held for the whole group. The band says so in words and sorts last,
+   * because it is an absence of a *category* rather than a category.
+   *
+   * A brand id the index has not resolved renders `…` and never "Unknown brand". Every
+   * `brand_id` here is a real reference, so a name absent from the map is a request in
+   * flight — the rule `AGENTS.md` states, and the one this table got wrong once before.
+   */
   const groups = React.useMemo(() => {
-    if (!groupByOutlet) return null;
+    if (!groupByBrand) return null;
     const buckets = new Map<string | null, ContractRecord[]>();
     for (const contract of items) {
-      const outletIds = contract.outlet_ids.length > 0 ? contract.outlet_ids : [null];
-      for (const outletId of outletIds) {
-        const bucket = buckets.get(outletId) ?? [];
+      const brandIds = contract.brand_ids.length > 0 ? contract.brand_ids : [null];
+      for (const brandId of brandIds) {
+        const bucket = buckets.get(brandId) ?? [];
         bucket.push(contract);
-        buckets.set(outletId, bucket);
+        buckets.set(brandId, bucket);
       }
     }
     return [...buckets.entries()]
-      .map(([outletId, contracts]) => ({
-        outletId,
-        name: outletId
-          ? (outletById.get(outletId)?.name ?? "Unknown outlet")
-          : "No outlet coverage",
+      .map(([brandId, contracts]) => ({
+        brandId,
+        name: brandId ? (brandById.get(brandId)?.name ?? PENDING) : GROUP_LEVEL,
         contracts,
       }))
       .sort((a, b) => {
-        if (a.outletId === null) return 1;
-        if (b.outletId === null) return -1;
+        if (a.brandId === null) return 1;
+        if (b.brandId === null) return -1;
         return a.name.localeCompare(b.name);
       });
-  }, [groupByOutlet, items, outletById]);
+  }, [groupByBrand, items, brandById]);
 
-  // Which groups are folded away. A Set of outlet ids rather than a per-group `open` flag
+  // Which groups are folded away. A Set of brand ids rather than a per-group `open` flag
   // so the default is expanded — a table that opens collapsed hides the data it exists to
   // show. Held here rather than in the URL: it is a reading posture, not a view worth
   // sharing, and thirty ids would swamp the link that `useQueryFilters` keeps pasteable.
@@ -1009,7 +1006,7 @@ function ContractResults({
     setCollapsed(
       allCollapsed || groups === null
         ? new Set<string>()
-        : new Set(groups.map((group) => groupKey(group.outletId))),
+        : new Set(groups.map((group) => groupKey(group.brandId))),
     );
   }, [allCollapsed, groups]);
 
@@ -1092,7 +1089,7 @@ function ContractResults({
           <TableBody>
             {groups
               ? groups.map((group) => {
-                  const key = groupKey(group.outletId);
+                  const key = groupKey(group.brandId);
                   const rail = railForGroup(key);
                   const isCollapsed = collapsed.has(key);
 
@@ -1457,15 +1454,15 @@ function NoticeByCell({ contract }: { contract: ContractRecord }) {
  * than composed, because Tailwind scans for literal strings — `border-l-chart-${n}` yields
  * a rail with no colour at all.
  */
-const NO_OUTLET_KEY = "__none__";
+const NO_BRAND_KEY = "__none__";
 
-function groupKey(outletId: string | null): string {
-  return outletId ?? NO_OUTLET_KEY;
+function groupKey(brandId: string | null): string {
+  return brandId ?? NO_BRAND_KEY;
 }
 
-/** Neutral for the "No outlet coverage" bucket — it is an absence, not a category. */
+/** Neutral for the "Group level" bucket — it is an absence of a brand, not a brand. */
 function railForGroup(key: string): GroupRail {
-  return key === NO_OUTLET_KEY ? NEUTRAL_RAIL : railFor(key);
+  return key === NO_BRAND_KEY ? NEUTRAL_RAIL : railFor(key);
 }
 
 /**
@@ -1512,8 +1509,8 @@ function CategoryGlyph({
   contract: ContractRecord;
   filter: CategoryFilter;
 }) {
-  const Icon = SERVICE_CATEGORY_ICONS[contract.category];
-  const label = SERVICE_CATEGORY_LABELS[contract.category];
+  const Icon = CONTRACT_CATEGORY_ICONS[contract.category];
+  const label = CONTRACT_CATEGORY_LABELS[contract.category];
   const on = filter.active === contract.category;
   const name = on
     ? `Clear ${CATEGORY_HEADER.toLowerCase()} filter: ${label}`
@@ -1582,254 +1579,81 @@ function NamesTooltip({ label, names }: { label: React.ReactNode; names: string[
 }
 
 /**
- * One covered outlet and the company holding it, each with a state for "not known yet".
+ * The words for an agreement held for no brand in particular.
  *
- * The pending state is not decoration. Until Stage 3 this cell showed a bare count (`3
- * outlets`), which is true whether or not the outlet index has arrived — the count comes off
- * `contract.outlet_ids`, which is on the row. Promoting the single-outlet case to a *name* and
- * folding in the company count made a still-loading index render as a confident falsehood:
- * `Unknown outlet`, `No company yet`, and — worst — `2 outlets, 0 companies` about a contract
- * with two of them.
+ * *"Group level"*, not *"No brand"* and not *"No brand yet"*, and the difference is the whole
+ * argument. Both of those describe an **unanswered question** — a row somebody has not got to —
+ * which is what the phrase meant while brand was inherited from an outlet and half the estate was
+ * unattributed. It is a *stated fact* now: a seat licence and a press office retainer are held
+ * for the whole group, deliberately, and there is nothing here to fix. The em dash would be worse
+ * again, because `Value` has taught this table to read it as "not recorded".
+ *
+ * The same string names the bucket, the band and the cell, so the three cannot drift.
  */
-type CoveragePair = {
-  /**
-   * The outlet's name, or `null` while the index has not resolved its id.
-   *
-   * Never "Unknown outlet". `contract_outlet.outlet_id` is a real foreign key, so an id that
-   * does not resolve is a request that has not landed (or an index stopped at its page cap) —
-   * a pending fact, never a missing one. This is the Vendor cell's argument about `vendor_id`,
-   * applied to the column that needed it more.
-   */
-  outlet: string | null;
-  /**
-   * The holding company. Three states, which is why this is not `string | null`:
-   *
-   *   - **a name** — resolved;
-   *   - **`null`** — the outlet resolved and carries no `entity_id`. A fact, and precisely the
-   *     one the org chart's "Not decided yet" tray exists to fix;
-   *   - **`undefined`** — not knowable yet, because the outlet or the entity is unresolved.
-   *
-   * Collapsing the last two is what printed "No company yet" over records that have one.
-   */
-  company: string | null | undefined;
-};
-
-/** The company half as words, so the three states say three different things in all three
- *  places one is rendered — the stacked cell, the tooltip, and the `sr-only` count. */
-function companyLabel(company: string | null | undefined): string {
-  return company === undefined ? PENDING : (company ?? "No company yet");
-}
+const GROUP_LEVEL = "Group level";
 
 /**
- * Coverage and its holding companies, as pairs.
+ * Which brands an agreement is held for — the derivation, kept out of the cell.
  *
- * This replaces `outletNamesFor` and `entityNamesFor`, which produced two independent lists and
- * so could only ever be rendered as two columns and two tooltips — leaving the reader to
- * cross-reference "3 outlets" against "2 entities" themselves. Same two cached indexes, same
- * derivation (the API still has no reason to denormalise a relationship the client already
- * holds); the only change is that the join happens here instead of in the reader's head.
+ * **One hop, so there is one way for a fact to be pending**: the `brand_ids` are on the row, and
+ * the only thing that can be missing is a *name*. It was two — the covered outlet might not have
+ * arrived, or might have arrived carrying a `brand_id` the brand index had not resolved — and the
+ * third state that went with it (`unbranded`: an outlet that resolved and carries no brand) is
+ * gone too, because there is no longer anything between the contract and its brands to be
+ * half-resolved.
  *
- * An outlet with no `entity_id` gets a `null` company rather than being dropped: **the outlet is
- * covered either way**, and the missing company is exactly what the org chart's "Not decided yet"
- * tray exists to fix. Silently omitting it would make coverage look smaller than it is.
- */
-function coverageFor(
-  contract: ContractRecord,
-  outletById: Map<string, Outlet>,
-  entityById: Map<string, Entity>,
-): CoveragePair[] {
-  return contract.outlet_ids
-    .map((outletId): CoveragePair => {
-      const outlet = outletById.get(outletId);
-      // Unresolved outlet: its company is unknowable too, since the `entity_id` lives on the
-      // row we do not have. Two pending states rather than one pending and one asserted.
-      if (!outlet) return { outlet: null, company: undefined };
-      if (!outlet.entity_id) return { outlet: outlet.name, company: null };
-      // `undefined` from a Map miss is already the pending state — no `??` here, deliberately.
-      return { outlet: outlet.name, company: entityById.get(outlet.entity_id)?.name };
-    })
-    // Pending rows sort last. An empty-string key would float every unresolved row to the top
-    // and then re-order the list under the reader as the names land.
-    .sort((a, b) => (a.outlet ?? "￿").localeCompare(b.outlet ?? "￿"));
-}
-
-/**
- * Coverage and holding companies in one cell — the structural half of Stage 3's width work.
- *
- * Three shapes, and the common one gets *better* rather than merely narrower:
- *
- * - **One outlet** → its name, with the holding company beneath it. The two columns this
- *   replaces showed a bare count (`1 outlet`) where a name fits, so the reader had to hover to
- *   learn which site the contract was for.
- * - **Several** → glyph-and-count, `⌂ 3 · 🏢 2`, with **one** tooltip listing `Outlet — Company`
- *   pairs. Strictly more informative than the two lists it replaces, which had to be read
- *   side by side and joined by hand.
- * - **None** → the em dash, unchanged.
- *
- * The company count is distinct companies; the outlet count is every covered outlet. An outlet
- * with no company still counts as coverage and shows "No company yet" in the tooltip rather than
- * being left out of it.
- *
- * **The outlet count is always safe and the company count is not.** The first comes off
- * `contract.outlet_ids`, which is on the row; the second needs both indexes, so while either is
- * loading the only honest answer is the ellipsis. Rendering `0` there is a claim, and it was a
- * false one.
- */
-function CoverageCell({ coverage }: { coverage: CoveragePair[] }) {
-  if (coverage.length === 0) {
-    // A worded absence, not the em dash `Value` reads as "Not recorded": zero coverage is a
-    // deliberate held/orphaned state (a contract awaiting re-assignment after its outlet closed,
-    // Cluster D), so it must stay legible and findable rather than looking like missing data.
-    return <span className="text-ink-tertiary">No outlets</span>;
-  }
-
-  if (coverage.length === 1) {
-    const [{ outlet, company }] = coverage;
-    // The column's `max-w-[20ch]` is what these two `truncate`s bite against. `title` only
-    // where there is a name to reveal — a tooltip reading "…" is noise.
-    return (
-      <>
-        <span className="block truncate" title={outlet ?? undefined}>
-          {outlet ?? PENDING}
-        </span>
-        <span
-          className="mt-0.5 block truncate text-helper text-ink-tertiary"
-          title={company ?? undefined}
-        >
-          {companyLabel(company)}
-        </span>
-      </>
-    );
-  }
-
-  const companies = new Set(
-    coverage.map((pair) => pair.company).filter((name) => typeof name === "string"),
-  );
-  // One unresolved company makes the *count* unknown, not smaller. `0` and `1` are both wrong
-  // answers to "how many companies", and neither looks wrong on screen.
-  const companiesPending = coverage.some((pair) => pair.company === undefined);
-
-  return (
-    <NamesTooltip
-      label={
-        <span className="inline-flex items-center gap-1">
-          <StoreIcon aria-hidden className="size-3.5 text-ink-tertiary" />
-          {coverage.length}
-          <span aria-hidden className="text-ink-tertiary">
-            ·
-          </span>
-          <Building2Icon aria-hidden className="size-3.5 text-ink-tertiary" />
-          {companiesPending ? PENDING : companies.size}
-          <span className="sr-only">
-            {coverage.length} outlets,{" "}
-            {companiesPending
-              ? "holding companies still loading"
-              : `${companies.size} ${companies.size === 1 ? "company" : "companies"}`}
-          </span>
-        </span>
-      }
-      names={coverage.map((pair) => `${pair.outlet ?? PENDING} — ${companyLabel(pair.company)}`)}
-    />
-  );
-}
-
-/**
- * The words for coverage that carries no brand.
- *
- * *"No brand yet"*, not the outlet form's *"No brand"* — the same split `org-chart-board.tsx`
- * argues and for the same reason: the form's string is a select option naming a value, this one
- * describes a set of outlets somebody has not got to. It is `companyLabel`'s grammar one column
- * over, which is what makes the two cells readable as one row.
- */
-const NO_BRAND = "No brand yet";
-
-/**
- * Which brands a contract's coverage belongs to — the derivation, kept out of the cell.
- *
- * **Two hops, so there are two ways for a fact to be pending**: the covered outlet may not have
- * arrived, or it may have arrived carrying a `brand_id` the brand index has not resolved. Either
- * makes the answer unknown rather than smaller, which is the distinction `AGENTS.md` states as
- * *"a cached index that has not arrived is a pending request, never a missing fact"* — and which
- * this table got wrong once already, rendering `2 outlets, 0 companies` about a contract with two.
- *
- * `unbranded` is the third state and a real one: an outlet that resolved and carries no brand is
- * a fact about the estate, not a gap in the fetch — it is what `outlet_brand_unset` raises a
- * review item for. Folding it into the brand list would overstate how many brands a contract
- * spans; dropping it would hide that part of the coverage is unattributed.
+ * What has not changed is the rule that made those states necessary: *"a cached index that has
+ * not arrived is a pending request, never a missing fact"*. One unresolved name still makes the
+ * whole cell unknown rather than shorter — with one of three names missing, "1 brand" and
+ * "2 brands" are both wrong and neither looks it.
  */
 type BrandCoverage = {
-  /** Distinct brand names across the coverage, sorted. */
+  /** Distinct brand names, sorted. Empty while `pending`. */
   names: string[];
-  /** Some covered outlet resolved and carries no brand. */
-  unbranded: boolean;
-  /** An outlet row or a brand name has not arrived, so nothing here can be counted. */
+  /** A `brand_id` on this row has no name in the index yet, so nothing here can be counted. */
   pending: boolean;
-  /** The contract covers no outlets at all — there is nothing to borrow a brand from. */
-  uncovered: boolean;
+  /** The agreement names no brand at all — held at group level. A fact, not a gap. */
+  groupLevel: boolean;
 };
 
-function brandsFor(
-  contract: ContractRecord,
-  outletById: Map<string, Outlet>,
-  brandById: Map<string, Brand>,
-): BrandCoverage {
+function brandsFor(contract: ContractRecord, brandById: Map<string, Brand>): BrandCoverage {
   const names = new Set<string>();
-  let unbranded = false;
   let pending = false;
 
-  for (const outletId of contract.outlet_ids) {
-    const outlet = outletById.get(outletId);
-    if (!outlet) {
-      // The outlet row is what carries `brand_id`, so without it the brand is unknowable —
-      // not absent. This is the hop `CoverageCell` learned the same lesson on.
-      pending = true;
-      continue;
-    }
-    if (!outlet.brand_id) {
-      unbranded = true;
-      continue;
-    }
-    const brand = brandById.get(outlet.brand_id);
-    if (!brand) {
-      pending = true;
-      continue;
-    }
-    names.add(brand.name);
+  for (const brandId of contract.brand_ids) {
+    const brand = brandById.get(brandId);
+    // A real reference with no name yet is a request in flight. Rendering the remaining
+    // names would state that this agreement covers fewer brands than it does.
+    if (!brand) pending = true;
+    else names.add(brand.name);
   }
 
   return {
     names: [...names].sort((a, b) => a.localeCompare(b)),
-    unbranded,
     pending,
-    uncovered: contract.outlet_ids.length === 0,
+    groupLevel: contract.brand_ids.length === 0,
   };
 }
 
 /**
- * The brands behind a contract's coverage. Five states, and four of them look alike at a glance,
+ * The brands an agreement is held for. Four states, and three of them look alike at a glance,
  * which is why each says a different thing:
  *
- * - **No coverage** → the em dash. A contract covering no outlet has no brand *and cannot have
- *   one*; that is "does not apply", the same reading `NoticeByCell` gives it.
- * - **Still loading** → the ellipsis, for the whole cell. A partial count is a false one: with
- *   one of three outlets unresolved, "1 brand" and "2 brands" are both wrong and neither looks it.
- * - **Every covered outlet unbranded** → the words. This is a fact, and the one
- *   `outlet_brand_unset` puts in front of Ops — rendering an em dash would say the question does
- *   not apply, when it does and nobody has answered it.
- * - **One brand, all of it** → the name. The common case, and the only one that reads as a value.
- * - **More than one, or one plus unbranded coverage** → glyph and count, with the names in the
- *   tooltip. The count is **brands, never the unbranded bucket** — that is not a brand and would
- *   inflate the number — so the tooltip carries it as a trailing line instead.
+ * - **Group level** → the words, in tertiary ink. Checked first, and never the em dash: an
+ *   agreement held for everybody is a decision, and the em dash is this table's word for
+ *   "not recorded".
+ * - **Still loading** → the ellipsis, for the whole cell. See `brandsFor` for why a partial
+ *   list is worse than none.
+ * - **One brand** → the name. The common case, and the only one that reads as a value.
+ * - **More than one** → glyph and count, with the names in the tooltip. Four is the most any
+ *   row reaches, which is every brand there is — the group-wide tracking study, which is a
+ *   different statement from `Group level` and has to look like one.
  */
 function BrandCell({ brands }: { brands: BrandCoverage }) {
-  if (brands.uncovered) return <Value>{null}</Value>;
+  if (brands.groupLevel) return <span className="text-ink-tertiary">{GROUP_LEVEL}</span>;
   if (brands.pending) return PENDING;
 
-  if (brands.names.length === 0) {
-    return <span className="text-ink-tertiary">{NO_BRAND}</span>;
-  }
-
-  if (brands.names.length === 1 && !brands.unbranded) {
+  if (brands.names.length === 1) {
     return (
       <span className="block truncate" title={brands.names[0]}>
         {brands.names[0]}
@@ -1843,13 +1667,10 @@ function BrandCell({ brands }: { brands: BrandCoverage }) {
         <span className="inline-flex items-center gap-1">
           <TagIcon aria-hidden className="size-3.5 text-ink-tertiary" />
           {brands.names.length}
-          <span className="sr-only">
-            {brands.names.length} {brands.names.length === 1 ? "brand" : "brands"}
-            {brands.unbranded ? ", and coverage with no brand" : ""}
-          </span>
+          <span className="sr-only">{brands.names.length} brands</span>
         </span>
       }
-      names={brands.unbranded ? [...brands.names, NO_BRAND] : brands.names}
+      names={brands.names}
     />
   );
 }

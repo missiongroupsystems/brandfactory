@@ -383,7 +383,7 @@ export const agencies: VendorListItem[] = AGENCIES.map((agency) => ({
     .map((contact) => embed(contact, agency.id)),
   contracts_active: 0,
   contracts_total: 0,
-  outlets_covered: 0,
+  brands_covered: 0,
   next_contract_end: null,
   created_at: now,
   updated_at: now,

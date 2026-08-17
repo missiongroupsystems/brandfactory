@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // query stays in the contracts feature and this component imports it. A copy living
 // here is how two definitions of "this vendor's contracts" start.
 import { useVendorContracts } from "@/features/contracts/hooks";
-import { useOutletIndex } from "@/features/registry/hooks";
+import { useBrandIndex } from "@/features/registry-brands/hooks";
 import { ApiError } from "@/lib/api/client";
 import type { VendorListItem } from "@/lib/api/types";
 import { formatDate, PENDING } from "@/lib/format";
@@ -258,11 +258,16 @@ function VendorContractsCard({ vendor }: { vendor: VendorListItem }) {
   // inside the hook still is load-bearing — the summary line below counts every contract,
   // so a list defaulting to `current` would render one row under "1 active of 5".
   const { data, error, isLoading } = useVendorContracts(vendor.id);
-  const { byId: outletById } = useOutletIndex();
+  const { byId: brandById } = useBrandIndex();
 
   const summary = [
     `${vendor.contracts_active} active of ${vendor.contracts_total}`,
-    `${vendor.outlets_covered} ${vendor.outlets_covered === 1 ? "outlet" : "outlets"} covered`,
+    // Dropped entirely at zero rather than printed as "0 brands": a vendor working only on
+    // group-level agreements is not a vendor working on nothing, and the count beside it
+    // already says how much live work there is.
+    vendor.brands_covered > 0
+      ? `${vendor.brands_covered} ${vendor.brands_covered === 1 ? "brand" : "brands"}`
+      : null,
     vendor.next_contract_end ? `next end ${formatDate(vendor.next_contract_end)}` : null,
   ]
     .filter(Boolean)
@@ -290,11 +295,17 @@ function VendorContractsCard({ vendor }: { vendor: VendorListItem }) {
           <ul className="flex flex-col divide-y divide-border-subtle rounded-lg border border-border-subtle">
             {data.items.map((contract) => {
               // One unresolved id makes the whole list `…` rather than a shorter list:
-              // dropping the names that have not arrived would say this contract covers
-              // fewer outlets than it does, which is a false statement that looks true.
-              const names = contract.outlet_ids.map((id) => outletById.get(id)?.name);
-              const outletLabel =
-                names.length === 0 ? null : names.some((name) => !name) ? PENDING : names.join(", ");
+              // dropping the names that have not arrived would say this agreement is held
+              // for fewer brands than it is, which is a false statement that looks true.
+              // An empty list is "Group level", a stated fact — never a shorter list and
+              // never nothing.
+              const names = contract.brand_ids.map((id) => brandById.get(id)?.name);
+              const brandLabel =
+                names.length === 0
+                  ? "Group level"
+                  : names.some((name) => !name)
+                    ? PENDING
+                    : names.join(", ");
               return (
                 <li key={contract.id} className="flex flex-col gap-0.5 px-4 py-3">
                   <span className="flex flex-wrap items-center justify-between gap-2">
@@ -310,7 +321,7 @@ function VendorContractsCard({ vendor }: { vendor: VendorListItem }) {
                   </span>
                   <span className="text-helper text-ink-secondary">
                     {contract.end_date ? `Ends ${formatDate(contract.end_date)}` : "No end date"}
-                    {outletLabel ? ` · ${outletLabel}` : null}
+                    {` · ${brandLabel}`}
                   </span>
                 </li>
               );

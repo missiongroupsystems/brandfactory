@@ -138,10 +138,9 @@ export const SCOPES = {
   contract: "contract",
   tenancies: "tenancies",
   tenancy: "tenancy",
-  schedules: "service-schedules",
-  visits: "service-visits",
-  reports: "service-reports",
-  serviceHealth: "service-health",
+  // `schedules`, `visits`, `reports` and `serviceHealth` stood here. They are gone with the
+  // service workflow, which was keyed on a `(contract, outlet)` pair a contract no longer has.
+  // A scope with no reader is a string nothing can invalidate and everything can typo into.
   expenses: "expenses",
   expenseSummary: "expense-summary",
   attachments: "attachments",

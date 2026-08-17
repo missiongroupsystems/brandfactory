@@ -14,9 +14,10 @@ Next 16 (App Router, Turbopack) · React 19 · Tailwind v4 · shadcn on **Base U
 Backend contract: [`../backend`](../backend/README.md). Product spec: [`../docs/spec.md`](../docs/spec.md).
 
 **Status:** Phases 0, 1 and 2 are built against the live API — outlets, entities, networks,
-the licences area, the contracts area (contracts / service health, plus the contract detail
-page and the outlet-page cards), vendors, and the dashboard, plus contacts and the review
-queue. Nothing is a placeholder; the sidebar's "Not yet built" group renders only when
+the licences area, the contracts area (the table and the contract detail page), vendors, and
+the dashboard, plus contacts and the review queue. The **service workflow is gone** —
+schedules, visits, reports, `/service-reports` and the outlet-page cards — because every one of
+them was keyed on a `(contract, outlet)` pair and a contract is now held for a *brand*. Nothing is a placeholder; the sidebar's "Not yet built" group renders only when
 something is.
 
 ## Things that have already bitten
@@ -201,7 +202,7 @@ src/
       entities|networks/   Phase 0 — list screens
       dashboard/           Phase 1–2 — the attention surface, filters in the URL
       licenses/            Phase 1 — three URL-selected views: held, requirements, library
-      contracts/           Phase 2 — two views (contracts, service health), plus [id]/
+      contracts/           Phase 2 — the agreements, grouped and filtered by brand, plus [id]/
                            for the contract detail page. Redirects ?view=vendors to
                            /vendors, translating vq/vstatus to q/status
       vendors/             the service providers — promoted out of a contracts tab
@@ -275,8 +276,18 @@ only relation is its brand.
 **`features/brands/` is BrandFactory's Brand. `features/registry-brands/` is the Operations
 Hub's** — the third registry dimension, a brand an *outlet* belongs to. They share the word and
 nothing else: different shapes, different backends, different lifetimes. The Ops one held the
-plain name until the real one needed it; eight screens still read `useBrandIndex` from it to
-resolve an outlet's or a company's `brand_id` to a name.
+plain name until the real one needed it; eight screens read `useBrandIndex` from it to resolve a
+`brand_id` to a name.
+
+**The Ops one is no longer only *resolved*, and that is a change worth knowing before you touch
+it.** `/contracts` groups by brand, filters by brand and asks for brands on create, all against
+`features/registry-brands/` and `fixtures/brands.ts` — so `/brands` is registered in `mock.ts`
+again after a release of deliberate absence. The reason a contracts screen is not wired to the
+*real* brands is in that fixture's docstring and is short: a static fixture cannot know the ids
+of rows a live server creates, and the Ops fixtures are one coherent invented F&B group that the
+workspace's actual brands are not part of. **Do not "fix" this by pointing the contracts table at
+`useWorkspaceBrands`** — every row would read `Group level` in every workspace that had not
+happened to name a brand `Harbour Table`.
 
 **The route is `/registry-brands`, and the folder name alone was not enough.** 1.33.0 renamed the
 feature folder and left the page at `/brands`, so the product's central noun pointed at a screen
@@ -336,7 +347,7 @@ Three rules the Phase 0 screens all follow. Copy them rather than reinventing pe
 **Two filter layouts, chosen by control count.** `FilterBar` wraps every control into the row and
 is right up to about four of them — eight of the nine list screens. `FilterToolbar` +
 `FilterPopover` + `ActiveFilterChips` (same file) is the overflow form, currently only on
-`/contracts`, which has six filters plus two view controls plus the primary action: a single
+`/contracts`, which has five filters plus two view controls plus the primary action: a single
 wrapping row put them on three ragged lines with a hole in the middle, because the filter group
 grew while the action group stayed pinned right. The overflow form holds a fixed number of
 controls whatever the filter count — search stays on the row, the rest go in a counted panel, and
@@ -351,7 +362,7 @@ count is the *panel's* filters, not `useQueryFilters`' `activeCount`, which incl
 "Filters ①" badge for a term already sitting in the search box is a miscount.
 
 **View controls are not filters and should not look like them.** "Which contracts to show" is a
-`SegmentedControl` and "Group by outlet" a `ToggleButton`, both replacing selects — a `Select`
+`SegmentedControl` and "Group by brand" a `ToggleButton`, both replacing selects — a `Select`
 holding one option is a menu for a boolean, and a select-shaped view control in a row of
 select-shaped filters reads as a sixth filter.
 

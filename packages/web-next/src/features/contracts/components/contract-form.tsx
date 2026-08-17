@@ -19,21 +19,21 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
-import { useOutletIndex } from "@/features/registry/hooks";
+import { useBrandIndex } from "@/features/registry-brands/hooks";
 import { VendorForm } from "@/features/vendors/components/vendor-form";
 import { useVendorIndex } from "@/features/vendors/hooks";
 import { toNullable, useSubmit } from "@/hooks/use-submit";
 import {
   hasContractValue,
   type BillingFrequency,
-  type ServiceCategory,
+  type ContractCategory,
   type ContractStatus,
   type RenewalType,
   type Vendor,
 } from "@/lib/api/types";
 import {
   BILLING_FREQUENCY_OPTIONS,
-  SERVICE_CATEGORY_OPTIONS,
+  CONTRACT_CATEGORY_OPTIONS,
   CONTRACT_STATUS_OPTIONS,
   RENEWAL_TYPE_OPTIONS,
 } from "@/lib/labels";
@@ -50,18 +50,20 @@ import { useContractMutations } from "../hooks";
  * the honest place to find out), and it is **omitted from the payload entirely** when
  * hidden. Sending null would blank a figure nobody was shown.
  *
- * Coverage is on the create form (a contract's whole point is which outlets it covers)
- * and edited on the contract's own page afterwards, where the schedules that depend on
- * it are visible — the same asymmetry as outlet attributes, for the same reason.
+ * **The brands are on the create form and edited on the contract's own page afterwards.**
+ * That asymmetry is inherited from the coverage section this replaces, and the reason it
+ * survives the change is unchanged: what an agreement is *for* is the first thing anyone
+ * knows about it, so it belongs on create; changing it later reassigns a signed agreement,
+ * which is a decision that deserves a page rather than a checkbox in a sheet.
  */
 export function ContractForm({
   contract,
-  defaultOutletId,
+  defaultBrandId,
   open,
   onOpenChange,
 }: {
   contract?: ContractRecord;
-  defaultOutletId?: string;
+  defaultBrandId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -69,11 +71,11 @@ export function ContractForm({
   const { create, update } = useContractMutations();
   const { run, reset, isPending, formError, fieldErrors } = useSubmit();
   const { vendors, isLoading: vendorsLoading } = useVendorIndex();
-  const { outlets, isLoading: outletsLoading } = useOutletIndex();
+  const { brands, isLoading: brandsLoading } = useBrandIndex();
 
   const canSeeValue = contract ? hasContractValue(contract) : true;
 
-  const [form, setForm] = React.useState(() => initialState(contract, defaultOutletId));
+  const [form, setForm] = React.useState(() => initialState(contract, defaultBrandId));
 
   // The nested "New vendor" sheet, opened from the vendor select, and the vendor it creates.
   // `justCreatedVendor` is kept as a stopgap <option> so the native select cannot render blank
@@ -86,7 +88,7 @@ export function ContractForm({
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {
-      setForm(initialState(contract, defaultOutletId));
+      setForm(initialState(contract, defaultBrandId));
       setJustCreatedVendor(null);
       setVendorFormOpen(false);
     }
@@ -122,7 +124,7 @@ export function ContractForm({
         await create({
           ...withValue,
           vendor_id: form.vendor_id,
-          outlet_ids: form.outlet_ids,
+          brand_ids: form.brand_ids,
         });
         toast.success(`${base.title} created`);
       }
@@ -144,7 +146,7 @@ export function ContractForm({
           <SheetTitle>{isEdit ? `Edit ${contract!.title}` : "New contract"}</SheetTitle>
           <SheetDescription>
             {isEdit
-              ? "Coverage is edited on the contract's own page, where the schedules that depend on it are visible."
+              ? "The brands this agreement is held for are edited on the contract's own page."
               : "An auto-renewing contract with a notice period gets a deadline on the dashboard — the single most expensive thing a spreadsheet fails to surface."}
           </SheetDescription>
         </SheetHeader>
@@ -221,10 +223,10 @@ export function ContractForm({
                       {...field}
                       value={form.category}
                       onChange={(event) =>
-                        set("category", event.target.value as ServiceCategory)
+                        set("category", event.target.value as ContractCategory)
                       }
                     >
-                      {SERVICE_CATEGORY_OPTIONS.map((option) => (
+                      {CONTRACT_CATEGORY_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
@@ -358,31 +360,36 @@ export function ContractForm({
 
             {!isEdit ? (
               <FieldSection
-                title="Coverage"
-                description="Which outlets this contract covers. One AC contract over four sites is the case a spreadsheet cannot hold."
+                title="Brands"
+                // Says what leaving it empty *means*, rather than only what ticking a box
+                // does. An unticked set of checkboxes is ambiguous between "held for
+                // everybody" and "I have not got to this yet", and the table renders the
+                // first of those as a stated fact — so the form has to be the place that
+                // difference is explained, not the place it is created by accident.
+                description="Which brands this agreement is held for. Leave every box clear for an agreement held at group level — a tool subscription or a press office retainer that belongs to no single brand."
               >
                 <fieldset className="grid gap-2 sm:grid-cols-2">
-                  <legend className="sr-only">Outlets covered</legend>
-                  {outletsLoading ? (
-                    <p className="text-helper text-ink-secondary">Loading outlets…</p>
+                  <legend className="sr-only">Brands this agreement is held for</legend>
+                  {brandsLoading ? (
+                    <p className="text-helper text-ink-secondary">Loading brands…</p>
                   ) : (
-                    outlets.map((outlet) => (
+                    brands.map((brand) => (
                       <label
-                        key={outlet.id}
+                        key={brand.id}
                         className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-ink hover:bg-surface-hover"
                       >
                         <Checkbox
-                          checked={form.outlet_ids.includes(outlet.id)}
+                          checked={form.brand_ids.includes(brand.id)}
                           onChange={(event) =>
                             set(
-                              "outlet_ids",
+                              "brand_ids",
                               event.target.checked
-                                ? [...form.outlet_ids, outlet.id]
-                                : form.outlet_ids.filter((id) => id !== outlet.id),
+                                ? [...form.brand_ids, brand.id]
+                                : form.brand_ids.filter((id) => id !== brand.id),
                             )
                           }
                         />
-                        {outlet.name}
+                        {brand.name}
                       </label>
                     ))
                   )}
@@ -459,7 +466,7 @@ export function ContractForm({
 type FormState = {
   vendor_id: string;
   title: string;
-  category: ServiceCategory;
+  category: ContractCategory;
   status: ContractStatus;
   start_date: string;
   end_date: string;
@@ -469,14 +476,18 @@ type FormState = {
   billing_frequency: BillingFrequency | "";
   scope_description: string;
   notes: string;
-  outlet_ids: string[];
+  brand_ids: string[];
 };
 
-function initialState(contract?: ContractRecord, defaultOutletId?: string): FormState {
+function initialState(contract?: ContractRecord, defaultBrandId?: string): FormState {
   return {
     vendor_id: contract?.vendor_id ?? "",
     title: contract?.title ?? "",
-    category: contract?.category ?? "aircon",
+    // `retainer`, because it is the commonest marketing agreement and the first option in
+    // the list — a default the reader can see is selected rather than one they have to
+    // scroll to find. It was `aircon`, which was the first *trade* and had the same
+    // property for a different product.
+    category: contract?.category ?? "retainer",
     status: contract?.status ?? "active",
     start_date: contract?.start_date ?? "",
     end_date: contract?.end_date ?? "",
@@ -486,6 +497,6 @@ function initialState(contract?: ContractRecord, defaultOutletId?: string): Form
     billing_frequency: contract?.billing_frequency ?? "",
     scope_description: contract?.scope_description ?? "",
     notes: contract?.notes ?? "",
-    outlet_ids: contract?.outlet_ids ?? (defaultOutletId ? [defaultOutletId] : []),
+    brand_ids: contract?.brand_ids ?? (defaultBrandId ? [defaultBrandId] : []),
   };
 }

@@ -1,14 +1,14 @@
 import type {
   BillingFrequency,
+  ContractCategory,
   ContractSensitive,
   ContractStatus,
   RenewalType,
-  ServiceCategory,
   VendorListItem,
 } from "@/lib/api/types";
 
+import { brands } from "./brands";
 import { agencies } from "./influencers";
-import { outlets } from "./registry";
 
 /**
  * Contract fixtures — the rows `/contracts` renders, and the vendors they are held with.
@@ -33,15 +33,22 @@ import { outlets } from "./registry";
  * mockup of a door BrandFactory has not built, and the alternative — a software contract held by
  * a talent agency — would be a false record rather than an untidy dropdown.
  *
- * **A note on `category`, which is `influencers.ts`'s note applied one screen over.**
- * `ServiceCategory` is the Operations Hub's vocabulary of *trades* — aircon, pest control,
- * grease trap — frozen in the generated `schema.d.ts`, which this app does not own and may not
- * edit. Of its thirteen values exactly two are true of a marketing agreement: `software` for a
- * tool subscription, and `other` for everything a creative agency does. So the category glyph in
- * front of each title is honest and nearly monotone, and its filter narrows to two buckets. A
- * marketing vocabulary — retainer, media buy, production, talent, tooling — needs an enum on a
- * backend that does not exist yet, and inventing one here would put a slug on screen that no
- * server would accept.
+ * **`category` is a marketing vocabulary now, and this docstring used to argue it could not be.**
+ * The argument was: `ServiceCategory` is the Operations Hub's list of *trades*, frozen in a
+ * generated file this app may not edit, and of its thirteen values exactly two are true of a
+ * marketing agreement — so the glyph in front of each title is nearly monotone and its filter
+ * narrows to two buckets. All of that was true. The conclusion — *"inventing one here would put a
+ * slug on screen that no server would accept"* — was the half that did not survive contact with
+ * the reason there is a fixture at all: **there is no server.** The Hono API holds no contracts
+ * routes and the FastAPI service is not in this repository, so nothing can refuse a slug, and
+ * `ContractCategory` in `lib/api/types.ts` is the app's own union with the docstring to say so.
+ *
+ * **`brand_ids` replaces `outlet_ids`, and that is the change these rows exist to show.** A
+ * marketing agreement is held for a brand. Brand used to be two hops off the row — `contract →
+ * outlet → brand` — which made it derived, multi-valued and permanently pending; it is the row's
+ * own field now, which is what lets the table group by it. Coverage of *premises* left the
+ * contracts domain with it, and the service workflow that hung off `(contract, outlet)` pairs
+ * went too.
  *
  * The vendor names, the figures and the scopes are invented. None of them is a real company or
  * a real agreement.
@@ -57,8 +64,8 @@ import { outlets } from "./registry";
  * written for. A lookup makes an insertion harmless and a rename loud: the throw fires at import,
  * so `contracts.test.ts` fails to collect rather than passing over re-pointed data.
  *
- * Agencies are keyed by name and outlets by slug, because a slug is the field `registry.ts` keeps
- * stable and it carries no em dash to mistype.
+ * Both are keyed by name, which is the field either fixture keeps stable and reads back as the
+ * thing a person would have written.
  */
 function agencyId(name: string): string {
   const row = agencies.find((agency) => agency.name === name);
@@ -66,9 +73,9 @@ function agencyId(name: string): string {
   return row.id;
 }
 
-function outletId(slug: string): string {
-  const row = outlets.find((outlet) => outlet.slug === slug);
-  if (!row) throw new Error(`No outlet fixture with slug "${slug}" — see fixtures/registry.ts`);
+function brandId(name: string): string {
+  const row = brands.find((brand) => brand.name === name);
+  if (!row) throw new Error(`No brand fixture named "${name}" — see fixtures/brands.ts`);
   return row.id;
 }
 
@@ -79,12 +86,10 @@ const halcyon = agencyId("Halcyon Media Group");
 const redpin = agencyId("Redpin Creators");
 const tidewater = agencyId("Tidewater Talent LLP");
 
-const marina = outletId("harbour-table-marina");
-const jalanBesar = outletId("kopi-co-jalan-besar");
-const orchard = outletId("harbour-table-orchard");
-const quay = outletId("the-quay-bar");
-const kitchen = outletId("eastside-central-kitchen");
-const tanjongPagar = outletId("kopi-co-tanjong-pagar");
+const harbourTable = brandId("Harbour Table");
+const kopiCo = brandId("Kopi & Co");
+const quayBar = brandId("The Quay Bar");
+const eastside = brandId("Eastside Kitchens");
 
 const now = "2026-08-17T09:00:00Z";
 
@@ -117,7 +122,7 @@ const PROVIDERS: VendorListItem[] = [
     contacts: [],
     contracts_active: 0,
     contracts_total: 0,
-    outlets_covered: 0,
+    brands_covered: 0,
     next_contract_end: null,
     created_at: now,
     updated_at: now,
@@ -134,7 +139,7 @@ const PROVIDERS: VendorListItem[] = [
     contacts: [],
     contracts_active: 0,
     contracts_total: 0,
-    outlets_covered: 0,
+    brands_covered: 0,
     next_contract_end: null,
     created_at: now,
     updated_at: now,
@@ -151,7 +156,7 @@ const PROVIDERS: VendorListItem[] = [
     contacts: [],
     contracts_active: 0,
     contracts_total: 0,
-    outlets_covered: 0,
+    brands_covered: 0,
     next_contract_end: null,
     created_at: now,
     updated_at: now,
@@ -170,10 +175,10 @@ type Agreement = {
   id: string;
   title: string;
   vendor_id: string;
-  category: ServiceCategory;
+  category: ContractCategory;
   status: ContractStatus;
   renewal_type: RenewalType;
-  outlet_ids: string[];
+  brand_ids: string[];
   start_date: string | null;
   end_date: string | null;
   notice_period_days: number | null;
@@ -196,12 +201,18 @@ const RENEWED_ANALYTICS = "c3000000-0000-4000-8000-000000000013";
  * The spread is deliberate rather than decorative — every branch the table carries has at least
  * one row that exercises it:
  *
- *   - **Coverage in all three shapes.** Five group-level retainers cover no outlet at all (the
- *     worded "No outlets", not the em dash); five cover exactly one, so the cell shows the site
- *     over its holding company; three cover several, so it collapses to `⌂ n · 🏢 n` with the
- *     pairs in the tooltip. Two of those span two holding companies, which is the case the
- *     merged Coverage column exists for.
- *   - **Both notice states that matter.** Four auto-renewing rows carry a period and so print a
+ *   - **Brands in all three shapes.** Six agreements name no brand at all, which is the worded
+ *     "Group level" rather than the em dash — a press office retainer and a seat licence are
+ *     genuinely held for the whole group, and that is a fact rather than a gap. Six name exactly
+ *     one, so the cell reads as a value. Four name several and collapse to a glyph and a count
+ *     with the names in the tooltip, one of them reaching all four.
+ *   - **A retired brand that still holds agreements.** Eastside Kitchens is `retired` and is on
+ *     three contracts. Retiring a brand does not un-sign what was signed for it, which is why
+ *     the brand filter offers retired brands and the grouping never hides them.
+ *   - **Ten of the eleven categories.** Only `other` has no row, and deliberately: it is the
+ *     escape hatch somebody reaches for when nothing fitted, so a fixture that pre-filled it
+ *     would be modelling the data-entry problem the vocabulary exists to prevent.
+ *   - **Both notice states that matter.** Five auto-renewing rows carry a period and so print a
  *     date with its arithmetic beneath; **two carry none**, which is the ochre "No notice period"
  *     badge and the only rows the `notice_gap` filter returns.
  *   - **All three renewal types**, so the ochre pill is the minority it is meant to be.
@@ -212,23 +223,19 @@ const RENEWED_ANALYTICS = "c3000000-0000-4000-8000-000000000013";
  *   - **A renewal pair.** #12 expired and points at #13, which is the draft it produced. That is
  *     the only place `renewed_by_id` / `renewed_from_id` are non-null.
  *   - **A contract with no figure agreed yet** (#10), so the Value column shows the em dash
- *     beside eleven rows that have one, and the billing-frequency subtext is absent on it.
- *   - **Updated dates across ten months**, so the relative column is not eleven copies of
+ *     beside fifteen rows that have one, and the billing-frequency subtext is absent on it.
+ *   - **Updated dates across ten months**, so the relative column is not sixteen copies of
  *     "today".
- *
- * Every outlet in `registry.ts` carries `brand_id: null`, so the Brand column reads "No brand
- * yet" wherever there is coverage and the em dash where there is none. That is the honest
- * rendering of the estate as it stands, not a gap in this fixture.
  */
 const AGREEMENTS: Agreement[] = [
   {
     id: "c3000000-0000-4000-8000-000000000001",
     title: "Q4 beauty and lifestyle roster retainer",
     vendor_id: northlight,
-    category: "other",
+    category: "talent",
     status: "active",
     renewal_type: "auto",
-    outlet_ids: [],
+    brand_ids: [],
     start_date: "2026-01-01",
     end_date: "2026-12-31",
     notice_period_days: 60,
@@ -243,10 +250,10 @@ const AGREEMENTS: Agreement[] = [
     id: "c3000000-0000-4000-8000-000000000002",
     title: "Always-on creator management",
     vendor_id: kite,
-    category: "other",
+    category: "retainer",
     status: "active",
     renewal_type: "auto",
-    outlet_ids: [],
+    brand_ids: [],
     start_date: "2025-07-01",
     end_date: "2026-09-30",
     // The gap. Auto-renewing with nothing to give notice against, which is the single row this
@@ -262,10 +269,10 @@ const AGREEMENTS: Agreement[] = [
     id: "c3000000-0000-4000-8000-000000000003",
     title: "Paid social buying retainer",
     vendor_id: halcyon,
-    category: "other",
+    category: "media_buy",
     status: "active",
     renewal_type: "manual",
-    outlet_ids: [marina, jalanBesar, orchard],
+    brand_ids: [harbourTable, kopiCo],
     start_date: "2026-04-01",
     end_date: "2027-03-31",
     notice_period_days: 30,
@@ -280,10 +287,10 @@ const AGREEMENTS: Agreement[] = [
     id: "c3000000-0000-4000-8000-000000000004",
     title: "Social scheduling and analytics, 25 seats",
     vendor_id: loopline,
-    category: "software",
+    category: "tooling",
     status: "active",
     renewal_type: "auto",
-    outlet_ids: [],
+    brand_ids: [],
     start_date: "2026-02-01",
     end_date: "2027-01-31",
     notice_period_days: 30,
@@ -297,10 +304,10 @@ const AGREEMENTS: Agreement[] = [
     id: "c3000000-0000-4000-8000-000000000005",
     title: "Quarterly menu and interiors shoot",
     vendor_id: fieldnote,
-    category: "other",
+    category: "production",
     status: "active",
     renewal_type: "none",
-    outlet_ids: [marina, jalanBesar, kitchen],
+    brand_ids: [harbourTable, kopiCo, eastside],
     start_date: "2026-03-01",
     end_date: "2026-12-31",
     notice_period_days: null,
@@ -315,10 +322,10 @@ const AGREEMENTS: Agreement[] = [
     id: "c3000000-0000-4000-8000-000000000006",
     title: "Kopi & Co creator programme",
     vendor_id: sunbeam,
-    category: "other",
+    category: "talent",
     status: "active",
     renewal_type: "auto",
-    outlet_ids: [jalanBesar, tanjongPagar],
+    brand_ids: [kopiCo],
     start_date: "2026-06-01",
     end_date: "2026-11-30",
     notice_period_days: 45,
@@ -332,10 +339,10 @@ const AGREEMENTS: Agreement[] = [
     id: "c3000000-0000-4000-8000-000000000007",
     title: "Harbour Table Orchard opening campaign",
     vendor_id: redpin,
-    category: "other",
+    category: "events",
     status: "draft",
     renewal_type: "none",
-    outlet_ids: [orchard],
+    brand_ids: [harbourTable],
     start_date: "2026-10-01",
     end_date: "2027-01-31",
     notice_period_days: null,
@@ -350,10 +357,10 @@ const AGREEMENTS: Agreement[] = [
     id: "c3000000-0000-4000-8000-000000000008",
     title: "Press office retainer",
     vendor_id: bellweather,
-    category: "other",
+    category: "pr",
     status: "active",
     renewal_type: "auto",
-    outlet_ids: [],
+    brand_ids: [],
     start_date: "2025-10-01",
     end_date: "2026-09-30",
     // The second gap, and the nearer one — this rolls over in six weeks.
@@ -368,12 +375,12 @@ const AGREEMENTS: Agreement[] = [
     id: "c3000000-0000-4000-8000-000000000009",
     title: "Marina ambassador programme",
     vendor_id: tidewater,
-    category: "other",
+    category: "sponsorship",
     // Expired, with no successor and no close-off — the row that owes a decision, and the only
     // one whose Status cell is two buttons instead of a badge.
     status: "expired",
     renewal_type: "auto",
-    outlet_ids: [marina],
+    brand_ids: [harbourTable],
     start_date: "2025-08-01",
     end_date: "2026-07-31",
     notice_period_days: 30,
@@ -387,10 +394,10 @@ const AGREEMENTS: Agreement[] = [
     id: "c3000000-0000-4000-8000-000000000010",
     title: "The Quay Bar launch creators",
     vendor_id: northlight,
-    category: "other",
+    category: "talent",
     status: "draft",
     renewal_type: "none",
-    outlet_ids: [quay],
+    brand_ids: [quayBar],
     start_date: "2027-01-05",
     end_date: "2027-04-30",
     notice_period_days: null,
@@ -406,10 +413,10 @@ const AGREEMENTS: Agreement[] = [
     id: "c3000000-0000-4000-8000-000000000011",
     title: "Brand film and central kitchen production",
     vendor_id: halcyon,
-    category: "other",
+    category: "production",
     status: "active",
     renewal_type: "manual",
-    outlet_ids: [kitchen],
+    brand_ids: [harbourTable, eastside],
     start_date: "2026-05-01",
     end_date: "2026-10-31",
     notice_period_days: 60,
@@ -425,9 +432,9 @@ const AGREEMENTS: Agreement[] = [
     vendor_id: loopline,
     // Expired and already answered — it produced #13. Resolved history, so "Current" hides it.
     status: "expired",
-    category: "software",
+    category: "tooling",
     renewal_type: "auto",
-    outlet_ids: [],
+    brand_ids: [],
     start_date: "2025-08-01",
     end_date: "2026-07-31",
     notice_period_days: 30,
@@ -442,10 +449,10 @@ const AGREEMENTS: Agreement[] = [
     id: RENEWED_ANALYTICS,
     title: "Influencer analytics add-on (2026–27)",
     vendor_id: loopline,
-    category: "software",
+    category: "tooling",
     status: "draft",
     renewal_type: "auto",
-    outlet_ids: [],
+    brand_ids: [],
     start_date: "2026-08-01",
     end_date: "2027-07-31",
     notice_period_days: 30,
@@ -460,11 +467,11 @@ const AGREEMENTS: Agreement[] = [
     id: "c3000000-0000-4000-8000-000000000014",
     title: "Tanjong Pagar creator sprint",
     vendor_id: redpin,
-    category: "other",
+    category: "talent",
     // Terminated — history, hidden until "All".
     status: "terminated",
     renewal_type: "none",
-    outlet_ids: [tanjongPagar],
+    brand_ids: [kopiCo],
     start_date: "2026-01-15",
     end_date: "2026-06-30",
     notice_period_days: null,
@@ -475,6 +482,48 @@ const AGREEMENTS: Agreement[] = [
     closed_at: "2026-05-02T10:00:00Z",
     closed_reason: "Ended early — the outlet closed for aircon replacement.",
     updated_at: "2026-05-02T10:00:00Z",
+  },
+  // The last two exist for the vocabulary rather than for the layout, and both are ordinary
+  // agreements a group this size would hold. Without them `creative` and `research` are two
+  // words in the legend and two filter options that narrow to nothing — which is the state
+  // 1.36.1 called "a screen that looks broken rather than empty", at the size of one option.
+  {
+    id: "c3000000-0000-4000-8000-000000000015",
+    title: "Kopi & Co identity refresh",
+    vendor_id: halcyon,
+    category: "creative",
+    status: "active",
+    renewal_type: "none",
+    brand_ids: [kopiCo],
+    start_date: "2026-07-01",
+    end_date: "2026-12-15",
+    notice_period_days: null,
+    value: "34000.00",
+    billing_frequency: "one_off",
+    scope_description:
+      "Wordmark, packaging system and in-store signage, delivered in three stages.",
+    notes: "Stage one signed off. The packaging system is the long pole.",
+    updated_at: "2026-08-12T11:40:00Z",
+  },
+  {
+    // Every brand at once, which is what a group-wide tracking study is — and the only row
+    // that drives the brand cell to its four-name count.
+    id: "c3000000-0000-4000-8000-000000000016",
+    title: "Brand tracking and share of voice",
+    vendor_id: bellweather,
+    category: "research",
+    status: "active",
+    renewal_type: "manual",
+    brand_ids: [harbourTable, kopiCo, quayBar, eastside],
+    start_date: "2026-01-01",
+    end_date: "2026-12-31",
+    notice_period_days: 90,
+    value: "21000.00",
+    billing_frequency: "quarterly",
+    scope_description:
+      "Quarterly awareness and consideration tracking, plus monthly share-of-voice reporting.",
+    notes: null,
+    updated_at: "2026-07-09T08:55:00Z",
   },
 ];
 
@@ -508,7 +557,7 @@ export const contracts: ContractSensitive[] = AGREEMENTS.map((agreement) => ({
   category: agreement.category,
   status: agreement.status,
   renewal_type: agreement.renewal_type,
-  outlet_ids: agreement.outlet_ids,
+  brand_ids: agreement.brand_ids,
   start_date: agreement.start_date,
   end_date: agreement.end_date,
   notice_period_days: agreement.notice_period_days,
@@ -560,8 +609,15 @@ export function isCurrent(contract: ContractSensitive): boolean {
  *     denominator of "1 active of 4", and a denominator that hid the terminated ones would make
  *     the fraction smaller than the list behind the click-through.
  *   - `contracts_active` — `status === "active"` only. Not "current": a draft is not cover.
- *   - `outlets_covered` — distinct outlets across the **active** contracts, because the question
- *     is what they cover now. A vendor whose only agreement was terminated covers nothing.
+ *   - `brands_covered` — distinct brands across the **active** contracts, because the question is
+ *     what they work on now. A vendor whose only agreement was terminated works on nothing.
+ *
+ * `brands_covered` was `outlets_covered` and is the one aggregate that changed shape rather than
+ * value. The generated field counted premises, which a contract no longer names; the honest
+ * replacement counts the dimension it does name. **A group-level agreement contributes nothing to
+ * it**, which is right and worth saying out loud: Loopline's seat licence is held for everybody,
+ * so "0 brands" is not a claim that Loopline is unused — the `1 active of 2` beside it is what
+ * says otherwise. The table words the zero rather than printing it.
  *
  * `next_contract_end` is the earliest end date among the active ones, which is the next time
  * this relationship needs a decision.
@@ -569,7 +625,7 @@ export function isCurrent(contract: ContractSensitive): boolean {
 export const vendors: VendorListItem[] = [...agencies, ...PROVIDERS].map((vendor) => {
   const held = contracts.filter((contract) => contract.vendor_id === vendor.id);
   const active = held.filter((contract) => contract.status === "active");
-  const covered = new Set(active.flatMap((contract) => contract.outlet_ids));
+  const covered = new Set(active.flatMap((contract) => contract.brand_ids));
   const ends = active
     .map((contract) => contract.end_date)
     .filter((end): end is string => end !== null)
@@ -579,7 +635,7 @@ export const vendors: VendorListItem[] = [...agencies, ...PROVIDERS].map((vendor
     ...vendor,
     contracts_total: held.length,
     contracts_active: active.length,
-    outlets_covered: covered.size,
+    brands_covered: covered.size,
     next_contract_end: ends[0] ?? null,
   };
 });

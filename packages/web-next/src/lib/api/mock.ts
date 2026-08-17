@@ -31,6 +31,7 @@
  * layer we are keeping.
  */
 
+import { brands } from "@/fixtures/brands";
 import { contracts, isCurrent, vendors } from "@/fixtures/contracts";
 import { dashboard } from "@/fixtures/dashboard";
 import { influencers } from "@/fixtures/influencers";
@@ -88,15 +89,32 @@ const ROUTES: [RegExp, Handler][] = [
   [/^\/entities\/([^/]+)$/, ([id]) => entities.find((e) => e.id === id)],
 
   // Brands -----------------------------------------------------------------
-  // **Deliberately unregistered.** `/brands` had a fixture for exactly one release: 1.32.0
-  // registered it so the sidebar's brand toggle had a list. That toggle now reads the Hono
-  // server through `features/brands/`, so the fixture went with it.
+  // **Registered again, and the reversal is deliberate.** `/brands` had a fixture for exactly
+  // one release — 1.32.0, for the sidebar's brand toggle — and lost it when that toggle moved
+  // to the Hono server through `features/brands/`. What was left reading this path is
+  // `features/registry-brands/`, the Operations Hub's own brand dimension, and for as long as
+  // that dimension was only *resolved* (an outlet's `brand_id` to a name, on screens cut from
+  // the nav) falling through to `EMPTY` was the honest answer.
   //
-  // What still reads `/brands` here is `features/registry-brands/` — the Operations Hub's own
-  // brand dimension, which eight screens use to resolve an outlet's `brand_id` to a name. It
-  // falls through to `EMPTY` (rule 2) like the other fifteen unfixtured areas and renders its
-  // real empty states. Restoring a fixture for it would be an Ops decision, not a
-  // BrandFactory one.
+  // It is not the honest answer now. `/contracts` groups by brand, filters by brand and asks
+  // for brands on create, so an empty index would mean one bucket called `…`, a filter with no
+  // options, and a screen that looks broken rather than empty — the exact reading 1.36.1
+  // rejected for the contracts themselves, one dimension up.
+  //
+  // **These are not the brands the sidebar shows.** Those are the workspace's, on the Hono
+  // server, and `fixtures/brands.ts` opens with why a static fixture cannot be wired to them.
+  [
+    /^\/brands$/,
+    (_p, search) =>
+      page(
+        brands.filter(
+          (b) =>
+            matches(b.name, search.get("q")) &&
+            (!search.get("status") || b.status === search.get("status")),
+        ),
+      ),
+  ],
+  [/^\/brands\/([^/]+)$/, ([id]) => brands.find((b) => b.id === id)],
 
   // Outlets -----------------------------------------------------------------
   // **The `/outlets` *screens* no longer read this.** They moved to
@@ -123,14 +141,10 @@ const ROUTES: [RegExp, Handler][] = [
   ],
   // Both, because the list links by slug and the detail page's own children fetch by id.
   [/^\/outlets\/([^/]+)$/, ([key]) => outlets.find((o) => o.id === key || o.slug === key)],
-  // What a close of this outlet would have to dispose of, so the disposition dialog stops
-  // saying "nothing" about a site three live agreements cover. Open work only — `isCurrent`,
-  // the same definition the contracts list defaults to — because a terminated contract is not
-  // something a close has to decide about.
-  [
-    /^\/outlets\/([^/]+)\/related-contracts$/,
-    ([id]) => contracts.filter((c) => c.outlet_ids.includes(id!) && isCurrent(c)),
-  ],
+  // `related-contracts` is gone with the dimension it joined on. It answered "what would a
+  // close of this outlet have to dispose of", which a contract that names brands rather than
+  // premises cannot be asked. The disposition dialog says so rather than guessing — see
+  // `features/registry/components/close-dialogs.tsx`.
   [/^\/outlets\/([^/]+)\/license-suggestions$/, () => []],
   [
     /^\/outlets\/([^/]+)\/license-readiness$/,
@@ -270,15 +284,11 @@ const ROUTES: [RegExp, Handler][] = [
           const vendor = vendors.find((v) => v.id === c.vendor_id);
           const hit = matches(c.title, q) || matches(vendor?.name, q);
 
-          // Brand is two hops: a contract carries none of its own, so the API joins through
-          // the coverage. Every fixture outlet has `brand_id: null`, so this narrows to
-          // nothing today — it is written because the join is the rule, not the data.
+          // Brand is one hop now, off the row's own field. It was two — `contract → outlet →
+          // brand` — and the join is gone with the outlet dimension, which is the whole reason
+          // this filter narrows to real rows instead of to nothing.
           const brandId = search.get("brand_id");
-          const brandHit =
-            !brandId ||
-            c.outlet_ids.some(
-              (outletId) => outlets.find((o) => o.id === outletId)?.brand_id === brandId,
-            );
+          const brandHit = !brandId || c.brand_ids.includes(brandId);
 
           return (
             hit &&
@@ -287,7 +297,6 @@ const ROUTES: [RegExp, Handler][] = [
             (!search.get("status") || c.status === search.get("status")) &&
             (!search.get("renewal_type") || c.renewal_type === search.get("renewal_type")) &&
             (!search.get("vendor_id") || c.vendor_id === search.get("vendor_id")) &&
-            (!search.get("outlet_id") || c.outlet_ids.includes(search.get("outlet_id")!)) &&
             // The review queue's `contract_notice_period_missing` predicate. `true` or
             // absent, never `false` — the API reads `false` as "do not narrow", and the
             // table has been bitten once by a reader that disagreed with it.

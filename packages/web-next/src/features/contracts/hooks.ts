@@ -11,21 +11,14 @@ import type {
   ContractRenewBody,
   ContractUpdate,
   DocType,
-  ServiceReportCreate,
   SubjectType,
-  ServiceScheduleUpsert,
-  ServiceVisit,
-  ServiceVisitCreate,
-  ServiceVisitUpdate,
 } from "@/lib/api/types";
 
 import {
   attachmentService,
   contractService,
-  serviceService,
   type ContractFilters,
   type ContractRecord,
-  type VisitFilters,
 } from "./api";
 
 // ── Contracts ──────────────────────────────────────────────────────────────────────────
@@ -86,13 +79,16 @@ export function useContractIndex() {
   return { contracts: data?.items ?? [], byId, error, isLoading };
 }
 
-// A contract write can move the dashboard (notice deadlines), the schedules hanging
-// off it, and the health verdicts computed from both.
+// A contract write can move the dashboard (notice deadlines) and the vendor aggregates,
+// which are counted over the agreements themselves — `contracts_active`, `brands_covered`
+// and `next_contract_end` all change when a contract does.
+//
+// The two service scopes that used to ride along are gone with the workflow they invalidated.
 const CONTRACT_SCOPES = [
   SCOPES.contracts,
   SCOPES.contract,
-  SCOPES.schedules,
-  SCOPES.serviceHealth,
+  SCOPES.vendors,
+  SCOPES.vendor,
   SCOPES.dashboard,
 ];
 
@@ -117,9 +113,9 @@ export function useContractMutations() {
     [invalidate],
   );
 
-  const replaceOutlets = React.useCallback(
-    async (id: string, outletIds: string[]) => {
-      const updated = await contractService.replaceOutlets(id, outletIds);
+  const replaceBrands = React.useCallback(
+    async (id: string, brandIds: string[]) => {
+      const updated = await contractService.replaceBrands(id, brandIds);
       await invalidate(...CONTRACT_SCOPES);
       return updated;
     },
@@ -157,7 +153,7 @@ export function useContractMutations() {
     [invalidate],
   );
 
-  return { create, update, replaceOutlets, renew, closeOut, remove };
+  return { create, update, replaceBrands, renew, closeOut, remove };
 }
 
 // ── Documents ──────────────────────────────────────────────────────────────────────────
@@ -235,86 +231,4 @@ export function useAttachmentMutations() {
   }, []);
 
   return { upload, update, remove, download };
-}
-
-// ── Service workflow ───────────────────────────────────────────────────────────────────
-
-export function useSchedules(params: { contract_id?: string; outlet_id?: string } = {}) {
-  return useSWR([SCOPES.schedules, params], () =>
-    serviceService.listSchedules({ ...params, limit: 200 }),
-  );
-}
-
-export function useVisits(filters: VisitFilters = {}) {
-  return useSWR([SCOPES.visits, filters], () => serviceService.listVisits(filters));
-}
-
-export function useVisitPages(filters: VisitFilters = {}) {
-  return useCursorPages<ServiceVisit>(SCOPES.visits, filters, (cursor) =>
-    serviceService.listVisits({ ...filters, cursor }),
-  );
-}
-
-export function useReports(visitId: string | undefined) {
-  return useSWR(visitId ? [SCOPES.reports, visitId] : null, () =>
-    serviceService.listReports({ visit_id: visitId! }),
-  );
-}
-
-export function useServiceHealth(
-  params: { contract_id?: string; outlet_id?: string; overdue_only?: boolean } = {},
-) {
-  return useSWR([SCOPES.serviceHealth, params], () => serviceService.health(params));
-}
-
-// A visit or report write moves the health verdicts and (via the generator) the
-// dashboard's obligations.
-const SERVICE_SCOPES = [
-  SCOPES.schedules,
-  SCOPES.visits,
-  SCOPES.reports,
-  SCOPES.serviceHealth,
-  SCOPES.dashboard,
-];
-
-export function useServiceMutations() {
-  const invalidate = useInvalidate();
-
-  const setSchedule = React.useCallback(
-    async (contractId: string, outletId: string, data: ServiceScheduleUpsert) => {
-      const schedule = await serviceService.setSchedule(contractId, outletId, data);
-      await invalidate(...SERVICE_SCOPES);
-      return schedule;
-    },
-    [invalidate],
-  );
-
-  const recordVisit = React.useCallback(
-    async (data: ServiceVisitCreate) => {
-      const visit = await serviceService.recordVisit(data);
-      await invalidate(...SERVICE_SCOPES);
-      return visit;
-    },
-    [invalidate],
-  );
-
-  const updateVisit = React.useCallback(
-    async (id: string, data: ServiceVisitUpdate) => {
-      const visit = await serviceService.updateVisit(id, data);
-      await invalidate(...SERVICE_SCOPES);
-      return visit;
-    },
-    [invalidate],
-  );
-
-  const attachReport = React.useCallback(
-    async (visitId: string, data: ServiceReportCreate) => {
-      const report = await serviceService.attachReport(visitId, data);
-      await invalidate(...SERVICE_SCOPES);
-      return report;
-    },
-    [invalidate],
-  );
-
-  return { setSchedule, recordVisit, updateVisit, attachReport };
 }

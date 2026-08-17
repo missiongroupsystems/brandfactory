@@ -103,9 +103,20 @@ export type DashboardUnscheduled = S["DashboardUnscheduled"];
 // password split: the restricted shape has no `value` key at all — narrow with
 // `hasContractValue()`, never a null test.
 export type Vendor = S["VendorRead"];
-// The list shape: a vendor plus the contract aggregates the table renders. The counts
-// reflect what the caller may see, so they always match the drill-down.
-export type VendorListItem = S["VendorListItem"];
+/**
+ * The list shape: a vendor plus the contract aggregates the table renders. The counts
+ * reflect what the caller may see, so they always match the drill-down.
+ *
+ * **`brands_covered` replaces the generated `outlets_covered`**, because the number it
+ * counted stopped existing the day a contract stopped carrying outlets. Leaving the field
+ * on the row at `0` would have been worse than removing it: a vendor holding three live
+ * retainers would have read "0 outlets covered", which is a false statement that looks like
+ * a true one. It is derived in `fixtures/contracts.ts` from the agreements themselves, the
+ * same discipline the three counts beside it already follow.
+ */
+export type VendorListItem = Omit<S["VendorListItem"], "outlets_covered"> & {
+  brands_covered: number;
+};
 export type VendorCreate = S["VendorCreate"];
 export type VendorUpdate = S["VendorUpdate"];
 export type VendorContact = S["VendorContactRead"];
@@ -122,10 +133,91 @@ export type Contact = S["ContactRead"];
 export type ContactCreate = S["ContactCreate"];
 export type ContactUpdate = S["ContactUpdate"];
 
-export type Contract = S["ContractRead"];
-export type ContractSensitive = S["ContractSensitiveRead"];
-export type ContractCreate = S["ContractCreate"];
-export type ContractUpdate = S["ContractUpdate"];
+/**
+ * What kind of marketing agreement this is — **the one union in this file that is not a
+ * schema type**, and the docstring says so because everything around it is.
+ *
+ * `ServiceCategory` below is the Operations Hub's vocabulary of *trades*: aircon, pest
+ * control, grease trap, stewarding. Of its thirteen values exactly two were ever true of a
+ * marketing agreement — `software` for a tool subscription and `other` for everything a
+ * creative agency does — so the contracts table filtered to two buckets and its glyph
+ * column was very nearly monotone. `fixtures/contracts.ts` recorded that as a known cost
+ * and named the way out: *"a marketing vocabulary needs an enum on a backend that does not
+ * exist yet"*.
+ *
+ * There is still no such backend, and that is precisely why this is safe to declare. The
+ * Hono server holds no contracts routes, `schema.d.ts` is frozen against a FastAPI document
+ * this repository does not contain, and the fixture is the only writer — so there is no
+ * server to put a slug on screen that it would refuse. The day a real one arrives it is
+ * generated against *this* shape rather than the Operations Hub's.
+ *
+ * `other` is the escape hatch and keeps the convention the service icons set: it is the
+ * *absence* of a symbol rather than a symbol for "other", because a meaningful-looking
+ * glyph would hide the fact that nobody chose.
+ */
+export type ContractCategory =
+  | "retainer"
+  | "media_buy"
+  | "production"
+  | "talent"
+  | "pr"
+  | "events"
+  | "sponsorship"
+  | "creative"
+  | "research"
+  | "tooling"
+  | "other";
+
+/**
+ * The contract shapes, with the two fields this product owns re-pointed off the frozen
+ * schema — and everything else still arriving from it.
+ *
+ * `Omit<…> & {…}` rather than a hand-written record, deliberately: nineteen of the
+ * twenty-one fields are unchanged, and a second copy of them would drift the moment
+ * somebody adds a nullable column — which is the rule this whole file exists to keep.
+ * Only the two that are wrong are named here, so a reader can see the whole delta at once.
+ *
+ *   - **`category`** — see {@link ContractCategory}.
+ *   - **`brand_ids` replaces `outlet_ids`.** A marketing agreement is held *for a brand*,
+ *     not for premises. Brand used to be two hops off the row (`contract → outlet → brand`)
+ *     and so could only ever be a derived, multi-valued, always-pending cell; it is now the
+ *     row's own field, which is what lets the table group by it.
+ *
+ * Still multi-valued, because the agreements genuinely are: a paid-social retainer spans
+ * three brands and a scheduling subscription spans none. An **empty array is a fact** — the
+ * agreement is held at group level — and never a gap, which is why the table words it
+ * rather than rendering the em dash.
+ *
+ * `ContractRead` vs `ContractSensitiveRead` is untouched and mirrors the network password
+ * split: the restricted shape has no `value` key at all — narrow with `hasContractValue()`,
+ * never a null test.
+ */
+export type Contract = Omit<S["ContractRead"], "category" | "outlet_ids"> & {
+  category: ContractCategory;
+  brand_ids: string[];
+};
+export type ContractSensitive = Omit<
+  S["ContractSensitiveRead"],
+  "category" | "outlet_ids"
+> & {
+  category: ContractCategory;
+  brand_ids: string[];
+};
+export type ContractCreate = Omit<S["ContractCreate"], "category" | "outlet_ids"> & {
+  category: ContractCategory;
+  brand_ids?: string[];
+};
+export type ContractUpdate = Omit<S["ContractUpdate"], "category"> & {
+  category?: ContractCategory | null;
+};
+/**
+ * The Operations Hub's trades, still exactly as generated.
+ *
+ * Vendors, Influencers and the review queue read it and are not being re-pointed: a talent
+ * agency filed under `other` is the same complaint one screen over, and the honest fix is a
+ * vendor vocabulary nobody has asked for yet. Two enums that overlap in one member is the
+ * same call `RepairCategory` already makes beside it.
+ */
 export type ServiceCategory = S["ServiceCategory"];
 export type ContractStatus = S["ContractStatus"];
 export type RenewalType = S["RenewalType"];
@@ -148,10 +240,27 @@ export type EntityOutletDisposition = S["EntityOutletDisposition"];
 export type EntityOutletAction = S["EntityOutletAction"];
 export type EntityCloseBody = S["EntityCloseBody"];
 
-// Extraction — a *proposal* read off a signed PDF, applied only through an ordinary
-// PATCH after human review. Ops-only on the API (it includes the value).
-export type ContractExtractionResponse = S["ContractExtractionResponse"];
-export type ExtractedContractFields = S["ExtractedContractFields"];
+/**
+ * Extraction — a *proposal* read off a signed PDF, applied only through an ordinary PATCH
+ * after human review. Ops-only on the API (it includes the value).
+ *
+ * Re-pointed alongside the record it proposes edits to: a proposal whose `category` was a
+ * trade and whose matches were outlets could not be applied to a contract that has neither.
+ * `BrandMatch` is `OutletMatch`'s shape one dimension over — a name lifted off the document
+ * and the id it resolved to, or `null` when nothing in the register matched it.
+ */
+export type BrandMatch = { name: string; brand_id: string | null };
+export type ExtractedContractFields = Omit<
+  S["ExtractedContractFields"],
+  "category" | "outlet_names"
+> & {
+  category?: ContractCategory | null;
+  brand_names?: string[];
+};
+export type ContractExtractionResponse = {
+  fields: ExtractedContractFields;
+  matches: { brands: BrandMatch[]; vendor_id: string | null };
+};
 
 // Tenancy agreements. `TenancyRead` (no rent keys at all) vs `TenancySensitiveRead` mirrors
 // the contract value split — narrow with `hasTenancyRent()`, never a null test.

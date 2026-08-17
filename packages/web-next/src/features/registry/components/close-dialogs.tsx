@@ -46,6 +46,13 @@ import {
  * outlet, **Transfer** to another entity or **Close** (which reveals that outlet's contract
  * dispositions). Nothing is optimistic — the API applies it in one transaction and the dialog
  * closes only once the server answers.
+ *
+ * **The contract half of this is inert, and says so honestly.** A contract in this product is
+ * held for a *brand* and names no outlet, so `/outlets/{id}/related-contracts` is gone and the
+ * list below is always empty — which renders as "No contracts cover this outlet", a true
+ * statement rather than a broken screen. The machinery stays because it is typed against a wire
+ * contract that still declares it and because the outlet-close flow is Operations Hub residue
+ * either way; deleting it is a decision about `features/registry`, not about contracts.
  */
 
 type ContractLike = Contract | ContractSensitive;
@@ -107,7 +114,7 @@ function ContractDispositionFields({
   onChange: (next: DispositionMap) => void;
 }) {
   const { byId: vendorById } = useVendorIndex();
-  const { outlets, byId: outletById } = useOutletIndex();
+  const { outlets } = useOutletIndex();
 
   // Re-assign targets: every open outlet except the one being closed. A closed site is not
   // somewhere to move live cover to.
@@ -186,8 +193,6 @@ function ContractDispositionFields({
         {contracts.map((contract) => {
           const row = value[contract.id] ?? { action: "cease", toOutletId: "" };
           const vendor = vendorById.get(contract.vendor_id);
-          const otherOutletIds = contract.outlet_ids.filter((id) => id !== closingOutletId);
-          const otherNames = otherOutletIds.map((id) => outletById.get(id)?.name ?? "…");
 
           return (
             <li
@@ -199,7 +204,6 @@ function ContractDispositionFields({
                 <span className="text-helper text-ink-secondary">
                   {/* A name absent from the index is a request in flight, never a missing fact. */}
                   {vendor ? vendor.name : "…"}
-                  {otherOutletIds.length > 0 ? ` · also covers ${otherNames.join(", ")}` : null}
                 </span>
               </div>
 
@@ -233,13 +237,10 @@ function ContractDispositionFields({
                 ) : null}
               </div>
 
-              {/* The multi-outlet in-flow ask (Decisions §2): ceasing a contract that still covers
-                  live outlets ends the whole contract, so name what else goes with it. */}
-              {row.action === "cease" && otherOutletIds.length > 0 ? (
-                <p className="text-helper text-warning">
-                  Ceasing ends the whole contract — it still covers {otherNames.join(", ")}.
-                </p>
-              ) : null}
+              {/* The multi-outlet in-flow ask (Decisions §2) stood here: ceasing a contract that
+                  still covered live outlets ended the whole contract, so it named what else went
+                  with it. There is no "what else" to name now — a contract covers no outlets —
+                  and a warning that could only ever be silent is worse than none. */}
             </li>
           );
         })}

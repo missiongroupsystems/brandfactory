@@ -6,11 +6,10 @@ import type {
   AttachmentUploadTicket,
   DocType,
   Contract,
-  ServiceCategory,
+  ContractCategory,
   ContractCloseOutBody,
   ContractCreate,
   ContractExtractionResponse,
-  ContractHealth,
   ContractRenewBody,
   ContractSensitive,
   ContractStatus,
@@ -18,39 +17,36 @@ import type {
   ContractView,
   Page,
   RenewalType,
-  ServiceReport,
-  ServiceReportCreate,
-  ServiceSchedule,
-  ServiceScheduleUpsert,
-  ServiceVisit,
-  ServiceVisitCreate,
-  ServiceVisitUpdate,
-  VisitStatus,
 } from "@/lib/api/types";
 
 /**
- * The agreements and the service workflow. Contract responses arrive as one of two
- * shapes — narrow with `hasContractValue()`, never a null test, same discipline as the
- * network passwords.
+ * The agreements. Contract responses arrive as one of two shapes — narrow with
+ * `hasContractValue()`, never a null test, same discipline as the network passwords.
  *
  * The vendors themselves live in `features/vendors`; a contract references one by
- * `vendor_id` and this file never fetches it.
+ * `vendor_id` and this file never fetches it. The brands live in
+ * `features/registry-brands`, referenced by `brand_ids` and fetched no differently.
+ *
+ * **The service workflow used to live here too** — schedules, visits, reports and the
+ * health verdict — and is gone rather than moved. Every one of those was keyed on a
+ * `(contract, outlet)` pair, and a contract no longer names an outlet.
  */
 
 export type ContractRecord = Contract | ContractSensitive;
 
 export type ContractFilters = {
   vendor_id?: string;
-  category?: ServiceCategory;
+  category?: ContractCategory;
   status?: ContractStatus;
   renewal_type?: RenewalType;
-  outlet_id?: string;
   /**
-   * Contracts covering an outlet of this brand.
+   * Agreements held for this brand.
    *
-   * A contract has no brand of its own — `brand_id` lives on `outlet` and `entity` and
-   * nowhere else — so the API joins through the coverage, and a contract spanning two
-   * brands answers under either of them.
+   * **One hop, off the row's own `brand_ids`.** It was two — the contract carried outlets,
+   * the outlet carried a `brand_id`, and the API joined through the coverage — which made
+   * the answer derived, permanently partial while an index was in flight, and empty for as
+   * long as the estate was unattributed. A contract held for two brands still answers under
+   * either of them; that part is unchanged and is the reason this is not an equality test.
    */
   brand_id?: string;
   q?: string;
@@ -70,14 +66,6 @@ export type ContractFilters = {
   limit?: number;
 };
 
-export type VisitFilters = {
-  contract_id?: string;
-  outlet_id?: string;
-  status?: VisitStatus;
-  cursor?: string;
-  limit?: number;
-};
-
 export const contractService = {
   list: (params: ContractFilters = {}) =>
     apiFetch<Page<ContractRecord>>(`/contracts${query(params)}`),
@@ -93,11 +81,12 @@ export const contractService = {
       body: JSON.stringify(data),
     }),
 
-  /** PUT — the complete coverage set. */
-  replaceOutlets: (id: string, outletIds: string[]) =>
-    apiFetch<ContractRecord>(`/contracts/${id}/outlets`, {
+  /** PUT — the complete brand set, not a patch. Was `replaceOutlets` against
+   *  `/contracts/{id}/outlets`; the verb and the shape are unchanged, only the dimension. */
+  replaceBrands: (id: string, brandIds: string[]) =>
+    apiFetch<ContractRecord>(`/contracts/${id}/brands`, {
       method: "PUT",
-      body: JSON.stringify({ outlet_ids: outletIds }),
+      body: JSON.stringify({ brand_ids: brandIds }),
     }),
 
   /** Creates and returns the linked draft successor — the response is the page to
@@ -174,41 +163,4 @@ export const attachmentService = {
     apiFetch<AttachmentDownload>(`/attachments/${id}/download`),
 
   remove: (id: string) => apiFetch<void>(`/attachments/${id}`, { method: "DELETE" }),
-};
-
-export const serviceService = {
-  /** Upsert — one schedule per (contract, outlet) pair, so re-PUTting is an edit. */
-  setSchedule: (contractId: string, outletId: string, data: ServiceScheduleUpsert) =>
-    apiFetch<ServiceSchedule>(`/contracts/${contractId}/outlets/${outletId}/schedule`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    }),
-
-  listSchedules: (params: { contract_id?: string; outlet_id?: string; limit?: number } = {}) =>
-    apiFetch<Page<ServiceSchedule>>(`/service-schedules${query(params)}`),
-
-  recordVisit: (data: ServiceVisitCreate) =>
-    apiFetch<ServiceVisit>("/service-visits", { method: "POST", body: JSON.stringify(data) }),
-
-  listVisits: (params: VisitFilters = {}) =>
-    apiFetch<Page<ServiceVisit>>(`/service-visits${query(params)}`),
-
-  updateVisit: (id: string, data: ServiceVisitUpdate) =>
-    apiFetch<ServiceVisit>(`/service-visits/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
-
-  attachReport: (visitId: string, data: ServiceReportCreate) =>
-    apiFetch<ServiceReport>(`/service-visits/${visitId}/reports`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
-
-  listReports: (params: { visit_id?: string; limit?: number } = {}) =>
-    apiFetch<Page<ServiceReport>>(`/service-reports${query(params)}`),
-
-  health: (
-    params: { contract_id?: string; outlet_id?: string; overdue_only?: boolean } = {},
-  ) => apiFetch<ContractHealth[]>(`/service-health${query(params)}`),
 };

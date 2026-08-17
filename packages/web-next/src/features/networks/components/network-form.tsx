@@ -16,9 +16,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useContractIndex } from "@/features/contracts/hooks";
 import { toNullable, useSubmit } from "@/hooks/use-submit";
 import { hasSensitiveFields } from "@/lib/api/types";
 
@@ -242,11 +240,9 @@ export function NetworkForm({
                 </Field>
               </FieldGrid>
 
-              <IspContractField
-                value={form.contract_id}
-                onChange={(value) => set("contract_id", value)}
-                error={fieldErrors.contract_id}
-              />
+              {/* The ISP contract link is gone — see the note where `IspContractField`
+                  used to be. `contract_id` stays on the record and on `FormState`, so a
+                  network that already carries one keeps it through a save. */}
             </FieldSection>
 
             <FieldSection
@@ -352,47 +348,21 @@ export function NetworkForm({
   );
 }
 
-/**
- * The ISP contract link — `outlet_network.contract_id` was nullable and unusable from
- * 0.1.0 until Phase 2 made contracts real. Its own component so the contract index is
- * fetched only where it renders.
+/*
+ * `IspContractField` stood here — a picker narrowed to `category === "internet"`, so a wifi
+ * connection could name the contract that pays for it.
+ *
+ * It is removed rather than re-pointed because there is nothing to re-point it *to*. This
+ * product's contracts register holds marketing agreements, and `ContractCategory` has no
+ * member an ISP line could honestly be filed under. Narrowing to `tooling` would offer a
+ * scheduling subscription as the thing behind the router; narrowing to nothing would leave a
+ * select whose only option is "Not linked", which reads as a broken control rather than an
+ * absent one.
+ *
+ * `contract_id` is untouched on the record and in `FormState`, so an existing link survives a
+ * save. Restore this field with the picker it deserves if a facilities contracts register
+ * ever exists here.
  */
-function IspContractField({
-  value,
-  onChange,
-  error,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-}) {
-  const { contracts, isLoading } = useContractIndex();
-  const internet = contracts.filter((contract) => contract.category === "internet");
-
-  return (
-    <Field
-      label="ISP contract"
-      hint="Links this connection to the internet contract behind it, so the bill and the box meet."
-      error={error}
-    >
-      {(field) => (
-        <Select
-          {...field}
-          disabled={isLoading}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-        >
-          <option value="">Not linked</option>
-          {internet.map((contract) => (
-            <option key={contract.id} value={contract.id}>
-              {contract.title}
-            </option>
-          ))}
-        </Select>
-      )}
-    </Field>
-  );
-}
 
 type FormState = {
   /** Create-mode only, and only when the page did not settle it — see `OutletBinding`. */

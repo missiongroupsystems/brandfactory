@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.37.0** — 2026-08-17 — A contract stops being an agreement about premises and becomes one about a brand: `/contracts` groups, filters and creates by brand, the outlet dimension leaves with the service workflow that hung off it, and `category` gets a marketing vocabulary. No migration. 2193 tests.
 - **1.36.2** — 2026-08-17 — Pre-push review of 1.36.0 and 1.36.1: a delete that drew an error over its own success, two surfaces that read a failed brand request as `No brand`, and a fixture wired to array order. No migration. 2190 tests.
 - **1.36.1** — 2026-08-17 — Contracts stops being an empty table, on 14 marketing agreements and the 3 providers only a contract makes exist; the vendor aggregates `influencers.ts` pinned at zero are now derived, because the number they could not contradict finally exists. No migration. 2190 tests (12 of them this change).
 - **1.36.0** — 2026-08-17 — Outlets stop being borrowed UI over a fixture and become an aggregate: a table, five routes and a feature folder that reads the server. The holding-entity dimension goes, the thirteen-card detail page becomes the outlet, and `New outlet` becomes an `Import or sync` placeholder. Migration 0013. 2190 tests.
@@ -81,6 +82,100 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.37.0 — 2026-08-17
+
+**The contracts table was organised around the wrong noun, and had been since it arrived from
+the Operations Hub.**
+
+A contract carried `outlet_ids` and derived its brand two hops away — `contract → outlet →
+brand`. Every fixture outlet carried `brand_id: null` and `/brands` was deliberately
+unregistered, so the Brand column read "No brand yet" on every row and the Brand filter had no
+options at all. `category` was `ServiceCategory`, the Operations Hub's frozen list of *trades*,
+of whose thirteen values exactly two are true of a marketing agreement.
+
+Both are the same mistake seen twice: a marketing agreement is held **for a brand**, and the
+screen was filing it by premises and by plumbing.
+
+No migration, no server change, no wire change. `packages/web` is untouched and still serves
+production. Full detail in `docs/completions/contracts-by-brand.md`; the argument and the four
+decisions the user settled first are in `docs/executing/contracts-by-brand-plan.md`.
+
+### 1. The type moved off the frozen schema
+
+`schema.d.ts` is generated from a FastAPI document this repository does not contain and may not
+be edited, and there is no backend to regenerate it from — the Hono server holds no contracts
+routes. So `features/contracts` declares its own record: `brand_ids` replaces `outlet_ids`, and
+`category` becomes an eleven-member `ContractCategory` — Retainer, Media buy, Production, Talent
+& influencer, PR & communications, Events & activations, Sponsorship, Creative & design,
+Research & insights, Tooling & software, Other.
+
+It is built as `Omit<…> & {…}` over the existing aliases, so nineteen of the twenty-one fields
+still arrive from one place and the delta is readable at a glance. `ServiceCategory` is
+untouched — vendors, influencers and the review queue still read it.
+
+The contracts fixture had argued this was impossible, and half that argument failed: *"inventing
+one here would put a slug on screen that no server would accept"* does not hold when the reason
+there is a fixture at all is that **there is no server**.
+
+### 2. Brand went from two hops to zero
+
+`BrandCell` had five states and four of them were ways of saying "not yet". It has four now, and
+one way for a fact to be pending. The column is on by default, and the filter leads the panel.
+
+The wording is the half worth arguing about. An agreement naming no brand is **`Group level`**,
+not "No brand" and not the em dash: six of the sixteen agreements are held for the whole group
+on purpose — a seat licence, a press office retainer — and both of the alternatives describe an
+unanswered question. `Value` has taught this table to read the em dash as "not recorded".
+
+`?group=outlet` became `?group=brand`, so an old link lands ungrouped rather than re-arranged.
+
+### 3. The service workflow went with the outlet
+
+Schedules, visits, reports and the health verdict were all keyed on a `(contract, outlet)` pair,
+so none of them has a question left to answer. `features/service-reports/`,
+`/service-reports`, three cards, `serviceService`, six hooks and four cache scopes are gone.
+
+Three places had to answer for the loss rather than absorb it quietly: `?view=health` now falls
+through to the table instead of redirecting to a route that no longer exists; the outlet-close
+dispositions render their true empty state; and the network form's ISP contract picker is
+removed rather than re-pointed, because no marketing category is a thing an ISP line could
+honestly be filed under.
+
+### 4. `/brands` is registered again
+
+A deliberate reversal of 1.33.0. That decision was right while the Ops brand was only ever
+*resolved*; it is the grouping, the primary filter and the create form's first question now, and
+an empty index would mean one bucket called `…` over a screen that looks broken rather than
+empty — the reading 1.36.1 rejected one dimension down.
+
+Four brands, derived from the outlets that already imply them, one of them **retired and holding
+three contracts** — the case the filter is written not to hide. They are deliberately *not* the
+brands the sidebar switcher shows, and `fixtures/brands.ts` opens with why a static fixture
+cannot be wired to ids a live server creates.
+
+`outlets_covered` on the vendor aggregates became `brands_covered`, because the number it
+counted stopped existing and `0` would have been a false statement that looked like a true one.
+
+### 5. Verification
+
+```
+pnpm typecheck                         clean (11 packages)
+pnpm lint                              clean (whole repo)
+pnpm format:check                      clean
+pnpm test                              2193 passed | 92 skipped (182 files)
+pnpm -F @brandfactory/web build        clean
+pnpm -F @brandfactory/web-next lint    clean
+pnpm -F @brandfactory/web-next build   clean — /service-reports gone from the route table
+```
+
+The count moves by three: `contracts.test.ts` lost two coverage assertions and gained five.
+
+**Still no browser pass**, the wall of 1.36.0 §9. What that leaves unseen is whether the group
+bands read well at four brands, whether eleven category glyphs are distinguishable at 16px, and
+whether `Group level` reads as a decision rather than as a gap.
 
 ---
 

@@ -11,7 +11,7 @@ import { outlets } from "./registry";
  */
 export const dashboard: DashboardSummary = {
   counts: {
-    overdue: 2,
+    overdue: 1,
     open_obligations: 11,
     due_30: 3,
     due_60: 5,
@@ -29,21 +29,6 @@ export const dashboard: DashboardSummary = {
       subject_id: licenses[3].id,
       subject_type: "license",
       outlet_id: outlets[1].id,
-      entity_id: null,
-      assignee_user_id: null,
-      auto_generated: true,
-    },
-    {
-      id: "0b000000-0000-4000-8000-000000000002",
-      title: "Quarterly grease trap service overdue — Eastside Central Kitchen",
-      kind: "expected_visit",
-      status: "open",
-      due_date: "2026-07-15",
-      days_until_due: -33,
-      lead_time_days: 0,
-      subject_id: "0c000000-0000-4000-8000-000000000001",
-      subject_type: "service_visit",
-      outlet_id: outlets[4].id,
       entity_id: null,
       assignee_user_id: null,
       auto_generated: true,
@@ -138,30 +123,12 @@ export const dashboard: DashboardSummary = {
       past_target: 0,
     },
   ],
-  service_health: [
-    {
-      contract_id: "0d000000-0000-4000-8000-000000000001",
-      contract_title: "Grease trap and kitchen exhaust — quarterly",
-      vendor_name: "Clearflow Services Pte Ltd",
-      outlet_id: outlets[4].id,
-      outlet_name: outlets[4].name,
-      frequency: "quarterly",
-      last_completed: "2026-04-12",
-      next_expected: "2026-07-15",
-      days_overdue: 33,
-    },
-    {
-      contract_id: "0d000000-0000-4000-8000-000000000002",
-      contract_title: "Pest control — monthly",
-      vendor_name: "Rentokil Initial Singapore",
-      outlet_id: outlets[0].id,
-      outlet_name: outlets[0].name,
-      frequency: "monthly",
-      last_completed: "2026-07-02",
-      next_expected: "2026-08-02",
-      days_overdue: 15,
-    },
-  ],
+  // Empty, and it is the concept that went rather than the data. Service health was a verdict
+  // over `(contract, outlet)` pairs, and a contract in this product is held for a brand and
+  // names no outlet — so there is nothing left to compute. The panel guards on `length`, so it
+  // renders nothing rather than an empty box. The field stays because `DashboardSummary` is
+  // generated and frozen.
+  service_health: [],
   unscheduled: [
     {
       license_id: licenses[4].id,

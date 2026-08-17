@@ -26,22 +26,18 @@ export const metadata = { title: "Contracts — Marketing Hub" };
  * redirect would show a frame of the contracts table on the way past. An unrecognised value
  * still falls through to the contracts table exactly as `ContractsBrowser` has always made it.
  *
- * **`?view=health` now leaves too**, to `/service-reports?view=expected` — the same table, on a
- * page where every row carries the action that closes it. Nothing is translated with it, and
- * that is a measured difference from the vendors case rather than an omission: the health view
- * read **no** filters at all (`ServiceHealthView` took no props and called `useServiceHealth()`
- * with no arguments), so there is no `vq` → `q` here to preserve. A stray parameter on such a
- * link means nothing to either page, and forwarding it would only carry a contracts-table filter
- * onto a screen that would silently ignore it.
+ * **`?view=health` no longer redirects anywhere, because there is nowhere left to send it.**
+ * It went to `/service-reports?view=expected` for one release; that screen is gone with the
+ * service workflow, which was keyed on a `(contract, outlet)` pair a contract no longer has.
+ * The parameter now falls through to the contracts table exactly as any other unrecognised
+ * value does — which is the honest outcome. A redirect to a 404 would be worse than none, and
+ * inventing a destination would send a reader looking for overdue visits somewhere that cannot
+ * answer them.
  */
 export default async function ContractsPage({
   searchParams,
 }: PageProps<"/contracts">) {
   const params = await searchParams;
-
-  if (params.view === "health") {
-    redirect("/service-reports?view=expected");
-  }
 
   if (params.view === "vendors") {
     const forwarded = new URLSearchParams();

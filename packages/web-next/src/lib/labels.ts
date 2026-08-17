@@ -2,22 +2,31 @@ import {
   AirVentIcon,
   BrushCleaningIcon,
   BugIcon,
+  CalendarHeartIcon,
   CircleDashedIcon,
   CircleSlashIcon,
+  ClapperboardIcon,
   CogIcon,
   DropletsIcon,
   FlameIcon,
   HammerIcon,
   HandPlatterIcon,
+  HandshakeIcon,
   type LucideIcon,
+  MegaphoneIcon,
   MonitorIcon,
+  PaletteIcon,
   PenLineIcon,
   RefreshCwIcon,
   RefrigeratorIcon,
+  RepeatIcon,
   ShieldIcon,
   ShirtIcon,
   ShowerHeadIcon,
+  TargetIcon,
   Trash2Icon,
+  TrendingUpIcon,
+  UsersIcon,
   WifiIcon,
   WrenchIcon,
   ZapIcon,
@@ -35,6 +44,7 @@ import type {
   BillingFrequency,
   BrandStatus,
   Confidence,
+  ContractCategory,
   ServiceCategory,
   ContractStatus,
   DepositForm,
@@ -379,6 +389,64 @@ export const SERVICE_CATEGORY_LABELS: Record<ServiceCategory, string> = {
 };
 
 /**
+ * The marketing agreement categories — the vocabulary `/contracts` actually needed.
+ *
+ * A **third** category union beside `ServiceCategory` and `RepairCategory`, and the same
+ * call both of those already record: two vocabularies that overlap in a member or two are
+ * cheaper than one that is wrong for half its readers. `ServiceCategory` describes a trade
+ * performed at premises; this describes what a marketing agreement buys. They share only
+ * `other`, and even that is the same *convention* rather than the same value.
+ *
+ * Keyed by the union exactly as its two siblings are, so a new member fails the typecheck
+ * until it has **both** a word and a symbol.
+ */
+export const CONTRACT_CATEGORY_LABELS: Record<ContractCategory, string> = {
+  retainer: "Retainer",
+  media_buy: "Media buy",
+  production: "Production",
+  talent: "Talent & influencer",
+  pr: "PR & communications",
+  events: "Events & activations",
+  sponsorship: "Sponsorship",
+  creative: "Creative & design",
+  research: "Research & insights",
+  tooling: "Tooling & software",
+  other: "Other",
+};
+
+/**
+ * A glyph per category, declared beside the labels so the two cannot drift.
+ *
+ * The grammar is `SERVICE_CATEGORY_ICONS`' one domain over: **name the thing bought, not
+ * how it feels to have bought it.** A repeat arrow for the agreement that renews itself,
+ * a trend line for bought attention, a clapperboard for the shoot, people for the people.
+ * Nothing here is a sparkle, a rocket or a lightbulb — those name a mood, and eleven moods
+ * side by side at 16px are one grey smudge.
+ *
+ * `other` is `CircleDashedIcon`, the deliberate *absence* of a symbol rather than a symbol
+ * for "other". It is the escape hatch somebody reaches for when nothing fitted, and a
+ * meaningful-looking icon would hide the fact that nobody chose — the exact convention the
+ * service icons set and the reason that entry reads the same in all three maps.
+ *
+ * Eleven symbols is a vocabulary, so the contracts table carries its legend in the Columns
+ * popover. A glyph is never alone: every cell using one keeps the label as `sr-only` text
+ * and repeats it in a tooltip that opens on keyboard focus.
+ */
+export const CONTRACT_CATEGORY_ICONS: Record<ContractCategory, LucideIcon> = {
+  retainer: RepeatIcon,
+  media_buy: TrendingUpIcon,
+  production: ClapperboardIcon,
+  talent: UsersIcon,
+  pr: MegaphoneIcon,
+  events: CalendarHeartIcon,
+  sponsorship: HandshakeIcon,
+  creative: PaletteIcon,
+  research: TargetIcon,
+  tooling: MonitorIcon,
+  other: CircleDashedIcon,
+};
+
+/**
  * The repair trades — a **separate** vocabulary from `ServiceCategory` (spec §4.8, the user's
  * call): repairs almost don't overlap with servicing, so their categories don't collide. Keyed by
  * the union exactly as `SERVICE_CATEGORY_*` are, so a new backend `RepairCategory` fails the
@@ -655,6 +723,7 @@ export const VENDOR_STATUS_OPTIONS = optionsFrom(VENDOR_STATUS_LABELS);
 export const VENDOR_KIND_OPTIONS = optionsFrom(VENDOR_KIND_LABELS);
 export const BRAND_STATUS_OPTIONS = optionsFrom(BRAND_STATUS_LABELS);
 export const SERVICE_CATEGORY_OPTIONS = optionsFrom(SERVICE_CATEGORY_LABELS);
+export const CONTRACT_CATEGORY_OPTIONS = optionsFrom(CONTRACT_CATEGORY_LABELS);
 export const REPAIR_CATEGORY_OPTIONS = optionsFrom(REPAIR_CATEGORY_LABELS);
 export const CONTRACT_STATUS_OPTIONS = optionsFrom(CONTRACT_STATUS_LABELS);
 export const TENANCY_KIND_OPTIONS = optionsFrom(TENANCY_KIND_LABELS);

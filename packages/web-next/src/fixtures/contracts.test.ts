@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { CONTRACT_CATEGORY_ICONS, CONTRACT_CATEGORY_LABELS } from "@/lib/labels";
+
+import { brands } from "./brands";
 import { contracts, isCurrent, vendors } from "./contracts";
 import { agencies } from "./influencers";
-import { outlets } from "./registry";
+import { entities, outlets } from "./registry";
 
 /**
  * What a browser pass cannot see about this fixture.
@@ -25,13 +28,24 @@ describe("the contract fixture's shape", () => {
     }
   });
 
-  it("points every vendor and outlet reference at a row that exists", () => {
+  it("points every vendor and brand reference at a row that exists", () => {
     const vendorIds = new Set(vendors.map((vendor) => vendor.id));
-    const outletIds = new Set(outlets.map((outlet) => outlet.id));
+    const brandIds = new Set(brands.map((brand) => brand.id));
 
     for (const contract of contracts) {
       expect(vendorIds).toContain(contract.vendor_id);
-      for (const outletId of contract.outlet_ids) expect(outletIds).toContain(outletId);
+      for (const brandId of contract.brand_ids) expect(brandIds).toContain(brandId);
+    }
+  });
+
+  it("gives every category in the vocabulary a glyph and a word it can be read by", () => {
+    // Not a coverage assertion — `other` is deliberately unused, and the reason is in the
+    // AGREEMENTS docstring. What this pins is the weaker, load-bearing half: no row carries a
+    // category the label and icon maps cannot render, which is how a table ends up drawing
+    // `undefined` where a glyph should be.
+    for (const contract of contracts) {
+      expect(CONTRACT_CATEGORY_LABELS[contract.category]).toBeTruthy();
+      expect(CONTRACT_CATEGORY_ICONS[contract.category]).toBeTruthy();
     }
   });
 
@@ -61,20 +75,24 @@ describe("the contract fixture's shape", () => {
 });
 
 describe("what the table's branches need on screen", () => {
-  it("holds a row for each of the three coverage shapes", () => {
-    const sizes = contracts.map((contract) => contract.outlet_ids.length);
+  it("holds a row for each of the three brand shapes the cell renders", () => {
+    const sizes = contracts.map((contract) => contract.brand_ids.length);
+    // Group level, a single name, and the glyph-and-count. Each is a different branch of
+    // `BrandCell`, and a fixture missing one leaves that branch unseen in a browser pass.
     expect(sizes.some((size) => size === 0)).toBe(true);
     expect(sizes.some((size) => size === 1)).toBe(true);
     expect(sizes.some((size) => size > 1)).toBe(true);
   });
 
-  it("holds coverage spanning two holding companies, which is the merged column's case", () => {
-    const entityOf = (outletId: string) =>
-      outlets.find((outlet) => outlet.id === outletId)?.entity_id;
-    const spans = contracts.some(
-      (contract) => new Set(contract.outlet_ids.map(entityOf)).size > 1,
-    );
-    expect(spans).toBe(true);
+  it("holds an agreement against a retired brand, which the filter must not hide", () => {
+    // Retiring a brand does not un-sign what was signed for it. The brand filter offers
+    // retired brands for exactly this row, so a fixture without one would let that rule
+    // regress without a test noticing.
+    const retired = brands.filter((brand) => brand.status === "retired").map((b) => b.id);
+    expect(retired.length).toBeGreaterThan(0);
+    expect(
+      contracts.some((contract) => contract.brand_ids.some((id) => retired.includes(id))),
+    ).toBe(true);
   });
 
   it("holds the notice gap, which is the only row `?notice_gap=true` returns", () => {
@@ -119,8 +137,8 @@ describe("the vendor aggregates", () => {
       expect(vendor.contracts_total).toBe(held.length);
       expect(vendor.contracts_active).toBe(active.length);
       expect(vendor.contracts_active).toBeLessThanOrEqual(vendor.contracts_total);
-      expect(vendor.outlets_covered).toBe(
-        new Set(active.flatMap((contract) => contract.outlet_ids)).size,
+      expect(vendor.brands_covered).toBe(
+        new Set(active.flatMap((contract) => contract.brand_ids)).size,
       );
     }
   });
@@ -134,5 +152,27 @@ describe("the vendor aggregates", () => {
         .sort();
       expect(vendor.next_contract_end ?? null).toBe(ends[0] ?? null);
     }
+  });
+});
+
+describe("the brand fixture", () => {
+  it("derives each brand's counts from the rows that name it, never from a literal", () => {
+    // The property `contracts.ts` states for the vendor aggregates, one dimension over: two
+    // screens may not disagree about a number, and the way to keep them agreeing is to
+    // compute one from the other rather than to type it twice.
+    for (const brand of brands) {
+      expect(brand.outlet_count).toBe(
+        outlets.filter((outlet) => outlet.brand_id === brand.id).length,
+      );
+      expect(brand.entity_count).toBe(
+        entities.filter((entity) => entity.brand_id === brand.id).length,
+      );
+    }
+  });
+
+  it("attributes every outlet, so grouping by brand is not one bucket", () => {
+    // The state this replaced: every outlet at `brand_id: null`, which collapsed the whole
+    // contracts table into "Group level" the moment brand became the grouping.
+    expect(outlets.every((outlet) => outlet.brand_id !== null)).toBe(true);
   });
 });

@@ -17,7 +17,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useOutletIndex } from "@/features/registry/hooks";
+import { useBrandIndex } from "@/features/registry-brands/hooks";
 import { useVendorIndex } from "@/features/vendors/hooks";
 import { useSubmit } from "@/hooks/use-submit";
 import {
@@ -29,8 +29,8 @@ import {
 import { formatDate } from "@/lib/format";
 import {
   BILLING_FREQUENCY_LABELS,
+  CONTRACT_CATEGORY_LABELS,
   RENEWAL_TYPE_LABELS,
-  SERVICE_CATEGORY_LABELS,
 } from "@/lib/labels";
 
 import { contractService, type ContractRecord } from "../api";
@@ -38,7 +38,7 @@ import { useContractMutations } from "../hooks";
 
 /**
  * Extracted-vs-current, per field, with accept toggles. The model's answer is a proposal:
- * nothing reaches the database except through the ordinary PATCH (and coverage PUT) built from
+ * nothing reaches the database except through the ordinary PATCH (and brands PUT) built from
  * what the reviewer accepted. Lifted out of `documents-card.tsx` when that card became generic,
  * because this half is contract-shaped and the tenancy one is a different sheet.
  */
@@ -117,10 +117,10 @@ function ReviewForm({
   extraction: ContractExtractionResponse;
   onDone: () => void;
 }) {
-  const { update, replaceOutlets } = useContractMutations();
+  const { update, replaceBrands } = useContractMutations();
   const { run, isPending, formError } = useSubmit();
   const { byId: vendorById } = useVendorIndex();
-  const { byId: outletById } = useOutletIndex();
+  const { byId: brandById } = useBrandIndex();
 
   const fields = extraction.fields;
   const rows: ProposalRow[] = [];
@@ -197,30 +197,33 @@ function ReviewForm({
     "category",
     "Category",
     fields.category,
-    SERVICE_CATEGORY_LABELS[contract.category],
-    (v) => SERVICE_CATEGORY_LABELS[v],
+    CONTRACT_CATEGORY_LABELS[contract.category],
+    (v) => CONTRACT_CATEGORY_LABELS[v],
     (patch, v) => (patch.category = v),
   );
 
-  const matchedOutletIds = extraction.matches.outlets
-    .map((match) => match.outlet_id)
+  // The brand names lifted off the document, split into the ones the register recognised and
+  // the ones it did not. An unmatched name is shown rather than dropped: it is usually a brand
+  // nobody has created yet, and a proposal that silently ignored it would look complete.
+  const matchedBrandIds = extraction.matches.brands
+    .map((match) => match.brand_id)
     .filter((id): id is string => id != null);
-  const unmatchedNames = extraction.matches.outlets
-    .filter((match) => match.outlet_id == null)
+  const unmatchedNames = extraction.matches.brands
+    .filter((match) => match.brand_id == null)
     .map((match) => match.name);
-  const currentCoverage = contract.outlet_ids
-    .map((id) => outletById.get(id)?.name ?? "…")
+  const currentBrands = contract.brand_ids
+    .map((id) => brandById.get(id)?.name ?? "…")
     .join(", ");
-  const proposedCoverage = matchedOutletIds
-    .map((id) => outletById.get(id)?.name ?? "…")
+  const proposedBrands = matchedBrandIds
+    .map((id) => brandById.get(id)?.name ?? "…")
     .join(", ");
-  const coverageChanged =
-    matchedOutletIds.length > 0 &&
-    [...matchedOutletIds].sort().join() !== [...contract.outlet_ids].sort().join();
+  const brandsChanged =
+    matchedBrandIds.length > 0 &&
+    [...matchedBrandIds].sort().join() !== [...contract.brand_ids].sort().join();
 
   const [accepted, setAccepted] = React.useState<Record<string, boolean>>(() => ({
     ...Object.fromEntries(rows.map((row) => [row.key, row.proposed !== row.current])),
-    coverage: coverageChanged,
+    brands: brandsChanged,
   }));
 
   const vendorMatch = extraction.matches.vendor_id;
@@ -234,8 +237,8 @@ function ReviewForm({
       if (Object.keys(patch).length > 0) {
         await update(contract.id, patch);
       }
-      if (accepted.coverage && coverageChanged) {
-        await replaceOutlets(contract.id, matchedOutletIds);
+      if (accepted.brands && brandsChanged) {
+        await replaceBrands(contract.id, matchedBrandIds);
       }
       toast.success("Extracted terms applied");
     });
@@ -243,7 +246,7 @@ function ReviewForm({
   }
 
   const anythingAccepted =
-    rows.some((row) => accepted[row.key]) || (accepted.coverage && coverageChanged);
+    rows.some((row) => accepted[row.key]) || (accepted.brands && brandsChanged);
 
   return (
     <>
@@ -275,7 +278,7 @@ function ReviewForm({
           </p>
         ) : null}
 
-        {rows.length === 0 && matchedOutletIds.length === 0 ? (
+        {rows.length === 0 && matchedBrandIds.length === 0 ? (
           <p className="text-ink-secondary">
             The model could not read any terms off this document.
           </p>
@@ -310,30 +313,30 @@ function ReviewForm({
               </li>
             ))}
 
-            {matchedOutletIds.length > 0 ? (
+            {matchedBrandIds.length > 0 ? (
               <li className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3">
                 <span className="flex min-w-0 flex-col">
-                  <span className="text-helper text-ink-tertiary">Coverage</span>
+                  <span className="text-helper text-ink-tertiary">Brands</span>
                   <span className="text-sm text-ink">
-                    {proposedCoverage}
-                    {coverageChanged ? (
-                      <span className="text-ink-tertiary"> (now {currentCoverage || "—"})</span>
+                    {proposedBrands}
+                    {brandsChanged ? (
+                      <span className="text-ink-tertiary"> (now {currentBrands || "—"})</span>
                     ) : (
                       <span className="text-ink-tertiary"> — unchanged</span>
                     )}
                   </span>
                   {unmatchedNames.length > 0 ? (
                     <span className="text-helper text-warning">
-                      Not matched to any outlet: {unmatchedNames.join(", ")}
+                      Not matched to any brand: {unmatchedNames.join(", ")}
                     </span>
                   ) : null}
                 </span>
                 <label className="flex items-center gap-1.5 text-helper text-ink-secondary">
                   <Checkbox
-                    checked={(accepted.coverage ?? false) && coverageChanged}
-                    disabled={isPending || !coverageChanged}
+                    checked={(accepted.brands ?? false) && brandsChanged}
+                    disabled={isPending || !brandsChanged}
                     onChange={(event) =>
-                      setAccepted((current) => ({ ...current, coverage: event.target.checked }))
+                      setAccepted((current) => ({ ...current, brands: event.target.checked }))
                     }
                   />
                   Accept
@@ -341,7 +344,7 @@ function ReviewForm({
               </li>
             ) : unmatchedNames.length > 0 ? (
               <li className="rounded-lg border border-border p-3 text-helper text-warning">
-                The document names premises that match no outlet: {unmatchedNames.join(", ")}
+                The document names brands the register does not hold: {unmatchedNames.join(", ")}
               </li>
             ) : null}
           </ul>
