@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useBrandIndex } from "@/features/brands/hooks";
+import { useBrandIndex } from "@/features/registry-brands/hooks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { filterIdentity, useQueryFilters } from "@/hooks/use-query-filters";
 import { useSubmit } from "@/hooks/use-submit";

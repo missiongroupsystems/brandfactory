@@ -136,8 +136,9 @@ something is.
 src/
   app/
     layout.tsx           root — fonts, tooltip provider, toaster
+    sign-in/             outside the group: the gate cannot gate its own door
     (app)/               route group: the sidebar shell
-      layout.tsx           SidebarProvider + SidebarInset
+      layout.tsx           AuthBoundary + SidebarProvider + SidebarInset
       outlets/             Phase 0 — list, plus [id]/ for the detail page
       entities|networks/   Phase 0 — list screens
       dashboard/           Phase 1–2 — the attention surface, filters in the URL
@@ -151,13 +152,16 @@ src/
                            workspace (plan / walkthrough / album / cost in ?view=)
     fonts/satoshi/       self-hosted Satoshi .woff2 — the one product typeface
     globals.css          the three token tiers. Read before styling anything.
+  auth/                  store, session, providers/, sign-in-panel, auth-boundary
   components/
     ui/                  shadcn. Generated, then restyled onto Mission tokens — see below.
                          select/checkbox/textarea/field/alert-dialog are hand-written.
-    layout/              app shell, page header, filter bar, table card, detail list,
-                         placeholders, query states
+                         There is no dialog.tsx: forms here are Sheets.
+    brand/               app-logo (the Mission mark), brand-mark (the monogram)
+    layout/              app shell, the three header rows, account menu, page header,
+                         filter bar, table card, detail list, placeholders, query states
   features/<area>/
-    api.ts               service layer — the only place that calls apiFetch
+    api.ts               service layer — the only place that calls a transport
     hooks.ts             SWR wrappers and mutations — the only place components call
     components/          the screens and forms for that area
   hooks/                 use-query-filters, use-debounced-value, use-submit, use-mobile
@@ -166,13 +170,24 @@ src/
                          backend enum value fails the typecheck until it has a label.
     format.ts            dates, addresses. Read the note on why formatDate never
                          constructs a Date.
+    stored-preference.ts localStorage + useSyncExternalStore, SSR-safe. Two callers:
+                         the active workspace and the active brand.
+    workspace-resolve.ts which workspace the shell opens in. Pure; tested.
+    website-url.ts       the brand form's URL normalisation, on the shared zod schema
     api/
-      client.ts          apiFetch, ApiError, fieldErrors, query()
-      cache.ts           invalidate-by-scope
+      client.ts          apiFetch, ApiError, fieldErrors, query() — the Ops transport
+      bf-client.ts       hc<AppType>, AppError, callJson — the BrandFactory transport
+      cache.ts           invalidate-by-scope. One scope registry for both.
       use-cursor-pages.ts  useSWRInfinite wrapper
       schema.d.ts        GENERATED — never edit
       types.ts           named aliases over schema.d.ts
 ```
+
+**`features/brands/` is BrandFactory's Brand. `features/registry-brands/` is the Operations
+Hub's** — the third registry dimension, a brand an *outlet* belongs to. They share the word and
+nothing else: different shapes, different backends, different lifetimes. The Ops one held the
+plain name until the real one needed it; eight screens still read `useBrandIndex` from it to
+resolve an outlet's or a company's `brand_id` to a name.
 
 **Native `<select>` and `<input type="checkbox">`, styled.** Not Base UI's popup Select. Every
 select here picks one value from a short closed enum and the attribute editor is twenty checkboxes
@@ -319,15 +334,18 @@ it is invisible outside a white card. On the canvas use `variant="outline"`.
 
 ## Types are generated, not written
 
-`src/lib/api/schema.d.ts` comes from the backend's own OpenAPI document:
+Neither client's types are hand-written, and the rule is the same on both sides: a
+hand-written duplicate of a backend type drifts the moment somebody adds a nullable column,
+and the drift is invisible until a runtime `undefined`.
 
-```bash
-pnpm gen:api      # exports openapi.json from FastAPI, then regenerates schema.d.ts
-```
+**BrandFactory** — `@brandfactory/shared` for the shapes (`BrandSummary`, `Workspace`,
+`CreateBrandInput`) and `AppType` for the paths. Nothing to run: `tsc` reads the server's
+source. `InferResponseType<typeof bf.me.$get>` is how to name a shape the shared package does
+not export.
 
-Run it after any backend schema change. Hand-written duplicates of backend types drift the
-moment somebody adds a nullable column, and the drift is invisible until a runtime
-`undefined`. **`src/lib/api/types.ts` is the only file allowed to reach into `schema.d.ts`.**
+**Operations Hub** — `src/lib/api/schema.d.ts`, generated from a FastAPI OpenAPI document this
+repository does not contain, so `pnpm gen:api` is gone and the file is frozen. It shrinks as
+Ops screens are replaced. **`src/lib/api/types.ts` is the only file allowed to reach into it.**
 
 ## Server state vs client state
 
@@ -335,9 +353,16 @@ Server data goes through **SWR** in `features/<area>/hooks.ts` — cached, dedup
 revalidated. Client state (open dialogs, form drafts, filters before they are applied) stays
 in `useState`.
 
-Do not put fetched data in a store. And do not call `apiFetch` from a component: the service
-layer exists so the auth swap is one function (`authHeaders` in `lib/api/client.ts`) rather
-than a search across the app.
+Do not put fetched data in a store. And do not call a transport from a component: the service
+layer exists so identity is established in one place rather than in a search across the app.
+
+**A user preference is not server state either**, and it is not `useQueryFilters`. The active
+workspace and the active brand are both `localStorage` through `lib/stored-preference.ts` —
+`useSyncExternalStore` with a `null` server snapshot, because reading storage during render is
+wrong on the server and seeding from an effect is `react-hooks/set-state-in-effect`. The root
+`CLAUDE.md` records the same call for `sidebar-prefs.ts` and `key-dates-prefs.ts`. They are not
+in the URL because nothing in this shell is workspace- or brand-scoped yet; when routes exist,
+the route wins and the preference becomes the fallback, which is the shape `packages/web` has.
 
 **`features/spaces` has a zustand store, and it is not a violation of that rule** — the
 distinction is worth understanding before copying either side of it.
@@ -405,25 +430,74 @@ string for domain errors and an array for validation errors; the client normalis
 unreachable API are different problems, and one message for both sends the reader to the
 wrong place.
 
+## Two backends, and the split is by feature
+
+There are **two API clients** here, and which one a feature folder uses is the whole boundary.
+A feature reads one or the other, never both.
+
+| | `lib/api/client.ts` — `apiFetch` | `lib/api/bf-client.ts` — `bf` |
+| --- | --- | --- |
+| Serves | the fifteen Operations Hub areas | BrandFactory: identity, workspaces, brands |
+| Backed by | fixtures in `src/fixtures/` (`mock.ts`) | the Hono server, `packages/server` |
+| Types from | `lib/api/schema.d.ts` (frozen, generated) | `@brandfactory/shared` + `AppType` |
+| Auth | nothing to send | `Authorization: Bearer <session token>` |
+
+`bf` is `hc<AppType>` and `AppType` is inferred from the chained `.route()` calls in
+`packages/server/src/app.ts`, so a route signature change is a **type error here**, not a 404
+in a browser. Never hand-write a BrandFactory route path or response shape — that is the rule
+the root `CLAUDE.md` protects, and the generated `schema.d.ts` is the Ops-side equivalent.
+
+`apiFetch` is untouched and is not going away until the screens that read it do.
+
 ## Auth
 
-No identity yet. Locally the backend runs `AUTH_MODE=stub` and treats every request as the
-alpha admin, so `authHeaders()` sends nothing. The deployed alpha runs `AUTH_MODE=token`:
-`authHeaders()` sends `NEXT_PUBLIC_API_TOKEN` as a bearer token, and every caller with it is
-that same admin — a shared gate, not identity, which is why the sidebar footer still says the
-gate is open on screen. Real auth replaces `authHeaders()` and the backend's `core/auth.py`,
-nothing else.
+**Real, and it is `packages/web`'s.** Supabase magic link / Google, or a dev token against
+`AUTH_PROVIDER=local`, which is the server's shipped default.
+
+- `auth/store.ts` — the token and the user id. `useSyncExternalStore` over `sessionStorage`.
+- `auth/session.ts` — the Supabase client, the pre-emptive refresh (`getFreshAuthToken`), the
+  sign-out ordering, and the event bridge back into the store.
+- `auth/auth-boundary.tsx` — mounted in `app/(app)/layout.tsx`. **Everything in the route
+  group is behind it**, fixture-backed Ops screens included.
+- `app/sign-in/` — outside the group, because a gate cannot gate its own door.
+
+Three things that will bite:
+
+- **The server snapshot is always signed out.** `sessionStorage` does not exist during SSR, so
+  `getServerAuthState()` returns a frozen `{token: null}` and *must not* be made to guess.
+  Anything that branches on the session has to do it after hydration — in an effect, or through
+  `useAuthState()` — never during a render that the server also performs.
+- **A prerendered page under `(app)` is the boundary's spinner, not the page.** That is the cost
+  of a client-side session and it is paid once, in the shell. Server pages under the group still
+  render their `PageHeader` on the server; it just does not reach the static HTML.
+- **A 401 anywhere signs you out.** `callJson` calls `logout()` on 401, the boundary watches the
+  token go null, and it navigates *then* clears the SWR cache. Do not reorder those two.
 
 ## Running
 
 ```bash
-cp .env.example .env.local     # NEXT_PUBLIC_API_URL
-pnpm dev
+cp .env.example .env.local
+pnpm -F @brandfactory/web-next dev
 ```
 
-The backend must be running and its `CORS_ORIGINS` must include this origin. A CORS block
-surfaces as "Could not reach the API", because a blocked `fetch` rejects rather than
-returning a status — check the allowed origins before assuming the backend is down.
+The **BrandFactory API must be running** for the sidebar header and sign-in to work
+(`pnpm -F @brandfactory/server dev`, or `pnpm dev` for the whole stack). The Ops screens do not
+need it — they are fixtures — but the shell around them now does.
+
+**No CORS setup.** `next.config.ts` rewrites `/api/*` to `API_PROXY_TARGET` (`:3001` by
+default), exactly as Vite proxies for `packages/web`, so the browser sees one origin. Do not
+reach for `CORS_ALLOWED_ORIGINS` on the server in dev — it is unset there on purpose, and
+setting it is a second thing to keep in step with a port number.
+
+## Tests
+
+`vitest.config.ts`, listed in the root `vitest.workspace.ts`, so `pnpm test` at the root runs
+it. jsdom, globals, the `@` alias, `src/test-setup.ts`.
+
+**Not the screens.** The Operations Hub half of this app has no tests and this is not where they
+would start. What is here is the logic that is invisible in a browser pass until the day it is
+wrong: a token refresh, a sign-out ordering, the boundary's three states, and the
+landing-workspace fallback.
 
 ## Before committing
 

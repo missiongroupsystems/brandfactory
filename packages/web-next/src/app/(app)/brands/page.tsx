@@ -2,7 +2,7 @@ import { Suspense } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { LoadingRows } from "@/components/layout/query-states";
-import { BrandsBrowser } from "@/features/brands/components/brands-browser";
+import { BrandsBrowser } from "@/features/registry-brands/components/brands-browser";
 
 export const metadata = { title: "Brands — BrandFactory" };
 

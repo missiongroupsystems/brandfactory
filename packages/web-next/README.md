@@ -4,10 +4,11 @@ The go-forward BrandFactory frontend. Next 16 (App Router, Turbopack) · React 1
 Tailwind v4 · shadcn on Base UI · SWR.
 
 ```bash
-pnpm -F @brandfactory/web-next dev      # http://localhost:3000
+pnpm dev                                # the whole stack; this app on :3000
 ```
 
-No backend, no database and no `.env` are needed to run it. Read
+The **BrandFactory API must be running** — the sidebar header and sign-in read it. The
+borrowed Operations Hub screens underneath still need nothing. Read
 [`AGENTS.md`](./AGENTS.md) before writing any code here — it is the frontend guide, and its
 "Things that have already bitten" and "Design tokens" sections are the two that matter most.
 
@@ -38,11 +39,20 @@ are **placeholders**. They exist so there is a working, styled surface to build 
 they get replaced by BrandFactory screens area by area. The sidebar carries a `Mock` badge
 for as long as that is true.
 
-## Data
+## Data — two clients, split by feature
 
-Every request goes through one `apiFetch` in `src/lib/api/client.ts`, and in the default
-`mock` mode it is answered from `src/fixtures/` by `src/lib/api/mock.ts` rather than the
-network. Three rules:
+**BrandFactory data** goes through `src/lib/api/bf-client.ts`: `hc<AppType>` against the Hono
+server in `packages/server`, with the session token attached per call. The client and the
+server share one type, so a route signature change is a type error here rather than a 404 in a
+browser — the contract the root `CLAUDE.md` protects. Identity, workspaces and brands are on
+it today.
+
+`next.config.ts` rewrites `/api/*` to `API_PROXY_TARGET` (`:3001`), exactly as Vite proxies for
+`packages/web`, so the browser sees one origin and there is **no CORS configuration to keep in
+step**.
+
+**The borrowed Operations Hub screens** still go through `apiFetch` in
+`src/lib/api/client.ts`, answered from `src/fixtures/` by `src/lib/api/mock.ts`. Three rules:
 
 | Request | Answer |
 | --- | --- |
@@ -57,12 +67,18 @@ empty states, which is the honest result and still shows the layout.
 OpenAPI document, which this repository does not contain, so `pnpm gen:api` is gone. It
 shrinks as Ops screens are replaced.
 
-## When real features arrive
+Do **not** extend the mock for a BrandFactory feature. The mock is scaffolding for the borrowed
+screens only.
 
-Do **not** extend the mock for them. BrandFactory data comes through the Hono client and the
-`AppType` contract described in the root `CLAUDE.md` — the client and server share one type,
-and a route signature change must surface here as a type error. The mock is scaffolding for
-the borrowed screens only.
+## Auth
+
+Real, and ported from `packages/web`: Supabase magic link / Google, or a dev token against the
+server's default `AUTH_PROVIDER=local`. `auth/auth-boundary.tsx` sits in `app/(app)/layout.tsx`,
+so **every screen in the route group is behind sign-in** — the fixture-backed Ops ones
+included. `app/sign-in/` is outside the group.
+
+The session is client-side throughout: no cookies, no middleware, no server-side fetching. See
+`AGENTS.md` for the three things about that which bite.
 
 ## Gates
 
@@ -74,10 +90,16 @@ pnpm -F @brandfactory/web-next typecheck   # next typegen && tsc --noEmit
 pnpm -F @brandfactory/web-next build
 ```
 
-`typecheck` and `build` also run from the root via `pnpm -r`. Root ESLint and Prettier
-deliberately skip this directory, each with the reason written at the exemption — see
-`eslint.config.js` and `.prettierignore`. There are no tests here yet; they arrive with the
-first real BrandFactory feature.
+```bash
+pnpm -F @brandfactory/web-next test
+```
+
+`typecheck` and `build` also run from the root via `pnpm -r`, and `test` runs from the root via
+`vitest.workspace.ts`. Root ESLint and Prettier deliberately skip this directory, each with the
+reason written at the exemption — see `eslint.config.js` and `.prettierignore`.
+
+The tests cover auth and workspace resolution, not the screens: the logic that is invisible in
+a browser pass until the day it is wrong.
 
 ## The other frontend
 

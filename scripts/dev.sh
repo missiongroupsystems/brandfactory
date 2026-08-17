@@ -5,11 +5,13 @@
 # a proxy (`/api`, `/rt` and `/blobs` → :3001) so the browser sees a single
 # origin and no CORS setup is needed in dev.
 #
-# Next boots on :3000 and is the frontend to work in. It talks to nothing —
-# every screen is fixture-backed (`packages/web-next/src/lib/api/mock.ts`), so
-# it needs neither the server nor Postgres and is fine to run alone:
-#
-#   pnpm -F @brandfactory/web-next dev
+# Next boots on :3000 and is the frontend to work in. It now needs the server:
+# sign-in, the workspace row and the brand row all read the API through a
+# `rewrites` proxy in `next.config.ts` (`/api` → :3001), the same single-origin
+# trick Vite gets below. The eighteen borrowed Operations Hub screens under it
+# are still fixture-backed (`packages/web-next/src/lib/api/mock.ts`) and need
+# nothing — but they sit behind the sign-in gate, so the server has to answer
+# before any of them render.
 #
 # :5173 is the previous Vite app. It is unchanged, still needs the server, and
 # stays until its features have moved to :3000.
@@ -48,7 +50,7 @@ echo "→ web:    http://localhost:5173  (previous Vite app)"
 pnpm -F @brandfactory/web dev &
 web_pid=$!
 
-echo "→ next:   http://localhost:3000  (BrandFactory — start here)"
+echo "→ next:   http://localhost:3000  (BrandFactory — start here; sign in first)"
 pnpm -F @brandfactory/web-next dev &
 next_pid=$!
 

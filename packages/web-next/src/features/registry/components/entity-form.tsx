@@ -18,7 +18,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
-import { useBrandIndex } from "@/features/brands/hooks";
+import { useBrandIndex } from "@/features/registry-brands/hooks";
 import { toNullable, useSubmit } from "@/hooks/use-submit";
 import type { Entity, EntityStatus, EntityType } from "@/lib/api/types";
 import { ENTITY_STATUS_OPTIONS, ENTITY_TYPE_OPTIONS } from "@/lib/labels";

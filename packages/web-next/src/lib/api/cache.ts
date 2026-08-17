@@ -74,8 +74,11 @@ export const SCOPES = {
   outlet: "outlet",
   entities: "entities",
   entity: "entity",
-  brands: "brands",
-  brand: "brand",
+  // The Operations Hub's third registry dimension — a brand an outlet belongs to. Renamed
+  // out of the way when the BrandFactory brands below needed the plain word; the key and the
+  // string moved together, and both are only cache identity, so nothing on the wire changed.
+  registryBrands: "registry-brands",
+  registryBrand: "registry-brand",
   networks: "outlet-networks",
   network: "outlet-network",
   devices: "network-devices",
@@ -110,4 +113,18 @@ export const SCOPES = {
   licensesExpiring: "licenses-expiring",
   // Ops Forms inbox — one scope, keyed per form; a submit or a status change invalidates it.
   formSubmissions: "form-submissions",
+
+  // ── BrandFactory ─────────────────────────────────────────────────────────────
+  // Scopes for the features that read the Hono server through `lib/api/bf-client.ts`
+  // rather than the Ops fixtures. Listed here with the rest because the invalidation
+  // mechanism is the same one, and two scope registries would be two places to typo.
+  me: "me",
+  workspaces: "workspaces",
+  // BrandFactory's brands, keyed `[brands, workspaceId]` — a brand id means nothing outside
+  // its workspace, so the scope alone would serve one workspace's list under another's header.
+  bfBrands: "brands",
+  // The deployment's research config (`GET /research`). One boolean, and it is deployment
+  // configuration rather than a brand fact — so it is its own scope and no brand write
+  // touches it.
+  researchConfig: "research-config",
 } as const;

@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { TriangleAlertIcon } from "lucide-react";
 
+import { AccountMenu } from "@/components/layout/account-menu";
 import { BrandSwitcher } from "@/components/layout/brand-switcher";
 import { CURRENT_PHASE, NAV_GROUPS, NAV_ITEMS, type NavItem } from "@/components/layout/nav";
+import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
 import { Badge } from "@/components/ui/badge";
 import {
   Sidebar,
@@ -47,8 +48,12 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      {/* Two rows, and the padding moved off the header onto each of them so the hairline
-          between can run the full width instead of stopping short at the inset. */}
+      {/* Three rows — product identity, workspace, brand — and the padding sits on each of them
+          rather than on the header, so the hairlines between run the full width instead of
+          stopping short at the inset.
+
+          The order is containment: the product holds workspaces, a workspace holds brands. It is
+          also the order of how often each changes, which is why the fixed one is on top. */}
       <SidebarHeader className="gap-0 p-0">
         <div className="flex items-center gap-3 p-3">
           {/* Workspace mark — accent-filled tile, one of the named accent roles (§4). The
@@ -65,6 +70,13 @@ export function AppSidebar() {
               in the chrome, rather than a banner per page, because it is true of all of them.
               It comes off area by area as real screens replace these. */}
           <Badge className="ml-auto shrink-0">Mock</Badge>
+        </div>
+
+        {/* The workspace you are in. It has to be above the brand and it has to be *present*:
+            every brand route is `/workspaces/:workspaceId/brands`, so a shell that does not
+            know its workspace cannot ask for brands at all. */}
+        <div className="border-t border-border-subtle p-3">
+          <WorkspaceSwitcher />
         </div>
 
         {/* The brand you are inside. A row of its own rather than a third line in the block
@@ -135,17 +147,12 @@ export function AppSidebar() {
         ) : null}
       </SidebarContent>
 
-      <SidebarFooter className="p-3">
-        {/* Not a nicety, and not decorative colour either. While the backend runs
-            AUTH_MODE=stub every session is the alpha admin with sight of wifi passwords, so
-            this is a genuine warning state and takes the warning tone plus an icon — never
-            colour alone (§3.3). */}
-        <div className="flex items-start gap-2 rounded-lg bg-warning-tint p-3 text-warning">
-          <TriangleAlertIcon aria-hidden className="mt-px size-3.5 shrink-0" />
-          <p className="text-xs leading-snug">
-            Alpha — authentication not yet wired. Every session runs as an administrator.
-          </p>
-        </div>
+      {/* The account, under a hairline of its own. It replaced the alpha warning that stood
+          here — "authentication not yet wired. Every session runs as an administrator." — which
+          stopped being true the moment `AuthBoundary` went in front of this shell. A stale
+          warning is worse than none: it teaches the reader to disbelieve the next one. */}
+      <SidebarFooter className="border-t border-border-subtle p-3">
+        <AccountMenu />
       </SidebarFooter>
     </Sidebar>
   );

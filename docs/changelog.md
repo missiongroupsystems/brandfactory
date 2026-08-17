@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.33.0** — 2026-08-17 — The Next shell stops being a mock: it signs you in, knows its workspace, lists the brands the server actually holds, and can create one. Four phases, one release; no browser pass. No migration. 2023 tests.
 - **1.32.0** — 2026-08-17 — A brand toggle takes the second row of the Next shell's nav: the feature folder was already complete, so the data half is one fixture and two routes, and the selection is a preference rather than a route. No migration. 1982 tests.
 - **1.31.0** — 2026-08-17 — A second frontend arrives whole: the Operations Hub's Next 16 shell becomes BrandFactory's, fixture-backed through one swapped function and trimmed to nine nav items, beside the Vite app it will replace. `next dev` does not hydrate; `next start` does. No migration. 1982 tests.
 - **1.30.0** — 2026-08-14 — Workspace delete lands, the top of the aggregate: the same gate as brand delete, the same read-then-sweep for blobs, one level up. No migration. 1982 tests.
@@ -72,6 +73,91 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.33.0 — 2026-08-17
+
+**The Next shell reaches the real server. Sign-in, a workspace row and a brand row on
+live data, plus `New brand…` — the four phases of the brands-on-real-data plan, landed
+together. `packages/web` is untouched and still serves production.**
+
+Full write-up:
+[`docs/completions/brands-on-real-data.md`](completions/brands-on-real-data.md).
+
+### 1. The spike came first, and deleted the fallback
+
+The plan's stated risk was that `@brandfactory/server`'s raw-TypeScript `main` would not
+typecheck inside a Next build that does not extend `tsconfig.base.json`. It does — including
+path checking, which is the half that mattered: a wrong param type is a compile error, so the
+route tree is genuinely resolved rather than collapsing to `any`. About 3.5 seconds for the
+package. The documented fallback — shapes from `@brandfactory/shared` plus hand-written path
+strings — was never needed.
+
+### 2. Two clients, split by feature
+
+`lib/api/bf-client.ts` is `hc<AppType>` and serves identity, workspaces and brands. `apiFetch`
+is **untouched** and still serves the fifteen fixture-backed Operations Hub areas. A feature
+folder reads one or the other, never both; repointing `apiFetch` would have broken all
+eighteen areas to move none of them.
+
+`/api/*` is a `rewrites` proxy to `:3001`, mirroring what Vite already does — one origin, and
+no `CORS_ALLOWED_ORIGINS` to keep in step with a port number.
+
+### 3. The SSR trap, and why guarding it is not the fix
+
+The Vite auth store reads `sessionStorage` at module scope, which under SSR is a
+`ReferenceError`. **Guarding it is worse than it looks**: the guarded version renders "signed
+out" into the static HTML and hydrates over a client that is signed in. `auth/store.ts` is
+`useSyncExternalStore` with a frozen server snapshot that is a *different object* from the
+client's — the shape 1.32.0 introduced for the brand preference, applied to the thing that
+gates the app.
+
+`AuthBoundary` therefore has three states rather than two, and writes no state synchronously
+inside an effect (`react-hooks/set-state-in-effect` fails this build). One real cost, stated
+rather than hidden: **every page under `app/(app)/` now prerenders as the boundary's spinner**,
+which is inherent to a client-side session.
+
+### 4. The name went to the real domain
+
+`features/brands/` → `features/registry-brands/` — the Operations Hub's third registry
+dimension, which eight screens read to resolve an outlet's `brand_id` to a name. Eight import
+lines and two cache scopes, all verified by the compiler. The status badges went with the
+fixture: `BrandSummary` has no status, and one invented from `sectionCount` would be a label
+that looks like a state and means nothing.
+
+### 5. The footer stops lying
+
+*"Alpha — authentication not yet wired. Every session runs as an administrator."* was true when
+written and false the moment the boundary went in. It is now 1.25.0's account tile — the only
+round thing in a column of squares, and the only neutral one.
+
+### Verification
+
+```
+pnpm typecheck                         clean (11 packages)
+pnpm lint / format:check               clean (whole repo)
+pnpm test                              2023 passed | 78 skipped (164 files)
+pnpm -F @brandfactory/web build        clean
+pnpm -F @brandfactory/web-next build   clean — 28 routes
+```
+
+1982 → 2023: 41 new tests, this package's first. `packages/web-next` gains a `vitest.config.ts`
+and joins `vitest.workspace.ts`. They cover auth and workspace resolution, **not** the screens.
+
+### Caveats
+
+- **No browser pass, and no run against the real server.** Docker was unavailable on the
+  machine, so Postgres, `db:seed` and a real session were out of reach; the live check was cut
+  by agreement. Both of this shell's worst bugs — 1.32.0's silent `onSelect` and the
+  `mutate(matcherFn)` cache miss — passed every gate listed above. The completion note lists
+  the six things to click, in order.
+- **`next dev` still does not hydrate** (1.31.0's open defect). Verify against `next start`.
+- **Nothing below the header reads the brand yet.** Every other screen here is fixture-backed
+  Operations Hub.
+- **A started research run reports nowhere in this app** — no rail, no progress. Follow it in
+  `packages/web`.
+- **No brand delete or edit, and no workspace create.** All three exist in `packages/web`.
 
 ---
 

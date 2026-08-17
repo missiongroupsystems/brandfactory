@@ -22,7 +22,6 @@
  * layer we are keeping.
  */
 
-import { brands } from "@/fixtures/brands";
 import { dashboard } from "@/fixtures/dashboard";
 import { licenses, licenseTypes } from "@/fixtures/licenses";
 import { entities, outlets } from "@/fixtures/registry";
@@ -71,21 +70,15 @@ const ROUTES: [RegExp, Handler][] = [
   [/^\/entities\/([^/]+)$/, ([id]) => entities.find((e) => e.id === id)],
 
   // Brands -----------------------------------------------------------------
-  // Registered for the sidebar's brand toggle, which reads `useBrandIndex`. That hook walks
-  // the cursor to exhaustion, so `next_cursor: null` on the one page below is what stops it —
-  // `page()` already gives that, and a fixture that paged would loop.
-  [
-    /^\/brands$/,
-    (_p, search) =>
-      page(
-        brands.filter(
-          (b) =>
-            matches(b.name, search.get("q")) &&
-            (!search.get("status") || b.status === search.get("status")),
-        ),
-      ),
-  ],
-  [/^\/brands\/([^/]+)$/, ([id]) => brands.find((b) => b.id === id)],
+  // **Deliberately unregistered.** `/brands` had a fixture for exactly one release: 1.32.0
+  // registered it so the sidebar's brand toggle had a list. That toggle now reads the Hono
+  // server through `features/brands/`, so the fixture went with it.
+  //
+  // What still reads `/brands` here is `features/registry-brands/` — the Operations Hub's own
+  // brand dimension, which eight screens use to resolve an outlet's `brand_id` to a name. It
+  // falls through to `EMPTY` (rule 2) like the other fifteen unfixtured areas and renders its
+  // real empty states. Restoring a fixture for it would be an Ops decision, not a
+  // BrandFactory one.
 
   [
     /^\/outlets$/,

@@ -1,98 +1,74 @@
 "use client";
 
-import * as React from "react";
+import type { BrandSummary } from "@brandfactory/shared";
 
-import { useBrandIndex } from "./hooks";
-import type { Brand } from "@/lib/api/types";
+import { useActiveWorkspace } from "@/features/workspaces/active-workspace";
+import { createStoredPreference } from "@/lib/stored-preference";
+
+import { useWorkspaceBrands } from "./hooks";
 
 /**
  * The brand the shell is currently inside — the selection the sidebar's toggle writes.
  *
+ * Moved here from the Operations Hub's brand folder when that folder became
+ * `features/registry-brands/`, and rescoped from six fixtures to the workspace's real brands.
+ * The storage mechanics are unchanged and now live in `lib/stored-preference.ts`, shared with
+ * the workspace row.
+ *
  * **It is a preference, not a route and not server state.** Nothing in this app is
  * brand-scoped yet, so there is no `/brands/:id` to navigate to and no filter to put in the
  * URL; and `useQueryFilters` would be the wrong home even later, because that hook exists to
- * make one *screen's* view pasteable, while this outlives every navigation. `localStorage`
- * plus a module-level store is the same call the root `CLAUDE.md` records for the sidebar and
- * key-dates preferences: a user preference is not a column.
- *
- * **`useSyncExternalStore`, not `useState` + an effect.** Reading `localStorage` during render
- * is wrong on the server and seeding it from an effect is `react-hooks/set-state-in-effect`,
- * which fails this build — the rule `hooks/use-mobile.ts` was rewritten for. This is the shape
- * that hook exists to demonstrate: subscribe, read, and hand the server a separate snapshot.
- * The server snapshot is `null` because there is no storage during SSR, and guessing a brand
- * would put the wrong name in the static HTML.
+ * make one *screen's* view pasteable while this outlives every navigation. The root
+ * `CLAUDE.md` records the same call for the sidebar and key-dates preferences: a user
+ * preference is not a column.
  *
  * There is no context provider, deliberately. Both halves are already global and deduplicated
- * — SWR shares `useBrandIndex` by key, and the store below is a module singleton — so a
- * provider would add a tree to thread with nothing to keep in it.
+ * — SWR shares the list by key, and the preference store is a module singleton — so a provider
+ * would add a tree to thread with nothing to keep in it.
  */
+const stored = createStoredPreference("brandfactory.active-brand");
 
-const KEY = "brandfactory.active-brand";
-
-/** Same-tab subscribers. The `storage` event fires in *other* tabs only, so a write here has
- *  to notify locally or the toggle would not re-render on its own click. */
-const listeners = new Set<() => void>();
-
-function subscribe(onChange: () => void) {
-  listeners.add(onChange);
-  // Cross-tab: two windows on the same product should agree about which brand you are in.
-  window.addEventListener("storage", onChange);
-  return () => {
-    listeners.delete(onChange);
-    window.removeEventListener("storage", onChange);
-  };
-}
-
-/**
- * Storage access throws rather than returning null when it is unavailable — Safari's private
- * mode and a blocked third-party context both do it — so every touch is guarded. Losing the
- * persistence is a degraded session; an exception here would take the whole sidebar down.
- */
-function getSnapshot(): string | null {
-  try {
-    return window.localStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
-}
-
-function getServerSnapshot(): string | null {
-  return null;
-}
-
-function useStoredBrandId() {
-  return React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-}
-
-export type ActiveBrand = {
-  /** The resolved brand, or `undefined` while the index is in flight or genuinely empty. */
-  brand: Brand | undefined;
-  /** Every brand, for the switcher's list. */
-  brands: Brand[];
+export interface ActiveBrand {
+  /** The resolved brand, or `undefined` while a request is in flight or the workspace is empty. */
+  brand: BrandSummary | undefined;
+  /** Every brand in the active workspace, for the switcher's list. */
+  brands: BrandSummary[];
+  /** The workspace they belong to — what a create needs, and `undefined` before one resolves. */
+  workspaceId: string | undefined;
   isLoading: boolean;
   error: unknown;
   select: (id: string) => void;
-};
+}
 
 export function useActiveBrand(): ActiveBrand {
-  const { brands, isLoading, error } = useBrandIndex();
-  const storedId = useStoredBrandId();
+  const { workspace, isLoading: workspaceLoading } = useActiveWorkspace();
+  const { data, error, isLoading } = useWorkspaceBrands(workspace?.id);
+  const storedId = stored.use();
 
-  const select = React.useCallback((id: string) => {
-    try {
-      window.localStorage.setItem(KEY, id);
-    } catch {
-      // Unavailable storage means the choice lasts this render and no longer. The listeners
-      // still fire, so the toggle follows the click either way — it just will not survive a
-      // reload, which is better than a click that appears to do nothing.
-    }
-    for (const listener of listeners) listener();
-  }, []);
+  const brands = data ?? [];
 
-  // Derived, never written back. A stored id naming a brand that has since been deleted falls
-  // through to the first one, and *correcting* the stored value would be a write during render
-  // — the exact pattern the store above exists to avoid. It corrects itself on the next pick.
+  /**
+   * **The fallback is "the first brand in *this* workspace", not "the first brand seen".**
+   *
+   * One stored id now has to survive a workspace switch, and a brand id from workspace A must
+   * not resolve while the header says B. Because `brands` is already the active workspace's
+   * list, `find` answers that on its own: an id from elsewhere simply misses and falls through
+   * to `brands[0]`, which is a brand you can actually open.
+   *
+   * Derived, never written back. A stored id naming a brand that has since been deleted falls
+   * through the same way, and *correcting* the stored value would be a write during render —
+   * the exact pattern the preference store exists to avoid. It corrects itself on the next pick.
+   */
   const brand = brands.find((b) => b.id === storedId) ?? brands[0];
 
-  return { brand, brands, isLoading, error, select };
+  return {
+    brand,
+    brands,
+    workspaceId: workspace?.id,
+    // The workspace has to land before the brands can even be asked for, so a shell that
+    // reported "no brands" during that first leg would state something it has not checked.
+    isLoading: workspaceLoading || isLoading,
+    error,
+    select: stored.set,
+  };
 }

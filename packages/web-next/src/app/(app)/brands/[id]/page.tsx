@@ -1,4 +1,4 @@
-import { BrandDetail } from "@/features/brands/components/brand-detail";
+import { BrandDetail } from "@/features/registry-brands/components/brand-detail";
 
 /** Same shape as the vendor, contract and outlet detail routes: `params` awaited, no
  * `<Suspense>` needed — nothing here reads `useSearchParams`. */

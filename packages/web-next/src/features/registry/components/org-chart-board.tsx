@@ -21,7 +21,7 @@ import {
 } from "@dnd-kit/core";
 import { CheckIcon, GripVerticalIcon, Loader2Icon, MoreHorizontalIcon } from "lucide-react";
 
-import { useBrandIndex } from "@/features/brands/hooks";
+import { useBrandIndex } from "@/features/registry-brands/hooks";
 import { useEntityIndex, useOutletIndex, useOutletMutations } from "@/features/registry/hooks";
 import { SegmentedControl } from "@/components/layout/filter-bar";
 import { EmptyState, LoadingRows, QueryError } from "@/components/layout/query-states";

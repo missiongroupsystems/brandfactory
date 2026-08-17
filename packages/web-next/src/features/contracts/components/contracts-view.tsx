@@ -42,7 +42,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useBrandIndex } from "@/features/brands/hooks";
+import { useBrandIndex } from "@/features/registry-brands/hooks";
 import { useEntityIndex, useOutletIndex } from "@/features/registry/hooks";
 import { useVendorIndex } from "@/features/vendors/hooks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";

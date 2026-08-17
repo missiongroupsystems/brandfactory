@@ -34,12 +34,17 @@ Run the full gate before you report that work is complete. The changelog
 records the result of this gate for each release.
 
 ```bash
-pnpm typecheck                    # tsc --noEmit in all 10 packages
-pnpm lint                         # eslint, whole repo
-pnpm format:check                 # prettier
-pnpm test                         # vitest, all packages
-pnpm -F @brandfactory/web build   # tsc --noEmit && vite build
+pnpm typecheck                         # tsc --noEmit in all 11 packages
+pnpm lint                              # eslint, whole repo
+pnpm format:check                      # prettier
+pnpm test                              # vitest, all packages
+pnpm -F @brandfactory/web build        # tsc --noEmit && vite build
+pnpm -F @brandfactory/web-next build   # next build
 ```
+
+`lint` and `format:check` at the root **skip `packages/web-next`** on purpose —
+it lints itself with `eslint-config-next` and keeps upstream's formatting. Its
+gate is `pnpm -F @brandfactory/web-next lint && … typecheck && … build`.
 
 Run one test file, one project or one test name:
 
@@ -139,8 +144,11 @@ of instances. A cross-instance adapter must land first.
 stays empty on purpose: `test.projects` in the root config dropped the
 per-package `environment` and `alias`, and the workspace form keeps them.
 
-- The `web` project uses `jsdom`, globals, `src/test-setup.ts` and the `@`
-  alias. Every other project uses `node`.
+- The `web` and `web-next` projects use `jsdom`, globals, a `src/test-setup.ts`
+  and the `@` alias. Every other project uses `node`.
+- `web-next` tests auth and workspace resolution and **not the screens**: most
+  of that package is still borrowed Operations Hub UI, and the logic worth
+  asserting there is the part a browser pass cannot see.
 - Files named `*.live.test.ts` in `packages/db` need a real database. They skip
   when `DATABASE_URL` is absent. They are most of the skipped count that the
   changelog reports.

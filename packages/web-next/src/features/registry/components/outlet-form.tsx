@@ -22,7 +22,7 @@ import { toNullable, useSubmit } from "@/hooks/use-submit";
 import type { Outlet, OutletCreate, OutletStatus, OutletType } from "@/lib/api/types";
 import { OUTLET_STATUS_OPTIONS, OUTLET_TYPE_OPTIONS } from "@/lib/labels";
 
-import { useBrandIndex } from "@/features/brands/hooks";
+import { useBrandIndex } from "@/features/registry-brands/hooks";
 
 import { useEntityIndex, useOutletMutations, useOutletRelatedContracts } from "../hooks";
 import { AttributePicker } from "./attribute-picker";

@@ -39,7 +39,7 @@ import { NetworkPanel } from "@/features/networks/components/network-panel";
 import { useReviewSummary } from "@/features/review/hooks";
 import { useSpaces } from "@/features/spaces/hooks";
 import { useSubmit } from "@/hooks/use-submit";
-import { useBrand } from "@/features/brands/hooks";
+import { useBrand } from "@/features/registry-brands/hooks";
 import type { Outlet } from "@/lib/api/types";
 import { formatAddress, formatDate, PENDING } from "@/lib/format";
 import { OUTLET_STATUS_LABELS, OUTLET_STATUS_TONES, OUTLET_TYPE_LABELS } from "@/lib/labels";

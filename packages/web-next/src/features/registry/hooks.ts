@@ -110,14 +110,14 @@ export function useOutletIndex() {
  * `BrandRead.outlet_count` is computed server-side by counting outlets, so a write here changes
  * a *brand's* answer without touching a brand row — and nothing in the type system connects the
  * two. Without this, the brand detail page reads "2 outlets" over five chips: the chip list is
- * `SCOPES.outlets` and refreshes, while the count is `SCOPES.brand` and does not.
+ * `SCOPES.outlets` and refreshes, while the count is `SCOPES.registryBrand` and does not.
  *
  * That is the shape AGENTS.md calls out on the review queue — *"a `2 of 1` badge where the
  * summary had refetched and the list had not"* — and it was live here until the Stage 3 browser
  * pass, having passed lint, typecheck and build. A derived aggregate belongs to whatever it is
  * derived *from*, not to the table it is served on.
  */
-const BRAND_SCOPES = [SCOPES.brands, SCOPES.brand] as const;
+const BRAND_SCOPES = [SCOPES.registryBrands, SCOPES.registryBrand] as const;
 
 /**
  * The open contracts a close of this outlet would dispose of, for the disposition dialog.

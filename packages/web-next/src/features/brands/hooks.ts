@@ -1,115 +1,48 @@
 "use client";
 
+import type { BrandSummary, CreateBrandInput } from "@brandfactory/shared";
 import * as React from "react";
 import useSWR from "swr";
 
 import { SCOPES, useInvalidate } from "@/lib/api/cache";
-import { listEvery } from "@/lib/api/list-every";
-import { useCursorPages } from "@/lib/api/use-cursor-pages";
-import type { Brand, BrandCreate, BrandUpdate } from "@/lib/api/types";
 
-import { brandService, type BrandFilters } from "./api";
+import { brandService } from "./api";
 
 /**
- * Reads and writes separated as everywhere else: the `use*` hooks subscribe to the cache, and
- * `useBrandMutations` returns plain async functions that call the service and invalidate by
- * scope. Nothing is optimistic — the API refuses a delete while an outlet or a company still
- * carries the brand, and a refusal that names the count is worth more than a guess.
+ * Reads and writes separated as everywhere else in this app: the `use*` hooks subscribe to the
+ * cache, and `useBrandMutations` returns plain async functions that call the service and then
+ * invalidate by scope. Nothing is optimistic — the API applies domain rules the client does not
+ * know, so the server's answer is the only one worth rendering.
+ *
+ * **Keyed by workspace**, and that is not decoration. A brand id is only meaningful inside its
+ * workspace, so `["brands"]` alone would serve workspace A's list while the header said B.
  */
-
-export function useBrandPages(filters: BrandFilters = {}) {
-  return useCursorPages<Brand>(SCOPES.brands, filters, (cursor) =>
-    brandService.list({ ...filters, cursor }),
-  );
-}
-
-export function useBrand(id: string | undefined) {
-  // `null` key means "do not fetch" — an array key is truthy however empty its contents, so
-  // `[SCOPES.brand, ""]` would fire a request for `/brands/`.
-  return useSWR(id ? [SCOPES.brand, id] : null, () => brandService.get(id!));
-}
-
-/**
- * Every brand, for resolving `brand_id` to a name and for the pickers that assign one.
- *
- * `OutletRead` and `EntityRead` carry `brand_id` and no `brand_name`, deliberately: a
- * denormalised name on every outlet row would be a second copy of the one thing this table exists
- * to make renameable, and a rename would then be atomic in the database and stale on screen.
- *
- * **It walks the cursor to exhaustion**, like the outlet and entity indexes and for the reason
- * `listEvery` sets out. Stage 6's org chart depends on that being true — a brand card that is
- * never drawn takes every outlet it holds off the board — and building it right here costs
- * nothing.
- *
- * `isLoading` is exported and callers are expected to use it. **A brand id absent from `byId` is
- * a pending request, never a missing fact**: every `brand_id` in the product is a real foreign
- * key, so a cell that renders an em dash while this is in flight is stating that an outlet has no
- * brand, which is a different and false thing.
- */
-export function useBrandIndex() {
-  const { data, error, isLoading } = useSWR(
-    [SCOPES.brands, "index"],
-    () => listEvery((params) => brandService.list(params)),
+export function useWorkspaceBrands(workspaceId: string | undefined) {
+  // `null` means "do not fetch". An array key is truthy however empty its contents, so
+  // `[SCOPES.bfBrands, ""]` would fire a request for `/workspaces//brands` on every render
+  // before the workspace resolves.
+  return useSWR<BrandSummary[]>(
+    workspaceId ? [SCOPES.bfBrands, workspaceId] : null,
+    () => brandService.list(workspaceId!),
     { revalidateOnFocus: false },
   );
-
-  // Memoised rather than `data?.items ?? []` inline: a fresh array every render restarts every
-  // consumer's `useMemo` that sorts or filters it.
-  const brands = React.useMemo(() => data?.items ?? [], [data]);
-
-  const byId = React.useMemo(() => {
-    const map = new Map<string, Brand>();
-    for (const brand of brands) map.set(brand.id, brand);
-    return map;
-  }, [brands]);
-
-  return { brands, byId, hasMore: Boolean(data?.truncated), error, isLoading };
 }
 
-export function useBrandMutations() {
+export function useBrandMutations(workspaceId: string | undefined) {
   const invalidate = useInvalidate();
 
-  /**
-   * Outlets and entities go with every write, and the reason is the whole point of the table.
-   *
-   * A brand's *name* is resolved through `useBrandIndex` on every outlet row, every entity row
-   * and the outlet detail badge. Renaming one is a single atomic `PATCH` on the server — and if
-   * only the brand scopes were invalidated, every one of those screens would go on rendering the
-   * old name from a cached index until something else happened to refetch it. "Every screen
-   * follows a rename" is the thing a free-text column could not do, and this is where the client
-   * half of it is kept.
-   */
-  const invalidateAll = React.useCallback(
-    () => invalidate(SCOPES.brands, SCOPES.brand, SCOPES.outlets, SCOPES.outlet, SCOPES.entities),
-    [invalidate],
-  );
-
   const create = React.useCallback(
-    async (data: BrandCreate) => {
-      const created = await brandService.create(data);
-      // A new brand changes no outlet, but it does change what the pickers offer.
-      await invalidate(SCOPES.brands);
+    async (input: CreateBrandInput) => {
+      if (!workspaceId) throw new Error("No workspace selected");
+      const created = await brandService.create(workspaceId, input);
+      // Revalidate rather than write the row in: `POST` answers with a `Brand` and this list
+      // holds `BrandSummary`. Casting one to the other would put a row with no `sectionCount`,
+      // no `projectCount` and no `tldr` into a cache typed as having all three.
+      await invalidate(SCOPES.bfBrands);
       return created;
     },
-    [invalidate],
+    [invalidate, workspaceId],
   );
 
-  const update = React.useCallback(
-    async (id: string, data: BrandUpdate) => {
-      const updated = await brandService.update(id, data);
-      await invalidateAll();
-      return updated;
-    },
-    [invalidateAll],
-  );
-
-  const remove = React.useCallback(
-    async (id: string) => {
-      await brandService.remove(id);
-      await invalidateAll();
-    },
-    [invalidateAll],
-  );
-
-  return { create, update, remove };
+  return { create };
 }

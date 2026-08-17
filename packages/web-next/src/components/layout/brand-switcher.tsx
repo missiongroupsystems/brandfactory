@@ -1,45 +1,52 @@
 "use client";
 
+import { ChevronsUpDownIcon, PlusIcon } from "lucide-react";
 import * as React from "react";
-import { ChevronsUpDownIcon } from "lucide-react";
 
 import { BrandMark } from "@/components/brand/brand-mark";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveBrand } from "@/features/brands/active-brand";
-import { BRAND_STATUS_LABELS, BRAND_STATUS_TONES } from "@/lib/labels";
+import { NewBrandSheet } from "@/features/brands/components/new-brand-sheet";
 
 /**
- * The brand toggle — which brand the shell is inside, and the way to any other one by name.
+ * The brand toggle — which brand the shell is inside, the way to any other one by name, and
+ * the way to make one.
  *
- * It sits in the sidebar header as a **second row**, under the product identity, rather than
- * replacing it: the product and the brand are different things and putting them on one line
- * makes the reader work out which name is which. A hairline separates them.
+ * It is the third row of the sidebar header, under the workspace: a brand belongs to a
+ * workspace, and the list this reads is `GET /workspaces/:workspaceId/brands`.
  *
  * **The mark is on the trigger and on nothing in the menu.** The brand hue is the one colour
  * on screen allowed to be the customer's rather than the product's, and the accent rule (§4)
- * is "one element per surface" — six coloured squares stacked in a dropdown spends that
- * budget six times over and turns recognition into noise. The menu is names.
+ * is "one element per surface" — a coloured square per row spends that budget once per brand
+ * and turns recognition into noise. The menu is names.
  *
- * **Nothing on screen responds to the selection yet, and that is the honest state.** No screen
- * in this shell is brand-scoped; every one of them is fixture-backed Operations Hub. The
- * toggle is the shell affordance landing before the screens that will read it, and
- * `useActiveBrand()` is the seam they read it through.
+ * **The status badges went with the fixtures, and their absence is the correct answer rather
+ * than a regression.** The six mock brands carried `active` / `dormant` / `retired`, and
+ * flagging the two you were not expecting was real signal. `BrandSummary` has no status field —
+ * BrandFactory brands do not have one — and inventing a badge out of `sectionCount` or
+ * `projectCount` would be a label that looks like a state and means nothing.
+ *
+ * **Nothing below the header responds to the selection yet**, and that is still the honest
+ * state. Every screen in this shell is fixture-backed Operations Hub. `useActiveBrand()` is the
+ * seam the brand-scoped screens will read it through.
  */
 export function BrandSwitcher() {
-  const { brand, brands, isLoading, select } = useActiveBrand();
+  const { brand, brands, workspaceId, isLoading, select } = useActiveBrand();
+  const [creating, setCreating] = React.useState(false);
   const hintId = React.useId();
 
-  // A brand index in flight is a pending request, never a missing fact — the house rule for
-  // every id this app resolves through a cached map. A "No brand" line here would be a false
-  // statement rendered for the 120ms before the list lands, and it would flash on every load.
+  // A list in flight is a pending request, never a missing fact — the house rule for every id
+  // this app resolves through a cached map. A "No brands" line here would be a false statement
+  // rendered for as long as the round trip takes, and it would flash on every load.
   if (isLoading) {
     return (
       <div className="flex items-center gap-2.5">
@@ -49,10 +56,28 @@ export function BrandSwitcher() {
     );
   }
 
-  // Genuinely no brands. Distinct from the branch above and worth its own words: this is the
-  // empty state of a real answer, not a gap in a partial one.
+  // Genuinely no brands in this workspace. Distinct from the branch above and worth its own
+  // words — and unlike 1.32.0 it is no longer a dead end, because there is now something to
+  // press.
   if (!brand) {
-    return <p className="px-2 py-1 text-xs text-ink-tertiary">No brands yet</p>;
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setCreating(true)}
+          disabled={!workspaceId}
+          className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors duration-[120ms] hover:bg-surface-hover disabled:cursor-not-allowed disabled:text-ink-disabled"
+        >
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-dashed border-border-input text-ink-tertiary">
+            <PlusIcon aria-hidden className="size-3.5" />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-sm text-ink-secondary">
+            No brands yet — create one
+          </span>
+        </button>
+        <NewBrandSheet workspaceId={workspaceId} open={creating} onOpenChange={setCreating} />
+      </>
+    );
   }
 
   return (
@@ -67,9 +92,7 @@ export function BrandSwitcher() {
           className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors duration-[120ms] hover:bg-surface-hover"
         >
           <BrandMark name={brand.name} seed={brand.id} size="sm" />
-          <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
-            {brand.name}
-          </span>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{brand.name}</span>
           <ChevronsUpDownIcon aria-hidden className="size-3.5 shrink-0 text-ink-tertiary" />
         </DropdownMenuTrigger>
 
@@ -85,34 +108,32 @@ export function BrandSwitcher() {
               **The handler goes on the group, not on each item.** Base UI's `Menu.RadioItem`
               takes `value` and `closeOnClick` and nothing else; selection is reported by the
               group's `onValueChange`. Radix's flavour of this component puts `onSelect` on the
-              item, and copying that shape here fails *silently* rather than at the type check
-              — React has a real DOM `onSelect` (text selection) that absorbs the prop, so
-              `tsc`, `eslint` and `next build` all pass and the menu simply never switches
-              brand. Found by clicking it. */}
+              item, and copying that shape here fails *silently* rather than at the type check —
+              React has a real DOM `onSelect` (text selection) that absorbs the prop, so `tsc`,
+              `eslint` and `next build` all pass and the menu simply never switches brand. */}
           <DropdownMenuRadioGroup value={brand.id} onValueChange={(id: string) => select(id)}>
             {brands.map((b) => (
               <DropdownMenuRadioItem key={b.id} value={b.id}>
                 <span className="min-w-0 flex-1 truncate">{b.name}</span>
-                {/* Only when it is not active. A badge on all six is a column of noise; a
-                    badge on the two you are not expecting is the whole signal. Without it a
-                    retired brand is indistinguishable from a live one in this list. */}
-                {b.status !== "active" ? (
-                  <Badge variant={BRAND_STATUS_TONES[b.status]} className="ml-2 shrink-0">
-                    {BRAND_STATUS_LABELS[b.status]}
-                  </Badge>
-                ) : null}
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>
-          {/* No "New brand…" and no "All brands". The first would be a `POST` the fixture
-              backend refuses with a 503, and the second has no route in this shell — an item
-              that opens a toast saying it does not work is worse than the absence. Both belong
-              here the moment they have somewhere to go. */}
+
+          <DropdownMenuSeparator />
+          {/* **The menu closes before the sheet opens**, which is why this sets state in a
+              click handler on an item with default close-on-click rather than rendering the
+              sheet's trigger in here. A Base UI popup dismissing while another one mounts
+              leaves the overlay eating clicks — the wedge AGENTS.md records twice. */}
+          <DropdownMenuItem onClick={() => setCreating(true)}>
+            <PlusIcon />
+            New brand…
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <span id={hintId} className="sr-only">
         Switch brand
       </span>
+      <NewBrandSheet workspaceId={workspaceId} open={creating} onOpenChange={setCreating} />
     </>
   );
 }
