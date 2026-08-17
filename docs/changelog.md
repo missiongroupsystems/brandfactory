@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.39.0** — 2026-08-17 — The conformance detectors become a test, CI learns it needs a credential for the private SDK — without which every run would have failed at install — and Renovate is deliberately NOT wired, because the preset it would extend matches nothing here. No migration. 2204 tests.
 - **1.38.0** — 2026-08-17 — Offboarding closes the gap the HTTP path cannot: a revoked member's OPEN socket. And the two-issuer resolution becomes one shared function, fixing an asymmetry 1.37.0 shipped — hosted-login users would have had working requests and a dead websocket. No migration. 2190 tests.
 - **1.37.0** — 2026-08-17 — The email-first login arrives server-side and lands DARK: two routes and never three, PKCE whose verifier never reaches the browser, and a second accepted issuer. Three bugs found — two by reading, one by curling. Migration 0014. 2168 tests.
 - **1.36.0** — 2026-08-17 — Reconciliation lands as all three parts — function, secret-guarded endpoint, and a schedule that survives a deploy — and was proven by curling it against the live API, with a 404 control to show the routes are real. No migration. 2122 tests.
@@ -80,6 +81,68 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.39.0 — 2026-08-17
+
+**Conformance, and two findings that change the CI story.** No migration.
+
+Full write-up:
+[`docs/completions/passport-sync-consumer-phase-10-conformance.md`](completions/passport-sync-consumer-phase-10-conformance.md).
+
+### 1. CI was going to fail at install, and 1.37.0 caused it
+
+The Passport SDK is a git dependency on a **private** repository — confirmed, not assumed:
+an unauthenticated read of it answers `404`, and `git ls-remote` blocks for credentials.
+`actions/checkout`'s token is scoped to this repo, so `pnpm install --frozen-lockfile`
+could not fetch it and **every run on this branch would have failed**, with a git error
+naming neither the repository nor the missing secret.
+
+CI now fails first with a sentence naming `PASSPORT_REPO_TOKEN`. The test is a shell
+condition rather than a step-level `if:` — the `secrets` context is not documented as
+available there, and an `if` that silently evaluated false would skip the guard and hand
+back the confusing error it exists to replace. The token reaches git through the
+environment, never the command line.
+
+**CI stays red until that secret exists**, which is the correct state for an unconfigured
+gate rather than a defect.
+
+### 2. No `renovate.json`, because the preset it would extend matches nothing
+
+The plan called for extending the shared consumer preset. It cannot track this dependency,
+on three counts, each checked: it matches `pyproject.toml` (we have none); it resolves
+`passport-client-v*` **tags**, whose newest is `v1.1.0` — predating `roles_at_units` and
+`unit_scopes`, so a tag pin would pin an SDK whose access helper this app cannot call; and
+at that tag the TypeScript package **did not exist**, its 3.0.0 having never been tagged.
+
+A config that silently matches nothing is worse than none: it looks like the dependency is
+being watched. So there is a drift check instead, comparing `pinned...main` and warning
+when the SDK's own source has moved. It warns rather than fails — an upstream commit is
+not a defect in the PR being tested — and exits 0 when it cannot tell, because a version
+check that fails without network access is one that gets deleted. The header names the
+condition for switching to Renovate: the day the TypeScript package gets its own tags.
+
+### 3. The detectors are a test now, including one that asserts PRESENCE
+
+Every rule they check passes silently when violated, so a grep run once is not a control.
+Fourteen cases: the wire contract, the shadow set, the role vocabulary, the collapse of
+`rolesAtUnits`, the org filter, the closed write methods, and the sign-out sweep.
+
+The shadow check asserts an **exact set** rather than emptiness, because `brands` and
+`workspaces` are still here until phase 8 — so a third one fails, and phase 8 removing
+these two fails as well, forcing the expectation to shrink rather than rot into a
+permanent exception.
+
+And one case asserts that `session-exchange`, the registry read, `snapshot()` and token
+verification are still **present**. Rule 3 is proven by absence, so the instinct while
+sweeping is to delete everything that talks to Passport — and those are reads and
+redemptions, not writes. Deleting one takes login down rather than leaking anything.
+
+### 4. The live suites do run in CI, verified
+
+Confirmed by running the whole suite against a migrated database as CI does: **2296
+passed, zero skipped**, where locally 92 skip. That also cleared an unchecked risk —
+`packages/db` runs `singleFork`, so the new projection write tests share a process with
+the seed tests and delete rows; they do not interfere.
 
 ## 1.38.0 — 2026-08-17
 

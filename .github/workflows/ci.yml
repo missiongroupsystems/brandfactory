@@ -53,7 +53,48 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
+      # `@missiongroupsystems/passport-client` is a git dependency on a PRIVATE repo, so
+      # this fails FIRST and with a sentence. An unconfigured gate that produces a
+      # confusing error somewhere else is worse than one that says what is missing.
+      # The test is a shell condition rather than a step-level `if:`, because the
+      # `secrets` context is not documented as available there — an `if` that silently
+      # evaluates to false would skip the guard and hand back the confusing error this
+      # step exists to replace.
+      #
+      # The token reaches git through the ENVIRONMENT, never through the command line:
+      # interpolating a secret into `run` puts it in a script that `set -x` or a git
+      # error message can echo.
+      - name: Authenticate git for the private Passport dependency
+        env:
+          PASSPORT_REPO_TOKEN: ${{ secrets.PASSPORT_REPO_TOKEN }}
+        run: |
+          if [ -z "$PASSPORT_REPO_TOKEN" ]; then
+            echo "::error title=Missing secret::PASSPORT_REPO_TOKEN is not set."
+            echo
+            echo "packages/server depends on @missiongroupsystems/passport-client, a git"
+            echo "dependency on the PRIVATE missiongroupsystems/passport repository."
+            echo "actions/checkout's token is scoped to THIS repo, so pnpm install cannot"
+            echo "fetch it and fails with a git authentication error that names neither"
+            echo "the repository nor this secret."
+            echo
+            echo "Add a fine-grained PAT with read access to missiongroupsystems/passport"
+            echo "as the repository secret PASSPORT_REPO_TOKEN (Settings -> Secrets and"
+            echo "variables -> Actions)."
+            exit 1
+          fi
+          # `insteadOf` rather than editing the specifier: the pin stays a plain URL in
+          # `package.json`, and no credential is ever committed.
+          git config --global "url.https://x-access-token:$PASSPORT_REPO_TOKEN@github.com/.insteadOf" "https://github.com/"
+
       - run: pnpm install --frozen-lockfile
+
+      # The SDK is a hand-port with no release tags, so Renovate has nothing to track —
+      # see the script's header for why extending the shared preset would match nothing.
+      # This warns (never fails) when the SDK source has moved past the pinned commit.
+      - name: Passport SDK pin drift
+        env:
+          PASSPORT_REPO_TOKEN: ${{ secrets.PASSPORT_REPO_TOKEN }}
+        run: node scripts/check-passport-sdk-pin.mjs
 
       - name: Apply DB migrations
         run: pnpm -F @brandfactory/db db:migrate
