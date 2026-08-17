@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LoadingRows } from "@/components/layout/query-states";
 import { OrgChartBoard } from "@/features/registry/components/org-chart-board";
 
-export const metadata = { title: "Org chart — BrandFactory" };
+export const metadata = { title: "Org chart — Marketing Hub" };
 
 /** Server shell, interactive half under `<Suspense>` — see the outlets page on why. */
 export default function OrgChartPage() {

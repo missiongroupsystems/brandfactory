@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { AppLogoIcon } from "@/components/brand/app-logo";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { BrandSwitcher } from "@/components/layout/brand-switcher";
 import {
@@ -12,7 +13,6 @@ import {
   isActivePath,
   type NavItem,
 } from "@/components/layout/nav";
-import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
 import { Badge } from "@/components/ui/badge";
 import {
   Sidebar,
@@ -31,8 +31,8 @@ import {
  * The app shell's side-nav — styleguide §7.2.
  *
  * Two things here are brand rules rather than taste. The group labels are the **only**
- * uppercase text in the product (§7.3), and the accent appears exactly twice: on the
- * workspace mark and on nothing else in this component. The active item is carried by a
+ * uppercase text in the product (§7.3), and the accent appears exactly once: on the product
+ * mark and on nothing else in this component. The active item is carried by a
  * `--surface-selected` fill, not by a green bar.
  */
 export function AppSidebar() {
@@ -54,35 +54,31 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      {/* Three rows — product identity, workspace, brand — and the padding sits on each of them
-          rather than on the header, so the hairlines between run the full width instead of
-          stopping short at the inset.
+      {/* Two rows — product identity, brand — and the padding sits on each of them rather than
+          on the header, so the hairline between runs the full width instead of stopping short at
+          the inset.
 
-          The order is containment: the product holds workspaces, a workspace holds brands. It is
-          also the order of how often each changes, which is why the fixed one is on top. */}
+          **There were three.** The middle one was a workspace switcher, and it is gone by
+          product decision: a person here belongs to one workspace and cannot create, join or
+          leave another, so a control offering the choice advertised something the product does
+          not do. The shell still *resolves* a workspace — every brand route is
+          `/workspaces/:workspaceId/brands` and none of them can be called without one — and the
+          resolved name is readable, once, in the account menu at the foot of this rail. A fact
+          you may need to check is not the same thing as a control you may need to use. */}
       <SidebarHeader className="gap-0 p-0">
         <div className="flex items-center gap-3 p-3">
-          {/* Workspace mark — accent-filled tile, one of the named accent roles (§4). The
-              brand mark on the row below is a different thing: the customer's hue, not the
-              product's accent, so the two do not compete for the same budget. */}
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-surface-accent text-sm font-medium text-ink-inverse">
-            B
+          {/* The product mark — the Mission Systems umbrella on the accent tile, which is the
+              same lockup the favicon draws (`app/icon.svg`), so the tab and the rail agree. One
+              of the named accent roles (§4). The brand mark on the row below is a different
+              thing: the customer's hue, not the product's accent, so the two do not compete for
+              the same budget. */}
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-surface-accent text-ink-inverse">
+            <AppLogoIcon decorative className="size-5" />
           </div>
           <div className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-medium text-ink">BrandFactory</span>
+            <span className="truncate text-sm font-medium text-ink">Marketing Hub</span>
             <span className="truncate text-xs text-ink-tertiary">Mission Systems</span>
           </div>
-          {/* Every screen in this shell is fixture-backed — see `lib/api/mock.ts`. One marker
-              in the chrome, rather than a banner per page, because it is true of all of them.
-              It comes off area by area as real screens replace these. */}
-          <Badge className="ml-auto shrink-0">Mock</Badge>
-        </div>
-
-        {/* The workspace you are in. It has to be above the brand and it has to be *present*:
-            every brand route is `/workspaces/:workspaceId/brands`, so a shell that does not
-            know its workspace cannot ask for brands at all. */}
-        <div className="border-t border-border-subtle p-3">
-          <WorkspaceSwitcher />
         </div>
 
         {/* The brand you are inside. A row of its own rather than a third line in the block

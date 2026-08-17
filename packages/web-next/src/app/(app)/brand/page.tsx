@@ -1,6 +1,6 @@
 import { BrandProfileScreen } from "@/features/brand-profile/components/brand-profile";
 
-export const metadata = { title: "Brand profile — BrandFactory" };
+export const metadata = { title: "Brand profile — Marketing Hub" };
 
 /**
  * The profile of whichever brand the shell is currently inside.

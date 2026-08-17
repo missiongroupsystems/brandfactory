@@ -4,8 +4,8 @@ import {
   ClipboardCheck,
   FileSignature,
   FileText,
-  FormInput,
   Handshake,
+  Inbox,
   LayoutDashboard,
   Ruler,
   Store,
@@ -38,11 +38,16 @@ export type NavItem = {
   phase: 0 | 1 | 2 | 3;
   description: string;
   /**
-   * A short marker for a *live* item that is not a finished feature — currently only
-   * "Mock" on Quotations. Rendered as a neutral badge in the sidebar so the item does not
-   * read as done, without exiling it to the "Not yet built" group (it is navigable and has
-   * a page). A phase marker already does this job for upcoming items; this is the same
-   * honesty for one that is present-but-pretend.
+   * A short marker for a *live* item that is not a finished feature. Rendered as a neutral
+   * badge in the sidebar so the item does not read as done, without exiling it to the "Not
+   * yet built" group (it is navigable and has a page). A phase marker already does this job
+   * for upcoming items; this is the same honesty for one that is present-but-pretend.
+   *
+   * Two words, and they say different things. **"Mock"** is a façade — Quotations, a screen
+   * with no data layer at all. **"Sample"** is a real screen reading placeholder content:
+   * Brand profile and Marketing Requests both render, filter and update, and both are wired
+   * to fixtures rather than to the server. Drop the tag when the data becomes real, not when
+   * the screen looks finished.
    */
   tag?: string;
 };
@@ -85,19 +90,11 @@ export const NAV_ITEMS: NavItem[] = [
     phase: 2,
     description: "Agreements and service visits",
   },
-  // Directly after Contracts, because vendors are who the contracts are *with*. `Handshake`
-  // is the supplier relationship; lucide's `Truck` reads as delivery and logistics.
-  {
-    title: "Vendors",
-    href: "/vendors",
-    icon: Handshake,
-    phase: 3,
-    description: "Who we buy from, and who to call there",
-  },
-  // Directly after Vendors because a quotation is a priced proposal *from* one — the
-  // procurement step before an agreement exists. A **mock**, so it carries a "Mock" tag
-  // rather than looking finished. `FileText` reads as the quote document and is deliberately
-  // not Contracts' `FileSignature` (a signed agreement, not a proposal).
+  // Directly after Contracts because a quotation is what becomes one — the priced proposal, the
+  // procurement step before an agreement exists. The pair therefore reads in the order the work
+  // happens. A **mock**, so it carries a "Mock" tag rather than looking finished. `FileText`
+  // reads as the quote document and is deliberately not Contracts' `FileSignature` (a signed
+  // agreement, not a proposal).
   {
     title: "Quotations",
     href: "/quotations",
@@ -105,6 +102,16 @@ export const NAV_ITEMS: NavItem[] = [
     phase: 3,
     tag: "Mock",
     description: "Priced vendor proposals, before they become agreements (preview)",
+  },
+  // After both, because a vendor is the counterparty each of them is *with* — the party, not
+  // the paperwork. `Handshake` is the supplier relationship; lucide's `Truck` reads as delivery
+  // and logistics.
+  {
+    title: "Vendors",
+    href: "/vendors",
+    icon: Handshake,
+    phase: 3,
+    description: "Who we buy from, and who to call there",
   },
   // Renamed from "Contacts". The route is still `/contacts` and the screen underneath is
   // still the contacts browser — the label moved first because the noun BrandFactory cares
@@ -124,17 +131,22 @@ export const NAV_ITEMS: NavItem[] = [
     phase: 3,
     description: "Records the migration could not confirm",
   },
-  // A cross-cutting utility rather than an area of the registry: structured forms we send out
-  // and collect back, now **wired** — they submit to a `form_submission` table and each can be
-  // shared as a public `/f/<slug>` form anyone fills without logging in. `FormInput` is the
-  // labelled-field glyph, deliberately not Review's `ClipboardCheck` (a data-quality queue,
-  // not a form).
+  // **Was "Ops Forms" at `/forms`, and this time the route moved with the label.** Two forms
+  // became one: the incident report was an Ops safety record with no marketing reading of it,
+  // and what is left is the single request an outlet raises with the marketing team. A generic
+  // plural pointing at one named thing is the mismatch `/brands` cost a release — folder, route
+  // and label all say `marketing-requests` now, and only the *wire* paths still say `forms`,
+  // because those are the backend's.
+  //
+  // `Inbox`, not `FormInput`: the screen is a queue you read, and the form is one button on it.
+  // Deliberately not Review's `ClipboardCheck` (a data-quality queue, not a request queue).
   {
-    title: "Ops Forms",
-    href: "/forms",
-    icon: FormInput,
+    title: "Marketing Requests",
+    href: "/marketing-requests",
+    icon: Inbox,
     phase: 3,
-    description: "Send-and-collect forms — requests and incident reports",
+    tag: "Sample",
+    description: "What the business is asking marketing for — one inbox, one request form",
   },
   // Sits after the record-keeping areas because it is a different kind of thing: the rest
   // of this list is what the group holds, and a scheme is what a unit could become.
@@ -177,7 +189,7 @@ export const NAV_GROUPS: { label: string | null; hrefs: string[] }[] = [
   { label: "Registry", hrefs: ["/outlets"] },
   {
     label: "Contracts & services",
-    hrefs: ["/contracts", "/vendors", "/quotations", "/contacts"],
+    hrefs: ["/contracts", "/quotations", "/vendors", "/contacts"],
   },
-  { label: "Resources", hrefs: ["/review", "/forms", "/spaces"] },
+  { label: "Resources", hrefs: ["/review", "/marketing-requests", "/spaces"] },
 ];

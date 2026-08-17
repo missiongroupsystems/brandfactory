@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LoadingRows } from "@/components/layout/query-states";
 import { ServiceReportsBrowser } from "@/features/service-reports/components/service-reports-browser";
 
-export const metadata = { title: "Servicing & Repairs — BrandFactory" };
+export const metadata = { title: "Servicing & Repairs — Marketing Hub" };
 
 /**
  * A **Server Component** with the interactive half under `<Suspense>` — required rather than

@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LoadingRows } from "@/components/layout/query-states";
 import { SpacesBrowser } from "@/features/spaces/components/spaces-browser";
 
-export const metadata = { title: "Spaces — BrandFactory" };
+export const metadata = { title: "Spaces — Marketing Hub" };
 
 /** Server shell, interactive half under `<Suspense>` — see the outlets page on why. */
 export default function SpacesPage() {

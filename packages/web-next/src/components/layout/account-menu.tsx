@@ -15,9 +15,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMe } from "@/features/me/hooks";
+import { useActiveWorkspace } from "@/features/workspaces/active-workspace";
 
 /**
- * Who you are, and the way back out. The last row in the sidebar, under a hairline of its own.
+ * Who you are, where you are, and the way back out. The last row in the sidebar, under a
+ * hairline of its own.
  *
  * It replaces the alpha warning that stood here — *"authentication not yet wired. Every session
  * runs as an administrator."* That sentence was true and is now false, and a stale warning is
@@ -30,11 +32,19 @@ import { useMe } from "@/features/me/hooks";
  * the customer's own hue, so a third coloured tile here would leave the column with no unspent
  * colour at all.
  *
+ * **The workspace lives in here now**, as a line of text under the identity. It used to be the
+ * middle row of the sidebar header and a switcher; a person here belongs to one workspace and
+ * cannot create, join or leave another, so the control was offering a choice the product does
+ * not have. It is still worth being able to *read* — it is the scope every brand in the rail
+ * above belongs to, and the answer to "am I looking at the right account's brands" — so it is a
+ * fact in the account menu rather than a control in the chrome.
+ *
  * Ported from `packages/web/src/components/nav/AccountMenu.tsx` (1.25.0), onto Base UI's
  * composition prop and this app's tokens.
  */
 export function AccountMenu() {
   const { data: me } = useMe();
+  const workspace = useWorkspaceLine();
   const hintId = React.useId();
 
   // `displayName` is nullable and, being free text, can be whitespace. Falling through to the
@@ -79,15 +89,20 @@ export function AccountMenu() {
             grows to its widest child, and an email address is as wide a child as this product
             has. */}
         <DropdownMenuContent side="top" align="start" className="max-w-80 min-w-56">
-          {label ? (
-            <>
-              {/* Inside a `DropdownMenuGroup`, always. `DropdownMenuLabel` is Base UI's
-                  `Menu.GroupLabel`, which reads a context only `Menu.Group` provides; used bare
-                  it throws Base UI error #31 the moment the menu opens — and the symptom is not
-                  a crash but a trigger whose click does nothing. See AGENTS.md. */}
-              <DropdownMenuGroup>
-                <DropdownMenuLabel className="font-normal">
-                  <span className="block truncate font-medium text-ink">{label}</span>
+          {/* The Account section, above the separator and the way out. It renders whether or not
+              `/me` has answered, because the workspace line is worth showing on its own — the
+              two facts arrive from two requests and gating one on the other would hide a
+              resolved workspace behind a pending identity. */}
+          {/* Inside a `DropdownMenuGroup`, always. `DropdownMenuLabel` is Base UI's
+              `Menu.GroupLabel`, which reads a context only `Menu.Group` provides; used bare
+              it throws Base UI error #31 the moment the menu opens — and the symptom is not
+              a crash but a trigger whose click does nothing. See AGENTS.md. */}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="font-normal">
+              <span className="block text-eyebrow text-ink-tertiary">Account</span>
+              {label ? (
+                <>
+                  <span className="mt-1.5 block truncate font-medium text-ink">{label}</span>
                   {/* Only when it is not already the line above. A null display name puts the
                       email on the primary line, and repeating it underneath in grey is the same
                       string twice in 32 pixels. */}
@@ -96,11 +111,20 @@ export function AccountMenu() {
                       {email}
                     </span>
                   ) : null}
-                </DropdownMenuLabel>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-            </>
-          ) : null}
+                </>
+              ) : null}
+              {/* Read-only, and it looks it: a label/value pair, no chevron, no hover state.
+                  `role="alert"` is deliberately absent — a workspace that failed to load is
+                  reported here as text because nothing on this menu depends on it, and the two
+                  switchers that *do* raise an alert are the ones whose empty state offers a
+                  button. */}
+              <span className="mt-2.5 flex items-baseline justify-between gap-3 border-t border-border-subtle pt-2.5">
+                <span className="shrink-0 text-xs font-normal text-ink-tertiary">Workspace</span>
+                <span className="min-w-0 truncate text-xs font-normal text-ink">{workspace}</span>
+              </span>
+            </DropdownMenuLabel>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => {
               // Not awaited: `signOut` ends with `logout()`, and `AuthBoundary`'s subscription
@@ -119,4 +143,21 @@ export function AccountMenu() {
       </span>
     </>
   );
+}
+
+/**
+ * The workspace as one line of text, with the four states kept apart.
+ *
+ * The distinction the retired switcher had to learn twice, kept here: **a list in flight is a
+ * pending request and a failed one is not an empty account**. Three of the four answers below
+ * are therefore not a name, and none of them is a name that is wrong. "Not set" is the only one
+ * that makes a claim about the account, and it is only reachable from a request that succeeded
+ * and returned nothing.
+ */
+function useWorkspaceLine(): string {
+  const { workspace, isLoading, error } = useActiveWorkspace();
+
+  if (isLoading) return "…";
+  if (error) return "Unavailable";
+  return workspace?.name ?? "Not set";
 }

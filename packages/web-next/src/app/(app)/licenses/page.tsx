@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LoadingRows } from "@/components/layout/query-states";
 import { LicensesBrowser } from "@/features/licenses/components/licenses-browser";
 
-export const metadata = { title: "Licences — BrandFactory" };
+export const metadata = { title: "Licences — Marketing Hub" };
 
 /**
  * Server page + client browser under `<Suspense>`, like every list screen here: the

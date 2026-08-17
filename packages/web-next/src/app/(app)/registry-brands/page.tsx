@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LoadingRows } from "@/components/layout/query-states";
 import { BrandsBrowser } from "@/features/registry-brands/components/brands-browser";
 
-export const metadata = { title: "Outlet brands — BrandFactory" };
+export const metadata = { title: "Outlet brands — Marketing Hub" };
 
 /**
  * A **Server Component**, with the interactive half under `<Suspense>` — the shape every list

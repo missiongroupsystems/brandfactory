@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LoadingRows } from "@/components/layout/query-states";
 import { ReviewBrowser } from "@/features/review/components/review-browser";
 
-export const metadata = { title: "Review — BrandFactory" };
+export const metadata = { title: "Review — Marketing Hub" };
 
 /** Server shell, interactive half under `<Suspense>` — see the outlets page on why. */
 export default function ReviewPage() {

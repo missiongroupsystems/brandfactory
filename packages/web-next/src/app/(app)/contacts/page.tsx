@@ -7,7 +7,7 @@ import { LoadingRows } from "@/components/layout/query-states";
 import { Button } from "@/components/ui/button";
 import { ContactsBrowser } from "@/features/contacts/components/contacts-browser";
 
-export const metadata = { title: "Influencers — BrandFactory" };
+export const metadata = { title: "Influencers — Marketing Hub" };
 
 /**
  * Server shell, interactive half under `<Suspense>` — see the outlets page on why.

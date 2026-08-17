@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import type { FormFieldDef, OpsForm } from "../fixture";
+import type { FormFieldDef, RequestForm } from "../fixture";
 
 /** A select field whose only "option" is a placeholder ("Select an outlet…") is a **dynamic**
  * field — the real options come from data. Inside the app that is the outlet list; on the public
@@ -19,8 +19,8 @@ function isDynamicSelect(field: FormFieldDef): boolean {
 }
 
 /**
- * The two Ops Forms, rendered as a real, controlled form. Shared by the in-app view and the public
- * `/f/<slug>` page — only the `onSubmit` differs (authenticated vs. the public no-token endpoint).
+ * The Marketing Request, rendered as a real, controlled form. Shared by the in-app sheet and the public
+ * `/f/request` page — only the `onSubmit` differs (authenticated vs. the public no-token endpoint).
  * Required fields are validated here; the payload sent is `{label: value}` for every non-blank
  * field, which is exactly what the backend stores and pulls the inbox facts out of.
  */
@@ -30,7 +30,7 @@ export function FormFiller({
   submitLabel = "Submit",
   onSubmit,
 }: {
-  form: OpsForm;
+  form: RequestForm;
   /** Real outlet names for the dynamic outlet select; omit on the public page (→ text input). */
   outletNames?: string[];
   submitLabel?: string;

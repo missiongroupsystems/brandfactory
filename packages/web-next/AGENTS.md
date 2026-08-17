@@ -171,8 +171,13 @@ src/
                            /vendors, translating vq/vstatus to q/status
       vendors/             the service providers — promoted out of a contracts tab
       review/              the data-quality queue
+      marketing-requests/  the request inbox. Was /forms ("Ops Forms"), two forms, the blank
+                           one front and centre; now one form behind a button on the queue
       spaces/              OpenSpace, incorporated — list, plus [id]/ for the scheme
                            workspace (plan / walkthrough / album / cost in ?view=)
+    f/[slug]/            the public form, outside (app) — no shell, no login
+    icon.svg             the favicon. The Mission mark on the accent tile, which is the same
+                         lockup the sidebar header draws — keep the two in step
     fonts/satoshi/       self-hosted Satoshi .woff2 — the one product typeface
     globals.css          the three token tiers. Read before styling anything.
   auth/                  store, session, providers/, sign-in-panel, auth-boundary
@@ -181,7 +186,7 @@ src/
                          select/checkbox/textarea/field/alert-dialog are hand-written.
                          There is no dialog.tsx: forms here are Sheets.
     brand/               app-logo (the Mission mark), brand-mark (the monogram)
-    layout/              app shell, the three header rows, account menu, page header,
+    layout/              app shell, the two header rows, account menu, page header,
                          filter bar, table card, detail list, placeholders, query states
   features/<area>/
     api.ts               service layer — the only place that calls a transport
@@ -193,8 +198,8 @@ src/
                          backend enum value fails the typecheck until it has a label.
     format.ts            dates, addresses. Read the note on why formatDate never
                          constructs a Date.
-    stored-preference.ts localStorage + useSyncExternalStore, SSR-safe. Two callers:
-                         the active workspace and the active brand.
+    stored-preference.ts localStorage + useSyncExternalStore, SSR-safe. Two readers: the
+                         active workspace and the active brand. Only the brand writes.
     workspace-resolve.ts which workspace the shell opens in. Pure; tested.
     website-url.ts       the brand form's URL normalisation, on the shared zod schema
     api/
@@ -218,6 +223,25 @@ feature folder and left the page at `/brands`, so the product's central noun poi
 about premises for a release. Folder, cache scope and route all say `registry-brands` now. The
 **wire path stays `/brands`** — that is the Ops backend's, frozen in `schema.d.ts`, and not this
 app's to rename. Keep the three in step and leave the fourth alone.
+
+`features/marketing-requests/` is the same rule applied a second time and on the first attempt:
+folder, route and label all moved off `forms`, and `/forms/{form_key}/submissions` stayed because
+it is the Ops backend's path.
+
+**The product is "Marketing Hub" on screen and BrandFactory in the repository.** The sidebar, the
+sign-in lockup, every page title and the public form say Marketing Hub. The package, the server,
+the shared types, the scopes and every comment about the *codebase* still say BrandFactory —
+`@brandfactory/shared` is not being renamed, and a comment describing which of two transports a
+class belongs to is describing the repository, not the chrome. `packages/web` is untouched and
+still says BrandFactory throughout; it serves production.
+
+**There is one workspace and no way to change it.** A person here belongs to exactly one and
+cannot create, join or leave another, so `components/layout/workspace-switcher.tsx` is gone and
+`useActiveWorkspace()` no longer returns a `select`. The resolution stays — every brand route is
+`/workspaces/:workspaceId/brands` and none of them can be called without an id — and the resolved
+name is readable once, as text, in the account menu. Do not put a workspace control back in the
+chrome without the product decision that reverses this; a control that offers a choice the
+product does not have is worse than the fact being hidden.
 
 **Native `<select>` and `<input type="checkbox">`, styled.** Not Base UI's popup Select. Every
 select here picks one value from a short closed enum and the attribute editor is twenty checkboxes
@@ -326,6 +350,16 @@ Forms use `hooks/use-submit.ts` for pending state and error shaping. It puts a 4
 the fields (`fieldErrors`) and shows a form-level message only when there is nothing better, so the
 same complaint never appears twice. `toNullable` turns a cleared input into `null` rather than
 `""` — an empty string is truthy, sorts before every real value, and is invisible on screen.
+
+**In mock mode a mutation refuses with a 503, and Marketing Requests is the only exception.**
+That default is the promise that no screen here can appear to save something nothing stored, and
+it is worth more than any individual screen feeling finished. The exception is registered in
+`mock.ts`'s `WRITES` and writes to a module-level array in `fixtures/marketing-requests.ts`; it
+exists because that screen's *subject* is the mutation — an inbox is a thing you move rows
+through — so a status control that errors on every click is not a design anyone can review. The
+honesty is paid on the surface instead: a `MockBanner` saying the rows are held in memory, and a
+"Sample" tag in the nav. `lib/api/mock.test.ts` asserts **both** halves, so widening the
+exception by accident fails the suite. Do not add to `WRITES` to make a form feel real.
 
 ## Design tokens — Mission Systems product CI
 

@@ -7,7 +7,7 @@ import { LoadingRows } from "@/components/layout/query-states";
 import { Button } from "@/components/ui/button";
 import { VendorsView } from "@/features/vendors/components/vendors-view";
 
-export const metadata = { title: "Vendors — BrandFactory" };
+export const metadata = { title: "Vendors — Marketing Hub" };
 
 /**
  * A **Server Component**, with the interactive half under `<Suspense>` — the shape every

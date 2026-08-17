@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LoadingRows } from "@/components/layout/query-states";
 import { ContractsBrowser } from "@/features/contracts/components/contracts-browser";
 
-export const metadata = { title: "Contracts — BrandFactory" };
+export const metadata = { title: "Contracts — Marketing Hub" };
 
 /**
  * Vendors left this page in 0.13.0, so `?view=vendors` redirects to `/vendors`.

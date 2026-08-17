@@ -31,4 +31,13 @@ describe("the nav", () => {
       for (const href of group.hrefs) expect(hrefs.has(href)).toBe(true);
     }
   });
+
+  it("groups without reordering, so the order lives in one place", () => {
+    // The sidebar renders from `group.hrefs`, while the comments justifying each adjacency sit
+    // on NAV_ITEMS — so a reorder has to be made twice and the two silently disagree if it is
+    // not. Grouping is documented as presentation over the same order; this asserts it.
+    const grouped = NAV_GROUPS.flatMap((group) => group.hrefs);
+    const declared = NAV_ITEMS.map((item) => item.href).filter((href) => grouped.includes(href));
+    expect(grouped).toEqual(declared);
+  });
 });

@@ -10,31 +10,33 @@ import { useWorkspaces } from "./hooks";
 /**
  * The workspace the shell is currently inside.
  *
- * **A preference, not a route** — the same call `active-brand.ts` made in 1.32.0, and for the
- * same reason: nothing in this shell is workspace-scoped, so there is no `/workspaces/:id` to
- * navigate to and no filter to put in the URL. `packages/web` *does* have those routes and
- * resolves the workspace from the path, with storage only as a fallback; here storage is the
- * whole answer until routes exist to prefer.
- *
- * The key is `bf_last_workspace`, which is `packages/web`'s. Sharing it is deliberate — one
- * server, one user, two frontends, and disagreeing about where they were last would be worse
- * than either app alone.
- *
- * **This is the value the brand row depends on.** Brands are workspace-scoped
+ * **Resolved, never chosen.** This app has no workspace switcher and no way to create, join or
+ * leave one — a person here belongs to exactly one, by product decision, and the row that used
+ * to offer the choice came out of the sidebar header with that decision. What survives is the
+ * resolution, because it is not optional: brands are workspace-scoped
  * (`GET /workspaces/:workspaceId/brands` is the only list route), so a shell that does not know
- * its workspace cannot ask for brands at all — which is why this row landed before that one
- * rather than beside it.
+ * its workspace cannot ask for brands at all.
+ *
+ * `select` is therefore gone from the returned shape rather than kept for a caller that no
+ * longer exists. The stored key is still *read* — `bf_last_workspace`, which is
+ * `packages/web`'s, so a person who does have several there lands in the same one here — and
+ * this app simply never writes it. Sharing the key is deliberate: one server, one user, two
+ * frontends, and disagreeing about where they were last would be worse than either app alone.
+ * Give this hook a setter again only when the product grows a second workspace a person can
+ * reach.
+ *
+ * The name is readable in one place, `components/layout/account-menu.tsx`, as a fact rather
+ * than a control.
  */
 const stored = createStoredPreference(LAST_WORKSPACE_KEY);
 
 export interface ActiveWorkspace {
   /** The resolved workspace, or `undefined` while the list is in flight or genuinely empty. */
   workspace: Workspace | undefined;
-  /** Every workspace, for the switcher's list. */
+  /** Every workspace the account can reach. Read by nothing today; the resolution's input. */
   workspaces: Workspace[];
   isLoading: boolean;
   error: unknown;
-  select: (id: string) => void;
 }
 
 export function useActiveWorkspace(): ActiveWorkspace {
@@ -42,11 +44,11 @@ export function useActiveWorkspace(): ActiveWorkspace {
   const storedId = stored.use();
 
   const workspaces = data ?? [];
-  // Derived, never written back. Correcting the stored value here would be a write during
-  // render — the exact pattern `createStoredPreference` exists to avoid — and it corrects
-  // itself on the next pick anyway.
+  // Derived, never written back — and now never written at all. Correcting the stored value
+  // here would be a write during render, the exact pattern `createStoredPreference` exists to
+  // avoid.
   const resolvedId = resolveLandingWorkspaceId(workspaces, storedId);
   const workspace = workspaces.find((w) => w.id === resolvedId);
 
-  return { workspace, workspaces, isLoading, error, select: stored.set };
+  return { workspace, workspaces, isLoading, error };
 }

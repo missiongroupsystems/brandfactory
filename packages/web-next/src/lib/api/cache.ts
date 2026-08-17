@@ -150,7 +150,8 @@ export const SCOPES = {
   settings: "settings",
   // The live Expiring tab is its own aggregate scope, invalidated when the buffer changes.
   licensesExpiring: "licenses-expiring",
-  // Ops Forms inbox — one scope, keyed per form; a submit or a status change invalidates it.
+  // The Marketing Requests inbox; a submit or a status change invalidates it. It was keyed per
+  // form while Ops Forms had two; there is one form now and the key went with the second.
   formSubmissions: "form-submissions",
 
   // ── BrandFactory ─────────────────────────────────────────────────────────────

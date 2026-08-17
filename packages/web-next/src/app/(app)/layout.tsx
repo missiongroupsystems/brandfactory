@@ -31,7 +31,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         <SidebarInset className="min-w-0">
           <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 md:hidden">
             <SidebarTrigger className="-ml-1" />
-            <span className="text-helper text-ink-secondary">BrandFactory</span>
+            <span className="text-helper text-ink-secondary">Marketing Hub</span>
           </header>
           <div className="flex-1">{children}</div>
         </SidebarInset>

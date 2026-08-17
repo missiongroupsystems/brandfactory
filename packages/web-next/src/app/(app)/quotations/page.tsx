@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { QuotationsView } from "@/features/quotations/components/quotations-view";
 
-export const metadata = { title: "Quotations — BrandFactory" };
+export const metadata = { title: "Quotations — Marketing Hub" };
 
 /**
  * The quotations area — a **mock façade** (F2 of the 2026-08-13 worklist, no backend).

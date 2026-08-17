@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LoadingRows } from "@/components/layout/query-states";
 import { DashboardView } from "@/features/dashboard/components/dashboard-view";
 
-export const metadata = { title: "Dashboard — BrandFactory" };
+export const metadata = { title: "Dashboard — Marketing Hub" };
 
 export default function DashboardPage() {
   return (

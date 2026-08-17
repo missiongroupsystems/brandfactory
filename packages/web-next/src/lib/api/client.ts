@@ -98,6 +98,17 @@ function extractDetail(body: unknown, fallback: string): string {
  */
 export const API_MODE = process.env.NEXT_PUBLIC_API_MODE ?? "mock";
 
+/** Mock-mode only: the JSON body a registered mutation reads. Never throws — a body that is not
+ *  JSON is a body this mock has no route for. */
+function parseBody(body: BodyInit | null | undefined): unknown {
+  if (typeof body !== "string") return undefined;
+  try {
+    return JSON.parse(body);
+  } catch {
+    return undefined;
+  }
+}
+
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (API_MODE === "mock") {
     // A microtask is not enough: SWR resolving synchronously on the first render skips the
@@ -105,7 +116,11 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     // — and those are half of what this pass exists to look at.
     await new Promise((resolve) => setTimeout(resolve, 120));
 
-    const result = resolveMock(init.method ?? "GET", path);
+    // The body goes through parsed, because the registered mutations (see `mock.ts`) read it.
+    // `init.body` is whatever the service layer stringified; anything else — a `FormData`, a
+    // stream — is not something this mock answers, so it becomes `undefined` and the route
+    // sees no payload rather than a `[object Object]`.
+    const result = resolveMock(init.method ?? "GET", path, parseBody(init.body));
     if (!result.ok) throw new ApiError(result.status, result.detail);
     return result.body as T;
   }

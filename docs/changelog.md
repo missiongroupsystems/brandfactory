@@ -6,6 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.34.1** — 2026-08-17 — Quotations moves above Vendors, and the ordering invariant the nav had written down for three releases finally has a test; Influencers stops being an empty table, on 19 people and the 6 agencies that had to arrive with them. `next dev` hydrates — the defect open since 1.31.0 does not reproduce. No migration. 2091 tests.
+- **1.34.0** — 2026-08-17 — The Next shell takes its own name: it becomes Marketing Hub, wears the favicon's mark, drops the Mock badge and the workspace switcher, and turns Ops Forms into a Marketing Requests inbox with the form behind a button. No migration. 2091 tests.
 - **1.33.1** — 2026-08-17 — Pre-push review of 1.33.0: a sign-out sweep that could not reach the paginated lists, a form that blamed the network for the server's own refusal, two switchers that read a failed request as an empty account, and `/brands` pointing at the Operations Hub's. No migration. 2038 tests.
 - **1.33.0** — 2026-08-17 — The Next shell stops being a mock: it signs you in, knows its workspace, lists the brands the server actually holds, and can create one. Four phases, one release; no browser pass. No migration. 2023 tests.
 - **1.32.0** — 2026-08-17 — A brand toggle takes the second row of the Next shell's nav: the feature folder was already complete, so the data half is one fixture and two routes, and the selection is a preference rather than a route. No migration. 1982 tests.
@@ -74,6 +76,273 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.34.1 — 2026-08-17
+
+**Two small changes to the Next shell's nav and one screen, plus a defect that appears to have
+closed itself.** No migration, no server change, no wire change. Four files in
+`packages/web-next`: one new fixture, one mock route block, and the nav's two lists brought back
+into step. `packages/web` is untouched.
+
+### 1. Quotations moves above Vendors
+
+Asked for directly. The interesting part is that the order lives in **two** places in
+`components/layout/nav.ts` and the sidebar renders from the second one:
+
+- `NAV_ITEMS` — the declaration, and the only place carrying the comment that justifies each
+  adjacency.
+- `NAV_GROUPS` — the `Contracts & services` group, whose `hrefs` array is what `AppSidebar`
+  actually maps over.
+
+Both moved, so the group reads **Contracts → Quotations → Vendors → Influencers**. Both comments
+were rewritten rather than carried across: each one justified the old adjacency and would have
+become a false statement about the list underneath it. Quotations now sits after Contracts
+because a quotation is what becomes one; Vendors sits after both because a vendor is the
+counterparty each is *with* — the party, not the paperwork.
+
+**The invariant had been written down since 1.31.0 and never asserted.** The file's own docstring
+says grouping "does **not** reorder, so every adjacency the comments above justify is preserved",
+and nothing enforced it. A reorder has to be made twice, and if it is made once the rendered order
+silently disagrees with every comment explaining it — which no typecheck, lint or build can see.
+`nav.test.ts` now asserts that the grouped order equals the declared order, filtered to the items
+the groups name.
+
+### 2. Influencers gets data
+
+The screen was reachable, correct and completely empty. `/contacts` was never a registered mock
+route, so it fell to rule 2 and returned `EMPTY` — not fixture rows, *no* rows. It is now
+`fixtures/influencers.ts`: **19 people across 6 agencies, and 6 independents**.
+
+The spread is chosen against the screen's conditionals rather than for volume. Four agencies hold
+two to four people, so the count badge, the collapse toggle and the `Primary` chip all render;
+two hold exactly one, where all three correctly vanish. Four rows have no email and five no phone,
+so the em-dash empty cell is on screen rather than only in `Value`'s tests. Two agencies carry no
+category, so the header renders with and without its trade chip. The names are invented — a
+fixture borrowing a real creator's name and handle would be a fabricated record about someone who
+never agreed to it.
+
+**The agencies had to come with the people, and that is why `/vendors` is registered too.**
+`ContactsBrowser` groups by vendor and resolves each `vendor_id` through `useVendorIndex`; an id
+that resolves to nothing renders as `…`, because *a pending request is never a missing fact*. So
+contacts without agencies would have been nineteen rows under a column of ellipses — a worse
+picture than no data at all. The two sets are one fixture because neither is legible alone. **The
+Vendors screen is populated as a consequence**, off the same route; that is a side effect of the
+Influencers fixture and not a separate decision about that area.
+
+Every contract and outlet aggregate on those agency rows is **0**. There are no contract fixtures,
+so a row claiming two active contracts would be a number the Contracts screen flatly contradicts.
+The vendors table renders each 0 as an em-dash, which is the honest answer.
+
+**The category filter is honest and nearly useless on this data, and that cannot be fixed here.**
+`ServiceCategory` is the Operations Hub's vocabulary of *trades* — aircon, grease trap, pest
+control — frozen in the generated `schema.d.ts`, which this app does not own and may not edit. No
+value in it names a talent agency, so the only true one is `other`, and two agencies carry `null`
+because an independent manager has no trade at all. Real influencer verticals need an enum on a
+backend that does not exist yet; inventing one here would have put a slug on screen that no server
+would accept.
+
+The list handlers filter the way the real API does rather than returning everything: search on the
+person's own name **plus their agency's name** — the rule `contact_operations` implements and
+`AGENTS.md` records — plus `vendor_id`, `category` reached by the join, and `unlinked`.
+
+### 3. `next dev` hydrates
+
+Open since 1.31.0, restated as open in 1.34.0 §7, and **it does not reproduce**. A dev server on
+:3002 served `/contacts`, and the page redirected to `/sign-in` — `AuthBoundary` running
+client-side, which is client JavaScript executing and the exact opposite of the recorded symptom
+(a permanent page-level `<Suspense>` fallback).
+
+`docs/completions/next-frontend-adoption.md` §8 is **left as it stands**, deliberately. It lists
+ten eliminated suspects and ends on "Not yet tested: an ordinary browser", and one passing load is
+not a cause. The defect was also recorded as *intermittent* — one dev load of `/outlets` hydrated
+correctly before later loads stopped doing so — so a single success is precisely the observation
+that history says not to trust. What is claimed here is the observation, not the fix.
+
+The practical consequence stands either way: **hot reload is available again**, and a review of a
+fixture-backed screen no longer costs a full production build.
+
+### 4. Verification
+
+```
+pnpm typecheck                         clean (11 packages)
+pnpm lint                              clean (whole repo)
+pnpm format:check                      clean
+pnpm test                              2091 passed | 78 skipped (171 files)
+pnpm -F @brandfactory/web build        clean
+pnpm -F @brandfactory/web-next lint    clean
+pnpm -F @brandfactory/web-next build   clean — /contacts and /vendors both static
+```
+
+**The test count is unchanged from 1.34.0, and that is not a rounding error.** §1's ordering test
+was already in the tree when 1.34.0 ran its gate, so its 2091 counted a test belonging to this
+release. Nothing here adds another.
+
+### 5. What is not verified
+
+**The Influencers screen has not been seen rendered.** The route is behind `AuthBoundary`, the
+only door on the sign-in page is a *Dev token* field, and pasting a token into a credential field
+is not something this work will do — the same wall 1.34.0 §6 and the brand-profile page both hit.
+Four things to check once signed in, at `/contacts`:
+
+1. Six agency groups plus **No vendor**, with counts on the four that hold more than one.
+2. Collapse a group, then **Collapse all** — the control appears only where something folds.
+3. **Group by vendor** off — the Vendor and Category columns appear, and the truncation cap bites.
+4. Search a person, then an agency — the second is the join the mock now implements.
+
+**The two new mock route blocks carry no test**, which is a gap worth naming rather than leaving
+to be discovered: 1.34.0 added `lib/api/mock.test.ts` for exactly this kind of routing rule one
+release earlier. The join-search branch and the `unlinked` filter are the two worth asserting,
+because neither is reachable from any screen's default state.
+
+---
+
+## 1.34.0 — 2026-08-17
+
+**The Next shell stops wearing the repository's name and starts wearing the product's.** Six
+changes asked for in one pass: the identity, the favicon, the workspace, one nav label, and the
+Ops Forms screen turned inside out. **No migration, no server change, no wire change.**
+`packages/web` is untouched and still serves production.
+
+### 1. The chrome says what the product is called
+
+`BrandFactory` becomes **Marketing Hub** everywhere a person reads it in this app — the sidebar,
+the sign-in lockup, the public form and all 17 page titles. The repository, the packages
+(`@brandfactory/*`), the server and every comment about the *codebase* keep the old name, and
+the distinction is written into `AGENTS.md` so the next sweep does not take the other half. One
+comment in `features/brands/api.ts` was caught by the sed and put back.
+
+The letter `B` in the sidebar's accent tile becomes the **Mission Systems mark** — the same
+lockup `app/icon.svg` draws, so the tab and the rail now agree. `AppLogoIcon` gained a
+`decorative` flag for it: the mark carries `role="img" aria-label="Mission Systems"` when it is
+alone and must not when it sits beside the product name, or a screen reader reads the company
+twice. The sign-in lockup had that fault already and is fixed in the same line.
+
+The **"Mock" badge is gone** from the header. It was a true statement about all fifteen Ops
+areas and is no longer true of all of them; the per-item `tag` in `nav.ts` carries the claim
+where it belongs, and now distinguishes **"Mock"** (a façade with no data layer — Quotations)
+from **"Sample"** (a working screen on fixture content — Brand profile, Marketing Requests).
+
+### 2. The favicon was still Next's
+
+`src/app/favicon.ico` was the 25,931-byte file from `create-next-app`, untouched since the shell
+was lifted in 1.31.0. It is deleted; `src/app/icon.svg` is `packages/web/public/favicon.svg` —
+the mark on the brand-green rounded square, the icon the Vite app has always served. `next build`
+lists it as a route and the emitted `<link rel="icon" … type="image/svg+xml">` was checked in a
+browser.
+
+### 3. There is one workspace, and it is no longer a control
+
+`components/layout/workspace-switcher.tsx` is **deleted** and the sidebar header is two rows
+instead of three. A person here belongs to exactly one workspace and cannot create, join or
+leave another, so a switcher was offering a choice the product does not have.
+
+What survives is the **resolution**, which is not optional: `GET /workspaces/:id/brands` is the
+only brand-list route, so a shell that does not know its workspace cannot ask for brands at all.
+`useActiveWorkspace()` therefore keeps everything except `select`, which is removed rather than
+kept for a caller that no longer exists — this app now *reads* `bf_last_workspace` and never
+writes it, so it follows wherever `packages/web` last was.
+
+The name moved into the **account menu** at the foot of the rail, under an `Account` heading and
+above the separator and Sign out, as a label/value pair with no chevron and no hover state. It
+keeps the distinction the two switchers had to learn twice in 1.33.1: `…` while the request is in
+flight, *Unavailable* on a failure, *Not set* only for a request that succeeded and returned
+nothing. Three of the four answers are not a name, and none of them is a name that is wrong.
+
+### 4. Ops Forms becomes Marketing Requests, and the screen turns around
+
+**Two forms became one.** The incident report — injuries, near-misses, food-safety concerns — is
+an operations safety record with no marketing reading of it, and keeping it made the screen a
+pick-one gallery for an audience that only ever wants one of the two. The remaining form is
+re-cut for the domain: the categories are deliverables (social post, email campaign, print
+collateral, in-store signage, photography, event, website update) rather than trades, and the
+status ladder is relabelled **New / In progress / Completed**. The *values* are still the
+backend's `new | in_review | resolved`; only the labels are this screen's to choose.
+
+**The inbox is now the page.** The old layout put the blank form in the middle and the
+submissions behind a segmented control that opened on the other tab — right for the person
+raising a request, wrong for the only person who uses this product. A marketer reads this queue
+many times for every once they raise something. So: the table is the screen, **New request** is a
+button that opens the form in a sheet, and the public `/f/request` link is a second button beside
+it. Clicking a row opens the filled-in form — the other half of "click to see the form" — with
+the status control repeated there, because the sheet is where a request is read closely enough
+to decide.
+
+The detail sheet **walks `MARKETING_REQUEST_FORM.fields`, not the payload's keys**. A payload is
+`{label: value}` with no ordering and no record of what was left blank, so reading it directly
+would shuffle the answers between rows and silently drop every unanswered question.
+
+Route, folder and label all moved: `/forms` → `/marketing-requests`, `features/forms/` →
+`features/marketing-requests/`. **The wire paths stay `/forms/{form_key}/submissions`** — the Ops
+backend's, frozen in `schema.d.ts` — which is the split 1.33.1 settled for registry-brands,
+applied on the first attempt this time. `/forms` now 404s and Next's typed routes verified every
+link.
+
+### 5. The one mutable fixture, and why rule 3 bent
+
+`fixtures/marketing-requests.ts` holds ten sample requests and **is writable**. Every other
+fixture answers `GET` and nothing else, because `mock.ts` refuses mutations with a 503 on the
+argument that a form which appears to save is worse than one that plainly cannot. That argument
+still holds and the 503 still stands everywhere else.
+
+It is answered differently here for one reason: this screen's *subject* is the mutation. An inbox
+exists to move a row from New to In progress to Completed, and a status control that errors on
+every click is not a design anyone can review. The honesty moves to the surface — a `MockBanner`
+saying the rows are held in memory, a "Sample" tag in the nav, and nothing surviving a reload.
+
+`mock.ts` gains a `WRITES` list beside `ROUTES`, deliberately separate: an unregistered *read* is
+an empty area and returns `EMPTY`, an unregistered *write* is a screen with no backend and must
+refuse — two defaults that should not share a loop. `resolveMock` takes a body now, and
+`apiFetch` parses `init.body` to supply it.
+
+`publicSubmit` also learned to check `API_MODE`. It reaches past `apiFetch` so a shared link
+never carries the app token — and in doing so it was skipping the mock swap point *inside*
+`apiFetch`, so under the default mock mode the public page could only ever fail. Reaching past
+the transport means taking on what the transport was doing.
+
+### 6. Verification
+
+```
+pnpm typecheck                         clean (11 packages)
+pnpm lint                              clean (whole repo)
+pnpm format:check                      clean
+pnpm test                              2091 passed | 78 skipped (171 files)
+pnpm -F @brandfactory/web build        clean
+pnpm -F @brandfactory/web-next lint    clean
+pnpm -F @brandfactory/web-next build   clean — /marketing-requests static, /forms gone
+```
+
+19 new tests in two files. `fixtures/marketing-requests.test.ts` (10) covers the sort order, the
+summary/submitter extraction by label, a blank answer becoming `null` rather than `""`, and an
+unknown id answering `undefined`. `lib/api/mock.test.ts` (9) covers the routing rules and — the
+point of the file — asserts **both** halves of rule 3, so widening the write exception by
+accident fails the suite rather than shipping a form that lies.
+
+**There was a partial browser pass, the first in four releases.** `next start`, and the two
+surfaces that sit outside the sign-in gate were checked in Chrome: `/sign-in` renders the
+Marketing Hub lockup and the tab reads *Sign in — Marketing Hub*; `/f/request` renders the
+lockup, the re-cut form and the corrected footer, and a real submission returned **MR-1034** —
+the public path, the mock write and the fixture's reference counter, end to end. `/forms` 404s,
+`/marketing-requests` and `/icon.svg` both serve 200.
+
+**Everything behind `AuthBoundary` is still unverified in a browser**, and that is most of this
+release: the sidebar header, the account menu, and the inbox itself. The only door on the sign-in
+page is a *Dev token* field, and pasting a token into a credential field is not something this
+work will do — the same wall the brand-profile page hit. The five things to click, once signed
+in:
+
+1. The rail's top row — the mark, *Marketing Hub*, no Mock badge, and no workspace row under it.
+2. The account tile — an **Account** heading, the workspace name, then Sign out.
+3. `/marketing-requests` — ten rows, the counts on the segmented control, and the search box.
+4. A row → the filled-in form; change its status there and in the table.
+5. **New request** → the sheet, submit, and land on the request you just made.
+
+### 7. Not in this release
+
+`docs/completions/brand-profile-next.md` still has no version and still renders sample content;
+that was its author's call and is unchanged here. `next dev` still does not hydrate (open since
+1.31.0) — verify against `next start`. No brand delete, no brand edit, no workspace create.
 
 ---
 

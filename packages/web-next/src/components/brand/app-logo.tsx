@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 /**
  * The Mission Systems mark, and the sign-in lockup built from it.
  *
- * BrandFactory ships under the Mission Systems CI and has no product logo of its own, so the
+ * Marketing Hub ships under the Mission Systems CI and has no product logo of its own, so the
  * umbrella icon stands in — the same way each sibling app (Grapestack, Workforce) carries its
  * own. Source SVG: "Mission Systems/All systems/Branding/MS-Branding-blk-icon.svg", re-fitted
  * to `currentColor` so the parent decides the ink.
@@ -13,15 +13,28 @@ import { cn } from "@/lib/utils";
  * `text-primary` there, `text-brand` here, which resolves to the same `#1d3a2a` through this
  * app's tier-2 alias. Deliberately **not** `text-surface-accent`: that alias names a *fill*,
  * and a mark drawn in `currentColor` takes ink, not a surface.
+ *
+ * `decorative` is for the one place the mark sits *beside* the product name — the sidebar's
+ * identity tile. There the label is the text, and a mark carrying its own `role="img"` makes a
+ * screen reader read the company twice. Alone (the sign-in lockup, a favicon-style tile with no
+ * text) it is the accessible name and must keep it, which is why the default is the labelled
+ * form and the caller opts out rather than in.
  */
-export function AppLogoIcon({ className }: { className?: string }) {
+export function AppLogoIcon({
+  className,
+  decorative,
+}: {
+  className?: string;
+  decorative?: boolean;
+}) {
   return (
     <svg
       viewBox="0 0 120 120"
       fill="none"
       className={className}
-      role="img"
-      aria-label="Mission Systems"
+      {...(decorative
+        ? { "aria-hidden": true as const }
+        : { role: "img", "aria-label": "Mission Systems" })}
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
@@ -42,8 +55,11 @@ export function AppLogoIcon({ className }: { className?: string }) {
 
 /**
  * The full lockup for the sign-in surface: the mark beside the product wordmark, both in the
- * one brand green. The wordmark is set text, not vector, because there is no BrandFactory
+ * one brand green. The wordmark is set text, not vector, because there is no Marketing Hub
  * wordmark asset — only the umbrella icon.
+ *
+ * The mark is `decorative` here too: the wordmark beside it already names the product, so the
+ * lockup as a whole reads once rather than as "Mission Systems, Marketing Hub".
  *
  * This is the surface's whole accent budget (§4). Nothing else on the sign-in page is green
  * except the primary button, which is one of the named accent roles.
@@ -51,8 +67,8 @@ export function AppLogoIcon({ className }: { className?: string }) {
 export function AppLogo({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-2.5 text-brand", className)}>
-      <AppLogoIcon className="h-8 w-8 shrink-0" />
-      <span className="text-3xl font-bold tracking-tight">BrandFactory</span>
+      <AppLogoIcon decorative className="h-8 w-8 shrink-0" />
+      <span className="text-3xl font-bold tracking-tight">Marketing Hub</span>
     </div>
   );
 }

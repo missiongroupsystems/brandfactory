@@ -1,6 +1,6 @@
 import { BrandProfileScreen } from "@/features/brand-profile/components/brand-profile";
 
-export const metadata = { title: "Brand profile — BrandFactory" };
+export const metadata = { title: "Brand profile — Marketing Hub" };
 
 /**
  * One named brand's profile — where the sidebar's switcher sends you.
