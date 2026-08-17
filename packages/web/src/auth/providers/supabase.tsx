@@ -5,6 +5,7 @@ import { supabase } from '@/auth/session'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { loginErrorMessage, passportStartUrl, resolveLoginRoute } from '@/auth/resolveLogin'
 
 // The client is imported, not constructed here. Two clients over one
 // localStorage session is two refresh schedulers racing each other, and the
@@ -20,6 +21,13 @@ interface MeResponse {
 function readInitialUrlError(): string | null {
   if (typeof window === 'undefined') return null
   const url = new URL(window.location.href)
+
+  // OUR OWN codes first. Both namespaces land in the same `?error=` parameter, and the
+  // generic reader below also matches a bare `error` — so checking it first would show
+  // somebody the literal string `no_access`. Order is the whole fix.
+  const ours = loginErrorMessage(url.searchParams.get('error'))
+  if (ours) return ours
+
   const queryErr = url.searchParams.get('error_description') ?? url.searchParams.get('error')
   const hash = new URLSearchParams(url.hash.slice(1))
   const hashErr = hash.get('error_description') ?? hash.get('error')
@@ -31,6 +39,22 @@ export function SupabaseAuthProvider() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(() => readInitialUrlError())
+  // Step 1 collects an email and nothing else; step 2 is whatever that email routes to.
+  // `routing` is the round trip in between.
+  //
+  // **An error in the URL starts on step 2, and that is not cosmetic.** An error here
+  // always means a sign-in attempt just failed. Starting such a visitor on step 1 gives
+  // them one control, Continue, which routes the same address back to the branch that just
+  // failed — an infinite bounce for `no_access` and `passport_sso_failed`, since neither
+  // clears by retrying. It also makes the copy lie: two of the messages say "sign in with
+  // a magic link below" and on step 1 there is no magic link below.
+  //
+  // True for Supabase's own error codes as well, for the same reason: they arrive from the
+  // app-native branch, which is where this lands.
+  const [step, setStep] = useState<'email' | 'app-native'>(() =>
+    readInitialUrlError() ? 'app-native' : 'email',
+  )
+  const [routing, setRouting] = useState(false)
   const [loading, setLoading] = useState(false)
   const setAuth = useAuthStore((s) => s.setAuth)
   const navigate = useNavigate()
@@ -49,7 +73,9 @@ export function SupabaseAuthProvider() {
           return
         }
         const data = (await res.json()) as MeResponse
-        setAuth(token, data.id)
+        // `'app-native'` stated, not defaulted: this is a sign-in, and a sign-in is the
+        // only thing that may decide the issuer. See `setAuth` in `../store`.
+        setAuth(token, data.id, 'app-native')
         // `/`, not `/workspaces`: the landing route resolves which workspace
         // to open (route → last-used-if-still-valid → oldest → first-run).
         await navigate({ to: '/' })
@@ -119,6 +145,34 @@ export function SupabaseAuthProvider() {
     if (oauthError) setError(oauthError.message)
   }
 
+  /**
+   * Step 1 — ONE field, then the app decides.
+   *
+   * A member is sent to Passport's hosted login and never sees a password step here;
+   * everyone else gets step 2 revealed in place, with no page transition.
+   *
+   * **The user is never asked which kind of account they have.** No "sign in with SSO"
+   * button, no toggle: that choice is the thing this screen exists to remove, because
+   * most people do not know the answer.
+   */
+  const handleContinue = async (e: FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setRouting(true)
+    try {
+      const route = await resolveLoginRoute(email.trim())
+      if (route === 'passport') {
+        // A FULL-PAGE navigation, not a fetch: the browser has to follow the redirect
+        // chain to Passport and back, and the PKCE verifier never leaves the server.
+        window.location.assign(passportStartUrl())
+        return
+      }
+      setStep('app-native')
+    } finally {
+      setRouting(false)
+    }
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -141,9 +195,50 @@ export function SupabaseAuthProvider() {
     }
   }
 
+  // ── Step 1 ───────────────────────────────────────────────────────────────
+  if (step === 'email') {
+    return (
+      <div className="w-full space-y-5">
+        <form onSubmit={(e) => void handleContinue(e)} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
+              required
+            />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button type="submit" className="w-full" disabled={routing || !email.trim()}>
+            {routing ? 'Checking…' : 'Continue'}
+          </Button>
+        </form>
+      </div>
+    )
+  }
+
+  // ── Step 2, the app-native branch ────────────────────────────────────────
+  //
+  // **This branch stays forever.** It is what a non-member uses, and it is what the
+  // screen degrades to when Passport is unreachable — the property that makes depending
+  // on the hosted handoff safe at all. Deleting it once SSO works would make Passport a
+  // hard availability dependency for signing in, with no way back if the OAuth
+  // configuration is wrong.
   return (
     <div className="w-full space-y-5">
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+        {/*
+          The SAME email field, still editable, rather than the address echoed back with a
+          "Change" link. Two reasons, and the second is the load-bearing one:
+
+          - a typo is the most common failure on this screen, and an editable field fixes it
+            in place, with no extra control to find;
+          - a visitor who arrives on an `?error=` starts HERE with no email at all. An echo
+            would render an empty line above a disabled button, with nothing to type into.
+        */}
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input

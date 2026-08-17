@@ -306,3 +306,182 @@ describe('startSessionSync', () => {
     expect(supa.onAuthStateChange).not.toHaveBeenCalled()
   })
 })
+
+// ---------------------------------------------------------------------------
+// The two issuers, and the property that stops a blip becoming a mass logout
+// ---------------------------------------------------------------------------
+//
+// Plan: `docs/executing/passport-sync-consumer-plan.md`, phase 6B.
+
+async function loadWithPassport(): Promise<{
+  session: typeof SessionModule
+  useAuthStore: typeof StoreModule.useAuthStore
+}> {
+  vi.stubEnv('VITE_SUPABASE_URL', 'https://own.supabase.co')
+  vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'own-anon')
+  vi.stubEnv('VITE_PASSPORT_SUPABASE_URL', 'https://passport.supabase.co')
+  vi.stubEnv('VITE_PASSPORT_SUPABASE_ANON_KEY', 'passport-anon')
+  vi.resetModules()
+  const session = await import('./session')
+  const { useAuthStore } = await import('./store')
+  return { session, useAuthStore }
+}
+
+describe('the two issuers', () => {
+  beforeEach(() => {
+    sessionStorage.clear()
+    supa.clientsCreated = 0
+    supa.getSession.mockReset()
+    supa.onAuthStateChange.mockReset()
+    supa.signOut.mockReset()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('builds no Passport client until its project is configured', async () => {
+    const { session } = await load(true)
+    // This is what keeps hosted login dark: with the project absent the login router
+    // sends everyone down the app-native branch and nothing here is reachable.
+    expect(session.passportSupabase).toBeNull()
+    expect(session.sessionClient()).toBe(session.supabase)
+  })
+
+  it('builds both clients once Passport’s project is configured', async () => {
+    const { session } = await loadWithPassport()
+    expect(session.passportSupabase).not.toBeNull()
+    // Two DISTINCT clients: a refresh token is redeemable only by the GoTrue that
+    // minted it, so one client cannot stand in for the other.
+    expect(session.passportSupabase).not.toBe(session.supabase)
+  })
+
+  it('picks the client that HOLDS the session, from the recorded issuer', async () => {
+    const { session, useAuthStore } = await loadWithPassport()
+
+    useAuthStore.getState().setAuth('t', 'u1', 'app-native')
+    expect(session.sessionClient()).toBe(session.supabase)
+
+    useAuthStore.getState().setAuth('t', 'u1', 'passport')
+    // Refreshing on the wrong client finds nothing and lets the token expire in place;
+    // signing out on the wrong client clears nothing. Both are silent.
+    expect(session.sessionClient()).toBe(session.passportSupabase)
+  })
+
+  it('remembers the issuer across a reload, and forgets it on logout', async () => {
+    const first = await loadWithPassport()
+    first.useAuthStore.getState().setAuth('t', 'u1', 'passport')
+
+    // A fresh module graph, as a page reload gives: both clients restore their own
+    // sessions independently, so the issuer has to be persisted rather than guessed.
+    const reloaded = await loadWithPassport()
+    expect(reloaded.useAuthStore.getState().issuer).toBe('passport')
+    expect(reloaded.session.sessionClient()).toBe(reloaded.session.passportSupabase)
+
+    reloaded.useAuthStore.getState().logout()
+    expect(sessionStorage.getItem('bf_token_issuer')).toBeNull()
+  })
+
+  it('answers app-native when nothing is recorded at all', async () => {
+    const { useAuthStore } = await loadWithPassport()
+    useAuthStore.getState().setAuth('t', 'u1')
+    expect(useAuthStore.getState().issuer).toBe('app-native')
+  })
+
+  // ⚠️ The one that makes the whole issuer mechanism survive a page load.
+  //
+  // `AuthBoundary`'s boot probe calls `setAuth(token, id)` with two arguments on EVERY page
+  // load of a signed-in app — it is re-confirming a session, and has no way to know which
+  // project issued it. A `issuer = 'app-native'` default would therefore rewrite a
+  // hosted-login session as app-native on the first reload, after which the refresh and the
+  // sign-out both run against the wrong GoTrue.
+  //
+  // And every symptom is delayed: the reload works, every request works, and about an hour
+  // later the person is signed out with nothing logged. Nobody connects that to a reload.
+  it('an omitted issuer PRESERVES the recorded one, as the boot probe needs', async () => {
+    const { session, useAuthStore } = await loadWithPassport()
+    useAuthStore.getState().setAuth('t1', 'u1', 'passport')
+
+    // Exactly the boot probe's call: a fresh token, the same person, no issuer.
+    useAuthStore.getState().setAuth('t2', 'u1')
+
+    expect(useAuthStore.getState().issuer).toBe('passport')
+    expect(sessionStorage.getItem('bf_token_issuer')).toBe('passport')
+    expect(session.sessionClient()).toBe(session.passportSupabase)
+  })
+
+  it('preserves it across a reload too, where the probe actually runs', async () => {
+    // The probe's call happens in a FRESH module graph, so the preserved value has to come
+    // out of sessionStorage rather than out of the store it is about to overwrite.
+    const first = await loadWithPassport()
+    first.useAuthStore.getState().setAuth('t1', 'u1', 'passport')
+
+    const reloaded = await loadWithPassport()
+    reloaded.useAuthStore.getState().setAuth('t2', 'u1')
+
+    expect(reloaded.useAuthStore.getState().issuer).toBe('passport')
+    expect(reloaded.session.sessionClient()).toBe(reloaded.session.passportSupabase)
+  })
+
+  it('lets a sign-in change the issuer, which is the only thing that may', async () => {
+    const { session, useAuthStore } = await loadWithPassport()
+    useAuthStore.getState().setAuth('t1', 'u1', 'passport')
+    // `providers/supabase.tsx` and `providers/local.tsx` state `'app-native'` explicitly for
+    // this reason: preserve-on-omit must not become "the issuer can never change".
+    useAuthStore.getState().setAuth('t2', 'u2', 'app-native')
+    expect(useAuthStore.getState().issuer).toBe('app-native')
+    expect(session.sessionClient()).toBe(session.supabase)
+  })
+
+  // ⚠️ THE outage property. A timeout or a 5xx from the refresh is indistinguishable
+  // here from a revocation, so calling `logout()` on a refresh failure would turn a
+  // ten-minute Passport blip into a mass logout of every signed-in user — who then
+  // cannot sign back in, because the thing that is down is the login.
+  //
+  // Both cases still end correctly: on an outage the stored access token is valid and
+  // requests keep working, and on a genuine revocation the access token stays valid
+  // until its own `exp` (the defined semantics of revoking a REFRESH token) after which
+  // the first 401 drives the logout through `callJson`.
+  it('a FAILED refresh keeps the stored token and does NOT log the user out', async () => {
+    const { session, useAuthStore } = await loadWithPassport()
+    useAuthStore.getState().setAuth('still-valid', 'u1', 'passport')
+
+    for (const failure of [
+      // An outage: the request never completes.
+      () => Promise.reject(new Error('network down')),
+      // A 5xx dressed as an auth error.
+      () => Promise.resolve({ data: { session: null }, error: { message: 'server error' } }),
+      // A genuine revocation, which must ALSO not log out here — the access token is
+      // still valid until it expires.
+      () => Promise.resolve({ data: { session: null }, error: { message: 'invalid grant' } }),
+    ]) {
+      supa.getSession.mockImplementationOnce(failure)
+
+      await expect(session.getFreshAuthToken()).resolves.toBe('still-valid')
+      expect(useAuthStore.getState().token).toBe('still-valid')
+    }
+  })
+
+  it('signs out on the client that holds the session, with scope local', async () => {
+    const { session, useAuthStore } = await loadWithPassport()
+    useAuthStore.getState().setAuth('t', 'u1', 'passport')
+    supa.signOut.mockResolvedValue({ error: null })
+
+    await session.signOut()
+
+    // The mock shares handlers between both clients, so this asserts the SCOPE; which
+    // client is selected is asserted above.
+    for (const call of supa.signOut.mock.calls) expect(call[0]).toEqual({ scope: 'local' })
+    expect(useAuthStore.getState().token).toBeNull()
+  })
+
+  it('mirrors session events from BOTH clients into the store', async () => {
+    const { session } = await loadWithPassport()
+    session.startSessionSync()
+
+    // Only the client holding the session emits, so subscribing to our own project
+    // alone would leave a hosted-login user's background refresh invisible to the route
+    // guards, which read the store synchronously.
+    expect(supa.onAuthStateChange).toHaveBeenCalledTimes(2)
+  })
+})

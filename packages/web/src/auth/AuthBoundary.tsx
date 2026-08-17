@@ -65,6 +65,12 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
           return
         }
         const data = (await res.json()) as Me
+        // **No issuer argument, deliberately.** This is a boot probe re-confirming a
+        // session that already exists, not a sign-in, and it has no way to know which
+        // project issued the token. Passing one — including a defaulted one — rewrites a
+        // hosted-login session as app-native on every page load, and the refresh then runs
+        // against the wrong GoTrue an hour later. `setAuth` preserves what is recorded when
+        // the argument is omitted; the reasoning is at its definition in `./store`.
         setAuth(token, data.id)
         // The probe already holds the whole row. `useMe` reads this key and
         // would otherwise fetch the identical response a second time on every

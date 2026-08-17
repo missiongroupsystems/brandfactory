@@ -31,7 +31,10 @@ export function LocalAuthProvider() {
         return
       }
       const data = (await res.json()) as MeResponse
-      setAuth(token.trim(), data.id)
+      // Stated rather than defaulted — a sign-in owns the issuer. The dev token is the
+      // app's own and has no session behind it, so `app-native` is right by default too;
+      // the point is that it is not left to a default. See `setAuth` in `../store`.
+      setAuth(token.trim(), data.id, 'app-native')
       await navigate({ to: '/' })
     } catch {
       setError('Network error — is the server running?')

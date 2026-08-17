@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.40.0** — 2026-08-18 — The login becomes one email field, and building it found two silent sign-outs: the refresh had no client to run on, and a defaulted argument undid the fix on every page load. An error arrival would have bounced for ever. No migration. 2259 tests.
 - **1.39.0** — 2026-08-17 — The conformance detectors become a test, CI learns it needs a credential for the private SDK — without which every run would have failed at install — and Renovate is deliberately NOT wired, because the preset it would extend matches nothing here. No migration. 2204 tests.
 - **1.38.0** — 2026-08-17 — Offboarding closes the gap the HTTP path cannot: a revoked member's OPEN socket. And the two-issuer resolution becomes one shared function, fixing an asymmetry 1.37.0 shipped — hosted-login users would have had working requests and a dead websocket. No migration. 2190 tests.
 - **1.37.0** — 2026-08-17 — The email-first login arrives server-side and lands DARK: two routes and never three, PKCE whose verifier never reaches the browser, and a second accepted issuer. Three bugs found — two by reading, one by curling. Migration 0014. 2168 tests.
@@ -81,6 +82,94 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.40.0 — 2026-08-18
+
+**The email-first login screen, and the two silent sign-outs it uncovered.** No migration.
+
+Full write-up:
+[`docs/completions/passport-sync-consumer-phase-6b.md`](completions/passport-sync-consumer-phase-6b.md).
+
+Still **dark**: `VITE_PASSPORT_SUPABASE_URL` and its anon key are unset, so the server routes
+everyone to the app's own login. The visible change is one extra click on the way to the magic
+link.
+
+### 1. One email field, and the app decides
+
+Step 1 is an email and a Continue button — no Google button, no "sign in with SSO", no
+toggle. Continue asks the app's own `/auth/resolve-login`, which answers `passport` or
+`app-native` and nothing else. A member gets a full-page navigation into hosted login; everyone
+else gets the magic link and Google revealed **in place**.
+
+The shape exists so that **the person is never asked which kind of account they have**, because
+most people do not know. `resolveLoginRoute` falls back to `app-native` on every failure — a
+500, a 404 from an older deployment, a network throw, a malformed body, or any `route` that is
+not the exact string `passport`. Routing a stranger into Passport strands them with no account;
+routing a member to the magic link is visible and recoverable.
+
+The app-native branch **stays forever**: it is the non-member path and the degradation path
+both.
+
+### 2. A hosted-login session had nothing to refresh it
+
+A refresh token is redeemable only by the GoTrue that minted it, and a member's session is
+issued by **Passport's** project. So the app's own client cannot refresh it — the access token
+expires in place and the person is signed out about an hour in, with nothing logged. Under the
+standard login that is every member.
+
+`session.ts` now builds a second client and picks between the two from a persisted issuer.
+`signOut` and the session sync route through the same choice, the latter subscribing to both
+clients because only the one holding the session emits.
+
+### 3. And a default undid that on every page load
+
+Worse, because it defeats §2 entirely and looks like nothing. `AuthBoundary`'s boot probe
+calls `setAuth(token, id)` on **every page load** — it re-confirms a session and cannot know
+which project issued it. With `issuer = 'app-native'` as a default, **one reload rewrote a
+hosted-login session as app-native**, after which the refresh and the sign-out both addressed
+the wrong project.
+
+An omitted issuer now **preserves** the recorded one, read from `sessionStorage` because the
+probe runs in a fresh module graph after a reload. Only a sign-in may state an issuer, and all
+three now do so explicitly.
+
+That needed a **source sweep** rather than a store test: the plausible regression is somebody
+"completing" the two-argument call with `'app-native'`, which compiles, lints, passes every
+behavioural test, and reads as more explicit than what it replaced. Proven by making exactly
+that edit.
+
+### 4. An error arrival would have bounced for ever
+
+The server redirects failures to `/login?error=<code>`. Two bugs in reading it.
+
+The **raw code was rendered** — the generic reader matched `error` first, so the lookup below
+it was unreachable and the person saw the string `no_access`.
+
+And an error arrival **started on step 1**, where the only control is Continue, which routes the
+same address back to the branch that just refused it. `no_access` and `passport_sso_failed`
+never clear by retrying, so that is an infinite bounce — and the copy promised a magic link
+"below" that was not there. Any error in the URL now starts on step 2.
+
+The fix depends on the code set being **closed**, because Supabase's own magic-link errors
+arrive in the same parameter: a catch-all would swallow a real failure and replace it with an
+SSO message. The price is that a code the browser does not know renders as nothing at all, so a
+second sweep compares the server's `fail('…')` calls against the declared set in both
+directions.
+
+### 5. `/auth/passport/complete`
+
+The session arrives in a URL **fragment**, which is never sent to a server — so the tokens
+cannot reach an access log or a `Referer`. The page strips it before branching on its contents,
+establishes the session on **Passport's** client, resolves the person through **our** `/me`, and
+records the issuer.
+
+It carries no signed-in guard, deliberately: its job is to create the session, and a stale token
+would bounce the person away before the new one exists.
+
+### 6. Gate
+
+`pnpm typecheck`, `pnpm lint`, `pnpm format:check` and `pnpm -F @brandfactory/web build` all
+pass. `pnpm test` reports **2259 passed | 92 skipped** (+55).
 
 ## 1.39.0 — 2026-08-17
 

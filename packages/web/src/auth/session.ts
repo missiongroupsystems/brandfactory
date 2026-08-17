@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { getAuthToken, useAuthStore } from '@/auth/store'
+import { getAuthToken, getTokenIssuer, useAuthStore } from '@/auth/store'
 
 // The Supabase client lives here, at module scope, rather than inside the
 // login component. That placement is the whole point: a client that only
@@ -23,6 +23,49 @@ export const supabase: SupabaseClient | null =
       })
     : null
 
+/**
+ * A SECOND client, bound to **Passport's** Supabase project.
+ *
+ * Under hosted login the session is issued by Passport's project, and a refresh token
+ * is redeemable only by the GoTrue that minted it. So without this client every
+ * hosted-login user is **silently signed out at token expiry** — roughly an hour in,
+ * with nothing logged and no error to find. It is not an edge case: under the standard
+ * login, every member's session is Passport-issued.
+ *
+ * Null until `VITE_PASSPORT_SUPABASE_URL` and its anon key are set, which is what keeps
+ * this dark: with them absent the login router sends everyone down the app-native
+ * branch and nothing here is ever reached.
+ *
+ * **Anon key, never a service-role key** — this file is bundled into the browser.
+ *
+ * Defined HERE, beside the app's own client and beside `getSession`, so the callback
+ * that establishes a session and the path that later refreshes it cannot end up using
+ * different clients. That divergence writes one cookie name and reads another: sign-in
+ * appears to work and fails on the very next request, with nothing in either log to
+ * connect the two.
+ */
+const passportUrl = import.meta.env.VITE_PASSPORT_SUPABASE_URL
+const passportKey = import.meta.env.VITE_PASSPORT_SUPABASE_ANON_KEY
+
+export const passportSupabase: SupabaseClient | null =
+  passportUrl && passportKey
+    ? createClient(passportUrl, passportKey, {
+        // Same reasoning as the client above: for hosted login the code exchange runs
+        // on the SERVER, so this client must not try to read the URL.
+        auth: { detectSessionInUrl: false, flowType: 'pkce' },
+      })
+    : null
+
+/**
+ * The client that actually holds this tab's session.
+ *
+ * Chosen from the recorded issuer rather than by asking both, because guessing wrong is
+ * silent in both directions — see `TokenIssuer` in `./store`.
+ */
+export function sessionClient(): SupabaseClient | null {
+  return getTokenIssuer() === 'passport' ? passportSupabase : supabase
+}
+
 // De-dupes concurrent `getSession()` calls. A brand page mounts several
 // queries at once and each one asks for a token; supabase-js serialises
 // refreshes internally, but there is no reason to queue five identical awaits
@@ -31,10 +74,15 @@ let inFlight: Promise<string | null> | null = null
 
 async function readSessionToken(): Promise<string | null> {
   try {
+    // On the client that HOLDS the session: a Passport-issued refresh token is
+    // redeemable only by Passport's GoTrue.
+    const client = sessionClient()
+    if (!client) return getAuthToken()
+
     // `getSession()` is the refresh point, not just a getter: supabase-js
     // checks `expires_at` and transparently redeems the refresh token when the
     // access token has expired or is about to.
-    const { data, error } = await supabase!.auth.getSession()
+    const { data, error } = await client.auth.getSession()
     const token = data.session?.access_token
     if (error || !token) {
       // No usable session. Fall back to whatever is stored and let the server
@@ -42,6 +90,19 @@ async function readSessionToken(): Promise<string | null> {
       // earns drives the logout path, which is the correct outcome. Returning
       // null here would instead send an *unauthenticated* request, which is
       // the same 401 with less information in the server log.
+      //
+      // ⚠️ **DO NOT add `logout()` here, however tempting it looks.** This fallback is
+      // what makes a Passport outage degrade instead of erasing everyone: a timeout or
+      // a 5xx from the refresh is indistinguishable *at this point* from a revocation,
+      // and treating either as "signed out" turns a ten-minute blip into a mass logout
+      // of every signed-in user — who then cannot sign back in, because the thing that
+      // is down is the login.
+      //
+      // Both cases already end correctly without it. On an outage the stored access
+      // token is still valid and requests keep working. On a genuine revocation the
+      // access token stays valid until its own `exp` — which is the defined semantics
+      // of revoking a REFRESH token — and the first 401 after that drives the logout
+      // through `callJson`. Pinned by a test in `session.test.ts`.
       return getAuthToken()
     }
     // Keep the store in step with the session. Route guards (`beforeLoad`) and
@@ -65,7 +126,7 @@ async function readSessionToken(): Promise<string | null> {
 export async function getFreshAuthToken(): Promise<string | null> {
   // Local dev auth is a static server-printed token with no session behind it
   // and nothing to refresh.
-  if (!supabase) return getAuthToken()
+  if (!sessionClient()) return getAuthToken()
 
   inFlight ??= readSessionToken().finally(() => {
     inFlight = null
@@ -123,12 +184,17 @@ export async function getFreshAuthToken(): Promise<string | null> {
  * local dev auth has no session behind it and no event to emit at all.
  */
 export async function signOut(): Promise<void> {
-  if (supabase) {
-    const failed = await supabase.auth
+  // On the client that HOLDS the session. The two clients write differently-named
+  // cookies, so signing out with the wrong one clears nothing that matters and the
+  // person stays signed in — the mirror image of the refresh trap above, and just as
+  // quiet.
+  const client = sessionClient()
+  if (client) {
+    const failed = await client.auth
       .signOut({ scope: 'local' })
       .then(({ error }) => !!error)
       .catch(() => true)
-    if (failed) await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
+    if (failed) await client.auth.signOut({ scope: 'local' }).catch(() => undefined)
   }
   useAuthStore.getState().logout()
 }
@@ -141,16 +207,24 @@ let syncStarted = false
 // StrictMode mounts effects twice and a second subscription would double every
 // store write.
 export function startSessionSync(): void {
-  if (!supabase || syncStarted) return
+  if (syncStarted) return
+  const clients = [supabase, passportSupabase].filter((c): c is SupabaseClient => c !== null)
+  if (clients.length === 0) return
   syncStarted = true
 
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_OUT') {
-      useAuthStore.getState().logout()
-      return
-    }
-    if (session?.access_token && session.access_token !== getAuthToken()) {
-      useAuthStore.getState().setToken(session.access_token)
-    }
-  })
+  // BOTH clients, because either may hold the session and only the one holding it
+  // emits. Subscribing to our own project alone would leave a hosted-login user's
+  // background refresh invisible to the route guards, which read the store
+  // synchronously — the exact staleness this sync exists to prevent.
+  for (const client of clients) {
+    client.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        useAuthStore.getState().logout()
+        return
+      }
+      if (session?.access_token && session.access_token !== getAuthToken()) {
+        useAuthStore.getState().setToken(session.access_token)
+      }
+    })
+  }
 }

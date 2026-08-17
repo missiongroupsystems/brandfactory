@@ -3,6 +3,7 @@ import { RouteError, RoutePending } from '@/components/RouteError'
 import { rootRoute } from '@/routes/__root'
 import { indexRoute } from '@/routes/index'
 import { loginRoute } from '@/routes/login'
+import { passportCompleteRoute } from '@/routes/auth.passport.complete'
 import { workspacesIndexRoute } from '@/routes/workspaces.index'
 import { workspaceDetailRoute } from '@/routes/workspaces.$wsId.index'
 import { workspaceSettingsRoute } from '@/routes/workspaces.$wsId.settings'
@@ -19,6 +20,7 @@ import { projectRoute } from '@/routes/projects.$projectId'
 const appRoutes = [
   indexRoute,
   loginRoute,
+  passportCompleteRoute,
   workspacesIndexRoute,
   workspaceDetailRoute,
   workspaceSettingsRoute,
