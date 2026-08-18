@@ -3,6 +3,11 @@
 import { SearchIcon, SlidersHorizontalIcon, XIcon } from "lucide-react";
 import type * as React from "react";
 
+import {
+  ViewSettings,
+  ViewSettingsSlotClaimed,
+  useViewSettingsSlotTaken,
+} from "@/components/layout/view-settings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,14 +27,41 @@ export function FilterBar({
   children,
   activeCount,
   onClear,
+  density = true,
+  settings,
+  settingsModified,
 }: {
   children: React.ReactNode;
   activeCount: number;
   onClear: () => void;
+  /**
+   * Whether to offer the row-height control — see {@link ViewSettings}. On by default, because
+   * every screen rendering a `FilterBar` today renders a table under it.
+   */
+  density?: boolean;
+  /** Extra presentation controls for the **View** panel — see {@link ViewSettings}. */
+  settings?: React.ReactNode;
+  /** Whether those controls are away from their defaults, which lights the trigger. */
+  settingsModified?: boolean;
 }) {
+  // Nested inside a `FilterToolbar` on `/outlets`, `/vendors` and `/contracts`, which has already
+  // rendered the panel for the whole row. Two **View** buttons side by side is what this reads.
+  const taken = useViewSettingsSlotTaken();
+
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
       {children}
+
+      {/* After the filters and BEFORE "Clear", which is the only position that does not move.
+          Put last it would slide sideways every time a filter is set or cleared — a control that
+          changes place while you are using it. It is not a filter and is not counted by
+          `activeCount`: it narrows nothing, and "Clear 3 filters" must never mean "and put the
+          rows back to 48px". */}
+      {!taken && (density || settings) ? (
+        <ViewSettings density={density} modified={settingsModified}>
+          {settings}
+        </ViewSettings>
+      ) : null}
 
       {/* Only rendered when something is filtered. A permanently-visible "Clear" on an unfiltered
           table is a button that does nothing, and one that grows the row by 40px for the whole
@@ -168,18 +200,40 @@ export function SearchField({
 export function FilterToolbar({
   children,
   actions,
+  density = true,
+  settings,
+  settingsModified,
 }: {
   children: React.ReactNode;
   /** View controls and the primary action — the right cluster. */
   actions?: React.ReactNode;
+  /** See `FilterBar` — same default, same reason. */
+  density?: boolean;
+  /** Extra presentation controls for the **View** panel — see {@link ViewSettings}. */
+  settings?: React.ReactNode;
+  /** Whether those controls are away from their defaults, which lights the trigger. */
+  settingsModified?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{children}</div>
-      {actions ? (
-        <div className="flex flex-wrap items-center gap-2">{actions}</div>
-      ) : null}
-    </div>
+    // The claim covers the whole row, so a `FilterBar` passed as `children` — which is what
+    // `/outlets`, `/vendors` and `/contracts` do — renders no second trigger.
+    <ViewSettingsSlotClaimed>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          {children}
+          {/* Last in the LEFT cluster, beside Filters rather than beside the primary action. Both
+              are questions about the table below — one narrows what is in it, the other decides
+              how it is drawn — and the right cluster is where the thing that *writes a row*
+              lives. Putting a reading preference there would sit it next to "Add creator". */}
+          {density || settings ? (
+            <ViewSettings density={density} modified={settingsModified}>
+              {settings}
+            </ViewSettings>
+          ) : null}
+        </div>
+        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      </div>
+    </ViewSettingsSlotClaimed>
   );
 }
 

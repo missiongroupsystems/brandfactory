@@ -443,9 +443,24 @@ grouped, 20px either way) or the whole first column reads as misaligned. Collaps
 `useState`, not the URL — it is a reading posture, and thirty ids would swamp the link
 `useQueryFilters` works to keep pasteable.
 
-**Do not add column sorting.** No list endpoint takes a sort parameter, so a sortable header could
-only reorder the rows already fetched — on a paginated list, sorting by name puts "Zephyr" at the
-top of page one while "Alma" sits unfetched on page three. It needs backend support first.
+**Do not add column sorting to a paginated list.** No list endpoint takes a sort parameter, so a
+sortable header can only reorder the rows already fetched — on a cursor-paginated list, sorting by
+name puts "Zephyr" at the top of page one while "Alma" sits unfetched on page three. Every list in
+this package is in that state except one, so this is still the default answer.
+
+**The exception is an exhaustive endpoint, and the property is what earns it — not the screen.**
+`GET /workspaces/:id/influencers` returns the whole roster in one response, which is the same
+property that lets `/influencers` claim true band counts and a real total in its footer. With no
+page two there is nothing unfetched to sort wrongly, so `features/influencers/sort.ts` orders the
+array the client already holds and `components/layout/sortable-head.tsx` renders the heading.
+Three obligations come with it. **A sort belongs in the URL** (`?sort=`/`?dir=`) like every other
+thing that describes what is on screen — the row height beside it does not, see below. **Sorting
+and grouping are exclusive**: a sort inside the tier bands gives the table two orders at once, so
+a click on a heading writes `group=none` and the grouping toggle clears the sort. And **the order
+must be total** — ties fall back to the server's own comparator, or a column with three distinct
+values reshuffles its rows every time a filter changes. The moment that endpoint paginates, the
+sort moves to SQL with the cursor; `listInfluencersByWorkspace` names ~150 rows as the tripwire
+and the roster is at 146.
 
 **A list search matches the thing's own name/title plus the name of the one entity that
 *identifies* it (its counterparty) — not full-text across every joined field, and not a
@@ -557,10 +572,21 @@ Do not put fetched data in a store. And do not call a transport from a component
 layer exists so identity is established in one place rather than in a search across the app.
 
 **A user preference is not server state either**, and it is not `useQueryFilters`. The active
-workspace and the active brand are both `localStorage` through `lib/stored-preference.ts` —
+workspace, the active brand and the **table row height** are all `localStorage` through
+`lib/stored-preference.ts` —
 `useSyncExternalStore` with a `null` server snapshot, because reading storage during render is
 wrong on the server and seeding from an effect is `react-hooks/set-state-in-effect`. The root
 `CLAUDE.md` records the same call for `sidebar-prefs.ts` and `key-dates-prefs.ts`.
+
+Row height is the clearest case of the line, and `lib/table-density.ts` states it: filters,
+grouping and sorting go in the URL because they describe *what is on screen* and a pasted link has
+to reproduce it; density describes *how the reader likes to look at it*, and a link carrying one
+would impose one person's eyesight on somebody else's. The ladder is three literal Tailwind
+classes per rung — never `h-[${n}px]`, which emits no CSS at all — applied by
+`components/ui/table.tsx` through a context `Table` provides once, and offered by the **View**
+panel that `FilterBar` and `FilterToolbar` render for every list screen. A grouped table's band
+cannot inherit the cell height (it is a cell with `p-0` and a button inside), so it asks
+`useTableDensityClasses` for the same rung.
 
 **The brand half of that is now demoted, which is the promise this note made coming due.** It said
 the route would win and the preference become the fallback once brand-scoped routes existed. They

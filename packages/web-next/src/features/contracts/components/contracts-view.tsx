@@ -64,6 +64,7 @@ import {
   formatRelativeShort,
   PENDING,
 } from "@/lib/format";
+import { useTableDensityClasses } from "@/lib/table-density";
 import { cn } from "@/lib/utils";
 import {
   BILLING_FREQUENCY_LABELS,
@@ -920,6 +921,10 @@ function ContractResults({
    *  because it is the URL, and this component is remounted whenever the URL changes. */
   categoryFilter: CategoryFilter;
 }) {
+  // The band cannot inherit the row height — it is a cell with `p-0` and a button inside — so it
+  // asks the ladder for the rung the cells got (`lib/table-density.ts`).
+  const { band } = useTableDensityClasses();
+
   const columns = React.useMemo(
     () => COLUMNS.filter((column) => visibleColumns.has(column.id)),
     [visibleColumns],
@@ -1113,13 +1118,16 @@ function ContractResults({
                             first time somebody hides a column — visible, and only then. */}
                         <TableCell
                           colSpan={columns.length}
-                          className={cn("h-11 border-l-4 p-0", rail.band)}
+                          className={cn("border-l-4 p-0", band, rail.band)}
                         >
                           <button
                             type="button"
                             onClick={() => toggleGroup(key)}
                             aria-expanded={!isCollapsed}
-                            className="flex h-11 w-full items-center gap-2 pr-5 pl-3.5 text-left"
+                            className={cn(
+                              "flex w-full items-center gap-2 pr-5 pl-3.5 text-left",
+                              band,
+                            )}
                           >
                             <ChevronDownIcon
                               aria-hidden

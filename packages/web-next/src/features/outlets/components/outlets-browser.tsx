@@ -43,6 +43,7 @@ import {
   OUTLET_TYPE_OPTIONS,
 } from "@/lib/labels";
 import { outletHref } from "@/lib/outlet-href";
+import { useTableDensityClasses } from "@/lib/table-density";
 import { cn } from "@/lib/utils";
 
 import { useOutlets } from "../hooks";
@@ -410,6 +411,10 @@ function GroupedOutlets({
   onFilterBrand: (brandId: string) => void;
   onEdit: (outlet: Outlet) => void;
 }) {
+  // The band cannot inherit the row height — it is a cell with `p-0` and a button inside — so it
+  // asks the ladder for the rung the cells got (`lib/table-density.ts`).
+  const { band } = useTableDensityClasses();
+
   const groups = React.useMemo(() => {
     const buckets = new Map<string | null, Outlet[]>();
     for (const outlet of outlets) {
@@ -475,12 +480,15 @@ function GroupedOutlets({
               return (
                 <React.Fragment key={key}>
                   <TableRow className="border-t border-border bg-surface-sunken hover:bg-surface-sunken">
-                    <TableCell colSpan={COLUMNS} className={cn("h-11 border-l-4 p-0", rail.band)}>
+                    <TableCell
+                      colSpan={COLUMNS}
+                      className={cn("border-l-4 p-0", band, rail.band)}
+                    >
                       <button
                         type="button"
                         onClick={() => toggleGroup(key)}
                         aria-expanded={!isCollapsed}
-                        className="flex h-11 w-full items-center gap-2 pr-5 pl-4 text-left"
+                        className={cn("flex w-full items-center gap-2 pr-5 pl-4 text-left", band)}
                       >
                         <ChevronDownIcon
                           aria-hidden

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.48.0** — 2026-08-18 — The reader gets two controls the tables never offered: a row height that is a preference rather than a URL parameter, on a **View** panel every list screen now carries, and eight sortable headings on the one list with no page two — which is why the ban on sorting keeps its reason and gains a property. No migration. 2638 tests.
 - **1.47.0** — 2026-08-18 — The nineteen invented creators leave and the real Curly's media list arrives: 146 people, 216 accounts, and a tier table that is finally right because Lennard Yeong is Mega only as a sum. Five rows did not import rather than guess at a stranger. Written into production. No migration. 2592 tests.
 - **1.46.0** — 2026-08-18 — A creator stops being an account: one to ten of those hang off the person now, so a roster of nineteen rows is nineteen people, reach is the sum of what they post from, and the tier bands count the case they used to file three times. Six phases and a hardening pass. Migration 0016. 2584 tests.
 - **1.45.0** — 2026-08-18 — `Brand pillars` stops being an empty box and becomes a design: five cards with a title, a commitment and a glyph, capped at five because a brand that stands on nine things stands on nothing. Hardcoded, stated twice as a sample. No migration. 2375 tests.
@@ -96,6 +97,106 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.48.0 — 2026-08-18
+
+**Row height becomes a reader preference on every table in the Marketing Hub, and the columns on
+`/influencers` sort.**
+
+Two controls the tables never offered, asked for together and kept apart everywhere below,
+because they are two different kinds of thing. No migration. 2638 tests (2491 passing, 147 skipped
+without a database; 46 of them new).
+
+### The row was 48px because shadcn said so
+
+`components/ui/table.tsx` said `h-12` and no reader had ever been asked. The roster is 146 people:
+on a 900px viewport that is fourteen rows out of a hundred and forty-six, and scanning a media
+list — the first thing anybody does with one — costs ten screens.
+
+Three rungs now, `comfortable` · `cosy` · `compact`, at 48 / 40 / 32px. **The default is
+comfortable**, which is what the app already shipped: a release that adds a control and silently
+re-draws twenty-two tables for everybody who never touches it is a redesign wearing a control's
+clothes.
+
+**32px is a floor rather than a taste.** `Badge` is `h-6` and a CSS row height is a minimum, so a
+row carrying a status pill cannot render shorter than 24 + 2×4 whatever the map claims — a tighter
+rung would produce a table whose rows are two different heights depending on whether the cell holds
+a pill. Horizontal padding rides the same rung, because it passes the test height passes and type
+size fails: it changes how much fits without changing what any cell says. Type size is deliberately
+off the ladder — `max-w-[24ch]` on the Brands cell is measured in characters, so a smaller face
+would silently re-truncate it.
+
+Every height is a **literal Tailwind class**. `h-[${n}px]` emits no CSS at all, which is the trap
+AGENTS.md already records for the group rails, so the numbers live only in the test — it parses the
+class strings back and asserts the ladder descends on all six axes.
+
+### It is a preference, so it is not in the URL
+
+`lib/stored-preference.ts` gains its third consumer after the active workspace and the active
+brand, and row height is the clearest case of the line those two draw. Filters, grouping and now
+sorting live in the URL because they describe *what is on screen* and a pasted link has to
+reproduce it. Density describes *how the reader likes to look at it*, and a link carrying one would
+impose one person's eyesight on somebody else's.
+
+No pre-paint script, unlike the sibling app this is modelled on: every table here is a client
+component behind SWR that renders `LoadingRows` first, so hydration is long finished by the time a
+real row exists. The skeleton is on the ladder too — a fixed 40px bar over 32px rows is a card that
+shrinks the moment the data lands.
+
+### One **View** panel, twenty toolbars, and the nesting bug it had to dodge
+
+`FilterBar` and `FilterToolbar` render the panel themselves, which is what put the control on every
+list screen in one edit rather than in twenty that would each need remembering. A panel rather than
+three bare buttons on the row, on arithmetic: `/influencers` already carried five controls, and a
+sixth wrapped the row and stranded the cluster on a line of its own.
+
+**Three screens nest the two containers** — `/outlets`, `/vendors` and `/contracts` put a
+`FilterBar` inside a `FilterToolbar` — so the slot is claimed through context and the inner one
+renders nothing. A `density={false}` prop at three call sites would have been a rule enforced by
+whoever remembers it, and the fourth screen to nest them would ship two **View** buttons.
+
+The trigger's active state deliberately ignores the density: it is a remembered preference, so
+counting it would light the trigger up permanently for anybody who once chose 32px rows, and a
+signal that is always on is not a signal.
+
+### The sorting ban keeps its reason and gains a property
+
+AGENTS.md forbids column sorting, and the reasoning is exact: no list endpoint takes a sort
+parameter, so a client-side sort on a cursor-paginated list puts Zephyr at the top of page one
+while Alma sits unfetched on page three.
+
+That is a rule **about pagination**, and `/influencers` is the one list with no page two.
+`GET /workspaces/:id/influencers` answers the whole roster — the same property that already lets
+the bands claim true counts and the footer print a real total — so an order computed on the client
+is an order over everything there is. The rule now names the property rather than the screen, and
+carries the tripwire: `listInfluencersByWorkspace` plans its keyset cursor at ~150 rows and the
+roster is at 146.
+
+**Sorting turns the grouping off**, and the two are exclusive rather than composed. A sort inside
+the tier bands gives the table two orders at once, and it makes the screen's one strong claim
+ambiguous — the bands exist to say *this is what reach buys*, which is a statement about ordering,
+and a band whose rows are alphabetical stops making it. A click on a heading writes `group=none`
+with the sort and the Tier column comes back; the grouping toggle clears the sort. Clearing the
+sort does **not** re-group: the reader turned the bands off, and putting them back as the order
+returns to default is a second change nobody asked for.
+
+**Every column sorts by what it shows.** Text A→Z with `localeCompare`, so an accented name files
+with its letter rather than after Z — this roster is full of them. Numbers 1→n. The two set-valued
+columns, Platforms and Brands, order by **how many**, which is said on the control rather than left
+to be discovered: a cell reading `Instagram, TikTok` has no alphabet of its own. Tier orders by the
+band's floor, because `Mega` before `Micro` alphabetically is the one ordering of those five words
+that means nothing. Status orders alphabetically and not by the enum's own active/prospect/past: a
+reader clicking a heading marked A→Z has been promised A→Z.
+
+Two rules keep the order total. **Unmeasured engagement is last in both directions** — the media
+list measures nobody, so most of the table is `null`, and sorting those creators to the top of an
+ascending list would say they have the worst engagement rather than no measurement. **Ties fall
+back to the server's own comparator**, reach descending then name then id: Status has three values
+across 146 rows, so without it the rows inside one status would reshuffle every time a filter
+changed.
+
+Three states per column — ascending, descending, off — and off is the server's reach order, which
+is what the screen opens in. A two-state toggle would strand the reader away from the default.
 
 ## 1.47.0 — 2026-08-18
 

@@ -6,6 +6,8 @@ import type * as React from "react";
 import { AppError } from "@/lib/api/bf-client";
 import { ApiError } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTableDensityClasses } from "@/lib/table-density";
+import { cn } from "@/lib/utils";
 
 /**
  * The three states every SWR-backed list has to render, in one place.
@@ -39,7 +41,18 @@ export function PageState({ children }: { children: React.ReactNode }) {
   return <div className="px-6 md:px-8">{children}</div>;
 }
 
+/**
+ * The placeholder rows, at the height the real rows will arrive at.
+ *
+ * **The bar follows the reader's row height** (`lib/table-density.ts`). A skeleton exists to be
+ * the shape of the content it stands in for, and a fixed 40px bar over a table the reader has
+ * set to 32px rows is a card that shrinks the moment the data lands — the jump this component
+ * exists to prevent. It reads the store rather than the `<Table>` context because it renders
+ * *instead of* a table, so there is no provider above it.
+ */
 export function LoadingRows({ rows = 5 }: { rows?: number }) {
+  const density = useTableDensityClasses();
+
   return (
     // On a card rather than bare: beige shimmer on the sunken canvas is invisible.
     <div
@@ -49,7 +62,7 @@ export function LoadingRows({ rows = 5 }: { rows?: number }) {
     >
       <span className="sr-only">Loading</span>
       {Array.from({ length: rows }, (_, i) => (
-        <Skeleton key={i} className="h-10 w-full" />
+        <Skeleton key={i} className={cn("w-full", density.skeleton)} />
       ))}
     </div>
   );

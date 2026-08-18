@@ -24,6 +24,7 @@ import {
 import { type GroupRail } from "@/components/layout/group-rail";
 import { HighlightMatch } from "@/components/layout/highlight-match";
 import { EmptyState, LoadingRows, QueryError } from "@/components/layout/query-states";
+import { SortableHead } from "@/components/layout/sortable-head";
 import { TableCard, Value } from "@/components/layout/table-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -50,11 +50,19 @@ import {
   INFLUENCER_VERTICAL_LABELS,
   INFLUENCER_VERTICAL_OPTIONS,
 } from "@/lib/labels";
+import { useTableDensityClasses } from "@/lib/table-density";
 import { cn } from "@/lib/utils";
 
 import { formatAccountCount, formatEngagement, GENERALIST } from "../format";
 import { useInfluencers } from "../hooks";
 import { influencerHref } from "../href";
+import {
+  type InfluencerSort,
+  nextSort,
+  parseSort,
+  type SortKey,
+  sortInfluencers,
+} from "../sort";
 import { railForTier, REACH_TIERS, type ReachTier, tierFor } from "../tiers";
 import { InfluencerForm } from "./influencer-form";
 import { SyncInfluencersButton } from "./sync-influencers-button";
@@ -70,10 +78,15 @@ const FILTER_KEYS = ["q", "platform", "vertical", "status", "brandId"] as const;
  */
 const PANEL_KEYS = ["platform", "vertical", "status", "brandId"] as const;
 
-// `group` re-arranges rows already on screen, so it lives on its own `useQueryFilters` instance
-// and "Clear filters" leaves it alone. The same split `/contracts` makes; the difference here is
-// which way round the default sits.
-const VIEW_KEYS = ["group"] as const;
+// `group` and the sort both re-arrange rows already on screen, so they live on their own
+// `useQueryFilters` instance and "Clear filters" leaves them alone. The same split `/contracts`
+// makes; the difference here is which way round the default sits.
+//
+// **They are in the URL and the row height is not**, which is the line this screen now draws
+// twice. A sort describes what is on screen and a pasted link has to reproduce it; a row height
+// describes how the reader likes to look at it, and a link that carried one would impose one
+// person's eyesight on somebody else's. See `lib/table-density.ts`.
+const VIEW_KEYS = ["group", "sort", "dir"] as const;
 
 /** The one value this screen writes to turn grouping off. Grouping is the default, so the *off*
  *  state is what appears in the URL. */
@@ -108,7 +121,7 @@ const GROUP_NONE = "none";
  */
 export function InfluencersBrowser() {
   const { filters, setFilter, setFilters, clearAll } = useQueryFilters(FILTER_KEYS);
-  const { filters: viewFilters, setFilter: setViewFilter } = useQueryFilters(VIEW_KEYS);
+  const { filters: viewFilters, setFilters: setViewFilters } = useQueryFilters(VIEW_KEYS);
 
   /**
    * **The workspace's real brands, not `useBrandIndex`.**
@@ -134,13 +147,68 @@ export function InfluencersBrowser() {
     return map;
   }, [brands]);
 
+  /**
+   * The order the rows are in, or `null` for the server's own — reach descending, which is what
+   * the tier bands are built on and what the screen opens in.
+   */
+  const sort = parseSort(viewFilters.sort, viewFilters.dir);
+
   // Grouped unless explicitly turned off. Written as "is it the string `none`" rather than as a
   // truthiness test, so an unrecognised value falls back to the default rather than to flat.
-  const grouped = viewFilters.group !== GROUP_NONE;
+  //
+  // **A sort turns the bands off**, and the two controls are exclusive rather than composed. A
+  // sort inside the bands would give the table two orders at once — bands by reach, rows by name
+  // — and the reader would have to hold both to predict where a row is. Worse, it makes the
+  // screen's one strong claim ambiguous: the bands exist to say *this is what reach buys*, which
+  // is a statement about ordering, and a band whose rows are alphabetical stops making it.
+  //
+  // Belt and braces: the handlers below write `group=none` with every sort, so this second guard
+  // only matters for a hand-edited URL carrying both.
+  const grouped = !sort && viewFilters.group !== GROUP_NONE;
 
   const brandOptions = React.useMemo(
     () => brands.map((brand) => ({ value: brand.id, label: brand.name })),
     [brands],
+  );
+
+  /**
+   * A click on a heading: ascending, then descending, then back to the server's order.
+   *
+   * One `setFilters` and not three `setFilter` calls — they each build from the same rendered
+   * params, so the last would win and drop the other two (see `setFilters`' docstring). The
+   * grouping goes off in the same write, because a URL is a state and a state that says both is
+   * a state somebody has to resolve at read time.
+   *
+   * **Clearing the sort does not bring the bands back.** The reader turned them off by sorting,
+   * and re-grouping under them as the order returns to default would be a second change they did
+   * not ask for. `Group by reach` is one click away and says what it does.
+   */
+  const applySort = React.useCallback(
+    (key: SortKey) => {
+      const next = nextSort(sort, key);
+      setViewFilters({
+        sort: next?.key ?? null,
+        dir: next?.direction ?? null,
+        group: GROUP_NONE,
+      });
+    },
+    [sort, setViewFilters],
+  );
+
+  /**
+   * The grouping toggle, which **clears the sort when it turns the bands on**.
+   *
+   * The other half of the exclusivity above. Without it, pressing `Group by reach` while sorted
+   * by name would either be a button that does nothing visible or a table that quietly ignores
+   * the sort still named in its own URL.
+   */
+  const setGrouped = React.useCallback(
+    (next: boolean) => {
+      setViewFilters(
+        next ? { group: null, sort: null, dir: null } : { group: GROUP_NONE },
+      );
+    },
+    [setViewFilters],
   );
 
   /** Clears the panel's four and leaves the search term alone — one write, because two
@@ -216,10 +284,7 @@ export function InfluencersBrowser() {
               {/* A view control, not a filter — `ToggleButton`, as AGENTS.md requires, so it does
                   not read as a fifth select. Pressed means grouped, which is the default, so the
                   *off* state is what writes to the URL. */}
-              <ToggleButton
-                pressed={grouped}
-                onPressedChange={(next) => setViewFilter("group", next ? undefined : GROUP_NONE)}
-              >
+              <ToggleButton pressed={grouped} onPressedChange={setGrouped}>
                 <LayersIcon data-icon="inline-start" />
                 Group by reach
               </ToggleButton>
@@ -298,6 +363,8 @@ export function InfluencersBrowser() {
       <InfluencerResults
         filters={{ ...filters, q: debouncedQ }}
         grouped={grouped}
+        sort={sort}
+        onSort={applySort}
         brandById={brandById}
       />
 
@@ -308,6 +375,17 @@ export function InfluencersBrowser() {
       <InfluencerForm open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
+}
+
+/**
+ * Which way this column is pointing, or `null` when the table is ordered by another one.
+ *
+ * A one-line adapter between the URL's single sort and eight headings that each have to know
+ * whether they are the active one. Written here rather than in `sort.ts` because it is about the
+ * control's state and not about the order.
+ */
+function directionOf(sort: InfluencerSort | null, key: SortKey): "asc" | "desc" | null {
+  return sort?.key === key ? sort.direction : null;
 }
 
 type TierGroup = {
@@ -398,10 +476,15 @@ function groupByTier(influencers: Influencer[]): TierGroup[] {
 function InfluencerResults({
   filters,
   grouped,
+  sort,
+  onSort,
   brandById,
 }: {
   filters: Partial<Record<(typeof FILTER_KEYS)[number], string>>;
   grouped: boolean;
+  /** `null` is the server's own order — reach descending — which is what the bands are built on. */
+  sort: InfluencerSort | null;
+  onSort: (key: SortKey) => void;
   brandById: Map<string, BrandSummary>;
 }) {
   // Which bands are folded away. A Set rather than a per-group `open` flag so the default is
@@ -417,6 +500,15 @@ function InfluencerResults({
   );
 
   const groups = React.useMemo(() => (grouped ? groupByTier(items) : null), [grouped, items]);
+
+  /**
+   * The flat table's rows, in the reader's order.
+   *
+   * Only computed for the flat table: a sort turns the bands off, so `groups` and this are never
+   * both in play. `sortInfluencers` copies before sorting — `items` is a `useMemo` over SWR's
+   * cached array, and sorting it in place would reorder the cache every other consumer reads.
+   */
+  const rows = React.useMemo(() => sortInfluencers(items, sort), [items, sort]);
 
   // Only bands with something to hide get a toggle — a chevron that folds away a single row is a
   // control with no purpose. Collapse-all follows: it appears only when at least one band is
@@ -480,19 +572,64 @@ function InfluencerResults({
       <TableCard>
         <Table>
           <TableHeader>
+            {/* Every heading sorts, and a click on any of them turns the bands off — see
+                `features/influencers/sort.ts` for why this screen may sort at all when
+                AGENTS.md bans it, and why the two set-valued columns order by count. */}
             <TableRow>
               {/* 4px rail + `pl-4` grouped, `pl-5` ungrouped — 20px either way, or the whole first
                   column reads as misaligned against the band above it. */}
-              <TableHead className={grouped ? "pl-4" : "pl-5"}>Creator</TableHead>
+              <SortableHead
+                label="Creator"
+                className={grouped ? "pl-4" : "pl-5"}
+                active={directionOf(sort, "name")}
+                onSort={() => onSort("name")}
+              />
               {/* **Platforms**, plural, since a creator holds up to ten accounts. The column is a
-                  set now rather than a field, and the heading is the first thing that says so. */}
-              <TableHead>Platforms</TableHead>
-              <TableHead className="text-right">Reach</TableHead>
-              {grouped ? null : <TableHead>Tier</TableHead>}
-              <TableHead className="text-right">Engagement</TableHead>
-              <TableHead>Vertical</TableHead>
-              <TableHead>Brands</TableHead>
-              <TableHead className="pr-5">Status</TableHead>
+                  set now rather than a field, and the heading is the first thing that says so —
+                  which is also why it sorts by how many rather than by a first name in the set. */}
+              <SortableHead
+                label="Platforms"
+                hint="by how many"
+                active={directionOf(sort, "platforms")}
+                onSort={() => onSort("platforms")}
+              />
+              <SortableHead
+                label="Reach"
+                align="right"
+                active={directionOf(sort, "reach")}
+                onSort={() => onSort("reach")}
+              />
+              {grouped ? null : (
+                <SortableHead
+                  label="Tier"
+                  active={directionOf(sort, "tier")}
+                  onSort={() => onSort("tier")}
+                />
+              )}
+              <SortableHead
+                label="Engagement"
+                align="right"
+                hint="unmeasured last"
+                active={directionOf(sort, "engagement")}
+                onSort={() => onSort("engagement")}
+              />
+              <SortableHead
+                label="Vertical"
+                active={directionOf(sort, "vertical")}
+                onSort={() => onSort("vertical")}
+              />
+              <SortableHead
+                label="Brands"
+                hint="by how many"
+                active={directionOf(sort, "brands")}
+                onSort={() => onSort("brands")}
+              />
+              <SortableHead
+                label="Status"
+                className="pr-5"
+                active={directionOf(sort, "status")}
+                onSort={() => onSort("status")}
+              />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -527,7 +664,7 @@ function InfluencerResults({
                     </React.Fragment>
                   );
                 })
-              : items.map((influencer) => (
+              : rows.map((influencer) => (
                   <InfluencerRow
                     key={influencer.id}
                     influencer={influencer}
@@ -582,6 +719,10 @@ function TierHeader({
   isCollapsed: boolean;
   onToggle: () => void;
 }) {
+  // The band cannot inherit the row height — it is a cell with `p-0` and a button inside — so it
+  // asks the ladder for the rung the cells got (`lib/table-density.ts`).
+  const { band } = useTableDensityClasses();
+
   const body = (
     <span className="flex items-center gap-2">
       {canCollapse ? (
@@ -608,13 +749,13 @@ function TierHeader({
     // — a band boundary has to out-rank a row boundary or the sections read as one continuous
     // table.
     <TableRow className="border-t border-border bg-surface-sunken hover:bg-surface-sunken">
-      <TableCell colSpan={columnCount} className={cn("h-11 border-l-4 p-0", rail.band)}>
+      <TableCell colSpan={columnCount} className={cn("border-l-4 p-0", band, rail.band)}>
         {canCollapse ? (
           <button
             type="button"
             onClick={onToggle}
             aria-expanded={!isCollapsed}
-            className="flex h-11 w-full items-center pr-5 pl-3.5 text-left"
+            className={cn("flex w-full items-center pr-5 pl-3.5 text-left", band)}
           >
             {body}
             {/* The chevron carries the state visually; this carries it in words, because a
@@ -629,7 +770,7 @@ function TierHeader({
           // band's *name* is indented past it and the chevron lines up with the column instead;
           // without one there is nothing to hang the name off, so the name itself has to align
           // with the names below it.
-          <div className="flex h-11 w-full items-center pr-5 pl-4">{body}</div>
+          <div className={cn("flex w-full items-center pr-5 pl-4", band)}>{body}</div>
         )}
       </TableCell>
     </TableRow>
