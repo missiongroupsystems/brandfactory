@@ -17,4 +17,17 @@ describe("outletHref", () => {
   it("accepts a bare id, for a caller that holds only that", () => {
     expect(outletHref("abc")).toBe("/outlets/abc");
   });
+
+  it("puts the outlet under the brand when the caller is inside one", () => {
+    // The same record, two homes. Reached from a brand it has to stay under `/brands/:id`, or
+    // opening a location reverts the whole sidebar to the workspace.
+    expect(outletHref({ id: "abc", slug: "casa-vostra" }, "/brands/b1/outlets")).toBe(
+      "/brands/b1/outlets/casa-vostra",
+    );
+    expect(outletHref("abc", "/brands/b1/outlets")).toBe("/brands/b1/outlets/abc");
+  });
+
+  it("defaults to the workspace-wide list, so no existing caller had to change", () => {
+    expect(outletHref("abc")).toBe(outletHref("abc", "/outlets"));
+  });
 });

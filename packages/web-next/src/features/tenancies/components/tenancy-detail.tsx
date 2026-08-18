@@ -19,7 +19,7 @@ import {
   useOutletIndex,
   useOutletMutations,
 } from "@/features/registry/hooks";
-import { useVendorIndex } from "@/features/vendors/hooks";
+import { useVendorIndex } from "@/features/registry-vendors/hooks";
 import { useSubmit } from "@/hooks/use-submit";
 import { hasTenancyRent } from "@/lib/api/types";
 import { formatDate, formatMoney } from "@/lib/format";

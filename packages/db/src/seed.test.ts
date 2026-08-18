@@ -10,6 +10,9 @@ import {
   influencers,
   projects,
   users,
+  vendorBrands,
+  vendorContacts,
+  vendors,
   workspaces,
 } from './schema'
 import { seed } from './seed'
@@ -44,6 +47,9 @@ describe.skipIf(!hasDb)('seed()', () => {
       messageRows,
       influencerRows,
       linkRows,
+      vendorRows,
+      vendorLinkRows,
+      vendorContactRows,
     ] = await Promise.all([
       db.select().from(users).where(eq(users.id, first.userId)),
       db.select().from(workspaces).where(eq(workspaces.id, first.workspaceId)),
@@ -63,6 +69,19 @@ describe.skipIf(!hasDb)('seed()', () => {
         .from(influencerBrands)
         .innerJoin(influencers, eq(influencers.id, influencerBrands.influencerId))
         .where(eq(influencers.workspaceId, first.workspaceId)),
+      db.select().from(vendors).where(eq(vendors.workspaceId, first.workspaceId)),
+      // Joined up to the workspace for the same reason: `vendor_brands` carries no
+      // workspace of its own — the vendor is what scopes a link.
+      db
+        .select({ brandId: vendorBrands.brandId })
+        .from(vendorBrands)
+        .innerJoin(vendors, eq(vendors.id, vendorBrands.vendorId))
+        .where(eq(vendors.workspaceId, first.workspaceId)),
+      db
+        .select({ position: vendorContacts.position })
+        .from(vendorContacts)
+        .innerJoin(vendors, eq(vendors.id, vendorContacts.vendorId))
+        .where(eq(vendors.workspaceId, first.workspaceId)),
     ])
 
     expect(userRows).toHaveLength(1)
@@ -82,5 +101,15 @@ describe.skipIf(!hasDb)('seed()', () => {
     // re-offers every pair; `ON CONFLICT DO NOTHING` on the wrong target would
     // either raise or double the count, and nothing on screen would say so.
     expect(linkRows).toHaveLength(17)
+    expect(vendorRows).toHaveLength(9)
+    // Seven vendors hold a brand and one of those holds two — so 8 link rows.
+    // Asserted rather than described for the reason above: the conflict target is
+    // a composite key, and a reseed re-offers every pair.
+    expect(vendorLinkRows).toHaveLength(8)
+    // Three vendors carry contacts — two, one and one. **`vendor_contacts` is the
+    // second composite-key insert in this seed**, and its target is
+    // `(vendor_id, position)` rather than an id, because the row has no id at all.
+    // A reseed that doubled these would go unnoticed on any screen.
+    expect(vendorContactRows).toHaveLength(4)
   })
 })

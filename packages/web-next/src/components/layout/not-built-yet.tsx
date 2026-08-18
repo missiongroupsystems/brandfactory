@@ -90,10 +90,10 @@ export function NotBuiltYet({
           </code>{" "}
           carry the rules already agreed for each area.{" "}
           <Link
-            href="/outlets"
+            href="/dashboard"
             className="rounded-md text-ink underline decoration-[0.5px] underline-offset-4 hover:text-brand"
           >
-            Back to outlets
+            Back to the dashboard
           </Link>
           .
         </p>

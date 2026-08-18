@@ -46,11 +46,22 @@ import { AttributePicker } from "./attribute-picker";
  */
 export function OutletForm({
   outlet,
+  defaultBrandId,
   open,
   onOpenChange,
   onCreated,
 }: {
   outlet?: Outlet;
+  /**
+   * Which brand a *new* outlet starts on — the brand whose page the form was opened from. Ignored
+   * when editing, where the record's own brand is the answer and overriding it would be the form
+   * silently reassigning a location the reader only meant to rename.
+   *
+   * The field stays editable rather than being locked: a seed is a sensible default, and a locked
+   * control on a form that can reach every brand in the workspace would be a dead end the first
+   * time somebody added the wrong one.
+   */
+  defaultBrandId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Called with the new record so a caller can jump to it. Create mode only. */
@@ -61,7 +72,7 @@ export function OutletForm({
   const { run, reset, isPending, formError, fieldErrors } = useSubmit();
   const { brands, isLoading: brandsLoading } = useActiveBrand();
 
-  const [form, setForm] = React.useState(() => initialState(outlet));
+  const [form, setForm] = React.useState(() => initialState(outlet, defaultBrandId));
 
   // Reset the draft per open. The sheet's content survives its close, so a form
   // reopened straight after a save still holds the previous draft — and keying
@@ -71,7 +82,7 @@ export function OutletForm({
   const [wasOpen, setWasOpen] = React.useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
-    if (open) setForm(initialState(outlet));
+    if (open) setForm(initialState(outlet, defaultBrandId));
   }
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -374,10 +385,13 @@ type FormState = {
  * input to uncontrolled with a warning, after which typing works and the state
  * does not update.
  */
-function initialState(outlet?: Outlet): FormState {
+function initialState(outlet?: Outlet, defaultBrandId?: string): FormState {
   return {
     name: outlet?.name ?? "",
-    brandId: outlet?.brandId ?? "",
+    // The record's brand, then the page's, then none. `??` rather than `||` on the first step is
+    // deliberate: an outlet with `brandId: null` is one somebody has deliberately left unassigned,
+    // and reopening its edit sheet must not quietly fill that in from the page it was opened on.
+    brandId: outlet ? (outlet.brandId ?? "") : (defaultBrandId ?? ""),
     outletType: outlet?.outletType ?? "restaurant",
     // A new outlet defaults to `pipeline`, matching the API's own default: a site
     // still being planned is the one worth optimising for, and one already

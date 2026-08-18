@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/layout/filter-bar";
 import { Select } from "@/components/ui/select";
-import { useVendorIndex } from "@/features/vendors/hooks";
+import { useVendorIndex } from "@/features/registry-vendors/hooks";
 import { useSubmit } from "@/hooks/use-submit";
 import type {
   Contract,

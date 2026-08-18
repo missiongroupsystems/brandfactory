@@ -20,8 +20,8 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useBrandIndex } from "@/features/registry-brands/hooks";
-import { VendorForm } from "@/features/vendors/components/vendor-form";
-import { useVendorIndex } from "@/features/vendors/hooks";
+import { VendorForm } from "@/features/registry-vendors/components/vendor-form";
+import { useVendorIndex } from "@/features/registry-vendors/hooks";
 import { toNullable, useSubmit } from "@/hooks/use-submit";
 import {
   hasContractValue,

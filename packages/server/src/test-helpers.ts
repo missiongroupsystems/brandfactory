@@ -26,6 +26,8 @@ import type {
   ShortlistView,
   SocialPost,
   SocialPostId,
+  Vendor,
+  VendorId,
   Workspace,
   WorkspaceId,
   WorkspaceSettings,
@@ -35,8 +37,10 @@ import {
   bySchedule,
   byInfluencerReach,
   byOutletName,
+  byVendorName,
   uniqueInfluencerSlug,
   uniqueOutletSlug,
+  uniqueVendorSlug,
 } from '@brandfactory/shared'
 import { createAgentConcurrencyGuard, type AgentConcurrencyGuard } from './agent/concurrency'
 import { createApp, type AppDeps } from './app'
@@ -44,6 +48,7 @@ import {
   AssetNotInBrandError,
   BrandNotInWorkspaceError,
   InfluencerHandleTakenError,
+  VendorUenTakenError,
 } from '@brandfactory/db'
 import type { ResearchJob, SectionAutofillEvent } from '@brandfactory/db'
 import type { Db } from './db'
@@ -128,6 +133,7 @@ export interface FakeDbState {
   socialPosts: Map<string, SocialPost>
   outlets: Map<string, Outlet>
   influencers: Map<string, Influencer>
+  vendors: Map<string, Vendor>
   projects: Map<string, Project>
   canvases: Map<string, Canvas>
   settings: Map<string, WorkspaceSettings>
@@ -148,6 +154,7 @@ export function createFakeDbState(): FakeDbState {
     socialPosts: new Map(),
     outlets: new Map(),
     influencers: new Map(),
+    vendors: new Map(),
     projects: new Map(),
     canvases: new Map(),
     settings: new Map(),
@@ -233,6 +240,39 @@ function assertFakeHandleFree(
   }
 }
 
+/**
+ * `vendors_workspace_uen_key` in the fake.
+ *
+ * **The one trap in this phase, and the plan named it twice.** Every other
+ * behaviour in this file mirrors a query; this one mirrors an *index*, so there is
+ * nothing to mirror and the rule has to be restated. Without it, every route test
+ * about the 409 would pass against the very 500 the mapping exists to remove —
+ * which is exactly what 1.40.1 was spent on, one aggregate over, and
+ * `assertFakeHandleFree` above is the same restatement for the same reason.
+ *
+ * **NULL is not a value here**, matching Postgres: a vendor with no UEN never
+ * clashes with another that has none, which is why the real index needs no
+ * partial predicate. A fake that treated `null` as a duplicate would refuse the
+ * ordinary case — most rows carry no UEN at all.
+ *
+ * `exceptId` is the row being patched. A vendor re-sending its own UEN is not
+ * clashing with itself.
+ */
+function assertFakeUenFree(
+  state: FakeDbState,
+  workspaceId: WorkspaceId,
+  uen: string | null | undefined,
+  exceptId?: string,
+): void {
+  if (uen === null || uen === undefined) return
+  for (const vendor of state.vendors.values()) {
+    if (vendor.id === exceptId) continue
+    if (vendor.workspaceId === workspaceId && vendor.uen === uen) {
+      throw new VendorUenTakenError(uen)
+    }
+  }
+}
+
 const NOW = '2026-04-19T00:00:00.000Z'
 
 export function createFakeDb(state: FakeDbState = createFakeDbState()): {
@@ -307,6 +347,12 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       // has to touch `brandIds`.
       for (const [iid, influencer] of [...state.influencers.entries()]) {
         if (influencer.workspaceId === id) state.influencers.delete(iid)
+      }
+      // `vendors.workspace_id` is ON DELETE CASCADE too, and the link rows and
+      // the contact rows go with each vendor by their own cascades — which is why
+      // nothing here has to touch `brandIds` or `contacts`.
+      for (const [vid, vendor] of [...state.vendors.entries()]) {
+        if (vendor.workspaceId === id) state.vendors.delete(vid)
       }
       for (const brand of [...state.brands.values()]) {
         // Cascade through the same helper so brands → projects → canvases →
@@ -410,6 +456,17 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
           state.influencers.set(iid, {
             ...influencer,
             brandIds: influencer.brandIds.filter((bid) => bid !== id),
+          })
+        }
+      }
+      // `vendor_brands` cascades on both sides for the same reason: the
+      // relationship outlives the branding, and the vendor is the record the next
+      // brand gets attached to.
+      for (const [vid, vendor] of state.vendors) {
+        if (vendor.brandIds.includes(id)) {
+          state.vendors.set(vid, {
+            ...vendor,
+            brandIds: vendor.brandIds.filter((bid) => bid !== id),
           })
         }
       }
@@ -882,6 +939,105 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       // The row that went, brand ids and all — the real query reads them before
       // the cascade removes the link rows, because the route hands this back as
       // the last copy anything will see.
+      return existing
+    },
+
+    // Vendors. The influencers rule again — `brandIds` comes back sorted from
+    // every read and every write — plus one the creators do not have:
+    // **`contacts` comes back in the order it was sent and is never sorted.**
+    // The brands are a set of ticked boxes; the contacts are a list somebody
+    // arranged, and a fake that sorted them would let a route test pass against a
+    // response the server never sends.
+    async listVendorsByWorkspace(workspaceId) {
+      return [...state.vendors.values()]
+        .filter((v) => v.workspaceId === workspaceId)
+        .sort(byVendorName)
+    },
+    async getVendorByRef(workspaceId, ref) {
+      return (
+        [...state.vendors.values()].find(
+          (v) => v.workspaceId === workspaceId && (v.slug === ref || v.id === ref),
+        ) ?? null
+      )
+    },
+    async createVendor(workspaceId, input) {
+      const brandIds = input.brandIds ?? []
+      assertFakeBrandsInWorkspace(state, workspaceId, brandIds)
+      // `vendors_workspace_uen_key`, enforced here because the real one is an
+      // index and a fake has none. **This is the fake's job, not an extra:**
+      // without it a route test asserting the 409 would pass against a server that
+      // answers 500, which is the exact defect the mapping fixes.
+      assertFakeUenFree(state, workspaceId, input.uen)
+      const id = nextId('vendor') as VendorId
+      const taken = [...state.vendors.values()]
+        .filter((v) => v.workspaceId === workspaceId)
+        .map((v) => v.slug)
+      const row: Vendor = {
+        id,
+        workspaceId,
+        // From the name — a company has no handle to prefer. **A repeated name is
+        // not refused**; it takes a `-2`, which is the whole reason there is no
+        // unique key on `name`.
+        slug: uniqueVendorSlug(input.name, taken),
+        name: input.name,
+        category: input.category ?? null,
+        // No `??`: the schema's `.default('active')` has already run, so the fake
+        // and the real query agree the key is present by this point.
+        status: input.status,
+        uen: input.uen ?? null,
+        website: input.website ?? null,
+        brandIds: [...brandIds].sort((a, b) => a.localeCompare(b)),
+        contacts: input.contacts ?? [],
+        notes: input.notes ?? null,
+        createdAt: NOW,
+        updatedAt: NOW,
+      }
+      state.vendors.set(id, row)
+      return row
+    },
+    async updateVendor(workspaceId, id, patch) {
+      // The brand gate runs before the row lookup, as the real query runs it
+      // before the update — a bad brandId rejects the whole patch even when the
+      // vendor itself would miss.
+      if (patch.brandIds !== undefined) {
+        assertFakeBrandsInWorkspace(state, workspaceId, patch.brandIds)
+      }
+      const existing = state.vendors.get(id)
+      if (!existing || existing.workspaceId !== workspaceId) return null
+      // The unique key on the way through a patch, and **after** the row lookup
+      // rather than before it: a patch aimed at a vendor that does not exist is a
+      // 404 about the path, not a 409 about a UEN. The row itself is excluded, so
+      // re-sending a vendor's own number is not a clash.
+      if (patch.uen !== undefined) {
+        assertFakeUenFree(state, workspaceId, patch.uen, id)
+      }
+      // `undefined` leaves a key alone, `null` clears it; `brandIds` and
+      // `contacts` are full replacements. `slug` is not a patch key — the URL
+      // survives a corrected name.
+      const updated: Vendor = {
+        ...existing,
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.category !== undefined ? { category: patch.category } : {}),
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        ...(patch.uen !== undefined ? { uen: patch.uen } : {}),
+        ...(patch.website !== undefined ? { website: patch.website } : {}),
+        ...(patch.brandIds !== undefined
+          ? { brandIds: [...patch.brandIds].sort((a, b) => a.localeCompare(b)) }
+          : {}),
+        ...(patch.contacts !== undefined ? { contacts: patch.contacts } : {}),
+        ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+        updatedAt: NOW,
+      }
+      state.vendors.set(id, updated)
+      return updated
+    },
+    async deleteVendor(workspaceId, id) {
+      const existing = state.vendors.get(id)
+      if (!existing || existing.workspaceId !== workspaceId) return null
+      state.vendors.delete(id)
+      // The row that went, brand ids and contacts and all — the real query reads
+      // both before the cascade removes the child rows, because the route hands
+      // this back as the last copy anything will see.
       return existing
     },
 

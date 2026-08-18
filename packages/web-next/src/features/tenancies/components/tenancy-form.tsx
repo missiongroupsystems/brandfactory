@@ -15,7 +15,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useEntityIndex, useOutletIndex } from "@/features/registry/hooks";
-import { useVendorIndex } from "@/features/vendors/hooks";
+import { useVendorIndex } from "@/features/registry-vendors/hooks";
 import { useSubmit } from "@/hooks/use-submit";
 import { hasTenancyRent, type TenancyCreate } from "@/lib/api/types";
 

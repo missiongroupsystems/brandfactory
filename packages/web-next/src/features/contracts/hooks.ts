@@ -39,8 +39,8 @@ export function useContract(id: string | undefined) {
 
 /** One vendor's agreements, for the Contracts card on `/vendors/[id]`.
  *
- * Lives here rather than in `features/vendors` because it fetches *contracts* filtered by
- * vendor; the vendors feature imports it across the boundary. A copy over there is how two
+ * Lives here rather than in `features/registry-vendors` because it fetches *contracts* filtered by
+ * vendor; the Operations Hub's vendor book imports it across the boundary. A copy over there is how two
  * definitions of "this vendor's contracts" start.
  *
  * `view: "all"` is load-bearing, not decoration: the section's own header comes from
@@ -87,8 +87,8 @@ export function useContractIndex() {
 const CONTRACT_SCOPES = [
   SCOPES.contracts,
   SCOPES.contract,
-  SCOPES.vendors,
-  SCOPES.vendor,
+  SCOPES.registryVendors,
+  SCOPES.registryVendor,
   SCOPES.dashboard,
 ];
 

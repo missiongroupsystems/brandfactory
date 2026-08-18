@@ -12,6 +12,8 @@
  *   - six outlets     (see SEED_OUTLETS for what each one is there to show)
  *   - 19 influencers  (see SEED_INFLUENCERS — one per reach tier at least, and
  *                     every platform and vertical the enums hold)
+ *   - nine vendors    (see SEED_VENDORS — the six agencies and three providers
+ *                     `packages/web-next`'s fixtures invented, re-categorised)
  *
  * Deterministic ids (hard-coded UUIDs) so reruns stay stable and the
  * printed dev token never changes between seeds. `ON CONFLICT DO NOTHING`
@@ -34,6 +36,9 @@ import {
   outlets,
   projects,
   users,
+  vendorBrands,
+  vendorContacts,
+  vendors,
   workspaces,
 } from './schema'
 
@@ -574,6 +579,250 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
   },
 ]
 
+/**
+ * The nine companies the workspace buys from, so the Vendors screen has a book
+ * rather than an empty state.
+ *
+ * **This is `packages/web-next`'s `fixtures/agencies.ts` and the three providers
+ * out of `fixtures/contracts.ts`, re-pointed at the two demo brands and
+ * re-categorised onto `vendor_category`.** Both fixtures stay exactly where they
+ * are — sixteen fixture agreements name those nine by *their* ids and `/contracts`
+ * is a live nav item — so this is a copy of the roster, not a move of it. Two
+ * vendor books are on screen at once until the contracts conversion closes it,
+ * and the plan states that as an accepted cost.
+ *
+ * What each row is here to show:
+ *
+ *   - **Every state the category column can be in but one.** Four
+ *     `talent_agency`, one `media_agency`, one `software`, one `production`, one
+ *     `pr_agency`, and **one `null`** — Sunbeam Social, where nobody has said. The
+ *     state not seeded is `other`, and deliberately: it means *somebody said, and
+ *     none of these*, and none of these nine is genuinely that. Seeding a row as
+ *     `other` to fill the enum would be a false record about what somebody
+ *     decided.
+ *   - **Halcyon is a `media_agency`, not a talent one**, because its own note says
+ *     it books the out-of-home placements. `fixtures/agencies.ts` complained in a
+ *     docstring about "a nearly-monotone column on `/vendors`"; this is the
+ *     vocabulary that fixes it, so the seed does not hand back a column of one
+ *     value.
+ *   - **One `inactive` and one `blacklisted`.** They are not the same statement —
+ *     one is a company nobody is buying from at the moment, the other is one
+ *     nobody may buy from — and the screen has to show that they read differently.
+ *   - **Contacts on three rows and none on six**, so the detail page's real empty
+ *     state ships seeded rather than only in a test. One of the three carries two
+ *     people with a primary appointed, one carries a single primary, and one
+ *     carries a person with **no primary at all** — which is an ordinary state and
+ *     not a broken row.
+ *   - **Two rows hold no brand**, and an empty set reads as "Not assigned yet"
+ *     rather than as a gap. One row names both brands, which is what the join
+ *     table exists for and what the brand cell has to render more than one name
+ *     into.
+ *   - **Two rows carry a UEN**, so the unique index has something to be about on a
+ *     seeded database. The other seven are `null`, which is the ordinary case and
+ *     the reason NULLs must stay distinct in that index.
+ *
+ * `slug` is written out rather than derived, the same call `SEED_OUTLETS` and
+ * `SEED_INFLUENCERS` make: the seed inserts directly and never calls
+ * `createVendor`, so nothing here would pick one, and a hard-coded slug keeps a
+ * screenshot's URL stable across reseeds. Each one is what `vendorSlug` would have
+ * produced from the name.
+ *
+ * The ids are **not** the fixtures' — `v2000000-…` is not a uuid and the column
+ * is. They continue this file's own sequence instead.
+ *
+ * The names, the sites, the numbers and the notes are invented. None of them is a
+ * real company and no UEN here is a real registration.
+ */
+interface SeedVendorContact {
+  name: string
+  role: string | null
+  email: string | null
+  phone: string | null
+  isPrimary: boolean
+}
+
+interface SeedVendor {
+  id: string
+  slug: string
+  name: string
+  category:
+    | 'creative_agency'
+    | 'media_agency'
+    | 'talent_agency'
+    | 'pr_agency'
+    | 'production'
+    | 'events'
+    | 'research'
+    | 'software'
+    | 'freelancer'
+    | 'other'
+    | null
+  status: 'active' | 'inactive' | 'blacklisted'
+  uen: string | null
+  website: string | null
+  notes: string | null
+  /** The join rows to write. Empty is a fact — "not assigned yet". */
+  brandIds: string[]
+  /** In the order they are written. Empty is a fact — nobody named yet. */
+  contacts: SeedVendorContact[]
+}
+
+const SEED_VENDORS: SeedVendor[] = [
+  {
+    id: '00000000-0000-4000-8000-000000000041',
+    slug: 'northlight-talent-pte-ltd',
+    name: 'Northlight Talent Pte Ltd',
+    category: 'talent_agency',
+    status: 'active',
+    uen: null,
+    website: 'https://northlighttalent.example.sg',
+    notes: 'Handles the beauty and lifestyle roster. Rate card reviewed each quarter.',
+    brandIds: [DEMO_BRAND_ID, DEMO_BRAND_2_ID],
+    // Two people with a primary appointed — the ordinary shape of a contact list.
+    contacts: [
+      {
+        name: 'Mei Ling Tan',
+        role: 'Account director',
+        email: 'mei@northlighttalent.example.sg',
+        phone: '+65 6123 4567',
+        isPrimary: true,
+      },
+      {
+        name: 'Rajesh Kumar',
+        role: 'Talent manager',
+        email: null,
+        phone: '+65 9123 4567',
+        isPrimary: false,
+      },
+    ],
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000042',
+    slug: 'kite-co-creator-management',
+    name: 'Kite & Co Creator Management',
+    category: 'talent_agency',
+    status: 'active',
+    uen: null,
+    website: 'https://kiteandco.example.sg',
+    notes: null,
+    brandIds: [DEMO_BRAND_ID],
+    contacts: [],
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000043',
+    slug: 'sunbeam-social',
+    name: 'Sunbeam Social',
+    // **The `null` row.** Nobody has said what this two-person shop is, which is a
+    // different fact from `other` — see `VendorCategorySchema`.
+    category: null,
+    status: 'active',
+    uen: null,
+    website: null,
+    notes: 'Two managers, no office. Reach them on WhatsApp.',
+    // No brand, which reads as "Not assigned yet" rather than as a gap.
+    brandIds: [],
+    contacts: [],
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000044',
+    slug: 'halcyon-media-group',
+    name: 'Halcyon Media Group',
+    // A media agency, on the strength of its own note. See the docstring.
+    category: 'media_agency',
+    status: 'active',
+    uen: null,
+    website: 'https://halcyonmedia.example.sg',
+    notes: 'Full-service. Also books the out-of-home placements.',
+    brandIds: [DEMO_BRAND_2_ID],
+    contacts: [
+      {
+        name: 'Grace Wong',
+        role: 'Planning lead',
+        email: 'grace@halcyonmedia.example.sg',
+        phone: null,
+        isPrimary: true,
+      },
+    ],
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000045',
+    slug: 'redpin-creators',
+    name: 'Redpin Creators',
+    category: 'talent_agency',
+    // **The `blacklisted` row.** A decision rather than a status, and the note has
+    // to say why or the flag is unreadable.
+    status: 'blacklisted',
+    uen: null,
+    website: 'https://redpin.example.sg',
+    notes: 'Two briefs delivered a fortnight late without notice. Do not book again.',
+    brandIds: [DEMO_BRAND_ID],
+    contacts: [],
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000046',
+    slug: 'tidewater-talent-llp',
+    name: 'Tidewater Talent LLP',
+    category: 'talent_agency',
+    // **The `inactive` row.** Nobody is buying from them at the moment, which is
+    // not the same as nobody may.
+    status: 'inactive',
+    uen: null,
+    website: null,
+    notes: 'One manager. Slow to answer email; call instead.',
+    brandIds: [],
+    contacts: [],
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000047',
+    slug: 'loopline-software-pte-ltd',
+    name: 'Loopline Software Pte Ltd',
+    category: 'software',
+    status: 'active',
+    // One of the two seeded UENs, so the unique index has something to be about.
+    uen: '202144552M',
+    website: 'https://loopline.example.sg',
+    notes: 'Scheduling and creator analytics. Seats are billed annually in advance.',
+    brandIds: [DEMO_BRAND_ID],
+    contacts: [
+      // **No primary.** One named person and nobody appointed is an ordinary
+      // state, and the screen must not read it as a fault.
+      {
+        name: 'Daniel Ong',
+        role: 'Customer success',
+        email: 'daniel@loopline.example.sg',
+        phone: null,
+        isPrimary: false,
+      },
+    ],
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000048',
+    slug: 'fieldnote-studio',
+    name: 'Fieldnote Studio',
+    // `other` in the Ops vocabulary, because thirteen building trades had no word
+    // for a photographer. This one does.
+    category: 'production',
+    status: 'active',
+    uen: null,
+    website: 'https://fieldnotestudio.example.sg',
+    notes: 'Food photography and short-form video. Books six weeks out.',
+    brandIds: [DEMO_BRAND_ID],
+    contacts: [],
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000049',
+    slug: 'bellweather-pr-pte-ltd',
+    name: 'Bellweather PR Pte Ltd',
+    category: 'pr_agency',
+    status: 'active',
+    uen: '201933718E',
+    website: null,
+    notes: null,
+    brandIds: [DEMO_BRAND_2_ID],
+    contacts: [],
+  },
+]
+
 export interface SeedResult {
   userId: string
   workspaceId: string
@@ -714,6 +963,40 @@ export async function seed(): Promise<SeedResult> {
           // one is already there. `target` is both columns for that reason.
           .onConflictDoNothing({
             target: [influencerBrands.influencerId, influencerBrands.brandId],
+          })
+      }
+    }
+
+    // Vendors last, and **the row before both of its children** — every
+    // `vendor_brands` and `vendor_contacts` foreign key is strict, so a link or a
+    // contact written before its vendor fails loudly. That is the correct
+    // behaviour and the ordering here is what avoids it. The plan named this as a
+    // risk worth confirming in this phase rather than discovering in Phase D.
+    for (const vendor of SEED_VENDORS) {
+      const { brandIds, contacts, ...row } = vendor
+      await tx
+        .insert(vendors)
+        .values({ ...row, workspaceId: DEMO_WORKSPACE_ID })
+        .onConflictDoNothing({ target: vendors.id })
+      for (const brandId of brandIds) {
+        await tx
+          .insert(vendorBrands)
+          .values({ vendorId: vendor.id, brandId })
+          // The pair is the primary key, so a reseed re-offers each link and each
+          // one is already there. `target` is both columns for that reason.
+          .onConflictDoNothing({
+            target: [vendorBrands.vendorId, vendorBrands.brandId],
+          })
+      }
+      for (const [position, contact] of contacts.entries()) {
+        await tx
+          .insert(vendorContacts)
+          .values({ vendorId: vendor.id, position, ...contact })
+          // `(vendor_id, position)` is the primary key. A reseed re-offers the
+          // same list at the same positions, so the conflict target is the pair
+          // and a second run changes nothing.
+          .onConflictDoNothing({
+            target: [vendorContacts.vendorId, vendorContacts.position],
           })
       }
     }

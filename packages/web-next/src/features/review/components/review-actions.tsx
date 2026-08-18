@@ -33,7 +33,7 @@ import {
 } from "@/features/contracts/hooks";
 import { useEntityMutations, useOutletMutations } from "@/features/registry/hooks";
 import { useTenancyMutations } from "@/features/tenancies/hooks";
-import { useVendorIndex, useVendorMutations } from "@/features/vendors/hooks";
+import { useVendorIndex, useVendorMutations } from "@/features/registry-vendors/hooks";
 import { useSubmit } from "@/hooks/use-submit";
 import type {
   ContractUpdate,

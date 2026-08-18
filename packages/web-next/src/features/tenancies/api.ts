@@ -17,7 +17,7 @@ import type {
  * A tenancy response arrives as one of two shapes: narrow with `hasTenancyRent()`, never a
  * null test, the same discipline the network passwords and `contract.value` follow. The
  * landlord is a `vendor` with `kind = landlord`, referenced by `landlord_id` and fetched
- * through `features/vendors`; this file never fetches it.
+ * through `features/registry-vendors`; this file never fetches it.
  */
 
 export type TenancyRecord = Tenancy | TenancySensitive;

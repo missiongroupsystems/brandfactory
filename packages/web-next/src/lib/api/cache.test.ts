@@ -50,6 +50,23 @@ describe("SCOPES", () => {
     expect(SCOPES).not.toHaveProperty("influencers");
   });
 
+  it("keeps BrandFactory's vendors apart from the Operations Hub's book", () => {
+    // The third pair with a reason to collide, and the one this rename created.
+    // Both families are companies you buy from, both are live — `/contracts`
+    // resolves every `vendor_id` through `useVendorIndex` — and only one of them
+    // is ours. The unprefixed `vendors` that used to stand here is what a future
+    // "tidy-up" would reach for; this is what stops it coming back.
+    expect(SCOPES.registryVendors).toBe("registry-vendors");
+    expect(SCOPES.registryVendor).toBe("registry-vendor");
+    expect(SCOPES).not.toHaveProperty("vendors");
+    expect(SCOPES).not.toHaveProperty("vendor");
+    // And the real one, which now reads a live route rather than nothing. The
+    // pair above was registered by the rename; this is the pair a write has to
+    // sweep, and the two must never be one string.
+    expect(SCOPES.bfVendors).not.toBe(SCOPES.registryVendors);
+    expect(SCOPES.bfVendor).not.toBe(SCOPES.registryVendor);
+  });
+
   it("cannot match one scope inside another, because the matcher quotes both", () => {
     // The subtler half: `useInvalidate` tests `key.includes(`"${scope}"`)` on a
     // serialised `$inf$` key. `"bf-outlets"` contains the letters of `outlets`,

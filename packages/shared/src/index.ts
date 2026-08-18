@@ -3,6 +3,7 @@ export * from './json'
 export * from './prose-mirror'
 export * from './ids'
 export * from './slug'
+export * from './url'
 
 // LLM
 export * from './llm/provider-ids'
@@ -53,6 +54,14 @@ export * from './influencer/influencer'
 export * from './influencer/slug'
 export * from './influencer/create'
 export * from './influencer/update'
+
+// Vendors — the companies the workspace buys from. Workspace-scoped with a
+// many-to-many brand relation and a child contact list; see
+// `vendor/vendor.ts` on why a counterparty is a noun this schema did not have.
+export * from './vendor/vendor'
+export * from './vendor/slug'
+export * from './vendor/create'
+export * from './vendor/update'
 
 // Social posts
 export * from './social/post'

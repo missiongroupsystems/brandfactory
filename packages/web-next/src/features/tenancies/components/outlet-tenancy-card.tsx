@@ -7,7 +7,7 @@ import { QueryError } from "@/components/layout/query-states";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useVendorIndex } from "@/features/vendors/hooks";
+import { useVendorIndex } from "@/features/registry-vendors/hooks";
 import { hasTenancyRent, type Tenancy, type TenancySensitive } from "@/lib/api/types";
 import { formatDate, formatMoney } from "@/lib/format";
 import { TENANCY_KIND_LABELS, TENANCY_STATUS_LABELS, TENANCY_STATUS_TONES } from "@/lib/labels";

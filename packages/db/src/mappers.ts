@@ -25,6 +25,9 @@ import {
   type SocialPost,
   type SocialPostId,
   type UserId,
+  type Vendor,
+  type VendorContact,
+  type VendorId,
   type Workspace,
   type WorkspaceId,
 } from '@brandfactory/shared'
@@ -39,6 +42,8 @@ import type {
   outlets,
   projects,
   socialPosts,
+  vendorContacts,
+  vendors,
   workspaces,
 } from './schema'
 
@@ -53,6 +58,8 @@ type AgentMessageRow = typeof agentMessages.$inferSelect
 type SocialPostRow = typeof socialPosts.$inferSelect
 type OutletRow = typeof outlets.$inferSelect
 type InfluencerRow = typeof influencers.$inferSelect
+type VendorRow = typeof vendors.$inferSelect
+type VendorContactRow = typeof vendorContacts.$inferSelect
 
 // Parse JSON columns at the trust boundary on read. Writes are gated by
 // zod at route boundaries, but a corrupted row (bad migration, direct DB
@@ -288,6 +295,58 @@ export function rowToInfluencer(row: InfluencerRow, brandIds: BrandId[]): Influe
     vertical: row.vertical,
     brandIds,
     status: row.status,
+    notes: row.notes,
+    createdAt: toIsoTimestamp(row.createdAt),
+    updatedAt: toIsoTimestamp(row.updatedAt),
+  }
+}
+
+/**
+ * One contact row → the wire's value object.
+ *
+ * `position` and `vendorId` are dropped on purpose: the array's index *is* the
+ * position, and the vendor is the record this list hangs off. Sending either
+ * would let a client believe it can address a contact on its own, which the
+ * full-replacement write is specifically built not to offer.
+ */
+export function rowToVendorContact(row: VendorContactRow): VendorContact {
+  return {
+    name: row.name,
+    role: row.role,
+    email: row.email,
+    phone: row.phone,
+    isPrimary: row.isPrimary,
+  }
+}
+
+/**
+ * One vendor row plus its two relations → the wire shape.
+ *
+ * Both arrays are **parameters rather than reads**, which is what lets one mapper
+ * serve the list (two batched joins and two in-memory maps) and the detail read
+ * (two single-row queries) without a second shape existing. `rowToInfluencer`'s
+ * call, one relation further.
+ *
+ * `brandIds` arrives sorted and `contacts` arrives in `position` order; neither is
+ * re-sorted here, because a mapper that re-derived the order would be a second
+ * place the ordering is decided.
+ */
+export function rowToVendor(
+  row: VendorRow,
+  brandIds: BrandId[],
+  contacts: VendorContact[],
+): Vendor {
+  return {
+    id: row.id as VendorId,
+    workspaceId: row.workspaceId as WorkspaceId,
+    slug: row.slug,
+    name: row.name,
+    category: row.category,
+    status: row.status,
+    uen: row.uen,
+    website: row.website,
+    brandIds,
+    contacts,
     notes: row.notes,
     createdAt: toIsoTimestamp(row.createdAt),
     updatedAt: toIsoTimestamp(row.updatedAt),

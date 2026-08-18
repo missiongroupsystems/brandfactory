@@ -83,6 +83,18 @@ export interface Db {
   updateInfluencer: typeof db.updateInfluencer
   deleteInfluencer: typeof db.deleteInfluencer
 
+  // Vendors — workspace-scoped like outlets and influencers, with the same
+  // consequence: a vendor id from another workspace misses rather than being
+  // reached across the boundary. The brand relation is a join table, so every
+  // write here can throw `BrandNotInWorkspaceError` and the route maps it to a
+  // 400; the UEN is a unique index, so every write can also throw
+  // `VendorUenTakenError` and the route maps that to a 409.
+  listVendorsByWorkspace: typeof db.listVendorsByWorkspace
+  getVendorByRef: typeof db.getVendorByRef
+  createVendor: typeof db.createVendor
+  updateVendor: typeof db.updateVendor
+  deleteVendor: typeof db.deleteVendor
+
   // Blob references, across every table that holds a key
   listStillReferencedBlobKeys: typeof db.listStillReferencedBlobKeys
 
@@ -170,6 +182,11 @@ export function buildDbDeps(): Db {
     createInfluencer: db.createInfluencer,
     updateInfluencer: db.updateInfluencer,
     deleteInfluencer: db.deleteInfluencer,
+    listVendorsByWorkspace: db.listVendorsByWorkspace,
+    getVendorByRef: db.getVendorByRef,
+    createVendor: db.createVendor,
+    updateVendor: db.updateVendor,
+    deleteVendor: db.deleteVendor,
     listStillReferencedBlobKeys: db.listStillReferencedBlobKeys,
     getProjectById: db.getProjectById,
     listProjectsByBrand: db.listProjectsByBrand,

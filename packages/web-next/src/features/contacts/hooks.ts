@@ -29,7 +29,7 @@ import { contactService } from "./api";
 // A contact write can move a vendor row too: the same records ride embedded in
 // `VendorRead.contacts`, so the vendors table's "Primary contact" column and the vendor
 // sheet's list are cache entries holding the same truth.
-const CONTACT_SCOPES = [SCOPES.contacts, SCOPES.contact, SCOPES.vendors, SCOPES.vendor];
+const CONTACT_SCOPES = [SCOPES.contacts, SCOPES.contact, SCOPES.registryVendors, SCOPES.registryVendor];
 
 export function useContactMutations() {
   const invalidate = useInvalidate();

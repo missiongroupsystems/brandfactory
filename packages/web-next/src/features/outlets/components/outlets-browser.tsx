@@ -89,12 +89,33 @@ type GroupBy = "flat" | "brand";
  * until that sync exists it is the only way to put an outlet in — and because a
  * screen that can edit a record but never create one is a screen with a hole in
  * it.
+ *
+ * **`brandId` is a *scope*, not a preset filter, and the difference is everything the
+ * `scoped` branches below encode.** Handed one — by `/brands/:id/outlets`, where the brand is in
+ * the path — the screen stops being about brands at all: the brand column, the brand filter, the
+ * brand grouping and the brand line under each name all go, because a column of one repeated
+ * value is furniture and a filter the reader cannot clear is a lie about being a filter. Without
+ * one — at `/outlets`, still reachable for the cross-area links that hold an outlet id and no
+ * brand — nothing changes.
+ *
+ * The narrowing is client-side like every other filter here, which it can be because
+ * `GET /workspaces/:id/outlets` returns the whole set: the count under a scoped table is still a
+ * total, not "four so far".
  */
-export function OutletsBrowser() {
+export function OutletsBrowser({ brandId }: { brandId?: string } = {}) {
+  const scoped = brandId !== undefined;
   const { filters, setFilter, clearAll, activeCount } = useQueryFilters(FILTER_KEYS);
   // View control on its own instance so "Clear filters" leaves it alone.
   const { filters: viewFilters, setFilter: setViewFilter } = useQueryFilters(VIEW_KEYS);
-  const by: GroupBy = viewFilters.by === "brand" ? "brand" : "flat";
+  // Grouping by brand inside one brand is one band holding every row. Forced rather than merely
+  // hidden, so a `?by=brand` left in a URL by a paste from the workspace table cannot resurrect a
+  // control this screen no longer draws.
+  const by: GroupBy = !scoped && viewFilters.by === "brand" ? "brand" : "flat";
+
+  // Where a row's page lives. Inside a brand the detail route sits under the brand too, so the
+  // sidebar does not revert to the workspace the moment you open a location — see
+  // `app/(app)/brands/[id]/outlets/[slug]/page.tsx`.
+  const basePath = scoped ? `/brands/${brandId}/outlets` : "/outlets";
 
   const { outlets, isLoading, error } = useOutlets();
   const { brands } = useActiveBrand();
@@ -138,9 +159,12 @@ export function OutletsBrowser() {
   const filtered = React.useMemo(() => {
     const q = filters.q?.trim().toLowerCase();
     return outlets.filter((outlet) => {
+      // The scope first, and unconditionally: it is the route, not something the reader set, so
+      // "Clear filters" must not widen past it.
+      if (scoped && outlet.brandId !== brandId) return false;
       if (filters.status && outlet.status !== filters.status) return false;
       if (filters.outletType && outlet.outletType !== filters.outletType) return false;
-      if (filters.brandId && outlet.brandId !== filters.brandId) return false;
+      if (!scoped && filters.brandId && outlet.brandId !== filters.brandId) return false;
       if (q) {
         const haystack = `${outlet.name} ${outlet.address ?? ""} ${outlet.unit ?? ""} ${
           outlet.postalCode ?? ""
@@ -149,19 +173,22 @@ export function OutletsBrowser() {
       }
       return true;
     });
-  }, [outlets, filters]);
+  }, [outlets, filters, scoped, brandId]);
 
   const brandNameFor = React.useCallback(
-    (brandId: string | null): string | undefined => {
-      if (!brandId) return undefined;
+    (rowBrandId: string | null): string | undefined => {
+      // Inside a brand every row has the same one, and printing it under each name would be the
+      // page title repeated down a column.
+      if (scoped) return undefined;
+      if (!rowBrandId) return undefined;
       // A real foreign key absent from the index is a fetch in flight or one that
       // failed — never a missing fact. `PENDING` whatever the reason, because
       // `brandsLoading` is false on a *failed* request too, and falling through to
       // `undefined` there hid the brand line on a row that has one. The group rail
       // above already reads this way; this is the row catching up with it.
-      return brandsById.get(brandId)?.name ?? PENDING;
+      return brandsById.get(rowBrandId)?.name ?? PENDING;
     },
-    [brandsById],
+    [brandsById, scoped],
   );
 
   return (
@@ -169,16 +196,18 @@ export function OutletsBrowser() {
       <FilterToolbar
         actions={
           <>
-            <SegmentedControl
-              label="Group outlets by"
-              value={by}
-              options={[
-                { value: "flat", label: "Flat" },
-                { value: "brand", label: "By brand" },
-              ]}
-              // "Flat" clears the key, so the default link stays clean.
-              onChange={(value) => setViewFilter("by", value === "flat" ? undefined : value)}
-            />
+            {scoped ? null : (
+              <SegmentedControl
+                label="Group outlets by"
+                value={by}
+                options={[
+                  { value: "flat", label: "Flat" },
+                  { value: "brand", label: "By brand" },
+                ]}
+                // "Flat" clears the key, so the default link stays clean.
+                onChange={(value) => setViewFilter("by", value === "flat" ? undefined : value)}
+              />
+            )}
             <Button variant="secondary" onClick={openCreate}>
               <PlusIcon data-icon="inline-start" />
               Add outlet
@@ -207,13 +236,15 @@ export function OutletsBrowser() {
             options={OUTLET_TYPE_OPTIONS}
             onChange={(value) => setFilter("outletType", value)}
           />
-          <FilterSelect
-            label="Filter by brand"
-            allLabel="All brands"
-            value={filters.brandId}
-            options={brandOptions}
-            onChange={(value) => setFilter("brandId", value)}
-          />
+          {scoped ? null : (
+            <FilterSelect
+              label="Filter by brand"
+              allLabel="All brands"
+              value={filters.brandId}
+              options={brandOptions}
+              onChange={(value) => setFilter("brandId", value)}
+            />
+          )}
         </FilterBar>
       </FilterToolbar>
 
@@ -223,7 +254,13 @@ export function OutletsBrowser() {
         <LoadingRows rows={6} />
       ) : filtered.length === 0 ? (
         <EmptyState
-          message={activeCount > 0 ? "No outlets match these filters" : "No outlets yet"}
+          message={
+            activeCount > 0
+              ? "No outlets match these filters"
+              : scoped
+                ? "No outlets for this brand yet"
+                : "No outlets yet"
+          }
           hint={
             activeCount > 0
               ? "Clear a filter to widen the search."
@@ -233,17 +270,21 @@ export function OutletsBrowser() {
       ) : by === "flat" ? (
         <FlatOutlets
           outlets={filtered}
-          total={outlets.length}
+          // Scoped, the denominator is this brand's outlets rather than the workspace's — "3 of
+          // 27 outlets" under a brand's table would be counting rows the page is not about.
+          total={scoped ? filtered.length : outlets.length}
+          basePath={basePath}
           brandNameFor={brandNameFor}
-          onFilterBrand={(brandId) => setFilter("brandId", brandId)}
+          onFilterBrand={(id) => setFilter("brandId", id)}
           onEdit={openEdit}
         />
       ) : (
         <GroupedOutlets
           outlets={filtered}
           brandsById={brandsById}
+          basePath={basePath}
           brandNameFor={brandNameFor}
-          onFilterBrand={(brandId) => setFilter("brandId", brandId)}
+          onFilterBrand={(id) => setFilter("brandId", id)}
           onEdit={openEdit}
         />
       )}
@@ -256,6 +297,9 @@ export function OutletsBrowser() {
           render instead. */}
       <OutletForm
         outlet={editing}
+        // Inside a brand, a new outlet belongs to it. Create mode only — `OutletForm` ignores this
+        // when it is editing, where the record's own brand is the answer.
+        defaultBrandId={brandId}
         open={formOpen}
         onOpenChange={(open) => {
           setFormOpen(open);
@@ -289,12 +333,15 @@ function OutletTableHeader() {
 function FlatOutlets({
   outlets,
   total,
+  basePath,
   brandNameFor,
   onFilterBrand,
   onEdit,
 }: {
   outlets: Outlet[];
   total: number;
+  /** Where a row's page lives — see `outletHref`. */
+  basePath: string;
   brandNameFor: (brandId: string | null) => string | undefined;
   onFilterBrand: (brandId: string) => void;
   onEdit: (outlet: Outlet) => void;
@@ -309,6 +356,7 @@ function FlatOutlets({
               <OutletRow
                 key={outlet.id}
                 outlet={outlet}
+                basePath={basePath}
                 brandName={brandNameFor(outlet.brandId)}
                 onFilterBrand={onFilterBrand}
                 onEdit={onEdit}
@@ -349,12 +397,15 @@ const NONE_KEY = "__none__";
 function GroupedOutlets({
   outlets,
   brandsById,
+  basePath,
   brandNameFor,
   onFilterBrand,
   onEdit,
 }: {
   outlets: Outlet[];
   brandsById: Map<string, BrandSummary>;
+  /** Where a row's page lives — see `outletHref`. */
+  basePath: string;
   brandNameFor: (brandId: string | null) => string | undefined;
   onFilterBrand: (brandId: string) => void;
   onEdit: (outlet: Outlet) => void;
@@ -455,6 +506,7 @@ function GroupedOutlets({
                         <OutletRow
                           key={outlet.id}
                           outlet={outlet}
+                          basePath={basePath}
                           brandName={brandNameFor(outlet.brandId)}
                           onFilterBrand={onFilterBrand}
                           onEdit={onEdit}
@@ -495,12 +547,15 @@ function GroupedOutlets({
  */
 function OutletRow({
   outlet,
+  basePath,
   brandName,
   onFilterBrand,
   onEdit,
   rail,
 }: {
   outlet: Outlet;
+  /** Where this row's page lives — see `outletHref`. */
+  basePath: string;
   /** The resolved name, `PENDING` while the list is in flight, `undefined` for none. */
   brandName?: string;
   onFilterBrand: (brandId: string) => void;
@@ -520,7 +575,7 @@ function OutletRow({
             clickable as a whole: a row-level onClick makes text unselectable and
             cannot be opened in a new tab. */}
         <Link
-          href={outletHref(outlet)}
+          href={outletHref(outlet, basePath)}
           className="-mx-2 -my-1 block truncate rounded-md px-2 py-1 font-medium text-ink hover:text-brand hover:underline"
         >
           {outlet.name}

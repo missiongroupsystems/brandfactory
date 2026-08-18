@@ -31,6 +31,7 @@ import {
   TargetIcon,
   Trash2Icon,
   TrendingUpIcon,
+  UserIcon,
   UsersIcon,
   WifiIcon,
   WrenchIcon,
@@ -55,6 +56,16 @@ import type {
   InfluencerStatus,
   InfluencerVertical,
 } from "@brandfactory/shared";
+
+// The vendor enums follow, and `VendorStatus` is the third record here to be
+// re-keyed off a shared union while the Operations Hub still indexes it with its
+// own. The two lists are identical member for member — `active | inactive |
+// blacklisted` on both sides — so `features/registry-vendors` keeps
+// type-checking against `VendorRead.status`, and if the two ever diverge those
+// call sites break, which is the signal worth having. `VendorCategory` has no
+// Ops counterpart at all: `ServiceCategory` below is thirteen building trades
+// and stays where it is, because that folder and the review queue still read it.
+import type { VendorCategory, VendorStatus } from "@brandfactory/shared";
 
 import type {
   AuthorityKind,
@@ -83,7 +94,6 @@ import type {
   ReviewStatus,
   ServiceFrequency,
   VendorKind,
-  VendorStatus,
   VisitStatus,
 } from "@/lib/api/types";
 
@@ -294,6 +304,63 @@ export const VENDOR_STATUS_TONES: Record<VendorStatus, BadgeTone> = {
   active: "success",
   inactive: "default",
   blacklisted: "error",
+};
+
+/**
+ * What the counterparty **is** — an agency, a studio, a press office, a tool.
+ *
+ * **Not `CONTRACT_CATEGORY_LABELS`, and the vendor form's hint said otherwise for four
+ * releases.** That vocabulary names what an *agreement buys* — `retainer`, `media_buy`,
+ * `sponsorship`. One company sells three of those and one agreement buys one, so a media agency
+ * on a retainer would be filed under "Retainer", which is a fact about the paperwork rather than
+ * about the company. Two vocabularies over one domain, on purpose.
+ *
+ * It also replaces `SERVICE_CATEGORY_LABELS` below on this screen — thirteen building trades, of
+ * which a talent agency could only ever be "Other". That record stays where it is:
+ * `features/registry-vendors` and the review queue still read it.
+ *
+ * `PR agency` keeps its acronym; everything else is sentence case (styleguide §5.1).
+ */
+export const VENDOR_CATEGORY_LABELS: Record<VendorCategory, string> = {
+  creative_agency: "Creative agency",
+  media_agency: "Media agency",
+  talent_agency: "Talent agency",
+  pr_agency: "PR agency",
+  production: "Production",
+  events: "Events",
+  research: "Research",
+  software: "Software",
+  freelancer: "Freelancer",
+  other: "Other",
+};
+
+/**
+ * A glyph per category, declared beside the labels so the two cannot drift.
+ *
+ * **Nine of the ten are the glyph `CONTRACT_CATEGORY_ICONS` already gives the same subject**, and
+ * that repetition is the point rather than an accident: a media agency and a media buy are the
+ * same subject seen from the two ends of one relationship, so `/vendors` and `/contracts` teach
+ * one symbol vocabulary between them instead of two. The grammar is that record's — **name the
+ * thing, not the mood**.
+ *
+ * `freelancer` is the one new symbol, and it is `UserIcon` against `talent_agency`'s
+ * `UsersIcon`: one person against a company of them, which is the whole distinction the two
+ * members draw.
+ *
+ * Ten symbols is a vocabulary rather than decoration, so every cell using one keeps the label
+ * beside it as real text — WCAG 1.4.1 does not allow the glyph to be the only carrier.
+ */
+export const VENDOR_CATEGORY_ICONS: Record<VendorCategory, LucideIcon> = {
+  creative_agency: PaletteIcon,
+  media_agency: TrendingUpIcon,
+  talent_agency: UsersIcon,
+  pr_agency: MegaphoneIcon,
+  production: ClapperboardIcon,
+  events: CalendarHeartIcon,
+  research: TargetIcon,
+  software: MonitorIcon,
+  freelancer: UserIcon,
+  other: CircleDashedIcon,
 };
 
 /**
@@ -814,6 +881,7 @@ export const REQUIREMENT_STATUS_OPTIONS = optionsFrom(REQUIREMENT_STATUS_LABELS)
 export const LICENSE_STATUS_OPTIONS = optionsFrom(LICENSE_STATUS_LABELS);
 export const VENDOR_STATUS_OPTIONS = optionsFrom(VENDOR_STATUS_LABELS);
 export const VENDOR_KIND_OPTIONS = optionsFrom(VENDOR_KIND_LABELS);
+export const VENDOR_CATEGORY_OPTIONS = optionsFrom(VENDOR_CATEGORY_LABELS);
 export const BRAND_STATUS_OPTIONS = optionsFrom(BRAND_STATUS_LABELS);
 export const SERVICE_CATEGORY_OPTIONS = optionsFrom(SERVICE_CATEGORY_LABELS);
 export const CONTRACT_CATEGORY_OPTIONS = optionsFrom(CONTRACT_CATEGORY_LABELS);

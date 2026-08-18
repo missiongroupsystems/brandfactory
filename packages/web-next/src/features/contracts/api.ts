@@ -23,7 +23,7 @@ import type {
  * The agreements. Contract responses arrive as one of two shapes — narrow with
  * `hasContractValue()`, never a null test, same discipline as the network passwords.
  *
- * The vendors themselves live in `features/vendors`; a contract references one by
+ * The vendors themselves live in `features/registry-vendors`; a contract references one by
  * `vendor_id` and this file never fetches it. The brands live in
  * `features/registry-brands`, referenced by `brand_ids` and fetched no differently.
  *

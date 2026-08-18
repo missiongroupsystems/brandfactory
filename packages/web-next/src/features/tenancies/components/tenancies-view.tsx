@@ -23,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useOutletIndex } from "@/features/registry/hooks";
-import { useVendorIndex } from "@/features/vendors/hooks";
+import { useVendorIndex } from "@/features/registry-vendors/hooks";
 import { FLAG_ON, filterIdentity, isFlagOn, useQueryFilters } from "@/hooks/use-query-filters";
 import { hasTenancyRent, type TenancyStatus } from "@/lib/api/types";
 import { formatDate, formatMonthYear, formatMoney } from "@/lib/format";

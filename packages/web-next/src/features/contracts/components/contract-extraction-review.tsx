@@ -18,7 +18,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useBrandIndex } from "@/features/registry-brands/hooks";
-import { useVendorIndex } from "@/features/vendors/hooks";
+import { useVendorIndex } from "@/features/registry-vendors/hooks";
 import { useSubmit } from "@/hooks/use-submit";
 import {
   hasContractValue,

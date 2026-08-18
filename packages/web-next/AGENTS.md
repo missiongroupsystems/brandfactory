@@ -162,14 +162,15 @@ something is.
   `createdBy` rides back on every row: synthesising `'user'` is the bug the *server* fixed in
   Stage 1B, and a client can reintroduce it from this side.
 
-- **`GET /workspaces/:id/outlets` and `GET /workspaces/:id/influencers` return the whole set, and
-  that is what makes those two screens' numbers true.** Neither has a cursor or a filter — the
-  client narrows an array it holds completely, so `4 outlets` is a total rather than "four so far",
-  a brand's group holds all of that brand's outlets rather than the ones that landed on page one,
-  and a reach band that says `9` holds nine. Those are the *only* two places in this app where a
-  footer or a group header may state a total; every Ops list still must not, because their API
-  returns `next_cursor` and no count. Do not reach for `useCursorPages` or `listEvery` on either —
-  both would wait on a `next_cursor` that never arrives. And when a roster outgrows one response,
+- **`GET /workspaces/:id/outlets`, `…/influencers` and `…/vendors` return the whole set, and that
+  is what makes those three screens' numbers true.** None has a cursor or a filter — the client
+  narrows an array it holds completely, so `4 outlets` is a total rather than "four so far", a
+  brand's group holds all of that brand's outlets rather than the ones that landed on page one, a
+  reach band that says `9` holds nine, and `9 vendors` under a filtered table counts the rows
+  above it. Those are the *only* three places in this app where a footer or a group header may
+  state a total; every Ops list still must not, because their API returns `next_cursor` and no
+  count. Do not reach for `useCursorPages` or `listEvery` on any of them — all three would wait on
+  a `next_cursor` that never arrives. And when a roster outgrows one response,
   the cursor and the SQL filters land **together**: a paginated list with client-side filters is
   the "Zephyr alone on page one" failure this file bans for sorting.
 
@@ -200,11 +201,17 @@ src/
     sign-in/             outside the group: the gate cannot gate its own door
     (app)/               route group: the sidebar shell
       layout.tsx           AuthBoundary + SidebarProvider + SidebarInset
-      brand/               the BrandFactory brand, read and written — the profile of the brand
-                           you are in, plus [id]/ for a named one. Singular: `/brands` is left
-                           free for the workspace's brand *list*
+      brands/              the workspace's brands as a gallery, and everything inside one:
+                           [id]/ is the profile, [id]/outlets/ that brand's locations and
+                           [id]/outlets/[slug]/ one of them. Under [id] the sidebar becomes
+                           the brand's — see `components/layout/brand-nav.tsx`
       outlets/             the premises, read and written against the Hono server — list,
-                           plus [slug]/ for one outlet, keyed by slug *or* id
+                           plus [slug]/ for one outlet, keyed by slug *or* id. **Out of the
+                           nav** since 1.42.0 and kept for the cross-area links that hold an
+                           outlet id and no brand (dashboard, review); the brand's own table
+                           is the one people navigate to
+      tools/               funnel/ and photography/ — two deliberate placeholders, tagged
+                           "Empty" in the nav. Title, route and two strings each
       entities|networks/   Phase 0 — list screens
       dashboard/           Phase 1–2 — the attention surface, filters in the URL
       licenses/            Phase 1 — three URL-selected views: held, requirements, library
@@ -311,6 +318,26 @@ about premises for a release. Folder, cache scope and route all say `registry-br
 **wire path stays `/brands`** — that is the Ops backend's, frozen in `schema.d.ts`, and not this
 app's to rename. Keep the three in step and leave the fourth alone.
 
+**`features/vendors/` is BrandFactory's vendor. `features/registry-vendors/` is the Operations
+Hub's** — the fourth split, made for the third time and for the same reason. The real one is
+workspace-scoped with a many-to-many brand relation and a child contact list, camelCase,
+`@brandfactory/shared`'s `Vendor`, and reads the Hono server; the Ops one is `VendorRead`,
+snake_case, carries a `kind` and a `ServiceCategory` of thirteen building trades, and is answered
+from `lib/api/mock.ts`.
+
+The Ops folder stays because **`/contracts` is live and resolves every `contract.vendor_id` to a
+name through its `useVendorIndex`**, and the review queue creates a contact against a vendor.
+Pointing that screen at the real vendors is the same mistake `fixtures/brands.ts` warns about:
+sixteen fixture agreements name those nine companies by *their* ids, and a static fixture cannot
+know the ids of rows a live server creates. The cache scopes moved with the folder —
+`registry-vendors` / `registry-vendor` — and `cache.test.ts` pins them.
+
+**Two vendor books will be on screen at once from the moment `/vendors` reads the server**, and
+that stays true until the contracts conversion closes it. It is an accepted cost rather than an
+oversight, and the honesty it owes is a `Sample` tag on the Contracts nav item — the field exists
+for exactly this. Do not close the gap by re-pointing `/contracts` at the real vendors; see the
+paragraph above for why that cannot work.
+
 `features/marketing-requests/` is the same rule applied a second time and on the first attempt:
 folder, route and label all moved off `forms`, and `/forms/{form_key}/submissions` stayed because
 it is the Ops backend's path.
@@ -329,6 +356,28 @@ cannot create, join or leave another, so `components/layout/workspace-switcher.t
 name is readable once, as text, in the account menu. Do not put a workspace control back in the
 chrome without the product decision that reverses this; a control that offers a choice the
 product does not have is worse than the fact being hidden.
+
+**There are two sidebars and the path picks one.** `brandIdFromPath` in `components/layout/nav.ts`
+is the whole switch: under `/brands/:id` the rail becomes that brand's — the way back to the
+gallery, the brand, and `BRAND_NAV_ITEMS` — and everywhere else it is the workspace's `NAV_ITEMS`.
+The mode is **derived, never stored**: a flag in state would have to be cleared on every navigation
+away, and the browser's back button is where that would eventually be forgotten, leaving a rail
+headed "Casa Vostra" over a workspace page. Adding a brand-scoped screen is one row in
+`BRAND_NAV_ITEMS` plus a route under `app/(app)/brands/[id]/`.
+
+**The brand switcher in the sidebar header is gone**, and it is the same product decision as the
+workspace one above rather than a redesign. It offered a brand switch on eleven screens where
+nothing answered to it — every workspace table spans all brands and carries a brand *filter* — and
+it reached the profile through a `DropdownMenuRadioGroup`, which reports changes only, so
+re-picking the brand you were already in did nothing. Choosing a brand is a navigation now. Do not
+put a brand control back in the chrome: a page that is about one brand says so in its URL and in
+its rail, and a page that is not has a filter.
+
+**A workspace table is not a brand screen just because it has a `brandId` column.** Contracts,
+Vendors and Influencers are each **many-to-many** with brands — a contract names several — so the
+cross-brand table is the true shape of them and a per-brand view would be a filter pretending to be
+a scope. Outlets moved because an outlet belongs to exactly one brand. Apply that test before
+adding to `BRAND_NAV_ITEMS`.
 
 **Native `<select>` and `<input type="checkbox">`, styled.** Not Base UI's popup Select. Every
 select here picks one value from a short closed enum and the attribute editor is twenty checkboxes
@@ -511,9 +560,15 @@ layer exists so identity is established in one place rather than in a search acr
 workspace and the active brand are both `localStorage` through `lib/stored-preference.ts` —
 `useSyncExternalStore` with a `null` server snapshot, because reading storage during render is
 wrong on the server and seeding from an effect is `react-hooks/set-state-in-effect`. The root
-`CLAUDE.md` records the same call for `sidebar-prefs.ts` and `key-dates-prefs.ts`. They are not
-in the URL because nothing in this shell is workspace- or brand-scoped yet; when routes exist,
-the route wins and the preference becomes the fallback, which is the shape `packages/web` has.
+`CLAUDE.md` records the same call for `sidebar-prefs.ts` and `key-dates-prefs.ts`.
+
+**The brand half of that is now demoted, which is the promise this note made coming due.** It said
+the route would win and the preference become the fallback once brand-scoped routes existed. They
+do: `/brands/:id` and everything under it read the id from the path, and nothing there consults
+`stored-preference`. What the preference still answers is "which brand was I last in" — the card
+`BrandsGallery` marks, and the fallback for a surface carrying no id. `BrandNavHeader` writes it on
+the way past so the two cannot disagree, and it writes only a brand the workspace actually holds:
+a stale link must not overwrite a good selection with a dead id.
 
 **`features/spaces` has a zustand store, and it is not a violation of that rule** — the
 distinction is worth understanding before copying either side of it.

@@ -20,7 +20,7 @@ import {
 import { useAttachmentMutations } from "@/features/contracts/hooks";
 import { useContactMutations } from "@/features/contacts/hooks";
 import { useEntityIndex, useOutletIndex } from "@/features/registry/hooks";
-import { useVendorIndex } from "@/features/vendors/hooks";
+import { useVendorIndex } from "@/features/registry-vendors/hooks";
 import { useSubmit } from "@/hooks/use-submit";
 import { ApiError } from "@/lib/api/client";
 import { hasTenancyRent, type Attachment, type TenancyKind } from "@/lib/api/types";

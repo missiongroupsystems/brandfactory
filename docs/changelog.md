@@ -6,6 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.43.0** — 2026-08-18 — A vendor stops being nine rows assembled out of two fixtures and becomes an aggregate: three tables, five routes, an exhaustive list, a page each and a form that fills them — and the three columns counting agreements go, because the only thing that held one was a fixture. Migration 0015. 2371 tests.
+- **1.42.0** — 2026-08-18 — The nav stops pretending every screen is about every brand: `/brands` becomes a gallery, opening a card turns the rail into that brand's, and the header dropdown that offered a brand switch on eleven screens with nothing to switch is deleted. `Registry` goes, `Tools` arrives. No migration. 2370 tests.
 - **1.41.1** — 2026-08-18 — An empty table was 32px narrower on each side than the populated one, on every list screen: the page gutter, applied once by the view and again by the state inside it. The three states give the gutter up and a route root asks for it. No migration. 2292 tests.
 - **1.41.0** — 2026-08-18 — Spaces leaves: the last screen in the nav that plans premises rather than brands goes whole — two routes, the largest feature folder in the package, and the only reason this marketing app shipped a 3D engine and a second state library. No migration. 2292 tests.
 - **1.40.1** — 2026-08-18 — Pre-push review of 1.40.0: the form's most ordinary mistake — entering a creator who is already on the roster — answered `Internal Server Error`, because influencers is this schema's first aggregate with a unique key somebody types. It is a 409 that names the pair. No migration. 2292 tests.
@@ -90,6 +92,289 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.43.0 — 2026-08-18
+
+**The Vendors screen showed nine companies, eight columns and four aggregate figures, and not one
+of them was stored anywhere.**
+
+`fixtures/agencies.ts` invented six agencies, `fixtures/contracts.ts` invented sixteen agreements,
+and the screen derived `Contracts`, `Next end` and a brand count from them. The record behind it
+was `S["VendorRead"]` — an alias over a `schema.d.ts` generated from a FastAPI document this
+repository does not contain, with `pnpm gen:api` deleted and the file frozen. It was not ours to
+extend.
+
+A vendor becomes a BrandFactory aggregate: three tables, two enums, five queries, five routes, a
+seeded book, an exhaustive list, a page per company and a form that can add, correct and remove
+one. `/vendors` reads the Hono server.
+
+The precedent throughout is 1.36.0 (outlets) and 1.40.0 (influencers), which did the same thing one
+and two aggregates over. Seven phases, each with its own note in `docs/completions/`; the plan is
+`docs/executing/vendors-on-real-data-plan.md`. Migration **0015**. `packages/web` is untouched
+throughout and still serves production.
+
+### 1. The question that prompted it, answered
+
+*"We'll have to create a new Vendors db model/table if I'm not mistaken."*
+
+**Correct, and there was nothing to reuse.** BrandFactory's schema held seventeen tables and no
+company record of any kind. `outlets` is a place the brand trades *from*; `brands` is the thing the
+work is for; `influencers` is a person the brand engages. None of the three is a counterparty, and
+none could be widened into one without carrying a follower count or a lease beside a UEN.
+
+### 2. Three columns went, and that is the release read as one decision
+
+`Contracts`, `Next end`, and the counts on the detail page's summary line. Their only source was
+sixteen invented agreements, and this server holds no contract at all.
+
+They were **removed rather than pinned to zero**, which is the harder half. A vendor holding three
+live retainers reading `0 contracts` is a false statement that looks like a true one, and zero is
+the most convincing false value there is — the argument `brand_ids_covered`'s own docstring already
+made about `outlets_covered`.
+
+**The Brands column stayed and stopped being derived.** It showed which brands a vendor's *live
+agreements* were held for; it now shows which brands the company works on, out of `vendor_brands`.
+The cell's empty state changed with it, and the change is the point: `Group level` is a statement
+about an **agreement** held for the whole group, deliberately, with nothing to fix. A company
+nobody has put against a brand is `Not assigned yet`. The old cell needed *two* empty states
+because it rendered a projection; one fact needs one word.
+
+The detail page's Contracts card is a **stated placeholder** for the same reason. Keeping the
+Operations Hub's list would have rendered *"No contracts with this vendor"* on every vendor,
+forever — fixture contracts key on fixture vendor ids (`v2000000-…`, not even a uuid) and no real
+row can ever match one. An empty state that can never be non-empty is a false statement in the
+shape of one.
+
+### 3. Two vocabularies over one domain, and a hint that had been wrong for four releases
+
+`VendorCategory` is new — ten members naming what the **counterparty is**: `creative_agency`,
+`media_agency`, `talent_agency`, `pr_agency`, `production`, `events`, `research`, `software`,
+`freelancer`, `other`.
+
+It is deliberately **not** `ContractCategory`, which names what an **agreement buys** —
+`retainer`, `media_buy`, `sponsorship`. One company sells three of those and one agreement buys
+one, so a media agency on a retainer would have to be filed under "Retainer", a fact about the
+paperwork rather than about the company.
+
+The form's own hint had been promising the opposite since 1.37.0: *"The trade they mostly work.
+**Shared with contracts.**"* That stopped being true when a contract took a marketing vocabulary
+and vendors kept `ServiceCategory` — thirteen *building trades*, of which a talent agency could
+only ever be `other`. Four of the six agency fixtures carried `other` for exactly that reason. No
+gate can see a string, so it took a reader.
+
+`category` is **nullable *and* has an `other` member**, and both are load-bearing: `null` is
+"nobody has said", `other` is "stated, none of these". This is the one place vendors do the
+opposite of influencers on purpose — there, a creator with no vertical is a genuine generalist, so
+the union has no `other` to confuse them with.
+
+### 4. The 409 is a UEN, and the name is deliberately not one
+
+`unique (workspace_id, uen)`, and 1.40.1's mechanism reused whole: narrowed on the **constraint
+name**, not on `23505` alone, so any other unique violation stays a 500 rather than being dressed
+as a duplicate registration.
+
+**A duplicate name cannot refuse a row, and that is a decision.** A company name is not an
+identifier — it carries legal suffixes, trading names and abbreviations — so refusing *"Sunbeam
+Social"* because *"Sunbeam Social Pte Ltd"* exists would refuse a legitimate second record while
+catching none of the real duplicates. The slug takes a `-2` and the row lands. A UEN genuinely is
+one company's identifier, and Postgres treats NULLs as distinct, so the seven unrecorded rows cost
+nothing.
+
+The message names the number and gives both ways forward, because it is the one refusal on this
+form a person reads while looking at the box they typed into.
+
+### 5. `kind` did not survive the move
+
+1.38.0 removed the `service_provider | landlord` control from the screen — *marketing buys from no
+landlords* — and left `VendorKind` on the record it controlled, on `VendorCreate`, and as a
+`Select` in the form. This removes the column. The dimension left rather than being pinned to one
+value, which is the same call 1.37.0 made when the outlet dimension left the contracts table.
+
+### 6. Contacts are a value object, and that removed a whole mechanism
+
+`vendor_contacts` carries **no surrogate id and no timestamps**, keyed on `(vendor_id, position)`.
+The write replaces the whole list, so a `created_at` would reset on every unrelated edit of the
+vendor and read as a lie.
+
+The Operations Hub's form saved a vendor with two requests — a PATCH, then
+`PUT /vendors/:id/contacts` — because its backend held contacts behind a partial unique index that
+could refuse the second half of a primary swap. There is no such route here: `contacts` rides in
+the create and patch body, the same call `brandIds` makes. A primary swap is one request, and a
+failed save leaves nothing half-written.
+
+**At most one primary, enforced in zod** rather than by a partial unique index — the repo's stated
+rule, and here it also removed the work the index created.
+
+**The primary control became a checkbox, and that is a correction.** The Ops form used a native
+radio group, which *cannot express zero*: once one is checked, no interaction unchecks it.
+`VendorContactsSchema` says at most one, not exactly one, and one of the nine seeded vendors
+carries a person nobody has appointed. A form that could reach that state on the way in but never
+on the way out is a one-way door in the middle of a record.
+
+### 7. The list is exhaustive, and the screen is a directory
+
+`GET /workspaces/:workspaceId/vendors` returns every vendor in the workspace, in **name order**,
+with no cursor and no server-side filters. `useVendorPages`, `useCursorPages`, `LoadMore` and
+`Page<VendorListItem>` all went with the swap, and the footer states a total — the third screen
+here to earn one, after `/outlets` and `/influencers`.
+
+**Alphabetical, and not by anything derived.** This screen is read by arriving with a company's
+name and looking for its row, which is the opposite of the influencer roster: that one leads with
+reach because it is read as a budget conversation. Ordering a directory by a computed figure would
+move a row every time the figure changed.
+
+The tripwire moved with the screen and is in `AGENTS.md`: past roughly **150 rows**, the keyset
+cursor on `(name, id)` and the SQL filters land **together**.
+
+### 8. Two vendor books are on screen at once, and `/contracts` now says so
+
+`/contracts` is live, entirely fixture-backed, and resolves every `contract.vendor_id` to a name
+through the Operations Hub's book — so that folder was **renamed rather than deleted**
+(`features/registry-vendors/`, with `registry-vendors` / `registry-vendor` cache scopes), the third
+time this split has been made after `features/registry` and `features/registry-brands`.
+
+The cost is real and was accepted in the plan: a vendor created on `/vendors` cannot be selected on
+`/contracts`, because a static fixture cannot hold the id of a row a live server just created. The
+honesty it owes is a **`Sample` tag on the Contracts nav item**, which this release adds. It was
+invisible while every screen around it was a fixture too; it is visible now.
+
+### 9. Two smaller things found on the way
+
+**A vendor with contacts but no primary shows the count, not the em dash.** The em dash means "not
+recorded" in these tables, so in the `Primary contact` column it would have said there is nobody to
+call while the record holds somebody. The cell reads `1 contact` instead — a stated fact that also
+points at the record page.
+
+**A UEN is searchable and marked in place.** The search box covers name **or** UEN, both of them
+the row's own fields, so the label names both — the rule `AGENTS.md` sets for a search spanning
+more than the title. A UEN is what somebody pastes in from a portal, and it was already rendered in
+the first column.
+
+### 10. Verification
+
+```
+pnpm typecheck                             clean (11 packages)
+pnpm lint                                  clean (whole repo)
+pnpm format:check                          clean
+pnpm test                                  2371 passed | 140 skipped (193 files)
+pnpm test  (with DATABASE_URL)             2511 passed | 0 skipped
+pnpm -F @brandfactory/web build            clean
+pnpm -F @brandfactory/web-next lint        clean
+pnpm -F @brandfactory/web-next typecheck   clean
+pnpm -F @brandfactory/web-next build       clean — `○ /vendors`, `ƒ /vendors/[slug]`
+pnpm -F @brandfactory/db db:migrate        0015 applied to the seeded dev database
+pnpm -F @brandfactory/db db:seed           9 vendors, 8 links, 4 contacts; run twice, idempotent
+```
+
+`/vendors` staying **○ (Static)** is the check worth naming: the page reads no `searchParams` — the
+browser component under `<Suspense>` reads them through `useSearchParams` — so it did not go
+dynamic the way `/contracts` did.
+
+**The count needs reading carefully, because two releases interleaved.** This work took the tree
+from 1.41.1's **2292** to **2358** — 28 in Phase A, 33 in Phase B, 1 in Phase C, none in Phase D, 3
+in Phase E, none in Phase F and 1 in Phase G. **1.42.0 landed in the same working tree** while
+Phases D–F were being written, adding its own 13, which is how the final number is 2371. The 25 new
+skips are `vendors.live.test.ts`, which skips without `DATABASE_URL` like every other live test;
+they were run against real Postgres and all pass.
+
+Phases D and F add no test and that is stated rather than hidden: `web-next` tests auth, workspace
+resolution and cache keys, **not the screens**, because most of the package is still borrowed
+Operations Hub UI and the logic worth asserting is the part a browser pass cannot see.
+
+**The write path was driven against the real server instead of through a browser** — create with a
+name and nothing else (201, slug chosen, every optional field null), a duplicate UEN (409, the
+message above), a primary appointed, swapped and cleared in three patches, two primaries refused
+(400, *"At most one contact can be the primary"*), a delete (200), and the book back to nine.
+
+**No browser pass, and it is the third release running without one.** The stack was brought up for
+it — migration applied, book seeded, Hono on `:3001` and `next dev` reporting `✓ Ready` on a free
+port — and the pass stops at the sign-in form, which needs a token pasted. What that leaves unseen
+for this screen: whether ten category glyphs are distinguishable at 16px, whether the table reads
+as a directory now three columns have gone, whether `Not assigned yet` reads as a decision rather
+than a gap, whether the Contracts placeholder reads as a stated condition rather than a broken
+card, whether the contacts editor is usable at three contacts, whether an exclusive checkbox reads
+as "at most one" rather than as a broken radio, and whether the 409's long message fits the form
+panel.
+
+### 11. What is deliberately not done
+
+- **Contracts are not converted.** They stay a fixture, tagged `Sample`, and the three aggregate
+  columns stay gone until they can be real.
+- **No `/contacts` change.** The Ops address book is untouched and `useContactMutations` stays live
+  on the tenancy sheet and the review queue. A `vendor_contacts` row and a `ContactRead` row are
+  different records in different services that happen to both describe a person.
+- **No server-side filtering, sorting or pagination.** It arrives with the cursor, together, past
+  ~150 rows.
+- **No vendor↔outlet relation**, no spend, no quotation history and no document upload. The
+  `Upload` half of the split button is still a stated placeholder.
+- **Two dead components are left in `features/registry-vendors/`** — `vendors-view.tsx` and
+  `vendor-detail.tsx`, unreferenced since the two route swaps. Deleting them cascades into
+  `features/contracts/hooks.ts` and ends at a cache scope `cache.test.ts` pins, so it is a decision
+  about the Operations Hub's book rather than about these routes. `vendor-form.tsx` is **not** in
+  that set and must not be swept up with it: `contract-form.tsx` opens it so a contract can create
+  its counterparty inline.
+
+Outline: [`completions/vendors-on-real-data.md`](completions/vendors-on-real-data.md). Full notes:
+[`archive/vendors-on-real-data-plan.md`](archive/vendors-on-real-data-plan.md) and the seven phase
+notes beside it, [A](archive/vendors-phase-a-the-record.md) through
+[G](archive/vendors-phase-g-the-release.md).
+
+## 1.42.0 — 2026-08-18
+
+**The shell had one sidebar and a brand dropdown pinned to its header, and that shape said the
+brand was a filter applied to a fixed set of screens.** It is not. The brand is what the product is
+about, and the screens divide cleanly in two: eleven workspace tables that span every brand and
+carry a brand column, and the handful that have no meaning until you name one. The dropdown
+flattened the difference — it offered a brand switch on the Dashboard, where nothing answered to
+it, and it reached the brand profile through a `DropdownMenuRadioGroup`, which reports *changes*,
+so re-picking the brand you were already in did nothing at all.
+
+**There are two navs now, and the path picks one.** `brandIdFromPath` returns the id under
+`/brands/:id` and `null` everywhere else; `AppSidebar` branches on it once. Under a brand the rail
+is that brand's — the way back to the gallery where the product lockup sits, the brand's mark and
+name, and its own screens. Everywhere else it is the workspace's.
+
+**The mode is derived and never stored**, which is the decision the rest hangs off. A flag in
+state would have to be cleared on every navigation away from a brand, and the browser's back button
+is where that would eventually be forgotten — leaving a rail headed *Casa Vostra* over a workspace
+page. One pure function over `usePathname()` cannot drift. `nav.test.ts` pins it against the
+neighbours a plain `startsWith` would fall for, including the Operations Hub's `/registry-brands`,
+and tests `brandNavHref` and `brandIdFromPath` as a round trip: they are two ends of one switch,
+and a writer that escapes with a reader that does not is a rail that vanishes on the first id with
+a character in it.
+
+**`/brands` finally means what it says.** It was the Ops outlet-brand registry until 1.33.1 moved
+that aside, then sat unused for four releases while `/brand` and `/brand/:id` both rendered the
+profile of whichever brand a `localStorage` preference named — so a link to a brand profile opened
+a *different brand* for whoever you sent it to. It is now the workspace's brands as cards: the
+monogram, the line the brand describes itself with, and the two counts `BrandSummary` carries.
+Cards rather than the table every other list screen uses, because a workspace holds a handful of
+brands, nobody sorts them, and what matters is recognising one.
+
+**Outlets is scoped by the route rather than filtered by it**, and what that removes is the point.
+Handed a `brandId`, the table drops the brand line under each name, the brand filter, the "By
+brand" grouping and the brand half of its empty state: a column of one repeated value is furniture,
+and a filter the reader cannot clear is a lie about being a filter. Grouping is *forced* flat, not
+merely hidden, so a `?by=brand` pasted from the workspace table cannot resurrect a control the
+screen no longer draws — and the scope runs before every other predicate, so `Clear filters` cannot
+widen past it.
+
+**Contracts, Vendors and Influencers stayed in the workspace nav, and the reason is the test for
+the next screen that asks to move.** Each is many-to-many with brands — one contract names several
+— so the cross-brand table is their true shape and a per-brand view would be a filter pretending to
+be a scope. An outlet belongs to exactly one brand, which is why it moved.
+
+**`Registry` is gone and it is not a rename.** It held one genuinely brand-scoped screen and one
+workspace table, which is why no label could have been right for it. `Tools` takes its place with
+two deliberate placeholders — Marketing funnel and Photography — tagged `Empty` in the rail and
+rendering a page that states it holds nothing, rather than a spinner or a table of invented rows.
+
+`/outlets` and `/outlets/[slug]` survive out of the nav: seven live links reach an outlet from a
+screen that holds an outlet id and no brand. Inside a brand the same two components render under
+`/brands/:id/outlets`, told apart by one `basePath` prop. The stored brand preference survives
+demoted — it answers "which brand was I last in" and nothing decides a page any more.
+
+No migration. 2370 tests, 13 of them this change.
 
 ## 1.41.1 — 2026-08-18
 

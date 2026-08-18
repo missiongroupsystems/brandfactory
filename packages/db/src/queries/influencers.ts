@@ -10,8 +10,8 @@ import { uniqueInfluencerSlug } from '@brandfactory/shared'
 import { and, asc, desc, eq, inArray, or, sql } from 'drizzle-orm'
 import { db } from '../client'
 import { rowToInfluencer } from '../mappers'
-import { brands, influencerBrands, influencers } from '../schema'
-import { BrandNotInWorkspaceError } from './outlets'
+import { influencerBrands, influencers } from '../schema'
+import { assertBrandsInWorkspace } from './brand-scope'
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
 
@@ -68,37 +68,6 @@ function isHandleUniqueViolation(err: unknown): boolean {
   return (
     pgError.code === '23505' && pgError.constraint === 'influencers_workspace_platform_handle_key'
   )
-}
-
-/**
- * The workspace gate on a set of brand ids, and the array-taking sibling of
- * `assertBrandInWorkspace` in `queries/outlets.ts`.
- *
- * **It reuses `BrandNotInWorkspaceError` unchanged**, and it names the *first*
- * missing id rather than all of them. The error carries one id because an outlet
- * only ever has one, and a route that reported `["a","b"]` for one aggregate and
- * `"a"` for the other would be two error shapes for one condition. The first miss
- * is enough to fix the body.
- *
- * The check runs inside the caller's transaction so it and the link-row insert see
- * the same snapshot. It is not the foreign key's job: nothing in
- * `influencer_brands`' key stops a creator in workspace A being linked to a brand
- * in workspace B, and the screen resolves those ids against *its own* workspace's
- * brands — so the row would render an unresolvable id with no explanation.
- */
-async function assertBrandsInWorkspace(
-  tx: Tx,
-  workspaceId: WorkspaceId,
-  brandIds: BrandId[],
-): Promise<void> {
-  if (brandIds.length === 0) return
-  const rows = await tx
-    .select({ id: brands.id })
-    .from(brands)
-    .where(and(inArray(brands.id, brandIds), eq(brands.workspaceId, workspaceId)))
-  const owned = new Set<string>(rows.map((r) => r.id))
-  const missing = brandIds.find((id) => !owned.has(id))
-  if (missing !== undefined) throw new BrandNotInWorkspaceError(missing)
 }
 
 /**

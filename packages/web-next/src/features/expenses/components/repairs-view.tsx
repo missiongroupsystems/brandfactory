@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useOutletIndex } from "@/features/registry/hooks";
-import { useVendorIndex } from "@/features/vendors/hooks";
+import { useVendorIndex } from "@/features/registry-vendors/hooks";
 import { filterIdentity, useQueryFilters } from "@/hooks/use-query-filters";
 import type { Expense, RepairCategory } from "@/lib/api/types";
 import { formatDate, formatMoney, PENDING } from "@/lib/format";

@@ -39,7 +39,21 @@ import { OutletForm } from "./outlet-form";
  * lets `outletHref` emit the readable form when it holds the record and a bare id
  * when it does not.
  */
-export function OutletDetail({ outletRef }: { outletRef: string }) {
+export function OutletDetail({
+  outletRef,
+  basePath = "/outlets",
+}: {
+  outletRef: string;
+  /**
+   * The list this outlet was reached from, and the three places that answer to it: the back link,
+   * the redirect after a delete, and the cosmetic id→slug rewrite.
+   *
+   * **The same outlet has two homes** — `/brands/:id/outlets/:ref` inside its brand, where the
+   * sidebar stays in brand mode, and `/outlets/:ref` for the cross-area links that hold an outlet
+   * id and no brand. The default is the second, so every existing caller is unchanged.
+   */
+  basePath?: string;
+}) {
   const router = useRouter();
   const { outlet, error, isLoading } = useOutlet(outletRef);
   const { brands } = useActiveBrand();
@@ -50,7 +64,7 @@ export function OutletDetail({ outletRef }: { outletRef: string }) {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   /**
    * Set when the delete starts and never cleared on success, because the page is
-   * on its way to `/outlets` from that point.
+   * on its way to `basePath` from that point.
    *
    * It exists to suppress **one** error: `remove()` awaits the cache sweep, the
    * sweep refetches the row that was just deleted, and the 404 that comes back
@@ -75,9 +89,9 @@ export function OutletDetail({ outletRef }: { outletRef: string }) {
   // relabels the bar.
   React.useEffect(() => {
     if (outlet && outlet.slug && outletRef !== outlet.slug) {
-      window.history.replaceState(null, "", `/outlets/${outlet.slug}`);
+      window.history.replaceState(null, "", `${basePath}/${outlet.slug}`);
     }
-  }, [outlet, outletRef]);
+  }, [outlet, outletRef, basePath]);
 
   // The delete's own 404 is not news — see `isDeleting`. Every other error still
   // reaches the reader, including one raised while the delete was refused.
@@ -103,7 +117,7 @@ export function OutletDetail({ outletRef }: { outletRef: string }) {
     });
     if (ok) {
       setConfirmOpen(false);
-      router.push("/outlets");
+      router.push(basePath);
     } else {
       // The row is still there and the reader is still on it, so the page owes
       // them its error states back.
@@ -122,7 +136,7 @@ export function OutletDetail({ outletRef }: { outletRef: string }) {
     <div className="flex flex-col gap-6 px-6 pt-6 pb-8 md:px-8 md:pt-8">
       <div className="flex flex-col gap-4">
         <Link
-          href="/outlets"
+          href={basePath}
           className="inline-flex w-fit items-center gap-1.5 text-helper text-ink-secondary hover:text-brand hover:underline"
         >
           <ArrowLeftIcon aria-hidden className="size-4" />
@@ -259,7 +273,7 @@ export function OutletDetail({ outletRef }: { outletRef: string }) {
                   and it does not follow a rename — which is a thing to be able to
                   look up rather than to discover from a broken link. */}
               <DetailItem label="Web address" mono>
-                /outlets/{outlet.slug}
+                {basePath}/{outlet.slug}
               </DetailItem>
               <DetailItem label="Last updated">{formatDateTime(outlet.updatedAt)}</DetailItem>
             </DetailList>

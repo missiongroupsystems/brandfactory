@@ -1,124 +1,222 @@
-"use client";
+'use client'
 
-import { ArrowLeftIcon, ExternalLinkIcon, PencilIcon, Trash2Icon } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import * as React from "react";
-import { toast } from "sonner";
+import type { VendorContact } from '@brandfactory/shared'
+import { ArrowLeftIcon, ExternalLinkIcon, PencilIcon, Trash2Icon } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import * as React from 'react'
+import { toast } from 'sonner'
 
-import { DetailItem, DetailList } from "@/components/layout/detail-list";
-import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState, LoadingRows, PageState, QueryError } from "@/components/layout/query-states";
-import { ConfirmDialog } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-// Contracts, not vendors: this section lists *agreements* filtered by vendor, so the
-// query stays in the contracts feature and this component imports it. A copy living
-// here is how two definitions of "this vendor's contracts" start.
-import { useVendorContracts } from "@/features/contracts/hooks";
-import { useBrandIndex } from "@/features/registry-brands/hooks";
-import { ApiError } from "@/lib/api/client";
-import type { VendorListItem } from "@/lib/api/types";
-import { formatDate, PENDING } from "@/lib/format";
+import { DetailItem, DetailList } from '@/components/layout/detail-list'
+import { LoadingRows, PageState, QueryError } from '@/components/layout/query-states'
+import { ConfirmDialog } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useActiveBrand } from '@/features/brands/active-brand'
 import {
-  CONTRACT_STATUS_LABELS,
-  CONTRACT_STATUS_TONES,
-  SERVICE_CATEGORY_LABELS,
+  type NamedBrand,
+  resolveBrandNames,
+} from '@/features/registry-brands/components/brand-names-cell'
+import { useSubmit } from '@/hooks/use-submit'
+import { formatDateTime, PENDING } from '@/lib/format'
+import {
+  VENDOR_CATEGORY_ICONS,
+  VENDOR_CATEGORY_LABELS,
   VENDOR_STATUS_LABELS,
   VENDOR_STATUS_TONES,
-} from "@/lib/labels";
+} from '@/lib/labels'
 
-import { useVendor, useVendorMutations } from "../hooks";
-import { VendorForm } from "./vendor-form";
+import { useVendor, useVendorMutations } from '../hooks'
+import { VendorForm } from './vendor-form'
 
 /**
- * One vendor: the company record, who to call, and every agreement we hold with them.
+ * One vendor — the company record, who to call there, and which brands they work on.
  *
- * **This was a sheet until 0.13.0**, handed the row the user clicked. As a page it has an
- * id and nothing else, which is why `GET /vendors/{id}` had to start carrying the four
- * contract aggregates the summary line is built from — without them the promotion would
- * have shipped as a regression.
+ * **What is here is what the row holds, and nothing else.** No spend, no quotation history, no
+ * repair log and no documents, because none of those exists on this server. The Operations Hub's
+ * vendor page had a Contracts card listing live agreements; this one states that the agreements
+ * are not connected rather than rendering an empty list — see {@link ContractsCard}, which is the
+ * single most important decision on the page.
  *
- * Editing stays a sheet, opened from the header, so there is still exactly one write path
- * for a vendor. Deleting navigates back to the list: a detail page for a deleted record is
- * a 404 the user was left standing on.
+ * Thirteen cards over nothing is the failure `outlet-detail.tsx` records inheriting from the
+ * Operations Hub, and inventing them a second time on a table one release old would be worse.
+ *
+ * **Both writes are here, and they are also on the row.** That is this screen's own precedent
+ * rather than `/influencers`': the Operations Hub's vendor table carried an actions column from
+ * the start, and a directory somebody scans is exactly where correcting a misspelt company name
+ * should not cost a navigation. The sheet is the same component either way, so there is one write
+ * path and two doors to it.
+ *
+ * `vendorRef` is a **slug or an id** and the read resolves either, which is what lets
+ * `vendorHref` emit the readable form when it holds the record and a bare id when it does not.
  */
-export function VendorDetail({ vendorId }: { vendorId: string }) {
-  const { data: vendor, error, isLoading } = useVendor(vendorId);
-  const [editOpen, setEditOpen] = React.useState(false);
+export function VendorDetail({ vendorRef }: { vendorRef: string }) {
+  const router = useRouter()
+  const { vendor, error, isLoading } = useVendor(vendorRef)
+  const { brands } = useActiveBrand()
+  const { remove } = useVendorMutations()
+  const { run, reset, isPending, formError } = useSubmit()
 
-  // A page can be landed on cold, by a pasted link, where a sheet never could — so the
-  // states a sheet never needed all have to exist here.
-  if (error) {
+  const [editOpen, setEditOpen] = React.useState(false)
+  const [confirmOpen, setConfirmOpen] = React.useState(false)
+  /**
+   * Set when the delete starts and never cleared on success, because the page is on its way to
+   * `/vendors` from that point.
+   *
+   * It exists to suppress **one** error: `remove()` awaits the cache sweep, the sweep refetches
+   * the row that was just deleted, and the 404 that comes back lands on `useVendor` before
+   * `router.push` runs — so a successful delete rendered an error panel for the length of the
+   * navigation. `outlet-detail.tsx` and `influencer-detail.tsx` both found this the same way.
+   */
+  const [isDeleting, setIsDeleting] = React.useState(false)
+
+  const brandById = React.useMemo(() => {
+    const map = new Map<string, NamedBrand>()
+    for (const brand of brands) map.set(brand.id, brand)
+    return map
+  }, [brands])
+
+  /**
+   * The same derivation the table's cell runs, reused rather than re-written — the rule it carries
+   * is *"a cached index that has not arrived is a pending request, never a missing fact"*, so one
+   * unresolved id makes the whole set unknown instead of making the list shorter. Two brands
+   * rendered where the row names three is a false statement that looks like a true one.
+   *
+   * `?? []` because the hooks run before the loading branch below; an absent record resolves to
+   * the same shape as a vendor nobody has assigned, and neither reaches the screen.
+   */
+  const { names: brandNames, pending: brandsPending } = React.useMemo(
+    () => resolveBrandNames(vendor?.brandIds ?? [], brandById),
+    [vendor?.brandIds, brandById],
+  )
+
+  // Cosmetic id→slug rewrite once the vendor loads. `history.replaceState`, not `router.replace`:
+  // the SWR entry is keyed on `vendorRef`, so a navigation would refetch the row that is already
+  // on screen. The id URL resolves on its own; this only relabels the bar.
+  React.useEffect(() => {
+    if (vendor && vendor.slug && vendorRef !== vendor.slug) {
+      window.history.replaceState(null, '', `/vendors/${vendor.slug}`)
+    }
+  }, [vendor, vendorRef])
+
+  // The delete's own 404 is not news — see `isDeleting`. Every other error still reaches the
+  // reader, including one raised while the delete was refused.
+  if (error && !isDeleting)
     return (
-      <>
-        <BackLink />
-        <PageState>
-          {error instanceof ApiError && error.isNotFound ? (
-            <EmptyState
-              message="No such vendor"
-              hint="It may have been deleted. Every vendor we hold is on the list."
-            />
-          ) : (
-            <QueryError error={error} />
-          )}
-        </PageState>
-      </>
-    );
-  }
-  if (isLoading || !vendor) {
+      <PageState>
+        <QueryError error={error} />
+      </PageState>
+    )
+  if (isLoading || !vendor)
     return (
-      <>
-        <BackLink />
-        <PageState>
-          <LoadingRows rows={4} />
-        </PageState>
-      </>
-    );
+      <PageState>
+        <LoadingRows rows={6} />
+      </PageState>
+    )
+
+  async function handleDelete() {
+    if (!vendor) return
+    setIsDeleting(true)
+    const ok = await run(async () => {
+      await remove(vendor.id)
+      toast.success(`${vendor.name} deleted`)
+    })
+    if (ok) {
+      setConfirmOpen(false)
+      // `push`, not `replace`: this URL still resolves for anybody else, and the record that went
+      // is worth having in the history of the person who removed it. The Ops page used `replace`
+      // because its own "No such vendor" state was one Back press away; this page answers a
+      // deleted ref with `Not found`, which is the truth rather than a dead end.
+      router.push('/vendors')
+    } else {
+      // The row is still there and the reader is still on it, so the page owes them its error
+      // states back.
+      setIsDeleting(false)
+    }
   }
+
+  const CategoryIcon = vendor.category ? VENDOR_CATEGORY_ICONS[vendor.category] : null
 
   return (
-    <>
-      <BackLink />
+    <div className="flex flex-col gap-6 px-6 pt-6 pb-8 md:px-8 md:pt-8">
+      <div className="flex flex-col gap-4">
+        <Link
+          href="/vendors"
+          className="inline-flex w-fit items-center gap-1.5 text-helper text-ink-secondary hover:text-brand hover:underline"
+        >
+          <ArrowLeftIcon aria-hidden className="size-4" />
+          All vendors
+        </Link>
 
-      <PageHeader
-        title={vendor.name}
-        actions={
-          <span className="inline-flex items-center gap-2">
-            <DeleteVendorButton vendor={vendor} />
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between md:gap-6">
+          {/* No monogram, on `influencer-detail.tsx`' argument: that mark is a *brand's*, and a
+            vendor has between zero and fifty of them. Drawing one would pick a brand out of a set
+            the record deliberately keeps unordered. */}
+          <div className="flex min-w-0 flex-col gap-2">
+            <h1 className="text-h1 text-ink">{vendor.name}</h1>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+              <Badge variant={VENDOR_STATUS_TONES[vendor.status]}>
+                {VENDOR_STATUS_LABELS[vendor.status]}
+              </Badge>
+              {/* The category rides in the header **and** in the Company card below, and the
+                repetition is deliberate: the badge is how the company is filed and is read at a
+                glance, the row is the field somebody checks against. The glyph appears only in the
+                card, where the label is beside it — a lone symbol in a badge strip has nothing to
+                carry its meaning. */}
+              {vendor.category ? (
+                <Badge variant="outline">{VENDOR_CATEGORY_LABELS[vendor.category]}</Badge>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Button variant="secondary" onClick={() => setEditOpen(true)}>
               <PencilIcon data-icon="inline-start" />
               Edit
             </Button>
-          </span>
-        }
-      />
-
-      <div className="flex flex-col gap-4 px-6 pb-8 md:px-8">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={VENDOR_STATUS_TONES[vendor.status]}>
-            {VENDOR_STATUS_LABELS[vendor.status]}
-          </Badge>
-          {vendor.category ? (
-            <Badge variant="outline">{SERVICE_CATEGORY_LABELS[vendor.category]}</Badge>
-          ) : null}
+            <Button
+              variant="ghost"
+              onClick={() => {
+                reset()
+                setConfirmOpen(true)
+              }}
+            >
+              <Trash2Icon data-icon="inline-start" />
+              Delete
+            </Button>
+          </div>
         </div>
+      </div>
 
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Company</CardTitle>
           </CardHeader>
           <CardContent>
             <DetailList>
+              {/* Mono, because a UEN is an identifier (§5.4). `Value`'s em dash for the seven
+                  seeded rows that carry none — a company whose registration nobody wrote down is
+                  the ordinary case, not a broken row, which is why the unique index has to treat
+                  NULLs as distinct. */}
               <DetailItem label="UEN" mono>
                 {vendor.uen}
               </DetailItem>
               <DetailItem label="Category">
-                {vendor.category ? SERVICE_CATEGORY_LABELS[vendor.category] : null}
+                {vendor.category && CategoryIcon ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <CategoryIcon aria-hidden className="size-4 shrink-0 text-ink-tertiary" />
+                    {VENDOR_CATEGORY_LABELS[vendor.category]}
+                  </span>
+                ) : null}
               </DetailItem>
               <DetailItem label="Website" span>
                 {vendor.website ? (
+                  // `target="_blank"` with `rel="noreferrer"`, the pair this app uses everywhere
+                  // it sends somebody off-site. The URL is checked where it is declared —
+                  // `WebsiteUrlSchema` — rather than at each surface that renders it, which is
+                  // what makes putting it straight into an `href` safe.
                   <a
                     href={vendor.website}
                     target="_blank"
@@ -130,49 +228,33 @@ export function VendorDetail({ vendorId }: { vendorId: string }) {
                   </a>
                 ) : null}
               </DetailItem>
-              <DetailItem label="Notes" span>
-                {vendor.notes ? (
-                  <span className="whitespace-pre-wrap text-sm">{vendor.notes}</span>
-                ) : null}
-              </DetailItem>
             </DetailList>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Contacts</CardTitle>
+            <CardTitle>Brands</CardTitle>
           </CardHeader>
           <CardContent>
-            {vendor.contacts.length === 0 ? (
-              <p className="text-helper text-ink-tertiary">
-                Nobody on file — edit the vendor to add who to call.
+            {vendor.brandIds.length === 0 ? (
+              <p className="text-helper text-ink-secondary">
+                Not assigned yet. A company nobody has put against a brand is a decision that has
+                not been made rather than a gap in the record.
+              </p>
+            ) : brandsPending ? (
+              // The whole set, not the part of it that resolved. Foreign keys with
+              // `ON DELETE CASCADE` on both sides mean an unresolvable id here can only be a
+              // request in flight, which is the argument for the join table.
+              <p className="text-ink-tertiary">
+                <span aria-hidden>{PENDING}</span>
+                <span className="sr-only">Loading brand names</span>
               </p>
             ) : (
-              <ul className="flex flex-col divide-y divide-border-subtle rounded-lg border border-border-subtle">
-                {vendor.contacts.map((contact) => (
-                  <li key={contact.id} className="flex flex-col gap-0.5 px-4 py-3">
-                    <span className="flex items-center gap-2 text-sm font-medium text-ink">
-                      {contact.name}
-                      {contact.is_primary ? <Badge variant="outline">Primary</Badge> : null}
-                      {contact.role ? (
-                        <span className="font-normal text-ink-tertiary">{contact.role}</span>
-                      ) : null}
-                    </span>
-                    {contact.email || contact.phone ? (
-                      <span className="flex flex-wrap gap-x-4 font-mono text-helper text-ink-secondary">
-                        {contact.email ? (
-                          <a href={`mailto:${contact.email}`} className="hover:underline">
-                            {contact.email}
-                          </a>
-                        ) : null}
-                        {contact.phone ? (
-                          <a href={`tel:${contact.phone}`} className="hover:underline">
-                            {contact.phone}
-                          </a>
-                        ) : null}
-                      </span>
-                    ) : null}
+              <ul className="flex flex-wrap gap-2">
+                {brandNames.map((name) => (
+                  <li key={name}>
+                    <Badge variant="outline">{name}</Badge>
                   </li>
                 ))}
               </ul>
@@ -180,159 +262,168 @@ export function VendorDetail({ vendorId }: { vendorId: string }) {
           </CardContent>
         </Card>
 
-        <VendorContractsCard vendor={vendor} />
+        <ContactsCard contacts={vendor.contacts} />
+
+        <ContractsCard />
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Record</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DetailList>
+              <DetailItem label="Notes" span>
+                {vendor.notes ? (
+                  // `whitespace-pre-wrap`: notes are typed into a textarea and their line breaks
+                  // are the writer's, not the layout's.
+                  <span className="whitespace-pre-wrap">{vendor.notes}</span>
+                ) : null}
+              </DetailItem>
+              {/* The slug is on the page because it is the company's web address and it does
+                  **not** follow a corrected name — `UpdateVendorInputSchema` freezes it — so
+                  `/vendors/northlight-talent-pte-ltd` can end up pointing at a row now called
+                  something else. That is a thing to be able to look up rather than to discover
+                  from a link somebody else already shared. */}
+              <DetailItem label="Web address" mono>
+                /vendors/{vendor.slug}
+              </DetailItem>
+              <DetailItem label="Added">{formatDateTime(vendor.createdAt)}</DetailItem>
+              <DetailItem label="Last updated">{formatDateTime(vendor.updatedAt)}</DetailItem>
+            </DetailList>
+          </CardContent>
+        </Card>
       </div>
 
       <VendorForm vendor={vendor} open={editOpen} onOpenChange={setEditOpen} />
-    </>
-  );
-}
 
-function BackLink() {
-  return (
-    <div className="px-6 pt-6 md:px-8 md:pt-8">
-      <Link
-        href="/vendors"
-        className="-mx-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-helper text-ink-secondary hover:text-brand"
-      >
-        <ArrowLeftIcon aria-hidden className="size-3.5" />
-        All vendors
-      </Link>
-    </div>
-  );
-}
-
-/** Delete, then leave. Staying would render this page against an id the API has just
- * stopped serving — a 404 the user was left standing on, having done nothing wrong. */
-function DeleteVendorButton({ vendor }: { vendor: VendorListItem }) {
-  const router = useRouter();
-  const { remove } = useVendorMutations();
-  const [open, setOpen] = React.useState(false);
-  const [isPending, setIsPending] = React.useState(false);
-  const [formError, setFormError] = React.useState<string | undefined>();
-
-  async function handleDelete() {
-    setIsPending(true);
-    setFormError(undefined);
-    try {
-      await remove(vendor.id);
-      toast.success(`${vendor.name} deleted`);
-      // `replace`, not `push`: this URL now 404s, so it must not stay in the history the
-      // Back button walks. Pushing left the "No such vendor" page one press away — the
-      // exact state this navigation exists to prevent, moved rather than removed.
-      router.replace("/vendors");
-    } catch (err) {
-      // The API refuses a vendor that still holds contracts (409, naming the count) —
-      // which is the common answer here, not an edge case, so it belongs in the dialog
-      // rather than in a toast that outlives it.
-      setFormError(err instanceof ApiError ? err.message : "Could not delete this vendor.");
-      setIsPending(false);
-    }
-  }
-
-  return (
-    <>
-      <Button
-        variant="ghost"
-        onClick={() => {
-          setFormError(undefined);
-          setOpen(true);
-        }}
-      >
-        <Trash2Icon data-icon="inline-start" />
-        Delete
-      </Button>
       <ConfirmDialog
-        open={open}
+        open={confirmOpen}
         onOpenChange={(next) => {
-          if (!isPending) setOpen(next);
+          setConfirmOpen(next)
+          if (!next) reset()
         }}
         title={`Delete ${vendor.name}?`}
-        description="For a row created in error. A vendor we stopped using should be set inactive — its contracts keep their history that way."
+        description={
+          <>
+            This removes the company for good, along with its contacts and every brand it is linked
+            to. A vendor you have stopped buying from is <strong>Inactive</strong> rather than
+            deleted — set the status instead unless this row was entered by mistake.
+          </>
+        }
         onConfirm={handleDelete}
-        isPending={isPending}
         error={formError}
+        isPending={isPending}
       />
-    </>
-  );
+    </div>
+  )
 }
 
-function VendorContractsCard({ vendor }: { vendor: VendorListItem }) {
-  // No `open ? id : undefined` gate any more: a page is always open. The `view: "all"`
-  // inside the hook still is load-bearing — the summary line below counts every contract,
-  // so a list defaulting to `current` would render one row under "1 active of 5".
-  const { data, error, isLoading } = useVendorContracts(vendor.id);
-  const { byId: brandById } = useBrandIndex();
-
-  const summary = [
-    `${vendor.contracts_active} active of ${vendor.contracts_total}`,
-    // Dropped entirely at zero rather than printed as "0 brands": a vendor working only on
-    // group-level agreements is not a vendor working on nothing, and the count beside it
-    // already says how much live work there is.
-    vendor.brand_ids_covered.length > 0
-      ? `${vendor.brand_ids_covered.length} ${vendor.brand_ids_covered.length === 1 ? "brand" : "brands"}`
-      : null,
-    vendor.next_contract_end ? `next end ${formatDate(vendor.next_contract_end)}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
+/**
+ * Who to call, in the order the form sent them.
+ *
+ * **Full width, because a contact is four fields wide** — a name, a job title, an address and a
+ * number — and half a column would wrap every one of the seeded rows.
+ *
+ * The email and the phone are links. That is the whole point of holding them: the common task on
+ * this page is reaching somebody, and a number you have to select and copy is a number you dial
+ * wrong. `VendorContactEmailSchema` validates the address where it is declared, which is what
+ * makes a `mailto:` href safe here; the phone is deliberately unvalidated and `tel:` accepts
+ * whatever a person typed.
+ *
+ * **`Primary` is a badge and not an ordering.** The list is in `position` order — the order
+ * somebody entered — and re-sorting it to float the primary would lose the only ordering the
+ * record carries. One of the nine seeded vendors has a contact with no primary appointed, which
+ * `VendorContactsSchema` allows on purpose: *at most* one, not exactly one.
+ */
+function ContactsCard({ contacts }: { contacts: VendorContact[] }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-wrap items-baseline justify-between gap-2">
-        <CardTitle>Contracts</CardTitle>
-        {vendor.contracts_total > 0 ? (
-          <span className="text-helper text-ink-secondary">{summary}</span>
-        ) : null}
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <CardTitle>Contacts</CardTitle>
       </CardHeader>
       <CardContent>
-        {error ? (
-          <QueryError error={error} />
-        ) : isLoading ? (
-          <LoadingRows rows={2} />
-        ) : !data || data.items.length === 0 ? (
-          <EmptyState
-            message="No contracts with this vendor"
-            hint="Agreements are recorded on the Contracts page."
-          />
+        {contacts.length === 0 ? (
+          <p className="text-helper text-ink-secondary">
+            Nobody on file. Six of the companies in a seeded book are in this state, which is
+            ordinary — a vendor you buy from through a portal has no named contact at all.
+          </p>
         ) : (
           <ul className="flex flex-col divide-y divide-border-subtle rounded-lg border border-border-subtle">
-            {data.items.map((contract) => {
-              // One unresolved id makes the whole list `…` rather than a shorter list:
-              // dropping the names that have not arrived would say this agreement is held
-              // for fewer brands than it is, which is a false statement that looks true.
-              // An empty list is "Group level", a stated fact — never a shorter list and
-              // never nothing.
-              const names = contract.brand_ids.map((id) => brandById.get(id)?.name);
-              const brandLabel =
-                names.length === 0
-                  ? "Group level"
-                  : names.some((name) => !name)
-                    ? PENDING
-                    : names.join(", ");
-              return (
-                <li key={contract.id} className="flex flex-col gap-0.5 px-4 py-3">
-                  <span className="flex flex-wrap items-center justify-between gap-2">
-                    <Link
-                      href={`/contracts/${contract.id}`}
-                      className="text-sm font-medium text-ink hover:text-brand hover:underline"
-                    >
-                      {contract.title}
-                    </Link>
-                    <Badge variant={CONTRACT_STATUS_TONES[contract.status]}>
-                      {CONTRACT_STATUS_LABELS[contract.status]}
-                    </Badge>
+            {contacts.map((contact, index) => (
+              // Keyed on the position, because a contact is a **value object** with no id — the
+              // write replaces the whole list, so there is nothing stable to key on but where it
+              // sits. That is the same key the table uses: `(vendor_id, position)`.
+              <li key={index} className="flex flex-col gap-0.5 px-4 py-3">
+                <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink">
+                  {contact.name}
+                  {contact.isPrimary ? <Badge variant="outline">Primary</Badge> : null}
+                  {contact.role ? (
+                    <span className="font-normal text-ink-tertiary">{contact.role}</span>
+                  ) : null}
+                </span>
+                {contact.email || contact.phone ? (
+                  <span className="flex flex-wrap gap-x-4 font-mono text-helper text-ink-secondary">
+                    {contact.email ? (
+                      <a href={`mailto:${contact.email}`} className="hover:underline">
+                        {contact.email}
+                      </a>
+                    ) : null}
+                    {contact.phone ? (
+                      <a href={`tel:${contact.phone}`} className="hover:underline">
+                        {contact.phone}
+                      </a>
+                    ) : null}
                   </span>
-                  <span className="text-helper text-ink-secondary">
-                    {contract.end_date ? `Ends ${formatDate(contract.end_date)}` : "No end date"}
-                    {` · ${brandLabel}`}
-                  </span>
-                </li>
-              );
-            })}
+                ) : null}
+              </li>
+            ))}
           </ul>
         )}
       </CardContent>
     </Card>
-  );
+  )
+}
+
+/**
+ * **A stated placeholder, and it is the most important decision on this page.**
+ *
+ * The Operations Hub's vendor page listed every agreement held with the company, fetched through
+ * `useVendorContracts`. Keeping that here would render *"No contracts with this vendor"* on every
+ * row, for every vendor, forever — because fixture contracts key on **fixture vendor ids**
+ * (`v2000000-…`, which is not even a uuid) and no real vendor can ever match one. An empty state
+ * that can never be non-empty is not an empty state; it is a false statement in the shape of one,
+ * and the reader has no way to tell it from a company nobody has signed anything with.
+ *
+ * So the card says what is true: agreements exist, they are on another screen, and the two records
+ * are not joined yet. 1.35.1's `PillarsBand` is the precedent and the shape — a dashed box with
+ * prose, and a note on the heading rather than a number.
+ *
+ * The dashed border is doing the work. A solid card containing one sentence reads as content that
+ * failed to load; a dashed one reads as a space held open, which is exactly the claim.
+ *
+ * **The card goes live when the contracts conversion lands**, not before — and it takes the three
+ * columns Phase D removed with it.
+ */
+function ContractsCard() {
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader className="flex flex-wrap items-baseline justify-between gap-2">
+        <CardTitle>Contracts</CardTitle>
+        <span className="text-helper text-ink-tertiary">Not connected yet</span>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-xl border border-dashed border-border-input px-5 py-4">
+          <p className="max-w-[62ch] text-sm text-ink-secondary">
+            Agreements are not linked to this record yet. The{' '}
+            <Link href="/contracts" className="text-brand hover:underline">
+              Contracts
+            </Link>{' '}
+            screen still reads a vendor book of its own, so nothing there can name this company —
+            and a list here would be empty for every vendor rather than for the ones with no
+            agreements.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }

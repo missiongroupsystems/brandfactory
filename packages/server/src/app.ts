@@ -42,6 +42,7 @@ import { createMeRouter } from './routes/me'
 import { createMessagesRouter } from './routes/messages'
 import { createWorkspaceInfluencersRouter } from './routes/influencers'
 import { createWorkspaceOutletsRouter } from './routes/outlets'
+import { createWorkspaceVendorsRouter } from './routes/vendors'
 import {
   createBrandProjectsRouter,
   createProjectsRouter,
@@ -137,6 +138,9 @@ export function createApp(deps: AppDeps) {
     // Influencers mount beside outlets for the same reasons: workspace-scoped,
     // reachable by slug, and holding no blob keys — so no `storage` either.
     .route('/workspaces', createWorkspaceInfluencersRouter({ db: deps.db }))
+    // Vendors mount beside both for the same reasons: workspace-scoped,
+    // reachable by slug, and holding no blob keys — so no `storage` either.
+    .route('/workspaces', createWorkspaceVendorsRouter({ db: deps.db }))
     .route(
       '/brands',
       createBrandsRouter({

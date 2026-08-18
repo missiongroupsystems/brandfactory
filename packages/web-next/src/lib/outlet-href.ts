@@ -18,8 +18,17 @@
  *
  * Accepts a bare id string too, so a call site does not have to branch on which
  * it happens to hold.
+ *
+ * **`basePath` exists because the same outlet has two homes.** Reached from a brand it lives at
+ * `/brands/:id/outlets/:ref`, so the sidebar stays in that brand while you read one of its
+ * locations; reached from the Dashboard or the review queue — screens that hold an outlet id and
+ * no brand — it lives at `/outlets/:ref`. The default is the workspace-wide one, which is what
+ * every existing caller wants and is why none of them changed.
  */
-export function outletHref(outlet: { id: string; slug: string } | string): string {
-  if (typeof outlet === "string") return `/outlets/${outlet}`;
-  return `/outlets/${outlet.slug || outlet.id}`;
+export function outletHref(
+  outlet: { id: string; slug: string } | string,
+  basePath = "/outlets",
+): string {
+  const ref = typeof outlet === "string" ? outlet : outlet.slug || outlet.id;
+  return `${basePath}/${ref}`;
 }

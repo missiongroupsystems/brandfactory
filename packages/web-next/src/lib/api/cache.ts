@@ -130,8 +130,15 @@ export const SCOPES = {
   license: "license",
   obligations: "obligations",
   dashboard: "dashboard",
-  vendors: "vendors",
-  vendor: "vendor",
+  // The Operations Hub's counterparty book — the companies `fixtures/agencies.ts` and
+  // `fixtures/contracts.ts` invented. Renamed out of the way when BrandFactory's vendors below
+  // needed the plain word, exactly as `registryBrands` above was; the key and the string moved
+  // together, and both are only cache identity, so nothing on the wire changed.
+  //
+  // **Still live.** The Contracts screen resolves `vendor_id` to a name through
+  // `useVendorIndex`, and the review queue creates a contact against one.
+  registryVendors: "registry-vendors",
+  registryVendor: "registry-vendor",
   // The Operations Hub's address book. **No longer read by a screen** — the Influencers page
   // moved off it — but `useContactMutations` is still called by the tenancy intake sheet and the
   // review queue's actions, both of which create a contact against a vendor. The scopes stay
@@ -200,6 +207,19 @@ export const SCOPES = {
   // ours.
   bfInfluencers: "bf-influencers",
   bfInfluencer: "bf-influencer",
+  // BrandFactory's vendors, keyed `[bf-vendors, workspaceId]` and
+  // `[bf-vendor, workspaceId, ref]`.
+  //
+  // **Prefixed for the same reason the two pairs above are, and this time the
+  // Ops side moved rather than the plain word being left where it was.** Phase C
+  // renamed `vendors` / `vendor` to `registryVendors` / `registryVendor` because
+  // the Operations Hub's book is still live — `/contracts` resolves every
+  // `contract.vendor_id` through it — so both families exist at once and neither
+  // may hold a string the other can match. The plain words are now held by
+  // *nobody*, which `cache.test.ts` asserts: it is the tempting future edit, and
+  // it would have one area refetching the other's lists forever.
+  bfVendors: "bf-vendors",
+  bfVendor: "bf-vendor",
   // A brand's latest research run (`GET /brands/:id/research`). Separate from the brand because
   // it is a separate aggregate on the server and is allowed to arrive late; no brand write
   // touches it.

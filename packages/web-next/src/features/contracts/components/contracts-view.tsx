@@ -46,7 +46,7 @@ import {
   GROUP_LEVEL,
 } from "@/features/registry-brands/components/brand-names-cell";
 import { useBrandIndex } from "@/features/registry-brands/hooks";
-import { useVendorIndex } from "@/features/vendors/hooks";
+import { useVendorIndex } from "@/features/registry-vendors/hooks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { FLAG_ON, filterIdentity, isFlagOn, useQueryFilters } from "@/hooks/use-query-filters";
 import {

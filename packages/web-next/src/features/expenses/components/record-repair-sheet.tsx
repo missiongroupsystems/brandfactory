@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sheet";
 import { useContractIndex } from "@/features/contracts/hooks";
 import { useOutletIndex } from "@/features/registry/hooks";
-import { useVendorIndex } from "@/features/vendors/hooks";
+import { useVendorIndex } from "@/features/registry-vendors/hooks";
 import { useSubmit } from "@/hooks/use-submit";
 import { REPAIR_CATEGORY_OPTIONS } from "@/lib/labels";
 
