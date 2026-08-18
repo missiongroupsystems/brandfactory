@@ -66,10 +66,11 @@ import { VisualIdentityBand } from "./visual-identity-band";
  * identical cards would say the brand's positioning and its typography rules are the same size of
  * fact.
  *
- * **`Brand pillars` is a band that reads nothing.** It used to render `Values & positioning`, and
- * that equation did not survive real data — see `pillars-band.tsx`. `Values & positioning` is now
- * an ordinary grid card under its own label, and the band is a stated placeholder holding its
- * place and its anchor.
+ * **`Brand pillars` reads no section, and its five cards are hardcoded.** It used to render
+ * `Values & positioning`, and that equation did not survive real data — see `pillars-band.tsx`.
+ * `Values & positioning` is now an ordinary grid card under its own label, and the band draws the
+ * shape a pillar will take out of `pillars.ts`, marked `Sample` in its heading and again under
+ * the grid. Nothing on the page is per-brand except the sections.
  */
 export function BrandProfileScreen({ brandId }: { brandId?: string }) {
   const { profile, source, isLoading, error } = useBrandProfile(brandId);
@@ -130,8 +131,8 @@ export function BrandProfileScreen({ brandId }: { brandId?: string }) {
   const grid = gridSections(profile.sections);
 
   // Fixed anchors for the bands, derived ones for the grid. `#pillars` is unconditional because
-  // the band it points at is unconditional — a placeholder that is on the page for every brand
-  // and is what the reader is being sent to.
+  // the band it points at is unconditional — the same five sample pillars on every brand, and
+  // what the reader is being sent to.
   const entries: ContentsEntry[] = [
     { anchor: "tldr", label: "TL;DR" },
     { anchor: "pillars", label: "Brand pillars" },

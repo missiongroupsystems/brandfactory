@@ -6,6 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.45.0** — 2026-08-18 — `Brand pillars` stops being an empty box and becomes a design: five cards with a title, a commitment and a glyph, capped at five because a brand that stands on nine things stands on nothing. Hardcoded, stated twice as a sample. No migration. 2375 tests.
+- **1.44.0** — 2026-08-18 — The seed stops describing an imaginary coffee chain: one workspace named Mission Group, the seven concepts with their own published lines, and the ten premises they actually trade from — nine open and one still a plan. Four opening dates stay `null` rather than become a guess. No migration. 2371 tests.
 - **1.43.0** — 2026-08-18 — A vendor stops being nine rows assembled out of two fixtures and becomes an aggregate: three tables, five routes, an exhaustive list, a page each and a form that fills them — and the three columns counting agreements go, because the only thing that held one was a fixture. Migration 0015. 2371 tests.
 - **1.42.0** — 2026-08-18 — The nav stops pretending every screen is about every brand: `/brands` becomes a gallery, opening a card turns the rail into that brand's, and the header dropdown that offered a brand switch on eleven screens with nothing to switch is deleted. `Registry` goes, `Tools` arrives. No migration. 2370 tests.
 - **1.41.1** — 2026-08-18 — An empty table was 32px narrower on each side than the populated one, on every list screen: the page gutter, applied once by the view and again by the state inside it. The three states give the gutter up and a route root asks for it. No migration. 2292 tests.
@@ -92,6 +94,161 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.45.0 — 2026-08-18
+
+**The band that held a stated-empty box for two releases now draws the shape a pillar will
+take.**
+
+1.35.1 emptied it for a good reason: `Brand pillars` was rendering `Values & positioning` under a
+second name, and that section answers a second question — how the brand differs from the
+alternatives — which is not a pillar under any reading. The argument for an honest empty box has
+not changed. **Nothing here is stored, nothing is per-brand, and no route reads it.** What changed
+is the question: the product wants the shape settled before it decides which table holds one.
+
+No migration, no server change, no route change. One new source file, one new test file, and four
+files edited, all in `packages/web-next`. `packages/web` is untouched and still serves production.
+
+### 1. What a pillar carries
+
+`pillars.ts` says: a **title** somebody can repeat from memory, a **description** of two sentences
+saying what it commits the brand to, and an **icon**.
+
+The icon is on the record rather than picked by the component from the list position. A component
+that indexed into a glyph array would give a pillar a new one the moment somebody reordered the
+list. When these become rows, the column holds an icon *name* out of a fixed set and the component
+resolves it; a `LucideIcon` value is what a hardcoded list can hold and a database column cannot.
+
+### 2. Five is a product decision, not a layout constraint
+
+`MAX_BRAND_PILLARS = 5`, enforced in `brandPillars()` and not by the grid, so the rule holds for
+whatever feeds it next. A brand that stands on nine things stands on nothing: the list stops being
+a set of commitments and becomes a description, and nobody on the team can recite it.
+
+This is a **bound on the data**, unlike `MAX_PILLAR_CARDS` in `profile.ts`, which is a display cap
+on a content-pillar strip a brand may legitimately have written twelve of.
+
+### 3. The sample names no industry, and says so twice
+
+Five pillars — *Craft over volume*, *Say it plainly*, *The customer knows the job*, *Warm, never
+loud*, *Show the work*. They describe how a company behaves without naming what it sells, because
+one hardcoded list renders under every brand in the switcher and a set of bakery pillars would
+read as a bug on the next brand along.
+
+**Two honesty markers, and both are load-bearing.** The heading carries a `Sample` note, and a
+line under the grid states that every brand shows these five and points at `Values & positioning`
+for what this brand actually stands for. Invented values rendered silently under a real brand's
+name is the exact failure 1.35.1 corrected; this band is where it would recur.
+
+**Still no edit action.** A button here would have to write something, and there is nowhere to
+write it. An edit that discards itself on reload is worse than no edit — the reader believes the
+brand now holds five pillars. The control arrives with the column.
+
+### 4. The grid
+
+Three-up at `lg`, two-up at `sm`, so the five land as 3 + 2 rather than as one cramped row of
+five: a pillar is a title *and* two sentences, and at a fifth of the measure the sentences stop
+being readable. Cards share a height, because five different bottom edges read as five different
+kinds of thing.
+
+**No ordinals** — pillars are a set, not a ranking, and a numbered list is a claim about priority
+that nothing in the record supports. The glyph sits in a sunken tile rather than on the accent:
+five filled accent surfaces in one band would spend the CI's whole per-view budget on decoration.
+
+### 5. Tests
+
+`pillars.test.ts` asserts the four claims a reader cannot check by looking — the cap holds, every
+row carries all three parts, titles are distinct (the band keys on them), and the accessor answers
+a fresh array so a caller cannot sort the sample in place. The screen test's pillar case keeps its
+old claim that the band never borrows `Values & positioning`, and gains one card per sample pillar
+and the `Sample` note.
+
+`pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` (**2375 passed**, 140 skipped) and
+the `web-next` gate all pass. **No browser pass** — the shell sits behind a dev-token field.
+
+---
+
+## 1.44.0 — 2026-08-18
+
+**The dev seed described a small-batch coffee roaster with three shops, a design studio, and a
+bar on Robertson Quay nobody had decided the name of.**
+
+Every one of them was invented, which was correct while the product had no owner. It has one
+now. `packages/db/src/seed.ts` becomes the group's own workspace: **Mission Group**, seven
+brands, ten outlets. No migration, no schema change, no route touched — the shape was already
+right and only the contents were fiction.
+
+### 1. Two halves of one file, sourced differently on purpose
+
+**The brands and the outlets are real. The creators and the vendors stay invented.**
+
+A brand's positioning line and a shop's postal code are the group's own published facts, and
+a seed that paraphrased either would put a wrong address on the one screen a reader trusts to
+be the source of truth. Every `description` here is the brand's own copy rather than a
+rewrite of it.
+
+A creator and an agency are records *about third parties*. Seeding a real influencer's name,
+handle and engagement rate would assert a working relationship that neither side agreed to —
+so the nineteen creators and the nine vendors keep the invented names 1.40.0 and 1.43.0 gave
+them, and only their `brandIds` move. The link counts are unchanged at 17 and 8, because the
+arrays were re-pointed rather than rewritten.
+
+### 2. Three statuses lost their example, and that is the deliberate half
+
+The old six outlets were chosen so all five `outlet_status` values appeared and every badge
+tone rendered — a temporarily closed shop waiting on an aircon replacement, a site fitting
+out, a lease not renewed. The estate has no such rows. Nine outlets are `open` and one is
+`pipeline`.
+
+They were **not replaced with invented equivalents.** A closure written against a real brand
+is a false statement that looks exactly like a true one, and it would sit on a table beside
+nine addresses a reader can walk to. A status with no example is a gap in a screenshot; an
+example that is not true is a gap in the record. `fitting_out`, `temporarily_closed` and
+`closed` now render for the first time when somebody puts a real one there.
+
+### 3. Four opening dates are `null`, and the month is in the notes
+
+Casa Vostra JEM, Chin Mee Chin East Coast Road, temper. Duxton, Willow and Firebird are public
+only to the month, or not at all. `opening_date` is a `date` column, so it renders as a **day**
+— and a guessed day prints as a fact with nothing on screen marking it as a guess.
+
+The month goes in `notes`, where a reader can see the word *approximately* and correct it. This
+is 1.43.0's argument for removing the contract counts rather than pinning them to zero, applied
+to a column that cannot hold "about October".
+
+Casa Vostra Wisma Atria is `pipeline` rather than `fitting_out` for the same reason: the Q4 2026
+announcement does not say which, and the two read differently to somebody deciding whether to
+visit the site this month. Its `target_opening_date` is `null` until a handover is agreed.
+
+### 4. `attributes` is empty on all ten
+
+The catalogue of twelve keys is offered by the outlet form and displayed by the detail page,
+and **nothing computes on it** — no filter, no rule, no report. Ticking `wheelchair_access` or
+`pet_friendly` on the group's behalf would add a dozen unverified claims about ten real
+addresses to buy a slightly fuller detail page. The column defaults to `[]`, which is what it
+now holds.
+
+### 5. A brand with no premises is an ordinary row
+
+Ungrafted Vines trades online and holds no outlet. `outlets.brand_id` is nullable in both
+directions, so this needed nothing — but `seed.test.ts` now pins it, because an outlet
+accidentally attached to a wine label would look entirely ordinary in a table of nine real
+ones. The test also pins the seven brands and the ten outlets: a row skipped by
+`ON CONFLICT DO NOTHING` after an id collision reads on screen as a shop the group does not
+have, rather than as an error.
+
+Three guideline sections stay on Casa Vostra so the meter keeps a populated state beside six
+empty ones. Their bodies are quotes from the brand's own site — a seeded guideline is the
+highest-trust text in this product, because it is what the agent carries into every project,
+so an invented one is not a placeholder somebody edits but a wrong instruction nobody notices.
+
+### 6. Applying it needs a fresh database
+
+The seed reuses the ids the demo brands and outlets held, and every insert is
+`ON CONFLICT DO NOTHING`. On a database that has already been seeded, the seven brands and ten
+outlets are therefore **silently skipped** and `Acme Coffee` stays exactly where it was. Drop
+and recreate before reseeding; the printed dev token is unchanged either way, because the user
+id did not move.
 
 ## 1.43.0 — 2026-08-18
 

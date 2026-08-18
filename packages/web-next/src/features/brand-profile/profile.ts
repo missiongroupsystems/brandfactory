@@ -32,13 +32,14 @@ import type { BrandProfile, ProfileBlock, ProfileSection } from "./types";
  * and subtitled *from Values & positioning* was the page admitting as much.
  *
  * So the two are separated. `Values & positioning` is now an ordinary section — one card in the
- * grid, under its own label, beside `Voice & tone` — and **Brand pillars is a placeholder** until
- * the product decides what a pillar is and where it is stored. Nothing addresses a
- * `Brand pillars` label, no such row is written, and the band renders the same stated-empty box
- * for every brand.
+ * grid, under its own label, beside `Voice & tone` — and **Brand pillars is a hardcoded design**
+ * until the product decides where a pillar is stored. Nothing addresses a `Brand pillars` label,
+ * no such row is written, and the band renders the same five sample cards out of `pillars.ts` for
+ * every brand, marked as a sample twice.
  *
- * That is why there is no `PILLARS_SECTION_LABEL` here any more. Re-introducing one is the change
- * that makes the band live; it belongs with the product decision, not ahead of it.
+ * That is why there is no `PILLARS_SECTION_LABEL` here any more. Re-introducing one — or adding a
+ * table — is the change that makes the band live; the shape it will take is settled in
+ * `pillars.ts`, and the storage decision is still open.
  */
 
 /**

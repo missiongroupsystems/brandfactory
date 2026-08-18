@@ -1,8 +1,9 @@
 import type { BrandWithSections } from "@brandfactory/shared";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { toBrandProfile } from "../map";
+import { brandPillars } from "../pillars";
 import { BrandProfileScreen } from "./brand-profile";
 
 /**
@@ -152,15 +153,23 @@ describe("BrandProfileScreen", () => {
     expect(screen.getByText(/We sit between the hotel patisseries/).closest("li")).toBeNull();
   });
 
-  it("keeps the pillar band empty, and does not put the values under it", () => {
+  it("fills the pillar band from the hardcoded sample, and never from the values section", () => {
     render(<BrandProfileScreen />);
-    // The regression this change fixes: a band headed `Brand pillars` that was in fact rendering
-    // the `Values & positioning` row. The band is a placeholder now, so the section it used to
-    // borrow must sit outside it.
+    // The regression the band was built to fix: a heading reading `Brand pillars` over the
+    // `Values & positioning` row. The band draws its own cards now, so the section it used to
+    // borrow must still sit outside it.
     const band = screen.getByRole("heading", { name: /Brand pillars/ }).closest("section");
     expect(band).not.toBeNull();
     expect(band?.textContent).not.toContain("Provenance over provenance-speak");
     expect(band?.textContent).not.toContain("We sit between the hotel patisseries");
+    // One card per sample pillar, and the `Sample` note beside the heading. The note is the
+    // whole licence for rendering invented words under a real brand's name — a band that lost it
+    // would read as five values this bakery had declared.
+    expect(within(band as HTMLElement).getAllByRole("listitem")).toHaveLength(
+      brandPillars().length,
+    );
+    expect(band?.textContent).toContain("Sample");
+    expect(band?.textContent).toContain("Craft over volume");
   });
 
   it("states the fraction rather than a bare count", () => {

@@ -8,6 +8,7 @@ import {
   guidelineSections,
   influencerBrands,
   influencers,
+  outlets,
   projects,
   users,
   vendorBrands,
@@ -39,6 +40,8 @@ describe.skipIf(!hasDb)('seed()', () => {
       wsRows,
       brand1Rows,
       brand2Rows,
+      allBrandRows,
+      outletRows,
       proj1Rows,
       proj2Rows,
       canvas1Rows,
@@ -55,6 +58,8 @@ describe.skipIf(!hasDb)('seed()', () => {
       db.select().from(workspaces).where(eq(workspaces.id, first.workspaceId)),
       db.select().from(brands).where(eq(brands.id, first.brandId)),
       db.select().from(brands).where(eq(brands.id, first.brand2Id)),
+      db.select().from(brands).where(eq(brands.workspaceId, first.workspaceId)),
+      db.select().from(outlets).where(eq(outlets.workspaceId, first.workspaceId)),
       db.select().from(projects).where(eq(projects.id, first.projectId)),
       db.select().from(projects).where(eq(projects.id, first.project2Id)),
       db.select().from(canvases).where(eq(canvases.projectId, first.projectId)),
@@ -88,6 +93,19 @@ describe.skipIf(!hasDb)('seed()', () => {
     expect(wsRows).toHaveLength(1)
     expect(brand1Rows).toHaveLength(1)
     expect(brand2Rows).toHaveLength(1)
+    // The seven concepts and the ten premises. Asserted rather than described
+    // because both lists are **real records**: a brand quietly dropped by a bad
+    // merge, or an outlet whose id collided with a neighbour's and was skipped by
+    // `ON CONFLICT DO NOTHING`, reads on screen as a shop the group does not have
+    // rather than as an error.
+    expect(allBrandRows).toHaveLength(7)
+    expect(outletRows).toHaveLength(10)
+    // Ungrafted Vines trades online and holds no premises. Pinned because an
+    // outlet accidentally attached to it would look ordinary in a table of nine
+    // real ones.
+    const ungrafted = allBrandRows.find((b) => b.name === 'Ungrafted Vines')
+    expect(ungrafted).toBeDefined()
+    expect(outletRows.filter((o) => o.brandId === ungrafted?.id)).toHaveLength(0)
     expect(proj1Rows).toHaveLength(1)
     expect(proj2Rows).toHaveLength(1)
     expect(canvas1Rows).toHaveLength(1)
