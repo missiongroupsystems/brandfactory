@@ -170,21 +170,26 @@ describe.skipIf(!hasDb)('seed()', () => {
     expect(canvas2Rows).toHaveLength(1)
     expect(sectionRows).toHaveLength(3)
     expect(messageRows).toHaveLength(2)
-    expect(influencerRows).toHaveLength(19)
-    // **One account each**, which is the mechanical half of migration 0016 rather
-    // than a statement about the roster. It is asserted because
-    // `influencer_accounts` is the third composite-key insert in this seed — the
-    // target is `(influencer_id, position)`, a reseed re-offers every row, and a
+    expect(influencerRows).toHaveLength(146)
+    // 80 creators post from one platform, 62 from two and 4 from three — so 216
+    // accounts, and the **positions** are asserted rather than the total alone.
+    // `influencer_accounts` is the third composite-key insert in this seed, its
+    // target is `(influencer_id, position)`, and a reseed re-offers every row: a
     // wrong target would either raise or double the count with nothing on screen
-    // to say so.
-    expect(accountRows).toHaveLength(19)
-    expect(accountRows.every((a) => a.position === 0)).toBe(true)
-    // 14 creators hold a brand and three of those hold two — so 17 link rows, and
-    // the number is asserted rather than described because **this is the one
-    // insert in the seed whose conflict target is a composite key.** A reseed
-    // re-offers every pair; `ON CONFLICT DO NOTHING` on the wrong target would
-    // either raise or double the count, and nothing on screen would say so.
-    expect(linkRows).toHaveLength(17)
+    // to say so. Counting by position is what catches a list written in the wrong
+    // order as well, which a bare total cannot.
+    expect(accountRows).toHaveLength(216)
+    const byPosition = accountRows.reduce<Record<number, number>>((counts, account) => {
+      counts[account.position] = (counts[account.position] ?? 0) + 1
+      return counts
+    }, {})
+    expect(byPosition).toEqual({ 0: 146, 1: 66, 2: 4 })
+    // **No creator holds a brand.** There is no Curly's brand in this workspace,
+    // and the media list is a Curly's list — see `SEED_INFLUENCERS`. Zero is
+    // asserted rather than assumed because it is the one number here that a
+    // future brand is expected to change, and the assertion is where that change
+    // announces itself.
+    expect(linkRows).toHaveLength(0)
     expect(vendorRows).toHaveLength(9)
     // Seven vendors hold a brand and one of those holds two — so 8 link rows.
     // Asserted rather than described for the reason above: the conflict target is

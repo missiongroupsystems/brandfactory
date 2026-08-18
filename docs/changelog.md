@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.47.0** — 2026-08-18 — The nineteen invented creators leave and the real Curly's media list arrives: 146 people, 216 accounts, and a tier table that is finally right because Lennard Yeong is Mega only as a sum. Five rows did not import rather than guess at a stranger. Written into production. No migration. 2592 tests.
 - **1.46.0** — 2026-08-18 — A creator stops being an account: one to ten of those hang off the person now, so a roster of nineteen rows is nineteen people, reach is the sum of what they post from, and the tier bands count the case they used to file three times. Six phases and a hardening pass. Migration 0016. 2584 tests.
 - **1.45.0** — 2026-08-18 — `Brand pillars` stops being an empty box and becomes a design: five cards with a title, a commitment and a glyph, capped at five because a brand that stands on nine things stands on nothing. Hardcoded, stated twice as a sample. No migration. 2375 tests.
 - **1.44.0** — 2026-08-18 — The seed stops describing an imaginary coffee chain: one workspace named Mission Group, the seven concepts with their own published lines, and the ten premises they actually trade from — nine open and one still a plan. Four opening dates stay `null` rather than become a guess. No migration. 2371 tests.
@@ -93,6 +94,120 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.47.0 — 2026-08-18
+
+**The seed stops inventing creators. `SEED_INFLUENCERS` is the group's own Curly's KOL media
+list: 146 people, 216 accounts between them, written into the production `Mission Group`
+workspace.**
+
+Nineteen invented people sat in this fixture for a stated reason — no real roster existed, and a
+borrowed name and handle would assert a working relationship neither side agreed to. A real one
+exists now, so the reason is gone. No migration. 2592 tests (2437 + 8 new passing, 147 skipped
+without a database).
+
+Source: `docs/executing/MASTER LIST_KOL Media List_Curly's - KOLs (Cleaned Up) Targets.csv`, the
+`KOLs (Cleaned Up) Targets` section. **The file is deliberately left untracked**; the seed now
+carries its content, so ignoring the CSV would protect nothing.
+
+### This is the roster migration 0016 was waiting for
+
+62 creators post from two platforms and 4 from three. Under the one-account record this list would
+have been 216 rows with a fraction of a person on each — and the reach tiers would have been wrong
+in exactly the direction 1.46.0 argued they were.
+
+**Lennard Yeong is Mega at 1.52M**: 534k on Instagram and 981.6k on TikTok, and *neither account
+alone clears the Macro floor of 500k*. Cristina Leontyeva crosses 1M the same way, on 119k and
+890.1k. A test pins Lennard, because he is the release's whole argument reduced to one assertion.
+
+### `db:import-influencers`, because `db:seed` was the wrong tool
+
+Production is a live database: 6 real users, 4 workspaces, 4 real brands, 0 influencers. `db:seed`
+builds a whole demo world under fixed ids and **adopts nothing that is already there** — pointed at
+this database it would have inserted its own `DEMO_WORKSPACE_ID` beside the real one, so a real
+*Mission Group* would gain a second workspace of the same name, plus a demo user, seven brands, ten
+outlets and nine invented vendors.
+
+`packages/db/src/import-influencers.ts` writes two tables and creates nothing else. It requires
+`--workspace <uuid>` with no default, refuses a workspace that does not exist, and is idempotent —
+fixed ids and `ON CONFLICT DO NOTHING` on `influencers.id` and `(influencer_id, position)`. A
+second run against production wrote nothing, which is asserted by having been done.
+
+`--dry-run` executes every insert inside the transaction and then rolls it back, so a constraint the
+roster would violate raises during the rehearsal. That is how the real run was known to be safe.
+
+### The five rows that did not import
+
+12 rows carried no follower count. **Seven were resolved** from public profiles on 2026-08-18 —
+Winnie Chan, Lelian Chew, Sunny Han, Minju Jo, Jaime Lee, Josh Niland, Kevin Wong — and each one
+says so in its own `notes`, naming the date and the fact that nobody here measured it. A figure read
+off a profile and a figure negotiated against are different kinds of number, and the row must not
+flatten them.
+
+**Five did not import at all**: Lorraine Koh, Grant Wee, Natassia Siu, Marissa & Denise Lum and
+Jaclyn Chan. Four carry no handle and the candidates a search returns are real strangers who share a
+name; Grant Wee has one plausible account and nothing in the row to confirm it. Attaching a real
+person's profile to somebody else's record — on a record that *prices* them — is worse than a roster
+that is short by five. They are named here so the gap is fillable.
+
+`Zita` was entered twice against the same handle.
+`influencer_accounts_workspace_platform_handle_key` refuses that, so the rows are merged, the larger
+count is kept, and the note says so.
+
+### One handle, three follower columns
+
+The media list carries **one** handle column and a follower column per platform, so a creator's
+TikTok account is seeded under the handle their Instagram account uses. That is what the source
+asserts by its own shape, and it is the single assumption this import makes. The alternative was to
+drop 77 accounts or to invent handles for them. A handle that turns out to differ is a correction to
+one account, not to the record.
+
+### What the four unusual fields say
+
+- **`engagementRate` is `null` on all 216 accounts.** The list measures none. A rate invented to
+  fill a column is the defect 1.46.0's hardening pass fixed one level up, so the blended figure is
+  absent for the whole roster — which is honest, and pinned by a test.
+- **`brandIds` is empty on all 146.** There is no Curly's brand in the workspace. Attaching the
+  roster to one of the four that exist would say the campaign is theirs. `seed.test.ts` asserts zero
+  link rows, because that is the one number a future brand is expected to change.
+- **`status` is `active` on 51 and `prospect` on 95**, from `Accepted` to the PR kit. Nobody is
+  `past`: a creator who declined is still a name on a shortlist, and `past` means worked with and
+  stopped.
+- **`vertical` is the nearest enum member; the original text survives in `notes`.** The list files
+  people by *audience* — `HNW DINKs`, `Premium lifestyle` — and the enum holds *content verticals*.
+  Category decides, then subcategory, then `food`, because this is a food brand's list. Within one
+  cell the vertical beats the audience: `Pro / home chefs / Kids` is a chef.
+
+### A finding left for its own change
+
+**`influencerSlug` cannot name a creator who is only on XiaoHongShu.** It strips everything outside
+`a-z0-9`, so a name with no latin characters becomes the `creator` fallback — and both XHS-only
+creators here would have landed on `/influencers/creator` and `/creator-2`. Their slugs are written
+out as `luo-daxiong` and `wang-kaihua`, which the seed is entitled to do because it hard-codes every
+slug anyway. **The rule itself is still wrong.** `InfluencerSchema` says XiaoHongShu "is not
+optional here"; the slug rule disagrees. Fixing it needs a transliteration step and a decision about
+slugs already written, so it is its own change.
+
+### Read this before pushing
+
+The `notes` on these records are internal remarks about named private individuals: negotiated fees,
+who declined and why — including two who declined for reasons of health — and judgements about a
+person's audience and wealth. **This repository is public.** Nothing is redacted, because the import
+was asked for whole; the fixture's docstring and the seed's header both say so at the top. Making
+the repository private changes nothing else about this release.
+
+### Tests
+
+Eight new, in `packages/db/src/seed-influencers.test.ts`, and they run **without a database** —
+which is the point. `seed.test.ts` asserts what the seed writes and skips whenever `DATABASE_URL`
+is absent, so a fixture generated out of a spreadsheet had nothing checking it until the moment of a
+live insert. The new file validates the roster against the shared schemas it never crosses: the
+`(platform, handle)` pairs, the slugs, the ids, the note lengths, the null rates, the empty brands.
+
+`seed.test.ts` itself moves from 19/19/17 to 146/216/0 and counts accounts **by position**
+(146/66/4) rather than in total, which catches a list written in the wrong order as well.
 
 ---
 
