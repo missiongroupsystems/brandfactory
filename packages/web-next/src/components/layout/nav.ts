@@ -6,7 +6,6 @@ import {
   Handshake,
   Inbox,
   LayoutDashboard,
-  Ruler,
   Sparkles,
   Store,
 } from "lucide-react";
@@ -153,15 +152,6 @@ export const NAV_ITEMS: NavItem[] = [
     tag: "Sample",
     description: "What the business is asking marketing for — one inbox, one request form",
   },
-  // Sits after the record-keeping areas because it is a different kind of thing: the rest
-  // of this list is what the group holds, and a scheme is what a unit could become.
-  {
-    title: "Spaces",
-    href: "/spaces",
-    icon: Ruler,
-    phase: 3,
-    description: "Plan a unit before it opens — layout, walkthrough and cost",
-  },
 ];
 
 export const CURRENT_PHASE = 3;
@@ -198,5 +188,5 @@ export const NAV_GROUPS: { label: string | null; hrefs: string[] }[] = [
     label: "Contracts & services",
     hrefs: ["/contracts", "/quotations", "/vendors", "/influencers"],
   },
-  { label: "Resources", hrefs: ["/review", "/marketing-requests", "/spaces"] },
+  { label: "Resources", hrefs: ["/review", "/marketing-requests"] },
 ];

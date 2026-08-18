@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { DetailItem, DetailList } from "@/components/layout/detail-list";
 import { PageHeader } from "@/components/layout/page-header";
-import { LoadingRows, QueryError } from "@/components/layout/query-states";
+import { LoadingRows, PageState, QueryError } from "@/components/layout/query-states";
 import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,9 @@ export function TenancyDetail({ tenancyId }: { tenancyId: string }) {
     return (
       <>
         <BackLink />
-        <QueryError error={error} />
+        <PageState>
+          <QueryError error={error} />
+        </PageState>
       </>
     );
   }
@@ -56,7 +58,9 @@ export function TenancyDetail({ tenancyId }: { tenancyId: string }) {
     return (
       <>
         <BackLink />
-        <LoadingRows rows={4} />
+        <PageState>
+          <LoadingRows rows={4} />
+        </PageState>
       </>
     );
   }

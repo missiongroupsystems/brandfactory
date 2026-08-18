@@ -9,7 +9,7 @@ import {
 import { BookOpenIcon, PlusIcon } from "lucide-react";
 import * as React from "react";
 
-import { EmptyState, QueryError } from "@/components/layout/query-states";
+import { EmptyState, PageState, QueryError } from "@/components/layout/query-states";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useBrandProfile } from "../hooks";
@@ -106,14 +106,21 @@ export function BrandProfileScreen({ brandId }: { brandId?: string }) {
     [editSection],
   );
 
-  if (error) return <QueryError error={error} />;
+  if (error)
+    return (
+      <PageState>
+        <QueryError error={error} />
+      </PageState>
+    );
   if (isLoading) return <ProfileSkeleton />;
   if (!profile) {
     return (
-      <EmptyState
-        message="No brand selected"
-        hint="This workspace has no brands yet. Create one from the switcher in the sidebar and its profile opens here."
-      />
+      <PageState>
+        <EmptyState
+          message="No brand selected"
+          hint="This workspace has no brands yet. Create one from the switcher in the sidebar and its profile opens here."
+        />
+      </PageState>
     );
   }
 

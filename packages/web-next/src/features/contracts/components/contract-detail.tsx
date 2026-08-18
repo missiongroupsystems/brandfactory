@@ -14,7 +14,7 @@ import { toast } from "sonner";
 
 import { DetailItem, DetailList } from "@/components/layout/detail-list";
 import { PageHeader } from "@/components/layout/page-header";
-import { LoadingRows, QueryError } from "@/components/layout/query-states";
+import { LoadingRows, PageState, QueryError } from "@/components/layout/query-states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,7 +56,9 @@ export function ContractDetail({ contractId }: { contractId: string }) {
     return (
       <>
         <BackLink />
-        <QueryError error={error} />
+        <PageState>
+          <QueryError error={error} />
+        </PageState>
       </>
     );
   }
@@ -64,7 +66,9 @@ export function ContractDetail({ contractId }: { contractId: string }) {
     return (
       <>
         <BackLink />
-        <LoadingRows rows={4} />
+        <PageState>
+          <LoadingRows rows={4} />
+        </PageState>
       </>
     );
   }

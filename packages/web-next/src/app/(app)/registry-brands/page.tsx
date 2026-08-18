@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { LoadingRows } from "@/components/layout/query-states";
+import { LoadingRows, PageState } from "@/components/layout/query-states";
 import { BrandsBrowser } from "@/features/registry-brands/components/brands-browser";
 
 export const metadata = { title: "Outlet brands — Marketing Hub" };
@@ -32,7 +32,7 @@ export default function BrandsPage() {
         title="Outlet brands"
         description="The names over the doors. A brand is what several premises share, so renaming one here changes it everywhere at once — which a free-text column could never do. Outlets and companies are assigned a brand from their own records, or from a brand's page."
       />
-      <Suspense fallback={<LoadingRows rows={5} />}>
+      <Suspense fallback={<PageState><LoadingRows rows={5} /></PageState>}>
         <BrandsBrowser />
       </Suspense>
     </>

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { LoadingRows } from "@/components/layout/query-states";
+import { LoadingRows, PageState } from "@/components/layout/query-states";
 import { InfluencersBrowser } from "@/features/influencers/components/influencers-browser";
 
 export const metadata = { title: "Influencers — Marketing Hub" };
@@ -36,7 +36,7 @@ export default function InfluencersPage() {
         title="Influencers"
         description="The creators each brand works with — grouped by how far they reach, filterable by brand, vertical and platform."
       />
-      <Suspense fallback={<LoadingRows rows={4} />}>
+      <Suspense fallback={<PageState><LoadingRows rows={4} /></PageState>}>
         <InfluencersBrowser />
       </Suspense>
     </>

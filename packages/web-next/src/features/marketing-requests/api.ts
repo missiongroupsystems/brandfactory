@@ -31,8 +31,9 @@ export const requestService = {
 
 /**
  * The **public** submit — a raw `fetch` with **no auth header**, to the unauthenticated
- * `/public/forms/{slug}/submissions`. This is the one reason (besides `features/spaces`) to
- * reach past `apiFetch`: a shared `/f/<slug>` page must never carry the app's API token, so it
+ * `/public/forms/{slug}/submissions`. This is the one reason left to reach past `apiFetch`
+ * — `features/spaces` was the other, and it is gone: a shared `/f/<slug>` page must never
+ * carry the app's API token, so it
  * composes `API_URL` and posts with no credentials. Returns just the confirmation reference.
  *
  * **It checks `API_MODE` itself**, which no other service does and which is worth the two lines:

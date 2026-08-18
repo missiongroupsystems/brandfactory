@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { LoadingRows } from "@/components/layout/query-states";
+import { LoadingRows, PageState } from "@/components/layout/query-states";
 import { OutletsBrowser } from "@/features/outlets/components/outlets-browser";
 import { SyncOutletsButton } from "@/features/outlets/components/sync-outlets-button";
 
@@ -28,7 +28,7 @@ export default function OutletsPage() {
         description="Every location, open and in the pipeline. A site that has not opened yet is the same kind of record as one that is trading — it has an address, a brand and a target date, and none of that waits for the doors."
         actions={<SyncOutletsButton />}
       />
-      <Suspense fallback={<LoadingRows rows={6} />}>
+      <Suspense fallback={<PageState><LoadingRows rows={6} /></PageState>}>
         <OutletsBrowser />
       </Suspense>
     </>

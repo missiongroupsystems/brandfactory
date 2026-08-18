@@ -16,7 +16,28 @@ import { Skeleton } from "@/components/ui/skeleton";
  *
  * All three follow §12.8 / §3.3 — skeletons at the shape of the content, an error that pairs
  * the clay-red tint with an icon and a sentence rather than relying on the colour.
+ *
+ * **None of the three carries the page gutter, and that is a fix a screenshot forced.** All
+ * three used to add `px-6 md:px-8` themselves. That is right at the handful of places they
+ * render at the root of a route, and wrong at the twenty where they render *inside* a view
+ * that already carries it — which is every list screen in this app. The empty card came out
+ * 32px narrower on each side than the table it stands in for, and two gutters read as a
+ * mistake because they are one.
+ *
+ * So the gutter belongs to the block around them, and a state at a route root asks for it
+ * with {@link PageState}. That way round on purpose: forgetting the wrapper puts a card
+ * against the window edge, which anybody sees, where forgetting an opt-out would restore the
+ * quiet 32px that nobody did for eight releases.
  */
+
+/**
+ * The page gutter, for a state that renders at the root of a route rather than inside a view
+ * that already has one — a `<Suspense>` fallback beside a `PageHeader`, or a detail page's
+ * early return, taken before its own body exists to sit in.
+ */
+export function PageState({ children }: { children: React.ReactNode }) {
+  return <div className="px-6 md:px-8">{children}</div>;
+}
 
 export function LoadingRows({ rows = 5 }: { rows?: number }) {
   return (
@@ -24,7 +45,7 @@ export function LoadingRows({ rows = 5 }: { rows?: number }) {
     <div
       aria-busy
       role="status"
-      className="mx-6 flex flex-col gap-2 rounded-xl border border-border bg-card p-5 shadow-e1 md:mx-8"
+      className="flex flex-col gap-2 rounded-xl border border-border bg-card p-5 shadow-e1"
     >
       <span className="sr-only">Loading</span>
       {Array.from({ length: rows }, (_, i) => (
@@ -37,7 +58,7 @@ export function LoadingRows({ rows = 5 }: { rows?: number }) {
 export function QueryError({ error }: { error: unknown }) {
   const { title, detail } = describe(error);
   return (
-    <div className="px-6 pt-2 md:px-8">
+    <div className="pt-2">
       <div
         role="alert"
         className="flex items-start gap-3 rounded-xl bg-error-tint p-4 text-error"
@@ -104,12 +125,10 @@ export function EmptyState({
   hint?: React.ReactNode;
 }) {
   return (
-    <div className="px-6 md:px-8">
-      <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center">
-        <InboxIcon aria-hidden className="size-5 text-ink-tertiary" strokeWidth={1.5} />
-        <p className="text-sm font-medium text-ink">{message}</p>
-        {hint ? <p className="max-w-[56ch] text-helper text-ink-secondary">{hint}</p> : null}
-      </div>
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center">
+      <InboxIcon aria-hidden className="size-5 text-ink-tertiary" strokeWidth={1.5} />
+      <p className="text-sm font-medium text-ink">{message}</p>
+      {hint ? <p className="max-w-[56ch] text-helper text-ink-secondary">{hint}</p> : null}
     </div>
   );
 }

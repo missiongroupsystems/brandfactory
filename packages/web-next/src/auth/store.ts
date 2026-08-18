@@ -11,10 +11,11 @@ import * as React from "react";
  * for the same reason (the access token rotates roughly hourly while the identity behind it
  * does not, and `setAuth` would demand a `userId` the refresh path has no fresh source for).
  *
- * **Why not zustand, when this app already has it.** `features/spaces` keeps a zustand store
- * and that is not a licence to keep this one there too: the rule in `AGENTS.md` is about an
- * *editing draft*, and this is neither a draft nor server state — it is a browser fact that
- * does not exist on the server. Under SSR the Vite store's module-scope `sessionStorage.getItem`
+ * **Why not zustand.** The one zustand store this app had was `features/spaces`'s, and it
+ * left with that feature — the dependency is gone. Even while it was here it was no licence
+ * to keep this one there too: the rule in `AGENTS.md` is about an *editing draft*, and this is
+ * neither a draft nor server state — it is a browser fact that does not exist on the server.
+ * Under SSR the Vite store's module-scope `sessionStorage.getItem`
  * is a `ReferenceError`, and merely guarding it is not enough either: the guarded version
  * renders "signed out" into the static HTML and then hydrates over a client that is signed in,
  * which React reports as a mismatch and a reader sees as a flash of the wrong app.

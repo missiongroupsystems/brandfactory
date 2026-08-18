@@ -228,9 +228,9 @@
   --surface-hover: var(--c-beige-100);
   --surface-selected: var(--c-beige-200);
   --surface-accent: var(--color-brand-accent);
-  /* Behind a modal. Ink-tinted rather than black, and light enough that the workspace
-     stays legible underneath — the Spaces welcome dialog opens over a live plan and
-     covering it entirely would hide what the dialog is talking about. */
+  /* Behind a modal. Ink-tinted rather than black, and light enough that the page
+     stays legible underneath — a dialog that covers its own context entirely hides
+     what it is talking about. */
   --surface-scrim: rgba(23, 23, 23, 0.34);
 
   --border-subtle: rgba(23, 23, 23, 0.1);
@@ -303,40 +303,6 @@
    surfaces, text and borders at dark primitives. Additive, and no component changes.
    Deliberately absent rather than half-done: the product ships light-only today, and a
    stale dark map is worse than none. */
-
-/* ===========================================================================
-   Modal entrance — the Spaces welcome dialog. Declared here, ABOVE the base
-   layer's prefers-reduced-motion block, which is what lets that block mute them:
-   a keyframe utility defined after it wins on specificity and animates anyway.
-   =========================================================================== */
-
-@keyframes scrim-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes dialog-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.animate-scrim-in {
-  animation: scrim-in 160ms ease-out;
-}
-
-.animate-dialog-in {
-  animation: dialog-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
 
 @layer base {
   * {

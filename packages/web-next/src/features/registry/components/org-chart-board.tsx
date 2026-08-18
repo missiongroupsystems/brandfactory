@@ -24,7 +24,7 @@ import { CheckIcon, GripVerticalIcon, Loader2Icon, MoreHorizontalIcon } from "lu
 import { useBrandIndex } from "@/features/registry-brands/hooks";
 import { useEntityIndex, useOutletIndex, useOutletMutations } from "@/features/registry/hooks";
 import { SegmentedControl } from "@/components/layout/filter-bar";
-import { EmptyState, LoadingRows, QueryError } from "@/components/layout/query-states";
+import { EmptyState, LoadingRows, PageState, QueryError } from "@/components/layout/query-states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -647,13 +647,19 @@ export function OrgChartBoard() {
       </div>
 
       {isLoading ? (
-        <LoadingRows rows={4} />
+        <PageState>
+          <LoadingRows rows={4} />
+        </PageState>
       ) : error ? (
         // Either failure leaves the board unable to say anything true about the group, so both
         // surface — a card list that loaded against outlets that did not is a map of nothing.
-        <QueryError error={error} />
+        <PageState>
+          <QueryError error={error} />
+        </PageState>
       ) : groups.length === 0 && outlets.length === 0 ? (
-        <EmptyState message={copy.emptyMessage} hint={copy.emptyHint} />
+        <PageState>
+          <EmptyState message={copy.emptyMessage} hint={copy.emptyHint} />
+        </PageState>
       ) : (
         <BoardContext.Provider value={{ copy, groups, saving, move, activeId, subLabel }}>
           <DndContext

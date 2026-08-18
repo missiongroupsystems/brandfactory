@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { LoadingRows } from "@/components/layout/query-states";
+import { LoadingRows, PageState } from "@/components/layout/query-states";
 import { OrgChartBoard } from "@/features/registry/components/org-chart-board";
 
 export const metadata = { title: "Org chart — Marketing Hub" };
@@ -17,7 +17,7 @@ export default function OrgChartPage() {
         title="Org chart"
         description="Which company holds which outlet, and which brand each trades under — the same estate grouped two ways. Neither link is a required one: a pipeline project exists before anyone decides which company will run it, and a one-off site carries no brand at all, so this page shows those states rather than hiding them."
       />
-      <Suspense fallback={<LoadingRows rows={4} />}>
+      <Suspense fallback={<PageState><LoadingRows rows={4} /></PageState>}>
         <OrgChartBoard />
       </Suspense>
     </>

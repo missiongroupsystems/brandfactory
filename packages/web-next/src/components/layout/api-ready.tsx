@@ -3,7 +3,7 @@
 import { ActivityIcon, ArrowUpRightIcon, PlugZapIcon, WebhookIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { QueryError } from "@/components/layout/query-states";
+import { PageState, QueryError } from "@/components/layout/query-states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,7 +66,11 @@ export function ApiReady({
         actions={<Badge variant="info">API ready · UI pending</Badge>}
       />
 
-      {error ? <QueryError error={error} /> : null}
+      {error ? (
+        <PageState>
+          <QueryError error={error} />
+        </PageState>
+      ) : null}
 
       <div className="flex flex-col gap-4 px-6 py-6 md:px-8">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

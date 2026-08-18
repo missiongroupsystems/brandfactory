@@ -53,12 +53,16 @@ export class ApiError extends Error {
  * in the JS bundle — it is a gate against the open internet, not a secret from anyone
  * who can already reach this app; real auth replaces this function.
  *
- * **Exported, along with `API_URL`, for exactly one caller**: `features/spaces/api.ts`'s
- * digitise upload, which streams NDJSON and multipart and so cannot go through
- * `apiFetch` (that reads one JSON body). It is still the same one function, which is the
- * property that matters — the rule is "identity is established in one place", not
- * "`apiFetch` is the only thing that may read it". A *component* reaching for these
- * would be the violation; a service layer composing them is not.
+ * **Exported, along with `API_URL`, for exactly one caller**: `features/marketing-requests`'s
+ * `publicSubmit`, which posts to the unauthenticated `/public/forms/{slug}/submissions` and
+ * so must compose the URL with *no* credentials rather than go through `apiFetch`. It is
+ * still the same one function, which is the property that matters — the rule is "identity is
+ * established in one place", not "`apiFetch` is the only thing that may read it". A
+ * *component* reaching for these would be the violation; a service layer composing them is
+ * not.
+ *
+ * The second caller was `features/spaces`, whose digitise upload streamed NDJSON and
+ * multipart; it went with the feature.
  */
 export const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN;
 

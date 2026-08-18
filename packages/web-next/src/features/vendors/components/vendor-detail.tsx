@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { DetailItem, DetailList } from "@/components/layout/detail-list";
 import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState, LoadingRows, QueryError } from "@/components/layout/query-states";
+import { EmptyState, LoadingRows, PageState, QueryError } from "@/components/layout/query-states";
 import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,14 +54,16 @@ export function VendorDetail({ vendorId }: { vendorId: string }) {
     return (
       <>
         <BackLink />
-        {error instanceof ApiError && error.isNotFound ? (
-          <EmptyState
-            message="No such vendor"
-            hint="It may have been deleted. Every vendor we hold is on the list."
-          />
-        ) : (
-          <QueryError error={error} />
-        )}
+        <PageState>
+          {error instanceof ApiError && error.isNotFound ? (
+            <EmptyState
+              message="No such vendor"
+              hint="It may have been deleted. Every vendor we hold is on the list."
+            />
+          ) : (
+            <QueryError error={error} />
+          )}
+        </PageState>
       </>
     );
   }
@@ -69,7 +71,9 @@ export function VendorDetail({ vendorId }: { vendorId: string }) {
     return (
       <>
         <BackLink />
-        <LoadingRows rows={4} />
+        <PageState>
+          <LoadingRows rows={4} />
+        </PageState>
       </>
     );
   }

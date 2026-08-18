@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { LoadingRows } from "@/components/layout/query-states";
+import { LoadingRows, PageState } from "@/components/layout/query-states";
 import { VendorsView } from "@/features/vendors/components/vendors-view";
 
 export const metadata = { title: "Vendors — Marketing Hub" };
@@ -37,7 +37,7 @@ export default function VendorsPage() {
         title="Vendors"
         description="The companies we buy from — agencies, studios, tools and press offices. The counts on every row are contract aggregates: how many agreements we hold, how many are live, and which brands they work on, so 'is this relationship still active' is answerable without opening anything."
       />
-      <Suspense fallback={<LoadingRows rows={6} />}>
+      <Suspense fallback={<PageState><LoadingRows rows={6} /></PageState>}>
         <VendorsView />
       </Suspense>
     </>

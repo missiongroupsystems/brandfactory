@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { LoadingRows } from "@/components/layout/query-states";
+import { LoadingRows, PageState } from "@/components/layout/query-states";
 import { ContractsBrowser } from "@/features/contracts/components/contracts-browser";
 
 export const metadata = { title: "Contracts — Marketing Hub" };
@@ -64,7 +64,7 @@ export default async function ContractsPage({
         title="Contracts"
         description="The agreements and whether the service they promise is arriving. An auto-renewing contract nobody gave notice on is the single most expensive thing a spreadsheet fails to surface — here it gets a deadline on the dashboard."
       />
-      <Suspense fallback={<LoadingRows rows={6} />}>
+      <Suspense fallback={<PageState><LoadingRows rows={6} /></PageState>}>
         <ContractsBrowser />
       </Suspense>
     </>

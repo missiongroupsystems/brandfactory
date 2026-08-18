@@ -7,7 +7,7 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { DetailItem, DetailList } from "@/components/layout/detail-list";
-import { LoadingRows, QueryError } from "@/components/layout/query-states";
+import { LoadingRows, PageState, QueryError } from "@/components/layout/query-states";
 import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,8 +101,18 @@ export function InfluencerDetail({ influencerRef }: { influencerRef: string }) {
 
   // The delete's own 404 is not news — see `isDeleting`. Every other error still reaches the
   // reader, including one raised while the delete was refused.
-  if (error && !isDeleting) return <QueryError error={error} />;
-  if (isLoading || !influencer) return <LoadingRows rows={6} />;
+  if (error && !isDeleting)
+    return (
+      <PageState>
+        <QueryError error={error} />
+      </PageState>
+    );
+  if (isLoading || !influencer)
+    return (
+      <PageState>
+        <LoadingRows rows={6} />
+      </PageState>
+    );
 
   async function handleDelete() {
     if (!influencer) return;

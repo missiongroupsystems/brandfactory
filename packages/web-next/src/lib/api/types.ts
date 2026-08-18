@@ -41,17 +41,6 @@ export type OutletNetworkSensitive = S["OutletNetworkSensitiveRead"];
 export type OutletNetworkCreate = S["OutletNetworkCreate"];
 export type OutletNetworkUpdate = S["OutletNetworkUpdate"];
 
-// Spaces. `SpaceScheme` carries the whole document; `SpaceSchemeSummary` is the list row
-// and deliberately has no payload on it. The document type generated here is the wire
-// contract for `features/spaces/types.ts` — the editor keeps its own copy because it is
-// OpenSpace's domain model and predates this API, and `spaces/types.ts` says so at the
-// top. If the two drift, this alias is where the typecheck complains.
-export type SpaceScheme = S["SpaceSchemeRead"];
-export type SpaceSchemeSummary = S["SpaceSchemeSummary"];
-export type SpaceSchemeCreate = S["SpaceSchemeCreate"];
-export type SpaceSchemeUpdate = S["SpaceSchemeUpdate"];
-export type SchemeDocument = S["SchemeDocument"];
-
 export type NetworkDevice = S["NetworkDeviceRead"];
 export type NetworkDeviceCreate = S["NetworkDeviceCreate"];
 export type NetworkDeviceUpdate = S["NetworkDeviceUpdate"];

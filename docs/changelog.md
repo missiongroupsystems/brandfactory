@@ -6,6 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.41.1** — 2026-08-18 — An empty table was 32px narrower on each side than the populated one, on every list screen: the page gutter, applied once by the view and again by the state inside it. The three states give the gutter up and a route root asks for it. No migration. 2292 tests.
+- **1.41.0** — 2026-08-18 — Spaces leaves: the last screen in the nav that plans premises rather than brands goes whole — two routes, the largest feature folder in the package, and the only reason this marketing app shipped a 3D engine and a second state library. No migration. 2292 tests.
 - **1.40.1** — 2026-08-18 — Pre-push review of 1.40.0: the form's most ordinary mistake — entering a creator who is already on the roster — answered `Internal Server Error`, because influencers is this schema's first aggregate with a unique key somebody types. It is a 409 that names the pair. No migration. 2292 tests.
 - **1.40.0** — 2026-08-18 — A creator stops being a shape the frontend invented for itself and becomes an aggregate: two tables, five routes, an exhaustive list, a page each and a form that fills them — so the tier bands' counts are totals and the roster is whatever somebody put in the table. Migration 0014. 2286 tests.
 - **1.39.0** — 2026-08-17 — Influencers stops being the address book under a new label: a creator record this app declares, grouped by reach tier because that tier is *derived*, and no vendor anywhere — the six agencies leave for a fixture of their own, where six contracts still need them. Route moves to `/influencers`. No migration. 2211 tests.
@@ -86,6 +88,244 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.41.1 — 2026-08-18
+
+**An empty table came out 32px narrower on each side than the populated one, and it was not a
+spacing choice on the empty state — it was the page gutter applied twice.**
+
+Reported from a screenshot of `/influencers` with nothing in it. `EmptyState`, `QueryError` and
+`LoadingRows` each opened with their own `px-6 md:px-8`, and every list screen already carries
+that gutter on the block it renders them into. The table sat at the gutter; the dashed card sat
+at the gutter plus the gutter.
+
+No migration, no server change, no wire change, no client behaviour change. `packages/web` is
+untouched. 23 files, +155 / −79.
+
+### 1. Every list screen, and the reader only ever sees one state at a time
+
+`influencers`, `outlets`, `vendors`, `contracts`, `registry-brands`, `tenancies`, `networks`,
+`review`, `entities`, `certifications`, `marketing-requests`, `dashboard`, `org-chart` and the
+four licence sub-views all wrap their results in
+`<div className="flex flex-col gap-4 px-6 pb-8 md:px-8">`, as do the cards on every detail page.
+Each of them then rendered a state that added the gutter again.
+
+The same defect ran on the loading skeleton and the error panel. It survived because a reader
+sees exactly one of the three at a time and has nothing on screen to compare it against — and
+because `query-states.tsx` arrived whole with the Operations Hub shell in **1.31.0** and the
+gutter came with it, so it has been on screen through ten releases and every screen added in
+them.
+
+### 2. The three states give the gutter up; a route root asks for it
+
+```tsx
+export function PageState({ children }: { children: React.ReactNode }) {
+  return <div className="px-6 md:px-8">{children}</div>;
+}
+```
+
+Both directions close the bug and they fail differently, which is what chose between them. A
+default gutter with an opt-out for nesting fails by restoring the quiet 32px that nobody saw for
+ten releases. No gutter with an opt-in at a route root fails by putting a card against the window
+edge, which everybody sees. The loud failure won.
+
+It also puts the rule where this package already keeps it — **the block owns its gutter**, the way
+`PageHeader`, `BackLink` and all twenty-six view wrappers do. The states were the only components
+here carrying a page-level concern into something that cannot know what page it is on.
+
+Thirty-two sites take the wrapper, in two shapes that both predate the change:
+
+- **A `<Suspense>` fallback beside a `PageHeader`** — twelve list pages. The fallback renders
+  before the browser component, therefore before its gutter wrapper exists.
+- **A detail page's early return** — `outlet-detail`, `influencer-detail`, `contract-detail`,
+  `license-detail`, `tenancy-detail`, `vendor-detail`, `brand-detail`, `brand-profile`, plus
+  `org-chart-board`, whose states are siblings of the board's gutter rather than children of it,
+  and `api-ready`.
+
+Five of the detail pages return their state beside `BackLink`, which carries a gutter of its own —
+so the back link and the panel under it agreed before and still do.
+
+### 3. Not one list view was edited
+
+Which is the property that makes the diff safe to skim. The nested sites are correct the moment
+the state stops adding a gutter; there was nothing to remove from them because the mistake was
+never theirs. `contracts-view.tsx`, the four licence views, `documents-card.tsx`,
+`requirements-card.tsx`, `licenses-card.tsx`, `outlet-tenancy-card.tsx`, `devices-panel.tsx`,
+`network-panel.tsx` and both extraction reviews are unchanged files that render correctly now.
+
+`QueryError` keeps a bare `pt-2` where it had `px-6 pt-2 md:px-8`. That 8px is the gap under a
+`PageHeader`, not the gutter, and changing it would move vertical rhythm on ten surfaces for no
+reason this change gives.
+
+### 4. Do not run the formatter on `packages/web-next`
+
+`prettier --write` over that package rewrites **148 files this change never touched**. The root
+`format:check` skips it on purpose — it keeps upstream's formatting and its gate is
+`lint && typecheck && build` with no prettier in it. The churn was reverted and the change
+re-applied by hand. Recorded because the failure is silent: lint, typecheck and build all pass
+over it, and it surfaces only as a 174-file `git status` that reads like somebody else's work.
+
+### 5. Verification
+
+```
+pnpm typecheck                             clean (11 packages)
+pnpm lint                                  clean (whole repo)
+pnpm format:check                          clean
+pnpm test                                  2292 passed | 115 skipped (189 files)
+pnpm -F @brandfactory/web build            clean
+pnpm -F @brandfactory/web-next lint        clean
+pnpm -F @brandfactory/web-next typecheck   clean
+pnpm -F @brandfactory/web-next build       clean — static/dynamic split unchanged
+```
+
+The count does not move from 1.40.1's 2292. This package tests auth, workspace resolution and
+cache keys and not the screens, so there is no unit test here to move — asserting a Tailwind
+class string would pin the implementation rather than the behaviour. **The browser pass is the
+verification that counts and it has not been done**: the stack was brought up for one and stops
+at the sign-in form.
+
+The gate was re-run in full after **1.41.0** took Spaces out of the package, which deleted three
+of the sites this change had wrapped. Nothing else in it depended on them.
+
+Full note: [`completions/the-page-gutter-applied-twice.md`](completions/the-page-gutter-applied-twice.md).
+
+---
+
+## 1.41.0 — 2026-08-18
+
+**`Spaces` was the last item in this nav that answers a question about premises, and marketing
+does not ask it.**
+
+It planned a retail unit before it opened: drop the landlord's drawing, watch a digitiser turn it
+into a to-scale plan, lay the plan out from a furniture catalogue, walk through it in 3D, pin
+reference photographs to it and cost the result. Four views of one set of decisions, and every one
+of them about a room.
+
+That is OpenSpace's product, inherited whole in 1.31.0 with the rest of the Operations Hub shell.
+It is removed here rather than converted, because there is nothing to convert it into: no line of
+`docs/plans/feedback.md` wants it, no BrandFactory route serves it, and a brand has no floor.
+
+No migration, no server change, no wire change. **25 files and 4,886 lines deleted**, which is the
+largest single removal this package has taken.
+
+### 1. The argument is the one 1.37.0 and 1.38.0 already made
+
+Three releases have now found the same seam in the inherited shell, and each time the answer was
+that the *dimension* was wrong rather than the screen:
+
+- **1.37.0** — a contract stopped being an agreement about premises and became one about a brand.
+  The outlet dimension left with the service workflow hanging off it.
+- **1.38.0** — the Vendors table stopped asking which counterparty kind you wanted, because
+  *marketing buys from no landlords*.
+- **1.41.0** — Spaces has no such reading. Contracts and Vendors each had a marketing question
+  underneath the property one, so re-pointing them kept a screen. A floor plan does not: there is
+  no brand-shaped thing a plan editor is secretly about.
+
+So this is the first of the three that ends in a delete rather than a rewrite, and that difference
+is the whole judgement. **Removal is the honest outcome when the re-pointing exercise finds
+nothing underneath.**
+
+### 2. What went
+
+```
+packages/web-next/src/app/(app)/spaces/          2 files      /spaces, /spaces/[id]
+packages/web-next/src/features/spaces/          23 files    4,846 lines
+```
+
+The feature folder was the largest in the package — 4,846 lines against `contracts`' 4,014 — and
+held the plan canvas, the 3D walkthrough, the catalogue palette, the inspector, the cost view, the
+reference album, the digitise client, the scheme store, the geometry, the demo scheme, the welcome
+dialog and a set of UI primitives it kept to itself.
+
+`components/layout/nav.ts` loses the item, its `Ruler` icon import and `/spaces` from the
+`Resources` group. `lib/api/types.ts` loses the five `SpaceScheme*` / `SchemeDocument` wire
+aliases.
+
+### 3. Five dependencies went with it, and two of them were arguments
+
+```
+three                 ^0.185.1     the walkthrough, and the only 3D in the app
+@react-three/fiber    ^9.7.0
+@react-three/drei     ^10.7.7
+@types/three          ^0.185.4
+zustand               ^5.0.14      the scheme store, and the only zustand store in the app
+```
+
+Neither of the two that matter was a shared library that Spaces happened to use. Each was **the
+sole user**, which is why the removal takes them cleanly and why the check for that is worth
+recording: `three` matches the *word* "three" in sixty files of prose, and only `import * as THREE
+from "three"` in `walkthrough.tsx` is an import.
+
+`zustand` closes a note in `auth/store.ts`. That file argued, in 1.33.0, that `features/spaces`
+keeping a zustand store was **not** a licence for the session store to keep one too — the rule in
+`AGENTS.md` is about an editing draft, and a session token is neither a draft nor server state. The
+comment now records that the counter-example left and the dependency with it, rather than
+continuing to answer a question nobody can ask.
+
+Two more comments named Spaces as a live fact and now say the opposite:
+
+- `lib/api/client.ts` exported `API_URL` and `API_TOKEN` "for exactly one caller:
+  `features/spaces/api.ts`'s digitise upload", which streamed NDJSON and multipart and so could
+  not go through `apiFetch`. The one caller left is `marketing-requests`' `publicSubmit`, which
+  reaches past the transport for the opposite reason — it must send **no** credentials.
+- `features/marketing-requests/api.ts` said "the one reason (besides `features/spaces`)". There is
+  no besides now.
+
+### 4. `app/globals.css`, and where the line is between dead code and a token
+
+Two things in the stylesheet existed for Spaces. They are treated differently on purpose.
+
+**The keyframes go.** `scrim-in` and `dialog-in`, and the `.animate-scrim-in` /
+`.animate-dialog-in` utilities that used them, had one consumer — the welcome dialog — and a
+header comment naming it. Their placement was itself deliberate (declared *above* the base layer's
+`prefers-reduced-motion` block, which is what lets that block mute them), and that reasoning is
+worth nothing once the rules animate nothing. A future dialog declares its own entrance.
+
+**The token stays.** `--surface-scrim` is now referenced by no component, but it is a tier-2
+semantic token in the §16 map, which is exhaustive by design — a palette declares the vocabulary
+the product may use, not the subset in use this week. Its comment loses the sentence about a
+welcome dialog opening over a live plan and keeps the rule that sentence illustrated: a scrim is
+ink-tinted and light enough that the page stays legible underneath.
+
+### 5. What is deliberately still there
+
+- **`lib/api/schema.d.ts` still declares `/spaces`, `/spaces/digitise` and
+  `/spaces/{scheme_id}`.** That file is generated from the upstream OpenAPI document. The backend
+  still serves those routes; this app no longer calls them. A hand-edit would come back on the
+  next generation, so the removal stops at the hand-written aliases in `types.ts` — which is
+  exactly the layer where a caller would reappear.
+- **`features/outlets/components/outlet-detail.tsx` still says "spaces"**, in the paragraph
+  describing what the Operations Hub's 760-line thirteen-card page held before 1.36.0 cut it to
+  the outlet. That is a historical list and it is still accurate.
+
+### 6. Verification
+
+```
+pnpm typecheck                             clean (11 packages)
+pnpm lint                                  clean (whole repo)
+pnpm format:check                          clean
+pnpm test                                  2292 passed | 115 skipped (189 files)
+pnpm -F @brandfactory/web build            clean
+pnpm -F @brandfactory/web-next lint        clean
+pnpm -F @brandfactory/web-next typecheck   clean
+pnpm -F @brandfactory/web-next build       clean — 29 routes, no /spaces
+```
+
+**The test count does not move from 1.40.1's 2292, and that is the fact worth stating rather than
+hiding.** `features/spaces` had no tests — 4,846 lines of canvas geometry, 3D camera work and
+optimistic save sequencing, none of it asserted. It was inherited that way and it is leaving that
+way, so the removal costs no coverage and the unchanged number is the proof.
+
+`nav.test.ts` passes unchanged for a better reason than luck: it asserts that every grouped href
+exists in `NAV_ITEMS` and that grouping never reorders. Both invariants survive one fewer item,
+which is what those two tests were written to guarantee.
+
+### 7. Still no browser pass
+
+The list 1.40.0 §7 records stands, minus one screen it will never need to cover. The largest item
+on it is still the influencer form.
 
 ---
 
