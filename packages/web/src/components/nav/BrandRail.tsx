@@ -6,6 +6,7 @@ import { useActiveBrandId } from '@/lib/active-brand'
 import { AccountMenu } from '@/components/nav/AccountMenu'
 import { BrandMark } from '@/components/brand/BrandMark'
 import { NewBrandDialog } from '@/components/NewBrandDialog'
+import { LocalOnlyDot } from '@/components/passport/LocalOnlyDot'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher'
 import { Button } from '@/components/ui/button'
@@ -76,13 +77,18 @@ export function BrandRail({ workspaceId, panelCollapsed, onTogglePanel }: BrandR
               key={b.id}
               to="/brands/$brandId"
               params={{ brandId: b.id }}
+              // `relative`, so the local-only dot can sit on the tile's corner.
+              // Added here rather than in the class list below because the ring
+              // states there are conditional and this is not.
+              data-local-only={b.linkedToPassport ? undefined : ''}
               // The mark itself is `aria-hidden` — it is a restatement of the
               // name — so the link carries the name as text for AT, and the
               // pointer gets it as a native tooltip. Neither is decoration:
               // without them the rail is 40 unlabelled squares.
               title={b.name}
               className={cn(
-                'rounded-[10px] transition-opacity duration-150',
+                // `relative` so the local-only dot can sit on the tile's corner.
+                'relative rounded-[10px] transition-opacity duration-150',
                 // Accent on the *selected* state is one of the four things §4
                 // allows it to be spent on, and a ring is what a tile whose fill
                 // is already the customer's own colour can wear without
@@ -93,7 +99,10 @@ export function BrandRail({ workspaceId, panelCollapsed, onTogglePanel }: BrandR
               )}
             >
               <BrandMark name={b.name} seed={b.id} size="sm" className="size-9 rounded-[10px]" />
-              <span className="sr-only">{b.name}</span>
+              {/* A 36px monogram has nowhere to put the word "local only", so the rail
+                  gets a dot and the name carries the text. Both come from one component,
+                  so the rail and the switcher cannot end up saying different things. */}
+              <LocalOnlyDot linked={b.linkedToPassport} name={b.name} />
             </Link>
           )
         })}

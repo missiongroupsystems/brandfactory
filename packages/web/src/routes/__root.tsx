@@ -7,6 +7,7 @@ import { AuthBoundary } from '@/auth/AuthBoundary'
 import { useAuthStore } from '@/auth/store'
 import { AppSidebar } from '@/components/nav/AppSidebar'
 import { useActiveWorkspaceId } from '@/lib/workspace-context'
+import { PassportLinkageProvider } from '@/components/passport/linkage'
 
 // ---------------------------------------------------------------------------
 // The shell — a side-nav and a scrolling content area, and nothing else
@@ -45,37 +46,42 @@ function RootLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* **A cost this pass introduced, and pays back here.** The old header
+    // One workspace read for the whole shell, so the "local only" signal costs one query
+    // rather than one per brand row. It wraps the sidebar AND the content, because both draw
+    // brands. Defaults to silent outside the provider — see `passport/linkage`.
+    <PassportLinkageProvider>
+      <div className="flex h-screen bg-background">
+        {/* **A cost this pass introduced, and pays back here.** The old header
           held four controls; the sidebar holds a row per brand plus a row per
           app plus every thread of the category you are in, all of them before
           the content in DOM order. Without this, reaching the page by keyboard
           means tabbing through the whole navigation on every single load.
           Visible only on focus — `sr-only` until then, which is the pattern's
           whole point. */}
-      <a
-        href="#main-content"
-        className="sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[60] focus:not-sr-only focus:rounded-lg focus:border focus:bg-card focus:px-3 focus:py-2 focus:text-sm"
-      >
-        Skip to content
-      </a>
+        <a
+          href="#main-content"
+          className="sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[60] focus:not-sr-only focus:rounded-lg focus:border focus:bg-card focus:px-3 focus:py-2 focus:text-sm"
+        >
+          Skip to content
+        </a>
 
-      <AppSidebar mobileOpen={mobileNavOpen} onCloseMobile={() => setMobileNavOpen(false)} />
+        <AppSidebar mobileOpen={mobileNavOpen} onCloseMobile={() => setMobileNavOpen(false)} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <MobileBar onOpenNav={() => setMobileNavOpen(true)} />
-        {/* `tabIndex={-1}` so the skip link can actually move focus here — an
+        <div className="flex min-w-0 flex-1 flex-col">
+          <MobileBar onOpenNav={() => setMobileNavOpen(true)} />
+          {/* `tabIndex={-1}` so the skip link can actually move focus here — an
             anchor to a container that cannot hold focus scrolls the page and
             leaves the tab ring back in the nav. */}
-        <main id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 overflow-hidden">
-          <AuthBoundary>
-            <Outlet />
-          </AuthBoundary>
-        </main>
-      </div>
+          <main id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 overflow-hidden">
+            <AuthBoundary>
+              <Outlet />
+            </AuthBoundary>
+          </main>
+        </div>
 
-      <Toaster />
-    </div>
+        <Toaster />
+      </div>
+    </PassportLinkageProvider>
   )
 }
 

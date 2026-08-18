@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.42.0** — 2026-08-18 — Phase 8 lands as a LINK, not a retirement: `workspaces` and `brands` stay, each joined to its Passport row, and a brand made during an outage stays usable and reaches Passport only when an Admin promotes it. The access rewiring is written and tested but not armed. Migration 0016. 2402 tests.
 - **1.41.0** — 2026-08-18 — Structure write-back opens, and only that: units, relations and app access, through Passport's org API with the acting Admin's own token, never the app's key. The conformance test now BOUNDS the exception instead of reporting a clean tree — and one of its new detectors shipped fail-open and was caught by breaking it. Migration 0015. 2332 tests.
 - **1.40.0** — 2026-08-18 — The login becomes one email field, and building it found two silent sign-outs: the refresh had no client to run on, and a defaulted argument undid the fix on every page load. An error arrival would have bounced for ever. No migration. 2259 tests.
 - **1.39.0** — 2026-08-17 — The conformance detectors become a test, CI learns it needs a credential for the private SDK — without which every run would have failed at install — and Renovate is deliberately NOT wired, because the preset it would extend matches nothing here. No migration. 2204 tests.
@@ -83,6 +84,90 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.42.0 — 2026-08-18
+
+**Phase 8 under `D1-b`: the link, not the retirement.** Migration **0016**.
+
+Full write-up:
+[`docs/completions/passport-sync-consumer-phase-8.md`](completions/passport-sync-consumer-phase-8.md).
+Decision: proposal §8 `D1-b`.
+
+### 1. Two nullable columns, and nothing re-keyed
+
+`workspaces.passport_organization_id` and `brands.passport_unit_id`. `NULL` means "Passport
+does not know this yet" — a usable state, and the whole point of `D1-b`.
+
+BrandFactory keeps its own primary key and hands it to Passport as `external_ref`, rather than
+adopting Passport's UUID locally. So nothing is ever re-keyed, nothing is ever orphaned, a
+replayed create answers `409` instead of quietly making a second unit, and the projection still
+stores Passport's UUIDs verbatim. The unique constraint on the brand link is what turns "two
+local brands claiming one unit" from a silent duplicate into an error.
+
+### 2. One LEFT JOIN, guarded
+
+An inner join compiles, typechecks, passes every test written against seeded linked data, and
+**silently drops every locally created brand** — an empty page for a brand that exists and
+works. A sweep keeps `passportUnit` out of every module but the projection and the one that
+owns the join.
+
+Three resolution rules sit beside it, each with a one-line tidy-up that breaks it: the display
+label always comes from `brands.name`, a null legal name stays null rather than falling back to
+the label, and status is read through the link and never copied.
+
+### 3. The receiver closes the round trip
+
+`onUnitUpserted` links a waiting local brand when its unit arrives — the only moment the two
+records can be joined, since Passport has no idea it created a unit for an existing brand. It
+runs after the projection write, writes `brands` rather than `passport.*`, and is the one place
+in the receiver that swallows an error: the projection has already committed, so redelivering
+would retry a correctly stored unit.
+
+### 4. Promotion is Admin-only, and the create is not
+
+The local create cannot be Admin-and-hosted-login-only, because its purpose is to work when
+hosted login does not. So a non-Admin can create a brand and **only an Admin can promote it**.
+A non-Admin create reaching Passport unattended would let a consumer app add units to an
+organisation's structure with no org Admin involved.
+
+### 5. "Local only" is a state, not an error — and the gate took two attempts
+
+An unlinked brand must not look identical to a linked one: no sibling app can see it, and until
+promotion it is visible org-wide rather than to role-holders.
+
+But today, and on every self-hosted install, NO brand is linked — so an ungated badge would
+appear on every brand for ever, saying nothing. The signal therefore appears only when the
+**workspace** is a Passport organisation.
+
+The first implementation read that with a query inside the badge, which gave every component
+that merely shows a brand a hidden data dependency: `BrandCard`'s tests needed a `QueryClient`
+for a component that makes no request, and five more suites needed a new mock. A shell-level
+context replaced it — zero test churn, and the full web suite passed unchanged. The linter
+also caught a real rules-of-hooks bug: `!linked && usePassportLinkage()` short-circuits.
+
+### 6. The access rewiring is NOT armed
+
+`authz.ts` still runs the interim shared-access model. The rules that replace it are complete
+with 19 tests, and arming them before the operator gate is a lockout of everyone rather than a
+behaviour change.
+
+Two over-permissions were avoided only by reading `access.ts` rather than assuming: the org
+ladder is already inside `rolesAtUnits`, so re-checking it would grant an Owner a unit carrying
+no app-access row; and the unlinked rule needs `entitled`, not `hasAccess`, which additionally
+requires a unit an unlinked brand does not have.
+
+### 7. Conformance records the violation rather than hiding it
+
+The shadow detector's expectation stays at exactly two, and its comment now says they are kept
+**knowingly**. A third still fails, and membership, entitlement, unit-app-access,
+unit-app-membership and identity-link may never join the set.
+
+### 8. Gate
+
+`pnpm typecheck`, `pnpm lint`, `pnpm format:check` and `pnpm -F @brandfactory/web build` all
+pass. `pnpm test` reports **2402 passed | 92 skipped** (+70). Migration 0016 was generated but
+not applied to a live database here — the local Postgres is unreachable; CI applies migrations
+against its own sidecar.
 
 ## 1.41.0 — 2026-08-18
 

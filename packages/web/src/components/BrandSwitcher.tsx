@@ -8,6 +8,7 @@ import { useActiveBrandId } from '@/lib/active-brand'
 import { useActiveWorkspaceId } from '@/lib/workspace-context'
 import { BrandMark } from '@/components/brand/BrandMark'
 import { NewBrandDialog } from '@/components/NewBrandDialog'
+import { LocalOnlyBadge } from '@/components/passport/LocalOnlyBadge'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -99,6 +100,10 @@ export function BrandSwitcher() {
                 }}
               >
                 <span className="min-w-0 truncate">{b.name}</span>
+                {/* The recall surface is where the distinction belongs most: this is the
+                    full list by name, so it is where somebody notices that one of them
+                    reaches no other Mission Systems app. */}
+                <LocalOnlyBadge linked={b.linkedToPassport} />
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>

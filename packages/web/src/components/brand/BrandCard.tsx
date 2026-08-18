@@ -9,6 +9,7 @@ import { GuidelineMeter } from '@/components/brand/GuidelineMeter'
 import { DeleteBrandDialog } from '@/components/entity/DeleteBrandDialog'
 import { EntityMenu } from '@/components/entity/EntityMenu'
 import { RenameDialog } from '@/components/entity/RenameDialog'
+import { LocalOnlyBadge } from '@/components/passport/LocalOnlyBadge'
 import { displayHost } from '@/lib/website-url'
 
 export function BrandCard({ brand }: { brand: BrandSummary }) {
@@ -46,7 +47,14 @@ export function BrandCard({ brand }: { brand: BrandSummary }) {
                 page. `aria-hidden` by construction, so it adds no noise to the
                 card's accessible name. */}
             <BrandMark name={brand.name} seed={brand.id} size="sm" className="mb-3" />
-            <div className="font-medium group-hover:text-accent-foreground">{brand.name}</div>
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 truncate font-medium group-hover:text-accent-foreground">
+                {brand.name}
+              </div>
+              {/* The workspace grid is where somebody first meets the whole set, so it is
+                  where a brand that reaches no other Mission Systems app should say so. */}
+              <LocalOnlyBadge linked={brand.linkedToPassport} />
+            </div>
             {line && <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{line}</div>}
             {brand.websiteUrl && (
               // Text, not an anchor. The whole card is already a link to the
