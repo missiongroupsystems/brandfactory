@@ -9,6 +9,7 @@ import { AppError } from '@/api/client'
 import { useWorkspaceSettings, useUpdateWorkspaceSettings } from '@/api/queries/settings'
 import { useUpdateWorkspace, useWorkspace } from '@/api/queries/workspaces'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { StructureDriftPanel } from '@/components/passport/StructureDriftPanel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -169,6 +170,11 @@ function WorkspaceSettingsPage() {
           </Button>
         </form>
       )}
+
+      {/* Renders nothing unless the person can act on it — see the panel's header. Settings is
+          its home because it is administrative and per-workspace, and because it is a page an
+          Admin already visits deliberately rather than one they pass through. */}
+      <StructureDriftPanel workspaceId={wsId} />
     </div>
   )
 }

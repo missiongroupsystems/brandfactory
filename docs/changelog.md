@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.43.0** — 2026-08-18 — The magic-link bypass closes: the browser stops calling GoTrue and asks our server, which refuses an active member — break-glass, opening only on an OBSERVED hosted-login failure. Plus the drift view, the promote action, and an eligibility endpoint that was one route away from two things I had called blocked. No migration. 2438 tests.
 - **1.42.0** — 2026-08-18 — Phase 8 lands as a LINK, not a retirement: `workspaces` and `brands` stay, each joined to its Passport row, and a brand made during an outage stays usable and reaches Passport only when an Admin promotes it. The access rewiring is written and tested but not armed. Migration 0016. 2402 tests.
 - **1.41.0** — 2026-08-18 — Structure write-back opens, and only that: units, relations and app access, through Passport's org API with the acting Admin's own token, never the app's key. The conformance test now BOUNDS the exception instead of reporting a clean tree — and one of its new detectors shipped fail-open and was caught by breaking it. Migration 0015. 2332 tests.
 - **1.40.0** — 2026-08-18 — The login becomes one email field, and building it found two silent sign-outs: the refresh had no client to run on, and a defaulted argument undid the fix on every page load. An error arrival would have bounced for ever. No migration. 2259 tests.
@@ -84,6 +85,83 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.43.0 — 2026-08-18
+
+**The magic-link bypass closes, and phase 9 finishes.** No migration.
+
+Full write-up:
+[`docs/completions/passport-sync-consumer-phase-9-ui.md`](completions/passport-sync-consumer-phase-9-ui.md).
+
+### 1. The bypass, open since 1.37.0
+
+`/auth/resolve-login` decides where an address belongs. That decision was **advisory**: the
+browser called `signInWithOtp` directly, so a member could ask BrandFactory's own project for a
+link and authenticate around Passport's MFA, session policy, revocation and audit. The API was
+the policy and the API said yes.
+
+`POST /auth/magic-link` moves the call server-side, which is the whole mechanism — the refusal
+now happens somewhere the client cannot skip.
+
+### 2. Break-glass, not strict
+
+A member is refused while hosted login is working, and allowed through when it observably is
+not. Strict would stop member sign-in during a Passport outage, which is the opposite of the
+trade `D1-b` already made.
+
+**The cost is stated rather than hidden:** somebody who controls a member's mailbox can wait
+for an outage.
+
+### 3. The door opens on EVIDENCE, not a probe
+
+A health check would need an endpoint nobody specified, add a call to the login path, and
+answer a question next to the one that matters. Instead `/passport/start` and `/callback`
+already know when hosted login failed, and record it.
+
+So the first person during an outage must fail hosted login before the door opens — which is
+the point, and the login screen already routes them to step 2 on that failure.
+
+It **defaults shut** on every uncertainty: fresh process, expired window, nothing recorded.
+Inverting that hands every member a permanent bypass with nothing to notice. Only
+`passport_unavailable` arms it; `no_access` and `rate_limited` are Passport working correctly,
+and counting them would hand the bypass to somebody it just turned away.
+
+Every break-glass sign-in gets its own log line, so "was MFA enforced for this session?" is one
+query rather than unanswerable. A source sweep stops the direct call reappearing.
+
+**The Google button is a separate door and is still open.** It redirects the browser with no
+request body to relay, so closing it means dropping Google for members or building a
+server-side OAuth start. Named, not hidden.
+
+### 4. An endpoint I had wrongly called a blocker
+
+`GET /passport/structure/me`. I twice reported the promote affordance and the drift view as
+blocked because "the client cannot know if you are an Admin" — they were one route away, and
+the server already computed the answer.
+
+`actor()` is split into a non-throwing resolver plus the throwing wrapper the writes use, so
+the two cannot disagree. A copy that drifted would tell a client "you may write" and then 403
+every button it rendered.
+
+### 5. The drift view — two sections that must not merge
+
+**Not in Passport** needs an Admin. **Different name in Passport** needs nobody: under `D1-b`
+the display label and the legal name mean different things and may differ for ever. One merged
+list puts dozens of permanent, correct rows in front of the two that matter, which is how a
+drift screen becomes a screen nobody opens. The divergence section says "Expected" in as many
+words, or somebody spends an afternoon fixing rows that are correct.
+
+### 6. The confirmation names what happens OUTSIDE this app
+
+The brand becomes visible to every other Mission Systems app, its name becomes the unit's legal
+name used for statutory output, and it cannot be undone from here. No typed-name gate: this is
+additive, and copying the delete dialog's gate would make the two indistinguishable. Success
+reports **pending**, because the link arrives by event a moment later.
+
+### 7. Gate
+
+`pnpm typecheck`, `pnpm lint`, `pnpm format:check` and `pnpm -F @brandfactory/web build` all
+pass. `pnpm test` reports **2438 passed | 92 skipped** (+36).
 
 ## 1.42.0 — 2026-08-18
 
