@@ -66,6 +66,30 @@ const CARLITOS_ID = '00000000-0000-4000-8000-000000000053'
 const FIREBIRD_ID = '00000000-0000-4000-8000-000000000054'
 const UNGRAFTED_VINES_ID = '00000000-0000-4000-8000-000000000055'
 
+/**
+ * Whether to write the two invented halves — the nineteen creators and the nine
+ * vendors. Read from the environment, defaulting to **on**.
+ *
+ * A dev database wants them: the Influencers and Vendors screens need a shape,
+ * and every property their docstrings claim (the empty reach band, the creator
+ * with two brands, the blacklisted agency) exists only because a fixture states
+ * it.
+ *
+ * A **real** workspace does not. Nineteen fictional people carrying invented
+ * follower counts and engagement rates are a claim about persons who do not
+ * exist, sitting in a table a reader will use to decide who to brief. An empty
+ * table is honest; a fictional roster is not — and since 1.29.0 opened the owner
+ * gate, every signed-in user would see it.
+ *
+ * The brands and the outlets are **not** behind this switch. They are the
+ * group's own published facts and are equally true in either database.
+ *
+ *     SEED_FIXTURES=false pnpm -F @brandfactory/db db:seed
+ */
+function seedFixtures(): boolean {
+  return !['false', '0', 'no'].includes((process.env.SEED_FIXTURES ?? '').trim().toLowerCase())
+}
+
 const DEMO_USER_EMAIL = 'demo@brandfactory.local'
 const DEMO_WORKSPACE_NAME = 'Mission Group'
 const DEMO_PROJECT_NAME = 'First brainstorm'
@@ -1027,6 +1051,10 @@ export interface SeedResult {
 }
 
 export async function seed(): Promise<SeedResult> {
+  // Read once per call, not once per import, so a single process can seed a dev
+  // database and a real one differently — and so a test can set the variable.
+  const writeFixtures = seedFixtures()
+
   await db.transaction(async (tx) => {
     await tx
       .insert(users)
@@ -1132,7 +1160,7 @@ export async function seed(): Promise<SeedResult> {
     // `influencer_brands` foreign key is strict in both directions, so a link
     // written before its creator or before its brand fails loudly. That is the
     // correct behaviour and the ordering here is what avoids it.
-    for (const influencer of SEED_INFLUENCERS) {
+    for (const influencer of writeFixtures ? SEED_INFLUENCERS : []) {
       const { brandIds, ...row } = influencer
       await tx
         .insert(influencers)
@@ -1155,7 +1183,7 @@ export async function seed(): Promise<SeedResult> {
     // contact written before its vendor fails loudly. That is the correct
     // behaviour and the ordering here is what avoids it. The plan named this as a
     // risk worth confirming in this phase rather than discovering in Phase D.
-    for (const vendor of SEED_VENDORS) {
+    for (const vendor of writeFixtures ? SEED_VENDORS : []) {
       const { brandIds, contacts, ...row } = vendor
       await tx
         .insert(vendors)
@@ -1208,6 +1236,9 @@ async function main() {
   }
   console.log(`  project     ${result.projectId}  (${DEMO_PROJECT_NAME})`)
   console.log(`  project     ${result.project2Id}  (${DEMO_PROJECT_2_NAME})`)
+  if (!seedFixtures()) {
+    console.log('  fixtures    skipped (SEED_FIXTURES=false) — no creators, no vendors')
+  }
   console.log('')
   console.log('dev token (paste into /login):')
   console.log(`  ${result.userId}`)

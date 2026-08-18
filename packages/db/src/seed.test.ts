@@ -28,6 +28,38 @@ describe.skipIf(!hasDb)('seed()', () => {
     await pool.end()
   })
 
+  // **Declared first on purpose.** Every insert is `ON CONFLICT DO NOTHING`, so
+  // once the test below has written the nineteen creators and the nine vendors
+  // they stay written — a later run with the flag off cannot take them away, and
+  // this assertion would read 19 and 9 rather than 0. Vitest runs `it` blocks in
+  // declaration order, and the `db` project is `singleFork` precisely because its
+  // live tests share seeded rows.
+  //
+  // What it is really pinning is the **placement** of the guard: written one loop
+  // too high it would skip the brands and the outlets too, and the seed would
+  // report success over an empty gallery.
+  it('SEED_FIXTURES=false writes the brands and the outlets and nothing invented', async () => {
+    const previous = process.env.SEED_FIXTURES
+    process.env.SEED_FIXTURES = 'false'
+    try {
+      const result = await seed()
+      const [brandRows, outletRows, influencerRows, vendorRows] = await Promise.all([
+        db.select().from(brands).where(eq(brands.workspaceId, result.workspaceId)),
+        db.select().from(outlets).where(eq(outlets.workspaceId, result.workspaceId)),
+        db.select().from(influencers).where(eq(influencers.workspaceId, result.workspaceId)),
+        db.select().from(vendors).where(eq(vendors.workspaceId, result.workspaceId)),
+      ])
+
+      expect(brandRows).toHaveLength(7)
+      expect(outletRows).toHaveLength(10)
+      expect(influencerRows).toHaveLength(0)
+      expect(vendorRows).toHaveLength(0)
+    } finally {
+      if (previous === undefined) delete process.env.SEED_FIXTURES
+      else process.env.SEED_FIXTURES = previous
+    }
+  })
+
   it('is idempotent — running twice yields one row per seeded aggregate', async () => {
     const first = await seed()
     const second = await seed()
