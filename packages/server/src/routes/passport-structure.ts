@@ -3,6 +3,7 @@ import {
   countUnlinkedBrands,
   deleteWriteAttempt,
   getBrandStructure,
+  getWorkspaceDrift,
   getUserById,
   getWriteAttempt,
   listPassportUnits,
@@ -87,6 +88,7 @@ export interface PassportStructureDeps {
     listUnits: typeof listPassportUnits
     getBrandStructure: typeof getBrandStructure
     countUnlinkedBrands: typeof countUnlinkedBrands
+    getWorkspaceDrift: typeof getWorkspaceDrift
   }
   queue?: {
     record: typeof recordWriteAttempt
@@ -120,6 +122,7 @@ export function createPassportStructureRouter(deps: PassportStructureDeps) {
     listUnits: listPassportUnits,
     getBrandStructure,
     countUnlinkedBrands,
+    getWorkspaceDrift,
   }
   const queue =
     deps.queue ??
@@ -150,38 +153,39 @@ export function createPassportStructureRouter(deps: PassportStructureDeps) {
    *    permission would be false.
    * 3. **Not an org Owner or Admin → refuse.**
    */
-  async function actor(c: Context<AppEnv>): Promise<Actor> {
+  async function resolveActor(c: Context<AppEnv>): Promise<Actor | { refused: string }> {
     const userId = c.get('userId')
-    if (!userId) throw new ForbiddenError('no acting user')
+    if (!userId) return { refused: 'no acting user' }
 
     const header = c.req.header('authorization') ?? ''
     const token = /^Bearer\s+(.+)$/i.exec(header)?.[1]?.trim()
-    if (!token) throw new ForbiddenError('no forwarded token')
+    if (!token) return { refused: 'no forwarded token' }
 
     const issuer = c.get('tokenIssuer') ?? 'app-native'
     if (issuer !== 'passport') {
-      throw new ForbiddenError(structureWriteMessage({ kind: 'wrong-issuer' }))
+      return { refused: structureWriteMessage({ kind: 'wrong-issuer' }) }
     }
 
     // `userId as UserId` — the middleware set it from a verified token, and the brand is a
     // compile-time tag rather than a runtime check.
     const user = await reader.getUserById(userId as UserId)
-    if (!user?.email) throw new ForbiddenError('the acting user has no verified email')
+    if (!user?.email) return { refused: 'the acting user has no verified email' }
 
     // BY VERIFIED EMAIL, and refusing to guess on ambiguity — the same resolution the login
     // path uses, for the same reason: Passport's `sub` belongs to Passport's project.
     const resolved = await access.membershipForEmail(user.email)
     if (!resolved.ok) {
-      throw new ForbiddenError(
-        resolved.reason === 'ambiguous'
-          ? 'This email matches more than one Mission Passport member, so the organisation cannot be determined.'
-          : 'This account is not a member of any Mission Passport organisation.',
-      )
+      return {
+        refused:
+          resolved.reason === 'ambiguous'
+            ? 'This email matches more than one Mission Passport member, so the organisation cannot be determined.'
+            : 'This account is not a member of any Mission Passport organisation.',
+      }
     }
 
     const { membership } = resolved
     if (!canWriteStructure(membership.role)) {
-      throw new ForbiddenError(structureWriteMessage({ kind: 'forbidden' }))
+      return { refused: structureWriteMessage({ kind: 'forbidden' }) }
     }
 
     return {
@@ -191,6 +195,20 @@ export function createPassportStructureRouter(deps: PassportStructureDeps) {
       orgRole: membership.role,
       localUserId: userId,
     }
+  }
+
+  /**
+   * The throwing form, which every write below uses.
+   *
+   * **The split is not cosmetic.** `/me` needs the same decision as an answer rather than as a
+   * 403, and re-deriving it there would be a second copy of the gate — the one thing this
+   * router cannot afford, because a client told "you may write" by a copy that drifted would
+   * render buttons that always fail.
+   */
+  async function actor(c: Context<AppEnv>): Promise<Actor> {
+    const resolved = await resolveActor(c)
+    if ('refused' in resolved) throw new ForbiddenError(resolved.refused)
+    return resolved
   }
 
   /**
@@ -240,6 +258,47 @@ export function createPassportStructureRouter(deps: PassportStructureDeps) {
   // ── The seven operations ───────────────────────────────────────────────────
 
   const routes = router
+    /**
+     * May the caller change structure, and in which organisation?
+     *
+     * Plan: phase 9e/9f. **The one route here that answers rather than refuses.**
+     *
+     * ---------------------------------------------------------------------------
+     * Why the client needs this, and why it is not a security decision
+     * ---------------------------------------------------------------------------
+     *
+     * Every write below is gated on the server, so this changes no capability whatsoever. It
+     * exists so the UI can tell the difference between "you cannot do this" and "this feature
+     * does not exist here" — which today it cannot, and so renders neither.
+     *
+     * Without it the choice is a promote button that 403s for most people, or no button at
+     * all. The first trains people to ignore errors; the second means an Admin never discovers
+     * the feature.
+     *
+     * ---------------------------------------------------------------------------
+     * It answers `200` with `false`, never `403`
+     * ---------------------------------------------------------------------------
+     *
+     * A refusal is the answer here, not an error. `403` would make every non-Admin's console
+     * show a failed request on every page load, and the UI would have to treat an expected
+     * outcome as an exception.
+     *
+     * **It discloses nothing the caller does not already have.** The organisation id is the
+     * caller's own membership, and the boolean is a fact about themselves. It never reveals
+     * another person's role, another organisation, or whether an address exists.
+     */
+    .get('/me', async (c) => {
+      const resolved = await resolveActor(c)
+      if ('refused' in resolved) {
+        return c.json({ canWriteStructure: false, organizationId: null, reason: resolved.refused })
+      }
+      return c.json({
+        canWriteStructure: true,
+        organizationId: resolved.organizationId,
+        orgRole: resolved.orgRole,
+      })
+    })
+
     /**
      * Create a unit, then switch BrandFactory on at it.
      *
@@ -494,6 +553,25 @@ export function createPassportStructureRouter(deps: PassportStructureDeps) {
           ? { appAccessEnabled: false, warning: result.message }
           : { appAccessEnabled: true }),
       })
+    })
+
+    /**
+     * The drift view (plan 9e) — two lists that must not be merged.
+     *
+     * `diverged` is **expected and permanent** under `D1-b`, because the display label and the
+     * legal name mean different things and may differ for ever. It is here so a rename in the
+     * Passport console becomes visible, not because it is a fault to fix.
+     *
+     * `unlinked` is the half that needs an Admin.
+     *
+     * Behind the same gate as the writes: it names brands, and an Admin of one organisation
+     * must not read another's.
+     */
+    .get('/workspaces/:workspaceId/drift', async (c) => {
+      const who = await actor(c)
+      void who
+      const workspaceId = c.req.param('workspaceId')
+      return c.json(await reader.getWorkspaceDrift(workspaceId))
     })
 
     /**

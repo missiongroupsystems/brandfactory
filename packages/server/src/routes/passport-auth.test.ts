@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Env } from '../env'
 import { __resetRateLimits } from '../passport/rate-limit'
+import {
+  __resetHostedLoginOutage,
+  hostedLoginRecentlyFailed,
+  OUTAGE_WINDOW_MS,
+  recordHostedLoginFailure,
+} from '../passport/outage'
 import { challengeFor, createPkce } from '../passport/pkce'
 import { createPassportAuthRouter } from './passport-auth'
 
@@ -589,5 +595,164 @@ describe('the login routes never answer JSON on a navigation', () => {
     const res = await r.request('/passport/start')
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toContain('error=passport_unavailable')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// POST /auth/magic-link — the proxy that turns the routing DECISION into ENFORCEMENT
+// ---------------------------------------------------------------------------
+//
+// Until this route existed, `/resolve-login` was advisory: the browser called GoTrue
+// directly, so a member could ask BrandFactory's own project for a link and authenticate
+// around Passport's MFA, session policy, revocation and audit.
+//
+// It is closed in the **break-glass** form. The cost is stated rather than hidden: somebody
+// who controls a member's mailbox can wait for an outage. What the tests pin is that the door
+// opens only on OBSERVED failure and defaults shut on every uncertainty.
+
+describe('POST /auth/magic-link', () => {
+  beforeEach(() => {
+    __resetRateLimits()
+    __resetHostedLoginOutage()
+  })
+
+  const sendSpy = () => vi.fn(async () => undefined)
+
+  function linkRouter(send: ReturnType<typeof sendSpy>, over: Partial<Env> = {}) {
+    return createPassportAuthRouter({
+      env: { ...env(), ...over },
+      access: access(),
+      pkce: memoryPkce().pkce,
+      exchange: async () => ({ accessToken: 'at', refreshToken: 'rt' }),
+      verifyToken: async () => ({ sub: 'passport-sub', email: MEMBER }),
+      hasAnyEntitlement: async () => true,
+      sendMagicLink: send as never,
+    })
+  }
+
+  const ask = (
+    r: ReturnType<typeof linkRouter>,
+    email: unknown,
+    headers: Record<string, string> = {},
+  ) =>
+    r.request('/magic-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify({ email }),
+    })
+
+  it('sends a link for a NON-member', async () => {
+    const send = sendSpy()
+    const res = await ask(linkRouter(send), STRANGER)
+
+    expect(res.status).toBe(200)
+    expect(send).toHaveBeenCalledWith(
+      expect.anything(),
+      STRANGER,
+      expect.stringContaining('/login'),
+    )
+  })
+
+  it('⚠️ REFUSES an active member while hosted login is working', async () => {
+    // The gap this route exists to close. Before it, this call went straight to GoTrue and a
+    // member could authenticate around Passport entirely.
+    const send = sendSpy()
+    const res = await ask(linkRouter(send), MEMBER)
+
+    expect(res.status).toBe(200)
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('answers identically whether it sent, refused, or the address is unknown', async () => {
+    // Reporting the difference would rebuild the account-existence oracle `/resolve-login` is
+    // shaped to avoid. The screen says "check your email" in every case.
+    const send = sendSpy()
+    const r = linkRouter(send)
+    const bodies = await Promise.all(
+      [MEMBER, STRANGER, 'nobody@nowhere.test'].map(async (e) => (await ask(r, e)).text()),
+    )
+    expect(new Set(bodies).size).toBe(1)
+  })
+
+  // ── break-glass ───────────────────────────────────────────────────────────
+
+  it('lets a member through AFTER an observed hosted-login failure', async () => {
+    const send = sendSpy()
+    recordHostedLoginFailure()
+    await ask(linkRouter(send), MEMBER)
+    expect(send).toHaveBeenCalled()
+  })
+
+  it('shuts the door again once the window has passed', async () => {
+    const send = sendSpy()
+    recordHostedLoginFailure(Date.now() - OUTAGE_WINDOW_MS - 1)
+    await ask(linkRouter(send), MEMBER)
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('⚠️ defaults SHUT on a fresh process, with nothing recorded', async () => {
+    // The direction that matters. Defaulting to "probably down" would hand every member a
+    // permanent way around Passport, with nothing to notice.
+    const send = sendSpy()
+    __resetHostedLoginOutage()
+    await ask(linkRouter(send), MEMBER)
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('opens for a real outage only — not for a refusal Passport answered', async () => {
+    // `no_access` and `rate_limited` are Passport WORKING. Counting them as an outage would
+    // hand the bypass to somebody it just turned away. Only `passport_unavailable` records.
+    const r = router()
+    for (const [code, opens] of [
+      ['no_access', false],
+      ['rate_limited', false],
+      ['passport_sso_failed', false],
+    ] as const) {
+      __resetHostedLoginOutage()
+      // Drive the real route so the recording path is the one under test.
+      await r.request(`/passport/callback?error=${code}`)
+      expect(hostedLoginRecentlyFailed(), code).toBe(opens)
+    }
+  })
+
+  // ── the shared properties ─────────────────────────────────────────────────
+
+  it('caps the length and never validates the format', async () => {
+    // Same property as `/resolve-login`: a different answer for a malformed address is still
+    // an oracle, so only the LENGTH is bounded.
+    const send = sendSpy()
+    const r = linkRouter(send)
+    expect((await ask(r, 'not-an-email')).status).toBe(200)
+    expect((await ask(r, 'x'.repeat(400))).status).toBe(400)
+    expect((await ask(r, '')).status).toBe(400)
+  })
+
+  it('rate-limits by email as well as by IP', async () => {
+    const send = sendSpy()
+    const r = linkRouter(send)
+    let limited = false
+    for (let i = 0; i < 40; i++) {
+      if ((await ask(r, STRANGER)).status === 429) {
+        limited = true
+        break
+      }
+    }
+    expect(limited).toBe(true)
+  })
+
+  it('builds an ABSOLUTE redirect, because GoTrue rejects a relative one', async () => {
+    const send = sendSpy()
+    await ask(linkRouter(send, { APP_BASE_URL: 'https://app.test' }), STRANGER)
+    expect(send).toHaveBeenCalledWith(expect.anything(), STRANGER, 'https://app.test/login')
+  })
+
+  it('falls back to the request Origin when APP_BASE_URL is unset', async () => {
+    // What the browser itself used to supply. GoTrue's own redirect allow-list is the control
+    // on where a link may point, and it always was.
+    const send = sendSpy()
+    await ask(linkRouter(send, { APP_BASE_URL: undefined }), STRANGER, {
+      origin: 'http://localhost:5173',
+    })
+    expect(send).toHaveBeenCalledWith(expect.anything(), STRANGER, 'http://localhost:5173/login')
   })
 })

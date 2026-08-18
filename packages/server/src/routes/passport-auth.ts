@@ -9,6 +9,8 @@ import { createPkce, type Pkce } from '../passport/pkce'
 import { allow } from '../passport/rate-limit'
 import { exchangeSessionCode } from '../passport/session-exchange'
 import { ssoActive, verifyPassportToken } from '../passport/token'
+import { hostedLoginRecentlyFailed, recordHostedLoginFailure } from '../passport/outage'
+import { sendMagicLink } from '../passport/magic-link'
 import { hasAnyPassportEntitlement } from '@brandfactory/db'
 
 /**
@@ -42,11 +44,16 @@ import { hasAnyPassportEntitlement } from '@brandfactory/db'
  * between. So a member can still request a magic link from BrandFactory's own project
  * and authenticate around Passport's MFA, session policy and revocation entirely.
  *
- * That gap is real and is NOT closed by this file. It is recorded in
- * `docs/completions/passport-sync-consumer-phase-6.md` §"the gap", with the fix
- * (proxy the magic-link request through a server endpoint that refuses an active
- * member, keeping the response non-committal either way). Do not read the existence of
- * this router as the door being shut.
+ * **That gap is now closed by `POST /auth/magic-link` below**, added 2026-08-18. The browser
+ * no longer talks to GoTrue directly for the magic link: it asks this server, which refuses an
+ * active member while hosted login is working.
+ *
+ * It is closed in the **break-glass** form, not the strict one, and the difference is a
+ * decision rather than an implementation detail — see that route's own header. Strict would
+ * also stop member sign-in during a Passport outage, which is the opposite of the trade
+ * decision `D1-b` already made.
+ *
+ * The Google button is a separate door and is **still open** — see the route's header.
  */
 
 /** RFC 5321's maximum reverse-path length. Not a validity check — a key-space bound. */
@@ -65,6 +72,8 @@ export interface PassportAuthDeps {
   exchange?: typeof exchangeSessionCode
   verifyToken?: typeof verifyPassportToken
   hasAnyEntitlement?: () => Promise<boolean>
+  /** Injectable so the magic-link proxy can be tested without a network. */
+  sendMagicLink?: typeof sendMagicLink
 }
 
 function clientIp(header: (name: string) => string | undefined): string {
@@ -110,6 +119,32 @@ export function createPassportAuthRouter(deps: PassportAuthDeps) {
     }
     return `${base ?? ''}${path}`
   }
+
+  /**
+   * Where a magic link lands. **Absolute, always** — GoTrue rejects a relative `redirect_to`.
+   *
+   * `frontendPath` cannot be reused here: it returns a relative path when `APP_BASE_URL` is
+   * unset, which is correct for a same-origin browser redirect and useless to GoTrue.
+   *
+   * So `APP_BASE_URL` first, and the request's `Origin` second. The fallback is what the
+   * browser itself used to supply (`${window.location.origin}/login`) before this call moved
+   * to the server, and it is what keeps single-origin development working with no new setting.
+   *
+   * **A caller-supplied origin is not a hole here, and the reason is not "we trust it".**
+   * GoTrue validates `redirect_to` against the project's own allow-list and refuses anything
+   * outside it — that allow-list is the control, it lives in the Supabase dashboard, and it
+   * was already the only thing standing behind the browser's version of this call.
+   *
+   * `/login`, not `/`, for the reason the browser had: `SupabaseAuthProvider` mounts there and
+   * exchanges the `?code=`, while landing on `/` lets the index route redirect first and strip
+   * the query.
+   */
+  function magicLinkRedirect(c: Context<AppEnv>): string {
+    const base = env.APP_BASE_URL?.replace(/\/+$/, '') ?? c.req.header('origin') ?? ''
+    return `${base}/login`
+  }
+
+  const send = deps.sendMagicLink ?? sendMagicLink
 
   const router = new Hono<AppEnv>()
 
@@ -164,6 +199,105 @@ export function createPassportAuthRouter(deps: PassportAuthDeps) {
   })
 
   /**
+   * `POST /auth/magic-link` — step 2's magic link, proxied so the routing decision becomes
+   * ENFORCEMENT.
+   *
+   * ---------------------------------------------------------------------------
+   * What this closes
+   * ---------------------------------------------------------------------------
+   *
+   * `/auth/resolve-login` decides where an address belongs. Until this route existed that
+   * decision was advisory, because the browser called GoTrue directly: a member could ask
+   * BrandFactory's own project for a link and authenticate around Passport's MFA, session
+   * policy, revocation and audit. The API was the policy, and the API said yes.
+   *
+   * ---------------------------------------------------------------------------
+   * ⚠️ BREAK-GLASS, not strict — a decision, not an implementation detail
+   * ---------------------------------------------------------------------------
+   *
+   * A member is refused **while hosted login is working**, and allowed through when it is
+   * observably not (`passport/outage.ts`).
+   *
+   * Strict — refusing always — is the stronger guarantee and was rejected for the same reason
+   * `D1-b` was chosen: it would stop member sign-in during a Passport outage, which is exactly
+   * the situation the rest of this integration goes out of its way to survive. The cost is
+   * stated rather than hidden: **somebody who controls a member's mailbox can wait for an
+   * outage.** So "MFA is enforced" becomes "MFA is enforced unless Passport is down", which is
+   * a materially weaker claim and a harder one to put to an auditor.
+   *
+   * Three things bound it:
+   *
+   * - the door opens only on an **observed** hosted-login failure, never on a guess, and it
+   *   defaults shut on every uncertainty;
+   * - it closes again ten minutes after the last failure;
+   * - every break-glass sign-in is logged as its own event, so "was MFA enforced for this
+   *   session?" is one query rather than unanswerable.
+   *
+   * ---------------------------------------------------------------------------
+   * The response is the same either way
+   * ---------------------------------------------------------------------------
+   *
+   * `{ ok: true }` whether a link was sent, the member was refused, or GoTrue errored.
+   * Reporting the difference would rebuild the account-existence oracle `/auth/resolve-login`
+   * is shaped to avoid — and the client does not need it, because the screen says "check your
+   * email" in every case.
+   *
+   * The person is not left stranded: a refused member is a member, and hosted login is
+   * working, so their route is the button they were already sent to.
+   *
+   * ---------------------------------------------------------------------------
+   * ⚠️ The Google button is a SEPARATE door and is still open
+   * ---------------------------------------------------------------------------
+   *
+   * `signInWithOAuth` redirects the browser straight to Google and cannot be proxied the same
+   * way — there is no request body to relay, only a top-level navigation. Closing it means
+   * either dropping Google for members or routing it through a server-side OAuth start of our
+   * own. That is a separate piece of work and it is NOT done here.
+   */
+  router.post('/magic-link', async (c) => {
+    const log = c.get('log')
+
+    if (!allow(`magic-link:ip:${clientIp((n) => c.req.header(n))}`, IP_LIMIT, WINDOW_MS)) {
+      return c.json({ code: 'RATE_LIMITED', message: 'too many requests' }, 429)
+    }
+
+    let body: { email?: unknown }
+    try {
+      body = await c.req.json()
+    } catch {
+      return c.json({ code: 'MALFORMED', message: 'malformed request' }, 400)
+    }
+
+    const email = typeof body.email === 'string' ? body.email.trim() : ''
+    // Length only, never a format check — the same property `/resolve-login` holds, and for
+    // the same reason: a different answer for a malformed address is still an oracle.
+    if (!email || Buffer.byteLength(email, 'utf8') > MAX_EMAIL_OCTETS) {
+      return c.json({ code: 'MALFORMED', message: 'malformed request' }, 400)
+    }
+
+    if (!allow(`magic-link:email:${email.toLowerCase()}`, EMAIL_LIMIT, WINDOW_MS)) {
+      return c.json({ code: 'RATE_LIMITED', message: 'too many requests' }, 429)
+    }
+
+    const route = await resolveLoginRoute(env, access, email)
+
+    if (route === 'passport') {
+      const outage = hostedLoginRecentlyFailed()
+      if (!outage) {
+        // Refused. Same body as success — see the note above.
+        log?.info('magic link: refused an active member; hosted login is up')
+        return c.json({ ok: true }, 200)
+      }
+      // Its OWN log line, not a debug detail. This is the record that answers "was MFA
+      // enforced for this sign-in?", and without it the question has no answer at all.
+      log?.warn('magic link: BREAK-GLASS — member allowed because hosted login recently failed')
+    }
+
+    await send({ env, log }, email, magicLinkRedirect(c))
+    return c.json({ ok: true }, 200)
+  })
+
+  /**
    * `GET /auth/passport/start` — begin the hosted-login redirect.
    *
    * **Every exit from this route is a REDIRECT, never JSON.** It is reached by
@@ -174,8 +308,14 @@ export function createPassportAuthRouter(deps: PassportAuthDeps) {
   router.get('/passport/start', async (c) => {
     const log = c.get('log')
     const warn = (m: string) => log?.warn(m)
-    const fail = (code: string) =>
-      c.redirect(frontendPath(`/login?error=${encodeURIComponent(code)}`, warn), 302)
+    const fail = (code: string) => {
+      // `passport_unavailable` is the ONLY code that opens the break-glass door — see
+      // `passport/outage.ts`. `no_access`, `rate_limited` and a failed exchange are Passport
+      // working correctly and answering, and counting them as an outage would hand the bypass
+      // to somebody it just turned away.
+      if (code === 'passport_unavailable') recordHostedLoginFailure()
+      return c.redirect(frontendPath(`/login?error=${encodeURIComponent(code)}`, warn), 302)
+    }
 
     // **A catch-all, and it is the point of property 4 rather than defensiveness.**
     // This route is reached by top-level browser NAVIGATION, so anything that escapes
@@ -251,8 +391,14 @@ export function createPassportAuthRouter(deps: PassportAuthDeps) {
   router.get('/passport/callback', async (c) => {
     const log = c.get('log')
     const warn = (m: string) => log?.warn(m)
-    const fail = (code: string) =>
-      c.redirect(frontendPath(`/login?error=${encodeURIComponent(code)}`, warn), 302)
+    const fail = (code: string) => {
+      // `passport_unavailable` is the ONLY code that opens the break-glass door — see
+      // `passport/outage.ts`. `no_access`, `rate_limited` and a failed exchange are Passport
+      // working correctly and answering, and counting them as an outage would hand the bypass
+      // to somebody it just turned away.
+      if (code === 'passport_unavailable') recordHostedLoginFailure()
+      return c.redirect(frontendPath(`/login?error=${encodeURIComponent(code)}`, warn), 302)
+    }
 
     // The same catch-all as `/passport/start`, for the same reason: this route is a
     // browser navigation, so a JSON error body would render as the whole page. Here it

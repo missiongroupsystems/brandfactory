@@ -184,3 +184,44 @@ export async function listUnmatchedUnitRefs(
     )
   return rows.filter((r): r is { unitId: string; externalRef: string } => r.externalRef !== null)
 }
+
+/**
+ * The drift view's data, in one read (plan 9e).
+ *
+ * Two lists, and they are deliberately NOT one:
+ *
+ * - **`diverged`** — linked brands whose display label differs from Passport's legal name.
+ *   Under `D1-b` this is **expected and permanent**: `Casa Vostra` against
+ *   `Casa Vostra Pte. Ltd.` is the design working, not a fault. The list exists so that a
+ *   rename in the Passport console is *visible*, because our label deliberately does not
+ *   follow it.
+ * - **`unlinked`** — brands Passport cannot see at all. This is the half that needs somebody
+ *   to act.
+ *
+ * Merging them would bury the two rows that need an Admin under dozens of correct ones, which
+ * is how a drift screen becomes a screen nobody opens.
+ */
+export interface WorkspaceDrift {
+  diverged: { brandId: string; displayName: string; legalName: string; unitId: string }[]
+  unlinked: { brandId: string; displayName: string }[]
+}
+
+export async function getWorkspaceDrift(workspaceId: string): Promise<WorkspaceDrift> {
+  const rows = await listBrandStructures(workspaceId)
+  return {
+    diverged: rows
+      .filter(
+        (r): r is typeof r & { unitId: string; legalName: string } =>
+          r.unitId !== null && r.legalName !== null && r.legalName !== r.displayName,
+      )
+      .map((r) => ({
+        brandId: r.brandId,
+        displayName: r.displayName,
+        legalName: r.legalName,
+        unitId: r.unitId,
+      })),
+    unlinked: rows
+      .filter((r) => r.unitId === null)
+      .map((r) => ({ brandId: r.brandId, displayName: r.displayName })),
+  }
+}

@@ -178,18 +178,32 @@ export function SupabaseAuthProvider() {
     setError(null)
     setLoading(true)
     try {
-      const { error: signInError } = await client.auth.signInWithOtp({
-        email: email.trim(),
-        // Land on /login so SupabaseAuthProvider mounts and processes the
-        // ?code= query. Returning to `/` lets indexRoute.beforeLoad redirect
-        // before the auth code is exchanged, stripping the query.
-        options: { emailRedirectTo: `${window.location.origin}/login` },
+      // ⚠️ **Through OUR server, not straight to GoTrue.**
+      //
+      // This used to be `client.auth.signInWithOtp(...)`, and that call was the hole: step 1's
+      // routing decision was advisory, because a member could simply ask BrandFactory's own
+      // project for a link and authenticate around Passport's MFA, session policy, revocation
+      // and audit. Moving it server-side is what turns the decision into enforcement, and
+      // moving it BACK — for any reason, including "one less hop" — reopens the hole.
+      //
+      // The server answers the same body whether it sent a link, refused an active member, or
+      // found nothing: reporting the difference would rebuild the account-existence oracle
+      // that `/auth/resolve-login` is carefully shaped to avoid. So there is nothing to branch
+      // on here, and "check your email" is the honest response in every case.
+      const res = await fetch(`${API_BASE}/auth/magic-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
       })
-      if (signInError) {
-        setError(signInError.message)
+      if (res.status === 429) {
+        setError('Too many attempts. Wait a minute and try again.')
+      } else if (!res.ok) {
+        setError('Could not send the link. Please try again.')
       } else {
         setSent(true)
       }
+    } catch {
+      setError('Could not reach the server. Please try again.')
     } finally {
       setLoading(false)
     }

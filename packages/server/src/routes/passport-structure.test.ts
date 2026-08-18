@@ -175,6 +175,24 @@ function harness(
       getBrandStructure: (async (brandId: string) =>
         LOCAL_BRANDS.find((b) => b.brandId === brandId)) as never,
       countUnlinkedBrands: (async () => opts.unlinked ?? 0) as never,
+      // Built from the same fixtures the resolver uses, so the two lists cannot drift apart
+      // in a test the way they must not in the product.
+      getWorkspaceDrift: (async (workspaceId: string) => {
+        const rows = LOCAL_BRANDS.filter((b) => b.workspaceId === workspaceId)
+        return {
+          diverged: rows
+            .filter((b) => b.unitId && b.legalName && b.legalName !== b.displayName)
+            .map((b) => ({
+              brandId: b.brandId,
+              displayName: b.displayName,
+              legalName: b.legalName,
+              unitId: b.unitId,
+            })),
+          unlinked: rows
+            .filter((b) => !b.unitId)
+            .map((b) => ({ brandId: b.brandId, displayName: b.displayName })),
+        }
+      }) as never,
     },
     queue: queue as never,
   })
@@ -849,6 +867,108 @@ describe('the unlinked count', () => {
     const { app } = harness({ role: 'Member' })
     expect(
       (await app.request('/passport/structure/workspaces/ws-1/unlinked', { headers: AUTH })).status,
+    ).toBe(403)
+  })
+})
+
+describe('who may change structure — GET /me', () => {
+  it('answers true for an org Admin on a hosted-login session', async () => {
+    const { app } = harness({ role: 'Admin' })
+    const res = await app.request('/passport/structure/me', { headers: AUTH })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      canWriteStructure: true,
+      organizationId: ORG,
+      orgRole: 'Admin',
+    })
+  })
+
+  it('answers 200 with FALSE for a Member, never 403', async () => {
+    // A refusal is the answer here, not an error. A 403 would make every non-Admin's console
+    // show a failed request on every page load, and force the UI to treat an expected outcome
+    // as an exception.
+    const { app } = harness({ role: 'Member' })
+    const res = await app.request('/passport/structure/me', { headers: AUTH })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ canWriteStructure: false, organizationId: null })
+  })
+
+  it('answers false for an app-native session', async () => {
+    const { app } = harness({ role: 'Owner', issuer: 'app-native' })
+    const res = await app.request('/passport/structure/me', { headers: AUTH })
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { canWriteStructure: boolean; reason: string }
+    expect(body.canWriteStructure).toBe(false)
+    expect(body.reason).toMatch(/Passport sign-in/i)
+  })
+
+  it('discloses no other organisation and no other person', async () => {
+    // It reports a fact about the caller, from the caller's own membership. It must never
+    // become a way to enumerate organisations or read somebody else's role.
+    const { app } = harness({ role: 'Owner', organizationId: OTHER_ORG })
+    const body = (await (
+      await app.request('/passport/structure/me', { headers: AUTH })
+    ).json()) as {
+      organizationId: string
+    }
+    expect(body.organizationId).toBe(OTHER_ORG)
+    expect(JSON.stringify(body)).not.toContain(ORG)
+  })
+
+  it('uses the SAME gate as the writes', async () => {
+    // The property that matters. A second copy of the gate that drifted would tell a client
+    // "you may write" and then 403 every button it rendered.
+    for (const role of ['Owner', 'Admin', 'Member', 'Manager', 'Staff']) {
+      const { app } = harness({ role })
+      const me = (await (
+        await app.request('/passport/structure/me', { headers: AUTH })
+      ).json()) as {
+        canWriteStructure: boolean
+      }
+      const write = await post(app, `/units/${BRAND}/archive`)
+      expect(me.canWriteStructure).toBe(write.status !== 403)
+    }
+  })
+})
+
+describe('the drift view', () => {
+  it('separates expected divergence from rows that need an Admin', async () => {
+    const { app } = harness()
+    const res = await app.request('/passport/structure/workspaces/ws-1/drift', { headers: AUTH })
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as {
+      diverged: { brandId: string; legalName: string }[]
+      unlinked: { brandId: string }[]
+    }
+    // `Casa Vostra` against `Casa Vostra Pte. Ltd.` — permanent and correct under `D1-b`.
+    expect(body.diverged).toEqual([
+      expect.objectContaining({ brandId: BRAND, legalName: 'Casa Vostra Pte. Ltd.' }),
+    ])
+    // The half that needs somebody to act.
+    expect(body.unlinked).toEqual([expect.objectContaining({ brandId: LOCAL_UNLINKED })])
+  })
+
+  it('keeps the two lists apart', async () => {
+    // Merging them buries the rows that need an Admin under dozens of correct ones, which is
+    // how a drift screen becomes a screen nobody opens.
+    const { app } = harness()
+    const body = (await (
+      await app.request('/passport/structure/workspaces/ws-1/drift', { headers: AUTH })
+    ).json()) as { diverged: { brandId: string }[]; unlinked: { brandId: string }[] }
+
+    const divergedIds = body.diverged.map((d) => d.brandId)
+    const unlinkedIds = body.unlinked.map((u) => u.brandId)
+    expect(divergedIds.filter((id) => unlinkedIds.includes(id))).toEqual([])
+  })
+
+  it('is behind the same gate as the writes, because it names brands', async () => {
+    const { app } = harness({ role: 'Member' })
+    expect(
+      (await app.request('/passport/structure/workspaces/ws-1/drift', { headers: AUTH })).status,
     ).toBe(403)
   })
 })

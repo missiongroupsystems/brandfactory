@@ -54,6 +54,12 @@ function setUrl(url: string) {
   window.history.replaceState({}, '', url)
 }
 
+/** The body of the `/auth/magic-link` POST, or null if it was never made. */
+function magicLinkBody(): unknown {
+  const call = fetchMock.mock.calls.find(([url]) => String(url).includes('magic-link'))
+  return call ? JSON.parse(String((call[1] as RequestInit).body)) : null
+}
+
 /**
  * `window.location` with a stubbed `assign` and every URL property still LIVE.
  *
@@ -118,8 +124,13 @@ describe('SupabaseAuthProvider — the email-first screen', () => {
     h.signInWithOAuth.mockResolvedValue({ error: null })
 
     fetchMock.mockReset()
-    // Default: the server routes this address to the app's own login.
-    fetchMock.mockResolvedValue(new Response(JSON.stringify({ route: 'app-native' })))
+    // Two endpoints now: step 1's router and the magic-link proxy. Both default to the happy
+    // path; a test that cares overrides the one it is about.
+    fetchMock.mockImplementation(async (url: string) =>
+      String(url).includes('magic-link')
+        ? new Response('{"ok":true}')
+        : new Response(JSON.stringify({ route: 'app-native' })),
+    )
     vi.stubGlobal('fetch', fetchMock)
 
     assign.mockReset()
@@ -181,10 +192,57 @@ describe('SupabaseAuthProvider — the email-first screen', () => {
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
     await userEvent.click(await screen.findByRole('button', { name: /magic link/i }))
 
-    await waitFor(() => expect(h.signInWithOtp).toHaveBeenCalled())
+    await waitFor(() => expect(magicLinkBody()).not.toBeNull())
     // Trimmed. A trailing space survives an autofill and a paste, and GoTrue treats it as a
     // different address — the link goes nowhere and the screen still says "check your email".
-    expect(h.signInWithOtp.mock.calls[0]?.[0]).toMatchObject({ email: 'outsider@example.com' })
+    expect(magicLinkBody()).toEqual({ email: 'outsider@example.com' })
+  })
+
+  it('⚠️ asks OUR server for the link, never GoTrue directly', async () => {
+    // The hole this closed. A direct `signInWithOtp` makes step 1's routing decision advisory:
+    // a member can ask BrandFactory's own project for a link and authenticate around
+    // Passport's MFA, session policy, revocation and audit. The server refusal only works if
+    // the browser actually goes through it.
+    render(<SupabaseAuthProvider />)
+    await waitFor(() => expect(h.getSession).toHaveBeenCalled())
+
+    await userEvent.type(screen.getByLabelText(/email/i), 'member@example.com')
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /magic link/i }))
+
+    await waitFor(() => expect(magicLinkBody()).not.toBeNull())
+    expect(h.signInWithOtp).not.toHaveBeenCalled()
+  })
+
+  it('says "check your email" whatever the server did', async () => {
+    // The server answers identically whether it sent a link, refused an active member, or
+    // found nothing — so there is nothing to branch on, and any branch added here would be
+    // reading an oracle the server went out of its way not to provide.
+    render(<SupabaseAuthProvider />)
+    await waitFor(() => expect(h.getSession).toHaveBeenCalled())
+
+    await userEvent.type(screen.getByLabelText(/email/i), 'member@example.com')
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /magic link/i }))
+
+    expect(await screen.findByText(/check your email/i)).toBeTruthy()
+  })
+
+  it('surfaces a rate limit rather than claiming the link was sent', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      String(url).includes('magic-link')
+        ? new Response('{}', { status: 429 })
+        : new Response(JSON.stringify({ route: 'app-native' })),
+    )
+    render(<SupabaseAuthProvider />)
+    await waitFor(() => expect(h.getSession).toHaveBeenCalled())
+
+    await userEvent.type(screen.getByLabelText(/email/i), 'a@example.com')
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /magic link/i }))
+
+    expect(await screen.findByText(/too many attempts/i)).toBeTruthy()
+    expect(screen.queryByText(/check your email/i)).toBeNull()
   })
 
   it('keeps the email editable on step 2', async () => {
@@ -203,8 +261,8 @@ describe('SupabaseAuthProvider — the email-first screen', () => {
     await userEvent.type(field, 'fixed@example.com')
     await userEvent.click(screen.getByRole('button', { name: /magic link/i }))
 
-    await waitFor(() => expect(h.signInWithOtp).toHaveBeenCalled())
-    expect(h.signInWithOtp.mock.calls[0]?.[0]).toMatchObject({ email: 'fixed@example.com' })
+    await waitFor(() => expect(magicLinkBody()).not.toBeNull())
+    expect(magicLinkBody()).toEqual({ email: 'fixed@example.com' })
   })
 
   it('routes the address as typed, and never judges it itself', async () => {
