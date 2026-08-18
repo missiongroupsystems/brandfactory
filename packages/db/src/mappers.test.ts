@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { BrandAssetSchema, InfluencerSchema, SocialPostSchema } from '@brandfactory/shared'
-import type { BrandAssetId, BrandId, ProseMirrorDoc } from '@brandfactory/shared'
+import {
+  BrandAssetSchema,
+  InfluencerAccountSchema,
+  InfluencerSchema,
+  SocialPostSchema,
+} from '@brandfactory/shared'
+import type { BrandAssetId, BrandId, InfluencerAccount, ProseMirrorDoc } from '@brandfactory/shared'
 import {
   rowToAgentMessage,
   rowToBrand,
@@ -10,6 +15,7 @@ import {
   rowToCanvasBlock,
   rowToGuidelineSection,
   rowToInfluencer,
+  rowToInfluencerAccount,
   rowToProject,
   rowToProjectSummary,
   rowToSocialPost,
@@ -409,18 +415,62 @@ describe('rowToSocialPost', () => {
   })
 })
 
-describe('rowToInfluencer', () => {
-  const influencerRow = {
-    id: 'i-1',
+describe('rowToInfluencerAccount', () => {
+  const accountRow = {
+    influencerId: 'i-1',
     workspaceId: 'w-1',
-    slug: 'priyaskin',
-    name: 'Priya Nair',
-    handle: 'priyaskin',
+    position: 0,
     platform: 'instagram' as const,
+    handle: 'priyaskin',
     followers: 124_000,
     // What `node-postgres` actually hands back for a `numeric(5,2)` column: text,
     // trailing zero and all. Never the number.
     engagementRate: '3.80',
+    url: null,
+  }
+
+  // **The one shape trap in this aggregate**, one table lower than it used to be.
+  // `numeric` arrives as a string, it type-checks clean either way, and the
+  // symptom is one row reading `3.80%` in a column of `3.8%`. The wire schema is
+  // what catches it, so the wire schema is what this asserts.
+  it('converts the numeric engagement rate from the string pg returns', () => {
+    const a = rowToInfluencerAccount(accountRow)
+    expect(InfluencerAccountSchema.safeParse(a).success).toBe(true)
+    expect(a.engagementRate).toBe(3.8)
+    expect(typeof a.engagementRate).toBe('number')
+  })
+
+  it('keeps an unmeasured rate null rather than turning it into zero', () => {
+    // `Number(null)` is 0, which would state that nobody engages with this
+    // account — a measurement, where the truth is that nobody has measured.
+    expect(
+      rowToInfluencerAccount({ ...accountRow, engagementRate: null }).engagementRate,
+    ).toBeNull()
+  })
+
+  it('drops the three columns the wire has no use for', () => {
+    // The array's index is the position, the creator is the record the list hangs
+    // off, and `workspace_id` is a denormalisation that holds a unique key.
+    const a = rowToInfluencerAccount(accountRow)
+    expect(a).not.toHaveProperty('position')
+    expect(a).not.toHaveProperty('influencerId')
+    expect(a).not.toHaveProperty('workspaceId')
+  })
+
+  it('carries a profile URL through, and null where nobody recorded one', () => {
+    expect(rowToInfluencerAccount({ ...accountRow, url: 'https://example.com/u/1' }).url).toBe(
+      'https://example.com/u/1',
+    )
+    expect(rowToInfluencerAccount(accountRow).url).toBeNull()
+  })
+})
+
+describe('rowToInfluencer', () => {
+  const influencerRow = {
+    id: 'i-1',
+    workspaceId: 'w-1',
+    slug: 'priya-nair',
+    name: 'Priya Nair',
     vertical: 'beauty' as const,
     status: 'active' as const,
     notes: null,
@@ -428,23 +478,13 @@ describe('rowToInfluencer', () => {
     updatedAt: TS,
   }
 
-  // **The one shape trap in this aggregate.** `numeric` arrives as a string, it
-  // type-checks clean either way, and the symptom is one row reading `3.80%` in a
-  // column of `3.8%`. The wire schema is what catches it, so the wire schema is
-  // what this asserts.
-  it('converts the numeric engagement rate from the string pg returns', () => {
-    const i = rowToInfluencer(influencerRow, [])
-    expect(InfluencerSchema.safeParse(i).success).toBe(true)
-    expect(i.engagementRate).toBe(3.8)
-    expect(typeof i.engagementRate).toBe('number')
-  })
-
-  it('keeps an unmeasured rate null rather than turning it into zero', () => {
-    // `Number(null)` is 0, which would state that nobody engages with this
-    // creator — a measurement, where the truth is that nobody has measured.
-    const i = rowToInfluencer({ ...influencerRow, engagementRate: null }, [])
-    expect(i.engagementRate).toBeNull()
-  })
+  const account: InfluencerAccount = {
+    platform: 'instagram',
+    handle: 'priyaskin',
+    followers: 124_000,
+    engagementRate: 3.8,
+    url: null,
+  }
 
   it('normalises Postgres-format timestamps', () => {
     const i = rowToInfluencer(
@@ -454,22 +494,40 @@ describe('rowToInfluencer', () => {
         updatedAt: '2026-07-22 07:57:59.635905+00',
       },
       [],
+      [account],
     )
     expect(InfluencerSchema.safeParse(i).success).toBe(true)
     expect(i.createdAt).toBe('2026-07-22T07:57:59.635Z')
   })
 
   it('carries the brandIds the caller passed, empty array included', () => {
-    expect(rowToInfluencer(influencerRow, ['b-1', 'b-2'] as BrandId[]).brandIds).toEqual([
-      'b-1',
-      'b-2',
-    ])
+    expect(rowToInfluencer(influencerRow, ['b-1', 'b-2'] as BrandId[], [account]).brandIds).toEqual(
+      ['b-1', 'b-2'],
+    )
     // Empty is a fact — "not engaged yet" — so it must survive as an array.
-    expect(rowToInfluencer(influencerRow, []).brandIds).toEqual([])
+    expect(rowToInfluencer(influencerRow, [], [account]).brandIds).toEqual([])
+  })
+
+  it('carries the accounts in the order the caller passed them', () => {
+    // Position 0 is the account the creator is known by, so a mapper that
+    // re-sorted would rename the person on every screen.
+    const second: InfluencerAccount = { ...account, platform: 'tiktok', followers: 312_000 }
+    const i = rowToInfluencer(influencerRow, [], [second, account])
+    expect(i.accounts.map((a) => a.platform)).toEqual(['tiktok', 'instagram'])
+  })
+
+  it('writes no reach or engagement figure of its own', () => {
+    // Both are derived on read by `totalReach` and `blendedEngagement`. A sum
+    // written into the row could disagree with the array printed beside it.
+    const i = rowToInfluencer(influencerRow, [], [account])
+    expect(i).not.toHaveProperty('followers')
+    expect(i).not.toHaveProperty('engagementRate')
+    expect(i).not.toHaveProperty('platform')
+    expect(i).not.toHaveProperty('handle')
   })
 
   it('keeps a generalist null rather than inventing a vertical', () => {
-    expect(rowToInfluencer({ ...influencerRow, vertical: null }, []).vertical).toBeNull()
+    expect(rowToInfluencer({ ...influencerRow, vertical: null }, [], [account]).vertical).toBeNull()
   })
 })
 

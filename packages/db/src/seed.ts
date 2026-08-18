@@ -13,7 +13,8 @@
  *   - two freeform projects + canvases
  *   - two agent_messages under the second project so Recent work has real
  *                     activity signal (D1) without manual chatting
- *   - 19 influencers  (see SEED_INFLUENCERS — invented people, real brands)
+ *   - 19 influencers  (see SEED_INFLUENCERS — invented people, real brands),
+ *                     one account each
  *   - nine vendors    (see SEED_VENDORS — invented companies, real brands)
  *
  * **The brands and the outlets are real; the creators and the vendors are not.**
@@ -38,6 +39,7 @@ import {
   brands,
   canvases,
   guidelineSections,
+  influencerAccounts,
   influencerBrands,
   influencers,
   outlets,
@@ -489,25 +491,50 @@ const SEED_OUTLETS: SeedOutlet[] = [
  * `slug` is written out rather than derived, the same call `SEED_OUTLETS` makes:
  * the seed inserts directly and never calls `createInfluencer`, so nothing here
  * would pick one, and a hard-coded slug keeps a screenshot's URL stable across
- * reseeds. Each one is its handle, which is what `influencerSlug` would have
- * produced.
+ * reseeds.
+ *
+ * **The slugs are historical.** Each one is its handle, which is what
+ * `influencerSlug` produced while the handle was the source. It is the name now —
+ * a person carries up to ten handles — and these values are left exactly as they
+ * are for the same reason migration 0016 touches no `slug` in a real database: a
+ * link written before the change still resolves.
  *
  * `engagementRate` is written as a **string**, because that is what the `numeric`
  * column takes — and what it hands back. Two decimals, so the seeded value and the
- * value read back are the same figure.
+ * value read back are the same figure. It sits on the account now, with the three
+ * other columns that describe one.
+ *
+ * `url` is `null` on every account. Nothing derives a profile URL from a handle,
+ * and these handles resolve to nothing at all.
  *
  * The names are invented. None of them is a real person and none of the handles
  * resolves to a real account: a seed that borrowed a real creator's name and
  * handle would be a fabricated record about somebody who never agreed to it.
  */
+interface SeedInfluencerAccount {
+  platform: 'instagram' | 'tiktok' | 'youtube' | 'xiaohongshu' | 'facebook' | 'linkedin'
+  handle: string
+  followers: number
+  engagementRate: string | null
+  url: string | null
+}
+
 interface SeedInfluencer {
   id: string
   slug: string
   name: string
-  handle: string
-  platform: 'instagram' | 'tiktok' | 'youtube' | 'xiaohongshu' | 'facebook' | 'linkedin'
-  followers: number
-  engagementRate: string | null
+  /**
+   * The child rows to write, in position order. **One each**, and that is the
+   * mechanical half of migration 0016 rather than a statement about the roster:
+   * the four columns moved down, every creator keeps the figures they had, and
+   * nothing was folded or invented on the way.
+   *
+   * The curated roster this table could now hold — one person with three
+   * accounts, lifted a tier by their total — is deliberately not seeded. These
+   * are invented people, and a multi-account fixture would be a more elaborate
+   * fiction rather than a better one.
+   */
+  accounts: SeedInfluencerAccount[]
   vertical:
     | 'beauty'
     | 'fashion'
@@ -532,10 +559,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000021',
     slug: 'priyaskin',
     name: 'Priya Raman',
-    handle: 'priyaskin',
-    platform: 'instagram',
-    followers: 1_240_000,
-    engagementRate: '1.10',
+    accounts: [
+      {
+        platform: 'instagram',
+        handle: 'priyaskin',
+        followers: 1_240_000,
+        engagementRate: '1.10',
+        url: null,
+      },
+    ],
     vertical: 'beauty',
     status: 'active',
     notes: 'Two-post minimum, briefed a month ahead.',
@@ -547,10 +579,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000022',
     slug: 'nikhilreviews',
     name: 'Nikhil Menon',
-    handle: 'nikhilreviews',
-    platform: 'youtube',
-    followers: 980_000,
-    engagementRate: '0.90',
+    accounts: [
+      {
+        platform: 'youtube',
+        handle: 'nikhilreviews',
+        followers: 980_000,
+        engagementRate: '0.90',
+        url: null,
+      },
+    ],
     vertical: 'tech',
     status: 'past',
     notes: null,
@@ -560,10 +597,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000023',
     slug: 'devonang',
     name: 'Devon Ang',
-    handle: 'devonang',
-    platform: 'tiktok',
-    followers: 842_000,
-    engagementRate: '2.40',
+    accounts: [
+      {
+        platform: 'tiktok',
+        handle: 'devonang',
+        followers: 842_000,
+        engagementRate: '2.40',
+        url: null,
+      },
+    ],
     vertical: 'fashion',
     status: 'active',
     notes: null,
@@ -573,10 +615,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000024',
     slug: 'ameliaeats',
     name: 'Amelia Fong',
-    handle: 'ameliaeats',
-    platform: 'instagram',
-    followers: 613_000,
-    engagementRate: '1.80',
+    accounts: [
+      {
+        platform: 'instagram',
+        handle: 'ameliaeats',
+        followers: 613_000,
+        engagementRate: '1.80',
+        url: null,
+      },
+    ],
     vertical: 'food',
     status: 'active',
     notes: null,
@@ -588,11 +635,16 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000025',
     slug: 'jotanfamily',
     name: 'Josephine Tan',
-    handle: 'jotanfamily',
-    platform: 'facebook',
-    followers: 517_000,
-    // A prospect nobody has run a campaign with — no measured rate.
-    engagementRate: null,
+    accounts: [
+      // A prospect nobody has run a campaign with — no measured rate.
+      {
+        platform: 'facebook',
+        handle: 'jotanfamily',
+        followers: 517_000,
+        engagementRate: null,
+        url: null,
+      },
+    ],
     vertical: 'parenting',
     status: 'prospect',
     notes: null,
@@ -604,10 +656,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000026',
     slug: 'hanaathome',
     name: 'Hana Sulaiman',
-    handle: 'hanaathome',
-    platform: 'xiaohongshu',
-    followers: 318_000,
-    engagementRate: '3.10',
+    accounts: [
+      {
+        platform: 'xiaohongshu',
+        handle: 'hanaathome',
+        followers: 318_000,
+        engagementRate: '3.10',
+        url: null,
+      },
+    ],
     vertical: 'home',
     status: 'active',
     notes: null,
@@ -617,10 +674,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000027',
     slug: 'rashidmoves',
     name: 'Rashid Karim',
-    handle: 'rashidmoves',
-    platform: 'tiktok',
-    followers: 264_000,
-    engagementRate: '4.20',
+    accounts: [
+      {
+        platform: 'tiktok',
+        handle: 'rashidmoves',
+        followers: 264_000,
+        engagementRate: '4.20',
+        url: null,
+      },
+    ],
     vertical: 'fitness',
     status: 'active',
     notes: null,
@@ -630,10 +692,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000028',
     slug: 'weishengdrives',
     name: 'Wei Sheng Ho',
-    handle: 'weishengdrives',
-    platform: 'youtube',
-    followers: 187_000,
-    engagementRate: '2.00',
+    accounts: [
+      {
+        platform: 'youtube',
+        handle: 'weishengdrives',
+        followers: 187_000,
+        engagementRate: '2.00',
+        url: null,
+      },
+    ],
     vertical: 'motoring',
     status: 'past',
     notes: null,
@@ -643,10 +710,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000029',
     slug: 'farahidris',
     name: 'Farah Idris',
-    handle: 'farahidris',
-    platform: 'instagram',
-    followers: 142_000,
-    engagementRate: '2.90',
+    accounts: [
+      {
+        platform: 'instagram',
+        handle: 'farahidris',
+        followers: 142_000,
+        engagementRate: '2.90',
+        url: null,
+      },
+    ],
     vertical: 'beauty',
     status: 'active',
     notes: null,
@@ -656,12 +728,17 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000030',
     slug: 'marcusteotravels',
     name: 'Marcus Teo',
-    handle: 'marcusteotravels',
-    platform: 'instagram',
-    followers: 118_000,
-    // Measured from public posts before any booking — which is why the rate is
-    // nullable rather than simply absent on every prospect.
-    engagementRate: '2.20',
+    accounts: [
+      // Measured from public posts before any booking — which is why the rate is
+      // nullable rather than simply absent on every prospect.
+      {
+        platform: 'instagram',
+        handle: 'marcusteotravels',
+        followers: 118_000,
+        engagementRate: '2.20',
+        url: null,
+      },
+    ],
     vertical: 'travel',
     status: 'prospect',
     notes: null,
@@ -673,10 +750,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000031',
     slug: 'claraboon',
     name: 'Clara Boon',
-    handle: 'claraboon',
-    platform: 'xiaohongshu',
-    followers: 74_300,
-    engagementRate: '5.40',
+    accounts: [
+      {
+        platform: 'xiaohongshu',
+        handle: 'claraboon',
+        followers: 74_300,
+        engagementRate: '5.40',
+        url: null,
+      },
+    ],
     vertical: 'food',
     status: 'active',
     notes: null,
@@ -686,10 +768,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000032',
     slug: 'lilingshoots',
     name: 'Liling Chua',
-    handle: 'lilingshoots',
-    platform: 'instagram',
-    followers: 52_800,
-    engagementRate: '4.80',
+    accounts: [
+      {
+        platform: 'instagram',
+        handle: 'lilingshoots',
+        followers: 52_800,
+        engagementRate: '4.80',
+        url: null,
+      },
+    ],
     // A photographer who shoots whatever the brief is. Genuinely no vertical, and
     // there is no `other` member to file that under.
     vertical: null,
@@ -701,10 +788,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000033',
     slug: 'oscarruns',
     name: 'Oscar Villanueva',
-    handle: 'oscarruns',
-    platform: 'tiktok',
-    followers: 38_100,
-    engagementRate: null,
+    accounts: [
+      {
+        platform: 'tiktok',
+        handle: 'oscarruns',
+        followers: 38_100,
+        engagementRate: null,
+        url: null,
+      },
+    ],
     vertical: 'fitness',
     status: 'prospect',
     notes: null,
@@ -714,10 +806,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000034',
     slug: 'tobiaslim',
     name: 'Tobias Lim',
-    handle: 'tobiaslim',
-    platform: 'linkedin',
-    followers: 24_600,
-    engagementRate: '3.40',
+    accounts: [
+      {
+        platform: 'linkedin',
+        handle: 'tobiaslim',
+        followers: 24_600,
+        engagementRate: '3.40',
+        url: null,
+      },
+    ],
     // A B2B voice on hospitality operations. None of the ten consumer verticals is
     // true of him.
     vertical: null,
@@ -729,10 +826,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000035',
     slug: 'serenakoh',
     name: 'Serena Koh',
-    handle: 'serenakoh',
-    platform: 'instagram',
-    followers: 16_900,
-    engagementRate: '5.90',
+    accounts: [
+      {
+        platform: 'instagram',
+        handle: 'serenakoh',
+        followers: 16_900,
+        engagementRate: '5.90',
+        url: null,
+      },
+    ],
     vertical: 'fashion',
     status: 'past',
     notes: null,
@@ -742,10 +844,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000036',
     slug: 'adrianeats',
     name: 'Adrian Pang',
-    handle: 'adrianeats',
-    platform: 'xiaohongshu',
-    followers: 11_200,
-    engagementRate: '7.20',
+    accounts: [
+      {
+        platform: 'xiaohongshu',
+        handle: 'adrianeats',
+        followers: 11_200,
+        engagementRate: '7.20',
+        url: null,
+      },
+    ],
     vertical: 'food',
     status: 'active',
     notes: null,
@@ -757,10 +864,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000037',
     slug: 'meilingfoo',
     name: 'Mei Ling Foo',
-    handle: 'meilingfoo',
-    platform: 'instagram',
-    followers: 8_400,
-    engagementRate: '8.60',
+    accounts: [
+      {
+        platform: 'instagram',
+        handle: 'meilingfoo',
+        followers: 8_400,
+        engagementRate: '8.60',
+        url: null,
+      },
+    ],
     vertical: 'family',
     status: 'active',
     notes: null,
@@ -770,10 +882,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000038',
     slug: 'jonaswidjaja',
     name: 'Jonas Widjaja',
-    handle: 'jonaswidjaja',
-    platform: 'tiktok',
-    followers: 3_150,
-    engagementRate: null,
+    accounts: [
+      {
+        platform: 'tiktok',
+        handle: 'jonaswidjaja',
+        followers: 3_150,
+        engagementRate: null,
+        url: null,
+      },
+    ],
     vertical: 'motoring',
     status: 'prospect',
     notes: null,
@@ -786,10 +903,15 @@ const SEED_INFLUENCERS: SeedInfluencer[] = [
     id: '00000000-0000-4000-8000-000000000039',
     slug: 'biancareyes',
     name: 'Bianca Reyes',
-    handle: 'biancareyes',
-    platform: 'instagram',
-    followers: 940,
-    engagementRate: '14.20',
+    accounts: [
+      {
+        platform: 'instagram',
+        handle: 'biancareyes',
+        followers: 940,
+        engagementRate: '14.20',
+        url: null,
+      },
+    ],
     vertical: 'beauty',
     status: 'prospect',
     notes: null,
@@ -1156,16 +1278,34 @@ export async function seed(): Promise<SeedResult> {
         .onConflictDoNothing({ target: outlets.id })
     }
 
-    // Influencers after the outlets, and **the row before its links** — every
-    // `influencer_brands` foreign key is strict in both directions, so a link
-    // written before its creator or before its brand fails loudly. That is the
-    // correct behaviour and the ordering here is what avoids it.
+    // Influencers after the outlets, and **the row before both of its children** —
+    // every `influencer_brands` and `influencer_accounts` foreign key is strict in
+    // both directions, so a link or an account written before its creator, or a
+    // link written before its brand, fails loudly. That is the correct behaviour
+    // and the ordering here is what avoids it.
     for (const influencer of writeFixtures ? SEED_INFLUENCERS : []) {
-      const { brandIds, ...row } = influencer
+      const { brandIds, accounts, ...row } = influencer
       await tx
         .insert(influencers)
         .values({ ...row, workspaceId: DEMO_WORKSPACE_ID })
         .onConflictDoNothing({ target: influencers.id })
+      // The accounts after the parent and before the links, the ordering
+      // `SEED_VENDORS` already uses for its contacts. `(influencer_id, position)`
+      // is the primary key, so a reseed re-offers each account and each one is
+      // already there.
+      for (const [position, account] of accounts.entries()) {
+        await tx
+          .insert(influencerAccounts)
+          .values({
+            influencerId: influencer.id,
+            workspaceId: DEMO_WORKSPACE_ID,
+            position,
+            ...account,
+          })
+          .onConflictDoNothing({
+            target: [influencerAccounts.influencerId, influencerAccounts.position],
+          })
+      }
       for (const brandId of brandIds) {
         await tx
           .insert(influencerBrands)

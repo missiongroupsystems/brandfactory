@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.46.0** — 2026-08-18 — A creator stops being an account: one to ten of those hang off the person now, so a roster of nineteen rows is nineteen people, reach is the sum of what they post from, and the tier bands count the case they used to file three times. Six phases and a hardening pass. Migration 0016. 2584 tests.
 - **1.45.0** — 2026-08-18 — `Brand pillars` stops being an empty box and becomes a design: five cards with a title, a commitment and a glyph, capped at five because a brand that stands on nine things stands on nothing. Hardcoded, stated twice as a sample. No migration. 2375 tests.
 - **1.44.0** — 2026-08-18 — The seed stops describing an imaginary coffee chain: one workspace named Mission Group, the seven concepts with their own published lines, and the ten premises they actually trade from — nine open and one still a plan. Four opening dates stay `null` rather than become a guess. No migration. 2371 tests.
 - **1.43.0** — 2026-08-18 — A vendor stops being nine rows assembled out of two fixtures and becomes an aggregate: three tables, five routes, an exhaustive list, a page each and a form that fills them — and the three columns counting agreements go, because the only thing that held one was a fixture. Migration 0015. 2371 tests.
@@ -92,6 +93,182 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.46.0 — 2026-08-18
+
+**`Add a creator` asked for a name, *a* handle, *a* platform and *a* follower count, and the hint
+under the platform select said the quiet part out loud: "One row per platform — two accounts are
+two follower counts."**
+
+That was a deliberate simplification when the aggregate landed in 1.40.0, and its own docstring
+said so. All three of its costs were being paid. A creator with an Instagram grid and a TikTok was
+**two records**, each with half the story, linked by nothing — not a foreign key, not a name match.
+The URL admitted it: `priyaskin` and `priyaskin-2`, and nothing said which was which. And the reach
+tiers were not merely incomplete but **wrong** — 60k on Instagram, 50k on TikTok and 30k on
+XiaoHongShu is a mid-tier creator filed into Micro three times, so the one figure the screen sorts,
+groups and prices by was understated for exactly the creators worth the most.
+
+A creator now carries a child collection of **accounts**: one to ten, each with its own platform,
+handle, follower count, engagement rate and profile URL. **Migration 0016**, with a hand-written
+backfill. 2584 tests (2437 passing plus 147 skipped without a database; 2584 passing with one).
+`packages/web` is untouched and still serves production.
+
+Six phases and a hardening pass, one document each in `docs/completions/`, mapped by
+[`influencer-accounts.md`](completions/influencer-accounts.md).
+
+### The shape
+
+Everything describing the **person** stayed on `influencers` — name, vertical, status, notes, the
+brands they are engaged for. Everything describing an **account** moved down to
+`influencer_accounts`, keyed on `(influencer_id, position)`. A value object, not an entity: no
+surrogate id, no timestamps, and a write replaces the whole list. `vendor_contacts` is the table it
+is a copy of.
+
+**Position 0 is the account the creator is known by**, and there is no `is_primary` column. On a
+vendor contact, *where a row sits* and *who answers the phone* are two facts; here they are one.
+Deriving the primary from the largest follower count instead would let a refreshed number silently
+change the line that identifies the person.
+
+**`workspace_id` is denormalised onto the account**, because the one refusal only the database can
+make — one account per `(platform, handle)` per workspace — names columns that now live on the
+child, and a unique index needs them all on one row. Exactly one function writes it.
+
+### The slug comes from the name
+
+`/influencers/priya-raman`. The handle was the source while the record *was* an account; a person
+carries up to ten of them, and picking one would re-introduce the arbitrary choice this change
+removes. **No slug already in the table moved** — they are frozen at create and the migration
+touches no `slug` value, so every link shared before this release still resolves. Older records
+therefore still read `/influencers/priyaskin`, which is the cost of not rewriting history.
+
+### Reach and engagement are derived, in `shared`, on read
+
+`totalReach` is the plain sum, and it double-counts a person who follows the same creator twice —
+which is what every rate card in the trade quotes, and why the detail page prints the split above
+the total. `blendedEngagement` is the **follower-weighted** mean over the measured accounts: an 88k
+account at 6.0% and an 840k at 1.1% average to 3.55% and describe nobody, where the weighted answer
+is 1.56%. An unmeasured account leaves **both** halves of the fraction rather than counting as a
+zero.
+
+Neither is stored and neither is a field on the wire; a sum written into the row could disagree with
+the array beside it. They live in `@brandfactory/shared` because the server sorts the roster by
+reach and needs the same definition — and `influencers_workspace_followers_idx` goes with the column
+it indexed, so that sort is now in JavaScript over an already-exhaustive read.
+
+### The six phases
+
+| Phase | What landed | Tests |
+| --- | --- | --- |
+| **A — the record** | The contract first, in `@brandfactory/shared`: `InfluencerAccountSchema`, `InfluencerAccountsSchema` (1–10, repeated pairs refused with the row's own path), the four columns off `InfluencerSchema`, `reach.ts`, and `influencerSlug(name)`. Nothing visible — and every consumer stopped compiling, which is `hc<AppType>` working. | +27 |
+| **B — the table** | `influencer_accounts`, **migration 0016 hand-edited after generation**, `replaceInfluencerAccounts`, the three-query list assembly, and the seed adapted rather than rewritten. | +9 |
+| **C — the routes** | The handlers keep their shape; the 409 gains the holder's name from a best-effort read before the write. | +6 |
+| **D — the read surfaces** | Platforms as a set, Reach as a sum with the account count beneath it, blended engagement, the Accounts card, `has an account on` filtering and search across every handle. | +4 |
+| **E — the form** | The one genuinely new UI: a repeatable account row, `Add account` to ten, `Make primary`, a last row that cannot be removed and says why, and a duplicate flagged **on the row** before submit. | +19 |
+| **F — verify and release** | The full gate, the live database run, and the browser pass — which created a three-account creator, because the seed holds none. | +2 |
+| **Hardening** | The pre-push review. Four changes; see below. | +1 |
+
+### What changed on screen
+
+The table's `Platform` column became **Platforms** — up to three, then `+N`. **Reach** is the total,
+with `3 accounts` beneath it whenever there is more than one, which is the only line that says the
+figure is a sum. **Engagement** is the blend. The platform filter became *has an account on*, and
+search matches **any** handle — with the Creator cell showing whichever handle matched, so a row
+never matches invisibly.
+
+The detail page leads with an **Accounts** card: one row per account, `Primary` on the first, the
+exact follower count, that account's own rate, and the handle linked when a `url` is stored.
+Nothing derives a URL from a handle — a wrong link to a real stranger's profile is worse than no
+link — and **XiaoHongShu is why the column exists at all**, because it addresses users by an opaque
+numeric id nobody can guess. The Audience card became `Total reach` and `Blended engagement`,
+labelled *blended* because an unlabelled 2.3% over three accounts is a number nobody can reproduce.
+
+The form grew a repeatable account row: `Add account` up to ten, `Make primary` that moves a row to
+the top, a last row that cannot be removed and says why, and a duplicate `(platform, handle)`
+flagged **on the row** before submit.
+
+### The 409 names a person now
+
+*"@priyaskin on instagram is already on **Priya Raman**'s record. Open that creator and add the
+account there, or use a different handle."* It became possible to say because the conflict is now
+with another person's account rather than with a bare row, and it comes from a best-effort read
+before the write — the constraint is still the correctness boundary.
+
+**And when that read finds nothing, the message names no pair at all.** See the hardening below:
+naming one was a guess that could point at an account that was never in conflict.
+
+### The tier bands, and what a reader who knew the old counts should expect
+
+**Nothing moved on the day the migration ran.** Every existing creator got exactly one account, so
+their total is their old figure. The bands move the first time somebody folds two rows into one
+person — which is the point, and is worth knowing before the counts look wrong.
+
+**No merge action, and no import.** The migration gives every existing row its own creator, so a
+person entered twice today stays two creators: two rows sharing a name are two people as often as
+one, and nothing can safely tell. `Import or sync creators` is still the stated placeholder it was;
+what changed is that the import is now *possible to write honestly*, per account rather than per
+creator.
+
+### The browser pass
+
+The seed holds no multi-account creator, so the pass created one first. It drove a three-account
+create, the duplicate flag tripping and clearing on the row, the roster showing `140k` over
+`3 accounts` at `5.0%` blended — **Mid-tier, where every one of her three accounts alone is Micro**,
+which is this release's whole argument on screen — a `Make primary` reorder that moved the header's
+handle and left the total unchanged, a search on a non-primary handle, the platform filter, and the
+409.
+
+It found two defects no test could see, because each rendered something valid: an unmeasured rate
+drew `…`, this app's mark for **a request in flight**, where it meant **not recorded**; and a handle
+carrying a `url` looked exactly like the two beside it that did not, its only affordance being a
+hover underline. Both fixed in Phase F.
+
+### The hardening pass
+
+A pre-push review of A–F. It re-ran the whole gate rather than trusting Phase F's table, and re-ran
+**migration 0016 against hand-written pre-migration rows** rather than trusting the backfill note —
+four rows in, four accounts out, `null` rates preserved and a cross-workspace duplicate pair intact.
+Both held. Four things did not:
+
+**`Number("")` is `0`, and one line had forgotten it.** `toAccountPayload` converted the follower box
+with a bare `Number(...)` while its docstring claimed the result was `NaN`. A creator entered on zero
+followers is not a blank cell — it is a Nano band member that reads as a measurement somebody took,
+which is the exact failure the string-valued draft exists to prevent, given back at the one point the
+draft stops being a draft. The emptiness is tested before the conversion now, `z.number()` refuses
+the `NaN`, and a test pins all three defences.
+
+**The 409 could name an account that was never in conflict.** `InfluencerHandleTakenError` carried
+three independent fields where one best-effort `SELECT` produces all three, so both call sites filled
+the gap with `accounts[0]` — right only for a creator with one account, on the aggregate about
+creators with more. A concurrent writer colliding on account three produced a sentence blaming
+account one. It is one nullable object now, so the invariant is structural, and an absent holder gets
+a message that admits what it does not know.
+
+**The form's `Last updated` clause came back.** It had a stated purpose — a follower count is stale
+within a day, and a form showing only the number invites somebody to stand behind a figure nobody
+checked — and Phase E dropped it silently in the move to repeatable rows. It sits on the section
+rather than on a row, because an account carries no timestamp of its own, deliberately.
+
+**Two comments had gone false**: a `vendors.ts` cross-reference to an index this migration dropped,
+and Phase F's own note about where these documents live.
+
+One finding was **examined and left alone with the reasoning kept**: nothing in the database enforces
+that a creator has at least one account. A `CHECK` cannot see another table's absent rows, and a
+deferred constraint trigger is machinery this schema has not used in seventeen migrations. Every
+write path holds the invariant, and `primaryAccount`'s throw is a loud failure where the alternative
+renders a creator with no handle as though the record could hold one.
+
+### Also in this release
+
+A stale test, unrelated and failing since 1.44.0: `outlets (live DB)` asserted six outlets against
+a seed that writes ten, and compared SQL ordering against a JavaScript `<`, which disagrees with
+the `en_US.utf8` collation on `temper. Duxton` versus `Willow`.
+
+A second finding is recorded and **left for its own change**: `DELETE /workspaces/:id/influencers/<slug>`
+answers 500 where the same route with an id answers 200, because the branded id schemas are
+`z.string().min(1)` and a slug reaches Postgres as a non-uuid. Outlets and vendors do the same on
+untouched code, and no screen sends a slug there.
 
 ---
 

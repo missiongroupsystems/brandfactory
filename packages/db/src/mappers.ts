@@ -15,6 +15,7 @@ import {
   type CanvasBlockId,
   type CanvasId,
   type Influencer,
+  type InfluencerAccount,
   type InfluencerId,
   type Outlet,
   type OutletId,
@@ -38,6 +39,7 @@ import type {
   canvasBlocks,
   canvases,
   guidelineSections,
+  influencerAccounts,
   influencers,
   outlets,
   projects,
@@ -58,6 +60,7 @@ type AgentMessageRow = typeof agentMessages.$inferSelect
 type SocialPostRow = typeof socialPosts.$inferSelect
 type OutletRow = typeof outlets.$inferSelect
 type InfluencerRow = typeof influencers.$inferSelect
+type InfluencerAccountRow = typeof influencerAccounts.$inferSelect
 type VendorRow = typeof vendors.$inferSelect
 type VendorContactRow = typeof vendorContacts.$inferSelect
 
@@ -266,32 +269,70 @@ export function rowToOutlet(row: OutletRow): Outlet {
 }
 
 /**
+ * One account row → the wire's value object.
+ *
  * **`engagement_rate` arrives as a string and leaves as a number**, and that one
  * line is the whole reason this mapper is worth a docstring.
  *
  * The column is `numeric(5,2)`. `node-postgres` returns numeric as text because it
  * is arbitrary precision and a float cannot hold every value it can — so what lands
  * here is `'3.80'`, not `3.8`. It type-checks clean either way (drizzle types the
- * column as `string`, and `InfluencerSchema` would be the only thing to object),
- * and the symptom on screen is a single row reading `3.80%` in a column of `3.8%`.
- * `rowToResearchJob` converts `cost_usd` at this same boundary for this same
- * reason.
+ * column as `string`, and `InfluencerAccountSchema` would be the only thing to
+ * object), and the symptom on screen is a single row reading `3.80%` in a column
+ * of `3.8%`. `rowToResearchJob` converts `cost_usd` at this same boundary for this
+ * same reason.
  *
- * `brandIds` come from the caller, not the row — the wire shape carries the join
- * table's ids and only the query layer has both halves of the aggregate in hand.
- * The same split `rowToSocialPost` makes for `assetIds`. **Sorted by the caller**,
- * so two reads of one row are byte-identical.
+ * The conversion moved down a level with the column it reads, and it is still
+ * **exactly one function** — which is what keeps it a trap somebody can find.
+ *
+ * `position` and `influencerId` are dropped on purpose, and so is `workspaceId`:
+ * the array's index *is* the position, the creator is the record this list hangs
+ * off, and the workspace id is a denormalisation that exists to hold a unique key
+ * rather than a fact a client needs. Sending any of the three would let a client
+ * believe it can address an account on its own, which the full-replacement write
+ * is specifically built not to offer. `rowToVendorContact`'s call, one column
+ * further.
  */
-export function rowToInfluencer(row: InfluencerRow, brandIds: BrandId[]): Influencer {
+export function rowToInfluencerAccount(row: InfluencerAccountRow): InfluencerAccount {
+  return {
+    platform: row.platform,
+    handle: row.handle,
+    followers: row.followers,
+    engagementRate: row.engagementRate === null ? null : Number(row.engagementRate),
+    url: row.url,
+  }
+}
+
+/**
+ * One creator row plus its two relations → the wire shape.
+ *
+ * Both arrays are **parameters rather than reads**, which is what lets one mapper
+ * serve the list (two batched queries and two in-memory maps) and the detail read
+ * (two single-row queries) without a second shape existing. The call
+ * `rowToVendor` makes, and the reason this mapper stayed one function when the
+ * aggregate grew a child table.
+ *
+ * `brandIds` arrives sorted and `accounts` arrives in `position` order; neither is
+ * re-sorted here, because a mapper that re-derived the order would be a second
+ * place the ordering is decided — and for the accounts the order carries a fact:
+ * position 0 is the account the creator is known by.
+ *
+ * **No reach figure and no blended engagement.** Both are derived by `totalReach`
+ * and `blendedEngagement` in `@brandfactory/shared`, on read, on both sides of the
+ * wire. A sum written into the row here could disagree with the array printed
+ * beside it.
+ */
+export function rowToInfluencer(
+  row: InfluencerRow,
+  brandIds: BrandId[],
+  accounts: InfluencerAccount[],
+): Influencer {
   return {
     id: row.id as InfluencerId,
     workspaceId: row.workspaceId as WorkspaceId,
     slug: row.slug,
     name: row.name,
-    handle: row.handle,
-    platform: row.platform,
-    followers: row.followers,
-    engagementRate: row.engagementRate === null ? null : Number(row.engagementRate),
+    accounts,
     vertical: row.vertical,
     brandIds,
     status: row.status,

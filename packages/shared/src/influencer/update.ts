@@ -1,12 +1,9 @@
 import { z } from 'zod'
 import {
+  InfluencerAccountsSchema,
   InfluencerBrandIdsSchema,
-  InfluencerEngagementRateSchema,
-  InfluencerFollowersSchema,
-  InfluencerHandleSchema,
   InfluencerNameSchema,
   InfluencerNotesSchema,
-  InfluencerPlatformSchema,
   InfluencerStatusSchema,
   InfluencerVerticalSchema,
 } from './influencer'
@@ -22,30 +19,31 @@ import {
  * a rename. Letting a patch move it would break every URL already shared and hand
  * the client a uniqueness rule only the query layer can enforce.
  *
- * **`handle` and `platform` are patchable, and the slug still does not follow.**
- * A typo in a handle is exactly the thing a patch is for, and a creator who moves
- * an account between platforms is a real correction. So `/influencers/priyaskin`
- * can end up pointing at `@priyaskincare` — which is the same trade every renamed
+ * **`name` is patchable and the slug does not follow.** A misspelled name is
+ * exactly the thing a patch is for, so `/influencers/priya-raman` can end up
+ * pointing at a record that now reads *Priya Nair* — the same trade every renamed
  * outlet already makes, and the alternative is a URL that rots every time somebody
  * fixes a spelling.
  *
- * `brandIds` is a **full replacement**, not an add/remove pair. What a person means
- * by ticking brands is *these are the brands*, so there is no merge for two writers
- * to disagree about — the same call `attributes` makes on an outlet and `assetIds`
- * on a social post.
+ * **`accounts` is a full replacement**, not an add/remove pair, and so is
+ * `brandIds`. What a person means by submitting the list is *these are the
+ * accounts*, so there is no merge for two writers to disagree about — the same
+ * call `attributes` makes on an outlet and `contacts` on a vendor. An omitted
+ * `accounts` leaves every existing account alone, which is what makes a patch of
+ * `notes` alone safe.
  *
- * The nullable keys — engagement rate, vertical and notes — clear on an explicit
- * `null` and are left alone on omission. `name`, `handle`, `platform`, `followers`
- * and `status` are not nullable: a creator always has all five.
+ * There is no way to send an empty account list: `InfluencerAccountsSchema` is
+ * `.min(1)`, so the patch that unsets every account is a delete of the creator.
+ *
+ * The nullable keys — vertical and notes — clear on an explicit `null` and are
+ * left alone on omission. `name` and `status` are not nullable: a creator always
+ * has both.
  */
 export const UpdateInfluencerInputSchema = z
   .object({
     name: InfluencerNameSchema.optional(),
-    handle: InfluencerHandleSchema.optional(),
-    platform: InfluencerPlatformSchema.optional(),
-    followers: InfluencerFollowersSchema.optional(),
+    accounts: InfluencerAccountsSchema.optional(),
     status: InfluencerStatusSchema.optional(),
-    engagementRate: InfluencerEngagementRateSchema.nullable().optional(),
     vertical: InfluencerVerticalSchema.nullable().optional(),
     brandIds: InfluencerBrandIdsSchema.optional(),
     notes: InfluencerNotesSchema.nullable().optional(),

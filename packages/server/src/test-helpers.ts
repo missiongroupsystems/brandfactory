@@ -15,6 +15,7 @@ import type {
   CanvasBlock,
   CanvasBlockId,
   Influencer,
+  InfluencerAccount,
   InfluencerId,
   Outlet,
   OutletId,
@@ -211,31 +212,38 @@ function assertFakeBrandsInWorkspace(
 }
 
 /**
- * `influencers_workspace_platform_handle_key` in the fake.
+ * `influencer_accounts_workspace_platform_handle_key` in the fake.
  *
  * The real refusal is a unique index, so it is the one rule on this aggregate a
  * fake cannot inherit by mirroring a query — it has to be restated. Without it,
  * every route test about the 409 would pass against the 500 the mapping exists
  * to replace.
  *
- * `exceptId` is the row being patched. A creator re-sending their own handle is
+ * **It checks every account of every creator now**, because the key moved down to
+ * `influencer_accounts` in migration 0016. It also names the holder, which is what
+ * the real query's pre-flight `SELECT` buys and what the 409 message reads out.
+ *
+ * `exceptId` is the row being patched. A creator re-sending their own accounts is
  * not clashing with themselves.
  */
-function assertFakeHandleFree(
+function assertFakeAccountsFree(
   state: FakeDbState,
   workspaceId: WorkspaceId,
-  platform: string,
-  handle: string,
+  accounts: InfluencerAccount[],
   exceptId?: string,
 ): void {
   for (const influencer of state.influencers.values()) {
     if (influencer.id === exceptId) continue
-    if (
-      influencer.workspaceId === workspaceId &&
-      influencer.platform === platform &&
-      influencer.handle === handle
-    ) {
-      throw new InfluencerHandleTakenError(handle, platform)
+    if (influencer.workspaceId !== workspaceId) continue
+    for (const held of influencer.accounts) {
+      const clash = accounts.find((a) => a.platform === held.platform && a.handle === held.handle)
+      if (clash) {
+        throw new InfluencerHandleTakenError({
+          name: influencer.name,
+          handle: clash.handle,
+          platform: clash.platform,
+        })
+      }
     }
   }
 }
@@ -858,11 +866,12 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
     async createInfluencer(workspaceId, input) {
       const brandIds = input.brandIds ?? []
       assertFakeBrandsInWorkspace(state, workspaceId, brandIds)
-      // `influencers_workspace_platform_handle_key`, enforced here because the
-      // real one is an index and a fake has none. **This is the fake's job, not
-      // an extra:** without it a route test asserting the 409 would pass against
-      // a server that answers 500, which is the exact defect the mapping fixes.
-      assertFakeHandleFree(state, workspaceId, input.platform, input.handle)
+      // `influencer_accounts_workspace_platform_handle_key`, enforced here because
+      // the real one is an index and a fake has none. **This is the fake's job,
+      // not an extra:** without it a route test asserting the 409 would pass
+      // against a server that answers 500, which is the exact defect the mapping
+      // fixes.
+      assertFakeAccountsFree(state, workspaceId, input.accounts)
       const id = nextId('influencer') as InfluencerId
       const taken = [...state.influencers.values()]
         .filter((i) => i.workspaceId === workspaceId)
@@ -870,13 +879,13 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       const row: Influencer = {
         id,
         workspaceId,
-        // From the handle, not the name — see `InfluencerSlugSchema`.
-        slug: uniqueInfluencerSlug(input.handle, taken),
+        // From the name, not the handle — a person carries up to ten handles.
+        slug: uniqueInfluencerSlug(input.name, taken),
         name: input.name,
-        handle: input.handle,
-        platform: input.platform,
-        followers: input.followers,
-        engagementRate: input.engagementRate ?? null,
+        // In the order they were sent. Position 0 is the account the creator is
+        // known by, so a fake that sorted them would let a route test pass
+        // against a response the server never sends.
+        accounts: input.accounts,
         vertical: input.vertical ?? null,
         brandIds: [...brandIds].sort((a, b) => a.localeCompare(b)),
         // No `??`: the schema's `.default('prospect')` has already run, so the
@@ -901,27 +910,18 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       // The same unique key on the way through a patch, and **after** the row
       // lookup rather than before it: a patch aimed at a creator that does not
       // exist is a 404 about the path, not a 409 about a handle. The row itself
-      // is excluded, so re-sending a creator's own handle is not a clash.
-      if (patch.handle !== undefined || patch.platform !== undefined) {
-        assertFakeHandleFree(
-          state,
-          workspaceId,
-          patch.platform ?? existing.platform,
-          patch.handle ?? existing.handle,
-          id,
-        )
+      // is excluded, so re-sending a creator's own accounts is not a clash.
+      if (patch.accounts !== undefined) {
+        assertFakeAccountsFree(state, workspaceId, patch.accounts, id)
       }
-      // `undefined` leaves a key alone, `null` clears it; `brandIds` is a full
-      // replacement. `slug` is not a patch key — the URL survives a corrected
-      // handle.
+      // `undefined` leaves a key alone, `null` clears it; `brandIds` and
+      // `accounts` are both full replacements. `slug` is not a patch key — the
+      // URL survives a corrected name.
       const updated: Influencer = {
         ...existing,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
-        ...(patch.handle !== undefined ? { handle: patch.handle } : {}),
-        ...(patch.platform !== undefined ? { platform: patch.platform } : {}),
-        ...(patch.followers !== undefined ? { followers: patch.followers } : {}),
+        ...(patch.accounts !== undefined ? { accounts: patch.accounts } : {}),
         ...(patch.status !== undefined ? { status: patch.status } : {}),
-        ...(patch.engagementRate !== undefined ? { engagementRate: patch.engagementRate } : {}),
         ...(patch.vertical !== undefined ? { vertical: patch.vertical } : {}),
         ...(patch.brandIds !== undefined
           ? { brandIds: [...patch.brandIds].sort((a, b) => a.localeCompare(b)) }
@@ -936,9 +936,9 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       const existing = state.influencers.get(id)
       if (!existing || existing.workspaceId !== workspaceId) return null
       state.influencers.delete(id)
-      // The row that went, brand ids and all — the real query reads them before
-      // the cascade removes the link rows, because the route hands this back as
-      // the last copy anything will see.
+      // The row that went, brand ids and accounts and all — the real query reads
+      // both before the cascade removes them, because the route hands this back
+      // as the last copy anything will see.
       return existing
     },
 

@@ -63,15 +63,29 @@ export function createWorkspaceInfluencersRouter(deps: InfluencersDeps) {
    *
    * **The handle clash is a 409**, and it is a different kind of statement. The
    * body is well-formed and every id in it is real; the workspace simply already
-   * holds that creator on that platform. That is a conflict with existing state
-   * rather than a fault in the request, which is the distinction 409 exists for
-   * and the one `RESEARCH_ALREADY_RUNNING` already uses.
+   * holds that account on somebody's record. That is a conflict with existing
+   * state rather than a fault in the request, which is the distinction 409 exists
+   * for and the one `RESEARCH_ALREADY_RUNNING` already uses.
    *
-   * The message is the error's own and names the pair, because this is the one
-   * refusal on this aggregate that a person reads while looking at the box they
-   * just typed into — `useSubmit` puts an `AppError`'s message straight on the
-   * form. Before this mapping existed the unique index answered `500 Internal
-   * Server Error`, and that sentence was what the form showed.
+   * The message is built here rather than taken from the error, because it names
+   * a **creator** now and the sentence changes with them. A person reads it while
+   * looking at the box they just typed into — `useSubmit` puts an `AppError`'s
+   * message straight on the form — and "already on Priya Raman's record" tells
+   * them what to do next where "handle already used" leaves them guessing. Before
+   * this mapping existed the unique index answered `500 Internal Server Error`,
+   * and that sentence was what the form showed.
+   *
+   * **`holder` is optional and the second sentence is what an absent one gets.**
+   * The name, the handle and the platform all come from one best-effort read
+   * before the write, so they arrive together or not at all. A concurrent writer
+   * can still take the violation with nothing read, and the fallback then names
+   * **no pair at all** rather than the first account in the body — that guess was
+   * right only for a creator with one account, and pointed a reader at a handle
+   * that was never in conflict for anybody else.
+   *
+   * A repeated pair *inside one body* never reaches here — `InfluencerAccounts`
+   * refuses it at the zod boundary with the row's own path, because a 409 about
+   * another creator is the wrong sentence for a malformed body.
    */
   function rethrowWriteConflict(err: unknown): never {
     if (err instanceof BrandNotInWorkspaceError) {
@@ -79,7 +93,9 @@ export function createWorkspaceInfluencersRouter(deps: InfluencersDeps) {
     }
     if (err instanceof InfluencerHandleTakenError) {
       throw new ConflictError(
-        `@${err.handle} is already on the roster for ${err.platform}. One row per creator per platform — open that record instead, or add them under the platform they are not on yet.`,
+        err.holder
+          ? `@${err.holder.handle} on ${err.holder.platform} is already on ${err.holder.name}'s record. Open that creator and add the account there, or use a different handle.`
+          : 'One of these accounts is already on the roster in this workspace. Refresh the list and check which handle is taken.',
         'INFLUENCER_HANDLE_TAKEN',
       )
     }

@@ -86,8 +86,11 @@ export const vendors = pgTable(
   (table) => [
     // The read path, and the table's own order: a workspace's vendors, A to Z.
     // Ascending, and not on anything derived — this list is read as a directory,
-    // which is the opposite of `influencers_workspace_followers_idx` and its
-    // deliberate `desc`.
+    // which is the opposite of the influencer roster, read as a budget
+    // conversation and ordered by reach descending. That one has no index of its
+    // own any more: `influencers_workspace_followers_idx` went in migration 0016
+    // with the column it named, and `byInfluencerReach` sorts the assembled array
+    // in memory over a sum. This table's order is a column, so it stays here.
     index('vendors_workspace_name_idx').on(table.workspaceId, table.name),
     // What makes `/vendors/northlight-talent` resolve to exactly one row, and what
     // `uniqueVendorSlug` is picking a free value against. Per workspace, because

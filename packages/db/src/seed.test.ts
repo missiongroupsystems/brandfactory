@@ -6,6 +6,7 @@ import {
   brands,
   canvases,
   guidelineSections,
+  influencerAccounts,
   influencerBrands,
   influencers,
   outlets,
@@ -28,12 +29,16 @@ describe.skipIf(!hasDb)('seed()', () => {
     await pool.end()
   })
 
-  // **Declared first on purpose.** Every insert is `ON CONFLICT DO NOTHING`, so
-  // once the test below has written the nineteen creators and the nine vendors
-  // they stay written — a later run with the flag off cannot take them away, and
-  // this assertion would read 19 and 9 rather than 0. Vitest runs `it` blocks in
-  // declaration order, and the `db` project is `singleFork` precisely because its
-  // live tests share seeded rows.
+  // **It clears the two fixture tables first, and that is what makes it a test
+  // rather than a coincidence.** Every insert is `ON CONFLICT DO NOTHING`, so a
+  // creator written by any earlier `seed()` stays written and a later run with
+  // the flag off cannot take them away. Declaration order used to be the whole
+  // defence, and it is not one: `influencers.live.test.ts` and
+  // `vendors.live.test.ts` both call `seed()` in a `beforeAll`, the `db` project
+  // is `singleFork`, and whichever file the runner reaches first decides whether
+  // this assertion reads 0 or 19. Deleting the rows here makes the case hermetic
+  // in any order, and the delete cascades to the accounts, the links and the
+  // contacts.
   //
   // What it is really pinning is the **placement** of the guard: written one loop
   // too high it would skip the brands and the outlets too, and the seed would
@@ -42,17 +47,29 @@ describe.skipIf(!hasDb)('seed()', () => {
     const previous = process.env.SEED_FIXTURES
     process.env.SEED_FIXTURES = 'false'
     try {
+      const before = await seed()
+      await db.delete(influencers).where(eq(influencers.workspaceId, before.workspaceId))
+      await db.delete(vendors).where(eq(vendors.workspaceId, before.workspaceId))
+
       const result = await seed()
-      const [brandRows, outletRows, influencerRows, vendorRows] = await Promise.all([
+      const [brandRows, outletRows, influencerRows, accountRows, vendorRows] = await Promise.all([
         db.select().from(brands).where(eq(brands.workspaceId, result.workspaceId)),
         db.select().from(outlets).where(eq(outlets.workspaceId, result.workspaceId)),
         db.select().from(influencers).where(eq(influencers.workspaceId, result.workspaceId)),
+        db
+          .select()
+          .from(influencerAccounts)
+          .where(eq(influencerAccounts.workspaceId, result.workspaceId)),
         db.select().from(vendors).where(eq(vendors.workspaceId, result.workspaceId)),
       ])
 
       expect(brandRows).toHaveLength(7)
       expect(outletRows).toHaveLength(10)
       expect(influencerRows).toHaveLength(0)
+      // No creator, so no account. The guard sits above the parent loop, and the
+      // accounts are written inside it — an account row here would mean the
+      // fixture had been split across the switch.
+      expect(accountRows).toHaveLength(0)
       expect(vendorRows).toHaveLength(0)
     } finally {
       if (previous === undefined) delete process.env.SEED_FIXTURES
@@ -81,6 +98,7 @@ describe.skipIf(!hasDb)('seed()', () => {
       sectionRows,
       messageRows,
       influencerRows,
+      accountRows,
       linkRows,
       vendorRows,
       vendorLinkRows,
@@ -99,6 +117,14 @@ describe.skipIf(!hasDb)('seed()', () => {
       db.select().from(guidelineSections).where(eq(guidelineSections.brandId, first.brandId)),
       db.select().from(agentMessages).where(eq(agentMessages.projectId, first.project2Id)),
       db.select().from(influencers).where(eq(influencers.workspaceId, first.workspaceId)),
+      // Scoped by the account's own `workspace_id` — the denormalised column that
+      // exists to hold `influencer_accounts_workspace_platform_handle_key`. It is
+      // written by the seed rather than derived, so reading through it is also
+      // what pins that the seed sets it.
+      db
+        .select({ position: influencerAccounts.position })
+        .from(influencerAccounts)
+        .where(eq(influencerAccounts.workspaceId, first.workspaceId)),
       // Joined up to the workspace, because `influencer_brands` carries no
       // workspace of its own — the creator is what scopes a link.
       db
@@ -145,6 +171,14 @@ describe.skipIf(!hasDb)('seed()', () => {
     expect(sectionRows).toHaveLength(3)
     expect(messageRows).toHaveLength(2)
     expect(influencerRows).toHaveLength(19)
+    // **One account each**, which is the mechanical half of migration 0016 rather
+    // than a statement about the roster. It is asserted because
+    // `influencer_accounts` is the third composite-key insert in this seed — the
+    // target is `(influencer_id, position)`, a reseed re-offers every row, and a
+    // wrong target would either raise or double the count with nothing on screen
+    // to say so.
+    expect(accountRows).toHaveLength(19)
+    expect(accountRows.every((a) => a.position === 0)).toBe(true)
     // 14 creators hold a brand and three of those hold two — so 17 link rows, and
     // the number is asserted rather than described because **this is the one
     // insert in the seed whose conflict target is a composite key.** A reseed

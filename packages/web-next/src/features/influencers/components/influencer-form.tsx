@@ -3,7 +3,6 @@
 import type {
   CreateInfluencerInput,
   Influencer,
-  InfluencerPlatform,
   InfluencerStatus,
   InfluencerVertical,
 } from "@brandfactory/shared";
@@ -12,7 +11,7 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Field, FieldGrid, FieldSection } from "@/components/ui/field";
+import { Field, FieldSection } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
@@ -28,14 +27,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useActiveBrand } from "@/features/brands/active-brand";
 import { toNullable, useSubmit } from "@/hooks/use-submit";
 import { formatDateTime } from "@/lib/format";
-import {
-  INFLUENCER_PLATFORM_OPTIONS,
-  INFLUENCER_STATUS_OPTIONS,
-  INFLUENCER_VERTICAL_OPTIONS,
-} from "@/lib/labels";
+import { INFLUENCER_STATUS_OPTIONS, INFLUENCER_VERTICAL_OPTIONS } from "@/lib/labels";
 
-import { GENERALIST, toNullableNumber } from "../format";
+import { type AccountDraft, accountDraftsFrom, toAccountPayload } from "../account-drafts";
+import { GENERALIST } from "../format";
 import { useInfluencerMutations } from "../hooks";
+import { AccountRows } from "./account-rows";
 import { BrandPicker } from "./brand-picker";
 
 /**
@@ -93,17 +90,11 @@ export function InfluencerForm({
     // object, which `UpdateInfluencerInputSchema` accepts field for field.
     const payload: CreateInfluencerInput = {
       name: form.name.trim(),
-      handle: form.handle.trim(),
-      platform: form.platform,
-      // `required` + `type="number"` on the input is what keeps this from reading a blank as `0`:
-      // `Number("")` is `0`, and a creator silently entered on zero followers would land in Nano
-      // and look like a real reading. The browser refuses the submit; if one ever gets past it,
-      // `InfluencerFollowersSchema` refuses the body.
-      followers: Number(form.followers),
+      // A **full replacement**, exactly like `brandIds` below: what somebody means by submitting
+      // this list is *these are the accounts*, and the rows left out are gone. The conversion from
+      // string-valued draft rows happens once, here.
+      accounts: toAccountPayload(form.accounts),
       status: form.status,
-      // `null`, not `0`. Nobody having measured a prospect is a different fact from a measured
-      // zero, and `toNullableNumber` is where the two stay apart.
-      engagementRate: toNullableNumber(form.engagementRate),
       vertical: form.vertical === "" ? null : form.vertical,
       // A **full replacement**, which is what the picker's checkboxes mean: these are the brands.
       brandIds: form.brandIds as CreateInfluencerInput["brandIds"],
@@ -136,8 +127,8 @@ export function InfluencerForm({
           <SheetTitle>{isEdit ? `Edit ${influencer!.name}` : "Add a creator"}</SheetTitle>
           <SheetDescription>
             {isEdit
-              ? "The web address of this creator does not change when their handle does — the link you shared last month still works."
-              : "A creator needs a name, a handle, a platform and a follower count. The reach is what every other question hangs off, so it is the one figure that cannot wait."}
+              ? "The web address of this creator does not change when their name does — the link you shared last month still works. Submitting replaces their account list with whatever is below."
+              : "A creator needs a name and at least one account. Add every platform they post on — each one carries its own reach."}
           </SheetDescription>
         </SheetHeader>
 
@@ -163,137 +154,10 @@ export function InfluencerForm({
                 )}
               </Field>
 
-              <FieldGrid>
-                <Field
-                  label="Handle"
-                  required
-                  hint="Without the @. Every surface adds it."
-                  error={fieldErrors.handle}
-                >
-                  {(field) => (
-                    // **The sigil is drawn, never typed.** `InfluencerHandleSchema` *rejects* a
-                    // leading `@` rather than stripping it, so that one handle has one spelling
-                    // under the unique key — which makes it the form's job to put the rejected
-                    // state out of reach rather than to launder it on the way past. A pasted
-                    // `@priyaskin` reads as `@@priyaskin` in the field, visibly, and the server
-                    // still refuses it with the reason.
-                    <div className="relative">
-                      <span
-                        aria-hidden
-                        className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-sm text-ink-tertiary"
-                      >
-                        @
-                      </span>
-                      <Input
-                        {...field}
-                        required
-                        maxLength={100}
-                        className="pl-7 font-mono"
-                        value={form.handle}
-                        onChange={(event) => set("handle", event.target.value)}
-                        placeholder="priyaskin"
-                      />
-                    </div>
-                  )}
-                </Field>
-
-                <Field
-                  label="Platform"
-                  required
-                  hint="One row per platform — two accounts are two follower counts."
-                  error={fieldErrors.platform}
-                >
-                  {(field) => (
-                    <Select
-                      {...field}
-                      value={form.platform}
-                      onChange={(event) =>
-                        set("platform", event.target.value as InfluencerPlatform)
-                      }
-                    >
-                      {INFLUENCER_PLATFORM_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
-              </FieldGrid>
-
-              <Field label="Status" required error={fieldErrors.status}>
-                {(field) => (
-                  <Select
-                    {...field}
-                    value={form.status}
-                    onChange={(event) => set("status", event.target.value as InfluencerStatus)}
-                  >
-                    {INFLUENCER_STATUS_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </Field>
-            </FieldSection>
-
-            <FieldSection
-              title="Audience"
-              description="Reach sets the rate and decides the band this creator is filed under, so it is the one number on this form somebody has to look up rather than remember."
-            >
-              <FieldGrid>
-                <Field
-                  label="Followers"
-                  required
-                  // **The trap the plan named, and the answer to it.** A follower count is pulled
-                  // from a platform and is stale within the day, so a box asking somebody to type
-                  // `1,240,000` invites a figure nobody can stand behind. The form cannot fix
-                  // that; what it can do is say when the figure was last touched, so a stale one
-                  // is visible as stale rather than as current.
-                  hint={
-                    influencer
-                      ? `Last updated ${formatDateTime(influencer.updatedAt)}.`
-                      : "The count on the platform today."
-                  }
-                  error={fieldErrors.followers}
-                >
-                  {(field) => (
-                    <Input
-                      {...field}
-                      required
-                      type="number"
-                      min={0}
-                      step={1}
-                      inputMode="numeric"
-                      value={form.followers}
-                      onChange={(event) => set("followers", event.target.value)}
-                      placeholder="84200"
-                    />
-                  )}
-                </Field>
-
-                <Field
-                  label="Engagement rate"
-                  hint="Percent. Leave it empty if nobody has measured it — that is not the same as 0."
-                  error={fieldErrors.engagementRate}
-                >
-                  {(field) => (
-                    <Input
-                      {...field}
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={0.1}
-                      inputMode="decimal"
-                      value={form.engagementRate}
-                      onChange={(event) => set("engagementRate", event.target.value)}
-                      placeholder="3.8"
-                    />
-                  )}
-                </Field>
-              </FieldGrid>
-
+              {/* **Vertical sits with the person, not with the reach.** It used to head an
+                  `Audience` section over the follower count and the engagement rate; both of those
+                  are an account's now, so what was left was one select under a heading about
+                  numbers that had moved. What a creator covers is who they are. */}
               <Field label="Vertical" error={fieldErrors.vertical}>
                 {(field) => (
                   <Select
@@ -317,6 +181,49 @@ export function InfluencerForm({
                   </Select>
                 )}
               </Field>
+
+              <Field label="Status" required error={fieldErrors.status}>
+                {(field) => (
+                  <Select
+                    {...field}
+                    value={form.status}
+                    onChange={(event) => set("status", event.target.value as InfluencerStatus)}
+                  >
+                    {INFLUENCER_STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+            </FieldSection>
+
+            {/* **The `Last updated` clause is not decoration, and it was nearly lost in the move.**
+                The follower field it used to sit under carried it for a stated reason: a follower
+                count is pulled from a platform and is stale within the day, so a form that shows
+                only the number invites somebody to trust a figure nobody has checked this quarter.
+                The form cannot fix that; what it can do is say when the figures were last touched,
+                so a stale one is visible as stale rather than as current.
+
+                It sits on the **section** now rather than on a field, because an account carries
+                no timestamp of its own — deliberately: `influencer_accounts` is a value object and
+                a `created_at` on a full-replacement row would reset on every unrelated edit and
+                read as a lie about when the account started. The parent's `updatedAt` is the
+                honest granularity, and it covers exactly the list below it. */}
+            <FieldSection
+              title="Accounts"
+              description={
+                influencer
+                  ? `Every platform this creator posts on, each with its own reach. The first one is the account they are known by — it is the handle the roster shows. Last updated ${formatDateTime(influencer.updatedAt)}.`
+                  : "Every platform this creator posts on, each with its own reach. The first one is the account they are known by — it is the handle the roster shows."
+              }
+            >
+              <AccountRows
+                accounts={form.accounts}
+                disabled={isPending}
+                onChange={(accounts) => set("accounts", accounts)}
+              />
             </FieldSection>
 
             <FieldSection
@@ -376,10 +283,14 @@ export function InfluencerForm({
 
 type FormState = {
   name: string;
-  handle: string;
-  platform: InfluencerPlatform;
-  followers: string;
-  engagementRate: string;
+  /**
+   * One to ten rows, in the order they will be written — **index 0 is the primary account**.
+   *
+   * The rows hold their numbers as strings; see `AccountDraft`. Every operation over the list
+   * lives in `account-drafts.ts`, which is also where the rules that cannot be seen in a browser
+   * are asserted.
+   */
+  accounts: AccountDraft[];
   /** `""` is the generalist — see the select above. */
   vertical: InfluencerVertical | "";
   status: InfluencerStatus;
@@ -391,17 +302,17 @@ type FormState = {
  * `?? ""` throughout: these are controlled inputs, and a `null` value drops the input to
  * uncontrolled with a warning, after which typing works and the state does not update.
  *
- * The two numbers are held as **strings** while the form is open, because that is what an input
- * hands back and because `Number("")` is `0` — a state the draft must be able to hold without it
- * meaning a follower count of nothing. They are converted once, on submit.
+ * The account rows hold their numbers as **strings** while the form is open, because that is what
+ * an input hands back and because `Number("")` is `0` — a state the draft must be able to hold
+ * without it meaning a follower count of nothing. They are converted once, on submit, by
+ * `toAccountPayload`.
  */
 function initialState(influencer?: Influencer): FormState {
   return {
     name: influencer?.name ?? "",
-    handle: influencer?.handle ?? "",
-    platform: influencer?.platform ?? "instagram",
-    followers: influencer ? String(influencer.followers) : "",
-    engagementRate: influencer?.engagementRate == null ? "" : String(influencer.engagementRate),
+    // One empty row for a new creator, never zero: the record cannot hold an empty list, so a
+    // draft that started there would make `Add account` a step before any typing.
+    accounts: accountDraftsFrom(influencer),
     vertical: influencer?.vertical ?? "",
     // A new creator defaults to `prospect`, matching the API's own default: somebody just entered
     // is on a shortlist, and defaulting to `active` would state a booking that never happened.

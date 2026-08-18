@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { CreateInfluencerInputSchema } from './create'
 import {
+  InfluencerAccountSchema,
+  InfluencerAccountsSchema,
   InfluencerBrandIdsSchema,
   InfluencerEngagementRateSchema,
   InfluencerFollowersSchema,
@@ -8,11 +10,22 @@ import {
   InfluencerPlatformSchema,
   InfluencerStatusSchema,
   InfluencerVerticalSchema,
-  byInfluencerReach,
-  type Influencer,
+  MAX_INFLUENCER_ACCOUNTS,
 } from './influencer'
 import { INFLUENCER_SLUG_FALLBACK, influencerSlug, uniqueInfluencerSlug } from './slug'
 import { UpdateInfluencerInputSchema } from './update'
+
+/** One valid account, spread into whatever a case is actually about. */
+function account(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    platform: 'instagram',
+    handle: 'priyaskin',
+    followers: 124_000,
+    engagementRate: 3.8,
+    url: null,
+    ...overrides,
+  }
+}
 
 // The enum member lists are duplicated with the pgEnums in `@brandfactory/db`,
 // per the zod-⇄-pgEnum convention. These three tests are the pin: a member added
@@ -90,6 +103,98 @@ describe('InfluencerEngagementRateSchema', () => {
   })
 })
 
+describe('InfluencerAccountSchema', () => {
+  it('accepts an account and keeps the unmeasured rate as null', () => {
+    const parsed = InfluencerAccountSchema.parse(account({ engagementRate: null }))
+    expect(parsed.platform).toBe('instagram')
+    expect(parsed.engagementRate).toBeNull()
+  })
+
+  it('carries the four fields that used to sit on the creator', () => {
+    // The move is the whole change: nothing about an account is on the person.
+    expect(Object.keys(InfluencerAccountSchema.shape).sort()).toEqual([
+      'engagementRate',
+      'followers',
+      'handle',
+      'platform',
+      'url',
+    ])
+  })
+
+  it('rejects a leading @, a negative follower count and a rate over 100', () => {
+    expect(InfluencerAccountSchema.safeParse(account({ handle: '@priyaskin' })).success).toBe(false)
+    expect(InfluencerAccountSchema.safeParse(account({ followers: -1 })).success).toBe(false)
+    expect(InfluencerAccountSchema.safeParse(account({ engagementRate: 120 })).success).toBe(false)
+  })
+
+  it('accepts an http profile URL and refuses a javascript: one', () => {
+    // The value reaches an `href`, so it takes `WebsiteUrlSchema` rather than a
+    // bare `z.url()` — zod parses `javascript:alert(1)` as a valid URL.
+    expect(
+      InfluencerAccountSchema.safeParse(account({ url: 'https://xiaohongshu.com/user/6123' }))
+        .success,
+    ).toBe(true)
+    expect(InfluencerAccountSchema.safeParse(account({ url: 'javascript:alert(1)' })).success).toBe(
+      false,
+    )
+  })
+})
+
+describe('InfluencerAccountsSchema', () => {
+  it('rejects an empty list — a creator with no account has no reach and no tier', () => {
+    expect(InfluencerAccountsSchema.safeParse([]).success).toBe(false)
+  })
+
+  it('accepts ten accounts and refuses the eleventh', () => {
+    const ten = Array.from({ length: MAX_INFLUENCER_ACCOUNTS }, (_, i) =>
+      account({ handle: `handle${i}` }),
+    )
+    expect(InfluencerAccountsSchema.safeParse(ten).success).toBe(true)
+    expect(
+      InfluencerAccountsSchema.safeParse([...ten, account({ handle: 'eleven' })]).success,
+    ).toBe(false)
+    expect(MAX_INFLUENCER_ACCOUNTS).toBe(10)
+  })
+
+  it('rejects a repeated platform-and-handle pair, and names it on the row', () => {
+    // A repeated pair would take the unique violation inside the write
+    // transaction and surface as a 409 about another creator — the wrong
+    // sentence for a malformed body.
+    const result = InfluencerAccountsSchema.safeParse([account(), account()])
+    expect(result.success).toBe(false)
+    const issue = result.error?.issues[0]
+    expect(issue?.path).toEqual([1, 'handle'])
+    expect(issue?.message).toContain('@priyaskin on instagram')
+  })
+
+  it('accepts two accounts on one platform with different handles', () => {
+    // Three Instagram accounts is a real creator, and the unique key permits it.
+    expect(
+      InfluencerAccountsSchema.safeParse([
+        account({ handle: 'priyaskin' }),
+        account({ handle: 'priyaskin.archive' }),
+      ]).success,
+    ).toBe(true)
+  })
+
+  it('accepts one handle on two platforms — the case that started this', () => {
+    expect(
+      InfluencerAccountsSchema.safeParse([
+        account({ platform: 'instagram' }),
+        account({ platform: 'tiktok' }),
+      ]).success,
+    ).toBe(true)
+  })
+
+  it('keeps the order it was sent in — position 0 is the primary account', () => {
+    const parsed = InfluencerAccountsSchema.parse([
+      account({ platform: 'tiktok', handle: 'second' }),
+      account({ platform: 'instagram', handle: 'first' }),
+    ])
+    expect(parsed.map((a) => a.handle)).toEqual(['second', 'first'])
+  })
+})
+
 describe('InfluencerBrandIdsSchema', () => {
   it('accepts an empty array — "not engaged yet" is a fact', () => {
     expect(InfluencerBrandIdsSchema.parse([])).toEqual([])
@@ -103,82 +208,78 @@ describe('InfluencerBrandIdsSchema', () => {
 })
 
 describe('influencerSlug', () => {
-  it('is the handle, lowercased', () => {
-    expect(influencerSlug('PriyaSkin')).toBe('priyaskin')
+  it('is the name, lowercased and separated', () => {
+    // The source is the name since accounts landed: a person carries up to ten
+    // handles and picking one for the URL is the choice this change removed.
+    expect(influencerSlug('Priya Raman')).toBe('priya-raman')
   })
 
-  it('separates on the punctuation a handle carries', () => {
-    expect(influencerSlug('priya.skin_sg')).toBe('priya-skin-sg')
+  it('separates on the punctuation a name carries', () => {
+    expect(influencerSlug("Nur A'in Rahman")).toBe('nur-a-in-rahman')
   })
 
   it('falls back to "creator", not to "outlet"', () => {
-    // The fallback word is a parameter for exactly this: a xiaohongshu handle
-    // survives `slugify` as nothing.
+    // The fallback word is a parameter for exactly this: a name written in
+    // Chinese survives `slugify` as nothing.
     expect(influencerSlug('小红书美食')).toBe(INFLUENCER_SLUG_FALLBACK)
     expect(INFLUENCER_SLUG_FALLBACK).toBe('creator')
   })
 })
 
 describe('uniqueInfluencerSlug', () => {
-  it('suffixes the second row for one person on two platforms', () => {
-    // The known cost of slugging from the handle, stated in `InfluencerSlugSchema`.
-    expect(uniqueInfluencerSlug('priyaskin', ['priyaskin'])).toBe('priyaskin-2')
-  })
-})
-
-describe('byInfluencerReach', () => {
-  // The comparator reads three fields, so the fixture states three. The cast is
-  // what keeps a branded id out of a sort test.
-  function creator(followers: number, id: string, name = 'Somebody'): Influencer {
-    return { followers, id, name } as unknown as Influencer
-  }
-
-  it('puts the largest reach first — the order a budget conversation happens in', () => {
-    const rows = [creator(10_000, 'a'), creator(1_200_000, 'b'), creator(480_000, 'c')]
-    expect([...rows].sort(byInfluencerReach).map((r) => r.id)).toEqual(['b', 'c', 'a'])
-  })
-
-  it('breaks a tie on the name, not on the id', () => {
-    // 10,000 followers is a common round number, and ordering by id there would
-    // reorder the table on every read.
-    const rows = [creator(10_000, 'a', 'Zoe'), creator(10_000, 'b', 'Adam')]
-    expect([...rows].sort(byInfluencerReach).map((r) => r.name)).toEqual(['Adam', 'Zoe'])
+  it('suffixes the second creator who genuinely shares a name', () => {
+    // This used to be the path one person on two platforms took. It is now the
+    // rarer case it should always have been.
+    expect(uniqueInfluencerSlug('Priya Raman', ['priya-raman'])).toBe('priya-raman-2')
   })
 })
 
 describe('CreateInfluencerInputSchema', () => {
-  const minimal = {
-    name: 'Priya Nair',
-    handle: 'priyaskin',
-    platform: 'instagram',
-    followers: 124_000,
-  }
+  const minimal = { name: 'Priya Nair', accounts: [account()] }
 
-  it('needs a name, a handle, a platform and a reach figure', () => {
+  it('needs a name and at least one account', () => {
     const parsed = CreateInfluencerInputSchema.parse(minimal)
     // Somebody just entered is on a shortlist, not booked.
     expect(parsed.status).toBe('prospect')
     expect(parsed.brandIds).toBeUndefined()
+    expect(parsed.accounts).toHaveLength(1)
   })
 
-  it('rejects a body with no follower count', () => {
+  it('rejects a body with no accounts key at all', () => {
+    const { accounts: _accounts, ...rest } = minimal
+    expect(CreateInfluencerInputSchema.safeParse(rest).success).toBe(false)
+  })
+
+  it('rejects an empty account list', () => {
     // A row with no reach would fall out of the tier grouping, which is the one
     // thing a total grouping may not do.
-    const { followers: _followers, ...rest } = minimal
-    expect(CreateInfluencerInputSchema.safeParse(rest).success).toBe(false)
+    expect(CreateInfluencerInputSchema.safeParse({ ...minimal, accounts: [] }).success).toBe(false)
+  })
+
+  it('has no top-level handle, platform, followers or engagement rate', () => {
+    // The four moved down. A client still sending them is talking to the old
+    // contract and should not be silently half-understood.
+    expect(Object.keys(CreateInfluencerInputSchema.shape).sort()).toEqual([
+      'accounts',
+      'brandIds',
+      'name',
+      'notes',
+      'status',
+      'vertical',
+    ])
   })
 
   it('rejects a blank name', () => {
     expect(CreateInfluencerInputSchema.safeParse({ ...minimal, name: '   ' }).success).toBe(false)
   })
 
-  it('accepts an explicit null for the two unmeasured fields', () => {
+  it('accepts an explicit null vertical and an unmeasured account', () => {
     const parsed = CreateInfluencerInputSchema.parse({
       ...minimal,
-      engagementRate: null,
+      accounts: [account({ engagementRate: null })],
       vertical: null,
     })
-    expect(parsed.engagementRate).toBeNull()
+    expect(parsed.accounts[0]?.engagementRate).toBeNull()
     expect(parsed.vertical).toBeNull()
   })
 })
@@ -192,17 +293,24 @@ describe('UpdateInfluencerInputSchema', () => {
     expect(UpdateInfluencerInputSchema.safeParse({ status: 'active' }).success).toBe(true)
   })
 
-  it('accepts an explicit null to clear a measured field', () => {
-    expect(UpdateInfluencerInputSchema.parse({ engagementRate: null }).engagementRate).toBeNull()
+  it('accepts an explicit null to clear the vertical', () => {
+    expect(UpdateInfluencerInputSchema.parse({ vertical: null }).vertical).toBeNull()
   })
 
-  it('has no slug key — the URL survives a corrected handle', () => {
+  it('has no slug key — the URL survives a corrected name', () => {
     const parsed = UpdateInfluencerInputSchema.parse({
-      handle: 'priyaskincare',
+      name: 'Priya Raman',
       slug: 'something-else',
     })
     expect(parsed).not.toHaveProperty('slug')
-    expect(parsed.handle).toBe('priyaskincare')
+    expect(parsed.name).toBe('Priya Raman')
+  })
+
+  it('replaces the account list wholesale and never empties it', () => {
+    const parsed = UpdateInfluencerInputSchema.parse({ accounts: [account()] })
+    expect(parsed.accounts).toHaveLength(1)
+    // The patch that removes every account is a delete of the creator.
+    expect(UpdateInfluencerInputSchema.safeParse({ accounts: [] }).success).toBe(false)
   })
 
   it('replaces brandIds wholesale, empty array included', () => {

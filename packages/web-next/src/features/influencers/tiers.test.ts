@@ -1,3 +1,5 @@
+import type { InfluencerAccount } from "@brandfactory/shared";
+import { totalReach } from "@brandfactory/shared";
 import { describe, expect, it } from "vitest";
 
 import { GROUP_RAILS } from "@/components/layout/group-rail";
@@ -48,6 +50,35 @@ describe("tierFor", () => {
   it("orders the ladder largest first", () => {
     const mins = REACH_TIERS.map((tier) => tier.min);
     expect(mins).toEqual([...mins].sort((a, b) => b - a));
+  });
+});
+
+describe("tierFor over a creator's accounts", () => {
+  const account = (followers: number): InfluencerAccount => ({
+    platform: "instagram",
+    handle: "somebody",
+    followers,
+    engagementRate: null,
+    url: null,
+  });
+
+  it("files a three-account creator by their total, not by their biggest account", () => {
+    // The defect this whole change exists to fix. 60k, 50k and 30k were three rows in Micro
+    // before `influencer_accounts`; the person they describe is Mid-tier.
+    const accounts = [account(60_000), account(50_000), account(30_000)];
+    expect(tierFor(totalReach(accounts)).id).toBe("mid");
+    for (const single of accounts) {
+      expect(tierFor(single.followers).id).toBe("micro");
+    }
+  });
+
+  it("stays total, because the account list is never empty", () => {
+    // `InfluencerAccountsSchema` is `.min(1)`, which is what keeps every creator in exactly one
+    // band and the band counts summing to the rows. A creator with no accounts would have a
+    // reach of zero and land in `nano` rather than falling out — the grouping degrades to a
+    // wrong band rather than to a missing row, which is the safer of the two failures.
+    expect(tierFor(totalReach([account(0)])).id).toBe("nano");
+    expect(tierFor(totalReach([])).id).toBe("nano");
   });
 });
 

@@ -1,6 +1,13 @@
 "use client";
 
-import type { BrandSummary, Influencer } from "@brandfactory/shared";
+import type { BrandSummary, Influencer, InfluencerAccount } from "@brandfactory/shared";
+import {
+  blendedEngagement,
+  byInfluencerReach,
+  platformsOf,
+  primaryAccount,
+  totalReach,
+} from "@brandfactory/shared";
 import Link from "next/link";
 import { ChevronDownIcon, LayersIcon, PlusIcon } from "lucide-react";
 import * as React from "react";
@@ -45,7 +52,7 @@ import {
 } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
-import { formatEngagement, GENERALIST } from "../format";
+import { formatAccountCount, formatEngagement, GENERALIST } from "../format";
 import { useInfluencers } from "../hooks";
 import { influencerHref } from "../href";
 import { railForTier, REACH_TIERS, type ReachTier, tierFor } from "../tiers";
@@ -233,12 +240,16 @@ export function InfluencersBrowser() {
             </>
           }
         >
-          {/* Name **or handle**, and both are the row's own fields — so unlike every other search
-              box in this app the predicate joins to nothing. That is why the label names both: a
-              placeholder promising more than the predicate delivers is the bug this rule closed on
-              the screen this one replaced. */}
+          {/* Name **or any handle**, and both are the row's own fields — so unlike every other
+              search box in this app the predicate joins to nothing. The label names both, because
+              a placeholder promising more than the predicate delivers is the bug this rule closed
+              on the screen this one replaced.
+
+              **"Any handle" is the widening `influencer_accounts` bought**, and it is stated
+              rather than left implicit: a creator with three accounts is found by any of the three,
+              and the Creator cell shows whichever one matched so the row never matches invisibly. */}
           <SearchField
-            label="Search creators by name or handle"
+            label="Search creators by name or any handle"
             placeholder="Name or handle"
             value={filters.q}
             onChange={(value) => setFilter("q", value)}
@@ -312,15 +323,25 @@ type TierGroup = {
  * roughly 150 rows the keyset cursor and the SQL filters land *together*, because a paginated list
  * with client-side filters is the "Zephyr alone on page one" failure AGENTS.md bans.
  *
- * Every predicate here is the one `mock.ts` used to run, moved rather than rewritten — including
- * the two that are not equality tests. Brand is a `contains` over the row's set, because a creator
- * can be engaged for two. Search is name **or** handle, both of them the row's own fields.
+ * **Two predicates became `.some` when a creator gained accounts, and both changed meaning.**
+ * Platform is now *has an account on* rather than *is on*, so a creator with an Instagram grid and
+ * a TikTok appears under both — which is the whole point of the child table. Search matches the
+ * name or **any** of the handles, so looking somebody up by the handle they are not primarily
+ * known by finds them.
+ *
+ * Brand is unchanged and was already a `contains` over the row's set, because a creator can be
+ * engaged for two.
  */
 function matchesFilters(
   influencer: Influencer,
   filters: Partial<Record<(typeof FILTER_KEYS)[number], string>>,
 ): boolean {
-  if (filters.platform && influencer.platform !== filters.platform) return false;
+  if (
+    filters.platform &&
+    !influencer.accounts.some((account) => account.platform === filters.platform)
+  ) {
+    return false;
+  }
   if (filters.status && influencer.status !== filters.status) return false;
   if (filters.vertical && influencer.vertical !== filters.vertical) return false;
   // `.some` and not `.includes`: `brandIds` is `BrandId[]`, the branded type, and `includes`
@@ -330,8 +351,22 @@ function matchesFilters(
   const q = filters.q?.trim().toLowerCase();
   if (!q) return true;
   return (
-    influencer.name.toLowerCase().includes(q) || influencer.handle.toLowerCase().includes(q)
+    influencer.name.toLowerCase().includes(q) || matchingAccount(influencer, q) !== undefined
   );
+}
+
+/**
+ * The first account whose handle contains the search term, or `undefined`.
+ *
+ * It is both halves of one rule: the predicate above uses it to decide whether a row matches, and
+ * the Creator cell uses it to decide **which handle to show**. A row that matched on an account
+ * the cell was not rendering would highlight nothing and read as a false positive — the failure
+ * AGENTS.md names for a search that spans more than the title.
+ */
+function matchingAccount(influencer: Influencer, query: string): InfluencerAccount | undefined {
+  const q = query.trim().toLowerCase();
+  if (!q) return undefined;
+  return influencer.accounts.find((account) => account.handle.toLowerCase().includes(q));
 }
 
 /**
@@ -343,16 +378,20 @@ function matchesFilters(
  * suppressed. The vendor grouping this replaced could not do that: its buckets came from the data,
  * so their order, their names and whether they existed at all were three separate questions.
  *
- * Inside a tier: **by reach, descending, then by name** — which is the order the server already
- * sent, restated here because a `filter` preserves order and a reader should not have to know
- * that to trust the column.
+ * Inside a tier: **by total reach, descending, then by name** — which is the order the server
+ * already sent, restated here because a `filter` preserves order and a reader should not have to
+ * know that to trust the column. It restates it by calling `byInfluencerReach`, the comparator the
+ * server sorts with, rather than by writing the rule a second time.
+ *
+ * The tier is read off the **sum** now. A creator with three accounts sits where their combined
+ * reach puts them, which is the correction `influencer_accounts` was built for.
  */
 function groupByTier(influencers: Influencer[]): TierGroup[] {
   return REACH_TIERS.map((tier) => ({
     tier,
     influencers: influencers
-      .filter((influencer) => tierFor(influencer.followers).id === tier.id)
-      .sort((a, b) => b.followers - a.followers || a.name.localeCompare(b.name)),
+      .filter((influencer) => tierFor(totalReach(influencer.accounts)).id === tier.id)
+      .sort(byInfluencerReach),
   })).filter((group) => group.influencers.length > 0);
 }
 
@@ -445,7 +484,9 @@ function InfluencerResults({
               {/* 4px rail + `pl-4` grouped, `pl-5` ungrouped — 20px either way, or the whole first
                   column reads as misaligned against the band above it. */}
               <TableHead className={grouped ? "pl-4" : "pl-5"}>Creator</TableHead>
-              <TableHead>Platform</TableHead>
+              {/* **Platforms**, plural, since a creator holds up to ten accounts. The column is a
+                  set now rather than a field, and the heading is the first thing that says so. */}
+              <TableHead>Platforms</TableHead>
               <TableHead className="text-right">Reach</TableHead>
               {grouped ? null : <TableHead>Tier</TableHead>}
               <TableHead className="text-right">Engagement</TableHead>
@@ -610,6 +651,18 @@ function InfluencerRow({
 }) {
   const VerticalIcon = influencer.vertical ? INFLUENCER_VERTICAL_ICONS[influencer.vertical] : null;
 
+  /**
+   * The handle this row shows: the one the search matched, or the primary.
+   *
+   * A row that matched on a hidden account's handle and then rendered the primary would highlight
+   * nothing — it would look like a false positive to the one reader who can tell. Position 0 is
+   * the account the creator is known by, so it is what shows whenever the search is not the reason
+   * this row is here.
+   */
+  const shown = (query ? matchingAccount(influencer, query) : undefined) ?? primaryAccount(influencer.accounts);
+  const platforms = platformsOf(influencer.accounts);
+  const reach = totalReach(influencer.accounts);
+
   return (
     <TableRow className={rail ? cn("border-l-4", rail) : undefined}>
       <TableCell className={grouped ? "pl-4" : "pl-5"}>
@@ -627,32 +680,58 @@ function InfluencerRow({
             it is marked in place — `HighlightMatch`, not relevance ordering, per the rule AGENTS.md
             sets for a search that spans more than the title. The `@` is added here because the
             column never carries one: `InfluencerHandleSchema` rejects a leading `@` rather than
-            stripping it, so no row can arrive with its own. */}
+            stripping it, so no account can arrive with its own.
+
+            **One handle, not all of them.** A creator with three accounts is three handles, and a
+            stacked list of them under every name would make the column the tallest thing on the
+            screen for a fact the Platforms cell already carries. The count lives under Reach, where
+            it explains the figure it belongs to. */}
         <span className="mt-0.5 block font-mono text-helper text-ink-tertiary">
-          @<HighlightMatch text={influencer.handle} query={query} />
+          @<HighlightMatch text={shown.handle} query={query} />
         </span>
       </TableCell>
 
+      {/* Up to three platform names, then `+N`. **Words, not glyphs** — Lucide holds no brand
+          marks, and drawing six of them for this column is not this release's work. Enum order
+          rather than entry order, so reordering a creator's accounts does not reshuffle their row
+          for a change that says nothing about where they post. */}
       <TableCell className="text-ink-secondary">
-        {INFLUENCER_PLATFORM_LABELS[influencer.platform]}
+        {platforms
+          .slice(0, 3)
+          .map((platform) => INFLUENCER_PLATFORM_LABELS[platform])
+          .join(", ")}
+        {platforms.length > 3 ? (
+          <span className="text-ink-tertiary"> +{platforms.length - 3}</span>
+        ) : null}
       </TableCell>
 
       {/* Right-aligned and tabular, because this column is compared down its length rather than
           read across the row — `84.2k` under `1.24M` only lines up on the decimal if the digits
           are the same width. */}
       <TableCell className="text-right font-mono text-helper tabular-nums text-ink">
-        {formatCompactNumber(influencer.followers)}
+        {formatCompactNumber(reach)}
+        {/* **The one line on this screen that says the figure is a sum.** Without it a creator on
+            140k reads as one account of 140k, which is the misreading the child table exists to
+            remove. Only when there is more than one: `1 account` under every single-account row
+            would be noise on most of the table. */}
+        {influencer.accounts.length > 1 ? (
+          <span className="mt-0.5 block font-sans text-helper text-ink-tertiary">
+            {formatAccountCount(influencer.accounts.length)}
+          </span>
+        ) : null}
       </TableCell>
 
       {grouped ? null : (
-        <TableCell className="text-ink-secondary">{tierFor(influencer.followers).label}</TableCell>
+        <TableCell className="text-ink-secondary">{tierFor(reach).label}</TableCell>
       )}
 
       <TableCell className="text-right font-mono text-helper tabular-nums text-ink-secondary">
-        {/* `Value` renders the em dash for a rate nobody has measured. Not a zero: 0% engagement is
-            a measurement, and a prospect who has never run a campaign has not been measured at
-            all. */}
-        <Value>{formatEngagement(influencer.engagementRate)}</Value>
+        {/* The follower-weighted blend across the measured accounts. `Value` renders the em dash
+            when **none** of them is measured. Not a zero: 0% engagement is a measurement, and a
+            prospect who has never run a campaign has not been measured at all. The per-account
+            rates are on the detail page, where the blend is shown beside the figures it came
+            from. */}
+        <Value>{formatEngagement(blendedEngagement(influencer.accounts))}</Value>
       </TableCell>
 
       <TableCell className="text-ink-secondary">

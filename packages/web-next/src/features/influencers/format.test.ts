@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatEngagement, formatFollowers, toNullableNumber } from "./format";
+import { formatAccountCount, formatEngagement, formatFollowers, toNullableNumber } from "./format";
 
 describe("formatEngagement", () => {
   it("always shows one decimal, so a whole rate does not read as another measurement", () => {
@@ -42,6 +42,18 @@ describe("formatFollowers", () => {
 
   it("holds a zero, which is a real reading for a brand-new account", () => {
     expect(formatFollowers(0)).toBe("0");
+  });
+});
+
+describe("formatAccountCount", () => {
+  it("spells the plural rather than parenthesising it", () => {
+    expect(formatAccountCount(1)).toBe("1 account");
+    expect(formatAccountCount(3)).toBe("3 accounts");
+  });
+
+  it("holds the cap", () => {
+    // `MAX_INFLUENCER_ACCOUNTS` is ten, so this is the longest string the column shows.
+    expect(formatAccountCount(10)).toBe("10 accounts");
   });
 });
 

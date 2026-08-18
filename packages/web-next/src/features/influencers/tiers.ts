@@ -9,12 +9,20 @@ import { GROUP_RAILS, type GroupRail } from "@/components/layout/group-rail";
  * group, a real null bucket, and *a group whose name has not arrived yet*, which had to be
  * kept apart from the null one so a slow request never read as "this creator has no agency".
  *
- * A tier is computed from a number the row already carries, so **none of that exists here.**
- * There is no index to resolve, no request to be in flight, and no null bucket — `followers`
- * is not nullable (`InfluencerFollowersSchema` in `@brandfactory/shared`, and the column behind
- * it), so the grouping is *total*: every loaded row lands in exactly one tier and the bands
- * always sum to the rows.
- * That is the property that lets the group headers carry counts honestly.
+ * A tier is computed from a figure the row's own accounts add up to, so **none of that exists
+ * here.** There is no index to resolve and no request to be in flight.
+ *
+ * **The grouping is still total, and the reason moved one level down.** It used to be that
+ * `followers` was a non-nullable column. It is now that `totalReach` sums a list
+ * `InfluencerAccountsSchema` holds at `.min(1)`, and `followers` is non-nullable on every account
+ * in it — so every loaded row still lands in exactly one tier, there is still no null bucket, and
+ * the bands still sum to the rows. That is the property that lets the group headers carry counts
+ * honestly.
+ *
+ * **The tier a creator lands in is now the sum, not their biggest account.** Somebody on 60k,
+ * 50k and 30k is Mid-tier, where before the change they were three separate rows in Micro. That
+ * is the defect this ladder was quietly reporting, and it is why `tierFor` is called on
+ * `totalReach(...)` at every call site rather than on a field.
  *
  * **The boundaries are conventional, not invented.** Nano / micro / mid / macro / mega at
  * 10k / 100k / 500k / 1M are the ranges the influencer-marketing trade uses, which matters
@@ -56,8 +64,13 @@ export const REACH_TIERS: readonly ReachTier[] = [
  * wins. The final entry's `min` is 0, so this **always** returns a tier for any non-negative
  * count — the non-null return type is a promise the list above keeps, not an assumption.
  *
- * A negative count is not reachable from the fixture and would be a data fault rather than a
- * real reading, so it falls to `nano` rather than being given a bucket of its own.
+ * A negative count is not reachable — a follower count is a non-negative integer and a total is
+ * a sum of them — and would be a data fault rather than a real reading, so it falls to `nano`
+ * rather than being given a bucket of its own.
+ *
+ * **The argument is a creator's total reach**, which every caller gets from `totalReach` in
+ * `@brandfactory/shared`. It takes a number rather than a creator so the ladder stays testable
+ * against bare thresholds.
  */
 export function tierFor(followers: number): ReachTier {
   return REACH_TIERS.find((tier) => followers >= tier.min) ?? REACH_TIERS[REACH_TIERS.length - 1];

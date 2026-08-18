@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { BrandIdSchema, InfluencerIdSchema, WorkspaceIdSchema } from '../ids'
 import { SlugSchema } from '../slug'
+import { WebsiteUrlSchema } from '../url'
 
 // ---------------------------------------------------------------------------
 // Influencer — a creator the brands engage
@@ -30,19 +31,19 @@ import { SlugSchema } from '../slug'
 // agreement with, which is what `/vendors` and `/contracts` are for.
 
 /**
- * Where the reach is.
+ * Where the reach is — **a property of an account, not of the creator**.
  *
- * The row carries **one** platform, not a set, and that is a deliberate
- * simplification of a real many-to-many: a creator with an Instagram grid and a
- * TikTok account has two different follower counts and two different engagement
- * rates, so one row with a platform array would have to pick one number to
- * show — and every reach figure on the screen would silently be "on whichever
- * platform we happened to record". One row per platform keeps every number
- * attributable, which is why `(workspace_id, platform, handle)` is the unique key
- * rather than `(workspace_id, handle)`.
+ * The record used to carry one platform, one handle and one follower count, and
+ * that was a deliberate simplification of a real many-to-many. It cost more than
+ * it saved: a creator with an Instagram grid and a TikTok account became two
+ * rows with half a story each, the reach tiers filed one person into `Micro`
+ * three times, and nothing linked the two rows — not a foreign key, not a name
+ * match, nothing. `influencer_accounts` is the resolution; see
+ * `InfluencerAccountSchema`.
  *
  * `xiaohongshu` is in the list because this is a Singapore group and it is not
- * optional here.
+ * optional here. It is also why the simplification had to go: a creator on
+ * XiaoHongShu is on Instagram as well essentially always.
  *
  * Member list duplicated with the `influencer_platform` pgEnum in
  * `@brandfactory/db`, per the zod-⇄-pgEnum convention `outlets.ts` and
@@ -94,17 +95,22 @@ export const InfluencerStatusSchema = z.enum(['active', 'prospect', 'past'])
 export type InfluencerStatus = z.infer<typeof InfluencerStatusSchema>
 
 /**
- * The URL segment, generated from the **handle** at create and frozen after.
+ * The URL segment, generated from the **name** at create and frozen after.
+ * `/influencers/priya-raman`.
  *
- * From the handle rather than the name because the handle is the creator's own
- * identifier, it is what the search box already treats as one, and it is close to
- * URL-safe before `slugify` touches it — `/influencers/priyaskin` reads as the
- * person it points at.
+ * **From the name rather than from the handle**, which is the resolution of a
+ * cost this docstring used to record instead of fixing. The handle was the
+ * source while the record *was* an account; the record is a person now, a person
+ * carries up to ten handles, and picking one of them for the URL would put back
+ * the arbitrary choice `influencer_accounts` exists to remove.
  *
- * Known cost: one person on two platforms gives `priyaskin` and `priyaskin-2`,
- * and the URL does not say which is which. The detail page names the platform in
- * its first line. The alternative (`priyaskin-instagram`) is unambiguous and puts
- * a suffix on the 90% of creators who are on one platform.
+ * Two people who genuinely share a name still get `-2`, which is what
+ * `uniqueSlug` is for and is a far rarer collision than one person on two
+ * platforms was.
+ *
+ * **Slugs written before this change do not move.** They are frozen at create and
+ * the migration touches no `slug` value, so every link shared under the old rule
+ * still resolves.
  */
 export const InfluencerSlugSchema = SlugSchema
 
@@ -131,14 +137,15 @@ export const InfluencerHandleSchema = z
   })
 
 /**
- * Follower count, and **it is not nullable**.
+ * Follower count **on one account**, and it is not nullable.
  *
  * A creator's follower count is public and is the first thing anyone looks up, so
  * "we have not recorded it" is not a state this record needs to carry. That is
- * what makes the reach-tier grouping in `packages/web-next`'s
- * `features/influencers/tiers.ts` *total*: every row lands in exactly one band,
- * the band counts always sum to the rows, and no unknown bucket exists. The tier
- * is derived from this number and never stored.
+ * what keeps the reach-tier grouping in `packages/web-next`'s
+ * `features/influencers/tiers.ts` *total*: a creator's reach is the sum over
+ * their accounts, `InfluencerAccountsSchema` is `.min(1)`, so every creator has a
+ * reach figure, every row lands in exactly one band, and no unknown bucket
+ * exists. The tier is derived from the sum and never stored.
  */
 export const InfluencerFollowersSchema = z.number().int().nonnegative()
 
@@ -154,6 +161,104 @@ export const InfluencerFollowersSchema = z.number().int().nonnegative()
  * lose the figure entirely.
  */
 export const InfluencerEngagementRateSchema = z.number().min(0).max(100)
+
+/**
+ * One account the creator posts from.
+ *
+ * **A value object, not an entity.** No surrogate id and no timestamps: the write
+ * replaces the whole list, so a `createdAt` here would reset on every unrelated
+ * edit of the creator and then read as a lie about when the account started. The
+ * wire is a plain ordered array and the table is keyed on
+ * `(influencer_id, position)`. This is `vendor_contacts` exactly, and that table
+ * makes the same argument.
+ *
+ * **Position 0 is the account the creator is known by.** There is no `is_primary`
+ * flag — see `primaryAccount` in `reach.ts` for why the order carries that fact
+ * here and a boolean carries it on a vendor contact.
+ *
+ * **The unique key moved down with the columns.** One account per
+ * `(platform, handle)` per workspace, which is the same rule the parent used to
+ * hold and is still the one refusal only the database can make. Two accounts on
+ * the *same* platform with different handles are allowed on purpose: three
+ * Instagram accounts is a real creator.
+ *
+ * When this shape has to change: the day an import refreshes one account's
+ * follower count without a person editing the record, an account needs its own
+ * `metrics_updated_at`, and a full-replacement write from the form would race it.
+ * That is a real future release, recorded here so the trade is visible when it
+ * arrives.
+ */
+export const InfluencerAccountSchema = z.object({
+  platform: InfluencerPlatformSchema,
+  handle: InfluencerHandleSchema,
+  followers: InfluencerFollowersSchema,
+  /** `null` = nobody has measured this account. */
+  engagementRate: InfluencerEngagementRateSchema.nullable(),
+  /**
+   * The profile URL, `null` when nobody has recorded one.
+   *
+   * A handle resolves to a URL by guessing for five of the six platforms. It does
+   * not for **xiaohongshu**, which addresses users by an opaque numeric id — so
+   * this column is what makes an XHS account clickable at all.
+   *
+   * **Nothing derives a URL from a handle.** A wrong link to a real stranger's
+   * profile is worse than no link, so the screens render plain text when this is
+   * `null`.
+   *
+   * It reuses `WebsiteUrlSchema` rather than a bare `z.url()`: the value is
+   * rendered into an `href`, and that schema is where the `http`/`https` filter
+   * lives — zod accepts `javascript:alert(1)` as a valid URL.
+   */
+  url: WebsiteUrlSchema.nullable(),
+})
+export type InfluencerAccount = z.infer<typeof InfluencerAccountSchema>
+
+/**
+ * The cap on one creator's account list.
+ *
+ * Ten is already two more than there are platforms in the enum, and it is the
+ * bound that stops one body writing an unbounded number of child rows. Twenty was
+ * right for `VendorContactsSchema` because a big agency really does have a dozen
+ * named people; nobody posts from ten accounts.
+ */
+export const MAX_INFLUENCER_ACCOUNTS = 10
+
+/**
+ * The account list, in the order the form sent it, **first row first**.
+ *
+ * `.min(1)` is the status quo rather than a new demand — `handle`, `platform` and
+ * `followers` are all required on the form today. It is also what keeps the tier
+ * grouping total: a creator with no account would have no reach, would fall out
+ * of every band, and the band counts would stop summing to the rows.
+ *
+ * **A repeated `(platform, handle)` pair is rejected, not deduplicated** — the
+ * call `InfluencerBrandIdsSchema` already makes. The pair would take the unique
+ * violation inside the write transaction and surface as a 409 about a conflict
+ * with *another* creator, which is the wrong sentence for a malformed body. The
+ * comparison is exact rather than case-folded, because the constraint behind it
+ * is exact: refusing a pair the database would accept is its own defect.
+ */
+export const InfluencerAccountsSchema = z
+  .array(InfluencerAccountSchema)
+  .min(1)
+  .max(MAX_INFLUENCER_ACCOUNTS)
+  .superRefine((accounts, ctx) => {
+    const seen = new Set<string>()
+    accounts.forEach((account, index) => {
+      const key = `${account.platform}\u0000${account.handle}`
+      if (seen.has(key)) {
+        ctx.addIssue({
+          code: 'custom',
+          // On the repeated row rather than on the list, so the form can put the
+          // message where the person has to fix it. `use-submit.ts` keys the
+          // field errors by this path.
+          path: [index, 'handle'],
+          message: `@${account.handle} on ${account.platform} is already listed above — one account per platform and handle`,
+        })
+      }
+      seen.add(key)
+    })
+  })
 
 export const InfluencerNotesSchema = z.string().max(5000)
 
@@ -183,11 +288,20 @@ export const InfluencerSchema = z.object({
   workspaceId: WorkspaceIdSchema,
   slug: InfluencerSlugSchema,
   name: InfluencerNameSchema,
-  handle: InfluencerHandleSchema,
-  platform: InfluencerPlatformSchema,
-  followers: InfluencerFollowersSchema,
-  /** `null` = nobody has measured it. */
-  engagementRate: InfluencerEngagementRateSchema.nullable(),
+  /**
+   * Every account this creator posts from, ordered, **never empty**, and the
+   * first one is the account they are known by.
+   *
+   * This is where the platform, the handle, the follower count and the engagement
+   * rate live. Nothing about the person is down here and nothing about an account
+   * is up here. The creator-level reach and engagement figures the screens print
+   * are derived from this array by `totalReach` and `blendedEngagement`; neither
+   * is a field on the wire, because a stored sum can disagree with the array
+   * printed beside it.
+   *
+   * A write **replaces the whole list**, like `brandIds`.
+   */
+  accounts: InfluencerAccountsSchema,
   /** `null` = a genuine generalist, not an unclassified row. */
   vertical: InfluencerVerticalSchema.nullable(),
   /**
@@ -208,21 +322,7 @@ export const InfluencerSchema = z.object({
 })
 export type Influencer = z.infer<typeof InfluencerSchema>
 
-/**
- * The canonical ordering, mirroring `listInfluencersByWorkspace`'s SQL
- * (`followers desc, name asc, id asc`).
- *
- * **Reach descending, the opposite of every other list in this repo**, which sort
- * alphabetically because they are read as directories. This one is read as a
- * budget conversation: the few expensive names at the top, the long tail below.
- * The reach tiers are ordered the same way for the same reason.
- *
- * `name` breaks a tie because two creators on a round number — 10,000 followers
- * is common — would otherwise order by id, which is to say arbitrarily and
- * differently on every read.
- */
-export function byInfluencerReach(a: Influencer, b: Influencer): number {
-  if (a.followers !== b.followers) return b.followers - a.followers
-  const byName = a.name.localeCompare(b.name)
-  return byName !== 0 ? byName : a.id.localeCompare(b.id)
-}
+// `byInfluencerReach` used to sit here. It moved to `reach.ts` the day reach
+// became a sum over the accounts: the comparator now reads `totalReach`, and an
+// import in this direction would be a cycle. It is re-exported from the package
+// index, so no consumer's import changed.

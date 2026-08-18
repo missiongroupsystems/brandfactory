@@ -1,14 +1,4 @@
-import {
-  index,
-  integer,
-  numeric,
-  pgEnum,
-  pgTable,
-  text,
-  timestamp,
-  unique,
-  uuid,
-} from 'drizzle-orm/pg-core'
+import { index, pgEnum, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
 import { workspaces } from './workspaces'
 
 // Member lists duplicated with `InfluencerPlatformSchema` /
@@ -67,31 +57,22 @@ export const influencers = pgTable(
     workspaceId: uuid('workspace_id')
       .notNull()
       .references(() => workspaces.id, { onDelete: 'cascade' }),
-    // Derived from the **handle** at create and frozen after, so a shared link
+    // Derived from the **name** at create and frozen after, so a shared link
     // survives a corrected spelling. Unique per workspace — see the index below.
+    //
+    // It came from the handle until `influencer_accounts` landed. A person carries
+    // up to ten handles now, so naming the URL after one of them would be the
+    // arbitrary choice that change removed. **No slug already in the table moved**:
+    // migration 0016 touches no `slug` value, so every link shared before it still
+    // resolves.
     slug: text('slug').notNull(),
     name: text('name').notNull(),
-    // Without the `@`. Every surface adds the sigil, and `InfluencerHandleSchema`
-    // rejects a leading one rather than stripping it, so the column holds one
-    // spelling of a handle and the unique key below means what it says.
-    handle: text('handle').notNull(),
-    platform: influencerPlatform('platform').notNull(),
-    // **Not nullable**, and that is what makes the screen's reach-tier grouping
-    // total: every row lands in exactly one band and the band counts always sum
-    // to the rows. `features/influencers/tiers.ts` is written against that
-    // promise. `integer` and not `bigint` — 2.1 billion is above every follower
-    // count on any platform.
-    followers: integer('followers').notNull(),
-    // A percent — `3.80` is 3.8%. `null` = nobody has measured it, which is a real
-    // state: a prospect you have not run a campaign with has no engagement
-    // history.
-    //
-    // `numeric` rather than `real` because a rate is quoted to two decimals and a
-    // float would render 3.8 as 3.7999999. **It comes back from `node-postgres` as
-    // a string** — `'3.80'`, not `3.8` — and `rowToInfluencer` is what converts
-    // it. That conversion is the one shape trap in this aggregate: it type-checks
-    // clean either way and reaches the screen as `3.80%` in a column of `3.8%`.
-    engagementRate: numeric('engagement_rate', { precision: 5, scale: 2 }),
+    // `handle`, `platform`, `followers` and `engagement_rate` used to sit here.
+    // They describe an **account**, not a person, and they moved to
+    // `influencer_accounts` in migration 0016. Nothing about them was widened on
+    // the way down; they were declared on the wrong noun, which is a different
+    // defect from being wrong.
+
     // `null` = a genuine generalist, not an unclassified row. There is no `other`
     // member for the same reason.
     vertical: influencerVertical('vertical'),
@@ -107,22 +88,17 @@ export const influencers = pgTable(
       .defaultNow(),
   },
   (table) => [
-    // The read path, and the table's own order: a workspace's creators, biggest
-    // reach first. Descending in the index because that is the direction the query
-    // scans — reach descending is the order a budget conversation happens in, and
-    // it is the opposite of every other list in this schema.
-    index('influencers_workspace_followers_idx').on(table.workspaceId, table.followers.desc()),
-    // What makes `/influencers/priyaskin` resolve to exactly one row, and what
+    // The tie-break in `byInfluencerReach`, and the nearest thing this table has
+    // to a read path of its own. **`influencers_workspace_followers_idx` is
+    // gone** — there is no `followers` column to index, and reach is now a sum
+    // over the child rows. `listInfluencersByWorkspace` sorts the assembled array
+    // in memory; see its docstring for the size that stops being true at.
+    index('influencers_workspace_name_idx').on(table.workspaceId, table.name),
+    // What makes `/influencers/priya-raman` resolve to exactly one row, and what
     // `uniqueInfluencerSlug` is picking a free value against. Per workspace,
-    // because two workspaces are allowed the same readable handle.
+    // because two workspaces are allowed the same readable name.
     unique('influencers_workspace_slug_key').on(table.workspaceId, table.slug),
-    // One row per creator per platform. Two platforms means two follower counts
-    // and two engagement rates, so it is two rows; the same handle twice on one
-    // platform is a duplicate import, not a second creator.
-    unique('influencers_workspace_platform_handle_key').on(
-      table.workspaceId,
-      table.platform,
-      table.handle,
-    ),
+    // `influencers_workspace_platform_handle_key` moved to
+    // `influencer_accounts` with the two columns it named.
   ],
 )

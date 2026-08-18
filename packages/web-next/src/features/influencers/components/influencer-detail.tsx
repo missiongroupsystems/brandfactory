@@ -1,8 +1,9 @@
 "use client";
 
+import { blendedEngagement, primaryAccount, totalReach } from "@brandfactory/shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import { ArrowLeftIcon, ExternalLinkIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -12,6 +13,7 @@ import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Value } from "@/components/layout/table-card";
 import { useActiveBrand } from "@/features/brands/active-brand";
 import {
   type NamedBrand,
@@ -27,7 +29,7 @@ import {
   INFLUENCER_VERTICAL_LABELS,
 } from "@/lib/labels";
 
-import { formatEngagement, formatFollowers, GENERALIST } from "../format";
+import { formatAccountCount, formatEngagement, formatFollowers, GENERALIST } from "../format";
 import { useInfluencer, useInfluencerMutations } from "../hooks";
 import { tierFor } from "../tiers";
 import { InfluencerForm } from "./influencer-form";
@@ -42,10 +44,14 @@ import { InfluencerForm } from "./influencer-form";
  * nothing is the failure `outlet-detail.tsx` records inheriting from the Operations Hub, and
  * inventing them a second time on a table one release old would be worse.
  *
- * **The first line names the platform**, and that is load-bearing rather than decorative. A slug
- * comes from the handle, so one person on Instagram and TikTok gives `priyaskin` and
- * `priyaskin-2` and the URL does not say which is which — `InfluencerSlugSchema` states that cost
- * and names this page as where it is paid.
+ * **The Accounts card is the page's most important one, and it is first.** A creator is a person
+ * with up to ten accounts, and everything the rest of the page shows about reach is a sum over
+ * that card — so it sits above the derived figures rather than below them, and the split is on
+ * screen whenever the total is.
+ *
+ * **The first line names how many accounts there are**, not which platform. The slug comes from
+ * the **name** now, so `/influencers/priya-raman` says who it points at without help; what the
+ * header has to answer instead is whether the figures below it are one account's or four.
  *
  * `influencerRef` is a **slug or an id** and the read resolves either, which is what lets
  * `influencerHref` emit the readable form when it holds the record and a bare id when it does not.
@@ -131,7 +137,12 @@ export function InfluencerDetail({ influencerRef }: { influencerRef: string }) {
     }
   }
 
-  const tier = tierFor(influencer.followers);
+  // Every figure on this page that is not on a single account is derived from the card below —
+  // on read, never stored, the same two functions the server sorts with.
+  const primary = primaryAccount(influencer.accounts);
+  const reach = totalReach(influencer.accounts);
+  const blended = blendedEngagement(influencer.accounts);
+  const tier = tierFor(reach);
   const VerticalIcon = influencer.vertical ? INFLUENCER_VERTICAL_ICONS[influencer.vertical] : null;
 
   return (
@@ -155,10 +166,15 @@ export function InfluencerDetail({ influencerRef }: { influencerRef: string }) {
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
               {/* Mono, as the table renders it, and the `@` is added here: the column never carries
                   one, because `InfluencerHandleSchema` rejects a leading sigil rather than
-                  stripping it. */}
-              <span className="font-mono text-helper text-ink-secondary">@{influencer.handle}</span>
+                  stripping it. Position 0 — the account this creator is known by. */}
+              <span className="font-mono text-helper text-ink-secondary">
+                @{primary.handle}
+              </span>
+              {/* What the platform name used to say, answered for a person rather than an account:
+                  `3 accounts` tells the reader the numbers below are a sum before they read them.
+                  The platforms themselves are one card down, beside the figures they carry. */}
               <span className="text-helper text-ink-tertiary">
-                on {INFLUENCER_PLATFORM_LABELS[influencer.platform]}
+                {formatAccountCount(influencer.accounts.length)}
               </span>
               <Badge variant={INFLUENCER_STATUS_TONES[influencer.status]}>
                 {INFLUENCER_STATUS_LABELS[influencer.status]}
@@ -191,6 +207,78 @@ export function InfluencerDetail({ influencerRef }: { influencerRef: string }) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        {/* **First, and full width.** Every reach figure on this page is a sum over these rows, so
+            the split is above the total rather than beside it — a reader who sees `1.24M` can look
+            up one line and see what it is made of. A creator with one account still gets the card:
+            it is the only place their handle, their platform and their own engagement rate appear
+            together, and hiding it for the common case would make the page shape depend on the
+            data. */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Accounts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col divide-y divide-border-subtle">
+              {influencer.accounts.map((account, index) => (
+                // Keyed on the pair, which is unique per workspace by
+                // `influencer_accounts_workspace_platform_handle_key` — not on the index, which
+                // changes under a reorder and would carry a row's state onto its neighbour.
+                <li
+                  key={`${account.platform}/${account.handle}`}
+                  className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3 first:pt-0 last:pb-0"
+                >
+                  <span className="min-w-[7rem] text-ink">
+                    {INFLUENCER_PLATFORM_LABELS[account.platform]}
+                  </span>
+                  {/* Linked only when a `url` is stored. **Nothing is derived from a handle** — a
+                      guessed link to a real stranger's profile is worse than no link — and
+                      xiaohongshu is the platform that makes the column necessary, because it
+                      addresses users by an opaque numeric id nobody can guess. */}
+                  {account.url ? (
+                    // **The glyph is the affordance, and it is not decoration.** Three handles sit
+                    // in one column and only the ones carrying a `url` are clickable; without a
+                    // mark the reader cannot tell which, because a hover underline is invisible
+                    // until the pointer is already on it. Found in the browser pass.
+                    <a
+                      href={account.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="inline-flex items-center gap-1 font-mono text-helper text-ink-secondary hover:text-brand hover:underline"
+                    >
+                      @{account.handle}
+                      <ExternalLinkIcon aria-hidden className="size-3 shrink-0 text-ink-tertiary" />
+                      <span className="sr-only">Opens the profile in a new tab</span>
+                    </a>
+                  ) : (
+                    <span className="font-mono text-helper text-ink-secondary">
+                      @{account.handle}
+                    </span>
+                  )}
+                  {/* Position 0 is the account the creator is known by — the one the roster shows
+                      and the header repeats. There is no `is_primary` column: the order carries
+                      it, so the badge is a reading of the list rather than of a flag. */}
+                  {index === 0 ? <Badge variant="outline">Primary</Badge> : null}
+                  <span className="ml-auto flex items-baseline gap-4">
+                    {/* The exact count per account, for the page's own reason: this is where
+                        somebody checks a figure before quoting it. */}
+                    <span className="font-mono text-helper tabular-nums text-ink">
+                      {formatFollowers(account.followers)}
+                    </span>
+                    {/* Per account, so the blend above is reproducible from what is on the same
+                        screen. `Value`'s em dash means "nobody has measured *this* account" —
+                        **not `PENDING`**, which is this app's mark for a request in flight and
+                        would say the number is on its way. An unmeasured account leaves both
+                        halves of the blend rather than counting as a zero. */}
+                    <span className="min-w-[4rem] text-right font-mono text-helper tabular-nums text-ink-secondary">
+                      <Value mono>{formatEngagement(account.engagementRate)}</Value>
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Audience</CardTitle>
@@ -199,20 +287,35 @@ export function InfluencerDetail({ influencerRef }: { influencerRef: string }) {
             <DetailList>
               {/* **The full figure, not the table's `1.24M`.** This is the page somebody opens to
                   check a number before quoting it, and a rounded one is the single thing it must
-                  not show them. */}
-              <DetailItem label="Followers" mono>
-                {formatFollowers(influencer.followers)}
+                  not show them.
+
+                  **It double-counts a person who follows this creator on two platforms**, which is
+                  what every rate card in the trade quotes — and the card above prints the split,
+                  so the sum is never the only figure on the screen. */}
+              <DetailItem label="Total reach" mono>
+                {formatFollowers(reach)}
               </DetailItem>
-              {/* `Value`'s em dash for a rate nobody has measured — a prospect who has never run a
-                  campaign has no engagement history, which is not a measured zero. */}
-              <DetailItem label="Engagement rate" mono>
-                {formatEngagement(influencer.engagementRate)}
+              {/* **Labelled `blended`, and that word is load-bearing.** It is the
+                  follower-weighted mean across the measured accounts, so an unlabelled `2.3%` over
+                  three accounts is a number nobody can reproduce from what is on screen. Weighted
+                  rather than averaged, because an 88k account at 6.0% and an 840k at 1.1% average
+                  to 3.55% and describe nobody.
+
+                  The em dash means **no account has been measured** — a prospect who has never run
+                  a campaign — which is not a measured zero. An account with no rate leaves both
+                  halves of the fraction rather than dragging it down. */}
+              <DetailItem label="Blended engagement" mono>
+                {formatEngagement(blended)}
               </DetailItem>
               {/* The band and its range together, because the band is derived and the reader has
                   no other way to see the threshold it was derived against — a creator on 99,800
                   followers sits one band below one on 100,200, and the two numbers above make that
                   visible only when the range is beside them. */}
               <DetailItem label="Reach tier">{`${tier.label} · ${tier.range}`}</DetailItem>
+              {/* Which figure the tier was derived against, said in words. A creator whose three
+                  accounts add up past a threshold sits a band above where any one of them would
+                  put them, and this is the line that explains why. */}
+              <DetailItem label="Accounts">{formatAccountCount(influencer.accounts.length)}</DetailItem>
               <DetailItem label="Vertical">
                 {influencer.vertical && VerticalIcon ? (
                   <span className="inline-flex items-center gap-1.5">
@@ -269,10 +372,14 @@ export function InfluencerDetail({ influencerRef }: { influencerRef: string }) {
                 {influencer.notes}
               </DetailItem>
               {/* The slug is on the page because it is the creator's web address and it does **not**
-                  follow a corrected handle — `UpdateInfluencerInputSchema` says so — so
-                  `/influencers/priyaskin` can end up pointing at `@priyaskincare`. That is a thing
-                  to be able to look up rather than to discover from a link somebody else already
-                  shared. */}
+                  follow a corrected name — `UpdateInfluencerInputSchema` says so — so
+                  `/influencers/priya-nair` can end up pointing at a record that reads *Priya
+                  Raman*. That is a thing to be able to look up rather than to discover from a link
+                  somebody else already shared.
+
+                  Slugs written before `influencer_accounts` landed are the **handle**, because
+                  they are frozen at create and migration 0016 moved none of them — so an older
+                  record's web address may still read `/influencers/priyaskin`. */}
               <DetailItem label="Web address" mono>
                 /influencers/{influencer.slug}
               </DetailItem>

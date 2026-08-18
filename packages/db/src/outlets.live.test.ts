@@ -122,8 +122,17 @@ describe.skipIf(!hasDb)('outlets (live DB)', () => {
   it('lists a workspace in name order', async () => {
     const rows = await listOutletsByWorkspace(seededWorkspaceId)
     const names = rows.map((r) => r.name)
-    expect(names).toEqual([...names].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)))
-    expect(rows.length).toBe(6)
+    // **The order is the database's, so the expectation has to use the database's rules.**
+    // A raw `a < b` compares UTF-16 code units, which puts every capital before every lowercase
+    // letter — so it demands `Willow` before `temper. Duxton` where a linguistic collation
+    // answers the opposite. Both this project's dev container and CI's `postgres:16` initialise
+    // at `en_US.utf8`, which is ICU-like, and `Intl.Collator` is the same rule in JavaScript. A
+    // database created with `LC_COLLATE=C` would need the code-unit comparison back.
+    const collator = new Intl.Collator('en')
+    expect(names).toEqual([...names].sort((a, b) => collator.compare(a, b)))
+    // The ten premises the group trades from. It was six until 1.44.0 rewrote the seed, and this
+    // assertion was not moved with it.
+    expect(rows.length).toBe(10)
   })
 
   it('patches only the keys it is given, and clears on an explicit null', async () => {

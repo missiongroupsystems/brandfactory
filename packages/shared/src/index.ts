@@ -51,6 +51,9 @@ export * from './outlet/update'
 // many-to-many brand relation; see `influencer/influencer.ts` on why a creator is
 // not the address book's contact with extra columns.
 export * from './influencer/influencer'
+// `reach.ts` holds the four figures a creator's accounts add up to, and the
+// comparator that used to live beside the record. Both sides of the wire read it.
+export * from './influencer/reach'
 export * from './influencer/slug'
 export * from './influencer/create'
 export * from './influencer/update'

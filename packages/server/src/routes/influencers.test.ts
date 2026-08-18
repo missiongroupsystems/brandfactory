@@ -77,12 +77,19 @@ async function patch(
   })
 }
 
-const MINIMAL = {
-  name: 'Priya Nair',
-  handle: 'priyaskin',
-  platform: 'instagram',
-  followers: 124_000,
+/** One account, spread into whatever a case is actually about. */
+function account(overrides: Record<string, unknown> = {}) {
+  return {
+    platform: 'instagram',
+    handle: 'priyaskin',
+    followers: 124_000,
+    engagementRate: null,
+    url: null,
+    ...overrides,
+  }
 }
+
+const MINIMAL = { name: 'Priya Nair', accounts: [account()] }
 
 describe('influencer routes — access', () => {
   it('401s without a token, on every method', async () => {
@@ -127,7 +134,7 @@ describe('influencer routes — access', () => {
 })
 
 describe('influencer routes — create', () => {
-  it('creates from the four required keys, defaulting the rest', async () => {
+  it('creates from a name and one account, defaulting the rest', async () => {
     const { app, workspaceId } = await seedWorkspace()
     const creator = await createOk(app, workspaceId, MINIMAL)
 
@@ -136,32 +143,99 @@ describe('influencer routes — create', () => {
     expect(InfluencerSchema.safeParse(creator).success).toBe(true)
     // A shortlist, not a booking.
     expect(creator.status).toBe('prospect')
-    // From the handle, not the name — `priya-nair` would be the other choice.
-    expect(creator.slug).toBe('priyaskin')
-    expect(creator.engagementRate).toBeNull()
+    // From the name, not the handle — a person carries up to ten handles.
+    expect(creator.slug).toBe('priya-nair')
+    expect(creator.accounts).toHaveLength(1)
+    expect(creator.accounts[0]?.engagementRate).toBeNull()
+    expect(creator.accounts[0]?.url).toBeNull()
     expect(creator.vertical).toBeNull()
     // An array, never undefined: "not engaged yet" is a fact.
     expect(creator.brandIds).toEqual([])
   })
 
-  it('rejects a body with no follower count', async () => {
-    // A row with no reach would fall out of the tier grouping, which is the one
-    // thing a total grouping may not do.
+  it('creates a creator with three accounts and answers them in order', async () => {
+    // The case the whole change exists for: one person, three platforms, one row.
     const { app, workspaceId } = await seedWorkspace()
-    const { followers: _followers, ...rest } = MINIMAL
+    const creator = await createOk(app, workspaceId, {
+      name: 'Priya Raman',
+      accounts: [
+        account({ platform: 'instagram', followers: 840_000, engagementRate: 1.1 }),
+        account({ platform: 'tiktok', followers: 312_000, engagementRate: 4.2 }),
+        account({
+          platform: 'xiaohongshu',
+          handle: '普莉娅',
+          followers: 88_000,
+          url: 'https://www.xiaohongshu.com/user/profile/6123',
+        }),
+      ],
+    })
+
+    expect(InfluencerSchema.safeParse(creator).success).toBe(true)
+    expect(creator.accounts.map((a) => a.platform)).toEqual(['instagram', 'tiktok', 'xiaohongshu'])
+    // Position 0 is the account the creator is known by, so the order is a fact
+    // the response has to preserve.
+    expect(creator.accounts[0]?.handle).toBe('priyaskin')
+    expect(creator.accounts[2]?.url).toBe('https://www.xiaohongshu.com/user/profile/6123')
+  })
+
+  it('rejects a body with no accounts, and one with an empty list', async () => {
+    // A creator with no account has no reach, would fall out of every tier band,
+    // and the band counts would stop summing to the rows.
+    const { app, workspaceId } = await seedWorkspace()
+    const { accounts: _accounts, ...rest } = MINIMAL
     expect((await create(app, workspaceId, rest)).status).toBe(400)
+    expect((await create(app, workspaceId, { ...MINIMAL, accounts: [] })).status).toBe(400)
+  })
+
+  it('rejects a repeated platform-and-handle pair inside one body, and names it', async () => {
+    // Zod refuses it before the write, because a 409 about *another creator* is
+    // the wrong sentence for a body that repeats itself. The message names the
+    // pair and the issue carries the repeated row's own path.
+    const { app, workspaceId } = await seedWorkspace()
+    const res = await create(app, workspaceId, {
+      name: 'Doubled Up',
+      accounts: [account(), account()],
+    })
+    expect(res.status).toBe(400)
+    expect(JSON.stringify(await res.json())).toContain('@priyaskin on instagram')
+  })
+
+  it('accepts two accounts on one platform with different handles', async () => {
+    // Three Instagram accounts is a real creator, and the unique key permits it.
+    const { app, workspaceId } = await seedWorkspace()
+    const creator = await createOk(app, workspaceId, {
+      name: 'Two Grids',
+      accounts: [account(), account({ handle: 'priyaskin.archive' })],
+    })
+    expect(creator.accounts).toHaveLength(2)
+  })
+
+  it('rejects an eleventh account', async () => {
+    const { app, workspaceId } = await seedWorkspace()
+    const eleven = Array.from({ length: 11 }, (_, i) => account({ handle: `handle${i}` }))
+    expect((await create(app, workspaceId, { ...MINIMAL, accounts: eleven })).status).toBe(400)
   })
 
   it('rejects a handle carrying its own @', async () => {
     // Every surface adds the sigil. Two spellings of one handle would both pass
     // the unique key on `(workspace_id, platform, handle)`.
     const { app, workspaceId } = await seedWorkspace()
-    expect((await create(app, workspaceId, { ...MINIMAL, handle: '@priyaskin' })).status).toBe(400)
+    expect(
+      (
+        await create(app, workspaceId, {
+          ...MINIMAL,
+          accounts: [account({ handle: '@priyaskin' })],
+        })
+      ).status,
+    ).toBe(400)
   })
 
   it('rejects an engagement rate above 100', async () => {
     const { app, workspaceId } = await seedWorkspace()
-    expect((await create(app, workspaceId, { ...MINIMAL, engagementRate: 140 })).status).toBe(400)
+    expect(
+      (await create(app, workspaceId, { ...MINIMAL, accounts: [account({ engagementRate: 140 })] }))
+        .status,
+    ).toBe(400)
   })
 
   it('rejects a duplicated brand id rather than letting the join table refuse it', async () => {
@@ -173,7 +247,7 @@ describe('influencer routes — create', () => {
     ).toBe(400)
   })
 
-  it('409s on a creator already on the roster for that platform', async () => {
+  it('409s on an account already on another creator’s record, and names them', async () => {
     // The unique index is the only thing that can answer this, so before it was
     // mapped it reached the client as `500 Internal Server Error` — and
     // `useSubmit` puts that sentence straight on the form. This is the most
@@ -186,9 +260,11 @@ describe('influencer routes — create', () => {
     const body = (await res.json()) as { code: string; message: string }
     expect(body.code).toBe('INFLUENCER_HANDLE_TAKEN')
     // The message is read by a person looking at the box they just typed into,
-    // so it names the pair rather than the constraint.
+    // so it names the pair **and the creator who holds it** — "handle already
+    // used" leaves them guessing which record to open.
     expect(body.message).toContain('@priyaskin')
     expect(body.message).toContain('instagram')
+    expect(body.message).toContain('Priya Nair')
   })
 
   it('409s rather than writing a second row, so the roster is unchanged', async () => {
@@ -198,14 +274,17 @@ describe('influencer routes — create', () => {
     expect((await list(app, workspaceId)).length).toBe(1)
   })
 
-  it('derives a distinct slug for the same handle on a second platform', async () => {
-    // The known cost of slugging from the handle, and the reason the detail page
-    // names the platform in its first line.
+  it('suffixes the slug when two creators genuinely share a name', async () => {
+    // The `-2` used to be the cost of slugging from the handle — one person on
+    // two platforms. It is now the rarer case it should always have been.
     const { app, workspaceId } = await seedWorkspace()
     const first = await createOk(app, workspaceId, MINIMAL)
-    const second = await createOk(app, workspaceId, { ...MINIMAL, platform: 'tiktok' })
-    expect(first.slug).toBe('priyaskin')
-    expect(second.slug).toBe('priyaskin-2')
+    const second = await createOk(app, workspaceId, {
+      ...MINIMAL,
+      accounts: [account({ handle: 'theotherone' })],
+    })
+    expect(first.slug).toBe('priya-nair')
+    expect(second.slug).toBe('priya-nair-2')
   })
 
   it('accepts brands in the same workspace, and sorts them', async () => {
@@ -236,26 +315,44 @@ describe('influencer routes — create', () => {
 })
 
 describe('influencer routes — read', () => {
-  it('lists a workspace biggest reach first, with the name breaking a tie', async () => {
+  it('lists a workspace biggest total reach first, with the name breaking a tie', async () => {
     const { app, workspaceId } = await seedWorkspace()
-    await createOk(app, workspaceId, { ...MINIMAL, handle: 'small', followers: 900 })
-    await createOk(app, workspaceId, { ...MINIMAL, handle: 'huge', followers: 2_000_000 })
-    await createOk(app, workspaceId, { ...MINIMAL, handle: 'zoe', name: 'Zoe', followers: 10_000 })
-    await createOk(app, workspaceId, {
-      ...MINIMAL,
-      handle: 'adam',
-      name: 'Adam',
-      followers: 10_000,
+    const row = (name: string, handle: string, followers: number) => ({
+      name,
+      accounts: [account({ handle, followers })],
     })
+    await createOk(app, workspaceId, row('Small', 'small', 900))
+    await createOk(app, workspaceId, row('Huge', 'huge', 2_000_000))
+    await createOk(app, workspaceId, row('Zoe', 'zoe', 10_000))
+    await createOk(app, workspaceId, row('Adam', 'adam', 10_000))
 
     // Reach descending, the opposite of every other list here: the order a budget
     // conversation happens in.
-    expect((await list(app, workspaceId)).map((i) => i.handle)).toEqual([
-      'huge',
-      'adam',
-      'zoe',
-      'small',
+    expect((await list(app, workspaceId)).map((i) => i.name)).toEqual([
+      'Huge',
+      'Adam',
+      'Zoe',
+      'Small',
     ])
+  })
+
+  it('orders a multi-account creator by their total, not their largest account', async () => {
+    // The defect this change exists to fix: 60k + 50k + 30k is a bigger creator
+    // than one account of 100k, and the sort is over the summed figure now.
+    const { app, workspaceId } = await seedWorkspace()
+    await createOk(app, workspaceId, {
+      name: 'Single',
+      accounts: [account({ handle: 'single', followers: 100_000 })],
+    })
+    await createOk(app, workspaceId, {
+      name: 'Multi',
+      accounts: [
+        account({ platform: 'instagram', handle: 'multi', followers: 60_000 }),
+        account({ platform: 'tiktok', handle: 'multi', followers: 50_000 }),
+        account({ platform: 'xiaohongshu', handle: 'multi', followers: 30_000 }),
+      ],
+    })
+    expect((await list(app, workspaceId)).map((i) => i.name)).toEqual(['Multi', 'Single'])
   })
 
   it('resolves by slug and by id', async () => {
@@ -284,7 +381,7 @@ describe('influencer routes — patch', () => {
     const { app, workspaceId } = await seedWorkspace()
     const creator = await createOk(app, workspaceId, {
       ...MINIMAL,
-      engagementRate: 3.8,
+      accounts: [account({ engagementRate: 3.8 })],
       notes: 'Two-post minimum.',
     })
 
@@ -292,17 +389,46 @@ describe('influencer routes — patch', () => {
     expect(res.status).toBe(200)
     const updated = (await res.json()) as Influencer
     expect(updated.status).toBe('active')
-    expect(updated.engagementRate).toBe(3.8)
+    // An omitted `accounts` leaves the whole list alone, which is what makes a
+    // patch of one unrelated key safe.
+    expect(updated.accounts).toHaveLength(1)
+    expect(updated.accounts[0]?.engagementRate).toBe(3.8)
     expect(updated.notes).toBe('Two-post minimum.')
   })
 
-  it('clears a measured field on an explicit null', async () => {
+  it('clears a nullable field on an explicit null', async () => {
     const { app, workspaceId } = await seedWorkspace()
-    const creator = await createOk(app, workspaceId, { ...MINIMAL, engagementRate: 3.8 })
+    const creator = await createOk(app, workspaceId, { ...MINIMAL, vertical: 'beauty' })
     const updated = (await (
-      await patch(app, workspaceId, creator.id, { engagementRate: null })
+      await patch(app, workspaceId, creator.id, { vertical: null })
     ).json()) as Influencer
-    expect(updated.engagementRate).toBeNull()
+    expect(updated.vertical).toBeNull()
+  })
+
+  it('replaces the whole account list, dropping the rows left out', async () => {
+    const { app, workspaceId } = await seedWorkspace()
+    const creator = await createOk(app, workspaceId, {
+      name: 'Shrinking Roster',
+      accounts: [
+        account({ platform: 'instagram', handle: 'shrinking' }),
+        account({ platform: 'tiktok', handle: 'shrinking' }),
+      ],
+    })
+
+    const updated = (await (
+      await patch(app, workspaceId, creator.id, {
+        accounts: [account({ platform: 'tiktok', handle: 'shrinking', followers: 99_000 })],
+      })
+    ).json()) as Influencer
+    expect(updated.accounts).toHaveLength(1)
+    expect(updated.accounts[0]?.platform).toBe('tiktok')
+  })
+
+  it('refuses a patch that empties the account list', async () => {
+    // The patch that removes every account is a delete of the creator.
+    const { app, workspaceId } = await seedWorkspace()
+    const creator = await createOk(app, workspaceId, MINIMAL)
+    expect((await patch(app, workspaceId, creator.id, { accounts: [] })).status).toBe(400)
   })
 
   it('rejects an empty patch rather than performing a no-op write', async () => {
@@ -311,19 +437,16 @@ describe('influencer routes — patch', () => {
     expect((await patch(app, workspaceId, creator.id, {})).status).toBe(400)
   })
 
-  it('will not move the slug, however the handle changes', async () => {
+  it('will not move the slug, however the name changes', async () => {
     const { app, workspaceId } = await seedWorkspace()
     const creator = await createOk(app, workspaceId, MINIMAL)
     const updated = (await (
-      await patch(app, workspaceId, creator.id, {
-        handle: 'priyaskincare',
-        slug: 'priyaskincare',
-      })
+      await patch(app, workspaceId, creator.id, { name: 'Priya Raman', slug: 'priya-raman' })
     ).json()) as Influencer
     // A link written before the correction still resolves — the only reason to
     // carry a slug rather than routing on the id.
-    expect(updated.handle).toBe('priyaskincare')
-    expect(updated.slug).toBe('priyaskin')
+    expect(updated.name).toBe('Priya Raman')
+    expect(updated.slug).toBe('priya-nair')
   })
 
   it('replaces brandIds wholesale, and an empty array is a write', async () => {
@@ -346,48 +469,55 @@ describe('influencer routes — patch', () => {
     const { app, workspaceId, brandA } = await seedWorkspace()
     const creator = await createOk(app, workspaceId, { ...MINIMAL, brandIds: [brandA] })
     const updated = (await (
-      await patch(app, workspaceId, creator.id, { followers: 130_000 })
+      await patch(app, workspaceId, creator.id, { notes: 'Called them' })
     ).json()) as Influencer
     expect(updated.brandIds).toEqual([brandA])
   })
 
-  it('409s when a corrected handle lands on somebody already there', async () => {
+  it('409s when a corrected account lands on somebody already there', async () => {
     // Correcting a typo into another creator's handle is the same mistake as
     // entering them twice, and it is owed the same answer rather than a 500.
     const { app, workspaceId } = await seedWorkspace()
     await createOk(app, workspaceId, MINIMAL)
-    const second = await createOk(app, workspaceId, { ...MINIMAL, handle: 'someoneelse' })
+    const second = await createOk(app, workspaceId, {
+      name: 'Someone Else',
+      accounts: [account({ handle: 'someoneelse' })],
+    })
 
-    const res = await patch(app, workspaceId, second.id, { handle: 'priyaskin' })
+    const res = await patch(app, workspaceId, second.id, { accounts: [account()] })
     expect(res.status).toBe(409)
-    expect(((await res.json()) as { code: string }).code).toBe('INFLUENCER_HANDLE_TAKEN')
+    const body = (await res.json()) as { code: string; message: string }
+    expect(body.code).toBe('INFLUENCER_HANDLE_TAKEN')
+    expect(body.message).toContain('Priya Nair')
   })
 
   it('409s when only the platform moves onto an occupied pair', async () => {
-    // The key is the *pair*, so a patch can collide by moving either half. The
-    // error names the resulting pair, which means reading the half the patch
-    // left alone.
+    // The key is the *pair*, so a submitted account can collide by differing in
+    // either half from the one it replaces.
     const { app, workspaceId } = await seedWorkspace()
-    await createOk(app, workspaceId, { ...MINIMAL, platform: 'tiktok' })
+    await createOk(app, workspaceId, {
+      name: 'Sitting Tenant',
+      accounts: [account({ platform: 'tiktok' })],
+    })
     const insta = await createOk(app, workspaceId, MINIMAL)
 
-    const res = await patch(app, workspaceId, insta.id, { platform: 'tiktok' })
+    const res = await patch(app, workspaceId, insta.id, {
+      accounts: [account({ platform: 'tiktok' })],
+    })
     expect(res.status).toBe(409)
     expect(((await res.json()) as { message: string }).message).toContain('tiktok')
   })
 
-  it('lets a creator keep their own handle through an unrelated patch', async () => {
+  it('lets a creator resubmit their own accounts unchanged', async () => {
     // The row excludes itself from the check, or every edit that re-sent the
     // form's own values would refuse itself.
     const { app, workspaceId } = await seedWorkspace()
     const creator = await createOk(app, workspaceId, MINIMAL)
     const res = await patch(app, workspaceId, creator.id, {
-      handle: 'priyaskin',
-      platform: 'instagram',
-      followers: 130_000,
+      accounts: [account({ followers: 130_000 })],
     })
     expect(res.status).toBe(200)
-    expect(((await res.json()) as Influencer).followers).toBe(130_000)
+    expect(((await res.json()) as Influencer).accounts[0]?.followers).toBe(130_000)
   })
 
   it('404s on a creator that does not exist', async () => {
@@ -406,7 +536,7 @@ describe('influencer routes — patch', () => {
     const { app, workspaceId } = await seedWorkspace()
     await createOk(app, workspaceId, MINIMAL)
     const absent = '00000000-0000-4000-8000-0000000000ff'
-    expect((await patch(app, workspaceId, absent, { handle: 'priyaskin' })).status).toBe(404)
+    expect((await patch(app, workspaceId, absent, { accounts: [account()] })).status).toBe(404)
   })
 })
 
@@ -418,11 +548,12 @@ describe('influencer routes — delete', () => {
 
     const first = await app.request(path, { method: 'DELETE', headers: auth() })
     expect(first.status).toBe(200)
-    // The deleted row comes back, brand links and all — the last copy anything
-    // will see.
+    // The deleted row comes back, brand links and accounts and all — the last
+    // copy anything will see.
     const gone = (await first.json()) as Influencer
     expect(gone.id).toBe(creator.id)
     expect(gone.brandIds).toEqual([brandA])
+    expect(gone.accounts).toHaveLength(1)
 
     const second = await app.request(path, { method: 'DELETE', headers: auth() })
     expect(second.status).toBe(404)

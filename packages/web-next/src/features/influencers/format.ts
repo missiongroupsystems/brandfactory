@@ -13,6 +13,17 @@
  * percent quoted to one decimal because the column behind it is `numeric(5,2)`, an
  * exact follower count that exists only because the table shows a compact one, and
  * an empty input that has to stay apart from a measured zero.
+ *
+ * **The arithmetic is not here.** `totalReach` and `blendedEngagement` live in
+ * `@brandfactory/shared` because the server sorts by reach and needs the same
+ * definition; this file only decides how the answers are spelled. `formatEngagement`
+ * takes the blended figure exactly as it took the stored one.
+ *
+ * **There is no `formatHandle`.** Both surfaces draw the `@` as a separate element
+ * beside the handle — the column never carries one, because `InfluencerHandleSchema`
+ * rejects a leading sigil rather than stripping it — and the table wraps the handle
+ * in `HighlightMatch`. A function returning `"@priyaskin"` would either put the sigil
+ * inside the highlighted span or force the caller to take it back apart.
  */
 
 /**
@@ -29,6 +40,21 @@
  */
 export function formatEngagement(rate: number | null): string | null {
   return rate === null ? null : `${rate.toFixed(1)}%`;
+}
+
+/**
+ * How many accounts a creator's reach is the sum of — `1 account`, `3 accounts`.
+ *
+ * It sits under the total in the table's Reach column, and it is the only thing on that screen
+ * that says the figure is a **sum**. Without it, a creator on 140k reads as one account of 140k,
+ * which is the misreading `influencer_accounts` exists to remove: the three-platform creator was
+ * being filed into Micro three times before that table landed.
+ *
+ * The plural is spelled out rather than parenthesised — `3 account(s)` is a form field's habit,
+ * not a sentence somebody reads down a column.
+ */
+export function formatAccountCount(count: number): string {
+  return count === 1 ? "1 account" : `${count} accounts`;
 }
 
 const EXACT = new Intl.NumberFormat("en-SG");
