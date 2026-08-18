@@ -40,6 +40,7 @@ import { createCanvasRouter } from './routes/canvas'
 import { createHealthRouter } from './routes/health'
 import { createMeRouter } from './routes/me'
 import { createMessagesRouter } from './routes/messages'
+import { createWorkspaceInfluencersRouter } from './routes/influencers'
 import { createWorkspaceOutletsRouter } from './routes/outlets'
 import {
   createBrandProjectsRouter,
@@ -133,6 +134,9 @@ export function createApp(deps: AppDeps) {
     // rather than under `/brands` — and no `storage`, because an outlet holds
     // no blob keys and its delete has nothing to sweep.
     .route('/workspaces', createWorkspaceOutletsRouter({ db: deps.db }))
+    // Influencers mount beside outlets for the same reasons: workspace-scoped,
+    // reachable by slug, and holding no blob keys — so no `storage` either.
+    .route('/workspaces', createWorkspaceInfluencersRouter({ db: deps.db }))
     .route(
       '/brands',
       createBrandsRouter({

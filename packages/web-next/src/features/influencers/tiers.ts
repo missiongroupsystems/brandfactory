@@ -11,8 +11,9 @@ import { GROUP_RAILS, type GroupRail } from "@/components/layout/group-rail";
  *
  * A tier is computed from a number the row already carries, so **none of that exists here.**
  * There is no index to resolve, no request to be in flight, and no null bucket — `followers`
- * is not nullable (see {@link import("@/lib/api/types").Influencer}), so the grouping is
- * *total*: every loaded row lands in exactly one tier and the bands always sum to the rows.
+ * is not nullable (`InfluencerFollowersSchema` in `@brandfactory/shared`, and the column behind
+ * it), so the grouping is *total*: every loaded row lands in exactly one tier and the bands
+ * always sum to the rows.
  * That is the property that lets the group headers carry counts honestly.
  *
  * **The boundaries are conventional, not invented.** Nano / micro / mid / macro / mega at

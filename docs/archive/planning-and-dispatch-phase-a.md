@@ -4,9 +4,9 @@
 passed | 75 skipped before this phase; the skips are the live-Postgres suites).
 
 Executes Phase A of
-[`docs/executing/planning-and-dispatch-implementation-plan.md`](../executing/planning-and-dispatch-implementation-plan.md),
+[`docs/archive/planning-and-dispatch-implementation-plan.md`](planning-and-dispatch-implementation-plan.md),
 which builds
-[`docs/plans/planning-and-dispatch-on-the-social-calendar.md`](../plans/planning-and-dispatch-on-the-social-calendar.md).
+[`docs/archive/planning-and-dispatch-on-the-social-calendar.md`](planning-and-dispatch-on-the-social-calendar.md).
 The *why* is argued there and is not restated. This file records what was
 written, where, and the four judgments that were made while writing it.
 

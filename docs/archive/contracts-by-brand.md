@@ -1,6 +1,6 @@
 # Contracts by brand
 
-**Companion to [`../executing/contracts-by-brand-plan.md`](../executing/contracts-by-brand-plan.md).**
+**Companion to [`../archive/contracts-by-brand-plan.md`](../archive/contracts-by-brand-plan.md).**
 That file is the argument and the four decisions; this is what was built.
 
 A contract stops being an agreement about premises and becomes an agreement about a brand.

@@ -14,6 +14,8 @@ import type {
   Canvas,
   CanvasBlock,
   CanvasBlockId,
+  Influencer,
+  InfluencerId,
   Outlet,
   OutletId,
   Project,
@@ -28,10 +30,21 @@ import type {
   WorkspaceId,
   WorkspaceSettings,
 } from '@brandfactory/shared'
-import { brandTldrLine, bySchedule, byOutletName, uniqueOutletSlug } from '@brandfactory/shared'
+import {
+  brandTldrLine,
+  bySchedule,
+  byInfluencerReach,
+  byOutletName,
+  uniqueInfluencerSlug,
+  uniqueOutletSlug,
+} from '@brandfactory/shared'
 import { createAgentConcurrencyGuard, type AgentConcurrencyGuard } from './agent/concurrency'
 import { createApp, type AppDeps } from './app'
-import { AssetNotInBrandError, BrandNotInWorkspaceError } from '@brandfactory/db'
+import {
+  AssetNotInBrandError,
+  BrandNotInWorkspaceError,
+  InfluencerHandleTakenError,
+} from '@brandfactory/db'
 import type { ResearchJob, SectionAutofillEvent } from '@brandfactory/db'
 import type { Db } from './db'
 import type { ShapeResearchFn, ShapeSectionFn } from './research/shape'
@@ -114,6 +127,7 @@ export interface FakeDbState {
   failNextSectionAutofillRecord?: boolean
   socialPosts: Map<string, SocialPost>
   outlets: Map<string, Outlet>
+  influencers: Map<string, Influencer>
   projects: Map<string, Project>
   canvases: Map<string, Canvas>
   settings: Map<string, WorkspaceSettings>
@@ -133,6 +147,7 @@ export function createFakeDbState(): FakeDbState {
     sectionAutofillEvents: [],
     socialPosts: new Map(),
     outlets: new Map(),
+    influencers: new Map(),
     projects: new Map(),
     canvases: new Map(),
     settings: new Map(),
@@ -174,6 +189,48 @@ function assertFakeBrandInWorkspace(
   if (!brandId) return
   const brand = state.brands.get(brandId)
   if (!brand || brand.workspaceId !== workspaceId) throw new BrandNotInWorkspaceError(brandId)
+}
+
+// The array-taking sibling, mirroring `assertBrandsInWorkspace` in
+// `queries/influencers.ts` — **including the fact that it reports the first miss
+// only.** A fake that named every miss would let a route test pass against an
+// error shape the real query never produces.
+function assertFakeBrandsInWorkspace(
+  state: FakeDbState,
+  workspaceId: WorkspaceId,
+  brandIds: BrandId[],
+): void {
+  for (const brandId of brandIds) assertFakeBrandInWorkspace(state, workspaceId, brandId)
+}
+
+/**
+ * `influencers_workspace_platform_handle_key` in the fake.
+ *
+ * The real refusal is a unique index, so it is the one rule on this aggregate a
+ * fake cannot inherit by mirroring a query — it has to be restated. Without it,
+ * every route test about the 409 would pass against the 500 the mapping exists
+ * to replace.
+ *
+ * `exceptId` is the row being patched. A creator re-sending their own handle is
+ * not clashing with themselves.
+ */
+function assertFakeHandleFree(
+  state: FakeDbState,
+  workspaceId: WorkspaceId,
+  platform: string,
+  handle: string,
+  exceptId?: string,
+): void {
+  for (const influencer of state.influencers.values()) {
+    if (influencer.id === exceptId) continue
+    if (
+      influencer.workspaceId === workspaceId &&
+      influencer.platform === platform &&
+      influencer.handle === handle
+    ) {
+      throw new InfluencerHandleTakenError(handle, platform)
+    }
+  }
 }
 
 const NOW = '2026-04-19T00:00:00.000Z'
@@ -244,6 +301,12 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       // is on its way out anyway.
       for (const [oid, outlet] of [...state.outlets.entries()]) {
         if (outlet.workspaceId === id) state.outlets.delete(oid)
+      }
+      // `influencers.workspace_id` is ON DELETE CASCADE too, and the link rows
+      // go with each creator by their own cascade — which is why nothing here
+      // has to touch `brandIds`.
+      for (const [iid, influencer] of [...state.influencers.entries()]) {
+        if (influencer.workspaceId === id) state.influencers.delete(iid)
       }
       for (const brand of [...state.brands.values()]) {
         // Cascade through the same helper so brands → projects → canvases →
@@ -337,6 +400,18 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       // agree with a schema this repo deliberately does not have.
       for (const [oid, outlet] of state.outlets) {
         if (outlet.brandId === id) state.outlets.set(oid, { ...outlet, brandId: null })
+      }
+      // `influencer_brands` cascades on **both** sides, so a deleted brand takes
+      // the link and leaves the creator — the many-to-many equivalent of the SET
+      // NULL above. Deleting the creator here would state that a person stops
+      // existing when a brand does.
+      for (const [iid, influencer] of state.influencers) {
+        if (influencer.brandIds.includes(id)) {
+          state.influencers.set(iid, {
+            ...influencer,
+            brandIds: influencer.brandIds.filter((bid) => bid !== id),
+          })
+        }
       }
       for (const [pid, project] of [...state.projects.entries()]) {
         if (project.brandId === id) {
@@ -703,6 +778,110 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       // the route 404 rather than report success twice.
       if (!existing || existing.workspaceId !== workspaceId) return null
       state.outlets.delete(id)
+      return existing
+    },
+
+    // Influencers. The outlets rule again, plus one property those fakes do not
+    // have: **`brandIds` comes back sorted, from every read and every write.**
+    // The real query sorts because two reads of a row must be byte-identical,
+    // and a fake that echoed the request order would let a route test pass
+    // against a response the server never sends.
+    async listInfluencersByWorkspace(workspaceId) {
+      return [...state.influencers.values()]
+        .filter((i) => i.workspaceId === workspaceId)
+        .sort(byInfluencerReach)
+    },
+    async getInfluencerByRef(workspaceId, ref) {
+      return (
+        [...state.influencers.values()].find(
+          (i) => i.workspaceId === workspaceId && (i.slug === ref || i.id === ref),
+        ) ?? null
+      )
+    },
+    async createInfluencer(workspaceId, input) {
+      const brandIds = input.brandIds ?? []
+      assertFakeBrandsInWorkspace(state, workspaceId, brandIds)
+      // `influencers_workspace_platform_handle_key`, enforced here because the
+      // real one is an index and a fake has none. **This is the fake's job, not
+      // an extra:** without it a route test asserting the 409 would pass against
+      // a server that answers 500, which is the exact defect the mapping fixes.
+      assertFakeHandleFree(state, workspaceId, input.platform, input.handle)
+      const id = nextId('influencer') as InfluencerId
+      const taken = [...state.influencers.values()]
+        .filter((i) => i.workspaceId === workspaceId)
+        .map((i) => i.slug)
+      const row: Influencer = {
+        id,
+        workspaceId,
+        // From the handle, not the name — see `InfluencerSlugSchema`.
+        slug: uniqueInfluencerSlug(input.handle, taken),
+        name: input.name,
+        handle: input.handle,
+        platform: input.platform,
+        followers: input.followers,
+        engagementRate: input.engagementRate ?? null,
+        vertical: input.vertical ?? null,
+        brandIds: [...brandIds].sort((a, b) => a.localeCompare(b)),
+        // No `??`: the schema's `.default('prospect')` has already run, so the
+        // fake and the real query agree the key is present by this point.
+        status: input.status,
+        notes: input.notes ?? null,
+        createdAt: NOW,
+        updatedAt: NOW,
+      }
+      state.influencers.set(id, row)
+      return row
+    },
+    async updateInfluencer(workspaceId, id, patch) {
+      // The brand gate runs before the row lookup, as the real query runs it
+      // before the update — a bad brandId rejects the whole patch even when the
+      // creator itself would miss.
+      if (patch.brandIds !== undefined) {
+        assertFakeBrandsInWorkspace(state, workspaceId, patch.brandIds)
+      }
+      const existing = state.influencers.get(id)
+      if (!existing || existing.workspaceId !== workspaceId) return null
+      // The same unique key on the way through a patch, and **after** the row
+      // lookup rather than before it: a patch aimed at a creator that does not
+      // exist is a 404 about the path, not a 409 about a handle. The row itself
+      // is excluded, so re-sending a creator's own handle is not a clash.
+      if (patch.handle !== undefined || patch.platform !== undefined) {
+        assertFakeHandleFree(
+          state,
+          workspaceId,
+          patch.platform ?? existing.platform,
+          patch.handle ?? existing.handle,
+          id,
+        )
+      }
+      // `undefined` leaves a key alone, `null` clears it; `brandIds` is a full
+      // replacement. `slug` is not a patch key — the URL survives a corrected
+      // handle.
+      const updated: Influencer = {
+        ...existing,
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.handle !== undefined ? { handle: patch.handle } : {}),
+        ...(patch.platform !== undefined ? { platform: patch.platform } : {}),
+        ...(patch.followers !== undefined ? { followers: patch.followers } : {}),
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        ...(patch.engagementRate !== undefined ? { engagementRate: patch.engagementRate } : {}),
+        ...(patch.vertical !== undefined ? { vertical: patch.vertical } : {}),
+        ...(patch.brandIds !== undefined
+          ? { brandIds: [...patch.brandIds].sort((a, b) => a.localeCompare(b)) }
+          : {}),
+        ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+        updatedAt: NOW,
+      }
+      state.influencers.set(id, updated)
+      return updated
+    },
+    async deleteInfluencer(workspaceId, id) {
+      const existing = state.influencers.get(id)
+      if (!existing || existing.workspaceId !== workspaceId) return null
+      state.influencers.delete(id)
+      // The row that went, brand ids and all — the real query reads them before
+      // the cascade removes the link rows, because the route hands this back as
+      // the last copy anything will see.
       return existing
     },
 

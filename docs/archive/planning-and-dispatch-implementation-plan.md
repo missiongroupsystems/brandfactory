@@ -1,6 +1,6 @@
 # Planning and dispatch — implementation plan
 
-**Companion to [`../plans/planning-and-dispatch-on-the-social-calendar.md`](../plans/planning-and-dispatch-on-the-social-calendar.md),
+**Companion to [`planning-and-dispatch-on-the-social-calendar.md`](planning-and-dispatch-on-the-social-calendar.md),
 which is the argument.** This file is the work: seven phases, each independently
 shippable, each landing its own note in `docs/completions/`.
 
@@ -83,7 +83,7 @@ entry quotes.
 # Phase A — The honest dialog
 
 **Done, 2026-08-10 — 1713 passed | 75 skipped (+25).** Note:
-[`docs/completions/planning-and-dispatch-phase-a.md`](../completions/planning-and-dispatch-phase-a.md).
+[`docs/archive/planning-and-dispatch-phase-a.md`](planning-and-dispatch-phase-a.md).
 One trap is still open: the 800px dialog-height check was not run in a browser.
 
 **Goal:** the `New post` dialog states which brand it writes for, how much brand
@@ -184,7 +184,7 @@ sections, and the key dates on the day, without leaving the dialog.
 # Phase B — Dispatch
 
 **Done, 2026-08-10 — 1745 passed | 75 skipped (+32).** Note:
-[`docs/completions/planning-and-dispatch-phase-b.md`](../completions/planning-and-dispatch-phase-b.md).
+[`docs/archive/planning-and-dispatch-phase-b.md`](planning-and-dispatch-phase-b.md).
 Still open, with Phase A: nothing has been run in a real browser.
 
 **Goal:** a planned post can be handed off without typing — copy the copy,
@@ -267,7 +267,7 @@ can go from opening the app to *Mark posted* without typing.
 # Phase C — The month's arithmetic
 
 **Done, 2026-08-10 — 1777 passed | 75 skipped (+32).** Note:
-[`docs/completions/planning-and-dispatch-phase-c.md`](../completions/planning-and-dispatch-phase-c.md).
+[`docs/archive/planning-and-dispatch-phase-c.md`](planning-and-dispatch-phase-c.md).
 One deviation: the sentence renders inside `CalendarMonthGrid` through a
 `summary` slot rather than in `SocialCalendarView` directly — see the note §6.
 Still open, with Phases A and B: nothing has been run in a real browser.
@@ -345,7 +345,7 @@ plannerBatchSize(weeks, perWeek): { slots: number; count: number }
 
 **Done, 2026-08-10 — 1787 passed | 78 skipped (+13, three of them live-DB).**
 Note:
-[`docs/completions/planning-and-dispatch-phase-d.md`](../completions/planning-and-dispatch-phase-d.md).
+[`docs/archive/planning-and-dispatch-phase-d.md`](planning-and-dispatch-phase-d.md).
 **Migration 0012** generated, read, applied and inspected in `psql`. Still open,
 with Phases A, B and C: nothing has been run in a real browser.
 
@@ -422,7 +422,7 @@ states **Migration 0012**.
 # Phase E — The engine
 
 **Done, 2026-08-10 — 1853 passed | 78 skipped (+66).** Note:
-[`docs/completions/planning-and-dispatch-phase-e.md`](../completions/planning-and-dispatch-phase-e.md).
+[`docs/archive/planning-and-dispatch-phase-e.md`](planning-and-dispatch-phase-e.md).
 One deviation: `buildSystemPrompt` gains a `surfaceContract` option, and the
 planner withholds part 4 rather than inheriting the canvas contract — see the
 note §2. **Not done: the route has not been run against a real model.** Phase F
@@ -591,7 +591,7 @@ real model in development, and nothing in `packages/web` calls it yet.
 # Phase F — The Post Planner
 
 **Done, 2026-08-10 — 1914 passed | 78 skipped (+61).** Note:
-[`docs/completions/planning-and-dispatch-phase-f.md`](../completions/planning-and-dispatch-phase-f.md).
+[`docs/archive/planning-and-dispatch-phase-f.md`](planning-and-dispatch-phase-f.md).
 Five deviations, each argued in the note §7: a new `content-pillars.ts` in
 `shared`, a `usePostPlanner` hook holding the page's own state, the request
 builders in `social-plan.ts`, two newly named bounds in E's schema file, and a
@@ -699,7 +699,7 @@ the grid fill — with every written row marked `agent` and `draft`.
 # Phase G — Brainstorm inside `New post`
 
 **Done, 2026-08-10 — 1967 passed | 78 skipped (+53).** Note:
-[`docs/completions/planning-and-dispatch-phase-g.md`](../completions/planning-and-dispatch-phase-g.md).
+[`docs/archive/planning-and-dispatch-phase-g.md`](planning-and-dispatch-phase-g.md).
 Five deviations, each argued in the note §7: a new `PostBrainstormPanel.tsx`, a
 new `usePostBrainstorm.ts`, the request builder in `social-plan.ts`, its own pair
 of mutations, and a below-`sm` stack that puts the form first. **One trap the

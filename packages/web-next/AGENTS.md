@@ -162,15 +162,21 @@ something is.
   `createdBy` rides back on every row: synthesising `'user'` is the bug the *server* fixed in
   Stage 1B, and a client can reintroduce it from this side.
 
-- **`GET /workspaces/:id/outlets` returns the whole set, and that is what makes the outlets
-  screen's numbers true.** It has no cursor and no filters — the client narrows an array it holds
-  completely, so `4 outlets` is a total rather than "four so far", and a brand's group holds all of
-  that brand's outlets rather than the ones that landed on page one. That is the *only* place in
-  this app where a footer may state a total; every Ops list still must not, because their API
-  returns `next_cursor` and no count. Do not reach for `useCursorPages` or `listEvery` here —
-  both would wait on a `next_cursor` that never arrives. And when the estate outgrows one
-  response, the cursor and the SQL filters land **together**: a paginated list with client-side
-  filters is the "Zephyr alone on page one" failure this file bans for sorting.
+- **`GET /workspaces/:id/outlets` and `GET /workspaces/:id/influencers` return the whole set, and
+  that is what makes those two screens' numbers true.** Neither has a cursor or a filter — the
+  client narrows an array it holds completely, so `4 outlets` is a total rather than "four so far",
+  a brand's group holds all of that brand's outlets rather than the ones that landed on page one,
+  and a reach band that says `9` holds nine. Those are the *only* two places in this app where a
+  footer or a group header may state a total; every Ops list still must not, because their API
+  returns `next_cursor` and no count. Do not reach for `useCursorPages` or `listEvery` on either —
+  both would wait on a `next_cursor` that never arrives. And when a roster outgrows one response,
+  the cursor and the SQL filters land **together**: a paginated list with client-side filters is
+  the "Zephyr alone on page one" failure this file bans for sorting.
+
+  Influencers is the sharper case, because it carries **counts on its group headers**. It shipped
+  paginated against a fixture and printed a note above the table — *"Showing the first N creators —
+  bands below may be incomplete"* — precisely so the counts were not read as claims. The note is
+  gone with the pagination; if anything ever puts a cursor back here, the note comes back with it.
 
 - **A guideline body is one document that two apps write.** `packages/web`'s TipTap editor and
   this app's `SectionEditorSheet` store into the same column, so `src/editor/extensions.ts` is a
@@ -249,6 +255,16 @@ src/
       schema.d.ts        GENERATED — never edit
       types.ts           named aliases over schema.d.ts
 ```
+
+**`features/influencers/` is BrandFactory's creator. `features/contacts/` is the Operations Hub's
+address book**, and they are two nouns rather than one under two names. The creator is
+workspace-scoped with a many-to-many brand relation, camelCase, `@brandfactory/shared`'s
+`Influencer`, and reads the Hono server; the contact is `ContactRead`, snake_case, filed under a
+`vendor_id`, and answered — or rather *not* answered, see `mock.ts` — from the frozen Ops schema.
+`useContactMutations` is still live on the tenancy intake sheet and the review queue, both creating
+a person against a vendor, which is correct for a landlord's site manager and was only ever wrong
+for a creator. The cache scopes are prefixed on the new side (`bf-influencers` / `bf-influencer`)
+for the same reason the outlet pair is.
 
 **`features/outlets/` is BrandFactory's outlet. `features/registry/` holds the Operations
 Hub's** — the same split, made a second time and for the same reason. The real one is

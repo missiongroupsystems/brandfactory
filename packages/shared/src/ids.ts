@@ -38,5 +38,8 @@ export type SocialPostId = z.infer<typeof SocialPostIdSchema>
 export const OutletIdSchema = brandedId('OutletId')
 export type OutletId = z.infer<typeof OutletIdSchema>
 
+export const InfluencerIdSchema = brandedId('InfluencerId')
+export type InfluencerId = z.infer<typeof InfluencerIdSchema>
+
 export const UserIdSchema = brandedId('UserId')
 export type UserId = z.infer<typeof UserIdSchema>

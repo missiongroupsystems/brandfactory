@@ -138,10 +138,6 @@ export const SCOPES = {
   // because those writes still have to invalidate the vendor lists that embed the rows.
   contacts: "contacts",
   contact: "contact",
-  // BrandFactory's creators. Its own scope and not `contacts` above, which is the same call
-  // `bfOutlets` makes against the Ops `outlets`: two families of rows, live at once, and a
-  // shared string would have each area refetching the other's lists forever.
-  influencers: "influencers",
   contracts: "contracts",
   contract: "contract",
   tenancies: "tenancies",
@@ -191,6 +187,19 @@ export const SCOPES = {
   // with its quotes on, so `"outlets"` cannot match inside `"bf-outlets"`.
   bfOutlets: "bf-outlets",
   bfOutlet: "bf-outlet",
+  // BrandFactory's creators, keyed `[bf-influencers, workspaceId]` and
+  // `[bf-influencer, workspaceId, ref]`.
+  //
+  // **Prefixed for the same reason the outlet pair above is, and the plain
+  // `influencers` that used to stand beside `contacts` is gone with the fixture
+  // it keyed.** That scope was the Ops family's by position and BrandFactory's by
+  // intent, which was tolerable while nothing was stored and is not now that a
+  // write has to invalidate something real. The Ops `contacts` / `contact` scopes
+  // stay — `useContactMutations` is still live on the tenancy sheet and the review
+  // queue — so both families of people exist at once, and only one of them is
+  // ours.
+  bfInfluencers: "bf-influencers",
+  bfInfluencer: "bf-influencer",
   // A brand's latest research run (`GET /brands/:id/research`). Separate from the brand because
   // it is a separate aggregate on the server and is allowed to arrive late; no brand write
   // touches it.

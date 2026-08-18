@@ -1,6 +1,6 @@
 # Brand Profile — integration plan
 
-`docs/completions/brand-profile-next.md` §10 lists four steps and this plan executes them, plus
+`docs/archive/brand-profile-next.md` §10 lists four steps and this plan executes them, plus
 two the user asked for on top: the page moves into the sidebar's **Registry** section, and the
 profile becomes **editable** rather than read-only.
 

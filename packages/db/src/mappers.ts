@@ -14,6 +14,8 @@ import {
   type CanvasBlock,
   type CanvasBlockId,
   type CanvasId,
+  type Influencer,
+  type InfluencerId,
   type Outlet,
   type OutletId,
   type ProjectId,
@@ -33,6 +35,7 @@ import type {
   canvasBlocks,
   canvases,
   guidelineSections,
+  influencers,
   outlets,
   projects,
   socialPosts,
@@ -49,6 +52,7 @@ type CanvasBlockRow = typeof canvasBlocks.$inferSelect
 type AgentMessageRow = typeof agentMessages.$inferSelect
 type SocialPostRow = typeof socialPosts.$inferSelect
 type OutletRow = typeof outlets.$inferSelect
+type InfluencerRow = typeof influencers.$inferSelect
 
 // Parse JSON columns at the trust boundary on read. Writes are gated by
 // zod at route boundaries, but a corrupted row (bad migration, direct DB
@@ -248,6 +252,42 @@ export function rowToOutlet(row: OutletRow): Outlet {
     targetOpeningDate: row.targetOpeningDate,
     openingDate: row.openingDate,
     closingDate: row.closingDate,
+    notes: row.notes,
+    createdAt: toIsoTimestamp(row.createdAt),
+    updatedAt: toIsoTimestamp(row.updatedAt),
+  }
+}
+
+/**
+ * **`engagement_rate` arrives as a string and leaves as a number**, and that one
+ * line is the whole reason this mapper is worth a docstring.
+ *
+ * The column is `numeric(5,2)`. `node-postgres` returns numeric as text because it
+ * is arbitrary precision and a float cannot hold every value it can — so what lands
+ * here is `'3.80'`, not `3.8`. It type-checks clean either way (drizzle types the
+ * column as `string`, and `InfluencerSchema` would be the only thing to object),
+ * and the symptom on screen is a single row reading `3.80%` in a column of `3.8%`.
+ * `rowToResearchJob` converts `cost_usd` at this same boundary for this same
+ * reason.
+ *
+ * `brandIds` come from the caller, not the row — the wire shape carries the join
+ * table's ids and only the query layer has both halves of the aggregate in hand.
+ * The same split `rowToSocialPost` makes for `assetIds`. **Sorted by the caller**,
+ * so two reads of one row are byte-identical.
+ */
+export function rowToInfluencer(row: InfluencerRow, brandIds: BrandId[]): Influencer {
+  return {
+    id: row.id as InfluencerId,
+    workspaceId: row.workspaceId as WorkspaceId,
+    slug: row.slug,
+    name: row.name,
+    handle: row.handle,
+    platform: row.platform,
+    followers: row.followers,
+    engagementRate: row.engagementRate === null ? null : Number(row.engagementRate),
+    vertical: row.vertical,
+    brandIds,
+    status: row.status,
     notes: row.notes,
     createdAt: toIsoTimestamp(row.createdAt),
     updatedAt: toIsoTimestamp(row.updatedAt),

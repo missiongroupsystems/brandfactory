@@ -4,7 +4,7 @@
 at **1.30.0** (1982 passed | 78 skipped before and after; the skips are the
 live-Postgres suites).
 
-Executes [`docs/executing/next-frontend-adoption-plan.md`](../executing/next-frontend-adoption-plan.md).
+Executes [`docs/archive/next-frontend-adoption-plan.md`](next-frontend-adoption-plan.md).
 This file records what was written, where, and the judgments made while writing
 it — including the one that turned out to be wrong.
 

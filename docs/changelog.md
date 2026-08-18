@@ -6,6 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.40.1** — 2026-08-18 — Pre-push review of 1.40.0: the form's most ordinary mistake — entering a creator who is already on the roster — answered `Internal Server Error`, because influencers is this schema's first aggregate with a unique key somebody types. It is a 409 that names the pair. No migration. 2292 tests.
+- **1.40.0** — 2026-08-18 — A creator stops being a shape the frontend invented for itself and becomes an aggregate: two tables, five routes, an exhaustive list, a page each and a form that fills them — so the tier bands' counts are totals and the roster is whatever somebody put in the table. Migration 0014. 2286 tests.
 - **1.39.0** — 2026-08-17 — Influencers stops being the address book under a new label: a creator record this app declares, grouped by reach tier because that tier is *derived*, and no vendor anywhere — the six agencies leave for a fixture of their own, where six contracts still need them. Route moves to `/influencers`. No migration. 2211 tests.
 - **1.38.0** — 2026-08-17 — The Vendors table stops asking which counterparty kind you want — marketing buys from no landlords — and its Brands column stops being a number: the contracts cell moves to a shared component and names the brands on hover. First browser pass since 1.35.1. No migration. 2196 tests.
 - **1.37.0** — 2026-08-17 — A contract stops being an agreement about premises and becomes one about a brand: `/contracts` groups, filters and creates by brand, the outlet dimension leaves with the service workflow that hung off it, and `category` gets a marketing vocabulary. No migration. 2193 tests.
@@ -86,6 +88,290 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.40.1 — 2026-08-18
+
+**1.40.0 gave the screen a create form, and the most ordinary mistake that form can make answered
+`500 Internal Server Error`.**
+
+Add a creator who is already on the roster — the same handle, the same platform — and
+`influencers_workspace_platform_handle_key` refused the insert. Nothing caught it. `useSubmit`
+puts an `AppError`'s message straight onto the form, so what a person read, in a red panel, under
+the box they had just typed into, was the sentence **"Internal Server Error"**.
+
+Found by a review pass driving the API against real Postgres, which is the only place it exists:
+the fake `Db` the route tests run against has no unique index, so all twenty-four of them passed
+over it.
+
+No migration, no wire shape change, no client change. Three files and their tests.
+
+### 1. Why this is new rather than inherited
+
+`createInfluencer`'s docstring already named the constraint and was explicit that it is **not** a
+race — *"the same creator entered twice on one platform, which is a duplicate rather than a second
+row"*. It stopped one step short of saying what the caller hears.
+
+The reason it stopped there is that nothing before it had to answer this question.
+**`influencers` is the first aggregate in this schema with a unique key somebody types.** An
+outlet's only unique key is its slug, and `uniqueOutletSlug` always picks a free one, so no outlet
+form can trip a constraint and none of them ever had to. A creator's handle goes into a box.
+
+Phase A had even written the rule down, one field over: `InfluencerBrandIdsSchema` rejects
+duplicate ids specifically so the join table's composite key is *never reached*, because a unique
+violation *"reaches the client as a 500 for what is really a malformed body"*. That reasoning
+closed the case zod could close. This is the case zod cannot — only the table knows whether
+another row already says this — so it had to be caught rather than prevented.
+
+### 2. A 409, and it names the pair
+
+`InfluencerHandleTakenError` joins `BrandNotInWorkspaceError` in `queries/influencers.ts`, and the
+router's `rethrowBrandMiss` becomes `rethrowWriteConflict` with a second branch. The two refusals
+it now maps are deliberately different codes, because they are different statements: a brand this
+workspace does not have is a **400** about a malformed body, while a handle already on the roster
+is a **409** about a body that is entirely well-formed and simply collides with what is there. The
+distinction `RESEARCH_ALREADY_RUNNING` already draws.
+
+```
+POST /workspaces/:id/influencers   {"handle":"priyaskin","platform":"instagram",…}
+409 INFLUENCER_HANDLE_TAKEN
+  @priyaskin is already on the roster for instagram. One row per creator per platform —
+  open that record instead, or add them under the platform they are not on yet.
+```
+
+The message is the longest on the server and that is on purpose: it is the one refusal here a
+person reads while looking at the field that caused it, so it names the pair, states the rule, and
+gives both ways forward. A creator on a second platform is a legitimate second row, and somebody
+who has just been refused is exactly the person who needs telling.
+
+**The patch takes it too.** Correcting a typo into somebody else's handle is the same mistake as
+entering them twice, and the key is the *pair* — so a patch can collide by moving either half.
+`updateInfluencer` reads the row before it writes, but only when the patch touches `handle` or
+`platform`, so the error can name the half the patch left alone. A failed transaction cannot be
+read from afterwards, which is why the read happens first rather than in the catch.
+
+### 3. What is deliberately still a 500
+
+`isHandleUniqueViolation` narrows on the constraint **name**, not on `23505` alone — the rule
+`isInFlightUniqueViolation` set one aggregate over, for its reason: any other unique violation
+reaching that line is a bug, and dressing it as a friendly message about a duplicate handle would
+hide it.
+
+So `influencers_workspace_slug_key` is not matched. That one is the create race
+`createInfluencer` documents — two concurrent creates of one handle both settling on the same free
+slug — and it is a different fact: nothing is taken, two writers collided, and a retry succeeds.
+Answering it with "handle already used" would state the first plausible thing rather than the true
+one. It keeps its 500 and the docstring arguing that this is the honest trade against serialising
+every create.
+
+### 4. The fake had to learn the rule, because it is the only rule it cannot inherit
+
+Every other behaviour in `createFakeDb` is a mirror of a query. This one is an index, so a fake
+has nothing to mirror and the rule had to be restated: `assertFakeHandleFree` enforces
+`(workspace_id, platform, handle)` on the fake's create and patch, excluding the row being
+patched so an edit re-sending its own values does not refuse itself.
+
+Without it the six new route tests would have passed against the very 500 this release removes,
+which is the same trap the file's own header warns about — *mirror the real query, do not do the
+obvious thing*.
+
+Ordering is asserted rather than assumed: a patch aimed at a row that does not exist is a **404**
+about the path even when the body also names a taken handle, because reporting the clash would
+send the reader to fix the wrong thing.
+
+### 5. One test corrected on the way past
+
+The new 404-before-409 case uses a **uuid-shaped** absent id, and says why in a comment. Its
+neighbour, written in 1.40.0, patches `'creator-nope'` and asserts 404 — which the fake answers
+and the real server does not: the query compares the ref against a `uuid` column, so a non-uuid id
+raises `22P02` in Postgres and returns **500**. That is a real gap and it is **left open here**,
+because it is not this aggregate's: `PATCH /workspaces/:id/outlets/outlet-nope` behaves
+identically, as does any body carrying a non-uuid `brandId`, where the 400 the router intends
+never fires. Both are one fix across two aggregates — a uuid shape on the id schemas — and belong
+in their own change rather than smuggled into a review of this one.
+
+### 6. Verification
+
+```
+pnpm typecheck                             clean (11 packages)
+pnpm lint                                  clean (whole repo)
+pnpm format:check                          clean
+pnpm test                                  2292 passed | 115 skipped (189 files)
+pnpm -F @brandfactory/web build            clean
+pnpm -F @brandfactory/web-next lint        clean
+pnpm -F @brandfactory/web-next typecheck   clean
+pnpm -F @brandfactory/web-next build       clean — /influencers static, /influencers/[slug] dynamic
+DATABASE_URL=… pnpm vitest run --project @brandfactory/db
+                                           154 passed — every live test, nothing skipped
+```
+
+The count moves by **11** from 1.40.0's 2286: six route tests and five live ones. The live five
+are the ones that matter, because the constraint name is the whole mechanism and only real
+Postgres carries it — rename the index and those tests fail rather than the route quietly going
+back to answering 500.
+
+Confirmed end to end against a seeded database and a running server: the duplicate create is a
+409, the same handle on a second platform is still a 201, a patch onto an occupied pair is a 409,
+and a creator keeping their own handle through an edit is a 200.
+
+**Still no browser pass.** The list 1.40.0 §7 records stands unchanged, minus nothing — this
+release adds no surface. The largest item on it is still the form, and this fix is one more reason
+to walk it: the 409 is now the thing a reader sees when they make the ordinary mistake, and
+whether that panel reads as a correction rather than as a fault is exactly the question a browser
+pass answers and a test cannot.
+
+---
+
+## 1.40.0 — 2026-08-18
+
+**1.39.0 replaced the record and left it unstored.** Its completion note said so in as many words —
+*"the day a real backend arrives it is generated against this shape"* — and this is that day.
+
+A creator becomes a BrandFactory aggregate: two tables, three enums, five queries, five routes, a
+seeded roster, an exhaustive list, a page per creator and a form that can add, correct and remove
+one. `/influencers` reads the Hono server. `fixtures/influencers.ts` is deleted, the `/influencers`
+branch is out of `mock.ts`, and the hand-written `Influencer` type is out of `lib/api/types.ts`.
+
+The precedent throughout is 1.36.0, which did the same thing one aggregate over. Five phases, each
+with its own note in `docs/completions/`; the plan is
+`docs/executing/influencers-on-real-data-plan.md`. Migration **0014**. `packages/web` is untouched
+throughout and still serves production.
+
+### 1. The question that prompted it, answered
+
+*"A new influencer model, or a general contacts table if we have one?"*
+
+**There is no general contacts table to reuse, and building one would have been the mistake.**
+`/contacts` is the Operations Hub's address book — `ContactRead`, snake_case, `vendor_id`,
+`is_primary`, typed off the frozen `schema.d.ts`, backed by a FastAPI service this repository does
+not contain. It is not ours to extend and it is still live: `useContactMutations` runs on the
+tenancy intake sheet and the review queue, both creating a person against a vendor, which is a
+correct model for a landlord's site manager.
+
+BrandFactory's own schema held fifteen tables and **no person record at all**. So a new table, and
+deliberately not a general one: a `contacts` table wide enough to hold both a landlord's site
+manager and a creator's follower count would rebuild the exact record 1.39.0 spent a release taking
+apart. A creator is not a contact with extra columns. It is a different noun.
+
+### 2. The brand relation is a join table, and that is the one place the shape departs from outlets
+
+`brandIds` is multi-valued — a creator can work for two of the group's brands, and an empty array
+is a fact ("not engaged yet") rather than a gap. Outlets carry one nullable `brand_id`, so this is
+the first many-to-many between a brand and anything.
+
+A `uuid[]` column cannot carry a foreign key. Delete a brand and every array holding its id keeps
+holding it — and the cell that renders those ids treats an unresolvable one as **a request in
+flight**, because *a cached index that has not arrived is a pending request, never a missing fact*.
+A dangling id and a slow request would then look identical, permanently, in the one cell that rule
+exists to protect.
+
+So `influencer_brands (influencer_id, brand_id)`, both sides `ON DELETE CASCADE`. Deleting a brand
+removes the **link** and keeps the creator — the many-to-many equivalent of the `ON DELETE SET
+NULL` outlets chose, and for the same reason: the relationship outlives the branding.
+
+### 3. The list is exhaustive, and that is what makes the screen's numbers true
+
+`GET /workspaces/:workspaceId/influencers` returns every creator in the workspace, in reach order,
+with no cursor and no server-side filters. Outlets' call, and it pays off harder here because this
+screen carries **counts on its group headers**.
+
+Three things followed. The tier bands' counts stopped being *"of the rows loaded"* and became
+totals. The note above the table — *"Showing the first N creators — bands below may be
+incomplete"* — was **deleted**; it was built rather than written down precisely so it could go the
+day the route returned everything. And `useCursorPages`, `LoadMore`, `PAGE_LIMIT` and
+`Page<Influencer>` all went with it.
+
+The tripwire moved with the screen and is in `AGENTS.md`: past roughly **150 rows**, the keyset
+cursor on `(followers desc, name, id)` and the SQL filters land **together**. A paginated list with
+client-side filters is the "Zephyr alone on page one" failure that file bans, and if a cursor ever
+comes back here the honesty note comes back with it.
+
+### 4. `numeric` arrives as a string, and it had three faces
+
+`engagement_rate` is `numeric(5,2)` and `node-postgres` returns numeric as **text**, because it is
+arbitrary precision and a float cannot hold every value it can. The driver hands back `'3.80'`, not
+`3.8`. It type-checks clean either way, it survives lint, and nothing but a test catches it.
+
+It surfaced three times, in three shapes, and each needed its own answer:
+
+- **In the mapper.** `rowToInfluencer` converts, at the boundary `rowToResearchJob` already
+  converts `cost_usd`. Pinned twice — a unit test against the string the driver really returns, and
+  a live test that writes 3.8 through real Postgres and reads it back.
+- **On the wire.** `'2.00'` becomes `2`, because JSON has one number type. The wire is correct.
+- **On screen.** Rendering that raw put **`2%` in a column of `3.8%` and `14.2%`**, which does not
+  read as a bug — it reads as a different kind of measurement. `formatEngagement` fixes it with one
+  decimal, always.
+
+A fourth face is the way in: `toNullableNumber` turns an empty input into `null` and a typed `"0"`
+into `0`, because `Number("")` is `0` and a form that sent that would state a measurement nobody
+made. The same distinction, four times, in four directions — which is why all four now live in one
+tested file.
+
+### 5. The screen can fill its own table
+
+`Import or sync creators` was the primary action for two releases, on an argument that is still
+true and still on the button: a follower count is pulled from a platform and is stale within the
+day, so a box asking somebody to type `1,240,000` invites a figure nobody can stand behind.
+
+What that argument could not go on doing is stand alone. While nothing could be typed **and**
+nothing could be imported, the screen could not fill its own table at all. So `Add creator` takes
+the primary slot, the import goes secondary with its toast intact, and the button now says to put
+it back to primary the day the connection lands.
+
+The table lists and adds; the record page corrects and removes. A delete offered from a row is a
+delete offered over a summary of what is about to go, and the dialog argues against itself — a
+creator you stopped working with is `past`, which is a thing you look up rather than a thing you
+hide.
+
+### 6. Two smaller corrections found on the way
+
+**A creator with no vertical says `Generalist`, not `—`.** `InfluencerSchema` is explicit that
+`null` there is *a genuine generalist, not an unclassified row* — which is why the union has no
+`other` member — and the em dash is this app's word for "not recorded". The cell was stating the
+one thing the schema went out of its way not to mean. One constant, three surfaces.
+
+**The form draws the handle's `@` rather than accepting one.** `InfluencerHandleSchema` rejects a
+leading sigil rather than stripping it, so that one handle has one spelling under
+`(workspace_id, platform, handle)`. The input carries a fixed adornment and the value never holds
+one; a pasted `@priyaskin` reads as `@@priyaskin` in the field, visibly, and the server still
+refuses it with the reason. A form's job is to put the rejected state out of reach, not to launder
+it on the way past.
+
+### 7. Verification
+
+```
+pnpm typecheck                             clean (11 packages)
+pnpm lint                                  clean (whole repo)
+pnpm format:check                          clean
+pnpm test                                  2286 passed | 110 skipped (189 files)
+pnpm -F @brandfactory/web build            clean
+pnpm -F @brandfactory/web-next lint        clean
+pnpm -F @brandfactory/web-next typecheck   clean
+pnpm -F @brandfactory/web-next build       clean
+pnpm -F @brandfactory/db db:migrate        0014 applied to the seeded dev database
+pnpm -F @brandfactory/db db:seed           19 creators, 17 links; run twice, idempotent
+DATABASE_URL=… pnpm vitest run --project @brandfactory/db
+                                           149 passed — every live test, nothing skipped
+```
+
+The build output is the check worth naming: `/influencers` is **○ (Static)** and
+`/influencers/[slug]` is **ƒ (Dynamic)** — the same pair `/outlets` has. The list page reads no
+`searchParams` on the server, so it did not go dynamic the way `/contracts` did.
+
+The count moves by **75** from 1.39.0's 2211: 35 in Phase A, 24 in Phase B, 1 in Phase C, 11 in
+Phase D and 4 in Phase E. The 18 new skips are `influencers.live.test.ts`, which skips without
+`DATABASE_URL` like every other live test; they were run against real Postgres and all pass.
+
+**No browser pass, and it is deferred rather than forgotten.** The stack was brought up for one —
+migration applied, roster seeded, server and dev server running — and the pass was deliberately
+held over. So the release ships unseen in a browser, and this is the second release running to do
+so. What that leaves unseen, cumulatively: whether five bands read well at nineteen rows, whether ten vertical glyphs
+are distinguishable at 16px, whether the reach column's mixed `k`/`M` units scan down its length,
+whether `Not engaged yet` and `Generalist` read as decisions rather than gaps, whether the
+`19 creators` footer reads as a total, whether the detail page's three cards read as a record
+rather than a stub, and — the largest gap, because every one of them is a write — whether the
+sheet's four sections fill in the order somebody works, whether the `@` adornment sits on the
+input's baseline, whether the `…` brand box is legible as a pending link rather than as a fault,
+and whether a create, an edit and a delete each leave the table saying what happened.
 
 ## 1.39.0 — 2026-08-17
 

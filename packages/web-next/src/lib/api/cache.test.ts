@@ -39,6 +39,17 @@ describe("SCOPES", () => {
     expect(SCOPES.bfOutlet).not.toBe(SCOPES.outlet);
   });
 
+  it("keeps BrandFactory's creators apart from the Ops address book", () => {
+    // The second pair with a reason to collide: both families are people, both
+    // are live — `useContactMutations` still runs on the tenancy sheet and the
+    // review queue — and only one of them is ours. The unprefixed `influencers`
+    // that used to stand beside `contacts` is gone with the fixture it keyed;
+    // this is what stops it coming back.
+    expect(SCOPES.bfInfluencers).not.toBe(SCOPES.contacts);
+    expect(SCOPES.bfInfluencer).not.toBe(SCOPES.contact);
+    expect(SCOPES).not.toHaveProperty("influencers");
+  });
+
   it("cannot match one scope inside another, because the matcher quotes both", () => {
     // The subtler half: `useInvalidate` tests `key.includes(`"${scope}"`)` on a
     // serialised `$inf$` key. `"bf-outlets"` contains the letters of `outlets`,

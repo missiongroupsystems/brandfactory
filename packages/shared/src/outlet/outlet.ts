@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { BrandIdSchema, OutletIdSchema, WorkspaceIdSchema } from '../ids'
+import { SlugSchema } from '../slug'
 
 // ---------------------------------------------------------------------------
 // Outlet — a place the business trades from
@@ -55,12 +56,13 @@ export type OutletStatus = z.infer<typeof OutletStatusSchema>
  *
  * Unique per workspace, enforced by an index; see `outletSlug` for how the
  * suffix is chosen.
+ *
+ * The shape is `SlugSchema`, shared with every other aggregate that carries a
+ * slug, because one generator writes them all — two regexes would be two chances
+ * for a schema to reject what `slugify` emits. The name stays so that a reader of
+ * `OutletSchema` still finds the word `Outlet` on every field.
  */
-export const OutletSlugSchema = z
-  .string()
-  .min(1)
-  .max(120)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'A slug is lowercase words joined by single hyphens')
+export const OutletSlugSchema = SlugSchema
 
 /**
  * What the site does — `serves_alcohol`, `outdoor_seating`, and so on.

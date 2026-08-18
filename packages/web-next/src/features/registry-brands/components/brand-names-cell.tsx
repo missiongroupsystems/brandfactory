@@ -4,7 +4,6 @@ import { TagIcon } from "lucide-react";
 import * as React from "react";
 
 import { NamesTooltip } from "@/components/layout/names-tooltip";
-import type { Brand } from "@/lib/api/types";
 import { PENDING } from "@/lib/format";
 
 /**
@@ -41,9 +40,21 @@ export type BrandNames = {
   pending: boolean;
 };
 
+/**
+ * The least this needs to know about a brand: its name.
+ *
+ * **Widened from `Map<string, Brand>` when BrandFactory's influencers arrived**, and widened
+ * rather than re-pointed. `/influencers` reads real workspace brands, so its index is
+ * `BrandSummary` from `@brandfactory/shared`; `/contracts` and `/vendors` read the Operations
+ * Hub's `Brand` out of `fixtures/brands.ts`, and they are not moving — a contract's `brand_ids`
+ * are fixture ids, so pointing that table at `useWorkspaceBrands` would make every row read
+ * `Group level`. Two record types, one cell, and the only field it ever touches is `name`.
+ */
+export type NamedBrand = { name: string };
+
 export function resolveBrandNames(
   brandIds: readonly string[],
-  brandById: Map<string, Brand>,
+  brandById: Map<string, NamedBrand>,
 ): BrandNames {
   const names = new Set<string>();
   let pending = false;
@@ -78,7 +89,7 @@ export function BrandNamesCell({
   empty = <GroupLevel />,
 }: {
   brandIds: readonly string[];
-  brandById: Map<string, Brand>;
+  brandById: Map<string, NamedBrand>;
   empty?: React.ReactNode;
 }) {
   if (brandIds.length === 0) return empty;

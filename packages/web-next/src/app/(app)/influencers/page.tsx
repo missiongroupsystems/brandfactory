@@ -15,6 +15,10 @@ export const metadata = { title: "Influencers — Marketing Hub" };
  * follow; the data has followed, so folder, route, cache scope and wire path all say
  * `influencers` now — the rule `/registry-brands` cost a release to learn.
  *
+ * **And the data is real as of this release.** The rows come from
+ * `GET /workspaces/:id/influencers` on the Hono server rather than from a fixture, so the tier
+ * bands' counts are totals and the roster is whatever somebody put in the table.
+ *
  * `/contacts` is *not* redirected here, and that is deliberate. It is a live Operations Hub path
  * that still means the address book: `useContactMutations` is called by the tenancy intake sheet
  * and the review queue, both of which create a contact against a vendor. A redirect would claim

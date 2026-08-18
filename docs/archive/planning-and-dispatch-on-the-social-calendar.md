@@ -41,7 +41,7 @@ closed this document are answered in [§8](#8-decisions), from the marketing
 team's seat. §3, §5 and §6 carry those answers rather than restating them, and
 one of them — Q5 — withdraws this proposal's *no migration at any step* claim.
 The work is broken down in
-[`docs/executing/planning-and-dispatch-implementation-plan.md`](../executing/planning-and-dispatch-implementation-plan.md).
+[`docs/archive/planning-and-dispatch-implementation-plan.md`](planning-and-dispatch-implementation-plan.md).
 
 ---
 
@@ -375,7 +375,7 @@ The planner writes ordinary `social_posts` rows through the routes that already
 create them. It adds no table and no second write path; the one column in step 2
 is the whole of its footprint on the schema.
 
-[`docs/executing/planning-and-dispatch-implementation-plan.md`](../executing/planning-and-dispatch-implementation-plan.md)
+[`docs/archive/planning-and-dispatch-implementation-plan.md`](planning-and-dispatch-implementation-plan.md)
 breaks these four steps into seven shippable phases.
 
 ---

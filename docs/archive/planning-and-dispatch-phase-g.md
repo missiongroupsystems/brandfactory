@@ -4,9 +4,9 @@
 Phases A, B, C, D, E and F landed (1914 passed | 78 skipped before this phase).
 
 Executes Phase G of
-[`docs/executing/planning-and-dispatch-implementation-plan.md`](../executing/planning-and-dispatch-implementation-plan.md),
+[`docs/archive/planning-and-dispatch-implementation-plan.md`](planning-and-dispatch-implementation-plan.md),
 which builds
-[`docs/plans/planning-and-dispatch-on-the-social-calendar.md`](../plans/planning-and-dispatch-on-the-social-calendar.md).
+[`docs/archive/planning-and-dispatch-on-the-social-calendar.md`](planning-and-dispatch-on-the-social-calendar.md).
 The *why* is argued there and is not restated.
 
 **No migration.** 3 files added, 7 modified. **1967 passed | 78 skipped** —

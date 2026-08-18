@@ -2,6 +2,7 @@
 export * from './json'
 export * from './prose-mirror'
 export * from './ids'
+export * from './slug'
 
 // LLM
 export * from './llm/provider-ids'
@@ -44,6 +45,14 @@ export * from './outlet/attributes'
 export * from './outlet/slug'
 export * from './outlet/create'
 export * from './outlet/update'
+
+// Influencers — the creators the brands engage. Workspace-scoped with a
+// many-to-many brand relation; see `influencer/influencer.ts` on why a creator is
+// not the address book's contact with extra columns.
+export * from './influencer/influencer'
+export * from './influencer/slug'
+export * from './influencer/create'
+export * from './influencer/update'
 
 // Social posts
 export * from './social/post'

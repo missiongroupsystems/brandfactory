@@ -1,7 +1,7 @@
 # Review hardening — planning and dispatch
 
 **Status:** complete, 2026-08-10. Written against the seven landed phases of
-[`docs/executing/planning-and-dispatch-implementation-plan.md`](../executing/planning-and-dispatch-implementation-plan.md)
+[`docs/archive/planning-and-dispatch-implementation-plan.md`](planning-and-dispatch-implementation-plan.md)
 at **1967 passed | 78 skipped**.
 
 A pre-release review of Phases A–G. It changes no behaviour a user asked for and

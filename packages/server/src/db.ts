@@ -73,6 +73,16 @@ export interface Db {
   updateOutlet: typeof db.updateOutlet
   deleteOutlet: typeof db.deleteOutlet
 
+  // Influencers — workspace-scoped like outlets, with the same consequence: a
+  // creator id from another workspace misses rather than being reached across the
+  // boundary. The brand relation is a join table, so every write here can throw
+  // `BrandNotInWorkspaceError` and the route maps it to a 400.
+  listInfluencersByWorkspace: typeof db.listInfluencersByWorkspace
+  getInfluencerByRef: typeof db.getInfluencerByRef
+  createInfluencer: typeof db.createInfluencer
+  updateInfluencer: typeof db.updateInfluencer
+  deleteInfluencer: typeof db.deleteInfluencer
+
   // Blob references, across every table that holds a key
   listStillReferencedBlobKeys: typeof db.listStillReferencedBlobKeys
 
@@ -155,6 +165,11 @@ export function buildDbDeps(): Db {
     createOutlet: db.createOutlet,
     updateOutlet: db.updateOutlet,
     deleteOutlet: db.deleteOutlet,
+    listInfluencersByWorkspace: db.listInfluencersByWorkspace,
+    getInfluencerByRef: db.getInfluencerByRef,
+    createInfluencer: db.createInfluencer,
+    updateInfluencer: db.updateInfluencer,
+    deleteInfluencer: db.deleteInfluencer,
     listStillReferencedBlobKeys: db.listStillReferencedBlobKeys,
     getProjectById: db.getProjectById,
     listProjectsByBrand: db.listProjectsByBrand,

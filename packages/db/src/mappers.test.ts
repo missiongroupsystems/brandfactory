@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { BrandAssetSchema, SocialPostSchema } from '@brandfactory/shared'
-import type { BrandAssetId, ProseMirrorDoc } from '@brandfactory/shared'
+import { BrandAssetSchema, InfluencerSchema, SocialPostSchema } from '@brandfactory/shared'
+import type { BrandAssetId, BrandId, ProseMirrorDoc } from '@brandfactory/shared'
 import {
   rowToAgentMessage,
   rowToBrand,
@@ -9,6 +9,7 @@ import {
   rowToCanvas,
   rowToCanvasBlock,
   rowToGuidelineSection,
+  rowToInfluencer,
   rowToProject,
   rowToProjectSummary,
   rowToSocialPost,
@@ -405,6 +406,70 @@ describe('rowToSocialPost', () => {
 
   it('carries the author through unchanged', () => {
     expect(rowToSocialPost({ ...postRow, createdBy: 'agent' }, []).createdBy).toBe('agent')
+  })
+})
+
+describe('rowToInfluencer', () => {
+  const influencerRow = {
+    id: 'i-1',
+    workspaceId: 'w-1',
+    slug: 'priyaskin',
+    name: 'Priya Nair',
+    handle: 'priyaskin',
+    platform: 'instagram' as const,
+    followers: 124_000,
+    // What `node-postgres` actually hands back for a `numeric(5,2)` column: text,
+    // trailing zero and all. Never the number.
+    engagementRate: '3.80',
+    vertical: 'beauty' as const,
+    status: 'active' as const,
+    notes: null,
+    createdAt: TS,
+    updatedAt: TS,
+  }
+
+  // **The one shape trap in this aggregate.** `numeric` arrives as a string, it
+  // type-checks clean either way, and the symptom is one row reading `3.80%` in a
+  // column of `3.8%`. The wire schema is what catches it, so the wire schema is
+  // what this asserts.
+  it('converts the numeric engagement rate from the string pg returns', () => {
+    const i = rowToInfluencer(influencerRow, [])
+    expect(InfluencerSchema.safeParse(i).success).toBe(true)
+    expect(i.engagementRate).toBe(3.8)
+    expect(typeof i.engagementRate).toBe('number')
+  })
+
+  it('keeps an unmeasured rate null rather than turning it into zero', () => {
+    // `Number(null)` is 0, which would state that nobody engages with this
+    // creator — a measurement, where the truth is that nobody has measured.
+    const i = rowToInfluencer({ ...influencerRow, engagementRate: null }, [])
+    expect(i.engagementRate).toBeNull()
+  })
+
+  it('normalises Postgres-format timestamps', () => {
+    const i = rowToInfluencer(
+      {
+        ...influencerRow,
+        createdAt: '2026-07-22 07:57:59.635905+00',
+        updatedAt: '2026-07-22 07:57:59.635905+00',
+      },
+      [],
+    )
+    expect(InfluencerSchema.safeParse(i).success).toBe(true)
+    expect(i.createdAt).toBe('2026-07-22T07:57:59.635Z')
+  })
+
+  it('carries the brandIds the caller passed, empty array included', () => {
+    expect(rowToInfluencer(influencerRow, ['b-1', 'b-2'] as BrandId[]).brandIds).toEqual([
+      'b-1',
+      'b-2',
+    ])
+    // Empty is a fact — "not engaged yet" — so it must survive as an array.
+    expect(rowToInfluencer(influencerRow, []).brandIds).toEqual([])
+  })
+
+  it('keeps a generalist null rather than inventing a vertical', () => {
+    expect(rowToInfluencer({ ...influencerRow, vertical: null }, []).vertical).toBeNull()
   })
 })
 

@@ -34,7 +34,6 @@
 import { brands } from "@/fixtures/brands";
 import { contracts, isCurrent, vendors } from "@/fixtures/contracts";
 import { dashboard } from "@/fixtures/dashboard";
-import { influencers } from "@/fixtures/influencers";
 import { licenses, licenseTypes } from "@/fixtures/licenses";
 import {
   addMarketingRequest,
@@ -235,8 +234,9 @@ const ROUTES: [RegExp, Handler][] = [
   // **Registered for the Vendors screen's own sake now.** It used to be registered *because the
   // Influencers screen needed it*: that screen grouped creators by `contact.vendor_id` and
   // resolved each id through `useVendorIndex`, so without a populated `/vendors` every group
-  // header would have rendered `…`. Influencers reads no vendor at all — see
-  // `fixtures/influencers.ts` — so this route is answering only the question it names.
+  // header would have rendered `…`. Influencers reads no vendor at all, and as of this release
+  // reads the Hono server rather than any fixture — so this route is answering only the question
+  // it names.
   //
   // It reads `vendors` from `fixtures/contracts.ts` rather than `agencies` from
   // `fixtures/agencies.ts`, and the two are not interchangeable: that list is the talent
@@ -309,50 +309,17 @@ const ROUTES: [RegExp, Handler][] = [
   [/^\/contracts\/([^/]+)$/, ([id]) => contracts.find((c) => c.id === id)],
 
   // Influencers ------------------------------------------------------------
-  // **`/influencers` and not `/contacts`.** This is the one path in this file that is *not* the
-  // Operations Hub's — there is no FastAPI endpoint behind it, so nothing about it is frozen and
-  // the rename that moved the folder, the route and the cache scope moved the wire path too. See
-  // `features/influencers/api.ts`.
+  // **Not registered, and neither is `/contacts`.** `/influencers` was the one path in this file
+  // that was not the Operations Hub's — this app invented it, answered it from
+  // `fixtures/influencers.ts`, and stored nothing. The Hono server holds that aggregate now, so
+  // `features/influencers/api.ts` calls `bf` and this branch went with the fixture.
   //
-  // `/contacts` is deliberately **not** registered any more. It still means the address book —
-  // `useContactMutations` is live on the tenancy sheet and the review queue — so it falls through
-  // to rule 2 and answers empty, which is true: no screen reads that list.
+  // `/contacts` still means the address book — `useContactMutations` is live on the tenancy sheet
+  // and the review queue — and is still deliberately unregistered, so it falls through to rule 2
+  // and answers empty. That is true: no screen reads that list.
   //
-  // Four filters, one per control on screen, because a filter the table offers and the fixture
-  // ignores is worse than no data: the reader narrows, the rows do not move, and the screen looks
-  // broken rather than empty. There is deliberately no `tier` filter — the tier is the *grouping*,
-  // derived in `features/influencers/tiers.ts`, and a filter on the same axis as the bands would
-  // be a second way to ask one question.
-  [
-    /^\/influencers$/,
-    (_p, search) =>
-      page(
-        influencers.filter((i) => {
-          const q = search.get("q");
-          // Name **or handle**, and both are the row's own fields — so unlike every other `q`
-          // branch in this file there is no join. AGENTS.md's rule is "the thing's own name plus
-          // the name of the one entity that identifies it"; for a creator the handle *is* that
-          // identifier, and it is on the row.
-          const hit = matches(i.name, q) || matches(i.handle, q);
-
-          // The row holds an array, so brand is a `contains` test rather than an equality one —
-          // the same shape `/contracts` filters `brand_ids` with one aggregate over.
-          const brandId = search.get("brand_id");
-          const brandHit = !brandId || i.brand_ids.includes(brandId);
-
-          const vertical = search.get("vertical");
-          return (
-            hit &&
-            brandHit &&
-            (!search.get("platform") || i.platform === search.get("platform")) &&
-            (!search.get("status") || i.status === search.get("status")) &&
-            // A creator with no vertical matches no vertical filter, rather than falling into
-            // one — there is no `other` member for them to be swept into.
-            (!vertical || i.vertical === vertical)
-          );
-        }),
-      ),
-  ],
+  // Nothing replaces either one here. A route that answered creators from a fixture beside a
+  // screen reading the server would be two sources for one table.
 
   // Marketing Requests -----------------------------------------------------
   // The inbox. Its two mutations are in {@link WRITES} below — the one exception to rule 3,

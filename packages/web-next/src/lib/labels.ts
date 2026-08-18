@@ -44,6 +44,18 @@ import {
 // call sites break, which is the signal worth having.
 import type { OutletStatus, OutletType } from "@brandfactory/shared";
 
+// The influencer enums follow the outlet ones out of `lib/api/types.ts`, for the
+// stronger version of the same reason: those were declared there because no
+// server held them, and now one does. Keying the five records below off the
+// shared unions is what makes a new `influencer_platform` member fail the
+// typecheck here until it has a label — which the hand-written copy could never
+// do, because it *was* the list.
+import type {
+  InfluencerPlatform,
+  InfluencerStatus,
+  InfluencerVertical,
+} from "@brandfactory/shared";
+
 import type {
   AuthorityKind,
   BillingFrequency,
@@ -60,9 +72,6 @@ import type {
   EntityStatus,
   EntityType,
   HolderLevel,
-  InfluencerPlatform,
-  InfluencerStatus,
-  InfluencerVertical,
   LicenseStatus,
   Necessity,
   ObligationKind,
