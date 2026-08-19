@@ -49,6 +49,7 @@ describe("the ladder", () => {
     ["head", "px"],
     ["band", "h"],
     ["skeleton", "h"],
+    ["editor", "h"],
   ] as const)("descends strictly down %s %s-*", (slot, prefix) => {
     const measured = TABLE_DENSITIES.map((density) =>
       measure(TABLE_DENSITY_CLASSES[density][slot], prefix),
@@ -75,6 +76,33 @@ describe("the ladder", () => {
     const padY = measure(tightest.cell, "py")!;
 
     expect(height).toBe(BADGE + 2 * padY);
+  });
+
+  /**
+   * The rule that stops an inline editor moving the table under the person using it.
+   *
+   * `Input` and `Select` are both a fixed `h-10` — 40px — which is taller than the content box of
+   * every rung but the loosest. An editor left at its natural height grows the row it opened in
+   * and pushes every row below it down, and the reader's pointer is on that row. So the `editor`
+   * rung is the content box **exactly**: the cell's height less its own vertical padding, top and
+   * bottom.
+   *
+   * Asserted rather than described, because it is three literal class strings that no type can
+   * relate to each other, and the failure ships silently — the editor only appears on click.
+   */
+  it("sizes an editor to exactly the content box of its rung", () => {
+    for (const density of TABLE_DENSITIES) {
+      const rung = TABLE_DENSITY_CLASSES[density];
+      const contentBox = measure(rung.cell, "h")! - 2 * measure(rung.cell, "py")!;
+      expect(measure(rung.editor, "h")).toBe(contentBox);
+    }
+  });
+
+  /** The tightest editor and the badge floor are the same 24px, which is what makes a row holding
+   *  a status pill and a row holding an open editor the same height at `compact`. */
+  it("puts the tightest editor at the badge floor", () => {
+    const tightest = TABLE_DENSITY_CLASSES[TABLE_DENSITIES[TABLE_DENSITIES.length - 1]];
+    expect(measure(tightest.editor, "h")).toBe(24);
   });
 
   /** The header may match the cell — `compact` puts both at 32px — but it must never be taller,

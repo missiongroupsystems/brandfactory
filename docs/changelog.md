@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.49.0** — 2026-08-19 — The roster stops being read-only prose: six platform marks replace a comma-joined sentence, `2 accounts` becomes a panel that shows what the sum is made of, and four columns take a one-key `PATCH` from the cell you are looking at — plus the 10px the browser pass caught the name editor pushing every row down by. No migration. 2686 tests.
 - **1.48.0** — 2026-08-18 — The reader gets two controls the tables never offered: a row height that is a preference rather than a URL parameter, on a **View** panel every list screen now carries, and eight sortable headings on the one list with no page two — which is why the ban on sorting keeps its reason and gains a property. No migration. 2638 tests.
 - **1.47.0** — 2026-08-18 — The nineteen invented creators leave and the real Curly's media list arrives: 146 people, 216 accounts, and a tier table that is finally right because Lennard Yeong is Mega only as a sum. Five rows did not import rather than guess at a stranger. Written into production. No migration. 2592 tests.
 - **1.46.0** — 2026-08-18 — A creator stops being an account: one to ten of those hang off the person now, so a roster of nineteen rows is nineteen people, reach is the sum of what they post from, and the tier bands count the case they used to file three times. Six phases and a hardening pass. Migration 0016. 2584 tests.
@@ -97,6 +98,125 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.49.0 — 2026-08-19
+
+**`/influencers` stops being a list you can only read. The Platforms column becomes marks, the
+reach figure opens to show its parts, and four of the eight columns edit where they are.**
+
+Three changes asked for together, built to be independent of any model, and shipped as one. The
+fourth ask — a creator looked up from a platform and a handle — is release two and no part of it
+is started here. No migration. 2686 tests (2539 passing, 147 skipped without a database; 48 of
+them new).
+
+Plan: `docs/executing/influencer-quick-add-and-inline-edit-plan.md`. Four completion documents.
+
+### A media list is scanned by platform before it is read by name
+
+`Instagram, TikTok, YouTube +1` was a sentence, and 146 of them are 146 different lengths starting
+with 146 different words — there is nothing for the eye to fix on down the column, so every cell
+has to be read. The cell's own docstring had said as much for two releases and called drawing six
+brand marks *"not this release's work"*.
+
+It is six inline SVG paths in one file, not a package for six shapes — `lucide-react` is this
+repo's only icon dependency and it ships no brand marks, deliberately: a trademark is not a
+pictogram. `fill-rule="evenodd"` on every mark with a hole in it, which is correctness rather than
+style; a ring drawn as two same-direction subpaths is a solid blob under the default rule and the
+failure is invisible until it renders.
+
+**Monochrome, and it is the decision the next person is most likely to reverse.** Six saturated
+brand hues repeated down a column turns a data column into a logo wall and spends the accent budget
+`AGENTS.md` fixes at one primary button and one accent card many times over. The colour on this
+screen belongs to the brand this product is for, not to the six it reads from. The paragraph is in
+three files for that reason.
+
+**The glyph is never alone.** Badge = mark plus label, at every rung, per WCAG 1.4.1 — the rule the
+vertical column already follows one cell over. Xiaohongshu's mark is a book rather than its real
+Chinese wordmark, which does not survive 12px in one colour; the file says so, and the label
+carries the name everywhere it renders.
+
+### The number that decides a budget was visible; the one that decides a brief was not
+
+`totalReach` is a sum and the column said so — `3 accounts` under the figure — but the split lived
+on the record page, so *how many of those 890k are on Instagram* cost one navigation per creator.
+
+`format.ts` describes that sub-line as *"the only thing on that screen that says the figure is a
+sum"*, which makes it the honest place to hang the parts. It becomes a `Popover` — content, not a
+menu of actions, which is the line `AGENTS.md` draws — holding one row per account over a footer
+that restates the two figures the row already shows. **The footer restates rather than adds**: a
+third number under a breakdown would make the panel a second opinion about a creator instead of an
+explanation of one.
+
+Rows stay in the record's own order, never re-sorted by size — position 0 *is* the primary-account
+fact, and a helpful `.sort()` would put this panel at odds with the `Primary` badge on the detail
+page. The exact count, not the compact one: a panel somebody opened to see the split is where they
+check a figure before quoting it. A single-account creator gets no control at all, because there is
+nothing to split.
+
+### The argument against an actions column survived; the one against editing did not
+
+`influencers-browser.tsx` said editing lives on the record page. Half of that was about a **per-row
+actions menu** and is still right — there is still no actions column. The other half did not
+survive the most common edit this table takes: moving one creator from `prospect` to `active` cost
+a navigation, a sheet, a select, a save and a navigation back, and **the sheet it opened replaces
+the entire account list and brand set on submit**. The cheapest correction in the product was also
+its heaviest write.
+
+Four columns edit in place now — name, vertical, brands, status — and the patch is **exactly one
+key**, which is a strictly safer write than the sheet. `patchFor` is the seam the tests aim at: 21
+of them, parameterised over every editable field rather than the one that prompted it, because a
+builder that spread the record and overwrote one key would pass a `{status}` assertion and still
+send `accounts`.
+
+**Four columns refuse an editor and it is one refusal repeated: you cannot edit a sum by typing
+over it.** Reach and Platforms carry a pencil that opens the record's own form — named `Edit
+follower counts` and `Edit platforms and handles` rather than two identical `Edit accounts` in one
+row. Tier and Engagement carry nothing; they are derived from derived figures and there is nothing
+behind them to open.
+
+That buys a property worth stating: **no inline edit can move a row.** The bands group by reach and
+the default order is reach descending, and not one of the four editable fields is an input to
+either.
+
+**Nothing is optimistic**, so a cell in flight shows the editor, disabled, holding what the reader
+chose, with a spinner — "this is being saved", never "this is saved". A refusal gets a toast
+carrying the server's own sentence; a success gets none, because the new value is on screen
+*because the server sent it back*, which is the whole point.
+
+### The browser pass, and the 10px it found
+
+The first pass against the running product since 1.38.0, on a local server against the Docker
+Postgres — the repository's `.env` points at the live database and 1.47.0's 146 real creators are
+in it.
+
+It found the failure `lib/table-density.ts`' `editor` rung was invented to prevent, arriving
+through the one cell whose arithmetic that rung does not describe. **Opening the name editor grew
+its row and pushed every row below it down — 10.34px at `comfortable`, which is the default.**
+
+`editor` is the cell's content box: the room a cell has. Vertical, Status and Brands are one-line
+cells, so their whole box is free and an editor filling it moves nothing — all three measured clean
+at all three rungs. The Creator cell is a **two-line stack**, a 21px name over an 18.84px handle,
+which already exceeds the content box of every rung; there the editor is not filling free room but
+replacing one line of the tallest cell in the row, so the difference lands on the row height. The
+looser the rung, the taller the editor, the worse it gets — which inverts the intuition that a
+tight row is the fragile one.
+
+**The rung is a ceiling, not a height.** A stacked cell sizes its editor from the line it replaces:
+`h-auto`, no vertical padding, no border, which is exactly one line box. No number in it — a line
+tracks the type scale, where an `h-[21px]` would be measured against a scale that does not know
+about it. Four editors across three rungs now open with the row growing 0.00px and the row below
+moving 0.00px.
+
+The headless render that signed the phase off could not have caught it: jsdom lays nothing out,
+which is also why the test that now guards it asserts class strings rather than the measurement
+that actually found the bug.
+
+Two things measured and left alone. **The platform badges add exactly nothing** to row height at
+any rung — swap them back for the comma-joined string and the number does not change. **The reach
+trigger adds 0.66px** on the 66 rows that have one, because a `<button>` is `inline-block` where
+the caption it replaced was not; the table was already ragged by 0.50px between two single-account
+rows before this, and the fix would stretch a click target across a right-aligned numeric column to
+buy back a third of a device pixel.
 
 ## 1.48.0 — 2026-08-18
 

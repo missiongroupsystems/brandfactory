@@ -41,7 +41,6 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useQueryFilters } from "@/hooks/use-query-filters";
 import { formatCompactNumber } from "@/lib/format";
 import {
-  INFLUENCER_PLATFORM_LABELS,
   INFLUENCER_PLATFORM_OPTIONS,
   INFLUENCER_STATUS_LABELS,
   INFLUENCER_STATUS_OPTIONS,
@@ -53,9 +52,10 @@ import {
 import { useTableDensityClasses } from "@/lib/table-density";
 import { cn } from "@/lib/utils";
 
-import { formatAccountCount, formatEngagement, GENERALIST } from "../format";
+import { formatEngagement, GENERALIST } from "../format";
 import { useInfluencers } from "../hooks";
 import { influencerHref } from "../href";
+import type { FieldEdit } from "../patch";
 import {
   type InfluencerSort,
   nextSort,
@@ -64,7 +64,17 @@ import {
   sortInfluencers,
 } from "../sort";
 import { railForTier, REACH_TIERS, type ReachTier, tierFor } from "../tiers";
+import { EditableCell, EditPencil } from "./editable-cell";
 import { InfluencerForm } from "./influencer-form";
+import {
+  BrandsEditor,
+  NameEditor,
+  StatusEditor,
+  useInlineEdit,
+  VerticalEditor,
+} from "./inline-editors";
+import { PlatformBadges } from "./platform-badges";
+import { ReachBreakdown } from "./reach-breakdown";
 import { SyncInfluencersButton } from "./sync-influencers-button";
 
 const FILTER_KEYS = ["q", "platform", "vertical", "status", "brandId"] as const;
@@ -139,7 +149,7 @@ export function InfluencersBrowser() {
    * under one SWR key, shared with the sidebar's toggle, so this screen adds no second request.
    * The *selected* brand is deliberately not read — see the filter panel below.
    */
-  const { brands } = useActiveBrand();
+  const { brands, isLoading: brandsLoading } = useActiveBrand();
 
   const brandById = React.useMemo(() => {
     const map = new Map<string, BrandSummary>();
@@ -259,12 +269,29 @@ export function InfluencersBrowser() {
   const debouncedQ = useDebouncedValue(filters.q, 250);
 
   /**
-   * Create only. **Editing lives on the record page**, and that split is deliberate rather than
-   * unfinished: this table has no actions column, and giving it one to reach a form that the
-   * creator's own page already holds would put the same sheet behind two entry points and a
-   * per-row menu on a table whose rows are already a link. The table lists and adds; the record
-   * page corrects and removes. `/outlets` opens its form from a row because it grew one before it
-   * had a detail page.
+   * The sheet, and it is **create only** here.
+   *
+   * ── The argument that survived, and the one that did not ─────────────────
+   *
+   * This docstring used to say editing lived on the record page and that the table had no business
+   * offering any. Half of that was an argument about a **per-row actions menu** — that giving this
+   * table one, to reach a form the creator's own page already holds, would put the same sheet
+   * behind two entry points and a menu on a table whose rows are already a link. That half is
+   * still right, and there is still no actions column.
+   *
+   * The other half did not survive contact with the most common edit this table takes. Moving one
+   * creator from `prospect` to `active` cost a navigation, a sheet, a select, a save and a
+   * navigation back — and the sheet it opened **replaces the entire account list and brand set on
+   * submit**, because both are full-replacement keys. So the cheapest correction in the product
+   * was also its heaviest write.
+   *
+   * **Editing the cell you are looking at is not an actions menu.** Four columns hold a field and
+   * they edit in place, one key per `PATCH`; the four that hold a sum do not, because you cannot
+   * edit a sum by typing over it. See `InfluencerRow` for the column-by-column line and
+   * `features/influencers/patch.ts` for the write.
+   *
+   * The record page keeps what only it can do: the whole record at once, the accounts, the notes,
+   * and the delete.
    */
   const [createOpen, setCreateOpen] = React.useState(false);
   const openCreate = React.useCallback(() => setCreateOpen(true), []);
@@ -365,6 +392,8 @@ export function InfluencersBrowser() {
         grouped={grouped}
         sort={sort}
         onSort={applySort}
+        brands={brands}
+        brandsLoading={brandsLoading}
         brandById={brandById}
       />
 
@@ -478,6 +507,8 @@ function InfluencerResults({
   grouped,
   sort,
   onSort,
+  brands,
+  brandsLoading,
   brandById,
 }: {
   filters: Partial<Record<(typeof FILTER_KEYS)[number], string>>;
@@ -485,12 +516,41 @@ function InfluencerResults({
   /** `null` is the server's own order — reach descending — which is what the bands are built on. */
   sort: InfluencerSort | null;
   onSort: (key: SortKey) => void;
+  brands: BrandSummary[];
+  brandsLoading: boolean;
   brandById: Map<string, BrandSummary>;
 }) {
   // Which bands are folded away. A Set rather than a per-group `open` flag so the default is
   // expanded — a table that opens collapsed hides the data it exists to show. `useState` and not
   // the URL: a reading posture, not a view worth sharing.
   const [collapsed, setCollapsed] = React.useState<ReadonlySet<string>>(() => new Set());
+
+  /**
+   * The inline write, **once for the table** rather than once per row.
+   *
+   * `useInfluencerMutations` reaches `useActiveWorkspace`, which is an SWR subscription plus a
+   * `useSyncExternalStore` one; 146 of each to serve a single `PATCH` at a time is a cost with
+   * nothing on the other side of it. `commit` takes the creator as an argument, and each cell owns
+   * its own pending state in a plain `useState`.
+   */
+  const { commit } = useInlineEdit();
+
+  /**
+   * The creator whose whole record is open in the sheet, for the two columns that cannot edit in
+   * place. `null` is closed.
+   *
+   * **Held apart from `open`** and never cleared on close: `InfluencerForm` re-seeds its draft
+   * during render when `open` flips true, so the prop has to still be there at that moment.
+   * Clearing it on close is also the second half of the wedge AGENTS.md records — a value that
+   * changes mid-dismissal, whether through a `key` or through a prop the content reads, is how
+   * Base UI's overlay ends up mounted and eating clicks.
+   */
+  const [editing, setEditing] = React.useState<Influencer | null>(null);
+  const [editOpen, setEditOpen] = React.useState(false);
+  const openRecord = React.useCallback((influencer: Influencer) => {
+    setEditing(influencer);
+    setEditOpen(true);
+  }, []);
 
   const { influencers, isLoading, error } = useInfluencers();
 
@@ -658,7 +718,11 @@ function InfluencerResults({
                               grouped
                               rail={rail.rows}
                               query={filters.q}
+                              brands={brands}
+                              brandsLoading={brandsLoading}
                               brandById={brandById}
+                              commit={commit}
+                              onOpenRecord={openRecord}
                             />
                           ))}
                     </React.Fragment>
@@ -670,7 +734,11 @@ function InfluencerResults({
                     influencer={influencer}
                     grouped={false}
                     query={filters.q}
+                    brands={brands}
+                    brandsLoading={brandsLoading}
                     brandById={brandById}
+                    commit={commit}
+                    onOpenRecord={openRecord}
                   />
                 ))}
           </TableBody>
@@ -685,6 +753,17 @@ function InfluencerResults({
       <p className="px-1 text-helper text-ink-tertiary">
         {items.length} {items.length === 1 ? "creator" : "creators"}
       </p>
+
+      {/* **The sheet the derived columns open**, and the second `InfluencerForm` on this screen —
+          the browser's is create-only. Two instances rather than one shared between the toolbar
+          and the rows, because a single form would need its mode to change under a `key` or under
+          a prop that flips as it closes, and both are the wedge AGENTS.md records. Each is a
+          plain, single-purpose sheet with its own `open`. */}
+      <InfluencerForm
+        influencer={editing ?? undefined}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
     </div>
   );
 }
@@ -777,18 +856,55 @@ function TierHeader({
   );
 }
 
+/**
+ * One creator, and the line that decides which of its eight cells can be typed into.
+ *
+ * **A cell is editable when it holds a field; a derived cell opens its source.**
+ *
+ * | Column | Inline | Why |
+ * |---|---|---|
+ * | Creator | **yes**, text | A field on the row. The slug does not follow — frozen at create |
+ * | Platforms | no → the record's form | A set over the child table, not a field |
+ * | Reach | no → the record's form | `totalReach`, derived and never stored |
+ * | Tier | **never** | Derived from a derived figure. There is nothing behind it to open |
+ * | Engagement | **never** | `blendedEngagement`, a weighted mean. The parts are in the popover |
+ * | Vertical | **yes**, select | A field. `Generalist` is the empty option, as in the form |
+ * | Brands | **yes**, multi-select | A field — a full-replacement set, as the picker already means |
+ * | Status | **yes**, select | A field, and the most-edited one on this table |
+ *
+ * The four refusals are one refusal repeated: **you cannot edit a sum by typing over it.** Reach
+ * and Platforms get a pencil all the same, because their source *is* editable — it is the account
+ * list — so the pencil opens the record's own form rather than pretending the cell is inert. Tier
+ * and Engagement get none, because nothing behind them is a thing to open: a tier is a band over a
+ * sum, and a blend is arithmetic over rates the reach popover already shows one click away.
+ *
+ * **No inline edit can move a row**, and that is a property rather than a coincidence. The bands
+ * group by reach and the default order is reach descending; not one of the four editable fields is
+ * an input to either. So a status change under a grouped table does not make the row jump out from
+ * under the pointer that changed it. The exception is a sort *by* one of those columns, where the
+ * row moves because the reader asked the table to order by the thing they just changed — the one
+ * case where movement is the answer rather than a surprise.
+ */
 function InfluencerRow({
   influencer,
   grouped,
   rail,
   query,
+  brands,
+  brandsLoading,
   brandById,
+  commit,
+  onOpenRecord,
 }: {
   influencer: Influencer;
   grouped: boolean;
   rail?: string;
   query?: string;
+  brands: BrandSummary[];
+  brandsLoading: boolean;
   brandById: Map<string, BrandSummary>;
+  commit: (influencer: Influencer, edit: FieldEdit) => Promise<boolean>;
+  onOpenRecord: (influencer: Influencer) => void;
 }) {
   const VerticalIcon = influencer.vertical ? INFLUENCER_VERTICAL_ICONS[influencer.vertical] : null;
 
@@ -805,18 +921,36 @@ function InfluencerRow({
   const reach = totalReach(influencer.accounts);
 
   return (
-    <TableRow className={rail ? cn("border-l-4", rail) : undefined}>
+    // `group/row` is what the pencils' `group-hover/row:opacity-100` reads. **Named**, not a bare
+    // `group`: the Reach cell holds a popover and the Brands cell another, and an unnamed group
+    // would be claimed by whichever ancestor is nearest.
+    <TableRow className={cn("group/row", rail && "border-l-4", rail)}>
       <TableCell className={grouped ? "pl-4" : "pl-5"}>
-        {/* The link fills the cell so the whole name is a target. The row is not clickable as a
-            whole: a row-level `onClick` makes the text unselectable and cannot be opened in a new
-            tab — and the handle underneath carries the search highlight, which a nested link would
-            fight. The slug comes off the row, so nothing is looked up to build this. */}
-        <Link
-          href={influencerHref(influencer)}
-          className="-mx-2 -my-1 block truncate rounded-md px-2 py-1 font-medium text-ink hover:text-brand hover:underline"
+        {/* **The link stays the cell's primary target and the pencil is a separate control beside
+            it** — never a nested interactive, which is what putting a button inside the link would
+            be. Opening the record is the more common intent, so it keeps the whole name; the
+            pencil sits at the cell's right.
+
+            The row is not clickable as a whole: a row-level `onClick` makes the text unselectable
+            and cannot be opened in a new tab — and the handle underneath carries the search
+            highlight, which a nested link would fight. */}
+        <EditableCell
+          label="name"
+          // The handle sits under this line, so the editor takes the line's height rather than the
+          // rung's — otherwise opening it adds the difference to the row's tallest cell and pushes
+          // every row below down. See `editable-cell.tsx`.
+          stacked
+          display={
+            <Link
+              href={influencerHref(influencer)}
+              className="-mx-2 -my-1 block min-w-0 truncate rounded-md px-2 py-1 font-medium text-ink hover:text-brand hover:underline"
+            >
+              <HighlightMatch text={influencer.name} query={query} />
+            </Link>
+          }
         >
-          <HighlightMatch text={influencer.name} query={query} />
-        </Link>
+          {(slot) => <NameEditor {...slot} influencer={influencer} commit={commit} />}
+        </EditableCell>
         {/* The handle is the creator's identifier and the second thing the search box matches, so
             it is marked in place — `HighlightMatch`, not relevance ordering, per the rule AGENTS.md
             sets for a search that spans more than the title. The `@` is added here because the
@@ -832,34 +966,47 @@ function InfluencerRow({
         </span>
       </TableCell>
 
-      {/* Up to three platform names, then `+N`. **Words, not glyphs** — Lucide holds no brand
-          marks, and drawing six of them for this column is not this release's work. Enum order
-          rather than entry order, so reordering a creator's accounts does not reshuffle their row
-          for a change that says nothing about where they post. */}
-      <TableCell className="text-ink-secondary">
-        {platforms
-          .slice(0, 3)
-          .map((platform) => INFLUENCER_PLATFORM_LABELS[platform])
-          .join(", ")}
-        {platforms.length > 3 ? (
-          <span className="text-ink-tertiary"> +{platforms.length - 3}</span>
-        ) : null}
+      {/* Up to three platform badges, then a `+N` naming the rest on hover and on focus.
+          **Marks and words together, and the marks are monochrome** — see
+          `components/platform-icons.tsx` for why they are not the platforms' own colours, which
+          is the decision the next person is most likely to reverse by accident. Enum order rather
+          than entry order, so reordering a creator's accounts does not reshuffle their row for a
+          change that says nothing about where they post. */}
+      <TableCell>
+        {/* **The pencil opens the record's form, and it says what it is for.** A creator's
+            platforms are the child table's, so there is nothing here to type over — but the thing
+            behind the cell is editable, and a column that offered no affordance at all would read
+            as frozen. `Edit platforms and handles` is the honest name for a control that lands in
+            the account editor. */}
+        <span className="flex items-center gap-1">
+          <PlatformBadges platforms={platforms} />
+          <EditPencil
+            label="platforms and handles"
+            className="ml-auto"
+            onClick={() => onOpenRecord(influencer)}
+          />
+        </span>
       </TableCell>
 
       {/* Right-aligned and tabular, because this column is compared down its length rather than
           read across the row — `84.2k` under `1.24M` only lines up on the decimal if the digits
           are the same width. */}
       <TableCell className="text-right font-mono text-helper tabular-nums text-ink">
-        {formatCompactNumber(reach)}
-        {/* **The one line on this screen that says the figure is a sum.** Without it a creator on
-            140k reads as one account of 140k, which is the misreading the child table exists to
-            remove. Only when there is more than one: `1 account` under every single-account row
-            would be noise on most of the table. */}
-        {influencer.accounts.length > 1 ? (
-          <span className="mt-0.5 block font-sans text-helper text-ink-tertiary">
-            {formatAccountCount(influencer.accounts.length)}
-          </span>
-        ) : null}
+        {/* The pencil goes **before** the figure, not after it. `opacity-0` still occupies its
+            width, so a pencil on the right would push the numbers off the column's right edge on
+            hover — or, reserved, would unalign the one column on this table that is read down its
+            length. Same destination as the Platforms pencil, named for what the reader came to
+            change. */}
+        <span className="flex items-center justify-end gap-1">
+          <EditPencil label="follower counts" onClick={() => onOpenRecord(influencer)} />
+          {formatCompactNumber(reach)}
+        </span>
+        {/* **The one line on this screen that says the figure is a sum**, and now the control that
+            shows what the sum is made of. Without it a creator on 140k reads as one account of
+            140k, which is the misreading the child table exists to remove. `ReachBreakdown`
+            renders nothing at all for a single-account creator: there is nothing to split, and
+            `1 account` under every such row would be noise on most of the table. */}
+        <ReachBreakdown influencer={influencer} />
       </TableCell>
 
       {grouped ? null : (
@@ -876,21 +1023,29 @@ function InfluencerRow({
       </TableCell>
 
       <TableCell className="text-ink-secondary">
-        {influencer.vertical && VerticalIcon ? (
-          // The glyph is never alone — a vocabulary of ten symbols is not readable at 16px on its
-          // own, and WCAG 1.4.1 does not allow the icon to be the only carrier.
-          <span className="inline-flex items-center gap-1.5">
-            <VerticalIcon aria-hidden className="size-4 shrink-0 text-ink-tertiary" />
-            {INFLUENCER_VERTICAL_LABELS[influencer.vertical]}
-          </span>
-        ) : (
-          // **The word, not the em dash**, and this is a correction rather than a preference —
-          // see `GENERALIST`. `InfluencerSchema` says `null` here is a genuine generalist and not
-          // an unclassified row, which is why the union has no `other` member; the em dash is this
-          // table's word for "not recorded", so it stated the one thing the schema went out of its
-          // way not to mean. Tertiary ink, the same register as `Not engaged yet` two cells over.
-          <span className="text-ink-tertiary">{GENERALIST}</span>
-        )}
+        <EditableCell
+          label="vertical"
+          display={
+            influencer.vertical && VerticalIcon ? (
+              // The glyph is never alone — a vocabulary of ten symbols is not readable at 16px on
+              // its own, and WCAG 1.4.1 does not allow the icon to be the only carrier.
+              <span className="inline-flex items-center gap-1.5">
+                <VerticalIcon aria-hidden className="size-4 shrink-0 text-ink-tertiary" />
+                {INFLUENCER_VERTICAL_LABELS[influencer.vertical]}
+              </span>
+            ) : (
+              // **The word, not the em dash**, and this is a correction rather than a preference —
+              // see `GENERALIST`. `InfluencerSchema` says `null` here is a genuine generalist and
+              // not an unclassified row, which is why the union has no `other` member; the em dash
+              // is this table's word for "not recorded", so it stated the one thing the schema went
+              // out of its way not to mean. The select's empty option carries the same word, so the
+              // display and the editor agree about what `null` means.
+              <span className="text-ink-tertiary">{GENERALIST}</span>
+            )
+          }
+        >
+          {(slot) => <VerticalEditor {...slot} influencer={influencer} commit={commit} />}
+        </EditableCell>
       </TableCell>
 
       <TableCell className="max-w-[24ch] text-ink-secondary">
@@ -904,17 +1059,39 @@ function InfluencerRow({
             request in flight and nothing else: the ids are foreign keys with `ON DELETE CASCADE`
             on both sides, so a deleted brand takes the link with it rather than leaving a dangling
             reference. That is the whole reason the relation is a join table. */}
-        <BrandNamesCell
-          brandIds={influencer.brandIds}
-          brandById={brandById}
-          empty={<span className="text-ink-tertiary">Not engaged yet</span>}
+        {/* The one editor that is a popover rather than an inline swap: a column of checkboxes
+            does not fit a 24px cell, and the set needs an explicit `Save` because the write is a
+            full replacement. See `BrandsEditor`. */}
+        <BrandsEditor
+          influencer={influencer}
+          commit={commit}
+          brands={brands}
+          brandsLoading={brandsLoading}
+          display={
+            <BrandNamesCell
+              brandIds={influencer.brandIds}
+              brandById={brandById}
+              empty={<span className="text-ink-tertiary">Not engaged yet</span>}
+            />
+          }
         />
       </TableCell>
 
       <TableCell className="pr-5">
-        <Badge variant={INFLUENCER_STATUS_TONES[influencer.status]}>
-          {INFLUENCER_STATUS_LABELS[influencer.status]}
-        </Badge>
+        {/* **The most-edited cell on this table**, and the reason inline editing is here at all:
+            moving one creator from `prospect` to `active` used to cost a navigation, a sheet, a
+            select, a save and a navigation back — and that sheet replaced the whole account list
+            on submit. It is one `PATCH` of one key now. */}
+        <EditableCell
+          label="status"
+          display={
+            <Badge variant={INFLUENCER_STATUS_TONES[influencer.status]}>
+              {INFLUENCER_STATUS_LABELS[influencer.status]}
+            </Badge>
+          }
+        >
+          {(slot) => <StatusEditor {...slot} influencer={influencer} commit={commit} />}
+        </EditableCell>
       </TableCell>
     </TableRow>
   );

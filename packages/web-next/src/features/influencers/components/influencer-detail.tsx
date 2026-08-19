@@ -22,7 +22,6 @@ import {
 import { useSubmit } from "@/hooks/use-submit";
 import { formatDateTime, PENDING } from "@/lib/format";
 import {
-  INFLUENCER_PLATFORM_LABELS,
   INFLUENCER_STATUS_LABELS,
   INFLUENCER_STATUS_TONES,
   INFLUENCER_VERTICAL_ICONS,
@@ -33,6 +32,7 @@ import { formatAccountCount, formatEngagement, formatFollowers, GENERALIST } fro
 import { useInfluencer, useInfluencerMutations } from "../hooks";
 import { tierFor } from "../tiers";
 import { InfluencerForm } from "./influencer-form";
+import { PlatformBadge } from "./platform-badges";
 
 /**
  * One creator — the record, and **only** the record.
@@ -227,8 +227,13 @@ export function InfluencerDetail({ influencerRef }: { influencerRef: string }) {
                   key={`${account.platform}/${account.handle}`}
                   className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3 first:pt-0 last:pb-0"
                 >
-                  <span className="min-w-[7rem] text-ink">
-                    {INFLUENCER_PLATFORM_LABELS[account.platform]}
+                  {/* The same badge the roster's Platforms column draws, so a creator's row and
+                      their record name their platforms in one register. The width stays on the
+                      wrapper rather than on the badge: a badge is `w-fit` by contract, and
+                      stretching one to 7rem would put `Instagram` and `Xiaohongshu` in two
+                      differently-sized pills. */}
+                  <span className="min-w-[7rem]">
+                    <PlatformBadge platform={account.platform} />
                   </span>
                   {/* Linked only when a `url` is stored. **Nothing is derived from a handle** — a
                       guessed link to a real stranger's profile is worse than no link — and

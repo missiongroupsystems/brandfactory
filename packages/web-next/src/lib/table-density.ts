@@ -62,19 +62,28 @@ export const TABLE_DENSITIES = ["comfortable", "cosy", "compact"] as const;
 export const DEFAULT_TABLE_DENSITY: TableDensity = "comfortable";
 
 /**
- * The four measurements a rung decides.
+ * The five measurements a rung decides.
  *
  * `cell` and `head` are the table primitives' own — height, vertical padding **and horizontal
  * padding**. `band` is the group header row that three tables render (`/influencers`,
  * `/outlets`, `/contracts`), which is a cell with `p-0` and a button inside it and so cannot
  * inherit the cell height. `skeleton` is `LoadingRows`' placeholder, which exists to be the
  * shape of the content it stands in for and would stop being that the moment the rows moved.
+ *
+ * `editor` is an **inline editor opened inside a cell** (`/influencers`' editable columns). It
+ * exists because the control primitives are a fixed 40px — `Input` and `Select` are both `h-10`,
+ * which is taller than the content box of every rung but the loosest — so an editor at its natural
+ * height would grow the row it opened in and shift every row below it. Its rule is arithmetic
+ * rather than taste and `table-density.test.ts` asserts it: **`editor` height is exactly the
+ * cell's height minus its own vertical padding**, which is the tallest thing a cell can hold
+ * without moving.
  */
 export type TableDensityClasses = {
   cell: string;
   head: string;
   band: string;
   skeleton: string;
+  editor: string;
 };
 
 /**
@@ -98,12 +107,36 @@ export type TableDensityClasses = {
  * so it rides the same rung: one preference, not two.
  *
  * Only `cell` and `head` carry it. `band` sets its own `pr-5 pl-3.5` to line up with the group
- * rail, and `skeleton` sits inside a card that already has padding.
+ * rail, `skeleton` sits inside a card that already has padding, and `editor` sets its own — it is
+ * borderless and pulls its padding back with a negative margin so the value does not shift
+ * sideways as the editor opens over it.
+ *
+ * **`editor` is `cell` height minus twice `cell` padding, on every rung**, which is the content
+ * box exactly. `compact` lands at 24px, the same 24px the badge floor is built on, so the tightest
+ * rung's editor is as tall as the pill beside it and no taller.
  */
 export const TABLE_DENSITY_CLASSES: Record<TableDensity, TableDensityClasses> = {
-  comfortable: { cell: "h-12 px-4 py-2", head: "h-10 px-4", band: "h-11", skeleton: "h-10" },
-  cosy: { cell: "h-10 px-3 py-1.5", head: "h-9 px-3", band: "h-10", skeleton: "h-8" },
-  compact: { cell: "h-8 px-2.5 py-1", head: "h-8 px-2.5", band: "h-8", skeleton: "h-6" },
+  comfortable: {
+    cell: "h-12 px-4 py-2",
+    head: "h-10 px-4",
+    band: "h-11",
+    skeleton: "h-10",
+    editor: "h-8",
+  },
+  cosy: {
+    cell: "h-10 px-3 py-1.5",
+    head: "h-9 px-3",
+    band: "h-10",
+    skeleton: "h-8",
+    editor: "h-7",
+  },
+  compact: {
+    cell: "h-8 px-2.5 py-1",
+    head: "h-8 px-2.5",
+    band: "h-8",
+    skeleton: "h-6",
+    editor: "h-6",
+  },
 };
 
 export const TABLE_DENSITY_LABELS: Record<TableDensity, string> = {

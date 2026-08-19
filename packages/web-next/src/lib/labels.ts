@@ -534,11 +534,16 @@ export const CONTRACT_CATEGORY_ICONS: Record<ContractCategory, LucideIcon> = {
  * The platforms, labelled the way the platforms label themselves.
  *
  * `Xiaohongshu` and not "RED" or "Little Red Book": it is what the app is called and what a
- * Singapore marketing team says out loud. No icon map — lucide ships no brand marks, and a
- * generic glyph per platform (a camera for Instagram, a play button for YouTube) would be six
- * symbols that name a *medium* rather than a service, which is the "eleven moods at 16px"
- * failure `CONTRACT_CATEGORY_ICONS` records one domain over. The platform is a short word and
- * reads perfectly well as one.
+ * Singapore marketing team says out loud.
+ *
+ * **The icon map is not here, and that is deliberate.** It used to say there was none: lucide
+ * ships no brand marks, and a generic glyph per platform — a camera for Instagram, a play button
+ * for YouTube — would be six symbols naming a *medium* rather than a service, which is the
+ * "eleven moods at 16px" failure `CONTRACT_CATEGORY_ICONS` records one domain over. That argument
+ * stands and is why the marks are the platforms' **own**, drawn by hand in
+ * `features/influencers/components/platform-icons.tsx` rather than approximated out of this file.
+ * They live beside the badge that renders them because they are six inline SVGs and one feature's
+ * concern; this map stays the vocabulary, which every surface shares.
  */
 export const INFLUENCER_PLATFORM_LABELS: Record<InfluencerPlatform, string> = {
   instagram: "Instagram",
