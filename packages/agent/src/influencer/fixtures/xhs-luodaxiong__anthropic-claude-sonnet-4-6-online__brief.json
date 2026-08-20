@@ -1,0 +1,98 @@
+{
+  "case": {
+    "id": "xhs-luodaxiong",
+    "platform": "xiaohongshu",
+    "handle": "罗大雄",
+    "kind": "roster",
+    "expect": {
+      "name": "罗大雄",
+      "followers": 392800,
+      "vertical": "fitness"
+    },
+    "note": "Non-Latin handle #1. XHS addresses users by an opaque numeric id, so there is no URL to guess — grounding has to come from search alone."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "capture": {
+    "caseId": "xhs-luodaxiong",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "platform": "xiaohongshu",
+    "handle": "罗大雄",
+    "elapsedMs": 6681,
+    "costUsd": 0.017197,
+    "draft": {
+      "outcome": "ok",
+      "name": null,
+      "vertical": "fitness",
+      "accounts": [
+        {
+          "platform": "xiaohongshu",
+          "handle": "罗大雄",
+          "followers": 78000,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": "https://www.relangdata.cn/redbook/redbook_person_607040876.html"
+        }
+      ],
+      "sources": [
+        {
+          "title": "罗大雄 -红人详情-小红书分析-热浪数据",
+          "url": "https://www.relangdata.cn/redbook/redbook_person_607040876.html"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":null,\"vertical\":\"fitness\",\"accounts\":[{\"platform\":\"xiaohongshu\",\"handle\":\"罗大雄\",\"followers\":78000,\"engagementRate\":null,\"url\":null,\"sourceUrl\":\"https://www.relangdata.cn/redbook/redbook_person_607040876.html\"}],\"sources\":[{\"title\":\"罗大雄 -红人详情-小红书分析-热浪数据\",\"url\":\"https://www.relangdata.cn/redbook/redbook_person_607040876.html\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.relangdata.cn/redbook/redbook_person_607040876.html",
+          "title": "罗大雄 -红人详情-小红书分析-热浪数据",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "罗大雄 -红人详情-小红书分析-热浪数据\n\n...\n\n罗大雄\n\n...\n\nID: 607040876\n\n...\n\n- 红人类型： KOL\n- 认证信息： 未认证\n- 品牌合作人： 是\n- MCN机构： 无\n- 所属地域：\n- 账号等级： 困困薯\n- 擅长笔记： 视频笔记\n\n...\n\n简介：\n\n...\n\n全职照顾自己的生活梦想家\n\n减肥 ...\n\n...\n\n一级标签 (1)\n\n...\n\n减肥\n\n...\n\n减肥其他\n\n...\n\n粉丝总量\n\n...\n\n7.8万\n\n...\n\n活跃粉丝\n\n...\n\n7182\n\n...\n\n笔记总量\n\n...\n\n29\n\n...\n\n图文笔记\n\n...\n\n2\n\n...\n\n视频笔记\n\n...\n\n27\n\n...\n\n红人标签\n\n...\n\n- 减肥其他\n\n...\n\n笔记分类\n\n...\n\n6 / 40.00%\n\n...\n\n情感\n\n...\n\n4 / 26.67%\n\n...\n\n减肥\n\n...\n\n2 / 13.33%\n\n...\n\n运动健身\n\n...\n\n生活记录\n\n...\n\n1 / 6.67%\n\n...\n\n知识\n\n...\n\n4 / 40%\n\n...\n\n减肥其他\n\n...\n\n健身\n\n...\n\n接地气生活\n\n...\n\n心理学\n\n...\n\n视频笔记\n\n...\n\n15/ 93.75%\n\n...\n\n日常笔记"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://newrank.cn/profile/douyin/luodaxiong?from=ranklist",
+          "title": "罗大雄-抖音达人数据主页-新榜",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "## 罗大雄\n...\nluodaxiong\n...\n✈️ 孕前：定居新加坡｜一月换一国｜真实生活vlog 🌍 有娃：带娃解锁人生更多可能｜农场生活ing ❤️ 运动：跑马｜冲浪｜攀岩 👸 +1 ：piano piano 服装主理人"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://m.mxgxt.com/news/view/1947499",
+          "title": "罗大雄：用真实自律打造阳光生活的博主 - 明星关系图",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "罗大雄：用真实自律打造阳光生活的博主 - 明星关系图\n\n...\n\n作为较具影响力的生活方式类博主，罗大雄以其真实、自律且充满阳光正能量的内容风格赢得了众多关注。从在抖音平台发布第一条个人视频，号召女性勇敢自我提升开始，她的作品主要记录并分享阳光、健康、自律的日常生活。在日常vlog中，罗大雄常展示清晨早起、健身运动、认真学习等自律习惯，将自己的积极生活态度融入镜头。她的视频经常带有“#记录真实生活”“#自律”等话题标签，强调内容的真实感和自我约束的主题。\n\n...\n\n罗大雄将个人爱好与生活方式巧妙融合到内容中。例如，她热爱环球旅行，在自我介绍中写道：“环球旅居｜一年换一国”，并以真实生活vlog记录各地生活日常，同时热衷健身锻炼。从清晨四五点的晨跑到异国他乡的日常起居，罗大雄用镜头分享自律给生活带来的积极改变，也让粉丝感受到一种明朗乐观的生活美学。正是凭借这种真实自律又充满活力的风格定位，她迅速在竞争激烈的自媒体领域中脱颖而出。\n\n...\n\n目前，罗大雄积累了庞大的粉丝基础，并展现出强劲的跨平台影响力。截至2025年中，她的抖音账号（ID：luodaxiong）已吸引了超过233万粉丝。其发布的短视频作品总计获得超过4300万次点赞的惊人数据，平均每条视频收获约25万点赞、数千条评论互动。这一系列数字反映出她内容的高人气和粉丝黏性：大量观众不仅点赞支持，更在评论区积极交流，形成了良性的互动氛围。"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.douyin.com/shipin/7371078639322155043",
+          "title": "罗大雄为什么这么火-抖音",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "粉丝4.0万获赞24.8万\n\n...\n\n人不需要每天都过的特别幸福 你很平静，你很舒服，就是非常非常好的。 #vlog日常 #记录真实生活\n\n...\n\n#罗大雄 凌晨五点起床，p人挑战拍一期超强自律vlog⏰虽然破例了，但是自律起来真的好快活！#分享生活 #罗大雄 #esfp\n\n...\n\n当我用了喜欢的博主：罗大雄的bgm后…真的喜欢上拍Vlog. “能拍就拍，能照就照，十年后，再好的相机和技术，也拍不出如此般模样，大胆的记录生活，你现在的每天，都是被值得收藏的” 记忆会被重组，会被删除，只有呈现在眼前一桩桩一件件的照片～文字～视频记录可以还原那一天的故事。#vlog #瑜伽 #运动女孩 #vlog日常#罗大雄环球旅居\n\n...\n\n放轻松，了解之后都普通 #vlog日常 #记录真实生活 #自律 #i人\n\n...\n\n在迪拜遇到了蒂芙尼蓝的海。#记录真实生活 #日常vlog #自律 #努力成为更好的自己 #i人\n\n...\n\nvlog｜跟着罗大雄来一期｜馒头，茄子酱，烤鸡腿#vlog #视频日记 #enfp #自律 #生活碎片"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://github.com/RedNote/Xiaohongshu-API",
+          "title": "RedNote/Xiaohongshu-API",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Xiaohongshu API — 小红书数据采集\n...\n简介、粉丝数等\n...\n完整信息 |\n...\n热门灵感"
+        }
+      }
+    ],
+    "error": null
+  }
+}

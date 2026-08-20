@@ -4,12 +4,16 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { createOllama } from 'ollama-ai-provider'
 import {
+  type GroundedRequest,
+  type GroundedResult,
+  GroundedNotSupportedError,
   type LLMProvider,
   type LLMProviderConfig,
   type LLMProviderId,
   type LLMProviderSettings,
   ProviderNotConfiguredError,
 } from './port'
+import { createOpenRouterGrounded, type GroundedDeps } from './grounded'
 
 // Per-provider AI-SDK factory. Resolved lazily on first call per providerId
 // and cached so a long-lived server doesn't re-build provider clients on
@@ -22,6 +26,8 @@ export interface LLMProviderDeps {
   buildOpenAI?: (config: { apiKey: string }) => ProviderFactory
   buildOpenRouter?: (config: { apiKey: string; baseURL?: string }) => ProviderFactory
   buildOllama?: (config: { baseURL?: string }) => ProviderFactory
+  /** Test seam for `completeGrounded` — a `fetch` and a base URL. */
+  grounded?: GroundedDeps
 }
 
 // Each AI-SDK provider returns a per-provider model type that is
@@ -47,6 +53,9 @@ const defaultDeps: Required<LLMProviderDeps> = {
     const provider = createOllama({ baseURL })
     return (modelId: string) => provider(modelId) as unknown as LanguageModel
   },
+  // Empty rather than absent: `createOpenRouterGrounded` falls back to the
+  // global `fetch` and the published base URL, so the default is "no seam".
+  grounded: {},
 }
 
 export function createLLMProvider(
@@ -86,9 +95,25 @@ export function createLLMProvider(
     return factory
   }
 
+  // Built once, lazily, and only for openrouter. The other three providers have
+  // no grounded endpoint behind this adapter, and saying so by name is better
+  // than an absent method a caller could skip past — see `LLMProvider`.
+  let grounded: ((req: GroundedRequest) => Promise<GroundedResult>) | undefined
+
   return {
     getModel(settings: LLMProviderSettings): LanguageModel {
       return resolve(settings.providerId)(settings.modelId)
+    },
+
+    completeGrounded(req: GroundedRequest): Promise<GroundedResult> {
+      if (req.settings.providerId !== 'openrouter') {
+        return Promise.reject(new GroundedNotSupportedError(req.settings.providerId))
+      }
+      if (!config.openrouter) {
+        return Promise.reject(new ProviderNotConfiguredError('openrouter'))
+      }
+      grounded ??= createOpenRouterGrounded(config.openrouter, merged.grounded ?? {})
+      return grounded(req)
     },
   }
 }

@@ -1,0 +1,93 @@
+{
+  "case": {
+    "id": "lennardy-ig",
+    "platform": "instagram",
+    "handle": "lennardy",
+    "kind": "roster",
+    "expect": {
+      "name": "Lennard Yeong",
+      "followers": 534000,
+      "vertical": "food"
+    },
+    "note": "Paired with lennardy-tt: the same person on two platforms, so a model that answers the person rather than the account is visible."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "capture": {
+    "caseId": "lennardy-ig",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "platform": "instagram",
+    "handle": "lennardy",
+    "elapsedMs": 7730,
+    "costUsd": 0.021028,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "instagram",
+          "handle": "lennardy",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/lennardy/",
+          "sourceUrl": null
+        }
+      ],
+      "sources": []
+    },
+    "rawText": "I was unable to directly access the Instagram profile page for @lennardy in a way that returned verifiable follower counts or profile details. The web search results provided are about general Instagram API techniques and unrelated topics — none of them contain information about the @lennardy account specifically.\n\n{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\n \"accounts\":[{\"platform\":\"instagram\",\"handle\":\"lennardy\",\"followers\":null,\n              \"engagementRate\":null,\"url\":\"https://www.instagram.com/lennardy/\",\"sourceUrl\":null}],\n \"sources\":[]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://forum.bubble.io/t/how-to-get-general-instagram-information-without-using-the-graph-api/110114",
+          "title": "How to get general Instagram information without using the Graph API",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "I have searched for a long time for an easy way to get general information about an Instagram user (#followers, name, bio, pic, etc) because the Graph API was too much hassle. I founded a way to do it with the Toolbox plugin.\n\n...\n\n1. Instal the Toolbox plugin.\n2. Make a button with the workflow: run javascript.\n3. Put a JavascripttoBubble element on your page for each piece of data you want to extract.\n4. Put the following code in the run javascript workflow:\n\nlet url = “ https://www.instagram.com/**[username]**”; $.ajax({ type: ‘GET’, url: url, error: function () { //… }, success: function (data) { data = JSON.parse(data.split(“window._sharedData = “)[1].split(”;”)[0]).entry_data.ProfilePage[0].graphql; console.log(data.user); bubble_fn_insta(data.user.edge_followed_by.count); } })\n\nYou can extract all data attached to data.user. To check the syntax, just run the workflow once with a valid username and check your console which displays all data you can extract and put into a JavascripttoBubble element.\n\n1. Change the [username] to the user you want to search\n2. Change the bubble_fn_insta to the name of your JavascripttoBubble element\n\n...\n\nNow you have that data in your Bubble app without having to use the Graph API.\n\n...\n\nGet Number of followers of Instagram Profile"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.quora.com/How-do-I-find-someone-s-Instagram-if-I-know-their-first-name-and-follower-count",
+          "title": "How to find someone's Instagram if I know their first name ... - Quora",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "How to find someone’s Instagram if I know their first name and follower count - Quora\nSomething went wrong. Wait a moment and try again.\nTry again"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.notjustanalytics.com/",
+          "title": "Not Just Analytics: Advanced Instagram Stats and Follower Analyzer",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Not Just Analytics: Advanced Instagram Stats and Follower Analyzer\n\n...\n\n# Analyze followers\n\n...\n\n#### Strategic profile analysis\n\nGet a full profile check-up. See what's not working and what to do next.\n\n...\n\nTips & Tricks\n\n...\n\nPosts & Hashtags\n\n...\n\n### Boost\n\n...\n\n### your Instagram profile!\n\nFind out what's not working on your profile, posts and stories\n\nFind tips and insights based on your results\n\n...\n\nRun an automatic analysis of your latest post\n\n...\n\nGet more likes, comments and saves: we give you great tips on which posts to publish\n\nFind out what and when to post to get more exposure\n\n...\n\n### Analyse and verify any\n\n...\n\n### Instagram profile\n\n...\n\nNot just analytics community\n\n...\n\n- Practical suggestions to optimize your Instagram profile\n- Tips for getting the best out of every feature\n- Smart strategies to share with your customers\n- Tricks for achieving organic visibility\n\n...\n\n@notjustanalytics\n\n...\n\n124k follower\n\n...\n\nNJL helped me understand how to optimize my profile, take care of the people who follow me with affection, and determine what type of content to post. It also offers insights into my competitors. NJL is essential for anyone who wants to work with social media!\n\n...\n\n## Want to boost your profile?\n\n...\n\nPersonalised advice, tips about when and what to post, tools to find the best hashtags. Analyse business insights and create automatic reports.\n\n...\n\nNJL is powered by the Official Instagram API"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://stackoverflow.com/questions/32407851/instagram-api-how-can-i-retrieve-the-list-of-people-a-user-is-following-on-ins",
+          "title": "Instagram API - How can I retrieve the list of people a user is ...",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "1. Open Instagram on your browser;\n2. Login to Instagram;\n3. Open your browser's console (CTRL + SHIFT + J);\n4. Paste the code below;\n5. Update the username in the first line;\n6. RUN IT (Hit Enter)\n\n```\nconst username = \"USER_NAME_HERE\";\n\n/**\n * Initialized like this so we can still run it from browsers, but also use typescript on a code editor for intellisense.\n */\nlet followers = [{ username: \"\", full_name: \"\" }];\nlet followings = [{ username: \"\", full_name: \"\" }];\nlet dontFollowMeBack = [{ username: \"\", full_name: \"\" }];\nlet iDontFollowBack = [{ username: \"\", full_name: \"\" }];\n\n...\n\n(async () => {\n  try {\n    console.log(`Process started! Give it a couple of seconds`);\n\n    const userQueryRes = await fetch(\n      `https://www.instagram.com/web/search/topsearch/?query=${username}`\n    );\n\n...\n\nconst userQueryJson = await userQueryRes.json();\n\n    const userId = userQueryJson.users.map(u => u.user)\n                                      .filter(\n                                        u => u.username === username\n                                       )[0].pk;\n\n...\n\nwhile (has_next) {\n      await fetch(\n        `https://www.instagram.com/graphql/query/?query_hash=c76146de99bb02f6415203be841dd25a&variables=` +\n          encodeURIComponent(\n            JSON.stringify({\n              id: userId,\n              include_reel: true,\n              fetch_mutual: true,\n              first: 50,\n              after: after,\n            })\n          )\n      )\n        .then((res) => res.json())\n        .then((res) => {\n          has_next = res.data.user.edge_followed_by.page_info.has_next_page;\n          after = res.data.user.edge_followed_by.page_info.end_cursor;\n          followers = followers.concat(\n            res.data.user.edge_followed_by.edges.map(({ node }) => {\n              return {\n                username: node.username,\n                full_name: node.full_name,\n              };\n            })\n          );\n        });\n    }\n\n...\n\n1. Get the user's id (In a browser, navigate to https://www.instagram.com/user\\_name/?\\_\\_a=1 and look for response -> graphql -> user -> id \\[from Deep Seeker's answer\\])\n\n...\n\nAfter a few seconds it should output the list of users your user is following.\n\n...\n\n```\n{\"data\":{\"user\":{\"edge_followed_by\":{\"count\":196,\"page_info\":{\"has_next_page\":false,\"end_cursor\":null},\"edges\":[]},\"edge_mutual_followed_by\":{\"count\":0,\"edges\":[]}}},\"status\":\"ok\"}\n```\n\n...\n\nShiva's answer doesn't apply anymore. The API call \"_/users/{user-id}/follows_\" is not supported by Instagram for some time (it was disabled in 2016).\n\n...\n\nAs far as I know (at this moment) there isn't a service available (official or unofficial) where you can get the followers/followings of a user (even your own).\n\n...\n\n```\nlet username = 'USERNAME'\nlet followers = [], followings = []\ntry {\n  let res = await fetch(`https://www.instagram.com/${username}/?__a=1`)\n\n...\n\nYou can use the following Instagram API Endpoint to get a list of people a user is following.\n\n`https://api.instagram.com/v1/users/{user-id}/follows?access_token=ACCESS-TOKEN`\n\n...\n\nSince this endpoint required a `user-id` (and not `user-name`), depending on how you've written your API client, you might have to make a call to the /users/search endpoint with a username, and then get the user-id from the response and pass it on to the above `/users/user-id/follows` endpoint to get the list of followers.\n\n...\n\n```\n    {\n        \"users\": [\n            {\n                \"pk\": 7385793727,\n                \"username\": \"nebitno\",\n                \"full_name\": \"lela\",\n                \"is_private\": true,\n                \"profile_pic_url\": \"https://scontent-sof1-2.cdninstagram.com/v/t51.2885-19/s150x150/144485752_4993231520748255_75575875121006268732_n.jpg?cb=9ad74b5e-c1c39920&_nc_ht=scontent-sof1-2.cdninstagram.com&_nc_cat=103&_nc_ohc=956dXauIBogAX_zfWPW&edm=ALB854YBAAAA&ccb=7-4&oh=00_AT_EGZmL2bx-zMSBQqxYKUjIaYWVVyBnPH9__Y9jAccF0w&oe=61DFADB1&_nc_sid=04cb80\",\n                \"profile_pic_id\": \"2500168216063422867_7385792727\",\n                \"is_verified\": false,\n                \"follow_friction_type\": 0,\n                \"has_anonymous_profile_picture\": false,\n                \"has_highlight_reels\": false,\n                \"account_badges\": [],\n                \"latest_reel_media\": 1641496960,\n                \"is_favorite\": false\n            },\n      ...\n]}\n```\n\n...\n\npublic class Followers\n{\n    public List<User> users { get; set; }\n    public bool big_list { get; set; }\n    public int page_size { get; set; }\n    public string next_max_id { get; set; }\n    public\n\n...\n\npublic class User\n{\n    public string pk { get; set; }\n    public string username { get; set; }\n    public string full_name { get; set; }\n    public bool is_private { get; set; }\n    public string pk_id { get; set; }\n    public string profile_pic_url { get; set; }\n    public string profile_pic_id { get; set; }\n    public bool is_verified { get; set; }\n    public bool has_anonymous_profile_picture { get; set; }\n    public bool has_highlight_reels { get; set; }\n    public List<object>"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://github.com/ramtinak/InstagramApiSharp/issues/207",
+          "title": "Instagram followers and following count incorrect · Issue #207 - GitHub",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "I'm calling GetUserFollowersAsync to get a list of Followers and GetUserFollowingAsync to get a list of Followings for my account. But the count results of those does not match the actual number of followers and followings in the instagram app for the account.\nFor example: the count result of GetUserFollowingAsync is 900 and the count result of GetUserFollowingAsync is 800, but the actually followers for the account is 903 and the following is 804 from the instagram app.\nIs this a known issue or what could cause the issue?\n\n...\n\n> The username is pntdesign02\n\n...\n\n> Sorry for previous message.\n> So I've tested it,\n> `pntdesign02` had 997 followers and 1260 followings (checked with real Instagram app)\n> This is the results with InstagramApiSharp:\n> Followings:\n> [Image: image | https://user-images.githubusercontent.com/8324235/54157664-07346680-445e-11e9-8960-9c0e1575e00d.png]\n> Followers:\n> [Image: image | https://user-images.githubusercontent.com/8324235/54157811-4ebaf280-445e-11e9-9609-614408af370b.png]\n> \n> It seems you were right, I don't know what is the problem, I don't think this is related to this library, I think it's related to Instagram, because this library only parses what Instagram API respond to it and it doesn't remove anything from the items (users).\n\n...\n\n**@ramtinak** commented · Mar 11, 2019 at 9:29pm\n\n> Do you want to return followers/following, media posts count numbers?:|\n> If yes, don't use GetUserFollowing/GetUserFollowers... functions, \n> You should use these functions only to get simple user information(username, user id (pk), full name, profile picture) of your followers/followings list, (these functions will collecting them).\n> \n> You should use `GetUserInfoByUsernameAsync` or `GetUserInfoByIdAsync` instead to get information about someone (like: followers count, followings count, media count, shoppable posts count, ig tv videos count and more) \n> here:\n> [Image: image | https://user-images.githubusercontent.com/8324235/54159096-647de700-4461-11e9-9678-e99cbcaa76d5.png]\n> and media count:\n> [Image: image | https://user-images.githubusercontent.com/8324235/54159130-84150f80-4461-11e9-9232-e39ffa85a8b4.png]\n> \n> Good luck."
+        }
+      }
+    ],
+    "error": null
+  }
+}

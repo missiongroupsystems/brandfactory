@@ -1,0 +1,42 @@
+{
+  "case": {
+    "id": "ceiling-linkedin",
+    "platform": "linkedin",
+    "handle": "williamhgates",
+    "kind": "ceiling",
+    "note": "No LinkedIn account on the roster. LinkedIn is the most crawler-hostile of the six; if grounding works anywhere there it works here."
+  },
+  "model": "openai/gpt-5.1:online",
+  "capture": {
+    "caseId": "ceiling-linkedin",
+    "modelId": "openai/gpt-5.1:online",
+    "platform": "linkedin",
+    "handle": "williamhgates",
+    "elapsedMs": 2735,
+    "costUsd": 0.01253375,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "linkedin",
+          "handle": "williamhgates",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.linkedin.com/in/williamhgates/",
+          "sourceUrl": "https://www.linkedin.com/in/williamhgates/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "LinkedIn profile williamhgates (unavailable)",
+          "url": "https://www.linkedin.com/in/williamhgates/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"linkedin\",\"handle\":\"williamhgates\",\"followers\":null,\"engagementRate\":null,\"url\":\"https://www.linkedin.com/in/williamhgates/\",\"sourceUrl\":\"https://www.linkedin.com/in/williamhgates/\"}],\"sources\":[{\"title\":\"LinkedIn profile williamhgates (unavailable)\",\"url\":\"https://www.linkedin.com/in/williamhgates/\"}]}",
+    "annotations": null,
+    "error": null
+  }
+}

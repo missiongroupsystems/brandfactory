@@ -1,0 +1,117 @@
+{
+  "case": {
+    "id": "ceiling-facebook",
+    "platform": "facebook",
+    "handle": "JamieOliver",
+    "kind": "ceiling",
+    "note": "No Facebook account on the roster. Same person, so a model confusing the two platforms shows up as an identical figure."
+  },
+  "model": "perplexity/sonar-pro",
+  "variant": "query",
+  "capture": {
+    "caseId": "ceiling-facebook",
+    "modelId": "perplexity/sonar-pro",
+    "variant": "query",
+    "platform": "facebook",
+    "handle": "JamieOliver",
+    "elapsedMs": 2271,
+    "costUsd": 0.0095,
+    "draft": {
+      "outcome": "ok",
+      "name": "Jamie Oliver",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "Facebook",
+          "handle": "JamieOliver",
+          "followers": 10000000,
+          "engagementRate": null,
+          "url": "https://www.facebook.com/jamieoliver/",
+          "sourceUrl": "https://www.facebook.com/jamieoliver/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Jamie Oliver (@jamieoliver) - Facebook",
+          "url": "https://www.facebook.com/jamieoliver/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Jamie Oliver\",\"vertical\":\"food\",\"accounts\":[{\"platform\":\"Facebook\",\"handle\":\"JamieOliver\",\"followers\":10000000,\"engagementRate\":null,\"url\":\"https://www.facebook.com/jamieoliver/\",\"sourceUrl\":\"https://www.facebook.com/jamieoliver/\"}],\"sources\":[{\"title\":\"Jamie Oliver (@jamieoliver) - Facebook\",\"url\":\"https://www.facebook.com/jamieoliver/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/jamieoliver/",
+          "title": "Jamie Oliver (@jamieoliver) - Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/groups/jamieoliverscookbookclub/",
+          "title": "Jamie Oliver's Cookbook Club | Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/jamieoliver/",
+          "title": "Jamie Oliver (@jamieoliver) • Instagram photos and videos",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/public/Jamie-Oliver/",
+          "title": "People named Jamie Oliver - Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.worldtourism.directory/jamie-oliver/",
+          "title": "Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://threadlook.com/profile/jamieoliver/followers",
+          "title": "jamieoliver Threads Follower Count — 1.6M Followers",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/p/Cbo_NGBOkXj/",
+          "title": "Morning guys wow I just hit 9 million followers, I wanted to ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://hypeauditor.com/de/instagram/jamieoliver/",
+          "title": "Jamie Oliver (@jamieoliver): Instagram-Statistiken, Analysen, Vermögen und Einnahmen – HypeAuditor",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

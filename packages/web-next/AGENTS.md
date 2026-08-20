@@ -462,6 +462,24 @@ values reshuffles its rows every time a filter changes. The moment that endpoint
 sort moves to SQL with the cursor; `listInfluencersByWorkspace` names ~150 rows as the tripwire
 and the roster is at 146.
 
+**A column that only sometimes exists takes a third exclusivity rule.** `/influencers` can trade
+its single Reach column for one per platform plus a total (`?reach=platform`), and those columns
+carry sort keys — `reach:instagram` — that name nothing when the view is off. Turning the view off
+therefore clears a per-platform sort, or the table is left ordered by a column with no heading and
+no way to clear it but the URL. Turning it *on* clears nothing. A pasted URL carrying
+`?sort=reach:instagram` without `?reach=platform` is **honoured rather than corrected**: the order
+is real, the heading is one click away, and silently dropping the sort somebody shared to show is
+worse than showing it. The columns themselves come from the *filtered* rows, never the enum — a
+roster on three platforms gets three columns, not six with three always empty — and in **enum
+order, never frequency order**, or the columns rearrange every time a filter moves.
+
+**The wide view is the one place a list table may be wider than its card.** Everything else stays
+`table-fixed` on a percentage budget that sums to 100 (see the design section). Three more numeric
+columns cannot fit in that budget without squeezing every other column below what it needs, so this
+view drops `table-fixed` for a minimum width and takes the horizontal scrollbar deliberately. That
+is only allowed because the reader asked for it: a default view that reaches the scrollbar is the
+bug 1.49.1 fixed.
+
 **A list search matches the thing's own name/title plus the name of the one entity that
 *identifies* it (its counterparty) — not full-text across every joined field, and not a
 substitute for the dedicated filters.** A contract is found by its vendor as readily as its title,
@@ -502,6 +520,31 @@ the fields (`fieldErrors`) and shows a form-level message only when there is not
 same complaint never appears twice. `toNullable` turns a cleared input into `null` rather than
 `""` — an empty string is truthy, sorts before every real value, and is invisible on screen.
 
+**A cell may edit in place; a row may not carry an actions menu.** The two are separate arguments
+and only the second one survives everywhere. An actions column reaches a form the record's own page
+already holds, which puts one sheet behind two entry points — that is still banned. Editing the
+cell you are looking at is not that, and `/influencers` is where it lives
+(`features/influencers/components/editable-cell.tsx`, `inline-editors.tsx`, `patchFor`).
+
+Four rules come with it, and the fourth is the one that makes it safe:
+
+- **A cell edits only what it shows.** Name, vertical, brands and status each own a column and a
+  column each. Reach and Platforms are **sums over the account list** and refuse an editor — you
+  cannot edit a sum by typing over it — so they carry a pencil that opens the record's form, named
+  for what it opens (`Edit follower counts`, not a second `Edit accounts` in the same row). Tier and
+  Engagement are derived from those sums and carry nothing at all.
+- **The patch is exactly one key.** `patchFor` is the seam, and it is the thing to aim a test at: a
+  builder that spread the record and overwrote one key would pass a `{status}` assertion and still
+  send `accounts` — and `PATCH /influencers/:id` replaces the whole account list when it is sent
+  one. One key is a strictly safer write than the sheet it replaced.
+- **Nothing is optimistic here either.** A cell in flight shows its editor, disabled, holding what
+  the reader chose, with a spinner. A refusal gets a toast carrying the server's own sentence; a
+  success gets none, because the new value is on screen *because the server sent it back*.
+- **No inline edit may move a row.** The bands group by reach and the default order is reach
+  descending, and not one editable field is an input to either. Check this before making a fifth
+  column editable: a cell that reorders the table under the pointer that just used it is worse than
+  the navigation it saved.
+
 **In mock mode a mutation refuses with a 503, and Marketing Requests is the only exception.**
 That default is the promise that no screen here can appear to save something nothing stored, and
 it is worth more than any individual screen feeling finished. The exception is registered in
@@ -532,6 +575,22 @@ Four rules that get broken by accident:
   accent-filled stat card, the active/selected control state, and small brand chrome (the
   workspace tile, an avatar). Nothing else is green. A second accent-filled block means the
   hierarchy is wrong. Feedback green is `--color-success` (`#2f6b46`) and is a different thing.
+- **A third party's brand mark is drawn in one colour, and it is ours.** The six platform marks in
+  `features/influencers/components/platform-icons.tsx` are monochrome, and this is the decision the
+  next person is most likely to reverse. Six saturated brand hues repeated down a column turns a
+  data column into a logo wall and spends the budget above many times over; the colour on this
+  screen belongs to the brand this product is *for*, not to the six it reads *from*. Three further
+  rules travel with it. **The glyph is never alone** — a badge is mark plus label at every rung, per
+  WCAG 1.4.1, which is what lets a mark nobody recognises still be read. **They are inline SVG
+  paths, not a dependency**: `lucide-react` is the only icon package here and it ships no brand
+  marks on purpose, because a trademark is not a pictogram. And `fill-rule="evenodd"` goes on every
+  mark with a hole in it — a ring drawn as two same-direction subpaths is a solid blob under the
+  default rule, and the failure is invisible until it renders. The cap on how many render inline is
+  **two**, in `platforms.ts` and not in the cell, because it is the only part of that column a test
+  can see; the rest go behind the `+N` badge that names them on hover. No cleverness at the
+  boundary — three platforms render as two and a `+1` even though the `+1` is about as wide as the
+  badge it replaced, because a rule that sometimes shows the third makes the column's width depend
+  on *which* platform the third one is, and `Xiaohongshu` is twice the width of `TikTok`.
 - **Sentence case everywhere except `SidebarGroupLabel`.** The nav section eyebrow is the only
   uppercase text in the product.
 - **Body is 14/1.5 at weight 400.** 300 is for ≥24px display moments only; headings are 500.
@@ -680,6 +739,30 @@ in a browser. Never hand-write a BrandFactory route path or response shape — t
 the root `CLAUDE.md` protects, and the generated `schema.d.ts` is the Ops-side equivalent.
 
 `apiFetch` is untouched and is not going away until the screens that read it do.
+
+**Some BrandFactory routes call a model and write nothing, and they are not read state.**
+`POST /brands/:id/ideate/themes` was the first; `POST /workspaces/:id/influencers/lookup` — quick
+add's creator lookup — is the second. Four things follow for a client, and all four are visible in
+`features/influencers/hooks.ts`:
+
+- **Never SWR.** These are commands somebody presses a button to run, they cost real money per
+  press, and their answer is a proposal rather than a fact about the workspace. Caching one means a
+  second press on a corrected handle silently replays the first press's answer.
+- **Nothing to invalidate.** The call writes no row. The roster changes when the person confirms
+  the draft, and that goes through the ordinary create, which sweeps the scopes itself.
+- **The honest outcomes ride in the body with a 200.** `not-found` and `invalid-shape` are answers,
+  not faults, and neither is fixed by retrying — so `callJson` must not be handed them as errors. A
+  **503** is different and is real: it means this deployment has no search-grounded model
+  configured, and the message names the fix.
+- **The double-click guard is the client's.** There is no spend cap on this class of call — it runs
+  on the workspace's own configured LLM tokens — so an `isPending` that disables the button is the
+  only thing between one press and two.
+
+And **nothing a model returns is written without somebody seeing it.** Quick add is two presses
+with a review screen between them, and the review screen shows what the *search layer retrieved*
+rather than what the model cited, because a model that fetched nothing still returns confident
+sources. An empty retrieval list is rendered as an empty retrieval list. Do not add a path that
+writes a model's answer straight to a record.
 
 ## Auth
 

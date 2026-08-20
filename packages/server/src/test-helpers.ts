@@ -55,6 +55,7 @@ import type { ResearchJob, SectionAutofillEvent } from '@brandfactory/db'
 import type { Db } from './db'
 import type { ShapeResearchFn, ShapeSectionFn } from './research/shape'
 import type { IdeateCopyFn, IdeateThemesFn } from './social/ideate'
+import type { LookupCreatorFn } from './influencer/lookup'
 import type { Env } from './env'
 import { createLogger, type Logger } from './logger'
 
@@ -1461,6 +1462,11 @@ export function createFakeAdapters(overrides: Partial<AppDeps> = {}): Omit<AppDe
     getModel: () => {
       throw new Error('llm.getModel not expected in test')
     },
+    // Same rule for the grounded path. **It refuses rather than returning an
+    // empty result**: a fake that answered `{text:'', retrieved:[]}` would let a
+    // route that lost its lookup pass as one whose lookup found nothing, and
+    // those are the two states this feature most needs to keep apart.
+    completeGrounded: () => Promise.reject(new Error('llm.completeGrounded not expected in test')),
   }
   // The noop, unless a test says otherwise. Matches the shipped default
   // (`RESEARCH_PROVIDER=none`) so a route test that reaches the provider by
@@ -1525,6 +1531,8 @@ export function createTestApp(
     /** The planner's two passes. Absent means the real ones, which need a model. */
     ideateThemes?: IdeateThemesFn
     ideateCopy?: IdeateCopyFn
+    /** Quick add's lookup. Absent means the real one, which needs a grounded model. */
+    lookupCreator?: LookupCreatorFn
     agentGuard?: AgentConcurrencyGuard
   } = {},
 ): TestHarness {
@@ -1559,6 +1567,7 @@ export function createTestApp(
     ...(opts.shapeSection ? { shapeSection: opts.shapeSection } : {}),
     ...(opts.ideateThemes ? { ideateThemes: opts.ideateThemes } : {}),
     ...(opts.ideateCopy ? { ideateCopy: opts.ideateCopy } : {}),
+    ...(opts.lookupCreator ? { lookupCreator: opts.lookupCreator } : {}),
   })
   return { app, state, auth, tokens }
 }

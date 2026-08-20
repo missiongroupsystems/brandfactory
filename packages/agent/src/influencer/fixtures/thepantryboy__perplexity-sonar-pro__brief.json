@@ -1,0 +1,110 @@
+{
+  "case": {
+    "id": "thepantryboy",
+    "platform": "tiktok",
+    "handle": "thepantryboy",
+    "kind": "roster",
+    "expect": {
+      "name": "Daren Teo",
+      "followers": 248800,
+      "vertical": "food"
+    },
+    "note": "A handle that reads as a brand rather than a person, on the platform whose profile pages are hostile to crawlers."
+  },
+  "model": "perplexity/sonar-pro",
+  "capture": {
+    "caseId": "thepantryboy",
+    "modelId": "perplexity/sonar-pro",
+    "platform": "tiktok",
+    "handle": "thepantryboy",
+    "elapsedMs": 3991,
+    "costUsd": 0.01083,
+    "draft": {
+      "outcome": "ok",
+      "name": "Daren Teo",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "TikTok",
+          "handle": "thepantryboy",
+          "followers": 258100,
+          "engagementRate": null,
+          "url": "https://www.tiktok.com/@thepantryboy",
+          "sourceUrl": "https://storify.me/tk/thepantryboy"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Pantry Boy (@thepantryboy) - TikTok - Storify photos and videos",
+          "url": "https://storify.me/tk/thepantryboy"
+        },
+        {
+          "title": "Can It Pizza? (ft. The Pantry Boy!) | Taste Testers | EP 133",
+          "url": "https://www.youtube.com/watch?v=GilaYo-SKHw"
+        },
+        {
+          "title": "FOOD CONTENT CREATION WITH RACHEL & DAREN",
+          "url": "https://experience.sony-asia.com/sg/home/WorkshopDetails/1617"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Daren Teo\",\"vertical\":\"food\",\"accounts\":[{\"platform\":\"TikTok\",\"handle\":\"thepantryboy\",\"followers\":258100,\"engagementRate\":null,\"url\":\"https://www.tiktok.com/@thepantryboy\",\"sourceUrl\":\"https://storify.me/tk/thepantryboy\"}],\"sources\":[{\"title\":\"The Pantry Boy (@thepantryboy) - TikTok - Storify photos and videos\",\"url\":\"https://storify.me/tk/thepantryboy\"},{\"title\":\"Can It Pizza? (ft. The Pantry Boy!) | Taste Testers | EP 133\",\"url\":\"https://www.youtube.com/watch?v=GilaYo-SKHw\"},{\"title\":\"FOOD CONTENT CREATION WITH RACHEL & DAREN\",\"url\":\"https://experience.sony-asia.com/sg/home/WorkshopDetails/1617\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://storify.me/tk/thepantryboy",
+          "title": "The Pantry Boy (@thepantryboy) - TikTok - Storify photos and videos",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=GilaYo-SKHw",
+          "title": "Can It Pizza? (ft. The Pantry Boy!) | Taste Testers | EP 133",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://experience.sony-asia.com/sg/home/WorkshopDetails/1617",
+          "title": "FOOD CONTENT CREATION WITH RACHEL & DAREN",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.tiktok.com/channel/breakfast-soup?lang=en",
+          "title": "Breakfast Soup | TikTok",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.channelnewsasia.com/listen/cna938-rewind/cooking-up-tiktok-storm-sgculturedboi-and-thepantryboy-5353676",
+          "title": "CNA938 Rewind - Cooking up a TikTok Storm with @SGCulturedBoi ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.nomies.co/p/ban-mian-but-halal",
+          "title": "Ban Mian... BUT HALAL!!! - nOm",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

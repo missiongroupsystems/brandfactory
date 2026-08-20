@@ -1,0 +1,93 @@
+{
+  "case": {
+    "id": "xhs-coolmumdianna",
+    "platform": "xiaohongshu",
+    "handle": "coolmumdianna",
+    "kind": "roster",
+    "expect": {
+      "name": "Dianna",
+      "followers": 198200,
+      "vertical": "parenting"
+    },
+    "note": "A Latin handle on XHS — the trap case, because it is equally plausible as an Instagram handle and a model may resolve it on the wrong platform."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "capture": {
+    "caseId": "xhs-coolmumdianna",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "platform": "xiaohongshu",
+    "handle": "coolmumdianna",
+    "elapsedMs": 7597,
+    "costUsd": 0.015154,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "xiaohongshu",
+          "handle": "coolmumdianna",
+          "followers": null,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": null
+        }
+      ],
+      "sources": []
+    },
+    "rawText": "The search results provided do not contain any page for the handle `coolmumdianna` on XiaoHongShu. None of the results match that handle, and I cannot derive a URL from a handle on this platform. I have no verified data to report.\n\n{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\n \"accounts\":[{\"platform\":\"xiaohongshu\",\"handle\":\"coolmumdianna\",\"followers\":null,\n              \"engagementRate\":null,\"url\":null,\"sourceUrl\":null}],\n \"sources\":[]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/user/profile/598f16d96a6a697233cf55b5",
+          "title": "大蕾蕾 - 小红书",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "大蕾蕾 - 小红书\n\n...\n\n大蕾蕾\n\n...\n\n小红书号：6257577645 IP属地：四川\n\n...\n\n俩娃妈 接地气的穿搭+好物分享 野生博主\n\n...\n\n中国\n\n...\n\n10+关注\n\n...\n\n1万+粉丝\n\n...\n\n1万+获赞与收藏\n\n...\n\nhttps://www.xiaohongshu.com/explore/\n\n...\n\n置顶\n\n夏天衣橱，反复穿的几件Loro Piana单品\n\n...\n\n🛒购物分享\n\n...\n\nhowto……无广自留 |我的日常穿搭好物记录\n\n...\n\n2026年中总结|我的「长期主义」爱用&爱穿\n\n...\n\n生活和穿搭从无标准，舒适又好看便是首选\n\n...\n\n近期生活细碎&零散购物分享🛍️\n\n...\n\n合理消费/每一分钱都花在实处（618篇）\n\n...\n\nPLOG/带着理光记录日常\n\n...\n\n入夏衣橱/不卷穿搭，只卷自己的舒适感\n\n...\n\n只留反复穿（用）的好东西\n\n...\n\nMUJI金级会员/这十年浸进生活的20+件好物\n\n...\n\n长期主义单品，每一件都值得单独写篇小作文\n\n...\n\n只留能穿回本的实用主义单品"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/user/profile/5b7c112563b9e10001c7aa5e",
+          "title": "开心好奇妈 - 小红书",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "开心好奇妈\n...\n又神又仙的【双胞胎麻麻】👩👑 关注我，一起【开心又好奇】🥳🎉 小号：@开心好奇妈爱分享 有惊喜 新阵地@萌萌派 专属孩子们的萌萌频道 📮：2661165658@qq.com"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/user/profile/59a174ff5e87e7273fd7a7c3",
+          "title": "可妈可吗 - 小红书",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "可妈可吗\n...\n小红书号：606025686 IP属地：北京\n...\n👩🏻👨🏻👧🏻👦🏻🐶🐶🐠🏠🚗 清华夫妻 | 家有姐弟 | 柯基两只 情感 | 婚姻 | 家居 | 养娃 | 教育 一起实现关于美好家庭的想象！"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/user/profile/5f69e0b8000000000101e2e6",
+          "title": "好好的好好 - 小红书",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "好好的好好 - 小红书\n...\n好好的好好\n...\n小红书号：20201015wo\n...\n天蝎座\n...\n上海宝山\n...\n母婴博主\n...\n1千+关注\n...\n1万+粉丝\n...\n1万+获赞与收藏\n...\n上海OOTD——口罩少年依然开朗\n...\n188"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/user/profile/552f386c4fac632bfa6d611a",
+          "title": "小熊猫的CC妈 - 小红书",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "小熊猫的CC妈\n\n...\n\n小红书号：605420835 IP属地：美国\n\n...\n\n你的暖心角落❤️‍🩹女性健康好物分享|真实vlog|高能养成⭐ @CC的小助理2 📖哈佛心理学·研在读|175cm/54kg|isfj 07赴美本+硕→已婚→工程师→有娃→创业10年 过斜杠人生，把日子过成喜欢的样子 工作：jyt_1998103\n\n...\n\n10+关注\n\n...\n\n1万+粉丝\n\n...\n\n1万+获赞与收藏\n\n...\n\n置顶\n\n6：00早起vlog｜35岁北京妈妈真实生活\n\n...\n\n保姆级护发教程！长期主义养沙龙级发质🛀\n\n...\n\n37岁哈佛妈妈vlog｜认清现实：人生风雨是日常"
+        }
+      }
+    ],
+    "error": null
+  }
+}

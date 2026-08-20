@@ -1,0 +1,49 @@
+{
+  "case": {
+    "id": "xhs-wangkaihua",
+    "platform": "xiaohongshu",
+    "handle": "王开花",
+    "kind": "roster",
+    "expect": {
+      "name": "王开花",
+      "followers": 283700,
+      "vertical": "food"
+    },
+    "note": "Non-Latin handle #2. Also tests whether the answer comes back in the handle’s own script or transliterated."
+  },
+  "model": "openai/gpt-5.1:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "xhs-wangkaihua",
+    "modelId": "openai/gpt-5.1:online",
+    "variant": "query",
+    "platform": "xiaohongshu",
+    "handle": "王开花",
+    "elapsedMs": 3269,
+    "costUsd": 0.0170785,
+    "draft": {
+      "outcome": "ok",
+      "name": "王开花",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "xiaohongshu",
+          "handle": "王开花",
+          "followers": 340000,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": "https://toobigdata.com/red/6296698917/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "王开花🌺@小红书 - TooBigData 达人库页面",
+          "url": "https://toobigdata.com/red/6296698917/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"王开花\",\"vertical\":\"food\",\"accounts\":[{\"platform\":\"xiaohongshu\",\"handle\":\"王开花\",\"followers\":340000,\"engagementRate\":null,\"url\":null,\"sourceUrl\":\"https://toobigdata.com/red/6296698917/\"}],\"sources\":[{\"title\":\"王开花🌺@小红书 - TooBigData 达人库页面\",\"url\":\"https://toobigdata.com/red/6296698917/\"}]}",
+    "annotations": null,
+    "error": null
+  }
+}

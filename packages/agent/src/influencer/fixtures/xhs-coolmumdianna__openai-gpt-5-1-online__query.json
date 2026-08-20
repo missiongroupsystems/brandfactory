@@ -1,0 +1,49 @@
+{
+  "case": {
+    "id": "xhs-coolmumdianna",
+    "platform": "xiaohongshu",
+    "handle": "coolmumdianna",
+    "kind": "roster",
+    "expect": {
+      "name": "Dianna",
+      "followers": 198200,
+      "vertical": "parenting"
+    },
+    "note": "A Latin handle on XHS — the trap case, because it is equally plausible as an Instagram handle and a model may resolve it on the wrong platform."
+  },
+  "model": "openai/gpt-5.1:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "xhs-coolmumdianna",
+    "modelId": "openai/gpt-5.1:online",
+    "variant": "query",
+    "platform": "xiaohongshu",
+    "handle": "coolmumdianna",
+    "elapsedMs": 3410,
+    "costUsd": 0.018206,
+    "draft": {
+      "outcome": "ok",
+      "name": "Dianna Lee",
+      "vertical": "parenting",
+      "accounts": [
+        {
+          "platform": "xiaohongshu",
+          "handle": "coolmumdianna",
+          "followers": 160000,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": "https://gondola.cc/coolmumdianna"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Dianna Lee | Gondola profile (includes RedNote follower count)",
+          "url": "https://gondola.cc/coolmumdianna"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Dianna Lee\",\"vertical\":\"parenting\",\"accounts\":[{\"platform\":\"xiaohongshu\",\"handle\":\"coolmumdianna\",\"followers\":160000,\"engagementRate\":null,\"url\":null,\"sourceUrl\":\"https://gondola.cc/coolmumdianna\"}],\"sources\":[{\"title\":\"Dianna Lee | Gondola profile (includes RedNote follower count)\",\"url\":\"https://gondola.cc/coolmumdianna\"}]}",
+    "annotations": null,
+    "error": null
+  }
+}

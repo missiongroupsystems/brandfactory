@@ -1,0 +1,100 @@
+{
+  "case": {
+    "id": "xhs-luodaxiong",
+    "platform": "xiaohongshu",
+    "handle": "罗大雄",
+    "kind": "roster",
+    "expect": {
+      "name": "罗大雄",
+      "followers": 392800,
+      "vertical": "fitness"
+    },
+    "note": "Non-Latin handle #1. XHS addresses users by an opaque numeric id, so there is no URL to guess — grounding has to come from search alone."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "xhs-luodaxiong",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "variant": "query",
+    "platform": "xiaohongshu",
+    "handle": "罗大雄",
+    "elapsedMs": 10519,
+    "costUsd": 0.019123,
+    "draft": {
+      "outcome": "ok",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "XiaoHongShu",
+          "handle": "罗大雄",
+          "followers": 78000,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": "https://www.relangdata.cn/redbook/redbook_person_607040876.html"
+        }
+      ],
+      "sources": [
+        {
+          "title": "罗大雄 -红人详情-小红书分析-热浪数据",
+          "url": "https://www.relangdata.cn/redbook/redbook_person_607040876.html"
+        }
+      ]
+    },
+    "rawText": "The search results include a page from relangdata.cn specifically for XiaoHongShu user ID 607040876 with the handle 罗大雄, showing 7.8万 (78,000) followers. The profile description \"全职照顾自己的生活梦想家\" (full-time life dreamer taking care of himself) suggests a general lifestyle/vlog content style — no single vertical from the allowed list fits cleanly, so `null` is appropriate. No real name is shown, only the handle.\n\n{\"outcome\":\"ok\",\"name\":null,\"vertical\":null,\n \"accounts\":[{\"platform\":\"XiaoHongShu\",\"handle\":\"罗大雄\",\"followers\":78000,\n              \"engagementRate\":null,\"url\":null,\"sourceUrl\":\"https://www.relangdata.cn/redbook/redbook_person_607040876.html\"}],\n \"sources\":[{\"title\":\"罗大雄 -红人详情-小红书分析-热浪数据\",\"url\":\"https://www.relangdata.cn/redbook/redbook_person_607040876.html\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.relangdata.cn/redbook/redbook_person_607040876.html",
+          "title": "罗大雄 -红人详情-小红书分析-热浪数据",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "罗大雄 -红人详情-小红书分析-热浪数据\n\n...\n\n罗大雄\n\n...\n\nID: 607040876\n\n...\n\n64.56\n\n...\n\n- 红人类型： KOL\n- 认证信息： 未认证\n- 品牌合作人： 是\n- MCN机构： 无\n- 所属地域：\n- 账号等级： 困困薯\n- 擅长笔记： 视频笔记\n\n...\n\n简介：\n\n...\n\n全职照顾自己的生活梦想家\n\n...\n\n基本数据\n\n...\n\n商业数据\n\n...\n\n粉丝总量\n\n...\n\n7.8万\n\n...\n\n活跃粉丝\n\n...\n\n7182\n\n...\n\n水粉丝\n\n...\n\n2.4万\n\n...\n\n笔记总量\n\n...\n\n29\n\n...\n\n视频笔记\n\n...\n\n27\n\n...\n\n点赞总量\n\n...\n\n26.5万\n\n...\n\n收藏总量\n\n...\n\n8.6万\n\n...\n\n粉丝赞藏比\n\n...\n\n6.23%\n\n...\n\n信用等级\n\n...\n\n123\n\n...\n\n互动率\n\n...\n\n60%\n\n...\n\n视频完播率\n\n100%\n\n...\n\n粉丝画像\n\n...\n\n13.98%\n\n...\n\n活跃粉丝占比\n\n...\n\n45.88\n\n...\n\n水粉占比\n\n...\n\n女粉/ 95.9%\n\n...\n\n性别占比最多\n\n...\n\n广东 / 11.2%"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://newrank.cn/profile/douyin/luodaxiong?from=ranklist",
+          "title": "罗大雄-抖音达人数据主页-新榜",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "罗大雄-抖音达人数据主页-新榜\n...\n## 罗大雄\n...\nluodaxiong\n...\n✈️ 孕前：定居新加坡｜一月换一国｜真实生活vlog 🌍 有娃：带娃\n...\n生活ing ❤️ 运动：跑马｜冲浪｜攀岩 👸 +1\n...\npiano piano 服装主"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.douyin.com/shipin/7371078639322155043",
+          "title": "罗大雄为什么这么火-抖音",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# 罗大雄为什么这么火\n\n...\n\n4.8万\n\n...\n\n这个不说话的女孩只是单纯记录生活日常，就涨粉二百二十九万。我本以为他的爆火是因为稀缺性，直到我拉出了他的粉丝画像，我惊奇的发现，他的粉丝百分之八十四都是女性，还都是一二线城市的，这说明他的变现能力 极强。于是我立刻把他的视频导入剪映，逐帧分析。一瞬间，我似乎找到了如何做好 vlog 视频的流量密码，一，黄金两秒，普通人拍视频一个镜头十几秒开始化妆啦。 我平常早上一般就是先涂个水乳，这个水和这个乳都特别的滋润，比较适合我，因为我是干皮嘛！而他的视频几乎每两秒变化一个镜头， 因为他深知变化越快，停留越多。二、信息渐剧。大部分人的 vlog 是 以记录天为单位， 而他的视频却能细化到每分钟内的时间， 所以做出了差异化三、人设，塑造五点起床，体现自律，边学习边等日出的行为，代表了向往自由，这不妥妥的女性理想生活吗？所以粉丝会被美好瞬间吸引，建立了期待。这时有人就会问我，不敢露脸怎么办？你看这个卖炒饭的 同样的方式，四十九万点赞，所以如果你还不懂，打出来我看看。\n\n...\n\n粉丝4.0万获赞24.8万\n\n关注\n\n...\n\n## 相关视频"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://github.com/jackwener/xhs-cli",
+          "title": "jackwener/xhs-cli",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "小红书命令行工具 — 搜索、阅读、点赞、收藏、评论，全在终端完成 | Xiaohongshu CLI\n\n...\n\n- **搜索** — 按关键词搜索笔记，Rich 表格展示\n- **阅读** — 查看笔记内容、数据、评论\n- **用户资料** — 查看用户信息、笔记、粉丝、关注\n- **推荐 Feed** — 获取探索页推荐内容\n- **话题** — 搜索话题标签\n- **互动** — 点赞/取消、收藏/取消、评论、删除笔记\n\n...\n\n| 分类 | 命令 | 说明 |\n|------|------|------|\n| Auth | `login`, `logout`, `status`, `whoami` | 登录、退出、状态检查、查看个人资料 |\n| Read | `search`, `read`, `feed`, `topics` | 搜索笔记、阅读详情、推荐 Feed、搜索话题 |\n| Users | `user`, `user-posts`, `followers`, `following` | 查看资料、列出笔记/粉丝/关注 |\n| Engage | `like`, `unlike`, `comment`, `delete` | 点赞、取消点赞、评论、删除笔记 |\n| Favorites | `favorite`, `unfavorite`, `favorites` | 收藏、取消收藏、查看收藏列表 |\n| Post | `post` | 发布图文笔记 |\n\n...\n\n### 用户\n\n```bash\n# 查看用户资料（使用内部 user_id，非小红书号）\nxhs user <user_id>\n\n...\n\n# 列出用户笔记\nxhs user-posts <user_id>\n\n# 粉丝 / 关注\nxhs followers <user_id>\nxhs following <user_id>\n```"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://xh.newrank.cn/intro",
+          "title": "新红 - 新榜旗下小红书数据工具",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "- 新榜\n...\n新红——新榜旗下小红书数据工具\n...\n收录海量账号及创意素材，提供包括红人号、笔记、seo流量、品牌营销等多维数据，助力品牌种草及流量运营，全方位洞察小红书生态。"
+        }
+      }
+    ],
+    "error": null
+  }
+}

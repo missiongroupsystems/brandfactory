@@ -9,4 +9,5 @@
 // Future impls: google, mistral, groq, bedrock.
 
 export * from './port'
+export * from './grounded'
 export * from './factory'

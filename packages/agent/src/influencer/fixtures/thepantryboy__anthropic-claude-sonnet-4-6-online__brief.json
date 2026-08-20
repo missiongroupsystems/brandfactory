@@ -1,0 +1,98 @@
+{
+  "case": {
+    "id": "thepantryboy",
+    "platform": "tiktok",
+    "handle": "thepantryboy",
+    "kind": "roster",
+    "expect": {
+      "name": "Daren Teo",
+      "followers": 248800,
+      "vertical": "food"
+    },
+    "note": "A handle that reads as a brand rather than a person, on the platform whose profile pages are hostile to crawlers."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "capture": {
+    "caseId": "thepantryboy",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "platform": "tiktok",
+    "handle": "thepantryboy",
+    "elapsedMs": 6242,
+    "costUsd": 0.016903,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "tiktok",
+          "handle": "thepantryboy",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.tiktok.com/@thepantryboy",
+          "sourceUrl": null
+        }
+      ],
+      "sources": [
+        {
+          "title": "How to Fix Account Not Found on TikTok",
+          "url": "https://www.wikihow.com/Account-Not-Found-Tiktok"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"tiktok\",\"handle\":\"thepantryboy\",\"followers\":null,\"engagementRate\":null,\"url\":\"https://www.tiktok.com/@thepantryboy\",\"sourceUrl\":null}],\"sources\":[{\"title\":\"How to Fix Account Not Found on TikTok\",\"url\":\"https://www.wikihow.com/Account-Not-Found-Tiktok\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://recordowl.com/company/the-pantry-boy-llp",
+          "title": "THE PANTRY BOY LLP (T20LL0665B)",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "THE PANTRY BOY LLP (T20LL0665B)\n\n...\n\n# THE PANTRY BOY LLP\n\n...\n\nMARKETING FOR COMPANIES\n\n...\n\nRegistration Number T20LL0665B\n\n...\n\nOperating Status Live\n\n...\n\nDescription\n\n...\n\n### About THE PANTRY BOY LLP\n\n...\n\nTHE PANTRY BOY LLP was incorporated on 29 May 2020 in Singapore. The company is a media company sharing food-related content and has KOL marketing partnerships and collaborations. The founder is Daren Teo.\n\n...\n\nTHE PANTRY BOY LLP (the \"Company\") The Company is a Limited Liability Partnership and it's current status is Live.\n\n...\n\nThe company has 3 officers / owners / shareholders.\n\n...\n\nThe company principal activity is MARKETING FOR COMPANIES.\n\n...\n\nThe company secondary activity is MARKETING FOR COMPANIES.\n\n...\n\nPrimary Industry MARKETING FOR COMPANIES\n\n...\n\nSecondary Industry MARKETING FOR COMPANIES\n\n...\n\n2\n\n...\n\nADVERTISING ACTIVITIES\n\n...\n\nMARKETING FOR COMPANIES\n\n...\n\nMARKETING FOR COMPANIES\n\n...\n\n### Company Contacts\n\n...\n\nKey contacts and leadership 1 total contacts\n\n...\n\nD\n\n...\n\nDaren Teo\n\nDirector / Founder\n\n...\n\n-\n\n...\n\n-\n\n...\n\nNumber of Officers 3\n\n...\n\n## Social Media\n\n...\n\nConnect with THE PANTRY BOY LLP\n\n...\n\nInstagram"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://pantrymama.com/about-the-pantry-mama/",
+          "title": "About The Pantry Mama - The Pantry Mama",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "About The Pantry Mama - The Pantry Mama\n\n...\n\n# About The Pantry Mama\n\n...\n\n## Easy Sourdough on Any Schedule\n\n...\n\nFounded in 2019 by Kate Freebairn, The Pantry Mama exists to prove that sourdough should fit your life, not the other way around. Through reliable tutorials, creative discard recipes, and practical strategies, home bakers around the world have learned to bake sourdough on any schedule.\n\n...\n\nThe Pantry Mama is for beginner and aspiring sourdough bakers who want to develop their own sourdough rhythm, build confidence with fermentation, and enjoy homemade sourdough bread, no matter what life throws their way.\n\n...\n\n## What We Offer\n\n...\n\n- Easy, beginner friendly instructions for how to make a sourdough starter and how to bake sourdough bread.\n- Once you’ve established your sourdough starter, you can use it to bake over 400 sourdough recipes and sourdough discard recipes.\n- Over 150 articles to teach you how to master sourdough and fit it into your busy life, including lots of sourdough starter tips.\n- New recipes added to the site every single week. Make sure you join my email list so you don’t miss a single one!\n- Video tutorials and visual instructions for many of the recipes on the site (with new videos added weekly).\n\n...\n\nYou’ll find recipes that range from classic sourdough loaves to creative bakes like sourdough cookies, pizzas and flatbreads, and even sourdough desserts, all designed to be approachable, family-friendly, and delicious. Alongside the recipes, I share practical tips, time-saving tricks, and sourdough basics to help you bake confidently, no matter how packed your day is.\n\n...\n\n- Join over 130,000 sourdough bakers who receive recipes delivered right to their inbox, as well as weekly sourdough tips and tutorials – sign up here.\n- Join over 360,000 people in my free sourdough community.\n- Follow The Pantry Mama on social media: \n- - Facebook \n- Instagram\n- Tiktok\n- Pinterest\n- You Tube"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.tiktok.com/legal/report/submit-requests",
+          "title": "Submit a request",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Submit a request | TikTok\n...\nReport an Impersonation Account on TikTok\n...\nAn Impersonation Account is an account that copies your identity online in order to mislead or confuse others on TikTok."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.wikihow.com/Account-Not-Found-Tiktok",
+          "title": "How to Fix Account Not Found on TikTok",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Account Not Found on TikTok: What It Means and How to Fix It\n\n...\n\n# How to Fix Account Not Found on TikTok: Causes, Tips & More\n\n...\n\nWhy you’re seeing “Account Not Found” on TikTok\n\n...\n\nDid you search for a profile on TikTok and see the \"Account Not Found\" error? While \"Account Not Found\" may mean the other person blocked you, there are a few other reasons you might see this message. Here's what it means when you see the Account Not Found TikTok error, what to do, and how to fix it.\n\n...\n\n## What Does Account Not Found Mean?\n\n...\n\nIf someone blocks you on TikTok, you'll see \"Account Not Found\" when you search for their profile. You may also see \"Account Not Found\" if the person deleted their account or their account was deleted by TikTok. Sometimes problems with the TikTok app or your internet connection can lead to this error.\n\n...\n\nYou may have been blocked. TikTok, like many other social media platforms, lets you block people and prevent them from viewing your profile or contacting you. If someone has blocked you and you search for their profile, you'll see \"Account Not Found.\"\n\n...\n\nAdvertisement\n\nIf the username is no longer in use, you'll see \"Account Not Found.\" The person you're looking for may have deleted their TikTok account or changed their username. If the name you're searching for doesn't match an existing account, you'll see the \"Account Not Found\" error.\n\nTikTok has a 180-day Inactive Account Policy. To prevent people from creating accounts with the intention of only taking a name, TikTok will reset custom usernames to a generic name after 180 days of inactivity. [1]\n\nIf you're searching for a username that hasn't been active in a long time, you'll see \"Account Not Found\" if the username hasn't been reclaimed.\n\n...\n\nTikTok bans accounts that don't follow the community guidelines. If the account you're looking for posted videos that violated the guidelines and continued uploading similar content after being warned, their account may have been banned from the platform.\n\n...\n\nIf you're sure the user exists and you're not blocked, something could be wrong with TikTok.\n\n...\n\nTo know if you've been blocked, try searching for the same username using a different TikTok account (or asking a friend to check). If the person's profile shows up from another account, you'll know you are blocked.[2]\n\n...\n\nWhy am I seeing \"Account Not Found\" on TikTok? If you see Account Not Found, this means you're unable to see the current TikTok account.\n\n...\n\nWhat does \"Account Not Found\" mean on TikTok? Account Not Found on TikTok means you may be blocked by the user, the user may have deleted their account, or even internet issues.\n\n...\n\nCan I restore a deleted account on TikTok? If you deleted your TikTok account, it is deleted permanently. You can only restore a deactivated account by logging back into your account.[3]"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://thetastefulpantry.com/about/",
+          "title": "About Me | The Tasteful Pantry: All Taste, No Waste",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "About Me | The Tasteful Pantry: All Taste, No Waste\n\n...\n\n# About\n\n...\n\nWelcome to The Tasteful Pantry, where I explore and learn about all things food. Known to family and friends as Elby, I am the face, ‘head chef’, creator, designer and photographer behind The Tasteful Pantry. More importantly, my three children and husband are the inspiration. I am delighted you are checking out my website and am confident you will enjoy many of my delicious recipes.\n\n...\n\nThroughout my hospitality and culinary journey, I have discovered my passion lies with sharing my homecooked meals. Preparing meals for family and friends and, of course, now sharing the recipes that we all love. So, here you are, getting to know a bit more about the culinary adventure that is my life."
+        }
+      }
+    ],
+    "error": null
+  }
+}

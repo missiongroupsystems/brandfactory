@@ -1,0 +1,95 @@
+{
+  "case": {
+    "id": "xhs-coolmumdianna",
+    "platform": "xiaohongshu",
+    "handle": "coolmumdianna",
+    "kind": "roster",
+    "expect": {
+      "name": "Dianna",
+      "followers": 198200,
+      "vertical": "parenting"
+    },
+    "note": "A Latin handle on XHS — the trap case, because it is equally plausible as an Instagram handle and a model may resolve it on the wrong platform."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "xhs-coolmumdianna",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "variant": "query",
+    "platform": "xiaohongshu",
+    "handle": "coolmumdianna",
+    "elapsedMs": 5817,
+    "costUsd": 0.015565,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "XiaoHongShu",
+          "handle": "coolmumdianna",
+          "followers": null,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": null
+        }
+      ],
+      "sources": []
+    },
+    "rawText": "None of the search results contain a page for the handle `coolmumdianna` — no URL, title, or profile content matches that handle. The results show unrelated accounts (可妈可吗, 美国大头妈妈, 是minno, SoSoMaMa).\n\n{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\n \"accounts\":[{\"platform\":\"XiaoHongShu\",\"handle\":\"coolmumdianna\",\"followers\":null,\n              \"engagementRate\":null,\"url\":null,\"sourceUrl\":null}],\n \"sources\":[]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/user/profile/59a174ff5e87e7273fd7a7c3",
+          "title": "可妈可吗 - 小红书",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "可妈可吗 - 小红书\n\n...\n\n可妈可吗\n\n小红书号：606025686 IP属地：北京\n\n...\n\n👩🏻👨🏻👧🏻👦🏻🐶🐶🐠🏠🚗 清华夫妻 | 家有姐弟 | 柯基两只 情感 | 婚姻 | 家居 | 养娃 | 教育 一起实现关于美好家庭的想象！\n\n...\n\n31岁\n\n...\n\n北京朝阳\n\n...\n\n育儿博主\n\n...\n\nvlog博主\n\n...\n\n清华大学\n\n...\n\n10+关注\n\n...\n\n1万+粉丝\n\n1万+获赞与收藏\n\n...\n\n关注\n\n...\n\n笔记\n\n...\n\n收藏\n\n...\n\nhttps://www.xiaohongshu.com/explore/\n\n...\n\n1万"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.spiderhubs.com/api-support/xhs-user-info-v2",
+          "title": "Xiaohongshu (RedNote) — User Info (App V2) API",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Xiaohongshu (RedNote) — User Info (App V2) API\n\n...\n\nApp_v2 版用户信息接口（部分字段比 V1 更全）。\n\n...\n\nEndpoint:GET /openapi/v1/contentcreator/xiaohongshu/app_v2/get_user_info计费:1 积分 / 次限流:300 次 / 分钟 / 用户\n\n...\n\n## 响应字段说明\n\n...\n\n| 字段 | 类型 | 说明 |\n| --- | --- | --- |\n| code | int | 业务状态码，200 表示成功 |\n| request_id | string | 本次请求唯一标识，排查问题时可提供 |\n| data | object | 业务数据容器，具体字段见下 |\n| user_id / red_id | string | 用户 ID / 小红书号 |\n| nickname | string | 昵称 |\n| desc | string | 个人简介 |\n| gender | int | 性别 |\n| images / avatar | string | 头像地址 |\n| fans | int | 粉丝数 |\n| follows | int | 关注数 |\n| interaction | int | 获赞与收藏总数 |\n| notes | int | 发布笔记数 |\n| ip_location | string | IP 属地 |\n\n...\n\n\"like\": false\n      },\n      \"result\": {\n        \"success\": true,\n        \"code\": 0\n      },\n      \"is_login_user_pro_account\": false,\n      \"collected\": 4036,\n      \"follows\": 2,\n      \"recommend_info\": \"\",\n      \"real_name_info\": \"\",\n\n...\n\n\"default_collection_tab\": \"note\",\n\n...\n\n\"red_official_verify_base_info\": \"\","
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/user/profile/5bcf243c35c11a0001d5481e",
+          "title": "美国大头妈妈 - 小红书",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "美国大头妈妈 - 小红书\n\n...\n\n美国大头妈妈\n\n小红书号：StrongHeadedMom IP属地：美国\n\n...\n\n🇺🇸从Real Life习得最接地气的实用英语表达和聊天素材 | 跨文化交流Tips and POV | 坐标纽约20年 | 上海交大本科，NYU硕士 👶🏻美国生活 @大头妈妈看美国\n\n...\n\n教育博主\n\n...\n\nvlog博主\n\n...\n\n上海交通大学\n\n...\n\n10+关注\n\n...\n\n1万+粉丝\n\n...\n\n1万+获赞与收藏\n\n...\n\n关注\n\n...\n\n收藏\n\n...\n\n3236"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/user/profile/5483c09be779895b7b1915b1",
+          "title": "是minno - 小红书",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "是minno - 小红书\n...\n是minno\n...\n小红书号：187048109 IP属地：四川\n...\n94年妈妈 产后变美✨ 分享美好❤️一起成长 🤝minno8\n...\n10+关注\n...\n1万+粉丝\n...\n1万+获赞与收藏"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/user/profile/5bd8aa92799f6e0001d9e9af",
+          "title": "SoSoMaMa - 小红书",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "SoSoMaMa - 小红书\n...\nSoSoMaMa\n...\n小红书号：sosomumedu\n...\n教育博主\n...\n10+关注\n...\n1千+粉丝\n...\n1万+获赞与收藏"
+        }
+      }
+    ],
+    "error": null
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "case": {
+    "id": "lennardy-tt",
+    "platform": "tiktok",
+    "handle": "lennardy",
+    "kind": "roster",
+    "expect": {
+      "name": "Lennard Yeong",
+      "followers": 981600,
+      "vertical": "food"
+    },
+    "note": "The pair. A model returning the Instagram figure here has answered the wrong question, and 1.47.0 records that this creator is Mega only as a sum."
+  },
+  "model": "openai/gpt-5.1:online",
+  "capture": {
+    "caseId": "lennardy-tt",
+    "modelId": "openai/gpt-5.1:online",
+    "platform": "tiktok",
+    "handle": "lennardy",
+    "elapsedMs": 2604,
+    "costUsd": 0.01234625,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "tiktok",
+          "handle": "lennardy",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.tiktok.com/@lennardy",
+          "sourceUrl": null
+        }
+      ],
+      "sources": [
+        {
+          "title": "Robots.txt blocking TikTok profile fetch",
+          "url": "https://www.tiktok.com/@lennardy"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"tiktok\",\"handle\":\"lennardy\",\"followers\":null,\"engagementRate\":null,\"url\":\"https://www.tiktok.com/@lennardy\",\"sourceUrl\":null}],\"sources\":[{\"title\":\"Robots.txt blocking TikTok profile fetch\",\"url\":\"https://www.tiktok.com/@lennardy\"}]}",
+    "annotations": null,
+    "error": null
+  }
+}

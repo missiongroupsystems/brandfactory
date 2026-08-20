@@ -1,0 +1,44 @@
+{
+  "case": {
+    "id": "ceiling-youtube",
+    "platform": "youtube",
+    "handle": "JamieOliver",
+    "kind": "ceiling",
+    "note": "No YouTube account exists on the roster. The easiest possible case on the platform: a global food name with millions of subscribers."
+  },
+  "model": "openai/gpt-5.1:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "ceiling-youtube",
+    "modelId": "openai/gpt-5.1:online",
+    "variant": "query",
+    "platform": "youtube",
+    "handle": "JamieOliver",
+    "elapsedMs": 4748,
+    "costUsd": 0.02004475,
+    "draft": {
+      "outcome": "ok",
+      "name": "Jamie Oliver",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "youtube",
+          "handle": "JamieOliver",
+          "followers": 6160000,
+          "engagementRate": null,
+          "url": "https://www.youtube.com/@JamieOliver",
+          "sourceUrl": "https://www.youtube.com/@JamieOliver"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Jamie Oliver - YouTube",
+          "url": "https://www.youtube.com/@JamieOliver"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Jamie Oliver\",\"vertical\":\"food\",\"accounts\":[{\"platform\":\"youtube\",\"handle\":\"JamieOliver\",\"followers\":6160000,\"engagementRate\":null,\"url\":\"https://www.youtube.com/@JamieOliver\",\"sourceUrl\":\"https://www.youtube.com/@JamieOliver\"}],\"sources\":[{\"title\":\"Jamie Oliver - YouTube\",\"url\":\"https://www.youtube.com/@JamieOliver\"}]}",
+    "annotations": null,
+    "error": null
+  }
+}

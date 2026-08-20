@@ -1,0 +1,135 @@
+{
+  "case": {
+    "id": "ceiling-linkedin",
+    "platform": "linkedin",
+    "handle": "williamhgates",
+    "kind": "ceiling",
+    "note": "No LinkedIn account on the roster. LinkedIn is the most crawler-hostile of the six; if grounding works anywhere there it works here."
+  },
+  "model": "perplexity/sonar-pro",
+  "variant": "query",
+  "capture": {
+    "caseId": "ceiling-linkedin",
+    "modelId": "perplexity/sonar-pro",
+    "variant": "query",
+    "platform": "linkedin",
+    "handle": "williamhgates",
+    "elapsedMs": 2433,
+    "costUsd": 0.00955,
+    "draft": {
+      "outcome": "ok",
+      "name": "Bill Gates",
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "LinkedIn",
+          "handle": "williamhgates",
+          "followers": 40549269,
+          "engagementRate": null,
+          "url": "https://www.linkedin.com/in/williamhgates",
+          "sourceUrl": "https://www.linkedin.com/in/williamhgates"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Bill Gates - Chair, Gates Foundation and Founder ...",
+          "url": "https://www.linkedin.com/in/williamhgates"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Bill Gates\",\"vertical\":null,\"accounts\":[{\"platform\":\"LinkedIn\",\"handle\":\"williamhgates\",\"followers\":40549269,\"engagementRate\":null,\"url\":\"https://www.linkedin.com/in/williamhgates\",\"sourceUrl\":\"https://www.linkedin.com/in/williamhgates\"}],\"sources\":[{\"title\":\"Bill Gates - Chair, Gates Foundation and Founder ...\",\"url\":\"https://www.linkedin.com/in/williamhgates\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.linkedin.com/in/williamhgates",
+          "title": "Bill Gates - Chair, Gates Foundation and Founder ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.linkedin.com/company/gatesinstitute",
+          "title": "William H. Gates Sr. Institute for Population and ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.linkedin.com/posts/kyleracki_bill-gates-has-36m-followers-because-he-built-activity-7271961811673841664-iyyv",
+          "title": "Kyle Racki's Post",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.gatesfoundation.org/about/verified-accounts",
+          "title": "Verified accounts",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://bethkanter.org/conan-gates/",
+          "title": "Why Does Bill Gates Have More LinkedIn Followers Than ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.linkedin.com/posts/williamhgates_i-do-activity-7181783846500139011-Glm-",
+          "title": "I do! | Bill Gates | 1,261 comments - LinkedIn",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.linkedin.com/posts/williamhgates_billions-are-pouring-into-the-business-of-activity-6841773069925670913-7gZP",
+          "title": "Billions are pouring into the business of decarbonisation | Bill Gates",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.linkedin.com/in/william-gates-a113999",
+          "title": "William Gates | LinkedIn",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.linkedin.com/posts/williamhgates_more-than-55-million-people-worldwide-are-activity-7364682106578354176-TxFV",
+          "title": "Alzheimer's Disease Data Initiative launches AI prize",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://unifapi.com/tools/linkedin-profile-analyzer",
+          "title": "LinkedIn follower count & profile lookup — Unif API",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

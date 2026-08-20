@@ -1,0 +1,100 @@
+{
+  "case": {
+    "id": "xhs-wangkaihua",
+    "platform": "xiaohongshu",
+    "handle": "王开花",
+    "kind": "roster",
+    "expect": {
+      "name": "王开花",
+      "followers": 283700,
+      "vertical": "food"
+    },
+    "note": "Non-Latin handle #2. Also tests whether the answer comes back in the handle’s own script or transliterated."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "xhs-wangkaihua",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "variant": "query",
+    "platform": "xiaohongshu",
+    "handle": "王开花",
+    "elapsedMs": 16314,
+    "costUsd": 0.021373,
+    "draft": {
+      "outcome": "ok",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "XiaoHongShu",
+          "handle": "王开花",
+          "followers": 151000,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": "https://yingxiangli.heiyouheiyou.com/xcon114479"
+        }
+      ],
+      "sources": [
+        {
+          "title": "王开花🌺的小红书粉丝统计与增长分析 - HeiYou影响力",
+          "url": "https://yingxiangli.heiyouheiyou.com/xcon114479"
+        }
+      ]
+    },
+    "rawText": "The search results include one page that appears to match the handle `王开花` — specifically a HeiYou influencer analytics page titled **王开花🌺** on XiaoHongShu, reporting 15.1万 (151,000) followers. However, I need to assess whether this is reliable enough to report:\n\n- The page at [yingxiangli.heiyouheiyou.com](https://yingxiangli.heiyouheiyou.com/xcon114479) is a third-party analytics site, not XiaoHongShu itself.\n- The handle `王开花🌺` matches the queried handle `王开花` closely (the 🌺 emoji is decorative).\n- The page notes the account is \"小红书新加坡\" (XiaoHongShu Singapore).\n- No real name is presented — only the handle.\n\nPer the rules, the source is a third-party analytics page, not a profile page where the handle appears in the URL or page title in a way that definitively confirms identity. The URL path (`xcon114479`) is an opaque ID with no handle in it, and no real name is surfaced. The figure is plausible but not confirmed from a primary source. Given rule 1 (never invent a number) and rule 8 (outcome is `not-found` when you cannot tell whether the page found is the right person), I must treat this cautiously — but the page title does name the handle explicitly.\n\nI'll report what is findable, citing the third-party source, but flag the follower count against it.\n\n{\"outcome\":\"ok\",\"name\":null,\"vertical\":null,\n \"accounts\":[{\"platform\":\"XiaoHongShu\",\"handle\":\"王开花\",\"followers\":151000,\n              \"engagementRate\":null,\"url\":null,\"sourceUrl\":\"https://yingxiangli.heiyouheiyou.com/xcon114479\"}],\n \"sources\":[{\"title\":\"王开花🌺的小红书粉丝统计与增长分析 - HeiYou影响力\",\"url\":\"https://yingxiangli.heiyouheiyou.com/xcon114479\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://yingxiangli.heiyouheiyou.com/xcon114479",
+          "title": "王开花🌺的小红书粉丝统计与增长分析 - HeiYou影响力",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "王开花🌺的小红书粉丝统计与增长分析 - HeiYou影响力\n...\n# 王开花🌺\n...\n本网排名：11.3万- 粉丝：15.1万- 分类排名：- 分类 发布：- 互动：74.2万账号：小红书新加坡 更新"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://yingxiangli.heiyouheiyou.com/xcon38191",
+          "title": "王开心的小红书粉丝统计与增长分析 - HeiYou影响力",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "王开心的小红书粉丝统计与增长分析 - HeiYou影响力\n...\n# 王开心\n...\n本网排名：27.3万-3% 粉丝：545132% 分类排名：-3% 分类 发布：- 互动：5.3万账号：小红书上海 更新\n...\n首页-粉丝榜- 王开心"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/user/profile/5bb62539e2b1da0001a09b6c",
+          "title": "废话王阿姨 - 小红书",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "废话王阿姨\n...\n小红书号：nidedawa1212 IP属地：泰国\n...\n🌷把生活中的废话，统统开成喇叭花！ 🌷原创图文｜搬运请注明来源 🌷已出版诗集《想在晚风中和你说一说废话》～ 📪nidedawa@163.com"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/user/profile/5b2c65e5f7e8b9465b45f7a5",
+          "title": "老王🥛 - 小红书",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "老王🥛 - 小红书\n...\n老王🥛\n...\n小红书号：182347629 IP属地：安徽\n...\n身高170cm体重起伏不定的已婚已育俩娃妈 分享生活 佛系更新 感谢关注 💜\n...\n29岁\n...\n时尚博主\n...\n10+关注\n...\n1千+粉丝"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.launchmetrics.com/resources/blog/knowyourmiv-top-beauty-influencers-xiaohongshu",
+          "title": "Top beauty Influencers on Xiaohongshu (RED)",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "#KnowYourMIV: Top beauty Influencers on Xiaohongshu (RED) - Launchmetrics\n\n...\n\n# The Top 10 Xiaohongshu (RED) Influencers\n\n...\n\nFor brands looking to succeed in China, choosing the right channels and partnering with local influencers is critical. On platforms like Xiaohongshu (RED), these creators play a central role in building trust, credibility and cultural relevance with Chinese consumers.\n\n...\n\nTo help you navigate the platform, we’ve identified the top 10 Fashion, Lifestyle and Beauty (FLB) influencers on Xiaohongshu (RED), ranked by Media Impact Value® (MIV®) generated in 2025.\n\n...\n\n## Breakdown of the Top 10 Xiaohongshu (RED) Influencers\n\n...\n\nBefore diving into each influencer, it’s important to understand how the influencer tier system works at Launchmetrics. Our platform classifies influencers by follower scale to help brands benchmark performance more accurately. Micro influencers have under 100K followers across all channels, Mid-tier influencers reach 100K–500K on at least one channel, Mega influencers sit between 500K and 2M and All-Star influencers exceed 2M followers on a single platform.\n\n...\n\n| Ranking | Influencer | MIV Generated |\n| --- | --- | --- |\n\n...\n\n| 1 | Qing She Hui She Chi Pin Hui Shou Ji Mai Zhong Xin (青奢荟奢侈品回收寄卖中心) | $28,664,450 |\n\n...\n\n| 2 | Twice Chic | $25,345,490 |\n\n...\n\n| 3 | Chrison Ke Li Sen (Chrison克里森) | $23,280,850 |\n\n...\n\n| 4 | KvanMoment | $17,923,005 |\n\n...\n\n| 5 | Siimoon | $16,965,501 |\n\n...\n\n| 6 | Aha Lolo 我爱 | $16,094,638 |\n\n...\n\n| 7 | Nan Zai Nan Fang (南在南方) | $13,388,174 |\n\n...\n\n| 8 | Chen Mo Xiao Hou Zi (沉默小猴子) | $13,119,875 |\n\n...\n\n| 9 | Fm Yu (FM宇) | $12,562,095 |\n\n...\n\n| 10 | Pu Yan Yan (蒲言延) | $12,347,838 |\n\n...\n\nNote: MIV indicates Media Impact Value generated specifically on Xiaohongshu (RED).\n\n...\n\n### 8. Chen Mo Xiao Hou Zi"
+        }
+      }
+    ],
+    "error": null
+  }
+}

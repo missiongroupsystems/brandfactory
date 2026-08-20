@@ -1,0 +1,108 @@
+{
+  "case": {
+    "id": "tippytapp",
+    "platform": "instagram",
+    "handle": "tippytapp",
+    "kind": "roster",
+    "expect": {
+      "name": "Jessica Tham",
+      "followers": 108000,
+      "vertical": "parenting"
+    },
+    "note": "Mid-tier, opaque handle, sits 8k over the 100k tier boundary — the case where a drifting figure changes the band."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "tippytapp",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "variant": "query",
+    "platform": "instagram",
+    "handle": "tippytapp",
+    "elapsedMs": 9355,
+    "costUsd": 0.019468,
+    "draft": {
+      "outcome": "ok",
+      "name": "Jessica Tham",
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "Instagram",
+          "handle": "tippytapp",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/tippytapp/",
+          "sourceUrl": "https://storify.me/ig/tippytapp"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Jessica Tham (@tippytapp) - Instagram - Storify",
+          "url": "https://storify.me/ig/tippytapp"
+        },
+        {
+          "title": "tippytapp: About Me",
+          "url": "http://tippytapp.blogspot.com/p/about-me.html"
+        },
+        {
+          "title": "5 Things We Love About Jessica Tham's Condo Renovation",
+          "url": "https://uchify.com/jessica-tham-condo-home-tour/"
+        }
+      ]
+    },
+    "rawText": "The search results confirm the account belongs to Jessica Tham, a Singapore-based lifestyle/content influencer. However, no follower count is present in any of the pages retrieved — the storify.me page shows dashes (\"-- --\") where follower figures would appear, and no other source provides a number.\n\nVertical: her blog describes fashion, travel, and beauty; given the rules, `null` applies as she spans multiple categories and \"lifestyle\" is not a permitted value.\n\n{\"outcome\":\"ok\",\"name\":\"Jessica Tham\",\"vertical\":null,\n \"accounts\":[{\"platform\":\"Instagram\",\"handle\":\"tippytapp\",\"followers\":null,\n              \"engagementRate\":null,\"url\":\"https://www.instagram.com/tippytapp/\",\"sourceUrl\":\"https://storify.me/ig/tippytapp\"}],\n \"sources\":[{\"title\":\"Jessica Tham (@tippytapp) - Instagram - Storify\",\"url\":\"https://storify.me/ig/tippytapp\"},{\"title\":\"tippytapp: About Me\",\"url\":\"http://tippytapp.blogspot.com/p/about-me.html\"},{\"title\":\"5 Things We Love About Jessica Tham's Condo Renovation\",\"url\":\"https://uchify.com/jessica-tham-condo-home-tour/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://storify.me/ig/tippytapp",
+          "title": "Jessica Tham (@tippytapp) - Instagram - Storify photos and videos",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Jessica Tham (@tippytapp) - Instagram - Storify photos and videos - Brand reviews\n\n...\n\nCreators of\n\n...\n\nFrom\n\n...\n\nAge 13-1718-2425-3435-4445+\n\n...\n\nGender MFOthers\n\n...\n\nBrand affinity - uncover creators who love your brand\n\n...\n\nPlatforms\n\nFollowers\n\n...\n\n-- --\n\n...\n\nSearch\n\n...\n\n# tippytapp 2.5 / 5\n\n...\n\nLast modified on 26 Dec 25 03:12 --\n\n...\n\n## Featured Stories\n\n...\n\nCategory Computers Real Estate Cars & Motorcycles Furniture Pets & Animals -- Newest Oldest"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "http://tippytapp.blogspot.com/p/about-me.html",
+          "title": "tippytapp: About Me",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "tippytapp: About Me\n\n...\n\n### About Me\n\n...\n\nHello there!\n\n...\n\nI am Jessica, also known as tippytapp or tippy for short. I am >25 years of age, married to H, who's left-brained.\n\n...\n\nOne question I get asked a lot is, why tippytapp and what does it mean? I wish I have an interesting story on how I came up with that name but truth is, I was just thinking of an username for myself and this just popped into mind, like, literally. There's no meaning behind it, it was available on every platform I wanted to sign up for, and most importantly, it sounds cute and everyone can pronounce it so the name stuck.\n\n...\n\nTippytapp.blogspot is mainly about fashion, travel and beauty. I would classify it as a \"lifestyle blog\" where I share just about anything - the occasional cooking adventures, product reviews, my husband and everything in-between!"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://uchify.com/jessica-tham-condo-home-tour/",
+          "title": "5 Things We Love About Jessica Tham’s Condo Renovation",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# 5 Things We Love About Jessica Tham’s Condo Renovation\n\n...\n\nFeatured Homes\n\n...\n\n# 5 Things We Love About Jessica Tham’s Mid-Century Modern 3-Bedroom Condo\n\n...\n\nFrom a marble coffee bar to stone cabinet knobs, here are 5 details we love about TippyTapp Jessica Tham’s new condo.\n\n...\n\n5 Things We Love About TippyTapp Jessica's New 3-Bedroom Condo\n\n...\n\nFollow us on Instagram for the latest updates Follow us on TikTok for the latest updates Follow us on Telegram for the latest updates\n\n...\n\nAfter living in an all-white home for years, content influencer, @tippytapp, also known as Jessica Tham finally reveals her new latest home. A 1,300sqft 3-room condo in central Singapore that draws inspiration from the sophistication of the Mid-Century Modern aesthetic, with small whimsical touches that truly make it her own.\n\n...\n\n- 1. The marble coffee bar within the dry pantry\n- 2. Natural stone knobs for all the cabinetry\n- 3. Energy-efficient smart lighting in every room\n- 4. Master bathroom sintered stone vanity with integrated sink\n- 5. The 10-door built-in storage & a vanity nook in the master bedroom\n- Jessica Tham’s (@tippytapp) mid-century modern 3-room condo\n\n...\n\nJessica Tham @tippytapp's 3-room condo\n\n...\n\nImage credit: Comuna Interiors\n\n...\n\n### 2. Natural stone knobs for all the cabinetry\n\n...\n\n(2) 5 Things We Love About TippyTapp Jessica's New 3-Bedroom Condo - natural stone knobs\n\n...\n\nImage credit: @tippytapp via Instagram\n\n...\n\nImage credit: @tippytapp via Instagram\n\n...\n\nImage credit: @tippytapp via Instagram\n\n...\n\nImage credit: @tippytapp via Instagram\n\n...\n\nImage credit: @tippytapp via Instagram\n\n...\n\n### Jessica Tham’s (@tippytapp) mid-century modern 3-room condo\n\n...\n\n---\n\n...\n\nCover image adapted from: @tippytapp via Instagram\n\n...\n\nAvatar\n\n...\n\n## JOIN US HERE\n\n...\n\n- Instagram\n- Facebook\n- Youtube\n- TikTok\n- Telegram"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "http://tippytapp.blogspot.com/2013/05/lollipop-up-jipaban-x-blogger-bazaar.html",
+          "title": "tippytapp: LolliPOP-Up Jipaban x Blogger Bazaar Party!",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "tippytapp: LolliPOP-Up Jipaban x Blogger Bazaar Party!\n\n...\n\nHello guys!\n\n...\n\nHow are you spending your Sunday afternoon?\n\n...\n\nI'll be at the Jipaban x Blogger flea held at Zouk!\n\n...\n\nThere'll be lots of fun, food and discounted shopping with other favourite bloggers of yours!\n\n...\n\nYup, they spelled Tippytapp without the extra 'p' at the end.\n\n...\n\nAnyhow, my booth will be right under the DJ console so come over and say hi okay!\n\n...\n\nI will be selling clothes, shoes, books, etc, all for less than $10!\n\n...\n\nFind out more about the party here and remember to mark your attendance!"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "http://tippytapp.blogspot.com/2014/08/sugarcane-buddies-flea.html",
+          "title": "tippytapp: Sugarcane Buddies + Flea",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "tippytapp: Sugarcane Buddies + Flea\n\n...\n\nH and I have been hanging out with this group of friends frequently on weekends and we call ourselves the Sugarcane Buddies (got story behind the name hahaha) / Saturday Buddies.\n\n...\n\nIt's interesting how social media brought us together. Take for example, Eve and I knew each other way back in 2009 when we did a flight to Paris together and basically hanged out throughout the entire flight. (I apologise for these bad quality pictures I saved from Facebook.)\n\n...\n\nAfter 5 years, this cheeky (now) woman still poses the same and forces her boyfriend to do it too hahaha! Anyway, we did not really keep in contact after the flight though her number is always saved in my phone but we are still \"close\" because of Facebook and Instagram. You know what I mean?\n\nActually, I also kinda got to know Meiting through SQ and the first time we \"met\" was also in Paris! (I really don't want to say this but I miss Paris!! So excited I am finally heading back to the city of love this December with H!!) I think I followed her on Instagram because someone (a crew probably?) told me she was also flying so I went to check out her profile and thought, \"Wah this girl quite pretty, okay I'll follow her\". So we knew of each other's existence...and then one day when I was leaving Paris, she was checking in and a common friend of ours wanted to introduce us but I was shy lah! So we officially said \"Hi\" in person for the first time at a Skin Inc event last year!\n\nWith Tricia, there isn't much of a story because *ahem* her height does not qualify for SQ (but everything else about her is perfect) so it was very straightforward - I \"knew\" her through Instagram and Eve brought us from reel to real!\n\n...\n\nI know I've only been talking about us girls but you know what? Our boyfriends get along just as well! Yay to new friendships fostered! We even have a hashtag on Instagram - #whenboysvsgirls. Pictures there are just for laughs okay hahaha."
+        }
+      }
+    ],
+    "error": null
+  }
+}

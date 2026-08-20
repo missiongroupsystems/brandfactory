@@ -13,7 +13,13 @@ export function onError(err: Error, c: Context<AppEnv>): Response {
       },
       // `status` is narrowed by Hono to content-status; `satisfies` would
       // trip its conditional types, so cast through number.
-      err.status as 400 | 401 | 403 | 404 | 409 | 500,
+      //
+      // **The union is a list of what this app actually emits**, not a
+      // constraint — the cast means an unlisted status still ships. 503 joined
+      // it with quick add's lookup, which refuses that way when the deployment
+      // has no search-grounded provider: a configuration state rather than a
+      // server fault, so it must not read as a 500.
+      err.status as 400 | 401 | 403 | 404 | 409 | 500 | 503,
     )
   }
   if (err instanceof ZodError) {

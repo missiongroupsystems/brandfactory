@@ -1,4 +1,5 @@
-import type { Influencer } from "@brandfactory/shared";
+import type { Influencer, InfluencerPlatform } from "@brandfactory/shared";
+import { InfluencerPlatformSchema } from "@brandfactory/shared";
 import {
   blendedEngagement,
   byInfluencerReach,
@@ -9,6 +10,7 @@ import {
 import { INFLUENCER_STATUS_LABELS, INFLUENCER_VERTICAL_LABELS } from "@/lib/labels";
 
 import { GENERALIST } from "./format";
+import { parseReachSortKey, reachOn, reachSortKey } from "./reach-columns";
 import { tierFor } from "./tiers";
 
 /**
@@ -63,7 +65,8 @@ import { tierFor } from "./tiers";
  * to leave equal rows in. It is total, so the result never depends on `Array.sort` stability.
  */
 
-export type SortKey =
+/** The eight columns the table always has. */
+export type BaseSortKey =
   | "name"
   | "platforms"
   | "reach"
@@ -73,12 +76,30 @@ export type SortKey =
   | "brands"
   | "status";
 
+/**
+ * One platform's reach column — `reach:instagram`.
+ *
+ * **These keys are only meaningful while the columns exist**, which is what makes
+ * them different from the eight above: the reach-by-platform view is off by
+ * default, so a key naming a column nobody can see has to be handled rather than
+ * assumed away. `influencers-browser.tsx` clears the sort when the view is turned
+ * off, and `parseSort` still accepts one from a pasted URL — the sort is applied
+ * and the reader simply cannot see the heading it belongs to until they turn the
+ * view on. Refusing it instead would make a shared link silently drop the order
+ * it was shared to show.
+ */
+export type ReachPlatformSortKey = `reach:${InfluencerPlatform}`;
+
+export type SortKey = BaseSortKey | ReachPlatformSortKey;
+
 export type SortDirection = "asc" | "desc";
 
 export type InfluencerSort = { key: SortKey; direction: SortDirection };
 
-/** The eight columns, in the order the table renders them. Exported for the test, which walks
- *  the list rather than naming eight keys a ninth column could be added beside. */
+/** The eight always-present columns, in the order the table renders them. Exported for the test,
+ *  which walks the list rather than naming eight keys a ninth column could be added beside.
+ *  The per-platform reach keys are **not** here — they exist only in the wide view, and a test
+ *  walking this list should be walking the columns every reader has. */
 export const SORT_KEYS = [
   "name",
   "platforms",
@@ -88,7 +109,7 @@ export const SORT_KEYS = [
   "vertical",
   "brands",
   "status",
-] as const satisfies readonly SortKey[];
+] as const satisfies readonly BaseSortKey[];
 
 /**
  * What each column compares by, and how.
@@ -103,7 +124,7 @@ type SortRule = {
   value: (influencer: Influencer) => string | number | null;
 };
 
-const RULES: Record<SortKey, SortRule> = {
+const BASE_RULES: Record<BaseSortKey, SortRule> = {
   name: { kind: "text", value: (i) => i.name },
   platforms: { kind: "number", value: (i) => platformsOf(i.accounts).length },
   reach: { kind: "number", value: (i) => totalReach(i.accounts) },
@@ -120,13 +141,37 @@ const RULES: Record<SortKey, SortRule> = {
   status: { kind: "text", value: (i) => INFLUENCER_STATUS_LABELS[i.status] },
 };
 
+/**
+ * One rule per platform, built from the enum rather than written out.
+ *
+ * `reachOn` answers `null` for a creator who is not on the platform, and the
+ * comparator below already sorts `null` last in **both** directions — so the 75
+ * Instagram-only creators on this roster fall to the bottom of the TikTok column
+ * rather than into the middle of it on a zero nobody measured. That behaviour is
+ * inherited rather than special-cased, which is the whole reason `reachOn` returns
+ * `null` instead of `0`.
+ */
+const REACH_RULES = Object.fromEntries(
+  InfluencerPlatformSchema.options.map((platform) => [
+    reachSortKey(platform),
+    { kind: "number", value: (i: Influencer) => reachOn(i.accounts, platform) } satisfies SortRule,
+  ]),
+) as Record<ReachPlatformSortKey, SortRule>;
+
+const RULES: Record<SortKey, SortRule> = { ...BASE_RULES, ...REACH_RULES };
+
 /** Both halves of the URL, validated together: a `sort` this release does not know and a `dir`
  *  that is neither word both fall to "no sort", which is the order the screen opens in. */
 export function parseSort(
   key: string | undefined,
   direction: string | undefined,
 ): InfluencerSort | null {
-  if (!key || !(SORT_KEYS as readonly string[]).includes(key)) return null;
+  if (!key) return null;
+  // A per-platform reach key is as valid as one of the eight — see `ReachPlatformSortKey` for
+  // why a key whose column is currently hidden is still honoured rather than dropped.
+  const known =
+    (SORT_KEYS as readonly string[]).includes(key) || parseReachSortKey(key) !== null;
+  if (!known) return null;
   // A known column with a missing or unrecognised direction is ascending — the state the first
   // click produces — rather than nothing, so a hand-edited `?sort=name` still sorts.
   return { key: key as SortKey, direction: direction === "desc" ? "desc" : "asc" };

@@ -1,0 +1,181 @@
+{
+  "case": {
+    "id": "lennardy-tt",
+    "platform": "tiktok",
+    "handle": "lennardy",
+    "kind": "roster",
+    "expect": {
+      "name": "Lennard Yeong",
+      "followers": 981600,
+      "vertical": "food"
+    },
+    "note": "The pair. A model returning the Instagram figure here has answered the wrong question, and 1.47.0 records that this creator is Mega only as a sum."
+  },
+  "model": "perplexity/sonar-pro",
+  "capture": {
+    "caseId": "lennardy-tt",
+    "modelId": "perplexity/sonar-pro",
+    "platform": "tiktok",
+    "handle": "lennardy",
+    "elapsedMs": 8332,
+    "costUsd": 0.01125,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "TikTok",
+          "handle": "lennardy",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.tiktok.com/@lennardy",
+          "sourceUrl": null
+        }
+      ],
+      "sources": [
+        {
+          "title": "TikTok homepage access denied",
+          "url": "https://www.tiktok.com/"
+        },
+        {
+          "title": "Podtail podcast episode mentioning @lennardy",
+          "url": "https://podtail.com/en/podcast/comfort-growth-with-crystal-lim-lange/ep-4-rachel-lim-on-her-morning-routine-staying-san/"
+        },
+        {
+          "title": "YouTube video mentioning @Lennardy",
+          "url": "https://www.youtube.com/watch?v=9MyJlaLsRKk"
+        },
+        {
+          "title": "Instagram profile Lennard Yeong (@lennardy)",
+          "url": "https://www.instagram.com/lennardy/"
+        },
+        {
+          "title": "Facebook page Lennardy",
+          "url": "https://www.facebook.com/p/Lennardy-61554518804334/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"TikTok\",\"handle\":\"lennardy\",\"followers\":null,\"engagementRate\":null,\"url\":\"https://www.tiktok.com/@lennardy\",\"sourceUrl\":null}],\"sources\":[{\"title\":\"TikTok homepage access denied\",\"url\":\"https://www.tiktok.com/\"},{\"title\":\"Podtail podcast episode mentioning @lennardy\",\"url\":\"https://podtail.com/en/podcast/comfort-growth-with-crystal-lim-lange/ep-4-rachel-lim-on-her-morning-routine-staying-san/\"},{\"title\":\"YouTube video mentioning @Lennardy\",\"url\":\"https://www.youtube.com/watch?v=9MyJlaLsRKk\"},{\"title\":\"Instagram profile Lennard Yeong (@lennardy)\",\"url\":\"https://www.instagram.com/lennardy/\"},{\"title\":\"Facebook page Lennardy\",\"url\":\"https://www.facebook.com/p/Lennardy-61554518804334/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://podtail.com/en/podcast/comfort-growth-with-crystal-lim-lange/ep-4-rachel-lim-on-her-morning-routine-staying-san/",
+          "title": "Ep 4 - Rachel Lim on her Morning Routine, staying sane while balancing career and motherhood, and she kicks ass all day every day as a working mom and co-founder of Love, Bonito! – Comfort & Growth with Crystal Lim-Lange – Podcast",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/ThaiCultureToTheWorld/posts/nam-jim-seafood-thai-spicy-seafood-sauce-nam-jim-seafood-%E0%B8%99%E0%B9%89%E0%B8%B3%E0%B8%88%E0%B8%B4%E0%B9%89%E0%B8%A1%E0%B8%8B%E0%B8%B5%E0%B8%9F%E0%B8%B9%E0%B9%89%E0%B8%94-is-a-popu/1088100700206348/",
+          "title": "Thai Spicy Seafood Sauce . Nam Jim Seafood (น้ำจิ้มซีฟู้ด) is a ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=9MyJlaLsRKk",
+          "title": "INSANE 8KG BBQ Meat Platter Challenge! | Ft. MasterChef @Lennardy!",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.tiktok.com/",
+          "title": "Access Denied",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.tiktok.com/channel/sichuan-peppercorn?lang=en",
+          "title": "Sichuan Peppercorn | TikTok",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://support.tiktok.com/en/business-and-creator",
+          "title": "Support Center | TikTok",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://support.tiktok.com/en/using-tiktok/followers-and-following",
+          "title": "Followers and Following - TikTok Support",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://support.tiktok.com/fr/using-tiktok",
+          "title": "Centre d'aide | TikTok",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://support.tiktok.com/es",
+          "title": "Centro de soporte",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/lennardy/",
+          "title": "Lennard Yeong (@lennardy)",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/p/Lennardy-61554518804334/",
+          "title": "Lennardy - Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://support.tiktok.com/en/using-tiktok/messaging-and-notifications",
+          "title": "Messaging and notifications - TikTok Help Center",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.tiktok.com/channel/lime-restaurant?lang=en",
+          "title": "Lime Restaurant | TikTok",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

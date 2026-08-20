@@ -1,0 +1,117 @@
+{
+  "case": {
+    "id": "xhs-luodaxiong",
+    "platform": "xiaohongshu",
+    "handle": "罗大雄",
+    "kind": "roster",
+    "expect": {
+      "name": "罗大雄",
+      "followers": 392800,
+      "vertical": "fitness"
+    },
+    "note": "Non-Latin handle #1. XHS addresses users by an opaque numeric id, so there is no URL to guess — grounding has to come from search alone."
+  },
+  "model": "perplexity/sonar-pro",
+  "variant": "query",
+  "capture": {
+    "caseId": "xhs-luodaxiong",
+    "modelId": "perplexity/sonar-pro",
+    "variant": "query",
+    "platform": "xiaohongshu",
+    "handle": "罗大雄",
+    "elapsedMs": 2557,
+    "costUsd": 0.00882,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "XiaoHongShu",
+          "handle": "罗大雄",
+          "followers": null,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": null
+        }
+      ],
+      "sources": []
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"XiaoHongShu\",\"handle\":\"罗大雄\",\"followers\":null,\"engagementRate\":null,\"url\":null,\"sourceUrl\":null}],\"sources\":[]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://m.baidu.com/bh/m/detail/ar_8474432183685724345?frsrcid=rec",
+          "title": "小红书百大宠物KOL盘点：「王泡芙」领跑，七成博主实现粉丝正增长",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://m.36kr.com/p/3191747246170753",
+          "title": "奔向全民化，小红书请先交出「2000万」顶流 - 36氪",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "http://www.thepaper.cn/newsDetail_forward_27047251",
+          "title": "小红书远征迷局 - 澎湃新闻",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.qian-gua.com/Home/HotRankView?type=1",
+          "title": "千瓜数据-小红书数据分析及营销服务平台_qian-gua.com",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://zh.wikipedia.org/zh-hans/%E5%B0%8F%E7%BA%A2%E4%B9%A6",
+          "title": "小红书 - 维基百科，自由的百科全书",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://zh.wikipedia.org/wiki/%E5%B0%8F%E7%BA%A2%E4%B9%A6",
+          "title": "小红书 - 维基百科，自由的百科全书",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.10100.com/article/147823943",
+          "title": "数据｜小红书分行业达人排行榜 - 大数跨境",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.relangdata.cn/redbook/redbook_rank_2023-04-09_7_5_107.html",
+          "title": "产品介绍",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

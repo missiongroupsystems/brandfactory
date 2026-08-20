@@ -1,0 +1,104 @@
+{
+  "case": {
+    "id": "lennardy-tt",
+    "platform": "tiktok",
+    "handle": "lennardy",
+    "kind": "roster",
+    "expect": {
+      "name": "Lennard Yeong",
+      "followers": 981600,
+      "vertical": "food"
+    },
+    "note": "The pair. A model returning the Instagram figure here has answered the wrong question, and 1.47.0 records that this creator is Mega only as a sum."
+  },
+  "model": "perplexity/sonar-pro",
+  "variant": "query",
+  "capture": {
+    "caseId": "lennardy-tt",
+    "modelId": "perplexity/sonar-pro",
+    "variant": "query",
+    "platform": "tiktok",
+    "handle": "lennardy",
+    "elapsedMs": 2483,
+    "costUsd": 0.00975,
+    "draft": {
+      "outcome": "ok",
+      "name": "Lennard Yeong",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "TikTok",
+          "handle": "lennardy",
+          "followers": 990000,
+          "engagementRate": null,
+          "url": "https://www.tiktok.com/@lennardy",
+          "sourceUrl": "https://eatbook.sg/yakiniku-go-lennardy/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Yakiniku-GO Collabs With Lennardy, Has Wagyu Fat Rice ...",
+          "url": "https://eatbook.sg/yakiniku-go-lennardy/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Lennard Yeong\",\"vertical\":\"food\",\"accounts\":[{\"platform\":\"TikTok\",\"handle\":\"lennardy\",\"followers\":990000,\"engagementRate\":null,\"url\":\"https://www.tiktok.com/@lennardy\",\"sourceUrl\":\"https://eatbook.sg/yakiniku-go-lennardy/\"}],\"sources\":[{\"title\":\"Yakiniku-GO Collabs With Lennardy, Has Wagyu Fat Rice ...\",\"url\":\"https://eatbook.sg/yakiniku-go-lennardy/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/lennardy/",
+          "title": "Lennard Yeong (@lennardy)",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=iURQeYLjWD4",
+          "title": "Ep 49 - Lennard Yeung - How to Fail Upwards - The Introvert Chef with 1.5 million followers",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/p/Lennardy-61554518804334/",
+          "title": "Lennardy - Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/61554518804334/videos/",
+          "title": "Lennardy (@61554518804334) - Videos | Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://eatbook.sg/yakiniku-go-lennardy/",
+          "title": "Yakiniku-GO Collabs With Lennardy, Has Wagyu Fat Rice ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://support.tiktok.com/en/using-tiktok/followers-and-following/following-and-unfollowing",
+          "title": "Following and unfollowing - TikTok Help Center",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "case": {
+    "id": "chloeabeth",
+    "platform": "tiktok",
+    "handle": "chloeabeth",
+    "kind": "roster",
+    "expect": {
+      "name": "Chloe",
+      "followers": 1200000,
+      "vertical": "fashion"
+    },
+    "note": "The roster’s largest TikTok, held by a creator the media list records under a single given name. A model that returns a surname has invented one."
+  },
+  "model": "perplexity/sonar-pro",
+  "variant": "query",
+  "capture": {
+    "caseId": "chloeabeth",
+    "modelId": "perplexity/sonar-pro",
+    "variant": "query",
+    "platform": "tiktok",
+    "handle": "chloeabeth",
+    "elapsedMs": 16637,
+    "costUsd": 0.00932,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "TikTok",
+          "handle": "chloeabeth",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.tiktok.com/@chloeabeth",
+          "sourceUrl": null
+        }
+      ],
+      "sources": [
+        {
+          "title": "TikTok @chloeabeth",
+          "url": "https://www.tiktok.com/@chloeabeth"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"TikTok\",\"handle\":\"chloeabeth\",\"followers\":null,\"engagementRate\":null,\"url\":\"https://www.tiktok.com/@chloeabeth\",\"sourceUrl\":null}],\"sources\":[{\"title\":\"TikTok @chloeabeth\",\"url\":\"https://www.tiktok.com/@chloeabeth\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/chloeabeth/",
+          "title": "(@chloeabeth) • Instagram photos and videos",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.famousbirthdays.com/people/chloe-liem.html",
+          "title": "Chloe Liem - Age, Bio, Family | Famous Birthdays",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.reddit.com/r/LAinfluencersnark/comments/19cpn5d/chloe_abethliem/",
+          "title": "Chloe Abeth/Liem : r/LAinfluencersnark - Reddit",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://kolens.ai/k/chloeabeth4545",
+          "title": "Chloe L. (@chloeabeth4545) on TikTok — 1.3M followers",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=RZ1EQMxu3sU",
+          "title": "SINGAPORE VLOG★ nepo baby turned richtok influencer",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/popular/chloe-land,-accessories,-singapore/",
+          "title": "Chloe Land, Accessories, Singapore",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://tokcounter.com/",
+          "title": "Realtime TikTok Live Follower Counter — TikTok Counter",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://livecounts.io/tiktok-live-follower-counter",
+          "title": "Realtime TikTok Live Follower Counter",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

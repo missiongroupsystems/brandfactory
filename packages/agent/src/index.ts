@@ -55,3 +55,18 @@ export {
   type IdeateThemesAgentInput,
   type IdeateCopyAgentInput,
 } from './social/ideate'
+
+// The creator lookup (quick add, Phase F). One search-grounded completion over a
+// platform and a handle, returning a draft a person confirms. It is the second
+// stateless model-backed engine here and the first that reads the live web
+// through `LLMProvider.completeGrounded` rather than `getModel` — see that
+// method's docstring, and Phase E's write-up, for why `generateObject` cannot
+// do this.
+export {
+  lookupCreator,
+  buildLookupPrompt,
+  applyLookupBoundaries,
+  extractJson,
+  type LookupCreatorInput,
+  type BoundaryInput,
+} from './influencer/lookup'

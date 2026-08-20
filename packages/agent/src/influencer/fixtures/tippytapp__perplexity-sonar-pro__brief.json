@@ -1,0 +1,178 @@
+{
+  "case": {
+    "id": "tippytapp",
+    "platform": "instagram",
+    "handle": "tippytapp",
+    "kind": "roster",
+    "expect": {
+      "name": "Jessica Tham",
+      "followers": 108000,
+      "vertical": "parenting"
+    },
+    "note": "Mid-tier, opaque handle, sits 8k over the 100k tier boundary — the case where a drifting figure changes the band."
+  },
+  "model": "perplexity/sonar-pro",
+  "capture": {
+    "caseId": "tippytapp",
+    "modelId": "perplexity/sonar-pro",
+    "platform": "instagram",
+    "handle": "tippytapp",
+    "elapsedMs": 5240,
+    "costUsd": 0.00883,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "instagram",
+          "handle": "tippytapp",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/tippytapp/",
+          "sourceUrl": null
+        }
+      ],
+      "sources": []
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"instagram\",\"handle\":\"tippytapp\",\"followers\":null,\"engagementRate\":null,\"url\":\"https://www.instagram.com/tippytapp/\",\"sourceUrl\":null}],\"sources\":[]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://storify.me/ig/tippytapp",
+          "title": "Jessica Tham (@tippytapp) - Instagram - Storify photos and videos",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/p/DLCwE9_xfsy/",
+          "title": "We made a day trip to Wolfgangsee from Salzburg ( <1 hour drive ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/tippityapp/",
+          "title": "Tippity (@tippityapp) • Instagram photos and videos",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/reel/Dau7Y0uy6CD/",
+          "title": "bird's nest  Get treated to a FREE box of Kim ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=oZGv8h3YYMs",
+          "title": "#DFWInsider - Jessica Tham (SG) | #DigitalFashionWeek 2014",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "http://tippytapp.blogspot.com/p/about-me.html",
+          "title": "About Me - tippytapp",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/reel/DP_b-juEq6M/",
+          "title": "@OneRicePlease showed their travel hacks and how they ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/p/DYsf8nkyUlW/",
+          "title": "Stop doing math at the dinner table. Pitip calculates your tip in one ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/tip/",
+          "title": "TIP (@tip) • Instagram photos and videos",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/tiptip_app/",
+          "title": "TipTip | bezgotówkowe napiwki (@tiptip_app) - Instagram",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.protrimhair.com/influencers-hair-styles-who-visited-us/",
+          "title": "Influencers' Hair Styles by Protrim | Protrim Hair Salon Singapore",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.scrumball.com/ranking/top-fashion-influencers-on-instagram-in-singapore",
+          "title": "1000 Top Singapore Fashion Instagram Influencers (Jun. 2026)",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.herworld.com/incoming/whats-your-edge-8-women-share-their-stories-strength",
+          "title": "What's Your Edge? 8 Women Share Their Stories Of Strength",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.aspirantsg.com/hot-singapore-babes-in-bikini/",
+          "title": "Hot Singapore Babes In Bikini To Follow On Instagram",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://help.tiptapp.com/en/articles/12918404-what-is-tiptapp-and-how-does-it-work",
+          "title": "What is Tiptapp and how does it work?",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "case": {
+    "id": "tippytapp",
+    "platform": "instagram",
+    "handle": "tippytapp",
+    "kind": "roster",
+    "expect": {
+      "name": "Jessica Tham",
+      "followers": 108000,
+      "vertical": "parenting"
+    },
+    "note": "Mid-tier, opaque handle, sits 8k over the 100k tier boundary — the case where a drifting figure changes the band."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "capture": {
+    "caseId": "tippytapp",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "platform": "instagram",
+    "handle": "tippytapp",
+    "elapsedMs": 6155,
+    "costUsd": 0.015946,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "Instagram",
+          "handle": "tippytapp",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/tippytapp/",
+          "sourceUrl": null
+        }
+      ],
+      "sources": []
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"Instagram\",\"handle\":\"tippytapp\",\"followers\":null,\"engagementRate\":null,\"url\":\"https://www.instagram.com/tippytapp/\",\"sourceUrl\":null}],\"sources\":[]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://github.com/walieed122/Instagram-Follower-Count-Public-Profile-Data-Scraper",
+          "title": "walieed122/Instagram-Follower-Count-Public-Profile-Data- ...",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "### Exact Followers Count & Public Instagram Data\n\nA Python-based web scraping tool designed to retrieve **exact Instagram followers count**\nand other **public profile data** without login, authentication, or cookies.\n\nInstagram displays follower numbers in an abbreviated format such as **10K** or **1M**. \nThis tool retrieves the **real numeric value** behind those numbers.\n\n**Example:**\n\n...\n\n- Instagram display: `10K followers`\n- Actual value returned by this tool: `10,436 followers`\n\n...\n\n## Key Features\n\n- Retrieves the **exact Instagram followers count** (no rounding)\n- Fetches **public Instagram profile data only**\n- Works **without login or authentication**\n- No Instagram account required\n- No cookies are stored or reused\n- Simple input: username or public profile URL\n\n...\n\n## Public Data Collected\n\n- Exact followers count\n- Total number of posts\n- Total reels or clips count (if available)\n- Account privacy status\n- Verification status\n- Account type\n- Profile biography and full name\n- Profile picture URL\n\n...\n\nThe user only needs to provide:\n\n...\n\n- An Instagram username\n\n...\n\n- A public Instagram profile URL\n\nAll retrieved data is **publicly accessible** without authentication."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://forum.bubble.io/t/how-to-get-general-instagram-information-without-using-the-graph-api/110114",
+          "title": "How to get general Instagram information without using the ...",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "I have searched for a long time for an easy way to get general information about an Instagram user (#followers, name, bio, pic, etc) because the Graph API was too much hassle. I founded a way to do it with the Toolbox plugin.\n\n...\n\n1. Instal the Toolbox plugin.\n2. Make a button with the workflow: run javascript.\n3. Put a JavascripttoBubble element on your page for each piece of data you want to extract.\n4. Put the following code in the run javascript workflow:\n\nlet url = “ https://www.instagram.com/**[username]**”; $.ajax({ type: ‘GET’, url: url, error: function () { //… }, success: function (data) { data = JSON.parse(data.split(“window._sharedData = “)[1].split(”;”)[0]).entry_data.ProfilePage[0].graphql; console.log(data.user); bubble_fn_insta(data.user.edge_followed_by.count); } })\n\nYou can extract all data attached to data.user. To check the syntax, just run the workflow once with a valid username and check your console which displays all data you can extract and put into a JavascripttoBubble element.\n\n1. Change the [username] to the user you want to search\n2. Change the bubble_fn_insta to the name of your JavascripttoBubble element\n\n...\n\nNow you have that data in your Bubble app without having to use the Graph API."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://stackoverflow.com/questions/55290931/getting-the-followers-count-of-an-instagram-profile-without-an-api",
+          "title": "Getting the followers count of an Instagram profile without ...",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "the follower count of\n...\nWithout using the instagram API, there is no easy* way to do so, no.\n...\nIf you are not opposed to using the instagram API, however do not want to require the user to log in, this SO question may be helpful to you."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://tiptapp.com/en-at/home/",
+          "title": "Tiptapp – your on-demand solution for moving, delivery & recycling",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Tiptapp – your on-demand solution for moving, delivery & recycling\n\n...\n\n# MoveMove life's stuff\n\n...\n\nWhether you need help moving, delivering, recycling, or tackling a quick home task, our app instantly connects you with thousands of helpers - everyday people with a car and the time to help you out.\n\n...\n\n## How Tiptapp can help you\n\n...\n\nDiscover the most popular ways people use Tiptapp\n\n...\n\n### Move & deliver\n\nhttps://tiptapp.com/en-at/move-and-deliver/\n\n...\n\n- Heavy lifting\n- Transport furniture\n- Used item delivery\n- Home delivery of IKEA furniture\n- Small move\n- Storage moves\n- Store delivery\n- Forgotten items that need fast delivery\n\n...\n\n### Remove & recycle\n\n...\n\nhttps://tiptapp.com/en-at/remove-and-recycle/\n\n...\n\n- Junk removal\n- Get rid of old boxes and cartons\n- Mattress Pick-Up & Removal\n- Clearing out your home\n- Furniture removal\n- Get rid of mixed recycling\n- Garden waste\n\n...\n\n### Help at home\n\n...\n\n- Furniture assembly\n- Disassembly\n- Hanging and drilling\n- Tech help\n- Moving help\n- Basic electrical work\n- Minor plumbing fixes\n- Gardening\n- Available on iOS\n\n...\n\n### Buy for me\n\n...\n\n- Shopping assistance of anything\n- Bulky items from hardware store\n- IKEA home delivery\n- Bulk Purchases\n- Plants and garden essentials\n- Last minute gifts\n- Flower delivery\n\n...\n\n# What it costs\n\n...\n\nInput what you need help with and get an estimate based on what other Tiptapp users with similar needs have paid.\n\n...\n\n## Estimates for\n\n...\n\n- moving\n- recycling\n\n...\n\n## How it works\n\n...\n\nOnce you have downloaded the app it is super easy to create an ad and get help\n\n...\n\n### Create an ad\n\n...\n\nSnap a photo and set the price you are willing to pay\n\n...\n\n## Make sustainable choices easy\n\n...\n\nTiptapp makes reuse easy, get second-hand items delivered, give away things that still work, and find free items nearby.\n\n...\n\n### Give away\n\n...\n\n### Second hand deliveries\n\n...\n\n- Second-hand deliveries\n- Heavy lifting\n- Transport furniture\n- Used item delivery\n- Home delivery of marketplace finds\n\n...\n\n### Find free items\n\n...\n\n- Find nice items for free\n- Furniture & home appliances\n- Tech gadgets\n- Clothes & Toys\n- Nearby giveaways\n- 500 new items every day\n\n...\n\n## Latest news and tips\n\n...\n\n## Give Away Clothes\n\n...\n\nPublished 15 Oct 2025Make space, do good, and reduce waste. Here’s how to give away clothes sustainably — and help your old favorites find a new home.\n\n...\n\n## Autumn guide for garden owners: How to handle garden waste the right way\n\n...\n\n## Carrying help: When you need to move something heavy quickly\n\n...\n\nPublished 5 Oct 2025Moving heavy items like sofas, wardrobes, or appliances can be a real challenge—whether you're relocating or just need to get a washing machine up a flight of stairs. Carrying help is an easy and affordable solution when you need extra muscle to get the job done quickly and safely."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://tiptapp.com/en-de/home/",
+          "title": "Tiptapp – your on-demand solution for moving, delivery & recycling",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Tiptapp – your on-demand solution for moving, delivery & recycling\n\n...\n\n# MoveMove life's stuff\n\n...\n\nWhether you need help moving, delivering, recycling, or tackling a quick home task, our app instantly connects you with thousands of helpers - everyday people with a car and the time to help you out.\n\n...\n\n## How Tiptapp can help you\n\n...\n\n### Move & deliver\n\n...\n\n### Remove & recycle\n\n...\n\n### Help at home\n\n...\n\n### Buy for me\n\n- Shopping assistance of anything\n- Bulky items from hardware store\n- IKEA home delivery\n- Bulk Purchases\n- Plants and garden essentials\n- Last minute gifts\n- Flower delivery\n\n...\n\n# What it costs\n\n...\n\n### Second hand deliveries\n\n...\n\n### Find free items"
+        }
+      }
+    ],
+    "error": null
+  }
+}

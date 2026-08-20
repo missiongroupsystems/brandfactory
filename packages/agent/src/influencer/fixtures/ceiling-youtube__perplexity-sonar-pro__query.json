@@ -1,0 +1,139 @@
+{
+  "case": {
+    "id": "ceiling-youtube",
+    "platform": "youtube",
+    "handle": "JamieOliver",
+    "kind": "ceiling",
+    "note": "No YouTube account exists on the roster. The easiest possible case on the platform: a global food name with millions of subscribers."
+  },
+  "model": "perplexity/sonar-pro",
+  "variant": "query",
+  "capture": {
+    "caseId": "ceiling-youtube",
+    "modelId": "perplexity/sonar-pro",
+    "variant": "query",
+    "platform": "youtube",
+    "handle": "JamieOliver",
+    "elapsedMs": 2280,
+    "costUsd": 0.01003,
+    "draft": {
+      "outcome": "ok",
+      "name": "Jamie Oliver",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "YouTube",
+          "handle": "JamieOliver",
+          "followers": 6200000,
+          "engagementRate": null,
+          "url": "https://www.youtube.com/jamieoliver",
+          "sourceUrl": "https://vidiq.com/youtube-stats/channel/@jamieoliver/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Jamie Oliver - YouTube",
+          "url": "https://www.youtube.com/jamieoliver"
+        },
+        {
+          "title": "Jamie Oliver's YouTube Stats: Subscribers, Views & Earnings",
+          "url": "https://vidiq.com/youtube-stats/channel/@jamieoliver/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Jamie Oliver\",\"vertical\":\"food\",\"accounts\":[{\"platform\":\"YouTube\",\"handle\":\"JamieOliver\",\"followers\":6200000,\"engagementRate\":null,\"url\":\"https://www.youtube.com/jamieoliver\",\"sourceUrl\":\"https://vidiq.com/youtube-stats/channel/@jamieoliver/\"}],\"sources\":[{\"title\":\"Jamie Oliver - YouTube\",\"url\":\"https://www.youtube.com/jamieoliver\"},{\"title\":\"Jamie Oliver's YouTube Stats: Subscribers, Views & Earnings\",\"url\":\"https://vidiq.com/youtube-stats/channel/@jamieoliver/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/jamieoliver",
+          "title": "Jamie Oliver - YouTube",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/jamieoliver/",
+          "title": "Jamie Oliver (@jamieoliver) • Instagram photos and videos",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://creatordb.app/creatorstats/jamie-oliver/",
+          "title": "Jamie-Oliver: YouTube Stats & Audience - CreatorDB",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/@JamieOliverTV",
+          "title": "Jamie Oliver TV - YouTube",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/user/jamieoliver",
+          "title": "Jamie Oliver - YouTube",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://vidiq.com/youtube-stats/channel/UCpSgg_ECBj25s9moCDfSTsA/",
+          "title": "Jamie Oliver's Subscriber Count, Stats & Income - vidIQ YouTube Stats",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://socialcounts.org/youtube-live-subscriber-count/UCpSgg_ECBj25s9moCDfSTsA",
+          "title": "Jamie Oliver Live Subscriber Count | Real-Time YouTube Subscriber Analytics | SocialCounts.org",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://vidiq.com/youtube-stats/channel/@jamieoliver/",
+          "title": "Jamie Oliver's YouTube Stats: Subscribers, Views & Earnings",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://asknaveen.com/channel/@jamieoliver",
+          "title": "Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://en.wikipedia.org/wiki/Jamie_Oliver",
+          "title": "Jamie Oliver - Wikipedia",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

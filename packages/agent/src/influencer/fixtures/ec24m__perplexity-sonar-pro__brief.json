@@ -1,0 +1,183 @@
+{
+  "case": {
+    "id": "ec24m",
+    "platform": "instagram",
+    "handle": "ec24m",
+    "kind": "roster",
+    "expect": {
+      "name": "Jamie Chua",
+      "followers": 1500000,
+      "vertical": "fashion"
+    },
+    "note": "The roster’s largest account, behind a handle that resembles nothing. Identity resolution with no lexical help at all."
+  },
+  "model": "perplexity/sonar-pro",
+  "capture": {
+    "caseId": "ec24m",
+    "modelId": "perplexity/sonar-pro",
+    "platform": "instagram",
+    "handle": "ec24m",
+    "elapsedMs": 6676,
+    "costUsd": 0.00964,
+    "draft": {
+      "outcome": "ok",
+      "name": "Jamie Chua 蔡欣颖",
+      "vertical": "fashion",
+      "accounts": [
+        {
+          "platform": "instagram",
+          "handle": "ec24m",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/ec24m/",
+          "sourceUrl": "https://www.instagram.com/ec24m/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Jamie Chua 蔡欣颖 (@ec24m) • Instagram photos and videos",
+          "url": "https://www.instagram.com/ec24m/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Jamie Chua 蔡欣颖\",\"vertical\":\"fashion\",\n \"accounts\":[{\"platform\":\"instagram\",\"handle\":\"ec24m\",\"followers\":null,\n              \"engagementRate\":null,\"url\":\"https://www.instagram.com/ec24m/\",\"sourceUrl\":\"https://www.instagram.com/ec24m/\"}],\n \"sources\":[{\"title\":\"Jamie Chua 蔡欣颖 (@ec24m) • Instagram photos and videos\",\"url\":\"https://www.instagram.com/ec24m/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/ec24m/",
+          "title": "Jamie Chua 蔡欣颖 (@ec24m) • Instagram photos and videos",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/p/DVdMMyiiaeE/",
+          "title": "🖤🤍A classic tweed dress from the archives never gets old.",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/ec24m/p/C4F2PZmJir8/",
+          "title": "Jamie Chua 蔡欣颖 on Instagram: \"✨ Her aura like a ballad in an elegant bloom.\"",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/reel/DQGVHkSk1Od/",
+          "title": "Helena Rubinstein's Replasty Age Recovery Night Cream.​ Co ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://socialveins.com/influencer/instagram/ec24m",
+          "title": "Jamie Chua 蔡欣颖 (1.5M Followers) | Instagram Influencer in Siem Reap, Cambodia | Socialveins",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://hypeauditor.com/instagram/ec24m/",
+          "title": "Jamie Chua 蔡欣颖 (@ec24m) Instagram Stats, Analytics, Net Worth and Earnings – HypeAuditor",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.inkl.com/news/birkins-wall-to-wall-a-closet-full-of-couture-but-it-s-work-that-makes-singapore-socialite-jamie-chua-happiest",
+          "title": "Birkins wall to wall, a closet full of couture, but… - inkl",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.tatlerasia.com/homes/architecture-design/jamie-chua-sentosa-cove-home-with-vzug",
+          "title": "Jamie Chua redefined: The social media star and entrepreneur welcomes us home with V-Zug",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.beautynesia.id/life/4-fakta-jamie-chua-sosialita-dengan-koleksi-hermes-terbanyak-di-dunia/b-181983",
+          "title": "4 Fakta Jamie Chua, Sosialita dengan Koleksi Hermes Terbanyak di Dunia",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.elle.com.hk/fashion/50-year-old-singapore-socialite-jamie-chua-style-file",
+          "title": "擁有超過200個Hermès手袋！50歲新加坡名媛Jamie Chua的奢華生活 ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://nextshark.com/falling-stars-challenge-chinese",
+          "title": "Crazy Rich Asians Flaunt Their Wealth in Viral 'Falling Stars ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://justbiography.com/jamie-chua/",
+          "title": "Jamie Chua Age, Biography, Height, Net Worth, Family & Facts",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=KnXihNU_dsY",
+          "title": "SUMMERTIME IN TOKYO! | JAMIE CHUA",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.sammyboy.com/threads/year-2021-roundup-of-the-lovely-ms-jamie-chua.314859/",
+          "title": "Year 2021 roundup of the lovely Ms Jamie Chua",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.harpersbazaar.com.sg/lifestyle/the-chic-clique-jamie-chua-calista-cuaca",
+          "title": "The Chic Clique: Jamie Chua And Calista Cuaca, The Queen & Her Princess",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

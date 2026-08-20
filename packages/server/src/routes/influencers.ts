@@ -1,10 +1,12 @@
 import {
   CreateInfluencerInputSchema,
   InfluencerIdSchema,
+  LookupInfluencerInputSchema,
   UpdateInfluencerInputSchema,
   WorkspaceIdSchema,
 } from '@brandfactory/shared'
 import { BrandNotInWorkspaceError, InfluencerHandleTakenError } from '@brandfactory/db'
+import { GroundedNotSupportedError } from '@brandfactory/adapter-llm'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
@@ -12,9 +14,35 @@ import { requireWorkspaceAccess } from '../authz'
 import type { AppEnv } from '../context'
 import type { Db } from '../db'
 import { ConflictError, HttpError, NotFoundError, UnauthorizedError } from '../errors'
+import type { LookupCreatorFn } from '../influencer/lookup'
 
 export interface InfluencersDeps {
   db: Db
+  /**
+   * Quick add's lookup. **Optional**, and the route answers 503 without it.
+   *
+   * Absent rather than always-present because the feature genuinely is absent on
+   * some deployments: only `LLM_PROVIDER=openrouter` has a grounded endpoint
+   * behind this adapter. `RESEARCH_PROVIDER=none`'s precedent — a feature nobody
+   * has configured should be *explained*, not broken — with the mount kept
+   * unconditional so `AppType` stays honest about what the server can serve.
+   */
+  lookupCreator?: LookupCreatorFn
+}
+
+/**
+ * The 503 the lookup answers when this deployment cannot ground a query.
+ *
+ * A function rather than a constant because `HttpError` carries state and one
+ * shared instance would accumulate a stack trace from whichever request threw it
+ * first.
+ */
+function lookupUnavailable(): HttpError {
+  return new HttpError(
+    503,
+    'LOOKUP_NOT_AVAILABLE',
+    'Creator lookup needs a search-grounded model. Set LLM_PROVIDER=openrouter and INFLUENCER_LOOKUP_MODEL, or add creators with the full form.',
+  )
 }
 
 /**
@@ -102,81 +130,146 @@ export function createWorkspaceInfluencersRouter(deps: InfluencersDeps) {
     throw err
   }
 
-  return new Hono<AppEnv>()
-    .get('/:workspaceId/influencers', zValidator('param', WorkspaceParam), async (c) => {
-      const userId = c.var.userId
-      if (!userId) throw new UnauthorizedError()
-      const { workspaceId } = c.req.valid('param')
-      await requireWorkspaceAccess(userId, workspaceId, deps.db)
-      // Exhaustive and unfiltered, biggest reach first. The screen groups by
-      // reach tier and **counts each band**, and a count over a page states
-      // something untrue about the tier. See `listInfluencersByWorkspace` for
-      // when that stops being the right trade.
-      const rows = await deps.db.listInfluencersByWorkspace(workspaceId)
-      return c.json(rows)
-    })
-    .post(
-      '/:workspaceId/influencers',
-      zValidator('param', WorkspaceParam),
-      zValidator('json', CreateInfluencerInputSchema),
-      async (c) => {
+  return (
+    new Hono<AppEnv>()
+      .get('/:workspaceId/influencers', zValidator('param', WorkspaceParam), async (c) => {
         const userId = c.var.userId
         if (!userId) throw new UnauthorizedError()
         const { workspaceId } = c.req.valid('param')
         await requireWorkspaceAccess(userId, workspaceId, deps.db)
-        const body = c.req.valid('json')
-        try {
-          // The slug is chosen here, not sent — see `uniqueInfluencerSlug`.
-          const row = await deps.db.createInfluencer(workspaceId, body)
-          return c.json(row, 201)
-        } catch (err) {
-          rethrowWriteConflict(err)
-        }
-      },
-    )
-    .get('/:workspaceId/influencers/:influencerRef', zValidator('param', RefParam), async (c) => {
-      const userId = c.var.userId
-      if (!userId) throw new UnauthorizedError()
-      const { workspaceId, influencerRef } = c.req.valid('param')
-      await requireWorkspaceAccess(userId, workspaceId, deps.db)
-      const row = await deps.db.getInfluencerByRef(workspaceId, influencerRef)
-      if (!row) throw new NotFoundError('influencer not found', 'INFLUENCER_NOT_FOUND')
-      return c.json(row)
-    })
-    .patch(
-      '/:workspaceId/influencers/:influencerRef',
-      // Strictly an id here, unlike the GET. A patch is aimed at one record and a
-      // caller that holds a slug has already read the row it is patching, so
-      // accepting both would only widen the surface.
-      zValidator('param', IdParam),
-      zValidator('json', UpdateInfluencerInputSchema),
-      async (c) => {
+        // Exhaustive and unfiltered, biggest reach first. The screen groups by
+        // reach tier and **counts each band**, and a count over a page states
+        // something untrue about the tier. See `listInfluencersByWorkspace` for
+        // when that stops being the right trade.
+        const rows = await deps.db.listInfluencersByWorkspace(workspaceId)
+        return c.json(rows)
+      })
+      .post(
+        '/:workspaceId/influencers',
+        zValidator('param', WorkspaceParam),
+        zValidator('json', CreateInfluencerInputSchema),
+        async (c) => {
+          const userId = c.var.userId
+          if (!userId) throw new UnauthorizedError()
+          const { workspaceId } = c.req.valid('param')
+          await requireWorkspaceAccess(userId, workspaceId, deps.db)
+          const body = c.req.valid('json')
+          try {
+            // The slug is chosen here, not sent — see `uniqueInfluencerSlug`.
+            const row = await deps.db.createInfluencer(workspaceId, body)
+            return c.json(row, 201)
+          } catch (err) {
+            rethrowWriteConflict(err)
+          }
+        },
+      )
+      /**
+       * Quick add's lookup — a platform and a handle in, a draft out.
+       *
+       * **It writes nothing**, which is `routes/social-ideate.ts`' property and the
+       * reason both are safe to retry. The draft goes back to the client, whose
+       * confirm-and-create is the write, through `POST /:workspaceId/influencers`
+       * above — so every rule that route enforces still applies, unchanged.
+       *
+       * **200, not 201**: nothing was created. `not-found` and `invalid-shape` ride
+       * in the body as `outcome` rather than as status codes, because neither is a
+       * fault the client can act on by retrying — the first is an answer about a
+       * creator, the second is an answer about the model.
+       *
+       * **Mounted here rather than at `/workspaces/:workspaceId/influencer-lookup`.**
+       * The plan reserved that fallback because `lookup` is a literal sitting where
+       * `:influencerRef` is a param, which is exactly the shape `routes/assets.ts`
+       * documents as the trap that downgraded `RegExpRouter` to `TrieRouter` in
+       * 1.11.1 and broke `/blob-urls/:key{.+}/read-url` in a module that change
+       * never opened.
+       *
+       * **It does not degrade here, and the reason is the verb.** The assets case
+       * put `POST .../assets/reorder` beside `GET .../assets/:assetId/restore` —
+       * the same method tree holding a literal and a param at one position, with
+       * the param branch continuing past it. There is no `POST` on
+       * `:influencerRef`: the three handlers below it are `GET`, `PATCH` and
+       * `DELETE`. Within the POST tree this literal has no parameterised sibling at
+       * all, so the shape `RegExpRouter` refuses never forms. `app.test.ts` proves
+       * that rather than this paragraph — and it is asserted there precisely
+       * because "the verb saves it" is a claim about a router internal.
+       *
+       * One consequence worth stating: a creator whose slug really is `lookup` is
+       * still reachable. `GET`, `PATCH` and `DELETE` on that path resolve to the
+       * ref handlers as they always did; only `POST` means the lookup. The two do
+       * not collide because they never share a method.
+       */
+      .post(
+        '/:workspaceId/influencers/lookup',
+        zValidator('param', WorkspaceParam),
+        zValidator('json', LookupInfluencerInputSchema),
+        async (c) => {
+          const userId = c.var.userId
+          if (!userId) throw new UnauthorizedError()
+          const { workspaceId } = c.req.valid('param')
+          await requireWorkspaceAccess(userId, workspaceId, deps.db)
+          if (!deps.lookupCreator) throw lookupUnavailable()
+          try {
+            return c.json(await deps.lookupCreator(c.req.valid('json')))
+          } catch (err) {
+            // **A deployment whose LLM provider has no grounded endpoint is a
+            // configuration state, not a server fault**, so it gets a 503 that
+            // names the fix rather than a 500 that names nothing. Every other
+            // provider failure — a refused key, a rate limit, a timeout — falls
+            // through to the generic mapping, which is right: those are transient
+            // and the client's answer to them is to try again.
+            if (err instanceof GroundedNotSupportedError) throw lookupUnavailable()
+            throw err
+          }
+        },
+      )
+      .get('/:workspaceId/influencers/:influencerRef', zValidator('param', RefParam), async (c) => {
         const userId = c.var.userId
         if (!userId) throw new UnauthorizedError()
         const { workspaceId, influencerRef } = c.req.valid('param')
         await requireWorkspaceAccess(userId, workspaceId, deps.db)
-        const body = c.req.valid('json')
-        try {
-          const row = await deps.db.updateInfluencer(workspaceId, influencerRef, body)
+        const row = await deps.db.getInfluencerByRef(workspaceId, influencerRef)
+        if (!row) throw new NotFoundError('influencer not found', 'INFLUENCER_NOT_FOUND')
+        return c.json(row)
+      })
+      .patch(
+        '/:workspaceId/influencers/:influencerRef',
+        // Strictly an id here, unlike the GET. A patch is aimed at one record and a
+        // caller that holds a slug has already read the row it is patching, so
+        // accepting both would only widen the surface.
+        zValidator('param', IdParam),
+        zValidator('json', UpdateInfluencerInputSchema),
+        async (c) => {
+          const userId = c.var.userId
+          if (!userId) throw new UnauthorizedError()
+          const { workspaceId, influencerRef } = c.req.valid('param')
+          await requireWorkspaceAccess(userId, workspaceId, deps.db)
+          const body = c.req.valid('json')
+          try {
+            const row = await deps.db.updateInfluencer(workspaceId, influencerRef, body)
+            if (!row) throw new NotFoundError('influencer not found', 'INFLUENCER_NOT_FOUND')
+            return c.json(row)
+          } catch (err) {
+            rethrowWriteConflict(err)
+          }
+        },
+      )
+      .delete(
+        '/:workspaceId/influencers/:influencerRef',
+        zValidator('param', IdParam),
+        async (c) => {
+          const userId = c.var.userId
+          if (!userId) throw new UnauthorizedError()
+          const { workspaceId, influencerRef } = c.req.valid('param')
+          await requireWorkspaceAccess(userId, workspaceId, deps.db)
+          // A hard delete, and it holds no blob keys — nothing to sweep. A second
+          // delete misses, so it 404s rather than reporting success twice. The row
+          // comes back with 200, matching outlet, brand and workspace delete: it is
+          // the last copy of the record anything will ever see, and it carries the
+          // brand ids the cascade is about to remove.
+          const row = await deps.db.deleteInfluencer(workspaceId, influencerRef)
           if (!row) throw new NotFoundError('influencer not found', 'INFLUENCER_NOT_FOUND')
           return c.json(row)
-        } catch (err) {
-          rethrowWriteConflict(err)
-        }
-      },
-    )
-    .delete('/:workspaceId/influencers/:influencerRef', zValidator('param', IdParam), async (c) => {
-      const userId = c.var.userId
-      if (!userId) throw new UnauthorizedError()
-      const { workspaceId, influencerRef } = c.req.valid('param')
-      await requireWorkspaceAccess(userId, workspaceId, deps.db)
-      // A hard delete, and it holds no blob keys — nothing to sweep. A second
-      // delete misses, so it 404s rather than reporting success twice. The row
-      // comes back with 200, matching outlet, brand and workspace delete: it is
-      // the last copy of the record anything will ever see, and it carries the
-      // brand ids the cascade is about to remove.
-      const row = await deps.db.deleteInfluencer(workspaceId, influencerRef)
-      if (!row) throw new NotFoundError('influencer not found', 'INFLUENCER_NOT_FOUND')
-      return c.json(row)
-    })
+        },
+      )
+  )
 }

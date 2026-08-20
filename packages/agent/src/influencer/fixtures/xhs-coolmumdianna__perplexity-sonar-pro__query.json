@@ -1,0 +1,135 @@
+{
+  "case": {
+    "id": "xhs-coolmumdianna",
+    "platform": "xiaohongshu",
+    "handle": "coolmumdianna",
+    "kind": "roster",
+    "expect": {
+      "name": "Dianna",
+      "followers": 198200,
+      "vertical": "parenting"
+    },
+    "note": "A Latin handle on XHS — the trap case, because it is equally plausible as an Instagram handle and a model may resolve it on the wrong platform."
+  },
+  "model": "perplexity/sonar-pro",
+  "variant": "query",
+  "capture": {
+    "caseId": "xhs-coolmumdianna",
+    "modelId": "perplexity/sonar-pro",
+    "variant": "query",
+    "platform": "xiaohongshu",
+    "handle": "coolmumdianna",
+    "elapsedMs": 2545,
+    "costUsd": 0.01026,
+    "draft": {
+      "outcome": "ok",
+      "name": "Dianna Lee",
+      "vertical": "parenting",
+      "accounts": [
+        {
+          "platform": "XiaoHongShu",
+          "handle": "coolmumdianna",
+          "followers": null,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": "https://www.instagram.com/coolmumdianna/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Dianna Lee (@coolmumdianna) • Instagram photos and videos",
+          "url": "https://www.instagram.com/coolmumdianna/"
+        },
+        {
+          "title": "[My 30s Diaries] Vlog 82: GRWM Say NO to Marriage ... - YouTube",
+          "url": "https://www.youtube.com/watch?v=iKm_e6Yrh4o"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Dianna Lee\",\"vertical\":\"parenting\",\"accounts\":[{\"platform\":\"XiaoHongShu\",\"handle\":\"coolmumdianna\",\"followers\":null,\"engagementRate\":null,\"url\":null,\"sourceUrl\":\"https://www.instagram.com/coolmumdianna/\"}],\"sources\":[{\"title\":\"Dianna Lee (@coolmumdianna) • Instagram photos and videos\",\"url\":\"https://www.instagram.com/coolmumdianna/\"},{\"title\":\"[My 30s Diaries] Vlog 82: GRWM Say NO to Marriage ... - YouTube\",\"url\":\"https://www.youtube.com/watch?v=iKm_e6Yrh4o\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/coolmumdianna/",
+          "title": "Dianna Lee (@coolmumdianna) • Instagram photos and videos",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/reel/DOTf0hfkloA/",
+          "title": "Paragon on Instagram: \"Trilingual content creator @coolmumdianna ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://influencers.feedspot.com/xiaohongshu_instagram_influencers/",
+          "title": "Top 15 Xiaohongshu Influencers in 2026",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=iKm_e6Yrh4o",
+          "title": "[My 30s Diaries] Vlog 82: GRWM Say NO to Marriage ... - YouTube",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/dramaseri2.0/posts/-top-10-xiaohongshu-followers-march-2-20261%EF%B8%8F%E2%83%A3-zhaolusi-actress-2474m-2%EF%B8%8F%E2%83%A3-dongjie/941487612155465/",
+          "title": "Top 10 Xiaohongshu Followers March 2, 2026 1️⃣ #ZhaoLusi ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/popular/xiaohongshu/",
+          "title": "Xiaohongshu • 384K reels on Instagram",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.alluatech.com/post/top-10-trending-xiaohongshu-rednote-influencers-you-should-know-followers-virality-brand-power",
+          "title": "Top 10 Trending Xiaohongshu (RedNote) Influencers You ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/coolmumdianna/",
+          "title": "Dianna Lee (@coolmumdianna)",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://x.com/jaejoongdara/status/1879058052290314657",
+          "title": "Did you know? Red Note App / XiaoHongShu The most ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

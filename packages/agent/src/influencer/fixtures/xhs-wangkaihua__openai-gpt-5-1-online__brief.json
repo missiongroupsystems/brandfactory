@@ -1,0 +1,42 @@
+{
+  "case": {
+    "id": "xhs-wangkaihua",
+    "platform": "xiaohongshu",
+    "handle": "王开花",
+    "kind": "roster",
+    "expect": {
+      "name": "王开花",
+      "followers": 283700,
+      "vertical": "food"
+    },
+    "note": "Non-Latin handle #2. Also tests whether the answer comes back in the handle’s own script or transliterated."
+  },
+  "model": "openai/gpt-5.1:online",
+  "capture": {
+    "caseId": "xhs-wangkaihua",
+    "modelId": "openai/gpt-5.1:online",
+    "platform": "xiaohongshu",
+    "handle": "王开花",
+    "elapsedMs": 2628,
+    "costUsd": 0.012085,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "xiaohongshu",
+          "handle": "王开花",
+          "followers": null,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": null
+        }
+      ],
+      "sources": []
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"xiaohongshu\",\"handle\":\"王开花\",\"followers\":null,\"engagementRate\":null,\"url\":null,\"sourceUrl\":null}],\"sources\":[]}",
+    "annotations": null,
+    "error": null
+  }
+}

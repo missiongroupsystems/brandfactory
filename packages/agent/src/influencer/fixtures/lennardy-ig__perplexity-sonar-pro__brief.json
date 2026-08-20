@@ -1,0 +1,191 @@
+{
+  "case": {
+    "id": "lennardy-ig",
+    "platform": "instagram",
+    "handle": "lennardy",
+    "kind": "roster",
+    "expect": {
+      "name": "Lennard Yeong",
+      "followers": 534000,
+      "vertical": "food"
+    },
+    "note": "Paired with lennardy-tt: the same person on two platforms, so a model that answers the person rather than the account is visible."
+  },
+  "model": "perplexity/sonar-pro",
+  "capture": {
+    "caseId": "lennardy-ig",
+    "modelId": "perplexity/sonar-pro",
+    "platform": "instagram",
+    "handle": "lennardy",
+    "elapsedMs": 8047,
+    "costUsd": 0.01031,
+    "draft": {
+      "outcome": "ok",
+      "name": "Lennard Yeong",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "Instagram",
+          "handle": "lennardy",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/lennardy/",
+          "sourceUrl": "https://www.instagram.com/lennardy/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Lennard Yeong (@lennardy)",
+          "url": "https://www.instagram.com/lennardy/"
+        },
+        {
+          "title": "Lennard Yeong (@lennardy) • Instagram photos and videos",
+          "url": "https://www.instagram.com/lennardy/feed/"
+        },
+        {
+          "title": "Lennard Yeong (@lennardy)",
+          "url": "https://www.instagram.com/lennardy/related_profiles/?__d=dist"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Lennard Yeong\",\"vertical\":\"food\",\"accounts\":[{\"platform\":\"Instagram\",\"handle\":\"lennardy\",\"followers\":null,\"engagementRate\":null,\"url\":\"https://www.instagram.com/lennardy/\",\"sourceUrl\":\"https://www.instagram.com/lennardy/\"}],\"sources\":[{\"title\":\"Lennard Yeong (@lennardy)\",\"url\":\"https://www.instagram.com/lennardy/\"},{\"title\":\"Lennard Yeong (@lennardy) • Instagram photos and videos\",\"url\":\"https://www.instagram.com/lennardy/feed/\"},{\"title\":\"Lennard Yeong (@lennardy)\",\"url\":\"https://www.instagram.com/lennardy/related_profiles/?__d=dist\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/lennardy/",
+          "title": "Lennard Yeong (@lennardy)",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/lennardy/related_profiles/?__d=dist",
+          "title": "Lennard Yeong (@lennardy)",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/lennardy/p/DJEdImly0u6/",
+          "title": "Q1 2025 photo/video dump The year where I finally stop ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://starngage.com/app/global/influencer/ranking/singapore/food",
+          "title": "Top Instagram Influencers and Instagram Users in Singapore in 2025 Find out who are the top Instagram influencers in Singapore. Download the list of the most popular Instagram accounts in Singapore.",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/p/Lennardy-61554518804334/",
+          "title": "Lennardy - Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/p/DC1VsqWS9hk/",
+          "title": "A magical afternoon at @chanel.beauty's Magical House in Marina ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/lennardy/feed/",
+          "title": "Lennard Yeong (@lennardy) • Instagram photos and videos",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://zula.sg/male-influencers-singapore/",
+          "title": "10 Most Popular Male Influencers & Personalities In ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/61554518804334/?locale=he_IL",
+          "title": "Lennardy - Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/p/DWjFU9_j855/",
+          "title": "Sous chef on the way",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/lennardy/p/DA3U8GYycOx/",
+          "title": "Lennard Yeong on Instagram: \"No one else I'd rather be locked in for life with 🔒 To a lifetime of choosing a million different shades of white paint @tiffanyandco #TiffanyLock #Tiffanylcons\"",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/61554518804334/videos/",
+          "title": "Lennardy (@61554518804334) - Videos | Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.scrumball.com/ranking/top-food-influencers-on-instagram-in-singapore",
+          "title": "Top 1,000 Food Influencers in Singapore on Instagram | Scrumball",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/p/Cbw6fLAvpP_/",
+          "title": "Dinner at the newly opened @willow.restaurant. It's a ... - Instagram",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/reel/DI_UGh-S8tr/",
+          "title": "Remember the list of my 20 favourite restaurants I curated in ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

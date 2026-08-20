@@ -1,0 +1,183 @@
+{
+  "case": {
+    "id": "novitalam",
+    "platform": "instagram",
+    "handle": "novitalam",
+    "kind": "roster",
+    "expect": {
+      "name": "Novita Lam",
+      "followers": 412000,
+      "vertical": "fitness"
+    },
+    "note": "Handle equals the name. The easy case, and the plan’s own worked example."
+  },
+  "model": "perplexity/sonar-pro",
+  "capture": {
+    "caseId": "novitalam",
+    "modelId": "perplexity/sonar-pro",
+    "platform": "instagram",
+    "handle": "novitalam",
+    "elapsedMs": 5465,
+    "costUsd": 0.00947,
+    "draft": {
+      "outcome": "ok",
+      "name": "Novita Lam",
+      "vertical": "fitness",
+      "accounts": [
+        {
+          "platform": "instagram",
+          "handle": "novitalam",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/novitalam/",
+          "sourceUrl": "https://www.instagram.com/novitalam/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Novita Lam (@novitalam) - Singapore - Instagram",
+          "url": "https://www.instagram.com/novitalam/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Novita Lam\",\"vertical\":\"fitness\",\n \"accounts\":[{\"platform\":\"instagram\",\"handle\":\"novitalam\",\"followers\":null,\n              \"engagementRate\":null,\"url\":\"https://www.instagram.com/novitalam/\",\"sourceUrl\":\"https://www.instagram.com/novitalam/\"}],\n \"sources\":[{\"title\":\"Novita Lam (@novitalam) - Singapore - Instagram\",\"url\":\"https://www.instagram.com/novitalam/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/novitalam/",
+          "title": "Novita Lam (@novitalam) - Singapore - Instagram",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/novitalam/reels/",
+          "title": "Novita Lam (@novitalam) - Singapore - Instagram",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/p/Da8MvYiGMbA/",
+          "title": "on my own time 🕰️",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/p/DUyRg36D85V/",
+          "title": "Photo by Novita Lam on February 15, 2026.",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/reel/DTXGch6kXT4/",
+          "title": "I'm glad I did - Instagram",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://socialveins.com/influencer/instagram/novitalam",
+          "title": "Novita Lam (362.6K Followers) | Instagram Influencer in Singapore",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/novitalam/p/DO2-8Q2D93P/%EF%B8%8F-scouting-the-future-of-golf-at-tanah-merah-country-club-tampines-coursesave-th/",
+          "title": "‍♀️ Scouting the future of golf at Tanah Merah Country Club ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://storify.me/ig/novitalam",
+          "title": "Novita Lam (@novitalam) - Instagram",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://ninjaoutreach.com/novitalam",
+          "title": "Novita Lam email and Instagram Influencer profile - @novitalam followers and engagement",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://instastatistics.com/novitalam",
+          "title": "Novita Lam (@novitalam) — Live Instagram Follower Count",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://styleonthedot.com/2026/03/04/run-with-the-pun/",
+          "title": "Run With The Pun - Style on the Dot",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/reel/DNFKCD6vfjc/",
+          "title": "KYOR'S Outglow Jelly: Achieve Radiant Skin with This ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/novitalamm/",
+          "title": "Novita Lam (@novitalamm) - Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.hk01.com/%E5%8D%B3%E6%99%82%E5%9C%8B%E9%9A%9B/60328106/%E6%96%B0%E5%8A%A0%E5%9D%A1%E7%B6%B2%E7%B4%85%E7%8E%A9-%E4%BC%8A%E6%9C%97%E4%BB%A5%E8%89%B2%E5%88%97-%E8%AB%A7%E9%9F%B3%E7%88%9Bgag%E6%8D%B1%E8%BD%9F-%E7%B6%B2%E5%8F%8B%E6%89%B9-%E7%BC%BA%E4%B9%8F%E5%90%8C%E7%90%86%E5%BF%83",
+          "title": "新加坡網紅玩「伊朗以色列」諧音爛gag捱轟網友批：缺乏同理心",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.stomp.sg/trending-now/spore-influencer-novita-lam-apologises-after-backlash-over-out-touch-iran-israel-pun",
+          "title": "S'pore influencer Novita Lam apologises after backlash over 'out of ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

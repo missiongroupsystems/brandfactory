@@ -1,0 +1,93 @@
+{
+  "case": {
+    "id": "ceiling-facebook",
+    "platform": "facebook",
+    "handle": "JamieOliver",
+    "kind": "ceiling",
+    "note": "No Facebook account on the roster. Same person, so a model confusing the two platforms shows up as an identical figure."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "capture": {
+    "caseId": "ceiling-facebook",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "platform": "facebook",
+    "handle": "JamieOliver",
+    "elapsedMs": 6397,
+    "costUsd": 0.019213,
+    "draft": {
+      "outcome": "ok",
+      "name": "Jamie Oliver",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "Facebook",
+          "handle": "jamieoliver",
+          "followers": 10000000,
+          "engagementRate": null,
+          "url": "https://www.facebook.com/jamieoliver/",
+          "sourceUrl": "https://www.facebook.com/jamieoliver/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Jamie Oliver | Facebook",
+          "url": "https://www.facebook.com/jamieoliver/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Jamie Oliver\",\"vertical\":\"food\",\n \"accounts\":[{\"platform\":\"Facebook\",\"handle\":\"jamieoliver\",\"followers\":10000000,\n              \"engagementRate\":null,\"url\":\"https://www.facebook.com/jamieoliver/\",\"sourceUrl\":\"https://www.facebook.com/jamieoliver/\"}],\n \"sources\":[{\"title\":\"Jamie Oliver | Facebook\",\"url\":\"https://www.facebook.com/jamieoliver/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/jamieoliver/",
+          "title": "Jamie Oliver (@jamieoliver)",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Jamie Oliver | Facebook\n\n...\n\nJamie Oliver | Facebook\nFacebook\n\n...\n\n# Jamie Oliver \nVerified account\n**10M** likes • **10M** followers\nPosts\nAbout\nReels\nPhotos\nMore\n\n...\n\nPosts\n\n...\n\nJamie Oliver\n\n...\n\n## Intro\n \nThe latest from Jamie & his HQ 👋\nOrder my new BBQ book 🔥 here >> https://linktr.ee/jamieoliver\n\n...\n\n**Page** · Public figure\n\n\njamieoliver.com\n\n...\n\nSee all photos\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n## **Jamie Oliver** Verified account\n19h · Shared with Public\nYes, this is a pizza made with puff pastry! This clever shortcut is all about maximum flavour with minimum effort. Simply store-bought pastry, a handful of favourite to…\nSee more"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.jamieoliver.com/help",
+          "title": "FAQs | Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "FAQs | Jamie Oliver\n\n...\n\nPopular searches\n\n...\n\n- chicken\n- pasta\n- healthy\n\n...\n\nPopular recipes\n\n...\n\nGrogu's Steak sandwich 14 mins\n\n...\n\nWhat's hot?\n\n...\n\nThe best BBQ chicken 1 hr 30 mins\n\n...\n\nHow to make the perfect grains bowl Read more\n\n...\n\nChopped rainbow salad 11 mins\n\n...\n\nFeatured\n\n...\n\nOops\n\n...\n\n*Enter your email to receive news and exclusive offers from Jamie Oliver Limited about Jamie's businesses, including books, TV shows, restaurants, products, commercial partners and campaigning activities. By signing up, you agree to our Terms of Use. Learn how we collect, use and share your data in our Privacy Policy.\n\n...\n\n## Nutrition & Recipe FAQs\n\n...\n\nDo you have any nutrition advice?\n\n...\n\nWhat barbecues do you use in your recipes?\n\n...\n\nJamie loves to barbecue, and typically he uses a kettle barbecue, with natural briquettes, plus different woods to boost flavour. But he also likes to use a gas-fuelled one too. He doesn't use disposable barbecues.\n\n...\n\n## Restaurants & Cookery School\n\n...\n\nJamie Oliver Catherine St\n\n...\n\nJamie Oliver Cookery School\n\n...\n\n## Social Impact\n\n...\n\nWhat is Jamie's Ministry of Food?\n\n...\n\nJamie's Ministry of Food is on a mission to teach 1 million people to cook by 2030. To learn about our school, community or workplace programmes visit https://www.jamiesministryoffood.com/\n\n...\n\nWhat should I do if I come across a scam/fake Jamie Oliver account?\n\n...\n\nJamie’s verified Facebook, X (formerly Twitter), Instagram and TikTok handles are:\n\nUnfortunately imposter accounts do pop up now and then, so please be careful if someone contacts you pretending to be Jamie or from his business. If a message is not from one of these verified accounts, please ignore it and report it to the relevant social media platform.\n\n...\n\n- Ingredient\n- Meals & courses\n- Special diets\n- Quick & easy\n- Healthy recipes\n- Family recipes\n- Books & TV"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://en.wikipedia.org/wiki/Jamie_Oliver",
+          "title": "Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Jamie Oliver\n\n...\n\nJames Trevor Oliver MBE OSI(born 27 May 1975) is an English celebrity chef, restaurateur and cookbook author. He is known for his casual approach to cuisine, and he has fronted many television shows and opened numerous restaurants.\n\n...\n\n| Jamie Oliver, MBE OSI | - |\n| --- | --- |\n| Oliver in 2014 | - |\n| Born | James Trevor Oliver, (1975-05-27) 27 May 1975 (age 51), Clavering, Essex, England |\n| Education | Newport Free Grammar School, Westminster Kingsway College |\n| Spouse | Juliette Norton, ​(m. 2000)​ |\n\n...\n\n| Children | 5 |\n\n...\n\n| Culinary career | - |\n\n...\n\n| Cooking style | Organic, Italian, British |\n| Current restaurants, Fifteen, Jamie's Italian, Jamie Oliver Catherine Street, Jamie Oliver Kitchen | - |\n\n...\n\n| YouTube information | - |\n| Channel | Jamie Oliver |\n| Years active | 2006–present |\n| Genres | Cooking, cooking tutorials |\n| Subscribers | 6.2 million |\n| Views | 1.08 billion |\n| Last updated: 6 July 2026 | - |\n| Website | jamieoliver.com |\n\n...\n\nJames Trevor Oliver was born on 27 May 1975 in Clavering, Essex, where he was also raised. His parents, Trevor and Sally (née Palmer) Oliver, ran a pub and restaurant, the Cricketers, where he practised cooking in the kitchen with his parents. He has a sister, and was educated at Newport Free Grammar School, in Newport."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://en.wikipedia.org/wiki/Jamie_Oliver?wprov=sfla1",
+          "title": "Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "James Trevor Oliver MBE OSI(born 27 May 1975) is an English celebrity chef, restaurateur and cookbook author. He is known for his casual approach to cuisine, and he has fronted many television shows and opened numerous restaurants.\n\n...\n\n| Jamie Oliver, MBE OSI | - |\n| --- | --- |\n| Oliver in 2014 | - |\n| Born | James Trevor Oliver, (1975-05-27) 27 May 1975 (age 51), Clavering, Essex, England |\n| Education | Newport Free Grammar School, Westminster Kingsway College |\n| Spouse | Juliette Norton, ​(m. 2000)​ |\n| Children | 5 |\n\n...\n\n| Culinary career | - |\n\n...\n\n| Cooking style | Organic, Italian, British |\n| Current restaurants, Fifteen, Jamie's Italian, Jamie Oliver Catherine Street, Jamie Oliver Kitchen | - |\n| YouTube information | - |\n| Channel | Jamie Oliver |\n| Years active | 2006–present |\n| Genres | Cooking, cooking tutorials |\n| Subscribers | 6.16 million |\n| Views | 1.060 billion+ |\n| Last updated: 24 October 2025 | - |\n| Website | jamieoliver.com |\n\n...\n\nJamie Trevor Oliver was born and raised in Clavering, Essex. His parents, Trevor and Sally (née Palmer) Oliver, ran a pub and restaurant, the Cricketers, where he practised cooking in the kitchen with his parents. He has a sister, and was educated at Newport Free Grammar School, in Newport. A surprise revelation from 2009 suggested he had a sixth-generation Sudanese ancestor through his grandfather's side.\n\n...\n\n'Pass It On' campaign gained a following on the social networking website Facebook which has a group and fan page with users signing up to chart their progress."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://web.archive.org/web/20150528170334/http://www.jamieoliver.com/about/jamie-oliver-biog/",
+          "title": "Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "## biography\ntemp-picIn brief..........\nJamie Oliver is a phenomenon in the world of food. He is one of the world’s best-loved television personalities and one of Britain’s most famous exports. Jamie has had huge success with television series The Naked Chef (BBC), Jamie’s Kitchen, Jamie’s School Dinners, Jamie’s Great Italian Escape, Return to School Dinners, Jamie’s Chef, Jamie at Home , Jamie’s Ministry of Food , Jamie Does, Jamie’s 30 Minute Meals, Jamie’s Great Britain, Jamie’s 15 Minute Meal, Jamie’s Money Saving Meals and the Emmy Award-winning Jamie’s Food Revolution (ABC), as well as the one-off specials Jamie’s Fowl Dinners, Eat To Save Your Life, Jamie Saves Our Bacon and Jamie’s Fish Suppers (all for Channel 4).\nJamie has inspired people to spend more time enjoying cooking delicious food from fresh ingredients –and even start growing their own food! His programmes have now been broadcast in over 100 countries including the USA, Australia, South Africa, Brazil, Japan and Iceland. Having been translated into over 30 languages, the accompanying cookbooks are bestsellers not only in the UK but across the world. His 2010 book, Jamie’s 30 Minute Meals, became Jamie’s first million-selling book in the UK as well as being the fastest-selling non-fiction book since records began. His 2013, Save With Jamie, topped the charts once again.\nThe high street restaurant collection ‘Jamie’s Italian’ is hugely popular across the UK and now across the world, and the Fifteen restaurant group which he founded in 2002, provides training for young people in three locations around the world as well as producing food of the highest quality. Jamie’s restaurants also include Barbecoa in London; and Jamie’s Diner with artist Jay Jay Burridge. Jamie lives in London and Essex with his wife, Jools and his kids, Poppy, Daisy, Petal and Buddy.\nIn more detail.........\nBorn on 27 May 1975, Jamie took an early interest in food. He grew up in Essex, where his parents Trevor and Sally still run their own highly respected pub/restaurant The Cricketers in Clavering and was frequently found helping out in the kitchens. His fascination for food continued to grow and at 16 Jamie left school and completed his training at Westminster Catering College. After spending some time working in France, followed by a stint at Antonio Carluccio’s Neal Street Restaurant (where he first met mentor Gennaro Contaldo), Jamie joined the acclaimed River Café where he worked for three and a half years alongside Rose Gray and Ruth Rogers.\nIn 1997, Jamie was featured in a television documentary about the River Café. Soon after the documentary was aired, Jamie was offered his own television show and The Naked Chef was born. The concept behind The Naked Chef was to strip food down to its bare essentials and Jamie’s hands-on style and general laid back outlook was like a breath of fresh air, inspiring everyone to cook and winning himself a BAFTA Award for the best television series in the Features Category in 2000.\nThe Naked Chef book, published by Penguin Books accompanied the first television series and it became an instant bestseller. A second and then a third television series were commissioned by the BBC, along with the second and third tie-in books: The Return of the Naked Chef and Happy Days with the Naked Chef, with Happy Days with the Naked Chef becoming the official Christmas No.1 in 2001 in the non-fiction chart.\n\n...\n\nBetween these two documentaries, in 2005, Jamie took a break from schools with Jamie’s Great Italian Escape, a series based on his travels around Italy and his love of Italian food. This was accompanied by\n\n...\n\nIn 2008, Jamie as usual worked on a number of exciting projects including appearing in The Big Give, the prime-time Oprah Winfrey-fronted hit show on ABC in the States which aired in the spring.\nJamie’s major project for 2008, however, was Jamie’s Ministry of Food, a Channel 4 TV series which showed how people who couldn’t cook could be inspired to cook with just a little encouragement and information. The series, filmed in Rotherham, explored how friends, family and work-mates could be inspired to pass on recipes to each other and cook using fresh ingredients. Additionally, a Ministry of Food centre set-up by Jamie in the town centre has been providing information, cooking lessons and advice to the townsfolk who want to move away from take-aways and ready-meals. After the success of the Ministry of Food centre, Rotherham Council announced it would continue to fund the running of the centre and in 2010, the Rotherham"
+        }
+      }
+    ],
+    "error": null
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "case": {
+    "id": "thepantryboy",
+    "platform": "tiktok",
+    "handle": "thepantryboy",
+    "kind": "roster",
+    "expect": {
+      "name": "Daren Teo",
+      "followers": 248800,
+      "vertical": "food"
+    },
+    "note": "A handle that reads as a brand rather than a person, on the platform whose profile pages are hostile to crawlers."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "thepantryboy",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "variant": "query",
+    "platform": "tiktok",
+    "handle": "thepantryboy",
+    "elapsedMs": 7454,
+    "costUsd": 0.01642,
+    "draft": {
+      "outcome": "ok",
+      "name": "Daren Teo",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "TikTok",
+          "handle": "thepantryboy",
+          "followers": 265400,
+          "engagementRate": null,
+          "url": "https://www.tiktok.com/@thepantryboy",
+          "sourceUrl": "https://www.tiktok.com/@thepantryboy?lang=en"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Pantry Boy (@thepantryboy) - TikTok",
+          "url": "https://www.tiktok.com/@thepantryboy?lang=en"
+        },
+        {
+          "title": "The Pantry Boy X Entrepôt \"Onward Singapore\" National Day Four-Hands Menu",
+          "url": "https://www.timeout.com/singapore/things-to-do/the-panty-boy-and-entrepot-collaboration-national-day-menu-2024"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Daren Teo\",\"vertical\":\"food\",\n \"accounts\":[{\"platform\":\"TikTok\",\"handle\":\"thepantryboy\",\"followers\":265400,\n              \"engagementRate\":null,\"url\":\"https://www.tiktok.com/@thepantryboy\",\"sourceUrl\":\"https://www.tiktok.com/@thepantryboy?lang=en\"}],\n \"sources\":[{\"title\":\"The Pantry Boy (@thepantryboy) - TikTok\",\"url\":\"https://www.tiktok.com/@thepantryboy?lang=en\"},{\"title\":\"The Pantry Boy X Entrepôt \\\"Onward Singapore\\\" National Day Four-Hands Menu\",\"url\":\"https://www.timeout.com/singapore/things-to-do/the-panty-boy-and-entrepot-collaboration-national-day-menu-2024\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.tiktok.com/@thepantryboy?lang=en",
+          "title": "The Pantry Boy (@thepantryboy) - TikTok",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# The Pantry Boy\n...\n## thepantryboy\n...\n### 327Following265.4KFollowers3.1MLikes"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://storify.me/tk/thepantryboy",
+          "title": "The Pantry Boy (@thepantryboy) - TikTok - Storify photos and videos",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "The Pantry Boy (@thepantryboy) - TikTok - Storify photos and videos - Brand reviews\n\n...\n\nAge\n\n...\n\n13-1718-2425-3435\n\n...\n\n4445+\n\n...\n\nGender M\n\n...\n\nthers\n\n...\n\nPlatforms\n\n...\n\nFollowers\n\n...\n\nSearch\n\n...\n\n# thepantryboy\n\n...\n\n## Featured Stories\n\n...\n\nOld"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.scrumball.com/kol/tiktok/thepantryboy",
+          "title": "The Pantry Boy's TikTok Stats Analytics & Audience Insights",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "The Pantry Boy's TikTok Stats Analytics & Audience Insights"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.getkobe.com/case-studies/kobe-case-study-chagee/",
+          "title": "CHAGEE: Brewing Buzz and Celebrations Across Singapore",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "CHAGE\n\n...\n\n# Kobe Case Study - Chagee\n\n...\n\nCHAGE\n\n...\n\nThe GetKobe Campaign: Brewing Conversations\n\n...\n\nCHAGEE wanted to amplify excitement around its store opening and National Day celebration.\n\n...\n\ncampaign’s central goal was simple: make CHAGEE the talk of the town. The creative theme, “double the tea, double the celebration,” tied in perfectly with the festive spirit, encouraging tea lovers across Singapore to join\n\n...\n\nexcitement.\n\n...\n\nTo execute this vision, CHAGEE partnered with GetKobe to leverage KOL marketing. Influencers including @thepantryboy, @triciaxlee, and @glaglathis, visited the store to experience the drinks and the concept firsthand. Their authentic content—ranging from Instagram stories to TikTok videos—showcased the store’s ambience, highlighted CHAGEE’s unique beverages, and invited their followers to participate in the celebration by redeeming exclusive gifts.\n\n...\n\nThe results were immediate and impressive.\n\n...\n\nfrom numerous creators flooded social media feeds, dominating conversations and creating an undeniable buzz around CHAGEE. The campaign successfully converted online excitement into real-world action: long queues formed outside the store as fans rushed to try the beverages and take part in the promotion.\n\n...\n\nBy carefully selecting influencers with strong followings and authentic engagement, CHAGEE reached a broad demographic across Singapore. From millennials scrolling TikTok to Instagram users hunting for their next favourite drink, the campaign generated visibility, excitement, and measurable results. It was a textbook example of how influencer marketing can turn an ordinary launch into a cultural phenomenon.\n\n...\n\nThis\n\n...\n\nalso highlighted how social media shapes consumer behaviour.\n\n...\n\ntime, turning influencer\n\n...\n\ninto tangible foot traffic and\n\n...\n\nlasting brand engagement.\n\n...\n\ns\n\n...\n\nvivid example of how digital strategies can\n\n...\n\n, creating measurable impact while building authentic connections\n\n...\n\ncustomers\n\n...\n\n## Campaign Result\n\n...\n\nNumerous creators produced content about CHAGEE, dominating social media for several days. The content sparked long queues as consumers\n\n...\n\nstrongly influenced by\n\n...\n\nbuzz.\n\n...\n\n## Markets\n\n...\n\nSingapore\n\n...\n\n## Platforms\n\n...\n\nInstagramTikTok\n\n...\n\n@triciaxlee45.4K Followers, Singapore\n\n...\n\n@glaglathis168K Followers, Singapore\n\n...\n\n@thepantryboy265K Followers, Singapore\n\n...\n\n## Content Created\n\n...\n\nA post shared by The Pantry Boy (@thepantryboy)"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.timeout.com/singapore/things-to-do/the-panty-boy-and-entrepot-collaboration-national-day-menu-2024",
+          "title": "The Pantry Boy X Entrepôt “Onward Singapore” National Day Four-Hands Menu",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# The Pantry Boy X Entrepôt “Onward Singapore” National Day four-hands menu\n\n...\n\n### Time Out says\n\n...\n\nLocal Singaporean TikToker Daren Teo, more commonly known by his online moniker The Pantry Boy, will be embarking on a collaboration with the restaurant Entrepôt for a four-hands menu next month. Teo has over 226,000 followers on TikTok, and mainly uploads food content. He is most known for his simple home recipes, with popular videos including tutorials on how to make Hainanese Chicken Rice, braised pork belly, katsudon, soto ayam and more.\n\n...\n\nThis August, he will be teaming up with Anglo-Asian restaurant Entrepôt at Robertson House to launch a National Day menu called “Onward Singapore”, where beloved national dishes like chilli crab and satay will be given a contemporary twist. The full four-hands menu will be available at Entrepôt for dinner on August 2 and 3, while selected dishes from the menu will be available for both lunch and dinner from August 5 to 18."
+        }
+      }
+    ],
+    "error": null
+  }
+}

@@ -1,0 +1,186 @@
+{
+  "case": {
+    "id": "ceiling-youtube",
+    "platform": "youtube",
+    "handle": "JamieOliver",
+    "kind": "ceiling",
+    "note": "No YouTube account exists on the roster. The easiest possible case on the platform: a global food name with millions of subscribers."
+  },
+  "model": "perplexity/sonar-pro",
+  "capture": {
+    "caseId": "ceiling-youtube",
+    "modelId": "perplexity/sonar-pro",
+    "platform": "youtube",
+    "handle": "JamieOliver",
+    "elapsedMs": 6369,
+    "costUsd": 0.01025,
+    "draft": {
+      "outcome": "ok",
+      "name": "Jamie Oliver",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "youtube",
+          "handle": "JamieOliver",
+          "followers": 6200000,
+          "engagementRate": null,
+          "url": "https://www.youtube.com/@JamieOliver",
+          "sourceUrl": "https://en.wikipedia.org/wiki/Jamie_Oliver"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Jamie Oliver - YouTube (channel page)",
+          "url": "https://www.youtube.com/jamieoliver"
+        },
+        {
+          "title": "Jamie Oliver - YouTube (user channel page)",
+          "url": "https://www.youtube.com/user/JamieOliver"
+        },
+        {
+          "title": "Jamie Oliver - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Jamie_Oliver"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Jamie Oliver\",\"vertical\":\"food\",\n \"accounts\":[{\"platform\":\"youtube\",\"handle\":\"JamieOliver\",\"followers\":6200000,\n              \"engagementRate\":null,\"url\":\"https://www.youtube.com/@JamieOliver\",\"sourceUrl\":\"https://en.wikipedia.org/wiki/Jamie_Oliver\"}],\n \"sources\":[{\"title\":\"Jamie Oliver - YouTube (channel page)\",\"url\":\"https://www.youtube.com/jamieoliver\"},\n            {\"title\":\"Jamie Oliver - YouTube (user channel page)\",\"url\":\"https://www.youtube.com/user/JamieOliver\"},\n            {\"title\":\"Jamie Oliver - Wikipedia\",\"url\":\"https://en.wikipedia.org/wiki/Jamie_Oliver\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/jamieoliver",
+          "title": "Jamie Oliver - YouTube",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/user/JamieOliver",
+          "title": "Jamie Oliver - YouTube",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=8POFwP2HF78",
+          "title": "15 Recipes & Ideas To Cook This April By Jamie Oliver - YouTube",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=D89NZWLTZHI",
+          "title": "10 Easy Recipes To Cook This Month By Jamie Oliver - YouTube",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=pKtweGSC2FU",
+          "title": "20 Quick & Healthy Recipes To Cook At Home | Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/@JamieOliverTV",
+          "title": "Jamie Oliver TV - YouTube",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=ihu3p61UyQs",
+          "title": "10 Recipes To Cook This June By Jamie Oliver - YouTube",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=PgNad53F5ak",
+          "title": "5 Recipe Ideas To Cook This Weekend | Jamie Oliver - YouTube",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/user/JamieOliver/videos",
+          "title": "Jamie Oliver - YouTube",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://tuberecipe.com/channel/615/detail",
+          "title": "Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://asknaveen.com/channel/@jamieoliver",
+          "title": "Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=5caMEIEuds4",
+          "title": "15 Easy, Quick & Super Tasty Recipes To Cook For Dinner | Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://en.wikipedia.org/wiki/Jamie_Oliver",
+          "title": "Jamie Oliver - Wikipedia",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=kgU31uZsatU",
+          "title": "How To Cook 10 Delicious Food Recipes & Ideas By Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=trI0D-Lzn_U",
+          "title": "20 Super Easy, Simple & Fast Recipes To Cook At Home By Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

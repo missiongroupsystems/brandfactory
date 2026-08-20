@@ -1,0 +1,144 @@
+{
+  "case": {
+    "id": "lennardy-ig",
+    "platform": "instagram",
+    "handle": "lennardy",
+    "kind": "roster",
+    "expect": {
+      "name": "Lennard Yeong",
+      "followers": 534000,
+      "vertical": "food"
+    },
+    "note": "Paired with lennardy-tt: the same person on two platforms, so a model that answers the person rather than the account is visible."
+  },
+  "model": "perplexity/sonar-pro",
+  "variant": "query",
+  "capture": {
+    "caseId": "lennardy-ig",
+    "modelId": "perplexity/sonar-pro",
+    "variant": "query",
+    "platform": "instagram",
+    "handle": "lennardy",
+    "elapsedMs": 2237,
+    "costUsd": 0.01012,
+    "draft": {
+      "outcome": "ok",
+      "name": "Lennard Yeong",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "Instagram",
+          "handle": "lennardy",
+          "followers": 554000,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/lennardy/",
+          "sourceUrl": "https://hiveinfluence.io/top-influencers/instagram/food/singapore"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Lennard Yeong (@lennardy) Instagram profile",
+          "url": "https://www.instagram.com/lennardy/"
+        },
+        {
+          "title": "Top 10 Food Influencers on Instagram in Singapore",
+          "url": "https://hiveinfluence.io/top-influencers/instagram/food/singapore"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Lennard Yeong\",\"vertical\":\"food\",\"accounts\":[{\"platform\":\"Instagram\",\"handle\":\"lennardy\",\"followers\":554000,\"engagementRate\":null,\"url\":\"https://www.instagram.com/lennardy/\",\"sourceUrl\":\"https://hiveinfluence.io/top-influencers/instagram/food/singapore\"}],\"sources\":[{\"title\":\"Lennard Yeong (@lennardy) Instagram profile\",\"url\":\"https://www.instagram.com/lennardy/\"},{\"title\":\"Top 10 Food Influencers on Instagram in Singapore\",\"url\":\"https://hiveinfluence.io/top-influencers/instagram/food/singapore\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/lennardy/",
+          "title": "Lennard Yeong (@lennardy)",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/p/Lennardy-61554518804334/",
+          "title": "Lennardy - Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://starngage.com/app/global/influencer/ranking/singapore/food",
+          "title": "Top Instagram Influencers and Instagram Users in Singapore in 2025 Find out who are the top Instagram influencers in Singapore. Download the list of the most popular Instagram accounts in Singapore.",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.scrumball.com/ranking/top-food-influencers-on-instagram-in-singapore",
+          "title": "Top 1,000 Food Influencers in Singapore on Instagram | Scrumball",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/61554518804334/videos/",
+          "title": "Lennardy (@61554518804334) - Videos | Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://zula.sg/male-influencers-singapore/",
+          "title": "10 Most Popular Male Influencers & Personalities In ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://influencersworship.com/singapore_food_instagram_influencers/",
+          "title": "Top 77 Singapore Food Influencers in 2026 | Influencers Worship",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://hiveinfluence.io/top-influencers/instagram/food/singapore",
+          "title": "Top 10 Food Influencers on Instagram in Singapore",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/p/DC1VsqWS9hk/",
+          "title": "A magical afternoon at @chanel.beauty's Magical House in Marina ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://hypeauditor.com/free-tools/instagram-follower-count-checker/",
+          "title": "Free Instagram Follower Count Checker",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "case": {
+    "id": "ceiling-facebook",
+    "platform": "facebook",
+    "handle": "JamieOliver",
+    "kind": "ceiling",
+    "note": "No Facebook account on the roster. Same person, so a model confusing the two platforms shows up as an identical figure."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "ceiling-facebook",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "variant": "query",
+    "platform": "facebook",
+    "handle": "JamieOliver",
+    "elapsedMs": 6181,
+    "costUsd": 0.016522,
+    "draft": {
+      "outcome": "ok",
+      "name": "Jamie Oliver",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "Facebook",
+          "handle": "JamieOliver",
+          "followers": 10000000,
+          "engagementRate": null,
+          "url": "https://www.facebook.com/JamieOliver",
+          "sourceUrl": "https://www.facebook.com/jamieoliver/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Jamie Oliver | Facebook",
+          "url": "https://www.facebook.com/jamieoliver/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Jamie Oliver\",\"vertical\":\"food\",\n\"accounts\":[{\"platform\":\"Facebook\",\"handle\":\"JamieOliver\",\"followers\":10000000,\"engagementRate\":null,\"url\":\"https://www.facebook.com/JamieOliver\",\"sourceUrl\":\"https://www.facebook.com/jamieoliver/\"}],\n\"sources\":[{\"title\":\"Jamie Oliver | Facebook\",\"url\":\"https://www.facebook.com/jamieoliver/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/jamieoliver/",
+          "title": "Jamie Oliver (@jamieoliver)",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Jamie Oliver | Facebook\n\n...\n\nJamie Oliver | Facebook\nFacebook\n\n...\n\nLog In\n\n...\n\nLog In\nForgot Account?\n\n\n\n\n# Jamie Oliver \nVerified account\n**10M** likes • **10M** followers\nPosts\nAbout\nReels\nPhotos\nMore\n\n...\n\nJamie Oliver\n\n...\n\n## Intro\n \nThe latest from Jamie & his HQ 👋\nOrder my new BBQ book 🔥 here >> https://linktr.ee/jamieoliver\n\n...\n\n**Page** · Public figure\n\n\njamieoliver.com\n\n\n\n72% recommend (223 Reviews)\n\n...\n\n## **Jamie Oliver** Verified account\n19h · Shared with Public\nYes, this is a pizza made with puff pastry! This clever shortcut is all about maximum flavour with minimum effort. Simply store-bought pastry, a handful of favourite to…\nSee more\n\n...\n\nSee more from Jamie Oliver\nSee more from Jamie Oliver\nEmail or phone number\nPassword\nLog In\nForgot password?\nor\nCreate new account"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/jamieoliver/?hl=en",
+          "title": "Jamie Oliver (@jamieoliver) • Instagram photos and videos",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Jamie Oliver (@jamieoliver) • Instagram photos and videos\n\nJamie Oliver (@jamieoliver) • Instagram photos and videos"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.jamieoliver.com/help",
+          "title": "FAQs | Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Does Jamie offer personal messages or can he attend my event?\n\n...\n\nWhile Jamie loves meeting and speaking to his followers, unfortunately, due to the very high volume of requests, he's unable to do this.\n\n...\n\nCould Jamie please donate something to our raffle prize?\n\n...\n\nWhile Jamie loves supporting his followers, unfortunately, due to the high number of requests, he's unable to donate prizes to raffles or events.\n\n...\n\nWhat should I do if I come across a scam/fake Jamie Oliver account?\n\nJamie’s verified Facebook, X (formerly Twitter), Instagram and TikTok handles are:\n\nUnfortunately imposter accounts do pop up now and then, so please be careful if someone contacts you pretending to be Jamie or from his business. If a message is not from one of these verified accounts, please ignore it and report it to the relevant social media platform."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://starngage.com/plus/chr/brands/instagram/JamieOliver",
+          "title": "jamieoliver's instagram Account Analytics & Statistics | StarNgage Plus",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "@jamieoliver\n\nJamie Oliver\n\n...\n\nUnited States\n\n...\n\nChef & Dad Order my new cookbook Eat Yourself Healthy 🍏🙌 For loadsa recipes & more click below 👇\n\n...\n\n-% of @jamieoliver's followers are female and -% are male. Average engagement rate on the posts is around 0.11%. The average number of likes per post is 11,192 and the average number of comments is 155.\n\n...\n\n@jamieoliver loves posting aboutFood, Product Education, Food and Drink.\n\n...\n\n10,711,631\n\n...\n\nFollowers\n\n...\n\nCheck Fake Followers\n\n...\n\n0.11%\n\n...\n\nEngagement Rate\n\n...\n\n11,347\n\n...\n\nEngagement per post\n\n...\n\nAverage likes per post\n\n...\n\n155\n\n...\n\nAverage comments per post\n\n...\n\n4\n\n...\n\ntescofood\n\n...\n\nFAQ: Instagram Statistics and Insights for @jamieoliver\n\n...\n\nWhat is the current follower count for @jamieoliver on Instagram?\n\nAs of the latest update, @jamieoliver has accumulated a dedicated following of 10,711,631 followers on Instagram.\n\nWhat"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.speakrj.com/audit/report/jamieoliver/instagram",
+          "title": "Jamie Oliver Instagram Followers Statistics / Analytics - SPEAKRJ Stats",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "@jamieoliver jamieoliver twitter stats\n\n...\n\n# Jamie Oliver\n\n...\n\nData Updated: July 8th, 2022 Update Stats\n\n...\n\nFollowers\n\n...\n\n#### 0.25%\n\n...\n\n#### 29.4K\n\n...\n\n## Jamie Oliver Followers Statistics\n\n...\n\n## Jamie Oliver Followers Growth Stats\n\n...\n\n| Date | | Followers | | Following | | Uploads | |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| 2022-07-08 | Fri | 9,181,445 | +37,527 | 2,897 | +20 | 9,138 | +22 |\n| 2022-06-21 | Tue | 9,143,918 | +11,668 | 2,877 | +8 | 9,116 | +10 |\n| 2022-06-14 | Tue | 9,132,250 | +22,184 | 2,869 | +24 | 9,106 | +13 |\n| 2022-06-02 | Thu | 9,110,066 | +23,995 | 2,845 | +22 | 9,093 | +15 |\n| 2022-05-21 | Sat | 9,086,071 | +13,716 | 2,823 | +12 | 9,078 | +16 |\n\n...\n\n| 2022-05-11 | Wed | 9,072,355 | +23,845 | 2,811 | +6 | 9,062 | +20 |\n\n...\n\n| 2022-04-26 | Tue | 9,048,510 | +20,379 | 2,805 | +6 | 9,042 | +11 |\n\n...\n\n| 2022-04-17 | Sun | 9,028,131 | +10,296 | 2,799 | +8 | 9,031 | +7 |\n\n...\n\n| 2022-04-10 | Sun | 9,017,835 | +7,270 | 2,791 | +17 | 9,024 | +15 |\n\n...\n\n| 2022-04-01 | Fri | 9,010,565 | +3,646 | 2,774 | +9 | 9,009 | +8 |\n\n...\n\n| 2022-03-26 | Sat | 9,006,919 | +12,117 | 2,765 | +12 | 9,001 | +11 |\n\n...\n\n| 2022-03-17 | Thu | 8,994,802 | +7,213 | 2,753 | +8 | 8,990 | +10 |\n\n...\n\n| 2022-03-12 | Sat | 8,987,589 | +5,430 | 2,745 | +9 | 8,980 | +8 |\n\n...\n\n| 2022-03-06 | Sun | 8,982,159 | +8,621 | 2,736 | +7 | 8,972 | +5 |\n\n...\n\n| 2022-03-02 | Wed | 8,973,538 | - | 2,729 | - | 8,967 | - |\n| Total Summary | | +207,907 | | | | +171 | |\n\n...\n\n##### Q: What is Jamie Oliver's followers count on Instagram?\n\n...\n\nAnswer: Jamie Oliver has 9,181,445 followers on Instagram.\n\n...\n\n##### Q: What is the Instagram Id of Jamie Oliver?\n\n...\n\nAnswer: Instagram Id of Jamie Oliver is @jamieoliver."
+        }
+      }
+    ],
+    "error": null
+  }
+}

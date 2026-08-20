@@ -336,7 +336,11 @@ describe('POST /projects/:id/agent', () => {
         { type: 'finish', finishReason: 'stop', usage: { promptTokens: 1, completionTokens: 1 } },
       ]),
     )
-    const llm: LLMProvider = { getModel }
+    const llm: LLMProvider = {
+      getModel,
+      // This route streams; nothing here grounds.
+      completeGrounded: () => Promise.reject(new Error('completeGrounded: not used by this route')),
+    }
     const { app, projectId } = await seedProject({ llm })
     const res = await app.request(`/projects/${projectId}/agent`, {
       method: 'POST',

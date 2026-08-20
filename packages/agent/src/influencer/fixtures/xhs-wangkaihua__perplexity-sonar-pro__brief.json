@@ -1,0 +1,178 @@
+{
+  "case": {
+    "id": "xhs-wangkaihua",
+    "platform": "xiaohongshu",
+    "handle": "王开花",
+    "kind": "roster",
+    "expect": {
+      "name": "王开花",
+      "followers": 283700,
+      "vertical": "food"
+    },
+    "note": "Non-Latin handle #2. Also tests whether the answer comes back in the handle’s own script or transliterated."
+  },
+  "model": "perplexity/sonar-pro",
+  "capture": {
+    "caseId": "xhs-wangkaihua",
+    "modelId": "perplexity/sonar-pro",
+    "platform": "xiaohongshu",
+    "handle": "王开花",
+    "elapsedMs": 4413,
+    "costUsd": 0.00883,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "xiaohongshu",
+          "handle": "王开花",
+          "followers": null,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": null
+        }
+      ],
+      "sources": []
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\n \"accounts\":[{\"platform\":\"xiaohongshu\",\"handle\":\"王开花\",\"followers\":null,\n              \"engagementRate\":null,\"url\":null,\"sourceUrl\":null}],\n \"sources\":[]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://play.google.com/store/apps/details?id=com.xingin.xhs&hl=zh",
+          "title": "小红书— 你的生活兴趣社区- Google Play 上的应用",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://en.wikipedia.org/wiki/Xiaohongshu",
+          "title": "Xiaohongshu - Wikipedia",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://pages.xiaohongshu.com/activity/deeplink",
+          "title": "index - 小红书",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://ja.wikipedia.org/wiki/%E5%B0%8F%E7%B4%85%E6%9B%B8",
+          "title": "小紅書 - Wikipedia",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/explore",
+          "title": "小红书",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://play.google.com/store/apps/details?id=com.xingin.xhs&hl=uz&gl=TW",
+          "title": "小红书 — 你的生活兴趣社区",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://enjoy-japan.jp/column/about-redbook/",
+          "title": "小紅書（RED）とは？女性ユーザー多数！美容情報が集まる ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.reddit.com/r/Chinese/comments/1cguf3q/is_the_social_media_app_%E5%B0%8F%E7%BA%A2%E4%B9%A6_xiaohongshured_named/",
+          "title": "Is the Social media app 小红书 (Xiaohongshu/RED) named ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://zh.wikipedia.org/zh-tw/%E5%B0%8F%E7%BA%A2%E4%B9%A6",
+          "title": "小紅書 - 維基百科，自由的百科全書",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.thatsmandarin.com/chinese-apps/xiaohongshu-guide/",
+          "title": "Xiaohongshu (RedNote): What It Is & How to Use It (2026 ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://uhlibraries.pressbooks.pub/chin3343sp23/chapter/littleredbook/",
+          "title": "Little Red Book – 小红书 (Xiǎo hóng shū) – CHIN 3343",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.leononline.com.tw/blog/red-book/",
+          "title": "小紅書是什麼？台灣怎麼用？下載註冊+ 功能介紹完整教學",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://rednotevideodownloader.pro/zh/hot-in-rednote",
+          "title": "【实时】小红书热点",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://hk.news.yahoo.com/%E5%B0%8F%E7%B4%85%E6%9B%B8%E7%94%A8%E6%88%B630%E5%A4%A9%E5%85%A7%E8%A2%AB%E5%8F%96%E7%94%A8%E5%80%8B%E4%BA%BA%E8%B3%87%E6%96%9992%E8%90%AC%E6%AC%A1-%E5%AE%98%E6%96%B9%E5%AE%A2%E6%9C%8D%E7%A8%B1%E5%B1%AC%E6%AD%A3%E5%B8%B8%EF%BC%9A%E4%B8%8D%E6%9C%83%E6%B4%A9%E9%9C%B2%E7%94%A8%E6%88%B6%E9%9A%B1%E7%A7%81%EF%BD%9Cyahoo-032853726.html",
+          "title": "小紅書用戶30天內被取用個人資料9.2萬次官方客服稱屬正常",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://play.google.com/store/apps/details?id=com.xingin.xhs&hl=zh-CN",
+          "title": "小红书 — 你的生活兴趣社区 - Google Play 上的应用",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

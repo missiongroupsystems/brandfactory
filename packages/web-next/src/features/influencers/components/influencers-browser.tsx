@@ -1,6 +1,11 @@
 "use client";
 
-import type { BrandSummary, Influencer, InfluencerAccount } from "@brandfactory/shared";
+import type {
+  BrandSummary,
+  Influencer,
+  InfluencerAccount,
+  InfluencerPlatform,
+} from "@brandfactory/shared";
 import {
   blendedEngagement,
   byInfluencerReach,
@@ -9,7 +14,7 @@ import {
   totalReach,
 } from "@brandfactory/shared";
 import Link from "next/link";
-import { ChevronDownIcon, LayersIcon, PlusIcon } from "lucide-react";
+import { ChevronDownIcon, LayersIcon, PlusIcon, SparklesIcon } from "lucide-react";
 import * as React from "react";
 
 import {
@@ -24,7 +29,9 @@ import {
 import { type GroupRail } from "@/components/layout/group-rail";
 import { HighlightMatch } from "@/components/layout/highlight-match";
 import { EmptyState, LoadingRows, QueryError } from "@/components/layout/query-states";
+import { ViewSettingsSection } from "@/components/layout/view-settings";
 import { SortableHead } from "@/components/layout/sortable-head";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TableCard, Value } from "@/components/layout/table-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,6 +48,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useQueryFilters } from "@/hooks/use-query-filters";
 import { formatCompactNumber } from "@/lib/format";
 import {
+  INFLUENCER_PLATFORM_LABELS,
   INFLUENCER_PLATFORM_OPTIONS,
   INFLUENCER_STATUS_LABELS,
   INFLUENCER_STATUS_OPTIONS,
@@ -65,7 +73,15 @@ import {
 } from "../sort";
 import { railForTier, REACH_TIERS, type ReachTier, tierFor } from "../tiers";
 import { EditableCell, EditPencil } from "./editable-cell";
-import { InfluencerForm } from "./influencer-form";
+import { type QuickAddDraft, toAccountDraft } from "../lookup";
+import {
+  parseReachSortKey,
+  reachColumnsFor,
+  reachOn,
+  reachSortKey,
+  reachTableMinWidth,
+} from "../reach-columns";
+import { InfluencerForm, type InfluencerFormPrefill } from "./influencer-form";
 import {
   BrandsEditor,
   NameEditor,
@@ -75,6 +91,7 @@ import {
 } from "./inline-editors";
 import { PlatformBadges } from "./platform-badges";
 import { ReachBreakdown } from "./reach-breakdown";
+import { QuickAddSheet } from "./quick-add-sheet";
 import { SyncInfluencersButton } from "./sync-influencers-button";
 
 const FILTER_KEYS = ["q", "platform", "vertical", "status", "brandId"] as const;
@@ -96,11 +113,25 @@ const PANEL_KEYS = ["platform", "vertical", "status", "brandId"] as const;
 // twice. A sort describes what is on screen and a pasted link has to reproduce it; a row height
 // describes how the reader likes to look at it, and a link that carried one would impose one
 // person's eyesight on somebody else's. See `lib/table-density.ts`.
-const VIEW_KEYS = ["group", "sort", "dir"] as const;
+const VIEW_KEYS = ["group", "sort", "dir", "reach"] as const;
 
 /** The one value this screen writes to turn grouping off. Grouping is the default, so the *off*
  *  state is what appears in the URL. */
 const GROUP_NONE = "none";
+
+/**
+ * The one value this screen writes to turn the reach columns on. Off is the default, so the *on*
+ * state is what appears in the URL — the mirror of `GROUP_NONE` above, and for the same reason:
+ * the URL should carry what somebody changed, not what they left alone.
+ *
+ * **In the URL rather than in `stored-preference`, even though it is offered on the View panel.**
+ * The panel is a *place*, not a storage decision. Row height sits there because it describes how
+ * a reader likes to look at a table; this describes *what columns are on screen* and can carry a
+ * sort key that only exists while they are — a pasted link showing the roster ordered by Instagram
+ * following has to reproduce both halves or it reproduces neither. `lib/table-density.ts` draws
+ * the line and this falls on the other side of it.
+ */
+const REACH_BY_PLATFORM = "platform";
 
 /**
  * The creators the brands engage — one searchable roster, filed by how far each one reaches.
@@ -176,6 +207,20 @@ export function InfluencersBrowser() {
   // only matters for a hand-edited URL carrying both.
   const grouped = !sort && viewFilters.group !== GROUP_NONE;
 
+  /**
+   * Whether the single Reach column becomes one column per platform, plus a total.
+   *
+   * Answers "who has the biggest Instagram following on this list", which is a question about the
+   * *column* and is the one thing `ReachBreakdown`'s per-creator popover cannot do.
+   *
+   * **Off by default, and the default is the one 1.49.1 measured.** That pass got this table to
+   * stop overflowing its card — `table-fixed`, a percentage per column, the badge cap cut from
+   * three to two — and three more numeric columns is the direct opposite of it. So the default
+   * view keeps every one of those decisions untouched and this one buys a horizontal scrollbar,
+   * which is the trade the reader is making when they turn it on.
+   */
+  const reachByPlatform = viewFilters.reach === REACH_BY_PLATFORM;
+
   const brandOptions = React.useMemo(
     () => brands.map((brand) => ({ value: brand.id, label: brand.name })),
     [brands],
@@ -219,6 +264,33 @@ export function InfluencersBrowser() {
       );
     },
     [setViewFilters],
+  );
+
+  /**
+   * The reach-by-platform toggle, which **clears a per-platform sort on the way out**.
+   *
+   * The third exclusivity rule on this screen, and the one the plan asked to have re-argued for a
+   * column that only sometimes exists. Turning the view off while sorted by `reach:instagram`
+   * would leave the table ordered by a column with no heading — no way to see why the rows are in
+   * that order and no way to clear it but the URL. Turning it *on* clears nothing: every one of
+   * the eight base columns is still there and still sorted by whatever it was.
+   *
+   * A pasted URL carrying `?sort=reach:instagram` without `?reach=platform` is left alone rather
+   * than corrected — see `ReachPlatformSortKey`. The order is honest, the heading is one click
+   * away, and silently dropping the sort somebody shared would be worse than showing it.
+   */
+  const setReachByPlatform = React.useCallback(
+    (next: boolean) => {
+      if (next) {
+        setViewFilters({ reach: REACH_BY_PLATFORM });
+        return;
+      }
+      const sortingByPlatform = parseReachSortKey(viewFilters.sort) !== null;
+      setViewFilters(
+        sortingByPlatform ? { reach: null, sort: null, dir: null } : { reach: null },
+      );
+    },
+    [setViewFilters, viewFilters.sort],
   );
 
   /** Clears the panel's four and leaves the search term alone — one write, because two
@@ -296,6 +368,38 @@ export function InfluencersBrowser() {
   const [createOpen, setCreateOpen] = React.useState(false);
   const openCreate = React.useCallback(() => setCreateOpen(true), []);
 
+  /**
+   * Quick add, and the full form it can hand off to.
+   *
+   * **Two sheets rather than one with a mode**, on the same argument the detail page's second
+   * `InfluencerForm` already makes: they ask different questions, and a component that held both
+   * flows would branch on `step` at every field. The handoff is one direction only — quick add
+   * opens the form, never the reverse.
+   *
+   * `createPrefill` is **held apart from `createOpen` and never cleared on close**, the pattern
+   * `editing` below uses and for its reason: `InfluencerForm` re-seeds its draft during render
+   * when `open` flips true, so clearing the seed on the way out would empty the fields mid-exit
+   * animation, in front of the reader.
+   */
+  const [quickAddOpen, setQuickAddOpen] = React.useState(false);
+  const [createPrefill, setCreatePrefill] = React.useState<InfluencerFormPrefill | undefined>(
+    undefined,
+  );
+  const openQuickAdd = React.useCallback(() => {
+    // The prefill belongs to the last handoff; a fresh quick add must not inherit it.
+    setCreatePrefill(undefined);
+    setQuickAddOpen(true);
+  }, []);
+  const handOffToForm = React.useCallback((draft: QuickAddDraft) => {
+    setCreatePrefill({
+      name: draft.name,
+      accounts: [toAccountDraft(draft)],
+      vertical: draft.vertical,
+    });
+    setQuickAddOpen(false);
+    setCreateOpen(true);
+  }, []);
+
   return (
     <div className="flex flex-col gap-4 px-6 pb-8 md:px-8">
       {/* Toolbar and chips are one block — the chips describe the row above them, so they sit at
@@ -306,6 +410,31 @@ export function InfluencersBrowser() {
           the primary action take another 300 on the right. */}
       <div className="flex flex-col gap-3">
         <FilterToolbar
+          settingsModified={reachByPlatform}
+          settings={
+            /* **The first user of the View panel's `settings` slot**, which has existed since
+               1.48.0 with nothing in it. The row height above it is a preference; this is a URL
+               state — see `REACH_BY_PLATFORM` for why both belong in one panel anyway. */
+            <ViewSettingsSection title="Reach column">
+              {/* A real `<label>` wrapping the box, not an `aria-label`: a panel has vertical room,
+                  which is the same reason `PanelFilter` gets a visible label where the toolbar row
+                  could only afford a hidden one. */}
+              <label className="flex cursor-pointer items-start gap-2">
+                <Checkbox
+                  className="mt-0.5"
+                  checked={reachByPlatform}
+                  onChange={(event) => setReachByPlatform(event.target.checked)}
+                />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-helper text-ink">One column per platform</span>
+                  <span className="text-helper text-ink-tertiary">
+                    A column for each platform on this list, plus the total. The table scrolls
+                    sideways.
+                  </span>
+                </span>
+              </label>
+            </ViewSettingsSection>
+          }
           actions={
             <>
               {/* A view control, not a filter — `ToggleButton`, as AGENTS.md requires, so it does
@@ -325,9 +454,22 @@ export function InfluencersBrowser() {
 
                   Exactly one primary button per view, per the accent budget in AGENTS.md. */}
               <SyncInfluencersButton />
-              <Button onClick={openCreate}>
+              {/* **`Add creator` demotes and quick add takes the primary slot**, which is this
+                  release read as one control — the same move `SyncInfluencersButton` made when the
+                  create arrived, for the same reason. The full form is still the way to enter a
+                  creator with brands, notes or several accounts, and still the only way to enter
+                  an XiaoHongShu one; what it is no longer is the *cheapest* way in, and the
+                  primary slot should belong to the cheapest way in.
+
+                  Exactly one primary button per view, per the accent budget in AGENTS.md — which
+                  is why this is a demotion rather than a second primary beside it. */}
+              <Button variant="secondary" onClick={openCreate}>
                 <PlusIcon data-icon="inline-start" />
                 Add creator
+              </Button>
+              <Button onClick={openQuickAdd}>
+                <SparklesIcon data-icon="inline-start" />
+                Quick add
               </Button>
             </>
           }
@@ -390,6 +532,7 @@ export function InfluencersBrowser() {
       <InfluencerResults
         filters={{ ...filters, q: debouncedQ }}
         grouped={grouped}
+        reachByPlatform={reachByPlatform}
         sort={sort}
         onSort={applySort}
         brands={brands}
@@ -401,7 +544,15 @@ export function InfluencersBrowser() {
           `key={editing?.id ?? "new"}` is the wedge AGENTS.md records twice — a key that changes
           mid-dismissal leaves Base UI's overlay mounted and eating clicks — and there is nothing
           here for it to key on anyway. `InfluencerForm` resets its draft during render. */}
-      <InfluencerForm open={createOpen} onOpenChange={setCreateOpen} />
+      <InfluencerForm open={createOpen} onOpenChange={setCreateOpen} prefill={createPrefill} />
+
+      {/* Quick add reads the roster itself — the same SWR entry the table renders from — so the
+          duplicate check costs no request and nothing is threaded down. */}
+      <QuickAddSheet
+        open={quickAddOpen}
+        onOpenChange={setQuickAddOpen}
+        onAddManually={handOffToForm}
+      />
     </div>
   );
 }
@@ -505,6 +656,7 @@ function groupByTier(influencers: Influencer[]): TierGroup[] {
 function InfluencerResults({
   filters,
   grouped,
+  reachByPlatform,
   sort,
   onSort,
   brands,
@@ -513,6 +665,8 @@ function InfluencerResults({
 }: {
   filters: Partial<Record<(typeof FILTER_KEYS)[number], string>>;
   grouped: boolean;
+  /** One numeric column per platform on this list, plus the total. See `reach-columns.ts`. */
+  reachByPlatform: boolean;
   /** `null` is the server's own order — reach descending — which is what the bands are built on. */
   sort: InfluencerSort | null;
   onSort: (key: SortKey) => void;
@@ -562,6 +716,27 @@ function InfluencerResults({
   const groups = React.useMemo(() => (grouped ? groupByTier(items) : null), [grouped, items]);
 
   /**
+   * The platform columns, **derived from the filtered rows rather than from the enum**, so a
+   * roster using three platforms gets three columns and not six of which three are always empty.
+   * `items` and not `influencers`: filter to TikTok and the Instagram column goes with it.
+   */
+  const reachColumns = React.useMemo(
+    () => (reachByPlatform ? reachColumnsFor(items) : []),
+    [reachByPlatform, items],
+  );
+
+  /**
+   * A column's share of the fixed-layout budget, **or nothing in the wide view.**
+   *
+   * The eight percentages sum to 100 and that is the only reason they mean anything. The wide view
+   * adds one 9% column per platform on top of them — 145% with all six present — and a browser
+   * answers an over-subscribed set of percentage widths by scaling every one of them down, so the
+   * headings clip. That view is `table-layout: auto` over a minimum width instead, where a column
+   * takes what its content needs and the reader gets the scrollbar they asked for.
+   */
+  const share = (pct: string) => (reachByPlatform ? undefined : pct);
+
+  /**
    * The flat table's rows, in the reader's order.
    *
    * Only computed for the flat table: a sort turns the bands off, so `groups` and this are never
@@ -608,8 +783,9 @@ function InfluencerResults({
   }
 
   // Ungrouped adds the tier back as a column: grouped, it is the band, and repeating it down every
-  // row is the redundancy grouping exists to remove.
-  const columnCount = grouped ? 7 : 8;
+  // row is the redundancy grouping exists to remove. The reach columns add one per platform on top
+  // of the total, which is the one this view splits — so the arithmetic is `+ N`, not `+ N + 1`.
+  const columnCount = (grouped ? 7 : 8) + reachColumns.length;
 
   return (
     <div className="flex flex-col gap-3">
@@ -630,7 +806,38 @@ function InfluencerResults({
       ) : null}
 
       <TableCard>
-        <Table>
+        {/* **`table-fixed`, with a percentage share per column.** Left to `table-layout: auto`
+            every column takes whatever its widest cell needs — which is how this table used to
+            end up wider than the card, headers ellipsizing to `T…`/`Engage…` while `Status` fell
+            off the right edge with no scrollbar visible to explain why. A percentage share is a
+            proportion of the card rather than a pixel count, so it holds across window widths
+            without a media query: the whole row scales together instead of one column eating the
+            others' space. The eight numbers are chosen off the actual roster (146 real creators,
+            widest name/handle/vertical/brand-list included) and sum to 100 across the *ungrouped*
+            table; grouped drops `Tier`'s share and the remaining seven stretch to fill it, which
+            needs no code of its own — an unset column simply is not there to claim a share.
+            See `docs/completions/` for the column-by-column budget this was measured against. */}
+        {/* **The wide view drops `table-fixed` and takes a minimum width instead.** The eight
+            percentages above are a budget that sums to 100 and cannot absorb three more columns
+            without squeezing every one of them below what 1.49.1 measured as its content need —
+            which is the bug that pass fixed. So this view stops dividing a fixed pie and starts
+            being wider than the card on purpose, which is what the `overflow-x-auto` in
+            `components/ui/table.tsx` has always been there to catch. The width is a literal class
+            from a map, never interpolated — see `reachTableMinWidth`.
+
+            **And it drops the percentages with it — `share()` below is what makes that true.**
+            Leaving them on was the browser pass's one finding: six platform columns at 9% each on
+            top of a budget already summing to 100 gives 145%, which a browser normalises by
+            squeezing every column proportionally. The result was seven clipped headings, `TikTok`
+            reading `Ti…` — the same symptom, on the same table, that 1.49.1 spent a release
+            removing. A percentage is only a budget while it sums to one. */}
+        <Table
+          className={
+            reachByPlatform
+              ? cn("w-full", reachTableMinWidth(reachColumns.length))
+              : "table-fixed"
+          }
+        >
           <TableHeader>
             {/* Every heading sorts, and a click on any of them turns the bands off — see
                 `features/influencers/sort.ts` for why this screen may sort at all when
@@ -640,7 +847,7 @@ function InfluencerResults({
                   column reads as misaligned against the band above it. */}
               <SortableHead
                 label="Creator"
-                className={grouped ? "pl-4" : "pl-5"}
+                className={cn(grouped ? "pl-4" : "pl-5", share("w-[14%]"))}
                 active={directionOf(sort, "name")}
                 onSort={() => onSort("name")}
               />
@@ -650,18 +857,35 @@ function InfluencerResults({
               <SortableHead
                 label="Platforms"
                 hint="by how many"
+                className={share("w-[18%]")}
                 active={directionOf(sort, "platforms")}
                 onSort={() => onSort("platforms")}
               />
+              {/* **One heading per platform, then the total.** The platform columns come first
+                  and the total last, which is the order the figures are read in — the parts, then
+                  what they add up to — and the same order `ReachBreakdown`'s panel puts them in
+                  one column over. */}
+              {reachColumns.map((platform) => (
+                <SortableHead
+                  key={platform}
+                  label={INFLUENCER_PLATFORM_LABELS[platform]}
+                  align="right"
+                  hint="not on it last"
+                  active={directionOf(sort, reachSortKey(platform))}
+                  onSort={() => onSort(reachSortKey(platform))}
+                />
+              ))}
               <SortableHead
-                label="Reach"
+                label={reachByPlatform ? "Total" : "Reach"}
                 align="right"
+                className={share("w-[10%]")}
                 active={directionOf(sort, "reach")}
                 onSort={() => onSort("reach")}
               />
               {grouped ? null : (
                 <SortableHead
                   label="Tier"
+                  className={share("w-[9%]")}
                   active={directionOf(sort, "tier")}
                   onSort={() => onSort("tier")}
                 />
@@ -670,23 +894,26 @@ function InfluencerResults({
                 label="Engagement"
                 align="right"
                 hint="unmeasured last"
+                className={share("w-[12%]")}
                 active={directionOf(sort, "engagement")}
                 onSort={() => onSort("engagement")}
               />
               <SortableHead
                 label="Vertical"
+                className={share("w-[14%]")}
                 active={directionOf(sort, "vertical")}
                 onSort={() => onSort("vertical")}
               />
               <SortableHead
                 label="Brands"
                 hint="by how many"
+                className={share("w-[13%]")}
                 active={directionOf(sort, "brands")}
                 onSort={() => onSort("brands")}
               />
               <SortableHead
                 label="Status"
-                className="pr-5"
+                className={cn("pr-5", share("w-[10%]"))}
                 active={directionOf(sort, "status")}
                 onSort={() => onSort("status")}
               />
@@ -716,6 +943,7 @@ function InfluencerResults({
                               key={influencer.id}
                               influencer={influencer}
                               grouped
+                              reachColumns={reachColumns}
                               rail={rail.rows}
                               query={filters.q}
                               brands={brands}
@@ -733,6 +961,7 @@ function InfluencerResults({
                     key={influencer.id}
                     influencer={influencer}
                     grouped={false}
+                    reachColumns={reachColumns}
                     query={filters.q}
                     brands={brands}
                     brandsLoading={brandsLoading}
@@ -888,6 +1117,7 @@ function TierHeader({
 function InfluencerRow({
   influencer,
   grouped,
+  reachColumns,
   rail,
   query,
   brands,
@@ -898,6 +1128,8 @@ function InfluencerRow({
 }: {
   influencer: Influencer;
   grouped: boolean;
+  /** The platform columns to render before the total. Empty in the default view. */
+  reachColumns: readonly InfluencerPlatform[];
   rail?: string;
   query?: string;
   brands: BrandSummary[];
@@ -988,6 +1220,23 @@ function InfluencerRow({
         </span>
       </TableCell>
 
+      {/* **One cell per platform column, before the total.** An em dash where the creator is not
+          on that platform, never a `0`: zero followers is a measurement and "not on TikTok" is
+          not, and the column is read down its length by somebody deciding where to brief. The
+          same distinction `reachOn` encodes by answering `null`, and the same em dash the
+          Engagement column already uses for unmeasured. */}
+      {reachColumns.map((platform) => {
+        const on = reachOn(influencer.accounts, platform);
+        return (
+          <TableCell
+            key={platform}
+            className="text-right font-mono text-helper tabular-nums text-ink-secondary"
+          >
+            {on === null ? <span className="text-ink-tertiary">—</span> : formatCompactNumber(on)}
+          </TableCell>
+        );
+      })}
+
       {/* Right-aligned and tabular, because this column is compared down its length rather than
           read across the row — `84.2k` under `1.24M` only lines up on the decimal if the digits
           are the same width. */}
@@ -1029,9 +1278,15 @@ function InfluencerRow({
             influencer.vertical && VerticalIcon ? (
               // The glyph is never alone — a vocabulary of ten symbols is not readable at 16px on
               // its own, and WCAG 1.4.1 does not allow the icon to be the only carrier.
-              <span className="inline-flex items-center gap-1.5">
+              //
+              // `min-w-0` plus `truncate` on the label rather than on this span: the fixed-width
+              // column (see `table-fixed` above) means the ten-vertical vocabulary's longest
+              // entries — "Family & lifestyle", "Beauty & skincare" — can now exceed the column,
+              // and a flex child does not shrink below its content's width without `min-w-0`. The
+              // icon stays `shrink-0` so it is the label that gives, never the glyph.
+              <span className="inline-flex min-w-0 items-center gap-1.5">
                 <VerticalIcon aria-hidden className="size-4 shrink-0 text-ink-tertiary" />
-                {INFLUENCER_VERTICAL_LABELS[influencer.vertical]}
+                <span className="truncate">{INFLUENCER_VERTICAL_LABELS[influencer.vertical]}</span>
               </span>
             ) : (
               // **The word, not the em dash**, and this is a correction rather than a preference —

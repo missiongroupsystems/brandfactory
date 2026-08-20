@@ -33,6 +33,23 @@ const EnvObject = z.object({
   // overrides land with Phase 4's settings route.
   LLM_PROVIDER: z.enum(LLM_PROVIDER_IDS),
   LLM_MODEL: NonEmpty,
+  // The creator lookup's model (quick add, Phase F). **Separate from `LLM_MODEL`
+  // because it must be search-grounded**, and on OpenRouter that is the `:online`
+  // suffix — which is why the default is `LLM_MODEL`'s own model wearing it. The
+  // vendor's mechanism is named here rather than in code, per `adapters.ts`.
+  //
+  // **A model id without `:online` will not search, and the failure is silent**:
+  // the call succeeds and returns an answer with nothing behind it. Phase E
+  // measured that; `LLMProvider.completeGrounded` carries the table. The boundary
+  // rules catch it — an ungrounded figure is discarded — so a misconfigured
+  // deployment gets `not-found` for every lookup rather than invented numbers.
+  //
+  // No spend cap, deliberately, which is `social-ideate.ts`' settled answer for
+  // this class of call: it runs on the workspace's own configured LLM tokens.
+  // The measured cost is ~$0.018 a lookup — an order above an ordinary
+  // completion, because the plugin pastes its search results into the prompt,
+  // and two orders below a $0.38 research run.
+  INFLUENCER_LOOKUP_MODEL: NonEmpty.default('anthropic/claude-sonnet-4.6:online'),
 
   // Local-disk blob store config.
   BLOB_LOCAL_DISK_ROOT: NonEmpty.optional(),

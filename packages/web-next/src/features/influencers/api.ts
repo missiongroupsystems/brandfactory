@@ -1,6 +1,8 @@
 import type {
   CreateInfluencerInput,
   Influencer,
+  LookupInfluencerInput,
+  LookupInfluencerResult,
   UpdateInfluencerInput,
 } from "@brandfactory/shared";
 
@@ -83,6 +85,30 @@ export const influencerService = {
     callJson<Influencer>(
       await bf.workspaces[":workspaceId"].influencers[":influencerRef"].$patch({
         param: { workspaceId, influencerRef: influencerId },
+        json: input,
+      }),
+    ),
+
+  /**
+   * Quick add's lookup — a platform and a handle in, a draft out.
+   *
+   * **It writes nothing**, which is why it is safe to retry and why it answers `200` rather than
+   * `201`. A creator who could not be found comes back as `outcome: "not-found"` in the body, not
+   * as a failed request: it is an answer about a creator rather than a fault the client can act on
+   * by retrying. `callJson` therefore throws only on a real refusal — a 400 on the body, a 503
+   * where the deployment has no search-grounded model, a 5xx.
+   *
+   * The platform is `LookupPlatform`, which is five of the record's six: XiaoHongShu is excluded
+   * because the spike could not name a single creator on it and the one model that retrieved
+   * nothing produced the most convincing answers there. See `LOOKUP_PLATFORMS`.
+   */
+  lookup: async (
+    workspaceId: string,
+    input: LookupInfluencerInput,
+  ): Promise<LookupInfluencerResult> =>
+    callJson<LookupInfluencerResult>(
+      await bf.workspaces[":workspaceId"].influencers.lookup.$post({
+        param: { workspaceId },
         json: input,
       }),
     ),

@@ -1,0 +1,102 @@
+{
+  "case": {
+    "id": "novitalam",
+    "platform": "instagram",
+    "handle": "novitalam",
+    "kind": "roster",
+    "expect": {
+      "name": "Novita Lam",
+      "followers": 412000,
+      "vertical": "fitness"
+    },
+    "note": "Handle equals the name. The easy case, and the plan’s own worked example."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "capture": {
+    "caseId": "novitalam",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "platform": "instagram",
+    "handle": "novitalam",
+    "elapsedMs": 9376,
+    "costUsd": 0.021445,
+    "draft": {
+      "outcome": "ok",
+      "name": "Novita Lam",
+      "vertical": "fitness",
+      "accounts": [
+        {
+          "platform": "Instagram",
+          "handle": "novitalam",
+          "followers": 430000,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/novitalam/",
+          "sourceUrl": "https://www.ibtimes.sg/singapore-influencer-novita-lam-apologises-after-backlash-over-iran-israel-crisis-pun-84173"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Singapore Influencer Novita Lam Apologises After Backlash Over Iran-Israel Crisis Pun",
+          "url": "https://www.ibtimes.sg/singapore-influencer-novita-lam-apologises-after-backlash-over-iran-israel-crisis-pun-84173"
+        },
+        {
+          "title": "S'pore influencer slammed as 'insensitive' for pun using names of Iran & Israel on social media",
+          "url": "https://jobuzo.com/en/spore-influencer-slammed-as-insensitive-for-pun-using-names-of-iran-israel-on-social-media/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Novita Lam\",\"vertical\":\"fitness\",\"accounts\":[{\"platform\":\"Instagram\",\"handle\":\"novitalam\",\"followers\":430000,\"engagementRate\":null,\"url\":\"https://www.instagram.com/novitalam/\",\"sourceUrl\":\"https://www.ibtimes.sg/singapore-influencer-novita-lam-apologises-after-backlash-over-iran-israel-crisis-pun-84173\"}],\"sources\":[{\"title\":\"Singapore Influencer Novita Lam Apologises After Backlash Over Iran-Israel Crisis Pun\",\"url\":\"https://www.ibtimes.sg/singapore-influencer-novita-lam-apologises-after-backlash-over-iran-israel-crisis-pun-84173\"},{\"title\":\"S'pore influencer slammed as 'insensitive' for pun using names of Iran & Israel on social media\",\"url\":\"https://jobuzo.com/en/spore-influencer-slammed-as-insensitive-for-pun-using-names-of-iran-israel-on-social-media/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.ibtimes.sg/singapore-influencer-novita-lam-apologises-after-backlash-over-iran-israel-crisis-pun-84173",
+          "title": "Singapore Influencer Novita Lam Apologises After Backlash Over...",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Singapore Influencer Novita Lam Apologises After Backlash Over...\n\n...\n\n# Singapore Influencer Novita Lam Apologises After Backlash Over Iran-Israel Crisis Pun\n\n...\n\nSingapore influencer Novita Lam has apologised following online criticism for a wordplay referencing the Iran-Israel conflict in one of her recent Instagram Stories.\n\nLam, who has more than 430,000 followers on the platform, posted a photo of herself running at Marina Barrage with a caption that played on the names of the two countries. In the now deleted post, Lam wrote, \"Iran this. Israel that. IRAN 5km and the pain ISREAL.\"\n\nThe viral post, which was later circulated on Reddit on Monday, March 2, quickly sparked backlash online, with many calling it insensitive given the ongoing violence in the Middle East. The Instagram Story has since been taken down.\n\nOn Wednesday, March 4, Lam issued a public apology, acknowledging that her comment was \"insensitive and hurtful\", especially in light of current global events. The story read, \"I would like to apologise for a story I posted earlier. It was insensitive and hurtful especially with what is happening around the world right now.\"\n\nShe said that she removed the post once she realised it was inappropriate and added that she would be \"more mindful\" in future.\n\n...\n\nA screenshot of the original Story was later shared on Reddit on Tuesday, March 3, where it attracted dozens of comments. Several users described the post as \"tone-deaf\" and \"distasteful\", with some expressing disappointment that a public figure would make light of a serious geopolitical conflict."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://jobuzo.com/en/spore-influencer-slammed-as-insensitive-for-pun-using-names-of-iran-israel-on-social-media/",
+          "title": "S’pore influencer slammed as ‘insensitive’ for pun using names of Iran & Israel on social media – JOBUZO",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "## Influencer Novita Lam posts jogging video with pun using names of Iran & Israel\n\n...\n\nA Singapore-based influencer has drawn criticism from netizens after making a pun deemed insensitive on her social media platforms.\n\nNovita Lam, who has more than 400,000 Instagram followers and more than 125,000 TikTok followers, referenced countries involved in the ongoing conflict in the Middle East.\n\nSource: @novitalam on Instagram\n\n...\n\n### Influencer makes corny pun as part of exercise post\n\n...\n\nThe offending clip, shared via an Instagram Story and TikTok video, showed Ms Lam jogging in the Marina Bay area.\n\nAlong with stats on how long and how fast she was jogging, she added the caption “Iran this, Israel that. IRAN 10km and the pain ISREAL” — a play on words that used the names of the two countries.\n\nThe corny pun was ostensibly used to highlight the tough nature of her exertions.\n\n...\n\nSource: @novitalam on Instagram\n\n...\n\nBut with both sides currently locked in an escalating conflict, many felt that the timing of the post was inappropriate.\n\n...\n\nWhile both posts appeared to have been deleted as of Tuesday (3 March), numerous screenshots have surfaced online.\n\n...\n\nMany slammed her directly on her TikTok account, criticising her “lack of self-awareness” given the seriousness of the situation.\n\n...\n\nOther netizens who posted on Reddit pointed out that there may be Singaporeans who are stuck in the Middle East, so using the conflict as a pun was insensitive.\n\n...\n\nFeatured image adapted from @novitalam on Instagram."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://forum.bubble.io/t/how-to-get-general-instagram-information-without-using-the-graph-api/110114",
+          "title": "How to get general Instagram information without using the ...",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Hi,\n\n...\n\nI have searched for a long time for an easy way to get general information about an Instagram user (#followers, name, bio, pic, etc) because the Graph API was too much hassle. I founded a way to do it with the Toolbox plugin.\n\n...\n\nlet url = “ https://www.instagram.com/**[username]**”; $.ajax({ type: ‘GET’, url: url, error: function () { //… }, success: function (data) { data = JSON.parse(data.split(“window._sharedData = “)[1].split(”;”)[0]).entry_data.ProfilePage[0].graphql; console.log(data.user); bubble_fn_insta(data.user.edge_followed_by.count); } })\n\n...\n\nYou can extract all data attached to data.user. To check the syntax, just run the workflow once with a valid username and check your console which displays all data you can extract and put into a JavascripttoBubble element.\n\n...\n\n1. Change the [username] to the user you want to search\n2. Change the bubble_fn_insta to the name of your JavascripttoBubble element\n\n...\n\nNow you have that data in your Bubble app without having to use the Graph API.\n\n...\n\nGet Number of followers of Instagram Profile"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://instantdm.com/blog/instagram-profile-does-not-exist-fix",
+          "title": "Instagram Profile Does Not Exist: The Complete Fix Guide ...",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Quick AnswerWhen Instagram says a profile 'does not exist' or shows 'User Not Found', it means the account is deleted, deactivated, banned, or has changed its username — OR you have been blocked. Work through the 5 causes below to find your exact situation and fix.\n\n...\n\nInstagram displays one of two closely-related messages depending on how you encounter the missing profile: \"User not found\" (when you search the username directly) or \"Sorry, this page isn't available\" (when you open a direct link such as instagram.com/username). Both messages signal the same underlying situation — the app cannot display the profile you are looking for.\n\nIt is important to understand that neither message tells you why the profile is unavailable. Instagram intentionally uses a vague error to protect user privacy. The cause could be anything from a simple typo in the username to a permanent ban — and the fix is completely different in each case.\n\n...\n\n### Reason 1 — The Account Has Been Permanently Deleted\n\n...\n\nWhen a user permanently deletes their Instagram account, the profile, username, photos, videos, comments, and followers are all removed immediately and cannot be recovered. Anyone who visits the profile — from any account — will see 'User not found'. Instagram does not send a notification to followers, so this can feel sudden.\n\n1. How to confirm: Search the username from 2–3 different accounts (including one that has never interacted with them). If everyone sees 'User not found', the account is almost certainly deleted or banned.\n\n...\n\n### Reason 2 — The Account Is Temporarily Deactivated\n\n...\n\nInstagram allows users to temporarily disable their account. While disabled, the profile disappears completely — followers, posts, and stories are hidden. The account will return exactly as it was once the user re-enables it. You cannot tell from the outside whether an account is deleted or merely deactivated.\n\n...\n\n### Reason 3 — You Have Been Blocked\n\n...\n\nThis is the scenario most people suspect first — but it is actually not the most common cause. When someone blocks you on Instagram, their profile becomes invisible specifically to you. You will see 'User not found' when searching, and any link to their profile will return 'This page isn't available'. Crucially, only you see this error; everyone else can still find and view the account normally.\n\n...\n\n### Reason 5 — The Username Was Changed\n\nInstagram allows users to change their username at any time. Old links and bookmarks instantly become broken. If someone you follow changes their handle and you search for the old name, you will get 'User not found' even though the account is perfectly active under the new username. This is one of the most commonly overlooked causes.\n\n1. How to confirm: Check your DM history with this person. In many cases their old messages still appear and you can tap the profile from there — Instagram may redirect you to the new username. Alternatively, search by their real name or any tags they may have used.\n\n### Reason 6 — A Typo in the Username\n\n...\n\nInstagram usernames are case-insensitive but exact in every other way. A single wrong character — a transposed letter, an underscore in the wrong place, or a '1' mistaken for a lowercase 'l' — will produce 'User not found' for a perfectly healthy account. Always double-check the spelling before assuming anything more serious.\n\n...\n\nFix A — Correct the Typo\n\n...\n\n1. Open Instagram and tap the Search icon.\n2. Clear the search bar and type the username slowly, character by character.\n3. Pay attention to: underscores vs hyphens, the letter O vs the number 0, lowercase L vs the number 1, and double letters.\n4. If possible, copy the username directly from a previous DM, a tag in a comment, or\n\n...\n\n### Fix C — Locate a Changed Username\n\n1. Open your Instagram DM inbox and find any previous conversation with this person. Tap their name — Instagram sometimes redirects to the new profile.\n2. Search their full real name in the Instagram search bar (not username).\n3. Check if they have announced the new username on other platforms: Twitter/X, TikTok, Facebook, LinkedIn, or their website.\n4. Look in photos they were tagged in before the change — the tag may still link to their active profile.\n\n...\n\n### Fix D — Account Deactivated (Nothing You Can Do)\n\n...\n\n## 7. How to Find Someone on Instagram Without Their Username\n\n...\n\nFor when you know the person but not their handle.\n\n...\n\n1. Search by real name\n\nType their first and last name in the Instagram search bar. Switch from 'Top' to 'People' tab. Results are sorted by mutual followers, so common connections appear first.\n\n...\n\n1. Search by phone number\n\n...\n\n1. Search by email address\n\n...\n\n1. Check mutual followers\n\n...\n\nVisit the follower list of someone you both know. Search within that list for the person's name.\n\n...\n\n1. Google their name + Instagram\n\n...\n\nSearch: [Full Name] instagram site:instagram.com in Google. Public profiles are indexed and often appear immediately.\n\n...\n\n4. [ ] Asked a friend on a different account to search the username\n\n...\n\n5. [ ] Checked your DM inbox for a link to their current profile\n6. [ ] Searched by their real name in the People tab\n7. [ ] Searched their name + 'instagram' on Google\n\n...\n\nThe 'Instagram profile does not exist' error is almost always solvable in under 5 minutes — as long as you know which of the seven causes you are dealing with. Use the diagnosis table in Section 3 and you'll have your answer in seconds."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://community.make.com/t/instagram-follower-count-returning-zero-bundles-please-help/30882",
+          "title": "Instagram \"Follower_Count\" returning zero bundles",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Everything is working fine, except for one instagram block that seems to always return zero bundles - the “Follower Count” block. Image attached below:\n\n...\n\nThis results in an empty value when sending the automated slack message next to “Total Followers:” - as shown"
+        }
+      }
+    ],
+    "error": null
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "case": {
+    "id": "ceiling-youtube",
+    "platform": "youtube",
+    "handle": "JamieOliver",
+    "kind": "ceiling",
+    "note": "No YouTube account exists on the roster. The easiest possible case on the platform: a global food name with millions of subscribers."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "ceiling-youtube",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "variant": "query",
+    "platform": "youtube",
+    "handle": "JamieOliver",
+    "elapsedMs": 6101,
+    "costUsd": 0.013822,
+    "draft": {
+      "outcome": "ok",
+      "name": "Jamie Oliver",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "YouTube",
+          "handle": "JamieOliver",
+          "followers": 6190000,
+          "engagementRate": null,
+          "url": "https://www.youtube.com/@JamieOliver",
+          "sourceUrl": "https://socialblade.com/youtube/handle/jamieoliver"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Jamie Oliver's YouTube Statistics - Social Blade",
+          "url": "https://socialblade.com/youtube/handle/jamieoliver"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Jamie Oliver\",\"vertical\":\"food\",\n \"accounts\":[{\"platform\":\"YouTube\",\"handle\":\"JamieOliver\",\"followers\":6190000,\n              \"engagementRate\":null,\"url\":\"https://www.youtube.com/@JamieOliver\",\"sourceUrl\":\"https://socialblade.com/youtube/handle/jamieoliver\"}],\n \"sources\":[{\"title\":\"Jamie Oliver's YouTube Statistics - Social Blade\",\"url\":\"https://socialblade.com/youtube/handle/jamieoliver\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/jamieoliver",
+          "title": "Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Jamie Oliver - YouTube\n...\n)[](/)\n...\nJamie Oliver - YouTube"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://socialblade.com/youtube/handle/jamieoliver",
+          "title": "Jamie Oliver's YouTube Statistics",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Jamie Oliver's YouTube Statistics - Social Blade\n\n...\n\n### Jamie Oliver@jamieoliver\n\nsubscribers\n\n...\n\n6.19M\n\nviews\n\n...\n\n1,083,657,780\n\nvideos\n\n2,781\n\n...\n\nCreated On\n\nMay 21, 2006\n\n...\n\nLogin to Favorite\n\n...\n\nsubscribers\n\n...\n\n6.2M\n\n...\n\nviews\n\n...\n\n1.1B\n\n...\n\nvideos\n\n2.8K\n\n...\n\nCreated On\n\n...\n\nMay 21, 2006\n\n...\n\n## B-\n\n...\n\n## 175,457th\n\n...\n\n## 808th\n\n...\n\n## 582nd\n\n...\n\nCreator Statistics"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/@JamieOliverTV",
+          "title": "Jamie Oliver TV",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Jamie Oliver TV - YouTube\n\nJamie Oliver TV - YouTube"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://creatomap.com/creator/40561",
+          "title": "Jamie Oliver Sponsors & Brand Deals | Creatomap",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Jamie Oliver\n\nFood@jamieoliver6.2M subscribers More Food creators → Share\n\n...\n\n## Sponsors (4)\n\n...\n\nJamie Oliver is sponsored by Channel 4, Weber, Samsung, and 1 more on YouTube.\n\n...\n\nChannel 45 videosFeb 2026\n\n...\n\nWeber1 videoFeb 2026 – Apr 2026\n\n...\n\nSamsung TV Plus1 videoMar 2026\n\n...\n\nConnections (4)\n\n...\n\nMentioned By4\n\n...\n\nNetwork\n\n...\n\n## Extended Network\n\n...\n\nFrequently mentioned by Jamie Oliver's connections\n\nNickvia Zoe Sugg and TVFilthyFrank\n\nMark Ferrisvia Zoe Sugg and Alfie Deyes Vlogs\n\n...\n\nNiki DeMarvia Zoe Sugg\n\n...\n\nJim Chapmanvia Zoe Sugg"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://socialcounts.org/youtube-channel-analytics/UCyWG12CuZqJQzZfpsXgXSEQ",
+          "title": "Jamie Oliver TV - YouTube Channel Analytics, Subscribers & Stats | Socialcounts.org",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Jamie Oliver TV - YouTube Channel Analytics, Subscribers & Stats | Socialcounts.org\n\n...\n\n# Jamie Oliver TV\n\n@jamieolivertv• Joined April 24, 2024\n\nSubscribers 217,092 | Views 26,136,089 | Videos 545\n\n...\n\nSubs#271,351\n\n...\n\nSubs#7,196\n\n...\n\nViews#471,118\n\n...\n\nViews#12,266\n\n...\n\n# Jamie Oliver TV\n\n...\n\n@jamieolivertv• Joined April 24, 2024\n\n...\n\nSub 217K | View 26.1M | Video 545\n\n...\n\nSubscribers\n\n...\n\nViews\n\n...\n\n26.1M\n\n...\n\nVideos\n\n...\n\n545\n\n...\n\nAvg. views per video\n\n...\n\n### About\n\nThe Jamie Oliver Channel! Full Episodes packed with the finest recipes! Full episodes available only in the US include; Jamie's 15 Minute Meals Jamie's 30 Minute Meals Jamie's American Road Trip Jamie At Home PLUS More to be added soon!\n\n...\n\nJoinedApril 24, 2024\n\n...\n\nUnited Kingdom · Entertainment\n\n...\n\nSubs gained\n\n...\n\nCategories\n\n...\n\nEntertainmentHow To And StylePeople And Blogs"
+        }
+      }
+    ],
+    "error": null
+  }
+}

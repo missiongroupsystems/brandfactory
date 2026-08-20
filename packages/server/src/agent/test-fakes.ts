@@ -66,5 +66,9 @@ export function makeAsyncModel(
 export function fakeProvider(model: LanguageModel): LLMProvider {
   return {
     getModel: () => model,
+    // Not grounded: these tests drive `streamText`. The method refuses rather
+    // than returning an empty result, so a grounding regression cannot pass as
+    // a model that simply found nothing.
+    completeGrounded: () => Promise.reject(new Error('completeGrounded: not stubbed in this test')),
   }
 }

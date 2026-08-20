@@ -25,6 +25,7 @@ import {
   type IdeateCopyFn,
   type IdeateThemesFn,
 } from './social/ideate'
+import { createCreatorLookup, type LookupCreatorFn } from './influencer/lookup'
 import { createResearchConfigRouter } from './routes/research-config'
 import { createResearchRouter } from './routes/research'
 import {
@@ -77,6 +78,14 @@ export interface AppDeps {
    */
   ideateThemes?: IdeateThemesFn
   ideateCopy?: IdeateCopyFn
+  /**
+   * Quick add's creator lookup. Same seam and same reason as the four above,
+   * with one difference worth knowing: the default composition reads the model
+   * from `env` rather than per workspace, because a lookup needs a
+   * search-grounded model and a workspace override would silently remove the
+   * grounding. `influencer/lookup.ts` carries the argument.
+   */
+  lookupCreator?: LookupCreatorFn
   agentGuard: AgentConcurrencyGuard
 }
 
@@ -137,7 +146,22 @@ export function createApp(deps: AppDeps) {
     .route('/workspaces', createWorkspaceOutletsRouter({ db: deps.db }))
     // Influencers mount beside outlets for the same reasons: workspace-scoped,
     // reachable by slug, and holding no blob keys — so no `storage` either.
-    .route('/workspaces', createWorkspaceInfluencersRouter({ db: deps.db }))
+    //
+    // The router also carries quick add's lookup, which is why it takes an `llm`
+    // by way of the composed function. **The mount is unconditional even though
+    // the feature is not available everywhere**: only openrouter has a grounded
+    // endpoint, and a deployment without one answers 503 with the fix in the
+    // message. Mounting conditionally would drop the path out of `AppType`, which
+    // is a worse trade — the type is how the client learns what exists.
+    .route(
+      '/workspaces',
+      createWorkspaceInfluencersRouter({
+        db: deps.db,
+        lookupCreator:
+          deps.lookupCreator ??
+          createCreatorLookup({ llm: deps.llm, env: deps.env, log: deps.log }),
+      }),
+    )
     // Vendors mount beside both for the same reasons: workspace-scoped,
     // reachable by slug, and holding no blob keys — so no `storage` either.
     .route('/workspaces', createWorkspaceVendorsRouter({ db: deps.db }))

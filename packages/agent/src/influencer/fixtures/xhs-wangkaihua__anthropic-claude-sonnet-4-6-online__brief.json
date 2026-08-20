@@ -1,0 +1,98 @@
+{
+  "case": {
+    "id": "xhs-wangkaihua",
+    "platform": "xiaohongshu",
+    "handle": "王开花",
+    "kind": "roster",
+    "expect": {
+      "name": "王开花",
+      "followers": 283700,
+      "vertical": "food"
+    },
+    "note": "Non-Latin handle #2. Also tests whether the answer comes back in the handle’s own script or transliterated."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "capture": {
+    "caseId": "xhs-wangkaihua",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "platform": "xiaohongshu",
+    "handle": "王开花",
+    "elapsedMs": 6945,
+    "costUsd": 0.015553,
+    "draft": {
+      "outcome": "ok",
+      "name": null,
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "XiaoHongShu",
+          "handle": "王开花🌺",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.xiaohongshu.com/user/profile/62b2611f000000001b02af0d",
+          "sourceUrl": "https://www.newrank.cn/profile/xiaohongshu/62b2611f000000001b02af0d?from=ranklist"
+        }
+      ],
+      "sources": [
+        {
+          "title": "王开花🌺-小红书达人数据主页-新榜",
+          "url": "https://www.newrank.cn/profile/xiaohongshu/62b2611f000000001b02af0d?from=ranklist"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":null,\"vertical\":\"food\",\n \"accounts\":[{\"platform\":\"XiaoHongShu\",\"handle\":\"王开花🌺\",\"followers\":null,\n              \"engagementRate\":null,\"url\":\"https://www.xiaohongshu.com/user/profile/62b2611f000000001b02af0d\",\"sourceUrl\":\"https://www.newrank.cn/profile/xiaohongshu/62b2611f000000001b02af0d?from=ranklist\"}],\n \"sources\":[{\"title\":\"王开花🌺-小红书达人数据主页-新榜\",\"url\":\"https://www.newrank.cn/profile/xiaohongshu/62b2611f000000001b02af0d?from=ranklist\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.newrank.cn/profile/xiaohongshu/62b2611f000000001b02af0d?from=ranklist",
+          "title": "王开花🌺-小红书达人数据主页-新榜",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "王开花🌺-小红书达人数据主页-新榜\n\n...\n\n小红书\n\n...\n\n## 王开花🌺\n\n...\n\n美食\n\n...\n\n五彩缤纷\n\n...\n\n账号信息\n\n...\n\n6296698917\n\n...\n\n女\n\n...\n\n账号简介\n\n...\n\n漂流过很多城市，目前暂居新加坡🇸🇬。 一个平凡的打工人。ENTJ，双子座♊️ 分享曾经吃过见过的美食，新加坡的所见，所闻，所感。\n\n...\n\n标签\n\n...\n\n美食制作人vlogbrunch...\n\n...\n\n周新榜指数\n\n...\n\n729.6\n\n...\n\n总作品数492\n\n...\n\n总收藏数42.86w"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.newrank.cn/profile/xiaohongshu/5f9d621800000000010005cf?from=ranklist",
+          "title": "王花花的厨房历险记-小红书达人数据主页-新榜",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "王花花的厨房历险记-小红书达人数据主页-新榜\n\n...\n\n## 王花花的厨房历险记\n\n...\n\n美食\n\n...\n\n账号信息\n\n...\n\nHuaHua_Kitchen\n\n...\n\n女\n\n...\n\n广东· 广州\n\n...\n\n账号简介\n\n...\n\n商：cflxj999（备注来意） 开烘焙店2年，全职带娃2年，纪录片总导演2年 妈妈王花花🌸🌸爸爸王大帅🤗🤗🤗崽崽王大吃 王小酌🤤\n\n...\n\n标签\n\n...\n\n秋天去哪玩大闸蟹风沙虾酱骨...\n\n...\n\n258.4\n\n...\n\n总作品数489\n\n...\n\n总收藏数908.73w"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/user/profile/598d433f6a6a696748cf55c7?apptime=1718759084&appuid=5fa6eced0000000001007a5f&xhsshare=CopyLink",
+          "title": "开开katherine_ - 小红书",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "开开katherine_\n...\n小红书号：956914617 IP属地：北京\n...\n🎾运动记录｜好物分享｜美丽生活 ⭐️stay energetic stay focused ✈️5月网球旅行～苏州真草｜莫干山｜巴黎法网\n...\nvlog博主\n...\n运动博主"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/user/profile/5bb62539e2b1da0001a09b6c",
+          "title": "废话王阿姨 - 小红书",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "废话王阿姨\n...\n小红书号：nidedawa1212 IP属地：泰国\n...\n🌷把生活中的废话，统统开成喇叭花！ 🌷原创图文｜搬运请注明来源 🌷已出版诗集《想在晚风中和你说一说废话》～ 📪nidedawa@163.com"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/user/profile/578afadfa9b2ed53a0606913",
+          "title": "爱吃菜花 - 小红书",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "爱吃菜花 - 小红书\n...\n爱吃菜花\n...\n小红书号：602905132 IP属地：吉林\n...\nMCN运营总监｜畅销书编辑 观点成长｜情感关系｜焦虑情绪 📮493330146@qq.com\n...\n北京朝阳\n...\n10+关注\n...\n1千+粉丝\n...\n2.1万"
+        }
+      }
+    ],
+    "error": null
+  }
+}

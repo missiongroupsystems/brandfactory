@@ -1,0 +1,93 @@
+{
+  "case": {
+    "id": "ceiling-linkedin",
+    "platform": "linkedin",
+    "handle": "williamhgates",
+    "kind": "ceiling",
+    "note": "No LinkedIn account on the roster. LinkedIn is the most crawler-hostile of the six; if grounding works anywhere there it works here."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "capture": {
+    "caseId": "ceiling-linkedin",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "platform": "linkedin",
+    "handle": "williamhgates",
+    "elapsedMs": 6964,
+    "costUsd": 0.019645,
+    "draft": {
+      "outcome": "ok",
+      "name": "Bill Gates",
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "LinkedIn",
+          "handle": "williamhgates",
+          "followers": 40553163,
+          "engagementRate": null,
+          "url": "https://www.linkedin.com/in/williamhgates",
+          "sourceUrl": "https://www.linkedin.com/in/williamhgates"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Bill Gates - Chair, Gates Foundation and Founder, Breakthrough Energy | LinkedIn",
+          "url": "https://www.linkedin.com/in/williamhgates"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Bill Gates\",\"vertical\":null,\n \"accounts\":[{\"platform\":\"LinkedIn\",\"handle\":\"williamhgates\",\"followers\":40553163,\n              \"engagementRate\":null,\"url\":\"https://www.linkedin.com/in/williamhgates\",\"sourceUrl\":\"https://www.linkedin.com/in/williamhgates\"}],\n \"sources\":[{\"title\":\"Bill Gates - Chair, Gates Foundation and Founder, Breakthrough Energy | LinkedIn\",\"url\":\"https://www.linkedin.com/in/williamhgates\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.linkedin.com/in/williamhgates",
+          "title": "Bill Gates - Chair, Gates Foundation and Founder, Breakthrough ...",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Bill Gates\n\n...\n\nChair, Gates Foundation and Founder, Breakthrough Energy\n\n...\n\nSeattle, Washington, United States (US)\n\n...\n\n8 connections • 40,553,163 followers\n\n...\n\nWilliam Henry Gates III (born October 28, 1955) is an American businessman and philanthropist. A pioneer of the microcomputer revolution of the 1970s and 1980s, he co-founded the software company Microsoft in 1975 with his childhood friend Paul Allen. Following Microsoft's initial public offering in 1986 and the subsequent increase in its stock price, Gates became the world's then-youngest billionaire in 1987, at age 31. Forbes magazine ranked him as the world's wealthiest person in their The World's Billionaires list for 18 out of 24 years between 1995 and 2017, including 13 years consecutively from 1995 to 2007. Gates became the first centibillionaire in 1999, when his net worth briefly surpassed US$100 billion. According to Forbes, as of July 2026, his net worth stood at US$106.5 billion, making him the 19th-wealthiest individual in the world.\n\n...\n\n| Fact | Value |\n| --- | --- |\n| Born | William Henry Gates III, (1955-10-28) October 28, 1955 (age 70), Seattle, Washington, U.S. |\n| Occupations | Businessman, philanthropist, computer programmer, writer |\n| Years active | 1972–present |\n| Known for | Pioneer of the personal computer revolution with Paul Allen, Co-founding of Microsoft and Gates Foundation |\n| Title | See list, Chair of the Gates Foundation, Chairman and founder of Cascade Investment, Chairman and founder of Branded Entertainment Network, Chairman and co-founder of TerraPower, Founder of Breakthrough Energy, Founder of Gates Ventures, Technology advisor of Microsoft |\n| Spouse | Melinda French, ​, ​(m. 1994; div. 2021)​ |\n| Children | 3, including Phoebe |\n| Parents | Bill Gates Sr., Mary Maxwell |\n| Relatives | Gates family |\n| Awards | Distinguished Fellow of the British Computer Society (1994), Knight Commander of the Order of the British Empire (2005), Padma Bhushan (2015), Presidential Medal of Freedom (2016), Grand Cordon of the Order of the Rising Sun (2020), Hilal-e-Pakistan (2022) |\n| Website | gatesnotes.com |\n\n...\n\n### Co-chair - Gates Foundation (Current)\n\n...\n\nGates Foundation is a nonprofit organization. Gates Foundation is a nonprofit organization that offers job openings across the foundation, with a focus on issues ranging from tropical diseases and vaccines to food security, sanitation, and family planning. The foundation values compassion, commitment, and a desire to see a world where everyone has the chance to live a healthy and productive life. Gates Foundation has 2,000-3,000 employees (+5-6% YoY) and has annual revenue in the $400M-$500M range, founded in 2000. Headquartered in Seattle, Washington, United States, operates in 7 countries (including Nigeria, United Kingdom, Ethiopia, China, and Senegal). Its workforce is distributed across 55 countries (including United States, India, United Kingdom, Nigeria, and South Africa).\n\n...\n\nresearch behind 30,000-40,000 works.\n\n### Founder - Breakthrough Energy (Current)\n\n...\n\nBreakthrough Energy is a Strategic Management Services company. Breakthrough Energy is a global platform to accelerate clean energy, innovation, and build the industries of the future. Breakthrough Energy has 90-100 employees (-10% YoY), founded in 2015. Headquartered in Kirkland, United States, with presence in France. Its workforce is distributed across 11 countries (including United States, France, Singapore, Canada, and Denmark). Has $67.9M in total funding.\n\n### Co-founder - Microsoft (Current)\n\n...\n\n## Skills\n\n...\n\navid • co-founder\n\n...\n\nCareer-wide, research also covers Legal and Regulatory Analysis, Linguistic, Cultural, and Literary Studies, Military Technology and Strategies, Organizational Management and Innovation, and Big Data and Business\n\n...\n\n## Social\n\n...\n\n### Linkedin\n\n- [2026-08-17 · Posted · 619 reactions] In the 1960s, a lot of experts thought mass famine was inevitable...\n  > In the 1960s, a lot of experts thought mass famine was inevitable. But incredible innovations like high-yield crops and better fertilizers changed the course of history and saved a billion people from starvation.\n\n- [2026-08-15 · Reshared · 1,496 reactions] A battery-electric aircraft flying on about $5 of electricity is an...: A battery-electric aircraft flying on about $5 of electricity is an amazing glimpse into what’s possible: cleaner, more affordable flights and stronger regional connections. Congrats to Breakthroug...\n\n- [2026-08-12 · Posted · 3,161 reactions] Last year, I got to visit Commonwealth Fusion Systems while they...\n  > Last year, I got to visit Commonwealth Fusion Systems while they were building the first ever prototype to generate electricity using the same process that powers the stars. Today, the company is closer than ever to bringing this affordable, reliable clean energy to the grid.\n\n...\n\n- [2026-08-10 · Posted · 2,468 reactions] Since 2000, the lives of over 40 million children have been saved...\n  > Since 2000, the lives of over 40 million children have been saved. Most people have no idea it happened.\n\n...\n\n- [2026-08-10 · Posted · 3,827 reactions] Sometimes, when I tell people I’m optimistic about the future...\n  > Sometimes, when I tell people I’m optimistic about the future, they’re skeptical. How can I say that when so much seems to be going wrong in the world?\n  >\n  > I see all these problems too, but through my work with the Gates Foundation and other organizations, I also get to witness proof of progress that helps me stay optimistic.\n  >\n  > For example, in the past 50 years, childhood vaccines have saved 154 million lives; child mortality has fallen by more than half since 2000; and, for the first time ever, we have a blood test to detect Alzheimer’s disease and drugs that may slow its progress.\n  >\n  > I love these facts and stats—not just because they’re impressive, but because they represent real people whose lives have been transformed thanks to the hard work of scientists, health workers, and countless others.\n\n- [2026-08-08 · Posted · 1,542 reactions] A tool like AI Consult has exciting potential to act as a second...\n  > A tool like AI Consult has exciting potential to act as a second set of eyes by reviewing doctors’ notes in real time. But to get the most out of these innovations, we need to measure real-world outcomes and ensure they’re actually benefiting the communities they serve.\n\n...\n\n- [2026-08-05 · Posted · 1,729 reactions] It can be hard to stay hopeful about the future, but through my...\n  > It can be hard to stay hopeful about the future, but through my work with the Gates Foundation and other organizations, I get to see so much proof of progress that helps me stay optimistic.  While the bad news can’t be ignored, my trick is to search for the people doing something about it—and the incredible, underrated, life-saving success they’re often having. Here are my favorite examples:\n  > https://lnkd.in/e_xWBjmy\n\n- [2026-08-04 · Posted · 1,750 reactions] Ratul Narain and his team developed TempWatch, a small, wearable...\n  > Ratul Narain and his team developed TempWatch, a small, wearable bracelet that helps detect hypothermia in newborns early so families can act quickly. It's a simple idea with the potential to save the most vulnerable babies.\n\n...\n\n- [2026-08-03 · Reshared · 1,201 reactions] I’ll raise a glass for lower emissions.: I’ll raise a glass for lower emissions.\n\n- [2026-08-01 · Posted · 3,674 reactions] Protecting yourself from HIV used to require a daily pill, and you...\n  > Protecting yourself from HIV used to require a daily pill, and you couldn’t miss a single dose or the protection would stop. Now, there is a simple injection that protects you for six months at a time. In places where the barriers to accessing these preventive tools stack up quickly, this breakthrough is massive.\n\n- [2026-07-31 · Posted · 4,396 reactions] My standard for something that belongs on a “summer best” list is...\n  > My standard for something that belongs on a “summer best” list is simple: It has to be something that completely grabbed my attention.\n\n...\n\n- [2026-07-26 · Posted · 4,885 reactions] Over the last 25 years, Rwanda has delivered one of Africa’s most...\n  > Over the last 25 years, Rwanda has delivered one of Africa’s most remarkable health transformations. This week, I was lucky enough to meet many of the local leaders and innovators driving that progress.\n\n...\n\nUsername: williamhgates"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://linkedin.com/in/gateswilliam",
+          "title": "William Gates",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# William Gates\n\n...\n\nSoftware Engineer at BambooHR\n\n...\n\nRaleigh, North Carolina, United States (US)\n\n...\n\n500 connections • 599 followers\n\n...\n\nSoftware Engineer at BambooHR\n\n...\n\n## Social\n\n...\n\n### Linkedin\n\n- [2025-12-17 · William Gates  commented on a post] My notepad and pens to write down my to-do list!: My notepad and pens to write down my to-do list!\n\n...\n\n- [2022-12-01 · William Gates  commented on a post] BambooHR is a great company and might have some positions that fit...: BambooHR is a great company and might have some positions that fit what you’re looking for. https://www.bamboohr.com/about-bamboohr/careers/\n\n...\n\nUsername: gateswilliam"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://linkedin.com/in/william-gates-685b52aa",
+          "title": "William Gates",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# William Gates\n...\nStrategy at Rockstar Games\n...\n500 connections • 632 followers\n...\nStrategy at Rockstar Games\n...\nDirector on this\n...\nboutique investment bank focused on technology"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://stackoverflow.com/questions/38564415/how-to-get-linkedin-profile-follower-count",
+          "title": "How to get linkedin profile follower count - Stack Overflow",
+          "start_index": 0,
+          "end_index": 0,
+          "content": ".linkedin.com/docs/rest-api](https://developer.linkedin.com/docs/rest-api)\" but unable to get\n...\nThen I have used linkedin rest api ([https://developer.linkedin.com/docs/rest-api](https://developer.linkedin.com/docs/rest-api)) to get the follower count."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://linkedin.com/in/wiiliam-gates-25a583239",
+          "title": "Wiiliam Gates",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Wiiliam Gates\n\n...\n\nStudent at New York University\n\n...\n\n4 connections • 5 followers\n\n...\n\n## Social\n\n...\n\n### Linkedin\n\n- [2022-06-21 · Shared by] In the process of developing a blockchain solution for a supply...: In the process of developing a blockchain solution for a supply chain, it is inevitable that the decision must be made which type of blockchain is…\n\n...\n\n- [2022-05-13 · Liked] The process of developing a mobile application is quite intricate...: The process of developing a mobile application is quite intricate and has many pitfalls & aspects to"
+        }
+      }
+    ],
+    "error": null
+  }
+}

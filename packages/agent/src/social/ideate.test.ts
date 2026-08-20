@@ -46,7 +46,13 @@ function fakeModel(object: unknown, capture?: { opts?: DoGenerateOpts }): Langua
 }
 
 const settings: LLMProviderSettings = { providerId: 'anthropic', modelId: 'test' }
-const provider = (model: LanguageModel): LLMProvider => ({ getModel: () => model })
+const provider = (model: LanguageModel): LLMProvider => ({
+  getModel: () => model,
+  // These tests drive `generateObject`. Nothing here grounds, so the method
+  // refuses rather than returning an empty result — a fake that answered would
+  // let a grounding regression pass as a model that found nothing.
+  completeGrounded: () => Promise.reject(new Error('completeGrounded: not stubbed in this test')),
+})
 
 const BRAND: BrandWithSections = {
   id: 'b-1' as BrandId,

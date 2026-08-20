@@ -1,0 +1,104 @@
+{
+  "case": {
+    "id": "lennardy-ig",
+    "platform": "instagram",
+    "handle": "lennardy",
+    "kind": "roster",
+    "expect": {
+      "name": "Lennard Yeong",
+      "followers": 534000,
+      "vertical": "food"
+    },
+    "note": "Paired with lennardy-tt: the same person on two platforms, so a model that answers the person rather than the account is visible."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "lennardy-ig",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "variant": "query",
+    "platform": "instagram",
+    "handle": "lennardy",
+    "elapsedMs": 7163,
+    "costUsd": 0.014713,
+    "draft": {
+      "outcome": "ok",
+      "name": "Lennard Yeong",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "Instagram",
+          "handle": "lennardy",
+          "followers": 570000,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/lennardy/",
+          "sourceUrl": "https://pictame.com/en/compare/lennardy-vs-yolanda_gampp"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Lennard Yeong vs Yolanda Gampp | Cake Artist - Instagram Comparison | Pictame",
+          "url": "https://pictame.com/en/compare/lennardy-vs-yolanda_gampp"
+        },
+        {
+          "title": "Lennard Ads 2026 | Motion",
+          "url": "https://motionapp.com/creator/lennard/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Lennard Yeong\",\"vertical\":\"food\",\n \"accounts\":[{\"platform\":\"Instagram\",\"handle\":\"lennardy\",\"followers\":570000,\n              \"engagementRate\":null,\"url\":\"https://www.instagram.com/lennardy/\",\"sourceUrl\":\"https://pictame.com/en/compare/lennardy-vs-yolanda_gampp\"}],\n \"sources\":[{\"title\":\"Lennard Yeong vs Yolanda Gampp | Cake Artist - Instagram Comparison | Pictame\",\"url\":\"https://pictame.com/en/compare/lennardy-vs-yolanda_gampp\"},{\"title\":\"Lennard Ads 2026 | Motion\",\"url\":\"https://motionapp.com/creator/lennard/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://motionapp.com/creator/lennard/",
+          "title": "Lennard Ads 2026 | Motion",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "@lennardy\n...\n565.2K Meta followers 974.3K TikTok followers\n...\nLennard recreates signature dishes from celebrity chefs and shares gourmet recipes on TikTok and Instagram."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://storify.me/ig/lennardy",
+          "title": "Lennard Yeong (@lennardy) - Instagram - Storify photos and videos",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Lennard Yeong (@lennardy) - Instagram - Storify photos and videos - Brand reviews\n...\n# lennardy"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://pictame.com/en/compare/lennardy-vs-yolanda_gampp",
+          "title": "Lennard Yeong vs Yolanda Gampp | Cake Artist - Instagram Comparison | Pictame",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Lennard Yeong@lennardy\n\n...\n\nThis page provides a detailed Instagram comparison between @lennardy (Lennard Yeong) and @yolanda_gampp (Yolanda Gampp | Cake Artist). With 570K and 2.6M followers respectively, both accounts are classified as Large and Mega level Instagram profiles. Our analysis covers key areas including follower statistics, engagement rates, posting frequency, hashtag strategy, and authority scores.\n\n...\n\n## Profile Overview\n\n...\n\n### Lennard Yeong\n\n...\n\n@lennardy\n\n...\n\n570K\n\n...\n\nFollowers\n\n...\n\n18%\n\n...\n\n1K\n\n...\n\n3.8K\n\n...\n\n31%\n\n...\n\nLeader\n\n...\n\n2.6M\n\n...\n\n@lennardy\n\n...\n\n570K\n\n...\n\n### Account Classification\n\n...\n\nLarge\n\n...\n\n570K followers\n\n...\n\n@lennardy\n\n...\n\nMega\n\n...\n\n2.6M followers\n\n...\n\nRange: 1M-10M\n\n...\n\n@lennardy"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://pictame.com/en/compare/lennardy-vs-pepsi",
+          "title": "Lennard Yeong vs pepsi - Instagram Comparison | Pictame",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "This page provides a detailed Instagram comparison between @lennardy (Lennard Yeong) and @pepsi (pepsi). With 570K and 2.3M followers respectively, both accounts are classified as Large and Mega level Instagram profiles. Our analysis covers key areas including follower statistics, engagement rates, posting frequency, hashtag strategy, and authority scores.\n\n...\n\n## Profile Overview\n\n...\n\n### Lennard Yeong\n\n...\n\n@lennardy\n\n...\n\n570K\n\n...\n\nFollowers\n\n...\n\n20%\n\n...\n\n1K\n\n...\n\n3.8K\n\n...\n\n68%\n\n...\n\nLeader\n\n...\n\n@lennardy\n\n...\n\n### Account Classification\n\n...\n\nLarge\n\n...\n\n570K followers\n\n...\n\n@lennardy"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://pictame.com/en/compare/_kristina_russinovich_-vs-lennardy",
+          "title": "Russinovich Kristina vs Lennard Yeong - Instagram Comparison | Pictame",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "This page provides a detailed Instagram comparison between @_kristina_russinovich_ (Russinovich Kristina) and @lennardy (Lennard Yeong). With 2.3M and 570K followers respectively, both accounts are classified as Mega and Large level Instagram profiles. Our analysis covers key areas including follower statistics, engagement rates, posting frequency, hashtag strategy, and authority scores.\n\n...\n\n### Lennard Yeong\n\n...\n\n@lennardy\n\n...\n\n570K\n\n...\n\nFollowers\n\n...\n\n1K\n\n...\n\n3.8K\n\n...\n\n570K followers"
+        }
+      }
+    ],
+    "error": null
+  }
+}

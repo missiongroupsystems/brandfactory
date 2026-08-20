@@ -1,0 +1,95 @@
+{
+  "case": {
+    "id": "chloeabeth",
+    "platform": "tiktok",
+    "handle": "chloeabeth",
+    "kind": "roster",
+    "expect": {
+      "name": "Chloe",
+      "followers": 1200000,
+      "vertical": "fashion"
+    },
+    "note": "The roster’s largest TikTok, held by a creator the media list records under a single given name. A model that returns a surname has invented one."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "chloeabeth",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "variant": "query",
+    "platform": "tiktok",
+    "handle": "chloeabeth",
+    "elapsedMs": 6371,
+    "costUsd": 0.020239,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "TikTok",
+          "handle": "chloeabeth",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.tiktok.com/@chloeabeth",
+          "sourceUrl": null
+        }
+      ],
+      "sources": []
+    },
+    "rawText": "The search results consistently refer to the TikTok handle `@chloeabeth4545`, not `@chloeabeth`. The requested handle `chloeabeth` does not appear in any of the sources found, and there is no evidence it exists as a separate account.\n\n{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\n \"accounts\":[{\"platform\":\"TikTok\",\"handle\":\"chloeabeth\",\"followers\":null,\n              \"engagementRate\":null,\"url\":\"https://www.tiktok.com/@chloeabeth\",\"sourceUrl\":null}],\n \"sources\":[]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.ibtimes.co.uk/how-rich-chloe-l-viral-tiktoker-dubbed-singapores-van-cleef-princess-made-famous-ridiculously-1732184",
+          "title": "How Rich Is Chloe L? Viral TikToker Dubbed Singapore's ...",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "How Rich Is Chloe L? Viral TikToker Dubbed Singapore\n\n...\n\nChloe Liem, better known as Chloe L, has become a TikTok sensation, synonymous with luxury and capturing the imagination of social media users worldwide. The 21-year-old Singaporean has gone viral for her glamorous wardrobe, lavish jewellery, and self-aware content.\n\n...\n\nDubbed a 'stay-at-home daughter,' Chloe has crafted an online persona that blends high fashion with a relatable charm. Known for her signature style, always adorned with high-end jewellery—particularly from one iconic brand—she has earned the nickname 'Van Cleef\n\n...\n\nChloe Liem is best known for her TikTok account, where she showcases her daily life as a daughter balancing luxury with the realities of young adulthood. Liem has more than one million followers under her handle@chloeabeth4545, and the content creator boasts about her shopping hauls on Orchard Road along with her 'Get Ready With Me' clips on her page. Surprisingly, people on TikTok love her for her unapologetic rich-kid attitude.\n\n...\n\nIn her video, she features outfits from top-tier designers, from Miu Miu jackets to Dolce & Gabbana vintage bags, a life which possibly has come straight out of the world of 'Crazy Rich Asians.'\n\n...\n\nWhile she flaunts her ultra-rich life on her social media, she doesn't reveal too many details about her family and its background. Although her mother and other family relatives are often featured in her videos, she doesn't really reveal their names. But it's been claimed by several people online that Chloe belongs to the wealthy Liem family, also popular as the Sampoerna family of Singapore.\n\n...\n\nMany of Chloe's followers have dubbed her as Singapore's Van Cleef Princess, given her love for the brand and the amount of jewellery she owns from it.\n\n...\n\nChloe's social media presence may suggest otherwise, but her life isn't all about diamonds. She is also a part of the tough academic life as a student at the National University of Singapore, studying finance and marketing. The college hustle is far from glamorous, but Chloe manages to balance her studies with her TikTok career, showing that she's more than just a pretty face with expensive taste.\n\n...\n\nTikTok's 'Stay-At-Home Daughter' Chloe Liem has more than one million followers. Chloeabeth's Instagram\n\n...\n\nThe Van Cleef princess once revealed that she wasn't always the fashionista she is now. She admitted that she had no personal style before and that she only gained a sense of fashion after discovering fashion content on TikTok. 'Growing up, my wardrobe consisted mostly of school uniforms and tennis gear,' she said"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.preview.ph/culture/who-is-chloe-liem-facts-a5158-20250131",
+          "title": "Who Is Chloe Liem? Facts About Singapore's Stay-at-Home Daughter | Preview.ph",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Chloe Liem has turned TikTok into her personal runway, charming thousands with luxury hauls and a sought-after designer wardrobe. The young content creator from Singapore has captured the attention of over 800,000 followers on the video app as@chloeabeth4545, where she playfully brands herself as a “stay-at-home daughter.”\n\n...\n\nChloe’s videos offer a peek into her opulent lifestyle—think lavish jewelry in her everyday life, shopping sprees on Orchard Road, and outfit diaries featuring designer pieces. But beyond the extravagant displays of wealth, her self-aware humor has made her a favorite among Gen Z audiences.\n\n...\n\n### 1. She’s a full-time university student.\n\n...\n\nChloe’s TikTok persona may exude luxury, but she’s also balancing life as a full-time student. She’s currently in her third year at the National University of Singapore, where she’s studying business with a double specialization in finance and marketing.\n\n...\n\nWhile Chloe leans into the “stay-at-home daughter” persona, she says she's in on the joke. “I exaggerate the things that I say,\" she previously explained. “Some people think I’m being literal. Some people find it funny, some people don’t.” Her dry humor and satirical takes on wealthy living have made her a standout on TikTok, proving that even in a world of designer handbags and tiny poodles, a little self-awareness goes a long way."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.famousbirthdays.com/people/chloe-liem.html",
+          "title": "Chloe Liem - Age, Bio, Family",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Chloe Liem\n\n...\n\nTikTok Star\n\n...\n\nBirthday April 18, 2003\n\n...\n\nAge 23 years old\n\n...\n\n#108,339 Most Popular\n\n...\n\n## About\n\n...\n\nLuxury lifestyle content creator and TikTok star who has amassed over 1.3 million followers and 100 million likes. On her chloeabeth4545 TikTok account, she shares Get Ready With Me videos, hauls, and mini vlogs. Online, she refers to herself as a stay at home daughter.\n\n...\n\nShe started posting on TikTok in July 2021.\n\n...\n\nOne of her most popular TikTok videos has over 24.2 million views. In the video, she shares things that she thought were normal growing up rich. She also shares luxury lifestyle content on Instagram, where she has over 160,000 followers.\n\n...\n\nShe is based in Singapore. In February 2024, she posted a picture on Instagram with her mother. She often shares content with her poodles, Lola and Matilda."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://grazia.sg/culture/just-a-girl-chloe-liem-grazia-girl-tik-tok-stay-at-home-daughter/",
+          "title": "Chloe Liem Is Just A Girl",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "A day in Chloe Liem’s dream life would go something like this: “I’d wake up. Get dressed in a cute outfit. I don’t think I would go out everyday. I think I would just stay at home. Play with my dogs, read a book. Hang out with my friends and talk over lunch,” she says.\n\nIt’s not much to ask for. But then again, this GRAZIA Girl probably already has it all. Liem runs the Tiktok account@chloeabeth4545, where she lets over 300 thousand followers in on her fabulous life as a self-described “stay-at-home daughter” in Singapore. That includes running errands like, say, changing the cord of her Cartier Trinity bracelet. It also includes going on regular shopping trips to the luxury fashion and jewellery boutiques on Orchard Road, occasionally with her poodles, Lola and Matilda, in tow.\n\n...\n\nIn one Tiktok clip, Liem listed petite pooches, along with a rich father, as essentials to becoming a stay-at-home daughter.\n\n...\n\nThat absurd sense of humour, so common among Gen Zs, is one reason that people follow Liem on Tiktok. “I exaggerate the things that I say,” she explains. “Some people think I’m being literal. Some people find it funny, some people don’t.”\n\n...\n\nHer lavish lifestyle is another reason. Although Liem started using Tiktok in January last year, her account only started getting attention around August, she says, when one of her videos documenting her day “blew up overnight”. Those videos continue to rack up the most views on her account, with numbers in the millions.\n\n...\n\nWhat’s missing from that rosy picture? For starters, school. Liem is currently a third-year student at the National University of Singapore, where she studies business with a double specialisation in finance and marketing. While marketing is something that has always been interested in, she finds finance particularly challenging. “My dad was the one that made me do finance,” she says.\n\n...\n\nIt was Tiktok that sparked Liem’s interest in fashion. (Her mother, she says, is “not that into fashion”.) The social media app, home to thousands of videos on style, has become a resource for young girls like her to learn how best to wear something or discover what is currently trending. It’s also a platform for them to showcase their outfits. Liem says that dressing up for school and documenting her looks on Tiktok has helped her develop her own style over time.\n\n...\n\n“I prioritise comfort, that’s number one. I try to balance between having a timeless style, and having fun and playing with trends,” she says, adding that she’s a fan of the Mob Wife aesthetic that has taken over Tiktok.\n\n...\n\nem also names Gossip Girl character Lily Van Der Woodsen, and the actress who plays her, Kelly Rutherford, as her style inspirations.\n\n...\n\nDressing up has become an important form of self-expression for Liem, who describes herself as an introvert and a homebody. And while her outfits may not get much attention at school, they are a source of fascination for her Tiktok followers. Liem’s “Get Ready With Me” videos allow a peek into her fabulous wardrobe, which includes designer pieces such as a Miu Miu denim jacket and her mother’s vintage Dolce & Gabbana bag, covered in animal prints.\n\n...\n\nLiem is also big on bling. She shares, “The first luxury purchase that I made with money that I had saved up was the Perlée signature ring from Van Cleef & Arpels.”\n\n...\n\nLiem, who turns 21 this month, knows what she wants. Her shopping wishlist includes a crystal-embellished Miu Miu tank top and a Van Cleef & Arpels Vintage Alhambra 10 Motif necklace. But ask her about the future, and Liem admits, “I don’t really know what I’m going to do with the rest of my life.”\n\n...\n\nThat uncertainty is why she adopted the “stay-at-home daughter” label in the first place. She saw it being used by other girls on Tiktok who, like her, are young and still live with their parents. But just as she went from having no style to becoming one of Singapore’s rising fashion influencers, Liem still has time to grow and figure things out.\n\n...\n\n“I’m staying at home, and I’m having fun,” Liem says. “And I don’t think there’s anything wrong with that.”"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://nypost.com/2023/10/21/tiktoker-reveals-her-rich-stay-at-home-daughter-lifestyle/",
+          "title": "TikToker reveals her rich ‘stay-at-home daughter’ lifestyle | New York Post",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "A TikToker from Singapore has gained a surprise following for her life as a“stay-at-home daughter”, often spending thousands of dollars a day on her dad’s credit card.\n\n...\n\nChloe Liem proudly shows off her extravagant lifestyle, blowing money on designer bags, jewelry and pricey lunches with her equally rich friends.\n\n...\n\nIn one video alone, she spent $3,204.36 in one day.\n\n...\n\n“What I spend in a day as a stay-at-home daughter living in Singapore,” she said in the introduction.\n\n...\n\n@chloeabeth4545\n\n...\n\nShe also had lunch with four of her close friends at a Michelin-star fine-dining restaurant called Imperial Treasure, dropping another $800 in the process.\n\n...\n\nThe cheapest thing that the university student had bought that day were some desserts at the city state’s iconic Marmalade Pantry, which cost $25.\n\n...\n\nMany in the comments were envious of Liem’s lifestyle.\n\n...\n\n“Stay at home daughter’ is the vibe,” one person commented.\n\n...\n\n“Slay girl! If I had rich parents I’ll"
+        }
+      }
+    ],
+    "error": null
+  }
+}

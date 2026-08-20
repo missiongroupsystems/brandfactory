@@ -1,0 +1,108 @@
+{
+  "case": {
+    "id": "lennardy-tt",
+    "platform": "tiktok",
+    "handle": "lennardy",
+    "kind": "roster",
+    "expect": {
+      "name": "Lennard Yeong",
+      "followers": 981600,
+      "vertical": "food"
+    },
+    "note": "The pair. A model returning the Instagram figure here has answered the wrong question, and 1.47.0 records that this creator is Mega only as a sum."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "lennardy-tt",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "variant": "query",
+    "platform": "tiktok",
+    "handle": "lennardy",
+    "elapsedMs": 9754,
+    "costUsd": 0.018877,
+    "draft": {
+      "outcome": "ok",
+      "name": "Lennard Yeong",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "TikTok",
+          "handle": "lennardy",
+          "followers": 974300,
+          "engagementRate": null,
+          "url": "https://www.tiktok.com/@lennardy",
+          "sourceUrl": "https://motionapp.com/creator/lennard/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Lennard Ads 2026 | Motion",
+          "url": "https://motionapp.com/creator/lennard/"
+        },
+        {
+          "title": "Lennard Yeong - Wiki.sg",
+          "url": "https://wiki.sg/p/Lennard_Yeong"
+        },
+        {
+          "title": "Yakiniku-GO Collabs With Lennardy | Eatbook.sg",
+          "url": "https://eatbook.sg/yakiniku-go-lennardy/"
+        }
+      ]
+    },
+    "rawText": "The most reliable figure I can find for TikTok followers comes from [motionapp.com](https://motionapp.com/creator/lennard/), which lists **974.3K TikTok followers** for @lennardy (Lennard Yeong), a food creator based in Singapore who recreates celebrity chef dishes and gourmet recipes.\n\n{\"outcome\":\"ok\",\"name\":\"Lennard Yeong\",\"vertical\":\"food\",\n \"accounts\":[{\"platform\":\"TikTok\",\"handle\":\"lennardy\",\"followers\":974300,\n              \"engagementRate\":null,\"url\":\"https://www.tiktok.com/@lennardy\",\"sourceUrl\":\"https://motionapp.com/creator/lennard/\"}],\n \"sources\":[{\"title\":\"Lennard Ads 2026 | Motion\",\"url\":\"https://motionapp.com/creator/lennard/\"},{\"title\":\"Lennard Yeong - Wiki.sg\",\"url\":\"https://wiki.sg/p/Lennard_Yeong\"},{\"title\":\"Yakiniku-GO Collabs With Lennardy | Eatbook.sg\",\"url\":\"https://eatbook.sg/yakiniku-go-lennardy/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://motionapp.com/creator/lennard/",
+          "title": "Lennard Ads 2026 | Motion",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Lennard Ads\n\n...\n\n2026 | Motion\n\n...\n\n# Lennard\n\n...\n\n@lennardy\n\n...\n\n565.2K Meta followers 974.3K TikTok followers\n\n...\n\n## About\n\n...\n\nLennard recreates signature dishes from celebrity chefs and shares gourmet recipes on TikTok and Instagram.\n\n...\n\n- gourmet cooking\n- michelin star recipes\n- pasta recipes\n- fine dining at home\n- cooking tutorials\n- meal preparation\n\n...\n\nreels\n\n...\n\n- 5M\n- Lennard\n- Save Lennard ad\n- 2.7M\n- Lennard\n- Save Lennard ad\n- 2.4M\n- Lennard\n- Save Lennard ad\n- 1.9M\n- Lennard\n- Save Lennard ad\n\n...\n\n## Organic posts from Lennard\n\n...\n\n- Lennard\n\n...\n\n- Lennard\n\n...\n\n- Lennard\n\n...\n\n- Lennard"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://wiki.sg/p/Lennard_Yeong",
+          "title": "Lennard Yeong - Wiki.sg",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Lennard Yeong\n\n...\n\nLennard Yeong Woo Wai (3 October 1987) is a culinary chef best known for being a finalist in Masterchef Asia. He is currently an in-house chef for the German household appliance manufacturer, Miele and is based in Singapore.[1][2][3]\n\n...\n\nAs of May 2023, Lennard Yeong has amassed 225,000 followers on Instagram and over 998,700 followers on TikTok.[4][5]\n\n...\n\n### Content creator (2015 to Present)\n\n...\n\nA screenshot of one of Lennard Yeong’s many Instagram Reels and TikToks. Photo from Instagram.\n\n...\n\nLennard Yeong regularly posts fun “Will It Waffle” challenges and cooking tutorials on his social media pages.[4][5] Some of his most popular clips and recipes have gone up to over half a million views. In fact, content creation has become a source of additional income for Lennard.\n\n...\n\n4. lennardy\n\n...\n\n."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://eatbook.sg/yakiniku-go-lennardy/",
+          "title": "Yakiniku-GO Collabs With Lennardy, Has Wagyu Fat Rice And More | Eatbook.sg",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Yakiniku-GO has come a long way in the two years since they first came on the scene at Seletar Mall. With six locations across the island, including their premium Yakiniku-GO Plus concept, and having introduced new pork items on the menu, they’re not resting on their laurels.\n\n...\n\nlatest hurrah is a collaboration with IG-famous chef personality Lennardy, or Lennard Yeong.\n\n...\n\nlimited-time menu launches across all their outlets from tomorrow, 13 April 2023.\n\n...\n\nThis collaboration menu will only run for a limited time, till 31 July, and features four sets of beef and pork, as well as new dipping sauces that Lennard created together with Head Chef Tetsuya Yoshida.\n\n...\n\nAnd if you have never heard of @lennardy (on the right of the photo above), consider this your introduction: the former engineer and self-taught chef has 250k followers on Instagram, more than 990k followers on TikTok, was one of the finalists on MasterChef Asia back in 2015. He loves Japanese cuisine, so this collaboration comes as no surprise at all."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://instamixglobal.com/lennard-yeong/",
+          "title": "Who Is Lennard Yeong? Age, Biography, Best Singaporean Chef, Life Journeys, Net Worth, Family, Relationship, Recipes, Tiktok, — InstaMix Global",
+          "start_index": 0,
+          "end_index": 0,
+          "content": ".\n\n...\n\nis currently regarded as one\n\n...\n\n.\n\n...\n\n| Real name | Lennard Yeong |\n| --- | --- |\n| Nick Name | Lennardy |\n| Gender | Male |\n| Birthday | October 3,\n\n...\n\n1988 |\n| Birthplace | Singapore |\n| Age | 34 |\n| Zodiac (Birth sign)\n\n...\n\nLibra |\n| Net worth | $1 Million to $ 2 million |\n| Primary\n\n...\n\n, Social\n\n...\n\nHe\n\n...\n\ncontent creators.\n\n...\n\n## Lennard Yeong TikTok Account:\n\n...\n\nLennard gained fame as a TikTok Cook due to his 8.9 million likes and 989.9k followers. Being a skilled and enthusiastic cook, he uploads his cooking tutorials and shares his recipes with his followers.\n\n...\n\nLennard Yeong is an Instagram star as he\n\n...\n\n| Accounts | Links | Joining date |\n| --- | --- | --- |\n| TikTok | lennardy | Joined April 5, 2022 |\n| Instagram | lennardy | Joined April 2012 |\n| Facebook | Lennard Yeong | Joined November 2011 |\n| YouTube | N/A | N/A |\n| Twitter | N/A | N/A |"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://hafi.pro/income/lennardy",
+          "title": "Lennard Yeong (@lennardy) Net Worth and Earnings: Detailed Analysis of Income 2026 – Hafi",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Lennard Yeong (@lennardy) Net Worth and Earnings: Detailed Analysis of Income\n\n...\n\n– Hafi\n\n...\n\n# Lennard Yeong (@lennardy) Net Worth\n\n...\n\nTikTok income\n\n...\n\n$1,560 – 2,440\n\n...\n\nHow\n\n...\n\nWe use a proprietary algorithm to determine estimated daily earnings, estimated monthly earnings, and estimated yearly earnings for Lennard Yeong. This calculation considers factors such as subscriber and follower counts on Instagram, TikTok, and YouTube, along with engagement rate and viewership figures.\n\n...\n\n| Month | Platforms | Total audience | Estimated earnings |\n| --- | --- | --- | --- |\n| May, 2026 | 1,529,816 −3,382 | $19,760 – 27,360 |\n\n...\n\n| April, 2026 | 1,533,198 −3,834 | $18,440 – 25,440 |\n\n...\n\n| March, 2026 | 1,537,032 +4,057 | $20,520 – 28,760 |\n\n...\n\n| February, 2026 | 1,532,975 +1,753 | $19,240 – 26,800 |\n\n...\n\n| January, 2026 | 1,531,222 +3,019 | $14,480 – 20,240 |\n\n...\n\n| December, 2025 | 1,528,203 −2,874 | $11,560 – 16,160 |\n\n...\n\n| November, 2\n\n...\n\nThe total estimated annual income of Lennard Yeong is approximately $189,600 – 266,680 across all possible revenue streams. This is based on a total audience of 1,529,805 users from Instagram and TikTok."
+        }
+      }
+    ],
+    "error": null
+  }
+}

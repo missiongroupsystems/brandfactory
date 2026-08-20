@@ -1,0 +1,104 @@
+{
+  "case": {
+    "id": "thepantryboy",
+    "platform": "tiktok",
+    "handle": "thepantryboy",
+    "kind": "roster",
+    "expect": {
+      "name": "Daren Teo",
+      "followers": 248800,
+      "vertical": "food"
+    },
+    "note": "A handle that reads as a brand rather than a person, on the platform whose profile pages are hostile to crawlers."
+  },
+  "model": "perplexity/sonar-pro",
+  "variant": "query",
+  "capture": {
+    "caseId": "thepantryboy",
+    "modelId": "perplexity/sonar-pro",
+    "variant": "query",
+    "platform": "tiktok",
+    "handle": "thepantryboy",
+    "elapsedMs": 2403,
+    "costUsd": 0.00965,
+    "draft": {
+      "outcome": "ok",
+      "name": "The Pantry Boy",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "TikTok",
+          "handle": "thepantryboy",
+          "followers": 2400,
+          "engagementRate": null,
+          "url": "https://www.tiktok.com/@thepantryboy",
+          "sourceUrl": "https://storify.me/tk/thepantryboy"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Pantry Boy (@thepantryboy) - TikTok",
+          "url": "https://storify.me/tk/thepantryboy"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"The Pantry Boy\",\"vertical\":\"food\",\"accounts\":[{\"platform\":\"TikTok\",\"handle\":\"thepantryboy\",\"followers\":2400,\"engagementRate\":null,\"url\":\"https://www.tiktok.com/@thepantryboy\",\"sourceUrl\":\"https://storify.me/tk/thepantryboy\"}],\"sources\":[{\"title\":\"The Pantry Boy (@thepantryboy) - TikTok\",\"url\":\"https://storify.me/tk/thepantryboy\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://storify.me/tk/thepantryboy",
+          "title": "The Pantry Boy (@thepantryboy) - TikTok",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://tokcount.com/",
+          "title": "TokCount: Realtime TikTok Live Follower Counter ⚡️",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://support.tiktok.com/en/using-tiktok/followers-and-following",
+          "title": "Followers and Following - TikTok Support",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://support.tiktok.com/en/using-tiktok/followers-and-following/following-and-unfollowing",
+          "title": "Following and unfollowing - TikTok Help Center",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://play.google.com/store/apps/details?id=com.https.tiktokcounter",
+          "title": "TikTok Followers Count - Apps on Google Play",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.channelnewsasia.com/listen/cna938-rewind/cooking-up-tiktok-storm-sgculturedboi-and-thepantryboy-5353676",
+          "title": "CNA938 Rewind - Cooking up a TikTok Storm with @SGCulturedBoi ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

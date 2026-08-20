@@ -1,0 +1,113 @@
+{
+  "case": {
+    "id": "xhs-wangkaihua",
+    "platform": "xiaohongshu",
+    "handle": "王开花",
+    "kind": "roster",
+    "expect": {
+      "name": "王开花",
+      "followers": 283700,
+      "vertical": "food"
+    },
+    "note": "Non-Latin handle #2. Also tests whether the answer comes back in the handle’s own script or transliterated."
+  },
+  "model": "perplexity/sonar-pro",
+  "variant": "query",
+  "capture": {
+    "caseId": "xhs-wangkaihua",
+    "modelId": "perplexity/sonar-pro",
+    "variant": "query",
+    "platform": "xiaohongshu",
+    "handle": "王开花",
+    "elapsedMs": 3163,
+    "costUsd": 0.00929,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "XiaoHongShu",
+          "handle": "王开花",
+          "followers": null,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": null
+        }
+      ],
+      "sources": [
+        {
+          "title": "RedNote (Xiaohongshu)",
+          "url": "https://www.xiaohongshu.com/explore"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"XiaoHongShu\",\"handle\":\"王开花\",\"followers\":null,\"engagementRate\":null,\"url\":null,\"sourceUrl\":null}],\"sources\":[{\"title\":\"RedNote (Xiaohongshu)\",\"url\":\"https://www.xiaohongshu.com/explore\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.xiaohongshu.com/explore",
+          "title": "RedNote (Xiaohongshu)",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://dpstudio.jp/blog/insights-team/management/746html",
+          "title": "中国人デザイナーが教える！Xiaohongshuの使い方と中国市場 ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://find-japan.co.jp/chinamarketingblog/xiaohongshu",
+          "title": "https://find-japan.co.jp/chinamarketingblog/xiaoho...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://x.com/xiaohongshu",
+          "title": "rednote (@xiaohongshu) / Posts / X",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.alluatech.com/post/top-10-trending-xiaohongshu-rednote-influencers-you-should-know-followers-virality-brand-power",
+          "title": "Top 10 Trending Xiaohongshu (RedNote) Influencers You ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.launchmetrics.com/resources/blog/knowyourmiv-top-beauty-influencers-xiaohongshu",
+          "title": "The Top 10 Xiaohongshu (RED) Influencers",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://x.com/jaejoongdara/status/1879058052290314657",
+          "title": "Did you know? Red Note App / XiaoHongShu The most ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

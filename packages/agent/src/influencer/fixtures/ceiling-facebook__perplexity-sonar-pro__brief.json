@@ -1,0 +1,178 @@
+{
+  "case": {
+    "id": "ceiling-facebook",
+    "platform": "facebook",
+    "handle": "JamieOliver",
+    "kind": "ceiling",
+    "note": "No Facebook account on the roster. Same person, so a model confusing the two platforms shows up as an identical figure."
+  },
+  "model": "perplexity/sonar-pro",
+  "capture": {
+    "caseId": "ceiling-facebook",
+    "modelId": "perplexity/sonar-pro",
+    "platform": "facebook",
+    "handle": "JamieOliver",
+    "elapsedMs": 4113,
+    "costUsd": 0.00949,
+    "draft": {
+      "outcome": "ok",
+      "name": "Jamie Oliver",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "facebook",
+          "handle": "JamieOliver",
+          "followers": 10000000,
+          "engagementRate": null,
+          "url": "https://www.facebook.com/JamieOliver",
+          "sourceUrl": "https://www.facebook.com/jamieoliver/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Jamie Oliver (@jamieoliver) - Facebook",
+          "url": "https://www.facebook.com/jamieoliver/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Jamie Oliver\",\"vertical\":\"food\",\n \"accounts\":[{\"platform\":\"facebook\",\"handle\":\"JamieOliver\",\"followers\":10000000,\n              \"engagementRate\":null,\"url\":\"https://www.facebook.com/JamieOliver\",\"sourceUrl\":\"https://www.facebook.com/jamieoliver/\"}],\n \"sources\":[{\"title\":\"Jamie Oliver (@jamieoliver) - Facebook\",\"url\":\"https://www.facebook.com/jamieoliver/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/jamieoliver/",
+          "title": "Jamie Oliver (@jamieoliver) - Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.jamieoliver.com/",
+          "title": "Jamie Oliver | Official website for recipes, books, TV shows and ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.jamieoliver.com/help",
+          "title": "FAQs",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/groups/greatfoodrecipes/",
+          "title": "Jamie Oliver | Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/public/Jamie-Oliver/",
+          "title": "People named Jamie Oliver - Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://jamieoliverenquiries.zendesk.com/hc/en-us/articles/20600090902429-What-should-I-do-if-I-come-across-what-looks-like-a-scam-fake-Jamie-Oliver-account",
+          "title": "What should I do if I come across what looks like a scam/fake Jamie Oliver account?",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/groups/552843520089450/",
+          "title": "Jamie Oliver Family | Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/jamieoliver/videos/easy-prawn-curry-jamie-oliver/1289780705609266/",
+          "title": "You won't believe how easy this one....only takes 20 mins! jamieol ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/jamieoliver/videos/crispy-roast-chicken-vibrant-spring-veg-and-a-zingy-french-style-dressing-this-s/686425857329723/",
+          "title": "Crispy roast chicken, vibrant spring veg, and a zingy french- ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/jamieoliver/videos/buddys-bbq-fruit-jamie-oliver/1438017750283871/",
+          "title": "Buddy's got the most delicious BBQ fruit salad for you all, perfect for ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/jamieoliver/videos/easy-air-fryer-introducing-jamies-new-cookbook-jamie-oliver/895069279112749/",
+          "title": "Easy Air Fryer - Introducing Jamie's NEW Cookbook! | Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/jamieoliver/videos/simply-jamie-introducing-jamies-new-cookbook-jamie-oliver/892084096000350/",
+          "title": "Introducing Jamie's NEW Cookbook! | Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://x.com/jamieoliver/status/1257639343218442244",
+          "title": "Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.jamieolivergroup.com/",
+          "title": "The Jamie Oliver Group - media, restaurants & products",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/jamieoliver/posts/burger-season-has-begun-so-why-not-make-them-meatless-and-did-you-know-black-bea/1545584786926246/",
+          "title": "Burger season has begun... so why not make them meatless ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

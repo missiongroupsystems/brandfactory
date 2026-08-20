@@ -1,0 +1,131 @@
+{
+  "case": {
+    "id": "novitalam",
+    "platform": "instagram",
+    "handle": "novitalam",
+    "kind": "roster",
+    "expect": {
+      "name": "Novita Lam",
+      "followers": 412000,
+      "vertical": "fitness"
+    },
+    "note": "Handle equals the name. The easy case, and the plan’s own worked example."
+  },
+  "model": "perplexity/sonar-pro",
+  "variant": "query",
+  "capture": {
+    "caseId": "novitalam",
+    "modelId": "perplexity/sonar-pro",
+    "variant": "query",
+    "platform": "instagram",
+    "handle": "novitalam",
+    "elapsedMs": 2014,
+    "costUsd": 0.00947,
+    "draft": {
+      "outcome": "ok",
+      "name": "Novita Lam",
+      "vertical": "beauty",
+      "accounts": [
+        {
+          "platform": "Instagram",
+          "handle": "novitalam",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/novitalam/",
+          "sourceUrl": "https://www.instagram.com/novitalam/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Novita Lam (@novitalam) - Singapore",
+          "url": "https://www.instagram.com/novitalam/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Novita Lam\",\"vertical\":\"beauty\",\"accounts\":[{\"platform\":\"Instagram\",\"handle\":\"novitalam\",\"followers\":null,\"engagementRate\":null,\"url\":\"https://www.instagram.com/novitalam/\",\"sourceUrl\":\"https://www.instagram.com/novitalam/\"}],\"sources\":[{\"title\":\"Novita Lam (@novitalam) - Singapore\",\"url\":\"https://www.instagram.com/novitalam/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/novitalam/",
+          "title": "Novita Lam (@novitalam) - Singapore",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/novitalam/reels/",
+          "title": "Novita Lam (@novitalam) - Singapore",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.reddit.com/r/SingaporeRaw/comments/1rjsrrs/influencer_novita_lam_with_a_disgusting_instagram/",
+          "title": "Influencer Novita Lam with a disgusting Instagram story ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://wiki.sg/p/Novita_Lam",
+          "title": "Novita Lam",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://instastatistics.com/novitalam",
+          "title": "Novita Lam (@novitalam) — Live Instagram Follower Count",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://ninjaoutreach.com/novitalam",
+          "title": "Novita Lam email and Instagram Influencer profile - @novitalam followers and engagement",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://socialveins.com/influencer/instagram/novitalam",
+          "title": "Novita Lam (362.6K Followers) | Instagram Influencer in Singapore",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://storify.me/ig/novitalam",
+          "title": "Novita Lam (@novitalam) - Instagram",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/p/DS35FUej9qS/",
+          "title": "Moments from Lake Como that are still living rent-free in my ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

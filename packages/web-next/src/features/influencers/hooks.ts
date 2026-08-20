@@ -3,6 +3,7 @@
 import type {
   CreateInfluencerInput,
   Influencer,
+  LookupInfluencerInput,
   UpdateInfluencerInput,
 } from "@brandfactory/shared";
 import * as React from "react";
@@ -147,4 +148,43 @@ export function useInfluencerMutations() {
   );
 
   return { create, update, remove, workspaceId };
+}
+
+/**
+ * Quick add's lookup.
+ *
+ * **Not SWR**, and that is the whole shape of it. Every other hook here is a read of state the
+ * server holds, cached and revalidated; this is a command somebody presses a button to run, it
+ * costs money each time, and its answer is a draft rather than a fact about the workspace. Caching
+ * it would mean a second press on a corrected handle silently replaying the first press's answer.
+ *
+ * **No cache invalidation either**, because the call writes nothing. The roster changes when the
+ * person confirms the draft, and that goes through `create` above, which sweeps both scopes.
+ *
+ * `isPending` guards the double-click, which is the only guard this call has: `social-ideate.ts`
+ * settled that this class of call takes no spend cap — it runs on the workspace's own configured
+ * LLM tokens — and a client-side guard against pressing twice is what the plan asks for in its
+ * place.
+ */
+export function useCreatorLookup() {
+  const { workspace } = useActiveWorkspace();
+  const workspaceId = workspace?.id;
+  const [isPending, setIsPending] = React.useState(false);
+
+  const lookup = React.useCallback(
+    async (input: LookupInfluencerInput) => {
+      if (!workspaceId) throw new Error("No workspace resolved");
+      setIsPending(true);
+      try {
+        return await influencerService.lookup(workspaceId, input);
+      } finally {
+        // `finally`, so a refusal leaves the button pressable. A lookup that failed is one the
+        // reader will very reasonably want to try again.
+        setIsPending(false);
+      }
+    },
+    [workspaceId],
+  );
+
+  return { lookup, isPending, workspaceId };
 }

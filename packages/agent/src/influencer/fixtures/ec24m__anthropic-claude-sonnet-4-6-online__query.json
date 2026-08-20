@@ -1,0 +1,104 @@
+{
+  "case": {
+    "id": "ec24m",
+    "platform": "instagram",
+    "handle": "ec24m",
+    "kind": "roster",
+    "expect": {
+      "name": "Jamie Chua",
+      "followers": 1500000,
+      "vertical": "fashion"
+    },
+    "note": "The roster’s largest account, behind a handle that resembles nothing. Identity resolution with no lexical help at all."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "ec24m",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "variant": "query",
+    "platform": "instagram",
+    "handle": "ec24m",
+    "elapsedMs": 6779,
+    "costUsd": 0.014473,
+    "draft": {
+      "outcome": "ok",
+      "name": "Jamie Chua 蔡欣颖",
+      "vertical": "travel",
+      "accounts": [
+        {
+          "platform": "Instagram",
+          "handle": "ec24m",
+          "followers": 1500000,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/ec24m/",
+          "sourceUrl": "https://www.socialhipper.com/influencer/instagram/ec24m"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Jamie Chua 蔡欣颖 (@ec24m) • Instagram photos and videos",
+          "url": "https://www.instagram.com/ec24m/?hl=en"
+        },
+        {
+          "title": "Jamie Chua 蔡欣颖 (@ec24m) Instagram Stats & Analytics | SocialHipper",
+          "url": "https://www.socialhipper.com/influencer/instagram/ec24m"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Jamie Chua 蔡欣颖\",\"vertical\":\"travel\",\n \"accounts\":[{\"platform\":\"Instagram\",\"handle\":\"ec24m\",\"followers\":1500000,\n              \"engagementRate\":null,\"url\":\"https://www.instagram.com/ec24m/\",\"sourceUrl\":\"https://www.socialhipper.com/influencer/instagram/ec24m\"}],\n \"sources\":[{\"title\":\"Jamie Chua 蔡欣颖 (@ec24m) • Instagram photos and videos\",\"url\":\"https://www.instagram.com/ec24m/?hl=en\"},{\"title\":\"Jamie Chua 蔡欣颖 (@ec24m) Instagram Stats & Analytics | SocialHipper\",\"url\":\"https://www.socialhipper.com/influencer/instagram/ec24m\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/ec24m/?hl=en",
+          "title": "Jamie Chua 蔡欣颖 (@ec24m)",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Jamie Chua 蔡欣颖 (@ec24m) • Instagram photos and videos"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.socialhipper.com/influencer/instagram/ec24m",
+          "title": "Jamie Chua 蔡欣颖 (@ec24m) Instagram Stats & Analytics | SocialHipper",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Jamie Chua 蔡欣颖\n\n...\n\n@ec24m on Instagram\n\n...\n\nTravel AI & Machine Learning Beach Destinations\n\n...\n\n1.5M\n\n...\n\nFollowers\n\n...\n\n0.06%\n\n...\n\nJamie Chua 蔡欣颖 (@ec24m) is a Travel on Instagram with 1.5M followers and an engagement rate of 0.06%. Estimated earnings per sponsored post range from $757 to $2,270. Based in Singapore, Singapore. They post approximately 0.00 times per week.\n\n...\n\n### Followers Milestones\n\n...\n\n1M Followers"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.heepsy.com/top-instagram/all/singapore",
+          "title": "Top Instagram influencers in Singapore for August 2026",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "1.6\n...\nsystem continuously monitors Instagram, tracking changes in"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.scrumball.com/ranking/top-instagram-influencers-in-singapore",
+          "title": "1000 Top Instagram Influencers in Singapore (Aug. 2026)",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Singapore\n\n...\n\nSingapore\n\n...\n\nSingapore\n\n...\n\nSingapore\n\n...\n\nSingapore\n\n...\n\nSingapore\n\n...\n\nSingapore\n\n...\n\nSingapore\n\n...\n\n1.5M Followers\n\n...\n\nJamie Chua 蔡欣颖\n\n...\n\n@ ec24m\n\n...\n\nSingapore\n\n...\n\n1.5M Followers\n\n...\n\n240.2K Avg.Views\n\n...\n\n0.1 % Engagement Rate\n\n...\n\n6.2K - 10.1KUSD Est. Pricing\n\n...\n\nGet Email & Audience Data\n\n...\n\nSingapore\n\n...\n\n1.5M Followers\n\n...\n\n8.4M Avg.Views\n\n...\n\nSingapore\n\n...\n\nSingapore\n\n...\n\nSingapore\n\n...\n\nSingapore\n\n...\n\nSingapore\n\n...\n\nSingapore\n\n...\n\nSingapore\n\n...\n\nSingapore"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://pictame.com/en/compare/ec24m-vs-wessamq",
+          "title": "Jamie Chua 蔡欣颖 vs Wessam Qutob - Instagram Comparison | Pictame",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "provides a detailed Instagram comparison between @ec24m (Jamie Chua 蔡欣颖)\n...\n@wessamq (Wessam Qut\n...\n). With 1.5M and 5.2M followers respectively,\n...\nas Mega and Mega level Instagram profiles. Our analysis\n...\nstrategy, and authority scores."
+        }
+      }
+    ],
+    "error": null
+  }
+}

@@ -6,6 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.50.0** — 2026-08-20 — A creator arrives from a platform and a handle: a model reads the live web, four rules in code throw away everything it cannot prove, and a person confirms what is left before a row exists. Plus the Reach column split per platform, and the 12px every sortable heading had been losing. No migration. 2828 tests.
+- **1.49.1** — 2026-08-19 — The roster table stops overflowing its own card: `table-fixed` and a measured share per column replace the auto-layout that clipped `Engagement`'s header to `Engage…` and pushed `Status` off the right edge, and the Platforms badge cap drops from three to two — the one column that was spending more width than any other. No migration. 2755 tests.
 - **1.49.0** — 2026-08-19 — The roster stops being read-only prose: six platform marks replace a comma-joined sentence, `2 accounts` becomes a panel that shows what the sum is made of, and four columns take a one-key `PATCH` from the cell you are looking at — plus the 10px the browser pass caught the name editor pushing every row down by. No migration. 2686 tests.
 - **1.48.0** — 2026-08-18 — The reader gets two controls the tables never offered: a row height that is a preference rather than a URL parameter, on a **View** panel every list screen now carries, and eight sortable headings on the one list with no page two — which is why the ban on sorting keeps its reason and gains a property. No migration. 2638 tests.
 - **1.47.0** — 2026-08-18 — The nineteen invented creators leave and the real Curly's media list arrives: 146 people, 216 accounts, and a tier table that is finally right because Lennard Yeong is Mega only as a sum. Five rows did not import rather than guess at a stranger. Written into production. No migration. 2592 tests.
@@ -98,6 +100,231 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.50.0 — 2026-08-20
+
+**Adding a creator stops costing more than knowing one.** Type a platform and a handle, and a
+search-grounded model goes and reads the public web for the rest. Nothing it says is written: what
+comes back is a *draft*, on a screen, with every unproven field left visibly blank and the pages
+that were actually read listed underneath.
+
+This is release two of `docs/executing/influencer-quick-add-and-inline-edit-plan.md` — the fourth
+of the four asks, which 1.49.0 said was "release two and no part of it is started here". Six phases
+(E–J) plus a hardening pass over all of them. **No migration.** 2828 tests (2681 passing, 147
+skipped without a database), 73 more than 1.49.1.
+
+Seven completion documents, starting at
+`docs/completions/influencer-quick-add-phase-e-the-lookup-spike.md`.
+
+### The first phase shipped nothing but 78 answers, and three of them contradicted the plan
+
+Phase E called 78 live lookups across three models and two prompt shapes, for $1.15, and wrote every
+response to disk before a line of the engine existed. It was worth every cent, because the plan was
+wrong about three things and two of them fail **silently**.
+
+**`generateObject` never searches.** The plan specified it. Given the `:online` model it returns a
+well-formed object that is byte-identical in character to what the *non-search* model returns: the
+AI SDK forces a tool call and OpenRouter's web plugin does not run beside one. An engine written to
+the plan would have shipped a lookup that never looked anything up, and every mocked unit test would
+have passed. So the engine calls the provider's completion endpoint directly, through a new
+`completeGrounded` on the LLM port — the one method in this repo that reaches past the SDK, kept in
+`packages/adapters/llm` because that is where a vendor's name is allowed to be.
+
+**`response_format: json_schema` with `strict: true` is not enforced.** Every one of the 13 winning
+captures returned `"platform": "Instagram"` against an enum listing `instagram` only. Ask in the
+prompt; enforce in code. An exact match would have discarded thirteen complete, correct,
+well-sourced accounts and reported `not-found` — the cheapest possible defect to miss, because it
+looks like an honest failure.
+
+**And the user message is not a prompt.** It is a search query, because the grounding layer does not
+extract a query from it — it *searches* it. The plan's shape ("Instagram profile @lennardy —
+follower count, real name… Read https://…") retrieved a Bubble forum thread about the Instagram API
+and three pages like it, because that is what the sentence is about. Moving to four bare words took
+identity resolution from **1/10 to 6/10 with the rules unchanged**. It is the largest single lever
+in the release and it looks, in the source, like an arbitrary arrangement of two strings.
+
+### The rules are in code, and rule 3 is the one the feature rests on
+
+The model is asked to follow eight rules because a model that understands them answers better, and
+then `applyLookupBoundaries` throws away everything that ignored them — `social/ideate.ts`'
+precedent, applied to a case where the cost of believing an answer is a wrong number in the column a
+rate is negotiated against.
+
+**The plan's rule 3 said to check the source the model cited. That check is worthless.** One spike
+candidate retrieved *nothing* across 26 calls and passed it 9 times out of 13 — by echoing back the
+profile URL it had been handed, and, where it had nothing at all, by inventing an analytics URL
+carrying a real-looking profile id. So the question is not *did the model cite this handle* but *was
+a page naming this handle actually fetched*, and that is answered against the provider's own
+retrieval log, which the model cannot write to. An empty log fails it.
+
+It is a gate rather than a filter: an ungrounded answer loses its follower count **and its name**,
+because a name is an identity claim about a real person and is exactly as inventable as a number. A
+zero is dropped rather than kept — a model that could not find a figure and wrote `0` is rule 1's
+failure, and `0` files a real creator in Nano. Engagement is dropped unconditionally, because no
+platform publishes it; across all 78 spike calls not one model offered one, so this drops nothing
+that was ever there.
+
+**XiaoHongShu is refused outright, and that is the hardest call in the release.** Three creators,
+three models, **nought correctly named**; the two follower figures that came back were 47% and 80%
+below the media list. Blanking the numbers would have been the softer answer and it is the wrong
+one, because the failure there is not a blank: the candidate that retrieved nothing answered two of
+three with a name, a plausible count, a Chinese-language page title and an opaque numeric RED id of
+exactly the form the real platform uses. This feature's safety rests on *nothing is written that a
+person has not seen*, and that assumes the person can tell. On this platform they cannot. The record
+still holds XHS accounts — six of the roster's 216 — and the full form still writes them.
+
+### Two presses, and the screen between them is the feature
+
+`Look up` fills the sheet; `Add creator` writes the row; **quick add invents no write path** — it
+produces an ordinary `CreateInfluencerInput` and posts it to the route that already existed, so the
+brand check, the 409 on a taken handle and the server-chosen slug all apply unchanged.
+
+Nothing is zero-filled. A follower count the lookup could not verify arrives as an empty box with
+*"Not found — type it in"* in it, never as a `0` somebody accepts. Under each field is a line saying
+whether it was found and, for the figure, a link to the page it was read from.
+
+**The duplicate check costs nothing and runs while you type.** The roster endpoint is exhaustive, so
+the whole list is already in memory: entering somebody already on it names the holder, links to
+them, and never sends the request. That is 1.40.1's 409 turned into a sentence nobody has to read —
+and in the browser pass it fired twice on handles that were genuinely already there, saving two paid
+calls without being asked to.
+
+Two escape hatches, and neither loses a keystroke: `Add manually` when nothing was found, `Add more
+detail` when something was. Both open the full form with everything so far already in it. `Quick
+add` takes the primary slot and `Add creator` demotes to secondary — one primary button per view,
+so this is a demotion rather than a second green button.
+
+### The Reach column can split into one per platform
+
+Off by default, on the View panel, in the URL. It answers *who has the biggest Instagram following
+on this list*, which is a question about the column and the one thing the per-creator breakdown
+popover cannot do. Columns come from the filtered rows rather than the enum, so a roster on three
+platforms gets three columns; a creator not on a platform shows an em dash and sorts **last in both
+directions**, because "not on TikTok" is not a reading of zero.
+
+### The hardening pass
+
+A review of all of it before shipping, which found four defects and two gaps. Full write-up:
+`docs/completions/influencer-quick-add-hardening-pass.md`.
+
+The one that mattered: **rule 3 could be passed by a page about nobody.** Grounding was a
+`String.includes`, and `InfluencerHandleSchema` allows a one-character handle — so for `@a` the test
+was true against any retrieval log ever. `@a` was grounded by `https://openrouter.ai/models`. The
+match is bounded on both sides now by characters a handle cannot contain, and a **title** may only
+ground a handle of three characters or more: a title is prose, and "How to read **a** follower
+count" names the handle `a` under any rule anybody can write. A URL is an address rather than a
+sentence, and a real profile URL always carries the handle.
+
+Second: **one malformed field discarded a correct, paid, grounded answer.** The account was parsed
+all-or-nothing, so a model answering `url: "instagram.com/lennardy"` — no scheme, an ordinary thing
+for a model to write — produced `not-found`, and the sheet told the reader nothing could be
+verified. That was untrue. Only `platform` and `handle` may fail the parse now; everything else
+falls to the blank it always meant. The `javascript:` refusal is unchanged and absolute — the URL
+goes, the follower count stays.
+
+Also: the abort guard tested for `AbortError` when the only signal that path receives is
+`AbortSignal.timeout()`, which throws `TimeoutError`, so the branch could not fire and its test
+asserted a case the code cannot produce. The retrieval log entered typed as `ResearchSource[]`
+without ever being parsed as one, and those URLs are rendered into `href`s. `costUsd` was reported
+by the adapter and read by nothing, so a stateless feature spent money and left no record — there is
+one log line per lookup now, carrying the outcome, the cost and the retrieved count, which is the
+signature of a model id that has lost its `:online` suffix. And the retrieval log itself was on the
+wire and on no screen; it is under the fields now, collapsed, with the empty case stated rather than
+hidden.
+
+### The browser pass, and the 12px it found
+
+`?reach=platform` rendered seven of thirteen headings clipped — `TikTok` as `Ti…` — which is 1.49.1's
+exact symptom one release after a whole pass removed it. Two causes, and the obvious one was not the
+real one.
+
+The obvious one: the eight `w-[N%]` classes are a budget that means something only because it sums
+to 100, and the wide view adds one 9% column per platform on top — **145%** with all six present.
+They stop at the fixed-layout view now.
+
+That alone did not fix it. `SortableHead`'s button carries `-mx-1.5` so its padding does not indent
+the label past the cells below, and `max-w-full` so it cannot overflow its cell — and those two
+disagree by exactly the padding they are about. The negative margins make the column's min-content
+width the button's *margin* box; `max-w-full` clamps its *border* box to that same number, 12px
+short, and `truncate` eats the difference. Every clipped column measured short by exactly 12px,
+which is what named it. The cap is `calc(100% + 0.75rem)` now — the margins doubled — and it is
+fixed in the shared component, because it will bite the next auto-layout table too. **Invisible
+under `table-fixed`**, which is part of what 1.49.1 was fighting without knowing it, and invisible
+to lint, typecheck, build and the suite, because jsdom lays nothing out.
+
+Two live lookups in the pass, $0.055 in total, and a measurement worth having: **a lookup that finds
+nobody costs about three times one that succeeds** — $0.041 against $0.014. Phase E's ~$0.018 was
+measured on hits only. Worth knowing before anybody reaches for the bulk import, since an import is
+a column of handles somebody half-guessed.
+
+### Deployment
+
+`INFLUENCER_LOOKUP_MODEL` is new and defaults to `anthropic/claude-sonnet-4.6:online` — `LLM_MODEL`'s
+own model wearing the web-plugin suffix, so no second key and no second provider. It is
+**deployment-level and not per workspace**, unlike every other model-backed path here: a workspace
+that had overridden its model to a perfectly good non-grounded id would lose the plugin silently,
+and the symptom would be every creator on earth appearing not to exist.
+
+Only `LLM_PROVIDER=openrouter` has a grounded endpoint. Everywhere else the route answers **503 with
+the fix in the message** rather than a 500 that names nothing, and the mount stays unconditional so
+the path does not drop out of `AppType`. There is still **no rate limit and no spend cap** on the
+lookup: it runs on the workspace's own LLM tokens, the gate refuses an unknown workspace and a
+malformed body before the model is reached, and the guard against pressing twice is the client's.
+
+## 1.49.1 — 2026-08-19
+
+**`/influencers` stops being wider than its own card.** Eight columns under `table-layout: auto`
+had no width of their own — each took whatever its widest cell needed, and the row of them added
+up to more than the card could hold. The visible symptom was two headers ellipsizing mid-word
+(`Tier` → `T…`, `Engagement` → `Engage…`) with `Status` cut off at the right edge and no scrollbar
+in view to explain either. Not part of the `influencer-quick-add-and-inline-edit-plan.md` phases —
+a follow-up fix against the table 1.49.0 had just shipped. No migration, no server change. 2755
+tests (2608 passing, 147 skipped without a database).
+
+Full write-up: `docs/completions/influencers-table-column-widths.md`.
+
+### The table is `table-fixed` now, with a measured percentage per column
+
+`table-layout: auto` sizes every column to its content and, once the sum exceeds the container,
+lets the table overflow it — the wrapping `overflow-x-auto` div exists to catch exactly that. What
+made this one ugly rather than just scrollable is that `Tier` and `Engagement` are the two columns
+on this table where the **header** (a sort button: icon + label, ~104px for "Engagement" alone) is
+wider than any value the column ever holds (`Mega`, `–`, `3.1%`) — so once space ran short, those
+two headers were what gave.
+
+`InfluencerResults`'s `<Table>` takes `table-fixed`, and every `SortableHead` a `w-[N%]`: Creator
+14, Platforms 18, Reach 10, Tier 9, Engagement 12, Vertical 14, Brands 13, Status 10 — summing to
+100 across the ungrouped table. Grouped drops `Tier`'s heading and the remaining seven stretch to
+fill its share automatically, since `table-fixed` divides by whatever columns are actually
+present. Percentages rather than pixels: a table can no longer exceed its card at any window
+width, by construction, rather than by hoping the numbers happen to fit.
+
+The Vertical cell picked up `truncate` it never had — under `auto` layout the column just grew to
+fit the longest of the ten verticals (`Family & lifestyle`, `Beauty & skincare`), and under a fixed
+14% share it would have bled into Brands instead of ellipsizing.
+
+### The Platforms badge cap drops from three to two
+
+Platforms was the widest column by a wide margin (303px measured, next-widest 152px) because it
+reserved room for the worst case the cap allowed — three real badges, which is not a rare case,
+"Dianna" in the roster hits it exactly. No percentage split could give Platforms three badges'
+worth of room and leave the other seven columns readable. `MAX_PLATFORM_BADGES` drops to two; the
+third-and-beyond platforms move behind the `+N` badge already built for the 4-platform case — same
+component, same tooltip, one click rather than zero. `platforms.test.ts`'s boundary tests move
+with it. **Flagged as the one debatable call in this pass** rather than a purely mechanical one —
+easy to revert (`visiblePlatforms` still takes `max` as a parameter) if three inline badges turns
+out to matter more than the no-scroll table.
+
+### Verified against a throwaway server, not the one already running
+
+The repository's `.env` points at the live Supabase-hosted database and a server was already
+running against it outside this session. Rather than touch that, a second `@brandfactory/server`
+ran on a different port against the local Docker Postgres, migrated and seeded with the standard
+146-creator dataset, `AUTH_PROVIDER=local`. Confirmed live: zero horizontal overflow
+(`scrollWidth === clientWidth`) in both the grouped and ungrouped views, every header reads its
+full word, `Status` badges render fully inside the card, sorting still works, and the `+1`
+overflow badge and its Reach popover are unaffected. Both throwaway processes were killed and the
+throwaway `.env.local` deleted at the end of the session.
 
 ## 1.49.0 — 2026-08-19
 

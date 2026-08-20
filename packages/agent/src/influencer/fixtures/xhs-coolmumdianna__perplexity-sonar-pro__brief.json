@@ -1,0 +1,191 @@
+{
+  "case": {
+    "id": "xhs-coolmumdianna",
+    "platform": "xiaohongshu",
+    "handle": "coolmumdianna",
+    "kind": "roster",
+    "expect": {
+      "name": "Dianna",
+      "followers": 198200,
+      "vertical": "parenting"
+    },
+    "note": "A Latin handle on XHS — the trap case, because it is equally plausible as an Instagram handle and a model may resolve it on the wrong platform."
+  },
+  "model": "perplexity/sonar-pro",
+  "capture": {
+    "caseId": "xhs-coolmumdianna",
+    "modelId": "perplexity/sonar-pro",
+    "platform": "xiaohongshu",
+    "handle": "coolmumdianna",
+    "elapsedMs": 3755,
+    "costUsd": 0.01067,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "xiaohongshu",
+          "handle": "coolmumdianna",
+          "followers": null,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": null
+        }
+      ],
+      "sources": [
+        {
+          "title": "VLOG: 怀孕36周去台北生孩子?!台湾简直是孕妇天堂Taiwan Babymoon",
+          "url": "https://www.youtube.com/watch?v=bW3E0VYKFkw"
+        },
+        {
+          "title": "Dianna Lee (@coolmumdianna) • Instagram photos and videos",
+          "url": "https://www.instagram.com/coolmumdianna/"
+        },
+        {
+          "title": "酷妈黛安娜Cool Mum Dianna - YouTube",
+          "url": "https://www.youtube.com/@coolmumdianna"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\n \"accounts\":[{\"platform\":\"xiaohongshu\",\"handle\":\"coolmumdianna\",\"followers\":null,\n              \"engagementRate\":null,\"url\":null,\"sourceUrl\":null}],\n \"sources\":[{\"title\":\"VLOG: 怀孕36周去台北生孩子?!台湾简直是孕妇天堂Taiwan Babymoon\",\"url\":\"https://www.youtube.com/watch?v=bW3E0VYKFkw\"},\n            {\"title\":\"Dianna Lee (@coolmumdianna) • Instagram photos and videos\",\"url\":\"https://www.instagram.com/coolmumdianna/\"},\n            {\"title\":\"酷妈黛安娜Cool Mum Dianna - YouTube\",\"url\":\"https://www.youtube.com/@coolmumdianna\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=bW3E0VYKFkw",
+          "title": "VLOG: 怀孕36周去台北生孩子?!台湾简直是孕妇天堂Taiwan Babymoon",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=2qqRqASKSao",
+          "title": "疗愈Vlog: Kiki上学了😭！+参观新加坡创新幼儿园/ Kiki's first full day in school+ School Tour/Trehaus (蒙特梭利 coworking)",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=raSo5gzlzt0",
+          "title": "DIANNA'S VLOG: Ep. 13| 翠西家娃娃的一岁生日派对（黛安娜视角）！Tracey's Baby Scarlet Turns One !! GRWM weekly vlog",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=NBHFyNQbkbI",
+          "title": "GRWM+坏阿姨给20岁的自己的忠告（真心话）Advice for the 20 year old ME",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=wEEZdqcbgH0",
+          "title": "How to Raise Bilingual Kids + Habbi Habbi Books Review ( ENG 英文版） (学中文| 双语绘本故事| 学英语)",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=eb0CF3224lM",
+          "title": "GRWM 35阿姨教你5分日常上班淡妆+聊聊异地恋",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=s8WsExAAybI",
+          "title": "VLOG｜7 DAYS OF SEX CHALLENGE can it save your marriage? 16年情侣挑战七天啪啪啪（mend the marriage/ weekly vlog）",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=dmtwRtZnSII",
+          "title": "I tried on every single bra at Lululemon (lululemon haul/ lululemon spring 2021/ try on haul)",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=Lyxb7OiMj74",
+          "title": "VLOG17: 我和理工男老公16年的恋情靠拉丁舞维持/How we stayed together for 16 years+LATIN BALLROOM PRACTICE",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/watch?v=iKm_e6Yrh4o",
+          "title": "[My 30s Diaries] Vlog 82: GRWM Say NO to Marriage ... - YouTube",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/coolmumdianna/",
+          "title": "Dianna Lee (@coolmumdianna) - Facebook",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/coolmumdianna/",
+          "title": "Dianna Lee (@coolmumdianna) • Instagram photos and videos",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/reel/DOTf0hfkloA/",
+          "title": "Paragon on Instagram: \"Trilingual content creator @coolmumdianna ...",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.facebook.com/coolmumdianna/videos/",
+          "title": "Dianna Lee (@coolmumdianna) - Videos",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.youtube.com/@coolmumdianna",
+          "title": "酷妈黛安娜Cool Mum Dianna - YouTube",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

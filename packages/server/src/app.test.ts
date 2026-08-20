@@ -60,6 +60,40 @@ describe('the app’s router', () => {
     expect(app.router.name).toBe('SmartRouter + RegExpRouter')
   })
 
+  // Phase G adds `POST /workspaces/:workspaceId/influencers/lookup` — **a
+  // literal sitting exactly where a sibling has a param** (`:influencerRef`),
+  // which is the shape that broke this in 1.11.1 and the reason the plan held a
+  // fallback mount at `/workspaces/:workspaceId/influencer-lookup` in reserve.
+  //
+  // It compiles, and the reason is the verb. The 1.11.1 case put
+  // `POST .../assets/reorder` beside `GET .../assets/:assetId/restore`: one
+  // method tree holding a literal and a param at one position, with the param
+  // branch continuing past it. There is no `POST` on `:influencerRef` — its
+  // handlers are `GET`, `PATCH` and `DELETE` — so within the POST tree this
+  // literal has no parameterised sibling and the refused shape never forms.
+  //
+  // That is a claim about a router internal, which is precisely why it is
+  // asserted here rather than trusted to the route's docstring. If a future
+  // `POST /:workspaceId/influencers/:influencerRef` is ever added, this fails
+  // first and by name — and the fallback mount is what it should be traded for.
+  it('matches the creator lookup without downgrading', async () => {
+    const { app } = createTestApp({ users: [{ id: 'u-1', token: 't-1' }] })
+
+    const res = await app.request(
+      '/workspaces/00000000-0000-4000-8000-000000000000/influencers/lookup',
+      {
+        method: 'POST',
+        headers: { authorization: 'Bearer t-1', 'content-type': 'application/json' },
+        body: JSON.stringify({ platform: 'instagram', handle: 'lennardy' }),
+      },
+    )
+
+    // 404 on the *workspace*, not on the route: the handler ran and
+    // `requireWorkspaceAccess` refused.
+    expect(res.status).toBe(404)
+    expect(app.router.name).toBe('SmartRouter + RegExpRouter')
+  })
+
   // The canary from 1.11.1, kept as a behavioural statement rather than a
   // side effect of the blob suite: this is the route the downgrade breaks.
   it('still matches a multi-segment blob key', async () => {

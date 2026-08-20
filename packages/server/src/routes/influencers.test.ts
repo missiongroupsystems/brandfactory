@@ -1,6 +1,7 @@
 import type { Influencer } from '@brandfactory/shared'
 import { InfluencerSchema } from '@brandfactory/shared'
 import { describe, expect, it } from 'vitest'
+import { GroundedNotSupportedError } from '@brandfactory/adapter-llm'
 import { createTestApp, type TestHarness } from '../test-helpers'
 
 const USER = { id: 'u-1', token: 't-1' }
@@ -590,5 +591,227 @@ describe('influencers and brand lifetime', () => {
     expect(
       (await app.request(`/workspaces/${workspaceId}/influencers`, { headers: auth() })).status,
     ).toBe(404)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Quick add's lookup
+// ---------------------------------------------------------------------------
+//
+// The handler chain only — auth, access, validation, the injected function and
+// the response. **No model and no network**: `lookupCreator` is a fake, which is
+// the whole reason the seam exists. What the real engine does with a model's
+// answer is `packages/agent/src/influencer/lookup.test.ts`' 38 tests.
+
+const DRAFT = {
+  outcome: 'ok' as const,
+  draft: {
+    name: 'Lennard Yeong',
+    vertical: 'food' as const,
+    accounts: [
+      {
+        platform: 'instagram' as const,
+        handle: 'lennardy',
+        followers: 570_000,
+        engagementRate: null,
+        url: 'https://www.instagram.com/lennardy/',
+        sourceUrl: 'https://www.instagram.com/lennardy/',
+      },
+    ],
+  },
+  found: { name: true, followers: true, vertical: true, url: true },
+  sources: [{ title: 'Lennard Yeong (@lennardy)', url: 'https://www.instagram.com/lennardy/' }],
+}
+
+function lookupBody(over: Record<string, unknown> = {}) {
+  return JSON.stringify({ platform: 'instagram', handle: 'lennardy', ...over })
+}
+
+describe('POST /workspaces/:workspaceId/influencers/lookup', () => {
+  it('returns the draft with 200, because nothing was created', async () => {
+    const { app, workspaceId } = await seedWorkspace({
+      lookupCreator: () => Promise.resolve(DRAFT),
+    })
+    const res = await app.request(`/workspaces/${workspaceId}/influencers/lookup`, {
+      method: 'POST',
+      headers: auth(),
+      body: lookupBody(),
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(DRAFT)
+  })
+
+  it('passes the validated platform and handle to the engine', async () => {
+    let seen: unknown
+    const { app, workspaceId } = await seedWorkspace({
+      lookupCreator: (input) => {
+        seen = input
+        return Promise.resolve(DRAFT)
+      },
+    })
+    await app.request(`/workspaces/${workspaceId}/influencers/lookup`, {
+      method: 'POST',
+      headers: auth(),
+      body: lookupBody({ platform: 'tiktok', handle: 'thepantryboy' }),
+    })
+    expect(seen).toEqual({ platform: 'tiktok', handle: 'thepantryboy' })
+  })
+
+  it('carries not-found in the body, not in the status', async () => {
+    // It is an answer about a creator, not a fault the client can retry into.
+    const missing = { outcome: 'not-found' as const, draft: null, found: DRAFT.found, sources: [] }
+    const { app, workspaceId } = await seedWorkspace({
+      lookupCreator: () => Promise.resolve(missing),
+    })
+    const res = await app.request(`/workspaces/${workspaceId}/influencers/lookup`, {
+      method: 'POST',
+      headers: auth(),
+      body: lookupBody(),
+    })
+    expect(res.status).toBe(200)
+    expect(((await res.json()) as { outcome: string }).outcome).toBe('not-found')
+  })
+
+  it('writes nothing — the roster is unchanged after a lookup', async () => {
+    // `routes/social-ideate.ts`' property, and the reason both are safe to retry.
+    const { app, workspaceId } = await seedWorkspace({
+      lookupCreator: () => Promise.resolve(DRAFT),
+    })
+    await app.request(`/workspaces/${workspaceId}/influencers/lookup`, {
+      method: 'POST',
+      headers: auth(),
+      body: lookupBody(),
+    })
+    expect(await list(app, workspaceId)).toEqual([])
+  })
+
+  it('refuses xiaohongshu at the schema', async () => {
+    // Phase E: nought of three XHS creators named, and the model that retrieved
+    // nothing produced the most convincing XHS answers of the run.
+    const { app, workspaceId } = await seedWorkspace({
+      lookupCreator: () => Promise.resolve(DRAFT),
+    })
+    const res = await app.request(`/workspaces/${workspaceId}/influencers/lookup`, {
+      method: 'POST',
+      headers: auth(),
+      body: lookupBody({ platform: 'xiaohongshu', handle: 'coolmumdianna' }),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('refuses a handle with a leading @', async () => {
+    const { app, workspaceId } = await seedWorkspace({
+      lookupCreator: () => Promise.resolve(DRAFT),
+    })
+    const res = await app.request(`/workspaces/${workspaceId}/influencers/lookup`, {
+      method: 'POST',
+      headers: auth(),
+      body: lookupBody({ handle: '@lennardy' }),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('needs a session', async () => {
+    const { app, workspaceId } = await seedWorkspace({
+      lookupCreator: () => Promise.resolve(DRAFT),
+    })
+    const res = await app.request(`/workspaces/${workspaceId}/influencers/lookup`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: lookupBody(),
+    })
+    expect(res.status).toBe(401)
+  })
+
+  it('404s on a workspace that does not exist', async () => {
+    const { app } = await seedWorkspace({ lookupCreator: () => Promise.resolve(DRAFT) })
+    const res = await app.request(
+      '/workspaces/00000000-0000-4000-8000-000000000000/influencers/lookup',
+      { method: 'POST', headers: auth(), body: lookupBody() },
+    )
+    expect(res.status).toBe(404)
+  })
+
+  it('runs the gate before the engine, so a bad workspace spends nothing', async () => {
+    // **The property worth asserting, and it is about spend rather than about
+    // secrecy.** Since 1.29.0 every signed-in user reaches every workspace, so a
+    // second user is *not* refused here and a test asserting otherwise would be
+    // asserting a rule this app deliberately removed. What still holds — and
+    // what costs real money if it stops holding — is that a request naming a
+    // workspace that does not exist never reaches the model.
+    let called = 0
+    const { app } = await seedWorkspace({
+      lookupCreator: () => {
+        called += 1
+        return Promise.resolve(DRAFT)
+      },
+    })
+    await app.request('/workspaces/00000000-0000-4000-8000-000000000000/influencers/lookup', {
+      method: 'POST',
+      headers: auth(),
+      body: lookupBody(),
+    })
+    expect(called).toBe(0)
+  })
+
+  it('validates the body before it reaches the engine', async () => {
+    // The same argument one step in: a malformed request must not be paid for.
+    let called = 0
+    const { app, workspaceId } = await seedWorkspace({
+      lookupCreator: () => {
+        called += 1
+        return Promise.resolve(DRAFT)
+      },
+    })
+    await app.request(`/workspaces/${workspaceId}/influencers/lookup`, {
+      method: 'POST',
+      headers: auth(),
+      body: lookupBody({ platform: 'myspace' }),
+    })
+    expect(called).toBe(0)
+  })
+
+  it('answers 503 when the deployment has no grounded provider', async () => {
+    // A configuration state, not a server fault, so the message names the fix.
+    const { app, workspaceId } = await seedWorkspace({
+      lookupCreator: () => Promise.reject(new GroundedNotSupportedError('anthropic')),
+    })
+    const res = await app.request(`/workspaces/${workspaceId}/influencers/lookup`, {
+      method: 'POST',
+      headers: auth(),
+      body: lookupBody(),
+    })
+    expect(res.status).toBe(503)
+    expect(((await res.json()) as { code: string }).code).toBe('LOOKUP_NOT_AVAILABLE')
+  })
+
+  it('lets an ordinary provider failure through as a 500', async () => {
+    // A refused key, a rate limit, a timeout: transient, and the client's answer
+    // is to try again rather than to reconfigure the server.
+    const { app, workspaceId } = await seedWorkspace({
+      lookupCreator: () => Promise.reject(new Error('provider exploded')),
+    })
+    const res = await app.request(`/workspaces/${workspaceId}/influencers/lookup`, {
+      method: 'POST',
+      headers: auth(),
+      body: lookupBody(),
+    })
+    expect(res.status).toBe(500)
+  })
+
+  it('does not shadow a creator whose slug is literally "lookup"', async () => {
+    // The literal and the param share a path segment but never a method, which
+    // is why `RegExpRouter` still compiles. This is the behavioural half.
+    const { app, workspaceId } = await seedWorkspace({
+      lookupCreator: () => Promise.resolve(DRAFT),
+    })
+    const creator = await createOk(app, workspaceId, { ...MINIMAL, name: 'Lookup' })
+    expect(creator.slug).toBe('lookup')
+
+    const read = await app.request(`/workspaces/${workspaceId}/influencers/lookup`, {
+      headers: auth(),
+    })
+    expect(read.status).toBe(200)
+    expect(((await read.json()) as { id: string }).id).toBe(creator.id)
   })
 })

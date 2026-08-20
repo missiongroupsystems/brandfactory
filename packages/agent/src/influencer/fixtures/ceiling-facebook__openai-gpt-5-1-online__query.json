@@ -1,0 +1,44 @@
+{
+  "case": {
+    "id": "ceiling-facebook",
+    "platform": "facebook",
+    "handle": "JamieOliver",
+    "kind": "ceiling",
+    "note": "No Facebook account on the roster. Same person, so a model confusing the two platforms shows up as an identical figure."
+  },
+  "model": "openai/gpt-5.1:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "ceiling-facebook",
+    "modelId": "openai/gpt-5.1:online",
+    "variant": "query",
+    "platform": "facebook",
+    "handle": "JamieOliver",
+    "elapsedMs": 2662,
+    "costUsd": 0.012991,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "facebook",
+          "handle": "JamieOliver",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.facebook.com/JamieOliver",
+          "sourceUrl": null
+        }
+      ],
+      "sources": [
+        {
+          "title": "Jamie Oliver Facebook profile (fetch failed – follower count not retrievable)",
+          "url": "https://www.facebook.com/JamieOliver"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"facebook\",\"handle\":\"JamieOliver\",\"followers\":null,\"engagementRate\":null,\"url\":\"https://www.facebook.com/JamieOliver\",\"sourceUrl\":null}],\"sources\":[{\"title\":\"Jamie Oliver Facebook profile (fetch failed – follower count not retrievable)\",\"url\":\"https://www.facebook.com/JamieOliver\"}]}",
+    "annotations": null,
+    "error": null
+  }
+}

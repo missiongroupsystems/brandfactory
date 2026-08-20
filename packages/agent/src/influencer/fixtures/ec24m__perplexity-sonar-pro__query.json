@@ -1,0 +1,117 @@
+{
+  "case": {
+    "id": "ec24m",
+    "platform": "instagram",
+    "handle": "ec24m",
+    "kind": "roster",
+    "expect": {
+      "name": "Jamie Chua",
+      "followers": 1500000,
+      "vertical": "fashion"
+    },
+    "note": "The roster’s largest account, behind a handle that resembles nothing. Identity resolution with no lexical help at all."
+  },
+  "model": "perplexity/sonar-pro",
+  "variant": "query",
+  "capture": {
+    "caseId": "ec24m",
+    "modelId": "perplexity/sonar-pro",
+    "variant": "query",
+    "platform": "instagram",
+    "handle": "ec24m",
+    "elapsedMs": 6569,
+    "costUsd": 0.01045,
+    "draft": {
+      "outcome": "ok",
+      "name": "Jamie Chua 蔡欣颖",
+      "vertical": "fashion",
+      "accounts": [
+        {
+          "platform": "Instagram",
+          "handle": "ec24m",
+          "followers": 1506069,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/ec24m/",
+          "sourceUrl": "https://hypeauditor.com/instagram/ec24m/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Jamie Chua 蔡欣颖 (@ec24m) • Instagram photos and videos",
+          "url": "https://www.instagram.com/ec24m/"
+        },
+        {
+          "title": "Jamie Chua 蔡欣颖 (@ec24m) Instagram Stats, Analytics, Net Worth and Earnings – HypeAuditor",
+          "url": "https://hypeauditor.com/instagram/ec24m/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Jamie Chua 蔡欣颖\",\"vertical\":\"fashion\",\"accounts\":[{\"platform\":\"Instagram\",\"handle\":\"ec24m\",\"followers\":1506069,\"engagementRate\":null,\"url\":\"https://www.instagram.com/ec24m/\",\"sourceUrl\":\"https://hypeauditor.com/instagram/ec24m/\"}],\"sources\":[{\"title\":\"Jamie Chua 蔡欣颖 (@ec24m) • Instagram photos and videos\",\"url\":\"https://www.instagram.com/ec24m/\"},{\"title\":\"Jamie Chua 蔡欣颖 (@ec24m) Instagram Stats, Analytics, Net Worth and Earnings – HypeAuditor\",\"url\":\"https://hypeauditor.com/instagram/ec24m/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.instagram.com/ec24m/",
+          "title": "Jamie Chua 蔡欣颖 (@ec24m) • Instagram photos and videos",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.playpinball.co/collab-asia-blog/instagram-influencers-singapore",
+          "title": "Instagram Influencers Singapore - Collab Asia",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://hypeauditor.com/instagram/ec24m/",
+          "title": "Jamie Chua 蔡欣颖 (@ec24m) Instagram Stats, Analytics, Net Worth and Earnings – HypeAuditor",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://socialveins.com/influencer/instagram/ec24m",
+          "title": "Jamie Chua 蔡欣颖 (1.5M Followers) | Instagram Influencer in Siem Reap, Cambodia | Socialveins",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://socialveins.com/influencers/lists/most-followed-asian-instagram",
+          "title": "Most Followed Asian on Instagram (2025)",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://influencers.feedspot.com/luxury_fashion_instagram_influencers/",
+          "title": "Top 45 Luxury Fashion Influencers in 2026",
+          "start_index": 0,
+          "end_index": 0
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://starngage.com/app/id/influencer/ranking/singapore/fashion-design",
+          "title": "Top Instagram Influencers and Instagram Users in Singapore in 2025 Find out who are the top Instagram influencers in Singapore. Download the list of the most popular Instagram accounts in Singapore.",
+          "start_index": 0,
+          "end_index": 0
+        }
+      }
+    ],
+    "error": null
+  }
+}

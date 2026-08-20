@@ -1,0 +1,42 @@
+{
+  "case": {
+    "id": "xhs-coolmumdianna",
+    "platform": "xiaohongshu",
+    "handle": "coolmumdianna",
+    "kind": "roster",
+    "expect": {
+      "name": "Dianna",
+      "followers": 198200,
+      "vertical": "parenting"
+    },
+    "note": "A Latin handle on XHS — the trap case, because it is equally plausible as an Instagram handle and a model may resolve it on the wrong platform."
+  },
+  "model": "openai/gpt-5.1:online",
+  "capture": {
+    "caseId": "xhs-coolmumdianna",
+    "modelId": "openai/gpt-5.1:online",
+    "platform": "xiaohongshu",
+    "handle": "coolmumdianna",
+    "elapsedMs": 2886,
+    "costUsd": 0.0119925,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "xiaohongshu",
+          "handle": "coolmumdianna",
+          "followers": null,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": null
+        }
+      ],
+      "sources": []
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"xiaohongshu\",\"handle\":\"coolmumdianna\",\"followers\":null,\"engagementRate\":null,\"url\":null,\"sourceUrl\":null}],\"sources\":[]}",
+    "annotations": null,
+    "error": null
+  }
+}

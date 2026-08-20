@@ -1,0 +1,93 @@
+{
+  "case": {
+    "id": "chloeabeth",
+    "platform": "tiktok",
+    "handle": "chloeabeth",
+    "kind": "roster",
+    "expect": {
+      "name": "Chloe",
+      "followers": 1200000,
+      "vertical": "fashion"
+    },
+    "note": "The roster’s largest TikTok, held by a creator the media list records under a single given name. A model that returns a surname has invented one."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "capture": {
+    "caseId": "chloeabeth",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "platform": "tiktok",
+    "handle": "chloeabeth",
+    "elapsedMs": 9288,
+    "costUsd": 0.020842,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "TikTok",
+          "handle": "chloeabeth",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.tiktok.com/@chloeabeth",
+          "sourceUrl": null
+        }
+      ],
+      "sources": []
+    },
+    "rawText": "I was asked to read https://www.tiktok.com/@chloeabeth directly, but I cannot browse live URLs. The search results provided do not contain any information about a TikTok account with the handle `chloeabeth` — the results reference unrelated creators (@chloegariepyy, Chloe Beth the travel creator, etc.). None of those pages are https://www.tiktok.com/@chloeabeth and none show that handle in their URL or content.\n\nPer the rules, I cannot invent data and must return `not-found` when I cannot confirm the page is the right account.\n\n{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"TikTok\",\"handle\":\"chloeabeth\",\"followers\":null,\"engagementRate\":null,\"url\":\"https://www.tiktok.com/@chloeabeth\",\"sourceUrl\":null}],\"sources\":[]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://developers.tiktok.com/doc/tiktok-api-v1-user-info?enter_method=left_navigation",
+          "title": "Get User Profile Information from TikTok API",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "The`user/info/` endpoint returns some basic information of a given TikTok user.\n\n...\n\n## Response\n\n| Key | Type | Description |\n| --- | --- | --- |\n| data | map<string, UserObject> | Contains user object |\n| error | object | Contains error code and error message |\n\n...\n\n### User Object\n\n...\n\n| Field | Type | Description | Authorized Scope |\n| --- | --- | --- | --- |\n| open_id | string | The unique identification of the user in the current application.Open id for the client | user.info.basic |\n| union_id | string | The unique identification of the user across different apps for the same developer. For example, if a partner has X number of clients, it will get X number of open_id for the same TikTok user, but one persistent union_id for the particular user | user.info.basic |\n\n...\n\n| avatar_url | string | User's profile image | user.info.basic |\n\n...\n\n| avatar_url_100 | string | User`s profile image in 100x100 size | user.info.basic |\n| avatar_large_url | string | User's profile image with higher resolution | user.info.basic |\n| display_name | string | User's profile name | user.info.basic |\n| bio_description | string | User's bio description if there is a valid one | user.info.profile |\n| profile_deep_link | string | The link to user's TikTok profile page | user.info.profile |\n| is_verified | boolean | Whether TikTok has provided a verified badge to the account after confirming that it belongs to the user it represents | user.info.profile |\n| username | string | User's username. | user.info.profile |\n| follower_count | int64 | User's followers count | user.info.stats |\n| following_count | int64 | The number of accounts that the user is following | user.info.stats |\n| likes_count | int64 | The total number of likes received by the user across all of their videos | user.info.stats |\n| video_count | int64 | The total number of publicly posted videos by the user | user.info.stats |\n\n...\n\n### Example\n\n...\n\n```\n{\n    \"data\":{\n        \"user\":{\n            \"avatar_url\":\"https://p19-sign.tiktokcdn-us.com/tos-avt-0068-tx/b17f0e4b3a4f4a50993cf72cda8b88b8~c5_168x168.jpeg\",\n            \"open_id\":\"723f24d7-e717-40f8-a2b6-cb8463333b4\",\n            \"union_id\":\"c9c60f44-a68e-4f5d-84dd-ce22fddb0ba1\"\n        }\n    },\n    \"error\":{\n        \"code\":0,\n        \"message\":\"\"\n    }\n}\n```"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://hypeauditor.com/free-tools/tiktok-audit/",
+          "title": "Free TikTok Audit Checker",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "TikTok Follower Count Checker\n\n...\n\nSee how many people follow a specific TikTok influencer\n\n...\n\nThe HypeAuditor TikTok Audit Tool is a free tool for analyzing TikTok users' performance. The evaluation of TikTok users may include a review of their profile, content, engagement rate, average views, follower growth, and demographics. With our TikTok analytics tool, people can easily identify areas for optimization, improve their content, and gain a better understanding of their followers. Brands must audit TikTok influencers' performance, especially their content quality, follower growth trajectory, views, and engagement metrics as well as their profile information to ensure they select authentic and relevant creators.\n\n...\n\nThe TikTok Account Quality Checker displays a TikTok user’s AQS (Audience Quality Score), follower number, Engagement Rate (ER), and the number of published videos. The AQS is HypeAuditor’s proprietary metric for measuring the quality of a TikTok account.\n\n...\n\nBy clicking on the ‘Get Report’ button at the bottom of the report, you’ll access basic follower, performance, and content-related information.\n\n...\n\nApart from the initial data, the report shows the influencer’s categories (in our example, these are Auto, Beauty, and Fashion), worldwide, and country ranks. The TikTok account audit report will uncover how many subscribers the influencer gained or lost"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://livecounts.io/tiktok-live-follower-counter",
+          "title": "Realtime TikTok Live Follower Counter",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Everything is directly taken from official API Service provided by Social Networks. Every single count is updated every 2 seconds and is as accurate as possible.\n\n...\n\nTo search for specific channel simply click \"Change User\" button below Follower Count Box, type your favorite creator's username and you're good to go! This IS NOT case-sensitive thus you type for example \"MrBeast\" or \"MrBeAsT\" and it should still work!\n\n...\n\nThe TikTok Live Follower Counter tracks any public account's follower count and refreshes it every fifteen seconds or so. TikTok's app shows a follower number that barely updates and rounds hard once you pass a million. This tool shows the fuller figure and keeps it moving, so instead of pulling down to refresh the app and wondering if anything changed, you just watch.\n\nThe follower count is the headline, and three more live stats sit beneath it for the same account: total likes across all the creator's videos, the number of accounts they follow, and how many videos they have posted. On TikTok, where an account can add or shed followers by the thousand in a day, those extra numbers give the follower count some context.\n\n...\n\n1. 1Search the account by name or username. It is not case sensitive, so the casing on a handle does not matter.\n2. 2Pick the creator from the results. TikTok is full of copycat handles, so check the avatar and name before you commit.\n3. 3Watch the follower count update on its own while the chart below tracks the pace.\n\n...\n\nEvery figure is public. It is the same follower count anyone can pull up in the TikTok app, read more often and shown without the app's heavy rounding. We do not touch the number itself. We read it, refresh it, and chart it so the trend is obvious.\n\n...\n\n### Making sure you have the right account\n\nTikTok is full of copycat accounts, some named to look almost exactly like a big creator's. Before you settle on a result, check the avatar, the display name, and whether the follower count is in the ballpark you expect. A verified check helps for large creators. For smaller ones, the safest move is to open the creator's real profile once and copy the exact username, since a single wrong character can land you on an impersonator with a near-identical handle."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://akaseek.com/@chloegariepyy",
+          "title": "@Chloe🤍 Tiktok Instagram Snapchat | Creator Profile on AkaSeek",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Chloe🤍 aka Chloe\n\n...\n\nChloe🤍, known online as @chloegariepyy, is a dynamic content creator who has rapidly gained popularity on TikTok. With a follower count of approximately 198.7K and over 3.3 million likes, she has established herself as a prominent figure in the digital landscape. Chloe's content primarily revolves around engaging and relatable videos that resonate with a diverse audience. Her consistent posting schedule, averaging 20 videos per month, coupled with a high engagement rate of 15.55%, underscores her ability to connect with viewers. Each of her videos garners an average of 24.13K views, 2.94K likes, and 28 comments, reflecting her content's widespread appeal. Chloe's presence extends beyond TikTok; she maintains an active Instagram account under the handle @chloegariepy_, where she shares glimpses of her daily life and interacts with her followers. Additionally, her Snapchat account, chloe_gariepyxo, offers more personal insights, further strengthening her bond with her audience. While specific details about her nationality, ethnicity, hair color, and gender are not publicly disclosed, Chloe's content exudes authenticity and charm, making her a relatable and admired figure among her followers. Her dedication to creating engaging content and her ability to foster a strong community have solidified her position as a rising star in the realm of social media.Report mistakes or claim this profile via the “Submit a creator” form.Last updated: 04 Jul 2026\n\n...\n\nChloe🩷 is on Snapchat! (@Chloe_gariepyxo) | Tik tok: Chloegariepyy | Connecticut | Last updated: 04/29/2026"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.vacationer.travel/chloe-beth-vacationer-of-the-week/",
+          "title": "Vacationer of the Week: Chloe Beth - Vacationer Magazine",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Vacationer of the Week: Chloe Beth - Vacationer Magazine\n\n...\n\nOur Vacationer of the Week is Chloe Beth, who was born and raised in Vancouver, Canada, and within the past few years, she moved back to the city during the pandemic after living 10 years away! We wanted to catch up with the 30-year-old content creator to ask her not only about her travels but to ask her to drop some travel wisdom on us, specifically for lesbian and queer women who enjoy traveling solo. She did and she was quick to acknowledge her personal privileges that allow her to navigate the world differently than other LGBTQ+ travelers.\n\nBeth also admits that she travels the world differently especially when traveling with her partner, Jodie. Honestly, we’re secretly jealous of some of her amazing travel experiences so far and promise to subscribe to her “live for now” mantra. Oh, and can you guess what music provides a ray of sunshine when she travels? It’s always on her travel playlist! Well, she tells us that and more, so read on to find out!\n\n...\n\nChloe Beth: As a baby! I’m very, very lucky to have had parents who love to travel and brought me long on trips since I was super young. The most memorable one from my childhood was spending three weeks in Australia.\n\n...\n\nTravel has always been a big part of my life. But after university, I spent about 5 years really focused on my career at a traditional 9-5 job. During that time, I had a nagging feeling that something was missing and knew I needed to make a change. That’s what sparked my first big solo trip. I resigned from my job and spent two months in Europe. During that trip was when I first realized I was queer, so it was a transformational time. I do my best self-reflection when I’m traveling.\n\n...\n\nI identify as queer, bisexual, and pansexual, depending on the day. I’m straight-passing, so being LGBTQ+ mostly influences the way that I travel when I’m with my partner Jodie. That being said, there are some places I won’t visit based on their stance or laws on LGBTQ+ rights.\n\n...\n\nI make sure to call out my layers of privilege anytime I make travel recommendations. Being white, straight-passing, able-bodied, and cisgender greatly influences my experiences traveling. For example, because I’m feminine looking, the way people treat me in a\n\n...\n\nTo keep up with Chloe Beth and her travels, you can follow her latest adventures on her website and on Instagram, YouTube, and TikTok!"
+        }
+      }
+    ],
+    "error": null
+  }
+}

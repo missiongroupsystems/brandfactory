@@ -1,0 +1,93 @@
+{
+  "case": {
+    "id": "lennardy-tt",
+    "platform": "tiktok",
+    "handle": "lennardy",
+    "kind": "roster",
+    "expect": {
+      "name": "Lennard Yeong",
+      "followers": 981600,
+      "vertical": "food"
+    },
+    "note": "The pair. A model returning the Instagram figure here has answered the wrong question, and 1.47.0 records that this creator is Mega only as a sum."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "capture": {
+    "caseId": "lennardy-tt",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "platform": "tiktok",
+    "handle": "lennardy",
+    "elapsedMs": 6809,
+    "costUsd": 0.015442,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "tiktok",
+          "handle": "lennardy",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.tiktok.com/@lennardy",
+          "sourceUrl": null
+        }
+      ],
+      "sources": []
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"tiktok\",\"handle\":\"lennardy\",\"followers\":null,\"engagementRate\":null,\"url\":\"https://www.tiktok.com/@lennardy\",\"sourceUrl\":null}],\"sources\":[]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://developers.tiktok.com/",
+          "title": "TikTok User Profile Information API Overview",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Content Posting API\n...\nDisplay API Display TikTok creators' recent or self-selected videos and their profile information on your app."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.tikliveapi.com/tiktok-user-api/",
+          "title": "TikTok User API - Profiles, Followers & Stats",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Fetch any public TikTok profile, follower and following lists, and account stats as clean JSON - no scraping, no watermarks, no login.\n\n...\n\nIf you are building anything that depends on TikTok creator data - an influencer marketing platform, a competitor monitoring dashboard, a fraud-detection model, or an internal reporting tool - you need a single, reliable way to read public profile data without scraping the site yourself. The TikLiveAPI user endpoints give you exactly that: resolve a username to its numeric ID, pull a full profile with live follower and like counts, page through a creator's videos, and walk their follower and following graphs. Every response is real-time public data returned as clean JSON, so you never touch headless browsers, login sessions, or watermark stripping.\n\n...\n\nSend a`username` to`/userid/` and get back the numeric user ID. Most other user endpoints key off this numeric ID, so this is usually your first call when all you have is a handle.\n\n...\n\n### Full profile by username\n\n...\n\n`/userinfo-by-username/` returns the complete profile in one call: nickname, bio, avatar URLs, verified status, secUid, plus a stats block with followerCount, followingCount, heartCount, and videoCount.\n\n...\n\n`/user-posts/` lists a user's public videos with play and cover URLs, duration, music info, and per-video stats (play_count, digg_count, comment_count, share_count) so you can measure output and reach.\n\n...\n\n### Follower list\n\n...\n\n`/user-followers/` returns follower profiles - unique_id, nickname, region, follower_count, following_count, and verified flag - ideal for audience analysis and authenticity checks.\n\n...\n\nThe response includes the profile object and a stats block. Trimmed to the key fields:\n\n...\n\n```\n{\n  \"user\": {\n    \"id\": \"107955\",\n    \"uniqueId\": \"tiktok\",\n    \"nickname\": \"TikTok\",\n    \"signature\": \"One TikTok can make a big impact\",\n    \"verified\": true,\n    \"secUid\": \"MS4wLjABAAAAv7iSuuXDJGDvJkmH_vz1qkDZYo1apxgzaxdBSeIuPiM\",\n    \"privateAccount\": false\n  },\n  \"stats\": {\n    \"followingCount\": 1,\n    \"followerCount\": 91764811,\n    \"heartCount\": 450140224,\n    \"videoCount\": 1370\n  }\n}\n```\n\n...\n\nYes. /userinfo-by-username/ and /userinfo-by-id/ return a stats block containing followerCount, followingCount, heartCount (total likes), and videoCount, alongside profile fields like nickname, bio (signature), verified status, and secUid. The data is real-time public profile data."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://linkedin.com/in/marcell-leonardy-27a39a170",
+          "title": "Marcell Leonardy",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Marcell Leonardy\n\n...\n\nKOL Specialist| Content Creator| 360° Campaign Lead\n\n...\n\n500 connections • 1,509 followers\n\n...\n\nHi there! I’m Marcel Leonardy, i have excellent communication skill especially in negotiation. i can manage my time well,hence I am punctual and solve problems in the most efficient way. I truly spend my free time reading a book. I prefer E-book though when I want to read a \"book\", I just love everything in digital. It’s not because I’m still “young” and used to, but the proof that digital is way more effective and efficient made me so curious and keep learning about it. I can’t be young forever is what makes me feel challenged to make impacts to society. im so lucky, the internet has been a big help. I learned a lot about digital marketing. Those habits helped me increase content interactions in organizations. From monitoring social media activity and writing content to interacting with customers via social networks and encouraging the adoption of various social media tools, my expertise can be leveraged to achieve successful online marketing strategies I’m the last child, but my parents raised me to be disciplined and independent. I used to figure out problems and be responsible for the consequences of action that I took. Fortunately, I have a great environment that helped me to develop not to be individually only, but have a great teamwork skill.\n\n...\n\n### Content Creator - TikTok\n\n...\n\nMar 2022 - Feb 2025 (2 years and 11 months) in Jakarta, Indonesia\n\n...\n\n- Manage @Marcell_Leonardy Tiktok account\n- Make review for FNB product\n- Make dessert, food and beverage tutorial\n- Make trend/fun content related about home cafe"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.socialfetch.dev/docs/api/v1/tiktok/profiles/handle/following/get",
+          "title": "List TikTok profile following",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "List accounts followed by a TikTok profile by handle.\n\n...\n\nhandle*stringpath\n\n...\n\nTikTok handle whose following list should be listed.\n\n...\n\nResponse fields\n\n...\n\ndata\n\n...\n\nobject\n\n...\n\nlookupStatus\n\n...\n\nstring\n\n...\n\nWhether following could be listed for this handle.\n\n...\n\none of: found, hidden, private, not_found\n\n...\n\ndata\n\n...\n\naccounts\n\n...\n\narray\n\n...\n\nhandle\n\n...\n\nstring\n\n...\n\nTikTok username without the leading @.\n\n...\n\ndata\n\n...\n\ndisplayName\n\n...\n\nstringnullable\n\n...\n\nPublic display name shown on the TikTok profile.\n\n...\n\ndata\n\n...\n\nbio\n\n...\n\ndata\n\n...\n\nmetrics\n\n...\n\nobject\n\n...\n\nmetrics\n\n...\n\nfollowers\n\n...\n\ninteger\n\n...\n\nFollower count reported by TikTok for the account.\n\n...\n\nmetrics\n\n...\n\nmetrics\n\n...\n\nposts\n\n...\n\ninteger\n\n...\n\nPublic post or video count reported by TikTok for the account.\n\n...\n\ndetails\n\n...\n\ndata"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.socialcrawl.dev/platforms/tiktok/user-followers",
+          "title": "TikTok Followers API: List Followers",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "```\n{\n  \"success\": true,\n  \"platform\": \"tiktok\",\n  \"data\": {\n    \"author\": {\n      \"username\": \"charlidamelio\",\n      \"followers\": 152400000\n    },\n    \"engagement\": {\n      \"likes\": 12400000000,\n      \"engagement_rate\": 0.087\n    },\n    \"metadata\": {\n      \"language\": \"en\",\n      \"content_category\": \"lifestyle\"\n    }\n  }\n}\n```\n\n...\n\nSend a GET request to /v1/tiktok/user/followers with handle or user_id. SocialCrawl returns a paginated list of followers with handle, display name, avatar URL, follower count, and verification status."
+        }
+      }
+    ],
+    "error": null
+  }
+}

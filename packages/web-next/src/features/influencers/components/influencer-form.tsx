@@ -55,10 +55,21 @@ import { BrandPicker } from "./brand-picker";
  */
 export function InfluencerForm({
   influencer,
+  prefill,
   open,
   onOpenChange,
 }: {
   influencer?: Influencer;
+  /**
+   * Seed a **create** with what somebody has already typed. Ignored in edit mode, where the
+   * record is the seed.
+   *
+   * This is quick add's two escape hatches: `Add manually` after a lookup found nobody, and
+   * `Add more detail` after one found somebody. Both open this sheet, and the point of both is
+   * that **no keystroke is lost** — the platform and handle typed in step one, and whatever the
+   * review step held, arrive already filled in.
+   */
+  prefill?: InfluencerFormPrefill;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -67,7 +78,7 @@ export function InfluencerForm({
   const { run, reset, isPending, formError, fieldErrors } = useSubmit();
   const { brands, isLoading: brandsLoading } = useActiveBrand();
 
-  const [form, setForm] = React.useState(() => initialState(influencer));
+  const [form, setForm] = React.useState(() => initialState(influencer, prefill));
 
   // Reset the draft per open. The sheet's content survives its close, so a form reopened straight
   // after a save still holds the previous draft — and keying `SheetContent` is not the fix: a key
@@ -76,7 +87,7 @@ export function InfluencerForm({
   const [wasOpen, setWasOpen] = React.useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
-    if (open) setForm(initialState(influencer));
+    if (open) setForm(initialState(influencer, prefill));
   }
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -307,13 +318,28 @@ type FormState = {
  * without it meaning a follower count of nothing. They are converted once, on submit, by
  * `toAccountPayload`.
  */
-function initialState(influencer?: Influencer): FormState {
+/**
+ * What a create can be opened with. Every field optional — a caller that knows only the platform
+ * and the handle passes only the account row.
+ */
+export type InfluencerFormPrefill = {
+  name?: string;
+  accounts?: AccountDraft[];
+  vertical?: InfluencerVertical | "";
+};
+
+function initialState(influencer?: Influencer, prefill?: InfluencerFormPrefill): FormState {
+  // **The record wins over the prefill, and there is no merge.** In edit mode the sheet is showing
+  // a row that exists, and seeding any part of it from something a caller typed elsewhere would
+  // put an unsaved value on screen wearing a saved one's clothes.
+  const seed = influencer ? undefined : prefill;
   return {
-    name: influencer?.name ?? "",
+    name: influencer?.name ?? seed?.name ?? "",
     // One empty row for a new creator, never zero: the record cannot hold an empty list, so a
     // draft that started there would make `Add account` a step before any typing.
-    accounts: accountDraftsFrom(influencer),
-    vertical: influencer?.vertical ?? "",
+    accounts:
+      seed?.accounts && seed.accounts.length > 0 ? seed.accounts : accountDraftsFrom(influencer),
+    vertical: influencer?.vertical ?? seed?.vertical ?? "",
     // A new creator defaults to `prospect`, matching the API's own default: somebody just entered
     // is on a shortlist, and defaulting to `active` would state a booking that never happened.
     status: influencer?.status ?? "prospect",

@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "lookup-spike": "tsx scripts/lookup-spike.ts"
   },
   "dependencies": {
     "@brandfactory/adapter-llm": "workspace:*",

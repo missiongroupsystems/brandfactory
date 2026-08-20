@@ -1,0 +1,95 @@
+{
+  "case": {
+    "id": "ceiling-linkedin",
+    "platform": "linkedin",
+    "handle": "williamhgates",
+    "kind": "ceiling",
+    "note": "No LinkedIn account on the roster. LinkedIn is the most crawler-hostile of the six; if grounding works anywhere there it works here."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "ceiling-linkedin",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "variant": "query",
+    "platform": "linkedin",
+    "handle": "williamhgates",
+    "elapsedMs": 10296,
+    "costUsd": 0.017725,
+    "draft": {
+      "outcome": "ok",
+      "name": "Bill Gates",
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "LinkedIn",
+          "handle": "williamhgates",
+          "followers": 40553163,
+          "engagementRate": null,
+          "url": "https://www.linkedin.com/in/williamhgates",
+          "sourceUrl": "https://www.linkedin.com/in/williamhgates"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Bill Gates - Chair, Gates Foundation and Founder, Breakthrough Energy | LinkedIn",
+          "url": "https://www.linkedin.com/in/williamhgates"
+        }
+      ]
+    },
+    "rawText": "The most reliable figure comes from the scraped LinkedIn profile data shown in the search results. The page at [linkedin.com](https://www.linkedin.com/in/williamhgates) (sourced via the first result, which explicitly shows `Username: williamhgates` and `Source: https://www.linkedin.com/in/williamhgates`) reports **40,553,163 followers** as of the search date (2026-08-17 post visible). That is the most recent and directly sourced figure from the actual LinkedIn profile page.\n\n{\"outcome\":\"ok\",\"name\":\"Bill Gates\",\"vertical\":null,\n \"accounts\":[{\"platform\":\"LinkedIn\",\"handle\":\"williamhgates\",\"followers\":40553163,\n              \"engagementRate\":null,\"url\":\"https://www.linkedin.com/in/williamhgates\",\"sourceUrl\":\"https://www.linkedin.com/in/williamhgates\"}],\n \"sources\":[{\"title\":\"Bill Gates - Chair, Gates Foundation and Founder, Breakthrough Energy | LinkedIn\",\"url\":\"https://www.linkedin.com/in/williamhgates\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.linkedin.com/in/williamhgates",
+          "title": "Bill Gates - Chair, Gates Foundation and Founder, Breakthrough ...",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Bill Gates\n\n...\n\nChair, Gates Foundation and Founder, Breakthrough Energy\n\n...\n\nSeattle, Washington, United States (US)\n\n...\n\n8 connections • 40,553,163 followers\n\n...\n\n### Co-chair - Gates Foundation (Current)\n\n...\n\n### Founder - Breakthrough Energy (Current)\n\n...\n\n### Co-founder - Microsoft (Current)\n\n...\n\n## Social\n\n...\n\n### Linkedin\n\n...\n\n- [2026-08-17 · Posted · 619 reactions] In the 1960s, a lot of experts thought mass famine was inevitable...\n\n...\n\nUsername: williamhgates"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.linkedin.com/posts/marieolivie_bill-gates-won-linkedin-with-the-strongest-activity-7417494855653761024-HdvG",
+          "title": "Marie Olivie's Post - LinkedIn",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Bill Gates won LinkedIn with the strongest personal branding play. | Marie Olivie · LinkedIn · 2026-01-15\n\n...\n\nBill Gates won LinkedIn with the strongest personal branding play.\n\n...\n\n(and it wasn’t designed by a growth team)\n\nBill Gates has the highest number of followers (39,705,854) on LinkedIn.\n\nThe number of follower count is more than:\n– LinkedIn’s own founders\n– Its current CEO\n– Almost every Fortune 500 leader\n\n...\n\nAnd the interesting part is he doesn’t use LinkedIn like a powerful person.\n\n...\n\nInstead, his profile is pure personal brand.\n\n...\n\nWhat Bill Gates does differently than others and the reason why his profile matters for anyone building a Personal Brand:\n👉 Posts like a curious human, not a billionaire\n👉 Shares what he’s learning like a curious reader\n👉 Writes about his personal experiences\n\n...\n\n👉 Talks about books, climate, health, failure.\n👉 Never positions himself as “the smartest person in the room”\n\n...\n\n## Engagement\n\n...\n\n- Reactions: 307"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://docs.scrapebadger.com/api-reference/endpoint/linkedin/get-profile",
+          "title": "",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Get Profile\n\n...\n\n> A public LinkedIn member profile by vanity public_id — headline, location, about, experience, education, languages and awards.\n\n...\n\nFetch a member's public LinkedIn profile by their vanity `public_id` (the\n`/in/` segment of the URL, e.g. `williamhgates`).\n\n...\n\nThis is the logged-out JSON-LD subset LinkedIn exposes to signed-out\nvisitors — not the full logged-in record. There is no contact info, no\nconnection graph, and no full skills list. Experience and education are the\ncoarse entries LinkedIn renders publicly.\n\n...\n\n## Path Parameters\n\n...\n\nMember vanity slug, e.g. `williamhgates`.\n\n...\n\n```\n\n...\n\n```json\n{\n  \"profile\": {\n    \"public_id\": \"williamhgates\",\n    \"linkedin_url\": \"https://www.linkedin.com/in/williamhgates\",\n    \"name\": \"Bill Gates\",\n    \"headline\": \"Co-chair, Bill & Melinda Gates Foundation\",\n    \"location\": \"Seattle, Washington, United States\",\n    \"country\": \"US\",\n    \"about\": \"Co-chair of the Bill & Melinda Gates Foundation. Founder of Breakthrough Energy. Co-founder of Microsoft.\",\n    \"image\": \"https://media.licdn.com/dms/image/williamhgates.jpg\",\n    \"follower_count\": 36200000,\n    \"job_titles\": [\"Co-chair\"],\n    \"current_company\": \"Bill & Melinda Gates Foundation\",\n    \"current_company_url\": \"https://www.linkedin.com/company/bill-&-melinda-gates-foundation\",\n    \"experience\": [\n      {\n        \"company\": \"Bill & Melinda Gates Foundation\",\n        \"company_url\": \"https://www.linkedin.com/company/bill-&-melinda-gates-foundation\",\n        \"start_year\": 2000,\n\n...\n\n\"end_year\": null\n      },\n      {\n\n...\n\n\"company\": \"Microsoft\",\n\n...\n\n\"company_url\": \"https://www.linkedin.com/company/microsoft\",\n\n...\n\n\"start_year\": 1975,\n\n...\n\n\"end_year\": 2020\n      }\n    ],\n\n...\n\n\"education\": [\n\n...\n\n{\n\n...\n\n\"school\": \"Harvard University\",\n\n...\n\n\"school_url\": \"https://www.linkedin.com/school/harvard-university\",\n\n...\n\n\"start_year\": 1973,\n\n...\n\n}\n\n...\n\n```"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.linkedin.com/posts/kyleracki_bill-gates-has-36m-followers-because-he-built-activity-7271961811673841664-iyyv",
+          "title": "Kyle Racki's Post - LinkedIn",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Bill Gates has 36M followers because he built a successful business, not the other way around. | Kyle Racki · LinkedIn · 2024-12-09\n\n...\n\nBill Gates has 36M followers because he built a successful business, not the other way around.\n\n...\n\nThe point?\n\n...\n\nSome of you will win because a big LinkedIn following gives you massive distribution."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.outx.ai/docs/linkedin-api/fetch-profile",
+          "title": "LinkedIn Profile Data API - Fetch Any LinkedIn Profile - OutX AI",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# LinkedIn Profile Data API - Fetch Any LinkedIn Profile\n\n...\n\nThe Fetch Profile endpoint creates an async task to retrieve full LinkedIn profile data for any public profile. You provide a profile slug (the part after `linkedin.com/in/`) and receive a task ID to poll for results.\n\n...\n\n## Request Body\n\n...\n\nThe LinkedIn profile slug (e.g., `\"williamhgates\"` from `linkedin.com/in/williamhgates`)\n\n...\n\nThe `profile_slug` is the last part of a LinkedIn profile URL. For `https://www.linkedin.com/in/williamhgates`, the slug is `williamhgates`.\n\n...\n\n}\n\n...\n\n```\n\n...\n\n```\n\n...\n\n```\n\n...\n\n```\n\n...\n\n## What data does the profile response include?\n\n...\n\nThe profile data typically includes: name, headline, location, profile URL, number of connections and followers, about/summary, work experience, education, and skills. The exact fields depend on what the LinkedIn profile has publicly available."
+        }
+      }
+    ],
+    "error": null
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "case": {
+    "id": "novitalam",
+    "platform": "instagram",
+    "handle": "novitalam",
+    "kind": "roster",
+    "expect": {
+      "name": "Novita Lam",
+      "followers": 412000,
+      "vertical": "fitness"
+    },
+    "note": "Handle equals the name. The easy case, and the plan’s own worked example."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "variant": "query",
+  "capture": {
+    "caseId": "novitalam",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "variant": "query",
+    "platform": "instagram",
+    "handle": "novitalam",
+    "elapsedMs": 8206,
+    "costUsd": 0.018247,
+    "draft": {
+      "outcome": "ok",
+      "name": "Novita Lam",
+      "vertical": "beauty",
+      "accounts": [
+        {
+          "platform": "Instagram",
+          "handle": "novitalam",
+          "followers": 441000,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/novitalam/",
+          "sourceUrl": "https://wiki.sg/p/Novita_Lam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Novita Lam (@novitalam) | Yoloco",
+          "url": "https://yoloco.io/influencer/novitalam"
+        },
+        {
+          "title": "Novita Lam - wiki.sg",
+          "url": "https://wiki.sg/p/Novita_Lam"
+        },
+        {
+          "title": "S'pore influencer Novita Lam apologises after backlash - Stomp",
+          "url": "https://www.stomp.sg/trending-now/spore-influencer-novita-lam-apologises-after-backlash-over-out-touch-iran-israel-pun"
+        },
+        {
+          "title": "Experience Aomori campaign - pincfluence.com",
+          "url": "https://www.pincfluence.com/campaigns/experience-aomori-ski-sip-and-savor-with-eu-holidays/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Novita Lam\",\"vertical\":\"beauty\",\n \"accounts\":[{\"platform\":\"Instagram\",\"handle\":\"novitalam\",\"followers\":441000,\n              \"engagementRate\":null,\"url\":\"https://www.instagram.com/novitalam/\",\"sourceUrl\":\"https://wiki.sg/p/Novita_Lam\"}],\n \"sources\":[{\"title\":\"Novita Lam (@novitalam) | Yoloco\",\"url\":\"https://yoloco.io/influencer/novitalam\"},{\"title\":\"Novita Lam - wiki.sg\",\"url\":\"https://wiki.sg/p/Novita_Lam\"},{\"title\":\"S'pore influencer Novita Lam apologises after backlash - Stomp\",\"url\":\"https://www.stomp.sg/trending-now/spore-influencer-novita-lam-apologises-after-backlash-over-out-touch-iran-israel-pun\"},{\"title\":\"Experience Aomori campaign - pincfluence.com\",\"url\":\"https://www.pincfluence.com/campaigns/experience-aomori-ski-sip-and-savor-with-eu-holidays/\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://yoloco.io/influencer/novitalam",
+          "title": "Instagram Stats and Analytics \n Novita Lam ( @novitalam ) | Yoloco",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Instagram Stats and Analytics Novita Lam ( @novitalam ) | Yoloco\n\n...\n\n# Novita Lam (@novitalam)\n\n...\n\n## Novita Lam\n\n...\n\n@novitalamInstagram\n\n...\n\nMusicFashion\n\n...\n\n0.4M\n\n...\n\nFollowers\n\n...\n\n1.32%\n\n...\n\nEngagement\n\n...\n\n4.8K\n\n...\n\nAvg. likes\n\n...\n\nOpen @novitalam's full report — free\n\n...\n\nFree · no card · 30s — audience, geo, brands & contacts\n\n...\n\nAge\n\n...\n\nNotable followers"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://wiki.sg/p/Novita_Lam",
+          "title": "Novita Lam",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Novita Lam\n\n...\n\nNovita Lam (born in 1994) is an Indonesian born Chinese residing in Singapore. She was working in Citibank and Bank of Singapore before joining AWST as Head of Partnerships & Ecosystem.[1] She is best known for being a beauty and lifestyle influencer who currently has over 441k followers on Instagram and 129.6k followers on TikTok, as of March 2026.[2][3]\n\n...\n\n### Social media influencer (Present)\n\n...\n\nNovita Lam is active on social media platforms such as Instagram and TikTok, where she often posts aesthetic photos of her travels across the globe. She also shares beauty tips and products, as well as her fitness journey.[2] Currently, she has amassed over 441k followers on Instagram and 129.6k followers on TikTok.[2][3]\n\n...\n\nShe is often seen to participate in advertisements and paid partnerships with both local and international brands, including Shopee, Lazada, and Pocari Sweat.[7][8][9] In fact, other than her day-to-day TikToks, many of her partnerships on the platform have gone viral.\n\n...\n\nof March 2026, her post for Lendela managed to rack up over 4M views.[10]\n\n...\n\n### Her viral controversial Instagram post (March\n\n...\n\n2026)\n\n...\n\nOn 3 March 2026, Lam faced significant backlash after posting a\n\n...\n\non her Instagram and TikTok, which many netizens deemed insensitive given the ongoing conflict in the Middle East.[12][13]\n\n...\n\nLam subsequently posted an apology on her Instagram\n\n...\n\n, where she sincerely\n\n...\n\nfor her \"insensitive and hurtful\" post.\n\n...\n\nalso added:[12][13]\n\n...\n\n\"I removed it as soon as\n\n...\n\nrealised my mistake.\"\n\n...\n\n3."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.stomp.sg/trending-now/spore-influencer-novita-lam-apologises-after-backlash-over-out-touch-iran-israel-pun",
+          "title": "S'pore influencer Novita Lam apologises after backlash ...",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "#\n\n...\n\nPHOTO: NOVITALAM/INSTAGRAM\n\n...\n\nLocal influencer Novita Lam has apologised after facing backlash over an \"out of touch\" Iran-Israel pun she posted on her Instagram Story amid the conflict in the Middle East.\n\nMs Lam, who has over 430,000 followers on Instagram, issued an apology on March 4, admitting that her comment was \"insensitive and hurtful\". Her initial Instagram Story post is no longer available as of March 4.\n\n...\n\n: NOVITALAM/INST\n\n...\n\n5\n\n...\n\nFollowing backlash from netizens, Ms Lam apologised for her post, describing it as \"insensitive and hurtful, especially with what is happening around the world right now.\"\n\n...\n\nShe said she had removed the post as soon as she realised her mistake.\n\n...\n\n\"I will\n\n...\n\nmore mindful moving forward,\" wrote Ms Lam.\n\n...\n\nA screenshot of Ms\n\n...\n\nwith netizens slamming her for her insensitivity amid the ongoing conflict in the Middle East."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.pincfluence.com/campaigns/experience-aomori-ski-sip-and-savor-with-eu-holidays/",
+          "title": "Experience Aomori: Ski, Sip, and Savor with EU Holidays | People's Inc. Influence",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "5K–50K Followers\n\n...\n\nInstagram Carousel Post/Instagram Reel:\n\n...\n\nencouraging\n\n...\n\npackage with EU Holidays.\n\n...\n\nAbove 50K Followers\n\n...\n\nInstagram Stories:\n\n...\n\nclips\n\n...\n\nTop KOLs Involved\n\n...\n\nTo show how established this campaign is, here are some of the creators participating:\n\n...\n\n1. Jesslyn Mana – https://www.instagram.com/manajesslyn?igsh=bnI5a2IwNmVyNXJm (60.7K followers)\n2. Shantay Zapada – https://www.tiktok.com/@shantayzapada (1.4M followers)\n3. Novita Lam – https://www.instagram.com/novitalam/ (387K followers)\n4. Jacintha Wee – https://www.instagram.com/jacinthawee/ (73.2K followers)\n5. Mabel Koh – https://www.instagram.com/mabel_koh/ (9.3K followers)"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://conferences.marketing-interactive.com/digital-marketing-asia/divi_overlay/novita-lam/",
+          "title": "Novita Lam - Digital Marketing Asia 2025",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Novita Lam\n\n...\n\nNovita Lam Social Media Content Creator\n\n...\n\nNovita Lam is a social media content creator. On a content creator front, Novita creates content on travel, fashion, and beauty with the goal of inspiring people on what to wear, latest products to try, and where to go. Her passion in content creation has garnered 300k+ followers to her Instagram page. After having fair amount of experience as a social media content creator and working with various brands, Novita believes that Web 3.0 is the future of the creator economy."
+        }
+      }
+    ],
+    "error": null
+  }
+}

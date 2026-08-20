@@ -1,0 +1,97 @@
+{
+  "case": {
+    "id": "ceiling-youtube",
+    "platform": "youtube",
+    "handle": "JamieOliver",
+    "kind": "ceiling",
+    "note": "No YouTube account exists on the roster. The easiest possible case on the platform: a global food name with millions of subscribers."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "capture": {
+    "caseId": "ceiling-youtube",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "platform": "youtube",
+    "handle": "JamieOliver",
+    "elapsedMs": 7866,
+    "costUsd": 0.018394,
+    "draft": {
+      "outcome": "ok",
+      "name": "Jamie Oliver",
+      "vertical": "food",
+      "accounts": [
+        {
+          "platform": "YouTube",
+          "handle": "JamieOliver",
+          "followers": 6200000,
+          "engagementRate": null,
+          "url": "https://www.youtube.com/@JamieOliver",
+          "sourceUrl": "https://netizensreport.com/audit/report/UCpSgg_ECBj25s9moCDfSTsA/youtube"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Jamie Oliver YouTube Channel Statistics / Analytics",
+          "url": "https://netizensreport.com/audit/report/UCpSgg_ECBj25s9moCDfSTsA/youtube"
+        },
+        {
+          "title": "Jamie Oliver – Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Jamie_Oliver"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"ok\",\"name\":\"Jamie Oliver\",\"vertical\":\"food\",\n \"accounts\":[{\"platform\":\"YouTube\",\"handle\":\"JamieOliver\",\"followers\":6200000,\n              \"engagementRate\":null,\"url\":\"https://www.youtube.com/@JamieOliver\",\"sourceUrl\":\"https://netizensreport.com/audit/report/UCpSgg_ECBj25s9moCDfSTsA/youtube\"}],\n \"sources\":[{\"title\":\"Jamie Oliver YouTube Channel Statistics / Analytics\",\"url\":\"https://netizensreport.com/audit/report/UCpSgg_ECBj25s9moCDfSTsA/youtube\"},{\"title\":\"Jamie Oliver – Wikipedia\",\"url\":\"https://en.wikipedia.org/wiki/Jamie_Oliver\"}]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://netizensreport.com/audit/report/UCpSgg_ECBj25s9moCDfSTsA/youtube",
+          "title": "Jamie Oliver YouTube Channel Statistics / Analytics",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Jamie Oliver\n\n...\n\nHello, lovely people! Welcome to my official YouTube channel – the ultimate hub for all things food. Here, you’ll fi...\n\n...\n\n##### Created Date\n\n...\n\nThis YouTube channel/account was created on this date\n\n...\n\n#### May 21st, 2006\n\n...\n\n#### GB\n\n...\n\n## Jamie Oliver YouTube Statistics\n\n...\n\n## Jamie Oliver's Channel Snapshot\n\n...\n\n- Jamie Oliver's YouTube Channel has 6,200,000 subscribers with 2,788 videos uploaded so far, and the overall channel views are 1.1B\n- Jamie Oliver YouTube subscribers increased by 10,000 on Jun 15th, 2026\n- Jamie Oliver YouTube Channel uploaded 1 video on Jun 16th, 2026\n- Jamie Oliver YouTube total subscribers increased by 10,000 from May 25th, 2026 to Jun 16th, 2026\n\n...\n\n##### Q: What is the YouTube Channel Id of Jamie Oliver?\n\n...\n\nAnswer: YouTube Channel Id of Jamie Oliver is @jamieoliver.\n\n...\n\n##### Q: What is the description of Jamie Oliver's YouTube channel?\n\n...\n\nAnswer: Hello, lovely people! Welcome to my official YouTube channel – the ultimate hub for all things food. Here, you’ll find loads of tasty recipes, from quick and easy midweek meals to epic dishes for special occasions. Whether you’re just starting out or a bit of a pro in the kitchen, I’ve got you covered with tips, tricks, and ideas to help you cook up a storm. I’m all about fresh, simple ingredients and having fun with food – as the Naked Chef once said, \"It's not about me, it's the food!\" Hit that subscribe button and let’s get stuck in!\n\n...\n\n##### Q: What is Jamie Oliver's subscribers count on YouTube?\n\n...\n\nAnswer: Jamie Oliver has 6,200,000 subscribers on YouTube.\n\n...\n\nAnswer: Jamie Oliver has uploaded 2,788 videos on YouTube till date.\n\n...\n\n## Jamie Oliver\n\n...\n\nSubscribers\n\n...\n\n6M\n\n...\n\n### Not found? Add an account\n\n...\n\nYouTube"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://en.wikipedia.org/wiki/Jamie_Oliver",
+          "title": "Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Jamie Oliver\n\n...\n\nJames Trevor Oliver MBE OSI(born 27 May 1975) is an English celebrity chef, restaurateur and cookbook author. He is known for his casual approach to cuisine, and he has fronted many television shows and opened numerous restaurants.\n\n...\n\n| Jamie Oliver, MBE OSI | - |\n| --- | --- |\n| Oliver in 2014 | - |\n| Born | James Trevor Oliver, (1975-05-27) 27 May 1975 (age 51), Clavering, Essex, England |\n| Education | Newport Free Grammar School, Westminster Kingsway College |\n| Spouse | Juliette Norton, ​(m. 2000)​ |\n\n...\n\n| Children | 5 |\n\n...\n\n| Culinary career | - |\n\n...\n\n| Cooking style | Organic, Italian, British |\n| Current restaurants, Fifteen, Jamie's Italian, Jamie Oliver Catherine Street, Jamie Oliver Kitchen | - |\n| YouTube information | - |\n| Channel | Jamie Oliver |\n| Years active | 2006–present |\n| Genres | Cooking, cooking tutorials |\n| Subscribers | 6.2 million |\n| Views | 1.08 billion |\n| Last updated: 6 July 2026 | - |\n| Website | jamieoliver.com |\n\n...\n\nJames Trevor Oliver was born on 27 May 1975 in Clavering, Essex, where he was also raised. His parents, Trevor and Sally (née Palmer) Oliver, ran a pub and restaurant, the Cricketers, where he practised cooking in the kitchen with his parents. He has a sister, and was educated at Newport Free Grammar School, in Newport."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://searchenginewatch.com/2016/05/11/food-tube-how-video-storytelling-led-to-2m-youtube-subscribers/",
+          "title": "Food Tube: How video storytelling led to 2m YouTube subscribers – Search Engine Watch",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Food Tube: How video storytelling led to 2m YouTube subscribers\n\n...\n\nFood Tube is part of the Jamie Oliver Media Group and it was launched in 2013, as a new way to present food recipes, both in an informative and entertaining angle, hoping to transform the traditional format that we’ve known from Jamie Oliver since then.\n\n...\n\nThus, Food Tube became the food channel that combined recipes, tutorials, funny videos and guest collaborations, leading to 2.3 million followers and 210.577.027 views (as of May 10th)\n\n...\n\nThe art of storytelling can be powerful on social media and Food Tube quickly realised how a story can transform any type of content. Thus, it started treating each recipe like a story, creating a unique perspective, adding the needed authenticity, but also the personal element that will make the content relevant to the audience.\n\n...\n\n## Mixing content\n\n...\n\nThere is no strategy that fits every channel and that’s why Food Tube keeps experimenting with several topics for its videos, while it also keeps several established categories as the most frequent ones (1 minute tips, 15 minute meals, Jamie’s super food, etc).\n\nWhat’s more, Food Tube focuses on the most popular holidays and celebrations to provide relevant content, from Easter and Halloween, to Father’s Day, or Pancake Day.\n\n...\n\nIts social presence in numbers:\n\n...\n\n- Facebook: 542,561 likes\n- Instagram: 281k followers\n- Twitter: 56.2k followers\n- Youtube: 2,317,797 subscribers"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.jamieoliver.com/help",
+          "title": "FAQs | Jamie Oliver",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Popular searches\n\n...\n\n- chicken\n- pasta\n- healthy\n\n...\n\nPopular recipes\n\n...\n\nFeatured\n\n...\n\nOops\n\n...\n\nWe couldn't find any results for your search. Try again with a different keyword.\n\n...\n\n## Nutrition & Recipe FAQs\n\n...\n\nOf course! Jamie's protégé has some stunning recipes for you to try – check out our kids cooking ideas. You can also watch Buddy cooking up his recipes over on his YouTube channel, Cooking Buddies. Buddy's debut cookbook Let's Cook is packed with over 60 recipes to inspire kids to get cooking – watch some of the recipes and catch Buddy on his CBBC series, Cooking Buddies.\n\n...\n\nWhat should I do if I come across a scam/fake Jamie Oliver account?\n\n...\n\nJamie’s verified Facebook, X (formerly Twitter), Instagram and TikTok handles are:\n\n...\n\nUnfortunately imposter accounts do pop up now and then, so please be careful if someone contacts you pretending to be Jamie or from his business. If a message is not from one of these verified accounts, please ignore it and report it to the relevant social media platform.\n\n...\n\n- Ingredient\n- Meals & courses\n- Special diets\n- Quick & easy\n- Healthy recipes\n- Family recipes\n- Books & TV"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.networthspot.com/jamie-oliver/net-worth/",
+          "title": "Jamie Oliver Net Worth & Earnings (2026)",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "With 6 million subscribers, Jamie Oliver is a popular channel on YouTube. The Jamie Oliver YouTube channel started in 2006 and is based in United Kingdom.\n\n...\n\nYouTube and Online Presence: Jamie Oliver has a strong online presence. His YouTube channels, including Food Tube, attract millions of subscribers. He shares recipes and cooking tips, generating ad revenue and sponsorships. This digital platform allows him to connect with a global audience.\n\n...\n\nJamie Trevor Oliver was born on May 27, 1975, in Clavering, Essex, England. He grew up in a family deeply rooted in the restaurant business. His parents, Trevor and Sally Oliver, owned a pub called the Cricketers. This environment sparked Jamie's passion for cooking at a young age. He spent countless hours in the kitchen, learning the ropes alongside his family.\n\n...\n\nIn 2013, Oliver embraced the digital age by launching his YouTube channel, Food Tube. This move allowed him to connect with a younger audience and share his passion for cooking in a more interactive format. His YouTube presence has grown significantly, with over 2 million subscribers across multiple channels. This expansion into online content has helped him maintain relevance in an ever-changing media landscape.\n\n...\n\n### What is Jamie Oliver's YouTube channel?\n\n...\n\nJamie Oliver launched his YouTube cooking channel, Food Tube, in 2013. He has since grown his presence on the platform, amassing over 2 million subscribers across three channels, where he shares recipes, cooking tips, and culinary inspiration.\n\n...\n\n### What types of content can viewers expect from Jamie Oliver's YouTube channels?\n\n...\n\nViewers can expect a variety of content, including cooking tutorials, recipe demonstrations, collaborations with other chefs, and tips for healthy eating. His channels often feature engaging and interactive content that encourages audience participation."
+        }
+      }
+    ],
+    "error": null
+  }
+}

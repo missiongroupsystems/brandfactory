@@ -16,16 +16,16 @@ describe("visiblePlatforms", () => {
     expect(overflow).toEqual([]);
   });
 
-  it("holds the boundary: three badges, then the fourth goes to the overflow", () => {
-    // The boundary the cell is drawn against. `MAX_PLATFORM_BADGES` is three, so three platforms
-    // is the largest set that renders whole — and four is the smallest that does not.
-    const three = visiblePlatforms(["instagram", "tiktok", "youtube"]);
-    expect(three.shown).toHaveLength(MAX_PLATFORM_BADGES);
-    expect(three.overflow).toEqual([]);
+  it("holds the boundary: two badges, then the third goes to the overflow", () => {
+    // The boundary the cell is drawn against. `MAX_PLATFORM_BADGES` is two, so two platforms is
+    // the largest set that renders whole — and three is the smallest that does not.
+    const two = visiblePlatforms(["instagram", "tiktok"]);
+    expect(two.shown).toHaveLength(MAX_PLATFORM_BADGES);
+    expect(two.overflow).toEqual([]);
 
-    const four = visiblePlatforms(["instagram", "tiktok", "youtube", "xiaohongshu"]);
-    expect(four.shown).toEqual(["instagram", "tiktok", "youtube"]);
-    expect(four.overflow).toEqual(["xiaohongshu"]);
+    const three = visiblePlatforms(["instagram", "tiktok", "youtube"]);
+    expect(three.shown).toEqual(["instagram", "tiktok"]);
+    expect(three.overflow).toEqual(["youtube"]);
   });
 
   it("names the overflow rather than counting it, so the tooltip has a list to render", () => {
@@ -37,7 +37,7 @@ describe("visiblePlatforms", () => {
       "facebook",
       "linkedin",
     ]);
-    expect(overflow).toEqual(["xiaohongshu", "facebook", "linkedin"]);
+    expect(overflow).toEqual(["youtube", "xiaohongshu", "facebook", "linkedin"]);
   });
 
   it("sends everything to the overflow rather than slicing from the end", () => {
@@ -74,8 +74,8 @@ describe("the order the cell renders in", () => {
 
     const { shown, overflow } = visiblePlatforms(platformsOf(accounts));
 
-    expect(shown).toEqual(["instagram", "tiktok", "youtube"]);
-    expect(overflow).toEqual(["linkedin"]);
+    expect(shown).toEqual(["instagram", "tiktok"]);
+    expect(overflow).toEqual(["youtube", "linkedin"]);
   });
 
   it("collapses two accounts on one platform to one badge", () => {

@@ -1,0 +1,42 @@
+{
+  "case": {
+    "id": "xhs-luodaxiong",
+    "platform": "xiaohongshu",
+    "handle": "罗大雄",
+    "kind": "roster",
+    "expect": {
+      "name": "罗大雄",
+      "followers": 392800,
+      "vertical": "fitness"
+    },
+    "note": "Non-Latin handle #1. XHS addresses users by an opaque numeric id, so there is no URL to guess — grounding has to come from search alone."
+  },
+  "model": "openai/gpt-5.1:online",
+  "capture": {
+    "caseId": "xhs-luodaxiong",
+    "modelId": "openai/gpt-5.1:online",
+    "platform": "xiaohongshu",
+    "handle": "罗大雄",
+    "elapsedMs": 3895,
+    "costUsd": 0.01698125,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "xiaohongshu",
+          "handle": "罗大雄",
+          "followers": null,
+          "engagementRate": null,
+          "url": null,
+          "sourceUrl": null
+        }
+      ],
+      "sources": []
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"xiaohongshu\",\"handle\":\"罗大雄\",\"followers\":null,\"engagementRate\":null,\"url\":null,\"sourceUrl\":null}],\"sources\":[]}",
+    "annotations": null,
+    "error": null
+  }
+}

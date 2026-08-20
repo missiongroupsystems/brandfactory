@@ -1,0 +1,93 @@
+{
+  "case": {
+    "id": "ec24m",
+    "platform": "instagram",
+    "handle": "ec24m",
+    "kind": "roster",
+    "expect": {
+      "name": "Jamie Chua",
+      "followers": 1500000,
+      "vertical": "fashion"
+    },
+    "note": "The roster’s largest account, behind a handle that resembles nothing. Identity resolution with no lexical help at all."
+  },
+  "model": "anthropic/claude-sonnet-4.6:online",
+  "capture": {
+    "caseId": "ec24m",
+    "modelId": "anthropic/claude-sonnet-4.6:online",
+    "platform": "instagram",
+    "handle": "ec24m",
+    "elapsedMs": 7619,
+    "costUsd": 0.019033,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "instagram",
+          "handle": "ec24m",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/ec24m/",
+          "sourceUrl": null
+        }
+      ],
+      "sources": []
+    },
+    "rawText": "The search results returned are entirely about Instagram follower-checking tools and unrelated code repositories — none of them contain any information about the Instagram profile @ec24m. I was not able to retrieve the actual Instagram page for that handle, so I cannot verify any follower count, real name, or content vertical.\n\n{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\n \"accounts\":[{\"platform\":\"instagram\",\"handle\":\"ec24m\",\"followers\":null,\n              \"engagementRate\":null,\"url\":\"https://www.instagram.com/ec24m/\",\"sourceUrl\":null}],\n \"sources\":[]}",
+    "annotations": [
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://github.com/HenryLok0/Instagram_Follower_Checker",
+          "title": "HenryLok0/Instagram_Follower_Checker",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Repository: HenryLok0/Instagram_Follower_Checker\n\n...\n\nTool to helps you fetch Instagram user's followers and following data, and find out who is not following you back or who you are not following back.\n\n...\n\n# Instagram_Follower_Checker\n\n...\n\nThis script helps you fetch Instagram user's followers and following data, and find out who is not following you back or who you are not following back.\n\n...\n\n## Description\n\n...\n\nThis code fetches Instagram user's friendship statistics, displaying:\n\n- **Followers**: Usernames that follow you.\n- **Following**: Usernames you follow.\n- **PeopleIDontFollowBack**: Usernames that follow you but you don't follow back.\n- **PeopleNotFollowingMeBack**: Usernames you follow but don't follow you back.\n\n...\n\n1. Generate JavaScript code to check Instagram account details. https://henrylok0.github.io/Instagram_Follower_Checker/index.html\n\n1. Transform your raw API data into a structured JSON format easily. https://henrylok0.github.io/Instagram_Follower_Checker/Data_Formatter.html\n\n1. Comparator (2-5 Instagram accounts) with the same followers and following Instagram accounts. https://henrylok0.github.io/Instagram_Follower_Checker/JSON_Comparator.html\n\n...\n\n## Usage\n\n...\n\n1. Make sure you are on the Instagram website when running this script. If you are not on the Instagram website, the script will automatically redirect you to Instagram.\n\n...\n\n1. Make sure you log in to your account on Instagram and you must follow that account if the account is private.\n\n...\n\n```js\nif (window.location.origin !== \"https://www.instagram.com\") {\n  window.alert(\n    \"Hey! You need to be on the instagram site before you run the code. I'm taking you there now but you're going to have to run the code into the console again.\",\n  );\n  window.location.href = \"https://www.instagram.com\";\n  console.clear();\n}\n\n...\n\nconst fetchOptions = {\n  credentials: \"include\",\n  headers: {\n    \"X-IG-App-ID\": \"936619743392459\",\n  },\n  method: \"GET\",\n};\n\n...\n\nlet username;\n\n...\n\n// This function handles all of the pagination logic\n// Calls the API recursively until there are no more pages to load\nconst concatFriendshipsApiResponse = async (\n  list,\n  user_id,\n  count,\n  next_max_id = \"\",\n) => {\n  let url = `https://www.instagram.com/api/v1/friendships/${user_id}/${list}/?count=${count}`;\n  if (next_max_id) {\n    url += `&max_id=${next_max_id}`;\n  }\n\n...\n\nconst data = await fetch(url, fetchOptions).then((r) => r.json());\n\n...\n\nreturn data.users;\n};\n\n...\n\n// helper methods to make the code a bit more readable\nconst getFollowers = (user_id, count = 50, next_max_id = \"\") => {\n  return concatFriendshipsApiResponse(\"followers\", user_id, count, next_max_id);\n};\n\n...\n\nconst getFollowing = (user_id, count = 50, next_max_id = \"\") => {\n  return concatFriendshipsApiResponse(\"following\", user_id, count, next_max_id);\n};\n\nconst getUserId = async (username) => {\n  let user = username;\n\n  const lower = user.toLowerCase();\n  const url = `https://www.instagram.com/api/v1/web/search/topsearch/?context=blended&query=${lower}&include_reel=false`;\n  const data = await fetch(url, fetchOptions).then((r) => r.json());\n\n...\n\nconst result = data.users?.find(\n    (result) => result.user.username.toLowerCase() === lower,\n  );\n\n...\n\nreturn result?.user?.pk || null;\n};\n\nconst getUserFriendshipStats = async (username) => {\n  const user_id = await getUserId(username);\n\n...\n\nif (!user_id) {\n    throw new Error(`Could not find user with username ${username}`);\n  }\n\n...\n\nconst followers = await getFollowers(user_id);\n  const following = await getFollowing(user_id);\n\n...\n\nconst followersUsernames = followers.map((follower) =>\n    follower.username.toLowerCase(),\n  );\n  const followingUsernames = following.map((followed) =>\n    followed.username.toLowerCase(),\n  );\n\n...\n\nconst followerSet = new Set(followersUsernames);\n  const followingSet = new Set(followingUsernames);\n\n...\n\nconsole.log(Array(28).fill(\"-\").join(\"\"));\n  console.log(\n    `Fetched`,\n    followerSet.size,\n    \"followers and \",\n    followingSet.size,\n    \" following.\",\n  );\n\n...\n\nconsole.log(\n    `If this doesn't seem right then some of the output might be inaccurate`,\n  );\n\n...\n\nconst PeopleIDontFollowBack = Array.from(followerSet).filter(\n    (follower) => !followingSet.has(follower),\n  );\n\n...\n\nconst PeopleNotFollowingMeBack = Array.from(followingSet).filter(\n    (following) => !followerSet.has(following),\n  );\n\n...\n\nreturn {\n    Followers: followersUsernames,\n    Following: followingUsernames,\n    PeopleIDontFollowBack,\n    PeopleNotFollowingMeBack,\n  };\n};\n\n// Make sure you don't delete the quotes\n// Replace \"example_username\" below with your instagram username\n//\n// Change this:\nusername = \"instagram_username\";\n//\n//\n//\ngetUserFriendshipStats(username).then(console.log);\n```\n\n...\n\n1. Replace the `username` variable in the code with your Instagram username:\n\n...\n\n```js\nusername = \"instagram_username\";\n```\n\n...\n\n1. Press `Enter` to run the code.\n\n...\n\n1. Wait for the script to complete and check the results in the console. The results will show your followers and following lists, as well as who is not following you back and who you are not following back."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://stackoverflow.com/questions/55656322/display-instagram-follower-count-with-php",
+          "title": "Display Instagram Follower Count With PHP",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Display Instagram Follower Count With PHP\n\n...\n\n## Question\n\n...\n\nTrying to use this code provided by an article to pull and display user data. All I am manage to get so far is\n\n...\n\nUsername not found.\n\n<?php\n$username = 'burhandodhy';\n\n$response = @file_get_contents( \"https://www.instagram.com/$username/?__a=1\" );\n\nif ( $response !== false ) {\n $data = json_decode( $response, true );\n if ( $data !== null ) {\n $full_name = $data['graphql']['user']['full_name'];\n $follower = $data['graphql']['user']['edge_followed_by']['count'];\n echo \"{$full_name} have {$follower} followers.\";\n }\n\n} else {\n echo 'Username not found.';\n\n}\n?>\n\n...\n\nWhen I visit the link in @file_get_contents I see a lot of info about the users but I am not familiar with PHP and other languages of this type. Can someone please point me in the right direction of what to research or send me a quick fix if this code should work and there's just an error.\n\n...\n\nI just want to learn how to display the info in https://www.instagram.com/$username/?__a=1\non my website.\n\n...\n\n### Answer by Zzi (score: -1)\n\n...\n\nI believe you need to concatenate the variable into the link.\n\n$response = @file_get_contents( \"https://www.instagram.com/**\".$username.\"**/?__a=1\" );\n\n...\n\nBut besides that, I don't believe the link will work unless you are authenticated through Instagram anyways."
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.coursesidekick.com/information-systems/2332868",
+          "title": "Instagram Follower and Following List: How to Use the ...",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "Request unsuccessful. Incapsula incident ID: 1355000310279741476-352306039846799305"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://github.com/ericz99/instagram-monitor/",
+          "title": "ericz99/instagram-monitor",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# ericz99/instagram-monitor\n\n...\n\nEasily monitor instagram accounts without any problem.\n\n...\n\n## README\n\n...\n\n## Instagram Monitor / Scraper\n\n...\n\nInstagram monitor / scraper allows you to monitor user(s) activities without searching through the web. Simply follow instruction below to get started!\n\nI have removed story monitor because of several reason, (1). I need to find better solution in dealing with rate limits, (2). I want to also separate both post and story monitor in their own respective repo. I will announce when I will upload the story monitor later.\n\n...\n\n# Add stuff in your config.json\n{\n    \"discord\": {\n        \"webhook_url\": \"<Your webhook>\",\n        \"username\": \"Instagram Monitor\",\n        \"avatar\": \"\",\n        \"footertext\": \"\",\n        \"footericon\": \"\"\n    },\n    \"pollMS\": 5000,\n    \"accounts\": [\"cybersole\", \"destroyerbots\", \"testzhi\", \"offspringhq\", \"cncpts\"],\n    \"keywords\": [\"restock\", \"*\"]\n}\n\n...\n\n```\n\n...\n\nFeatures:\n\n...\n\n```bash\n\n# Ability to monitor any instagram accounts ✅\n# Able scrape posts ✅\n# OCR reader ✅\n\n```"
+        }
+      },
+      {
+        "type": "url_citation",
+        "url_citation": {
+          "url": "https://www.scribd.com/document/906431299/Message",
+          "title": "Identify Non-Followers on Instagram | PDF",
+          "start_index": 0,
+          "end_index": 0,
+          "content": "# Identify Non-Followers on Instagram\n\n...\n\nThe document is a JavaScript code snippet that retrieves a user's Instagram followers and following lists using Instagram's API. It identifies users who do not follow back and copies their u…\n\n...\n\n# Identify Non-Followers on Instagram\n\n...\n\nThe document is a JavaScript code snippet that retrieves a user's Instagram followers and following lists using Instagram's API. It identifies users who do not follow back and copies their usernames to the clipboard. The code includes error handling for JSON parsing and logs relevant information to the console."
+        }
+      }
+    ],
+    "error": null
+  }
+}

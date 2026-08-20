@@ -66,8 +66,19 @@ export function SortableHead({
         // Negative margins so the button's own padding does not indent the label past the cells
         // below it — the heading has to stay on the column's own left edge, and on a right-aligned
         // numeric column on its right one.
+        //
+        // **The cap has to be `100% + 0.75rem`, not `100%`, and the missing 0.75rem is a bug you
+        // can only see under `table-layout: auto`.** `-mx-1.5` is what lets this button be 12px
+        // wider than the cell's content box while still lining up with it, so the column's
+        // min-content width is the *margin* box — label, icon and gap, with the padding cancelled
+        // out. `max-w-full` then clamps the *border* box to that same number, which is 12px short
+        // of what the button needs, and `truncate` below eats the difference. Every heading in an
+        // auto-layout table therefore lost its last character or two: `TikTok` read `Ti…`,
+        // `Engagement` read `Engage…`. Under `table-fixed` the column is wider than min-content so
+        // nothing showed, which is why this survived until `/influencers` grew a view that is not
+        // fixed. Keep this in step with `-mx-1.5` if either changes.
         className={cn(
-          "-mx-1.5 -my-1 inline-flex max-w-full items-center gap-1 rounded-md px-1.5 py-1 font-medium text-ink-secondary transition-colors duration-[120ms] hover:bg-surface-hover hover:text-ink",
+          "-mx-1.5 -my-1 inline-flex max-w-[calc(100%+0.75rem)] items-center gap-1 rounded-md px-1.5 py-1 font-medium text-ink-secondary transition-colors duration-[120ms] hover:bg-surface-hover hover:text-ink",
           align === "right" && "flex-row-reverse",
         )}
       >

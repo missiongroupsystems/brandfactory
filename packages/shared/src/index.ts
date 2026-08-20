@@ -57,6 +57,7 @@ export * from './influencer/reach'
 export * from './influencer/slug'
 export * from './influencer/create'
 export * from './influencer/update'
+export * from './influencer/lookup'
 
 // Vendors — the companies the workspace buys from. Workspace-scoped with a
 // many-to-many brand relation and a child contact list; see

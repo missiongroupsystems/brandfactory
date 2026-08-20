@@ -1,0 +1,47 @@
+{
+  "case": {
+    "id": "ec24m",
+    "platform": "instagram",
+    "handle": "ec24m",
+    "kind": "roster",
+    "expect": {
+      "name": "Jamie Chua",
+      "followers": 1500000,
+      "vertical": "fashion"
+    },
+    "note": "The roster’s largest account, behind a handle that resembles nothing. Identity resolution with no lexical help at all."
+  },
+  "model": "openai/gpt-5.1:online",
+  "capture": {
+    "caseId": "ec24m",
+    "modelId": "openai/gpt-5.1:online",
+    "platform": "instagram",
+    "handle": "ec24m",
+    "elapsedMs": 2674,
+    "costUsd": 0.012415,
+    "draft": {
+      "outcome": "not-found",
+      "name": null,
+      "vertical": null,
+      "accounts": [
+        {
+          "platform": "instagram",
+          "handle": "ec24m",
+          "followers": null,
+          "engagementRate": null,
+          "url": "https://www.instagram.com/ec24m/",
+          "sourceUrl": "https://www.instagram.com/ec24m/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Instagram profile ec24m (unavailable due to access error)",
+          "url": "https://www.instagram.com/ec24m/"
+        }
+      ]
+    },
+    "rawText": "{\"outcome\":\"not-found\",\"name\":null,\"vertical\":null,\"accounts\":[{\"platform\":\"instagram\",\"handle\":\"ec24m\",\"followers\":null,\"engagementRate\":null,\"url\":\"https://www.instagram.com/ec24m/\",\"sourceUrl\":\"https://www.instagram.com/ec24m/\"}],\"sources\":[{\"title\":\"Instagram profile ec24m (unavailable due to access error)\",\"url\":\"https://www.instagram.com/ec24m/\"}]}",
+    "annotations": null,
+    "error": null
+  }
+}

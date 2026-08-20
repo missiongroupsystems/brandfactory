@@ -67,8 +67,9 @@ export function PlatformBadge({ platform }: { platform: InfluencerPlatform }) {
  * **`flex-nowrap` and not `flex-wrap`.** A wrapped second line of badges makes one row taller than
  * the rest, which is exactly what the density ladder exists to stop: a rung sets a row *minimum*,
  * so content taller than the rung wins and the table ends up with two row heights depending on
- * which creator posts from four platforms. Three badges plus a `+N` is the widest this can be, and
- * the column takes the width it needs.
+ * which creator posts from four platforms. Two badges plus a `+N` is the widest this can be, and
+ * that bound is what lets the column carry a fixed share of the table instead of an organic one —
+ * see `MAX_PLATFORM_BADGES` in `../platforms.ts`.
  */
 export function PlatformBadges({
   platforms,
