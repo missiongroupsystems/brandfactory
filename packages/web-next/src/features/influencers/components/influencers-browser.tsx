@@ -64,6 +64,7 @@ import { formatEngagement, GENERALIST } from "../format";
 import { useInfluencers } from "../hooks";
 import { influencerHref } from "../href";
 import type { FieldEdit } from "../patch";
+import { profileUrlOn } from "../platforms";
 import {
   type InfluencerSort,
   nextSort,
@@ -1211,7 +1212,17 @@ function InfluencerRow({
             as frozen. `Edit platforms and handles` is the honest name for a control that lands in
             the account editor. */}
         <span className="flex items-center gap-1">
-          <PlatformBadges platforms={platforms} />
+          {/* **Each badge opens that platform's profile in a new tab, when the record holds a
+              URL.** The cell was six words and a pencil; the platform a reader is looking at is
+              also the profile they are about to go and check, and the route to it used to be
+              row → record → account list → link. `profileUrlOn` is what decides, and it derives
+              nothing from a handle: a platform with no stored URL is the same plain badge it has
+              always been, because a guessed link to a real stranger's profile is worse than
+              none. */}
+          <PlatformBadges
+            platforms={platforms}
+            hrefFor={(platform) => profileUrlOn(influencer.accounts, platform)}
+          />
           <EditPencil
             label="platforms and handles"
             className="ml-auto"

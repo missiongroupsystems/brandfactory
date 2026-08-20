@@ -192,7 +192,7 @@ export function QuickAddSheet({
                     {...field}
                     value={handle}
                     autoFocus
-                    placeholder="novitalam"
+                    placeholder="ec24m"
                     onChange={(event) => setHandle(event.target.value)}
                     onBlur={() => setTouched(true)}
                   />

@@ -6,6 +6,7 @@ import * as React from "react";
 import { NamesTooltip } from "@/components/layout/names-tooltip";
 import { Badge } from "@/components/ui/badge";
 import { INFLUENCER_PLATFORM_LABELS } from "@/lib/labels";
+import { cn } from "@/lib/utils";
 
 import { MAX_PLATFORM_BADGES, visiblePlatforms } from "../platforms";
 import { INFLUENCER_PLATFORM_ICONS } from "./platform-icons";
@@ -43,16 +44,63 @@ import { INFLUENCER_PLATFORM_ICONS } from "./platform-icons";
  * argument, which is about the accent budget and is not a matter of taste.
  */
 
-/** One platform, marked and named. */
-export function PlatformBadge({ platform }: { platform: InfluencerPlatform }) {
+/**
+ * One platform, marked and named — and clickable when the record holds a URL for it.
+ *
+ * ── The link is opt-in, and it is the caller's to supply ──────────────────
+ *
+ * `href` is `null` by default and every existing caller keeps it that way. The detail page draws
+ * this badge beside a handle that already carries the link, so a second link to the same page in
+ * the same row would be two tab stops to one destination. The roster's Platforms cell has no
+ * handle beside it — the badge is the only thing there — which is why it is the one caller that
+ * passes an `href`.
+ *
+ * **Nothing here derives a URL.** See `profileUrlOn` for the rule; a badge with no stored URL is
+ * the plain `span` this component has always rendered, not a dead link.
+ *
+ * ── A new tab, and the badge says so ──────────────────────────────────────
+ *
+ * `target="_blank"` with `rel="noreferrer noopener"`, matching the account links on the detail
+ * page: the reader is leaving this app for somebody else's site, and a media list is read by
+ * opening several profiles beside each other rather than one at a time. WCAG 3.2.5 wants that
+ * announced, so the mark is paired with an `sr-only` line — the same construction the detail
+ * page's handle link uses, so the two surfaces say the same sentence.
+ *
+ * **No external-link glyph.** The detail page needs one because three handles sit in a column and
+ * only some are clickable; here the whole badge is the control, its hover state covers the mark
+ * and the word together, and a third glyph inside a 24px pill next to a `+N` would cost more
+ * width than the column has — `MAX_PLATFORM_BADGES` is 2 for that reason.
+ */
+export function PlatformBadge({
+  platform,
+  href = null,
+}: {
+  platform: InfluencerPlatform;
+  /** The profile to open in a new tab. `null` keeps the badge plain text. */
+  href?: string | null;
+}) {
   const Icon = INFLUENCER_PLATFORM_ICONS[platform];
+  const label = INFLUENCER_PLATFORM_LABELS[platform];
 
   return (
-    <Badge variant="outline" className="bg-surface">
+    <Badge
+      variant="outline"
+      // `hover:` on the two colour tokens rather than a `variant` of its own: a linked badge is
+      // the same pill as an unlinked one until the pointer is on it, because the column is read
+      // down its length and a permanently different-looking badge would read as a different
+      // *platform state* rather than as a link.
+      className={cn("bg-surface", href && "hover:border-brand hover:text-brand")}
+      render={
+        href ? (
+          <a href={href} target="_blank" rel="noreferrer noopener" title={`Open on ${label}`} />
+        ) : undefined
+      }
+    >
       {/* `[&>svg]:size-3!` on the badge wins over the mark's own `1em`, which is the same
           treatment every lucide glyph in a badge gets. */}
       <Icon className="text-ink-tertiary" />
-      {INFLUENCER_PLATFORM_LABELS[platform]}
+      {label}
+      {href ? <span className="sr-only">Opens the profile in a new tab</span> : null}
     </Badge>
   );
 }
@@ -70,13 +118,24 @@ export function PlatformBadge({ platform }: { platform: InfluencerPlatform }) {
  * which creator posts from four platforms. Two badges plus a `+N` is the widest this can be, and
  * that bound is what lets the column carry a fixed share of the table instead of an organic one —
  * see `MAX_PLATFORM_BADGES` in `../platforms.ts`.
+ *
+ * **`hrefFor` is asked per shown platform, and only per shown platform.** The overflow platforms
+ * stay inside the `+N` tooltip as names, because a tooltip is not a place to put links: it closes
+ * on the way to them. A reader who wants the third platform's profile opens the record, which is
+ * where every account is listed with its own link.
  */
 export function PlatformBadges({
   platforms,
   max = MAX_PLATFORM_BADGES,
+  hrefFor,
 }: {
   platforms: readonly InfluencerPlatform[];
   max?: number;
+  /**
+   * Where each badge links, or `null` for a plain badge. Omitted entirely by a caller whose
+   * surface already carries the link — see `PlatformBadge`.
+   */
+  hrefFor?: (platform: InfluencerPlatform) => string | null;
 }) {
   const { shown, overflow } = React.useMemo(
     () => visiblePlatforms(platforms, max),
@@ -86,7 +145,7 @@ export function PlatformBadges({
   return (
     <span className="flex flex-nowrap items-center gap-1">
       {shown.map((platform) => (
-        <PlatformBadge key={platform} platform={platform} />
+        <PlatformBadge key={platform} platform={platform} href={hrefFor?.(platform) ?? null} />
       ))}
       {overflow.length > 0 ? (
         // The same construction the Brands cell uses one column over: a short label with the

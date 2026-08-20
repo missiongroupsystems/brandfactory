@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.51.0** — 2026-08-20 — A platform badge stops being a label and becomes the way to the profile: the six marks in the Platforms column open the creator's page in a new tab when the record holds a URL, and derive nothing when it does not. Plus the quick-add handle example. No migration. 2840 tests.
 - **1.50.1** — 2026-08-20 — Post-release review of 1.50.0: the boundary rules bounded every field of the draft except the one they invented themselves, so a name too long for the record crossed the wire and was refused by the create the reader had already paid a lookup for. Plus the invariant that would have caught it. No migration. 2831 tests.
 - **1.50.0** — 2026-08-20 — A creator arrives from a platform and a handle: a model reads the live web, four rules in code throw away everything it cannot prove, and a person confirms what is left before a row exists. Plus the Reach column split per platform, and the 12px every sortable heading had been losing. No migration. 2828 tests.
 - **1.49.1** — 2026-08-19 — The roster table stops overflowing its own card: `table-fixed` and a measured share per column replace the auto-layout that clipped `Engagement`'s header to `Engage…` and pushed `Status` off the right edge, and the Platforms badge cap drops from three to two — the one column that was spending more width than any other. No migration. 2755 tests.
@@ -101,6 +102,125 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.51.0 — 2026-08-20
+
+**The Platforms column stops being read-only.** Every badge on `/influencers` — `Instagram`,
+`TikTok`, the other four — is now a link to that creator's profile on that platform, opening in a
+new tab. It links **only** where the record holds a URL for the account, and it derives nothing
+from a handle. Plus the quick-add sheet's handle example, which was a creator nobody here has
+heard of. No migration, no route change, no wire change, no new dependency. 2840 tests (2693
+passing, 147 skipped without a database), 9 more than 1.50.1.
+
+### What the cell used to cost the reader
+
+1.49.0 turned the column from a comma-joined sentence into six marks, and 1.49.1 capped it at two
+badges. Both passes were about *reading* the cell. Neither made it do anything: a reader looking at
+an `Instagram` badge and wanting the profile behind it went row → record → the Accounts card →
+the handle's link. Four steps to reach a page the badge was already naming.
+
+The badge is the right control for it. It is the only thing in that cell — unlike the detail page,
+where the same badge sits beside a handle that already carries the link, which is why that surface
+is deliberately **not** changed. Two tab stops to one destination in one row is worse than one.
+
+### It derives nothing from a handle, and that is the whole risk in this change
+
+`InfluencerAccountSchema.url` already writes the rule down and the detail page already obeys it:
+*"a wrong link to a real stranger's profile is worse than no link, so the screens render plain
+text when this is `null`."* This is the second surface to obey it. A platform with no stored URL
+renders exactly the badge it always did — a mark, a word, and nothing to click.
+
+The temptation is real and it is specific: five of the six platforms *look* guessable from a
+handle. **XiaoHongShu is not** — it addresses users by an opaque numeric id — so a column that
+linked five platforms by template and the sixth by record would be wrong in precisely the one
+place a reader could not check it. `platforms.test.ts` now carries that as an assertion rather
+than as a paragraph: *"derives nothing from a handle"* fails the moment somebody adds a per-platform
+URL template.
+
+### Which URL, when a creator has three Instagram accounts
+
+`InfluencerAccountsSchema` allows several accounts on one platform — three Instagram accounts is a
+real creator — and one badge stands for all of them, so one URL has to win. The new
+`profileUrlOn(accounts, platform)` in `features/influencers/platforms.ts` takes the **first account
+in list order that carries one**.
+
+Position order, never follower count. Position 0 is the account the creator is known by
+(`primaryAccount`: *"here the order is the fact"*), and picking the largest would silently
+re-point the link the day an import refreshed a number. A URL-less account is **skipped rather
+than terminating the search**, so a primary with no URL and a second account with one still gives
+the badge somewhere to go — a `.find()` on the platform alone would answer `null` there and refuse
+a link the record actually holds.
+
+It is a function in `platforms.ts` beside `visiblePlatforms` for that file's stated reason: it is
+the part of this column a test can see, and the same arithmetic written inline in a JSX attribute
+is arithmetic nobody ever asserts.
+
+### Where the code changed
+
+- **`features/influencers/platforms.ts`** — new `profileUrlOn`. Five tests in `platforms.test.ts`,
+  including the derive-nothing rule and both multi-account cases.
+- **`components/platform-badges.tsx`** — `PlatformBadge` takes an optional `href`, defaulting to
+  `null`; `PlatformBadges` takes an optional `hrefFor` and asks it **per shown platform only**.
+  Base UI's `render={<a …/>}` rather than `asChild`, per this package's own note. Four tests in a
+  new `platform-badges.test.tsx`.
+- **`components/influencers-browser.tsx`** — the roster's Platforms cell passes
+  `hrefFor={(p) => profileUrlOn(influencer.accounts, p)}`. It is the one caller that passes one.
+
+Three details that are decisions rather than styling. **`target="_blank"` with
+`rel="noreferrer noopener"`**, matching the detail page's account links: a media list is read by
+opening several profiles beside each other, and `noopener` is what stops the opened page holding a
+live `window.opener` back into this app. **An `sr-only` "Opens the profile in a new tab"**, so
+WCAG 3.2.5 is satisfied the same way and in the same words on both surfaces — asserted in the test,
+because a missing `rel` and a missing announcement both render identically. **No external-link
+glyph**, unlike the detail page: there, three handles sit in a column and only some are clickable,
+so the mark is the only way to tell which; here the whole badge is the control and its hover state
+covers mark and word together, and a third glyph inside a 24px pill beside a `+N` would cost width
+the column does not have — `MAX_PLATFORM_BADGES` is 2 for exactly that reason.
+
+The linked badge is **visually identical to an unlinked one until the pointer is on it**
+(`hover:border-brand hover:text-brand`, no new variant). A permanently different-looking badge in a
+column read down its length would be taken for a different *platform state* rather than for a link.
+
+### The overflowed platforms stay unlinked, deliberately
+
+The cap is two, so a creator on three platforms has the third behind the `+N` badge, which names it
+in a tooltip. A tooltip is not a place to put a link — it closes on the way to one. The test asserts
+`hrefFor` is asked for the shown platforms and no others, so the cell does not pay for a URL it
+cannot render. A reader who wants the third platform's profile opens the record, where every
+account is listed with its own link.
+
+### Honest about what this draws today
+
+**215 of the 216 seeded accounts have `url: null`.** The Curly's media list arrived in 1.47.0 as
+handles, and `seed.ts` records it: *"`url` is `null` on every account but one: Jaime Lee, whose
+media-list cell holds a profile URL rather than a handle."* So on the production roster as it
+stands, this change makes **one** badge clickable and leaves 145 creators looking exactly as they
+did.
+
+That is the correct outcome and not a reason to weaken the rule — the alternative is 215 guessed
+links. What it means is that the feature fills in as URLs arrive, and two paths already supply
+them: quick add writes the URL its lookup **grounded** (`LookupUrlSchema`, refused unless
+`http`/`https`), and the account editor on the record's form takes one typed by hand. A creator
+added today is clickable; the imported roster becomes clickable a row at a time.
+
+### The quick-add example
+
+`placeholder="novitalam"` on the handle box becomes `placeholder="ec24m"` — Jamie Chua. A
+placeholder is an example of the *kind of thing* to type, and it is read by somebody deciding
+whether this box wants an `@`, a URL or a name. Nothing else in the sheet changed; the field is
+still validated by `handleError` and still refuses a leading `@`.
+
+### The gate
+
+`pnpm typecheck`, `pnpm lint`, `pnpm -F @brandfactory/web-next lint`, `pnpm format:check`,
+`pnpm test`, `pnpm -F @brandfactory/web build` and `pnpm -F @brandfactory/web-next build` all pass.
+`/influencers` is still `○ (Static)` in the build output.
+
+**No browser pass.** The two claims a browser pass would have checked are the two the new component
+test asserts instead — that a URL-less badge does not become a link, and that `rel` travels with
+`target="_blank"` — because both are invisible on screen. What is *not* checked by anything here is
+how the hover state looks on a real badge; it is two token swaps on an existing pill, and the next
+browser pass over this table is where it gets looked at.
 
 ## 1.50.1 — 2026-08-20
 

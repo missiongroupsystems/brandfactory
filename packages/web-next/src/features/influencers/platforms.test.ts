@@ -2,11 +2,15 @@ import type { InfluencerAccount } from "@brandfactory/shared";
 import { InfluencerPlatformSchema, platformsOf } from "@brandfactory/shared";
 import { describe, expect, it } from "vitest";
 
-import { MAX_PLATFORM_BADGES, visiblePlatforms } from "./platforms";
+import { MAX_PLATFORM_BADGES, profileUrlOn, visiblePlatforms } from "./platforms";
 
 /** The least an account has to be for `platformsOf` to read it. */
-function account(platform: InfluencerAccount["platform"], handle: string): InfluencerAccount {
-  return { platform, handle, url: null, followers: 1_000, engagementRate: null };
+function account(
+  platform: InfluencerAccount["platform"],
+  handle: string,
+  url: string | null = null,
+): InfluencerAccount {
+  return { platform, handle, url, followers: 1_000, engagementRate: null };
 }
 
 describe("visiblePlatforms", () => {
@@ -100,5 +104,52 @@ describe("the order the cell renders in", () => {
       "facebook",
       "linkedin",
     ]);
+  });
+});
+
+describe("profileUrlOn", () => {
+  it("answers the URL stored against that platform", () => {
+    const accounts = [
+      account("instagram", "jamiechua", "https://instagram.com/jamiechua"),
+      account("tiktok", "jamiechua", "https://tiktok.com/@jamiechua"),
+    ];
+    expect(profileUrlOn(accounts, "instagram")).toBe("https://instagram.com/jamiechua");
+    expect(profileUrlOn(accounts, "tiktok")).toBe("https://tiktok.com/@jamiechua");
+  });
+
+  it("answers null for a platform the creator is not on", () => {
+    expect(profileUrlOn([account("instagram", "jamiechua", "https://ig.test/j")], "youtube")).toBe(
+      null,
+    );
+  });
+
+  it("derives nothing from a handle", () => {
+    // The rule `InfluencerAccountSchema.url` writes down, asserted on the surface that reads it:
+    // an account with no stored URL is a badge with nowhere to go, **not** a guessed
+    // `instagram.com/<handle>`. A wrong link to a real stranger's profile is worse than no link,
+    // and this is the assertion that fails if somebody adds a per-platform URL template.
+    expect(profileUrlOn([account("instagram", "jamiechua")], "instagram")).toBe(null);
+  });
+
+  it("takes the first account carrying a URL, in list order", () => {
+    // Three Instagram accounts is a real creator and one badge stands for all of them, so one URL
+    // has to win. Position order wins — position 0 is the account the creator is known by — and
+    // never the largest follower count, which an import can change under the link.
+    const accounts = [
+      account("instagram", "jamiechua", "https://ig.test/primary"),
+      account("instagram", "jamiechua.eats", "https://ig.test/second"),
+    ];
+    expect(profileUrlOn(accounts, "instagram")).toBe("https://ig.test/primary");
+  });
+
+  it("skips a URL-less account rather than stopping at it", () => {
+    // A primary with no URL and a second account with one still gives the badge somewhere to go.
+    // A `.find()` on the platform alone would answer `null` here and leave a link on the record
+    // that the roster refused to draw.
+    const accounts = [
+      account("instagram", "jamiechua"),
+      account("instagram", "jamiechua.eats", "https://ig.test/second"),
+    ];
+    expect(profileUrlOn(accounts, "instagram")).toBe("https://ig.test/second");
   });
 });

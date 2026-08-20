@@ -1,4 +1,4 @@
-import type { InfluencerPlatform } from "@brandfactory/shared";
+import type { InfluencerAccount, InfluencerPlatform } from "@brandfactory/shared";
 
 /**
  * How many platform badges a table cell shows before it collapses the rest into `+N`.
@@ -63,4 +63,40 @@ export function visiblePlatforms(
 ): VisiblePlatforms {
   const limit = Math.max(0, max);
   return { shown: platforms.slice(0, limit), overflow: platforms.slice(limit) };
+}
+
+/**
+ * The profile URL a platform badge links to, or `null` when the badge stays plain text.
+ *
+ * ── Nothing is derived from a handle ──────────────────────────────────────
+ *
+ * The rule `InfluencerAccountSchema.url` writes down, applied to a second surface: a guessed link
+ * to a real stranger's profile is worse than no link, so a platform with no stored URL renders
+ * exactly as it did before — a mark and a word, and nothing to click. Five of the six platforms
+ * *look* guessable from a handle; **xiaohongshu** is not, because it addresses users by an opaque
+ * numeric id, and a column that linked five platforms by guess and the sixth by record would be
+ * wrong in the one place a reader could not check.
+ *
+ * ── The first account that carries one, in list order ─────────────────────
+ *
+ * A creator can hold more than one account on a platform — three Instagram accounts is a real
+ * creator, and `InfluencerAccountsSchema` allows it. One badge stands for all of them, so one of
+ * the URLs has to win. **Position order wins, not follower count**: position 0 is the account the
+ * creator is known by (`primaryAccount`), and picking the largest would silently re-point the link
+ * the day an import refreshed a number. The badge is a way into the record, not a claim that the
+ * creator has exactly one account there — the detail page lists every account with its own link.
+ *
+ * An account whose `url` is `null` is skipped rather than ending the search, so a primary with no
+ * URL and a second account with one still gives the badge somewhere to go.
+ */
+export function profileUrlOn(
+  accounts: readonly InfluencerAccount[],
+  platform: InfluencerPlatform,
+): string | null {
+  for (const account of accounts) {
+    if (account.platform === platform) {
+      if (account.url) return account.url;
+    }
+  }
+  return null;
 }
