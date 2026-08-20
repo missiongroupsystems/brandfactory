@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.50.1** — 2026-08-20 — Post-release review of 1.50.0: the boundary rules bounded every field of the draft except the one they invented themselves, so a name too long for the record crossed the wire and was refused by the create the reader had already paid a lookup for. Plus the invariant that would have caught it. No migration. 2831 tests.
 - **1.50.0** — 2026-08-20 — A creator arrives from a platform and a handle: a model reads the live web, four rules in code throw away everything it cannot prove, and a person confirms what is left before a row exists. Plus the Reach column split per platform, and the 12px every sortable heading had been losing. No migration. 2828 tests.
 - **1.49.1** — 2026-08-19 — The roster table stops overflowing its own card: `table-fixed` and a measured share per column replace the auto-layout that clipped `Engagement`'s header to `Engage…` and pushed `Status` off the right edge, and the Platforms badge cap drops from three to two — the one column that was spending more width than any other. No migration. 2755 tests.
 - **1.49.0** — 2026-08-19 — The roster stops being read-only prose: six platform marks replace a comma-joined sentence, `2 accounts` becomes a panel that shows what the sum is made of, and four columns take a one-key `PATCH` from the cell you are looking at — plus the 10px the browser pass caught the name editor pushing every row down by. No migration. 2686 tests.
@@ -100,6 +101,90 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.50.1 — 2026-08-20
+
+**`applyLookupBoundaries` read every field of the draft through a shared schema except one, and
+the one it did not read is the one it built itself.** Rule 7 kept the creator's name on
+`rawName.length > 0` and checked nothing at the other end, so a model answering with a channel
+title and its tagline produced a value typed `LookupDraft` that **fails `LookupDraftSchema`**.
+
+A post-release review of the whole of `influencer-quick-add-and-inline-edit-plan.md` as shipped —
+Phases A–J and the hardening pass. One defect, two smaller corrections beside it. No migration, no
+route change, no wire change, no new dependency. 2831 tests (2684 passing, 147 skipped without a
+database), 3 more than 1.50.0.
+
+Full write-up: `docs/completions/influencer-quick-add-name-bound.md`.
+
+### Nothing parses the result on the way out, which is what made it reach a person
+
+`routes/influencers.ts` answers `c.json(await deps.lookupCreator(...))`. There is no output parse,
+by design — the shape is one function's to own — so whatever the engine builds is what a browser
+receives. The over-long name crossed the wire, filled the sheet's name box, and was refused by the
+**create the reader then submitted**, after they had already paid for the lookup. A correct,
+grounded, well-sourced answer ended in a validation error on a field nobody had touched.
+
+Measured rather than argued: given a 400-character name on an otherwise clean answer,
+`InfluencerNameSchema.safeParse` is false and `LookupDraftSchema.safeParse(draft)` is false.
+
+### It was the only field in that function not read through a schema
+
+That is what makes it a defect rather than a gap. `readUrl` goes through `LookupUrlSchema`,
+`readFollowers` checks the integer, the vertical goes through `InfluencerVerticalSchema`, the
+account goes through `LookupAccountDraftSchema`. The file's own rule is *"what is sent is loose;
+what is kept is strict"*, and the name was the exception to it. `readName` is the fourth of those
+helpers now and sits beside them.
+
+**Refused rather than truncated**, for `readUrl`'s reason: a 400-character string cut at 200 is not
+a name, it is a sentence with its end removed, and it would sit in the Creator column of a media
+list looking like something somebody checked. It becomes `found.name === false`, which the sheet
+already renders as *"No name could be verified — this one is yours to fill in."* Refusing the name
+costs nothing else — a test pins that the grounded follower count and its source survive it, which
+is the hardening pass's own finding one field over.
+
+### The invariant, rather than one more field's rule
+
+Three tests, and the third is the one worth having: **`applyLookupBoundaries` always returns a
+draft `LookupDraftSchema` accepts.** Six hostile answers go through it — an enormous name, a
+whitespace name, a name that is a number, a vertical outside the enum, a negative follower count
+under a capitalised platform, and a `javascript:` URL. The next field added to that draft will be
+added by somebody reading rule 7, not this entry.
+
+### Two smaller things
+
+**The sheet's name box had no cap.** `NameEditor` carries `maxLength={200}` and quick add's did
+not. The engine bounds what a *model* may propose; this bounds what a *person* may type over it —
+the same number, from the same schema, on the two halves of one box.
+
+**A docstring that disagreed with its own code.** `toCreateInput` said *"`status` is omitted rather
+than sent"* and sent `status: "prospect"`. The code was right and could not be otherwise:
+`CreateInfluencerInputSchema.status` carries `.default('prospect')` and `z.infer` reads a schema's
+**output**, so the key is required and omitting it would not compile. The comment says that now.
+
+### Four claims checked and found true
+
+Recorded because each is something a reader would otherwise take on trust, and one of them is a
+CSS rule that is invalid as written.
+
+- **The router did not degrade.** `app.test.ts` asserts `SmartRouter + RegExpRouter` and the
+  multi-segment blob key, so Phase G's claim is tested rather than argued.
+- **The `calc` fix compiles.** `max-w-[calc(100%+0.75rem)]` is invalid CSS — `calc` requires
+  whitespace around `+` — and Tailwind normalises it: the built stylesheet carries
+  `max-width:calc(100% + .75rem)`. Checked because the pass it belongs to was itself about a class
+  that lands in the DOM and does nothing.
+- **All five port fakes refuse**, so a route that lost its lookup cannot pass as one whose lookup
+  found nothing.
+- **The handle pattern escapes.** A handle carrying a `.` matches as a literal; `a.b` is not
+  grounded by a page about `axb`.
+
+### Still open, and it is a decision rather than a defect
+
+**No rate limit and no spend cap on the lookup.** Unchanged from Phase G, which records it as the
+accepted position — restated here because the feature is now live: 1.29.0 opened the owner gate, so
+every authenticated user reaches every workspace, and this is a paid route at ~$0.014 a hit and
+~$0.041 a miss. The guards that exist stop the two *accidental* ways of spending — an unknown
+workspace and a malformed body are both refused before the model, and the double-press guard is the
+client's. Nothing stops a script.
 
 ## 1.50.0 — 2026-08-20
 

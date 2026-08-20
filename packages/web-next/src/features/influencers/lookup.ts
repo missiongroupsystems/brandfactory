@@ -171,11 +171,15 @@ export function quickAddEvidenceFrom(result: LookupInfluencerResult): QuickAddEv
  * — the brand check, the 409 on a taken handle, the slug chosen server-side —
  * applies unchanged.
  *
- * `status` is omitted rather than sent: `prospect` is the create default and
- * somebody just entered is on a shortlist. `brandIds` and `notes` are omitted for
- * the reason the wire type gives — which brands a creator is engaged for is a
- * fact about this company that no public page knows, and the notes column holds
- * rate cards.
+ * `status` is **sent, and it is sent as the default the schema already holds**:
+ * `CreateInfluencerInputSchema.status` carries `.default("prospect")`, and
+ * `z.infer` reads a schema's *output*, so `CreateInfluencerInput.status` is a
+ * required key — omitting it would not compile. The value is `prospect` for the
+ * default's own reason: somebody just entered is on a shortlist, not booked.
+ *
+ * `brandIds` and `notes` are genuinely omitted, for the reason the wire type
+ * gives — which brands a creator is engaged for is a fact about this company that
+ * no public page knows, and the notes column holds rate cards.
  *
  * **An empty follower box converts to `NaN`, tested before the conversion.**
  * `toAccountPayload` records why at length and this is the same line one function

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GroundedRequest, GroundedResult, LLMProvider } from '@brandfactory/adapter-llm'
 import type { LookupPlatform, ResearchSource } from '@brandfactory/shared'
-import { LOOKUP_PLATFORMS, LookupPlatformSchema } from '@brandfactory/shared'
+import { LOOKUP_PLATFORMS, LookupDraftSchema, LookupPlatformSchema } from '@brandfactory/shared'
 import { applyLookupBoundaries, buildLookupPrompt, extractJson, lookupCreator } from './lookup'
 
 // ---------------------------------------------------------------------------
@@ -202,6 +202,47 @@ describe('applyLookupBoundaries', () => {
     const { draft, found } = applyLookupBoundaries(answer(), { ...INPUT, retrieved: [] })
     expect(draft.name).toBeNull()
     expect(found.name).toBe(false)
+  })
+
+  it('discards a name longer than the record can hold, and keeps the figure beside it', () => {
+    // A channel title with its tagline attached. `InfluencerNameSchema` is
+    // `.max(200)`, and this used to pass through unchecked — producing a draft
+    // that failed `LookupDraftSchema`, crossed the wire, and was refused by the
+    // *create* the person submitted after paying for the lookup.
+    const { draft, found } = applyLookupBoundaries(answer({ name: 'L'.repeat(201) }), INPUT)
+    expect(draft.name).toBeNull()
+    expect(found.name).toBe(false)
+    // Refusing the name must not cost the answer: the same rule as `readUrl`.
+    expect(draft.accounts[0]?.followers).toBe(570_000)
+    expect(found.followers).toBe(true)
+  })
+
+  it('keeps a name of exactly the length the record accepts', () => {
+    const name = 'L'.repeat(200)
+    const { draft, found } = applyLookupBoundaries(answer({ name }), INPUT)
+    expect(draft.name).toBe(name)
+    expect(found.name).toBe(true)
+  })
+
+  // ---- The invariant the three cases above are instances of ----------------
+
+  it('always returns a draft its own wire type accepts', () => {
+    // The property, rather than one more field's rule. `routes/influencers.ts`
+    // answers `c.json(result)` with no output parse, so anything this function
+    // builds is what a browser receives — and a `LookupDraft` that is not one is
+    // a contract broken in the one place nothing checks it.
+    const hostile = [
+      answer({ name: 'L'.repeat(5000) }),
+      answer({ name: '   ' }),
+      answer({ name: 42 }),
+      answer({ vertical: 'lifestyle' }),
+      answer({ accounts: [{ platform: 'Instagram', handle: '@lennardy', followers: -1 }] }),
+      answer({ accounts: [{ platform: 'instagram', handle: 'lennardy', url: 'javascript:1' }] }),
+    ]
+    for (const raw of hostile) {
+      const { draft } = applyLookupBoundaries(raw, INPUT)
+      expect(LookupDraftSchema.safeParse(draft).success).toBe(true)
+    }
   })
 
   // ---- Shape failures ------------------------------------------------------

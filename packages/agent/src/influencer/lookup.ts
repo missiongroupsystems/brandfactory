@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { GroundedResult, LLMProvider, LLMProviderSettings } from '@brandfactory/adapter-llm'
 import {
+  InfluencerNameSchema,
   InfluencerVerticalSchema,
   LookupAccountDraftSchema,
   LookupUrlSchema,
@@ -335,6 +336,33 @@ function readFollowers(value: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null
 }
 
+/**
+ * The name, read on its own and **through the record's own schema**.
+ *
+ * `InfluencerNameSchema` is `.trim().min(1).max(200)`, and this was the one
+ * field in this function that did not go through a shared schema: rule 7 kept
+ * anything non-empty, so a model answering with a channel title and its tagline
+ * produced a `LookupDraft` that **fails `LookupDraftSchema`** — a value whose own
+ * declared type it does not satisfy. Nothing parses the result on the way out
+ * (`routes/influencers.ts` answers `c.json(result)`), so it crossed the wire,
+ * filled the sheet's name box, and was refused by the *create* the person then
+ * submitted — after they had paid for the lookup.
+ *
+ * **Refused rather than truncated.** `readUrl` and `readFollowers` make the same
+ * call for the same reason: a 400-character string cut at 200 is not a name, it
+ * is a sentence with its end removed, and this feature's whole argument is that
+ * a blank a person fills in beats a value they cannot check. It becomes
+ * `found.name === false`, which the sheet already renders as *"No name could be
+ * verified — this one is yours to fill in."*
+ *
+ * The schema trims, so the parsed value is what the echo test below compares.
+ */
+function readName(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const parsed = InfluencerNameSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
+}
+
 export interface BoundaryInput {
   platform: LookupPlatform
   handle: string
@@ -474,9 +502,13 @@ export function applyLookupBoundaries(
   //
   // Ungrounded names go too: a name is an identity claim about a real person and
   // it is as inventable as a number.
-  const rawName = typeof envelope.data.name === 'string' ? envelope.data.name.trim() : ''
-  const nameIsEcho = fold(rawName) === wantedHandle
-  const keepName = rawName.length > 0 && !nameIsEcho && grounded
+  //
+  // **Read through `InfluencerNameSchema` rather than tested for emptiness**, so
+  // what this returns is a `LookupDraft` the wire type actually accepts. See
+  // `readName`: a name the record could not hold is a blank somebody fills in.
+  const rawName = readName(envelope.data.name)
+  const nameIsEcho = rawName !== null && fold(rawName) === wantedHandle
+  const keepName = rawName !== null && !nameIsEcho && grounded
 
   // `url` is the profile URL. It is kept without the grounding check, because it
   // is derived from the handle rather than discovered — the prompt handed the
