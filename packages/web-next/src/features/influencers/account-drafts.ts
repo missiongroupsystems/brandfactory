@@ -149,6 +149,55 @@ export function toAccountPayload(drafts: readonly AccountDraft[]): InfluencerAcc
 }
 
 /**
+ * Why one row's two **figure** boxes cannot be read, or `null` when both can.
+ *
+ * ── Why this is not left to the schema ────────────────────────────────────
+ *
+ * The panel's boxes are plain text until {@link toAccountPayload} converts them, and the two
+ * conversions fail in **opposite** ways. A follower count that is not a number becomes `NaN`,
+ * which `InfluencerFollowersSchema` refuses — with *"Invalid input: expected number, received
+ * NaN"*, which is the shape of sentence {@link accountsProblem} exists to keep off the screen. An
+ * engagement rate that is not a number becomes `null` through `toNullableNumber`, and `null` is a
+ * **legal value** on this field: it means nobody has measured this account. So the schema passes
+ * it, `Save` stays enabled, and a rate somebody recorded is replaced by "not measured" without a
+ * word on screen.
+ *
+ * That second case is the reason this function exists. It is the same laundering
+ * {@link toAccountPayload} documents for `Number("") === 0`, one field over, and the guard that
+ * catches it there — a value the schema refuses — cannot fire here, because the laundered value is
+ * one the schema wants.
+ *
+ * The four inputs a person actually produces, in the order they are answered: a follower count
+ * carrying a thousands separator (`412,000`) or a decimal point, a negative one, a rate carrying
+ * its own percent sign (`3.2%`), and a rate entered as a whole audience share rather than a
+ * percent (`320`).
+ *
+ * **An empty box is not this function's refusal.** `followers` empty is
+ * {@link accountsProblem}'s own sentence one step up, and `engagementRate` empty is the whole
+ * point of a nullable column.
+ */
+export function figureProblem(draft: AccountDraft): string | null {
+  const followers = draft.followers.trim()
+  if (followers !== "") {
+    const count = Number(followers)
+    // `Number.isInteger` answers `false` for `NaN` as well, so one test covers a word, a comma and
+    // a decimal point. `84.5` is a real mistake here: the column is an integer.
+    if (!Number.isInteger(count))
+      return "Every follower count must be a whole number. Enter 412000 rather than 412,000.";
+    if (count < 0) return "A follower count cannot be negative.";
+  }
+
+  const rate = draft.engagementRate.trim();
+  if (rate === "") return null;
+  const engagement = Number(rate);
+  if (!Number.isFinite(engagement))
+    return "An engagement rate must be a number. Enter 3.2 for 3.2%, or leave the box empty.";
+  if (engagement < 0 || engagement > 100)
+    return "An engagement rate is a percent, so it must be between 0 and 100.";
+  return null;
+}
+
+/**
  * Why this list cannot be saved yet, in one sentence, or `null` when it can.
  *
  * **Composed out of the rules above rather than a fifth opinion about them.** The duplicate set is
@@ -157,12 +206,12 @@ export function toAccountPayload(drafts: readonly AccountDraft[]): InfluencerAcc
  * the *order* the reasons are given in and the words two of them are given in.
  *
  * It exists because the accounts panel has no `<form>` to lean on. `InfluencerForm` marks its
- * boxes `required` and lets the browser refuse the submit; a panel that lives in a popover over a
- * table cell has to disable its own `Save` and say why, and "Too small: expected string to have
- * >=1 characters" is not a sentence anybody can act on. So the two failures a person actually
- * produces — an empty box, and a pair they already typed — are worded here, and everything else
- * falls through to the schema's own message, which is written for exactly the cases nobody
- * produces by hand.
+ * boxes `required` and `type="number"` and lets the browser refuse the submit; a panel that lives in
+ * a popover over a table cell has to disable its own `Save` and say why, and "Too small: expected
+ * string to have >=1 characters" is not a sentence anybody can act on. So the failures a person
+ * actually produces — an empty box, a pair they already typed, and a figure that is not one — are
+ * worded here, and everything else falls through to the schema's own message, which is written for
+ * exactly the cases nobody produces by hand.
  *
  * The order is deliberate: the **duplicate first**, because it is the one failure whose fix is to
  * delete a row rather than to fill one in, and reporting an empty box on the row somebody is about
@@ -182,6 +231,14 @@ export function accountsProblem(drafts: readonly AccountDraft[]): string | null 
   // documents, at the one point a person can still see the box.
   if (drafts.some((draft) => draft.followers.trim() === ""))
     return "Every account needs a follower count.";
+
+  // The two figure boxes, before the schema sees them. One of the two cases {@link figureProblem}
+  // answers is a **silent** one — an unreadable engagement rate converts to `null`, which is a
+  // value the schema accepts and which erases a measurement nobody meant to clear.
+  for (const draft of drafts) {
+    const figure = figureProblem(draft);
+    if (figure) return figure;
+  }
 
   const parsed = InfluencerAccountsSchema.safeParse(toAccountPayload(drafts));
   return parsed.success ? null : (parsed.error.issues[0]?.message ?? "Those accounts cannot be saved.");

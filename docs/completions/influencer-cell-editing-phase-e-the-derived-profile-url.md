@@ -86,7 +86,9 @@ of what was true when it ran, and editing one is how a migration stops being tru
 
 ## Measured on the real roster, in a browser
 
-The pass in Phase F counted the rendered anchors across all 165 seeded creators:
+The pass in Phase F counted the rendered anchors across all 165 creators **on the dev database**,
+which carries rows the seed does not — the seed has 146 creators and no YouTube, Facebook or
+LinkedIn account, and derives 210 links. See the 1.52.1 review pass:
 
 - **226 badge links**: `instagram.com` 146, `tiktok.com` 75, `youtube.com` 2, `facebook.com` 1,
   `linkedin.com` 1 — and **`www.instagram.com` 1**, which is Jaime Lee's *stored* URL. That last

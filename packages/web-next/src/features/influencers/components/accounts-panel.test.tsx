@@ -66,7 +66,14 @@ function openPanel(influencer: Influencer, commit = vi.fn().mockResolvedValue(tr
   return { commit };
 }
 
-const box = (label: string) => screen.getByRole("textbox", { name: label }) as HTMLInputElement;
+/**
+ * By label rather than by role, because the two figure boxes are **not** `textbox`.
+ *
+ * `type="number"` makes them `spinbutton`, and a role-based helper would have to know which of the
+ * three columns it was reaching for. The label is the same question for all three, and every box
+ * in this panel carries one — a column of inputs with no heading is a form nobody can label.
+ */
+const box = (label: string) => screen.getByLabelText(label) as HTMLInputElement;
 const saveButton = () => screen.getByRole("button", { name: /^Sav/ }) as HTMLButtonElement;
 
 describe("AccountsPanel", () => {
@@ -184,5 +191,49 @@ describe("AccountsPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: LABEL }));
     expect(box("Followers of account 1").value).toBe("241000");
+  });
+
+  it("gives its two figure boxes the record form's own number input", () => {
+    // **The half of this that a sentence cannot do.** `inputMode` is a hint to a *soft* keyboard
+    // and constrains nothing on a desktop, so the panel shipped able to hold `412,000` in a
+    // follower box and `3.2%` in a rate box. `account-rows.tsx` has carried these attributes since
+    // the record's form was written; the panel is the same three fields and had none of them.
+    openPanel(creator(ACCOUNTS));
+
+    const followers = box("Followers of account 1");
+    expect(followers.type).toBe("number");
+    expect(followers.min).toBe("0");
+    expect(followers.step).toBe("1");
+
+    const rate = box("Engagement rate of account 1, percent");
+    expect(rate.type).toBe("number");
+    expect(rate.min).toBe("0");
+    expect(rate.max).toBe("100");
+  });
+
+  it("refuses a follower count that is not a whole number, and names the fix", () => {
+    // `min` and `step` mark a number input invalid without emptying it, so this value reaches the
+    // draft and `Save` is the only thing left to stop it. The old panel sent it and let the reader
+    // read *"Invalid input: expected int, received number"* off the toast.
+    const { commit } = openPanel(creator(ACCOUNTS));
+    fireEvent.change(box("Followers of account 1"), { target: { value: "84.5" } });
+
+    expect(saveButton().disabled).toBe(true);
+    expect(screen.getByRole("alert").textContent).toContain("whole number");
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  it("refuses an engagement rate outside a percent's range rather than writing it", () => {
+    // **The box this release could lose data through.** An unreadable rate converts to `null`
+    // through `toNullableNumber`, and `null` is a *legal* value here — it means nobody has
+    // measured this account — so the schema passed it, `Save` stayed enabled, and a recorded 4.2
+    // was replaced by "not measured" with nothing on screen. `figureProblem` is the guard; its
+    // whole truth table is in `account-drafts.test.ts`, and this is the panel wearing it.
+    const { commit } = openPanel(creator(ACCOUNTS));
+    fireEvent.change(box("Engagement rate of account 2, percent"), { target: { value: "320" } });
+
+    expect(saveButton().disabled).toBe(true);
+    expect(screen.getByRole("alert").textContent).toContain("between 0 and 100");
+    expect(commit).not.toHaveBeenCalled();
   });
 });

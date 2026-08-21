@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   accountDraftsFrom,
   accountsProblem,
+  figureProblem,
   addAccountDraft,
   type AccountDraft,
   duplicateAccountIndexes,
@@ -236,17 +237,97 @@ describe("accountsProblem", () => {
   });
 
   it("falls through to the schema's own words for what nobody types by hand", () => {
-    // An engagement rate over 100 is not a slip somebody makes in a percent box; it is what an
-    // import or a paste produces. The shared schema already has a message for it, and inventing a
-    // second one here is how the two drift.
-    const problem = accountsProblem([draft({ engagementRate: "140" })]);
-    expect(problem).not.toBe(null);
-    expect(problem).not.toBe("Every account needs a handle.");
+    // A handle carrying its own `@` is `InfluencerHandleSchema`'s refusal and it already has a
+    // sentence — *"A handle is stored without the @ — every surface adds it"* — which names the
+    // fix. Inventing a second wording here is how the two drift.
+    //
+    // **This test used to use an engagement rate of 140**, which no longer reaches the schema:
+    // `figureProblem` words the out-of-range case now, because the box it comes from is a percent
+    // box and 140 is what somebody types who read the column as a follower share. Left here as a
+    // note, because the change of example *is* the change of behaviour.
+    const problem = accountsProblem([draft({ handle: "@priyaskin" })]);
+    expect(problem).toContain("without the @");
   });
 
   it("refuses an empty list, which is what a last removal would leave", () => {
     // The panel's Remove button is disabled at one row, so this is the second of two defences —
     // and it is the one that holds if a caller ever builds the list some other way.
     expect(accountsProblem([])).not.toBe(null);
+  });
+
+  it("reports a figure it cannot read, on the row rather than through the schema", () => {
+    // The order: after the empty boxes, before the schema. An empty box and an unreadable one are
+    // different mistakes and the empty one is the more common, so it keeps the first word.
+    expect(accountsProblem([draft({ followers: "412,000" })])).toContain("whole number");
+    // Distinct platforms, or the pair repeats and the duplicate rightly speaks first.
+    expect(
+      accountsProblem([
+        draft({ followers: "" }),
+        draft({ platform: "tiktok", engagementRate: "3.2%" }),
+      ]),
+    ).toBe("Every account needs a follower count.");
+  });
+});
+
+/**
+ * The guard that closes the one way this panel could lose data without saying so.
+ *
+ * The two figure boxes fail in **opposite** directions and only one of them was noisy about it. An
+ * unreadable follower count becomes `NaN`, which the schema refuses — badly worded, but refused.
+ * An unreadable engagement rate becomes `null` through `toNullableNumber`, and `null` is a *legal*
+ * value on that field: it means nobody has measured this account. So `3.2%` passed every guard,
+ * `Save` stayed enabled, and a rate somebody had recorded was replaced with "not measured" — with
+ * no message, and no way for the reader to know it had happened.
+ *
+ * That is the same laundering `toAccountPayload` documents for `Number("") === 0`, one field over,
+ * and the defence that catches it there cannot fire here.
+ */
+describe("figureProblem", () => {
+  it("says nothing about two boxes it can read", () => {
+    expect(figureProblem(draft())).toBe(null);
+    expect(figureProblem(draft({ engagementRate: "3.2" }))).toBe(null);
+    // A typed zero is a measurement on both fields and must survive.
+    expect(figureProblem(draft({ followers: "0", engagementRate: "0" }))).toBe(null);
+  });
+
+  it("refuses a follower count carrying a thousands separator", () => {
+    // **The likeliest mistake in this panel**, because the cell it opens from prints `412K` and
+    // `1.24M`. The example is in the sentence, so the fix does not have to be guessed at.
+    const problem = figureProblem(draft({ followers: "412,000" }));
+    expect(problem).toContain("whole number");
+    expect(problem).toContain("412000");
+  });
+
+  it("refuses a follower count that is not whole, and one that is negative", () => {
+    expect(figureProblem(draft({ followers: "84.5" }))).toContain("whole number");
+    expect(figureProblem(draft({ followers: "lots" }))).toContain("whole number");
+    expect(figureProblem(draft({ followers: "-5" }))).toContain("negative");
+  });
+
+  it("refuses an engagement rate carrying its own percent sign, which used to write null", () => {
+    // **The silent one.** `Number("3.2%")` is `NaN`, `toNullableNumber` answers `null`, and the
+    // schema accepts `null` — so this was a successful save that erased a measurement.
+    const problem = figureProblem(draft({ engagementRate: "3.2%" }));
+    expect(problem).toContain("must be a number");
+    expect(problem).toContain("3.2");
+  });
+
+  it("refuses an engagement rate outside a percent's range", () => {
+    expect(figureProblem(draft({ engagementRate: "320" }))).toContain("between 0 and 100");
+    expect(figureProblem(draft({ engagementRate: "-1" }))).toContain("between 0 and 100");
+  });
+
+  it("leaves an empty engagement box alone, because null is what it means", () => {
+    // `null` here is a fact — nobody has measured this account — and it is the whole reason the
+    // column is nullable. Refusing it would make the panel demand a figure the record does not.
+    expect(figureProblem(draft({ engagementRate: "" }))).toBe(null);
+    expect(figureProblem(draft({ engagementRate: "   " }))).toBe(null);
+  });
+
+  it("leaves an empty follower box to the sentence one step up", () => {
+    // `Number("")` is `0`, so this function would read an untouched box as a valid zero. It is not
+    // this function's refusal: `accountsProblem` names it first, and this only has to not
+    // contradict it.
+    expect(figureProblem(draft({ followers: "" }))).toBe(null);
   });
 });

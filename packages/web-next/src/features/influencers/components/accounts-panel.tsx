@@ -217,9 +217,19 @@ export function AccountsPanel({
                     />
                   </td>
                   <td className="py-0.5 pr-2">
+                    {/* **`type="number"` is the record form's own guard, kept.** `inputMode`
+                        alone constrains no desktop keyboard, so `412,000` — the likeliest typo
+                        here, because the cell this panel opens from prints `412K` — would reach
+                        `Number()` as `NaN` and come back as zod's *"expected number, received
+                        NaN"*. `accountsProblem` words it now either way; this stops it being
+                        typed. See `account-rows.tsx`, which has carried these three attributes
+                        since the record's form was written. */}
                     <Input
                       value={draft.followers}
                       disabled={isPending}
+                      type="number"
+                      min={0}
+                      step={1}
                       inputMode="numeric"
                       className="h-8 w-24 text-right font-mono tabular-nums text-helper"
                       aria-label={`Followers of account ${index + 1}`}
@@ -232,10 +242,21 @@ export function AccountsPanel({
                     {/* **An empty box is not a zero**, which is why the draft holds strings: a
                         prospect nobody has run a campaign with has no engagement history, and a
                         creator measured at zero has a very bad one. `toAccountPayload` is the one
-                        place that conversion happens. */}
+                        place that conversion happens.
+
+                        **This is the box where an unreadable figure was silent.** `toNullableNumber`
+                        answers `null` for anything that is not finite, and `null` is a *legal*
+                        value here — so `3.2%` used to pass every guard and replace a measured rate
+                        with "nobody measured this", with `Save` enabled and nothing on screen.
+                        `figureProblem` is what refuses it; these attributes are what stop it being
+                        typed. */}
                     <Input
                       value={draft.engagementRate}
                       disabled={isPending}
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.1}
                       inputMode="decimal"
                       placeholder="—"
                       className="h-8 w-20 text-right font-mono tabular-nums text-helper"

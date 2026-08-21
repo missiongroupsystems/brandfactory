@@ -97,6 +97,63 @@ describe("StatusEditor", () => {
     expect(screen.queryByRole("menu")).toBe(null);
   });
 
+  it("puts focus back on the cell when the write settles", async () => {
+    // **The defect this release shipped, and the reason it is asserted with a hand-written blur.**
+    //
+    // `CellTrigger` disables itself while the write is in flight, and the menu closes in the same
+    // commit — so Base UI restores focus to a trigger that is already disabled. A browser then
+    // applies the HTML focus fixup rule and drops focus to `document.body`; the trigger comes back
+    // enabled and nothing refocuses it, so a keyboard reader who changed one status is left at the
+    // top of a 146-row table.
+    //
+    // **jsdom does not implement that rule** — a focused button there stays `activeElement` after
+    // `disabled` is set — which is why the four tests above passed straight over it. So the blur is
+    // performed explicitly, and this test is only honest because it says so.
+    let resolve!: (value: boolean) => void;
+    const commit = vi.fn().mockImplementation(() => new Promise<boolean>((r) => (resolve = r)));
+    const { trigger } = renderStatus(commit);
+
+    fireEvent.click(trigger());
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitemradio", { name: /Active/ }));
+    });
+
+    // What a browser does the moment the trigger becomes disabled.
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+
+    await act(async () => {
+      resolve(true);
+    });
+
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  it("leaves focus where the reader moved it, rather than taking it back", async () => {
+    // The restore is only out of `document.body`. A reader who tabbed into something else while
+    // the request was in flight chose that, and stealing focus back a few hundred milliseconds
+    // later is its own defect.
+    let resolve!: (value: boolean) => void;
+    const commit = vi.fn().mockImplementation(() => new Promise<boolean>((r) => (resolve = r)));
+    const { trigger } = renderStatus(commit);
+
+    fireEvent.click(trigger());
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitemradio", { name: /Active/ }));
+    });
+
+    const elsewhere = document.createElement("input");
+    document.body.appendChild(elsewhere);
+    elsewhere.focus();
+
+    await act(async () => {
+      resolve(true);
+    });
+
+    expect(document.activeElement).toBe(elsewhere);
+    elsewhere.remove();
+  });
+
   it("writes nothing while the arrow keys move through the list", async () => {
     // **The defect the native select accepted and this retires.** Three presses used to be three
     // `change` events, and so up to three `PATCH`es over one column, settling in whatever order

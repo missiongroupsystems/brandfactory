@@ -222,71 +222,71 @@ export function InfluencerDetail({ influencerRef }: { influencerRef: string }) {
               {influencer.accounts.map((account, index) => {
                 const profileUrl = accountProfileUrl(account);
                 return (
-                // Keyed on the pair, which is unique per workspace by
-                // `influencer_accounts_workspace_platform_handle_key` — not on the index, which
-                // changes under a reorder and would carry a row's state onto its neighbour.
-                <li
-                  key={`${account.platform}/${account.handle}`}
-                  className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3 first:pt-0 last:pb-0"
-                >
-                  {/* The same badge the roster's Platforms column draws, so a creator's row and
-                      their record name their platforms in one register. The width stays on the
-                      wrapper rather than on the badge: a badge is `w-fit` by contract, and
-                      stretching one to 7rem would put `Instagram` and `Xiaohongshu` in two
-                      differently-sized pills. */}
-                  <span className="min-w-[7rem]">
-                    <PlatformBadge platform={account.platform} />
-                  </span>
-                  {/* **The stored URL first, then the one the handle addresses.** This page and
-                      the roster's platform badges are the two surfaces that answer this question,
-                      so the answer comes from one function in `@brandfactory/shared` — a
-                      derivation only the roster knew about would make a badge open a profile while
-                      the same account, one click away, rendered as plain text.
+                  // Keyed on the pair, which is unique per workspace by
+                  // `influencer_accounts_workspace_platform_handle_key` — not on the index, which
+                  // changes under a reorder and would carry a row's state onto its neighbour.
+                  <li
+                    key={`${account.platform}/${account.handle}`}
+                    className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3 first:pt-0 last:pb-0"
+                  >
+                    {/* The same badge the roster's Platforms column draws, so a creator's row and
+                        their record name their platforms in one register. The width stays on the
+                        wrapper rather than on the badge: a badge is `w-fit` by contract, and
+                        stretching one to 7rem would put `Instagram` and `Xiaohongshu` in two
+                        differently-sized pills. */}
+                    <span className="min-w-[7rem]">
+                      <PlatformBadge platform={account.platform} />
+                    </span>
+                    {/* **The stored URL first, then the one the handle addresses.** This page and
+                        the roster's platform badges are the two surfaces that answer this question,
+                        so the answer comes from one function in `@brandfactory/shared` — a
+                        derivation only the roster knew about would make a badge open a profile while
+                        the same account, one click away, rendered as plain text.
 
-                      Five platforms template a handle into a path and **xiaohongshu does not**,
-                      because it addresses users by an opaque numeric id — which is the platform
-                      that makes the `url` column necessary at all. See `profile-url.ts` for why
-                      "nothing derives a URL" was narrowed rather than kept. */}
-                  {profileUrl ? (
-                    // **The glyph is the affordance, and it is not decoration.** Three handles sit
-                    // in one column and only the ones carrying a `url` are clickable; without a
-                    // mark the reader cannot tell which, because a hover underline is invisible
-                    // until the pointer is already on it. Found in the browser pass.
-                    <a
-                      href={profileUrl}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      className="inline-flex items-center gap-1 font-mono text-helper text-ink-secondary hover:text-brand hover:underline"
-                    >
-                      @{account.handle}
-                      <ExternalLinkIcon aria-hidden className="size-3 shrink-0 text-ink-tertiary" />
-                      <span className="sr-only">Opens the profile in a new tab</span>
-                    </a>
-                  ) : (
-                    <span className="font-mono text-helper text-ink-secondary">
-                      @{account.handle}
+                        Five platforms template a handle into a path and **xiaohongshu does not**,
+                        because it addresses users by an opaque numeric id — which is the platform
+                        that makes the `url` column necessary at all. See `profile-url.ts` for why
+                        "nothing derives a URL" was narrowed rather than kept. */}
+                    {profileUrl ? (
+                      // **The glyph is the affordance, and it is not decoration.** Three handles sit
+                      // in one column and only the ones carrying a `url` are clickable; without a
+                      // mark the reader cannot tell which, because a hover underline is invisible
+                      // until the pointer is already on it. Found in the browser pass.
+                      <a
+                        href={profileUrl}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="inline-flex items-center gap-1 font-mono text-helper text-ink-secondary hover:text-brand hover:underline"
+                      >
+                        @{account.handle}
+                        <ExternalLinkIcon aria-hidden className="size-3 shrink-0 text-ink-tertiary" />
+                        <span className="sr-only">Opens the profile in a new tab</span>
+                      </a>
+                    ) : (
+                      <span className="font-mono text-helper text-ink-secondary">
+                        @{account.handle}
+                      </span>
+                    )}
+                    {/* Position 0 is the account the creator is known by — the one the roster shows
+                        and the header repeats. There is no `is_primary` column: the order carries
+                        it, so the badge is a reading of the list rather than of a flag. */}
+                    {index === 0 ? <Badge variant="outline">Primary</Badge> : null}
+                    <span className="ml-auto flex items-baseline gap-4">
+                      {/* The exact count per account, for the page's own reason: this is where
+                          somebody checks a figure before quoting it. */}
+                      <span className="font-mono text-helper tabular-nums text-ink">
+                        {formatFollowers(account.followers)}
+                      </span>
+                      {/* Per account, so the blend above is reproducible from what is on the same
+                          screen. `Value`'s em dash means "nobody has measured *this* account" —
+                          **not `PENDING`**, which is this app's mark for a request in flight and
+                          would say the number is on its way. An unmeasured account leaves both
+                          halves of the blend rather than counting as a zero. */}
+                      <span className="min-w-[4rem] text-right font-mono text-helper tabular-nums text-ink-secondary">
+                        <Value mono>{formatEngagement(account.engagementRate)}</Value>
+                      </span>
                     </span>
-                  )}
-                  {/* Position 0 is the account the creator is known by — the one the roster shows
-                      and the header repeats. There is no `is_primary` column: the order carries
-                      it, so the badge is a reading of the list rather than of a flag. */}
-                  {index === 0 ? <Badge variant="outline">Primary</Badge> : null}
-                  <span className="ml-auto flex items-baseline gap-4">
-                    {/* The exact count per account, for the page's own reason: this is where
-                        somebody checks a figure before quoting it. */}
-                    <span className="font-mono text-helper tabular-nums text-ink">
-                      {formatFollowers(account.followers)}
-                    </span>
-                    {/* Per account, so the blend above is reproducible from what is on the same
-                        screen. `Value`'s em dash means "nobody has measured *this* account" —
-                        **not `PENDING`**, which is this app's mark for a request in flight and
-                        would say the number is on its way. An unmeasured account leaves both
-                        halves of the blend rather than counting as a zero. */}
-                    <span className="min-w-[4rem] text-right font-mono text-helper tabular-nums text-ink-secondary">
-                      <Value mono>{formatEngagement(account.engagementRate)}</Value>
-                    </span>
-                  </span>
-                </li>
+                  </li>
                 );
               })}
             </ul>

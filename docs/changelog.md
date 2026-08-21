@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.52.1** — 2026-08-21 — Post-release review of 1.52.0: the accounts panel dropped the record form's `type="number"`, so `3.2%` in a rate box saved successfully and replaced a measurement with "nobody measured this" — and a disabled trigger dropped a keyboard reader on `document.body` after every status edit, which jsdom cannot see. No migration. 2881 tests.
 - **1.52.0** — 2026-08-21 — The pencil leaves eight columns and the cell becomes the control: a hover tint over the whole target, menus where two native selects were, an accounts panel where two pencils opened a whole-record sheet — and a platform badge that finally links, because a URL is now derived from a handle for the five platforms that can be. No migration. 2868 tests.
 - **1.51.0** — 2026-08-20 — A platform badge stops being a label and becomes the way to the profile: the six marks in the Platforms column open the creator's page in a new tab when the record holds a URL, and derive nothing when it does not. Plus the quick-add handle example. No migration. 2840 tests.
 - **1.50.1** — 2026-08-20 — Post-release review of 1.50.0: the boundary rules bounded every field of the draft except the one they invented themselves, so a name too long for the record crossed the wire and was refused by the create the reader had already paid a lookup for. Plus the invariant that would have caught it. No migration. 2831 tests.
@@ -101,6 +102,108 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.52.1 — 2026-08-21
+
+**A panel can refuse a value, or it can accept one that is legal and wrong.** The accounts panel
+1.52.0 shipped did the second. Its Engagement box was a plain text input carrying
+`inputMode="decimal"` — a hint to a soft keyboard, which constrains nothing on a desktop — so a
+reader could type `3.2%`. `toNullableNumber` answers `null` for anything that is not finite, and
+**`null` is a legal value on that field**: it means nobody has measured this account. So the shared
+schema passed it, `Save` stayed enabled, the write succeeded, and a recorded 3.2 became an em dash
+with no message anywhere on screen.
+
+A post-release review of the whole of `influencer-cell-editing-and-profile-links-plan.md` as
+shipped. Three defects, two documentation corrections. **No migration, no route change, no wire
+change, no new dependency.** 2881 tests (2734 passing, 147 skipped without a database), 13 more
+than 1.52.0.
+
+Full write-up: `docs/completions/influencer-cell-editing-review-pass.md`.
+
+### The record's own form never had this defect, and that is what makes it one
+
+`account-rows.tsx` has carried `type="number"` with `min`, `max` and `step` on both figure boxes
+since it was written. The panel is the same three fields and shipped with none of them.
+
+**It is the laundering `toAccountPayload` documents, one field over, with the defence inverted.**
+That docstring spends a paragraph on `Number("") === 0` for followers — and the guard that catches
+an unreadable *follower* count is that it becomes `NaN`, which `InfluencerFollowersSchema` refuses.
+An unreadable *rate* becomes a value the schema wants. The two boxes fail in opposite directions
+and only one of them was noisy about it.
+
+Both halves are fixed, because either alone leaves a hole. `type="number"` makes a browser refuse
+the character. **`figureProblem`** — a new pure rule in `account-drafts.ts`, composed into
+`accountsProblem` after the empty-box sentences and before the schema — is the second line of
+defence, and it is what catches the values a number input admits anyway: `min` and `step` mark a
+figure invalid **without emptying it**, so `84.5` in a follower box and `320` in a percent box both
+still reach the draft.
+
+### The follower box had been answering in zod's words
+
+Same missing attribute, louder failure — and measured on the shipped panel rather than argued:
+`412,000` returned *"Invalid input: expected number, received NaN"*, `84.5` returned *"Invalid
+input: expected int, received number"*, `-5` returned *"Too small: expected number to be >=0"*.
+
+A comma in a follower count is the likeliest mistake anybody makes here, because **the cell this
+panel opens from prints `412K` and `1.24M`**. And `accountsProblem`'s own docstring rejects exactly
+that shape of sentence: *"'Too small: expected string to have >=1 characters' is not a sentence
+anybody can act on."* All three are worded now, with the fix inside the sentence — *"Every follower
+count must be a whole number. Enter 412000 rather than 412,000."*
+
+### A keyboard reader was dropped on `document.body` after every status edit
+
+`CellTrigger` disables itself while `pending`, and `EnumMenu` closes the menu and sets that flag in
+**one commit**. So Base UI restores focus to a trigger that is already disabled, a browser applies
+the HTML focus fixup rule and blurs it, and focus falls to the body. The trigger comes back enabled
+and nothing puts focus back on it — so changing one status left a keyboard reader at the top of a
+146-row table.
+
+The `EditableCell` this release deleted held that property on purpose: *"a keyboard user who
+cancels an edit must not be dropped on `document.body` in the middle of a 146-row table."* Its
+pencil was never disabled.
+
+**Thirteen new tests walked past it because jsdom does not implement the focus fixup rule** — a
+focused button stays `activeElement` there after `disabled` is set. Every assertion in those files
+is true in jsdom *and* in a browser; the one thing that differs is the thing that broke. The test
+that covers it now performs the blur by hand and says so in its comment, because a test that
+silently leans on a platform rule the runtime lacks is worse than no test.
+
+The restore fires **only out of `document.body`**: a reader who tabbed into the search box while
+the request was in flight chose that, and taking focus back off them is its own defect. Both
+directions are asserted.
+
+### `AGENTS.md` still described the pencils
+
+Not cosmetic — it is the file read before anybody touches this feature, and it described a screen
+that no longer exists: an editable name, a pencil on Reach and Platforms that *"opens the record's
+form"*, a cell in flight that *"shows its editor, disabled"*.
+
+Rewritten around what shipped, and it gains the two rules this pass paid for: **a control disabled
+mid-write owes a focus restore**, and **a panel in a popover owes its own refusals**, with both
+figure-box traps written down beside each other. Four rules became six.
+
+### What was checked and found sound
+
+The `url` round trip through the panel is real. `isUnchanged` compares accounts as an ordered list
+and `NaN !== NaN` behaves as its comment claims. `accountProfileUrl` puts the stored URL first,
+`PROFILE_URL_TEMPLATES` is exhaustive by construction, and the character class admits only
+characters unreserved in a path segment — there is no escaping hole, and a handle cannot carry an
+`@` because the schema refuses one. No stale import of the five deleted exports survives.
+
+**One suspected defect was measured and dismissed.** `accountsProblem` runs a zod `safeParse` on
+every render of every *closed* panel — 292 per table render, two per row. It costs **0.6 ms** for
+the whole table. Recorded so nobody adds a `useMemo` on suspicion.
+
+### A correction to 1.52.0's counted claim
+
+Its badge-link count was measured against the dev database, not the seed, and the entry below says
+"seeded". The seed holds **146 creators, 216 accounts, and no YouTube, Facebook or LinkedIn account
+at all** — 139 Instagram, 71 TikTok, 6 xiaohongshu — so the figure there is **210 links**, 209
+derived plus Jaime Lee's stored one. Everything else Phase E claims is exact against the seed: 215
+`url: null`, 214 of 216 handles passing the path-segment guard, and the two that do not being
+`罗大雄` and `王开花`, both on xiaohongshu.
 
 ---
 
@@ -214,7 +317,9 @@ correct on Instagram and wrong on TikTok now produces a confident link to whoeve
 TikTok, and nothing on screen tells a derived link from a stored one. Marking 211 of 216 links
 "unverified" would make the mark the thing nobody reads.
 
-Counted in the browser across the whole seeded roster: **226 badge links** — 146 Instagram, 75
+Counted in the browser across the whole roster on the dev database — **not the seed**, which
+holds no YouTube, Facebook or LinkedIn account at all; see 1.52.1 for the seed's own figure of 210:
+**226 badge links** — 146 Instagram, 75
 TikTok, 2 YouTube, 1 Facebook, 1 LinkedIn, and one `www.instagram.com`, which is the *stored* URL
 winning over the template that would have produced `instagram.com`. Every Xiaohongshu badge is still
 plain text.

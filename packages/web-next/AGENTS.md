@@ -524,26 +524,58 @@ same complaint never appears twice. `toNullable` turns a cleared input into `nul
 and only the second one survives everywhere. An actions column reaches a form the record's own page
 already holds, which puts one sheet behind two entry points — that is still banned. Editing the
 cell you are looking at is not that, and `/influencers` is where it lives
-(`features/influencers/components/editable-cell.tsx`, `inline-editors.tsx`, `patchFor`).
+(`features/influencers/components/editable-cell.tsx`, `inline-editors.tsx`, `accounts-panel.tsx`,
+`patchFor`).
 
-Four rules come with it, and the fourth is the one that makes it safe:
+**The affordance is the cell, not a pencil in it.** `CellTrigger` is a `<button>` filling the cell
+that tints one step deeper than the row's own hover — `bg-surface-selected`, because `TableRow`
+already paints `bg-surface-hover` across the row and a cell tint at that token is invisible exactly
+when it is needed. A chevron marks the cells that open a *list*, and only those. A cell already
+holding interactive content — Platforms' badge links, Brands' tooltip button — cannot wrap in a
+button, so its trigger is a **sibling** taking the rest of the cell (`flex-1`), never a button
+inside a button.
 
-- **A cell edits only what it shows.** Name, vertical, brands and status each own a column and a
-  column each. Reach and Platforms are **sums over the account list** and refuse an editor — you
-  cannot edit a sum by typing over it — so they carry a pencil that opens the record's form, named
-  for what it opens (`Edit follower counts`, not a second `Edit accounts` in the same row). Tier and
-  Engagement are derived from those sums and carry nothing at all.
+Six rules come with it, and the last two are the ones that make it safe:
+
+- **A cell edits only what it shows, and a derived cell opens what it is derived from.** Vertical,
+  brands and status each own a column and a column each. Reach and Platforms are **sums over the
+  account list** — you cannot edit a sum by typing over it — so both open the *accounts panel*, one
+  panel from either cell, which edits the figures the sum is made of. Tier and Engagement are
+  derived from those sums and carry nothing at all: a tier is a band over a sum, and a blend is
+  arithmetic over rates the panel already shows.
+- **The Creator cell is a link and nothing else.** Not an omission. It is a two-line stack, so its
+  editor had to take the height of the line it replaced rather than of the cell, and getting that
+  wrong added 10px to the tallest cell in the row and pushed every row below it down under the
+  reader's pointer. Nobody renames a creator from a roster; the record's own form still does.
+- **One choice from a closed list is a menu, not a select and not a popover.** `DropdownMenu` with
+  `menuitemradio` — a native select commits on `change`, and arrow keys on a *closed* select fire
+  one `change` per press, so a keyboard reader stepping through three statuses fired three writes.
+  A menu moves a highlight and commits on `Enter`. The brands picker stays a `Popover` because a
+  column of checkboxes needs an explicit `Save`.
 - **The patch is exactly one key.** `patchFor` is the seam, and it is the thing to aim a test at: a
   builder that spread the record and overwrote one key would pass a `{status}` assertion and still
   send `accounts` — and `PATCH /influencers/:id` replaces the whole account list when it is sent
   one. One key is a strictly safer write than the sheet it replaced.
-- **Nothing is optimistic here either.** A cell in flight shows its editor, disabled, holding what
-  the reader chose, with a spinner. A refusal gets a toast carrying the server's own sentence; a
-  success gets none, because the new value is on screen *because the server sent it back*.
-- **No inline edit may move a row.** The bands group by reach and the default order is reach
-  descending, and not one editable field is an input to either. Check this before making a fifth
-  column editable: a cell that reorders the table under the pointer that just used it is worse than
-  the navigation it saved.
+- **Nothing is optimistic here either.** A cell in flight is disabled and shows the value it *still
+  holds* with a spinner beside it — never the value the reader chose. A refusal gets a toast
+  carrying the server's own sentence; a success gets none, because the new value is on screen
+  *because the server sent it back*. **A disabled trigger loses focus**, which is a browser rule
+  jsdom does not implement, so anything that disables a control mid-write owes a focus restore when
+  the write settles — see `EnumMenu`. Restore only out of `document.body`, or you take focus back
+  off a reader who moved on.
+- **A panel in a popover has no `<form>`, so it owes its own refusals.** No `required`, no browser
+  submit guard. It disables its own `Save` and says why, in a sentence somebody can act on:
+  `accountsProblem` and `figureProblem` in `account-drafts.ts`. Two traps live there and both have
+  cost a release. `Number("")` is `0`, so an empty follower box must be tested **on the string**.
+  And a figure box that cannot be read fails in **opposite** directions per field: an unreadable
+  follower count becomes `NaN`, which the schema refuses, while an unreadable engagement rate
+  becomes `null` through `toNullableNumber` — and `null` is a *legal* value there, so it saved
+  successfully and erased a measurement. Give every figure box `type="number"` **and** a sentence.
+- **Only the accounts panel may move a row.** The bands group by reach and the default order is
+  reach descending; vertical, brands and status are inputs to neither. The panel is the exception
+  because it edits reach itself — and it is the one control whose write the reader is looking at,
+  on a panel they pressed `Save` on, which is the case where a row moving is the answer rather than
+  a surprise. Check this before making another column editable.
 
 **In mock mode a mutation refuses with a 503, and Marketing Requests is the only exception.**
 That default is the promise that no screen here can appear to save something nothing stored, and

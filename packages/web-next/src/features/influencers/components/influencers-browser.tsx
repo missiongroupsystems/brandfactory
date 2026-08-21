@@ -683,7 +683,6 @@ function InfluencerResults({
    */
   const { commit } = useInlineEdit();
 
-
   const { influencers, isLoading, error } = useInfluencers();
 
   const items = React.useMemo(

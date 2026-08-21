@@ -168,6 +168,41 @@ function EnumMenu({
   // Per cell rather than per row: it lives exactly as long as one write, and a row holding one
   // flag per editable column would need three.
   const [isPending, setIsPending] = React.useState(false);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+
+  /**
+   * Focus back to the trigger when the write settles.
+   *
+   * ── Why this is needed, and why no test could see it without help ─────────
+   *
+   * `CellTrigger` disables itself while `pending`, and {@link choose} closes the menu and sets that
+   * flag in **one commit**. So Base UI restores focus to a trigger that is already disabled, and a
+   * browser then applies the HTML focus fixup rule: an element that becomes disabled is blurred,
+   * and focus falls to `document.body`. The trigger is enabled again when the write returns, but
+   * nothing puts focus back on it — so a keyboard reader who changed one status was dropped at the
+   * top of a 146-row table.
+   *
+   * **jsdom does not implement that rule.** A focused button stays `document.activeElement` there
+   * after `disabled` is set, which is why every test in this file passed over the defect. The test
+   * that covers it emulates the blur explicitly and says so.
+   *
+   * The `EditableCell` this release deleted held the same property for the same reason — *"a
+   * keyboard user who cancels an edit must not be dropped on `document.body` in the middle of a
+   * 146-row table"* — and kept it the same way: an effect, but not the banned one, because it sets
+   * no state and moves focus, which is a DOM side effect with nowhere else to live.
+   *
+   * **Only out of `document.body`.** A reader who moved on during the request — into the search
+   * box, into another cell — keeps the focus they chose. Restoring unconditionally would take it
+   * back off them a few hundred milliseconds after they moved it.
+   */
+  const wasPending = React.useRef(false);
+  React.useEffect(() => {
+    if (wasPending.current && !isPending && document.activeElement === document.body) {
+      triggerRef.current?.focus();
+    }
+    wasPending.current = isPending;
+  }, [isPending]);
+
   async function choose(next: string) {
     setOpen(false);
     setIsPending(true);
@@ -186,7 +221,9 @@ function EnumMenu({
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
-        render={<CellTrigger label={label} chevron pending={isPending} className="w-full" />}
+        render={
+          <CellTrigger ref={triggerRef} label={label} chevron pending={isPending} className="w-full" />
+        }
       >
         {display}
       </DropdownMenuTrigger>
