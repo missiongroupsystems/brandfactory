@@ -5,21 +5,25 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select } from "@/components/ui/select";
 import { useSubmit } from "@/hooks/use-submit";
 import { INFLUENCER_STATUS_OPTIONS, INFLUENCER_VERTICAL_OPTIONS } from "@/lib/labels";
-import { cn } from "@/lib/utils";
 
 import { GENERALIST } from "../format";
 import { useInfluencerMutations } from "../hooks";
 import { type FieldEdit, isUnchanged, patchFor } from "../patch";
 import { BrandPicker } from "./brand-picker";
-import { EditPencil, type EditorSlot } from "./editable-cell";
+import { CellTrigger } from "./editable-cell";
 
 /**
- * The four editors, and the one write behind them.
+ * The three cell editors, and the one write behind them.
  *
  * ── One hook for the table, not one per row ───────────────────────────────
  *
@@ -29,6 +33,14 @@ import { EditPencil, type EditorSlot } from "./editable-cell";
  * `useSyncExternalStore` subscription, and 146 of each to serve one `PATCH` at a time is a cost
  * with nothing on the other side of it. `commit` takes the creator as an argument instead, and
  * each cell keeps its own `isPending` in a plain `useState` around the await.
+ *
+ * ── Every editor is now a popup, and that is the shape of this release ────
+ *
+ * There is no display-to-editor **swap** left on this table. A cell used to turn into a text box
+ * or a native select in place; three of them now open something anchored to the cell — a menu, a
+ * checkbox popover, the accounts panel — and the fourth, the Creator name, stopped being editable
+ * from the table at all. `editable-cell.tsx` is what they share, and it is one button rather than
+ * a swap harness.
  *
  * ── Nothing is optimistic, and the failure has to say so ──────────────────
  *
@@ -66,12 +78,14 @@ export function useInlineEdit() {
    * Write one field. Resolves `true` when the cell may close.
    *
    * Three outcomes and only one of them is a request:
-   * - **Unchanged** → `true`, no request. The guard that matters is the text editor's blur: click
-   *   into a name and click out, and without this the app writes, sweeps two cache scopes and
-   *   refetches the whole roster to store what was already there.
-   * - **Unwritable** → `false` with a local message. `patchFor` answers `null` for a cleared name,
-   *   which is `InfluencerNameSchema`'s `.min(1)` refused here rather than round-tripped into a
-   *   400 the reader cannot act on any better for having waited.
+   * - **Unchanged** → `true`, no request. The guard earns its place on the accounts panel, which
+   *   opens on a draft of the whole list: opening it and pressing `Save` without touching a box
+   *   would otherwise replace ten child rows, sweep two cache scopes and refetch the roster to
+   *   store what was already there.
+   * - **Unwritable** → `false` with a local message. `patchFor` answers `null` for a value outside
+   *   its schema — an account list the shared rules refuse, most of all — which is a 400 refused
+   *   here rather than round-tripped into one the reader cannot act on any better for having
+   *   waited.
    * - **A patch of exactly one key** → the request.
    */
   const commit = React.useCallback(
@@ -81,8 +95,8 @@ export function useInlineEdit() {
       const patch = patchFor(edit);
       if (!patch) {
         toast.error(
-          edit.field === "name"
-            ? "A creator needs a name."
+          edit.field === "accounts"
+            ? "Those accounts cannot be saved. Check the handles and the follower counts."
             : "That value cannot be saved. Reopen the editor and choose again.",
         );
         return false;
@@ -96,106 +110,52 @@ export function useInlineEdit() {
   return { commit };
 }
 
-/** What every editor below is handed: the cell's own {@link EditorSlot} plus who is being edited. */
-type EditorProps = EditorSlot & {
+/** What every editor below is handed: who is being edited, and the write. */
+type EditorProps = {
   influencer: Influencer;
   commit: (influencer: Influencer, edit: FieldEdit) => Promise<boolean>;
+  /** The cell's own rendering of the value, which the trigger wraps or sits beside. */
+  display: React.ReactNode;
 };
 
 /**
- * Run a commit and settle the cell.
+ * A closed enum, chosen from a **menu anchored to the cell**.
  *
- * Shared by the three inline editors because the sequence is the same and getting it wrong is
- * invisible: mark pending, await, unmark, close.
+ * ── Why a menu and not the native select this replaces ────────────────────
  *
- * **The cell closes on a refusal too.** The draft goes with the editor and the toast carries the
- * server's reason, which is better than leaving a rejected value sitting in a box that still looks
- * saveable — a reader would go on pressing `Enter` at it. The only refusal anybody can act on
- * locally is an empty name, and reopening is one keystroke. The brand picker is the exception and
- * says why in its own docstring.
+ * `DropdownMenu` with `menuitemradio` children is the clear side of the line AGENTS.md draws
+ * between a menu and a popover: this is a single choice from a closed list, not a panel of form
+ * controls, so `role="menu"` is what it actually is. The Brands picker below keeps its `Popover`
+ * for the same rule read the other way — a column of checkboxes in a `role="menu"` announces
+ * "menu, N items" and fights their keyboard handling.
+ *
+ * ── It retires a bounded defect rather than only restyling one ────────────
+ *
+ * The native `<select>` it replaces committed on `change`, which **is** the platform's "the reader
+ * chose this" event — and the cost was written down rather than argued away: arrow keys on a
+ * *closed* select fire `change` per press, so a keyboard user stepping through three statuses
+ * could fire three writes. It was capped at one per open only because the control disabled itself
+ * mid-flight, which is a race won by a lock rather than a case that does not exist.
+ *
+ * A menu moves a **highlight** on the arrow keys and commits on `Enter` or on click. Stepping
+ * through the list writes nothing. The case stops existing.
+ *
+ * ── The open state is controlled, and closing is this file's job ──────────
+ *
+ * Base UI's `Menu.RadioItem` does not close the popup on select by default — a radio group is
+ * often something you tick more than once. Here it is exactly one choice, so the menu is closed
+ * from `onValueChange` before the write is even started. Leaving it open over a cell that is
+ * already saving would offer a second choice the disabled trigger has no way to refuse.
  */
-async function settle(edit: FieldEdit, props: EditorProps): Promise<void> {
-  const { influencer, commit, close, setPending } = props;
-  setPending(true);
-  await commit(influencer, edit);
-  setPending(false);
-  close();
-}
-
-/**
- * The name — text, committed on `Enter` and on blur.
- *
- * **The slug does not follow**, which is `UpdateInfluencerInputSchema`'s decision rather than this
- * component's: it is frozen at create, so `/influencers/priya-raman` can end up pointing at a
- * record that reads *Priya Nair*. That is the trade every renamed outlet already makes, and the
- * alternative is a URL that rots whenever somebody fixes a spelling.
- */
-export function NameEditor(props: EditorProps) {
-  const { influencer, className, disabled } = props;
-  const [value, setValue] = React.useState(influencer.name);
-  // One ref for two jobs, both of which are about the blur that fires when the input unmounts:
-  // `Enter` commits and then closes, and `Escape` cancels and then closes, and in both cases the
-  // browser may fire `blur` on the way out. Without this, `Enter` writes twice and `Escape` writes
-  // the value it was cancelling.
-  const settled = React.useRef(false);
-
-  const submit = () => {
-    if (settled.current) return;
-    settled.current = true;
-    void settle({ field: "name", value }, props);
-  };
-
-  return (
-    <Input
-      autoFocus
-      maxLength={200}
-      value={value}
-      disabled={disabled}
-      // Select-all on focus: the common edit is a respelling of the whole name rather than an
-      // insertion, and a caret dropped wherever the click landed makes the reader clear it first.
-      onFocus={(event) => event.target.select()}
-      onChange={(event) => setValue(event.target.value)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          // The row is inside no form, but a stray `Enter` still belongs to this input alone.
-          event.preventDefault();
-          submit();
-        }
-        // Claimed before the parent's handler closes the cell, so the blur that follows knows the
-        // reader cancelled rather than committed.
-        if (event.key === "Escape") settled.current = true;
-      }}
-      onBlur={submit}
-      className={cn(className, "font-medium")}
-      aria-label={`Name of ${influencer.name}`}
-    />
-  );
-}
-
-/**
- * A closed enum, committed the moment the platform says the reader chose.
- *
- * ── Why `change` and not blur ─────────────────────────────────────────────
- *
- * `change` on a native `<select>` **is** the platform's "the reader chose this" event, and a
- * control that visibly moves to `Active` and then does nothing until you click elsewhere is a
- * control that lies about having taken your input.
- *
- * The cost is real and is bounded rather than argued away: arrow keys on a *closed* select fire
- * `change` per press, so a keyboard user stepping through three statuses could fire three writes.
- * The editor is **disabled while the write is in flight**, which caps it at one write per open —
- * the first press writes, the control locks, and the cell closes on the answer. That is one
- * surprising write at worst, on a value the reader did pass through, and it is correctable with
- * one more click. The alternative caps nothing and races: three `PATCH`es in flight over one
- * column, settling in whatever order they return.
- */
-function EnumEditor({
+function EnumMenu({
   field,
   options,
   value,
   emptyOption,
   label,
-  ...props
+  influencer,
+  commit,
+  display,
 }: EditorProps & {
   field: "vertical" | "status";
   options: readonly { value: string; label: string }[];
@@ -204,43 +164,57 @@ function EnumEditor({
   emptyOption?: string;
   label: string;
 }) {
-  const { className, disabled } = props;
+  const [open, setOpen] = React.useState(false);
+  // Per cell rather than per row: it lives exactly as long as one write, and a row holding one
+  // flag per editable column would need three.
+  const [isPending, setIsPending] = React.useState(false);
+  async function choose(next: string) {
+    setOpen(false);
+    setIsPending(true);
+    await commit(
+      influencer,
+      // Written as a branch rather than as `{field, value} as FieldEdit`: the union is
+      // discriminated, and a cast over it is what lets a fourth field slip through without a
+      // matching branch in `patchFor`.
+      field === "vertical"
+        ? { field: "vertical", value: next }
+        : { field: "status", value: next },
+    );
+    setIsPending(false);
+  }
 
   return (
-    <Select
-      autoFocus
-      value={value}
-      disabled={disabled}
-      // Written as a branch rather than as `{field, value} as FieldEdit`: the union is
-      // discriminated, and a cast over it is what lets a fifth field slip through without a
-      // matching branch in `patchFor`.
-      onChange={(event) =>
-        void settle(
-          field === "vertical"
-            ? { field: "vertical", value: event.target.value }
-            : { field: "status", value: event.target.value },
-          props,
-        )
-      }
-      // `pr-7` after the shared `px-1`: the chevron is positioned against the wrapper at 12px, so
-      // without room reserved for it the longest option would run underneath it.
-      className={cn(className, "pr-7")}
-      containerClassName="min-w-0"
-      aria-label={label}
-    >
-      {emptyOption === undefined ? null : <option value="">{emptyOption}</option>}
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </Select>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger
+        render={<CellTrigger label={label} chevron pending={isPending} className="w-full" />}
+      >
+        {display}
+      </DropdownMenuTrigger>
+      {/* `align="start"`, so the list opens under the value rather than under the chevron — both
+          these columns are read from their left edge.
+
+          **`w-auto` over the primitive's `w-(--anchor-width)`.** A menu the width of its anchor
+          would be the width of a 14%-share table column, and "Family & lifestyle" does not fit in
+          one. The floor keeps the short options from rendering as a sliver. */}
+      <DropdownMenuContent align="start" className="w-auto min-w-40">
+        <DropdownMenuRadioGroup value={value} onValueChange={(next) => void choose(String(next))}>
+          {emptyOption === undefined ? null : (
+            <DropdownMenuRadioItem value="">{emptyOption}</DropdownMenuRadioItem>
+          )}
+          {options.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value}>
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
 export function VerticalEditor(props: EditorProps) {
   return (
-    <EnumEditor
+    <EnumMenu
       {...props}
       field="vertical"
       options={INFLUENCER_VERTICAL_OPTIONS}
@@ -248,25 +222,25 @@ export function VerticalEditor(props: EditorProps) {
       // The union has no `other` member on purpose, so the empty option is named rather than left
       // blank: a creator who covers no one vertical is a *generalist*, not an unclassified row.
       emptyOption={GENERALIST}
-      label={`Vertical of ${props.influencer.name}`}
+      label={`Edit the vertical of ${props.influencer.name}`}
     />
   );
 }
 
 export function StatusEditor(props: EditorProps) {
   return (
-    <EnumEditor
+    <EnumMenu
       {...props}
       field="status"
       options={INFLUENCER_STATUS_OPTIONS}
       value={props.influencer.status}
-      label={`Status of ${props.influencer.name}`}
+      label={`Edit the status of ${props.influencer.name}`}
     />
   );
 }
 
 /**
- * The brands — a **popover**, not an inline swap, and an explicit `Save`.
+ * The brands — a **popover**, and an explicit `Save`.
  *
  * ── Why it is the one editor with a button ────────────────────────────────
  *
@@ -275,18 +249,17 @@ export function StatusEditor(props: EditorProps) {
  * so an interrupted pass would leave a set nobody chose."* That is exactly the shape of the write
  * here, so the picker keeps its rule and the popover supplies the moment.
  *
- * A column of checkboxes also cannot live inside a 24px cell, which is why this is the one editor
- * that does not use `EditableCell`'s swap. `Popover` rather than `DropdownMenu`, per AGENTS.md: a
- * panel of form controls in a `role="menu"` announces "menu, N items" over N checkboxes and fights
- * their keyboard handling.
+ * `Popover` rather than `DropdownMenu`, per AGENTS.md: a panel of form controls in a `role="menu"`
+ * announces "menu, N items" over N checkboxes and fights their keyboard handling.
  *
- * ── The draft resets on open, during render ───────────────────────────────
+ * ── The trigger is a sibling, not a wrapper ───────────────────────────────
  *
- * The popup's content survives its close, so a draft left from last time is what a reader would
- * find on reopening — the wedge AGENTS.md records twice for sheets. The fix is the same and it is
- * **not** a key: the draft is re-seeded during render when `open` flips true, which is React's own
- * adjust-state-on-prop-change pattern and also not the `set-state-in-effect` rule that fails this
- * build.
+ * This is the third cell on the table whose display carries **its own interactive content** — the
+ * Brands cell renders `NamesTooltip` on a real button whenever a creator has more than one brand,
+ * and a button inside a button is what this feature refuses to write. So the trigger sits beside
+ * the value and takes the rest of the cell (`flex-1`), which leaves the DOM with two peers and
+ * the cell reading as one control. The floor is there because the names can fill a 13%-share
+ * column on their own, and a `flex-1` with nothing left to claim is a target 0px wide.
  */
 export function BrandsEditor({
   influencer,
@@ -299,13 +272,22 @@ export function BrandsEditor({
   commit: (influencer: Influencer, edit: FieldEdit) => Promise<boolean>;
   brands: BrandSummary[];
   brandsLoading: boolean;
-  /** The cell's own rendering of the brand set, which this only puts a pencil beside. */
+  /** The cell's own rendering of the brand set, which the trigger sits beside. */
   display: React.ReactNode;
 }) {
   const [open, setOpen] = React.useState(false);
   const [isPending, setIsPending] = React.useState(false);
   const [draft, setDraft] = React.useState<string[]>(influencer.brandIds);
 
+  /**
+   * The draft resets on open, **during render**.
+   *
+   * The popup's content survives its close, so a draft left from last time is what a reader would
+   * find on reopening — the wedge AGENTS.md records twice for sheets. The fix is the same and it
+   * is **not** a key: the draft is re-seeded during render when `open` flips true, which is
+   * React's own adjust-state-on-prop-change pattern and also not the `set-state-in-effect` rule
+   * that fails this build.
+   */
   const [wasOpen, setWasOpen] = React.useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
@@ -313,7 +295,7 @@ export function BrandsEditor({
   }
 
   /**
-   * **The panel stays open on a refusal**, unlike the three inline editors.
+   * **The panel stays open on a refusal**, unlike the enum menus above.
    *
    * The refusal this write actually takes is `BRAND_NOT_IN_WORKSPACE`, and it names a box the
    * reader can untick. Closing the panel would throw away a set they may have spent several ticks
@@ -327,10 +309,22 @@ export function BrandsEditor({
   }
 
   return (
-    <span className="flex items-center gap-1">
-      {display}
+    <span className="flex min-w-0 items-center gap-1">
+      <span className="min-w-0 truncate">{display}</span>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger render={<EditPencil label="brands" className="ml-auto" />} />
+        <PopoverTrigger
+          render={
+            <CellTrigger
+              label={`Edit the brands of ${influencer.name}`}
+              // **No chevron here**, unlike the two enum cells. The chevron means *this opens a
+              // list you pick one thing from*; this opens a panel of checkboxes with an explicit
+              // `Save`, which is a different promise. It also costs width the Brands column does
+              // not have — the names already truncate at `max-w-[24ch]`, and this sibling is
+              // taking room the pencil took less of.
+              className="min-w-6 flex-1"
+            />
+          }
+        />
         <PopoverContent align="end" className="flex w-72 flex-col gap-3">
           <p className="text-helper text-ink-secondary">
             {/* The relation is a set and the wire is a full replacement, so the panel says what

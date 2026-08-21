@@ -267,7 +267,7 @@ export function QuickAddSheet({
                     {...field}
                     value={draft.name}
                     autoFocus
-                    // `InfluencerNameSchema`'s own cap, matching `NameEditor` — so the box
+                    // `InfluencerNameSchema`'s own cap, matching the record's own form — so the box
                     // cannot hold a name the create would refuse. The engine bounds what a
                     // *model* may propose; this bounds what a person may type over it.
                     maxLength={200}

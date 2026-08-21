@@ -77,11 +77,16 @@ export const influencerAccounts = pgTable(
     engagementRate: numeric('engagement_rate', { precision: 5, scale: 2 }),
     // The profile URL, `null` where nobody has recorded one — which is most rows.
     //
-    // A handle resolves to a URL by guessing on five of the six platforms and not
-    // on **xiaohongshu**, which addresses users by an opaque numeric id. This
-    // column is what makes an XHS account clickable at all. Nothing derives a URL
-    // from a handle anywhere: a wrong link to a real stranger's profile is worse
-    // than no link.
+    // A handle resolves to a URL by templating on five of the six platforms and
+    // not on **xiaohongshu**, which addresses users by an opaque numeric id. This
+    // column is what makes an XHS account clickable at all.
+    //
+    // The screens no longer render plain text whenever this is `null`: since the
+    // roster arrived holding `null` on 215 of 216 rows, `accountProfileUrl` in
+    // `@brandfactory/shared` falls back to a template for those five platforms.
+    // What this column still means is unchanged and is what keeps that safe — a
+    // value here is a URL somebody recorded, and it is always preferred to
+    // anything derived.
     url: text('url'),
   },
   (table) => [

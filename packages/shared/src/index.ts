@@ -55,6 +55,10 @@ export * from './influencer/influencer'
 // comparator that used to live beside the record. Both sides of the wire read it.
 export * from './influencer/reach'
 export * from './influencer/slug'
+// The URL a platform badge opens. Stored first, then derived from the handle for
+// the five platforms that address a profile that way — see `profile-url.ts` on
+// why the "nothing derives a URL" rule was narrowed rather than kept.
+export * from './influencer/profile-url'
 export * from './influencer/create'
 export * from './influencer/update'
 export * from './influencer/lookup'

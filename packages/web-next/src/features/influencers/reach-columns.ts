@@ -7,7 +7,7 @@ import { InfluencerPlatformSchema } from "@brandfactory/shared";
 //
 // The Reach column answers *what is this creator worth in total*. It cannot answer
 // *who has the biggest Instagram following on this list*, because that is a
-// question about the column rather than about a row, and `ReachBreakdown`'s
+// question about the column rather than about a row, and the accounts panel's
 // popover — which explains one creator's sum — is the wrong shape for it.
 //
 // This module is the other shape: one numeric column per platform, plus the

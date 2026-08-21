@@ -55,8 +55,11 @@ import { INFLUENCER_PLATFORM_ICONS } from "./platform-icons";
  * handle beside it — the badge is the only thing there — which is why it is the one caller that
  * passes an `href`.
  *
- * **Nothing here derives a URL.** See `profileUrlOn` for the rule; a badge with no stored URL is
- * the plain `span` this component has always rendered, not a dead link.
+ * **Nothing here decides where the link goes.** The caller answers that, and on the roster the
+ * answer comes from `profileUrlOn` — the stored URL first, then the one the handle addresses on
+ * the five platforms that can be addressed that way. A platform that answers `null`, which is
+ * every xiaohongshu account with no recorded URL, is the plain `span` this component has always
+ * rendered and not a dead link.
  *
  * ── A new tab, and the badge says so ──────────────────────────────────────
  *

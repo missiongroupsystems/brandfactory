@@ -1,6 +1,6 @@
 "use client";
 
-import { blendedEngagement, primaryAccount, totalReach } from "@brandfactory/shared";
+import { accountProfileUrl, blendedEngagement, primaryAccount, totalReach } from "@brandfactory/shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, ExternalLinkIcon, PencilIcon, Trash2Icon } from "lucide-react";
@@ -219,7 +219,9 @@ export function InfluencerDetail({ influencerRef }: { influencerRef: string }) {
           </CardHeader>
           <CardContent>
             <ul className="flex flex-col divide-y divide-border-subtle">
-              {influencer.accounts.map((account, index) => (
+              {influencer.accounts.map((account, index) => {
+                const profileUrl = accountProfileUrl(account);
+                return (
                 // Keyed on the pair, which is unique per workspace by
                 // `influencer_accounts_workspace_platform_handle_key` — not on the index, which
                 // changes under a reorder and would carry a row's state onto its neighbour.
@@ -235,17 +237,23 @@ export function InfluencerDetail({ influencerRef }: { influencerRef: string }) {
                   <span className="min-w-[7rem]">
                     <PlatformBadge platform={account.platform} />
                   </span>
-                  {/* Linked only when a `url` is stored. **Nothing is derived from a handle** — a
-                      guessed link to a real stranger's profile is worse than no link — and
-                      xiaohongshu is the platform that makes the column necessary, because it
-                      addresses users by an opaque numeric id nobody can guess. */}
-                  {account.url ? (
+                  {/* **The stored URL first, then the one the handle addresses.** This page and
+                      the roster's platform badges are the two surfaces that answer this question,
+                      so the answer comes from one function in `@brandfactory/shared` — a
+                      derivation only the roster knew about would make a badge open a profile while
+                      the same account, one click away, rendered as plain text.
+
+                      Five platforms template a handle into a path and **xiaohongshu does not**,
+                      because it addresses users by an opaque numeric id — which is the platform
+                      that makes the `url` column necessary at all. See `profile-url.ts` for why
+                      "nothing derives a URL" was narrowed rather than kept. */}
+                  {profileUrl ? (
                     // **The glyph is the affordance, and it is not decoration.** Three handles sit
                     // in one column and only the ones carrying a `url` are clickable; without a
                     // mark the reader cannot tell which, because a hover underline is invisible
                     // until the pointer is already on it. Found in the browser pass.
                     <a
-                      href={account.url}
+                      href={profileUrl}
                       target="_blank"
                       rel="noreferrer noopener"
                       className="inline-flex items-center gap-1 font-mono text-helper text-ink-secondary hover:text-brand hover:underline"
@@ -279,7 +287,8 @@ export function InfluencerDetail({ influencerRef }: { influencerRef: string }) {
                     </span>
                   </span>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </CardContent>
         </Card>

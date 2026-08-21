@@ -1,4 +1,5 @@
 import type { InfluencerAccount, InfluencerPlatform } from "@brandfactory/shared";
+import { accountProfileUrl } from "@brandfactory/shared";
 
 /**
  * How many platform badges a table cell shows before it collapses the rest into `+N`.
@@ -68,16 +69,19 @@ export function visiblePlatforms(
 /**
  * The profile URL a platform badge links to, or `null` when the badge stays plain text.
  *
- * ── Nothing is derived from a handle ──────────────────────────────────────
+ * ── The stored URL first, then the one the handle addresses ───────────────
  *
- * The rule `InfluencerAccountSchema.url` writes down, applied to a second surface: a guessed link
- * to a real stranger's profile is worse than no link, so a platform with no stored URL renders
- * exactly as it did before — a mark and a word, and nothing to click. Five of the six platforms
- * *look* guessable from a handle; **xiaohongshu** is not, because it addresses users by an opaque
- * numeric id, and a column that linked five platforms by guess and the sixth by record would be
- * wrong in the one place a reader could not check.
+ * `accountProfileUrl` in `@brandfactory/shared` is what decides for one account, and this function
+ * only picks **which** account answers for the badge. The rule it applies is worth restating here
+ * because this is the surface it was written against: a stored URL always wins, five platforms
+ * template a handle into a path, and **xiaohongshu never does** — it addresses users by an opaque
+ * numeric id, so a templated link there is not a wrong profile but no profile at all.
  *
- * ── The first account that carries one, in list order ─────────────────────
+ * This used to derive nothing whatsoever, and 1.51.0's badge column is what made that untenable:
+ * 215 of the 216 accounts on the real roster hold `url: null`, so exactly one badge out of 146
+ * rows was a link. See `profile-url.ts` for the argument and for what it knowingly gives up.
+ *
+ * ── The first account that answers, in list order ─────────────────────────
  *
  * A creator can hold more than one account on a platform — three Instagram accounts is a real
  * creator, and `InfluencerAccountsSchema` allows it. One badge stands for all of them, so one of
@@ -86,17 +90,19 @@ export function visiblePlatforms(
  * the day an import refreshed a number. The badge is a way into the record, not a claim that the
  * creator has exactly one account there — the detail page lists every account with its own link.
  *
- * An account whose `url` is `null` is skipped rather than ending the search, so a primary with no
- * URL and a second account with one still gives the badge somewhere to go.
+ * An account that answers `null` is **skipped rather than ending the search**, which now means one
+ * more thing than it did: a primary whose handle is a name somebody typed into the wrong box gives
+ * the badge nothing, and a second account on the same platform with an ordinary handle still gives
+ * it somewhere to go.
  */
 export function profileUrlOn(
   accounts: readonly InfluencerAccount[],
   platform: InfluencerPlatform,
 ): string | null {
   for (const account of accounts) {
-    if (account.platform === platform) {
-      if (account.url) return account.url;
-    }
+    if (account.platform !== platform) continue;
+    const url = accountProfileUrl(account);
+    if (url) return url;
   }
   return null;
 }

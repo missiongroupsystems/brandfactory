@@ -553,7 +553,10 @@ const SEED_OUTLETS: SeedOutlet[] = [
  * for the day a measurement arrives.
  *
  * `url` is `null` on every account but one: Jaime Lee, whose media-list cell
- * holds a profile URL rather than a handle. Nothing derives a URL from a handle.
+ * holds a profile URL rather than a handle. The screens fall back to a per-platform
+ * template for the other 215 — see `accountProfileUrl` in `@brandfactory/shared`,
+ * which is what made that emptiness survivable — and a value written here always
+ * wins over the template.
  */
 export interface SeedInfluencerAccount {
   platform: 'instagram' | 'tiktok' | 'youtube' | 'xiaohongshu' | 'facebook' | 'linkedin'

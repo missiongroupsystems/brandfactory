@@ -123,12 +123,38 @@ describe("profileUrlOn", () => {
     );
   });
 
-  it("derives nothing from a handle", () => {
-    // The rule `InfluencerAccountSchema.url` writes down, asserted on the surface that reads it:
-    // an account with no stored URL is a badge with nowhere to go, **not** a guessed
-    // `instagram.com/<handle>`. A wrong link to a real stranger's profile is worse than no link,
-    // and this is the assertion that fails if somebody adds a per-platform URL template.
-    expect(profileUrlOn([account("instagram", "jamiechua")], "instagram")).toBe(null);
+  it("derives one from the handle where the record holds none", () => {
+    // The reversal this release makes, asserted on the surface it was made for. Until now this
+    // answered `null` — correctly, on the rule `InfluencerAccountSchema.url` used to state — and
+    // the roster it shipped against holds `url: null` on 215 of its 216 accounts, so one badge out
+    // of 146 rows was a link. `accountProfileUrl` in `@brandfactory/shared` owns the argument and
+    // the templates; what this pins is that the roster's cell actually reads it.
+    expect(profileUrlOn([account("instagram", "jamiechua")], "instagram")).toBe(
+      "https://instagram.com/jamiechua",
+    );
+  });
+
+  it("still derives nothing for xiaohongshu", () => {
+    // The one refusal that survives, and the reason the cell can be trusted at all: XHS addresses
+    // users by an opaque numeric id, so a templated link there is not a wrong profile — it is not
+    // a profile. This is the assertion that fails the day somebody completes the table.
+    expect(profileUrlOn([account("xiaohongshu", "novitalam")], "xiaohongshu")).toBe(null);
+  });
+
+  it("derives nothing from a handle that is really a name", () => {
+    // `InfluencerHandleSchema` accepts this — handle grammar differs per platform and xiaohongshu
+    // handles are not latin at all — so the guard against templating it lives one layer down. A
+    // handle with a space in it is a name somebody typed into the wrong box.
+    expect(profileUrlOn([account("instagram", "Jamie Chua")], "instagram")).toBe(null);
+  });
+
+  it("prefers a stored URL to the one it would derive for the same account", () => {
+    // Derivation is a fallback and never an override. The stored value was checked by somebody or
+    // grounded by the quick-add lookup against a page it read; the template is a guess over a
+    // string, and it must not win.
+    expect(
+      profileUrlOn([account("instagram", "jamiechua", "https://www.instagram.com/ec24m")], "instagram"),
+    ).toBe("https://www.instagram.com/ec24m");
   });
 
   it("takes the first account carrying a URL, in list order", () => {
@@ -142,14 +168,19 @@ describe("profileUrlOn", () => {
     expect(profileUrlOn(accounts, "instagram")).toBe("https://ig.test/primary");
   });
 
-  it("skips a URL-less account rather than stopping at it", () => {
-    // A primary with no URL and a second account with one still gives the badge somewhere to go.
-    // A `.find()` on the platform alone would answer `null` here and leave a link on the record
-    // that the roster refused to draw.
+  it("skips an account that answers nothing rather than stopping at it", () => {
+    // A primary the badge cannot address and a second account it can still gives the badge
+    // somewhere to go. A `.find()` on the platform alone would answer `null` here and refuse a
+    // link the record actually holds.
+    //
+    // **On xiaohongshu, because it is the platform where "answers nothing" is still reachable.**
+    // The five templatable platforms answer for any ordinary handle now, so an Instagram pair
+    // would exercise the fallback rather than the skip — and the test would pass whether or not
+    // the loop continued.
     const accounts = [
-      account("instagram", "jamiechua"),
-      account("instagram", "jamiechua.eats", "https://ig.test/second"),
+      account("xiaohongshu", "novitalam"),
+      account("xiaohongshu", "novita.lam", "https://xhslink.test/second"),
     ];
-    expect(profileUrlOn(accounts, "instagram")).toBe("https://ig.test/second");
+    expect(profileUrlOn(accounts, "xiaohongshu")).toBe("https://xhslink.test/second");
   });
 });

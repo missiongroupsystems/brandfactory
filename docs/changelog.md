@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.52.0** — 2026-08-21 — The pencil leaves eight columns and the cell becomes the control: a hover tint over the whole target, menus where two native selects were, an accounts panel where two pencils opened a whole-record sheet — and a platform badge that finally links, because a URL is now derived from a handle for the five platforms that can be. No migration. 2868 tests.
 - **1.51.0** — 2026-08-20 — A platform badge stops being a label and becomes the way to the profile: the six marks in the Platforms column open the creator's page in a new tab when the record holds a URL, and derive nothing when it does not. Plus the quick-add handle example. No migration. 2840 tests.
 - **1.50.1** — 2026-08-20 — Post-release review of 1.50.0: the boundary rules bounded every field of the draft except the one they invented themselves, so a name too long for the record crossed the wire and was refused by the create the reader had already paid a lookup for. Plus the invariant that would have caught it. No migration. 2831 tests.
 - **1.50.0** — 2026-08-20 — A creator arrives from a platform and a handle: a model reads the live web, four rules in code throw away everything it cannot prove, and a person confirms what is left before a row exists. Plus the Reach column split per platform, and the 12px every sortable heading had been losing. No migration. 2828 tests.
@@ -102,6 +103,149 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.52.0 — 2026-08-21
+
+**A pencil is not an affordance, it is a second target inside the first one.** Every editable
+column on `/influencers` carried a 14px glyph at its right edge, revealed on row hover, and it said
+the same thing about four different outcomes — a text box, a native select, a checkbox popover, and
+a navigation away to a whole-record form. The reader's words: *"Instead of a pencil icon next to
+each cell, let me click the cell and edit it there. The pen feels dated."*
+
+The cell is the control now. Six phases, one release. **No migration, no route change, no wire
+change, no new dependency.** 2868 tests (2721 passing, 147 skipped without a database), 28 more
+than 1.51.0.
+
+Six completion documents, starting at
+`docs/completions/influencer-cell-editing-phase-a-the-cell-is-the-control.md`. The plan is
+`docs/executing/influencer-cell-editing-and-profile-links-plan.md`.
+
+### The affordance is the cell, and the tint has to be a step deeper than the row's
+
+`EditPencil` is gone and so is `EditableCell` — the display-to-editor **swap**, with its render
+prop, its `Escape` handler and its `stacked` flag. What replaces both is one `<button>` that fills
+the cell.
+
+Three properties were expensive to get right and none of them was what the reader objected to, so
+all three are kept and each has a test: the trigger is a **real button in the tab order at all
+times** (the pencil was `opacity-0` rather than `hidden` for exactly that reason); it is **sized
+from the density rung**, so nothing grows the row it opened in; and **nothing is optimistic** — a
+cell in flight shows the value it still holds with a spinner beside it.
+
+It improves on one of them. Nothing is revealed, so nothing is reserved, so **nothing shifts on
+hover** — which retires the hack in the Reach cell where the pencil sat *before* the figure so its
+reserved width could not push the numbers off the column's right edge.
+
+The tint is `bg-surface-selected` and not `bg-surface-hover`, and that is arithmetic rather than
+taste: `TableRow` already paints the second one across the whole row on hover, so a cell tint at
+that token would be **invisible at exactly the moment it is needed**.
+
+### Two selects become menus, and a bounded defect stops being bounded
+
+Vertical and Status open a `DropdownMenu` of `menuitemradio` items with the current value ticked —
+the clear side of the line AGENTS.md draws, because this is one choice from a closed list rather
+than a panel of form controls.
+
+`EnumEditor`'s docstring recorded the cost it had accepted: *arrow keys on a closed select fire
+`change` per press*, so a keyboard user stepping through three statuses could fire three writes,
+capped at one per open only because the control disabled itself mid-flight. That is a race won by a
+lock. A menu moves a highlight and commits on `Enter` or on click, so the case stops existing — and
+the test that fails if anybody puts a select back is three arrow presses and an assertion that
+nothing was written.
+
+### The Creator cell stops being editable, and that is a removal rather than an omission
+
+*"The Creator cell stays a link and always opens the creator's profile."* Out go `NameEditor`, the
+`stacked` prop and its arithmetic, the `name` branch of `FieldEdit`, `patchFor` and `isUnchanged`,
+and `name` from `EDITABLE_FIELDS`. `UpdateInfluencerInputSchema.name` stays and the record's own
+form still renames; what went is *this table's* path to it.
+
+It was the most expensive cell on the table and the least used: a two-line stack whose editor had to
+take the height of the line it replaced rather than the cell's content box, which is the 10px
+regression 1.49.0's browser pass found. Nobody renames a creator from a roster.
+
+### Platforms and Reach stop opening a sheet and start opening the thing they are derived from
+
+One panel, from either cell, because both render the same child table from two angles. It is
+`ReachBreakdown` with the figures made editable rather than something beside it — keeping both would
+put a read-only view and an editable one behind two controls in one cell, and the read-only one is a
+strict subset. Its two hard-won properties carry over: `w-auto` with no `max-w`, because a truncated
+handle is the one value here nobody can act on, and `align="end"` on the right-aligned column.
+
+**The write is `{accounts}` and nothing else** — which makes it *safer* than the pencil it replaces.
+That pencil opened `InfluencerForm`, which submits a whole `CreateInfluencerInput` and so rewrote
+the brand set on every save. The roster's second `InfluencerForm` is deleted along with it; the
+panel's footer links to the record, which has its own.
+
+Every list rule is imported from `account-drafts.ts` and none is rewritten. One is **composed** —
+`accountsProblem`, the sentence above a disabled `Save` — because a panel in a popover has no
+`<form>` to lean on and *"Too small: expected string to have >=1 characters"* is not a sentence
+anybody can act on.
+
+Three consequences worth stating: the panel now opens for a **single-account creator**, who can
+correct a follower count from the roster for the first time; `url` is **not in the panel** but does
+ride through the write untouched, which is the one way this could quietly lose data and so has a
+test of its own; and the account list is compared **as an ordered list, not as a set**, because
+position 0 *is* the primary account and a set comparison would silently throw a reorder away.
+
+### A badge links, because a URL is derived from a handle — for five platforms, not six
+
+The reversal. Four places said *"nothing derives a URL from a handle"*, and the argument was sound:
+a wrong link to a real stranger's profile is worse than no link. What made it untenable was the
+data. **215 of the 216 seeded accounts hold `url: null`**, so the linked badge 1.51.0 shipped lit up
+one row out of 146.
+
+The rule is narrowed rather than dropped, and the narrowing is what keeps the original argument
+alive. **A stored URL always wins** — never overridden, so every link somebody checked and every URL
+the quick-add lookup grounded survives. **XiaoHongShu never derives**, because it addresses users by
+an opaque numeric id, which makes a templated link there not a wrong profile but no profile at all —
+and it is the one platform a reader could not check by eye. And **only a handle that is a plausible
+path segment derives** (`^[A-Za-z0-9._-]+$`): `InfluencerHandleSchema` accepts anything up to 100
+characters on purpose, and a handle carrying a space or a slash is a *name* somebody typed into the
+wrong box.
+
+`accountProfileUrl` lives in `@brandfactory/shared` beside the schema whose docstring states the
+rule, because both surfaces that read `account.url` have to agree — a derivation only the roster
+knew about would make a badge open a profile while the same account one click away rendered as
+plain text.
+
+**What is knowingly given up**, recorded as a decision rather than left to be discovered: a handle
+correct on Instagram and wrong on TikTok now produces a confident link to whoever holds that name on
+TikTok, and nothing on screen tells a derived link from a stored one. Marking 211 of 216 links
+"unverified" would make the mark the thing nobody reads.
+
+Counted in the browser across the whole seeded roster: **226 badge links** — 146 Instagram, 75
+TikTok, 2 YouTube, 1 Facebook, 1 LinkedIn, and one `www.instagram.com`, which is the *stored* URL
+winning over the template that would have produced `instagram.com`. Every Xiaohongshu badge is still
+plain text.
+
+### The browser pass earned its place again
+
+The plan asked for one because every claim in Phase A is about a hover state and a row height. It
+found a regression of exactly the shape 1.49.0's pass found, two orders of magnitude smaller and
+just as wrong: **rows came back at 61px and 58.84px alternating**, depending on whether a creator
+had one account or two.
+
+The cause is a trap that is invisible in the source. The Reach cell's class list carries both
+`text-helper` and `text-ink`, and **`twMerge` drops the first** — they are in the same `text-*`
+group — so that column has always rendered at 14px where its classes claim 13px. The old sub-line
+said `text-helper` explicitly and was 18.84px; the replacement inherited from the cell and came out
+21px, which made the Reach cell the tallest thing in those rows. One class back, with a comment
+saying why it is stated rather than inherited. Re-measured: one row height per rung, at all three.
+
+The pass also cost the Brands trigger its chevron and 16px of minimum width, which the names on a
+13%-share column can use better.
+
+### The gate
+
+`pnpm typecheck`, `pnpm lint`, `pnpm -F @brandfactory/web-next lint`, `pnpm format:check`,
+`pnpm test`, `pnpm -F @brandfactory/web build` and `pnpm -F @brandfactory/web-next build` all pass.
+`/influencers` is still `○ (Static)` in the build output. No console errors, no hydration warnings
+and no Base UI errors on the pass.
+
+**Column widths were not judged**, and that is the honest gap: the available browser viewport was
+760 CSS px, where the eight-column budget 1.49.1 measured cannot hold with or without this change.
+The width deltas above are arithmetic against the pencil rather than a reading off the screen.
 
 ## 1.51.0 — 2026-08-20
 

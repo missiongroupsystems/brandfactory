@@ -197,13 +197,17 @@ export const InfluencerAccountSchema = z.object({
   /**
    * The profile URL, `null` when nobody has recorded one.
    *
-   * A handle resolves to a URL by guessing for five of the six platforms. It does
-   * not for **xiaohongshu**, which addresses users by an opaque numeric id — so
-   * this column is what makes an XHS account clickable at all.
+   * A handle resolves to a URL by templating for five of the six platforms. It
+   * does not for **xiaohongshu**, which addresses users by an opaque numeric id —
+   * so this column is what makes an XHS account clickable at all.
    *
-   * **Nothing derives a URL from a handle.** A wrong link to a real stranger's
-   * profile is worse than no link, so the screens render plain text when this is
-   * `null`.
+   * **A stored URL is a fact; a derived one is a defensible guess, and the two
+   * are not the same thing.** This column holds the first. `accountProfileUrl` in
+   * `profile-url.ts` is what the screens call, and it puts this value ahead of
+   * anything it would build — so a URL somebody checked, or one the quick-add
+   * lookup grounded against a page it actually read, is never overridden. That
+   * file also carries the argument for deriving at all, which was refused until
+   * 215 of 216 accounts on the real roster arrived holding `null` here.
    *
    * It reuses `WebsiteUrlSchema` rather than a bare `z.url()`: the value is
    * rendered into an `href`, and that schema is where the `http`/`https` filter

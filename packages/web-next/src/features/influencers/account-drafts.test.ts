@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   accountDraftsFrom,
+  accountsProblem,
   addAccountDraft,
   type AccountDraft,
   duplicateAccountIndexes,
@@ -187,5 +188,65 @@ describe("setAccountDraft", () => {
     expect(next.map((d) => d.handle)).toEqual(["a", "changed"]);
     // A new array, so React sees the change.
     expect(next).not.toBe(drafts);
+  });
+});
+
+describe("accountsProblem", () => {
+  /**
+   * The sentence the accounts panel puts above a disabled `Save`.
+   *
+   * It exists because that panel has **no `<form>` to lean on**. `InfluencerForm` marks its boxes
+   * `required` and lets the browser refuse the submit; a panel living in a popover over a table
+   * cell has to disable its own button and say why — and *"Too small: expected string to have >=1
+   * characters"* is not a sentence anybody can act on.
+   */
+  it("says nothing about a list that can be saved", () => {
+    expect(accountsProblem([draft()])).toBe(null);
+    expect(accountsProblem([draft(), draft({ platform: "tiktok" })])).toBe(null);
+  });
+
+  it("names the repeated pair, and names it before an empty box elsewhere", () => {
+    // **The order is the point.** The duplicate is the one failure whose fix is to delete a row
+    // rather than to fill one in, so reporting the empty box first would send the reader to the
+    // wrong end of the panel — to fill in a row they are about to remove.
+    const problem = accountsProblem([
+      draft(),
+      draft({ followers: "" }),
+      draft(),
+    ]);
+    expect(problem).toContain("@priyaskin");
+    expect(problem).toContain("Instagram");
+    expect(problem).toContain("already listed above");
+  });
+
+  it("catches an emptied follower box on the string, before the conversion", () => {
+    // `Number("")` is `0`, so a check made after `toAccountPayload` would have to reason about a
+    // `NaN` — and a check made carelessly would launder the box into a creator entered on zero
+    // followers, who lands in Nano and looks like a real reading.
+    expect(accountsProblem([draft({ followers: "" })])).toBe("Every account needs a follower count.");
+    expect(accountsProblem([draft({ followers: "  " })])).toBe(
+      "Every account needs a follower count.",
+    );
+    // A typed zero is a measurement and survives.
+    expect(accountsProblem([draft({ followers: "0" })])).toBe(null);
+  });
+
+  it("catches an empty handle", () => {
+    expect(accountsProblem([draft({ handle: "" })])).toBe("Every account needs a handle.");
+  });
+
+  it("falls through to the schema's own words for what nobody types by hand", () => {
+    // An engagement rate over 100 is not a slip somebody makes in a percent box; it is what an
+    // import or a paste produces. The shared schema already has a message for it, and inventing a
+    // second one here is how the two drift.
+    const problem = accountsProblem([draft({ engagementRate: "140" })]);
+    expect(problem).not.toBe(null);
+    expect(problem).not.toBe("Every account needs a handle.");
+  });
+
+  it("refuses an empty list, which is what a last removal would leave", () => {
+    // The panel's Remove button is disabled at one row, so this is the second of two defences —
+    // and it is the one that holds if a caller ever builds the list some other way.
+    expect(accountsProblem([])).not.toBe(null);
   });
 });

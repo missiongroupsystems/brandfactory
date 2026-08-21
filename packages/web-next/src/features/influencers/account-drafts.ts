@@ -1,5 +1,6 @@
 import type { Influencer, InfluencerAccount, InfluencerPlatform } from "@brandfactory/shared";
-import { MAX_INFLUENCER_ACCOUNTS } from "@brandfactory/shared";
+import { InfluencerAccountsSchema, MAX_INFLUENCER_ACCOUNTS } from "@brandfactory/shared";
+import { INFLUENCER_PLATFORM_LABELS } from "@/lib/labels";
 
 import { toNullableNumber } from "./format";
 
@@ -145,4 +146,43 @@ export function toAccountPayload(drafts: readonly AccountDraft[]): InfluencerAcc
     engagementRate: toNullableNumber(draft.engagementRate),
     url: draft.url.trim() === "" ? null : draft.url.trim(),
   }));
+}
+
+/**
+ * Why this list cannot be saved yet, in one sentence, or `null` when it can.
+ *
+ * **Composed out of the rules above rather than a fifth opinion about them.** The duplicate set is
+ * {@link duplicateAccountIndexes}', the payload is {@link toAccountPayload}'s and the verdict is
+ * `InfluencerAccountsSchema`'s — the same zod object the route validates with. What this adds is
+ * the *order* the reasons are given in and the words two of them are given in.
+ *
+ * It exists because the accounts panel has no `<form>` to lean on. `InfluencerForm` marks its
+ * boxes `required` and lets the browser refuse the submit; a panel that lives in a popover over a
+ * table cell has to disable its own `Save` and say why, and "Too small: expected string to have
+ * >=1 characters" is not a sentence anybody can act on. So the two failures a person actually
+ * produces — an empty box, and a pair they already typed — are worded here, and everything else
+ * falls through to the schema's own message, which is written for exactly the cases nobody
+ * produces by hand.
+ *
+ * The order is deliberate: the **duplicate first**, because it is the one failure whose fix is to
+ * delete a row rather than to fill one in, and reporting an empty box on the row somebody is about
+ * to remove sends them to the wrong end of the panel.
+ */
+export function accountsProblem(drafts: readonly AccountDraft[]): string | null {
+  const duplicates = duplicateAccountIndexes(drafts);
+  const firstDuplicate = [...duplicates][0];
+  if (firstDuplicate !== undefined) {
+    const draft = drafts[firstDuplicate]!;
+    return `@${draft.handle.trim()} on ${INFLUENCER_PLATFORM_LABELS[draft.platform]} is already listed above — one account per platform and handle.`;
+  }
+
+  if (drafts.some((draft) => draft.handle.trim() === "")) return "Every account needs a handle.";
+  // Tested on the string, before the conversion: `Number("")` is `0`, which would launder an
+  // untouched box into a creator entered on zero followers. The same trap `toAccountPayload`
+  // documents, at the one point a person can still see the box.
+  if (drafts.some((draft) => draft.followers.trim() === ""))
+    return "Every account needs a follower count.";
+
+  const parsed = InfluencerAccountsSchema.safeParse(toAccountPayload(drafts));
+  return parsed.success ? null : (parsed.error.issues[0]?.message ?? "Those accounts cannot be saved.");
 }
