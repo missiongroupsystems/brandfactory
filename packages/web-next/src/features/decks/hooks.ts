@@ -1,6 +1,6 @@
 "use client";
 
-import type { CreateDeckInput } from "@brandfactory/shared";
+import type { CreateDeckInput, CreateDeckVersionInput } from "@brandfactory/shared";
 import * as React from "react";
 import useSWR from "swr";
 
@@ -53,5 +53,15 @@ export function useDeckMutations(brandId: string | undefined) {
     [invalidate, brandId],
   );
 
-  return { create };
+  const addVersion = React.useCallback(
+    async (deckId: string, input: CreateDeckVersionInput) => {
+      if (!brandId) throw new Error("No brand resolved");
+      const updated = await deckService.addVersion(brandId, deckId, input);
+      await invalidate(...DECK_SCOPES);
+      return updated;
+    },
+    [invalidate, brandId],
+  );
+
+  return { create, addVersion };
 }

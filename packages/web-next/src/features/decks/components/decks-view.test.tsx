@@ -40,7 +40,7 @@ const mockedUseDecks = vi.mocked(useDecks);
 const mockedUseDeckMutations = vi.mocked(useDeckMutations);
 
 beforeEach(() => {
-  mockedUseDeckMutations.mockReturnValue({ create: vi.fn() });
+  mockedUseDeckMutations.mockReturnValue({ create: vi.fn(), addVersion: vi.fn() });
 });
 
 // Ids are zod-branded (`$brand<"DeckId">` etc.), which a plain string never satisfies — so the

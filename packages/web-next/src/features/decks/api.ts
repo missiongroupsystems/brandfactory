@@ -1,4 +1,9 @@
-import type { CreateDeckInput, Deck, DeckVersion } from "@brandfactory/shared";
+import type {
+  CreateDeckInput,
+  CreateDeckVersionInput,
+  Deck,
+  DeckVersion,
+} from "@brandfactory/shared";
 
 import { bf, callJson } from "@/lib/api/bf-client";
 
@@ -39,5 +44,26 @@ export const deckService = {
   create: async (brandId: string, input: CreateDeckInput): Promise<DeckWithVersions> =>
     callJson<DeckWithVersions>(
       await bf.brands[":id"].decks.$post({ param: { id: brandId }, json: input }),
+    ),
+
+  /**
+   * Push a version onto a deck's stack.
+   *
+   * **Answers the whole deck back, not the row created**, and that is the route's decision
+   * rather than a convenience: a backdated `versionDate` does *not* supersede a newer version,
+   * so "is the thing I just added now current?" is a question only the full stack answers. A
+   * caller that patched the new row into its cache and assumed it led would be re-deriving
+   * `current` on the client, which is the one thing 2A exists to prevent.
+   */
+  addVersion: async (
+    brandId: string,
+    deckId: string,
+    input: CreateDeckVersionInput,
+  ): Promise<DeckWithVersions> =>
+    callJson<DeckWithVersions>(
+      await bf.brands[":id"].decks[":deckId"].versions.$post({
+        param: { id: brandId, deckId },
+        json: input,
+      }),
     ),
 };

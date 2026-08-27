@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import type { DeckWithVersions } from "../api";
 import { useDecks } from "../hooks";
 import { DeckForm } from "./deck-form";
+import { VersionForm } from "./version-form";
 
 /**
  * This brand's decks — a named folder per pitch deck or one-pager, each showing the version the
@@ -33,7 +34,8 @@ import { DeckForm } from "./deck-form";
  *
  * **Viewing only, plus the minimal "New deck" affordance this screen needs to not be inert.**
  * Recording a version — the Canva two-part write especially — is Phase 2F's job, sized around
- * decision 3's required-snapshot CHECK; there is no "New version" form here.
+ * decision 3's required-snapshot CHECK — **which 2F now supplies**: every card carries an
+ * "Add version" control, and `VersionForm` owns the two arms and the ordered write.
  */
 export function DecksView({ brandId }: { brandId: string }) {
   const { decks, isLoading, error } = useDecks(brandId);
@@ -60,7 +62,7 @@ export function DecksView({ brandId }: { brandId: string }) {
       ) : (
         <div className="flex flex-col gap-4">
           {decks.map((deck) => (
-            <DeckCard key={deck.id} deck={deck} />
+            <DeckCard key={deck.id} deck={deck} brandId={brandId} />
           ))}
         </div>
       )}
@@ -78,8 +80,9 @@ export function DecksView({ brandId }: { brandId: string }) {
  * deck that exists with zero versions recorded renders `EmptyState`'s own quiet card, on the same
  * rule `ResourcesView` and every other list in this package follow for "nothing here yet".
  */
-function DeckCard({ deck }: { deck: DeckWithVersions }) {
+function DeckCard({ deck, brandId }: { deck: DeckWithVersions; brandId: string }) {
   const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [versionFormOpen, setVersionFormOpen] = React.useState(false);
 
   const older = deck.versions
     .filter((version) => version.id !== deck.current?.id)
@@ -89,8 +92,21 @@ function DeckCard({ deck }: { deck: DeckWithVersions }) {
   return (
     <Card>
       <CardHeader>
-        {/* A real `<h2>`, not `CardTitle` — that component renders a `div` (see `AGENTS.md`). */}
-        <h2 className="font-heading text-h3 text-ink">{deck.name}</h2>
+        <div className="flex items-center justify-between gap-3">
+          {/* A real `<h2>`, not `CardTitle` — that component renders a `div` (see `AGENTS.md`). */}
+          <h2 className="font-heading text-h3 text-ink">{deck.name}</h2>
+          {/* Named per deck, because a page holding four of these otherwise offers four
+              identically-labelled buttons and a screen reader cannot tell them apart. */}
+          <Button
+            variant="secondary"
+            size="sm"
+            aria-label={`Add version to ${deck.name}`}
+            onClick={() => setVersionFormOpen(true)}
+          >
+            <PlusIcon data-icon="inline-start" />
+            Add version
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {deck.current ? (
@@ -132,6 +148,14 @@ function DeckCard({ deck }: { deck: DeckWithVersions }) {
           </div>
         ) : null}
       </CardContent>
+
+      <VersionForm
+        brandId={brandId}
+        deckId={deck.id}
+        deckName={deck.name}
+        open={versionFormOpen}
+        onOpenChange={setVersionFormOpen}
+      />
     </Card>
   );
 }
