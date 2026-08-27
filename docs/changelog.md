@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.54.0** — 2026-08-27 — The other three asks land and the set closes: a deck stack whose Canva versions snapshot on add, a photography shelf split by subject with the best pinned, and the funnel that maps a brand's journey. `BRAND_NAV_ITEMS` reaches six rows in three groups, and `Tools` goes with the last `Empty` tag in the product. Migrations 0018–0021. 3069 tests.
 - **1.53.0** — 2026-08-27 — Resources ships: a brand's fonts, images, icons and tools are a real table now, grouped by type, with a form to add and edit one and a delete that waits for the server rather than assuming it. Migration 0017. 2928 tests.
 - **1.52.1** — 2026-08-21 — Post-release review of 1.52.0: the accounts panel dropped the record form's `type="number"`, so `3.2%` in a rate box saved successfully and replaced a measurement with "nobody measured this" — and a disabled trigger dropped a keyboard reader on `document.body` after every status edit, which jsdom cannot see. No migration. 2881 tests.
 - **1.52.0** — 2026-08-21 — The pencil leaves eight columns and the cell becomes the control: a hover tint over the whole target, menus where two native selects were, an accounts panel where two pencils opened a whole-record sheet — and a platform badge that finally links, because a URL is now derived from a handle for the five platforms that can be. No migration. 2868 tests.
@@ -103,6 +104,72 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.54.0 — 2026-08-27
+
+**The other three asks, and the set closes.** 1.53.0 shipped Resources; this is Decks, Photography
+and the Marketing funnel — Plans 2 through 4 of
+`docs/executing/four-asks-from-marketing-plan.md`, fifteen phases and four migrations.
+
+**Decks.** A named presentation and the stack behind it, so a superseded deck stays reachable
+instead of becoming a folder of near-duplicates. **The Canva rule is what proves the tables have to
+be their own**: a Canva version holds a live link *and* the PDF export of that moment, which is
+precisely the row `brand_assets_source_exactly_one` exists to forbid. Newest is derived, never a
+column — `version_date DESC, created_at DESC`, because a team entering a backlog of past dates in
+one sitting would otherwise find that the last thing they uploaded is not current. `author` is text
+rather than a user id: the author of a brand deck is very often an agency that will never hold a row
+in `users`, and a FK would write `null` into the one field the history column is read for.
+
+Phase 2F's write is ordered — upload, then insert. The reverse leaves a row pointing at bytes that
+never arrived, and the CHECK cannot catch that: it constrains a column, not an object store.
+
+**The blob sweep gained a third arm in all three helpers**, and the arm must **not** filter on
+`source`. The assets arm does, which is the trap: on `deck_versions` a `'canva'` row carries a
+snapshot PDF too, so `source = 'pdf'` would have leaked every Canva snapshot in the workspace —
+silently, in object storage, on a delete nobody watches. `listBlobKeysByBrand`'s docstring had been
+warning about exactly this leak, through the gap it was about to open.
+
+**Photography**, in two releases because the seam is the request's own sentence: *the pin is a
+separate mark on the photo, not the manual drag order the library already supports.*
+
+The pin takes **its own comparator**. `byPosition` has three callers and `logoAsset` is one of them,
+whose docstring fixes the resolution rule for every non-unique role — so a pin-aware `byPosition`
+would have decided *which image is the brand's logo* from a mark somebody made in a photo grid. No
+error, no failing test, just a different logo in the header one day.
+
+`category_id` is nullable because no rule could derive *interior* from a PNG, and **Uncategorised is
+a bucket the grid always offers** — every photo predating the column lives there, and hiding it
+would have hidden the entire existing library on day one. Deleting a subject names its count first:
+the photos survive, but they survive somewhere the reader is not looking.
+
+**Marketing funnel.** Ordered stages, the platforms serving each, and what runs there now. A
+platform is a brand-scoped row joined to stages rather than a field on one — Instagram serves
+Awareness and Loyalty, and per-stage rows would type it twice and correct it once, which is the
+duplication `vendor_brands` and `influencer_brands` were each built to avoid. `social_platform` is
+not reused: a funnel names Google Ads, email, SEO, the shop window.
+
+The six defaults are written in the brand's own transaction, and **not** backfilled by the
+migration — six stage names in SQL derive nothing, unlike 0010's `CASE`, and would be product copy
+duplicated into the one language that cannot import the constant. Existing brands get a button in
+the empty state instead, which is also the honest shape for a set the request calls editable.
+
+Status is a lifecycle and never a score, bounded away from performance by the request itself. The
+typed link to a held record is deferred with its reasons on record — of the three targets named, one
+is unreachable from this app, one has no referent in the schema, and one is a fixture — and an
+activity's note carries it meanwhile, which the request permits in as many words.
+
+**The nav.** `BRAND_NAV_ITEMS` reached six rows, so Phase 0's grouping layer filled as planned — and
+because those groups shipped *empty*, the orphan guard fired on each feature that added a row. It
+fired three times, which is what it was built for. `Tools` is gone with both its placeholders, and
+with them the last `Empty` tag in the product.
+
+Migrations 0018, 0019, 0020, 0021. 3069 tests (2904 passing, 165 skipped without a database).
+
+**Not verified locally:** every `*.live.test.ts` skipped — Docker was not running on the machine
+this was built on. The deck CHECK, all cascades and the three blob-sweep arms are covered by tests
+that have not executed here.
 
 ---
 
