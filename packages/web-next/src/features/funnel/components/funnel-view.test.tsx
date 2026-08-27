@@ -197,24 +197,57 @@ describe("the link to a social post", () => {
     );
   });
 
-  it("offers no such option when the post is still in the calendar", () => {
+  it("says what each option is, not just what it says", () => {
+    // **A list of bare sentences is unreadable**, and the first person to open this
+    // control asked what the options were. Platform and date are what make an entry a
+    // *post* rather than a sentence somebody typed.
     mockedUseSocialPosts.mockReturnValue({
-      posts: [{ id: "p1", body: "Spring teaser" } as unknown as SocialPost],
+      posts: [
+        {
+          id: "p1",
+          platform: "instagram",
+          scheduledAt: "2026-03-12T09:00:00.000Z",
+          body: "Spring teaser",
+        } as unknown as SocialPost,
+      ],
       isLoading: false,
       error: null,
     });
     setup([stage({ activities: [linkedActivity("p1")] })]);
 
     const select = screen.getByLabelText("Linked post for Spring campaign") as HTMLSelectElement;
-    expect([...select.options].map((o) => o.textContent)).toEqual([
-      "No linked post",
-      "Spring teaser",
-    ]);
+    const [empty, option] = [...select.options].map((o) => o.textContent ?? "");
+    // The empty option is an instruction, not a state — it says what the control does.
+    expect(empty).toBe("Link a social post…");
+    expect(option).toContain("Instagram");
+    expect(option).toContain("Spring teaser");
+  });
+
+  it("calls an undated post unscheduled rather than leaving a gap", () => {
+    // `scheduledAt: null` is the calendar's idea tray — a real state, not missing data.
+    mockedUseSocialPosts.mockReturnValue({
+      posts: [
+        {
+          id: "p1",
+          platform: "tiktok",
+          scheduledAt: null,
+          body: "Kitchen walkthrough",
+        } as unknown as SocialPost,
+      ],
+      isLoading: false,
+      error: null,
+    });
+    setup([stage({ activities: [linkedActivity("p1")] })]);
+
+    const select = screen.getByLabelText("Linked post for Spring campaign") as HTMLSelectElement;
+    expect([...select.options][1]!.textContent).toContain("unscheduled");
   });
 
   it("offers a way through to the post, and nothing when there is no link", () => {
     mockedUseSocialPosts.mockReturnValue({
-      posts: [{ id: "p1", body: "Spring teaser" } as unknown as SocialPost],
+      posts: [
+        { id: "p1", platform: "instagram", scheduledAt: null, body: "Spring teaser" } as unknown as SocialPost,
+      ],
       isLoading: false,
       error: null,
     });

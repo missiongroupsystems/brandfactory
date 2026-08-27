@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 
-import type { FunnelActivityStatus, FunnelStageWithDetail, Platform } from "@brandfactory/shared";
+import type {
+  FunnelActivityStatus,
+  FunnelStageWithDetail,
+  Platform,
+  SocialPost,
+} from "@brandfactory/shared";
 import { DEFAULT_FUNNEL_STAGES } from "@brandfactory/shared";
 import { ExternalLinkIcon, LinkIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 import * as React from "react";
@@ -15,7 +20,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { formatDate } from "@/lib/format";
-import { FUNNEL_ACTIVITY_STATUS_LABELS } from "@/lib/labels";
+import { FUNNEL_ACTIVITY_STATUS_LABELS, SOCIAL_PLATFORM_LABELS } from "@/lib/labels";
 
 import { useSocialPosts } from "@/features/social-posts/hooks";
 
@@ -249,6 +254,10 @@ function StageBlock({
                     plain text." */}
                 <Select
                   aria-label={`Linked post for ${activity.title}`}
+                  // The closed control reads the selected option's own text, so the
+                  // labelling lives in `postOptionLabel` rather than in a heading beside
+                  // it — this row already carries a title, two dates, a status and two
+                  // buttons, and a sixth label would cost more room than it buys.
                   value={activity.socialPostId ?? ""}
                   disabled={busy}
                   containerClassName="w-auto"
@@ -256,10 +265,10 @@ function StageBlock({
                     void run(() => setLinkedPost(stage.id, activity.id, event.target.value))
                   }
                 >
-                  <option value="">No linked post</option>
+                  <option value="">Link a social post…</option>
                   {posts.map((post) => (
                     <option key={post.id} value={post.id}>
-                      {post.body ? post.body.slice(0, 60) : "Untitled post"}
+                      {postOptionLabel(post)}
                     </option>
                   ))}
                   {/* **A linked post the list no longer holds still needs an option.**
@@ -375,4 +384,23 @@ function StageBlock({
       />
     </Card>
   );
+}
+
+/**
+ * What one social post reads as inside the picker.
+ *
+ * **The body alone is not enough**, and that is the whole reason this function exists.
+ * A list of bare sentences — *"Behind the pass, Thursday"* — gives a reader no way to tell
+ * what they are looking at or which of two similar drafts is which; the first person to
+ * open this control asked what the options were. Platform and date are what make it a
+ * *post* rather than a sentence.
+ *
+ * A post with no date is unscheduled, which is a real state the calendar writes on
+ * purpose — the idea tray — so it says so rather than showing an empty gap.
+ */
+function postOptionLabel(post: SocialPost): string {
+  const platform = SOCIAL_PLATFORM_LABELS[post.platform];
+  const when = post.scheduledAt ? formatDate(post.scheduledAt) : "unscheduled";
+  const body = post.body.trim() || "no copy yet";
+  return `${platform} · ${when} — ${body.length > 48 ? `${body.slice(0, 48)}…` : body}`;
 }

@@ -48,7 +48,7 @@ import type { OutletStatus, OutletType } from "@brandfactory/shared";
 // Same rule again, for the two features this file gained with the marketing
 // work: keyed off the shared unions, so a new member fails the typecheck here
 // until it has a label.
-import type { FunnelActivityStatus } from "@brandfactory/shared";
+import type { FunnelActivityStatus, SocialPlatform } from "@brandfactory/shared";
 
 // The influencer enums follow the outlet ones out of `lib/api/types.ts`, for the
 // stronger version of the same reason: those were declared there because no
@@ -426,6 +426,26 @@ export const FUNNEL_ACTIVITY_STATUS_LABELS: Record<FunnelActivityStatus, string>
   running: "Running",
   paused: "Paused",
   done: "Done",
+};
+
+/**
+ * Where a social post goes. Keyed by the shared union, so a ninth `social_platform`
+ * member fails the typecheck here until it has a label.
+ *
+ * These are the *social* channels a post is published to — deliberately not the funnel's
+ * `platforms`, which are brand-scoped rows and name things like Google Ads and the shop
+ * window. Two vocabularies, one word, and reusing either for the other would file three
+ * quarters of a funnel under "other".
+ */
+export const SOCIAL_PLATFORM_LABELS: Record<SocialPlatform, string> = {
+  instagram: "Instagram",
+  facebook: "Facebook",
+  tiktok: "TikTok",
+  linkedin: "LinkedIn",
+  x: "X",
+  youtube: "YouTube",
+  pinterest: "Pinterest",
+  other: "Other",
 };
 
 export const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {

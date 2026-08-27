@@ -1,26 +1,16 @@
 "use client";
 
 import type { SocialPost } from "@brandfactory/shared";
-import { SocialPlatformSchema, SocialPostStatusSchema } from "@brandfactory/shared";
+import { SocialPostStatusSchema } from "@brandfactory/shared";
 import * as React from "react";
 
 import { EmptyState, LoadingRows, QueryError } from "@/components/layout/query-states";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format";
+import { SOCIAL_PLATFORM_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
 import { useSocialPosts } from "../hooks";
-
-const PLATFORM_LABELS: Record<(typeof SocialPlatformSchema.options)[number], string> = {
-  instagram: "Instagram",
-  facebook: "Facebook",
-  tiktok: "TikTok",
-  linkedin: "LinkedIn",
-  x: "X",
-  youtube: "YouTube",
-  pinterest: "Pinterest",
-  other: "Other",
-};
 
 const STATUS_LABELS: Record<(typeof SocialPostStatusSchema.options)[number], string> = {
   draft: "Draft",
@@ -110,7 +100,7 @@ function PostGroup({
             )}
           >
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{PLATFORM_LABELS[post.platform]}</Badge>
+              <Badge variant="outline">{SOCIAL_PLATFORM_LABELS[post.platform]}</Badge>
               <Badge variant={post.status === "posted" ? "success" : "default"}>
                 {STATUS_LABELS[post.status]}
               </Badge>
