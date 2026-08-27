@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { DeckSourceSchema, DeckVersionSchema } from './deck'
+import {
+  CreateDeckInputSchema,
+  CreateDeckVersionInputSchema,
+  DeckSourceSchema,
+  DeckVersionSchema,
+} from './deck'
 
 // The member list is duplicated with the `deckSource` pgEnum in
 // `@brandfactory/db`, per the zod-⇄-pgEnum convention. This test is the pin: a
@@ -88,5 +93,87 @@ describe('the version row', () => {
         canvaUrl: null,
       }).success,
     ).toBe(false)
+  })
+})
+
+// The create schemas — a 400 with a field path is what these buy over the
+// bare CHECK; each `it` here doubles as proof the wire rejects the same bad
+// shape the CHECK does.
+describe('CreateDeckInputSchema', () => {
+  it('accepts a name and nothing else', () => {
+    expect(CreateDeckInputSchema.safeParse({ name: 'Media Kit' }).success).toBe(true)
+  })
+
+  it('refuses an empty name', () => {
+    expect(CreateDeckInputSchema.safeParse({ name: '' }).success).toBe(false)
+  })
+
+  it('does not require — or accept a stray — id or brandId', () => {
+    const result = CreateDeckInputSchema.safeParse({ name: 'Media Kit' })
+    expect(result.success && Object.keys(result.data)).toEqual(['name'])
+  })
+})
+
+describe('CreateDeckVersionInputSchema', () => {
+  const base = {
+    label: 'v1 — first draft',
+    versionDate: '2026-01-01',
+    author: 'Acme Agency',
+  }
+
+  it('accepts a pdf create body', () => {
+    expect(
+      CreateDeckVersionInputSchema.safeParse({
+        ...base,
+        source: 'pdf',
+        pdfBlobKey: 'blobs/deck.pdf',
+        canvaUrl: null,
+      }).success,
+    ).toBe(true)
+  })
+
+  it('accepts a canva create body carrying the required snapshot', () => {
+    expect(
+      CreateDeckVersionInputSchema.safeParse({
+        ...base,
+        source: 'canva',
+        canvaUrl: 'https://canva.com/design/abc',
+        pdfBlobKey: 'blobs/deck-snapshot.pdf',
+      }).success,
+    ).toBe(true)
+  })
+
+  it('refuses a canva body with no snapshot — the same shape the CHECK refuses', () => {
+    expect(
+      CreateDeckVersionInputSchema.safeParse({
+        ...base,
+        source: 'canva',
+        canvaUrl: 'https://canva.com/design/abc',
+        pdfBlobKey: null,
+      }).success,
+    ).toBe(false)
+  })
+
+  it('refuses a pdf body with no key', () => {
+    expect(
+      CreateDeckVersionInputSchema.safeParse({
+        ...base,
+        source: 'pdf',
+        pdfBlobKey: null,
+        canvaUrl: null,
+      }).success,
+    ).toBe(false)
+  })
+
+  it('does not accept — or require — id, deckId or createdAt', () => {
+    const result = CreateDeckVersionInputSchema.safeParse({
+      ...base,
+      source: 'pdf',
+      pdfBlobKey: 'blobs/deck.pdf',
+      canvaUrl: null,
+    })
+    expect(result.success && Object.keys(result.data).sort()).toEqual(
+      ['author', 'canvaUrl', 'label', 'pdfBlobKey', 'source', 'versionDate'].sort(),
+    )
   })
 })

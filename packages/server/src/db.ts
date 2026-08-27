@@ -64,6 +64,15 @@ export interface Db {
   updateResource: typeof db.updateResource
   deleteResource: typeof db.deleteResource
 
+  // Decks — append-only versions, so there is no update helper here to route
+  // to; `currentVersion` (from `@brandfactory/shared`) decides which version
+  // is "current," not a column on either table.
+  listDecksByBrand: typeof db.listDecksByBrand
+  createDeck: typeof db.createDeck
+  deleteDeck: typeof db.deleteDeck
+  createDeckVersion: typeof db.createDeckVersion
+  listVersionsByDeck: typeof db.listVersionsByDeck
+
   // Social posts
   listSocialPostsByBrand: typeof db.listSocialPostsByBrand
   createSocialPost: typeof db.createSocialPost
@@ -177,6 +186,11 @@ export function buildDbDeps(): Db {
     createResource: db.createResource,
     updateResource: db.updateResource,
     deleteResource: db.deleteResource,
+    listDecksByBrand: db.listDecksByBrand,
+    createDeck: db.createDeck,
+    deleteDeck: db.deleteDeck,
+    createDeckVersion: db.createDeckVersion,
+    listVersionsByDeck: db.listVersionsByDeck,
     listSocialPostsByBrand: db.listSocialPostsByBrand,
     createSocialPost: db.createSocialPost,
     updateSocialPost: db.updateSocialPost,

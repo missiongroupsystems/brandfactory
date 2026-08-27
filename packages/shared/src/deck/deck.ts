@@ -84,3 +84,26 @@ export const DeckVersionSchema = z.discriminatedUnion('source', [
   CanvaDeckVersionSchema,
 ])
 export type DeckVersion = z.infer<typeof DeckVersionSchema>
+
+// The create body for a new deck — `brandId` is in the path and `id` is
+// server-set, the same two omissions `CreateBrandResourceInputSchema` makes
+// on `BrandResourceSchema`.
+export const CreateDeckInputSchema = DeckSchema.omit({ id: true, brandId: true })
+export type CreateDeckInput = z.infer<typeof CreateDeckInputSchema>
+
+/**
+ * The create body for one new version of a deck. Built from the two row
+ * schemas above with `id`, `deckId` and `createdAt` omitted — the three
+ * columns the server owns, never the caller.
+ *
+ * Staying a `discriminatedUnion` on `source` is what puts
+ * `deck_versions_source_shape`'s rule at the wire: a `'pdf'` body carrying no
+ * `pdfBlobKey` is a 400 with a field path, and the CHECK never sees it.
+ * `CreateBrandAssetInputSchema` in `asset/create.ts` is the same move for
+ * `brand_assets_source_exactly_one`.
+ */
+export const CreateDeckVersionInputSchema = z.discriminatedUnion('source', [
+  PdfDeckVersionSchema.omit({ id: true, deckId: true, createdAt: true }),
+  CanvaDeckVersionSchema.omit({ id: true, deckId: true, createdAt: true }),
+])
+export type CreateDeckVersionInput = z.infer<typeof CreateDeckVersionInputSchema>

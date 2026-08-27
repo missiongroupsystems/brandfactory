@@ -16,6 +16,10 @@ import type {
   Canvas,
   CanvasBlock,
   CanvasBlockId,
+  Deck,
+  DeckId,
+  DeckVersion,
+  DeckVersionId,
   Influencer,
   InfluencerAccount,
   InfluencerId,
@@ -41,6 +45,7 @@ import {
   byInfluencerReach,
   byOutletName,
   byVendorName,
+  byVersionRecency,
   uniqueInfluencerSlug,
   uniqueOutletSlug,
   uniqueVendorSlug,
@@ -125,6 +130,8 @@ export interface FakeDbState {
   sections: Map<string, BrandGuidelineSection>
   assets: Map<string, BrandAsset>
   resources: Map<string, BrandResource>
+  decks: Map<string, Deck>
+  deckVersions: Map<string, DeckVersion>
   researchJobs: Map<string, ResearchJob>
   sectionAutofillEvents: SectionAutofillEvent[]
   /**
@@ -155,6 +162,8 @@ export function createFakeDbState(): FakeDbState {
     sections: new Map(),
     assets: new Map(),
     resources: new Map(),
+    decks: new Map(),
+    deckVersions: new Map(),
     researchJobs: new Map(),
     sectionAutofillEvents: [],
     socialPosts: new Map(),
@@ -454,6 +463,13 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       for (const [rid, resource] of state.resources) {
         if (resource.brandId === id) state.resources.delete(rid)
       }
+      // `decks.brand_id` cascades, and `deck_versions.deck_id` cascades one
+      // level further — routed through the fake's own `deleteDeck` so both
+      // levels go together, the same move `deleteProject` below makes for
+      // canvases and blocks.
+      for (const deck of [...state.decks.values()]) {
+        if (deck.brandId === id) await db.deleteDeck(id, deck.id)
+      }
       for (const [pid, post] of state.socialPosts) {
         if (post.brandId === id) state.socialPosts.delete(pid)
       }
@@ -735,6 +751,59 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       if (!existing || existing.brandId !== brandId) return null
       state.resources.delete(id)
       return existing
+    },
+
+    // Decks. `listDecksByBrand` mirrors the real `orderBy(asc(name), asc(id))`
+    // and `listVersionsByDeck` mirrors the real `orderBy(desc(versionDate),
+    // desc(createdAt))` — `byVersionRecency`'s own ordering, expressed in SQL
+    // on the real side and reused here rather than re-derived. `deleteDeck`
+    // cascades its versions, mirroring `deck_versions.deck_id`'s FK.
+    async listDecksByBrand(brandId) {
+      return [...state.decks.values()]
+        .filter((d) => d.brandId === brandId)
+        .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+    },
+    async createDeck(brandId, name) {
+      const id = nextId('deck') as DeckId
+      const row: Deck = { id, brandId, name }
+      state.decks.set(id, row)
+      return row
+    },
+    async deleteDeck(brandId, id) {
+      const existing = state.decks.get(id)
+      if (!existing || existing.brandId !== brandId) return null
+      state.decks.delete(id)
+      for (const [vid, version] of [...state.deckVersions.entries()]) {
+        if (version.deckId === id) state.deckVersions.delete(vid)
+      }
+      return existing
+    },
+    async createDeckVersion(deckId, input) {
+      const id = nextId('dv') as DeckVersionId
+      const base = {
+        id,
+        deckId,
+        label: input.label,
+        versionDate: input.versionDate,
+        author: input.author,
+        createdAt: NOW,
+      }
+      const row: DeckVersion =
+        input.source === 'pdf'
+          ? { ...base, source: 'pdf' as const, pdfBlobKey: input.pdfBlobKey, canvaUrl: null }
+          : {
+              ...base,
+              source: 'canva' as const,
+              canvaUrl: input.canvaUrl,
+              pdfBlobKey: input.pdfBlobKey,
+            }
+      state.deckVersions.set(id, row)
+      return row
+    },
+    async listVersionsByDeck(deckId) {
+      return [...state.deckVersions.values()]
+        .filter((v) => v.deckId === deckId)
+        .sort(byVersionRecency)
     },
 
     // Social posts. `assetIds` stored inline — the fake has no join table, but

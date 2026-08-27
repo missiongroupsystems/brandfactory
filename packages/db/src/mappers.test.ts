@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   BrandAssetSchema,
+  DeckVersionSchema,
   InfluencerAccountSchema,
   InfluencerSchema,
   SocialPostSchema,
@@ -13,6 +14,8 @@ import {
   rowToBrandSummary,
   rowToCanvas,
   rowToCanvasBlock,
+  rowToDeck,
+  rowToDeckVersion,
   rowToGuidelineSection,
   rowToInfluencer,
   rowToInfluencerAccount,
@@ -369,6 +372,102 @@ describe('rowToBrandAsset', () => {
     ['link', { source: 'link' as const, value: null, url: null }, /missing url/],
   ])('throws when a %s row has lost its source column', (_name, columns, message) => {
     expect(() => rowToBrandAsset({ ...assetRow, ...columns })).toThrow(message)
+  })
+})
+
+describe('rowToDeck', () => {
+  // `createdAt`/`updatedAt` are on the row (bookkeeping the app never reads)
+  // but not on the wire `Deck` — the mapper drops both, and this is the test
+  // that would fail if a future edit started sending them.
+  it('maps id, brandId and name — and drops the row’s timestamps', () => {
+    expect(
+      rowToDeck({
+        id: 'd-1',
+        brandId: 'b-1',
+        name: 'Media Kit',
+        createdAt: TS,
+        updatedAt: TS,
+      }),
+    ).toEqual({
+      id: 'd-1',
+      brandId: 'b-1',
+      name: 'Media Kit',
+    })
+  })
+})
+
+describe('rowToDeckVersion', () => {
+  const versionRow = {
+    id: 'v-1',
+    deckId: 'd-1',
+    source: 'pdf' as const,
+    label: 'v1 — first draft',
+    versionDate: '2026-01-01',
+    author: 'Acme Agency',
+    pdfBlobKey: 'blobs/deck.pdf',
+    canvaUrl: null,
+    createdAt: TS,
+  }
+
+  it('narrows to the arm named by source', () => {
+    const pdf = rowToDeckVersion(versionRow)
+    expect(pdf.source).toBe('pdf')
+    if (pdf.source === 'pdf') expect(pdf.pdfBlobKey).toBe('blobs/deck.pdf')
+
+    const canva = rowToDeckVersion({
+      ...versionRow,
+      source: 'canva',
+      canvaUrl: 'https://canva.com/design/abc',
+      pdfBlobKey: 'blobs/deck-snapshot.pdf',
+    })
+    expect(canva.source).toBe('canva')
+    if (canva.source === 'canva') {
+      expect(canva.canvaUrl).toBe('https://canva.com/design/abc')
+      expect(canva.pdfBlobKey).toBe('blobs/deck-snapshot.pdf')
+    }
+  })
+
+  // `version_date` is a `date` column, not a `timestamp` — `rowToOutlet`'s
+  // three date columns pass through the same way, for the same reason: the
+  // team typed a day, and no `Date` conversion may shift it across a zone.
+  it('passes version_date through untouched — no Date, no zone shift', () => {
+    expect(rowToDeckVersion(versionRow).versionDate).toBe('2026-01-01')
+  })
+
+  it('parses as DeckVersionSchema on both arms', () => {
+    expect(DeckVersionSchema.safeParse(rowToDeckVersion(versionRow)).success).toBe(true)
+    const canva = rowToDeckVersion({
+      ...versionRow,
+      source: 'canva',
+      canvaUrl: 'https://canva.com/design/abc',
+      pdfBlobKey: 'blobs/deck-snapshot.pdf',
+    })
+    expect(DeckVersionSchema.safeParse(canva).success).toBe(true)
+  })
+
+  // The CHECK guarantees the arm matching `source` is present, so a null here
+  // means the constraint is gone — a data-integrity bug, not a state to
+  // degrade into. Three branches, and the live test in `decks.live.test.ts`
+  // never exercises any of them: it only ever feeds this mapper valid,
+  // freshly-created rows.
+  it.each([
+    [
+      'pdf missing its key',
+      { source: 'pdf' as const, pdfBlobKey: null, canvaUrl: null },
+      /missing pdfBlobKey/,
+    ],
+    [
+      'canva missing its url',
+      { source: 'canva' as const, canvaUrl: null, pdfBlobKey: 'blobs/deck-snapshot.pdf' },
+      /missing canvaUrl/,
+    ],
+    [
+      'canva missing its required snapshot',
+      { source: 'canva' as const, canvaUrl: 'https://canva.com/design/abc', pdfBlobKey: null },
+      /missing pdfBlobKey snapshot/,
+    ],
+  ])('throws when a %s', (_name, columns, message) => {
+    expect(() => rowToDeckVersion({ ...versionRow, ...columns })).toThrow(message)
   })
 })
 

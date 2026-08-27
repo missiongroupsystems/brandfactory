@@ -18,6 +18,7 @@ import type { AgentConcurrencyGuard } from './agent/concurrency'
 import { createAgentRouter } from './routes/agent'
 import { createBrandAssetsRouter } from './routes/assets'
 import { createBrandResourcesRouter } from './routes/resources'
+import { createDecksRouter } from './routes/decks'
 import { createSocialPostsRouter } from './routes/social-posts'
 import { createSocialIdeateRouter } from './routes/social-ideate'
 import {
@@ -186,6 +187,10 @@ export function createApp(deps: AppDeps) {
     // Named external links — no `storage` either, and for a stronger reason
     // than assets: a resource never carries a blob key at all.
     .route('/brands', createBrandResourcesRouter({ db: deps.db }))
+    // A brand's decks and their version stacks. No `storage`: `deleteDeck`'s
+    // bytes are swept the same way an asset's or a project's are, by
+    // `listBlobKeysByBrand` before the cascading row delete — see 2B.
+    .route('/brands', createDecksRouter({ db: deps.db }))
     // Same shape and same scoping; posts never see a platform API or a file.
     .route('/brands', createSocialPostsRouter({ db: deps.db }))
     // The planner that fills that calendar. Stateless — it writes no row, so
