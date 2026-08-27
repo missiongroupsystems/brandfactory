@@ -1,4 +1,4 @@
-import type { FunnelStageWithDetail, Platform } from "@brandfactory/shared";
+import type { FunnelStageWithDetail, Platform, SocialPost } from "@brandfactory/shared";
 import { DEFAULT_FUNNEL_STAGES } from "@brandfactory/shared";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -199,7 +199,7 @@ describe("the link to a social post", () => {
 
   it("offers no such option when the post is still in the calendar", () => {
     mockedUseSocialPosts.mockReturnValue({
-      posts: [{ id: "p1", body: "Spring teaser" } as never],
+      posts: [{ id: "p1", body: "Spring teaser" } as unknown as SocialPost],
       isLoading: false,
       error: null,
     });
@@ -214,7 +214,7 @@ describe("the link to a social post", () => {
 
   it("offers a way through to the post, and nothing when there is no link", () => {
     mockedUseSocialPosts.mockReturnValue({
-      posts: [{ id: "p1", body: "Spring teaser" } as never],
+      posts: [{ id: "p1", body: "Spring teaser" } as unknown as SocialPost],
       isLoading: false,
       error: null,
     });
