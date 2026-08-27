@@ -4,7 +4,6 @@ import type { BlobReadUrlResponse, BlobUploadResponse } from "@brandfactory/shar
 import useSWR, { type SWRResponse } from "swr";
 
 import { getFreshAuthToken } from "@/auth/session";
-import { logout } from "@/auth/store";
 
 import { AppError, BF_API_BASE_URL, bf, callJson } from "./api/bf-client";
 
@@ -37,18 +36,17 @@ const blobReadUrlKey = (key: string) => ["blob-read-url", key] as const;
  * `encodeURIComponent` before substituting it, which turns each `/` into `%2F` and sends a
  * request the route's regex does not match. `uploadBlob` below has no path param in its mint
  * call and goes through `bf` — this is the one call in this file that cannot.
+ *
+ * The constraint is on the *request* URL only. `callJson` takes any `fetch` `Response`, not just
+ * one `bf` produced, so the *response* still goes through the same parsing and error handling as
+ * every other call in this app — including the 401→`logout()` it already does.
  */
 async function fetchReadUrl(key: string): Promise<string> {
   const token = await getFreshAuthToken();
   const res = await fetch(`${BF_API_BASE_URL}/blob-urls/${key}/read-url`, {
     headers: token ? { authorization: `Bearer ${token}` } : {},
   });
-  if (!res.ok) {
-    if (res.status === 401) logout();
-    throw new AppError(`Failed to mint read URL (${res.status})`, "READ_URL_FAILED", res.status);
-  }
-  const body = (await res.json()) as BlobReadUrlResponse;
-  return body.url;
+  return callJson<BlobReadUrlResponse>(res).then((body) => body.url);
 }
 
 /**

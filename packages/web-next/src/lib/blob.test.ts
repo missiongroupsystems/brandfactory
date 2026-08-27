@@ -156,13 +156,32 @@ describe("useSignedReadUrl", () => {
     expect(h.logout).toHaveBeenCalled();
   });
 
-  it("names any other failure READ_URL_FAILED, and does not sign out", async () => {
+  it("falls back to a generic message when the body carries none, and does not sign out", async () => {
     fetchMock().mockResolvedValue(json({}, 500));
 
     const { result } = renderSignedReadUrl("k1");
 
     await waitFor(() => expect(result.current.error).toBeInstanceOf(AppError));
-    expect((result.current.error as AppError).code).toBe("READ_URL_FAILED");
+    expect((result.current.error as AppError).status).toBe(500);
+    expect((result.current.error as AppError).message).toContain("500");
+    expect(h.logout).not.toHaveBeenCalled();
+  });
+
+  it("surfaces the server's own refusal when the mint call is rejected, in its own words", async () => {
+    // Same shape `middleware/error.ts` sends for any `HttpError` — e.g. a key the caller does
+    // not own. Goes through `callJson` now, exactly like `uploadBlob`'s mint call.
+    fetchMock().mockResolvedValue(
+      json({ code: "FORBIDDEN", message: "this key does not belong to your workspace" }, 403),
+    );
+
+    const { result } = renderSignedReadUrl("k1");
+
+    await waitFor(() => expect(result.current.error).toBeInstanceOf(AppError));
+    expect(result.current.error).toMatchObject({
+      code: "FORBIDDEN",
+      message: "this key does not belong to your workspace",
+      status: 403,
+    });
     expect(h.logout).not.toHaveBeenCalled();
   });
 
