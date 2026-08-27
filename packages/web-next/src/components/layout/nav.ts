@@ -9,6 +9,7 @@ import {
   Handshake,
   Inbox,
   LayoutDashboard,
+  Presentation,
   Shapes,
   Sparkles,
   Store,
@@ -283,6 +284,16 @@ export const BRAND_NAV_ITEMS: BrandNavItem[] = [
     icon: Bookmark,
     description: "The sites this brand buys fonts, images and tools from",
   },
+  // Directly after Resources, in the same `Library` group — see the note on it above.
+  // `Presentation`, not `FileText` or `Layers`: a deck is a slide stack somebody presents, and
+  // the glyph that reads as a screen with a bar chart on it says so at a glance, where a stack of
+  // pages does not distinguish a deck from a PDF resource.
+  {
+    title: "Decks",
+    segment: "decks",
+    icon: Presentation,
+    description: "The pitch decks and one-pagers this brand presents, and every version of each",
+  },
   {
     title: "Outlets",
     segment: "outlets",
@@ -311,7 +322,7 @@ export const BRAND_NAV_ITEMS: BrandNavItem[] = [
  */
 export const BRAND_NAV_GROUPS: { label: string | null; segments: string[] }[] = [
   { label: null, segments: [""] },
-  { label: "Library", segments: ["resources"] },
+  { label: "Library", segments: ["resources", "decks"] },
   { label: "Presence", segments: ["outlets"] },
 ];
 

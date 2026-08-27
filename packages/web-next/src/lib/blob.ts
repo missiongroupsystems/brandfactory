@@ -30,6 +30,11 @@ const blobReadUrlKey = (key: string) => ["blob-read-url", key] as const;
 /**
  * Mint one signed read URL.
  *
+ * **Exported for an imperative, one-shot mint** — `useSignedReadUrl` below is a polling SWR hook,
+ * right for something rendered on screen, but wrong for a plain "Download" button: a click does
+ * not want to have subscribed to a refresh every four minutes just to fire once. Phase 2E's deck
+ * version history calls this directly, then hands the URL to `downloadBlobUrl`.
+ *
  * **Raw `fetch`, not `bf`.** `GET /blob-urls/:key{.+}/read-url` captures a multi-segment key
  * (e.g. `uploads/2024/04/uuid-name.png`) with Hono's `{.+}` regex param — the key's own slashes
  * have to land in the URL path unescaped. `hc<AppType>` encodes every param value with
@@ -41,7 +46,7 @@ const blobReadUrlKey = (key: string) => ["blob-read-url", key] as const;
  * one `bf` produced, so the *response* still goes through the same parsing and error handling as
  * every other call in this app — including the 401→`logout()` it already does.
  */
-async function fetchReadUrl(key: string): Promise<string> {
+export async function fetchReadUrl(key: string): Promise<string> {
   const token = await getFreshAuthToken();
   const res = await fetch(`${BF_API_BASE_URL}/blob-urls/${key}/read-url`, {
     headers: token ? { authorization: `Bearer ${token}` } : {},

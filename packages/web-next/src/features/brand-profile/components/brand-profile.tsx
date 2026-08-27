@@ -11,6 +11,7 @@ import * as React from "react";
 
 import { EmptyState, PageState, QueryError } from "@/components/layout/query-states";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDecks } from "@/features/decks/hooks";
 
 import { useBrandProfile } from "../hooks";
 import {
@@ -24,6 +25,7 @@ import type { ProfileSection } from "../types";
 import { BrandIdentitySheet } from "./brand-identity-sheet";
 import { CopyButton } from "./copy-button";
 import { EditButton } from "./edit-button";
+import { DecksBand } from "./decks-band";
 import { ContentPillarsBand, PillarsBand } from "./pillars-band";
 import { ProfileContents, type ContentsEntry } from "./profile-contents";
 import { ProfileFooter } from "./profile-footer";
@@ -74,6 +76,12 @@ import { VisualIdentityBand } from "./visual-identity-band";
  */
 export function BrandProfileScreen({ brandId }: { brandId?: string }) {
   const { profile, source, isLoading, error } = useBrandProfile(brandId);
+  // Decks are not part of `BrandProfile` (they are a separate aggregate, like resources), so this
+  // screen — not `DecksBand` — makes the one call: it needs the count for the *On this page* rail
+  // below and the band needs the rows, and both come from the same fetch. `profile?.id` rather
+  // than `brandId`: the two agree once the brand has loaded, and `useDecks` already treats an
+  // unresolved id as "skip", the same rule `useResources` follows.
+  const { decks } = useDecks(profile?.id);
 
   /**
    * What the editor is pointed at, and whether it is open — **two pieces of state, deliberately.**
@@ -144,6 +152,7 @@ export function BrandProfileScreen({ brandId }: { brandId?: string }) {
     ...(profile.colours.length > 0 || profile.typefaces.length > 0
       ? [{ anchor: "visual-identity", label: "Visual identity" }]
       : []),
+    ...(decks.length > 0 ? [{ anchor: "decks", label: "Decks" }] : []),
   ];
 
   return (
@@ -224,6 +233,8 @@ export function BrandProfileScreen({ brandId }: { brandId?: string }) {
         />
 
         <VisualIdentityBand profile={profile} anchor="visual-identity" />
+
+        <DecksBand brandId={profile.id} decks={decks} anchor="decks" />
 
         <ProfileFooter
           profile={profile}

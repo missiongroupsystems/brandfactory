@@ -120,6 +120,14 @@ vi.mock("../hooks", () => ({
   }),
 }));
 
+// `BrandProfileScreen` reads decks for the `DecksBand` and the *On this page* count (2E) — mocked
+// empty so this fixture's brand shows none, on the same reasoning `useBrandProfile` above is
+// mocked: a real `useDecks` here would fire an actual `fetch` against `bf`, which this file has no
+// business exercising.
+vi.mock("@/features/decks/hooks", () => ({
+  useDecks: () => ({ decks: [], isLoading: false, error: undefined }),
+}));
+
 describe("BrandProfileScreen", () => {
   it("renders the brand the server answered with", () => {
     render(<BrandProfileScreen />);
