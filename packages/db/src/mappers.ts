@@ -16,6 +16,10 @@ import {
   type CanvasBlock,
   type CanvasBlockId,
   type CanvasId,
+  type Deck,
+  type DeckId,
+  type DeckVersion,
+  type DeckVersionId,
   type Influencer,
   type InfluencerAccount,
   type InfluencerId,
@@ -41,6 +45,8 @@ import type {
   brands,
   canvasBlocks,
   canvases,
+  deckVersions,
+  decks,
   guidelineSections,
   influencerAccounts,
   influencers,
@@ -57,6 +63,8 @@ type BrandRow = typeof brands.$inferSelect
 type GuidelineSectionRow = typeof guidelineSections.$inferSelect
 type BrandAssetRow = typeof brandAssets.$inferSelect
 type BrandResourceRow = typeof brandResources.$inferSelect
+type DeckRow = typeof decks.$inferSelect
+type DeckVersionRow = typeof deckVersions.$inferSelect
 type ProjectRow = typeof projects.$inferSelect
 type CanvasRow = typeof canvases.$inferSelect
 type CanvasBlockRow = typeof canvasBlocks.$inferSelect
@@ -231,6 +239,45 @@ export function rowToBrandResource(row: BrandResourceRow): BrandResource {
     title: row.title,
     url: row.url,
     note: row.note,
+  }
+}
+
+export function rowToDeck(row: DeckRow): Deck {
+  return {
+    id: row.id as DeckId,
+    brandId: row.brandId as BrandId,
+    name: row.name,
+  }
+}
+
+// `pdf_blob_key` / `canva_url` are nullable at the DB level because one table
+// stores both shapes, exactly as `brand_assets` does for its three. The
+// `deck_versions_source_shape` CHECK guarantees the arm matching the row's
+// `source` is present, so a null here is a data-integrity bug (a CHECK
+// dropped by a bad migration, a direct DB edit) and fails loud rather than
+// rendering a version nobody can open.
+//
+// `version_date` is a `date` column and passes through untouched, exactly as
+// `rowToOutlet`'s three date columns do — no `Date`, no zone shift.
+export function rowToDeckVersion(row: DeckVersionRow): DeckVersion {
+  const base = {
+    id: row.id as DeckVersionId,
+    deckId: row.deckId as DeckId,
+    label: row.label,
+    versionDate: row.versionDate,
+    author: row.author,
+    createdAt: toIsoTimestamp(row.createdAt),
+  }
+  switch (row.source) {
+    case 'pdf':
+      if (row.pdfBlobKey === null) throw new Error(`Pdf deck version ${row.id} missing pdfBlobKey`)
+      return { ...base, source: 'pdf', pdfBlobKey: row.pdfBlobKey, canvaUrl: null }
+    case 'canva':
+      if (row.canvaUrl === null) throw new Error(`Canva deck version ${row.id} missing canvaUrl`)
+      if (row.pdfBlobKey === null) {
+        throw new Error(`Canva deck version ${row.id} missing pdfBlobKey snapshot`)
+      }
+      return { ...base, source: 'canva', canvaUrl: row.canvaUrl, pdfBlobKey: row.pdfBlobKey }
   }
 }
 

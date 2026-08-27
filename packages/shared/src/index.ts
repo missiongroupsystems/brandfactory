@@ -42,6 +42,12 @@ export * from './research/job'
 // Resource
 export * from './resource/resource'
 
+// Decks — a brand's stack of named versions. `deck.ts` holds the row shapes
+// and the two-arm source union; `ordering.ts` holds the one place the
+// version-recency rule lives.
+export * from './deck/deck'
+export * from './deck/ordering'
+
 // Outlets — the places the brand trades from. Workspace-scoped with an
 // optional brand; see `outlet/outlet.ts` on why it is not brand-scoped.
 export * from './outlet/outlet'

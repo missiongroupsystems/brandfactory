@@ -127,6 +127,13 @@
       "when": 1787832343547,
       "tag": "0017_productive_slyde",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787837571501,
+      "tag": "0018_superb_yellow_claw",
+      "breakpoints": true
     }
   ]
 }

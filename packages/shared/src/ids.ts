@@ -49,3 +49,9 @@ export type VendorId = z.infer<typeof VendorIdSchema>
 
 export const UserIdSchema = brandedId('UserId')
 export type UserId = z.infer<typeof UserIdSchema>
+
+export const DeckIdSchema = brandedId('DeckId')
+export type DeckId = z.infer<typeof DeckIdSchema>
+
+export const DeckVersionIdSchema = brandedId('DeckVersionId')
+export type DeckVersionId = z.infer<typeof DeckVersionIdSchema>
