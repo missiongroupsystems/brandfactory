@@ -43,6 +43,9 @@ export * from './research/job'
 // Resource
 export * from './resource/resource'
 
+// Photography
+export * from './photography/category'
+
 // Decks — a brand's stack of named versions. `deck.ts` holds the row shapes
 // and the two-arm source union; `ordering.ts` holds the one place the
 // version-recency rule lives.

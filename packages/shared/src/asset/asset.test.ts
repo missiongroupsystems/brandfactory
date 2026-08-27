@@ -27,6 +27,7 @@ function base(id: string, position: number) {
     // asset is never pinned; the DB column defaults the same way.
     isPinned: false,
     pinnedAt: null,
+    categoryId: null,
     deletedAt: null,
     createdAt: T0,
     updatedAt: T0,

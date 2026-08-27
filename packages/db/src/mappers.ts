@@ -24,6 +24,8 @@ import {
   type InfluencerAccount,
   type InfluencerId,
   type Outlet,
+  type PhotoCategory,
+  type PhotoCategoryId,
   type OutletId,
   type ProjectId,
   type ProjectSummary,
@@ -42,6 +44,7 @@ import type {
   agentMessages,
   brandAssets,
   brandResources,
+  photoCategories,
   brands,
   canvasBlocks,
   canvases,
@@ -63,6 +66,7 @@ type BrandRow = typeof brands.$inferSelect
 type GuidelineSectionRow = typeof guidelineSections.$inferSelect
 type BrandAssetRow = typeof brandAssets.$inferSelect
 type BrandResourceRow = typeof brandResources.$inferSelect
+type PhotoCategoryRow = typeof photoCategories.$inferSelect
 type DeckRow = typeof decks.$inferSelect
 type DeckVersionRow = typeof deckVersions.$inferSelect
 type ProjectRow = typeof projects.$inferSelect
@@ -209,6 +213,7 @@ export function rowToBrandAsset(row: BrandAssetRow): BrandAsset {
     label: row.label,
     position: row.position,
     isPinned: row.isPinned,
+    categoryId: (row.categoryId as PhotoCategoryId | null) ?? null,
     pinnedAt: row.pinnedAt ? toIsoTimestamp(row.pinnedAt) : null,
     deletedAt: toIsoTimestampOrNull(row.deletedAt),
     alt: row.alt,
@@ -541,5 +546,16 @@ export function rowToCanvasBlock(row: CanvasBlockRow): CanvasBlock {
         mime: row.mime,
       }
     }
+  }
+}
+
+export function rowToPhotoCategory(row: PhotoCategoryRow): PhotoCategory {
+  return {
+    id: row.id as PhotoCategoryId,
+    brandId: row.brandId as BrandId,
+    name: row.name,
+    position: row.position,
+    createdAt: toIsoTimestamp(row.createdAt),
+    updatedAt: toIsoTimestamp(row.updatedAt),
   }
 }

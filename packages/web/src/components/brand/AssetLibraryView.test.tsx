@@ -16,6 +16,7 @@ const ASSET_STAMPS = {
   // `BrandAsset` is one edit rather than a hunt through every literal.
   isPinned: false,
   pinnedAt: null,
+  categoryId: null,
 } as const
 
 const brand: BrandWithSections = {

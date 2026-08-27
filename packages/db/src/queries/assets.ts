@@ -6,6 +6,7 @@ import type {
   BrandAsset,
   BrandAssetId,
   BrandId,
+  PhotoCategoryId,
 } from '@brandfactory/shared'
 import { and, asc, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 import { db } from '../client'
@@ -117,6 +118,12 @@ export type UpdateAssetPatch = Partial<{
   alt: string | null
   /** Move to… — refiling one asset onto another shelf is this key and nothing else. */
   library: AssetLibrary
+  /**
+   * Filing a photograph under a subject. `null` is *Uncategorised*, which is a
+   * bucket somebody chose rather than a field nobody filled — so absent and
+   * `null` are different writes here.
+   */
+  categoryId: PhotoCategoryId | null
 }>
 
 export async function updateAsset(
@@ -133,6 +140,9 @@ export async function updateAsset(
       ...(patch.status !== undefined ? { status: patch.status } : {}),
       ...(patch.alt !== undefined ? { alt: patch.alt } : {}),
       ...(patch.library !== undefined ? { library: patch.library } : {}),
+      // Absent leaves the filing alone; an explicit `null` is *Uncategorised*,
+      // which is a bucket somebody chose rather than a field nobody filled.
+      ...(patch.categoryId !== undefined ? { categoryId: patch.categoryId } : {}),
       updatedAt: sql`now()`,
     })
     // Scoped by brand as well as id: the route resolves access against the

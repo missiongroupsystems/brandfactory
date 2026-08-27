@@ -57,6 +57,12 @@ export interface Db {
   softDeleteAsset: typeof db.softDeleteAsset
   restoreAsset: typeof db.restoreAsset
   setAssetPinned: typeof db.setAssetPinned
+
+  // Photography categories
+  listPhotoCategoriesByBrand: typeof db.listPhotoCategoriesByBrand
+  createPhotoCategory: typeof db.createPhotoCategory
+  updatePhotoCategory: typeof db.updatePhotoCategory
+  deletePhotoCategory: typeof db.deletePhotoCategory
   reorderAssets: typeof db.reorderAssets
 
   // Brand resources
@@ -183,6 +189,10 @@ export function buildDbDeps(): Db {
     softDeleteAsset: db.softDeleteAsset,
     restoreAsset: db.restoreAsset,
     setAssetPinned: db.setAssetPinned,
+    listPhotoCategoriesByBrand: db.listPhotoCategoriesByBrand,
+    createPhotoCategory: db.createPhotoCategory,
+    updatePhotoCategory: db.updatePhotoCategory,
+    deletePhotoCategory: db.deletePhotoCategory,
     reorderAssets: db.reorderAssets,
     listResourcesByBrand: db.listResourcesByBrand,
     createResource: db.createResource,

@@ -55,3 +55,6 @@ export type DeckId = z.infer<typeof DeckIdSchema>
 
 export const DeckVersionIdSchema = brandedId('DeckVersionId')
 export type DeckVersionId = z.infer<typeof DeckVersionIdSchema>
+
+export const PhotoCategoryIdSchema = brandedId('PhotoCategoryId')
+export type PhotoCategoryId = z.infer<typeof PhotoCategoryIdSchema>

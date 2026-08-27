@@ -53,6 +53,7 @@ function asset(id: string, label: string): BrandAsset {
     position: 100,
     isPinned: false,
     pinnedAt: null,
+    categoryId: null,
     deletedAt: null,
     ...STAMPS,
   }

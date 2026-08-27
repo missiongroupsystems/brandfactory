@@ -27,6 +27,7 @@ function asset(id: string, over: Partial<BrandAsset> = {}) {
     position: 100,
     isPinned: false,
     pinnedAt: null,
+    categoryId: null,
     deletedAt: null,
     createdAt: T0,
     updatedAt: T0,

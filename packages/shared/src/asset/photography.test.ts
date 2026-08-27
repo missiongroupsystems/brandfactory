@@ -17,6 +17,7 @@ function makeAsset(overrides: Partial<Record<keyof BrandAsset, unknown>> = {}): 
     position: 100,
     isPinned: false,
     pinnedAt: null,
+    categoryId: null,
     deletedAt: null,
     createdAt: '2026-08-27T00:00:00.000Z',
     updatedAt: '2026-08-27T00:00:00.000Z',

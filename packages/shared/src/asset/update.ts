@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PhotoCategoryIdSchema } from '../ids'
 import { AssetLibrarySchema, AssetRoleSchema, AssetStatusSchema } from './asset'
 
 /**
@@ -29,6 +30,15 @@ export const UpdateBrandAssetInputSchema = z
     status: AssetStatusSchema.optional(),
     alt: z.string().max(1000).nullable().optional(),
     library: AssetLibrarySchema.optional(),
+    /**
+     * Filing a photograph under a subject — see `photography/category.ts`.
+     *
+     * **Nullable *and* optional, and the two mean different things here.**
+     * Absent leaves the filing alone; an explicit `null` is *Uncategorised*,
+     * which is a real bucket a reader can choose rather than an unfilled field.
+     * `updateAsset` branches on `undefined` for exactly that reason.
+     */
+    categoryId: PhotoCategoryIdSchema.nullable().optional(),
   })
   .refine(
     (v) =>
@@ -37,8 +47,12 @@ export const UpdateBrandAssetInputSchema = z
       v.role !== undefined ||
       v.status !== undefined ||
       v.alt !== undefined ||
-      v.library !== undefined,
-    { message: 'At least one of label, position, role, status, alt or library is required' },
+      v.library !== undefined ||
+      v.categoryId !== undefined,
+    {
+      message:
+        'At least one of label, position, role, status, alt, library or categoryId is required',
+    },
   )
 
 export type UpdateBrandAssetInput = z.infer<typeof UpdateBrandAssetInputSchema>

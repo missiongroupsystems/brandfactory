@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { BrandAssetIdSchema, BrandIdSchema } from '../ids'
+import { BrandAssetIdSchema, BrandIdSchema, PhotoCategoryIdSchema } from '../ids'
 import { AssetColorValueSchema } from './color'
 
 // ---------------------------------------------------------------------------
@@ -123,6 +123,20 @@ const BrandAssetBaseShape = {
    * of the idea.
    */
   isPinned: z.boolean(),
+  /**
+   * What the photograph is *of* — see `photography/category.ts`.
+   *
+   * **Nullable, and on every asset rather than only on photographs.**
+   * `brand_assets` is one wide table on four axes and this is a fifth that is
+   * meaningful on exactly one shelf; the table's own docstring makes the case
+   * for nullable per-variant columns over table-per-variant when the read path
+   * wants all of them at once, which `listAssetsByBrand` does. Splitting
+   * photography out is the larger change and is not this one.
+   *
+   * `null` is a real value, not an unfilled one: it is the *Uncategorised*
+   * bucket, and it holds every photo that predates the column.
+   */
+  categoryId: PhotoCategoryIdSchema.nullable(),
   /**
    * When, so a future view could order the shortlist by *when the team decided*
    * rather than by where the photo happens to sit. `null` whenever `isPinned` is

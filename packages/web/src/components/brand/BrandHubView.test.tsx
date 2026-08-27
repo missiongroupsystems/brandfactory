@@ -22,6 +22,7 @@ const ASSET_STAMPS = {
   // `BrandAsset` is one edit rather than a hunt through every literal.
   isPinned: false,
   pinnedAt: null,
+  categoryId: null,
 } as const
 
 // Same `Link` stub the rail's and the mini-app route's tests use: this view is

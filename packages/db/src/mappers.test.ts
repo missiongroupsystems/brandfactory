@@ -288,6 +288,7 @@ describe('rowToBrandAsset', () => {
     position: 100,
     isPinned: false,
     pinnedAt: null,
+    categoryId: null,
     deletedAt: null,
     createdAt: TS,
     updatedAt: TS,

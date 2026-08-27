@@ -11,6 +11,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 import { brands } from './brands'
+import { photoCategories } from './photo_categories'
 
 export const assetKind = pgEnum('asset_kind', ['color', 'image', 'file'])
 export const assetSource = pgEnum('asset_source', ['inline', 'blob', 'link'])
@@ -75,6 +76,27 @@ export const brandAssets = pgTable(
     // position)` — one composite covering the whole sort — and not the partial
     // shape, which finds pinned rows rather than ordering them.
     isPinned: boolean('is_pinned').notNull().default(false),
+    // **Nullable, and that is not laziness.** Every photo in this table when the
+    // column arrived had no category, and no rule could give it one:
+    // `defaultLibraryFor` could derive a shelf from `kind` and `role` because
+    // purpose was recoverable from the bytes, and nothing recovers *interior*
+    // from a PNG. A backfill here would be a guess written into a column, which
+    // is the failure `library.ts` opens by describing.
+    //
+    // `ON DELETE SET NULL`: deleting a category uncategorises its photos rather
+    // than deleting them. A subject bucket is a filing decision, and undoing it
+    // must not destroy what was filed.
+    //
+    // **No CHECK tying this to `library`.** Nothing stops a photography category
+    // attaching to a logo, and that is a decision: only the photography screen
+    // writes one, and a stray category on an identity asset is invisible rather
+    // than corrupting — the `brands.website_url` precedent (one enforcement
+    // point, no second writer) rather than the
+    // `brand_assets_source_exactly_one` one (an invariant spanning columns that
+    // several writers could break). Revisit if a second writer ever appears.
+    categoryId: uuid('category_id').references(() => photoCategories.id, {
+      onDelete: 'set null',
+    }),
     pinnedAt: timestamp('pinned_at', { withTimezone: true, mode: 'string' }),
     // Soft-delete — a discarded asset hides, it does not vanish
     // (`docs/vision.md:51`), which is why `DELETE` does not sweep its bytes.

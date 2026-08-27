@@ -12,6 +12,8 @@ import type {
   BrandId,
   BrandResource,
   BrandResourceId,
+  PhotoCategory,
+  PhotoCategoryId,
   BrandSummary,
   Canvas,
   CanvasBlock,
@@ -130,6 +132,7 @@ export interface FakeDbState {
   sections: Map<string, BrandGuidelineSection>
   assets: Map<string, BrandAsset>
   resources: Map<string, BrandResource>
+  photoCategories: Map<string, PhotoCategory>
   decks: Map<string, Deck>
   deckVersions: Map<string, DeckVersion>
   researchJobs: Map<string, ResearchJob>
@@ -162,6 +165,7 @@ export function createFakeDbState(): FakeDbState {
     sections: new Map(),
     assets: new Map(),
     resources: new Map(),
+    photoCategories: new Map(),
     decks: new Map(),
     deckVersions: new Map(),
     researchJobs: new Map(),
@@ -629,6 +633,7 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         // and the DB column defaults the same way.
         isPinned: false,
         pinnedAt: null,
+        categoryId: null,
         deletedAt: null,
         createdAt: NOW,
         updatedAt: NOW,
@@ -647,6 +652,48 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       }
       state.assets.set(id, asset)
       return asset
+    },
+    async listPhotoCategoriesByBrand(brandId) {
+      return [...state.photoCategories.values()]
+        .filter((c) => c.brandId === brandId)
+        .sort((a, b) => a.position - b.position)
+    },
+    async createPhotoCategory(brandId, input) {
+      const id = nextId('pc') as PhotoCategoryId
+      // From the current maximum, not from a count — a count is wrong the moment
+      // anything has been deleted and would collide two categories onto one slot.
+      const highest = [...state.photoCategories.values()]
+        .filter((c) => c.brandId === brandId)
+        .reduce((max, c) => Math.max(max, c.position), 0)
+      const category: PhotoCategory = {
+        id,
+        brandId,
+        name: input.name,
+        position: highest + 100,
+        createdAt: NOW,
+        updatedAt: NOW,
+      }
+      state.photoCategories.set(id, category)
+      return category
+    },
+    async updatePhotoCategory(brandId, categoryId, input) {
+      const existing = state.photoCategories.get(categoryId)
+      if (!existing || existing.brandId !== brandId) return null
+      const next: PhotoCategory = { ...existing, name: input.name, updatedAt: NOW }
+      state.photoCategories.set(categoryId, next)
+      return next
+    },
+    async deletePhotoCategory(brandId, categoryId) {
+      const existing = state.photoCategories.get(categoryId)
+      if (!existing || existing.brandId !== brandId) return null
+      state.photoCategories.delete(categoryId)
+      // `ON DELETE SET NULL` in SQL — the photos survive, uncategorised.
+      for (const [aid, asset] of state.assets) {
+        if (asset.categoryId === categoryId) {
+          state.assets.set(aid, { ...asset, categoryId: null })
+        }
+      }
+      return existing
     },
     async setAssetPinned(brandId, id, isPinned) {
       const asset = state.assets.get(id)
@@ -679,6 +726,7 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         ...(patch.status !== undefined ? { status: patch.status } : {}),
         ...(patch.alt !== undefined ? { alt: patch.alt } : {}),
         ...(patch.library !== undefined ? { library: patch.library } : {}),
+        ...(patch.categoryId !== undefined ? { categoryId: patch.categoryId } : {}),
         updatedAt: NOW,
       }
       state.assets.set(id, updated)
