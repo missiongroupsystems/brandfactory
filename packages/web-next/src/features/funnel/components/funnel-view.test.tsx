@@ -1,16 +1,20 @@
 import type { FunnelStageWithDetail, Platform } from "@brandfactory/shared";
 import { DEFAULT_FUNNEL_STAGES } from "@brandfactory/shared";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { useSocialPosts } from "@/features/social-posts/hooks";
 
 import { useFunnel, useFunnelMutations } from "../hooks";
 import { FunnelView } from "./funnel-view";
 
 vi.mock("../hooks", () => ({ useFunnel: vi.fn(), useFunnelMutations: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/features/social-posts/hooks", () => ({ useSocialPosts: vi.fn() }));
 
 const mockedUseFunnel = vi.mocked(useFunnel);
 const mockedUseMutations = vi.mocked(useFunnelMutations);
+const mockedUseSocialPosts = vi.mocked(useSocialPosts);
 const createStage = vi.fn();
 const attachPlatform = vi.fn();
 const updateActivity = vi.fn();
@@ -47,6 +51,7 @@ function setup(stages: FunnelStageWithDetail[], platforms: Platform[] = []) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockedUseSocialPosts.mockReturnValue({ posts: [], isLoading: false, error: null });
   mockedUseMutations.mockReturnValue({
     createStage,
     renameStage: vi.fn(),
@@ -158,5 +163,68 @@ describe("FunnelView", () => {
   it("says a stage is empty rather than rendering a bare heading", () => {
     setup([stage()]);
     expect(screen.getByText("Nothing running here yet.")).not.toBe(null);
+  });
+});
+
+describe("the link to a social post", () => {
+  const linkedActivity = (socialPostId: string | null) => ({
+    id: "a1",
+    stageId: "s1",
+    platformId: null,
+    socialPostId,
+    title: "Spring campaign",
+    status: "planned" as const,
+    startsOn: null,
+    endsOn: null,
+    note: null,
+    createdAt: "2026-08-27T00:00:00.000Z",
+    updatedAt: "2026-08-27T00:00:00.000Z",
+  });
+
+  it("names a linked post the calendar no longer holds, instead of showing none", () => {
+    // **Social posts soft-delete**, so `ON DELETE SET NULL` never fires and the
+    // activity keeps its id — while the list filters `deletedAt`. Without an
+    // option for it the controlled select would display "No linked post" over a
+    // link the database still has, and the next touch would write that lie back.
+    mockedUseSocialPosts.mockReturnValue({ posts: [], isLoading: false, error: null });
+    setup([stage({ activities: [linkedActivity("p-gone")] })]);
+
+    const select = screen.getByLabelText("Linked post for Spring campaign") as HTMLSelectElement;
+    expect(select.value).toBe("p-gone");
+    expect([...select.options].map((o) => o.textContent)).toContain(
+      "Linked post (deleted from the calendar)",
+    );
+  });
+
+  it("offers no such option when the post is still in the calendar", () => {
+    mockedUseSocialPosts.mockReturnValue({
+      posts: [{ id: "p1", body: "Spring teaser" } as never],
+      isLoading: false,
+      error: null,
+    });
+    setup([stage({ activities: [linkedActivity("p1")] })]);
+
+    const select = screen.getByLabelText("Linked post for Spring campaign") as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual([
+      "No linked post",
+      "Spring teaser",
+    ]);
+  });
+
+  it("offers a way through to the post, and nothing when there is no link", () => {
+    mockedUseSocialPosts.mockReturnValue({
+      posts: [{ id: "p1", body: "Spring teaser" } as never],
+      isLoading: false,
+      error: null,
+    });
+    setup([stage({ activities: [linkedActivity("p1")] })]);
+    const link = screen.getByRole("link", {
+      name: "Open the post linked to Spring campaign",
+    });
+    expect(link.getAttribute("href")).toBe("/brands/b1/social?post=p1");
+
+    cleanup();
+    setup([stage({ activities: [linkedActivity(null)] })]);
+    expect(screen.queryByRole("link", { name: /Open the post/ })).toBe(null);
   });
 });

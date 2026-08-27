@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
+
 import type { FunnelActivityStatus, FunnelStageWithDetail, Platform } from "@brandfactory/shared";
 import { DEFAULT_FUNNEL_STAGES } from "@brandfactory/shared";
-import { ExternalLinkIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import { ExternalLinkIcon, LinkIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -13,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { formatDate } from "@/lib/format";
 import { FUNNEL_ACTIVITY_STATUS_LABELS } from "@/lib/labels";
+
+import { useSocialPosts } from "@/features/social-posts/hooks";
 
 import { useFunnel, useFunnelMutations } from "../hooks";
 
@@ -92,6 +96,9 @@ function StageBlock({
   brandId: string;
   platforms: Platform[];
 }) {
+  // The brand's planned posts, so an activity can point at one. Read-only in this
+  // app — see `features/social-posts` for why the planner has not moved.
+  const { posts } = useSocialPosts(brandId);
   const { attachPlatform, detachPlatform, createActivity, updateActivity, deleteActivity } =
     useFunnelMutations(brandId);
   const [adding, setAdding] = React.useState(false);
@@ -225,6 +232,54 @@ function StageBlock({
                     ),
                   )}
                 </Select>
+
+                {/* **The typed link the request asked for, for the one target that
+                    exists.** Of the three it names — a social push, an influencer
+                    program, a contract — only the first has a table. The other two
+                    still go in the note, which the request permits: "otherwise it is
+                    plain text." */}
+                <Select
+                  aria-label={`Linked post for ${activity.title}`}
+                  value={activity.socialPostId ?? ""}
+                  disabled={busy}
+                  containerClassName="w-auto"
+                  onChange={(event) =>
+                    void run(() =>
+                      updateActivity(stage.id, activity.id, {
+                        socialPostId: (event.target.value || null) as never,
+                      }),
+                    )
+                  }
+                >
+                  <option value="">No linked post</option>
+                  {posts.map((post) => (
+                    <option key={post.id} value={post.id}>
+                      {post.body ? post.body.slice(0, 60) : "Untitled post"}
+                    </option>
+                  ))}
+                  {/* **A linked post the list no longer holds still needs an option.**
+                      Social posts *soft*-delete, so `ON DELETE SET NULL` never fires and
+                      the activity keeps its id — but the list filters `deletedAt`, so the
+                      controlled value would match nothing and the select would display
+                      "No linked post" over a link the database still has. Worse, the next
+                      touch would write that lie back. Naming the state is the fix. */}
+                  {activity.socialPostId &&
+                  !posts.some((post) => post.id === activity.socialPostId) ? (
+                    <option value={activity.socialPostId}>
+                      Linked post (deleted from the calendar)
+                    </option>
+                  ) : null}
+                </Select>
+
+                {activity.socialPostId ? (
+                  <Link
+                    href={`/brands/${brandId}/social?post=${activity.socialPostId}`}
+                    aria-label={`Open the post linked to ${activity.title}`}
+                    className="text-ink-tertiary hover:text-ink"
+                  >
+                    <LinkIcon aria-hidden className="size-4" />
+                  </Link>
+                ) : null}
 
                 <Button
                   variant="ghost"

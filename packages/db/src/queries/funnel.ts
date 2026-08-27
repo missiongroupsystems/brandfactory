@@ -181,6 +181,7 @@ export async function createFunnelActivity(
       title: input.title,
       status: input.status,
       platformId: input.platformId ?? null,
+      socialPostId: input.socialPostId ?? null,
       startsOn: input.startsOn ?? null,
       endsOn: input.endsOn ?? null,
       note: input.note ?? null,
@@ -201,6 +202,7 @@ export async function updateFunnelActivity(
       ...(input.status !== undefined ? { status: input.status } : {}),
       // Nullable keys: absent leaves the column alone, `null` clears it.
       ...(input.platformId !== undefined ? { platformId: input.platformId ?? null } : {}),
+      ...(input.socialPostId !== undefined ? { socialPostId: input.socialPostId ?? null } : {}),
       ...(input.startsOn !== undefined ? { startsOn: input.startsOn ?? null } : {}),
       ...(input.endsOn !== undefined ? { endsOn: input.endsOn ?? null } : {}),
       ...(input.note !== undefined ? { note: input.note ?? null } : {}),

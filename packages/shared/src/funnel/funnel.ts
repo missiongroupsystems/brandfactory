@@ -5,6 +5,7 @@ import {
   FunnelActivityIdSchema,
   FunnelStageIdSchema,
   PlatformIdSchema,
+  SocialPostIdSchema,
 } from '../ids'
 
 // ---------------------------------------------------------------------------
@@ -96,9 +97,21 @@ export const FunnelActivitySchema = z.object({
   startsOn: z.iso.date().nullable(),
   endsOn: z.iso.date().nullable(),
   /**
-   * Free text — and in v1 this is also where a link to a held record goes.
-   * The request permits it: *"otherwise it is plain text."* See the funnel plan
-   * for why the typed link is deferred.
+   * **A link to a social-calendar push, when there is one.**
+   *
+   * The request names three things an activity may point at — a social push, an
+   * influencer program, or a contract. Only the first exists: there is no
+   * `program` record in this schema, and contracts are a fixture with no server.
+   * So this is one nullable id rather than a polymorphic `(type, id)` pair, and
+   * the other two get columns beside it the day their aggregates land. A
+   * discriminator listing two values nothing can hold would be a lie the schema
+   * tells about itself.
+   */
+  socialPostId: SocialPostIdSchema.nullable(),
+  /**
+   * Free text, and still the fallback the request asks for: *"otherwise it is
+   * plain text."* An activity pointing at a contract writes it here until
+   * contracts is an aggregate.
    */
   note: FunnelActivityNoteSchema.nullable(),
   createdAt: z.iso.datetime(),
@@ -130,6 +143,7 @@ export const CreateFunnelActivityInputSchema = z.object({
   title: FunnelActivityTitleSchema,
   status: FunnelActivityStatusSchema,
   platformId: PlatformIdSchema.nullable().optional(),
+  socialPostId: SocialPostIdSchema.nullable().optional(),
   startsOn: z.iso.date().nullable().optional(),
   endsOn: z.iso.date().nullable().optional(),
   note: FunnelActivityNoteSchema.nullable().optional(),

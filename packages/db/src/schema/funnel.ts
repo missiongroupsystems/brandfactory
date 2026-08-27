@@ -10,6 +10,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 import { brands } from './brands'
+import { socialPosts } from './social_posts'
 
 // A brand's user journey, in order. **`position` earns its column here** where
 // `brand_resources` and `decks` refused one: the request's whole subject is
@@ -115,6 +116,23 @@ export const funnelActivities = pgTable(
       .notNull()
       .references(() => funnelStages.id, { onDelete: 'cascade' }),
     platformId: uuid('platform_id').references(() => platforms.id, { onDelete: 'restrict' }),
+    // **The typed link, and only one of the three the request named is real.**
+    //
+    // The request lets an activity point at *"a social-calendar push, an
+    // influencer program, or a contract"*. Of those three, only the first has a
+    // table: there is no `program` record anywhere in this schema, and contracts
+    // are a 647-line fixture whose own docstring says there is no server. So this
+    // is one nullable column rather than a polymorphic pair, and the other two
+    // arrive as columns beside it when their aggregates do — which is the shape
+    // that stays honest in the meantime, because a `target_type` enum listing two
+    // values nothing can hold is a lie the schema tells about itself.
+    //
+    // `ON DELETE SET NULL`: deleting a post must not delete the activity that
+    // referenced it. The plan survives the post — that is the whole point of the
+    // funnel being a planning surface rather than a log.
+    socialPostId: uuid('social_post_id').references(() => socialPosts.id, {
+      onDelete: 'set null',
+    }),
     title: text('title').notNull(),
     status: funnelActivityStatus('status').notNull().default('planned'),
     startsOn: date('starts_on'),

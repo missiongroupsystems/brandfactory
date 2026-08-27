@@ -599,6 +599,7 @@ export function rowToFunnelActivity(row: FunnelActivityRow): FunnelActivity {
     id: row.id as FunnelActivityId,
     stageId: row.stageId as FunnelStageId,
     platformId: (row.platformId as PlatformId | null) ?? null,
+    socialPostId: (row.socialPostId as SocialPostId | null) ?? null,
     title: row.title,
     status: row.status,
     startsOn: row.startsOn,

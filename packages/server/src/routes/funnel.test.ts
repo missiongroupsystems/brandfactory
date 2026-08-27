@@ -261,3 +261,97 @@ describe('activities', () => {
     expect(stages.flatMap((s) => s.activities)).toHaveLength(0)
   })
 })
+
+describe('the typed link to a social post', () => {
+  async function seedPost(harness: TestHarness, brandId: string) {
+    return (await (
+      await harness.app.request(`/brands/${brandId}/social-posts`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ platform: 'instagram', body: 'Spring teaser' }),
+      })
+    ).json()) as { id: string }
+  }
+
+  it('links an activity to a post and reads it back', async () => {
+    // **The one target of the three that exists.** There is no `program` record in
+    // this schema and contracts are a fixture, so this is a single nullable column
+    // rather than a polymorphic pair — see `funnel.ts` for why a discriminator
+    // listing two unreachable values would be worse.
+    const harness = await seedBrand()
+    const { app, brandId } = harness
+    const post = await seedPost(harness, brandId)
+    const [stage] = await funnelOf(harness, brandId)
+
+    const activity = (await (
+      await app.request(`/brands/${brandId}/funnel/stages/${stage!.id}/activities`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({
+          title: 'Spring campaign',
+          status: 'running',
+          socialPostId: post.id,
+        }),
+      })
+    ).json()) as FunnelActivity
+    expect(activity.socialPostId).toBe(post.id)
+  })
+
+  it('unlinks on an explicit null, and leaves it alone when absent', async () => {
+    const harness = await seedBrand()
+    const { app, brandId } = harness
+    const post = await seedPost(harness, brandId)
+    const [stage] = await funnelOf(harness, brandId)
+    const activity = (await (
+      await app.request(`/brands/${brandId}/funnel/stages/${stage!.id}/activities`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ title: 'Spring', status: 'planned', socialPostId: post.id }),
+      })
+    ).json()) as FunnelActivity
+
+    async function patch(body: unknown) {
+      const res = await app.request(
+        `/brands/${brandId}/funnel/stages/${stage!.id}/activities/${activity.id}`,
+        { method: 'PATCH', headers: auth(), body: JSON.stringify(body) },
+      )
+      return (await res.json()) as FunnelActivity
+    }
+
+    // Absent leaves the link alone.
+    expect((await patch({ title: 'Spring campaign' })).socialPostId).toBe(post.id)
+    // Explicit null clears it.
+    expect((await patch({ socialPostId: null })).socialPostId).toBeNull()
+  })
+
+  it('keeps the activity, and its link, when the post is soft-deleted', async () => {
+    // **`ON DELETE SET NULL` does not fire here, and that is worth knowing.**
+    // Social posts soft-delete (`docs/vision.md:51` — a discarded idea hides), so
+    // the row survives and the FK is never triggered. The activity therefore keeps
+    // a `socialPostId` pointing at a post no read path returns.
+    //
+    // The cascade still matters for the hard-delete paths — a brand or workspace
+    // sweep — and the *screen* is what handles this case: `funnel-view.tsx` names
+    // the state rather than rendering "No linked post" over a link that exists.
+    const harness = await seedBrand()
+    const { app, brandId } = harness
+    const post = await seedPost(harness, brandId)
+    const [stage] = await funnelOf(harness, brandId)
+    await app.request(`/brands/${brandId}/funnel/stages/${stage!.id}/activities`, {
+      method: 'POST',
+      headers: auth(),
+      body: JSON.stringify({ title: 'Spring', status: 'planned', socialPostId: post.id }),
+    })
+
+    await app.request(`/brands/${brandId}/social-posts/${post.id}`, {
+      method: 'DELETE',
+      headers: auth(),
+    })
+
+    const stages = await funnelOf(harness, brandId)
+    const activities = stages.flatMap((s) => s.activities)
+    expect(activities).toHaveLength(1)
+    // The link survives a soft delete, by design rather than by accident.
+    expect(activities[0]!.socialPostId).toBe(post.id)
+  })
+})

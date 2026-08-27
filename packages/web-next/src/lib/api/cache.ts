@@ -237,6 +237,9 @@ export const SCOPES = {
   /** A brand's marketing funnel — stages, platforms and activities. */
   bfFunnel: "bf-funnel",
 
+  /** A brand's planned social posts — read-only in this app; the planner is still at :5173. */
+  bfSocialPosts: "bf-social-posts",
+
   bfPhotos: "bf-photos",
   /** The subject buckets those photos are filed under. */
   bfPhotoCategories: "bf-photo-categories",
