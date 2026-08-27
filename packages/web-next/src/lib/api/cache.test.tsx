@@ -1,6 +1,8 @@
+import { act, render } from "@testing-library/react";
+import useSWR, { SWRConfig } from "swr";
 import { describe, expect, it } from "vitest";
 
-import { SCOPES } from "./cache";
+import { SCOPES, useInvalidate, useRevalidate } from "./cache";
 
 /**
  * **One invariant, and it is the one that keeps two backends apart.**
@@ -75,5 +77,91 @@ describe("SCOPES", () => {
     const serialisedBfKey = '$inf$@"bf-outlets","ws-1",';
     expect(serialisedBfKey.includes(`"${SCOPES.outlets}"`)).toBe(false);
     expect(serialisedBfKey.includes(`"${SCOPES.bfOutlets}"`)).toBe(true);
+  });
+});
+
+/**
+ * **The difference between a list that updates and a page that blinks.**
+ *
+ * `useInvalidate` passes `undefined` as the new data, which empties the cache entry:
+ * `data` goes `undefined`, SWR reports `isLoading` again, and every screen that renders
+ * a skeleton while loading throws its whole self away and rebuilds. On the photography
+ * grid that meant adding one subject flashed the entire page — reported from a browser,
+ * and invisible to every other check in this repository.
+ *
+ * These drive real SWR rather than reading the source, because the thing worth pinning is
+ * what a *screen* sees: whether `data` survives the sweep.
+ */
+describe("useRevalidate vs useInvalidate", () => {
+  const SCOPE = "test-scope";
+
+  /** A hook under one SWR cache, reporting what a screen would render from. */
+  function renderProbe(sweepWith: "revalidate" | "invalidate") {
+    let resolveFetch: (v: string[]) => void = () => {};
+    const fetcher = () =>
+      new Promise<string[]>((resolve) => {
+        resolveFetch = resolve;
+      });
+
+    function Probe() {
+      const { data, isLoading } = useSWR<string[]>([SCOPE, "x"], fetcher);
+      const revalidate = useRevalidate();
+      const invalidate = useInvalidate();
+      seen = { data, isLoading };
+      sweep = sweepWith === "revalidate" ? revalidate : invalidate;
+      return null;
+    }
+
+    let seen: { data: string[] | undefined; isLoading: boolean } = {
+      data: undefined,
+      isLoading: true,
+    };
+    let sweep: (...scopes: string[]) => Promise<void> = async () => {};
+
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <Probe />
+      </SWRConfig>,
+    );
+
+    return {
+      get seen() {
+        return seen;
+      },
+      get sweep() {
+        return sweep;
+      },
+      settle: (rows: string[]) => act(async () => resolveFetch(rows)),
+    };
+  }
+
+  it("keeps the previous answer on screen while it refetches", async () => {
+    const probe = renderProbe("revalidate");
+    await probe.settle(["a", "b"]);
+    expect(probe.seen.data).toEqual(["a", "b"]);
+
+    await act(async () => {
+      void probe.sweep(SCOPE);
+    });
+
+    // **The assertion the bug report reduces to.** A list mid-refetch still has rows, so
+    // a screen gating on `isLoading` keeps rendering them instead of its skeleton.
+    expect(probe.seen.data).toEqual(["a", "b"]);
+    expect(probe.seen.isLoading).toBe(false);
+  });
+
+  it("useInvalidate still empties the entry, which is why it is not the default here", async () => {
+    // Twenty-two features call it, fourteen of them untested Operations Hub screens, so
+    // its behaviour stays and new code opts out instead. This pins that choice rather
+    // than assuming it.
+    const probe = renderProbe("invalidate");
+    await probe.settle(["a", "b"]);
+    expect(probe.seen.data).toEqual(["a", "b"]);
+
+    await act(async () => {
+      void probe.sweep(SCOPE);
+    });
+
+    expect(probe.seen.data).toBeUndefined();
   });
 });

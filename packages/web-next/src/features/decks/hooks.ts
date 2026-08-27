@@ -4,7 +4,7 @@ import type { CreateDeckInput, CreateDeckVersionInput } from "@brandfactory/shar
 import * as React from "react";
 import useSWR from "swr";
 
-import { SCOPES, useInvalidate } from "@/lib/api/cache";
+import { SCOPES, useRevalidate } from "@/lib/api/cache";
 
 import { deckService, type DeckWithVersions } from "./api";
 
@@ -41,26 +41,28 @@ export function useDecks(brandId: string | undefined) {
 const DECK_SCOPES = [SCOPES.bfDecks];
 
 export function useDeckMutations(brandId: string | undefined) {
-  const invalidate = useInvalidate();
+  // `useRevalidate`, not `useInvalidate`: the latter empties the cache entry, so the
+  // grid behind a sheet throws itself away and rebuilds on every write.
+  const revalidate = useRevalidate();
 
   const create = React.useCallback(
     async (input: CreateDeckInput) => {
       if (!brandId) throw new Error("No brand resolved");
       const created = await deckService.create(brandId, input);
-      await invalidate(...DECK_SCOPES);
+      await revalidate(...DECK_SCOPES);
       return created;
     },
-    [invalidate, brandId],
+    [revalidate, brandId],
   );
 
   const addVersion = React.useCallback(
     async (deckId: string, input: CreateDeckVersionInput) => {
       if (!brandId) throw new Error("No brand resolved");
       const updated = await deckService.addVersion(brandId, deckId, input);
-      await invalidate(...DECK_SCOPES);
+      await revalidate(...DECK_SCOPES);
       return updated;
     },
-    [invalidate, brandId],
+    [revalidate, brandId],
   );
 
   return { create, addVersion };

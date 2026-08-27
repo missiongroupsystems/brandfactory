@@ -10,7 +10,7 @@ import { photographyInReadingOrder } from "@brandfactory/shared";
 import * as React from "react";
 import useSWR from "swr";
 
-import { SCOPES, useInvalidate } from "@/lib/api/cache";
+import { SCOPES, useRevalidate } from "@/lib/api/cache";
 
 import { photographyService } from "./api";
 
@@ -49,11 +49,13 @@ export function usePhotography(brandId: string | undefined) {
 }
 
 export function usePhotographyMutations(brandId: string | undefined) {
-  const invalidate = useInvalidate();
+  // `useRevalidate`, not `useInvalidate`: the latter empties the cache entry, so the
+  // grid behind a sheet throws itself away and rebuilds on every write.
+  const revalidate = useRevalidate();
 
   const sweep = React.useCallback(async () => {
-    await invalidate(...PHOTO_SCOPES);
-  }, [invalidate]);
+    await revalidate(...PHOTO_SCOPES);
+  }, [revalidate]);
 
   return React.useMemo(
     () => ({

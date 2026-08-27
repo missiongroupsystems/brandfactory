@@ -4,7 +4,7 @@ import type { BrandResource, CreateBrandResourceInput, UpdateBrandResourceInput 
 import * as React from "react";
 import useSWR from "swr";
 
-import { SCOPES, useInvalidate } from "@/lib/api/cache";
+import { SCOPES, useRevalidate } from "@/lib/api/cache";
 
 import { resourceService } from "./api";
 
@@ -35,7 +35,7 @@ export function useResources(brandId: string | undefined) {
 
 /**
  * Create, update and delete, on the same shape as `useOutletMutations` / `useVendorMutations`:
- * plain async functions that call the service and then invalidate by scope.
+ * plain async functions that call the service and then revalidate by scope.
  *
  * **`brandId` is a parameter, not read from context.** `useResources` above takes it from the
  * route for the same reason (see its docstring) — there is no fallback to resolve here.
@@ -54,36 +54,38 @@ export function useResources(brandId: string | undefined) {
 const RESOURCE_SCOPES = [SCOPES.bfResources];
 
 export function useResourceMutations(brandId: string | undefined) {
-  const invalidate = useInvalidate();
+  // `useRevalidate`, not `useInvalidate`: the latter empties the cache entry, so the
+  // grid behind a sheet throws itself away and rebuilds on every write.
+  const revalidate = useRevalidate();
 
   const create = React.useCallback(
     async (input: CreateBrandResourceInput) => {
       if (!brandId) throw new Error("No brand resolved");
       const created = await resourceService.create(brandId, input);
-      await invalidate(...RESOURCE_SCOPES);
+      await revalidate(...RESOURCE_SCOPES);
       return created;
     },
-    [invalidate, brandId],
+    [revalidate, brandId],
   );
 
   const update = React.useCallback(
     async (resourceId: string, input: UpdateBrandResourceInput) => {
       if (!brandId) throw new Error("No brand resolved");
       const updated = await resourceService.update(brandId, resourceId, input);
-      await invalidate(...RESOURCE_SCOPES);
+      await revalidate(...RESOURCE_SCOPES);
       return updated;
     },
-    [invalidate, brandId],
+    [revalidate, brandId],
   );
 
   const remove = React.useCallback(
     async (resourceId: string) => {
       if (!brandId) throw new Error("No brand resolved");
       const removed = await resourceService.remove(brandId, resourceId);
-      await invalidate(...RESOURCE_SCOPES);
+      await revalidate(...RESOURCE_SCOPES);
       return removed;
     },
-    [invalidate, brandId],
+    [revalidate, brandId],
   );
 
   return { create, update, remove };

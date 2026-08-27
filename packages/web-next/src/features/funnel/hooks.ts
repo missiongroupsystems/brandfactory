@@ -12,7 +12,7 @@ import type {
 import * as React from "react";
 import useSWR from "swr";
 
-import { SCOPES, useInvalidate } from "@/lib/api/cache";
+import { SCOPES, useRevalidate } from "@/lib/api/cache";
 
 import { funnelService } from "./api";
 
@@ -37,10 +37,12 @@ export function useFunnel(brandId: string | undefined) {
 }
 
 export function useFunnelMutations(brandId: string | undefined) {
-  const invalidate = useInvalidate();
+  // `useRevalidate`, not `useInvalidate`: the latter empties the cache entry, so the
+  // grid behind a sheet throws itself away and rebuilds on every write.
+  const revalidate = useRevalidate();
   const sweep = React.useCallback(async () => {
-    await invalidate(SCOPES.bfFunnel);
-  }, [invalidate]);
+    await revalidate(SCOPES.bfFunnel);
+  }, [revalidate]);
 
   return React.useMemo(
     () => ({

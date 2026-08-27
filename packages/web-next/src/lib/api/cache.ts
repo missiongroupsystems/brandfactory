@@ -27,16 +27,55 @@ import { useSWRConfig } from "swr";
  * the type system or the test suite can see it — the code reads as though it works, and SWR's
  * revalidate-on-focus hides it the moment you tab away and back.
  */
-export function useInvalidate() {
+/**
+ * Does a cache key belong to one of these scopes?
+ *
+ * A serialised key holds its scope quoted — SWR's `stableHash` runs `JSON.stringify`
+ * over a string inside an array — so `"outlets"` matches `["outlets", …]` and never
+ * the `outlet-networks` scope that merely starts with the same letters.
+ */
+function scopeMatcher(scopes: string[]) {
+  const matchesSerialised = (key: string) =>
+    scopes.some((scope) => key === scope || key.includes(`"${scope}"`));
+
+  return {
+    matchesSerialised,
+    matches: (key: unknown) => {
+      if (Array.isArray(key)) {
+        return typeof key[0] === "string" && scopes.includes(key[0]);
+      }
+      if (typeof key === "string") {
+        return matchesSerialised(key);
+      }
+      return false;
+    },
+  };
+}
+
+/**
+ * Refetch a scope **without throwing away what is on screen.**
+ *
+ * The difference from {@link useInvalidate} is one argument, and it is the difference
+ * between a list that updates and a page that blinks. `useInvalidate` passes
+ * `undefined` as the new data, which empties the cache entry — so `data` goes
+ * `undefined`, SWR reports `isLoading` again, and any screen that renders a skeleton
+ * while loading throws its whole self away and rebuilds. Adding one photography subject
+ * flashed the entire grid.
+ *
+ * This one revalidates and leaves the stale data in place until the new answer lands, so
+ * the list stays readable and only its contents change.
+ *
+ * **`useInvalidate` keeps its behaviour on purpose.** Twenty-two features call it,
+ * fourteen of them Operations Hub screens with no tests; changing what it does to all of
+ * them is a wider change than any one screen's flicker justifies. Reach for this one in
+ * new code, and move an old caller over when you are looking at that screen anyway.
+ */
+export function useRevalidate() {
   const { mutate, cache } = useSWRConfig();
 
   return React.useCallback(
     async (...scopes: string[]) => {
-      // A serialised key holds its scope quoted — SWR's `stableHash` runs `JSON.stringify`
-      // over a string inside an array — so `"outlets"` matches `["outlets", …]` and never
-      // the `outlet-networks` scope that merely starts with the same letters.
-      const matchesSerialised = (key: string) =>
-        scopes.some((scope) => key === scope || key.includes(`"${scope}"`));
+      const { matches, matchesSerialised } = scopeMatcher(scopes);
 
       const infiniteKeys: string[] = [];
       for (const key of cache.keys()) {
@@ -44,19 +83,32 @@ export function useInvalidate() {
       }
 
       await Promise.all([
-        mutate(
-          (key: unknown) => {
-            if (Array.isArray(key)) {
-              return typeof key[0] === "string" && scopes.includes(key[0]);
-            }
-            if (typeof key === "string") {
-              return matchesSerialised(key);
-            }
-            return false;
-          },
-          undefined,
-          { revalidate: true },
-        ),
+        // No second argument: refetch, and keep showing the previous answer meanwhile.
+        mutate(matches),
+        ...infiniteKeys.map((key) => mutate(key)),
+      ]);
+    },
+    [mutate, cache],
+  );
+}
+
+export function useInvalidate() {
+  const { mutate, cache } = useSWRConfig();
+
+  return React.useCallback(
+    async (...scopes: string[]) => {
+      const { matches, matchesSerialised } = scopeMatcher(scopes);
+
+      const infiniteKeys: string[] = [];
+      for (const key of cache.keys()) {
+        if (key.startsWith("$inf$") && matchesSerialised(key)) infiniteKeys.push(key);
+      }
+
+      await Promise.all([
+        // **`undefined` empties the entry**, so the next render has no data and every
+        // screen that gates on `isLoading` shows its skeleton again. That is a blink on
+        // any screen with a write. `useRevalidate` above is the same sweep without it.
+        mutate(matches, undefined, { revalidate: true }),
         // By name, because the matcher above cannot see these. This is the documented
         // shape — `mutate(unstable_serialize(getKey))` — reached from the cache rather
         // than from each caller's key function, which the scope indirection exists to
