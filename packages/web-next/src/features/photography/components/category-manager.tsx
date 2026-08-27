@@ -5,6 +5,7 @@ import { Loader2Icon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,8 @@ export function CategoryManager({
   const [busy, setBusy] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editingName, setEditingName] = React.useState("");
+  const [deleting, setDeleting] = React.useState<PhotoCategory | null>(null);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
 
   const [wasOpen, setWasOpen] = React.useState(open);
   if (open !== wasOpen) {
@@ -94,24 +97,41 @@ export function CategoryManager({
     }
   }
 
-  async function remove(category: PhotoCategory) {
-    const count = countIn(category.id);
-    // The count is in the question, not just in the answer. "Delete Food?" and
-    // "Delete Food? 23 photos move to Uncategorised" are different decisions.
-    const message =
-      count === 0
-        ? `Delete “${category.name}”? Nothing is filed under it.`
-        : `Delete “${category.name}”? ${count} photo${count === 1 ? "" : "s"} will move to Uncategorised. ${count === 1 ? "It is" : "They are"} not deleted.`;
-    if (!window.confirm(message)) return;
-
+  /**
+   * **`ConfirmDialog`, not `window.confirm`.** An earlier draft used the browser's,
+   * which blocks the main thread, cannot be styled, cannot show the server's own
+   * refusal, and is the one dialog in the product that does not look like the
+   * product. `ResourcesView` already established the shape one feature over.
+   */
+  async function confirmRemove() {
+    if (!deleting) return;
     setBusy(true);
+    setDeleteError(null);
     try {
-      await deleteCategory(category.id);
+      await deleteCategory(deleting.id);
+      setDeleting(null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not delete the category");
+      // Into the dialog rather than a toast: the dialog is where the decision was
+      // made, and it is still on screen.
+      setDeleteError(err instanceof Error ? err.message : "Could not delete the category");
     } finally {
       setBusy(false);
     }
+  }
+
+  /**
+   * The count goes in the *question*, not the answer.
+   *
+   * "Delete Food?" and "Delete Food? 23 photos move to Uncategorised" are
+   * different decisions, and the effect lands in the grid behind this sheet with
+   * nothing else on screen to announce it.
+   */
+  function deleteDescription(category: PhotoCategory): string {
+    const count = countIn(category.id);
+    if (count === 0) return `Nothing is filed under “${category.name}”.`;
+    return `${count} photo${count === 1 ? "" : "s"} will move to Uncategorised. ${
+      count === 1 ? "It is" : "They are"
+    } not deleted.`;
   }
 
   return (
@@ -193,7 +213,7 @@ export function CategoryManager({
                           size="icon"
                           aria-label={`Delete ${category.name}`}
                           disabled={busy}
-                          onClick={() => remove(category)}
+                          onClick={() => setDeleting(category)}
                         >
                           <Trash2Icon />
                         </Button>
@@ -211,6 +231,22 @@ export function CategoryManager({
             Done
           </Button>
         </SheetFooter>
+
+        <ConfirmDialog
+          open={deleting !== null}
+          onOpenChange={(next) => {
+            if (!next) {
+              setDeleting(null);
+              setDeleteError(null);
+            }
+          }}
+          title={deleting ? `Delete “${deleting.name}”?` : "Delete subject"}
+          description={deleting ? deleteDescription(deleting) : ""}
+          confirmLabel="Delete subject"
+          onConfirm={() => void confirmRemove()}
+          error={deleteError}
+          isPending={busy}
+        />
       </SheetContent>
     </Sheet>
   );

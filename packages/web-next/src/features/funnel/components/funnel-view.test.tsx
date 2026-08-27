@@ -229,3 +229,48 @@ describe("the link to a social post", () => {
     expect(screen.queryByRole("link", { name: /Open the post/ })).toBe(null);
   });
 });
+
+describe("destructive controls ask first", () => {
+  it("does not delete an activity on one click", () => {
+    // **The only destructive control in these four features that asked nothing.**
+    // An activity is a record of work, the delete is a hard one, and there is no
+    // undo behind it.
+    const deleteActivity = vi.fn();
+    mockedUseMutations.mockReturnValue({
+      createStage: vi.fn(),
+      renameStage: vi.fn(),
+      deleteStage: vi.fn(),
+      createPlatform: vi.fn(),
+      attachPlatform: vi.fn(),
+      detachPlatform: vi.fn(),
+      createActivity: vi.fn(),
+      updateActivity: vi.fn(),
+      setLinkedPost: vi.fn(),
+      deleteActivity,
+    });
+    setup([
+      stage({
+        activities: [
+          {
+            id: "a1",
+            stageId: "s1",
+            platformId: null,
+            socialPostId: null,
+            title: "Spring campaign",
+            status: "planned" as const,
+            startsOn: null,
+            endsOn: null,
+            note: null,
+            createdAt: "2026-08-27T00:00:00.000Z",
+            updatedAt: "2026-08-27T00:00:00.000Z",
+          },
+        ],
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Spring campaign" }));
+    expect(deleteActivity).not.toHaveBeenCalled();
+    // The question names the thing, so a reader with four stages open knows which.
+    expect(screen.getByText(/Delete “Spring campaign”/)).not.toBe(null);
+  });
+});

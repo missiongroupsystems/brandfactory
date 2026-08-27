@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 import { EmptyState, LoadingRows, QueryError } from "@/components/layout/query-states";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -110,6 +111,8 @@ function StageBlock({
   const [adding, setAdding] = React.useState(false);
   const [title, setTitle] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [deleting, setDeleting] = React.useState<{ id: string; title: string } | null>(null);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
 
   const unattached = platforms.filter(
     (platform) => !stage.platforms.some((p) => p.id === platform.id),
@@ -288,7 +291,10 @@ function StageBlock({
                   size="icon"
                   aria-label={`Delete ${activity.title}`}
                   disabled={busy}
-                  onClick={() => void run(() => deleteActivity(stage.id, activity.id))}
+                  // **Confirmed, and an earlier draft was not.** One click deleted a
+                  // record of work with no undo and no question — the only
+                  // destructive control in these four features that asked nothing.
+                  onClick={() => setDeleting({ id: activity.id, title: activity.title })}
                 >
                   <Trash2Icon />
                 </Button>
@@ -339,6 +345,34 @@ function StageBlock({
           </Button>
         )}
       </CardContent>
+
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(next) => {
+          if (!next) {
+            setDeleting(null);
+            setDeleteError(null);
+          }
+        }}
+        title={deleting ? `Delete “${deleting.title}”?` : "Delete activity"}
+        description="This removes the activity from the funnel. It does not touch anything it links to."
+        confirmLabel="Delete activity"
+        error={deleteError}
+        isPending={busy}
+        onConfirm={() => {
+          if (!deleting) return;
+          setBusy(true);
+          setDeleteError(null);
+          void deleteActivity(stage.id, deleting.id)
+            .then(() => setDeleting(null))
+            .catch((err: unknown) =>
+              setDeleteError(
+                err instanceof Error ? err.message : "Could not delete the activity",
+              ),
+            )
+            .finally(() => setBusy(false));
+        }}
+      />
     </Card>
   );
 }
