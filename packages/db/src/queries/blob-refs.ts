@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNotNull } from 'drizzle-orm'
 import { db } from '../client'
-import { brandAssets, canvasBlocks } from '../schema'
+import { brandAssets, canvasBlocks, deckVersions } from '../schema'
 
 /**
  * Which of these storage keys are **still referenced by a surviving row**.
@@ -46,9 +46,21 @@ export async function listStillReferencedBlobKeys(keys: string[]): Promise<strin
       ),
     )
 
+  // deck_versions: filtered by `isNotNull(pdfBlobKey)`, not by `source` — a
+  // `'canva'` version's `pdfBlobKey` is a required frozen snapshot, not an
+  // artifact of `source = 'pdf'`. See `listBlobKeysByBrand` for the CHECK this
+  // reasoning comes from. `canvaUrl` is never checked here: it is not a
+  // storage key this app owns, so it can never be "still referenced" bytes.
+  const deckVersionRows = await db
+    .select({ blobKey: deckVersions.pdfBlobKey })
+    .from(deckVersions)
+    .where(and(isNotNull(deckVersions.pdfBlobKey), inArray(deckVersions.pdfBlobKey, keys)))
+
   return [
     ...new Set(
-      [...blockRows, ...assetRows].map((r) => r.blobKey).filter((k): k is string => k !== null),
+      [...blockRows, ...assetRows, ...deckVersionRows]
+        .map((r) => r.blobKey)
+        .filter((k): k is string => k !== null),
     ),
   ]
 }

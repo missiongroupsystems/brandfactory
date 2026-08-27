@@ -1,15 +1,18 @@
 import { BrandSummarySchema, ProjectSummarySchema } from '@brandfactory/shared'
 import type { BrandId, ProjectId, WorkspaceId } from '@brandfactory/shared'
 import { eq } from 'drizzle-orm'
+import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { db, pool } from './client'
 import { listBlobKeysByBrand, listBrandSummariesByWorkspace } from './queries/brands'
+import { listStillReferencedBlobKeys } from './queries/blob-refs'
 import {
   listBlobKeysByProject,
   listProjectSummariesByBrand,
   listRecentProjectsByWorkspace,
 } from './queries/projects'
-import { agentMessages } from './schema'
+import { listBlobKeysByWorkspace } from './queries/workspaces'
+import { agentMessages, brands, deckVersions, decks } from './schema'
 import { seed, type SeedResult } from './seed'
 
 // Live-DB test — only runs when DATABASE_URL is set (dev compose or CI's
@@ -143,5 +146,105 @@ describe.skipIf(!hasDb)('list queries (live DB)', () => {
     // cascade delete, so a failure here would abort the delete.
     expect(await listBlobKeysByBrand(ids.brandId as BrandId)).toEqual([])
     expect(await listBlobKeysByProject(ids.projectId as ProjectId)).toEqual([])
+  })
+
+  // Phase 2B: deck_versions is the first blob-holding table added since the
+  // sweep was designed. Each test below uses a source: 'canva' row on purpose
+  // — the CHECK requires a Canva version to carry BOTH `canva_url` AND
+  // `pdf_blob_key`, so a wrong `eq(source, 'pdf')` predicate would silently
+  // skip exactly this row while still passing a suite that only ever inserted
+  // a 'pdf' one. Each test builds its own throwaway brand and tears it down
+  // via cascade delete, so it cannot leak state into the other live tests.
+  it('collects a deck PDF when the brand is deleted', async () => {
+    const pdfBlobKey = `test-deck-pdf-${randomUUID()}`
+    const [brand] = await db
+      .insert(brands)
+      .values({ workspaceId: ids.workspaceId, name: 'Phase 2B throwaway brand' })
+      .returning()
+    if (!brand) throw new Error('insert returned no brand row')
+    const [deck] = await db.insert(decks).values({ brandId: brand.id, name: 'Deck' }).returning()
+    if (!deck) throw new Error('insert returned no deck row')
+    await db.insert(deckVersions).values({
+      deckId: deck.id,
+      source: 'canva',
+      label: 'v1',
+      versionDate: '2026-01-01',
+      author: 'Agency',
+      pdfBlobKey,
+      canvaUrl: 'https://canva.com/design/abc',
+    })
+
+    try {
+      const keys = await listBlobKeysByBrand(brand.id as BrandId)
+      expect(keys).toContain(pdfBlobKey)
+      // The Canva design link is somebody else's host, not our object storage
+      // — it must never be swept.
+      expect(keys).not.toContain('https://canva.com/design/abc')
+    } finally {
+      // Cascades deck -> deck_versions, same as a real brand delete.
+      await db.delete(brands).where(eq(brands.id, brand.id))
+    }
+  })
+
+  it('collects a deck PDF when the workspace is deleted', async () => {
+    const pdfBlobKey = `test-deck-pdf-${randomUUID()}`
+    const [brand] = await db
+      .insert(brands)
+      .values({ workspaceId: ids.workspaceId, name: 'Phase 2B throwaway brand (workspace)' })
+      .returning()
+    if (!brand) throw new Error('insert returned no brand row')
+    const [deck] = await db.insert(decks).values({ brandId: brand.id, name: 'Deck' }).returning()
+    if (!deck) throw new Error('insert returned no deck row')
+    await db.insert(deckVersions).values({
+      deckId: deck.id,
+      source: 'canva',
+      label: 'v1',
+      versionDate: '2026-01-01',
+      author: 'Agency',
+      pdfBlobKey,
+      canvaUrl: 'https://canva.com/design/def',
+    })
+
+    try {
+      const keys = await listBlobKeysByWorkspace(ids.workspaceId as WorkspaceId)
+      expect(keys).toContain(pdfBlobKey)
+      expect(keys).not.toContain('https://canva.com/design/def')
+    } finally {
+      await db.delete(brands).where(eq(brands.id, brand.id))
+    }
+  })
+
+  it('counts a surviving deck version as a reference, so its bytes are not swept', async () => {
+    const pdfBlobKey = `test-deck-pdf-${randomUUID()}`
+    const canvaUrl = 'https://canva.com/design/ghi'
+    const [brand] = await db
+      .insert(brands)
+      .values({ workspaceId: ids.workspaceId, name: 'Phase 2B throwaway brand (still-ref)' })
+      .returning()
+    if (!brand) throw new Error('insert returned no brand row')
+    const [deck] = await db.insert(decks).values({ brandId: brand.id, name: 'Deck' }).returning()
+    if (!deck) throw new Error('insert returned no deck row')
+    await db.insert(deckVersions).values({
+      deckId: deck.id,
+      source: 'canva',
+      label: 'v1',
+      versionDate: '2026-01-01',
+      author: 'Agency',
+      pdfBlobKey,
+      canvaUrl,
+    })
+
+    try {
+      // The version survives (never deleted here), so its blob key must come
+      // back as still-referenced — sweeping it would delete bytes a live row
+      // still points at.
+      const stillReferenced = await listStillReferencedBlobKeys([pdfBlobKey, canvaUrl])
+      expect(stillReferenced).toContain(pdfBlobKey)
+      // canvaUrl is not an object-storage key at all — it must never be
+      // reported as a referenced blob, whether or not it happens to be passed in.
+      expect(stillReferenced).not.toContain(canvaUrl)
+    } finally {
+      await db.delete(brands).where(eq(brands.id, brand.id))
+    }
   })
 })

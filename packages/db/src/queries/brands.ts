@@ -12,7 +12,16 @@ import {
 import { and, eq, isNotNull, notInArray, sql } from 'drizzle-orm'
 import { db } from '../client'
 import { rowToBrand, rowToBrandSummary, rowToGuidelineSection } from '../mappers'
-import { brandAssets, brands, canvasBlocks, canvases, guidelineSections, projects } from '../schema'
+import {
+  brandAssets,
+  brands,
+  canvasBlocks,
+  canvases,
+  deckVersions,
+  decks,
+  guidelineSections,
+  projects,
+} from '../schema'
 
 export async function getBrandById(id: BrandId): Promise<Brand | null> {
   const [row] = await db.select().from(brands).where(eq(brands.id, id))
@@ -138,15 +147,23 @@ export async function deleteBrand(id: BrandId): Promise<Brand | null> {
  * a soft-deleted block or asset can come back and destroying its bytes would
  * make "hidden" mean "gone".
  *
- * Two arms, and both are load-bearing:
+ * Three arms, and all three are load-bearing:
  *
  * - **canvas blocks**, via project → canvas. This was the whole query until 2A.
  * - **brand assets**, filtered to `source = 'blob'`. Without this arm every
- *   uploaded logo, photo and deck leaks its bytes on brand delete, silently and
+ *   uploaded logo and photo leaks its bytes on brand delete, silently and
  *   permanently. The `source` filter is not an optimisation: a `link` row's
  *   `url` is somebody else's host, and sweeping it would mean issuing a delete
  *   against a key that is not ours. The column is null for `link` and `inline`
  *   rows anyway — the filter says *why* rather than relying on that.
+ * - **deck versions**, via brand → deck, filtered by `isNotNull(pdfBlobKey)` —
+ *   **not** by `source`. On `deck_versions` the source does not say where the
+ *   bytes are: `deck_versions_source_shape` requires a `'canva'` row to carry
+ *   `pdfBlobKey` too, because that is the frozen snapshot the version records
+ *   alongside the live Canva link. A `source = 'pdf'` filter would silently
+ *   skip every Canva version's PDF, which is exactly the leak this arm exists
+ *   to close. `canvaUrl` is never collected here — it is somebody else's host,
+ *   same reasoning as the assets arm's `link` rows.
  *
  * Soft-deleted rows are deliberately **included**: the brand is going away, so
  * every byte it ever owned goes with it.
@@ -170,7 +187,15 @@ export async function listBlobKeysByBrand(brandId: BrandId): Promise<string[]> {
       ),
     )
 
-  return [...blockRows, ...assetRows].map((r) => r.blobKey).filter((k): k is string => k !== null)
+  const deckVersionRows = await db
+    .select({ blobKey: deckVersions.pdfBlobKey })
+    .from(deckVersions)
+    .innerJoin(decks, eq(decks.id, deckVersions.deckId))
+    .where(and(eq(decks.brandId, brandId), isNotNull(deckVersions.pdfBlobKey)))
+
+  return [...blockRows, ...assetRows, ...deckVersionRows]
+    .map((r) => r.blobKey)
+    .filter((k): k is string => k !== null)
 }
 
 export async function listSectionsByBrand(brandId: BrandId): Promise<BrandGuidelineSection[]> {

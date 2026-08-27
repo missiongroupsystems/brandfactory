@@ -2,7 +2,16 @@ import type { UserId, Workspace, WorkspaceId } from '@brandfactory/shared'
 import { and, eq, isNotNull, sql } from 'drizzle-orm'
 import { db } from '../client'
 import { rowToWorkspace } from '../mappers'
-import { brandAssets, brands, canvasBlocks, canvases, projects, workspaces } from '../schema'
+import {
+  brandAssets,
+  brands,
+  canvasBlocks,
+  canvases,
+  deckVersions,
+  decks,
+  projects,
+  workspaces,
+} from '../schema'
 
 export async function getWorkspaceById(id: WorkspaceId): Promise<Workspace | null> {
   const [row] = await db.select().from(workspaces).where(eq(workspaces.id, id))
@@ -58,12 +67,17 @@ export async function deleteWorkspace(id: WorkspaceId): Promise<Workspace | null
 
 /**
  * Storage keys held by everything under this workspace. Read before the row
- * delete cascades them away. Same two arms as `listBlobKeysByBrand`, each with
- * one more join up to `brands.workspaceId`:
+ * delete cascades them away. Same three arms as `listBlobKeysByBrand`, each
+ * with one more join up to `brands.workspaceId`:
  *
  * - **canvas blocks**, via project → canvas → project.brandId → brand.
  * - **brand assets**, filtered to `source = 'blob'` — a `link` row's `url` is
  *   someone else's host, and its `blobKey` is null anyway.
+ * - **deck versions**, via brand → deck, filtered by
+ *   `isNotNull(pdfBlobKey)` — **not** by `source`. See `listBlobKeysByBrand`
+ *   for why: a `'canva'` version's `pdfBlobKey` is a frozen snapshot the CHECK
+ *   requires alongside the live `canvaUrl`, so filtering on `source = 'pdf'`
+ *   would skip it. `canvaUrl` is never collected — it is not our storage key.
  *
  * Soft-deleted rows are included on purpose: the workspace is going away, so
  * every byte it ever owned goes with it. The final sweep still subtracts keys a
@@ -90,5 +104,14 @@ export async function listBlobKeysByWorkspace(workspaceId: WorkspaceId): Promise
       ),
     )
 
-  return [...blockRows, ...assetRows].map((r) => r.blobKey).filter((k): k is string => k !== null)
+  const deckVersionRows = await db
+    .select({ blobKey: deckVersions.pdfBlobKey })
+    .from(deckVersions)
+    .innerJoin(decks, eq(decks.id, deckVersions.deckId))
+    .innerJoin(brands, eq(brands.id, decks.brandId))
+    .where(and(eq(brands.workspaceId, workspaceId), isNotNull(deckVersions.pdfBlobKey)))
+
+  return [...blockRows, ...assetRows, ...deckVersionRows]
+    .map((r) => r.blobKey)
+    .filter((k): k is string => k !== null)
 }
