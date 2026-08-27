@@ -161,14 +161,6 @@ export const NAV_ITEMS: NavItem[] = [
     description: "The user journey, stage by stage, and the platforms each stage runs on",
   },
   {
-    title: "Photography",
-    href: "/tools/photography",
-    icon: Camera,
-    phase: 3,
-    tag: "Empty",
-    description: "The shot library — interiors, food, people — with the best of each pinned",
-  },
-  {
     title: "Review",
     href: "/review",
     icon: ClipboardCheck,
@@ -232,7 +224,7 @@ export const NAV_GROUPS: { label: string | null; hrefs: string[] }[] = [
     label: "Contracts & services",
     hrefs: ["/contracts", "/quotations", "/vendors", "/influencers"],
   },
-  { label: "Tools", hrefs: ["/tools/funnel", "/tools/photography"] },
+  { label: "Tools", hrefs: ["/tools/funnel"] },
   { label: "Queues", hrefs: ["/review", "/marketing-requests"] },
 ];
 
@@ -294,6 +286,14 @@ export const BRAND_NAV_ITEMS: BrandNavItem[] = [
     icon: Presentation,
     description: "The pitch decks and one-pagers this brand presents, and every version of each",
   },
+  // `Camera`, carried over from the workspace row this replaces — the glyph was
+  // right, only its placement was wrong.
+  {
+    title: "Photography",
+    segment: "photography",
+    icon: Camera,
+    description: "The shot library — interiors, food, people — with the best of each pinned",
+  },
   {
     title: "Outlets",
     segment: "outlets",
@@ -322,7 +322,7 @@ export const BRAND_NAV_ITEMS: BrandNavItem[] = [
  */
 export const BRAND_NAV_GROUPS: { label: string | null; segments: string[] }[] = [
   { label: null, segments: [""] },
-  { label: "Library", segments: ["resources", "decks"] },
+  { label: "Library", segments: ["resources", "decks", "photography"] },
   { label: "Presence", segments: ["outlets"] },
 ];
 

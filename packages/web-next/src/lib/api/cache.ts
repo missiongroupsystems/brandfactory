@@ -232,6 +232,11 @@ export const SCOPES = {
   // scope rather than `bfBrand`'s: the resource list is a separate aggregate on the server, and
   // `BrandWithSections` carries no resource data for a write there to invalidate.
   bfResources: "bf-resources",
+
+  /** A brand's photography shelf — the assets themselves. */
+  bfPhotos: "bf-photos",
+  /** The subject buckets those photos are filed under. */
+  bfPhotoCategories: "bf-photo-categories",
   // A brand's decks and their version stacks (`GET /brands/:id/decks`), keyed
   // `[bf-decks, brandId]`. Its own scope for the same reason `bfResources` above has one: the
   // deck list is a separate aggregate on the server, and neither the brand row nor a guideline

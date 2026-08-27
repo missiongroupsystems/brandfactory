@@ -46,7 +46,11 @@ describe("the workspace nav", () => {
 
   it("carries a Tools group, and every page in it says it is empty", () => {
     const tools = NAV_GROUPS.find((group) => group.label === "Tools");
-    expect(tools?.hrefs).toEqual(["/tools/funnel", "/tools/photography"]);
+    // **One row left.** Photography moved into the brand nav when it got a screen —
+    // the request scopes a shot library and its subjects to a brand, and `nav.ts`
+    // wrote the rule for that move before either feature existed. The funnel is the
+    // last one here and this group goes with it.
+    expect(tools?.hrefs).toEqual(["/tools/funnel"]);
     // The honesty half. A placeholder that looks finished is how somebody files a bug against a
     // feature nobody has started.
     for (const href of tools!.hrefs) {
