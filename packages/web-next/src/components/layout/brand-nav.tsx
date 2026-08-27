@@ -6,8 +6,10 @@ import * as React from "react";
 
 import { BrandMark } from "@/components/brand/brand-mark";
 import {
+  BRAND_NAV_GROUPS,
   BRAND_NAV_ITEMS,
   BRANDS_ROOT,
+  type BrandNavItem,
   brandNavHref,
   isActiveBrandNav,
 } from "@/components/layout/nav";
@@ -15,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -116,35 +119,52 @@ export function BrandNavHeader({ brandId }: { brandId: string }) {
 }
 
 /**
- * The brand's screens.
+ * The brand's screens, grouped by {@link BRAND_NAV_GROUPS}.
  *
- * One unlabelled group: an eyebrow over two rows in a column whose header already names the brand
- * would be a section heading for the only section there is.
+ * **Grouped rather than one flat list, as of the four-asks work.** Two rows read as the column's
+ * only section and carried no eyebrow; four brand-scoped features on the way take the count to
+ * six, past the point an unlabelled list stays legible. Grouping is presentation over the same
+ * {@link BRAND_NAV_ITEMS} order — it inserts eyebrows, it does not reorder — so a group with no
+ * rows in it (Library, until a later phase fills it) renders nothing at all rather than an empty
+ * heading.
  */
 export function BrandNavItems({ brandId, pathname }: { brandId: string; pathname: string }) {
+  const bySegment = new Map(BRAND_NAV_ITEMS.map((item) => [item.segment, item]));
+  const sections = BRAND_NAV_GROUPS.map((group) => ({
+    label: group.label,
+    items: group.segments
+      .map((segment) => bySegment.get(segment))
+      .filter((item): item is BrandNavItem => !!item),
+  })).filter((section) => section.items.length > 0);
+
   return (
-    <SidebarGroup>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {BRAND_NAV_ITEMS.map((item) => {
-            const href = brandNavHref(brandId, item.segment);
-            return (
-              <SidebarMenuItem key={item.segment || "root"}>
-                {/* `render`, not `asChild`: this shadcn build sits on Base UI, whose composition
-                    prop takes the element to render as. */}
-                <SidebarMenuButton
-                  render={<Link href={href} />}
-                  isActive={isActiveBrandNav(pathname, href, item.segment)}
-                  tooltip={item.description}
-                >
-                  <item.icon />
-                  <span>{item.title}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
+    <>
+      {sections.map((section, index) => (
+        <SidebarGroup key={section.label ?? `section-${index}`}>
+          {section.label ? <SidebarGroupLabel>{section.label}</SidebarGroupLabel> : null}
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {section.items.map((item) => {
+                const href = brandNavHref(brandId, item.segment);
+                return (
+                  <SidebarMenuItem key={item.segment || "root"}>
+                    {/* `render`, not `asChild`: this shadcn build sits on Base UI, whose
+                        composition prop takes the element to render as. */}
+                    <SidebarMenuButton
+                      render={<Link href={href} />}
+                      isActive={isActiveBrandNav(pathname, href, item.segment)}
+                      tooltip={item.description}
+                    >
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      ))}
+    </>
   );
 }

@@ -231,7 +231,7 @@ export const NAV_GROUPS: { label: string | null; hrefs: string[] }[] = [
     hrefs: ["/contracts", "/quotations", "/vendors", "/influencers"],
   },
   { label: "Tools", hrefs: ["/tools/funnel", "/tools/photography"] },
-  { label: "Resources", hrefs: ["/review", "/marketing-requests"] },
+  { label: "Queues", hrefs: ["/review", "/marketing-requests"] },
 ];
 
 // ---------------------------------------------------------------------------
@@ -273,6 +273,29 @@ export const BRAND_NAV_ITEMS: BrandNavItem[] = [
     icon: Store,
     description: "This brand's locations, open and in the pipeline",
   },
+];
+
+/**
+ * The brand nav's sections, in order, keyed by segment the same way {@link NAV_GROUPS} is keyed
+ * by href. Grouping only inserts eyebrows over contiguous slices of {@link BRAND_NAV_ITEMS} — it
+ * does not reorder — so group membership *is* list order, and a row can only join a group it
+ * already sits beside.
+ *
+ * *Library* is what the brand holds and you go and fetch — Resources, Photography, Decks.
+ * *Presence* is where the brand meets somebody: a physical outlet, or a stage of the journey.
+ *
+ * **`Library` and the rest of `Presence` are declared empty on purpose, not pre-listed.** Listing
+ * a segment before its row exists would let `never orphans a brand nav row` pass on nobody, so the
+ * first plan that adds a row and forgets its group ships it ungrouped with no test catching it. An
+ * empty `segments: []` keeps the guard armed for every plan still to come.
+ *
+ * A group whose segments are all absent from `BRAND_NAV_ITEMS` renders no eyebrow — the same
+ * silence {@link NAV_GROUPS} keeps for a group whose items are all above `CURRENT_PHASE`.
+ */
+export const BRAND_NAV_GROUPS: { label: string | null; segments: string[] }[] = [
+  { label: null, segments: [""] },
+  { label: "Library", segments: [] },
+  { label: "Presence", segments: ["outlets"] },
 ];
 
 /** Where the brand nav's root sits, and the only place the literal is written. */

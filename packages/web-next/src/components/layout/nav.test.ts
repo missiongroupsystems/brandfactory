@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BRAND_NAV_GROUPS,
   BRAND_NAV_ITEMS,
   NAV_GROUPS,
   NAV_ITEMS,
@@ -79,6 +80,15 @@ describe("the workspace nav", () => {
     const declared = NAV_ITEMS.map((item) => item.href).filter((href) => grouped.includes(href));
     expect(grouped).toEqual(declared);
   });
+
+  it("has no group called Resources — that word belongs to the brand-scoped feature", () => {
+    expect(NAV_GROUPS.map((g) => g.label)).not.toContain("Resources");
+  });
+
+  it("files Review and Marketing Requests under Queues, because both are queues", () => {
+    const group = NAV_GROUPS.find((g) => g.label === "Queues");
+    expect(group?.hrefs).toEqual(["/review", "/marketing-requests"]);
+  });
 });
 
 describe("brandIdFromPath", () => {
@@ -143,5 +153,22 @@ describe("the brand nav", () => {
     const roots = BRAND_NAV_ITEMS.filter((item) => item.segment === "");
     expect(roots).toHaveLength(1);
     expect(roots[0]?.title).toBe("Brand profile");
+  });
+
+  it("leaves the brand's own page ungrouped", () => {
+    expect(BRAND_NAV_GROUPS.find((g) => g.label === null)?.segments).toEqual([""]);
+  });
+
+  it("never orphans a brand nav row", () => {
+    const grouped = new Set(BRAND_NAV_GROUPS.flatMap((g) => g.segments));
+    for (const item of BRAND_NAV_ITEMS) expect(grouped.has(item.segment)).toBe(true);
+  });
+
+  it("groups in list order, so grouping never reorders", () => {
+    const order = BRAND_NAV_ITEMS.map((i) => i.segment);
+    const flat = BRAND_NAV_GROUPS.flatMap((g) => g.segments).filter((sgmt) =>
+      order.includes(sgmt),
+    );
+    expect(flat).toEqual(order);
   });
 });
