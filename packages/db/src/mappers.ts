@@ -9,6 +9,8 @@ import {
   type BrandAssetId,
   type BrandGuidelineSection,
   type BrandId,
+  type BrandResource,
+  type BrandResourceId,
   type BrandSummary,
   type Canvas,
   type CanvasBlock,
@@ -35,6 +37,7 @@ import {
 import type {
   agentMessages,
   brandAssets,
+  brandResources,
   brands,
   canvasBlocks,
   canvases,
@@ -53,6 +56,7 @@ type WorkspaceRow = typeof workspaces.$inferSelect
 type BrandRow = typeof brands.$inferSelect
 type GuidelineSectionRow = typeof guidelineSections.$inferSelect
 type BrandAssetRow = typeof brandAssets.$inferSelect
+type BrandResourceRow = typeof brandResources.$inferSelect
 type ProjectRow = typeof projects.$inferSelect
 type CanvasRow = typeof canvases.$inferSelect
 type CanvasBlockRow = typeof canvasBlocks.$inferSelect
@@ -216,6 +220,17 @@ export function rowToBrandAsset(row: BrandAssetRow): BrandAsset {
     case 'link':
       if (row.url === null) throw new Error(`Link asset ${row.id} missing url`)
       return { ...base, source: 'link', url: row.url }
+  }
+}
+
+export function rowToBrandResource(row: BrandResourceRow): BrandResource {
+  return {
+    id: row.id as BrandResourceId,
+    brandId: row.brandId as BrandId,
+    type: row.type,
+    title: row.title,
+    url: row.url,
+    note: row.note,
   }
 }
 

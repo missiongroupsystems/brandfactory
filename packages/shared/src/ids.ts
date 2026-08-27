@@ -29,6 +29,9 @@ export type SectionId = z.infer<typeof SectionIdSchema>
 export const BrandAssetIdSchema = brandedId('BrandAssetId')
 export type BrandAssetId = z.infer<typeof BrandAssetIdSchema>
 
+export const BrandResourceIdSchema = brandedId('BrandResourceId')
+export type BrandResourceId = z.infer<typeof BrandResourceIdSchema>
+
 export const ResearchJobIdSchema = brandedId('ResearchJobId')
 export type ResearchJobId = z.infer<typeof ResearchJobIdSchema>
 
