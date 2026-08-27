@@ -1,17 +1,21 @@
 import type { BrandAsset, PhotoCategory } from "@brandfactory/shared";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { usePhotography, usePhotographyMutations } from "../hooks";
 import { PhotographyView } from "./photography-view";
 
 vi.mock("../hooks", () => ({ usePhotography: vi.fn(), usePhotographyMutations: vi.fn() }));
-vi.mock("@/lib/blob", () => ({ useSignedReadUrl: () => ({ data: undefined }) }));
+vi.mock("@/lib/blob", () => ({ useSignedReadUrl: () => ({ data: undefined }), uploadBlob: vi.fn() }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("./category-manager", () => ({ CategoryManager: () => null }));
 
+const { toast } = await import("sonner");
 const mockedUsePhotography = vi.mocked(usePhotography);
 const mockedUseMutations = vi.mocked(usePhotographyMutations);
 const setPinned = vi.fn();
+const addPhoto = vi.fn();
+const reorderPhotos = vi.fn();
 
 function photo(overrides: Partial<Record<keyof BrandAsset, unknown>> = {}): BrandAsset {
   return {
@@ -58,6 +62,8 @@ beforeEach(() => {
     renameCategory: vi.fn(),
     deleteCategory: vi.fn(),
     setCategory: vi.fn(),
+    addPhoto,
+    reorderPhotos,
     setPinned,
   });
 });
@@ -141,5 +147,68 @@ describe("PhotographyView", () => {
   it("shows an empty state for a brand with no photographs", () => {
     setup([]);
     expect(screen.getByText("No photographs yet")).not.toBe(null);
+  });
+});
+
+describe("adding photographs", () => {
+  it("offers a way in, even on an empty shelf", () => {
+    // **The gap this test exists for.** The screen shipped with a subject manager, a
+    // filter and a pin — and no way to put a photograph on the shelf at all. The old
+    // Vite app has an uploader, and "the library already exists" was read as "there is
+    // already a way to add to it". There was not, in this app.
+    setup([]);
+    expect(screen.getByRole("button", { name: /Add photos/ })).not.toBe(null);
+  });
+
+  it("uploads each chosen file", async () => {
+    setup([]);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const a = new File(["a"], "dining-room.jpg", { type: "image/jpeg" });
+    const b = new File(["b"], "pasta.jpg", { type: "image/jpeg" });
+    fireEvent.change(input, { target: { files: [a, b] } });
+
+    await waitFor(() => expect(addPhoto).toHaveBeenCalledTimes(2));
+    expect(addPhoto).toHaveBeenNthCalledWith(1, a);
+    expect(addPhoto).toHaveBeenNthCalledWith(2, b);
+  });
+
+  it("keeps going when one file fails, and names the one that did", async () => {
+    // A reader who picked eight files needs to know *which* failed — and that the other
+    // seven landed.
+    addPhoto.mockRejectedValueOnce(new Error("too large")).mockResolvedValueOnce({});
+    setup([]);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(["a"], "huge.jpg", { type: "image/jpeg" }),
+          new File(["b"], "fine.jpg", { type: "image/jpeg" }),
+        ],
+      },
+    });
+
+    await waitFor(() => expect(addPhoto).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(toast.error).mock.calls[0]![0]).toContain("huge.jpg");
+  });
+});
+
+describe("manual order", () => {
+  it("says why dragging is off inside a subject, rather than leaving the handle dead", () => {
+    // The order written is the whole shelf's. A drag inside a filtered view would
+    // renumber three photos against a list of forty, moving rows nobody can see.
+    setup(
+      [
+        photo({ id: "a", label: "One", categoryId: "c1" }),
+        photo({ id: "b", label: "Two", categoryId: "c1" }),
+      ],
+      [category("c1", "Interior")],
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Interior/ }));
+    expect(screen.getByText(/order belongs to the whole shelf/)).not.toBe(null);
+  });
+
+  it("says nothing on All, where dragging works", () => {
+    setup([photo({ id: "a" }), photo({ id: "b" })]);
+    expect(screen.queryByText(/order belongs to the whole shelf/)).toBe(null);
   });
 });

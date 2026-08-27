@@ -2,7 +2,24 @@
 
 import type { BrandAsset, PhotoCategory } from "@brandfactory/shared";
 import { assetsInCategory } from "@brandfactory/shared";
-import { PinIcon, SettingsIcon } from "lucide-react";
+import { ImagePlusIcon, Loader2Icon, PinIcon, SettingsIcon } from "lucide-react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -37,8 +54,57 @@ const UNCATEGORISED = "__uncategorised__";
  */
 export function PhotographyView({ brandId }: { brandId: string }) {
   const { photos, categories, isLoading, error } = usePhotography(brandId);
+  const { addPhoto, reorderPhotos } = usePhotographyMutations(brandId);
   const [subject, setSubject] = React.useState<string>(ALL);
   const [managerOpen, setManagerOpen] = React.useState(false);
+  const [uploading, setUploading] = React.useState(0);
+  const fileInput = React.useRef<HTMLInputElement>(null);
+
+  /**
+   * The order being dragged, or `null` when the server's is the truth.
+   *
+   * **A drag cannot wait for a round trip** — there is no way to re-render a pointer move
+   * from a response — so this is the one place on the screen that shows a result before
+   * the server confirms it. Everything else here waits. `AGENTS.md` draws that line for
+   * the scheme canvas and it is the same one: what is owed instead of optimism is
+   * honesty, so a failed write puts the list back and says so.
+   */
+  const [dragOrder, setDragOrder] = React.useState<string[] | null>(null);
+
+  const sensors = useSensors(
+    // 6px before a drag starts, or a click on the pin lands as a drag of one pixel.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  /**
+   * Upload whatever was chosen, one file at a time.
+   *
+   * **Sequential rather than `Promise.all`.** Each upload is a signed-URL round trip and
+   * then the bytes themselves; firing ten at once competes for the same connection and
+   * makes the count meaningless. The counter is what the button reads from, so it has to
+   * mean "how many are left", not "how many were started".
+   */
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const chosen = [...files];
+    setUploading(chosen.length);
+    for (const file of chosen) {
+      try {
+        await addPhoto(file);
+      } catch (err) {
+        // Named, because a reader who picked eight files needs to know *which* one
+        // failed — and the other seven still landed.
+        toast.error(
+          err instanceof Error ? `${file.name}: ${err.message}` : `Could not upload ${file.name}`,
+        );
+      } finally {
+        setUploading((n) => n - 1);
+      }
+    }
+    // Clear the input, or choosing the same file twice in a row fires no `change` event.
+    if (fileInput.current) fileInput.current.value = "";
+  }
 
   if (error) return <QueryError error={error} />;
   if (isLoading) return <LoadingRows rows={4} />;
@@ -53,6 +119,39 @@ export function PhotographyView({ brandId }: { brandId: string }) {
       : assetsInCategory(photos, subject === UNCATEGORISED ? null : subject);
 
   const uncategorisedCount = assetsInCategory(photos, null).length;
+
+  // The order on screen: the drag in progress if there is one, otherwise the server's.
+  const ordered =
+    dragOrder === null
+      ? shown
+      : (dragOrder
+          .map((id) => shown.find((p) => p.id === id))
+          .filter((p) => p !== undefined) as typeof shown);
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    // Ids are branded on the record and plain strings coming out of dnd-kit, so the
+    // comparison happens on strings and the branding is restored by `next` below.
+    const ids = ordered.map((p) => String(p.id));
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+
+    const next = arrayMove(ids, from, to);
+    setDragOrder(next);
+    try {
+      await reorderPhotos(next);
+    } catch (err) {
+      // Put it back. A silent revert would look like the drag never took.
+      setDragOrder(null);
+      toast.error(err instanceof Error ? err.message : "Could not save the new order");
+      return;
+    }
+    // Hand the truth back to the server's copy now that it agrees.
+    setDragOrder(null);
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -93,12 +192,38 @@ export function PhotographyView({ brandId }: { brandId: string }) {
           <SettingsIcon />
           Subjects
         </Button>
+
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(event) => void handleFiles(event.target.files)}
+        />
+        <Button
+          size="sm"
+          disabled={uploading > 0}
+          onClick={() => fileInput.current?.click()}
+        >
+          {uploading > 0 ? <Loader2Icon className="animate-spin" /> : <ImagePlusIcon />}
+          {uploading > 0 ? `Uploading ${uploading}…` : "Add photos"}
+        </Button>
       </div>
+
+      {/* **Say why the handle is inert rather than leaving it inert.** A reader who
+          filtered and then could not drag would read that as broken. */}
+      {subject !== ALL && shown.length > 1 ? (
+        <p className="text-helper text-ink-tertiary">
+          Showing one subject. Drag to reorder on <strong>All</strong> — the order belongs to the
+          whole shelf, not to a filtered slice of it.
+        </p>
+      ) : null}
 
       {photos.length === 0 ? (
         <EmptyState
           message="No photographs yet"
-          hint="This brand's shot library is empty. Photographs uploaded to the photography shelf appear here, newest filing first."
+          hint="Add the shots this brand actually uses — interiors, food, people, product. Give them subjects once there are a few, and pin the ones worth reaching for first."
         />
       ) : shown.length === 0 ? (
         <EmptyState
@@ -106,11 +231,29 @@ export function PhotographyView({ brandId }: { brandId: string }) {
           hint="The photos are still there — they are filed under another subject, or under none."
         />
       ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {shown.map((photo) => (
-            <PhotoTile key={photo.id} photo={photo} brandId={brandId} categories={categories} />
-          ))}
-        </ul>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={ordered.map((p) => p.id)} strategy={rectSortingStrategy}>
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {ordered.map((photo) => (
+                <PhotoTile
+                  key={photo.id}
+                  photo={photo}
+                  brandId={brandId}
+                  categories={categories}
+                  // **Dragging is off while a subject is selected.** The order being written
+                  // is the whole shelf's, and a drag inside a filtered view would renumber
+                  // three photos against a list of forty — moving rows the reader cannot
+                  // see. The chip row says so rather than leaving the handle inert.
+                  sortable={subject === ALL}
+                />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
       )}
 
       <CategoryManager
@@ -164,11 +307,17 @@ function PhotoTile({
   photo,
   brandId,
   categories,
+  sortable,
 }: {
   photo: BrandAsset;
   brandId: string;
   categories: PhotoCategory[];
+  sortable: boolean;
 }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: photo.id,
+    disabled: !sortable,
+  });
   const { setPinned, setCategory } = usePhotographyMutations(brandId);
   const [busy, setBusy] = React.useState(false);
   const blobKey = photo.source === "blob" ? photo.blobKey : null;
@@ -187,8 +336,21 @@ function PhotoTile({
   }
 
   return (
-    <li className="flex flex-col gap-2">
-      <div className="relative aspect-4/3 overflow-hidden rounded-lg border border-border bg-surface-sunken">
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn("flex flex-col gap-2", isDragging && "z-10 opacity-60")}
+    >
+      <div
+        // **The image is the handle**, not a separate grip. The tile is mostly picture and
+        // a grip would be a second target the size of a fingernail; the pin and the subject
+        // picker sit outside it, so nothing interactive is swallowed.
+        {...(sortable ? { ...attributes, ...listeners } : {})}
+        className={cn(
+          "relative aspect-4/3 overflow-hidden rounded-lg border border-border bg-surface-sunken",
+          sortable && "cursor-grab active:cursor-grabbing",
+        )}
+      >
         {src ? (
           /* eslint-disable-next-line @next/next/no-img-element --
              **Deliberately not `next/image`.** A blob source is a *signed* URL that expires in

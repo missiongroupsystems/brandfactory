@@ -1,5 +1,6 @@
 import type {
   BrandAsset,
+  CreateBrandAssetInput,
   CreatePhotoCategoryInput,
   PhotoCategory,
   UpdatePhotoCategoryInput,
@@ -71,6 +72,43 @@ export const photographyService = {
       await bf.brands[":id"].assets[":assetId"].$patch({
         param: { id: brandId, assetId },
         json: { categoryId },
+      }),
+    ),
+
+  /**
+   * Adds a photograph to the shelf.
+   *
+   * **The server never sees the file.** The client mints a write URL, PUTs the bytes
+   * straight to storage, and posts the returned key here — the transport `assets.ts` was
+   * built around, and the reason this service takes a key rather than a `File`.
+   *
+   * `library: "photography"` is passed explicitly rather than left to `defaultLibraryFor`.
+   * That helper would file an image here anyway, but a screen that knows which shelf it is
+   * should say so: the default exists for clients that have no opinion, and this one does.
+   */
+  createPhoto: async (brandId: string, input: CreateBrandAssetInput): Promise<BrandAsset> =>
+    callJson<BrandAsset>(
+      await bf.brands[":id"].assets.$post({ param: { id: brandId }, json: input }),
+    ),
+
+  /**
+   * Re-position a set of photographs in one write.
+   *
+   * **`PATCH` on the collection, not one call per photo.** `routes/assets.ts` records what
+   * the obvious spelling cost: a literal segment where a sibling route has a parameter
+   * makes Hono's `RegExpRouter` refuse to compile and `SmartRouter` fall back to
+   * `TrieRouter` *for the whole app* — whose symptom was a 404 on blob reads, in a module
+   * that change never touched. The collection patch has no such collision, and it lands as
+   * one transaction: a mid-list failure leaves the order intact rather than half-applied.
+   */
+  reorder: async (
+    brandId: string,
+    updates: { id: string; position: number }[],
+  ): Promise<BrandAsset[]> =>
+    callJson<BrandAsset[]>(
+      await bf.brands[":id"].assets.$patch({
+        param: { id: brandId },
+        json: { updates } as never,
       }),
     ),
 

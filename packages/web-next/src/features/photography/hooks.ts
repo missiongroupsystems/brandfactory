@@ -11,6 +11,7 @@ import * as React from "react";
 import useSWR from "swr";
 
 import { SCOPES, useRevalidate } from "@/lib/api/cache";
+import { uploadBlob } from "@/lib/blob";
 
 import { photographyService } from "./api";
 
@@ -81,6 +82,49 @@ export function usePhotographyMutations(brandId: string | undefined) {
         const row = await photographyService.setCategory(brandId!, assetId, categoryId);
         await sweep();
         return row;
+      },
+      /**
+       * Upload one file and record it on the photography shelf.
+       *
+       * Upload first, then the row — the ordering `VersionForm` settled for decks and for
+       * the same reason: the reverse leaves a row pointing at bytes that never arrived,
+       * and nothing in the schema can catch that. A failed upload writes nothing.
+       */
+      addPhoto: async (file: File) => {
+        const { key } = await uploadBlob({ file });
+        const row = await photographyService.createPhoto(brandId!, {
+          kind: "image",
+          source: "blob",
+          blobKey: key,
+          library: "photography",
+          // The file's own name, minus its extension — a label somebody can rename, not a
+          // storage key nobody can read.
+          label: file.name.replace(/\.[^.]+$/, "") || file.name,
+          mime: file.type || null,
+          filename: file.name,
+          sizeBytes: file.size,
+        });
+        await sweep();
+        return row;
+      },
+      /**
+       * Write a new manual order for the whole shelf.
+       *
+       * **Sparse positions, recomputed from scratch.** The list arrives in the order the
+       * reader dragged it into, and each row is renumbered `(index + 1) * 100` — which
+       * leaves room to insert between two without renumbering again, the same reason
+       * `guideline_sections.priority` is sparse.
+       *
+       * Only the photography shelf is sent. The route patches by id, so including an
+       * identity asset would reorder a shelf this screen is not showing.
+       */
+      reorderPhotos: async (orderedIds: string[]) => {
+        const rows = await photographyService.reorder(
+          brandId!,
+          orderedIds.map((id, index) => ({ id, position: (index + 1) * 100 })),
+        );
+        await sweep();
+        return rows;
       },
       setPinned: async (assetId: string, pinned: boolean) => {
         const row = pinned
