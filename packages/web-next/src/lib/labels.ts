@@ -67,6 +67,12 @@ import type {
 // and stays where it is, because that folder and the review queue still read it.
 import type { VendorCategory, VendorStatus } from "@brandfactory/shared";
 
+// A brand's resources — fonts, images, icons and tools bought from somebody else's site.
+// `ResourceType` follows the same rule as every union above: keyed here so a new backend member
+// fails the typecheck until it has a label, and the resources screen groups by `Object.keys` of
+// this record rather than alphabetising, so the order below **is** the group order on screen.
+import type { ResourceType } from "@brandfactory/shared";
+
 import type {
   AuthorityKind,
   BillingFrequency,
@@ -391,6 +397,24 @@ export const BRAND_STATUS_TONES: Record<BrandStatus, BadgeTone> = {
   active: "success",
   dormant: "default",
   retired: "outline",
+};
+
+// ── Resources ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * `ResourceTypeSchema`'s own declared order — `font, image, icon, tool, reference, other` — and
+ * the resources screen groups by it, never alphabetically and never by count. Keys are written in
+ * that order deliberately: `Object.keys` on a string-keyed record preserves insertion order, which
+ * is what lets `optionsFrom` below stand in for the enum's declaration the same way it already does
+ * for the outlet and licence status ladders.
+ */
+export const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
+  font: "Fonts",
+  image: "Images",
+  icon: "Icons",
+  tool: "Tools",
+  reference: "References",
+  other: "Other",
 };
 
 /**
@@ -904,3 +928,4 @@ export const DOC_TYPE_OPTIONS = optionsFrom(DOC_TYPE_LABELS);
 export const SERVICE_FREQUENCY_OPTIONS = optionsFrom(SERVICE_FREQUENCY_LABELS);
 export const REVIEW_KIND_OPTIONS = optionsFrom(REVIEW_KIND_LABELS);
 export const VISIT_STATUS_OPTIONS = optionsFrom(VISIT_STATUS_LABELS);
+export const RESOURCE_TYPE_OPTIONS = optionsFrom(RESOURCE_TYPE_LABELS);

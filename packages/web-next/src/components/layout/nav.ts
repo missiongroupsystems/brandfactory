@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  Bookmark,
   Camera,
   ClipboardCheck,
   FileSignature,
@@ -267,6 +268,21 @@ export const BRAND_NAV_ITEMS: BrandNavItem[] = [
     icon: BookOpen,
     description: "The brand in one page — TL;DR, pillars, audience, voice, look",
   },
+  // `Bookmark`, not `Link` or `ExternalLink`. Every row on this screen is an
+  // outbound link, so a link glyph labels the whole list with what each item is
+  // and distinguishes nothing — and `Link` is also the name `next/link` occupies
+  // wherever this list is rendered. A bookmark is *a place someone saved on
+  // purpose*, which is what a Resource is.
+  //
+  // **Before Outlets, not after.** `BRAND_NAV_GROUPS` puts `Library` ahead of `Presence`, and
+  // grouping only inserts eyebrows over contiguous slices of this list — it never reorders — so a
+  // row's position here has to already match the group order it will render in.
+  {
+    title: "Resources",
+    segment: "resources",
+    icon: Bookmark,
+    description: "The sites this brand buys fonts, images and tools from",
+  },
   {
     title: "Outlets",
     segment: "outlets",
@@ -284,17 +300,18 @@ export const BRAND_NAV_ITEMS: BrandNavItem[] = [
  * *Library* is what the brand holds and you go and fetch — Resources, Photography, Decks.
  * *Presence* is where the brand meets somebody: a physical outlet, or a stage of the journey.
  *
- * **`Library` and the rest of `Presence` are declared empty on purpose, not pre-listed.** Listing
- * a segment before its row exists would let `never orphans a brand nav row` pass on nobody, so the
- * first plan that adds a row and forgets its group ships it ungrouped with no test catching it. An
- * empty `segments: []` keeps the guard armed for every plan still to come.
+ * **An empty group is declared empty on purpose, not pre-listed.** Listing a segment before its
+ * row exists would let `never orphans a brand nav row` pass on nobody, so the first plan that adds
+ * a row and forgets its group ships it ungrouped with no test catching it. `Library` held
+ * `segments: []` until Phase 1C added Resources — the rest of `Presence` still does, and an empty
+ * array keeps the guard armed for every plan still to come.
  *
  * A group whose segments are all absent from `BRAND_NAV_ITEMS` renders no eyebrow — the same
  * silence {@link NAV_GROUPS} keeps for a group whose items are all above `CURRENT_PHASE`.
  */
 export const BRAND_NAV_GROUPS: { label: string | null; segments: string[] }[] = [
   { label: null, segments: [""] },
-  { label: "Library", segments: [] },
+  { label: "Library", segments: ["resources"] },
   { label: "Presence", segments: ["outlets"] },
 ];
 

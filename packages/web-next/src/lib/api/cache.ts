@@ -228,4 +228,8 @@ export const SCOPES = {
   // configuration rather than a brand fact — so it is its own scope and no brand write
   // touches it.
   researchConfig: "research-config",
+  // A brand's resources (`GET /brands/:id/resources`), keyed `[bf-resources, brandId]`. Its own
+  // scope rather than `bfBrand`'s: the resource list is a separate aggregate on the server, and
+  // `BrandWithSections` carries no resource data for a write there to invalidate.
+  bfResources: "bf-resources",
 } as const;
