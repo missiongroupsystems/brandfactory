@@ -52,3 +52,6 @@ coverage/
 
 # Git worktrees
 .worktrees/
+
+# Scratch: a manual test script, deliberately not versioned
+MANUAL-TEST-PLAN.md
