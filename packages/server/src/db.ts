@@ -63,6 +63,20 @@ export interface Db {
   createPhotoCategory: typeof db.createPhotoCategory
   updatePhotoCategory: typeof db.updatePhotoCategory
   deletePhotoCategory: typeof db.deletePhotoCategory
+
+  // Marketing funnel
+  listFunnelByBrand: typeof db.listFunnelByBrand
+  listPlatformsByBrand: typeof db.listPlatformsByBrand
+  createFunnelStage: typeof db.createFunnelStage
+  updateFunnelStage: typeof db.updateFunnelStage
+  deleteFunnelStage: typeof db.deleteFunnelStage
+  createPlatform: typeof db.createPlatform
+  deletePlatform: typeof db.deletePlatform
+  attachPlatformToStage: typeof db.attachPlatformToStage
+  detachPlatformFromStage: typeof db.detachPlatformFromStage
+  createFunnelActivity: typeof db.createFunnelActivity
+  updateFunnelActivity: typeof db.updateFunnelActivity
+  deleteFunnelActivity: typeof db.deleteFunnelActivity
   reorderAssets: typeof db.reorderAssets
 
   // Brand resources
@@ -193,6 +207,18 @@ export function buildDbDeps(): Db {
     createPhotoCategory: db.createPhotoCategory,
     updatePhotoCategory: db.updatePhotoCategory,
     deletePhotoCategory: db.deletePhotoCategory,
+    listFunnelByBrand: db.listFunnelByBrand,
+    listPlatformsByBrand: db.listPlatformsByBrand,
+    createFunnelStage: db.createFunnelStage,
+    updateFunnelStage: db.updateFunnelStage,
+    deleteFunnelStage: db.deleteFunnelStage,
+    createPlatform: db.createPlatform,
+    deletePlatform: db.deletePlatform,
+    attachPlatformToStage: db.attachPlatformToStage,
+    detachPlatformFromStage: db.detachPlatformFromStage,
+    createFunnelActivity: db.createFunnelActivity,
+    updateFunnelActivity: db.updateFunnelActivity,
+    deleteFunnelActivity: db.deleteFunnelActivity,
     reorderAssets: db.reorderAssets,
     listResourcesByBrand: db.listResourcesByBrand,
     createResource: db.createResource,

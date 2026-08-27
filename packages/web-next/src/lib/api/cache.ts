@@ -234,6 +234,9 @@ export const SCOPES = {
   bfResources: "bf-resources",
 
   /** A brand's photography shelf — the assets themselves. */
+  /** A brand's marketing funnel — stages, platforms and activities. */
+  bfFunnel: "bf-funnel",
+
   bfPhotos: "bf-photos",
   /** The subject buckets those photos are filed under. */
   bfPhotoCategories: "bf-photo-categories",

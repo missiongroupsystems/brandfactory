@@ -153,14 +153,6 @@ export const NAV_ITEMS: NavItem[] = [
   // photography library is shared across brands. If either turns out to be brand-scoped, it moves
   // to {@link BRAND_NAV_ITEMS}, which is the whole reason that list exists.
   {
-    title: "Marketing funnel",
-    href: "/tools/funnel",
-    icon: Filter,
-    phase: 3,
-    tag: "Empty",
-    description: "The user journey, stage by stage, and the platforms each stage runs on",
-  },
-  {
     title: "Review",
     href: "/review",
     icon: ClipboardCheck,
@@ -224,7 +216,6 @@ export const NAV_GROUPS: { label: string | null; hrefs: string[] }[] = [
     label: "Contracts & services",
     hrefs: ["/contracts", "/quotations", "/vendors", "/influencers"],
   },
-  { label: "Tools", hrefs: ["/tools/funnel"] },
   { label: "Queues", hrefs: ["/review", "/marketing-requests"] },
 ];
 
@@ -300,6 +291,14 @@ export const BRAND_NAV_ITEMS: BrandNavItem[] = [
     icon: Store,
     description: "This brand's locations, open and in the pipeline",
   },
+  // `Filter`, carried over from the workspace row this replaces. Last of the four
+  // brand-scoped features, and the one that empties the `Tools` group.
+  {
+    title: "Marketing funnel",
+    segment: "funnel",
+    icon: Filter,
+    description: "The journey into this brand, stage by stage, and what runs at each",
+  },
 ];
 
 /**
@@ -323,7 +322,7 @@ export const BRAND_NAV_ITEMS: BrandNavItem[] = [
 export const BRAND_NAV_GROUPS: { label: string | null; segments: string[] }[] = [
   { label: null, segments: [""] },
   { label: "Library", segments: ["resources", "decks", "photography"] },
-  { label: "Presence", segments: ["outlets"] },
+  { label: "Presence", segments: ["outlets", "funnel"] },
 ];
 
 /** Where the brand nav's root sits, and the only place the literal is written. */

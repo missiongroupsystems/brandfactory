@@ -45,6 +45,11 @@ import {
 // call sites break, which is the signal worth having.
 import type { OutletStatus, OutletType } from "@brandfactory/shared";
 
+// Same rule again, for the two features this file gained with the marketing
+// work: keyed off the shared unions, so a new member fails the typecheck here
+// until it has a label.
+import type { FunnelActivityStatus } from "@brandfactory/shared";
+
 // The influencer enums follow the outlet ones out of `lib/api/types.ts`, for the
 // stronger version of the same reason: those were declared there because no
 // server held them, and now one does. Keying the five records below off the
@@ -408,6 +413,21 @@ export const BRAND_STATUS_TONES: Record<BrandStatus, BadgeTone> = {
  * is what lets `optionsFrom` below stand in for the enum's declaration the same way it already does
  * for the outlet and licence status ladders.
  */
+/**
+ * The four states an activity can be in. Keyed by the union, so a fifth member
+ * of `FunnelActivityStatusSchema` fails the typecheck until it has a label.
+ *
+ * **A lifecycle, not a score.** The request bounds this away from performance
+ * explicitly — the deep platforms measure that — so none of these says how well
+ * anything did.
+ */
+export const FUNNEL_ACTIVITY_STATUS_LABELS: Record<FunnelActivityStatus, string> = {
+  planned: "Planned",
+  running: "Running",
+  paused: "Paused",
+  done: "Done",
+};
+
 export const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
   font: "Fonts",
   image: "Images",

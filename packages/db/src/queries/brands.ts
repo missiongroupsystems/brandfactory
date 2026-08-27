@@ -10,6 +10,7 @@ import {
   type WorkspaceId,
 } from '@brandfactory/shared'
 import { and, eq, isNotNull, notInArray, sql } from 'drizzle-orm'
+import { DEFAULT_FUNNEL_STAGES, FUNNEL_STAGE_POSITION_STEP } from '@brandfactory/shared'
 import { db } from '../client'
 import { rowToBrand, rowToBrandSummary, rowToGuidelineSection } from '../mappers'
 import {
@@ -19,6 +20,7 @@ import {
   canvases,
   deckVersions,
   decks,
+  funnelStages,
   guidelineSections,
   projects,
 } from '../schema'
@@ -98,17 +100,38 @@ export async function createBrand(input: {
   description?: string | null
   websiteUrl?: string | null
 }): Promise<Brand> {
-  const [row] = await db
-    .insert(brands)
-    .values({
-      workspaceId: input.workspaceId,
-      name: input.name,
-      description: input.description ?? null,
-      websiteUrl: input.websiteUrl ?? null,
-    })
-    .returning()
-  if (!row) throw new Error('createBrand returned no row')
-  return rowToBrand(row)
+  // **One transaction, brand and funnel together.** A brand that commits without
+  // its six stages shows an empty funnel that a reader cannot tell apart from
+  // "nobody has set this up yet" — and the second one is a state they would
+  // act on. This is the only cross-aggregate write in the four marketing
+  // features: Plan 4 reaching into the brand create path, deliberately, because
+  // the alternative is a `GET` that writes.
+  //
+  // The names come from `DEFAULT_FUNNEL_STAGES` in `@brandfactory/shared` and are
+  // **not** duplicated into SQL — see that constant for why migration 0010's
+  // `CASE` is not the precedent it looks like.
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(brands)
+      .values({
+        workspaceId: input.workspaceId,
+        name: input.name,
+        description: input.description ?? null,
+        websiteUrl: input.websiteUrl ?? null,
+      })
+      .returning()
+    if (!row) throw new Error('createBrand returned no row')
+
+    await tx.insert(funnelStages).values(
+      DEFAULT_FUNNEL_STAGES.map((name, index) => ({
+        brandId: row.id as BrandId,
+        name,
+        position: (index + 1) * FUNNEL_STAGE_POSITION_STEP,
+      })),
+    )
+
+    return rowToBrand(row)
+  })
 }
 
 // `undefined` leaves a column alone; `null` clears it. That distinction is the

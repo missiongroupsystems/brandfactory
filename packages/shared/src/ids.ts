@@ -58,3 +58,12 @@ export type DeckVersionId = z.infer<typeof DeckVersionIdSchema>
 
 export const PhotoCategoryIdSchema = brandedId('PhotoCategoryId')
 export type PhotoCategoryId = z.infer<typeof PhotoCategoryIdSchema>
+
+export const FunnelStageIdSchema = brandedId('FunnelStageId')
+export type FunnelStageId = z.infer<typeof FunnelStageIdSchema>
+
+export const PlatformIdSchema = brandedId('PlatformId')
+export type PlatformId = z.infer<typeof PlatformIdSchema>
+
+export const FunnelActivityIdSchema = brandedId('FunnelActivityId')
+export type FunnelActivityId = z.infer<typeof FunnelActivityIdSchema>

@@ -44,18 +44,23 @@ describe("the workspace nav", () => {
     expect(hrefs).not.toContain("/outlets");
   });
 
-  it("carries a Tools group, and every page in it says it is empty", () => {
-    const tools = NAV_GROUPS.find((group) => group.label === "Tools");
-    // **One row left.** Photography moved into the brand nav when it got a screen —
-    // the request scopes a shot library and its subjects to a brand, and `nav.ts`
-    // wrote the rule for that move before either feature existed. The funnel is the
-    // last one here and this group goes with it.
-    expect(tools?.hrefs).toEqual(["/tools/funnel"]);
-    // The honesty half. A placeholder that looks finished is how somebody files a bug against a
-    // feature nobody has started.
-    for (const href of tools!.hrefs) {
-      expect(NAV_ITEMS.find((item) => item.href === href)?.tag).toBe("Empty");
-    }
+  it("has no Tools group left — both its rows became brand-scoped", () => {
+    // The group held the funnel and the photography library, and `nav.ts` wrote
+    // the rule that moved them before either feature existed: *if either turns
+    // out to be brand-scoped, it moves to BRAND_NAV_ITEMS*. Both did — a shot
+    // library's subjects differ per brand, and a funnel maps *a brand's*
+    // journey — so the group emptied and went with them.
+    expect(NAV_GROUPS.some((group) => group.label === "Tools")).toBe(false);
+    const hrefs = NAV_ITEMS.map((item) => item.href);
+    expect(hrefs).not.toContain("/tools/funnel");
+    expect(hrefs).not.toContain("/tools/photography");
+  });
+
+  it("no longer tags any row as Empty, because no placeholder is left", () => {
+    // The two `Empty` rows were the only ones. The mechanism stays — deleting
+    // the honesty machinery the moment it goes quiet is how the next
+    // placeholder ships looking real — but nothing claims it now.
+    expect(NAV_ITEMS.filter((item) => item.tag === "Empty")).toEqual([]);
   });
 
   it("tags Contracts as a sample, because the screen beside it stopped being one", () => {

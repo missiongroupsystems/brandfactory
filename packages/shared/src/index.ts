@@ -43,6 +43,10 @@ export * from './research/job'
 // Resource
 export * from './resource/resource'
 
+// Funnel
+export * from './funnel/funnel'
+export * from './funnel/defaults'
+
 // Photography
 export * from './photography/category'
 

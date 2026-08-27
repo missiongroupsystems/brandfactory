@@ -24,7 +24,13 @@ import {
   type InfluencerAccount,
   type InfluencerId,
   type Outlet,
+  type FunnelActivity,
+  type FunnelActivityId,
+  type FunnelStage,
+  type FunnelStageId,
   type PhotoCategory,
+  type Platform,
+  type PlatformId,
   type PhotoCategoryId,
   type OutletId,
   type ProjectId,
@@ -44,7 +50,10 @@ import type {
   agentMessages,
   brandAssets,
   brandResources,
+  funnelActivities,
+  funnelStages,
   photoCategories,
+  platforms,
   brands,
   canvasBlocks,
   canvases,
@@ -67,6 +76,9 @@ type GuidelineSectionRow = typeof guidelineSections.$inferSelect
 type BrandAssetRow = typeof brandAssets.$inferSelect
 type BrandResourceRow = typeof brandResources.$inferSelect
 type PhotoCategoryRow = typeof photoCategories.$inferSelect
+type FunnelStageRow = typeof funnelStages.$inferSelect
+type PlatformRow = typeof platforms.$inferSelect
+type FunnelActivityRow = typeof funnelActivities.$inferSelect
 type DeckRow = typeof decks.$inferSelect
 type DeckVersionRow = typeof deckVersions.$inferSelect
 type ProjectRow = typeof projects.$inferSelect
@@ -555,6 +567,43 @@ export function rowToPhotoCategory(row: PhotoCategoryRow): PhotoCategory {
     brandId: row.brandId as BrandId,
     name: row.name,
     position: row.position,
+    createdAt: toIsoTimestamp(row.createdAt),
+    updatedAt: toIsoTimestamp(row.updatedAt),
+  }
+}
+
+export function rowToFunnelStage(row: FunnelStageRow): FunnelStage {
+  return {
+    id: row.id as FunnelStageId,
+    brandId: row.brandId as BrandId,
+    name: row.name,
+    position: row.position,
+    createdAt: toIsoTimestamp(row.createdAt),
+    updatedAt: toIsoTimestamp(row.updatedAt),
+  }
+}
+
+export function rowToPlatform(row: PlatformRow): Platform {
+  return {
+    id: row.id as PlatformId,
+    brandId: row.brandId as BrandId,
+    name: row.name,
+    url: row.url,
+    createdAt: toIsoTimestamp(row.createdAt),
+    updatedAt: toIsoTimestamp(row.updatedAt),
+  }
+}
+
+export function rowToFunnelActivity(row: FunnelActivityRow): FunnelActivity {
+  return {
+    id: row.id as FunnelActivityId,
+    stageId: row.stageId as FunnelStageId,
+    platformId: (row.platformId as PlatformId | null) ?? null,
+    title: row.title,
+    status: row.status,
+    startsOn: row.startsOn,
+    endsOn: row.endsOn,
+    note: row.note,
     createdAt: toIsoTimestamp(row.createdAt),
     updatedAt: toIsoTimestamp(row.updatedAt),
   }

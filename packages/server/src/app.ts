@@ -19,6 +19,7 @@ import { createAgentRouter } from './routes/agent'
 import { createBrandAssetsRouter } from './routes/assets'
 import { createBrandResourcesRouter } from './routes/resources'
 import { createDecksRouter } from './routes/decks'
+import { createBrandFunnelRouter } from './routes/funnel'
 import { createBrandPhotoCategoriesRouter } from './routes/photo-categories'
 import { createSocialPostsRouter } from './routes/social-posts'
 import { createSocialIdeateRouter } from './routes/social-ideate'
@@ -195,6 +196,9 @@ export function createApp(deps: AppDeps) {
     // A brand's photography subject buckets. Rows rather than an enum, because
     // the set is editable per brand — see `photo-categories.ts`.
     .route('/brands', createBrandPhotoCategoriesRouter({ db: deps.db }))
+    // A brand's marketing funnel — stages, the platforms serving each, and the
+    // activities running there.
+    .route('/brands', createBrandFunnelRouter({ db: deps.db }))
     // Same shape and same scoping; posts never see a platform API or a file.
     .route('/brands', createSocialPostsRouter({ db: deps.db }))
     // The planner that fills that calendar. Stateless — it writes no row, so

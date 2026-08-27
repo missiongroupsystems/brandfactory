@@ -1,3 +1,4 @@
+import { DEFAULT_FUNNEL_STAGES, FUNNEL_STAGE_POSITION_STEP } from '@brandfactory/shared'
 import type { AuthProvider } from '@brandfactory/adapter-auth'
 import type { BlobStore } from '@brandfactory/adapter-storage'
 import type { LLMProvider } from '@brandfactory/adapter-llm'
@@ -12,8 +13,15 @@ import type {
   BrandId,
   BrandResource,
   BrandResourceId,
+  FunnelActivity,
+  FunnelActivityId,
+  FunnelStage,
+  FunnelStageId,
+  FunnelStageWithDetail,
   PhotoCategory,
   PhotoCategoryId,
+  Platform,
+  PlatformId,
   BrandSummary,
   Canvas,
   CanvasBlock,
@@ -133,6 +141,10 @@ export interface FakeDbState {
   assets: Map<string, BrandAsset>
   resources: Map<string, BrandResource>
   photoCategories: Map<string, PhotoCategory>
+  funnelStages: Map<string, FunnelStage>
+  platforms: Map<string, Platform>
+  stagePlatforms: Set<string>
+  funnelActivities: Map<string, FunnelActivity>
   decks: Map<string, Deck>
   deckVersions: Map<string, DeckVersion>
   researchJobs: Map<string, ResearchJob>
@@ -166,6 +178,10 @@ export function createFakeDbState(): FakeDbState {
     assets: new Map(),
     resources: new Map(),
     photoCategories: new Map(),
+    funnelStages: new Map(),
+    platforms: new Map(),
+    stagePlatforms: new Set(),
+    funnelActivities: new Map(),
     decks: new Map(),
     deckVersions: new Map(),
     researchJobs: new Map(),
@@ -437,6 +453,20 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         updatedAt: NOW,
       }
       state.brands.set(id, row)
+      // **The six default stages, written with the brand.** The real
+      // `createBrand` does this in one transaction; a fake that skipped it would
+      // let every funnel route test start from a state no real brand is ever in.
+      DEFAULT_FUNNEL_STAGES.forEach((name, index) => {
+        const stageId = nextId('fs') as FunnelStageId
+        state.funnelStages.set(stageId, {
+          id: stageId,
+          brandId: id,
+          name,
+          position: (index + 1) * FUNNEL_STAGE_POSITION_STEP,
+          createdAt: NOW,
+          updatedAt: NOW,
+        })
+      })
       return row
     },
     async updateBrand(id, input) {
@@ -653,6 +683,141 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       state.assets.set(id, asset)
       return asset
     },
+    // ---- Marketing funnel -------------------------------------------------
+    async listFunnelByBrand(brandId) {
+      const stages = [...state.funnelStages.values()]
+        .filter((stage) => stage.brandId === brandId)
+        .sort((a, b) => a.position - b.position)
+      return stages.map((stage) => ({
+        ...stage,
+        platforms: [...state.platforms.values()]
+          .filter((p) => p.brandId === brandId && state.stagePlatforms.has(`${stage.id}:${p.id}`))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+        activities: [...state.funnelActivities.values()]
+          .filter((a) => a.stageId === stage.id)
+          .sort((a, b) => a.title.localeCompare(b.title)),
+      })) satisfies FunnelStageWithDetail[]
+    },
+    async listPlatformsByBrand(brandId) {
+      return [...state.platforms.values()]
+        .filter((p) => p.brandId === brandId)
+        .sort((a, b) => a.name.localeCompare(b.name))
+    },
+    async createFunnelStage(brandId, input) {
+      const id = nextId('fs') as FunnelStageId
+      // From the maximum, not a count — a count collides after any delete.
+      const highest = [...state.funnelStages.values()]
+        .filter((s) => s.brandId === brandId)
+        .reduce((max, s) => Math.max(max, s.position), 0)
+      const stage: FunnelStage = {
+        id,
+        brandId,
+        name: input.name,
+        position: highest + FUNNEL_STAGE_POSITION_STEP,
+        createdAt: NOW,
+        updatedAt: NOW,
+      }
+      state.funnelStages.set(id, stage)
+      return stage
+    },
+    async updateFunnelStage(brandId, stageId, input) {
+      const existing = state.funnelStages.get(stageId)
+      if (!existing || existing.brandId !== brandId) return null
+      const next: FunnelStage = {
+        ...existing,
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.position !== undefined ? { position: input.position } : {}),
+        updatedAt: NOW,
+      }
+      state.funnelStages.set(stageId, next)
+      return next
+    },
+    async deleteFunnelStage(brandId, stageId) {
+      const existing = state.funnelStages.get(stageId)
+      if (!existing || existing.brandId !== brandId) return null
+      state.funnelStages.delete(stageId)
+      // Its activities and its links cascade; the platforms do not.
+      for (const [aid, activity] of state.funnelActivities) {
+        if (activity.stageId === stageId) state.funnelActivities.delete(aid)
+      }
+      for (const link of [...state.stagePlatforms]) {
+        if (link.startsWith(`${stageId}:`)) state.stagePlatforms.delete(link)
+      }
+      return existing
+    },
+    async createPlatform(brandId, input) {
+      const id = nextId('pf') as PlatformId
+      const platform: Platform = {
+        id,
+        brandId,
+        name: input.name,
+        url: input.url ?? null,
+        createdAt: NOW,
+        updatedAt: NOW,
+      }
+      state.platforms.set(id, platform)
+      return platform
+    },
+    async deletePlatform(brandId, platformId) {
+      const existing = state.platforms.get(platformId)
+      if (!existing || existing.brandId !== brandId) return null
+      // `ON DELETE RESTRICT` in SQL: an activity still naming this platform
+      // refuses the delete rather than orphaning the record.
+      const inUse = [...state.funnelActivities.values()].some((a) => a.platformId === platformId)
+      if (inUse) throw new Error('platform in use')
+      state.platforms.delete(platformId)
+      for (const link of [...state.stagePlatforms]) {
+        if (link.endsWith(`:${platformId}`)) state.stagePlatforms.delete(link)
+      }
+      return existing
+    },
+    async attachPlatformToStage(stageId, platformId) {
+      // The pair is the key, so a second attach is a no-op — not a duplicate.
+      state.stagePlatforms.add(`${stageId}:${platformId}`)
+    },
+    async detachPlatformFromStage(stageId, platformId) {
+      state.stagePlatforms.delete(`${stageId}:${platformId}`)
+    },
+    async createFunnelActivity(stageId, input) {
+      const id = nextId('fa') as FunnelActivityId
+      const activity: FunnelActivity = {
+        id,
+        stageId,
+        platformId: input.platformId ?? null,
+        title: input.title,
+        status: input.status,
+        startsOn: input.startsOn ?? null,
+        endsOn: input.endsOn ?? null,
+        note: input.note ?? null,
+        createdAt: NOW,
+        updatedAt: NOW,
+      }
+      state.funnelActivities.set(id, activity)
+      return activity
+    },
+    async updateFunnelActivity(stageId, activityId, input) {
+      const existing = state.funnelActivities.get(activityId)
+      if (!existing || existing.stageId !== stageId) return null
+      const next: FunnelActivity = {
+        ...existing,
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.platformId !== undefined ? { platformId: input.platformId ?? null } : {}),
+        ...(input.startsOn !== undefined ? { startsOn: input.startsOn ?? null } : {}),
+        ...(input.endsOn !== undefined ? { endsOn: input.endsOn ?? null } : {}),
+        ...(input.note !== undefined ? { note: input.note ?? null } : {}),
+        updatedAt: NOW,
+      }
+      state.funnelActivities.set(activityId, next)
+      return next
+    },
+    async deleteFunnelActivity(stageId, activityId) {
+      const existing = state.funnelActivities.get(activityId)
+      if (!existing || existing.stageId !== stageId) return null
+      state.funnelActivities.delete(activityId)
+      return existing
+    },
+
     async listPhotoCategoriesByBrand(brandId) {
       return [...state.photoCategories.values()]
         .filter((c) => c.brandId === brandId)
