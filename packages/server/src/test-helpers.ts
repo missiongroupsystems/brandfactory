@@ -10,6 +10,8 @@ import type {
   BrandAssetId,
   BrandGuidelineSection,
   BrandId,
+  BrandResource,
+  BrandResourceId,
   BrandSummary,
   Canvas,
   CanvasBlock,
@@ -122,6 +124,7 @@ export interface FakeDbState {
   brands: Map<string, Brand>
   sections: Map<string, BrandGuidelineSection>
   assets: Map<string, BrandAsset>
+  resources: Map<string, BrandResource>
   researchJobs: Map<string, ResearchJob>
   sectionAutofillEvents: SectionAutofillEvent[]
   /**
@@ -151,6 +154,7 @@ export function createFakeDbState(): FakeDbState {
     brands: new Map(),
     sections: new Map(),
     assets: new Map(),
+    resources: new Map(),
     researchJobs: new Map(),
     sectionAutofillEvents: [],
     socialPosts: new Map(),
@@ -447,6 +451,9 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       for (const [aid, asset] of state.assets) {
         if (asset.brandId === id) state.assets.delete(aid)
       }
+      for (const [rid, resource] of state.resources) {
+        if (resource.brandId === id) state.resources.delete(rid)
+      }
       for (const [pid, post] of state.socialPosts) {
         if (post.brandId === id) state.socialPosts.delete(pid)
       }
@@ -678,6 +685,56 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         state.assets.set(existing.id, { ...existing, position, updatedAt: NOW })
       }
       return db.listAssetsByBrand(brandId)
+    },
+
+    // Brand resources. No soft delete and no position — mirror the real
+    // query's ordering (type, then title, then id) rather than insertion
+    // order, and scope every write by brand as well as id, like the assets
+    // fakes above.
+    async listResourcesByBrand(brandId) {
+      return [...state.resources.values()]
+        .filter((r) => r.brandId === brandId)
+        .sort(
+          (a, b) =>
+            a.type.localeCompare(b.type) ||
+            a.title.localeCompare(b.title) ||
+            a.id.localeCompare(b.id),
+        )
+    },
+    async createResource(brandId, input) {
+      const id = nextId('res') as BrandResourceId
+      const row: BrandResource = {
+        id,
+        brandId,
+        type: input.type,
+        title: input.title,
+        url: input.url,
+        note: input.note,
+      }
+      state.resources.set(id, row)
+      return row
+    },
+    async updateResource(brandId, id, patch) {
+      const existing = state.resources.get(id)
+      // Scoped by brand as well as id — a resource id from another brand
+      // misses rather than being patched across the boundary.
+      if (!existing || existing.brandId !== brandId) return null
+      // `undefined` leaves a column alone; `null` clears `note`.
+      const updated: BrandResource = {
+        ...existing,
+        ...(patch.type !== undefined ? { type: patch.type } : {}),
+        ...(patch.title !== undefined ? { title: patch.title } : {}),
+        ...(patch.url !== undefined ? { url: patch.url } : {}),
+        ...(patch.note !== undefined ? { note: patch.note } : {}),
+      }
+      state.resources.set(id, updated)
+      return updated
+    },
+    async deleteResource(brandId, id) {
+      const existing = state.resources.get(id)
+      if (!existing || existing.brandId !== brandId) return null
+      state.resources.delete(id)
+      return existing
     },
 
     // Social posts. `assetIds` stored inline — the fake has no join table, but

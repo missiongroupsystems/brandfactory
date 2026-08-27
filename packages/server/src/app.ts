@@ -17,6 +17,7 @@ import { requestIdMiddleware } from './middleware/request-id'
 import type { AgentConcurrencyGuard } from './agent/concurrency'
 import { createAgentRouter } from './routes/agent'
 import { createBrandAssetsRouter } from './routes/assets'
+import { createBrandResourcesRouter } from './routes/resources'
 import { createSocialPostsRouter } from './routes/social-posts'
 import { createSocialIdeateRouter } from './routes/social-ideate'
 import {
@@ -182,6 +183,9 @@ export function createApp(deps: AppDeps) {
     .route('/brands', createBrandProjectsRouter({ db: deps.db, storage: deps.storage }))
     // No `storage`: asset delete is a soft delete and must not sweep bytes.
     .route('/brands', createBrandAssetsRouter({ db: deps.db }))
+    // Named external links — no `storage` either, and for a stronger reason
+    // than assets: a resource never carries a blob key at all.
+    .route('/brands', createBrandResourcesRouter({ db: deps.db }))
     // Same shape and same scoping; posts never see a platform API or a file.
     .route('/brands', createSocialPostsRouter({ db: deps.db }))
     // The planner that fills that calendar. Stateless — it writes no row, so

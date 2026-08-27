@@ -58,6 +58,12 @@ export interface Db {
   restoreAsset: typeof db.restoreAsset
   reorderAssets: typeof db.reorderAssets
 
+  // Brand resources
+  listResourcesByBrand: typeof db.listResourcesByBrand
+  createResource: typeof db.createResource
+  updateResource: typeof db.updateResource
+  deleteResource: typeof db.deleteResource
+
   // Social posts
   listSocialPostsByBrand: typeof db.listSocialPostsByBrand
   createSocialPost: typeof db.createSocialPost
@@ -167,6 +173,10 @@ export function buildDbDeps(): Db {
     softDeleteAsset: db.softDeleteAsset,
     restoreAsset: db.restoreAsset,
     reorderAssets: db.reorderAssets,
+    listResourcesByBrand: db.listResourcesByBrand,
+    createResource: db.createResource,
+    updateResource: db.updateResource,
+    deleteResource: db.deleteResource,
     listSocialPostsByBrand: db.listSocialPostsByBrand,
     createSocialPost: db.createSocialPost,
     updateSocialPost: db.updateSocialPost,
