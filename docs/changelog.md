@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.53.0** — 2026-08-27 — Resources ships: a brand's fonts, images, icons and tools are a real table now, grouped by type, with a form to add and edit one and a delete that waits for the server rather than assuming it. Migration 0017. 2928 tests.
 - **1.52.1** — 2026-08-21 — Post-release review of 1.52.0: the accounts panel dropped the record form's `type="number"`, so `3.2%` in a rate box saved successfully and replaced a measurement with "nobody measured this" — and a disabled trigger dropped a keyboard reader on `document.body` after every status edit, which jsdom cannot see. No migration. 2881 tests.
 - **1.52.0** — 2026-08-21 — The pencil leaves eight columns and the cell becomes the control: a hover tint over the whole target, menus where two native selects were, an accounts panel where two pencils opened a whole-record sheet — and a platform badge that finally links, because a URL is now derived from a handle for the five platforms that can be. No migration. 2868 tests.
 - **1.51.0** — 2026-08-20 — A platform badge stops being a label and becomes the way to the profile: the six marks in the Platforms column open the creator's page in a new tab when the record holds a URL, and derive nothing when it does not. Plus the quick-add handle example. No migration. 2840 tests.
@@ -104,6 +105,49 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.53.0 — 2026-08-27
+
+**Resources ships.** A brand's fonts, images, icons and tools stop being a claim the nav made
+with nothing behind it and become a real table: `brand_resources`, four routes, a screen grouped
+by type in the enum's own order, and a form that writes to all four verbs. Five phases —
+Phase 0's nav grouping, then 1A through 1D — landed on the branch together and release as one,
+per the plan's own framing: *"Every phase is independently shippable… nothing below assumes the
+next phase exists,"* and Plan 1 is the first of four to reach its own end.
+
+**Migration 0017** (`0017_productive_slyde.sql`, Phase 1A) — one table, one enum, one index. **No
+migration in Phase 1B, 1C or 1D.** 2928 tests.
+
+Full write-ups: `docs/completions/resources-phase-d-the-form.md` (this phase) and the three that
+came before it.
+
+### The table, and the two columns it deliberately does not have
+
+A resource is a named external link — a font shop, a stock library, an icon set — held per brand.
+**Not a `brand_assets` row**: that table's `kind` is `color | image | file` and a website is none
+of the three, and the app stores no bytes here, ever. **No `deleted_at`**: soft delete is for a
+discarded *idea* (`brand_assets`, `canvas_blocks`), and a link to a font shop is not one — the
+three most recently built aggregates (influencers, vendors, outlets) carry none either. **No
+`position`**: the requirement asks for grouping by type, never for ordering inside one, and title
+order already does that.
+
+### The form, and the delete this codebase has an opinion about
+
+`resource-form.tsx` is one component for create and edit, on `outlet-form.tsx`'s shape. The
+delete is where this phase departed from its own plan: the plan's step 1 named an optimistic
+delete-with-rollback as the third test, and every mutation hook in `web-next` — nine of them, plus
+`AGENTS.md`'s own "Mutations" section — states the opposite rule, more than once. Building the
+literal instruction would have made a resource delete the first and only optimistic mutation in
+the package, at the exact moment three more phases (Decks, Photography, Funnel) are about to copy
+this phase's shape. The delete instead waits for the server, on `VendorResults`' `ConfirmDialog`
+exactly: the dialog stays open and shows the server's own refusal until the request settles, and
+nothing disappears ahead of that answer.
+
+The middle test is 1.33.1's regression guard, applied to the one BrandFactory form this codebase
+did not yet have when that release shipped: a mocked `AppError` refusal from `create` has to
+render as the server's own sentence, never as *"Could not reach the API"* — the defect
+`hooks/use-submit.ts` fixed once, and the reason `ResourceForm` goes through that hook rather than
+inventing its own error handling.
 
 ## 1.52.1 — 2026-08-21
 

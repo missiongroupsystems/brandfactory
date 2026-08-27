@@ -1,8 +1,10 @@
 import type { BrandResource } from "@brandfactory/shared";
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useResources } from "../hooks";
+import { AppError } from "@/lib/api/bf-client";
+
+import { useResourceMutations, useResources } from "../hooks";
 import { ResourcesView } from "./resources-view";
 
 /**
@@ -22,9 +24,21 @@ import { ResourcesView } from "./resources-view";
 
 vi.mock("../hooks", () => ({
   useResources: vi.fn(),
+  useResourceMutations: vi.fn(),
 }));
 
 const mockedUseResources = vi.mocked(useResources);
+const mockedUseResourceMutations = vi.mocked(useResourceMutations);
+
+// A default before every test, so the tests that never touch delete do not have to know this
+// hook exists. The delete tests override `remove` explicitly.
+beforeEach(() => {
+  mockedUseResourceMutations.mockReturnValue({
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+  });
+});
 
 // The ids are zod-branded (`$brand<"BrandResourceId">`), which a plain string never satisfies —
 // so the overrides take plain strings and the whole object casts through `unknown`, the same
@@ -118,5 +132,38 @@ describe("ResourcesView", () => {
     expect(link.getAttribute("href")).toBe("https://fonts.test/founders");
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toBe("noreferrer");
+  });
+
+  it("a failed delete leaves the row in place and surfaces the server's refusal", async () => {
+    // On `useOutletMutations` / `useVendorMutations`'s rule (`AGENTS.md`, "Mutations"): nothing
+    // here is optimistic. So the claim to test is not "removed, then restored" — the row must
+    // never disappear in the first place while the request is still in flight or has failed.
+    // The 1.33.1 shape applies again here: the dialog must show the server's own sentence, not a
+    // generic failure, which is what `VendorResults`' `ConfirmDialog` already does for vendors.
+    mockedUseResources.mockReturnValue({
+      resources: [resource({ id: "r1", type: "font", title: "Founders Grotesk" })],
+      isLoading: false,
+      error: undefined,
+    });
+    const remove = vi
+      .fn()
+      .mockRejectedValue(new AppError("resource not found", "RESOURCE_NOT_FOUND", 404));
+    mockedUseResourceMutations.mockReturnValue({ create: vi.fn(), update: vi.fn(), remove });
+
+    const { container } = render(<ResourcesView brandId="b1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Founders Grotesk" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    });
+
+    expect(remove).toHaveBeenCalledWith("r1");
+    // Still there — never removed ahead of the server's answer. `container.textContent` rather
+    // than `getByRole`: the open `AlertDialog` marks the rest of the page `aria-hidden` (Base
+    // UI's inert trap for focus), so a role-based query for the row would fail whether or not
+    // the row is actually still in the DOM — that would test the dialog's focus trap, not this.
+    expect(container.textContent).toContain("Founders Grotesk");
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("resource not found");
   });
 });

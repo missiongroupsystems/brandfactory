@@ -1,9 +1,10 @@
 "use client";
 
-import type { BrandResource } from "@brandfactory/shared";
+import type { BrandResource, CreateBrandResourceInput, UpdateBrandResourceInput } from "@brandfactory/shared";
+import * as React from "react";
 import useSWR from "swr";
 
-import { SCOPES } from "@/lib/api/cache";
+import { SCOPES, useInvalidate } from "@/lib/api/cache";
 
 import { resourceService } from "./api";
 
@@ -30,4 +31,60 @@ export function useResources(brandId: string | undefined) {
     isLoading,
     error,
   };
+}
+
+/**
+ * Create, update and delete, on the same shape as `useOutletMutations` / `useVendorMutations`:
+ * plain async functions that call the service and then invalidate by scope.
+ *
+ * **`brandId` is a parameter, not read from context.** `useResources` above takes it from the
+ * route for the same reason (see its docstring) — there is no fallback to resolve here.
+ *
+ * **Nothing is optimistic**, matching every other mutation hook in this package
+ * (`outlets/hooks.ts`, `vendors/hooks.ts`, and `AGENTS.md`'s "Mutations" section). A resource
+ * delete has no domain rule to be refused by — it is a hard delete, or a 404 if the row is
+ * already gone — so there is little to gain from optimism here, and adopting it would make this
+ * the one mutation in the product that does not wait for the server's answer. The row stays
+ * until the request settles; a refusal renders in place through `useSubmit`, exactly like a
+ * failed vendor delete.
+ *
+ * There is no `bfResource` singular scope, unlike outlets and vendors: the server exposes no
+ * `GET /brands/:id/resources/:resourceId`, so there is no per-record cache entry to keep in step.
+ */
+const RESOURCE_SCOPES = [SCOPES.bfResources];
+
+export function useResourceMutations(brandId: string | undefined) {
+  const invalidate = useInvalidate();
+
+  const create = React.useCallback(
+    async (input: CreateBrandResourceInput) => {
+      if (!brandId) throw new Error("No brand resolved");
+      const created = await resourceService.create(brandId, input);
+      await invalidate(...RESOURCE_SCOPES);
+      return created;
+    },
+    [invalidate, brandId],
+  );
+
+  const update = React.useCallback(
+    async (resourceId: string, input: UpdateBrandResourceInput) => {
+      if (!brandId) throw new Error("No brand resolved");
+      const updated = await resourceService.update(brandId, resourceId, input);
+      await invalidate(...RESOURCE_SCOPES);
+      return updated;
+    },
+    [invalidate, brandId],
+  );
+
+  const remove = React.useCallback(
+    async (resourceId: string) => {
+      if (!brandId) throw new Error("No brand resolved");
+      const removed = await resourceService.remove(brandId, resourceId);
+      await invalidate(...RESOURCE_SCOPES);
+      return removed;
+    },
+    [invalidate, brandId],
+  );
+
+  return { create, update, remove };
 }
