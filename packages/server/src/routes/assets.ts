@@ -198,6 +198,19 @@ export function createBrandAssetsRouter(deps: AssetsDeps) {
           // named so the next reader knows the one-key patch is a product
           // feature and not a stray column that leaked into the wire.
           //
+          // **A category id is not a capability either.** `updateAsset` writes
+          // `category_id` straight through and the column's FK only says *some*
+          // category — not one of this brand's. Without this a caller could file
+          // a photo under another brand's subject, and the grid resolves subjects
+          // against this brand's own list, so the photo would vanish from every
+          // bucket instead of moving between them. Same check the funnel makes on
+          // its `platform_id` and `social_post_id`, for the same reason.
+          if (body.categoryId) {
+            const categories = await deps.db.listPhotoCategoriesByBrand(id)
+            if (!categories.some((category) => category.id === body.categoryId)) {
+              throw new NotFoundError('category not found', 'PHOTO_CATEGORY_NOT_FOUND')
+            }
+          }
           // `updateAsset` is scoped by brand as well as id, so an asset id from
           // another brand misses here rather than being patched across the
           // boundary `requireBrandAccess` just checked.

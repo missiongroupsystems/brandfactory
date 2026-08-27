@@ -375,3 +375,97 @@ describe('the typed link to a social post', () => {
     expect(activities[0]!.socialPostId).toBe(post.id)
   })
 })
+
+describe('a stage id is not a capability, and neither is a platform id', () => {
+  it("refuses to attach another brand's platform to this brand's stage", async () => {
+    // **Gating the stage is not enough.** `attachPlatformToStage` takes two ids
+    // and neither carries a brand, so without a second check a caller holding one
+    // of another brand's platform ids could hang it off a stage here.
+    const a = await seedBrand()
+    const b = await seedBrand()
+    const foreign = (await (
+      await b.app.request(`/brands/${b.brandId}/funnel/platforms`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ name: "Someone else's channel" }),
+      })
+    ).json()) as Platform
+    const [stage] = await funnelOf(a, a.brandId)
+
+    const res = await a.app.request(
+      `/brands/${a.brandId}/funnel/stages/${stage!.id}/platforms/${foreign.id}`,
+      { method: 'POST', headers: auth() },
+    )
+    expect(res.status).toBe(404)
+  })
+
+  it("refuses an activity naming another brand's platform", async () => {
+    const a = await seedBrand()
+    const b = await seedBrand()
+    const foreign = (await (
+      await b.app.request(`/brands/${b.brandId}/funnel/platforms`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ name: 'Theirs' }),
+      })
+    ).json()) as Platform
+    const [stage] = await funnelOf(a, a.brandId)
+
+    const res = await a.app.request(`/brands/${a.brandId}/funnel/stages/${stage!.id}/activities`, {
+      method: 'POST',
+      headers: auth(),
+      body: JSON.stringify({ title: 'x', status: 'planned', platformId: foreign.id }),
+    })
+    expect(res.status).toBe(404)
+  })
+
+  it("refuses an activity linked to another brand's social post", async () => {
+    // The read path resolves against *this* brand's list, so a foreign id would
+    // simply vanish from the response — a write that looked like it succeeded and
+    // silently did nothing, which is worse than a refusal.
+    const a = await seedBrand()
+    const b = await seedBrand()
+    const foreign = (await (
+      await b.app.request(`/brands/${b.brandId}/social-posts`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ platform: 'instagram', body: 'Their post' }),
+      })
+    ).json()) as { id: string }
+    const [stage] = await funnelOf(a, a.brandId)
+
+    const res = await a.app.request(`/brands/${a.brandId}/funnel/stages/${stage!.id}/activities`, {
+      method: 'POST',
+      headers: auth(),
+      body: JSON.stringify({ title: 'x', status: 'planned', socialPostId: foreign.id }),
+    })
+    expect(res.status).toBe(404)
+  })
+
+  it("refuses a patch that swaps in another brand's post", async () => {
+    // The create path and the patch path are two doors to the same write.
+    const a = await seedBrand()
+    const b = await seedBrand()
+    const foreign = (await (
+      await b.app.request(`/brands/${b.brandId}/social-posts`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ platform: 'instagram', body: 'Their post' }),
+      })
+    ).json()) as { id: string }
+    const [stage] = await funnelOf(a, a.brandId)
+    const activity = (await (
+      await a.app.request(`/brands/${a.brandId}/funnel/stages/${stage!.id}/activities`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ title: 'x', status: 'planned' }),
+      })
+    ).json()) as FunnelActivity
+
+    const res = await a.app.request(
+      `/brands/${a.brandId}/funnel/stages/${stage!.id}/activities/${activity.id}`,
+      { method: 'PATCH', headers: auth(), body: JSON.stringify({ socialPostId: foreign.id }) },
+    )
+    expect(res.status).toBe(404)
+  })
+})

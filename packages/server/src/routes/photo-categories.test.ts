@@ -174,3 +174,42 @@ describe('photo categories', () => {
     expect(res.status).toBe(404)
   })
 })
+
+describe('a category id is not a capability', () => {
+  it("refuses to file a photo under another brand's subject", async () => {
+    // The grid resolves subjects against this brand's own list, so a foreign id
+    // would make the photo vanish from every bucket rather than move between
+    // them — a write that looked like it worked and silently hid a photograph.
+    const a = await seedBrand()
+    const b = await seedBrand()
+    const foreign = await addCategory(b, b.brandId, 'Their subject')
+    const photo = await addPhoto(a, a.brandId)
+
+    const res = await a.app.request(`/brands/${a.brandId}/assets/${photo.id}`, {
+      method: 'PATCH',
+      headers: auth(),
+      body: JSON.stringify({ categoryId: foreign.id }),
+    })
+    expect(res.status).toBe(404)
+  })
+
+  it('still allows clearing to Uncategorised', async () => {
+    // `null` must not be caught by the same gate: it is a bucket somebody chose,
+    // not an id to resolve.
+    const harness = await seedBrand()
+    const { app, brandId } = harness
+    const category = await addCategory(harness, brandId, 'Food')
+    const photo = await addPhoto(harness, brandId)
+    await app.request(`/brands/${brandId}/assets/${photo.id}`, {
+      method: 'PATCH',
+      headers: auth(),
+      body: JSON.stringify({ categoryId: category.id }),
+    })
+    const res = await app.request(`/brands/${brandId}/assets/${photo.id}`, {
+      method: 'PATCH',
+      headers: auth(),
+      body: JSON.stringify({ categoryId: null }),
+    })
+    expect(res.status).toBe(200)
+  })
+})

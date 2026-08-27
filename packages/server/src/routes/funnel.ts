@@ -58,6 +58,49 @@ export function createBrandFunnelRouter(deps: FunnelDeps) {
     return stage
   }
 
+  /**
+   * Throws unless the platform belongs to this brand.
+   *
+   * **Gating the stage is not enough**, and an earlier draft only did that.
+   * `attachPlatformToStage` takes two ids and neither carries a brand, so a
+   * caller holding one of *another* brand's platform ids could hang it off a
+   * stage in this one. Same for an activity's `platform_id`: the read path
+   * resolves platforms against this brand's own list, so a foreign id would
+   * simply vanish from the response — a write that looks like it succeeded and
+   * silently did nothing, which is worse than a refusal.
+   */
+  async function requirePlatform(brandId: z.infer<typeof BrandIdSchema>, platformId: string) {
+    const platforms = await deps.db.listPlatformsByBrand(brandId)
+    if (!platforms.some((p) => p.id === platformId)) {
+      throw new NotFoundError('platform not found', 'PLATFORM_NOT_FOUND')
+    }
+  }
+
+  /**
+   * Throws unless the social post belongs to this brand.
+   *
+   * The funnel's typed link is the one place a *different aggregate's* id
+   * arrives in a body here, and `social_posts` is brand-scoped. Without this a
+   * caller could point an activity at another brand's push — nothing on screen
+   * would render it, because the list it resolves against is this brand's, but
+   * the row would hold a cross-brand reference for any future read to trip over.
+   */
+  async function requireSocialPost(brandId: z.infer<typeof BrandIdSchema>, postId: string) {
+    const posts = await deps.db.listSocialPostsByBrand(brandId)
+    if (!posts.some((p) => p.id === postId)) {
+      throw new NotFoundError('post not found', 'SOCIAL_POST_NOT_FOUND')
+    }
+  }
+
+  /** The two foreign ids an activity body may carry, checked together. */
+  async function requireActivityRefs(
+    brandId: z.infer<typeof BrandIdSchema>,
+    body: { platformId?: string | null; socialPostId?: string | null },
+  ) {
+    if (body.platformId) await requirePlatform(brandId, body.platformId)
+    if (body.socialPostId) await requireSocialPost(brandId, body.socialPostId)
+  }
+
   return new Hono<AppEnv>()
     .get('/:id/funnel', zValidator('param', BrandParam), async (c) => {
       const userId = c.var.userId
@@ -162,6 +205,7 @@ export function createBrandFunnelRouter(deps: FunnelDeps) {
         const { id, stageId, platformId } = c.req.valid('param')
         await requireBrandAccess(userId, id, deps.db)
         await requireStage(id, stageId)
+        await requirePlatform(id, platformId)
         // Idempotent: the pair is the primary key, so a second attach is a no-op
         // rather than a duplicate row or a 409.
         await deps.db.attachPlatformToStage(stageId, platformId)
@@ -193,7 +237,9 @@ export function createBrandFunnelRouter(deps: FunnelDeps) {
         const { id, stageId } = c.req.valid('param')
         await requireBrandAccess(userId, id, deps.db)
         await requireStage(id, stageId)
-        return c.json(await deps.db.createFunnelActivity(stageId, c.req.valid('json')), 201)
+        const body = c.req.valid('json')
+        await requireActivityRefs(id, body)
+        return c.json(await deps.db.createFunnelActivity(stageId, body), 201)
       },
     )
     .patch(
@@ -206,7 +252,9 @@ export function createBrandFunnelRouter(deps: FunnelDeps) {
         const { id, stageId, activityId } = c.req.valid('param')
         await requireBrandAccess(userId, id, deps.db)
         await requireStage(id, stageId)
-        const row = await deps.db.updateFunnelActivity(stageId, activityId, c.req.valid('json'))
+        const body = c.req.valid('json')
+        await requireActivityRefs(id, body)
+        const row = await deps.db.updateFunnelActivity(stageId, activityId, body)
         if (!row) throw new NotFoundError('activity not found', 'FUNNEL_ACTIVITY_NOT_FOUND')
         return c.json(row)
       },
