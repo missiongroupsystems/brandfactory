@@ -26,6 +26,8 @@ function asset(id: string, label: string): BrandAsset {
     label,
     blobKey: `k-${id}`,
     position: 100,
+    isPinned: false,
+    pinnedAt: null,
     deletedAt: null,
     ...STAMPS,
   }

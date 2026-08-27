@@ -625,6 +625,10 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         width: input.width ?? null,
         height: input.height ?? null,
         sizeBytes: input.sizeBytes ?? null,
+        // A new asset is never pinned. The pin is a mark somebody makes later,
+        // and the DB column defaults the same way.
+        isPinned: false,
+        pinnedAt: null,
         deletedAt: null,
         createdAt: NOW,
         updatedAt: NOW,
@@ -643,6 +647,21 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       }
       state.assets.set(id, asset)
       return asset
+    },
+    async setAssetPinned(brandId, id, isPinned) {
+      const asset = state.assets.get(id)
+      // Scoped by brand and to live rows, mirroring the real query: pinning a
+      // soft-deleted asset would put it at the top of a view it is not in.
+      if (!asset || asset.brandId !== brandId || asset.deletedAt !== null) return null
+      const next: BrandAsset = {
+        ...asset,
+        isPinned,
+        // Both together, neither derived from the other.
+        pinnedAt: isPinned ? NOW : null,
+        updatedAt: NOW,
+      }
+      state.assets.set(id, next)
+      return next
     },
     async updateAsset(brandId, id, patch) {
       const existing = state.assets.get(id)

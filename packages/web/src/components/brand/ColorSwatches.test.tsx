@@ -9,6 +9,12 @@ import type { BrandAsset } from '@brandfactory/shared'
 const ASSET_STAMPS = {
   createdAt: '2026-07-01T00:00:00.000Z',
   updatedAt: '2026-07-01T00:00:00.000Z',
+  // The pin, which nothing in this app reads yet: `packages/web` has no
+  // photography grid and is not getting one. Stated here so the fixtures are
+  // shaped like rows, and stated *once* so the next column added to
+  // `BrandAsset` is one edit rather than a hunt through every literal.
+  isPinned: false,
+  pinnedAt: null,
 } as const
 
 function color(

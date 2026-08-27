@@ -286,6 +286,8 @@ describe('rowToBrandAsset', () => {
     height: null,
     sizeBytes: null,
     position: 100,
+    isPinned: false,
+    pinnedAt: null,
     deletedAt: null,
     createdAt: TS,
     updatedAt: TS,

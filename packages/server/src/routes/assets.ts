@@ -158,6 +158,30 @@ export function createBrandAssetsRouter(deps: AssetsDeps) {
         if (!row) throw new NotFoundError('asset not found', 'ASSET_NOT_FOUND')
         return c.json(row)
       })
+      .post('/:id/assets/:assetId/pin', zValidator('param', AssetParam), async (c) => {
+        const userId = c.var.userId
+        if (!userId) throw new UnauthorizedError()
+        const { id, assetId } = c.req.valid('param')
+        await requireBrandAccess(userId, id, deps.db)
+        // **Its own route rather than a key on `PATCH`**, and for the reason
+        // `restore` above is one: this is a verb, not a field edit. A
+        // `{ isPinned }` patch would also have to explain what happens to
+        // `pinned_at`, which nothing outside the query layer should know.
+        const row = await deps.db.setAssetPinned(id, assetId, true)
+        if (!row) throw new NotFoundError('asset not found', 'ASSET_NOT_FOUND')
+        return c.json(row)
+      })
+      .delete('/:id/assets/:assetId/pin', zValidator('param', AssetParam), async (c) => {
+        const userId = c.var.userId
+        if (!userId) throw new UnauthorizedError()
+        const { id, assetId } = c.req.valid('param')
+        await requireBrandAccess(userId, id, deps.db)
+        // Unpinning leaves `position` alone, so the photo returns to exactly
+        // where it was dragged rather than to the end of the shelf.
+        const row = await deps.db.setAssetPinned(id, assetId, false)
+        if (!row) throw new NotFoundError('asset not found', 'ASSET_NOT_FOUND')
+        return c.json(row)
+      })
       .patch(
         '/:id/assets/:assetId',
         zValidator('param', AssetParam),

@@ -744,3 +744,89 @@ describe('PATCH /brands/:id/assets — reorder', () => {
     expect(res.status).toBe(404)
   })
 })
+
+describe('pin and unpin', () => {
+  async function seedPhoto() {
+    const harness = await seedBrand()
+    const asset = (await (
+      await harness.app.request(`/brands/${harness.brandId}/assets`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({
+          kind: 'image',
+          source: 'link',
+          url: 'https://cdn.example.com/a.jpg',
+          label: 'A photo',
+          library: 'photography',
+        }),
+      })
+    ).json()) as BrandAsset
+    return { ...harness, asset }
+  }
+
+  it('starts unpinned, with no timestamp', async () => {
+    const { asset } = await seedPhoto()
+    expect(asset.isPinned).toBe(false)
+    expect(asset.pinnedAt).toBeNull()
+  })
+
+  it('pins and unpins, setting both columns together', async () => {
+    // Neither column is derived from the other: a timestamp outliving its pin
+    // would be one column disagreeing with the one beside it.
+    const { app, brandId, asset } = await seedPhoto()
+    const pinned = (await (
+      await app.request(`/brands/${brandId}/assets/${asset.id}/pin`, {
+        method: 'POST',
+        headers: auth(),
+      })
+    ).json()) as BrandAsset
+    expect(pinned.isPinned).toBe(true)
+    expect(pinned.pinnedAt).not.toBeNull()
+
+    const unpinned = (await (
+      await app.request(`/brands/${brandId}/assets/${asset.id}/pin`, {
+        method: 'DELETE',
+        headers: auth(),
+      })
+    ).json()) as BrandAsset
+    expect(unpinned.isPinned).toBe(false)
+    expect(unpinned.pinnedAt).toBeNull()
+  })
+
+  it('leaves position alone, so unpinning restores the drag order', async () => {
+    // The request's own line: the pin is a separate mark, not the manual order
+    // the library already supports.
+    const { app, brandId, asset } = await seedPhoto()
+    const before = asset.position
+    const pinned = (await (
+      await app.request(`/brands/${brandId}/assets/${asset.id}/pin`, {
+        method: 'POST',
+        headers: auth(),
+      })
+    ).json()) as BrandAsset
+    expect(pinned.position).toBe(before)
+  })
+
+  it('404s on an asset this brand does not hold', async () => {
+    const { app, brandId } = await seedPhoto()
+    const res = await app.request(
+      `/brands/${brandId}/assets/00000000-0000-0000-0000-000000000000/pin`,
+      { method: 'POST', headers: auth() },
+    )
+    expect(res.status).toBe(404)
+  })
+
+  it('refuses to pin a soft-deleted asset', async () => {
+    // A hidden photo is not in the view a pin puts things at the top of.
+    const { app, brandId, asset } = await seedPhoto()
+    await app.request(`/brands/${brandId}/assets/${asset.id}`, {
+      method: 'DELETE',
+      headers: auth(),
+    })
+    const res = await app.request(`/brands/${brandId}/assets/${asset.id}/pin`, {
+      method: 'POST',
+      headers: auth(),
+    })
+    expect(res.status).toBe(404)
+  })
+})

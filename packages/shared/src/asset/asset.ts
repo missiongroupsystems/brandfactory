@@ -105,6 +105,31 @@ const BrandAssetBaseShape = {
   label: z.string().min(1).max(200),
   /** Sparse integer ordering, as `guideline_sections.priority` already is. */
   position: z.number().int(),
+  /**
+   * The reader's mark: this one goes to the top of its view.
+   *
+   * **A separate axis from `position`, and the request says so directly** — *"the
+   * pin is a separate mark on the photo, not the manual drag order the library
+   * already supports"*. The two answer different questions: `position` is where
+   * somebody dragged it, `isPinned` is whether it is one of the good ones. A
+   * pinned photo keeps whatever position it had, and unpinning puts it back
+   * exactly where it was rather than at the end.
+   *
+   * **Required, not optional**: it is always present on a row, so a shape that
+   * left it off would be a shape no row has.
+   *
+   * `canvas_blocks` carries this exact pair for the same reason — see
+   * `docs/vision.md`'s shortlist — and the photography grid is the second reader
+   * of the idea.
+   */
+  isPinned: z.boolean(),
+  /**
+   * When, so a future view could order the shortlist by *when the team decided*
+   * rather than by where the photo happens to sit. `null` whenever `isPinned` is
+   * false; nothing derives one from the other, because a column that can be
+   * recomputed from another column is a column that can disagree with it.
+   */
+  pinnedAt: z.iso.datetime().nullable(),
   deletedAt: z.iso.datetime().nullable(),
   /**
    * The description, kept separate from `label` because the two diverge the

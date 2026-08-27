@@ -23,6 +23,10 @@ function base(id: string, position: number) {
     library: 'identity' as const,
     label: id,
     position,
+    // The pin, stated once in the base so every arm below carries it. A new
+    // asset is never pinned; the DB column defaults the same way.
+    isPinned: false,
+    pinnedAt: null,
     deletedAt: null,
     createdAt: T0,
     updatedAt: T0,

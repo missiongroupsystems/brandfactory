@@ -208,6 +208,8 @@ export function rowToBrandAsset(row: BrandAssetRow): BrandAsset {
     library: row.library,
     label: row.label,
     position: row.position,
+    isPinned: row.isPinned,
+    pinnedAt: row.pinnedAt ? toIsoTimestamp(row.pinnedAt) : null,
     deletedAt: toIsoTimestampOrNull(row.deletedAt),
     alt: row.alt,
     mime: row.mime,

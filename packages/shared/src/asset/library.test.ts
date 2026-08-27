@@ -25,6 +25,8 @@ function asset(id: string, over: Partial<BrandAsset> = {}) {
     library: 'photography',
     label: id,
     position: 100,
+    isPinned: false,
+    pinnedAt: null,
     deletedAt: null,
     createdAt: T0,
     updatedAt: T0,

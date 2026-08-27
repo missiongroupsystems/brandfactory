@@ -16,6 +16,12 @@ import { BRAND_CONTEXT_TEMPLATE_ID } from '@/components/brand/miniApps'
 const ASSET_STAMPS = {
   createdAt: '2026-07-01T00:00:00.000Z',
   updatedAt: '2026-07-01T00:00:00.000Z',
+  // The pin, which nothing in this app reads yet: `packages/web` has no
+  // photography grid and is not getting one. Stated here so the fixtures are
+  // shaped like rows, and stated *once* so the next column added to
+  // `BrandAsset` is one edit rather than a hunt through every literal.
+  isPinned: false,
+  pinnedAt: null,
 } as const
 
 // Same `Link` stub the rail's and the mini-app route's tests use: this view is

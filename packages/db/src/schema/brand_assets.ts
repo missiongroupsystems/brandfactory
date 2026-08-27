@@ -1,5 +1,15 @@
 import { sql } from 'drizzle-orm'
-import { check, index, integer, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  check,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core'
 import { brands } from './brands'
 
 export const assetKind = pgEnum('asset_kind', ['color', 'image', 'file'])
@@ -50,6 +60,22 @@ export const brandAssets = pgTable(
     sizeBytes: integer('size_bytes'),
     // Sparse ints, as `guideline_sections.priority` already is.
     position: integer('position').notNull(),
+    // **The pin, and it is a second axis rather than a replacement for
+    // `position`.** The request draws the line itself: *the pin is a separate
+    // mark on the photo, not the manual drag order the library already
+    // supports.* So a pinned photo keeps the position somebody dragged it to,
+    // and unpinning restores that order rather than dropping it at the end.
+    //
+    // The pair is `canvas_blocks`' exactly — see `is_pinned` / `pinned_at`
+    // there. **No index here**, unlike that table: `listAssetsByBrand` reads
+    // every non-deleted row of a brand in one query and the client sections it,
+    // so the pin sorts a list already in memory. A partial index on pinned rows
+    // would serve a per-shelf server-side read that does not exist; if one ever
+    // arrives, the index it wants is `(brand_id, library, is_pinned DESC,
+    // position)` — one composite covering the whole sort — and not the partial
+    // shape, which finds pinned rows rather than ordering them.
+    isPinned: boolean('is_pinned').notNull().default(false),
+    pinnedAt: timestamp('pinned_at', { withTimezone: true, mode: 'string' }),
     // Soft-delete — a discarded asset hides, it does not vanish
     // (`docs/vision.md:51`), which is why `DELETE` does not sweep its bytes.
     deletedAt: timestamp('deleted_at', { withTimezone: true, mode: 'string' }),

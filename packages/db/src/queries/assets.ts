@@ -203,6 +203,44 @@ export async function restoreAsset(brandId: BrandId, id: BrandAssetId): Promise<
 }
 
 /**
+ * Pin or unpin one asset.
+ *
+ * **Sets both columns together, and derives neither from the other.**
+ * `pinned_at` is `null` exactly when `is_pinned` is false — a timestamp that
+ * outlived its pin would be a column disagreeing with the one beside it, and a
+ * pin with no timestamp would be a shortlist nobody could ever order by *when
+ * the team decided*.
+ *
+ * **`position` is untouched, on purpose.** The pin is a second axis, not a
+ * reordering: unpinning has to put a photo back exactly where it was, which it
+ * cannot do if pinning moved it. That is the request's own line — *the pin is a
+ * separate mark on the photo, not the manual drag order the library already
+ * supports*.
+ *
+ * Scoped by brand and to live rows, exactly as `updateAsset` is: a soft-deleted
+ * asset is hidden, and pinning one would put it at the top of a view it is not
+ * in.
+ */
+export async function setAssetPinned(
+  brandId: BrandId,
+  id: BrandAssetId,
+  isPinned: boolean,
+): Promise<BrandAsset | null> {
+  const [row] = await db
+    .update(brandAssets)
+    .set({
+      isPinned,
+      pinnedAt: isPinned ? sql`now()` : null,
+      updatedAt: sql`now()`,
+    })
+    .where(
+      and(eq(brandAssets.id, id), eq(brandAssets.brandId, brandId), isNull(brandAssets.deletedAt)),
+    )
+    .returning()
+  return row ? rowToBrandAsset(row) : null
+}
+
+/**
  * Re-position a set of assets atomically, returning the brand's full list.
  * Same shape and same transaction discipline as `reorderSections`: a
  * mid-list failure leaves the brand's ordering intact rather than half-applied.

@@ -56,6 +56,7 @@ export interface Db {
   updateAsset: typeof db.updateAsset
   softDeleteAsset: typeof db.softDeleteAsset
   restoreAsset: typeof db.restoreAsset
+  setAssetPinned: typeof db.setAssetPinned
   reorderAssets: typeof db.reorderAssets
 
   // Brand resources
@@ -181,6 +182,7 @@ export function buildDbDeps(): Db {
     updateAsset: db.updateAsset,
     softDeleteAsset: db.softDeleteAsset,
     restoreAsset: db.restoreAsset,
+    setAssetPinned: db.setAssetPinned,
     reorderAssets: db.reorderAssets,
     listResourcesByBrand: db.listResourcesByBrand,
     createResource: db.createResource,
