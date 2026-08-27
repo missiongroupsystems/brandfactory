@@ -99,8 +99,14 @@ function StageBlock({
   // The brand's planned posts, so an activity can point at one. Read-only in this
   // app — see `features/social-posts` for why the planner has not moved.
   const { posts } = useSocialPosts(brandId);
-  const { attachPlatform, detachPlatform, createActivity, updateActivity, deleteActivity } =
-    useFunnelMutations(brandId);
+  const {
+    attachPlatform,
+    detachPlatform,
+    createActivity,
+    updateActivity,
+    setLinkedPost,
+    deleteActivity,
+  } = useFunnelMutations(brandId);
   const [adding, setAdding] = React.useState(false);
   const [title, setTitle] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -244,11 +250,7 @@ function StageBlock({
                   disabled={busy}
                   containerClassName="w-auto"
                   onChange={(event) =>
-                    void run(() =>
-                      updateActivity(stage.id, activity.id, {
-                        socialPostId: (event.target.value || null) as never,
-                      }),
-                    )
+                    void run(() => setLinkedPost(stage.id, activity.id, event.target.value))
                   }
                 >
                   <option value="">No linked post</option>

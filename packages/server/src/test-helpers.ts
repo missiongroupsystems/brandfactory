@@ -764,7 +764,15 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       // `ON DELETE RESTRICT` in SQL: an activity still naming this platform
       // refuses the delete rather than orphaning the record.
       const inUse = [...state.funnelActivities.values()].some((a) => a.platformId === platformId)
-      if (inUse) throw new Error('platform in use')
+      // Shaped like the `pg` error the real FK raises, code and constraint name
+      // both — a fake that threw a bare Error would pass against a route that had
+      // stopped narrowing, which is the thing under test.
+      if (inUse) {
+        throw Object.assign(new Error('platform in use'), {
+          code: '23503',
+          constraint: 'funnel_activities_platform_id_platforms_id_fk',
+        })
+      }
       state.platforms.delete(platformId)
       for (const link of [...state.stagePlatforms]) {
         if (link.endsWith(`:${platformId}`)) state.stagePlatforms.delete(link)
@@ -1871,6 +1879,16 @@ export function testEnv(overrides: Partial<Env> = {}): Env {
 
 export interface TestHarness {
   app: ReturnType<typeof createApp>
+  /**
+   * The fake itself, so a test can make one call fail.
+   *
+   * `state` next to it already exposes the fake's internals; this is the same
+   * latitude for the case `state` cannot reach — a *failure*, not a row. It is
+   * how `funnel.test.ts` proves that a route narrowing one Postgres error still
+   * lets every other one keep its 500. Reach for it only for that: seeding goes
+   * through `state` or through the routes.
+   */
+  db: Db
   state: FakeDbState
   auth: AuthProvider
   tokens: Record<string, string>
@@ -1929,5 +1947,5 @@ export function createTestApp(
     ...(opts.ideateCopy ? { ideateCopy: opts.ideateCopy } : {}),
     ...(opts.lookupCreator ? { lookupCreator: opts.lookupCreator } : {}),
   })
-  return { app, state, auth, tokens }
+  return { app, db, state, auth, tokens }
 }

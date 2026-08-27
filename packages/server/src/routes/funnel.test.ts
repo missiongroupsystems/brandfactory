@@ -154,6 +154,26 @@ describe('platforms', () => {
     expect(remaining).toHaveLength(1)
   })
 
+  it('lets an unrelated database failure keep its 500', async () => {
+    // **The half that makes the 409 mean something.** An earlier draft caught
+    // everything and answered "this platform is still named by an activity" —
+    // which would have told a reader that about a dropped connection. The route
+    // narrows on code *and* constraint name now, and anything else rethrows.
+    const harness = await seedBrand()
+    const { app, brandId, db } = harness
+    const platform = await addPlatform(harness, brandId, 'Instagram')
+    const original = db.deletePlatform
+    db.deletePlatform = async () => {
+      throw Object.assign(new Error('connection terminated'), { code: '08006' })
+    }
+    const res = await app.request(`/brands/${brandId}/funnel/platforms/${platform.id}`, {
+      method: 'DELETE',
+      headers: auth(),
+    })
+    db.deletePlatform = original
+    expect(res.status).toBe(500)
+  })
+
   it('refuses to delete a platform an activity still names', async () => {
     // `ON DELETE RESTRICT`: an activity whose platform vanished is an activity
     // that ran nowhere, and platforms are cheap to keep.

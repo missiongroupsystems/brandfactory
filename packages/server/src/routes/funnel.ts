@@ -9,6 +9,7 @@ import {
   UpdateFunnelActivityInputSchema,
   UpdateFunnelStageInputSchema,
 } from '@brandfactory/shared'
+import { isPlatformInUseViolation } from '@brandfactory/db'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
@@ -136,7 +137,12 @@ export function createBrandFunnelRouter(deps: FunnelDeps) {
           if (!row) throw new NotFoundError('platform not found', 'PLATFORM_NOT_FOUND')
           return c.json(row)
         } catch (err) {
-          if (err instanceof NotFoundError) throw err
+          // **Narrowed, and an earlier draft was not.** Catching everything here
+          // answered 409 for a dropped connection too — telling a reader their
+          // platform was in use when the real fault was the database. Anything
+          // that is not this one constraint keeps its 500, which is the rule
+          // `isHandleUniqueViolation` sets two aggregates over.
+          if (!isPlatformInUseViolation(err)) throw err
           return c.json(
             {
               code: 'PLATFORM_IN_USE',

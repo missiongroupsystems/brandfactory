@@ -61,6 +61,7 @@ beforeEach(() => {
     detachPlatform: vi.fn(),
     createActivity: vi.fn(),
     updateActivity,
+    setLinkedPost: vi.fn(),
     deleteActivity: vi.fn(),
   });
 });

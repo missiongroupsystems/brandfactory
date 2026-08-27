@@ -139,6 +139,29 @@ export async function createPlatform(
   return rowToPlatform(row!)
 }
 
+/**
+ * Postgres `23503 foreign_key_violation`, narrowed to the one constraint that
+ * means *an activity still names this platform*.
+ *
+ * **Checked by constraint name, not by code alone**, for the reason
+ * `isHandleUniqueViolation` states two aggregates over: any *other* foreign-key
+ * violation reaching this line is a bug, and answering it with a friendly
+ * sentence about a platform in use would hide it. An earlier draft of the route
+ * caught everything and answered 409 — which would have told a reader their
+ * platform was in use when the real fault was a dropped connection.
+ *
+ * `pg` puts both fields on the error and neither is typed, so this reads them
+ * defensively rather than importing a driver type into the query layer.
+ */
+export function isPlatformInUseViolation(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false
+  const pgError = err as { code?: unknown; constraint?: unknown }
+  return (
+    pgError.code === '23503' &&
+    pgError.constraint === 'funnel_activities_platform_id_platforms_id_fk'
+  )
+}
+
 export async function deletePlatform(
   brandId: BrandId,
   platformId: PlatformId,

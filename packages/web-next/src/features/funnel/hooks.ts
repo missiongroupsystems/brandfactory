@@ -6,6 +6,7 @@ import type {
   CreatePlatformInput,
   FunnelStageWithDetail,
   Platform,
+  SocialPostId,
   UpdateFunnelActivityInput,
 } from "@brandfactory/shared";
 import * as React from "react";
@@ -84,6 +85,23 @@ export function useFunnelMutations(brandId: string | undefined) {
         input: UpdateFunnelActivityInput,
       ) => {
         const row = await funnelService.updateActivity(brandId!, stageId, activityId, input);
+        await sweep();
+        return row;
+      },
+      /**
+       * Link an activity to a social post, or clear the link.
+       *
+       * **Its own function so the branded-id cast lives in one place.** `socialPostId`
+       * is `SocialPostId` on the wire and a `<select>` hands back a plain string; casting
+       * at each call site is how one of them ends up casting the wrong thing. The empty
+       * string is the "No linked post" option and becomes `null`, which is a choice
+       * rather than a blank — the same distinction the patch schema draws between absent
+       * and null.
+       */
+      setLinkedPost: async (stageId: string, activityId: string, postId: string | null) => {
+        const row = await funnelService.updateActivity(brandId!, stageId, activityId, {
+          socialPostId: (postId || null) as SocialPostId | null,
+        });
         await sweep();
         return row;
       },
