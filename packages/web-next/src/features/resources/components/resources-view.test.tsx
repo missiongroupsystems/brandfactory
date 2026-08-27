@@ -1,5 +1,5 @@
 import type { BrandResource } from "@brandfactory/shared";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { useResources } from "../hooks";
@@ -56,6 +56,11 @@ describe("ResourcesView", () => {
         resource({ id: "r2", type: "font", title: "Founders Grotesk" }),
         resource({ id: "r3", type: "tool", title: "Figma" }),
         resource({ id: "r4", type: "image", title: "Unsplash" }),
+        // A second "tool" resource. groupByType buckets with `Map.get(...) ?? []` then
+        // `.set()` back — a bucket-overwrite bug (assigning a fresh array on every hit instead
+        // of pushing onto the existing one) would silently drop this row, and one-resource-per-
+        // type fixtures above cannot catch that class of bug.
+        resource({ id: "r5", type: "tool", title: "Sketch" }),
       ],
       isLoading: false,
       error: undefined,
@@ -67,8 +72,21 @@ describe("ResourcesView", () => {
       .getAllByRole("heading", { level: 2 })
       .map((heading) => heading.textContent);
     // Declared order: font, image, icon, tool, reference, other. Not the arrival order above
-    // (other, font, tool, image), and not alphabetical (Fonts, Images, Other, Tools).
+    // (other, font, tool, image, tool), and not alphabetical (Fonts, Images, Other, Tools).
     expect(headings).toEqual(["Fonts", "Images", "Tools", "Other"]);
+
+    // Both tool resources render as separate items under the one shared "Tools" heading — not
+    // a second "Tools" heading, and not one resource silently missing.
+    const lists = screen.getAllByRole("list");
+    expect(lists).toHaveLength(4);
+    const toolsList = lists[headings.indexOf("Tools")];
+    expect(within(toolsList).getAllByRole("listitem")).toHaveLength(2);
+    // getByRole throws if the link is missing, so reaching the assertion below is itself part
+    // of the claim; the text check confirms it is the row it claims to be.
+    expect(within(toolsList).getByRole("link", { name: /Figma/ }).textContent).toContain("Figma");
+    expect(within(toolsList).getByRole("link", { name: /Sketch/ }).textContent).toContain(
+      "Sketch",
+    );
   });
 
   it("renders an empty state rather than a heading over nothing", () => {
