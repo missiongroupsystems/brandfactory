@@ -164,6 +164,16 @@ describe("the brand nav", () => {
     for (const item of BRAND_NAV_ITEMS) expect(grouped.has(item.segment)).toBe(true);
   });
 
+  it("never names a group segment with no matching brand nav row", () => {
+    // The reverse direction: a typo in a group's `segments` (e.g. "outlet" for "outlets") names
+    // nothing real and silently drops that row from the sidebar with no test failure elsewhere —
+    // the item->group check above cannot catch it, because the dangling name is not on any item.
+    const itemSegments = new Set(BRAND_NAV_ITEMS.map((item) => item.segment));
+    for (const group of BRAND_NAV_GROUPS) {
+      for (const segment of group.segments) expect(itemSegments.has(segment)).toBe(true);
+    }
+  });
+
   it("groups in list order, so grouping never reorders", () => {
     const order = BRAND_NAV_ITEMS.map((i) => i.segment);
     const flat = BRAND_NAV_GROUPS.flatMap((g) => g.segments).filter((sgmt) =>

@@ -126,16 +126,25 @@ export function BrandNavHeader({ brandId }: { brandId: string }) {
  * six, past the point an unlabelled list stays legible. Grouping is presentation over the same
  * {@link BRAND_NAV_ITEMS} order — it inserts eyebrows, it does not reorder — so a group with no
  * rows in it (Library, until a later phase fills it) renders nothing at all rather than an empty
- * heading.
+ * heading. A row named in no group falls into a trailing unlabelled section instead of vanishing —
+ * the same fallback {@link WorkspaceNav} in `app-sidebar.tsx` uses for the same failure mode.
  */
 export function BrandNavItems({ brandId, pathname }: { brandId: string; pathname: string }) {
   const bySegment = new Map(BRAND_NAV_ITEMS.map((item) => [item.segment, item]));
-  const sections = BRAND_NAV_GROUPS.map((group) => ({
-    label: group.label,
-    items: group.segments
-      .map((segment) => bySegment.get(segment))
-      .filter((item): item is BrandNavItem => !!item),
-  })).filter((section) => section.items.length > 0);
+
+  // Group the items by BRAND_NAV_GROUPS (presentation over the same order). Any item not named
+  // in a group falls into a trailing unlabelled section rather than disappearing.
+  const grouped = new Set(BRAND_NAV_GROUPS.flatMap((group) => group.segments));
+  const sections: { label: string | null; items: BrandNavItem[] }[] = BRAND_NAV_GROUPS.map(
+    (group) => ({
+      label: group.label,
+      items: group.segments
+        .map((segment) => bySegment.get(segment))
+        .filter((item): item is BrandNavItem => !!item),
+    }),
+  ).filter((section) => section.items.length > 0);
+  const leftover = BRAND_NAV_ITEMS.filter((item) => !grouped.has(item.segment));
+  if (leftover.length > 0) sections.push({ label: null, items: leftover });
 
   return (
     <>
