@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { afterAll, describe, expect, it } from 'vitest'
 import { db, pool } from './client'
 import {
+  funnelStages,
   agentMessages,
   brands,
   canvases,
@@ -52,18 +53,31 @@ describe.skipIf(!hasDb)('seed()', () => {
       await db.delete(vendors).where(eq(vendors.workspaceId, before.workspaceId))
 
       const result = await seed()
-      const [brandRows, outletRows, influencerRows, accountRows, vendorRows] = await Promise.all([
-        db.select().from(brands).where(eq(brands.workspaceId, result.workspaceId)),
-        db.select().from(outlets).where(eq(outlets.workspaceId, result.workspaceId)),
-        db.select().from(influencers).where(eq(influencers.workspaceId, result.workspaceId)),
-        db
-          .select()
-          .from(influencerAccounts)
-          .where(eq(influencerAccounts.workspaceId, result.workspaceId)),
-        db.select().from(vendors).where(eq(vendors.workspaceId, result.workspaceId)),
-      ])
+      const [brandRows, outletRows, influencerRows, accountRows, vendorRows, stageRows] =
+        await Promise.all([
+          db.select().from(brands).where(eq(brands.workspaceId, result.workspaceId)),
+          db.select().from(outlets).where(eq(outlets.workspaceId, result.workspaceId)),
+          db.select().from(influencers).where(eq(influencers.workspaceId, result.workspaceId)),
+          db
+            .select()
+            .from(influencerAccounts)
+            .where(eq(influencerAccounts.workspaceId, result.workspaceId)),
+          db.select().from(vendors).where(eq(vendors.workspaceId, result.workspaceId)),
+          // Every stage under this workspace's brands. The count is the whole
+          // point: the seed is re-runnable, so six per brand per *run* would be
+          // the one thing here that accumulates.
+          db
+            .select({ id: funnelStages.id })
+            .from(funnelStages)
+            .innerJoin(brands, eq(brands.id, funnelStages.brandId))
+            .where(eq(brands.workspaceId, result.workspaceId)),
+        ])
 
       expect(brandRows).toHaveLength(7)
+      // Six stages per brand, because `createBrand` writes them and the seed
+      // inserts brands directly — so the seed states them itself or the two
+      // paths disagree about what a brand is.
+      expect(stageRows).toHaveLength(7 * 6)
       expect(outletRows).toHaveLength(10)
       expect(influencerRows).toHaveLength(0)
       // No creator, so no account. The guard sits above the parent loop, and the

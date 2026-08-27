@@ -35,9 +35,11 @@
  * any UUID that exists in `users` as a bearer; no new token format.
  */
 import type { ProseMirrorDoc } from '@brandfactory/shared'
-import { sql } from 'drizzle-orm'
+import { DEFAULT_FUNNEL_STAGES, FUNNEL_STAGE_POSITION_STEP } from '@brandfactory/shared'
+import { eq, sql } from 'drizzle-orm'
 import { db, pool } from './client'
 import {
+  funnelStages,
   agentMessages,
   brands,
   canvases,
@@ -4120,6 +4122,30 @@ export async function seed(): Promise<SeedResult> {
         .insert(brands)
         .values({ ...brand, workspaceId: DEMO_WORKSPACE_ID })
         .onConflictDoNothing({ target: brands.id })
+    }
+
+    // **The six funnel stages, per brand — because `createBrand` writes them and
+    // this does not go through it.** Without this the seed and the app disagree:
+    // a brand made in the product opens on its journey, and a brand made here
+    // opens on an empty state. Same constant, so the two cannot drift.
+    //
+    // `onConflictDoNothing` has nothing to key on — stage ids are generated — so
+    // this checks first. A seed is re-runnable and six stages per brand per run
+    // would be the one thing here that accumulates.
+    for (const brand of SEED_BRANDS) {
+      const existing = await tx
+        .select({ id: funnelStages.id })
+        .from(funnelStages)
+        .where(eq(funnelStages.brandId, brand.id))
+        .limit(1)
+      if (existing.length > 0) continue
+      await tx.insert(funnelStages).values(
+        DEFAULT_FUNNEL_STAGES.map((name, index) => ({
+          brandId: brand.id,
+          name,
+          position: (index + 1) * FUNNEL_STAGE_POSITION_STEP,
+        })),
+      )
     }
 
     for (const section of SECTIONS) {
