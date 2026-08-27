@@ -1,6 +1,7 @@
 "use client";
 
 import type { BrandAsset, PhotoCategory } from "@brandfactory/shared";
+import { assetsInCategory } from "@brandfactory/shared";
 import { PinIcon, SettingsIcon } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
@@ -42,14 +43,16 @@ export function PhotographyView({ brandId }: { brandId: string }) {
   if (error) return <QueryError error={error} />;
   if (isLoading) return <LoadingRows rows={4} />;
 
+  // **One definition of "photos filed under X", not four.** `assetsInCategory`
+  // is in `@brandfactory/shared` beside the category schema and is where `null`
+  // is documented as a bucket rather than an absence; four inline copies of the
+  // same predicate are four places for that distinction to be forgotten.
   const shown =
     subject === ALL
       ? photos
-      : subject === UNCATEGORISED
-        ? photos.filter((photo) => photo.categoryId === null)
-        : photos.filter((photo) => photo.categoryId === subject);
+      : assetsInCategory(photos, subject === UNCATEGORISED ? null : subject);
 
-  const uncategorisedCount = photos.filter((photo) => photo.categoryId === null).length;
+  const uncategorisedCount = assetsInCategory(photos, null).length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -64,7 +67,7 @@ export function PhotographyView({ brandId }: { brandId: string }) {
           <SubjectChip
             key={category.id}
             label={category.name}
-            count={photos.filter((photo) => photo.categoryId === category.id).length}
+            count={assetsInCategory(photos, category.id).length}
             active={subject === category.id}
             onClick={() => setSubject(category.id)}
           />
