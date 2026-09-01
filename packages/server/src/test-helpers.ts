@@ -562,7 +562,15 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         .filter((a) => a.brandId === brandId)
         .map((a) => (a.source === 'blob' ? a.blobKey : null))
         .filter((k): k is string => k !== null)
-      return [...blockKeys, ...assetKeys]
+      // Third arm (2C): a deck's version PDFs — the `'canva'` snapshot included,
+      // so filtered by key presence, not by source. Mirrors the real query.
+      const deckIds = [...state.decks.values()]
+        .filter((d) => d.brandId === brandId)
+        .map((d) => d.id)
+      const deckKeys = [...state.deckVersions.values()]
+        .filter((v) => deckIds.includes(v.deckId))
+        .map((v) => v.pdfBlobKey)
+      return [...blockKeys, ...assetKeys, ...deckKeys]
     },
     // Mirrors `listStillReferencedBlobKeys`: every table that holds a key,
     // soft-deleted rows *included* — a hidden row still owns its bytes. Called
@@ -576,7 +584,9 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       const assetKeys = [...state.assets.values()]
         .map((a) => (a.source === 'blob' ? a.blobKey : null))
         .filter((k): k is string => k !== null)
-      return [...new Set([...blockKeys, ...assetKeys].filter((k) => wanted.has(k)))]
+      // Deck versions too — a surviving snapshot still owns its bytes.
+      const deckKeys = [...state.deckVersions.values()].map((v) => v.pdfBlobKey)
+      return [...new Set([...blockKeys, ...assetKeys, ...deckKeys].filter((k) => wanted.has(k)))]
     },
     async listSectionsByBrand(brandId) {
       return [...state.sections.values()]
@@ -1019,6 +1029,15 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         if (version.deckId === id) state.deckVersions.delete(vid)
       }
       return existing
+    },
+    // Mirrors the real `listBlobKeysByDeck`: every version's `pdfBlobKey`,
+    // scoped by brand as well as deck, both sources included.
+    async listBlobKeysByDeck(brandId, id) {
+      const deck = state.decks.get(id)
+      if (!deck || deck.brandId !== brandId) return []
+      return [...state.deckVersions.values()]
+        .filter((v) => v.deckId === id)
+        .map((v) => v.pdfBlobKey)
     },
     async createDeckVersion(deckId, input) {
       const id = nextId('dv') as DeckVersionId

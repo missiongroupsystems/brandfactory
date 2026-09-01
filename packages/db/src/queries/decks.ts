@@ -1,5 +1,5 @@
 import type { BrandId, Deck, DeckId, DeckVersion } from '@brandfactory/shared'
-import { and, asc, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, isNotNull } from 'drizzle-orm'
 import { db } from '../client'
 import { rowToDeck, rowToDeckVersion } from '../mappers'
 import { deckVersions, decks } from '../schema'
@@ -35,6 +35,24 @@ export async function deleteDeck(brandId: BrandId, id: DeckId): Promise<Deck | n
     .where(and(eq(decks.id, id), eq(decks.brandId, brandId)))
     .returning()
   return row ? rowToDeck(row) : null
+}
+
+/**
+ * The PDF blob keys a deck's versions hold, scoped by brand as well as deck so
+ * an id from another brand collects nothing. Read *before* `deleteDeck`: that
+ * cascade destroys the only pointer to these bytes, and unlike an asset a deck
+ * is a *hard* delete, so a later `listBlobKeysByBrand` sweep can never reach
+ * them. Both sources carry a key — a `'canva'` version's `pdfBlobKey` is the
+ * required frozen snapshot — so this filters on `isNotNull(pdfBlobKey)`, never
+ * on `source`, the same rule `listBlobKeysByBrand`'s deck arm follows.
+ */
+export async function listBlobKeysByDeck(brandId: BrandId, id: DeckId): Promise<string[]> {
+  const rows = await db
+    .select({ blobKey: deckVersions.pdfBlobKey })
+    .from(deckVersions)
+    .innerJoin(decks, eq(decks.id, deckVersions.deckId))
+    .where(and(eq(decks.id, id), eq(decks.brandId, brandId), isNotNull(deckVersions.pdfBlobKey)))
+  return rows.map((r) => r.blobKey).filter((k): k is string => k !== null)
 }
 
 /**

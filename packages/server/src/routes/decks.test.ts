@@ -264,6 +264,35 @@ describe('DELETE /brands/:id/decks/:deckId', () => {
     expect([...state.deckVersions.values()].some((v) => v.deckId === deck.id)).toBe(false)
   })
 
+  it('sweeps every version blob, the canva snapshot included', async () => {
+    // The delete is a *hard* delete, so the version rows cascade away and a
+    // later brand sweep can never reach these bytes — the handler must sweep
+    // them itself. The canva key matters most: it is a required frozen
+    // snapshot, so a sweep that filtered by `source = 'pdf'` would leak it.
+    const deleted: string[] = []
+    const storage = {
+      put: async () => {},
+      get: async () => new Uint8Array(),
+      delete: async (key: string) => {
+        deleted.push(key)
+      },
+      getSignedReadUrl: async () => 'http://signed',
+      getSignedWriteUrl: async () => ({ url: 'http://signed' }),
+    }
+    const { app, brandId } = await seedBrand({ storage })
+    const { deck } = await createDeck(app, brandId)
+    await postVersion(app, brandId, deck.id, PDF_V1)
+    await postVersion(app, brandId, deck.id, CANVA_V2)
+
+    const res = await app.request(`/brands/${brandId}/decks/${deck.id}`, {
+      method: 'DELETE',
+      headers: auth(),
+    })
+
+    expect(res.status).toBe(200)
+    expect([...deleted].sort()).toEqual(['blobs/deck-v1.pdf', 'blobs/deck-v2-snapshot.pdf'])
+  })
+
   it('404s on a second delete', async () => {
     const { app, brandId } = await seedBrand()
     const { deck } = await createDeck(app, brandId)

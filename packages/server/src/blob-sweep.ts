@@ -13,7 +13,7 @@ export async function sweepBlobs(
   storage: BlobStore,
   keys: string[],
   log: Logger,
-  context: { resource: 'brand' | 'project' | 'workspace'; id: string },
+  context: { resource: 'brand' | 'project' | 'workspace' | 'deck'; id: string },
   // Which keys are still pointed at by a row that survived the cascade. Passed
   // in rather than queried here so this module keeps taking no `Db` — the
   // caller already holds one, and it is the caller that knows the delete has

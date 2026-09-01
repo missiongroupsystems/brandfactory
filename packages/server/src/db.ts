@@ -91,6 +91,7 @@ export interface Db {
   listDecksByBrand: typeof db.listDecksByBrand
   createDeck: typeof db.createDeck
   deleteDeck: typeof db.deleteDeck
+  listBlobKeysByDeck: typeof db.listBlobKeysByDeck
   createDeckVersion: typeof db.createDeckVersion
   listVersionsByDeck: typeof db.listVersionsByDeck
 
@@ -227,6 +228,7 @@ export function buildDbDeps(): Db {
     listDecksByBrand: db.listDecksByBrand,
     createDeck: db.createDeck,
     deleteDeck: db.deleteDeck,
+    listBlobKeysByDeck: db.listBlobKeysByDeck,
     createDeckVersion: db.createDeckVersion,
     listVersionsByDeck: db.listVersionsByDeck,
     listSocialPostsByBrand: db.listSocialPostsByBrand,

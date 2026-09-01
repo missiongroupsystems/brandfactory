@@ -9,13 +9,18 @@ import type { Deck } from '@brandfactory/shared'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
+import type { BlobStore } from '@brandfactory/adapter-storage'
 import { requireBrandAccess } from '../authz'
+import { sweepBlobs } from '../blob-sweep'
 import type { AppEnv } from '../context'
 import type { Db } from '../db'
 import { NotFoundError, UnauthorizedError } from '../errors'
 
 export interface DecksDeps {
   db: Db
+  // A deck delete is a *hard* delete, so the version PDFs it destroys — the
+  // `'canva'` snapshot included — must be swept here. See the delete handler.
+  storage: BlobStore
 }
 
 /**
@@ -75,10 +80,24 @@ export function createDecksRouter(deps: DecksDeps) {
       if (!userId) throw new UnauthorizedError()
       const { id, deckId } = c.req.valid('param')
       await requireBrandAccess(userId, id, deps.db)
-      // Hard delete — its versions cascade with it (2A's FK), so there is
-      // nothing left here for 2B's blob sweep to have missed.
+      // Read the version blob keys first — the cascade (2A's FK) destroys the
+      // only pointer to them. This is a *hard* delete, unlike an asset's soft
+      // delete, so those bytes never become reachable again through a later
+      // brand sweep: they must be swept here or they orphan forever.
+      const blobKeys = await deps.db.listBlobKeysByDeck(id, deckId)
       const deck = await deps.db.deleteDeck(id, deckId)
       if (!deck) throw new NotFoundError('deck not found', 'DECK_NOT_FOUND')
+      // Asked after the cascade: a key another surviving row still points at is
+      // not this deck's to destroy. Blob keys are minted per upload, so this is
+      // normally empty — the same subtraction the brand and project deletes make.
+      const stillReferenced = await deps.db.listStillReferencedBlobKeys(blobKeys)
+      await sweepBlobs(
+        deps.storage,
+        blobKeys,
+        c.var.log,
+        { resource: 'deck', id: deckId },
+        stillReferenced,
+      )
       return c.json(deck)
     })
     .post(

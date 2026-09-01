@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.55.0** — 2026-09-01 — The set's loose ends close before it merges: a funnel activity gets its one real typed link — a social push, the only one of three named targets with a table to point at — the photography shelf learns to take a photograph and reorder one, a `web-next` write stops emptying the cache under every screen, and seven QA rounds harden the four features. A pre-merge review then finds one more: a deck delete swept nothing, so its version PDFs orphaned in storage — the Canva snapshot included. Migration 0022. 3104 tests.
 - **1.54.0** — 2026-08-27 — The other three asks land and the set closes: a deck stack whose Canva versions snapshot on add, a photography shelf split by subject with the best pinned, and the funnel that maps a brand's journey. `BRAND_NAV_ITEMS` reaches six rows in three groups, and `Tools` goes with the last `Empty` tag in the product. Migrations 0018–0021. 3069 tests.
 - **1.53.0** — 2026-08-27 — Resources ships: a brand's fonts, images, icons and tools are a real table now, grouped by type, with a form to add and edit one and a delete that waits for the server rather than assuming it. Migration 0017. 2928 tests.
 - **1.52.1** — 2026-08-21 — Post-release review of 1.52.0: the accounts panel dropped the record form's `type="number"`, so `3.2%` in a rate box saved successfully and replaced a measurement with "nobody measured this" — and a disabled trigger dropped a keyboard reader on `document.body` after every status edit, which jsdom cannot see. No migration. 2881 tests.
@@ -104,6 +105,76 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.3.0** — 2026-04-18 — Phase 2: `@brandfactory/db` schema, pool, query helpers.
 - **0.2.0** — 2026-04-18 — Phase 1: `@brandfactory/shared` domain types + zod.
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
+
+---
+
+## 1.55.0 — 2026-09-01
+
+**The loose ends the set left, closed before it merges.** 1.54.0 wrote the changelog and then kept
+going: the funnel's deferred link got built for its one reachable target, photography learned to
+upload, a cache bug surfaced, and seven QA rounds swept the four features. None of it was logged.
+This entry is that work, plus the one defect a pre-merge review of the whole branch turned up.
+**Migration 0022.** 3104 tests (2939 passing, 165 skipped without a database).
+
+### The funnel's typed link, narrowed to what is real
+
+The request lets an activity point at a social push, an influencer program, or a contract. Only the
+first has a table: there is no `program` record in this schema, and contracts are a fixture whose own
+docstring says there is no server behind them. So this is **one nullable column,
+`funnel_activities.social_post_id`, not a polymorphic pair** — the other two get columns beside it
+the day their aggregates land, and until then a contract reference lives in the activity's note,
+which the request permits in as many words. `ON DELETE set null`: a deleted post empties the link,
+never the activity.
+
+A link needs somewhere in this app to land, so `features/social-posts` is a **read-only** screen
+over `GET /brands/:id/social-posts` — not the calendar, whose planner is too large to move here for
+this. The screen says on its face that it cannot write, and it carries no nav row: it is where a
+link arrives, not an area of the product.
+
+### Photography can take a photograph, and reorder one
+
+The grid shipped in 1.54.0 read the library; it could not add to it. The screen now uploads a photo
+through the same signed-URL path the rest of the app uses, and reorders one within its category.
+
+### A `web-next` write emptied the cache, so every screen blinked
+
+A mutation invalidated too wide a key, so a single write dropped every cached query and each screen
+refetched from empty — a visible blink on an action that changed one row. The invalidation is scoped
+to what the write touched.
+
+### Seven QA rounds
+
+A sweep of the four features, now a script rather than a checklist. It found: three cross-brand
+writes nothing was asserting, a `createBrand`/seed disagreement about a brand's shape, a catch-all
+that reported success over a failure, a cast at a call site that hid a type, two enum values the
+wire did not pin, a browser dialog on a delete that asked nothing, and four copies of a helper that
+a tested original replaced. Round seven found nothing critical.
+
+### A pre-merge review found a deck delete that swept nothing
+
+**Deck delete is a *hard* delete, and it orphaned every version's PDF.** The route deleted the deck
+row, its `deck_versions` cascaded away by FK, and nothing collected their `pdf_blob_key`s first — so
+the bytes stayed in object storage with no row left to point at them. A later *brand* delete could
+not recover them: `listBlobKeysByBrand` reads the versions that a brand delete is about to cascade,
+but a single-deck delete had already destroyed them. The router's own comment asserted the opposite,
+conflating this hard delete with an asset's **soft** delete, whose blob stays reachable and is swept
+at brand delete.
+
+The fix mirrors the brand and project delete idiom: `listBlobKeysByDeck` reads the version keys
+**before** `deleteDeck`, and `sweepBlobs` runs after, subtracting anything a surviving row still
+references. **The Canva snapshot matters most** — a `'canva'` version carries a required frozen PDF
+too, so a sweep that filtered by `source = 'pdf'` would have leaked it; the query filters on key
+presence, never on source. The decks router now takes the `storage` adapter it was built without,
+and a new test deletes a deck holding a PDF and a Canva version and asserts both keys are swept.
+
+The same review confirmed the rest sound: every new route gates on `requireBrandAccess` with a
+second-level check where a query keys on a child id; the three brand/workspace blob-sweep arms
+filter `deck_versions` by key presence, not source; migration cascade directions are correct
+(`funnel_activities.platform_id` is `RESTRICT` on purpose, mapped to a 409); and no list or fetch
+crosses a brand boundary. The one gap was the missing sweep above.
+
+Full context for the four features stays in their own `## 1.53.0` and `## 1.54.0` entries below and
+in `docs/completions/`.
 
 ---
 

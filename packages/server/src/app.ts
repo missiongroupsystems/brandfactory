@@ -189,10 +189,11 @@ export function createApp(deps: AppDeps) {
     // Named external links — no `storage` either, and for a stronger reason
     // than assets: a resource never carries a blob key at all.
     .route('/brands', createBrandResourcesRouter({ db: deps.db }))
-    // A brand's decks and their version stacks. No `storage`: `deleteDeck`'s
-    // bytes are swept the same way an asset's or a project's are, by
-    // `listBlobKeysByBrand` before the cascading row delete — see 2B.
-    .route('/brands', createDecksRouter({ db: deps.db }))
+    // A brand's decks and their version stacks. Takes `storage`, unlike the
+    // asset router above: a deck delete is a *hard* delete, so its version PDFs
+    // (the `'canva'` snapshot included) cannot wait for a later brand sweep —
+    // the rows have already cascaded away. The delete handler sweeps them.
+    .route('/brands', createDecksRouter({ db: deps.db, storage: deps.storage }))
     // A brand's photography subject buckets. Rows rather than an enum, because
     // the set is editable per brand — see `photo-categories.ts`.
     .route('/brands', createBrandPhotoCategoriesRouter({ db: deps.db }))
