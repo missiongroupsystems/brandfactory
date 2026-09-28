@@ -303,6 +303,7 @@ const BRAND = {
   name: 'Casa Vostra',
   description: null,
   websiteUrl: null,
+  eventsOutletId: null,
   createdAt: T0,
   updatedAt: T0,
   sections: [],

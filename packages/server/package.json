@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@brandfactory/adapter-auth": "workspace:*",
+    "@brandfactory/adapter-events": "workspace:*",
     "@brandfactory/adapter-llm": "workspace:*",
     "@brandfactory/adapter-realtime": "workspace:*",
     "@brandfactory/adapter-research": "workspace:*",

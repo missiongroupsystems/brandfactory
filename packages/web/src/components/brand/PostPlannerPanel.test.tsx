@@ -25,6 +25,7 @@ const BRAND = {
   name: 'Casa Vostra',
   description: null,
   websiteUrl: null,
+  eventsOutletId: null,
   ...STAMPS,
   sections: [],
 } as unknown as BrandWithSections

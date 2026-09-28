@@ -14,6 +14,7 @@ import {
   type LLMProviderConfig,
   createLLMProvider,
 } from '@brandfactory/adapter-llm'
+import { type EventsSource, createEventsSource } from '@brandfactory/adapter-events'
 import { type ResearchProvider, createResearchProvider } from '@brandfactory/adapter-research'
 import type { Env } from './env'
 
@@ -37,6 +38,16 @@ export interface Adapters {
    * passes a callback.
    */
   research: ResearchProvider
+  /**
+   * The sixth adapter, and the first that reads another product's data rather
+   * than a vendor's service. Always present — `EVENTS_PROVIDER=none` builds the
+   * noop, which answers with no events, so every consumer can call it without
+   * narrowing.
+   *
+   * Read-only by construction: the port has one method and no writer. Mission
+   * Events owns these rows, and BrandFactory keeps no copy of them.
+   */
+  events: EventsSource
 }
 
 export function buildAdapters(env: Env): Adapters {
@@ -98,5 +109,17 @@ export function buildAdapters(env: Env): Adapters {
       : { providerId: 'none' },
   )
 
-  return { auth, storage, realtime, llm, research }
+  const events: EventsSource = createEventsSource({
+    providerId: env.EVENTS_PROVIDER,
+    ...(env.MISSION_EVENTS_URL && env.MISSION_EVENTS_CALENDAR_TOKEN
+      ? {
+          missionEvents: {
+            baseUrl: env.MISSION_EVENTS_URL,
+            token: env.MISSION_EVENTS_CALENDAR_TOKEN,
+          },
+        }
+      : {}),
+  })
+
+  return { auth, storage, realtime, llm, research, events }
 }

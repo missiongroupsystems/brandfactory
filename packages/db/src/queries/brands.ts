@@ -79,6 +79,7 @@ export async function listBrandSummariesByWorkspace(
       name: brands.name,
       description: brands.description,
       websiteUrl: brands.websiteUrl,
+      eventsOutletId: brands.eventsOutletId,
       createdAt: brands.createdAt,
       updatedAt: brands.updatedAt,
       sectionCount: sql<number>`count(distinct ${guidelineSections.id})::int`.mapWith(Number),
@@ -140,7 +141,12 @@ export async function createBrand(input: {
 // website" into "delete the website" on every rename.
 export async function updateBrand(
   id: BrandId,
-  input: { name?: string; description?: string | null; websiteUrl?: string | null },
+  input: {
+    name?: string
+    description?: string | null
+    websiteUrl?: string | null
+    eventsOutletId?: string | null
+  },
 ): Promise<Brand | null> {
   const [row] = await db
     .update(brands)
@@ -148,6 +154,7 @@ export async function updateBrand(
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.description !== undefined ? { description: input.description } : {}),
       ...(input.websiteUrl !== undefined ? { websiteUrl: input.websiteUrl } : {}),
+      ...(input.eventsOutletId !== undefined ? { eventsOutletId: input.eventsOutletId } : {}),
       updatedAt: sql`now()`,
     })
     .where(eq(brands.id, id))

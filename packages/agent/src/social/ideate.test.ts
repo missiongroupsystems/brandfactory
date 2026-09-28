@@ -60,6 +60,7 @@ const BRAND: BrandWithSections = {
   name: 'Casa Vostra',
   description: 'A neighbourhood trattoria.',
   websiteUrl: null,
+  eventsOutletId: null,
   createdAt: '2026-07-01T00:00:00.000Z',
   updatedAt: '2026-07-01T00:00:00.000Z',
   sections: [

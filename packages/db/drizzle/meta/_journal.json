@@ -169,6 +169,13 @@
       "when": 1790566951321,
       "tag": "0023_fair_dust",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790584870055,
+      "tag": "0024_worthless_taskmaster",
+      "breakpoints": true
     }
   ]
 }

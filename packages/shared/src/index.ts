@@ -118,3 +118,6 @@ export * from './date/day-key'
 
 // Curated key dates — static data, no schema and no route
 export * from './key-dates'
+
+// Mission Events, read-only — the projection the content calendar draws
+export * from './events/external-event'

@@ -45,6 +45,7 @@ function brand(): BrandWithSections {
     name: 'Casa Vostra',
     description: null,
     websiteUrl: null,
+    eventsOutletId: null,
     sections: [],
     ...ASSET_STAMPS,
   }

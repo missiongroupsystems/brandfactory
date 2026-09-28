@@ -114,6 +114,7 @@ const BRAND: BrandWithSections = {
   name: 'Casa Vostra',
   description: null,
   websiteUrl: null,
+  eventsOutletId: null,
   sections: [guideline('TL;DR'), guideline('Overview')],
   ...STAMPS,
 }

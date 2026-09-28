@@ -21,6 +21,8 @@ import { createBrandResourcesRouter } from './routes/resources'
 import { createDecksRouter } from './routes/decks'
 import { createBrandFunnelRouter } from './routes/funnel'
 import { createBrandPhotoCategoriesRouter } from './routes/photo-categories'
+import type { EventsSource } from '@brandfactory/adapter-events'
+import { createCalendarEventsRouter } from './routes/calendar-events'
 import { createSocialPostsRouter } from './routes/social-posts'
 import { createSocialIdeateRouter } from './routes/social-ideate'
 import {
@@ -65,6 +67,8 @@ export interface AppDeps {
   realtime: RealtimeBus
   llm: LLMProvider
   research: ResearchProvider
+  /** The events source. Always present; `EVENTS_PROVIDER=none` supplies the noop. */
+  events: EventsSource
   /**
    * 3D's shaping pass. Injectable so a test can drive the lifecycle without a
    * model; the default composes the real one from `db` + `llm` + `env`.
@@ -148,6 +152,17 @@ export function createApp(deps: AppDeps) {
     // rather than under `/brands` — and no `storage`, because an outlet holds
     // no blob keys and its delete has nothing to sweep.
     .route('/workspaces', createWorkspaceOutletsRouter({ db: deps.db }))
+    // The content calendar's events layer — read-through to Mission Events,
+    // workspace-scoped because `brands.events_outlet_id` is what maps an
+    // outlet there to a brand here.
+    .route(
+      '/workspaces',
+      createCalendarEventsRouter({
+        db: deps.db,
+        events: deps.events,
+        eventsConfigured: deps.env.EVENTS_PROVIDER === 'mission-events',
+      }),
+    )
     // Influencers mount beside outlets for the same reasons: workspace-scoped,
     // reachable by slug, and holding no blob keys — so no `storage` either.
     //

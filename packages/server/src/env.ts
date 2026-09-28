@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { LLM_PROVIDER_IDS } from '@brandfactory/shared'
+import { EVENTS_PROVIDER_IDS } from '@brandfactory/adapter-events'
 import { RESEARCH_PROVIDER_IDS } from '@brandfactory/adapter-research'
 
 // Single env schema for the server. Per locked decision 13, every adapter
@@ -81,6 +82,19 @@ const EnvObject = z.object({
   // pass no `onStartResearch`, and the rail's footer row does not exist.
   RESEARCH_PROVIDER: z.enum(RESEARCH_PROVIDER_IDS).default('none'),
   PERPLEXITY_API_KEY: NonEmpty.optional(),
+
+  // The sixth adapter, and the first that reads another product rather than a
+  // vendor. `none` is the default so a dev stack and a self-hoster get a
+  // working calendar with its events layer simply absent — unlike research,
+  // the noop here answers with no events rather than refusing, because the
+  // screen it sits on works without it.
+  //
+  // `MISSION_EVENTS_CALENDAR_TOKEN` is a **share-link capability**, like a
+  // signed blob URL: it answers without a user session, which is exactly why it
+  // is a server secret and never reaches a browser.
+  EVENTS_PROVIDER: z.enum(EVENTS_PROVIDER_IDS).default('none'),
+  MISSION_EVENTS_URL: NonEmpty.optional(),
+  MISSION_EVENTS_CALENDAR_TOKEN: NonEmpty.optional(),
   // Job input, not provider construction, so decision 10's cut of Quick mode
   // is a config change away rather than a rewrite. 3A measured this model at
   // $0.377 and 4.0 minutes for one brand.
@@ -190,6 +204,14 @@ export const EnvSchema = EnvObject.superRefine((env, ctx) => {
   // is what makes it a usable default rather than a broken one.
   if (env.RESEARCH_PROVIDER === 'perplexity') {
     require_('PERPLEXITY_API_KEY', "RESEARCH_PROVIDER='perplexity'")
+  }
+
+  // Same rule again: a selected source with no way to reach it is a boot
+  // failure. Both halves are required together — a base URL with no token
+  // would 404 on every month, and a token with no base URL has nowhere to go.
+  if (env.EVENTS_PROVIDER === 'mission-events') {
+    require_('MISSION_EVENTS_URL', "EVENTS_PROVIDER='mission-events'")
+    require_('MISSION_EVENTS_CALENDAR_TOKEN', "EVENTS_PROVIDER='mission-events'")
   }
 })
 

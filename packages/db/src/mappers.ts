@@ -166,6 +166,7 @@ export function rowToBrand(row: BrandRow): Brand {
     name: row.name,
     description: row.description,
     websiteUrl: row.websiteUrl,
+    eventsOutletId: row.eventsOutletId ?? null,
     createdAt: toIsoTimestamp(row.createdAt),
     updatedAt: toIsoTimestamp(row.updatedAt),
   }

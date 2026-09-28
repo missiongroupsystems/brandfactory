@@ -101,6 +101,7 @@ function makeBrand(): BrandWithSections {
     name: 'Brand',
     description: null,
     websiteUrl: null,
+    eventsOutletId: null,
     createdAt: ts,
     updatedAt: ts,
     sections: [

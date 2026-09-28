@@ -8,10 +8,16 @@ export const UpdateBrandInputSchema = z
     name: z.string().min(1).max(120).optional(),
     description: z.string().nullable().optional(),
     websiteUrl: BrandWebsiteUrlSchema.nullable().optional(),
+    /** The Mission Events outlet. `null` unlinks the brand from that feed. */
+    eventsOutletId: z.uuid().nullable().optional(),
   })
   .refine(
-    (v) => v.name !== undefined || v.description !== undefined || v.websiteUrl !== undefined,
-    { message: 'At least one of name, description or websiteUrl is required' },
+    (v) =>
+      v.name !== undefined ||
+      v.description !== undefined ||
+      v.websiteUrl !== undefined ||
+      v.eventsOutletId !== undefined,
+    { message: 'At least one of name, description, websiteUrl or eventsOutletId is required' },
   )
 
 export type UpdateBrandInput = z.infer<typeof UpdateBrandInputSchema>

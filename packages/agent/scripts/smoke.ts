@@ -60,6 +60,7 @@ const brand: BrandWithSections = {
   name: 'Northstar Coffee',
   description: 'Specialty roaster with a minimalist aesthetic.',
   websiteUrl: null,
+  eventsOutletId: null,
   createdAt: now,
   updatedAt: now,
   sections: [

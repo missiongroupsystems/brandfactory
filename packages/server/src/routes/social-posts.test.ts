@@ -101,6 +101,7 @@ describe('social post routes — access', () => {
       name: 'Theirs',
       description: null,
       websiteUrl: null,
+      eventsOutletId: null,
       createdAt: 't',
       updatedAt: 't',
     })

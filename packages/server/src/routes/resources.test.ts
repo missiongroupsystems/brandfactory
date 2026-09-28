@@ -88,6 +88,7 @@ describe('GET /brands/:id/resources', () => {
       name: 'Theirs',
       description: null,
       websiteUrl: null,
+      eventsOutletId: null,
       createdAt: 't',
       updatedAt: 't',
     })

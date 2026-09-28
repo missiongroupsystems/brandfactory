@@ -47,6 +47,7 @@ const summaryRow = (
   name: 'Brand',
   description: null,
   websiteUrl: null,
+  eventsOutletId: null,
   createdAt: TS,
   updatedAt: TS,
   sectionCount: 3,
@@ -76,6 +77,7 @@ describe('mappers — happy paths', () => {
       name: 'Brand',
       description: null,
       websiteUrl: null,
+      eventsOutletId: null,
       createdAt: TS,
       updatedAt: TS,
     }
@@ -93,6 +95,7 @@ describe('mappers — happy paths', () => {
       name: 'Brand',
       description: null,
       websiteUrl: 'https://casavostra.com',
+      eventsOutletId: null,
       createdAt: TS,
       updatedAt: TS,
     })
@@ -782,6 +785,7 @@ describe('mappers — timestamp normalisation', () => {
       name: 'Acme',
       description: null,
       websiteUrl: null,
+      eventsOutletId: null,
       createdAt: ISO,
       updatedAt: ISO,
     })

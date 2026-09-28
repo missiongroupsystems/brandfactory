@@ -22,6 +22,15 @@ export const BrandSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().nullable(),
   websiteUrl: BrandWebsiteUrlSchema.nullable(),
+  /**
+   * The Mission Events outlet this brand's events come from, or `null`.
+   *
+   * A reference into another product's database, so it carries no branded id
+   * and no foreign key. `null` means the brand's row on the content calendar
+   * simply has no events layer — not an error, and not something the brand
+   * screens surface.
+   */
+  eventsOutletId: z.uuid().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 })

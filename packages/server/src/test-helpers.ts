@@ -2,6 +2,7 @@ import { DEFAULT_FUNNEL_STAGES, FUNNEL_STAGE_POSITION_STEP } from '@brandfactory
 import type { AuthProvider } from '@brandfactory/adapter-auth'
 import type { BlobStore } from '@brandfactory/adapter-storage'
 import type { LLMProvider } from '@brandfactory/adapter-llm'
+import type { EventsSource } from '@brandfactory/adapter-events'
 import type { ResearchProvider } from '@brandfactory/adapter-research'
 import type { RealtimeBus } from '@brandfactory/adapter-realtime'
 import type {
@@ -461,6 +462,7 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         name: input.name,
         description: input.description ?? null,
         websiteUrl: input.websiteUrl ?? null,
+        eventsOutletId: null,
         createdAt: NOW,
         updatedAt: NOW,
       }
@@ -491,6 +493,7 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.description !== undefined ? { description: input.description } : {}),
         ...(input.websiteUrl !== undefined ? { websiteUrl: input.websiteUrl } : {}),
+        ...(input.eventsOutletId !== undefined ? { eventsOutletId: input.eventsOutletId } : {}),
         updatedAt: NOW,
       }
       state.brands.set(id, row)
@@ -1912,7 +1915,13 @@ export function createFakeAdapters(overrides: Partial<AppDeps> = {}): Omit<AppDe
   const { db } = overrides.db ? { db: overrides.db } : createFakeDb()
   const auth = overrides.auth ?? createFakeAuth({})
   const agentGuard = overrides.agentGuard ?? createAgentConcurrencyGuard()
-  return { db, auth, storage, realtime, llm, research, agentGuard }
+  // The noop's own behaviour, not a refusal: the events layer is absent in a
+  // test unless one is supplied, exactly as it is absent in a dev stack, and a
+  // calendar route must still answer.
+  const events: EventsSource = overrides.events ?? {
+    listMonth: () => Promise.resolve({ events: [] }),
+  }
+  return { db, auth, storage, realtime, llm, research, events, agentGuard }
 }
 
 export function testEnv(overrides: Partial<Env> = {}): Env {
@@ -1921,6 +1930,7 @@ export function testEnv(overrides: Partial<Env> = {}): Env {
     AUTH_PROVIDER: 'local',
     STORAGE_PROVIDER: 'local-disk',
     REALTIME_PROVIDER: 'native-ws',
+    EVENTS_PROVIDER: 'none',
     LLM_PROVIDER: 'anthropic',
     LLM_MODEL: 'claude-sonnet-4-6',
     BLOB_LOCAL_DISK_ROOT: '/tmp/blobs',
@@ -1967,6 +1977,8 @@ export function createTestApp(
     llm?: LLMProvider
     realtime?: RealtimeBus
     research?: ResearchProvider
+    /** The events source. Absent means the empty one, as a dev stack has. */
+    events?: EventsSource
     /** 3D's stage 2. Absent means the app's real shaper, which needs a model. */
     shapeResearch?: ShapeResearchFn
     /** Path R's single-section shaper. Absent means the real one — needs a model. */
@@ -2000,6 +2012,7 @@ export function createTestApp(
     ...(opts.llm ? { llm: opts.llm } : {}),
     ...(opts.realtime ? { realtime: opts.realtime } : {}),
     ...(opts.research ? { research: opts.research } : {}),
+    ...(opts.events ? { events: opts.events } : {}),
     ...(opts.agentGuard ? { agentGuard: opts.agentGuard } : {}),
   })
   const app = createApp({

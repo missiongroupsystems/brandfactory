@@ -55,6 +55,7 @@ function brandSummary(id: string, name: string, projectCount = 0): BrandSummary 
     name,
     description: null,
     websiteUrl: null,
+    eventsOutletId: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     sectionCount: 0,
