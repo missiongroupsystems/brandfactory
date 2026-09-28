@@ -7,11 +7,12 @@ import type {
   SocialPostStatus,
   UpdateSocialPostInput,
   UserId,
+  WorkspaceId,
 } from '@brandfactory/shared'
-import { and, asc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, sql } from 'drizzle-orm'
 import { db } from '../client'
 import { rowToSocialPost } from '../mappers'
-import { brandAssets, socialPostAssets, socialPosts } from '../schema'
+import { brandAssets, brands, socialPostAssets, socialPosts } from '../schema'
 
 /**
  * A write named an `assetId` this brand does not (visibly) own — either the id
@@ -168,6 +169,58 @@ export async function listSocialPostsByBrand(brandId: BrandId): Promise<SocialPo
     byPost.set(join.postId, list)
   }
   return rows.map((row) => rowToSocialPost(row, byPost.get(row.id) ?? []))
+}
+
+/**
+ * Every entry in a workspace whose slot falls in `[from, to]`, across all of
+ * its brands, in calendar order.
+ *
+ * **Scheduled only.** The unscheduled tray is a per-brand reading posture —
+ * a pile of ideas with no date cannot be drawn on a grid, and a workspace-wide
+ * tray would mix seven brands' loose thoughts into one list nobody asked for.
+ * `listSocialPostsByBrand` is still the read for that.
+ *
+ * The bounds are day keys, not instants, and they are inclusive at both ends:
+ * the caller is a grid, and a grid's last cell is a whole day. `to` is widened
+ * to the end of its day here rather than by every caller.
+ *
+ * Two queries grouped in JS, the shape `listSocialPostsByBrand` already uses:
+ * the rows, then the join rows for all of them at once.
+ */
+export async function listSocialPostsByWorkspace(
+  workspaceId: WorkspaceId,
+  from: string,
+  to: string,
+): Promise<SocialPost[]> {
+  const rows = await db
+    .select({ post: socialPosts })
+    .from(socialPosts)
+    .innerJoin(brands, eq(brands.id, socialPosts.brandId))
+    .where(
+      and(
+        eq(brands.workspaceId, workspaceId),
+        isNull(socialPosts.deletedAt),
+        isNotNull(socialPosts.scheduledAt),
+        gte(socialPosts.scheduledAt, `${from}T00:00:00.000Z`),
+        lte(socialPosts.scheduledAt, `${to}T23:59:59.999Z`),
+      ),
+    )
+    .orderBy(asc(socialPosts.scheduledAt), asc(socialPosts.createdAt))
+  if (rows.length === 0) return []
+
+  const ids = rows.map((r) => r.post.id)
+  const joins = await db
+    .select()
+    .from(socialPostAssets)
+    .where(inArray(socialPostAssets.postId, ids))
+    .orderBy(asc(socialPostAssets.position))
+  const byPost = new Map<string, BrandAssetId[]>()
+  for (const join of joins) {
+    const bucket = byPost.get(join.postId)
+    if (bucket) bucket.push(join.assetId as BrandAssetId)
+    else byPost.set(join.postId, [join.assetId as BrandAssetId])
+  }
+  return rows.map((r) => rowToSocialPost(r.post, byPost.get(r.post.id) ?? []))
 }
 
 /**

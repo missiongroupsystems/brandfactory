@@ -1087,6 +1087,23 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
     // IS NULL` filters, and the asset-ownership gate (cross-brand *and*
     // soft-deleted assets rejected, with the same typed error the route
     // converts to 400).
+    async listSocialPostsByWorkspace(workspaceId, from, to) {
+      // Mirrors the real query: scheduled rows only, every brand of the
+      // workspace, inclusive of both day bounds, in calendar order.
+      const brandIds = new Set(
+        [...state.brands.values()].filter((b) => b.workspaceId === workspaceId).map((b) => b.id),
+      )
+      return [...state.socialPosts.values()]
+        .filter(
+          (p) =>
+            brandIds.has(p.brandId) &&
+            p.deletedAt === null &&
+            p.scheduledAt !== null &&
+            p.scheduledAt >= `${from}T00:00:00.000Z` &&
+            p.scheduledAt <= `${to}T23:59:59.999Z`,
+        )
+        .sort(bySchedule)
+    },
     async listSocialPostsByBrand(brandId) {
       // Soft-deleted rows out; `bySchedule` *is* the real SQL ordering
       // (`scheduled_at asc nulls first, created_at asc`). The fake clock never

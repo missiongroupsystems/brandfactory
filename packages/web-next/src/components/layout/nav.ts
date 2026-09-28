@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  CalendarDays,
   Bookmark,
   Camera,
   ClipboardCheck,
@@ -71,6 +72,18 @@ export const NAV_ITEMS: NavItem[] = [
     icon: LayoutDashboard,
     phase: 1,
     description: "What needs attention — overdue, expiring, gaps",
+  },
+  // **Beside Dashboard, in the unlabelled group, because it spans every brand.**
+  // The brand-scoped screens live in `BRAND_NAV_ITEMS` and appear only under
+  // `/brands/:id`; this one is a workspace view by the same rule Contracts and
+  // Influencers are, and putting it inside a brand would rebuild the per-brand
+  // calendar the team already works around with a spreadsheet.
+  {
+    title: "Content calendar",
+    href: "/calendar",
+    icon: CalendarDays,
+    phase: 1,
+    description: "Posts, shoots and events across every brand",
   },
   // **Directly under Dashboard, in the same unlabelled group, and the plural is the point.**
   // `/brands` stayed unclaimed for four releases while `/brand` and `/brand/:id` both rendered the

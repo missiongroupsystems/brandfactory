@@ -97,6 +97,7 @@ export interface Db {
 
   // Social posts
   listSocialPostsByBrand: typeof db.listSocialPostsByBrand
+  listSocialPostsByWorkspace: typeof db.listSocialPostsByWorkspace
   createSocialPost: typeof db.createSocialPost
   updateSocialPost: typeof db.updateSocialPost
   softDeleteSocialPost: typeof db.softDeleteSocialPost
@@ -232,6 +233,7 @@ export function buildDbDeps(): Db {
     createDeckVersion: db.createDeckVersion,
     listVersionsByDeck: db.listVersionsByDeck,
     listSocialPostsByBrand: db.listSocialPostsByBrand,
+    listSocialPostsByWorkspace: db.listSocialPostsByWorkspace,
     createSocialPost: db.createSocialPost,
     updateSocialPost: db.updateSocialPost,
     softDeleteSocialPost: db.softDeleteSocialPost,

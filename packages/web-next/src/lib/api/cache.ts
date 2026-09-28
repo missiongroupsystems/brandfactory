@@ -300,4 +300,12 @@ export const SCOPES = {
   // deck list is a separate aggregate on the server, and neither the brand row nor a guideline
   // write touches it.
   bfDecks: "bf-decks",
+  // The content calendar's two reads, keyed `[scope, workspaceId, from, to]`.
+  //
+  // **Two scopes, because they have different owners and different lifetimes.** The entries are
+  // ours and a write invalidates them; the events belong to Mission Events, are never written
+  // here, and go stale on their own schedule. One scope would make every post edit re-ask another
+  // product for a month it already has.
+  bfCalendarEntries: "bf-calendar-entries",
+  bfCalendarEvents: "bf-calendar-events",
 } as const;
