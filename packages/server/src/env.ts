@@ -26,9 +26,22 @@ const EnvObject = z.object({
   // Storage provider.
   STORAGE_PROVIDER: z.enum(['local-disk', 'supabase']),
 
-  // Realtime provider. Only one impl ships in Phase 3 — the enum widens
-  // when a second impl lands so misconfigured envs fail at boot.
-  REALTIME_PROVIDER: z.enum(['native-ws']),
+  // Realtime provider, and **the one setting that must match the machine
+  // count**.
+  //
+  // `native-ws` holds its subscribers in one process, so it is correct on
+  // exactly one instance. On two, a message published on one machine never
+  // reaches a socket on the other and there is no error to say so — which is
+  // the state this app ran in from May to September, unnoticed only because
+  // the one screen that subscribes had no deployment.
+  //
+  // `pg-backplane` is the same bus with publishes crossing over Postgres
+  // LISTEN/NOTIFY. It needs no extra configuration — it reuses `DATABASE_URL`.
+  //
+  // **Set this to `pg-backplane` before scaling past one machine**, and leave
+  // `native-ws` if you are staying at one: the backplane costs two connections
+  // and a table sweep that a single instance has no use for.
+  REALTIME_PROVIDER: z.enum(['native-ws', 'pg-backplane']),
 
   // LLM (active provider + model). Phase 3 reads from env only; workspace
   // overrides land with Phase 4's settings route.

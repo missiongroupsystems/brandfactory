@@ -21,9 +21,16 @@ kill_signal    = "SIGINT"
 [http_service]
   internal_port        = 3001
   force_https          = true
-  # Single-instance deploy — the `native-ws` realtime bus is in-process,
-  # so scaling to 2+ Machines silently breaks cross-instance fan-out.
-  # See docs/executing/hosted-deployment-plan.md Question 3.
+  # **Machine count and REALTIME_PROVIDER move together.**
+  #
+  # `native-ws` is in-process pub/sub and is correct on exactly one Machine.
+  # `pg-backplane` carries the publish between Machines over Postgres and is
+  # what 2+ requires. Scaling without setting it breaks realtime fan-out for
+  # roughly half of sessions, silently — this app ran that way from May to
+  # September and nobody noticed, because the only screen that subscribes had
+  # no deployment.
+  #
+  #   fly secrets set REALTIME_PROVIDER=pg-backplane
   auto_stop_machines   = false
   auto_start_machines  = true
   min_machines_running = 1

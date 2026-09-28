@@ -176,6 +176,13 @@
       "when": 1790584870055,
       "tag": "0024_worthless_taskmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790612513062,
+      "tag": "0025_black_genesis",
+      "breakpoints": true
     }
   ]
 }

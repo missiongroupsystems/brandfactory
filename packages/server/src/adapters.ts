@@ -8,7 +8,12 @@ import {
   createLocalDiskBlobStore,
   createSupabaseBlobStore,
 } from '@brandfactory/adapter-storage'
-import { type NativeWsRealtimeBus, createNativeWsRealtimeBus } from '@brandfactory/adapter-realtime'
+import {
+  type NativeWsRealtimeBus,
+  type PgBackplaneRealtimeBus,
+  createNativeWsRealtimeBus,
+  createPgBackplaneRealtimeBus,
+} from '@brandfactory/adapter-realtime'
 import {
   type LLMProvider,
   type LLMProviderConfig,
@@ -23,7 +28,9 @@ import type { Env } from './env'
 // native-ws bus) can narrow without an `as` cast. When a second impl lands,
 // add another branch here and let TS surface the missing case at every wire-up
 // site.
-export type RealtimeAdapter = { provider: 'native-ws'; bus: NativeWsRealtimeBus }
+export type RealtimeAdapter =
+  | { provider: 'native-ws'; bus: NativeWsRealtimeBus }
+  | { provider: 'pg-backplane'; bus: PgBackplaneRealtimeBus }
 
 export interface Adapters {
   auth: AuthProvider
@@ -73,17 +80,27 @@ export function buildAdapters(env: Env): Adapters {
           bucket: env.SUPABASE_STORAGE_BUCKET!,
         })
 
-  // Only one realtime impl ships in Phase 3; widen the discriminated union
-  // and the `RealtimeAdapter` type together as more land (decision 15).
+  // **The realtime impl must match the machine count**, and this is the one
+  // place that is decided.
   //
-  // Single-instance commitment: `native-ws` is an in-process pub/sub —
-  // subscribers live in a `Map` on this Node heap. Running more than one
-  // server instance (Fly `scale count 2`, k8s `replicas > 1`, etc.)
-  // silently drops cross-instance fan-out: a canvas-op published on
-  // Machine A never reaches a subscriber on Machine B. Deploys that need
-  // horizontal scale must land a second `RealtimeAdapter` branch first
-  // (Supabase Realtime / Redis pub-sub / etc.).
-  const realtime: RealtimeAdapter = { provider: 'native-ws', bus: createNativeWsRealtimeBus() }
+  // `native-ws` is in-process pub/sub — subscribers live in a `Map` on this
+  // Node heap. On one instance that is correct and cheapest. On two it
+  // silently drops cross-instance fan-out: a canvas-op published on Machine A
+  // never reaches a subscriber on Machine B, with no error anywhere. This
+  // deployment ran in exactly that state from May to September and nobody saw
+  // it, because the only screen that subscribes had no deployment.
+  //
+  // `pg-backplane` wraps that same bus and carries the publish between
+  // instances over Postgres LISTEN/NOTIFY. It is the branch decision 15
+  // anticipated, and it needs no configuration of its own — the connection
+  // string is the one the query layer already uses.
+  const realtime: RealtimeAdapter =
+    env.REALTIME_PROVIDER === 'pg-backplane'
+      ? {
+          provider: 'pg-backplane',
+          bus: createPgBackplaneRealtimeBus({ connectionString: env.DATABASE_URL }),
+        }
+      : { provider: 'native-ws', bus: createNativeWsRealtimeBus() }
 
   const llmConfig: LLMProviderConfig = {}
   if (env.ANTHROPIC_API_KEY) {

@@ -75,8 +75,28 @@ async function main(): Promise<void> {
         allowedOrigins,
       })
       break
+    case 'pg-backplane':
+      // The socket is still bound locally — a WebSocket belongs to one
+      // machine, and only the publish crosses. What this branch adds is the
+      // listener connection, opened before the server takes traffic so no
+      // publish is broadcast into a socket nobody is listening on yet.
+      await adapters.realtime.bus.start()
+      ws = mountRealtime({
+        httpServer: server,
+        realtime: adapters.realtime.bus,
+        auth: adapters.auth,
+        db,
+        log,
+        allowedOrigins,
+      })
+      break
     default: {
-      const _exhaustive: never = adapters.realtime.provider
+      // Narrows on the adapter rather than its discriminator: with every
+      // provider handled the discriminator is already `never`, and reading a
+      // property off it is an error rather than the guard it looks like. The
+      // assignment is the point — a third provider without a case above fails
+      // to compile here instead of throwing at boot.
+      const _exhaustive: never = adapters.realtime
       throw new Error(`unsupported realtime provider: ${String(_exhaustive)}`)
     }
   }
@@ -94,6 +114,13 @@ async function main(): Promise<void> {
       // billed. Losing it strands a paid job `IN_PROGRESS` until the ceiling.
       await researchTicker.stop()
       await ws.close()
+      // After the sockets are closed and before the pool: the backplane owns
+      // two connections of its own, outside `pool`, so nothing else will close
+      // them. Ordered after `ws.close()` because a listener that shut first
+      // would drop broadcasts for sockets still being drained.
+      if (adapters.realtime.provider === 'pg-backplane') {
+        await adapters.realtime.bus.stop()
+      }
       await new Promise<void>((resolve, reject) =>
         server.close((err) => (err ? reject(err) : resolve())),
       )
