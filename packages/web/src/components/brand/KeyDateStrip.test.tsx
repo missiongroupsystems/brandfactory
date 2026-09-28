@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import type { KeyDate, KeyDateSet } from '@/lib/key-dates'
+import type { KeyDate, KeyDateSet } from '@brandfactory/shared'
 import { KeyDateStrip } from './KeyDateStrip'
 
 function season(id: string, start: string, end: string, set: KeyDateSet = 'sg-events'): KeyDate {

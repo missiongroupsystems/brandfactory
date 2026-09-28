@@ -20,7 +20,7 @@ import { useUpdateBrandGuidelines } from '@/api/queries/brands'
 import { useIdeateCopy, useIdeateThemes } from '@/api/queries/social-ideas'
 import type { PostPlannerPanelProps } from '@/components/brand/PostPlannerPanel'
 import { DEFAULT_POST_TIME, localPartsToIso } from '@/lib/calendar'
-import type { KeyDate } from '@/lib/key-dates'
+import type { KeyDate } from '@brandfactory/shared'
 import {
   chunkCopyPairs,
   commitPairs,

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatDayHeading } from '@/lib/calendar'
-import type { KeyDate } from '@/lib/key-dates'
+import type { KeyDate } from '@brandfactory/shared'
 import { PLATFORM_LABELS, PLATFORM_OPTIONS } from '@/lib/social-copy'
 import {
   commitPairs,

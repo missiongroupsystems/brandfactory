@@ -1,4 +1,4 @@
-import { DEFAULT_ENABLED_SETS, KEY_DATE_SETS, type KeyDateSet } from '@/lib/key-dates'
+import { DEFAULT_ENABLED_SETS, KEY_DATE_SETS, type KeyDateSet } from '@brandfactory/shared'
 
 // Which key-date sets a brand's social calendar shows, remembered across
 // sessions.

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import type { BrandGuidelineSection, BrandWithSections } from '@brandfactory/shared'
 import { BrandContextStrip } from './BrandContextStrip'
-import type { KeyDate } from '@/lib/key-dates'
+import type { KeyDate } from '@brandfactory/shared'
 
 // The same `Link` stub the rail's, the hub's and the card's tests use: this
 // strip renders from props alone, which is the point of it, so it must not need

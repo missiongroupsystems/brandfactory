@@ -28,7 +28,7 @@ import { usePostBrainstorm } from '@/components/brand/usePostBrainstorm'
 import { usePostPlanner } from '@/components/brand/usePostPlanner'
 import { localDayKey, shiftMonth } from '@/lib/calendar'
 import { downloadUrl, postDownloads } from '@/lib/download'
-import { keyDatesForSets, staleSets, type KeyDateSet } from '@/lib/key-dates'
+import { keyDatesForSets, staleSets, type KeyDateSet } from '@brandfactory/shared'
 import { getEnabledSets, setEnabledSets } from '@/lib/key-dates-prefs'
 import { postExcerpt } from '@/lib/social-copy'
 

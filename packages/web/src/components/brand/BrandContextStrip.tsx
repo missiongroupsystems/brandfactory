@@ -6,7 +6,7 @@ import {
   KEY_DATE_APPEARANCE,
   KEY_DATE_SET_LABELS,
   type KeyDate,
-} from '@/lib/key-dates'
+} from '@brandfactory/shared'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------

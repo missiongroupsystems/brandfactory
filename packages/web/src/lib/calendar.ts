@@ -1,4 +1,4 @@
-import type { SocialPost } from '@brandfactory/shared'
+import { type SocialPost, dayKeyToDate, localDayKey, monthLabel } from '@brandfactory/shared'
 
 // ---------------------------------------------------------------------------
 // calendar — the local-time arithmetic behind the month grid and the list
@@ -40,35 +40,18 @@ export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] 
  */
 export const DEFAULT_POST_TIME = '09:00'
 
-const pad = (n: number) => String(n).padStart(2, '0')
-
 /**
- * `YYYY-MM-DD` for a `Date`, read in the **browser's** timezone.
+ * `localDayKey`, `dayKeyToDate` and `monthLabel` live in `@brandfactory/shared`
+ * now, because the key-date dataset moved there and `select.ts` reads them —
+ * a package cannot import from the app that consumes it.
  *
- * The grouping key for everything: grid cells, list day headings, and the
- * `onNewPost(dayKey)` seed all speak this string. It is also exactly what an
- * `<input type="date">` takes and returns, so the dialog needs no second
- * format.
+ * They are re-exported here rather than left for each caller to import twice:
+ * this file is web's one date module, and the header's two invariants still
+ * describe every function a caller gets from it, wherever the body lives.
  */
-export function localDayKey(date: Date): string {
-  if (Number.isNaN(date.getTime())) return ''
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
+export { dayKeyToDate, localDayKey, monthLabel }
 
-/** `YYYY-MM-DD` back to local midnight, or `null` if it is not a day key. */
-export function dayKeyToDate(dayKey: string): Date | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayKey.trim())
-  if (!m) return null
-  const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])]
-  const date = new Date(year, month - 1, day)
-  // `new Date(2026, 12, 40)` is a valid `Date` in February — the constructor
-  // normalises out-of-range components rather than refusing them. Round-trip
-  // the parts to tell a real date from a normalised one.
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
-    return null
-  }
-  return date
-}
+const pad = (n: number) => String(n).padStart(2, '0')
 
 /**
  * The days a month's grid renders: the 1st back to the preceding Monday, the
@@ -162,13 +145,6 @@ export function localPartsToIso(date: string, time: string): string | null {
   const at = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hours, minutes, 0, 0)
   if (Number.isNaN(at.getTime())) return null
   return at.toISOString()
-}
-
-/** `August 2026` — the grid's header. */
-export function monthLabel(year: number, month: number): string {
-  return new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(
-    new Date(year, month, 1),
-  )
 }
 
 /**

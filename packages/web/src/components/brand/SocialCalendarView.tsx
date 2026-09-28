@@ -17,7 +17,7 @@ import { SocialPostList } from '@/components/brand/SocialPostList'
 import type { MiniApp } from '@/components/brand/miniApps'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
-import type { KeyDate, KeyDateSet } from '@/lib/key-dates'
+import type { KeyDate, KeyDateSet } from '@brandfactory/shared'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------

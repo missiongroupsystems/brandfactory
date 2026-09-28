@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { SocialPost } from '@brandfactory/shared'
-import type { KeyDate, KeyDateSet } from '@/lib/key-dates'
+import type { KeyDate, KeyDateSet } from '@brandfactory/shared'
 import { CalendarMonthGrid } from './CalendarMonthGrid'
 
 const STAMPS = {

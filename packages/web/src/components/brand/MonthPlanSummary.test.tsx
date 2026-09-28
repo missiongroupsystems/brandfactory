@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import type { SocialPost } from '@brandfactory/shared'
-import type { KeyDate, KeyDateSet } from '@/lib/key-dates'
+import type { KeyDate, KeyDateSet } from '@brandfactory/shared'
 import { MonthPlanSummary } from './MonthPlanSummary'
 
 const STAMPS = {

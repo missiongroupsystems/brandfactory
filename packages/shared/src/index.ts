@@ -112,3 +112,9 @@ export * from './agent/api'
 
 // Realtime wire envelope
 export * from './realtime/envelope'
+
+// Local-day arithmetic, shared by the calendar and the key dates
+export * from './date/day-key'
+
+// Curated key dates — static data, no schema and no route
+export * from './key-dates'

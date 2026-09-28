@@ -21,7 +21,7 @@ import {
   splitByShape,
   upcomingKeyDates,
   type KeyDate,
-} from '@/lib/key-dates'
+} from '@brandfactory/shared'
 import { PLATFORM_LABELS, postExcerpt, STATUS_LABELS } from '@/lib/social-copy'
 import { cn } from '@/lib/utils'
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PostIdea, SocialPlatform, SocialPost } from '@brandfactory/shared'
 import { IDEATE_MAX_TAKEN_SLOTS } from '@brandfactory/shared'
-import type { KeyDate, KeyDateSet } from '@/lib/key-dates'
+import type { KeyDate, KeyDateSet } from '@brandfactory/shared'
 import {
   brainstormRequest,
   BRAINSTORM_IDEA_COUNT,

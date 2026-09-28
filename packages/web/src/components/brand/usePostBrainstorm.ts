@@ -6,7 +6,7 @@ import type {
 } from '@brandfactory/shared'
 import { brandContentPillars } from '@brandfactory/shared'
 import { useIdeateCopy, useIdeateThemes } from '@/api/queries/social-ideas'
-import type { KeyDate } from '@/lib/key-dates'
+import type { KeyDate } from '@brandfactory/shared'
 import { brainstormRequest } from '@/lib/social-plan'
 
 // ---------------------------------------------------------------------------

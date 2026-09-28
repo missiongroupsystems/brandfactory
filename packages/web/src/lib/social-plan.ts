@@ -12,7 +12,7 @@ import {
   IDEATE_MAX_TAKEN_SLOTS,
 } from '@brandfactory/shared'
 import { dayKeyToDate, groupByDay, localDayKey } from '@/lib/calendar'
-import { KEY_DATE_SET_LABELS, splitByShape, type KeyDate } from '@/lib/key-dates'
+import { KEY_DATE_SET_LABELS, splitByShape, type KeyDate } from '@brandfactory/shared'
 
 // ---------------------------------------------------------------------------
 // social-plan — what a month is shaped like, before any model exists

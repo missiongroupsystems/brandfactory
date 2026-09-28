@@ -1,4 +1,4 @@
-import { dayKeyToDate, localDayKey, monthLabel } from '../calendar'
+import { dayKeyToDate, localDayKey, monthLabel } from '../date/day-key'
 import { ALL_KEY_DATES } from './all'
 import { CURATED_THROUGH, KEY_DATE_SETS, type KeyDate, type KeyDateSet } from './types'
 

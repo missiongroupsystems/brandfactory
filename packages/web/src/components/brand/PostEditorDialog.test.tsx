@@ -9,7 +9,7 @@ import type {
 } from '@brandfactory/shared'
 import { PostEditorDialog, type PostEditorDialogProps } from './PostEditorDialog'
 import { isoToLocalParts, localPartsToIso } from '@/lib/calendar'
-import type { KeyDate } from '@/lib/key-dates'
+import type { KeyDate } from '@brandfactory/shared'
 
 // The context strip carries a `Link` when a brand's sections are thin. Same
 // stub the rail's and the card's tests use — the dialog renders from props

@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { DEFAULT_POST_TIME, isoToLocalParts, localDayKey, localPartsToIso } from '@/lib/calendar'
-import { keyDatesOnDay, type KeyDate } from '@/lib/key-dates'
+import { keyDatesOnDay, type KeyDate } from '@brandfactory/shared'
 import { PLATFORM_OPTIONS, STATUS_OPTIONS } from '@/lib/social-copy'
 import { assetUrl } from '@/lib/asset-url'
 import { cn } from '@/lib/utils'

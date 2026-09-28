@@ -1,5 +1,5 @@
 import type { SocialPost } from '@brandfactory/shared'
-import { formatKeyDateRange, type KeyDate } from '@/lib/key-dates'
+import { formatKeyDateRange, type KeyDate } from '@brandfactory/shared'
 import { monthPlanSummary } from '@/lib/social-plan'
 
 // ---------------------------------------------------------------------------

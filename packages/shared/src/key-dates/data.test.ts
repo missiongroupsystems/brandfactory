@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dayKeyToDate, localDayKey } from '../calendar'
+import { dayKeyToDate, localDayKey } from '../date/day-key'
 import {
   ALL_KEY_DATES,
   CURATED_THROUGH,

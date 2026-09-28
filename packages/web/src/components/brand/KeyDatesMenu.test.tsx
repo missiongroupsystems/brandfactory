@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { KeyDateSet } from '@/lib/key-dates'
+import type { KeyDateSet } from '@brandfactory/shared'
 import { KeyDatesMenu } from './KeyDatesMenu'
 
 /** Open the menu and return the three checkbox items, in render order. */

@@ -5,7 +5,7 @@ import {
   KEY_DATE_SET_DESCRIPTIONS,
   KEY_DATE_SET_LABELS,
   type KeyDateSet,
-} from '@/lib/key-dates'
+} from '@brandfactory/shared'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
