@@ -2,7 +2,15 @@
 
 import type { SocialPost, SocialPostStatus } from "@brandfactory/shared";
 import { localDayKey } from "@brandfactory/shared";
-import { CalendarClock, ChevronLeft, ChevronRight, Clapperboard, Link2, Ticket } from "lucide-react";
+import {
+  CalendarClock,
+  ChevronLeft,
+  ChevronRight,
+  Clapperboard,
+  Download,
+  Link2,
+  Ticket,
+} from "lucide-react";
 import * as React from "react";
 
 import { BrandMark } from "@/components/brand/brand-mark";
@@ -13,6 +21,7 @@ import { SOCIAL_PLATFORM_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
 import type { CalendarEvent } from "../api";
+import { downloadCsv, entriesToCsv, exportFilename } from "../csv";
 import {
   WEEKDAY_LABELS,
   entriesByDay,
@@ -21,35 +30,12 @@ import {
   monthGridDays,
   monthLabel,
   shiftMonth,
+  gridRange,
   summarise,
 } from "../grid";
 import { useCalendarMonth } from "../hooks";
-
-/**
- * The pipeline as one ramp in the brand green, the same reading the legacy
- * list uses: grey at `Idea`, an outline once somebody cleared it, filling
- * through the working stages, settled at `Posted`.
- *
- * **Not the feedback tints**, for the reason `globals.css` already gives where
- * the key-date sets refused them: those colours mean error, warning, success
- * and information, and `Filming` is not a warning. Full class strings, never
- * composed — Tailwind scans source text.
- */
-const STATUS_PILL: Record<SocialPostStatus, string> = {
-  idea: "bg-muted text-muted-foreground",
-  approved: "border border-[var(--border-strong)] text-foreground",
-  filming: "border border-primary/30 text-primary",
-  editing: "bg-primary/5 text-primary",
-  posted: "bg-primary/10 text-primary",
-};
-
-const STATUS_LABELS: Record<SocialPostStatus, string> = {
-  idea: "Idea",
-  approved: "Approved",
-  filming: "Filming",
-  editing: "Editing",
-  posted: "Posted",
-};
+import { STATUS_LABELS, STATUS_PILL } from "../status-pill";
+import { CalendarList } from "./calendar-list";
 
 function timeOf(iso: string): string {
   const d = new Date(iso);
@@ -142,6 +128,7 @@ export function CalendarView({
     month: today.getMonth(),
   });
   const [selectedDay, setSelectedDay] = React.useState<string | null>(null);
+  const [view, setView] = React.useState<"month" | "list">("month");
   const [brandFilter, setBrandFilter] = React.useState<string | null>(null);
 
   const { entries, events, isLoading, entriesError, eventsError } = useCalendarMonth(
@@ -174,6 +161,12 @@ export function CalendarView({
     () => summarise(shownEntries, shownEvents),
     [shownEntries, shownEvents],
   );
+
+  const exportCsv = React.useCallback(() => {
+    const { from, to } = gridRange(cursor.year, cursor.month);
+    const label = brandFilter ? brandName(brandFilter) : "All brands";
+    downloadCsv(exportFilename(label, from, to), entriesToCsv(shownEntries, brandName));
+  }, [cursor.year, cursor.month, brandFilter, brandName, shownEntries]);
 
   const todayKey = localDayKey(today);
 
@@ -208,6 +201,27 @@ export function CalendarView({
             onClick={() => setCursor({ year: today.getFullYear(), month: today.getMonth() })}
           >
             Today
+          </Button>
+
+          <div className="ml-2 inline-flex gap-0.5 rounded-lg border border-border p-0.5">
+            {(["month", "list"] as const).map((v) => (
+              <Button
+                key={v}
+                variant={view === v ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setView(v)}
+              >
+                {v === "month" ? "Month" : "List"}
+              </Button>
+            ))}
+          </div>
+
+          {/* Exports exactly what is on screen — this brand filter, this
+              range. A button that quietly exported more than the reader could
+              see would be the one thing a run sheet must not do. */}
+          <Button variant="secondary" size="sm" onClick={exportCsv} disabled={shownEntries.length === 0}>
+            <Download className="size-4" />
+            Export
           </Button>
         </div>
 
@@ -275,6 +289,8 @@ export function CalendarView({
 
       {isLoading ? (
         <LoadingRows rows={6} />
+      ) : view === "list" ? (
+        <CalendarList entries={shownEntries} brandName={brandName} />
       ) : (
         <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-border bg-border">
           {WEEKDAY_LABELS.map((d) => (
