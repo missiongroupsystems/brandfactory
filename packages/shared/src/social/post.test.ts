@@ -21,8 +21,20 @@ function post(id: string, over: Partial<SocialPost> = {}): SocialPost {
     platform: 'instagram',
     scheduledAt: null,
     body: '',
-    status: 'draft',
+    status: 'idea',
     createdBy: 'user',
+    kind: 'post',
+    format: null,
+    hook: null,
+    dish: null,
+    talent: null,
+    filmedBy: null,
+    canvaUrl: null,
+    clearedWith: null,
+    shootId: null,
+    eventsEventId: null,
+    approvedAt: null,
+    approvedBy: null,
     assetIds: [],
     deletedAt: null,
     createdAt: T0,
@@ -32,14 +44,16 @@ function post(id: string, over: Partial<SocialPost> = {}): SocialPost {
 }
 
 describe('SocialPlatformSchema', () => {
-  it('carries exactly the eight platforms', () => {
+  it('carries exactly the ten platforms', () => {
     expect(SocialPlatformSchema.options).toEqual([
       'instagram',
       'facebook',
       'tiktok',
+      'xiaohongshu',
       'linkedin',
       'x',
       'youtube',
+      'threads',
       'pinterest',
       'other',
     ])
@@ -47,8 +61,14 @@ describe('SocialPlatformSchema', () => {
 })
 
 describe('SocialPostStatusSchema', () => {
-  it('carries exactly the three manual states', () => {
-    expect(SocialPostStatusSchema.options).toEqual(['draft', 'ready', 'posted'])
+  it('carries exactly the five pipeline stages, in order', () => {
+    expect(SocialPostStatusSchema.options).toEqual([
+      'idea',
+      'approved',
+      'filming',
+      'editing',
+      'posted',
+    ])
   })
 })
 
@@ -66,7 +86,7 @@ describe('SocialPostSchema', () => {
       post('p', {
         scheduledAt: '2026-08-14T10:30:00.000Z',
         body: 'Launch day.',
-        status: 'ready',
+        status: 'approved',
         assetIds: ['a-1', 'a-2'] as BrandAssetId[],
       }),
     )
@@ -104,7 +124,7 @@ describe('SocialPostSchema', () => {
   })
 
   it('rejects a platform outside the enum', () => {
-    expect(SocialPostSchema.safeParse({ ...post('p'), platform: 'threads' }).success).toBe(false)
+    expect(SocialPostSchema.safeParse({ ...post('p'), platform: 'bereal' }).success).toBe(false)
   })
 
   it('rejects a non-ISO scheduledAt', () => {

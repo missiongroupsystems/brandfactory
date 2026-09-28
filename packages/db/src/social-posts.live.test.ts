@@ -3,6 +3,8 @@ import type {
   BrandId,
   CreateSocialPostInput,
   SocialPostId,
+  SocialPostKind,
+  UserId,
   WorkspaceId,
 } from '@brandfactory/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -33,11 +35,15 @@ const SCRATCH_BRAND_NAME = 'Social post round-trip scratch brand'
 
 describe.skipIf(!hasDb)('social_posts (live DB)', () => {
   let workspaceId: WorkspaceId
+  // The approval stamp needs a real user, and the seeded one is the only
+  // user any of these rows could honestly name.
+  let seededUserId: UserId
   const created: BrandId[] = []
 
   beforeAll(async () => {
     const ids = await seed()
     workspaceId = ids.workspaceId as WorkspaceId
+    seededUserId = ids.userId as UserId
   })
 
   // `seed.test.ts` asserts exact row counts for the seeded brands, so nothing
@@ -58,13 +64,21 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
    * only the thing it is testing.
    *
    * The wrapper exists because `CreateSocialPostInput` is the schema's
-   * **output** type, where `createdBy` is required — `.default('user')` runs at
-   * the wire, not in TypeScript. The two provenance tests pass the field
-   * through and one of them goes through `CreateSocialPostInputSchema.parse`
-   * instead, which is the only way to exercise the default itself.
+   * **output** type, where `createdBy` and `kind` are required — their
+   * `.default()`s run at the wire, not in TypeScript. The two provenance
+   * tests pass `createdBy` through and one of them goes through
+   * `CreateSocialPostInputSchema.parse` instead, which is the only way to
+   * exercise the default itself.
+   *
+   * The approver is defaulted too: every call here that does not name a
+   * status creates an `idea`, which is never stamped.
    */
-  async function newPost(brandId: BrandId, input: Omit<CreateSocialPostInput, 'createdBy'>) {
-    return createSocialPost(brandId, { createdBy: 'user', ...input })
+  async function newPost(
+    brandId: BrandId,
+    input: Omit<CreateSocialPostInput, 'createdBy' | 'kind'> & { kind?: SocialPostKind },
+    approver: UserId = seededUserId,
+  ) {
+    return createSocialPost(brandId, { createdBy: 'user', kind: 'post', ...input }, approver)
   }
 
   async function scratchAsset(brandId: BrandId, label: string, position: number) {
@@ -90,7 +104,7 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
     const early = await newPost(brand.id, {
       platform: 'linkedin',
       scheduledAt: '2026-08-05T08:00:00.000Z',
-      status: 'ready',
+      status: 'approved',
     })
 
     const posts = await listSocialPostsByBrand(brand.id)
@@ -108,7 +122,7 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
     const brand = await scratchBrand()
     const post = await newPost(brand.id, { platform: 'tiktok' })
     expect(post.body).toBe('')
-    expect(post.status).toBe('draft')
+    expect(post.status).toBe('idea')
     expect(post.scheduledAt).toBeNull()
     expect(post.assetIds).toEqual([])
     expect(post.deletedAt).toBeNull()
@@ -120,13 +134,17 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
     // with no `createdBy` key becomes `'user'`, and the wrapper would supply
     // the value this test exists to show the schema supplying.
     const input = CreateSocialPostInputSchema.parse({ platform: 'tiktok' })
-    const post = await createSocialPost(brand.id, input)
+    const post = await createSocialPost(brand.id, input, seededUserId)
     expect(post.createdBy).toBe('user')
   })
 
   it('round-trips an agent-written post', async () => {
     const brand = await scratchBrand()
-    const post = await createSocialPost(brand.id, { platform: 'linkedin', createdBy: 'agent' })
+    const post = await createSocialPost(
+      brand.id,
+      { platform: 'linkedin', createdBy: 'agent', kind: 'post' },
+      seededUserId,
+    )
     expect(post.createdBy).toBe('agent')
     // Through the read path too — the column is on the wire shape, so a post
     // the planner wrote is attributable from the list the calendar renders.
@@ -140,8 +158,17 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
     // `createdBy` key, so this is a type-level guarantee as much as a runtime
     // one — the assertion pins the behaviour the absence produces.
     const brand = await scratchBrand()
-    const post = await createSocialPost(brand.id, { platform: 'x', createdBy: 'agent' })
-    const edited = await updateSocialPost(brand.id, post.id, { body: 'A human rewrote this.' })
+    const post = await createSocialPost(
+      brand.id,
+      { platform: 'x', createdBy: 'agent', kind: 'post' },
+      seededUserId,
+    )
+    const edited = await updateSocialPost(
+      brand.id,
+      post.id,
+      { body: 'A human rewrote this.' },
+      seededUserId,
+    )
     expect(edited?.createdBy).toBe('agent')
   })
 
@@ -189,9 +216,9 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
     ).rejects.toThrow(AssetNotInBrandError)
 
     const post = await newPost(brand.id, { platform: 'facebook' })
-    await expect(updateSocialPost(brand.id, post.id, { assetIds: [hidden.id] })).rejects.toThrow(
-      AssetNotInBrandError,
-    )
+    await expect(
+      updateSocialPost(brand.id, post.id, { assetIds: [hidden.id] }, seededUserId),
+    ).rejects.toThrow(AssetNotInBrandError)
   })
 
   it('patches with updateAsset semantics: omitted keys stay, assetIds is a full replacement', async () => {
@@ -208,26 +235,38 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
     })
 
     // Omitted `assetIds` leaves the attachments alone.
-    const retitled = await updateSocialPost(brand.id, post.id, { body: 'Cut two.' })
+    const retitled = await updateSocialPost(brand.id, post.id, { body: 'Cut two.' }, seededUserId)
     expect(retitled?.body).toBe('Cut two.')
     expect(retitled?.platform).toBe('youtube')
     expect(retitled?.assetIds).toEqual([a!.id])
 
     // Full replacement is add/remove/reorder in one verb.
-    const swapped = await updateSocialPost(brand.id, post.id, { assetIds: [b!.id, a!.id] })
+    const swapped = await updateSocialPost(
+      brand.id,
+      post.id,
+      { assetIds: [b!.id, a!.id] },
+      seededUserId,
+    )
     expect(swapped?.assetIds).toEqual([b!.id, a!.id])
-    const cleared = await updateSocialPost(brand.id, post.id, { assetIds: [] })
+    const cleared = await updateSocialPost(brand.id, post.id, { assetIds: [] }, seededUserId)
     expect(cleared?.assetIds).toEqual([])
 
     // `scheduledAt: null` moves the post to the tray.
-    const unscheduled = await updateSocialPost(brand.id, post.id, { scheduledAt: null })
+    const unscheduled = await updateSocialPost(
+      brand.id,
+      post.id,
+      { scheduledAt: null },
+      seededUserId,
+    )
     expect(unscheduled?.scheduledAt).toBeNull()
   })
 
   it('will not patch or delete a post through the wrong brand', async () => {
     const [owner, other] = [await scratchBrand(), await scratchBrand()]
     const post = await newPost(owner.id, { platform: 'instagram', body: 'Mine.' })
-    expect(await updateSocialPost(other.id, post.id, { body: 'Hijacked.' })).toBeNull()
+    expect(
+      await updateSocialPost(other.id, post.id, { body: 'Hijacked.' }, seededUserId),
+    ).toBeNull()
     expect(await softDeleteSocialPost(other.id, post.id)).toBeNull()
     const [still] = await listSocialPostsByBrand(owner.id)
     expect(still?.body).toBe('Mine.')
@@ -248,7 +287,9 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
     // A second delete misses, so `deletedAt` cannot creep forward under an
     // Undo that is still on screen; a patch cannot land on a hidden row.
     expect(await softDeleteSocialPost(brand.id, post.id)).toBeNull()
-    expect(await updateSocialPost(brand.id, post.id, { body: 'Resurrected.' })).toBeNull()
+    expect(
+      await updateSocialPost(brand.id, post.id, { body: 'Resurrected.' }, seededUserId),
+    ).toBeNull()
 
     // Join rows were untouched, so restore brings the attachments back.
     const restored = await restoreSocialPost(brand.id, post.id)
@@ -291,7 +332,7 @@ describe.skipIf(!hasDb)('social_posts (live DB)', () => {
   it('misses an unknown postId rather than throwing', async () => {
     const brand = await scratchBrand()
     const stranger = 'ffffffff-ffff-4fff-8fff-ffffffffffff' as SocialPostId
-    expect(await updateSocialPost(brand.id, stranger, { body: 'ghost' })).toBeNull()
+    expect(await updateSocialPost(brand.id, stranger, { body: 'ghost' }, seededUserId)).toBeNull()
     expect(await softDeleteSocialPost(brand.id, stranger)).toBeNull()
     expect(await restoreSocialPost(brand.id, stranger)).toBeNull()
   })

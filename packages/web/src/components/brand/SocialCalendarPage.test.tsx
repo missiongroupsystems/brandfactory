@@ -239,7 +239,12 @@ vi.mock('@/components/brand/SocialCalendarView', () => ({
       <button onClick={() => props.onDeletePost(POST)}>fire delete</button>
       <button
         onClick={() =>
-          props.onCreate({ platform: 'instagram', scheduledAt: null, createdBy: 'user' })
+          props.onCreate({
+            platform: 'instagram',
+            scheduledAt: null,
+            createdBy: 'user',
+            kind: 'post',
+          })
         }
       >
         fire create
@@ -341,9 +346,21 @@ const POST = {
   platform: 'instagram',
   scheduledAt: '2026-08-03T09:00:00.000Z',
   body: 'Sunday roast',
-  status: 'draft',
+  status: 'idea',
   createdBy: 'user',
   assetIds: [],
+  kind: 'post',
+  format: null,
+  hook: null,
+  dish: null,
+  talent: null,
+  filmedBy: null,
+  canvaUrl: null,
+  clearedWith: null,
+  shootId: null,
+  eventsEventId: null,
+  approvedAt: null,
+  approvedBy: null,
   deletedAt: null,
   createdAt: T0,
   updatedAt: T0,
@@ -839,7 +856,7 @@ describe('SocialCalendarPage — the planner', () => {
     const first = mutations.createAsync.mock.calls[0]?.[0] as CreateSocialPostInput
     expect(first.platform).toBe('instagram')
     expect(first.createdBy).toBe('agent')
-    expect(first.status).toBe('draft')
+    expect(first.status).toBe('idea')
     expect(first.body).toBe('First caption')
     // 09:00 local on the idea's day — `DEFAULT_POST_TIME`, through the one
     // converter.

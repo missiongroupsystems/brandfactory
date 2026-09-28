@@ -301,7 +301,7 @@ function PostEditorForm({
   const [date, setDate] = useState(seeded.date)
   const [time, setTime] = useState(seeded.time)
   const [body, setBody] = useState(post?.body ?? '')
-  const [status, setStatus] = useState<SocialPostStatus>(post?.status ?? 'draft')
+  const [status, setStatus] = useState<SocialPostStatus>(post?.status ?? 'idea')
   const [assetIds, setAssetIds] = useState<BrandAssetId[]>(post?.assetIds ?? [])
   const [errors, setErrors] = useState<Errors>({})
 
@@ -431,6 +431,8 @@ function PostEditorForm({
     if (!post) {
       onCreate({
         platform: platform as SocialPlatform,
+        // The dialog writes posts; a shoot is created from the calendar.
+        kind: 'post',
         // Stated rather than omitted: `CreateSocialPostInputSchema` accepts an
         // explicit `null` precisely so "create unscheduled" is one shape.
         scheduledAt,

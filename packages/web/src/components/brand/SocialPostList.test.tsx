@@ -45,9 +45,21 @@ function post(id: string, local: Date | null, overrides: Partial<SocialPost> = {
     platform: 'instagram',
     scheduledAt: local === null ? null : local.toISOString(),
     body: `Copy for ${id}`,
-    status: 'draft',
+    status: 'idea',
     createdBy: 'user',
     assetIds: [],
+    kind: 'post',
+    format: null,
+    hook: null,
+    dish: null,
+    talent: null,
+    filmedBy: null,
+    canvaUrl: null,
+    clearedWith: null,
+    shootId: null,
+    eventsEventId: null,
+    approvedAt: null,
+    approvedBy: null,
     deletedAt: null,
     ...STAMPS,
     ...overrides,
@@ -124,9 +136,9 @@ describe('SocialPostList', () => {
   })
 
   it('names the platform and the status on every row', () => {
-    renderList({ posts: [post('p-1', null, { platform: 'tiktok', status: 'ready' })] })
+    renderList({ posts: [post('p-1', null, { platform: 'tiktok', status: 'approved' })] })
     expect(screen.getByText('TikTok')).toBeTruthy()
-    expect(screen.getByText('Ready')).toBeTruthy()
+    expect(screen.getByText('Approved')).toBeTruthy()
   })
 
   it('falls back to the platform name for a post with no copy yet', () => {
@@ -445,16 +457,16 @@ describe('SocialPostList — provenance', () => {
   })
 
   it('does not replace the status — the two together are the review question', () => {
-    // `createdBy === 'agent' && status === 'draft'` is the unreviewed pile, so
+    // `createdBy === 'agent' && status === 'idea'` is the unreviewed pile, so
     // an agent row still has to say which of the three states it is in.
     renderList({ posts: [written] })
-    expect(screen.getByText('Draft')).toBeTruthy()
+    expect(screen.getByText('Idea')).toBeTruthy()
     expect(screen.getByRole('img', { name: 'Written by the agent' })).toBeTruthy()
   })
 
   it('keeps the marker on a row the agent wrote and a person approved', () => {
-    renderList({ posts: [{ ...written, status: 'ready' as const }] })
-    expect(screen.getByText('Ready')).toBeTruthy()
+    renderList({ posts: [{ ...written, status: 'approved' as const }] })
+    expect(screen.getByText('Approved')).toBeTruthy()
     expect(screen.getByRole('img', { name: 'Written by the agent' })).toBeTruthy()
   })
 })

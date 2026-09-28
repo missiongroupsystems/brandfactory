@@ -133,6 +133,22 @@ export function toIsoTimestampOrNull(value: string | Date | null): string | null
   return value === null ? null : toIsoTimestamp(value)
 }
 
+/**
+ * `''` and `null` mean the same thing in an optional free-text column —
+ * nobody filled it in — so the wire carries one of them and readers test for
+ * one thing. Whitespace counts as blank: a field holding a space is a field
+ * somebody cleared.
+ *
+ * Used by the social post's content-plan columns, which are the first group
+ * where a client clears a value by emptying an input rather than by sending
+ * an explicit `null`.
+ */
+export function blankToNull(value: string | null): string | null {
+  if (value === null) return null
+  const trimmed = value.trim()
+  return trimmed === '' ? null : trimmed
+}
+
 export function rowToWorkspace(row: WorkspaceRow): Workspace {
   return {
     id: row.id as WorkspaceId,
@@ -307,11 +323,25 @@ export function rowToSocialPost(row: SocialPostRow, assetIds: BrandAssetId[]): S
   return {
     id: row.id as SocialPostId,
     brandId: row.brandId as BrandId,
+    kind: row.kind,
     platform: row.platform,
     scheduledAt: toIsoTimestampOrNull(row.scheduledAt),
     body: row.body,
     status: row.status,
     createdBy: row.createdBy,
+    // `''` and `null` both mean nobody filled it in, so the blank collapses
+    // here and no reader downstream has to test for two empties.
+    format: blankToNull(row.format),
+    hook: blankToNull(row.hook),
+    dish: blankToNull(row.dish),
+    talent: blankToNull(row.talent),
+    filmedBy: blankToNull(row.filmedBy),
+    canvaUrl: blankToNull(row.canvaUrl),
+    shootId: (row.shootId as SocialPostId | null) ?? null,
+    eventsEventId: row.eventsEventId ?? null,
+    approvedAt: toIsoTimestampOrNull(row.approvedAt),
+    approvedBy: (row.approvedBy as UserId | null) ?? null,
+    clearedWith: blankToNull(row.clearedWith),
     assetIds,
     deletedAt: toIsoTimestampOrNull(row.deletedAt),
     createdAt: toIsoTimestamp(row.createdAt),

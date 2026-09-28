@@ -70,9 +70,21 @@ function post(overrides: Partial<SocialPost> = {}): SocialPost {
     platform: 'instagram',
     scheduledAt: new Date(2026, 7, 3, 9, 0).toISOString(),
     body: 'Sunday roast, from three o’clock.',
-    status: 'draft',
+    status: 'idea',
     createdBy: 'user',
     assetIds: [],
+    kind: 'post',
+    format: null,
+    hook: null,
+    dish: null,
+    talent: null,
+    filmedBy: null,
+    canvaUrl: null,
+    clearedWith: null,
+    shootId: null,
+    eventsEventId: null,
+    approvedAt: null,
+    approvedBy: null,
     deletedAt: null,
     ...STAMPS,
     ...overrides,
@@ -179,6 +191,7 @@ describe('PostEditorDialog — create', () => {
     await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1))
     expect(onCreate.mock.calls[0]?.[0]).toEqual({
       platform: 'linkedin',
+      kind: 'post',
       // The seed is a local day; what goes on the wire is the UTC instant it
       // names, which is only the same string in one timezone.
       scheduledAt: localPartsToIso('2026-08-10', '09:00'),
@@ -201,6 +214,7 @@ describe('PostEditorDialog — create', () => {
     // null so "create unscheduled" is one shape rather than two.
     expect(onCreate.mock.calls[0]?.[0]).toEqual({
       platform: 'instagram',
+      kind: 'post',
       scheduledAt: null,
       createdBy: 'user',
     })
@@ -237,7 +251,7 @@ describe('PostEditorDialog — create', () => {
 
 describe('PostEditorDialog — edit', () => {
   it('re-seeds every field from the post it opens on', () => {
-    const existing = post({ status: 'ready', platform: 'tiktok' })
+    const existing = post({ status: 'approved', platform: 'tiktok' })
     setup({ post: existing })
 
     const local = isoToLocalParts(existing.scheduledAt!)
@@ -245,7 +259,7 @@ describe('PostEditorDialog — edit', () => {
     expect(screen.getByLabelText('Time')).toHaveProperty('value', local.time)
     expect(screen.getByLabelText('Copy')).toHaveProperty('value', existing.body)
     expect(screen.getByRole('combobox', { name: 'Platform' }).textContent).toContain('TikTok')
-    expect(screen.getByRole('combobox', { name: 'Status' }).textContent).toContain('Ready')
+    expect(screen.getByRole('combobox', { name: 'Status' }).textContent).toContain('Approved')
   })
 
   it('sends only what changed', async () => {

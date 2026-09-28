@@ -1,9 +1,13 @@
 import { z } from 'zod'
+import { SocialPostIdSchema } from '../ids'
 import {
   SocialPostAssetIdsSchema,
   SocialPostBodySchema,
   SocialPlatformSchema,
+  SocialPostHookSchema,
+  SocialPostPlanFieldSchema,
   SocialPostStatusSchema,
+  SocialPostUrlSchema,
 } from './post'
 
 /**
@@ -23,6 +27,23 @@ import {
  * `deletedAt` is deliberately absent — deletion is its own verb
  * (DELETE / POST :postId/restore), never a patch.
  */
+const PATCHABLE = [
+  'platform',
+  'scheduledAt',
+  'body',
+  'status',
+  'assetIds',
+  'format',
+  'hook',
+  'dish',
+  'talent',
+  'filmedBy',
+  'canvaUrl',
+  'clearedWith',
+  'shootId',
+  'eventsEventId',
+] as const
+
 export const UpdateSocialPostInputSchema = z
   .object({
     platform: SocialPlatformSchema.optional(),
@@ -30,15 +51,30 @@ export const UpdateSocialPostInputSchema = z
     body: SocialPostBodySchema.optional(),
     status: SocialPostStatusSchema.optional(),
     assetIds: SocialPostAssetIdsSchema.optional(),
+
+    /**
+     * Every plan field is nullable here as well as optional, unlike `body`:
+     * omission leaves it alone and `null` clears it. A hook that turned out to
+     * be wrong has to be erasable, and `''` would be a second way to say the
+     * same thing.
+     */
+    format: SocialPostPlanFieldSchema.optional(),
+    hook: SocialPostHookSchema.optional(),
+    dish: SocialPostPlanFieldSchema.optional(),
+    talent: SocialPostPlanFieldSchema.optional(),
+    filmedBy: SocialPostPlanFieldSchema.optional(),
+    canvaUrl: SocialPostUrlSchema.optional(),
+    clearedWith: SocialPostPlanFieldSchema.optional(),
+    shootId: SocialPostIdSchema.nullable().optional(),
+    eventsEventId: z.uuid().nullable().optional(),
   })
-  .refine(
-    (v) =>
-      v.platform !== undefined ||
-      v.scheduledAt !== undefined ||
-      v.body !== undefined ||
-      v.status !== undefined ||
-      v.assetIds !== undefined,
-    { message: 'At least one of platform, scheduledAt, body, status or assetIds is required' },
-  )
+  // `kind` is deliberately absent: a shoot does not become a post. Delete it
+  // and write the other, the way `createdBy` is a fact about creation.
+  //
+  // `approvedAt` and `approvedBy` are absent because the server stamps them —
+  // a client that could set its own approval would make the stamp worthless.
+  .refine((v) => PATCHABLE.some((k) => v[k] !== undefined), {
+    message: `At least one of ${PATCHABLE.join(', ')} is required`,
+  })
 
 export type UpdateSocialPostInput = z.infer<typeof UpdateSocialPostInputSchema>

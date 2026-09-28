@@ -60,7 +60,7 @@ describe('PostIdeaSchema', () => {
   })
 
   it('rejects a platform outside the enum', () => {
-    expect(PostIdeaSchema.safeParse({ ...IDEA, platforms: ['threads'] }).success).toBe(false)
+    expect(PostIdeaSchema.safeParse({ ...IDEA, platforms: ['bereal'] }).success).toBe(false)
   })
 
   it('rejects an idea with no platform at all', () => {

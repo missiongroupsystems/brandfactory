@@ -4,6 +4,7 @@ import {
   SocialPostIdSchema,
   UpdateSocialPostInputSchema,
 } from '@brandfactory/shared'
+import type { UserId } from '@brandfactory/shared'
 import { AssetNotInBrandError } from '@brandfactory/db'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
@@ -74,10 +75,13 @@ export function createSocialPostsRouter(deps: SocialPostsDeps) {
         await requireBrandAccess(userId, id, deps.db)
         const body = c.req.valid('json')
         // Server defaults live in the DB columns (`body: ''`,
-        // `status: 'draft'`, `scheduledAt: null`) — the schema documents
+        // `status: 'idea'`, `scheduledAt: null`) — the schema documents
         // them, the insert omits what the client omitted.
+        //
+        // `userId` is the approver, not a field of the payload: a client
+        // that could name who approved a post could name anybody.
         try {
-          const row = await deps.db.createSocialPost(id, body)
+          const row = await deps.db.createSocialPost(id, body, userId as UserId)
           return c.json(row, 201)
         } catch (err) {
           rethrowAssetMiss(err)
@@ -112,7 +116,7 @@ export function createSocialPostsRouter(deps: SocialPostsDeps) {
         // a patch key — the schema strips it, which empties such a patch and
         // fails its refine.
         try {
-          const row = await deps.db.updateSocialPost(id, postId, body)
+          const row = await deps.db.updateSocialPost(id, postId, body, userId as UserId)
           if (!row) throw new NotFoundError('social post not found', 'SOCIAL_POST_NOT_FOUND')
           return c.json(row)
         } catch (err) {

@@ -11,7 +11,7 @@ describe('CreateSocialPostInputSchema', () => {
   // query layer, the fake and the route each guessing separately.
   it('accepts platform alone and leaves the defaults to the server', () => {
     const parsed = CreateSocialPostInputSchema.parse({ platform: 'tiktok' })
-    expect(parsed).toEqual({ platform: 'tiktok', createdBy: 'user' })
+    expect(parsed).toEqual({ platform: 'tiktok', createdBy: 'user', kind: 'post' })
     expect(parsed.body).toBeUndefined()
     expect(parsed.scheduledAt).toBeUndefined()
   })
@@ -48,10 +48,10 @@ describe('CreateSocialPostInputSchema', () => {
       platform: 'instagram',
       scheduledAt: '2026-08-14T10:30:00.000Z',
       body: 'Launch day.',
-      status: 'ready',
+      status: 'approved',
       assetIds: ['a-1'],
     })
-    expect(parsed.status).toBe('ready')
+    expect(parsed.status).toBe('approved')
     expect(parsed.assetIds).toEqual(['a-1'])
   })
 

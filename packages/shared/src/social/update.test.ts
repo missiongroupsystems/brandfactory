@@ -36,7 +36,7 @@ describe('UpdateSocialPostInputSchema', () => {
   // mechanism is the same as `deletedAt`'s: the key is stripped, which leaves
   // the patch empty, which the refine rejects. An edit does not make the editor
   // the author of what the planner wrote — it makes them its reviewer, and
-  // `status: 'ready'` is where that is recorded.
+  // `status: 'approved'` is where that is recorded.
   it('does not accept createdBy as a patch key', () => {
     expect(UpdateSocialPostInputSchema.safeParse({ createdBy: 'user' }).success).toBe(false)
     // Alongside a real key it is dropped rather than honoured, so a patch can

@@ -429,7 +429,7 @@ export const FUNNEL_ACTIVITY_STATUS_LABELS: Record<FunnelActivityStatus, string>
 };
 
 /**
- * Where a social post goes. Keyed by the shared union, so a ninth `social_platform`
+ * Where a social post goes. Keyed by the shared union, so an eleventh `social_platform`
  * member fails the typecheck here until it has a label.
  *
  * These are the *social* channels a post is published to — deliberately not the funnel's
@@ -441,9 +441,11 @@ export const SOCIAL_PLATFORM_LABELS: Record<SocialPlatform, string> = {
   instagram: "Instagram",
   facebook: "Facebook",
   tiktok: "TikTok",
+  xiaohongshu: "Xiaohongshu",
   linkedin: "LinkedIn",
   x: "X",
   youtube: "YouTube",
+  threads: "Threads",
   pinterest: "Pinterest",
   other: "Other",
 };

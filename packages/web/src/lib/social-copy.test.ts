@@ -13,9 +13,15 @@ describe('platform and status vocabulary', () => {
   })
 
   it('derives the picker options from the labels, so the two cannot drift', () => {
-    expect(PLATFORM_OPTIONS).toHaveLength(8)
+    expect(PLATFORM_OPTIONS).toHaveLength(10)
     expect(PLATFORM_OPTIONS[0]).toEqual({ value: 'instagram', label: 'Instagram' })
-    expect(STATUS_OPTIONS.map((o) => o.value)).toEqual(['draft', 'ready', 'posted'])
+    expect(STATUS_OPTIONS.map((o) => o.value)).toEqual([
+      'idea',
+      'approved',
+      'filming',
+      'editing',
+      'posted',
+    ])
   })
 })
 

@@ -428,13 +428,27 @@ function PostRow({
 }
 
 /**
- * `Draft` / `Ready` / `Posted`. Neutral, positive, settled — the three are a
- * decision someone made, not a pipeline stage the system observed, so none of
- * them is coloured as a warning when its time slips.
+ * The pipeline as one ramp in the brand green: flat and grey at `Idea`, an
+ * outline once somebody cleared it, then filling as the work progresses to a
+ * settled tint at `Posted`.
+ *
+ * **Not the feedback tints, for the reason `index.css` already gives** where
+ * the key-date sets refused them: those colours mean error, warning, success
+ * and information, and `Filming` is not a warning. One hue at increasing
+ * strength says *further along* without saying *going wrong*.
+ *
+ * The steps differ in lightness, not hue, so the ramp survives deuteranopia —
+ * and colour is the fast path either way, never the only one: this pill always
+ * renders the word beside it.
+ *
+ * Full class strings, never composed: Tailwind scans source text, so
+ * `bg-primary/${n}` would type-check and generate no CSS.
  */
 const STATUS_PILL: Record<SocialPostStatus, string> = {
-  draft: 'bg-surface-sunken text-muted-foreground',
-  ready: 'border border-[var(--border-strong)] text-foreground',
+  idea: 'bg-surface-sunken text-muted-foreground',
+  approved: 'border border-[var(--border-strong)] text-foreground',
+  filming: 'border border-primary/30 text-primary',
+  editing: 'bg-primary/5 text-primary',
   posted: 'bg-primary/10 text-primary',
 }
 
@@ -454,7 +468,7 @@ function StatusPill({ status }: { status: SocialPostStatus }) {
  * **Beside the status pill and not inside it — there is no fourth status.** The
  * question a marketer actually asks is *which of next week's posts has a human
  * read?*, and neither field answers it alone: `createdBy === 'agent'` **and**
- * `status === 'draft'` is the unreviewed pile, and it is the only pile that
+ * `status === 'idea'` is the unreviewed pile, and it is the only pile that
  * matters before something goes out under the brand's name. Folding the author
  * into the status would destroy exactly that composition — an `Agent` status
  * could not also be `Ready`.

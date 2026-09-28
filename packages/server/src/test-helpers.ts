@@ -43,6 +43,7 @@ import type {
   ShortlistView,
   SocialPost,
   SocialPostId,
+  SocialPostStatus,
   Vendor,
   VendorId,
   Workspace,
@@ -313,6 +314,17 @@ function assertFakeUenFree(
       throw new VendorUenTakenError(uen)
     }
   }
+}
+
+/**
+ * The statuses that mean somebody cleared this — the fake's copy of the real
+ * query's `APPROVED_OR_LATER`, and it has to agree with it: a fake that
+ * stamped only `approved` would pass while the database stamped four stages.
+ */
+function isApprovedOrLater(status: SocialPostStatus): boolean {
+  return (
+    status === 'approved' || status === 'filming' || status === 'editing' || status === 'posted'
+  )
 }
 
 const NOW = '2026-04-19T00:00:00.000Z'
@@ -1081,20 +1093,36 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         .filter((p) => p.brandId === brandId && p.deletedAt === null)
         .sort(bySchedule)
     },
-    async createSocialPost(brandId, input) {
+    async createSocialPost(brandId, input, approver) {
       assertFakeAssetsInBrand(state, brandId, input.assetIds ?? [])
       const id = nextId('sp') as SocialPostId
+      const status = input.status ?? 'idea'
       const row: SocialPost = {
         id,
         brandId,
         platform: input.platform,
         scheduledAt: input.scheduledAt ?? null,
         body: input.body ?? '',
-        status: input.status ?? 'draft',
+        status,
         // No `??` here, unlike its neighbours: the schema's `.default('user')`
         // has already run, so the fake and the real query agree that this key
         // is always present by the time a create reaches the data layer.
         createdBy: input.createdBy,
+        // Same reasoning as `createdBy`: `.default('post')` has already run.
+        kind: input.kind,
+        format: input.format ?? null,
+        hook: input.hook ?? null,
+        dish: input.dish ?? null,
+        talent: input.talent ?? null,
+        filmedBy: input.filmedBy ?? null,
+        canvaUrl: input.canvaUrl ?? null,
+        clearedWith: input.clearedWith ?? null,
+        shootId: input.shootId ?? null,
+        eventsEventId: input.eventsEventId ?? null,
+        // A row created straight into an approved stage is stamped, the way
+        // the real insert stamps it.
+        approvedAt: isApprovedOrLater(status) ? NOW : null,
+        approvedBy: isApprovedOrLater(status) ? approver : null,
         assetIds: input.assetIds ?? [],
         deletedAt: null,
         createdAt: NOW,
@@ -1103,7 +1131,7 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       state.socialPosts.set(id, row)
       return row
     },
-    async updateSocialPost(brandId, id, patch) {
+    async updateSocialPost(brandId, id, patch, approver) {
       // The ownership gate runs before the row lookup, as the real query runs
       // it before the row update — a bad assetId rejects the whole patch even
       // when the post itself would miss.
@@ -1122,6 +1150,24 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         ...(patch.body !== undefined ? { body: patch.body } : {}),
         ...(patch.status !== undefined ? { status: patch.status } : {}),
         ...(patch.assetIds !== undefined ? { assetIds: patch.assetIds } : {}),
+        ...(patch.format !== undefined ? { format: patch.format } : {}),
+        ...(patch.hook !== undefined ? { hook: patch.hook } : {}),
+        ...(patch.dish !== undefined ? { dish: patch.dish } : {}),
+        ...(patch.talent !== undefined ? { talent: patch.talent } : {}),
+        ...(patch.filmedBy !== undefined ? { filmedBy: patch.filmedBy } : {}),
+        ...(patch.canvaUrl !== undefined ? { canvaUrl: patch.canvaUrl } : {}),
+        ...(patch.clearedWith !== undefined ? { clearedWith: patch.clearedWith } : {}),
+        ...(patch.shootId !== undefined ? { shootId: patch.shootId } : {}),
+        ...(patch.eventsEventId !== undefined ? { eventsEventId: patch.eventsEventId } : {}),
+        // `coalesce` in the real query, `??` here: the stamp is written on
+        // the first crossing into an approved stage and never rewritten, so a
+        // post pushed back and re-approved keeps its first approval.
+        ...(patch.status !== undefined && isApprovedOrLater(patch.status)
+          ? {
+              approvedAt: existing.approvedAt ?? NOW,
+              approvedBy: existing.approvedBy ?? approver,
+            }
+          : {}),
         updatedAt: NOW,
       }
       state.socialPosts.set(id, updated)

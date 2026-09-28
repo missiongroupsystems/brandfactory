@@ -18,22 +18,27 @@ export const PLATFORM_LABELS: Record<SocialPlatform, string> = {
   instagram: 'Instagram',
   facebook: 'Facebook',
   tiktok: 'TikTok',
+  xiaohongshu: 'Xiaohongshu',
   linkedin: 'LinkedIn',
   x: 'X',
   youtube: 'YouTube',
+  threads: 'Threads',
   pinterest: 'Pinterest',
   other: 'Other',
 }
 
 /**
- * `draft` / `ready` / `posted` in words. All three are set by a person and
- * nothing flips on its own (`SocialPostStatusSchema`), so the labels state a
- * decision rather than a stage: `Posted` is the done-marker someone ticked,
- * not an observation that a platform accepted anything.
+ * The pipeline in words. Every step is set by a person and nothing flips on
+ * its own (`SocialPostStatusSchema`), so the labels state a decision rather
+ * than an observation: `Posted` is the done-marker someone ticked, not this
+ * app noticing that a platform accepted anything — Brandwatch still does the
+ * scheduling.
  */
 export const STATUS_LABELS: Record<SocialPostStatus, string> = {
-  draft: 'Draft',
-  ready: 'Ready',
+  idea: 'Idea',
+  approved: 'Approved',
+  filming: 'Filming',
+  editing: 'Editing',
   posted: 'Posted',
 }
 

@@ -13,8 +13,10 @@ import { cn } from "@/lib/utils";
 import { useSocialPosts } from "../hooks";
 
 const STATUS_LABELS: Record<(typeof SocialPostStatusSchema.options)[number], string> = {
-  draft: "Draft",
-  ready: "Ready",
+  idea: "Idea",
+  approved: "Approved",
+  filming: "Filming",
+  editing: "Editing",
   posted: "Posted",
 };
 

@@ -138,7 +138,7 @@ describe('POST /brands/:id/social-posts', () => {
       platform: 'instagram',
       scheduledAt: null,
       body: '',
-      status: 'draft',
+      status: 'idea',
       assetIds: [],
       deletedAt: null,
     })
@@ -151,20 +151,20 @@ describe('POST /brands/:id/social-posts', () => {
       platform: 'linkedin',
       scheduledAt: '2026-08-14T10:30:00.000Z',
       body: 'Launch day.',
-      status: 'ready',
+      status: 'approved',
       assetIds: [b.id, a.id],
     })
     expect(res.status).toBe(201)
     const row = (await res.json()) as SocialPost
     expect(row.scheduledAt).toBe('2026-08-14T10:30:00.000Z')
-    expect(row.status).toBe('ready')
+    expect(row.status).toBe('approved')
     // Order is the array order — b before a, as sent.
     expect(row.assetIds).toEqual([b.id, a.id])
   })
 
   it.each([
     ['a missing platform', { body: 'no destination' }],
-    ['a platform outside the enum', { platform: 'threads' }],
+    ['a platform outside the enum', { platform: 'bereal' }],
     ['a date-only scheduledAt', { platform: 'x', scheduledAt: '2026-08-14' }],
     ['a body over the max', { platform: 'x', body: 'x'.repeat(5001) }],
     ['duplicate assetIds', { platform: 'x', assetIds: [] as string[] }],
@@ -261,12 +261,12 @@ describe('PATCH /brands/:id/social-posts/:postId', () => {
         body: 'Cut one.',
       })
     ).json()) as SocialPost
-    const res = await patch(app, brandId, row.id, { body: 'Cut two.', status: 'ready' })
+    const res = await patch(app, brandId, row.id, { body: 'Cut two.', status: 'approved' })
     expect(res.status).toBe(200)
     const updated = (await res.json()) as SocialPost
     expect(updated).toMatchObject({
       body: 'Cut two.',
-      status: 'ready',
+      status: 'approved',
       platform: 'instagram',
       scheduledAt: '2026-08-14T10:30:00.000Z',
     })

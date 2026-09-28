@@ -4,7 +4,9 @@ import type {
   CreateSocialPostInput,
   SocialPost,
   SocialPostId,
+  SocialPostStatus,
   UpdateSocialPostInput,
+  UserId,
 } from '@brandfactory/shared'
 import { and, asc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 import { db } from '../client'
@@ -22,6 +24,57 @@ export class AssetNotInBrandError extends Error {
     super(`Assets not in brand: ${assetIds.join(', ')}`)
     this.name = 'AssetNotInBrandError'
   }
+}
+
+/**
+ * The statuses that mean somebody cleared this.
+ *
+ * A row can be created straight into `filming` — the team plans a shoot they
+ * have already agreed — so the stamp cannot key off `approved` alone without
+ * leaving the later stages unstamped and the pile of unapproved work wrong.
+ */
+const APPROVED_OR_LATER: ReadonlySet<SocialPostStatus> = new Set([
+  'approved',
+  'filming',
+  'editing',
+  'posted',
+])
+
+/**
+ * The content-plan columns, spread-guarded the way their neighbours are:
+ * `undefined` leaves the column alone, `null` clears it.
+ *
+ * One list rather than seven repetitions in each of two writers, because the
+ * create and the patch take the same fields and a column added to one and
+ * forgotten in the other is the bug this shape prevents.
+ */
+function planColumns(input: {
+  format?: string | null
+  hook?: string | null
+  dish?: string | null
+  talent?: string | null
+  filmedBy?: string | null
+  canvaUrl?: string | null
+  clearedWith?: string | null
+  shootId?: SocialPostId | null
+  eventsEventId?: string | null
+}): Record<string, string | null> {
+  const out: Record<string, string | null> = {}
+  for (const key of [
+    'format',
+    'hook',
+    'dish',
+    'talent',
+    'filmedBy',
+    'canvaUrl',
+    'clearedWith',
+    'shootId',
+    'eventsEventId',
+  ] as const) {
+    const value = input[key]
+    if (value !== undefined) out[key] = value
+  }
+  return out
 }
 
 // Unlike `db`, the transaction type is not exported by the client module;
@@ -121,12 +174,18 @@ export async function listSocialPostsByBrand(brandId: BrandId): Promise<SocialPo
  * One transaction: the ownership check, the post, the join rows — a bad
  * `assetId` rolls back the lot rather than leaving a post with half its
  * attachments. Omitted keys fall to the column defaults (`body: ''`,
- * `status: 'draft'`, `scheduledAt: null`), which are the documented server
+ * `status: 'idea'`, `scheduledAt: null`), which are the documented server
  * defaults of `CreateSocialPostInputSchema`.
+ *
+ * A row created straight into `approved` is stamped here rather than only in
+ * the patch path: the planner can write an approved entry in one call, and an
+ * approval with no record of who made it is the thing the stamp exists to
+ * prevent.
  */
 export async function createSocialPost(
   brandId: BrandId,
   input: CreateSocialPostInput,
+  approver: UserId,
 ): Promise<SocialPost> {
   const assetIds = input.assetIds ?? []
   return db.transaction(async (tx) => {
@@ -139,11 +198,16 @@ export async function createSocialPost(
         scheduledAt: input.scheduledAt ?? null,
         ...(input.body !== undefined ? { body: input.body } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.status !== undefined && APPROVED_OR_LATER.has(input.status)
+          ? { approvedAt: sql`now()`, approvedBy: approver }
+          : {}),
         // Unconditional, unlike its neighbours: the schema's `.default('user')`
         // has already run by the time the input reaches here, so the key is
         // always present and a spread guard would be dead code. The column's
         // own default exists for the migration's sake, not for this path.
         createdBy: input.createdBy,
+        kind: input.kind,
+        ...planColumns(input),
       })
       .returning()
     if (!row) throw new Error('createSocialPost returned no row')
@@ -169,6 +233,7 @@ export async function updateSocialPost(
   brandId: BrandId,
   id: SocialPostId,
   patch: UpdateSocialPostInput,
+  approver: UserId,
 ): Promise<SocialPost | null> {
   return db.transaction(async (tx) => {
     if (patch.assetIds !== undefined) {
@@ -181,6 +246,19 @@ export async function updateSocialPost(
         ...(patch.scheduledAt !== undefined ? { scheduledAt: patch.scheduledAt } : {}),
         ...(patch.body !== undefined ? { body: patch.body } : {}),
         ...(patch.status !== undefined ? { status: patch.status } : {}),
+        // The stamp is written **once**, on the first crossing into `approved`
+        // or beyond, and never rewritten or cleared. `approved_at IS NULL` in
+        // the SET is what makes it once: a post pushed back to `idea` and
+        // approved again keeps the first approval, because the question the
+        // pair answers is *did anybody ever clear this?* — and a second
+        // answer to it would erase the first.
+        ...(patch.status !== undefined && APPROVED_OR_LATER.has(patch.status)
+          ? {
+              approvedAt: sql`coalesce(${socialPosts.approvedAt}, now())`,
+              approvedBy: sql`coalesce(${socialPosts.approvedBy}, ${approver}::uuid)`,
+            }
+          : {}),
+        ...planColumns(patch),
         updatedAt: sql`now()`,
       })
       .where(

@@ -481,8 +481,20 @@ describe('rowToSocialPost', () => {
     platform: 'instagram' as const,
     scheduledAt: null,
     body: '',
-    status: 'draft' as const,
+    status: 'idea' as const,
     createdBy: 'user' as const,
+    kind: 'post' as const,
+    format: null,
+    hook: null,
+    dish: null,
+    talent: null,
+    filmedBy: null,
+    canvaUrl: null,
+    clearedWith: null,
+    shootId: null,
+    eventsEventId: null,
+    approvedAt: null,
+    approvedBy: null,
     deletedAt: null,
     createdAt: TS,
     updatedAt: TS,
@@ -514,6 +526,15 @@ describe('rowToSocialPost', () => {
 
   it('carries the author through unchanged', () => {
     expect(rowToSocialPost({ ...postRow, createdBy: 'agent' }, []).createdBy).toBe('agent')
+  })
+
+  // `''` and `null` both mean nobody filled it in, and the wire carries one of
+  // them so no reader downstream tests for two empties.
+  it('collapses blank plan fields to null and trims the rest', () => {
+    const p = rowToSocialPost({ ...postRow, hook: '   ', dish: '  Cacio e pepe  ', talent: '' }, [])
+    expect(p.hook).toBeNull()
+    expect(p.talent).toBeNull()
+    expect(p.dish).toBe('Cacio e pepe')
   })
 })
 

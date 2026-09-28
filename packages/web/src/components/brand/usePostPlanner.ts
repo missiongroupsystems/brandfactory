@@ -206,11 +206,14 @@ export function usePostPlanner({
             // `SocialPostList` already describes as exactly this.
             scheduledAt: pair.idea.date ? localPartsToIso(pair.idea.date, DEFAULT_POST_TIME) : null,
             body: bodies[index] ?? '',
-            // Every planner row is a draft: the reviewable pile is
-            // `createdBy === 'agent' && status === 'draft'`, and a row that
-            // arrived `ready` would claim a review that never happened.
-            status: 'draft',
+            // Every planner row starts at the bottom of the pipeline: the
+            // reviewable pile is `createdBy === 'agent' && status === 'idea'`,
+            // and a row that arrived `approved` would claim a review that
+            // never happened — and would carry an approval stamp naming
+            // whoever happened to press Plan.
+            status: 'idea',
             createdBy: 'agent',
+            kind: 'post',
           })
           done += 1
           setProgress({ done, total: pairs.length })
