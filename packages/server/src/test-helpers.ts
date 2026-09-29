@@ -1936,7 +1936,8 @@ export function createFakeAdapters(overrides: Partial<AppDeps> = {}): Omit<AppDe
   // test unless one is supplied, exactly as it is absent in a dev stack, and a
   // calendar route must still answer.
   const events: EventsSource = overrides.events ?? {
-    listMonth: () => Promise.resolve({ events: [] }),
+    listRange: () => Promise.resolve({ events: [] }),
+    listOutlets: () => Promise.resolve([]),
   }
   return { db, auth, storage, realtime, llm, research, events, agentGuard }
 }

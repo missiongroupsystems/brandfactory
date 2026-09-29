@@ -57,6 +57,7 @@ function event(over: Partial<CalendarEvent> = {}): CalendarEvent {
     outletId: "22222222-2222-4222-8222-222222222222",
     outletName: "temper. Duxton",
     roomName: null,
+    guestCount: null,
     brandId: "br-1",
     ...over,
   };

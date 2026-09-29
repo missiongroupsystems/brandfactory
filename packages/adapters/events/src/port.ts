@@ -20,12 +20,32 @@ import type { ExternalEvent } from '@brandfactory/shared'
 // implementation absorbs, and the benefit is that the hardest class of bug in
 // this integration cannot be written.
 
-/** A month, as the calendar names it: `month` is **1-based**, unlike `Date`. */
-export interface EventsMonthQuery {
-  year: number
-  /** 1 = January. The wire and the UI both count months from one; only `Date` does not. */
-  month: number
+/**
+ * A date range, as **Singapore calendar days**, both ends inclusive.
+ *
+ * The timezone is the contract, not a detail: Mission Events stores naive UTC
+ * and filters on Singapore days, so an all-day event on 1 October is stored
+ * `2026-09-30T16:00:00`. A caller that sent UTC days would ask for the wrong
+ * window and place the answers in the wrong cells.
+ *
+ * A range, not a month, because a month grid draws days either side of its own
+ * month — asking per month meant three calls for one screen.
+ */
+export interface EventsRangeQuery {
+  /** `YYYY-MM-DD`, Singapore. */
+  from: string
+  /** `YYYY-MM-DD`, Singapore. Inclusive. */
+  to: string
 }
+
+/**
+ * The longest range the source will answer, in days.
+ *
+ * Stated here as well as enforced there: a caller that learns the limit from a
+ * 422 learns it in production, and the one screen that asks is a month grid of
+ * at most 42 days.
+ */
+export const EVENTS_MAX_RANGE_DAYS = 93
 
 /**
  * What a finder answers with.
@@ -34,18 +54,33 @@ export interface EventsMonthQuery {
  * brand**: the mapping from an outlet to a BrandFactory brand lives in our
  * database, not in the source, so the route joins and this port does not.
  */
-export interface EventsMonthResult {
+export interface EventsRangeResult {
   events: ExternalEvent[]
 }
 
 /**
+ * An outlet as the source knows it — a *concept* in its vocabulary, where an
+ * event names an outlet and no brand entity exists at all.
+ *
+ * Read so a person can set `brands.events_outlet_id` against a name rather
+ * than a bare uuid. **Nothing maps automatically**: six of seven brands match
+ * by slug today, and the seventh wrong match puts another brand's parties on
+ * this brand's calendar.
+ */
+export interface EventsOutlet {
+  id: string
+  slug: string
+  name: string
+}
+
+/**
  * Read-only, by construction. There is no `create`, no `update` and no
- * `delete`, and there never should be: Mission Events owns this data, and the
- * agreed shape of the integration is that BrandFactory hides nothing and
- * enforces nothing — it reads.
+ * `delete`, and there never should be: Mission Events owns this data.
  */
 export interface EventsSource {
-  listMonth(query: EventsMonthQuery): Promise<EventsMonthResult>
+  listRange(query: EventsRangeQuery): Promise<EventsRangeResult>
+  /** Active outlets, for the brand mapping. */
+  listOutlets(): Promise<EventsOutlet[]>
 }
 
 /**

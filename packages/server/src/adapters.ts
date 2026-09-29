@@ -128,11 +128,11 @@ export function buildAdapters(env: Env): Adapters {
 
   const events: EventsSource = createEventsSource({
     providerId: env.EVENTS_PROVIDER,
-    ...(env.MISSION_EVENTS_URL && env.MISSION_EVENTS_CALENDAR_TOKEN
+    ...(env.MISSION_EVENTS_URL && env.MISSION_EVENTS_SERVICE_KEY
       ? {
           missionEvents: {
             baseUrl: env.MISSION_EVENTS_URL,
-            token: env.MISSION_EVENTS_CALENDAR_TOKEN,
+            serviceKey: env.MISSION_EVENTS_SERVICE_KEY,
           },
         }
       : {}),

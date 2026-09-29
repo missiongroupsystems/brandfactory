@@ -52,11 +52,13 @@ export const ExternalEventSchema = z.object({
   end: z.iso.datetime().nullable(),
 
   /**
-   * The source has no all-day flag, so this is inferred: a start at midnight,
-   * and an end that is either absent or at 23:59 on its last day. That is the
-   * convention its own importer wrote, and inferring it is the only option
-   * available — the alternative is drawing every festival as a midnight
-   * appointment.
+   * **Reported by the source, not inferred here.**
+   *
+   * The first cut of this adapter inferred it from a midnight start — in UTC,
+   * which was wrong twice over. Mission Events stores naive UTC, so an all-day
+   * event on 1 October Singapore time is `2026-09-30T16:00:00`: not midnight,
+   * and not even the right day. The marker is midnight *Singapore* time, and
+   * the source now computes it and sends it.
    */
   allDay: z.boolean(),
 
@@ -65,5 +67,15 @@ export const ExternalEventSchema = z.object({
   outletName: z.string(),
   /** The space within the outlet, when the source names one. */
   roomName: z.string().nullable(),
+
+  /**
+   * Expected heads, when the events team has recorded a number.
+   *
+   * The one figure on that record a marketing reader has a use for — a shoot
+   * planned around a 200-person party is a different shoot from one around a
+   * table of eight. Everything else on the booking (revenue, pricing,
+   * deposits, the client) is excluded by the endpoint and should stay that way.
+   */
+  guestCount: z.number().int().nullable(),
 })
 export type ExternalEvent = z.infer<typeof ExternalEventSchema>

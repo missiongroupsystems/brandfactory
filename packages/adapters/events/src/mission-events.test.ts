@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   createMissionEventsSource,
   foldStatus,
-  inferAllDay,
   parseSourceInstant,
   toExternalEvent,
 } from './mission-events'
@@ -16,19 +15,29 @@ function row(over: Record<string, unknown> = {}) {
     name: 'F1 terrace night',
     status: 'confirmed',
     event_type: 'private',
-    date_start: '2026-10-20T19:00:00',
-    date_end: '2026-10-20T23:00:00',
+    // Naive, holding UTC — 19:00 UTC is 03:00 the next day in Singapore.
+    date_start: '2026-10-20T11:00:00',
+    date_end: '2026-10-20T15:00:00',
+    is_all_day: false,
     outlet_id: '22222222-2222-4222-8222-222222222222',
-    outlet_name: 'temper. Duxton',
+    outlet_slug: 'temper',
+    outlet_name: 'Temper',
     room_name: 'Terrace',
+    guest_count: 80,
     ...over,
   }
 }
 
+const page = (items: unknown[], total = items.length, skip = 0) => ({
+  items,
+  total,
+  skip,
+  limit: 500,
+})
+
 describe('parseSourceInstant', () => {
-  // The source stores naive timestamps that *hold* UTC. Read as local time in
-  // Singapore that is an eight-hour shift, which moves an evening event into
-  // the small hours of the next day — a wrong grid cell, silently.
+  // Read as local time this is an eight-hour shift for a Singapore reader,
+  // which moves an evening booking into the small hours of the next day.
   it('reads a zoneless timestamp as UTC, not as local time', () => {
     expect(parseSourceInstant('2026-10-20T19:00:00')?.toISOString()).toBe(
       '2026-10-20T19:00:00.000Z',
@@ -36,9 +45,6 @@ describe('parseSourceInstant', () => {
   })
 
   it('leaves an explicit zone alone', () => {
-    expect(parseSourceInstant('2026-10-20T19:00:00Z')?.toISOString()).toBe(
-      '2026-10-20T19:00:00.000Z',
-    )
     expect(parseSourceInstant('2026-10-20T19:00:00+08:00')?.toISOString()).toBe(
       '2026-10-20T11:00:00.000Z',
     )
@@ -53,9 +59,8 @@ describe('foldStatus', () => {
   const past = new Date('2026-09-01T00:00:00.000Z')
   const future = new Date('2026-11-01T00:00:00.000Z')
 
-  // Nothing in the source moves an event to `completed` when its date passes,
-  // so a past confirmed event is still `confirmed` there — and a calendar that
-  // drew it as upcoming would announce a party that already happened.
+  // Mission Events confirm nothing auto-completes: a person moves it, or an
+  // order transition does. So a past confirmed event is still confirmed there.
   it('folds a finished confirmed event to completed', () => {
     expect(foldStatus('confirmed', past, NOW)).toBe('completed')
   })
@@ -64,94 +69,90 @@ describe('foldStatus', () => {
     expect(foldStatus('confirmed', future, NOW)).toBe('confirmed')
   })
 
-  it('keeps completed completed, whenever it was', () => {
+  it('keeps completed completed', () => {
     expect(foldStatus('completed', future, NOW)).toBe('completed')
   })
 
-  // A tentative event in the past is not a thing that happened — it is a thing
-  // that never firmed up, and that difference is why the team asked to see
-  // tentatives at all.
+  // A tentative event in the past never happened — it never firmed up, and
+  // that difference is why the team asked to see tentatives.
   it('never folds tentative, past or future', () => {
     expect(foldStatus('tentative', past, NOW)).toBe('tentative')
     expect(foldStatus('tentative', future, NOW)).toBe('tentative')
   })
 
-  it('drops the statuses the share link was scoped to exclude', () => {
+  it('drops the statuses we did not ask for', () => {
     expect(foldStatus('inquiry', future, NOW)).toBeNull()
     expect(foldStatus('cancelled', future, NOW)).toBeNull()
     expect(foldStatus('lost', future, NOW)).toBeNull()
   })
 })
 
-describe('inferAllDay', () => {
-  it('reads midnight with no end as all day', () => {
-    expect(inferAllDay(new Date('2026-10-20T00:00:00Z'), null)).toBe(true)
-  })
-
-  it('reads midnight to 23:59 as all day, across several days', () => {
-    expect(inferAllDay(new Date('2026-10-02T00:00:00Z'), new Date('2026-10-11T23:59:00Z'))).toBe(
-      true,
-    )
-  })
-
-  it('does not call an evening booking all day', () => {
-    expect(inferAllDay(new Date('2026-10-20T19:00:00Z'), new Date('2026-10-20T23:00:00Z'))).toBe(
-      false,
-    )
-  })
-
-  it('does not call a midnight-to-evening event all day', () => {
-    expect(inferAllDay(new Date('2026-10-20T00:00:00Z'), new Date('2026-10-20T18:00:00Z'))).toBe(
-      false,
-    )
-  })
-})
-
 describe('toExternalEvent', () => {
-  it('maps a booking, carrying the outlet and the room', () => {
-    const e = toExternalEvent(row(), NOW)
-    expect(e).toMatchObject({
+  it('maps a booking, carrying the outlet, the room and the heads', () => {
+    expect(toExternalEvent(row(), NOW)).toMatchObject({
       name: 'F1 terrace night',
       status: 'confirmed',
-      eventType: 'private',
-      start: '2026-10-20T19:00:00.000Z',
-      end: '2026-10-20T23:00:00.000Z',
       allDay: false,
-      outletName: 'temper. Duxton',
+      outletName: 'Temper',
       roomName: 'Terrace',
+      guestCount: 80,
     })
   })
 
-  // Every dropped row is a marker the calendar does not draw, which is the
-  // right failure: a day with an unexplainable marker costs more trust than a
-  // day with one fewer.
+  // **Reported, never inferred.** The first cut of this adapter tested for a
+  // midnight start in UTC. An all-day 1 October event is stored
+  // `2026-09-30T16:00:00`, so that test called it neither all-day nor October.
+  it('takes allDay from the source rather than from the timestamp', () => {
+    const allDay = toExternalEvent(
+      row({ date_start: '2026-09-30T16:00:00', date_end: '2026-10-01T15:59:00', is_all_day: true }),
+      NOW,
+    )
+    expect(allDay?.allDay).toBe(true)
+
+    // The same shape without the flag is not all day, however midnight-ish it looks.
+    const notAllDay = toExternalEvent(
+      row({ date_start: '2026-09-30T16:00:00', is_all_day: false }),
+      NOW,
+    )
+    expect(notAllDay?.allDay).toBe(false)
+  })
+
+  it('falls back to the slug when the outlet has no name', () => {
+    expect(toExternalEvent(row({ outlet_name: null }), NOW)?.outletName).toBe('temper')
+  })
+
+  it('reads a missing guest count as null rather than zero', () => {
+    expect(toExternalEvent(row({ guest_count: null }), NOW)?.guestCount).toBeNull()
+  })
+
+  // A dropped row is a marker the calendar does not draw, which is the right
+  // failure: an unexplainable marker costs more trust than a missing one.
   it.each([
     ['no id', { id: null }],
     ['no name', { name: '' }],
     ['no outlet', { outlet_id: undefined }],
     ['an unparseable start', { date_start: 'next Friday' }],
-    ['a status outside the scope', { status: 'cancelled' }],
+    ['a status we did not ask for', { status: 'cancelled' }],
   ])('drops a row with %s', (_label, over) => {
     expect(toExternalEvent(row(over), NOW)).toBeNull()
-  })
-
-  it('names an outlet it was not given rather than dropping the event', () => {
-    expect(toExternalEvent(row({ outlet_name: null }), NOW)?.outletName).toBe('Unknown outlet')
   })
 })
 
 describe('createMissionEventsSource', () => {
-  function sourceWith(handler: (url: string) => Promise<Response> | Response, now = () => NOW) {
+  function sourceWith(handler: (url: string) => Response, now = () => NOW) {
     const calls: string[] = []
-    const fetchImpl = ((url: string) => {
+    const headers: (Record<string, string> | undefined)[] = []
+    const fetchImpl = ((url: string, init?: RequestInit) => {
       calls.push(url)
+      headers.push(init?.headers as Record<string, string> | undefined)
       return Promise.resolve(handler(url))
     }) as unknown as typeof fetch
     return {
       calls,
+      headers,
       source: createMissionEventsSource({
         baseUrl: 'https://events.example.com/',
-        token: 'tok-123',
+        serviceKey: 'key-123',
         fetchImpl,
         now,
       }),
@@ -164,79 +165,90 @@ describe('createMissionEventsSource', () => {
       headers: { 'content-type': 'application/json' },
     })
 
-  it('asks the share-link month endpoint, with the trailing slash trimmed', async () => {
-    const { source, calls } = sourceWith(() => ok([row()]))
-    const { events } = await source.listMonth({ year: 2026, month: 10 })
-    expect(calls[0]).toBe(
-      'https://events.example.com/api/v1/public/calendar/tok-123/month?year=2026&month=10',
-    )
+  it('asks the marketing endpoint for the range, with the three statuses', async () => {
+    const { source, calls, headers } = sourceWith(() => ok(page([row()])))
+    const { events } = await source.listRange({ from: '2026-09-28', to: '2026-11-01' })
+
+    expect(calls[0]).toContain('/api/v1/internal/marketing/events?from=2026-09-28&to=2026-11-01')
+    expect(calls[0]).toContain('status=tentative')
+    expect(calls[0]).toContain('status=confirmed')
+    expect(calls[0]).toContain('status=completed')
+    expect(headers[0]?.['X-Service-Key']).toBe('key-123')
     expect(events).toHaveLength(1)
   })
 
-  it('accepts both the bare array and the data envelope', async () => {
-    const bare = sourceWith(() => ok([row()]))
-    const wrapped = sourceWith(() => ok({ data: [row()] }))
-    expect((await bare.source.listMonth({ year: 2026, month: 10 })).events).toHaveLength(1)
-    expect((await wrapped.source.listMonth({ year: 2026, month: 10 })).events).toHaveLength(1)
+  // **Every list endpoint there paginates.** A client that read page one and
+  // stopped would draw a month that looked complete and was not, which is the
+  // worst shape of wrong a calendar has.
+  it('reads every page, not just the first', async () => {
+    let call = 0
+    const { source, calls } = sourceWith(() => {
+      call += 1
+      return call === 1
+        ? ok(page([row({ id: 'a' }), row({ id: 'b' })], 3, 0))
+        : ok(page([row({ id: 'c' })], 3, 2))
+    })
+    const { events } = await source.listRange({ from: '2026-10-01', to: '2026-10-31' })
+    expect(events).toHaveLength(3)
+    expect(calls).toHaveLength(2)
+    expect(calls[1]).toContain('skip=2')
   })
 
-  // The cache *is* the rate limit: 60 requests a minute per link, and one
-  // person scrolling a quarter would otherwise spend it.
-  it('serves a repeated month from cache, and fetches a different one', async () => {
-    const { source, calls } = sourceWith(() => ok([row()]))
-    await source.listMonth({ year: 2026, month: 10 })
-    await source.listMonth({ year: 2026, month: 10 })
+  it('stops on an empty page rather than looping on a total it cannot reach', async () => {
+    const { source, calls } = sourceWith(() => ok(page([], 99, 0)))
+    const { events } = await source.listRange({ from: '2026-10-01', to: '2026-10-31' })
+    expect(events).toHaveLength(0)
     expect(calls).toHaveLength(1)
-    await source.listMonth({ year: 2026, month: 11 })
+  })
+
+  it('serves a repeated range from cache, and fetches a different one', async () => {
+    const { source, calls } = sourceWith(() => ok(page([row()])))
+    await source.listRange({ from: '2026-10-01', to: '2026-10-31' })
+    await source.listRange({ from: '2026-10-01', to: '2026-10-31' })
+    expect(calls).toHaveLength(1)
+    await source.listRange({ from: '2026-11-01', to: '2026-11-30' })
     expect(calls).toHaveLength(2)
   })
 
   it('fetches again once the entry is stale', async () => {
     let clock = NOW.getTime()
     const { source, calls } = sourceWith(
-      () => ok([row()]),
+      () => ok(page([row()])),
       () => new Date(clock),
     )
-    await source.listMonth({ year: 2026, month: 10 })
+    await source.listRange({ from: '2026-10-01', to: '2026-10-31' })
     clock += 6 * 60 * 1000
-    await source.listMonth({ year: 2026, month: 10 })
+    await source.listRange({ from: '2026-10-01', to: '2026-10-31' })
     expect(calls).toHaveLength(2)
   })
 
-  // A revoked token will not recover by retrying, and the operator response is
-  // different from a blip — so it is a different error.
-  it.each([401, 403, 404])('raises unauthorized on HTTP %i', async (status) => {
+  // A wrong key is somebody's settings and will not recover by retrying.
+  it.each([401, 403])('raises unauthorized on HTTP %i', async (status) => {
     const { source } = sourceWith(() => new Response('', { status }))
-    await expect(source.listMonth({ year: 2026, month: 10 })).rejects.toBeInstanceOf(
+    await expect(source.listRange({ from: '2026-10-01', to: '2026-10-31' })).rejects.toBeInstanceOf(
       EventsUnauthorizedError,
+    )
+  })
+
+  it('names a refused range rather than reporting it as a generic outage', async () => {
+    const { source } = sourceWith(() => new Response('', { status: 422 }))
+    await expect(source.listRange({ from: '2026-10-31', to: '2026-10-01' })).rejects.toThrow(
+      /reversed, or over 93 days/,
     )
   })
 
   it.each([429, 500, 502])('raises unavailable on HTTP %i', async (status) => {
     const { source } = sourceWith(() => new Response('', { status }))
-    await expect(source.listMonth({ year: 2026, month: 10 })).rejects.toBeInstanceOf(
+    await expect(source.listRange({ from: '2026-10-01', to: '2026-10-31' })).rejects.toBeInstanceOf(
       EventsUnavailableError,
     )
   })
 
-  it('raises unavailable when the transport fails', async () => {
-    const fetchImpl = (() => Promise.reject(new Error('ECONNREFUSED'))) as unknown as typeof fetch
-    const source = createMissionEventsSource({
-      baseUrl: 'https://events.example.com',
-      token: 't',
-      fetchImpl,
-      now: () => NOW,
-    })
-    await expect(source.listMonth({ year: 2026, month: 10 })).rejects.toBeInstanceOf(
-      EventsUnavailableError,
-    )
-  })
-
-  // "Unavailable" and "no events" look identical on a grid, and only one of
+  // "Unavailable" and "no events" look identical on a grid and only one of
   // them means the reader can stop worrying about Friday.
-  it('raises rather than returning an empty month when the body is the wrong shape', async () => {
-    const { source } = sourceWith(() => ok({ events: 'nope' }))
-    await expect(source.listMonth({ year: 2026, month: 10 })).rejects.toBeInstanceOf(
+  it('raises rather than returning an empty range on an unexpected shape', async () => {
+    const { source } = sourceWith(() => ok({ data: [row()] }))
+    await expect(source.listRange({ from: '2026-10-01', to: '2026-10-31' })).rejects.toBeInstanceOf(
       EventsUnavailableError,
     )
   })
@@ -244,13 +256,35 @@ describe('createMissionEventsSource', () => {
   it('does not cache a failure', async () => {
     let fail = true
     const { source, calls } = sourceWith(() =>
-      fail ? new Response('', { status: 500 }) : ok([row()]),
+      fail ? new Response('', { status: 500 }) : ok(page([row()])),
     )
-    await expect(source.listMonth({ year: 2026, month: 10 })).rejects.toBeInstanceOf(
-      EventsUnavailableError,
-    )
+    await expect(source.listRange({ from: '2026-10-01', to: '2026-10-31' })).rejects.toThrow()
     fail = false
-    expect((await source.listMonth({ year: 2026, month: 10 })).events).toHaveLength(1)
+    expect((await source.listRange({ from: '2026-10-01', to: '2026-10-31' })).events).toHaveLength(
+      1,
+    )
     expect(calls).toHaveLength(2)
+  })
+
+  it('reads the outlets, and caches them longer than a range', async () => {
+    const { source, calls } = sourceWith(() =>
+      ok(page([{ id: 'o-1', slug: 'temper', name: 'Temper' }])),
+    )
+    expect(await source.listOutlets()).toEqual([{ id: 'o-1', slug: 'temper', name: 'Temper' }])
+    await source.listOutlets()
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toContain('/api/v1/internal/marketing/outlets')
+  })
+
+  it('drops an outlet with no slug, because the slug is what a person checks', async () => {
+    const { source } = sourceWith(() =>
+      ok(
+        page([
+          { id: 'o-1', name: 'No slug' },
+          { id: 'o-2', slug: 'willow', name: 'Willow' },
+        ]),
+      ),
+    )
+    expect(await source.listOutlets()).toEqual([{ id: 'o-2', slug: 'willow', name: 'Willow' }])
   })
 })

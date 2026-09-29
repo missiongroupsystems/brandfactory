@@ -1,4 +1,4 @@
-import type { EventsMonthResult, EventsSource } from './port'
+import type { EventsRangeResult, EventsSource } from './port'
 
 /**
  * The default source, and the one a dev stack runs.
@@ -17,10 +17,13 @@ import type { EventsMonthResult, EventsSource } from './port'
  * draws between "unavailable" and "none".
  */
 export function createNoopEventsSource(): EventsSource {
-  const empty: EventsMonthResult = { events: [] }
+  const empty: EventsRangeResult = { events: [] }
   return {
-    listMonth() {
+    listRange() {
       return Promise.resolve(empty)
+    },
+    listOutlets() {
+      return Promise.resolve([])
     },
   }
 }

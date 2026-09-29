@@ -1,6 +1,10 @@
 import { WorkspaceIdSchema } from '@brandfactory/shared'
 import type { ExternalEvent } from '@brandfactory/shared'
-import { EventsUnauthorizedError, EventsUnavailableError } from '@brandfactory/adapter-events'
+import {
+  EVENTS_MAX_RANGE_DAYS,
+  EventsUnauthorizedError,
+  EventsUnavailableError,
+} from '@brandfactory/adapter-events'
 import type { EventsSource } from '@brandfactory/adapter-events'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
@@ -24,33 +28,12 @@ export interface CalendarEventsDeps {
   eventsConfigured: boolean
 }
 
-/**
- * The months a `[from, to]` day range touches, inclusive of both ends.
- *
- * The source answers one month at a time, and the calendar's month grid always
- * shows a few days of the month either side — so a "September" screen genuinely
- * needs August and October too. Exported for its test: an off-by-one here is a
- * silently missing event on the first or last row of the grid, which is the
- * one place a reader is least likely to notice it.
- */
-export function monthsBetween(from: string, to: string): { year: number; month: number }[] {
-  const [fy, fm] = from.split('-').map(Number) as [number, number]
-  const [ty, tm] = to.split('-').map(Number) as [number, number]
-  const out: { year: number; month: number }[] = []
-  let year = fy
-  let month = fm
-  // The cap is a guard, not a product rule: three months covers any month grid
-  // and a generous week view, and a caller asking for a decade would otherwise
-  // spend the share link's whole rate limit in one request.
-  while ((year < ty || (year === ty && month <= tm)) && out.length < 6) {
-    out.push({ year, month })
-    month += 1
-    if (month > 12) {
-      month = 1
-      year += 1
-    }
-  }
-  return out
+/** Whole days between two day keys, inclusive of both ends. */
+export function rangeDays(from: string, to: string): number {
+  const a = Date.parse(`${from}T00:00:00Z`)
+  const b = Date.parse(`${to}T00:00:00Z`)
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0
+  return Math.floor((b - a) / 86_400_000) + 1
 }
 
 /**
@@ -114,17 +97,34 @@ export function createCalendarEventsRouter(deps: CalendarEventsDeps) {
           if (brand.eventsOutletId) brandByOutlet.set(brand.eventsOutletId, brand.id)
         }
 
-        let months: { events: ExternalEvent[] }[]
+        // Their own limit is 93 days. Refusing here means a caller learns that
+        // from us rather than from a 422 it cannot interpret — and the one
+        // screen that asks is a month grid of at most 42 days.
+        if (rangeDays(from, to) > EVENTS_MAX_RANGE_DAYS) {
+          throw new HttpError(
+            400,
+            'RANGE_TOO_LONG',
+            `from..to must be at most ${EVENTS_MAX_RANGE_DAYS} days`,
+          )
+        }
+
+        // One call for the whole window: the source takes a range, so a grid
+        // no longer costs three round trips.
+        let found: { events: ExternalEvent[] }
         try {
-          months = await Promise.all(monthsBetween(from, to).map((m) => deps.events.listMonth(m)))
+          found = await deps.events.listRange({ from, to })
         } catch (err) {
-          // The distinction matters to whoever has to fix it: a refused share
-          // link is somebody's settings and will not recover on its own, while
+          // The distinction matters to whoever has to fix it: a refused service
+          // key is somebody's settings and will not recover on its own, while
           // an unreachable source is worth another look in a minute. Neither is
           // an empty month — a calendar that drew "no events" for a broken feed
           // would tell a reader to stop worrying about Friday.
           if (err instanceof EventsUnauthorizedError) {
-            throw new HttpError(502, 'EVENTS_UNAUTHORIZED', 'Mission Events refused the share link')
+            throw new HttpError(
+              502,
+              'EVENTS_UNAUTHORIZED',
+              'Mission Events refused the service key',
+            )
           }
           if (err instanceof EventsUnavailableError) {
             throw new HttpError(502, 'EVENTS_UNAVAILABLE', 'Mission Events could not be reached')
@@ -132,21 +132,15 @@ export function createCalendarEventsRouter(deps: CalendarEventsDeps) {
           throw err
         }
 
-        // One event can be returned by two adjacent months; the id de-duplicates.
-        const seen = new Set<string>()
         const events: (ExternalEvent & { brandId: string })[] = []
         let unmappedOutlets = 0
-        for (const month of months) {
-          for (const event of month.events) {
-            if (seen.has(event.id)) continue
-            seen.add(event.id)
-            const brandId = brandByOutlet.get(event.outletId)
-            if (!brandId) {
-              unmappedOutlets += 1
-              continue
-            }
-            events.push({ ...event, brandId })
+        for (const event of found.events) {
+          const brandId = brandByOutlet.get(event.outletId)
+          if (!brandId) {
+            unmappedOutlets += 1
+            continue
           }
+          events.push({ ...event, brandId })
         }
 
         // `configured` is what lets the screen say *the events layer is off*

@@ -1,7 +1,7 @@
 import type { ExternalEvent } from '@brandfactory/shared'
 import { EventsUnauthorizedError, EventsUnavailableError } from '@brandfactory/adapter-events'
 import { describe, expect, it } from 'vitest'
-import { monthsBetween } from './calendar-events'
+import { rangeDays } from './calendar-events'
 import { createTestApp } from '../test-helpers'
 
 const OUTLET_A = '22222222-2222-4222-8222-222222222222'
@@ -19,38 +19,20 @@ function event(over: Partial<ExternalEvent> = {}): ExternalEvent {
     outletId: OUTLET_A,
     outletName: 'temper. Duxton',
     roomName: 'Terrace',
+    guestCount: 80,
     ...over,
   }
 }
 
-describe('monthsBetween', () => {
-  // A month grid shows days either side of its own month, so a "September"
-  // screen genuinely needs August and October. An off-by-one here is an event
-  // missing from the first or last row — the place a reader least expects to
-  // have to check.
-  it('covers both ends of a range inside one month', () => {
-    expect(monthsBetween('2026-10-01', '2026-10-31')).toEqual([{ year: 2026, month: 10 }])
+describe('rangeDays', () => {
+  it('counts both ends of the range', () => {
+    expect(rangeDays('2026-10-01', '2026-10-01')).toBe(1)
+    expect(rangeDays('2026-10-01', '2026-10-31')).toBe(31)
   })
 
-  it('covers the months a grid actually spans', () => {
-    expect(monthsBetween('2026-09-28', '2026-11-01')).toEqual([
-      { year: 2026, month: 9 },
-      { year: 2026, month: 10 },
-      { year: 2026, month: 11 },
-    ])
-  })
-
-  it('crosses a year boundary', () => {
-    expect(monthsBetween('2026-12-28', '2027-01-03')).toEqual([
-      { year: 2026, month: 12 },
-      { year: 2027, month: 1 },
-    ])
-  })
-
-  // The guard exists so one request cannot spend the share link's whole
-  // minute of rate limit.
-  it('caps a range nobody should be asking for', () => {
-    expect(monthsBetween('2026-01-01', '2030-01-01')).toHaveLength(6)
+  it('counts across a month and a year boundary', () => {
+    expect(rangeDays('2026-09-28', '2026-11-01')).toBe(35)
+    expect(rangeDays('2026-12-28', '2027-01-03')).toBe(7)
   })
 })
 
@@ -58,8 +40,11 @@ describe('GET /workspaces/:id/calendar/events', () => {
   const USER = { id: 'u-1', token: 't-1' }
   const auth = () => ({ authorization: `Bearer ${USER.token}`, 'content-type': 'application/json' })
 
-  async function seed(listMonth: () => Promise<{ events: ExternalEvent[] }>) {
-    const harness = createTestApp({ users: [USER], events: { listMonth } })
+  async function seed(listRange: () => Promise<{ events: ExternalEvent[] }>) {
+    const harness = createTestApp({
+      users: [USER],
+      events: { listRange, listOutlets: () => Promise.resolve([]) },
+    })
     const { app } = harness
     const ws = (await (
       await app.request('/workspaces', {
@@ -127,13 +112,15 @@ describe('GET /workspaces/:id/calendar/events', () => {
     expect(body.unmappedOutlets).toBe(1)
   })
 
-  it('de-duplicates an event two adjacent months both return', async () => {
-    const { app, workspaceId, brandId } = await seed(() => Promise.resolve({ events: [event()] }))
-    await mapOutlet(app, brandId, OUTLET_A)
-    const body = (await (
-      await app.request(range(workspaceId, '2026-09-28', '2026-11-02'), { headers: auth() })
-    ).json()) as { events: unknown[] }
-    expect(body.events).toHaveLength(1)
+  // The source's own limit is 93 days. Refusing here means a caller learns it
+  // from us rather than from a 422 they cannot interpret.
+  it('400s on a range longer than the source will answer', async () => {
+    const { app, workspaceId } = await seed(() => Promise.resolve({ events: [] }))
+    const res = await app.request(range(workspaceId, '2026-01-01', '2026-12-31'), {
+      headers: auth(),
+    })
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { code: string }).code).toBe('RANGE_TOO_LONG')
   })
 
   // "Unavailable" and "no events booked" look identical on a grid and mean

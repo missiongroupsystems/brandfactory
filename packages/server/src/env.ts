@@ -102,12 +102,13 @@ const EnvObject = z.object({
   // the noop here answers with no events rather than refusing, because the
   // screen it sits on works without it.
   //
-  // `MISSION_EVENTS_CALENDAR_TOKEN` is a **share-link capability**, like a
-  // signed blob URL: it answers without a user session, which is exactly why it
-  // is a server secret and never reaches a browser.
+  // `MISSION_EVENTS_SERVICE_KEY` authenticates this *service* to theirs — the
+  // `X-Service-Key` shared-secret pattern their `internal.py` already used for
+  // cron. It never reaches a browser. They accept several keys at once, so a
+  // rotation is: they add the new one, we switch, they remove the old.
   EVENTS_PROVIDER: z.enum(EVENTS_PROVIDER_IDS).default('none'),
   MISSION_EVENTS_URL: NonEmpty.optional(),
-  MISSION_EVENTS_CALENDAR_TOKEN: NonEmpty.optional(),
+  MISSION_EVENTS_SERVICE_KEY: NonEmpty.optional(),
   // Job input, not provider construction, so decision 10's cut of Quick mode
   // is a config change away rather than a rewrite. 3A measured this model at
   // $0.377 and 4.0 minutes for one brand.
@@ -224,7 +225,7 @@ export const EnvSchema = EnvObject.superRefine((env, ctx) => {
   // would 404 on every month, and a token with no base URL has nowhere to go.
   if (env.EVENTS_PROVIDER === 'mission-events') {
     require_('MISSION_EVENTS_URL', "EVENTS_PROVIDER='mission-events'")
-    require_('MISSION_EVENTS_CALENDAR_TOKEN', "EVENTS_PROVIDER='mission-events'")
+    require_('MISSION_EVENTS_SERVICE_KEY', "EVENTS_PROVIDER='mission-events'")
   }
 })
 
