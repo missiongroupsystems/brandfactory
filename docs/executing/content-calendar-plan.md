@@ -226,3 +226,18 @@ the approval stamp set server-side — so this phase is `web-next` only. No migr
 - **Tests:** the payload logic — date and time to ISO, blanks to `null`, the changed-keys diff —
   lives in `features/calendar/entry-form.ts` with its own test file. The sheet itself is not
   tested, per CLAUDE.md's rule for `web-next` screens.
+
+## Phase 7 — week view, shoot and event links, attachments
+
+Added 30 September 2026, with the build rather than ahead of it: the three pieces were the
+"not in this phase" list of phase 6, so their scope was already written down there.
+
+- **Links.** Two pickers in the sheet: the brand's live shoots (undated ones too) and that
+  brand's Mission Events bookings in the month on screen. The route checks the shoot: a live
+  shoot of the same brand, never the row itself, never on a shoot.
+- **Attachments.** Library ids in order, a picker over the brand's images, an upload that files
+  the image in the library first. A brand change on a new entry clears attachments, shoot and
+  event.
+- **Week view.** Seven columns wide enough for the plan, read through the month grid its
+  Thursday falls in; the counts and the export follow what is on screen.
+- **Out of this phase:** drag to reschedule, and reordering attachments by drag.

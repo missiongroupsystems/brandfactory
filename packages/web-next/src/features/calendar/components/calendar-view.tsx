@@ -30,14 +30,20 @@ import {
   eventsByDay,
   isEmptySlot,
   monthGridDays,
+  mondayOf,
   monthLabel,
+  monthOfWeek,
   shiftMonth,
+  shiftWeek,
+  weekDays,
+  weekLabel,
   gridRange,
   summarise,
 } from "../grid";
 import { useCalendarMonth } from "../hooks";
 import { STATUS_LABELS, STATUS_PILL } from "../status-pill";
 import { CalendarList } from "./calendar-list";
+import { CalendarWeek } from "./calendar-week";
 import { EntryForm, type EntryFormTarget } from "./entry-form";
 
 function timeOf(iso: string): string {
@@ -131,7 +137,10 @@ export function CalendarView({
     month: today.getMonth(),
   });
   const [selectedDay, setSelectedDay] = React.useState<string | null>(null);
-  const [view, setView] = React.useState<"month" | "list">("month");
+  const [view, setView] = React.useState<"month" | "week" | "list">("month");
+  // The week is its own cursor: a Monday, moved by weeks. It is read through the
+  // month grid its Thursday falls in, which always holds all seven days.
+  const [weekStart, setWeekStart] = React.useState(() => mondayOf(today));
   const [brandFilter, setBrandFilter] = React.useState<string | null>(null);
   // One sheet for the whole screen. Every door — the toolbar, a chip, a day,
   // a list row — sets this, so two sheets can never be open at once.
@@ -141,11 +150,13 @@ export function CalendarView({
     [],
   );
 
+  const dataMonth = view === "week" ? monthOfWeek(weekStart) : cursor;
   const { entries, events, isLoading, entriesError, eventsError } = useCalendarMonth(
     workspaceId,
-    cursor.year,
-    cursor.month,
+    dataMonth.year,
+    dataMonth.month,
   );
+  const weekDayList = React.useMemo(() => weekDays(weekStart), [weekStart]);
 
   const brandName = React.useCallback(
     (id: string) => brands.find((b) => b.id === id)?.name ?? "Unknown brand",
@@ -178,16 +189,60 @@ export function CalendarView({
     () => monthGridDays(cursor.year, cursor.month),
     [cursor.year, cursor.month],
   );
+  // What is on screen: the whole grid in month and list, seven days in week.
+  // The counts and the export both read this, so neither can speak for days the
+  // reader is not looking at.
+  const { visibleEntries, visibleEvents, range } = React.useMemo(() => {
+    if (view !== "week") {
+      return {
+        visibleEntries: shownEntries,
+        visibleEvents: shownEvents,
+        range: gridRange(cursor.year, cursor.month),
+      };
+    }
+    const keys = weekDayList.map(localDayKey);
+    const inWeek = new Set(keys);
+    const seen = new Map<string, CalendarEvent>();
+    for (const key of keys) for (const ev of byDayEvents.get(key) ?? []) seen.set(ev.id, ev);
+    return {
+      visibleEntries: shownEntries.filter(
+        (e) => e.scheduledAt !== null && inWeek.has(localDayKey(new Date(e.scheduledAt))),
+      ),
+      visibleEvents: [...seen.values()],
+      range: { from: keys[0]!, to: keys[6]! },
+    };
+  }, [view, shownEntries, shownEvents, cursor.year, cursor.month, weekDayList, byDayEvents]);
+
   const summary = React.useMemo(
-    () => summarise(shownEntries, shownEvents),
-    [shownEntries, shownEvents],
+    () => summarise(visibleEntries, visibleEvents),
+    [visibleEntries, visibleEvents],
   );
 
   const exportCsv = React.useCallback(() => {
-    const { from, to } = gridRange(cursor.year, cursor.month);
     const label = brandFilter ? brandName(brandFilter) : "All brands";
-    downloadCsv(exportFilename(label, from, to), entriesToCsv(shownEntries, brandName));
-  }, [cursor.year, cursor.month, brandFilter, brandName, shownEntries]);
+    downloadCsv(
+      exportFilename(label, range.from, range.to),
+      entriesToCsv(visibleEntries, brandName),
+    );
+  }, [range, brandFilter, brandName, visibleEntries]);
+
+  const step = (delta: number) =>
+    view === "week"
+      ? setWeekStart((w) => shiftWeek(w, delta))
+      : setCursor((c) => shiftMonth(c, delta));
+
+  const switchView = (next: "month" | "week" | "list") => {
+    // Keep the reader in the same stretch of time across the switch: a week
+    // opens on the month's first week (or this week, in the current month), and
+    // a month opens on the week's month.
+    if (next === "week" && view !== "week") {
+      const inThisMonth =
+        cursor.year === today.getFullYear() && cursor.month === today.getMonth();
+      setWeekStart(mondayOf(inThisMonth ? today : new Date(cursor.year, cursor.month, 1)));
+    }
+    if (next !== "week" && view === "week") setCursor(monthOfWeek(weekStart));
+    setView(next);
+  };
 
   const todayKey = localDayKey(today);
 
@@ -200,39 +255,42 @@ export function CalendarView({
           <Button
             variant="secondary"
             size="sm"
-            aria-label="Previous month"
-            onClick={() => setCursor((c) => shiftMonth(c, -1))}
+            aria-label={view === "week" ? "Previous week" : "Previous month"}
+            onClick={() => step(-1)}
           >
             <ChevronLeft className="size-4" />
           </Button>
-          <span className="w-36 text-center text-sm font-medium">
-            {monthLabel(cursor.year, cursor.month)}
+          <span className="w-44 text-center text-sm font-medium">
+            {view === "week" ? weekLabel(weekStart) : monthLabel(cursor.year, cursor.month)}
           </span>
           <Button
             variant="secondary"
             size="sm"
-            aria-label="Next month"
-            onClick={() => setCursor((c) => shiftMonth(c, 1))}
+            aria-label={view === "week" ? "Next week" : "Next month"}
+            onClick={() => step(1)}
           >
             <ChevronRight className="size-4" />
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setCursor({ year: today.getFullYear(), month: today.getMonth() })}
+            onClick={() => {
+              setCursor({ year: today.getFullYear(), month: today.getMonth() });
+              setWeekStart(mondayOf(today));
+            }}
           >
             Today
           </Button>
 
           <div className="ml-2 inline-flex gap-0.5 rounded-lg border border-border p-0.5">
-            {(["month", "list"] as const).map((v) => (
+            {(["month", "week", "list"] as const).map((v) => (
               <Button
                 key={v}
                 variant={view === v ? "secondary" : "ghost"}
                 size="sm"
-                onClick={() => setView(v)}
+                onClick={() => switchView(v)}
               >
-                {v === "month" ? "Month" : "List"}
+                {v === "month" ? "Month" : v === "week" ? "Week" : "List"}
               </Button>
             ))}
           </div>
@@ -240,7 +298,7 @@ export function CalendarView({
           {/* Exports exactly what is on screen — this brand filter, this
               range. A button that quietly exported more than the reader could
               see would be the one thing a run sheet must not do. */}
-          <Button variant="secondary" size="sm" onClick={exportCsv} disabled={shownEntries.length === 0}>
+          <Button variant="secondary" size="sm" onClick={exportCsv} disabled={visibleEntries.length === 0}>
             <Download className="size-4" />
             Export
           </Button>
@@ -287,13 +345,18 @@ export function CalendarView({
           implied a quota would invent a rule nobody agreed to. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
         <span>
-          <strong className="font-medium text-foreground">{summary.entries}</strong> entries
+          <strong className="font-medium text-foreground">{summary.entries}</strong>{" "}
+          {summary.entries === 1 ? "entry" : "entries"}
         </span>
-        <span>{summary.shoots} shoots</span>
-        <span>{summary.events} events</span>
         <span>
-          <strong className="font-medium text-foreground">{summary.emptySlots}</strong> slots with
-          no post yet
+          {summary.shoots} {summary.shoots === 1 ? "shoot" : "shoots"}
+        </span>
+        <span>
+          {summary.events} {summary.events === 1 ? "event" : "events"}
+        </span>
+        <span>
+          <strong className="font-medium text-foreground">{summary.emptySlots}</strong>{" "}
+          {summary.emptySlots === 1 ? "slot" : "slots"} with no post yet
         </span>
         <span className="flex items-center gap-1.5">
           {(Object.keys(STATUS_LABELS) as SocialPostStatus[]).map((s) => (
@@ -325,6 +388,18 @@ export function CalendarView({
 
       {isLoading ? (
         <LoadingRows rows={6} />
+      ) : view === "week" ? (
+        <CalendarWeek
+          days={weekDayList}
+          entriesByDay={byDayEntries}
+          eventsByDay={byDayEvents}
+          brandName={brandName}
+          todayKey={todayKey}
+          onEdit={editEntry}
+          onAdd={(key) =>
+            setFormTarget({ mode: "create", brandId: brandFilter ?? undefined, date: key })
+          }
+        />
       ) : view === "list" ? (
         <CalendarList entries={shownEntries} brandName={brandName} onEdit={editEntry} />
       ) : (

@@ -68,6 +68,53 @@ export function gridRange(year: number, month: number): { from: string; to: stri
   return { from: localDayKey(days[0]!), to: localDayKey(days[days.length - 1]!) };
 }
 
+/** Local midnight of the Monday on or before `date`. */
+export function mondayOf(date: Date): Date {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d;
+}
+
+/** The seven days from a Monday, added by day for the same DST reason as the month grid. */
+export function weekDays(monday: Date): Date[] {
+  return Array.from(
+    { length: 7 },
+    (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i),
+  );
+}
+
+/** A Monday moved by whole weeks. */
+export function shiftWeek(monday: Date, delta: number): Date {
+  return new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + delta * 7);
+}
+
+/**
+ * The month whose grid a week is read from: **the month its Thursday is in.**
+ *
+ * The two reads are asked for a month's grid range, and a month's grid holds every whole week
+ * that touches it. A week's Thursday always lies in a month the week touches, so that month's
+ * range always contains all seven days — including the week of 28 September to 4 October, which
+ * the September grid holds and the October grid holds too. Choosing by Monday would be equally
+ * safe here; Thursday is the ISO rule, and it keeps the label and the data on the same month.
+ */
+export function monthOfWeek(monday: Date): { year: number; month: number } {
+  const thursday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 3);
+  return { year: thursday.getFullYear(), month: thursday.getMonth() };
+}
+
+/** `28 Sept – 4 Oct 2026`, or `12 – 18 Oct 2026` inside one month. */
+export function weekLabel(monday: Date): string {
+  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+  const day = new Intl.DateTimeFormat("en-GB", { day: "numeric" });
+  const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
+  const full = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const start =
+    monday.getMonth() === sunday.getMonth() && monday.getFullYear() === sunday.getFullYear()
+      ? day.format(monday)
+      : dayMonth.format(monday);
+  return `${start} – ${full.format(sunday)}`;
+}
+
 /** Entries bucketed by local day key. Unscheduled rows are absent, not grouped under a key. */
 export function entriesByDay(entries: SocialPost[]): Map<string, SocialPost[]> {
   const byDay = new Map<string, SocialPost[]>();

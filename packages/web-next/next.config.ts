@@ -23,6 +23,17 @@ const nextConfig: NextConfig = {
         source: "/api/:path*",
         destination: `${API_PROXY_TARGET}/:path*`,
       },
+      // Signed blob URLs under local-disk storage are root-relative
+      // (`BLOB_PUBLIC_BASE_URL=/blobs`), so the browser sends the PUT and the
+      // read to this origin. Without this every upload in dev — photography,
+      // decks, calendar attachments — 404s here. The Vite app proxies `/blobs`
+      // for the same reason. Supabase storage signs absolute URLs and never
+      // reaches this rewrite. The server mounts `/blobs` at its root, so the
+      // prefix is kept, unlike `/api`.
+      {
+        source: "/blobs/:path*",
+        destination: `${API_PROXY_TARGET}/blobs/:path*`,
+      },
     ];
   },
 };

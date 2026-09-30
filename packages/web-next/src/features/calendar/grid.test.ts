@@ -1,4 +1,5 @@
 import type { SocialPost } from "@brandfactory/shared";
+import { localDayKey } from "@brandfactory/shared";
 import { describe, expect, it } from "vitest";
 
 import type { CalendarEvent } from "./api";
@@ -7,7 +8,12 @@ import {
   eventsByDay,
   gridRange,
   isEmptySlot,
+  mondayOf,
   monthGridDays,
+  monthOfWeek,
+  shiftWeek,
+  weekDays,
+  weekLabel,
   shiftMonth,
   summarise,
 } from "./grid";
@@ -177,3 +183,43 @@ describe("summarise", () => {
     expect(s.byStatus).toEqual({ idea: 1, approved: 0, filming: 1, editing: 0, posted: 1 });
   });
 });
+
+describe("the week", () => {
+  it("finds the Monday on or before a day, Monday and Sunday included", () => {
+    expect(localDayKey(mondayOf(new Date(2026, 9, 14)))).toBe("2026-10-12");
+    expect(localDayKey(mondayOf(new Date(2026, 9, 12)))).toBe("2026-10-12");
+    expect(localDayKey(mondayOf(new Date(2026, 9, 18)))).toBe("2026-10-12");
+  });
+
+  it("lists seven consecutive days across a month boundary", () => {
+    const days = weekDays(new Date(2026, 8, 28)).map(localDayKey);
+    expect(days).toEqual([
+      "2026-09-28",
+      "2026-09-29",
+      "2026-09-30",
+      "2026-10-01",
+      "2026-10-02",
+      "2026-10-03",
+      "2026-10-04",
+    ]);
+  });
+
+  it("moves by whole weeks across the year boundary", () => {
+    expect(localDayKey(shiftWeek(new Date(2026, 11, 28), 1))).toBe("2027-01-04");
+    expect(localDayKey(shiftWeek(new Date(2027, 0, 4), -1))).toBe("2026-12-28");
+  });
+
+  it("reads a week from a month whose grid holds all seven days", () => {
+    for (const monday of [new Date(2026, 8, 28), new Date(2026, 9, 26), new Date(2026, 11, 28)]) {
+      const { year, month } = monthOfWeek(monday);
+      const grid = new Set(monthGridDays(year, month).map(localDayKey));
+      for (const day of weekDays(monday)) expect(grid.has(localDayKey(day))).toBe(true);
+    }
+  });
+
+  it("labels a week inside one month and across two", () => {
+    expect(weekLabel(new Date(2026, 9, 12))).toBe("12 – 18 Oct 2026");
+    expect(weekLabel(new Date(2026, 8, 28))).toMatch(/^28 Sept? – 4 Oct 2026$/);
+  });
+});
+
