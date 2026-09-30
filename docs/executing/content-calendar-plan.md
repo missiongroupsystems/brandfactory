@@ -204,3 +204,25 @@ frontends read one copy. They stay static data, per the "not every fact needs a 
   one click away?
 - **The release gap.** A shipped screen left the nav and nobody was told. The fix is a rule, not
   code: a screen leaves the nav only with a changelog line and a message to the people who use it.
+
+## Phase 6 — create and edit from `/calendar`
+
+Added 30 September 2026, after phases 0–5 shipped read-only. The server already takes every write
+this needs — `POST`, `PATCH`, `DELETE` and `POST …/restore` on `/brands/:id/social-posts`, with
+the approval stamp set server-side — so this phase is `web-next` only. No migration, no new route.
+
+- **One sheet for both modes**, on `ResourceForm`'s shape: brand and kind (create only — a post
+  does not change brand, and a shoot does not become a post), platform, date and time, status,
+  format, hook, dish, on camera, filmed by, cleared with, Canva link, copy.
+- **A date is required.** `/calendar` reads scheduled rows only, so an entry created here without a
+  date would vanish on save. The per-brand tray keeps undated ideas.
+- **Edit sends only what changed.** The patch schema rejects `{}`, and a full-row patch would
+  overwrite a colleague's edit to a field this person never touched.
+- **Doors:** a primary `New entry` in the toolbar; `Add to this day` in the day plan, dated; a
+  click on an entry chip, a day-plan card or a list row opens it for editing.
+- **Delete** is the existing soft delete, with an Undo that calls restore.
+- **Out of this phase:** linking a post to a shoot (`shootId`) or to an event (`eventsEventId`),
+  attachments, and the week view.
+- **Tests:** the payload logic — date and time to ISO, blanks to `null`, the changed-keys diff —
+  lives in `features/calendar/entry-form.ts` with its own test file. The sheet itself is not
+  tested, per CLAUDE.md's rule for `web-next` screens.

@@ -1,10 +1,14 @@
 "use client";
 
-import type { SocialPost } from "@brandfactory/shared";
+import type {
+  CreateSocialPostInput,
+  SocialPost,
+  UpdateSocialPostInput,
+} from "@brandfactory/shared";
 import * as React from "react";
 import useSWR from "swr";
 
-import { SCOPES } from "@/lib/api/cache";
+import { SCOPES, useRevalidate } from "@/lib/api/cache";
 
 import { type CalendarEventsResult, calendarService } from "./api";
 import { gridRange } from "./grid";
@@ -46,7 +50,7 @@ export function useCalendarMonth(
     {
       revalidateOnFocus: false,
       // The events layer is a read-through to another product. One failed month
-      // must not retry in a loop against a rate-limited share link.
+      // must not retry in a loop against another product's service endpoint.
       shouldRetryOnError: false,
     },
   );
@@ -62,4 +66,64 @@ export function useCalendarMonth(
     entriesError: entries.error,
     eventsError: events.error,
   };
+}
+
+/**
+ * Create, edit, delete and restore an entry, on `useResourceMutations`' shape: plain async
+ * functions that wait for the server, then revalidate by scope.
+ *
+ * **Nothing is optimistic**, like every other mutation hook in this package. The server stamps the
+ * approval and may refuse an attachment, and a chip that jumped a day before the answer came back
+ * would be the calendar showing something the database never held.
+ *
+ * **Two scopes.** The month grid reads `bfCalendarEntries`; the funnel's post picker and the
+ * brand's social page read `bfSocialPosts`. A write here changes both, and revalidating one would
+ * leave the other showing the post as it was.
+ *
+ * The events scope is left alone on purpose: nothing here writes to Mission Events.
+ */
+const ENTRY_SCOPES = [SCOPES.bfCalendarEntries, SCOPES.bfSocialPosts];
+
+export function useCalendarEntryMutations() {
+  // `useRevalidate`, not `useInvalidate`: the grid behind the sheet keeps its data while the new
+  // answer loads, instead of blanking the whole month on every save.
+  const revalidate = useRevalidate();
+
+  const create = React.useCallback(
+    async (brandId: string, input: CreateSocialPostInput) => {
+      const created = await calendarService.createEntry(brandId, input);
+      await revalidate(...ENTRY_SCOPES);
+      return created;
+    },
+    [revalidate],
+  );
+
+  const update = React.useCallback(
+    async (brandId: string, postId: string, input: UpdateSocialPostInput) => {
+      const updated = await calendarService.updateEntry(brandId, postId, input);
+      await revalidate(...ENTRY_SCOPES);
+      return updated;
+    },
+    [revalidate],
+  );
+
+  const remove = React.useCallback(
+    async (brandId: string, postId: string) => {
+      const removed = await calendarService.removeEntry(brandId, postId);
+      await revalidate(...ENTRY_SCOPES);
+      return removed;
+    },
+    [revalidate],
+  );
+
+  const restore = React.useCallback(
+    async (brandId: string, postId: string) => {
+      const restored = await calendarService.restoreEntry(brandId, postId);
+      await revalidate(...ENTRY_SCOPES);
+      return restored;
+    },
+    [revalidate],
+  );
+
+  return { create, update, remove, restore };
 }

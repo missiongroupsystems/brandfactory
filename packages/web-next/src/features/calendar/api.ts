@@ -1,9 +1,14 @@
-import type { ExternalEvent, SocialPost } from "@brandfactory/shared";
+import type {
+  CreateSocialPostInput,
+  ExternalEvent,
+  SocialPost,
+  UpdateSocialPostInput,
+} from "@brandfactory/shared";
 
 import { bf, callJson } from "@/lib/api/bf-client";
 
 /**
- * The content calendar's two reads.
+ * The content calendar's two reads, and the writes on its entries.
  *
  * **They are separate services because they have separate owners.** The entries are rows in this
  * product's database and a post edit invalidates them. The events belong to Mission Events, are
@@ -57,6 +62,46 @@ export const calendarService = {
       await bf.workspaces[":workspaceId"].calendar.events.$get({
         param: { workspaceId },
         query: { from, to },
+      }),
+    ),
+
+  /*
+   * The writes. They go to the brand's own post routes rather than a calendar route, because a
+   * post belongs to a brand and `requireBrandAccess` is where that is checked — a workspace-level
+   * write would be a second door past the same check.
+   */
+
+  /** Answers `201` with the row. The server stamps the approval when `status` starts past `idea`. */
+  createEntry: async (brandId: string, input: CreateSocialPostInput): Promise<SocialPost> =>
+    callJson<SocialPost>(
+      await bf.brands[":id"]["social-posts"].$post({ param: { id: brandId }, json: input }),
+    ),
+
+  /** A real partial patch — send only what changed (`toUpdateInput`). */
+  updateEntry: async (
+    brandId: string,
+    postId: string,
+    input: UpdateSocialPostInput,
+  ): Promise<SocialPost> =>
+    callJson<SocialPost>(
+      await bf.brands[":id"]["social-posts"][":postId"].$patch({
+        param: { id: brandId, postId },
+        json: input,
+      }),
+    ),
+
+  /** Soft delete: the row hides and its attachments stay, so {@link restoreEntry} is a real Undo. */
+  removeEntry: async (brandId: string, postId: string): Promise<SocialPost> =>
+    callJson<SocialPost>(
+      await bf.brands[":id"]["social-posts"][":postId"].$delete({
+        param: { id: brandId, postId },
+      }),
+    ),
+
+  restoreEntry: async (brandId: string, postId: string): Promise<SocialPost> =>
+    callJson<SocialPost>(
+      await bf.brands[":id"]["social-posts"][":postId"].restore.$post({
+        param: { id: brandId, postId },
       }),
     ),
 };

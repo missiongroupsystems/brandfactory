@@ -9,6 +9,8 @@ import {
   Clapperboard,
   Download,
   Link2,
+  Pencil,
+  Plus,
   Ticket,
 } from "lucide-react";
 import * as React from "react";
@@ -36,6 +38,7 @@ import {
 import { useCalendarMonth } from "../hooks";
 import { STATUS_LABELS, STATUS_PILL } from "../status-pill";
 import { CalendarList } from "./calendar-list";
+import { EntryForm, type EntryFormTarget } from "./entry-form";
 
 function timeOf(iso: string): string {
   const d = new Date(iso);
@@ -130,6 +133,13 @@ export function CalendarView({
   const [selectedDay, setSelectedDay] = React.useState<string | null>(null);
   const [view, setView] = React.useState<"month" | "list">("month");
   const [brandFilter, setBrandFilter] = React.useState<string | null>(null);
+  // One sheet for the whole screen. Every door — the toolbar, a chip, a day,
+  // a list row — sets this, so two sheets can never be open at once.
+  const [formTarget, setFormTarget] = React.useState<EntryFormTarget | null>(null);
+  const editEntry = React.useCallback(
+    (entry: SocialPost) => setFormTarget({ mode: "edit", entry }),
+    [],
+  );
 
   const { entries, events, isLoading, entriesError, eventsError } = useCalendarMonth(
     workspaceId,
@@ -223,6 +233,21 @@ export function CalendarView({
             <Download className="size-4" />
             Export
           </Button>
+
+          {/* The screen's one primary action. It starts on the brand the
+              reader has filtered to, because that is the brand they are
+              looking at. */}
+          <Button
+            size="sm"
+            className="ml-2"
+            disabled={brands.length === 0}
+            onClick={() =>
+              setFormTarget({ mode: "create", brandId: brandFilter ?? undefined })
+            }
+          >
+            <Plus className="size-4" />
+            New entry
+          </Button>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
@@ -290,7 +315,7 @@ export function CalendarView({
       {isLoading ? (
         <LoadingRows rows={6} />
       ) : view === "list" ? (
-        <CalendarList entries={shownEntries} brandName={brandName} />
+        <CalendarList entries={shownEntries} brandName={brandName} onEdit={editEntry} />
       ) : (
         <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-border bg-border">
           {WEEKDAY_LABELS.map((d) => (
@@ -334,7 +359,7 @@ export function CalendarView({
                     key={e.id}
                     entry={e}
                     brandName={brandName(e.brandId)}
-                    onOpen={() => setSelectedDay(key)}
+                    onOpen={() => editEntry(e)}
                   />
                 ))}
                 {dayEntries.length > 3 ? (
@@ -359,8 +384,24 @@ export function CalendarView({
           events={byDayEvents.get(selectedDay) ?? []}
           brandName={brandName}
           onClose={() => setSelectedDay(null)}
+          onEdit={editEntry}
+          onAdd={() =>
+            setFormTarget({
+              mode: "create",
+              brandId: brandFilter ?? undefined,
+              date: selectedDay,
+            })
+          }
         />
       ) : null}
+
+      <EntryForm
+        target={formTarget}
+        brands={brands}
+        onOpenChange={(open) => {
+          if (!open) setFormTarget(null);
+        }}
+      />
     </div>
   );
 }
@@ -378,12 +419,16 @@ function DayPlan({
   events,
   brandName,
   onClose,
+  onEdit,
+  onAdd,
 }: {
   dayKey: string;
   entries: SocialPost[];
   events: CalendarEvent[];
   brandName: (id: string) => string;
   onClose: () => void;
+  onEdit: (entry: SocialPost) => void;
+  onAdd: () => void;
 }) {
   const heading = new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
@@ -399,9 +444,15 @@ function DayPlan({
           <p className="text-xs text-muted-foreground">Content plan</p>
           <h2 className="text-xl font-medium">{heading}</h2>
         </div>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          Close
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="secondary" size="sm" onClick={onAdd}>
+            <Plus className="size-4" />
+            Add to this day
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Close
+          </Button>
+        </div>
       </div>
 
       {events.length > 0 ? (
@@ -433,7 +484,7 @@ function DayPlan({
         <div className="mt-4">
           <EmptyState
             message="Nothing planned on this day"
-            hint="Posts and shoots scheduled for this date will appear here."
+            hint="Add a post, a shoot, or an empty slot that holds the date."
           />
         </div>
       ) : (
@@ -455,6 +506,15 @@ function DayPlan({
                 <Badge variant="outline" className={cn("ml-auto", STATUS_PILL[entry.status])}>
                   {STATUS_LABELS[entry.status]}
                 </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Edit ${brandName(entry.brandId)} entry`}
+                  onClick={() => onEdit(entry)}
+                >
+                  <Pencil className="size-4" />
+                  Edit
+                </Button>
               </div>
 
               {isEmptySlot(entry) ? (

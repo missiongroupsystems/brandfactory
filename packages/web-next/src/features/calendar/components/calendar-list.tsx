@@ -66,9 +66,12 @@ function timeOf(iso: string | null): string {
 export function CalendarList({
   entries,
   brandName,
+  onEdit,
 }: {
   entries: SocialPost[];
   brandName: (brandId: string) => string;
+  /** Opens the entry sheet. The date is the button, so a row is reachable by Tab. */
+  onEdit: (entry: SocialPost) => void;
 }) {
   const weeks = React.useMemo(() => {
     const byWeek = new Map<string, SocialPost[]>();
@@ -126,7 +129,14 @@ export function CalendarList({
               {rows.map((entry) => (
                 <TableRow key={entry.id} className="align-top">
                   <TableCell className="whitespace-nowrap font-medium">
-                    {shortDay(entry.scheduledAt)}
+                    <button
+                      type="button"
+                      onClick={() => onEdit(entry)}
+                      aria-label={`Edit ${brandName(entry.brandId)}, ${shortDay(entry.scheduledAt)}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {shortDay(entry.scheduledAt)}
+                    </button>
                   </TableCell>
                   <TableCell>
                     <span className="flex items-start gap-2">
