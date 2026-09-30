@@ -1,6 +1,6 @@
 # Content calendar Phase 6 — the calendar can be written to
 
-**Shipped in:** unreleased. **Migration:** none. **Wire:** none — every route this uses already
+**Shipped in:** 1.56.0. **Migration:** none. **Wire:** none — every route this uses already
 existed. **New dependency:** none.
 
 ## What this phase is

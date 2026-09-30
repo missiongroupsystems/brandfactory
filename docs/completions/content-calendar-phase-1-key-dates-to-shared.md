@@ -1,6 +1,6 @@
 # Content calendar Phase 1 — the key dates leave the app that cannot share them
 
-**Shipped in:** unreleased. **Migration:** none — the dataset has no schema and still does not want
+**Shipped in:** 1.56.0. **Migration:** none — the dataset has no schema and still does not want
 one. **Wire:** no new route; the 92 dates never crossed it and still do not.
 **New dependency:** none.
 

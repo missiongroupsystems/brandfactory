@@ -1,6 +1,6 @@
 # Content calendar Phase 2 — `social_posts` becomes a production pipeline
 
-**Shipped in:** unreleased. **Migration:** 0023, hand-edited. **Wire:** no new route; three
+**Shipped in:** 1.56.0. **Migration:** 0023, hand-edited. **Wire:** no new route; three
 schemas widened. **New dependency:** none.
 
 ## What this phase is

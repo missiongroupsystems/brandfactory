@@ -1,6 +1,6 @@
 # Content calendar Phase 4 — the screen the team asked for
 
-**Shipped in:** unreleased. **Migration:** none. **Wire:** one new route,
+**Shipped in:** 1.56.0. **Migration:** none. **Wire:** one new route,
 `GET /workspaces/:id/calendar/entries`. **New dependency:** none.
 
 ## What this phase is

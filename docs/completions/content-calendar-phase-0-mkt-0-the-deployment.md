@@ -1,6 +1,6 @@
 # Content calendar Phase 0 (MKT-0) — the calendar gets a deployment again
 
-**Shipped in:** unreleased. **Migration:** none. **Wire:** none — no route changed.
+**Shipped in:** 1.56.0. **Migration:** none. **Wire:** none — no route changed.
 **New dependency:** none. **New infrastructure:** one Vercel project, `brandfactory-calendar`.
 
 ## What MKT-0 turned out to be

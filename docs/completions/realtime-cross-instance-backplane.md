@@ -1,6 +1,6 @@
 # Realtime — the publish crosses instances, so two machines stop lying
 
-**Shipped in:** unreleased. **Migration:** 0025 — `realtime_events`, additive.
+**Shipped in:** 1.56.0. **Migration:** 0025 — `realtime_events`, additive.
 **Wire:** none. **New dependency:** `pg` in `@brandfactory/adapter-realtime`, already used by
 `@brandfactory/db`. **Default unchanged:** `REALTIME_PROVIDER=native-ws`.
 

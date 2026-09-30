@@ -1,6 +1,6 @@
 # Content calendar — Mission Events built the endpoint, so the adapter changed
 
-**Shipped in:** unreleased. **Migration:** none. **Wire:** none — `GET /calendar/events` keeps
+**Shipped in:** 1.56.0. **Migration:** none. **Wire:** none — `GET /calendar/events` keeps
 its shape. **New dependency:** none. **Secret renamed:** `MISSION_EVENTS_CALENDAR_TOKEN` →
 `MISSION_EVENTS_SERVICE_KEY`.
 

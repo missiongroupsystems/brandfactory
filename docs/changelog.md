@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.56.0** — 2026-09-30 — The content calendar comes back, and this time it is a production pipeline: a deployment for the Vite app it had lost, one `/calendar` across seven brands with a list and an export, five stages from idea to posted, shoots, a read-through of Mission Events, and — last — a grid that can be written to. Plus a realtime backplane so two machines stop dropping half the messages. Migrations 0023–0025. 3195 tests.
 - **1.55.0** — 2026-09-01 — The set's loose ends close before it merges: a funnel activity gets its one real typed link — a social push, the only one of three named targets with a table to point at — the photography shelf learns to take a photograph and reorder one, a `web-next` write stops emptying the cache under every screen, and seven QA rounds harden the four features. A pre-merge review then finds one more: a deck delete swept nothing, so its version PDFs orphaned in storage — the Canva snapshot included. Migration 0022. 3104 tests.
 - **1.54.0** — 2026-08-27 — The other three asks land and the set closes: a deck stack whose Canva versions snapshot on add, a photography shelf split by subject with the best pinned, and the funnel that maps a brand's journey. `BRAND_NAV_ITEMS` reaches six rows in three groups, and `Tools` goes with the last `Empty` tag in the product. Migrations 0018–0021. 3069 tests.
 - **1.53.0** — 2026-08-27 — Resources ships: a brand's fonts, images, icons and tools are a real table now, grouped by type, with a form to add and edit one and a delete that waits for the server rather than assuming it. Migration 0017. 2928 tests.
@@ -107,6 +108,78 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.56.0 — 2026-09-30
+
+**The calendar the marketing team asked for, lost, and got back.** The 16 September workshop
+(`docs/refs/2026-09-16-marketing-build-plan-module-02.md`) found adoption at zero for a reason on
+our side: the social calendar shipped in 1.20.0 had gone dark when the Next shell arrived, and
+nobody told the people using it. This release is MKT-0 and MKT-1 of that plan, in seven phases,
+each with its own note in `docs/completions/content-calendar-phase-*.md`, plus the events service
+endpoint and a realtime fix found along the way. **Migrations 0023–0025.** 3195 tests (3030
+passing, 165 skipped without a database).
+
+### MKT-0 — the regression was a project setting
+
+The calendar was never deleted. The one Vercel project that served `packages/web` was repointed at
+`packages/web-next`, and everything the Vite app rendered went dark in the same moment — invisible
+in git. The Vite app now has its own project, `brandfactory-calendar`, and a `vercel.json` that
+proxies the API the way `vite.config.ts` does, so the old editor is reachable while the new one is
+built. The release-process question — a screen may leave the nav only with a changelog line and a
+message to its users — stays open in the plan.
+
+### Key dates move to `shared`
+
+The 92 curated dates leave `packages/web/src/lib/key-dates/` for `@brandfactory/shared`, so both
+frontends read one copy. Still static data, still no schema.
+
+### `social_posts` becomes a pipeline (migration 0023)
+
+Widened, not replaced — `funnel_activities.social_post_id` already points at it. Status becomes
+**idea → approved → filming → editing → posted** (`draft → idea`, `ready → approved`); free-text
+`format`, `hook`, `dish`, `talent`, `filmed_by`, `canva_url`, `cleared_with`; an approval stamp the
+server sets; `kind: post | shoot` with `shoot_id`; and Xiaohongshu and Threads on the platform list.
+
+### Mission Events, read and never copied (migration 0024)
+
+A sixth adapter port, `@brandfactory/adapter-events`, reads bookings from Mission Events and stores
+none of them: a soft delete there bumps nothing, so a copy could not learn what vanished.
+`brands.events_outlet_id` maps an Events outlet to a brand. The first shape read a public share
+link; a review pointed out that link exists so a venue can put a calendar on a website, and
+Mission Events built `/internal/marketing/` endpoints behind `X-Service-Key` instead. The client
+reads every page, and Events now reports `is_all_day` itself — the old inference from a UTC
+midnight would have put every all-day event on the wrong day. **Off until configured:**
+`MISSION_EVENTS_URL`, `MISSION_EVENTS_SERVICE_KEY` and `EVENTS_PROVIDER=mission-events`, then the
+seven `events_outlet_id` values.
+
+### `/calendar` — seven brands on one grid, then a list and an export
+
+Workspace-level, because the spreadsheet exists precisely since no screen would show the brands
+together. Month grid with a brand filter, a summary of counts and never targets, dashed empty
+slots, tentative events drawn dashed. The list view is the sheet the team keeps today, grouped by
+week, and the export writes the same columns — as CSV rather than `.xlsx`, because both Excel and
+Sheets open it and a spreadsheet library did not earn its place.
+
+### The grid can be written to
+
+Phases 4 and 5 shipped read-only on purpose. Phase 6 adds one sheet for create and edit, opened
+from `New entry`, `Add to this day`, an entry chip, a day-plan card or a list row, with delete and
+an Undo that restores. A date is required, because an undated entry would vanish from the screen
+that saved it; brand and type are fixed once an entry exists; an edit sends only the keys that
+changed. No server change — the routes existed.
+
+### Realtime crosses instances (migration 0025)
+
+`fly.toml` said one machine and two had run since May, so a message published on one never reached
+a socket on the other, half the time, with no error. A Postgres LISTEN/NOTIFY backplane wraps
+`native-ws`: it carries a row id rather than the payload, because NOTIFY caps at 8000 bytes; the
+publisher ignores its own broadcast; LISTEN gets its own connection. **`REALTIME_PROVIDER` still
+defaults to `native-ws`**, so the one-instance rule in CLAUDE.md holds until it is switched on.
+
+### Not in this release
+
+The week view; linking a post to a shoot or an event from the sheet; attachments from the new
+calendar; retiring the Vite calendar, which waits for two weeks of use and a message to the team.
 
 ## 1.55.0 — 2026-09-01
 

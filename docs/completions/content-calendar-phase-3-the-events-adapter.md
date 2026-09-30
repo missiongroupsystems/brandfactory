@@ -1,6 +1,6 @@
 # Content calendar Phase 3 — the events adapter, and the map to a brand
 
-**Shipped in:** unreleased. **Migration:** 0024 — `brands.events_outlet_id`, additive.
+**Shipped in:** 1.56.0. **Migration:** 0024 — `brands.events_outlet_id`, additive.
 **Wire:** one new route, `GET /workspaces/:id/calendar/events`. **New dependency:** none.
 **New package:** `@brandfactory/adapter-events`, the sixth port.
 

@@ -1,6 +1,6 @@
 # Content calendar Phase 5 — the list, and the file the shooting team opens
 
-**Shipped in:** unreleased. **Migration:** none. **Wire:** none — the export is built from data
+**Shipped in:** 1.56.0. **Migration:** none. **Wire:** none — the export is built from data
 the screen already holds. **New dependency:** none, and that is the decision this phase turned on.
 
 ## What this phase is
