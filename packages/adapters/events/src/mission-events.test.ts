@@ -231,14 +231,21 @@ describe('createMissionEventsSource', () => {
     )
   })
 
-  it('names a refused range rather than reporting it as a generic outage', async () => {
+  it('names a refused request rather than reporting it as a generic outage', async () => {
     const { source } = sourceWith(() => new Response('', { status: 422 }))
-    await expect(source.listRange({ from: '2026-10-31', to: '2026-10-01' })).rejects.toThrow(
-      /reversed, or over 93 days/,
-    )
+    const err = source.listRange({ from: '2026-10-31', to: '2026-10-01' })
+    await expect(err).rejects.toBeInstanceOf(EventsUnavailableError)
+    await expect(err).rejects.toThrow(/HTTP 422.*missing service-key header.*over 93 days/)
   })
 
-  it.each([429, 500, 502])('raises unavailable on HTTP %i', async (status) => {
+  it('names the rate limit rather than reporting it as a generic outage', async () => {
+    const { source } = sourceWith(() => new Response('', { status: 429 }))
+    const err = source.listRange({ from: '2026-10-01', to: '2026-10-31' })
+    await expect(err).rejects.toBeInstanceOf(EventsUnavailableError)
+    await expect(err).rejects.toThrow(/HTTP 429.*60 requests a minute/)
+  })
+
+  it.each([500, 502])('raises unavailable on HTTP %i', async (status) => {
     const { source } = sourceWith(() => new Response('', { status }))
     await expect(source.listRange({ from: '2026-10-01', to: '2026-10-31' })).rejects.toBeInstanceOf(
       EventsUnavailableError,

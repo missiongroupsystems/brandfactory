@@ -217,11 +217,19 @@ export function createMissionEventsSource(config: MissionEventsConfig): EventsSo
         `Mission Events refused the service key (HTTP ${res.status})`,
       )
     }
-    // 422 means we sent a range it will not answer — reversed, or over 93 days.
-    // A caller bug, but it arrives here, so it is named rather than swallowed.
+    // 422 is a request it will not answer: the header missing, bad dates, `to`
+    // before `from`, or a range over 93 days (their spec, 30 September). A
+    // caller bug, but it arrives here, so it is named rather than swallowed.
     if (res.status === 422) {
       throw new EventsUnavailableError(
-        'Mission Events refused the range (reversed, or over 93 days)',
+        'Mission Events refused the request (HTTP 422): missing service-key header, bad dates, `to` before `from`, or a range over 93 days',
+      )
+    }
+    // 429 is their rate limit, 60 requests a minute from one IP. It clears by
+    // itself, so it is named apart from an outage that would need a person.
+    if (res.status === 429) {
+      throw new EventsUnavailableError(
+        'Mission Events rate-limited the request (HTTP 429: over 60 requests a minute)',
       )
     }
     if (!res.ok) {

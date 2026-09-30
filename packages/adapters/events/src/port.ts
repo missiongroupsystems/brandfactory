@@ -92,7 +92,7 @@ export interface EventsSource {
  * retries.
  */
 export class EventsUnauthorizedError extends Error {
-  constructor(message = 'The Mission Events share link was refused') {
+  constructor(message = 'Mission Events refused the service key') {
     super(message)
     this.name = 'EventsUnauthorizedError'
   }
