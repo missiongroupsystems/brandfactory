@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.57.0** — 2026-09-30 — The product is Brand Base on screen, and the calendar gains what 1.56.0 left out: a week view wide enough to read the plan in, a post that names its shoot and its event — with the server now checking the shoot — and attachments from the brand's library. Plus the dev proxy every upload in `web-next` was missing. No migration. 3208 tests.
 - **1.56.0** — 2026-09-30 — The content calendar comes back, and this time it is a production pipeline: a deployment for the Vite app it had lost, one `/calendar` across seven brands with a list and an export, five stages from idea to posted, shoots, a read-through of Mission Events, and — last — a grid that can be written to. Plus a realtime backplane so two machines stop dropping half the messages. Migrations 0023–0025. 3195 tests.
 - **1.55.0** — 2026-09-01 — The set's loose ends close before it merges: a funnel activity gets its one real typed link — a social push, the only one of three named targets with a table to point at — the photography shelf learns to take a photograph and reorder one, a `web-next` write stops emptying the cache under every screen, and seven QA rounds harden the four features. A pre-merge review then finds one more: a deck delete swept nothing, so its version PDFs orphaned in storage — the Canva snapshot included. Migration 0022. 3104 tests.
 - **1.54.0** — 2026-08-27 — The other three asks land and the set closes: a deck stack whose Canva versions snapshot on add, a photography shelf split by subject with the best pinned, and the funnel that maps a brand's journey. `BRAND_NAV_ITEMS` reaches six rows in three groups, and `Tools` goes with the last `Empty` tag in the product. Migrations 0018–0021. 3069 tests.
@@ -108,6 +109,52 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.57.0 — 2026-09-30
+
+**The rest of the calendar, and a new name.** Phase 7 of the content calendar, in the notes at
+`docs/completions/content-calendar-phase-7-week-links-attachments.md`. **No migration** — every
+column this uses arrived in 0023. 3208 tests (3043 passing, 165 skipped without a database).
+
+### Brand Base
+
+The product is **Brand Base** on screen: the `web-next` sidebar, sign-in lockup, page titles and
+public form (all "Marketing Hub" until now), and the Vite app's wordmark and title (which said
+"BrandFactory"). The repository, the packages, the cache scopes and every comment about the
+codebase keep BrandFactory; `packages/web-next/AGENTS.md` records the split.
+
+### A post names its shoot and its event
+
+Two pickers in the entry sheet: the brand's live shoots, undated ones included, and that brand's
+Mission Events bookings in the month on screen. The day plan names both, and an event card lists
+the entries made for it. **The server now checks the shoot.** The foreign key only proved
+`shoot_id` was a row; the post routes refuse a target that is not a shoot, is another brand's, is
+deleted or is the row itself (`SHOOT_NOT_IN_BRAND`), and any shoot link on a shoot
+(`SHOOT_LINK_ON_SHOOT`).
+
+### Attachments
+
+Ordered thumbnails, a picker over the brand's image library, and an upload that files the image in
+the library before attaching it. A patch sends the list whole, and only when it or its order
+changed. Changing the brand of a new entry clears its attachments, shoot and event.
+
+### The week
+
+Seven columns with the plan legible in each entry and an add per day. The week is read through the
+month grid its Thursday falls in, which always holds all seven days. Counts and export follow the
+week when it is on screen.
+
+### Every upload in `web-next` dev was a 404
+
+Local-disk storage signs root-relative `/blobs` URLs, and `next.config.ts` forwarded only `/api` —
+so photography, decks and now attachments all failed to upload in development. `/blobs` is
+forwarded now, as the Vite app always did. Production signs absolute Supabase URLs and was not
+affected.
+
+### Not in this release
+
+Drag to reschedule; reordering attachments by drag; switching on the Mission Events feed and the
+realtime backplane, which are configuration.
 
 ## 1.56.0 — 2026-09-30
 
