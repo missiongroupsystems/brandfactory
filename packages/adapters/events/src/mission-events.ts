@@ -205,8 +205,12 @@ export function createMissionEventsSource(config: MissionEventsConfig): EventsSo
         `Mission Events could not be reached: ${cause instanceof Error ? cause.message : 'unknown transport failure'}`,
       )
     }
-    // 403 is a wrong or missing key — somebody's settings, and retrying will
-    // not fix it. Kept apart from the transient failures below for that reason.
+    // 401/403 is a settings problem, and retrying will not fix it — kept apart
+    // from the transient failures below for that reason. On production a 403
+    // means *our key is wrong*: Mission Events confirmed on 30 September that
+    // its org id is configured there, so the other cause is ruled out. On
+    // staging a 403 can still mean their org id is missing, so check with them
+    // before rotating a staging key.
     if (res.status === 403 || res.status === 401) {
       throw new EventsUnauthorizedError(
         `Mission Events refused the service key (HTTP ${res.status})`,

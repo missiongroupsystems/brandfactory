@@ -94,5 +94,11 @@ Staging is `https://stage-supa-schedule-backend.fly.dev` with its own key, and i
 to point first. Rotation is theirs to start: they accept several keys at once, so they add, we
 switch, they remove.
 
+**Production is unblocked on the Events side** (30 September): the endpoint shipped in Mission
+Events' CI run for `8023145`, 05:47 UTC, and there is nothing for them to deploy. **A 403 on
+production now means our service key is wrong** — their org id is configured, so the other cause
+of a 403 is ruled out there. On staging a 403 can still mean their org id is missing, so ask them
+before rotating a staging key.
+
 Then set the seven `brands.events_outlet_id` values from `listOutlets()`, and confirm
 `Firebird by Suetomi` against the slug `firebird` — the names do not match.
