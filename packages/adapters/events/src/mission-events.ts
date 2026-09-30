@@ -56,9 +56,10 @@ export interface MissionEventsConfig {
  *
  * All three are requested explicitly rather than relying on the endpoint's
  * default, so a change to that default cannot silently alter what a marketing
- * reader sees. `completed` is asked for **because nothing auto-completes**:
- * Mission Events confirm a finished event stays `confirmed` until a person
- * moves it, so both have to arrive for the fold below to be able to do its job.
+ * reader sees. `completed` is asked for **because the date does not complete
+ * an event**: a person does, or an order completion does today (a move Mission
+ * Events are retiring). A finished event often stays `confirmed`, so both have
+ * to arrive for the fold below to be able to do its job.
  */
 const REQUESTED_STATUSES = ['tentative', 'confirmed', 'completed'] as const
 

@@ -58,8 +58,10 @@ The port did most of the absorbing, which is what it is for:
 endpoint excludes stays excluded — revenue, pricing, deposits, contacts, internal notes.
 
 The route now guards the 93-day limit itself, so a caller learns it from us rather than from a 422
-it cannot interpret. `foldStatus` stays: they confirmed nothing auto-completes, so a finished
-`confirmed` event is still `confirmed` at the source.
+it cannot interpret. `foldStatus` stays: the date never completes an event there — a person
+does, or an order completion does today, a move they are retiring — so a finished event is often
+still `confirmed` at the source. Their full spec is in
+`docs/refs/2026-09-30-mission-events-marketing-feed.md`.
 
 ## `updated_at` is read and deliberately unused
 

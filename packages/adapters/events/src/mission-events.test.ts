@@ -59,8 +59,9 @@ describe('foldStatus', () => {
   const past = new Date('2026-09-01T00:00:00.000Z')
   const future = new Date('2026-11-01T00:00:00.000Z')
 
-  // Mission Events confirm nothing auto-completes: a person moves it, or an
-  // order transition does. So a past confirmed event is still confirmed there.
+  // The date never completes an event: a person does, or an order completion
+  // does today (being retired). So a past confirmed event is often still
+  // confirmed there.
   it('folds a finished confirmed event to completed', () => {
     expect(foldStatus('confirmed', past, NOW)).toBe('completed')
   })
