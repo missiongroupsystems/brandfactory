@@ -43,6 +43,7 @@ import {
 } from "../entry-form";
 import type { CalendarEvent } from "../api";
 import { useCalendarEntryMutations } from "../hooks";
+import { EntryAttachments } from "./entry-attachments";
 import { useSocialPosts } from "@/features/social-posts/hooks";
 import { STATUS_LABELS } from "../status-pill";
 
@@ -228,7 +229,19 @@ export function EntryForm({
                       {...field}
                       disabled={isEdit}
                       value={form.brandId}
-                      onChange={(e) => set("brandId", e.target.value)}
+                      onChange={(e) => {
+                        const brandId = e.target.value;
+                        // Attachments, the shoot and the event all belong to one
+                        // brand. Carried across a brand change they would be ids the
+                        // server refuses, so the switch clears them.
+                        setForm((current) => ({
+                          ...current,
+                          brandId,
+                          assetIds: [],
+                          shootId: "",
+                          eventsEventId: "",
+                        }));
+                      }}
                     >
                       <option value="" disabled>
                         Choose a brand
@@ -383,6 +396,27 @@ export function EntryForm({
                   )}
                 </Field>
               </FieldGrid>
+            </FieldSection>
+
+            <FieldSection
+              title="Attachments"
+              description="Images from this brand's library. An upload is filed in the library too."
+            >
+              {form.brandId ? (
+                <EntryAttachments
+                  brandId={form.brandId}
+                  value={form.assetIds}
+                  onChange={(next) => set("assetIds", next)}
+                  disabled={isPending}
+                />
+              ) : (
+                <p className="text-helper text-ink-secondary">Choose a brand first.</p>
+              )}
+              {fieldErrors.assetIds ? (
+                <p role="alert" className="text-helper text-error">
+                  {fieldErrors.assetIds}
+                </p>
+              ) : null}
             </FieldSection>
 
             <FieldSection title="Content plan" description="All optional. Free text for now.">

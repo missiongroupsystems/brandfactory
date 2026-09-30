@@ -38,6 +38,8 @@ export interface EntryFormState {
   shootId: string;
   /** The Mission Events booking this entry is for, or `""`. */
   eventsEventId: string;
+  /** Library asset ids, in order. A full replacement on save, as the route takes it. */
+  assetIds: string[];
 }
 
 /**
@@ -111,6 +113,7 @@ export function initialEntryForm(
       body: entry.body,
       shootId: entry.shootId ?? "",
       eventsEventId: entry.eventsEventId ?? "",
+      assetIds: [...entry.assetIds],
     };
   }
   return {
@@ -130,6 +133,7 @@ export function initialEntryForm(
     body: "",
     shootId: "",
     eventsEventId: "",
+    assetIds: [],
   };
 }
 
@@ -176,6 +180,7 @@ export function toCreateInput(form: EntryFormState): CreateSocialPostInput {
     // about where the string came from; the server checks it again anyway.
     shootId: form.kind === "shoot" ? null : (blankToNull(form.shootId) as SocialPost["shootId"]),
     eventsEventId: blankToNull(form.eventsEventId),
+    assetIds: form.assetIds as CreateSocialPostInput["assetIds"],
   };
 }
 
@@ -218,6 +223,13 @@ export function toUpdateInput(
   }
   const eventsEventId = blankToNull(form.eventsEventId);
   if (eventsEventId !== entry.eventsEventId) patch.eventsEventId = eventsEventId;
+
+  // Order is part of the value: a reordered list is a change, and the route
+  // replaces the whole list, so it is sent whole or not at all.
+  const sameAssets =
+    form.assetIds.length === entry.assetIds.length &&
+    form.assetIds.every((id, i) => id === entry.assetIds[i]);
+  if (!sameAssets) patch.assetIds = [...form.assetIds];
 
   return Object.keys(patch).length > 0 ? (patch as UpdateSocialPostInput) : null;
 }

@@ -180,5 +180,16 @@ describe("toUpdateInput", () => {
     });
     expect(created.shootId).toBeNull();
   });
+
+  it("sends attachments whole, only when the list or its order changed", () => {
+    const a = "33333333-3333-4333-8333-333333333333";
+    const b = "44444444-4444-4444-8444-444444444444";
+    const e = entry({ assetIds: [a, b] as SocialPost["assetIds"] });
+    expect(toUpdateInput(e, initialEntryForm(e))).toBeNull();
+    expect(toUpdateInput(e, { ...initialEntryForm(e), assetIds: [b, a] })).toEqual({
+      assetIds: [b, a],
+    });
+    expect(toUpdateInput(e, { ...initialEntryForm(e), assetIds: [] })).toEqual({ assetIds: [] });
+  });
 });
 
