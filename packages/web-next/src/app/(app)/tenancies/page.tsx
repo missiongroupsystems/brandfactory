@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LoadingRows, PageState } from "@/components/layout/query-states";
 import { TenanciesView } from "@/features/tenancies/components/tenancies-view";
 
-export const metadata = { title: "Tenancies — Marketing Hub" };
+export const metadata = { title: "Tenancies — Brand Base" };
 
 export default function TenanciesPage() {
   return (

@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LoadingRows, PageState } from "@/components/layout/query-states";
 import { VendorsBrowser } from "@/features/vendors/components/vendors-browser";
 
-export const metadata = { title: "Vendors — Marketing Hub" };
+export const metadata = { title: "Vendors — Brand Base" };
 
 /**
  * A **Server Component**, with the interactive half under `<Suspense>` — the shape every list

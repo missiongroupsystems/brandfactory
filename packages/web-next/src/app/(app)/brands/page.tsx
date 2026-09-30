@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { BrandsGallery } from "@/features/brands/components/brands-gallery";
 
-export const metadata = { title: "Brands — Marketing Hub" };
+export const metadata = { title: "Brands — Brand Base" };
 
 /**
  * The workspace's brands, and the door into each one.

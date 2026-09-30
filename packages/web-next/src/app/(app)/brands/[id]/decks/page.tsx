@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { DecksView } from "@/features/decks/components/decks-view";
 
-export const metadata = { title: "Decks — Marketing Hub" };
+export const metadata = { title: "Decks — Brand Base" };
 
 /**
  * This brand's decks — a named folder per pitch deck or one-pager, each with its own version

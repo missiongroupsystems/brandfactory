@@ -342,12 +342,12 @@ paragraph above for why that cannot work.
 folder, route and label all moved off `forms`, and `/forms/{form_key}/submissions` stayed because
 it is the Ops backend's path.
 
-**The product is "Marketing Hub" on screen and BrandFactory in the repository.** The sidebar, the
-sign-in lockup, every page title and the public form say Marketing Hub. The package, the server,
-the shared types, the scopes and every comment about the *codebase* still say BrandFactory —
-`@brandfactory/shared` is not being renamed, and a comment describing which of two transports a
-class belongs to is describing the repository, not the chrome. `packages/web` is untouched and
-still says BrandFactory throughout; it serves production.
+**The product is "Brand Base" on screen and BrandFactory in the repository.** It was "Marketing
+Hub" until 1.57.0. The sidebar, the sign-in lockup, every page title and the public form say Brand
+Base. The package, the server, the shared types, the scopes and every comment about the *codebase*
+still say BrandFactory — `@brandfactory/shared` is not being renamed, and a comment describing which
+of two transports a class belongs to is describing the repository, not the chrome. `packages/web`
+shows Brand Base in its wordmark and titles too; its code still says BrandFactory throughout.
 
 **There is one workspace and no way to change it.** A person here belongs to exactly one and
 cannot create, join or leave another, so `components/layout/workspace-switcher.tsx` is gone and

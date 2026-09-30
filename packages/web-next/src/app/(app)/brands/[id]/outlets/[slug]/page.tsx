@@ -1,6 +1,6 @@
 import { OutletDetail } from "@/features/outlets/components/outlet-detail";
 
-export const metadata = { title: "Outlet — Marketing Hub" };
+export const metadata = { title: "Outlet — Brand Base" };
 
 /**
  * One outlet, reached from inside its brand.

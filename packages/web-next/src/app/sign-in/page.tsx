@@ -4,7 +4,7 @@ import { SignInPanel } from "@/auth/sign-in-panel";
 import { AppLogo } from "@/components/brand/app-logo";
 
 export const metadata: Metadata = {
-  title: "Sign in — Marketing Hub",
+  title: "Sign in — Brand Base",
 };
 
 /**

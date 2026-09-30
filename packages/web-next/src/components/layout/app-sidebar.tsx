@@ -99,7 +99,7 @@ function WorkspaceHeader() {
         <AppLogoIcon decorative className="size-5" />
       </div>
       <div className="flex min-w-0 flex-col">
-        <span className="truncate text-sm font-medium text-ink">Marketing Hub</span>
+        <span className="truncate text-sm font-medium text-ink">Brand Base</span>
         <span className="truncate text-xs text-ink-tertiary">Mission Systems</span>
       </div>
     </div>

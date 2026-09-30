@@ -95,7 +95,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             <AppLogoIcon decorative className="size-5" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-medium text-ink">Marketing Hub</span>
+            <span className="text-sm font-medium text-ink">Brand Base</span>
             <span className="text-xs text-ink-tertiary">Mission Systems</span>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { CalendarScreen } from "@/features/calendar/components/calendar-screen";
 
-export const metadata = { title: "Content calendar — Marketing Hub" };
+export const metadata = { title: "Content calendar — Brand Base" };
 
 /**
  * Every brand's posts, shoots and events on one grid.

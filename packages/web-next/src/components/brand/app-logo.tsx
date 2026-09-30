@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 /**
  * The Mission Systems mark, and the sign-in lockup built from it.
  *
- * Marketing Hub ships under the Mission Systems CI and has no product logo of its own, so the
+ * Brand Base ships under the Mission Systems CI and has no product logo of its own, so the
  * umbrella icon stands in — the same way each sibling app (Grapestack, Workforce) carries its
  * own. Source SVG: "Mission Systems/All systems/Branding/MS-Branding-blk-icon.svg", re-fitted
  * to `currentColor` so the parent decides the ink.
@@ -55,11 +55,11 @@ export function AppLogoIcon({
 
 /**
  * The full lockup for the sign-in surface: the mark beside the product wordmark, both in the
- * one brand green. The wordmark is set text, not vector, because there is no Marketing Hub
+ * one brand green. The wordmark is set text, not vector, because there is no Brand Base
  * wordmark asset — only the umbrella icon.
  *
  * The mark is `decorative` here too: the wordmark beside it already names the product, so the
- * lockup as a whole reads once rather than as "Mission Systems, Marketing Hub".
+ * lockup as a whole reads once rather than as "Mission Systems, Brand Base".
  *
  * This is the surface's whole accent budget (§4). Nothing else on the sign-in page is green
  * except the primary button, which is one of the named accent roles.
@@ -68,7 +68,7 @@ export function AppLogo({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-2.5 text-brand", className)}>
       <AppLogoIcon decorative className="h-8 w-8 shrink-0" />
-      <span className="text-3xl font-bold tracking-tight">Marketing Hub</span>
+      <span className="text-3xl font-bold tracking-tight">Brand Base</span>
     </div>
   );
 }

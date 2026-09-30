@@ -85,7 +85,7 @@ export function BrandNavHeader({ brandId }: { brandId: string }) {
         </span>
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-sm font-medium text-ink">All brands</span>
-          <span className="truncate text-xs text-ink-tertiary">Marketing Hub</span>
+          <span className="truncate text-xs text-ink-tertiary">Brand Base</span>
         </span>
       </Link>
 

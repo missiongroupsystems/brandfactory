@@ -29,7 +29,7 @@ const satoshi = localFont({
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Marketing Hub — Mission Systems",
+  title: "Brand Base — Mission Systems",
   description: "The Brand Operating System. Define the brand once; every surface inherits it.",
 };
 

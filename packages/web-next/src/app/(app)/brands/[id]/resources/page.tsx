@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { ResourcesView } from "@/features/resources/components/resources-view";
 
-export const metadata = { title: "Resources — Marketing Hub" };
+export const metadata = { title: "Resources — Brand Base" };
 
 /**
  * This brand's resources — the sites it buys fonts, images, icons and tools from.

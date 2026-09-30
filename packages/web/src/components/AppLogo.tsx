@@ -40,7 +40,7 @@ export function AppLogo({ className }: { className?: string }) {
   return (
     <div className={cn('flex items-center gap-2.5 text-primary', className)}>
       <AppLogoIcon className="h-8 w-8 shrink-0" />
-      <span className="text-3xl font-bold tracking-tight">BrandFactory</span>
+      <span className="text-3xl font-bold tracking-tight">Brand Base</span>
     </div>
   )
 }

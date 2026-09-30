@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { MarketingRequestsView } from "@/features/marketing-requests/components/requests-view";
 
-export const metadata = { title: "Marketing Requests — Marketing Hub" };
+export const metadata = { title: "Marketing Requests — Brand Base" };
 
 /**
  * Marketing Requests — **an inbox first**. What the business has asked marketing for, newest at

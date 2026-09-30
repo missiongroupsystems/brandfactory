@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LoadingRows, PageState } from "@/components/layout/query-states";
 import { SocialPostsArrival } from "@/features/social-posts/components/social-posts-arrival";
 
-export const metadata = { title: "Social posts — Marketing Hub" };
+export const metadata = { title: "Social posts — Brand Base" };
 
 /**
  * A brand's planned social posts, read-only.

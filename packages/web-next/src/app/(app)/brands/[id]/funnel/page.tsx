@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { FunnelView } from "@/features/funnel/components/funnel-view";
 
-export const metadata = { title: "Marketing funnel — Marketing Hub" };
+export const metadata = { title: "Marketing funnel — Brand Base" };
 
 /**
  * A brand's user journey, stage by stage.

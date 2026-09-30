@@ -109,11 +109,11 @@ function MobileBar({ onOpenNav }: { onOpenNav: () => void }) {
       </Button>
       {wsId ? (
         <Link to="/workspaces/$wsId" params={{ wsId }} className={className}>
-          BrandFactory
+          Brand Base
         </Link>
       ) : (
         <Link to="/workspaces" className={className}>
-          BrandFactory
+          Brand Base
         </Link>
       )}
     </div>

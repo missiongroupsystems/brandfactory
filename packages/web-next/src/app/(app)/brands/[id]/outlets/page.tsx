@@ -5,7 +5,7 @@ import { LoadingRows, PageState } from "@/components/layout/query-states";
 import { OutletsBrowser } from "@/features/outlets/components/outlets-browser";
 import { SyncOutletsButton } from "@/features/outlets/components/sync-outlets-button";
 
-export const metadata = { title: "Outlets — Marketing Hub" };
+export const metadata = { title: "Outlets — Brand Base" };
 
 /**
  * This brand's outlets.

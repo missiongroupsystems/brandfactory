@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { PhotographyView } from "@/features/photography/components/photography-view";
 
-export const metadata = { title: "Photography — Marketing Hub" };
+export const metadata = { title: "Photography — Brand Base" };
 
 /**
  * A brand's shot library, split by subject with the best of each pinned to the top.

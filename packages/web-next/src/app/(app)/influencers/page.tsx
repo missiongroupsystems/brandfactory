@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LoadingRows, PageState } from "@/components/layout/query-states";
 import { InfluencersBrowser } from "@/features/influencers/components/influencers-browser";
 
-export const metadata = { title: "Influencers — Marketing Hub" };
+export const metadata = { title: "Influencers — Brand Base" };
 
 /**
  * Server shell, interactive half under `<Suspense>` — see the outlets page on why.
