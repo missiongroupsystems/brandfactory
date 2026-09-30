@@ -466,3 +466,75 @@ describe('POST /brands/:id/social-posts/:postId/restore', () => {
     expect(res.status).toBe(404)
   })
 })
+
+describe('the shoot link', () => {
+  async function shoot(app: TestHarness['app'], brandId: string) {
+    const res = await post(app, brandId, { platform: 'instagram', kind: 'shoot' })
+    return (await res.json()) as SocialPost
+  }
+
+  it('links a post to a live shoot of the same brand, and clears it with null', async () => {
+    const { app, brandId } = await seedBrand()
+    const s = await shoot(app, brandId)
+    const created = await post(app, brandId, { platform: 'instagram', shootId: s.id })
+    expect(created.status).toBe(201)
+    const row = (await created.json()) as SocialPost
+    expect(row.shootId).toBe(s.id)
+
+    const cleared = await patch(app, brandId, row.id, { shootId: null })
+    expect(cleared.status).toBe(200)
+    expect(((await cleared.json()) as SocialPost).shootId).toBeNull()
+  })
+
+  it('400s when the target is a post rather than a shoot', async () => {
+    const { app, brandId } = await seedBrand()
+    const other = (await (await post(app, brandId, { platform: 'instagram' })).json()) as SocialPost
+    const res = await post(app, brandId, { platform: 'instagram', shootId: other.id })
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { code: string }).code).toBe('SHOOT_NOT_IN_BRAND')
+  })
+
+  it("400s on another brand's shoot, on create and on patch", async () => {
+    const { app, brandId, workspaceId } = await seedBrand()
+    const brand2 = (await (
+      await app.request(`/workspaces/${workspaceId}/brands`, {
+        method: 'POST',
+        headers: auth(),
+        body: JSON.stringify({ name: 'B2' }),
+      })
+    ).json()) as { id: string }
+    const foreign = await shoot(app, brand2.id)
+
+    const res = await post(app, brandId, { platform: 'instagram', shootId: foreign.id })
+    expect(res.status).toBe(400)
+
+    const mine = (await (await post(app, brandId, { platform: 'instagram' })).json()) as SocialPost
+    const p = await patch(app, brandId, mine.id, { shootId: foreign.id })
+    expect(p.status).toBe(400)
+    expect(((await p.json()) as { code: string }).code).toBe('SHOOT_NOT_IN_BRAND')
+  })
+
+  it('400s on a deleted shoot', async () => {
+    const { app, brandId } = await seedBrand()
+    const s = await shoot(app, brandId)
+    await app.request(`/brands/${brandId}/social-posts/${s.id}`, {
+      method: 'DELETE',
+      headers: auth(),
+    })
+    const res = await post(app, brandId, { platform: 'instagram', shootId: s.id })
+    expect(res.status).toBe(400)
+  })
+
+  it('refuses a shoot link on a shoot', async () => {
+    const { app, brandId } = await seedBrand()
+    const a = await shoot(app, brandId)
+    const res = await post(app, brandId, { platform: 'instagram', kind: 'shoot', shootId: a.id })
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { code: string }).code).toBe('SHOOT_LINK_ON_SHOOT')
+
+    const b = await shoot(app, brandId)
+    const p = await patch(app, brandId, b.id, { shootId: a.id })
+    expect(p.status).toBe(400)
+    expect(((await p.json()) as { code: string }).code).toBe('SHOOT_LINK_ON_SHOOT')
+  })
+})

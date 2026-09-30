@@ -34,6 +34,10 @@ export interface EntryFormState {
   clearedWith: string;
   canvaUrl: string;
   body: string;
+  /** The shoot this post comes from, or `""`. Always `""` on a shoot. */
+  shootId: string;
+  /** The Mission Events booking this entry is for, or `""`. */
+  eventsEventId: string;
 }
 
 /**
@@ -105,6 +109,8 @@ export function initialEntryForm(
       clearedWith: entry.clearedWith ?? "",
       canvaUrl: entry.canvaUrl ?? "",
       body: entry.body,
+      shootId: entry.shootId ?? "",
+      eventsEventId: entry.eventsEventId ?? "",
     };
   }
   return {
@@ -122,6 +128,8 @@ export function initialEntryForm(
     clearedWith: "",
     canvaUrl: "",
     body: "",
+    shootId: "",
+    eventsEventId: "",
   };
 }
 
@@ -162,6 +170,12 @@ export function toCreateInput(form: EntryFormState): CreateSocialPostInput {
     filmedBy: blankToNull(form.filmedBy),
     clearedWith: blankToNull(form.clearedWith),
     canvaUrl: blankToNull(form.canvaUrl),
+    // A shoot does not come from a shoot; the server refuses it, so the draft
+    // never sends it rather than relying on the sheet having hidden the field.
+    // The picker offers only ids the server returned, so the brand is a fact
+    // about where the string came from; the server checks it again anyway.
+    shootId: form.kind === "shoot" ? null : (blankToNull(form.shootId) as SocialPost["shootId"]),
+    eventsEventId: blankToNull(form.eventsEventId),
   };
 }
 
@@ -197,6 +211,13 @@ export function toUpdateInput(
     const next = blankToNull(form[key]);
     if (next !== (entry[key] ?? null)) patch[key] = next;
   }
+
+  if (entry.kind === "post") {
+    const shootId = blankToNull(form.shootId);
+    if (shootId !== entry.shootId) patch.shootId = shootId;
+  }
+  const eventsEventId = blankToNull(form.eventsEventId);
+  if (eventsEventId !== entry.eventsEventId) patch.eventsEventId = eventsEventId;
 
   return Object.keys(patch).length > 0 ? (patch as UpdateSocialPostInput) : null;
 }

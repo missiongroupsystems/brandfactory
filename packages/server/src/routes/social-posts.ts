@@ -4,7 +4,7 @@ import {
   SocialPostIdSchema,
   UpdateSocialPostInputSchema,
 } from '@brandfactory/shared'
-import type { UserId } from '@brandfactory/shared'
+import type { BrandId, UserId } from '@brandfactory/shared'
 import { AssetNotInBrandError } from '@brandfactory/db'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
@@ -52,6 +52,35 @@ export function createSocialPostsRouter(deps: SocialPostsDeps) {
     throw err
   }
 
+  // A post may name the shoot it comes from, and the schema's foreign key only
+  // proves the id is *a* row. It does not prove the row is a shoot, that it is
+  // this brand's, or that it is still live — so a stale picker or a hand-made
+  // request could hang a Willow reel off a Casa Vostra post. Checked against
+  // the brand's own live list, the same set the calendar's picker offers.
+  // 400 rather than 404, as for attachments: the post route is fine; the body
+  // named a shoot this brand does not have.
+  async function assertShootLink(
+    brandId: BrandId,
+    shootId: string,
+    self: { id?: string; kind: 'post' | 'shoot' },
+  ): Promise<void> {
+    if (self.kind === 'shoot') {
+      throw new HttpError(400, 'SHOOT_LINK_ON_SHOOT', 'A shoot cannot come from another shoot.')
+    }
+    if (self.id !== undefined && self.id === shootId) {
+      throw new HttpError(400, 'SHOOT_NOT_IN_BRAND', 'An entry cannot come from itself.')
+    }
+    const rows = await deps.db.listSocialPostsByBrand(brandId)
+    const target = rows.find((r) => r.id === shootId)
+    if (!target || target.kind !== 'shoot') {
+      throw new HttpError(
+        400,
+        'SHOOT_NOT_IN_BRAND',
+        'shootId must name a live shoot of the same brand.',
+      )
+    }
+  }
+
   return new Hono<AppEnv>()
     .get('/:id/social-posts', zValidator('param', BrandParam), async (c) => {
       const userId = c.var.userId
@@ -74,6 +103,7 @@ export function createSocialPostsRouter(deps: SocialPostsDeps) {
         const { id } = c.req.valid('param')
         await requireBrandAccess(userId, id, deps.db)
         const body = c.req.valid('json')
+        if (body.shootId) await assertShootLink(id, body.shootId, { kind: body.kind })
         // Server defaults live in the DB columns (`body: ''`,
         // `status: 'idea'`, `scheduledAt: null`) — the schema documents
         // them, the insert omits what the client omitted.
@@ -110,6 +140,13 @@ export function createSocialPostsRouter(deps: SocialPostsDeps) {
         const { id, postId } = c.req.valid('param')
         await requireBrandAccess(userId, id, deps.db)
         const body = c.req.valid('json')
+        if (body.shootId) {
+          // The row's own kind decides whether it may carry a shoot link, and
+          // the patch cannot change kind, so it is read rather than sent.
+          const self = (await deps.db.listSocialPostsByBrand(id)).find((r) => r.id === postId)
+          if (!self) throw new NotFoundError('social post not found', 'SOCIAL_POST_NOT_FOUND')
+          await assertShootLink(id, body.shootId, { id: postId, kind: self.kind })
+        }
         // `updateSocialPost` is scoped by brand as well as id, so a post id
         // from another brand misses here rather than being patched across
         // the boundary `requireBrandAccess` just checked. `deletedAt` is not

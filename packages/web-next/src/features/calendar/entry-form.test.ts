@@ -151,4 +151,34 @@ describe("toUpdateInput", () => {
     const patch = toUpdateInput(e, { ...initialEntryForm(e), date: "2026-10-20" });
     expect(patch?.scheduledAt).toBe(new Date(2026, 9, 20, 10, 0).toISOString());
   });
+
+  it("links a post to a shoot and to an event, and unlinks with null", () => {
+    const e = entry();
+    const shoot = "11111111-1111-4111-8111-111111111111";
+    const event = "22222222-2222-4222-8222-222222222222";
+    const linked = toUpdateInput(e, { ...initialEntryForm(e), shootId: shoot, eventsEventId: event });
+    expect(linked).toEqual({ shootId: shoot, eventsEventId: event });
+    expect(UpdateSocialPostInputSchema.safeParse(linked).success).toBe(true);
+
+    const withLinks = entry({ shootId: shoot as SocialPost["shootId"], eventsEventId: event });
+    expect(toUpdateInput(withLinks, { ...initialEntryForm(withLinks), shootId: "" })).toEqual({
+      shootId: null,
+    });
+  });
+
+  it("never sends a shoot link from a shoot", () => {
+    const s = entry({ kind: "shoot" });
+    const patch = toUpdateInput(s, {
+      ...initialEntryForm(s),
+      shootId: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(patch).toBeNull();
+    const created = toCreateInput({
+      ...initialEntryForm(undefined, { brandId: "br-1", date: "2026-10-07" }),
+      kind: "shoot",
+      shootId: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(created.shootId).toBeNull();
+  });
 });
+

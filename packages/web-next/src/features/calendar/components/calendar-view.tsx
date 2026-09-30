@@ -162,6 +162,17 @@ export function CalendarView({
   }, [events, brandFilter]);
 
   const byDayEntries = React.useMemo(() => entriesByDay(shownEntries), [shownEntries]);
+  // Names for the links a day-plan card shows. Built from everything the month
+  // holds, not the brand filter, so a link never reads as missing because the
+  // reader narrowed the view.
+  const linkNames = React.useMemo(() => {
+    const names = new Map<string, string>();
+    for (const e of entries) {
+      if (e.kind === "shoot") names.set(e.id, e.hook ?? e.format ?? "Shoot");
+    }
+    for (const ev of events?.events ?? []) names.set(ev.id, ev.name);
+    return names;
+  }, [entries, events]);
   const byDayEvents = React.useMemo(() => eventsByDay(shownEvents), [shownEvents]);
   const days = React.useMemo(
     () => monthGridDays(cursor.year, cursor.month),
@@ -385,6 +396,8 @@ export function CalendarView({
           brandName={brandName}
           onClose={() => setSelectedDay(null)}
           onEdit={editEntry}
+          linkName={(id) => linkNames.get(id) ?? null}
+          allEntries={entries}
           onAdd={() =>
             setFormTarget({
               mode: "create",
@@ -398,6 +411,7 @@ export function CalendarView({
       <EntryForm
         target={formTarget}
         brands={brands}
+        events={events?.events ?? []}
         onOpenChange={(open) => {
           if (!open) setFormTarget(null);
         }}
@@ -421,6 +435,8 @@ function DayPlan({
   onClose,
   onEdit,
   onAdd,
+  linkName,
+  allEntries,
 }: {
   dayKey: string;
   entries: SocialPost[];
@@ -429,6 +445,10 @@ function DayPlan({
   onClose: () => void;
   onEdit: (entry: SocialPost) => void;
   onAdd: () => void;
+  /** A shoot's or an event's name, or `null` when it is outside the month on screen. */
+  linkName: (id: string) => string | null;
+  /** Every entry in the month, so an event can list the posts made for it. */
+  allEntries: SocialPost[];
 }) {
   const heading = new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
@@ -475,6 +495,17 @@ function DayPlan({
               <p className="mt-1 text-xs text-muted-foreground">
                 Read-only here — the events module owns this booking.
               </p>
+              {(() => {
+                const forEvent = allEntries.filter((x) => x.eventsEventId === e.id);
+                return forEvent.length > 0 ? (
+                  <p className="mt-2 text-sm">
+                    <span className="text-muted-foreground">Entries for this event: </span>
+                    {forEvent
+                      .map((x) => `${brandName(x.brandId)} ${x.kind === "shoot" ? "shoot" : "post"}`)
+                      .join(", ")}
+                  </p>
+                ) : null;
+              })()}
             </div>
           ))}
         </div>
@@ -532,6 +563,16 @@ function DayPlan({
                       ["On camera", entry.talent],
                       ["Filming", entry.filmedBy],
                       ["Cleared with", entry.clearedWith],
+                      [
+                        "From shoot",
+                        entry.shootId ? (linkName(entry.shootId) ?? "A shoot outside this month") : null,
+                      ],
+                      [
+                        "For event",
+                        entry.eventsEventId
+                          ? (linkName(entry.eventsEventId) ?? "An event not in this month's feed")
+                          : null,
+                      ],
                     ] as const
                   )
                     .filter(([, v]) => v !== null)

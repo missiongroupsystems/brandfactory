@@ -41,7 +41,9 @@ import {
   toCreateInput,
   toUpdateInput,
 } from "../entry-form";
+import type { CalendarEvent } from "../api";
 import { useCalendarEntryMutations } from "../hooks";
+import { useSocialPosts } from "@/features/social-posts/hooks";
 import { STATUS_LABELS } from "../status-pill";
 
 const PLATFORM_OPTIONS = optionsFrom(SOCIAL_PLATFORM_LABELS);
@@ -69,10 +71,13 @@ export type EntryFormTarget =
 export function EntryForm({
   target,
   brands,
+  events,
   onOpenChange,
 }: {
   target: EntryFormTarget | null;
   brands: { id: string; name: string }[];
+  /** The Mission Events bookings the calendar already holds for the range on screen. */
+  events: CalendarEvent[];
   onOpenChange: (open: boolean) => void;
 }) {
   const open = target !== null;
@@ -119,6 +124,34 @@ export function EntryForm({
     setForm((current) => ({ ...current, [key]: value }));
 
   const brandName = brands.find((b) => b.id === form.brandId)?.name ?? "this brand";
+
+  // The brand's live shoots, from the brand's own list — undated ones too,
+  // because a shoot is often planned before its day is fixed. `null` key
+  // until a brand is chosen, so nothing is fetched for "Choose a brand".
+  const { posts: brandPosts } = useSocialPosts(open && form.brandId ? form.brandId : undefined);
+  const shootOptions = React.useMemo(
+    () =>
+      brandPosts
+        .filter((p) => p.kind === "shoot" && p.id !== entry?.id)
+        .map((p) => ({ id: p.id, label: shootLabel(p) })),
+    [brandPosts, entry?.id],
+  );
+  // Events for this brand in the range the calendar already read. The picker
+  // does not ask Mission Events again: the grid is the month the reader is
+  // planning, and a booking outside it is one click of the arrows away.
+  const eventOptions = React.useMemo(
+    () =>
+      events
+        .filter((e) => e.brandId === form.brandId)
+        .map((e) => ({ id: e.id, label: `${e.name} · ${eventDay(e.start)} · ${e.status}` })),
+    [events, form.brandId],
+  );
+  // A link the lists above cannot show — a shoot since deleted, or an event
+  // outside this month — must still read as a link rather than as "None",
+  // or saving an unrelated field would look like it cleared it.
+  const shootMissing = form.shootId !== "" && !shootOptions.some((o) => o.id === form.shootId);
+  const eventMissing =
+    form.eventsEventId !== "" && !eventOptions.some((o) => o.id === form.eventsEventId);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -291,6 +324,67 @@ export function EntryForm({
               </FieldGrid>
             </FieldSection>
 
+
+            <FieldSection
+              title="Links"
+              description="Where this entry comes from, and what it is for."
+            >
+              <FieldGrid>
+                {form.kind === "post" ? (
+                  <Field
+                    label="From shoot"
+                    hint={shootOptions.length === 0 ? "This brand has no shoots yet." : undefined}
+                    error={fieldErrors.shootId}
+                  >
+                    {(field) => (
+                      <Select
+                        {...field}
+                        value={form.shootId}
+                        onChange={(e) => set("shootId", e.target.value)}
+                      >
+                        <option value="">None</option>
+                        {shootMissing ? (
+                          <option value={form.shootId}>A shoot no longer listed</option>
+                        ) : null}
+                        {shootOptions.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                ) : null}
+                <Field
+                  label="For event"
+                  hint={
+                    eventOptions.length === 0
+                      ? "No Mission Events bookings for this brand in the month on screen."
+                      : "From Mission Events, read-only."
+                  }
+                  error={fieldErrors.eventsEventId}
+                >
+                  {(field) => (
+                    <Select
+                      {...field}
+                      value={form.eventsEventId}
+                      onChange={(e) => set("eventsEventId", e.target.value)}
+                    >
+                      <option value="">None</option>
+                      {eventMissing ? (
+                        <option value={form.eventsEventId}>An event outside this month</option>
+                      ) : null}
+                      {eventOptions.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
+              </FieldGrid>
+            </FieldSection>
+
             <FieldSection title="Content plan" description="All optional. Free text for now.">
               <Field label="Hook" error={fieldErrors.hook}>
                 {(field) => (
@@ -432,4 +526,18 @@ export function EntryForm({
       </SheetContent>
     </Sheet>
   );
+}
+
+/** How a shoot reads in a picker: its hook or format, then its day. */
+function shootLabel(p: SocialPost): string {
+  const what = p.hook ?? p.format ?? "Shoot";
+  const day = p.scheduledAt ? eventDay(p.scheduledAt) : "no date yet";
+  return `${what} · ${day}`;
+}
+
+function eventDay(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short" }).format(d);
 }
