@@ -245,6 +245,11 @@ export const SCOPES = {
   // The Marketing Requests inbox (MKT-5), keyed `[bf-marketing-requests, workspaceId]`. It
   // replaced the Ops `form-submissions` scope with the sample rows it keyed.
   bfMarketingRequests: "bf-marketing-requests",
+  // Who may use Brand Base, keyed `[bf-members]` — not workspace-scoped, because
+  // a `users` row is not. Every write on the member screen invalidates this and
+  // `me`: an administrator can edit their own row there, and `me` is what the
+  // auth boundary reads to decide whether to draw the app at all.
+  bfMembers: "bf-members",
   bfOutlet: "bf-outlet",
   // BrandFactory's creators, keyed `[bf-influencers, workspaceId]` and
   // `[bf-influencer, workspaceId, ref]`.

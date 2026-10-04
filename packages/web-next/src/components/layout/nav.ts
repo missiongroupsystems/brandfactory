@@ -14,6 +14,7 @@ import {
   Shapes,
   Sparkles,
   Store,
+  Users,
 } from "lucide-react";
 
 /**
@@ -63,6 +64,17 @@ export type NavItem = {
    * reads and writes the brand the server holds.
    */
   tag?: string;
+  /**
+   * Hidden in the sidebar for anybody who is not an administrator.
+   *
+   * **Hiding a row is about not offering a destination that would refuse.** It is
+   * not the boundary — `createAdminMiddleware` on `/members` is, and the page's
+   * `AdminGate` still answers somebody who arrives from a bookmark in words
+   * rather than with a 404. Launchpad's note on the same choice: *telling them
+   * this is an administrators' page costs nothing and answers the question a 404
+   * leaves open.*
+   */
+  adminOnly?: boolean;
 };
 
 export const NAV_ITEMS: NavItem[] = [
@@ -188,6 +200,21 @@ export const NAV_ITEMS: NavItem[] = [
     phase: 3,
     description: "What the business is asking marketing for — one inbox, one request form",
   },
+  // Who may sign in, who administers Brand Base, and which brands each person
+  // reaches. `adminOnly`, so the row is absent for everybody else — the page
+  // itself refuses in words for the reader who arrives anyway.
+  //
+  // `Users`, not `Settings`: the screen is a roster, and the route sits under
+  // `/settings` because that is where an estate of nine people expects to find
+  // it, not because the screen is a settings form.
+  {
+    title: "Members",
+    href: "/settings/members",
+    icon: Users,
+    phase: 3,
+    adminOnly: true,
+    description: "Who may use Brand Base, and which brands they reach",
+  },
 ];
 
 export const CURRENT_PHASE = 3;
@@ -229,6 +256,9 @@ export const NAV_GROUPS: { label: string | null; hrefs: string[] }[] = [
     hrefs: ["/contracts", "/quotations", "/vendors", "/influencers"],
   },
   { label: "Queues", hrefs: ["/review", "/marketing-requests"] },
+  // One row, and a label anyway: an administrators-only item sitting unlabelled
+  // under Queues would read as a queue.
+  { label: "Settings", hrefs: ["/settings/members"] },
 ];
 
 // ---------------------------------------------------------------------------

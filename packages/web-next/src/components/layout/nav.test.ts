@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   BRAND_NAV_GROUPS,
   BRAND_NAV_ITEMS,
+  CURRENT_PHASE,
   NAV_GROUPS,
   NAV_ITEMS,
   brandIdFromPath,
@@ -191,3 +192,32 @@ describe("the brand nav", () => {
     expect(flat).toEqual(order);
   });
 });
+
+describe("the Members row", () => {
+  const members = NAV_ITEMS.find((i) => i.href === "/settings/members");
+
+  it("exists, is live, and is admin-only", () => {
+    expect(members).toBeDefined();
+    expect(members?.phase).toBeLessThanOrEqual(CURRENT_PHASE);
+    // Hiding the row is about not offering a destination that would refuse. The
+    // boundary is `createAdminMiddleware` on `/members`, and the page's
+    // `AdminGate` answers a bookmark in words rather than with a 404.
+    expect(members?.adminOnly).toBe(true);
+  });
+
+  it("is the only admin-only row, so the flag means one thing", () => {
+    expect(NAV_ITEMS.filter((i) => i.adminOnly).map((i) => i.href)).toEqual([
+      "/settings/members",
+    ]);
+  });
+
+  it("carries no tag, because the screen reads and writes the server", () => {
+    // The tag vocabulary is for a screen that is a façade, a sample or empty.
+    expect(members?.tag).toBeUndefined();
+  });
+
+  it("is filed under Settings rather than left unlabelled under Queues", () => {
+    const settings = NAV_GROUPS.find((g) => g.label === "Settings");
+    expect(settings?.hrefs).toEqual(["/settings/members"]);
+  });
+})

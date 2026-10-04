@@ -352,10 +352,29 @@ days at this size, and the alternative is leaving the door open longer.
 
 **Phase E — the screen.**
 
-**Phase F — not code.** Demote the people who should be members and narrow their brands.
-Until somebody does this, everyone is an admin with every brand and the model is as open
-as it is today — the difference being that it is a deliberate data state rather than a
-missing feature.
+**Phase F — nothing to do. Decided 5 October 2026: all nine existing users stay
+administrators.**
+
+Earlier drafts of this plan read *"demote the people who should be members and narrow
+their brands"*, and treated Phase A's backfill as scaffolding. The owner's call is that
+the backfill **is** the final state for the people who are here: nine colleagues who all
+work across the estate, with no brand any of them should be kept out of.
+
+So the per-brand machinery is built and carries no restrictive data, which is worth
+saying plainly because it is **exactly the state Launchpad is in** — its own code
+records `user_brands` as empty in production. The difference is what the capability is
+for. It is not there to narrow the nine; it is there so the tenth person can be added as
+a member with two brands instead of as an administrator with seven, which is the thing
+this app could not do before and the reason the work was commissioned.
+
+What follows from the decision:
+
+- **New accounts default to `role: null`** — a member — and the create form offers
+  administrator as the deliberate choice. Nobody becomes an admin by inertia.
+- **The brand grid stays**, unused until somebody is added as a member.
+- **`viewer` stays refused** in all three places. The day a member needs read-only
+  access is the day the write gate is worth building; granting it before then would
+  record a restriction nothing applies.
 
 ## Tests
 

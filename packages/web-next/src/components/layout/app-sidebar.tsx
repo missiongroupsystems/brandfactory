@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { isAdmin } from "@brandfactory/shared";
+
 import { AppLogoIcon } from "@/components/brand/app-logo";
+import { useMe } from "@/features/me/hooks";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { BrandNavHeader, BrandNavItems } from "@/components/layout/brand-nav";
 import {
@@ -108,8 +111,16 @@ function WorkspaceHeader() {
 
 /** The workspace's areas — every table that spans all brands. */
 function WorkspaceNav({ pathname }: { pathname: string }) {
-  const live = NAV_ITEMS.filter((item) => item.phase <= CURRENT_PHASE);
-  const upcoming = NAV_ITEMS.filter((item) => item.phase > CURRENT_PHASE);
+  const { data: me } = useMe();
+  // **An absent answer hides the row rather than showing it.** For the ~1s
+  // before `/me` lands there is no answer, and an `adminOnly` row drawn on that
+  // nothing would appear and then vanish for every member on every cold load.
+  // A row that arrives a beat late is the quieter mistake, and the page behind
+  // it refuses in words either way.
+  const admin = me ? isAdmin(me) : false;
+  const visible = NAV_ITEMS.filter((item) => !item.adminOnly || admin);
+  const live = visible.filter((item) => item.phase <= CURRENT_PHASE);
+  const upcoming = visible.filter((item) => item.phase > CURRENT_PHASE);
 
   // Group the live items by NAV_GROUPS (presentation over the same order). Any live item not
   // named in a group falls into a trailing unlabelled section rather than disappearing.
