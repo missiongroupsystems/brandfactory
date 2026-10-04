@@ -2,11 +2,29 @@ import { type ReactNode, useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { queryClient } from '@/api/client'
 import { type Me, meKeys, useMe } from '@/api/queries/me'
+import { NoAccessScreen } from './NoAccessScreen'
 import { SetPasswordScreen } from './SetPasswordScreen'
 import { useAuthStore } from './store'
 import { getFreshAuthToken, startSessionSync } from './session'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '/api') as string
+
+type RefusalCode = 'NO_ACCOUNT' | 'ACCOUNT_DEACTIVATED'
+
+/**
+ * Reads the server's refusal code off a 403, or `null` for any other 403 —
+ * `FORBIDDEN` on a brand, say, which is a different situation and must not draw
+ * the terminal screen.
+ */
+async function readRefusalCode(res: Response): Promise<RefusalCode | null> {
+  try {
+    const body = (await res.json()) as { code?: string }
+    if (body.code === 'NO_ACCOUNT' || body.code === 'ACCOUNT_DEACTIVATED') return body.code
+  } catch {
+    // Not JSON — a proxy error page. Fall through to the sign-out path.
+  }
+  return null
+}
 
 export function AuthBoundary({ children }: { children: ReactNode }) {
   const setAuth = useAuthStore((s) => s.setAuth)
@@ -18,6 +36,9 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
   // `ready`. The hook is here for the re-render after the password is set,
   // which the screen triggers by invalidating it.
   const { data: me } = useMe()
+  // Set when the boot probe answers 403 with a code meaning "this session is
+  // real and has no access here". Anything else still signs the reader out.
+  const [noAccess, setNoAccess] = useState<RefusalCode | null>(null)
 
   // Any 401 anywhere clears the token (`callJson`, `useAgentChat`, `blobs`),
   // but clearing it used to leave the user parked on the page they were
@@ -65,6 +86,15 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
           signal: controller.signal,
         })
         if (!res.ok) {
+          // A valid session with no access is not a failed sign-in, and
+          // signing them out returns them to a page they can sign in on
+          // again — successfully — and bounce off a second time.
+          const code = res.status === 403 ? await readRefusalCode(res) : null
+          if (code) {
+            setNoAccess(code)
+            setReady(true)
+            return
+          }
           logout()
           await navigate({ to: '/login' })
           return
@@ -99,6 +129,12 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
   // **A render gate, not a route.** There is no path for this screen, so there
   // is nothing a reader can deep-link past and no URL to come back from. The
   // server refuses them either way; this is the courteous half.
+  // Before the password check: somebody with no account here has nothing to
+  // set a password for.
+  if (noAccess) {
+    return <NoAccessScreen reason={noAccess} onSignOut={logout} />
+  }
+
   if (me?.mustSetPassword) {
     return <SetPasswordScreen email={me.email} />
   }

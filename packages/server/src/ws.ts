@@ -121,10 +121,19 @@ export function mountRealtime(deps: MountRealtimeDeps): MountRealtimeHandle {
         // flowing through it.
         //
         // Refused at the connection rather than per channel: there is nothing
-        // a flagged account is entitled to read here, so there is no channel
+        // such an account is entitled to read here, so there is no channel
         // worth evaluating.
+        //
+        // All three refusals the HTTP middleware makes have to be repeated, for
+        // the same reason. `authorizeChannel` would not catch any of them: it
+        // walks the aggregate chain, and from Phase C that chain refuses an
+        // unknown account too — but only *after* the socket is open and
+        // subscribed, which is a connection this app should never have
+        // accepted.
         const user = await deps.auth.getUserById(userId)
-        if (user?.mustSetPassword) return null
+        if (!user) return null
+        if (user.deactivatedAt !== null) return null
+        if (user.mustSetPassword) return null
         return userId
       } catch {
         return null

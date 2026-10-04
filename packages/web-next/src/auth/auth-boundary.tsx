@@ -10,6 +10,7 @@ import { BF_API_BASE_URL } from "@/lib/api/bf-client";
 import { SCOPES, useClearCache } from "@/lib/api/cache";
 
 import { useMe, type Me } from "@/features/me/hooks";
+import { NoAccessScreen } from "@/features/me/no-access-screen";
 import { SetPasswordScreen } from "@/features/me/set-password-screen";
 
 /**
@@ -45,6 +46,23 @@ import { SetPasswordScreen } from "@/features/me/set-password-screen";
  * fetching — which matches how every screen in this app already loads its data, and is why the
  * fifteen fixture-backed Ops screens underneath keep working untouched.
  */
+type RefusalCode = "NO_ACCOUNT" | "ACCOUNT_DEACTIVATED";
+
+/**
+ * Reads the server's refusal code off a 403, or `null` for any other 403 —
+ * `FORBIDDEN` on a brand, say, which is a different situation and must not draw
+ * the terminal screen.
+ */
+async function readRefusalCode(res: Response): Promise<RefusalCode | null> {
+  try {
+    const body = (await res.json()) as { code?: string };
+    if (body.code === "NO_ACCOUNT" || body.code === "ACCOUNT_DEACTIVATED") return body.code;
+  } catch {
+    // Not JSON — a proxy error page. Fall through to the sign-out path.
+  }
+  return null;
+}
+
 export function AuthBoundary({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const clearCache = useClearCache();
@@ -54,6 +72,11 @@ export function AuthBoundary({ children }: { children: React.ReactNode }) {
   // the cache. The hook is here for the re-render after the password is set,
   // which `mutate([SCOPES.me])` triggers from inside the screen.
   const { data: me } = useMe();
+  // Set when the boot probe answers 403 with a code that means "this session is
+  // real and has no access here". Anything else still signs the reader out.
+  const [noAccess, setNoAccess] = React.useState<"NO_ACCOUNT" | "ACCOUNT_DEACTIVATED" | null>(
+    null,
+  );
 
   // Any 401 anywhere clears the token, but clearing it used to leave the user parked on the
   // page they were already on, under a screen of stale cache. Watch the transition rather than
@@ -101,6 +124,15 @@ export function AuthBoundary({ children }: { children: React.ReactNode }) {
           signal: controller.signal,
         });
         if (!res.ok) {
+          // A valid session with no access is not a failed sign-in, and
+          // `logout()` would send them back to a page they can sign in on
+          // again — successfully — and bounce off a second time.
+          const code = res.status === 403 ? await readRefusalCode(res) : null;
+          if (code) {
+            setNoAccess(code);
+            setProbed(true);
+            return;
+          }
           logout();
           return;
         }
@@ -139,6 +171,12 @@ export function AuthBoundary({ children }: { children: React.ReactNode }) {
   // `SetPasswordScreen` on why this is the courteous half and not the boundary
   // — but a redirect would leave the app's own chrome one back-button away,
   // which reads as a door that did not quite close.
+  // Before the password check: somebody with no account here has nothing to
+  // set a password for.
+  if (noAccess) {
+    return <NoAccessScreen reason={noAccess} onSignOut={logout} />;
+  }
+
   if (me?.mustSetPassword) {
     return <SetPasswordScreen email={me.email} />;
   }

@@ -130,3 +130,4 @@ export * from './events/external-event'
 // records. See `member/role.ts`.
 export * from './member/role'
 export * from './member/password'
+export * from './member/access'

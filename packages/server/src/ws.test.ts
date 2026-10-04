@@ -7,7 +7,7 @@ import { authorizeChannel, mountRealtime } from './ws'
 import { createFakeAuth, createFakeDb, silentLogger } from './test-helpers'
 
 async function seed() {
-  const { db } = createFakeDb()
+  const { db, state } = createFakeDb()
   const owner = 'user-owner' as UserId
   const ws = await db.createWorkspace({ name: 'w', ownerUserId: owner })
   const br = await db.createBrand({ workspaceId: ws.id, name: 'b' })
@@ -16,7 +16,20 @@ async function seed() {
     brandId: br.id,
     name: 'p',
   })
-  return { db, owner, ws, br, pr }
+  // `authorizeChannel` walks the aggregate chain into `authz.ts`, which from
+  // Phase C reads a `users` row and a per-brand grant. An owner with no row is
+  // a stranger to it, which is the whole point of that change.
+  state.users.set(owner, {
+    id: owner,
+    email: 'owner@example.com',
+    displayName: null,
+    role: 'admin',
+    mustSetPassword: false,
+    deactivatedAt: null,
+    createdAt: '2026-10-05T00:00:00.000Z',
+    updatedAt: '2026-10-05T00:00:00.000Z',
+  })
+  return { db, state, owner, ws, br, pr }
 }
 
 describe('authorizeChannel', () => {
@@ -35,9 +48,44 @@ describe('authorizeChannel', () => {
     expect(await authorizeChannel(owner, `project:${pr.id}`, db)).toBe(true)
   })
 
-  it('allows any authenticated user on an existing channel (shared access)', async () => {
+  it('denies a token with no `users` row, however real the channel', async () => {
+    // Was *"allows any authenticated user on an existing channel (shared
+    // access)"* and is the inverse now. The socket's `authenticate` hook
+    // already refuses such a connection, so this is the second rail: if that
+    // check were ever removed, the channel would still not open.
     const { db, pr } = await seed()
-    expect(await authorizeChannel('stranger', `project:${pr.id}`, db)).toBe(true)
+    expect(await authorizeChannel('stranger', `project:${pr.id}`, db)).toBe(false)
+  })
+
+  it('denies a real account holding no grant on the brand', async () => {
+    const { db, state, pr } = await seed()
+    state.users.set('user-outsider', {
+      id: 'user-outsider',
+      email: 'outsider@example.com',
+      displayName: null,
+      role: null,
+      mustSetPassword: false,
+      deactivatedAt: null,
+      createdAt: '2026-10-05T00:00:00.000Z',
+      updatedAt: '2026-10-05T00:00:00.000Z',
+    })
+    expect(await authorizeChannel('user-outsider', `project:${pr.id}`, db)).toBe(false)
+  })
+
+  it('allows a member once a grant on the brand exists', async () => {
+    const { db, state, br, pr } = await seed()
+    state.users.set('user-member', {
+      id: 'user-member',
+      email: 'member@example.com',
+      displayName: null,
+      role: null,
+      mustSetPassword: false,
+      deactivatedAt: null,
+      createdAt: '2026-10-05T00:00:00.000Z',
+      updatedAt: '2026-10-05T00:00:00.000Z',
+    })
+    state.userBrands.set('m', { userId: 'user-member', brandId: br.id, role: 'manager' })
+    expect(await authorizeChannel('user-member', `project:${pr.id}`, db)).toBe(true)
   })
 
   it('denies a missing aggregate', async () => {

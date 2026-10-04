@@ -269,3 +269,79 @@ describe('AuthBoundary and the set-password flag', () => {
     expect(screen.queryByText('Choose your password')).toBeNull()
   })
 })
+
+describe('AuthBoundary and a session with no access', () => {
+  // Before Phase C a token with no `users` row behind it was handed one, so
+  // this state could not occur. Closing that door made `if (!res.ok) logout()`
+  // reachable for a real person — and it answers them by returning to /login,
+  // where they sign in again, successfully, and bounce.
+  beforeEach(() => {
+    h.navigate.mockReset()
+    h.navigate.mockResolvedValue(undefined)
+    h.token = 'fresh-token'
+    fetchMock.mockReset()
+    vi.stubGlobal('fetch', fetchMock)
+    queryClient.clear()
+    useAuthStore.setState({ token: 'stale-token', userId: null })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    useAuthStore.setState({ token: null, userId: null })
+    queryClient.clear()
+  })
+
+  function probeRefuses(status: number, code: string) {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ code }), { status }))
+  }
+
+  it('says so on NO_ACCOUNT instead of bouncing to /login', async () => {
+    probeRefuses(403, 'NO_ACCOUNT')
+    renderBoundary(
+      <AuthBoundary>
+        <p>app</p>
+      </AuthBoundary>,
+    )
+    await screen.findByText('No access')
+    expect(screen.getByText(/has no Brand Base account/)).toBeTruthy()
+    expect(h.navigate).not.toHaveBeenCalled()
+  })
+
+  it('gives ACCOUNT_DEACTIVATED its own sentence', async () => {
+    // Withdrawn and never-added are different news, and the administrator
+    // reading the support message needs to know which.
+    probeRefuses(403, 'ACCOUNT_DEACTIVATED')
+    renderBoundary(
+      <AuthBoundary>
+        <p>app</p>
+      </AuthBoundary>,
+    )
+    await screen.findByText('No access')
+    expect(screen.getByText(/has been withdrawn/)).toBeTruthy()
+  })
+
+  it('still signs the reader out on a 401', async () => {
+    // An expired or revoked token is a failed session, not a refused one, and
+    // the old behaviour is right for it.
+    probeRefuses(401, 'UNAUTHORIZED')
+    renderBoundary(
+      <AuthBoundary>
+        <p>app</p>
+      </AuthBoundary>,
+    )
+    await waitFor(() => expect(h.navigate).toHaveBeenCalledWith({ to: '/login' }))
+    expect(screen.queryByText('No access')).toBeNull()
+  })
+
+  it('does not draw the terminal screen for an ordinary 403', async () => {
+    // `FORBIDDEN` on a brand is a different situation — the session is fine.
+    probeRefuses(403, 'FORBIDDEN')
+    renderBoundary(
+      <AuthBoundary>
+        <p>app</p>
+      </AuthBoundary>,
+    )
+    await waitFor(() => expect(h.navigate).toHaveBeenCalledWith({ to: '/login' }))
+    expect(screen.queryByText('No access')).toBeNull()
+  })
+})

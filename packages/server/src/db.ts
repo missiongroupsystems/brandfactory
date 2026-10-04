@@ -12,6 +12,8 @@ export interface Db {
   // Users
   getUserById: typeof db.getUserById
   clearMustSetPassword: typeof db.clearMustSetPassword
+  getBrandRoleForUser: typeof db.getBrandRoleForUser
+  listBrandGrantsForUser: typeof db.listBrandGrantsForUser
 
   // Workspaces
   getWorkspaceById: typeof db.getWorkspaceById
@@ -178,6 +180,8 @@ export function buildDbDeps(): Db {
   return {
     getUserById: db.getUserById,
     clearMustSetPassword: db.clearMustSetPassword,
+    getBrandRoleForUser: db.getBrandRoleForUser,
+    listBrandGrantsForUser: db.listBrandGrantsForUser,
     getWorkspaceById: db.getWorkspaceById,
     listWorkspacesByOwner: db.listWorkspacesByOwner,
     listAllWorkspaces: db.listAllWorkspaces,

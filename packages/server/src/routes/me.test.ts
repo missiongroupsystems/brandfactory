@@ -12,7 +12,14 @@ describe('GET /me', () => {
     expect(await res.json()).toMatchObject({ id: 'u-1', email: 'u-1@example.com' })
   })
 
-  it('404s when the auth provider has no matching user', async () => {
+  it('403s NO_ACCOUNT when the token verifies and no `users` row exists', async () => {
+    // **Was a 404, and the change is the point of Phase C.** Both frontends
+    // probe `/me` at boot and sign the reader out on any non-ok answer, so a
+    // 404 here returned a stranger to the sign-in page with nothing said —
+    // over and over. A 403 with a code the boundary recognises lets it say so.
+    //
+    // 403 rather than 401 because the token *is* valid. What is missing is an
+    // account here, and that is authorization.
     const auth: AuthProvider = {
       async verifyToken() {
         return { userId: 'ghost' }
@@ -25,8 +32,17 @@ describe('GET /me', () => {
     const adapters = createFakeAdapters({ auth })
     const app = createApp({ ...adapters, env: testEnv(), log: silentLogger() })
     const res = await app.request('/me', { headers: { authorization: 'Bearer x' } })
-    expect(res.status).toBe(404)
-    expect(await res.json()).toMatchObject({ code: 'USER_NOT_FOUND' })
+    expect(res.status).toBe(403)
+    expect(await res.json()).toMatchObject({ code: 'NO_ACCOUNT' })
+  })
+
+  it('403s ACCOUNT_DEACTIVATED for a row with a deactivation stamp', async () => {
+    const { app } = createTestApp({
+      users: [{ id: 'u-1', token: 't-1', deactivatedAt: '2026-10-01T00:00:00.000Z' }],
+    })
+    const res = await app.request('/me', { headers: { authorization: 'Bearer t-1' } })
+    expect(res.status).toBe(403)
+    expect(await res.json()).toMatchObject({ code: 'ACCOUNT_DEACTIVATED' })
   })
 
   it('401s when no bearer token is present', async () => {

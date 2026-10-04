@@ -14,6 +14,7 @@ import type {
   BrandId,
   BrandResource,
   BrandResourceId,
+  BrandRole,
   FunnelActivity,
   FunnelActivityId,
   FunnelStage,
@@ -163,6 +164,8 @@ export interface FakeAgentMessageRow {
 
 export interface FakeDbState {
   users: Map<string, FakeUserRow>
+  /** Per-brand grants. A workspace admin needs none — `isAdmin` short-circuits. */
+  userBrands: Map<string, { userId: string; brandId: string; role: BrandRole }>
   workspaces: Map<string, Workspace>
   brands: Map<string, Brand>
   sections: Map<string, BrandGuidelineSection>
@@ -201,6 +204,7 @@ export interface FakeDbState {
 export function createFakeDbState(): FakeDbState {
   return {
     users: new Map(),
+    userBrands: new Map(),
     workspaces: new Map(),
     brands: new Map(),
     sections: new Map(),
@@ -425,6 +429,25 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
   const db: Db = {
     async getUserById(id) {
       return state.users.get(id) ?? null
+    },
+    async getBrandRoleForUser(userId, brandId) {
+      for (const row of state.userBrands.values()) {
+        if (row.userId === userId && row.brandId === brandId) return row.role
+      }
+      return null
+    },
+    async listBrandGrantsForUser(userId) {
+      const out: Array<{ brandId: BrandId; brandName: string; role: BrandRole }> = []
+      for (const row of state.userBrands.values()) {
+        if (row.userId !== userId) continue
+        const brand = state.brands.get(row.brandId)
+        out.push({
+          brandId: row.brandId as BrandId,
+          brandName: brand?.name ?? '',
+          role: row.role,
+        })
+      }
+      return out
     },
     async clearMustSetPassword(id) {
       const row = state.users.get(id)

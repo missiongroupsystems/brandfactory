@@ -46,6 +46,42 @@ export class PasswordNotSetError extends HttpError {
   }
 }
 
+/**
+ * The token verified and there is no `users` row behind it.
+ *
+ * **403, not 401, and the distinction is the whole point.** A 401 says *we do
+ * not know this token*, which both frontends answer by clearing the session and
+ * returning to sign-in — so a stranger holding a valid Supabase token would
+ * loop through sign-in forever with nothing said, and a colleague whose account
+ * has not been created yet would report "the app signs me out instantly",
+ * which is a far harder thing to diagnose than a sentence on screen.
+ *
+ * The token *is* valid. What is missing is an account here. That is
+ * authorization, and 403 is what it means.
+ *
+ * Launchpad states the rule this enforces: *"A valid Passport token proves who
+ * somebody is, not that they belong here."*
+ */
+export class NoAccountError extends HttpError {
+  constructor(message = 'this account has no access to Brand Base') {
+    super(403, 'NO_ACCOUNT', message)
+    this.name = 'NoAccountError'
+  }
+}
+
+/**
+ * The row exists and `deactivated_at` is set. Separate from `NoAccountError`
+ * because the two want different sentences on screen — *you were never added*
+ * and *your access was withdrawn* are different news, and an administrator
+ * reading a support message needs to know which one happened.
+ */
+export class AccountDeactivatedError extends HttpError {
+  constructor(message = 'this account has been deactivated') {
+    super(403, 'ACCOUNT_DEACTIVATED', message)
+    this.name = 'AccountDeactivatedError'
+  }
+}
+
 export class NotFoundError extends HttpError {
   constructor(message = 'not found', code = 'NOT_FOUND') {
     super(404, code, message)

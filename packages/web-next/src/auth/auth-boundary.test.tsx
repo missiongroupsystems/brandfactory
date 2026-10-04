@@ -335,3 +335,59 @@ describe("AuthBoundary and the set-password flag", () => {
     expect(screen.queryByText("Choose your password")).toBeNull();
   });
 });
+
+describe("AuthBoundary and a session with no access", () => {
+  beforeEach(() => {
+    h.replace.mockReset();
+    h.mutate.mockReset();
+    h.token = "fresh-token";
+    h.me = undefined;
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    __setAuthStateForTests({ token: "stale-token", userId: null });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __setAuthStateForTests({ token: null, userId: null });
+  });
+
+  function probeRefuses(status: number, code: string) {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ code }), { status }));
+  }
+
+  it("says so on NO_ACCOUNT instead of bouncing to /sign-in", async () => {
+    probeRefuses(403, "NO_ACCOUNT");
+    render(
+      <AuthBoundary>
+        <p>app</p>
+      </AuthBoundary>,
+    );
+    await screen.findByText("No access");
+    expect(screen.getByText(/has no Brand Base account/)).toBeTruthy();
+    expect(h.replace).not.toHaveBeenCalled();
+  });
+
+  it("gives ACCOUNT_DEACTIVATED its own sentence", async () => {
+    probeRefuses(403, "ACCOUNT_DEACTIVATED");
+    render(
+      <AuthBoundary>
+        <p>app</p>
+      </AuthBoundary>,
+    );
+    await screen.findByText("No access");
+    expect(screen.getByText(/has been withdrawn/)).toBeTruthy();
+  });
+
+  it("does not draw the terminal screen for an ordinary 403", async () => {
+    // `FORBIDDEN` on a brand is a different situation — the session is fine.
+    probeRefuses(403, "FORBIDDEN");
+    render(
+      <AuthBoundary>
+        <p>app</p>
+      </AuthBoundary>,
+    );
+    await waitFor(() => expect(h.replace).toHaveBeenCalledWith("/sign-in"));
+    expect(screen.queryByText("No access")).toBeNull();
+  });
+});

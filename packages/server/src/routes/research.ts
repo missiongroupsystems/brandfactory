@@ -17,7 +17,16 @@ import {
 
 export interface ResearchRoutesDeps extends ResearchServiceDeps {
   db: ResearchServiceDeps['db'] &
-    Pick<Db, 'getBrandById' | 'getWorkspaceById' | 'clearResearchJobDrafts'>
+    // `getUserById` and `getBrandRoleForUser` are the authorization reads —
+    // every `requireBrandAccess` caller needs them from Phase C on.
+    Pick<
+      Db,
+      | 'getBrandById'
+      | 'getWorkspaceById'
+      | 'getUserById'
+      | 'getBrandRoleForUser'
+      | 'clearResearchJobDrafts'
+    >
 }
 
 /**

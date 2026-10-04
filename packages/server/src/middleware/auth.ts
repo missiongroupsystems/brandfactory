@@ -1,7 +1,7 @@
 import type { AuthProvider } from '@brandfactory/adapter-auth'
 import { createMiddleware } from 'hono/factory'
 import type { AppEnv } from '../context'
-import { UnauthorizedError } from '../errors'
+import { AccountDeactivatedError, NoAccountError, UnauthorizedError } from '../errors'
 
 function extractBearer(header: string | undefined): string | null {
   if (!header) return null
@@ -25,13 +25,25 @@ export function createAuthMiddleware(auth: AuthProvider) {
       // Don't leak the adapter's error message — surface a generic 401.
       throw new UnauthorizedError('invalid token')
     }
-    // Resolved here so the password gate and the authorization helpers share
-    // one read. A miss is left undefined rather than refused: the shared-access
-    // model still answers from `userId` alone, and turning a missing row into a
-    // 401 is Phase C's change, where it is the whole point rather than a side
-    // effect of adding a lookup.
+    // ⚠️ **This is the door, and it is here rather than only in `authz.ts`.**
+    // `GET /me` does not go through the authorization helpers, and both
+    // frontends probe it at boot — so a stranger refused there with a 404
+    // would be signed out and returned to the sign-in page with nothing said,
+    // over and over. Refusing in the middleware gives every authenticated path
+    // one answer, including the probe.
+    //
+    // A valid token proves who somebody is, not that they belong here. Until
+    // Phase C, `verifyToken` created a `users` row for any email it had never
+    // seen and the shared-access model admitted it everywhere; the
+    // auto-provisioner was the way in, not the open signup endpoint.
+    //
+    // `authz.ts` checks the same two facts again. That is not redundancy to
+    // tidy away: `ws.ts` never enters this chain, and a second rail on the one
+    // boundary in the app is worth a nine-row select.
     const user = await auth.getUserById(userId)
-    if (user) c.set('user', user)
+    if (!user) throw new NoAccountError()
+    if (user.deactivatedAt !== null) throw new AccountDeactivatedError()
+    c.set('user', user)
     await next()
   })
 }
