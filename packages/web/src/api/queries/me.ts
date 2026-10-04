@@ -21,9 +21,15 @@ export const meKeys = {
 export type Me = InferResponseType<typeof api.me.$get>
 
 /**
- * `staleTime: Infinity` — the row cannot change during a session. Nothing in
- * the product writes to `users`, and a sign-out clears the whole cache, so
- * there is no window in which a refetch could return anything different.
+ * `staleTime: Infinity` — the row does not change during a session on its own,
+ * and a sign-out clears the whole cache.
+ *
+ * ⚠️ **One thing in the product does write to `users`**: `POST /me/password`
+ * clears `must_set_password`, and `AuthBoundary` reads that field to decide
+ * whether to draw the app at all. `SetPasswordScreen` therefore invalidates
+ * this key rather than relying on a refetch that `Infinity` forbids. A write
+ * here that forgets to is a reader stuck on the set-password screen after
+ * successfully setting their password.
  *
  * `AuthBoundary` primes this key from the boot probe it already makes, so on a
  * page load the query resolves from cache and costs nothing. It still has a

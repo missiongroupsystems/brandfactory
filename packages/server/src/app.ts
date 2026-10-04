@@ -11,6 +11,7 @@ import type { Db } from './db'
 import type { Env } from './env'
 import type { Logger } from './logger'
 import { createAuthMiddleware, createOptionalAuthMiddleware } from './middleware/auth'
+import { createPasswordGateMiddleware } from './middleware/password-gate'
 import { onError } from './middleware/error'
 import { loggerMiddleware } from './middleware/logger'
 import { requestIdMiddleware } from './middleware/request-id'
@@ -139,9 +140,25 @@ export function createApp(deps: AppDeps) {
   app.use('/blob-urls/*', authRequired)
   app.use('/research/*', authRequired)
 
+  // ⚠️ **`/me` is missing from this list on purpose, and it is the only one.**
+  // A person whose password an admin chose may read themselves and replace that
+  // password; everything else refuses with `PASSWORD_NOT_SET` until they do.
+  // The allow-list is this mount list rather than a set of path strings, so a
+  // route added under a gated prefix is gated by where it lives.
+  //
+  // Add a new top-level prefix above and you must add it here too. The one in
+  // `app.test.ts` that enumerates these two lists is what catches a prefix that
+  // got authentication and not this.
+  const passwordSet = createPasswordGateMiddleware()
+  app.use('/workspaces/*', passwordSet)
+  app.use('/brands/*', passwordSet)
+  app.use('/projects/*', passwordSet)
+  app.use('/blob-urls/*', passwordSet)
+  app.use('/research/*', passwordSet)
+
   const composed = app
     .route('/health', createHealthRouter())
-    .route('/me', createMeRouter({ auth: deps.auth }))
+    .route('/me', createMeRouter({ auth: deps.auth, db: deps.db }))
     // Deployment-level: is research on at all? Needed by the create dialog
     // before a brand exists; the brand-scoped GET still carries the same flag.
     .route('/research', createResearchConfigRouter({ env: deps.env }))

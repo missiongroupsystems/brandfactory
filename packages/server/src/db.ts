@@ -11,6 +11,7 @@ import * as db from '@brandfactory/db'
 export interface Db {
   // Users
   getUserById: typeof db.getUserById
+  clearMustSetPassword: typeof db.clearMustSetPassword
 
   // Workspaces
   getWorkspaceById: typeof db.getWorkspaceById
@@ -176,6 +177,7 @@ export interface Db {
 export function buildDbDeps(): Db {
   return {
     getUserById: db.getUserById,
+    clearMustSetPassword: db.clearMustSetPassword,
     getWorkspaceById: db.getWorkspaceById,
     listWorkspacesByOwner: db.listWorkspacesByOwner,
     listAllWorkspaces: db.listAllWorkspaces,

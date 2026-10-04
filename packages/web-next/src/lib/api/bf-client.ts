@@ -180,6 +180,19 @@ export async function callJson<T>(res: Response): Promise<T> {
 }
 
 /**
+ * The same contract as `callJson`, for a route that answers `204`.
+ *
+ * `callJson` would call `res.json()` on an empty body and throw a parse error
+ * over a successful write. This delegates the failure path to it rather than
+ * copying it — on a non-ok response `callJson` always throws, so the `await`
+ * below never returns, and the two stay in step by construction.
+ */
+export async function callVoid(res: Response): Promise<void> {
+  if (res.ok) return;
+  await callJson<never>(res);
+}
+
+/**
  * The singleton client.
  *
  * The `headers` callback resolves the token **per call**, so the client survives sign-in and

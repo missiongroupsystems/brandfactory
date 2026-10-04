@@ -426,6 +426,14 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
     async getUserById(id) {
       return state.users.get(id) ?? null
     },
+    async clearMustSetPassword(id) {
+      const row = state.users.get(id)
+      if (!row) return false
+      // Mutates the same map `createFakeAuth` reads, so a route test can set a
+      // password and then assert the gate has opened.
+      row.mustSetPassword = false
+      return true
+    },
 
     async getWorkspaceById(id) {
       return state.workspaces.get(id) ?? null
@@ -2036,7 +2044,23 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
   return { db, state }
 }
 
-export function createFakeAuth(tokenToUserId: Record<string, string>): AuthProvider {
+export interface FakeAuthOptions {
+  /**
+   * The same map `createFakeDb` holds. Supplying it makes `getUserById`
+   * answer with the row a test actually set up, so `role`, `mustSetPassword`
+   * and `deactivatedAt` reach the middleware that reads them. Without it the
+   * provider synthesises an unflagged admin, which is what every test written
+   * before the access columns existed expects.
+   */
+  users?: Map<string, FakeUserRow>
+  /** Called instead of talking to an identity provider. Throw to simulate a refusal. */
+  onSetPassword?: (userId: string, password: string) => void | Promise<void>
+}
+
+export function createFakeAuth(
+  tokenToUserId: Record<string, string>,
+  opts: FakeAuthOptions = {},
+): AuthProvider {
   return {
     async verifyToken(token: string) {
       const userId = tokenToUserId[token]
@@ -2044,6 +2068,9 @@ export function createFakeAuth(tokenToUserId: Record<string, string>): AuthProvi
       return { userId }
     },
     async getUserById(id: string) {
+      const row = opts.users?.get(id)
+      if (row) return row
+      if (opts.users) return null
       return {
         id,
         email: `${id}@example.com`,
@@ -2054,6 +2081,9 @@ export function createFakeAuth(tokenToUserId: Record<string, string>): AuthProvi
         createdAt: NOW,
         updatedAt: NOW,
       }
+    },
+    async setPassword(userId: string, password: string) {
+      await opts.onSetPassword?.(userId, password)
     },
   }
 }
@@ -2155,7 +2185,15 @@ export interface TestHarness {
 
 export function createTestApp(
   opts: {
-    users?: Array<{ id: string; token: string }>
+    users?: Array<{
+      id: string
+      token: string
+      role?: WorkspaceRole | null
+      mustSetPassword?: boolean
+      deactivatedAt?: string | null
+    }>
+    /** Called instead of an identity provider when a route sets a password. */
+    onSetPassword?: (userId: string, password: string) => void | Promise<void>
     env?: Partial<Env>
     storage?: BlobStore
     llm?: LLMProvider
@@ -2181,16 +2219,16 @@ export function createTestApp(
       id: u.id,
       email: `${u.id}@example.com`,
       displayName: null,
-      role: 'admin',
-      mustSetPassword: false,
-      deactivatedAt: null,
+      role: u.role === undefined ? 'admin' : u.role,
+      mustSetPassword: u.mustSetPassword ?? false,
+      deactivatedAt: u.deactivatedAt ?? null,
       createdAt: NOW,
       updatedAt: NOW,
     })
   }
   const tokens: Record<string, string> = {}
   for (const u of opts.users ?? []) tokens[u.token] = u.id
-  const auth = createFakeAuth(tokens)
+  const auth = createFakeAuth(tokens, { users: state.users, onSetPassword: opts.onSetPassword })
   const env = testEnv(opts.env)
   const adapters = createFakeAdapters({
     db,

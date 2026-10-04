@@ -29,6 +29,23 @@ export class ForbiddenError extends HttpError {
   }
 }
 
+/**
+ * The caller holds a valid session, and a password somebody else chose. Every
+ * route but the two on `/me` refuses until they set their own.
+ *
+ * **A distinct code, not a bare 403.** The client has to tell this apart from
+ * "you may not touch this brand": the first is answered by sending the reader
+ * to one screen, the second by not offering the control. A shared code would
+ * make the frontend guess, and the guess would be wrong in whichever direction
+ * it was not written for.
+ */
+export class PasswordNotSetError extends HttpError {
+  constructor(message = 'set your own password before using the app') {
+    super(403, 'PASSWORD_NOT_SET', message)
+    this.name = 'PasswordNotSetError'
+  }
+}
+
 export class NotFoundError extends HttpError {
   constructor(message = 'not found', code = 'NOT_FOUND') {
     super(404, code, message)

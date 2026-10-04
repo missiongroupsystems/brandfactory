@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { SignJWT, generateKeyPair, exportJWK, type JWK, type KeyLike } from 'jose'
 import { createSupabaseAuthProvider } from './supabase'
-import { InvalidTokenError } from './port'
+import { InvalidTokenError, PasswordNotSupportedError, PasswordRejectedError } from './port'
 
 const ISSUER = 'https://issuer.test'
 const AUDIENCE = 'authenticated'
@@ -123,5 +123,76 @@ describe('createSupabaseAuthProvider', () => {
     await auth.verifyToken(token)
     expect(ensureUser).toHaveBeenCalledTimes(2)
     warn.mockRestore()
+  })
+})
+
+describe('setPassword', () => {
+  it('writes through the admin client and reports nothing back', async () => {
+    const calls: Array<{ id: string; password?: string }> = []
+    const provider = createSupabaseAuthProvider(
+      { jwksUrl: 'https://example.test/jwks' },
+      {
+        adminClient: {
+          updateUserById: (async (id: string, attrs: { password?: string }) => {
+            calls.push({ id, password: attrs.password })
+            return { data: { user: null }, error: null }
+          }) as never,
+        },
+      },
+    )
+    await expect(provider.setPassword('u-1', 'correct-horse-battery')).resolves.toBeUndefined()
+    expect(calls).toEqual([{ id: 'u-1', password: 'correct-horse-battery' }])
+  })
+
+  function refusing(error: { message: string; status?: number }) {
+    return createSupabaseAuthProvider(
+      { jwksUrl: 'https://example.test/jwks' },
+      {
+        adminClient: {
+          updateUserById: (async () => ({ data: { user: null }, error })) as never,
+        },
+      },
+    )
+  }
+
+  it('reports a 4xx as a rejected password, with the rule and not the value', async () => {
+    // The person on the set-password screen needs the rule GoTrue refused on,
+    // and the route turns this into a 400 they can act on.
+    const provider = refusing({ message: 'Password is known to be weak', status: 422 })
+    await expect(provider.setPassword('u-1', 'hunter2hunter2hunter2')).rejects.toBeInstanceOf(
+      PasswordRejectedError,
+    )
+    await expect(provider.setPassword('u-1', 'hunter2hunter2hunter2')).rejects.toThrow(
+      /known to be weak/,
+    )
+    await expect(provider.setPassword('u-1', 'hunter2hunter2hunter2')).rejects.not.toThrow(
+      /hunter2/,
+    )
+  })
+
+  it('reports a 5xx as a fault, not as advice to pick another password', async () => {
+    // Conflating the two sends somebody who is already locked out to try
+    // variations of a password that was never the problem.
+    const provider = refusing({ message: 'upstream unavailable', status: 503 })
+    const err = await provider.setPassword('u-1', 'correct-horse-battery').catch((e) => e)
+    expect(err).toBeInstanceOf(Error)
+    expect(err).not.toBeInstanceOf(PasswordRejectedError)
+  })
+
+  it('treats a refusal with no status as a fault rather than guessing', async () => {
+    // An error the SDK did not attribute is not evidence the password was bad.
+    const provider = refusing({ message: 'something happened' })
+    const err = await provider.setPassword('u-1', 'correct-horse-battery').catch((e) => e)
+    expect(err).not.toBeInstanceOf(PasswordRejectedError)
+  })
+
+  it('refuses without the service key instead of booting without it', async () => {
+    // A verify-only deployment should start. It should fail where the act is
+    // attempted, with a message naming the two keys — not at startup with a
+    // message about a feature it does not use.
+    const provider = createSupabaseAuthProvider({ jwksUrl: 'https://example.test/jwks' })
+    await expect(provider.setPassword('u-1', 'correct-horse-battery')).rejects.toBeInstanceOf(
+      PasswordNotSupportedError,
+    )
   })
 })

@@ -1,7 +1,8 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { queryClient } from '@/api/client'
-import { type Me, meKeys } from '@/api/queries/me'
+import { type Me, meKeys, useMe } from '@/api/queries/me'
+import { SetPasswordScreen } from './SetPasswordScreen'
 import { useAuthStore } from './store'
 import { getFreshAuthToken, startSessionSync } from './session'
 
@@ -13,6 +14,10 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   // Lazy initializer reads store once at mount — no token means nothing to validate.
   const [ready, setReady] = useState(() => !useAuthStore.getState().token)
+  // No second request: the boot probe below primes this key before it sets
+  // `ready`. The hook is here for the re-render after the password is set,
+  // which the screen triggers by invalidating it.
+  const { data: me } = useMe()
 
   // Any 401 anywhere clears the token (`callJson`, `useAgentChat`, `blobs`),
   // but clearing it used to leave the user parked on the page they were
@@ -89,6 +94,13 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     )
+  }
+
+  // **A render gate, not a route.** There is no path for this screen, so there
+  // is nothing a reader can deep-link past and no URL to come back from. The
+  // server refuses them either way; this is the courteous half.
+  if (me?.mustSetPassword) {
+    return <SetPasswordScreen email={me.email} />
   }
 
   return <>{children}</>

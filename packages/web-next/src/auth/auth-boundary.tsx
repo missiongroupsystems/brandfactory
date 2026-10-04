@@ -9,7 +9,8 @@ import { getAuthState, logout, setAuth, subscribeAuth } from "@/auth/store";
 import { BF_API_BASE_URL } from "@/lib/api/bf-client";
 import { SCOPES, useClearCache } from "@/lib/api/cache";
 
-import type { Me } from "@/features/me/hooks";
+import { useMe, type Me } from "@/features/me/hooks";
+import { SetPasswordScreen } from "@/features/me/set-password-screen";
 
 /**
  * The gate. Everything inside `app/(app)/` renders behind it.
@@ -48,6 +49,11 @@ export function AuthBoundary({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const clearCache = useClearCache();
   const [probed, setProbed] = React.useState(false);
+  // No second request: the probe below seeds this exact key before it sets
+  // `probed`, so by the time the branch at the bottom reads it the row is in
+  // the cache. The hook is here for the re-render after the password is set,
+  // which `mutate([SCOPES.me])` triggers from inside the screen.
+  const { data: me } = useMe();
 
   // Any 401 anywhere clears the token, but clearing it used to leave the user parked on the
   // page they were already on, under a screen of stale cache. Watch the transition rather than
@@ -125,6 +131,16 @@ export function AuthBoundary({ children }: { children: React.ReactNode }) {
         <div className="size-5 animate-spin rounded-full border-2 border-brand border-t-transparent" />
       </div>
     );
+  }
+
+  // **A render gate, not a redirect.** There is no route for this screen, so
+  // there is no URL for a reader to navigate away from and no page they can
+  // deep-link past it to. The server refuses them either way — see
+  // `SetPasswordScreen` on why this is the courteous half and not the boundary
+  // — but a redirect would leave the app's own chrome one back-button away,
+  // which reads as a door that did not quite close.
+  if (me?.mustSetPassword) {
+    return <SetPasswordScreen email={me.email} />;
   }
 
   return <>{children}</>;

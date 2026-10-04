@@ -112,6 +112,19 @@ export function mountRealtime(deps: MountRealtimeDeps): MountRealtimeHandle {
       if (!token) return null
       try {
         const { userId } = await deps.auth.verifyToken(token)
+        // ⚠️ **The password gate has to be repeated here.** `/rt` never enters
+        // the Hono middleware chain — it ends at the upgrade — so
+        // `createPasswordGateMiddleware` does not cover it, and the mount-list
+        // test in `app.test.ts` cannot see it either. Without this, somebody
+        // holding a password their admin chose is refused every HTTP route and
+        // can still subscribe to a project channel and read the canvas traffic
+        // flowing through it.
+        //
+        // Refused at the connection rather than per channel: there is nothing
+        // a flagged account is entitled to read here, so there is no channel
+        // worth evaluating.
+        const user = await deps.auth.getUserById(userId)
+        if (user?.mustSetPassword) return null
         return userId
       } catch {
         return null

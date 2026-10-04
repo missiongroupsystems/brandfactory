@@ -16,13 +16,22 @@ export function createAuthMiddleware(auth: AuthProvider) {
     if (!token) {
       throw new UnauthorizedError('missing bearer token')
     }
+    let userId: string
     try {
-      const { userId } = await auth.verifyToken(token)
+      const verified = await auth.verifyToken(token)
+      userId = verified.userId
       c.set('userId', userId)
     } catch {
       // Don't leak the adapter's error message — surface a generic 401.
       throw new UnauthorizedError('invalid token')
     }
+    // Resolved here so the password gate and the authorization helpers share
+    // one read. A miss is left undefined rather than refused: the shared-access
+    // model still answers from `userId` alone, and turning a missing row into a
+    // 401 is Phase C's change, where it is the whole point rather than a side
+    // effect of adding a lookup.
+    const user = await auth.getUserById(userId)
+    if (user) c.set('user', user)
     await next()
   })
 }

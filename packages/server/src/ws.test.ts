@@ -91,3 +91,56 @@ describe('mountRealtime: upgrade origin guard', () => {
     await handle.close()
   })
 })
+
+describe('mountRealtime: the password gate, repeated here on purpose', () => {
+  // `/rt` ends at the upgrade and never enters the Hono middleware chain, so
+  // `createPasswordGateMiddleware` does not cover it and `app.test.ts`'s
+  // mount-list test cannot see it. Without the check in `ws.ts`, an account
+  // holding a password its admin chose is refused every HTTP route and can
+  // still subscribe to a project channel and read the canvas traffic on it.
+  function mountWithUser(row: { id: string; mustSetPassword: boolean }) {
+    const httpServer = new EventEmitter() as unknown as HttpServer
+    const { db, state } = createFakeDb()
+    state.users.set(row.id, {
+      id: row.id,
+      email: `${row.id}@example.com`,
+      displayName: null,
+      role: 'admin',
+      mustSetPassword: row.mustSetPassword,
+      deactivatedAt: null,
+      createdAt: '2026-10-05T00:00:00.000Z',
+      updatedAt: '2026-10-05T00:00:00.000Z',
+    })
+    let authenticate!: (req: IncomingMessage) => Promise<string | null>
+    const realtime = {
+      bindToNodeWebSocketServer: vi.fn(
+        (_wss: unknown, hooks: { authenticate: typeof authenticate }) => {
+          authenticate = hooks.authenticate
+        },
+      ),
+      publish: vi.fn(),
+      subscribe: vi.fn(() => () => {}),
+    }
+    const handle = mountRealtime({
+      httpServer,
+      realtime: realtime as unknown as Parameters<typeof mountRealtime>[0]['realtime'],
+      auth: createFakeAuth({ 'tok-1': row.id }, { users: state.users }),
+      db,
+      log: silentLogger(),
+    })
+    const req = { url: '/rt?token=tok-1', headers: {} } as unknown as IncomingMessage
+    return { authenticate: () => authenticate(req), handle }
+  }
+
+  it('refuses the connection outright when the password is not set', async () => {
+    const { authenticate, handle } = mountWithUser({ id: 'u-1', mustSetPassword: true })
+    expect(await authenticate()).toBeNull()
+    await handle.close()
+  })
+
+  it('admits the same token once the password is set', async () => {
+    const { authenticate, handle } = mountWithUser({ id: 'u-1', mustSetPassword: false })
+    expect(await authenticate()).toBe('u-1')
+    await handle.close()
+  })
+})

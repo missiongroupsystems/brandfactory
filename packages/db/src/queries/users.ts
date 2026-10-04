@@ -52,3 +52,22 @@ export async function upsertUserById(input: {
     })
     .onConflictDoNothing({ target: users.id })
 }
+
+// Clears `must_set_password`, and only ever clears it.
+//
+// **Called from one place**: the handler that has just set the person's own
+// password through the auth provider. Nothing else may clear this column — a
+// flag cleared without a password behind it is the one lie it must not tell,
+// and the handler and the write have to stay in the same transaction of
+// thought even though they are not one transaction.
+//
+// Returns false when no row changed, which means the id does not exist. The
+// caller treats that as a 404 rather than reporting success.
+export async function clearMustSetPassword(id: UserId): Promise<boolean> {
+  const rows = await db
+    .update(users)
+    .set({ mustSetPassword: false, updatedAt: new Date().toISOString() })
+    .where(eq(users.id, id))
+    .returning({ id: users.id })
+  return rows.length > 0
+}

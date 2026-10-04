@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { User } from '@brandfactory/db'
 import { createLocalAuthProvider } from './local'
-import { InvalidTokenError } from './port'
+import { InvalidTokenError, PasswordNotSupportedError } from './port'
 
 // RFC-4122 v4 shape: version nibble '4', variant nibble ∈ {8,9,a,b}.
 const VALID_UUID = '11111111-2222-4333-8444-555555555555'
@@ -48,5 +48,17 @@ describe('createLocalAuthProvider', () => {
     })
     const user = await auth.getUserById(VALID_UUID)
     expect(user?.id).toBe(VALID_UUID)
+  })
+})
+
+describe('setPassword', () => {
+  it('refuses rather than silently succeeding', async () => {
+    // A no-op success here would let the server clear `must_set_password` on an
+    // account whose password was never set — the one claim that column must
+    // never make. Dev auth has no credential at all: the token is the user id.
+    const provider = createLocalAuthProvider({ getUserById: async () => null })
+    await expect(provider.setPassword('u-1', 'anything-at-all')).rejects.toBeInstanceOf(
+      PasswordNotSupportedError,
+    )
   })
 })

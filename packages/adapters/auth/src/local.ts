@@ -1,6 +1,6 @@
 import type { UserId } from '@brandfactory/shared'
 import { getUserById as dbGetUserById, type User } from '@brandfactory/db'
-import { type AuthProvider, InvalidTokenError } from './port'
+import { type AuthProvider, InvalidTokenError, PasswordNotSupportedError } from './port'
 
 // Dev-only auth: the bearer token IS the user id. No crypto, no signing.
 // Production callers must wire a real provider (e.g. supabase) instead.
@@ -28,6 +28,14 @@ export function createLocalAuthProvider(deps: LocalAuthDeps = {}): AuthProvider 
     },
     async getUserById(id: string) {
       return lookup(id)
+    },
+    async setPassword() {
+      // Dev auth has no credential to replace — the token is the user id. A
+      // no-op success here would let the server clear `must_set_password` on
+      // an account whose password was never set, which is the one thing that
+      // column must never claim. `db:seed` writes dev users unflagged, so
+      // nothing reaches this in a normal dev session.
+      throw new PasswordNotSupportedError('local auth has no passwords; the token is the user id')
     },
   }
 }

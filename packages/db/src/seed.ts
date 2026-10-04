@@ -4107,7 +4107,18 @@ export async function seed(): Promise<SeedResult> {
   await db.transaction(async (tx) => {
     await tx
       .insert(users)
-      .values({ id: DEMO_USER_ID, email: DEMO_USER_EMAIL, displayName: 'Demo User' })
+      .values({
+        id: DEMO_USER_ID,
+        email: DEMO_USER_EMAIL,
+        displayName: 'Demo User',
+        role: 'admin',
+        // **Unflagged, unlike the column's default.** The flag means "an admin
+        // chose the password on this account", and the dev provider has no
+        // passwords at all — the bearer token is the user id. Leaving it true
+        // would put every dev session behind a set-password screen that the
+        // local provider then refuses to satisfy.
+        mustSetPassword: false,
+      })
       .onConflictDoNothing({ target: users.id })
 
     await tx

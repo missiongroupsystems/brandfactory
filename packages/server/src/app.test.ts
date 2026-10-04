@@ -107,3 +107,73 @@ describe('the app’s router', () => {
     expect(res.status).not.toBe(404)
   })
 })
+
+// ---------------------------------------------------------------------------
+// The password gate's mount list, enumerated from the app rather than retyped
+// ---------------------------------------------------------------------------
+//
+// `app.ts` mounts `createPasswordGateMiddleware()` on each gated prefix by
+// hand, and the next person to add a top-level prefix has to remember to add it
+// twice — once for authentication, once for this. Forgetting the second is
+// invisible: the new routes authenticate correctly and simply answer a flagged
+// account, which is the exact hole the gate exists to close.
+//
+// So this test does not hold its own copy of the list. It reads the prefixes
+// the app actually registered, subtracts the three that are ungated on purpose,
+// and requires every remaining one to refuse a flagged caller.
+describe('the password gate covers every prefix that is not deliberately open', () => {
+  // Each of these is open for a stated reason, not an omission.
+  const OPEN: Record<string, string> = {
+    // The two routes a flagged person needs: read yourself, set your password.
+    '/me': 'the only way out of the flagged state',
+    // Outside the authentication gate entirely — the signed URL is the
+    // capability for a blob, so there is no session to flag.
+    '/blobs': 'signed-URL capability, no session',
+    // Unauthenticated smoke checks have to keep working.
+    '/health': 'probe, optional auth',
+  }
+
+  function gatedPrefixes(app: ReturnType<typeof createTestApp>['app']): string[] {
+    const found = new Set<string>()
+    for (const route of app.routes) {
+      const prefix = '/' + (route.path.split('/')[1] ?? '')
+      // `/*` is the middleware's own registration, not a route prefix.
+      if (prefix === '/' || prefix === '/*') continue
+      if (prefix in OPEN) continue
+      found.add(prefix)
+    }
+    return [...found].sort()
+  }
+
+  it('found the prefixes it is about, so a pass here is not vacuous', () => {
+    const { app } = createTestApp({ users: [{ id: 'u-1', token: 't-1' }] })
+    const prefixes = gatedPrefixes(app)
+    // If this list shrinks, either a feature was deleted or `app.routes` stopped
+    // reporting what this test reads. Both deserve a look before the assertion
+    // below is trusted.
+    expect(prefixes).toEqual(['/blob-urls', '/brands', '/projects', '/research', '/workspaces'])
+  })
+
+  it('refuses a flagged caller on every one of them', async () => {
+    const { app } = createTestApp({
+      users: [{ id: 'u-1', token: 't-1', mustSetPassword: true }],
+    })
+    for (const prefix of gatedPrefixes(app)) {
+      const res = await app.request(prefix, { headers: { authorization: 'Bearer t-1' } })
+      expect(res.status, `${prefix} let a flagged caller through`).toBe(403)
+      expect(await res.json(), `${prefix} refused for the wrong reason`).toMatchObject({
+        code: 'PASSWORD_NOT_SET',
+      })
+    }
+  })
+
+  it('leaves the deliberately-open prefixes open to the same caller', async () => {
+    const { app } = createTestApp({
+      users: [{ id: 'u-1', token: 't-1', mustSetPassword: true }],
+    })
+    for (const prefix of Object.keys(OPEN)) {
+      const res = await app.request(prefix, { headers: { authorization: 'Bearer t-1' } })
+      expect(res.status, `${prefix} is gated, and ${OPEN[prefix]}`).not.toBe(403)
+    }
+  })
+})

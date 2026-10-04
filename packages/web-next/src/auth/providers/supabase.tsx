@@ -41,13 +41,16 @@ export function SupabaseAuthProvider() {
   const [email, setEmail] = React.useState("");
   const [sent, setSent] = React.useState(false);
   const [error, setError] = React.useState<string | null>(() => readInitialUrlError());
+  const [password, setPassword] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const router = useRouter();
 
-  React.useEffect(() => {
-    if (!supabase) return;
-
-    const finishSignIn = async (token: string) => {
+  // Hoisted out of the mount effect, which used to be its only caller. The
+  // password path below needs the same three steps — probe `/me`, seed the
+  // store, navigate — and a second copy of them is a second place for the
+  // destination to drift.
+  const finishSignIn = React.useCallback(
+    async (token: string) => {
       try {
         const res = await fetch(`${BF_API_BASE_URL}/me`, {
           headers: { authorization: `Bearer ${token}` },
@@ -66,7 +69,12 @@ export function SupabaseAuthProvider() {
         const msg = err instanceof Error ? err.message : String(err);
         setError(`Sign-in network error: ${msg}`);
       }
-    };
+    },
+    [router],
+  );
+
+  React.useEffect(() => {
+    if (!supabase) return;
 
     const code = new URL(window.location.href).searchParams.get("code");
 
@@ -90,7 +98,7 @@ export function SupabaseAuthProvider() {
         if (data.session?.access_token) void finishSignIn(data.session.access_token);
       });
     }
-  }, [router]);
+  }, [finishSignIn]);
 
   if (!supabase) {
     return (
@@ -128,6 +136,35 @@ export function SupabaseAuthProvider() {
     if (oauthError) setError(oauthError.message);
   };
 
+  /**
+   * The primary path since members got admin-set first passwords. A person
+   * whose password an admin chose signs in here, and the app then holds them on
+   * one screen until they replace it (`SetPasswordScreen`).
+   */
+  const handlePassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const { data, error: pwError } = await client.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (pwError) {
+        // Supabase answers one message for a wrong password and an unknown
+        // address, which is the right behaviour — telling them apart tells a
+        // stranger which of our addresses are real. Pass it through unchanged.
+        setError(pwError.message);
+        return;
+      }
+      // No `?code=` round trip on this path: the session is in hand already,
+      // so go straight to the three steps the other paths reach by redirect.
+      if (data.session?.access_token) await finishSignIn(data.session.access_token);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
@@ -148,7 +185,15 @@ export function SupabaseAuthProvider() {
 
   return (
     <div className="w-full space-y-5">
-      <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+      {/*
+        Three ways in, in the order they are expected to be used: a password an
+        admin set or the person chose, Google for anybody who prefers it, and a
+        magic link as the way back for somebody whose password has gone missing.
+        The link stays because it is a working recovery path that costs nothing,
+        and it bypasses nothing — a flagged account still meets the
+        set-password screen behind it.
+      */}
+      <form onSubmit={(e) => void handlePassword(e)} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
@@ -160,15 +205,37 @@ export function SupabaseAuthProvider() {
             required
           />
         </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
         {error ? (
           <p role="alert" className="text-helper text-error">
             {error}
           </p>
         ) : null}
-        <Button type="submit" className="w-full" disabled={loading || !email.trim()}>
-          {loading ? "Sending…" : "Send magic link"}
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={loading || !email.trim() || !password}
+        >
+          {loading ? "Signing in…" : "Sign in"}
         </Button>
       </form>
+      <button
+        type="button"
+        className="w-full text-helper text-ink-secondary underline underline-offset-2 disabled:opacity-50"
+        disabled={loading || !email.trim()}
+        onClick={(e) => void handleSubmit(e)}
+      >
+        Email me a sign-in link instead
+      </button>
       <div className="flex items-center gap-3">
         <span className="h-px flex-1 bg-border-subtle" />
         <span className="text-eyebrow text-ink-tertiary">or continue with</span>

@@ -65,6 +65,11 @@ export function buildAdapters(env: Env): Adapters {
           jwksUrl: env.SUPABASE_JWKS_URL!,
           audience: env.SUPABASE_JWT_AUDIENCE,
           issuer: env.SUPABASE_JWT_ISSUER,
+          // Optional, and `setPassword` is the only caller. A deployment that
+          // verifies tokens and never sets a password boots without them and
+          // refuses that one act with a sentence naming the two keys.
+          url: env.SUPABASE_URL,
+          serviceKey: env.SUPABASE_SERVICE_KEY,
         })
 
   const storage: BlobStore =

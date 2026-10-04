@@ -59,6 +59,9 @@ importers:
       '@brandfactory/shared':
         specifier: workspace:*
         version: link:../../shared
+      '@supabase/supabase-js':
+        specifier: ^2.45.4
+        version: 2.103.3
       jose:
         specifier: ^5.9.6
         version: 5.10.0

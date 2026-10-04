@@ -21,6 +21,14 @@ const h = vi.hoisted(() => ({
    * keys would let the old `mutate(() => true)` pass this test.
    */
   cacheKeys: [] as string[],
+  /**
+   * What `useMe()` answers. The boundary reads it to decide whether to draw the
+   * set-password screen instead of the app, so these tests drive the flag from
+   * here rather than from a real fetch.
+   */
+  me: { id: "u1", email: "phil@example.com", mustSetPassword: false } as
+    | { id: string; email: string; mustSetPassword: boolean }
+    | undefined,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -33,6 +41,10 @@ vi.mock("./session", () => ({
 }));
 
 vi.mock("swr", () => ({
+  // `useMe()` is the default export's caller. Without this the boundary throws
+  // on render, and the failure reads as every test in this file breaking at
+  // once rather than as one missing mock.
+  default: () => ({ data: h.me }),
   mutate: (...args: unknown[]) => h.mutate(...args),
   useSWRConfig: () => ({
     mutate: (...args: unknown[]) => h.mutate(...args),
@@ -49,6 +61,7 @@ describe("AuthBoundary", () => {
     h.mutate.mockReset();
     h.cacheKeys = ['@"outlets",', '$inf$@"contracts",', '$inf$@"outlets",', '$sub$@"live",'];
     h.token = "fresh-token";
+    h.me = { id: "u1", email: "phil@example.com", mustSetPassword: false };
     fetchMock.mockReset();
     fetchMock.mockResolvedValue(
       new Response(
@@ -258,5 +271,67 @@ describe("AuthBoundary", () => {
     await screen.findByText("app");
     expect(h.replace).not.toHaveBeenCalled();
     expect(getAuthState().token).toBe("stale-token");
+  });
+});
+
+describe("AuthBoundary and the set-password flag", () => {
+  beforeEach(() => {
+    h.replace.mockReset();
+    h.mutate.mockReset();
+    h.token = "fresh-token";
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ id: "u1", email: "phil@example.com", mustSetPassword: true }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    __setAuthStateForTests({ token: "stale-token", userId: null });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    __setAuthStateForTests({ token: null, userId: null });
+  });
+
+  it("draws the set-password screen instead of the app when the flag is set", async () => {
+    h.me = { id: "u1", email: "phil@example.com", mustSetPassword: true };
+    render(
+      <AuthBoundary>
+        <p>app</p>
+      </AuthBoundary>,
+    );
+
+    await screen.findByText("Choose your password");
+    expect(screen.queryByText("app")).toBeNull();
+    // A render gate, not a redirect: there is no route to send them to, so
+    // nothing navigates and there is no URL they can come back from.
+    expect(h.replace).not.toHaveBeenCalled();
+  });
+
+  it("names the address the password belongs to", async () => {
+    // The screen validates against it, so a reader looking at somebody else's
+    // email here is looking at the wrong session.
+    h.me = { id: "u1", email: "phil@example.com", mustSetPassword: true };
+    render(
+      <AuthBoundary>
+        <p>app</p>
+      </AuthBoundary>,
+    );
+    await screen.findByText("Choose your password");
+    expect(screen.getByLabelText("New password")).toBeTruthy();
+    expect(screen.getByLabelText("Confirm password")).toBeTruthy();
+  });
+
+  it("draws the app once the flag is clear", async () => {
+    h.me = { id: "u1", email: "phil@example.com", mustSetPassword: false };
+    render(
+      <AuthBoundary>
+        <p>app</p>
+      </AuthBoundary>,
+    );
+    await screen.findByText("app");
+    expect(screen.queryByText("Choose your password")).toBeNull();
   });
 });
