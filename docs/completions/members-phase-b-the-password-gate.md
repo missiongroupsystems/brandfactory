@@ -138,11 +138,24 @@ The Supabase provider builds its admin client lazily, on first use:
 nothing new has to be configured. **Confirm that before deploying**, because the failure
 is a sentence on the set-password screen rather than a boot error.
 
-## Both frontends, because both are deployed
+## Both frontends — and the stated reason was wrong
 
-A flagged account that opened the Vite app without this screen would meet
-`PASSWORD_NOT_SET` on every query and read it as the product being broken. So the gate
-is in both `AuthBoundary`s.
+This section originally read *"because both are deployed"*. **Checked against Vercel on
+5 October, after the merge: that is false.** There are two BrandFactory projects,
+`brandfactory-web` and `brandfactory-calendar`, and **both build `web-next`**.
+`packages/web` is not deployed anywhere. `brandfactory-web` is the project MKT-0 found
+repurposed from Vite to Next, still carrying both env var sets, and its name is the only
+thing left pointing at the old app.
+
+So the Vite copy of this screen is **precautionary, not load-bearing**. It costs a file
+in a package that is being replaced screen by screen, and it means the day somebody
+deploys `packages/web` the gate does not greet them with a wall of 403s. That is a
+reasonable thing to have; it is not the reason given, and the reason given would have
+had somebody believe a deployment existed that does not.
+
+The rule that does hold either way: the **validation** is not duplicated —
+`passwordProblem` lives in `@brandfactory/shared` and runs in both browsers and on the
+server.
 
 In each it is a **render gate, not a redirect**: there is no route for the screen, so
 nothing to deep-link past and no URL to come back from. A redirect would leave the app's

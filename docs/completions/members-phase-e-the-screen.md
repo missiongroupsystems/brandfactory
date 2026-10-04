@@ -123,6 +123,14 @@ duplicate address, the last-admin guard, a password its identity provider refuse
 its answer is the only one worth rendering, and each dialog renders the server's words
 rather than an assumption.
 
+## A correction carried back from the deploy
+
+Phase B's completion doc justified duplicating the set-password screen into
+`packages/web` with *"because both are deployed"*. Verified against Vercel on 5 October:
+both BrandFactory projects build `web-next`, and `packages/web` is deployed nowhere.
+That section is corrected in place. The duplication stays as insurance; the premise was
+wrong.
+
 ## Two honest gaps
 
 **The form always offers a password field.** `AuthProvider.holdsPasswords` is a server
