@@ -83,8 +83,8 @@ automatically. Read `docs/vision.md` for the product and `docs/architecture.md`
 for the blueprint.
 
 The repository is a pnpm workspaces monorepo with a flat `packages/*` layout:
-`web`, `server`, `shared`, `db`, `agent` and `adapters` (five ports: auth,
-storage, realtime, llm, research).
+`web`, `server`, `shared`, `db`, `agent` and `adapters` (six ports: auth,
+storage, realtime, llm, research, events).
 
 These points need more than one file to understand.
 
@@ -100,7 +100,7 @@ path or a response shape in the web package.
 ### Every dependency enters through `createApp(deps)`
 
 `packages/server/src/app.ts` exports `createApp(deps)`. It receives the
-database, the logger and all five adapters as parameters. Tests build an app
+database, the logger and all six adapters as parameters. Tests build an app
 with fakes and never touch a real vendor. `packages/server/src/main.ts` calls
 `buildAdapters(env)` at boot; `adapters.ts` is the one file that reads the env
 and selects an implementation. **Do not name a vendor in domain code.**
@@ -109,13 +109,55 @@ Middleware is mounted per path prefix, not globally. `/blobs`, `/health` and
 `/rt` stay outside the authentication gate on purpose: the signed URL is the
 capability for a blob, and `/rt` ends at the WebSocket upgrade.
 
+⚠️ **A new top-level prefix must be added to three mount lists in `app.ts`**:
+authentication, the password gate, and — if it is admin-only — the admin gate.
+Forgetting the second is invisible, because the routes authenticate correctly
+and simply answer an account that has not set its own password.
+`app.test.ts` enumerates the prefixes the app registered and fails on the gap,
+so trust that test rather than a reading of `app.ts`.
+
+⚠️ **`/rt` is outside the chain, so it repeats all three refusals itself**
+(`ws.ts`). `authorizeChannel` is not enough: it walks the aggregate chain and
+so refuses only _after_ the socket is open and subscribed, which is a
+connection that should never have been accepted. `app.routes` cannot see this
+path either, so the mount-list test does not cover it.
+
 ### Authorization follows the aggregate chain
 
 `packages/server/src/authz.ts` holds the only access rules:
 `requireProjectAccess` calls `requireBrandAccess`, which calls
-`requireWorkspaceAccess`, which compares `workspace.ownerUserId` to the user.
-Each route calls the helper for its aggregate. It throws `NotFoundError` or
-`ForbiddenError`, and `middleware/error.ts` maps the error to the response.
+`requireWorkspaceAccess`. Each route calls the helper for its aggregate, and
+passes `deps.db`, which satisfies the whole `AuthzDeps` interface — so growing
+that interface reaches every handler without touching one.
+
+The rules themselves are pure functions in `@brandfactory/shared`'s
+`member/access.ts`, which both frontends import as a **rendering** gate. The
+house rule: a wrong gate makes the UI wrong, never the data, because the
+service re-checks everything.
+
+- An **active** account reaches the workspace. `ownerUserId` is provenance
+  only; it stopped being an access rule in 1.29.0 and is not one now.
+- An **admin** (`users.role = 'admin'`) reaches every brand and holds no
+  `user_brands` rows.
+- A **member** reaches the brands they hold a grant on.
+- A **deactivated** account reaches nothing, checked before the role, so an
+  administrator whose access was withdrawn cannot restore it.
+
+Three refusals, and the codes are distinct because the frontends answer them
+differently: `NO_ACCOUNT` (403, a valid token with no `users` row),
+`ACCOUNT_DEACTIVATED` (403) and `PASSWORD_NOT_SET` (403). A bare 401 is for a
+token we cannot verify.
+
+⚠️ **Nothing auto-provisions a `users` row.** An account is created by an
+administrator through `POST /members`, which creates the identity-provider
+account **first** and keys our row to the id it returns — `users.id` _is_ the
+Supabase `sub`, and a row keyed to anything else collides on `email` at first
+sign-in and is then unreachable forever.
+
+⚠️ **`canWriteBrand` exists and no route calls it.** Read access is enforced;
+`viewer` against `editor` is not. Until a write gate lands, the wire refuses to
+store a `viewer` grant (`GrantableBrandRoleSchema`) so no row carries a
+restriction nothing applies. Those two open together or not at all.
 
 ### The mini-app registry is the extension point
 

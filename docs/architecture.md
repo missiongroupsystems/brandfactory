@@ -162,10 +162,13 @@ S3, local disk, or OIDC auth is an isolated change.
 
 Ports (minimum initial set):
 
-- `AuthProvider` — `verifyToken`, `getUserById`. Listing users is DB
-  territory (`@brandfactory/db.listUsersByWorkspace` etc.), not an
-  identity-provider concern, so it does not live on this port. See the
-  Phase 3 completion record for the decision.
+- `AuthProvider` — `verifyToken`, `getUserById`, plus the four an
+  administrator's acts need: `createUser`, `deleteUser` (the compensation for
+  a failed create), `setPassword` and `setSuspended`, and a `holdsPasswords`
+  capability flag the create route reads instead of asking which vendor is
+  configured. Listing users is DB territory
+  (`@brandfactory/db.listMembers`), not an identity-provider concern, so it
+  does not live on this port.
 - `BlobStore` — `put`, `get`, `delete`, `getSignedReadUrl`,
   `getSignedWriteUrl` (signed URLs are the transport for both reads and
   writes so the server can stay out of the byte path).
@@ -174,6 +177,12 @@ Ports (minimum initial set):
   user/workspace settings (OpenRouter, Anthropic native, OpenAI, Ollama,
   etc.). Multiple providers can be installed simultaneously; the active one
   is chosen per call from persisted settings written by the frontend.
+- `ResearchProvider` — a long-running brand research run, started and polled.
+- `EventsSource` — a read-only window onto another product's bookings, for
+  the content calendar. Events owns those rows and this app keeps no copy.
+
+Six ports, not the four this section first listed: `research` and `events`
+arrived later, and both are selected the same way in `adapters.ts`.
 
 Default implementations live alongside each port. The `server` package wires
 them together at boot from env config. No adapter leaks into domain
