@@ -1,5 +1,5 @@
 import type { UserId } from '@brandfactory/shared'
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import { db } from '../client'
 import { users } from '../schema'
 
@@ -67,6 +67,116 @@ export async function clearMustSetPassword(id: UserId): Promise<boolean> {
   const rows = await db
     .update(users)
     .set({ mustSetPassword: false, updatedAt: new Date().toISOString() })
+    .where(eq(users.id, id))
+    .returning({ id: users.id })
+  return rows.length > 0
+}
+
+// A member as the admin screen reads one: the row, plus the brands granted.
+export interface MemberRow {
+  id: UserId
+  email: string
+  displayName: string | null
+  role: 'admin' | null
+  mustSetPassword: boolean
+  deactivatedAt: string | null
+  createdAt: string
+}
+
+export async function listMembers(): Promise<MemberRow[]> {
+  const rows = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      displayName: users.displayName,
+      role: users.role,
+      mustSetPassword: users.mustSetPassword,
+      deactivatedAt: users.deactivatedAt,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .orderBy(users.email)
+  return rows as MemberRow[]
+}
+
+/**
+ * How many active admins exist.
+ *
+ * **The last-admin guard reads this.** A workspace with no admin cannot add
+ * anybody or restore anybody, and the only way back is SQL. Launchpad guards
+ * this on delete and *not* on its role edit, so a full admin there can demote
+ * itself and lose the screen; we guard both paths and this is the count both
+ * read.
+ */
+export async function countActiveAdmins(): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(users)
+    .where(and(eq(users.role, 'admin'), isNull(users.deactivatedAt)))
+  return row?.n ?? 0
+}
+
+/**
+ * Writes the `users` row for an account the identity provider has just made.
+ *
+ * ⚠️ **`id` is the provider's id, never a fresh one.** See `upsertUserById` and
+ * `AuthProvider.createUser` — a row keyed to anything else is unreachable.
+ *
+ * Plain `insert`, not an upsert: a conflict here means the administrator typed
+ * an address that already exists, and the caller turns that into a 409 naming
+ * it rather than quietly adopting the existing row.
+ */
+export async function insertMember(input: {
+  id: string
+  email: string
+  displayName: string | null
+  role: 'admin' | null
+  mustSetPassword: boolean
+}): Promise<User> {
+  const [row] = await db
+    .insert(users)
+    .values({
+      id: input.id as UserId,
+      email: input.email,
+      displayName: input.displayName,
+      role: input.role,
+      mustSetPassword: input.mustSetPassword,
+    })
+    .returning()
+  if (!row) throw new Error('insertMember returned no row')
+  return row
+}
+
+export async function updateMember(
+  id: UserId,
+  patch: { displayName?: string | null; role?: 'admin' | null },
+): Promise<User | null> {
+  const [row] = await db
+    .update(users)
+    .set({ ...patch, updatedAt: new Date().toISOString() })
+    .where(eq(users.id, id))
+    .returning()
+  return row ?? null
+}
+
+/** Sets or clears `deactivated_at`. Reversible, which is the whole design. */
+export async function setMemberDeactivated(id: UserId, deactivated: boolean): Promise<User | null> {
+  const [row] = await db
+    .update(users)
+    .set({
+      deactivatedAt: deactivated ? new Date().toISOString() : null,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(users.id, id))
+    .returning()
+  return row ?? null
+}
+
+/** Flags the account again, after an admin has chosen a password for somebody. */
+export async function setMustSetPassword(id: UserId): Promise<boolean> {
+  const rows = await db
+    .update(users)
+    .set({ mustSetPassword: true, updatedAt: new Date().toISOString() })
     .where(eq(users.id, id))
     .returning({ id: users.id })
   return rows.length > 0

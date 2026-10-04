@@ -9,6 +9,12 @@ import {
   PasswordRejectedError,
 } from './port'
 
+/** The slice of GoTrue's Admin API this adapter uses, and the test seam's shape. */
+export type AdminApi = Pick<
+  SupabaseClient['auth']['admin'],
+  'updateUserById' | 'createUser' | 'deleteUser'
+>
+
 export interface SupabaseAuthConfig {
   jwksUrl: string
   audience?: string
@@ -26,7 +32,7 @@ export interface SupabaseAuthDeps {
   jwks?: JWTVerifyGetKey
   // Test seam: the admin client `setPassword` writes through. Supplying it
   // keeps the unit tests off the network and out of a real project.
-  adminClient?: Pick<SupabaseClient['auth']['admin'], 'updateUserById'>
+  adminClient?: AdminApi
 }
 
 export function createSupabaseAuthProvider(
@@ -40,9 +46,8 @@ export function createSupabaseAuthProvider(
   // only verifies tokens should not need the service key to boot, and the one
   // that sets passwords should fail where the act is attempted rather than at
   // startup with a message about an unrelated feature.
-  let adminClient: Pick<SupabaseClient['auth']['admin'], 'updateUserById'> | null =
-    deps.adminClient ?? null
-  function admin(): Pick<SupabaseClient['auth']['admin'], 'updateUserById'> {
+  let adminClient: AdminApi | null = deps.adminClient ?? null
+  function admin(): AdminApi {
     if (adminClient) return adminClient
     if (!config.url || !config.serviceKey) {
       throw new PasswordNotSupportedError(
@@ -59,6 +64,7 @@ export function createSupabaseAuthProvider(
   }
 
   return {
+    holdsPasswords: true,
     async verifyToken(token: string) {
       let sub: string
       let emailClaim: string | undefined
@@ -105,6 +111,46 @@ export function createSupabaseAuthProvider(
     },
     async getUserById(id: string) {
       return lookup(id)
+    },
+    async createUser(input: { email: string; password?: string }) {
+      const client = admin()
+      // `email_confirm: true` — and the reason is not the one a self-signup
+      // would give. **An administrator typed this address on purpose**, behind
+      // the admin gate. There is no mail to send and nothing to confirm.
+      //
+      // The account is created with the password the administrator chose and
+      // with no session, so the only way in is for somebody to sign in with it
+      // and immediately replace it.
+      const { data, error } = await client.createUser({
+        email: input.email,
+        password: input.password,
+        email_confirm: true,
+      })
+      if (error) {
+        const status = error.status ?? 0
+        // A duplicate address and a rejected password are both the
+        // administrator's to fix, and the message names which.
+        if (status >= 400 && status < 500) throw new PasswordRejectedError(error.message)
+        throw new Error(`could not create the account: ${error.message}`)
+      }
+      const userId = data.user?.id
+      if (!userId) throw new Error('the identity provider returned no user id')
+      return { userId }
+    },
+    async deleteUser(userId: string) {
+      const client = admin()
+      const { error } = await client.deleteUser(userId)
+      if (error) throw new Error(`could not delete the account: ${error.message}`)
+    },
+    async setSuspended(userId: string, suspended: boolean) {
+      const client = admin()
+      // About a hundred years, which is Launchpad's figure and its reasoning:
+      // ban rather than delete, so the audit trail keeps a subject. `'none'`
+      // lifts it, because we expect to.
+      const { error } = await client.updateUserById(userId, {
+        ban_duration: suspended ? '876600h' : 'none',
+      })
+      if (error) throw new Error(`could not change the account's suspension: ${error.message}`)
     },
     async setPassword(userId: string, password: string) {
       const client = admin()

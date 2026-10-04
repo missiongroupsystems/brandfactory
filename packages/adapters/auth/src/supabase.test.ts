@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { SignJWT, generateKeyPair, exportJWK, type JWK, type KeyLike } from 'jose'
-import { createSupabaseAuthProvider } from './supabase'
+import { createSupabaseAuthProvider, type AdminApi } from './supabase'
 import { InvalidTokenError, PasswordNotSupportedError, PasswordRejectedError } from './port'
 
 const ISSUER = 'https://issuer.test'
@@ -112,18 +112,31 @@ describe('createSupabaseAuthProvider', () => {
   })
 })
 
+/** Only the method under test is real; the rest throw if a test reaches them. */
+function adminStub(over: Partial<AdminApi>): AdminApi {
+  const unused = (name: string) => () => {
+    throw new Error(`${name} should not be called by this test`)
+  }
+  return {
+    updateUserById: unused('updateUserById'),
+    createUser: unused('createUser'),
+    deleteUser: unused('deleteUser'),
+    ...over,
+  } as AdminApi
+}
+
 describe('setPassword', () => {
   it('writes through the admin client and reports nothing back', async () => {
     const calls: Array<{ id: string; password?: string }> = []
     const provider = createSupabaseAuthProvider(
       { jwksUrl: 'https://example.test/jwks' },
       {
-        adminClient: {
+        adminClient: adminStub({
           updateUserById: (async (id: string, attrs: { password?: string }) => {
             calls.push({ id, password: attrs.password })
             return { data: { user: null }, error: null }
           }) as never,
-        },
+        }),
       },
     )
     await expect(provider.setPassword('u-1', 'correct-horse-battery')).resolves.toBeUndefined()
@@ -134,9 +147,9 @@ describe('setPassword', () => {
     return createSupabaseAuthProvider(
       { jwksUrl: 'https://example.test/jwks' },
       {
-        adminClient: {
+        adminClient: adminStub({
           updateUserById: (async () => ({ data: { user: null }, error })) as never,
-        },
+        }),
       },
     )
   }
@@ -180,5 +193,93 @@ describe('setPassword', () => {
     await expect(provider.setPassword('u-1', 'correct-horse-battery')).rejects.toBeInstanceOf(
       PasswordNotSupportedError,
     )
+  })
+})
+
+describe('createUser', () => {
+  it('creates a confirmed account with the password and returns its id', async () => {
+    // `users.id` *is* this id. A row written with any other value collides on
+    // `email` the first time its owner signs in, and the adapter swallows that
+    // error — leaving a row nothing can reach.
+    const calls: Array<{ email: string; password?: string; email_confirm?: boolean }> = []
+    const provider = createSupabaseAuthProvider(
+      { jwksUrl: 'https://example.test/keys' },
+      {
+        adminClient: adminStub({
+          createUser: (async (attrs: {
+            email: string
+            password?: string
+            email_confirm?: boolean
+          }) => {
+            calls.push(attrs)
+            return { data: { user: { id: 'new-sub' } }, error: null }
+          }) as never,
+        }),
+      },
+    )
+    expect(
+      await provider.createUser({ email: 'a@b.test', password: 'correct-horse-battery' }),
+    ).toEqual({ userId: 'new-sub' })
+    expect(calls).toEqual([
+      { email: 'a@b.test', password: 'correct-horse-battery', email_confirm: true },
+    ])
+  })
+
+  it('reports a 4xx as the administrator’s to fix', async () => {
+    // A duplicate address and a rejected password both land here, and the
+    // message names which one it was.
+    const provider = createSupabaseAuthProvider(
+      { jwksUrl: 'https://example.test/keys' },
+      {
+        adminClient: adminStub({
+          createUser: (async () => ({
+            data: { user: null },
+            error: {
+              message: 'A user with this email address has already been registered',
+              status: 422,
+            },
+          })) as never,
+        }),
+      },
+    )
+    await expect(provider.createUser({ email: 'a@b.test', password: 'x' })).rejects.toBeInstanceOf(
+      PasswordRejectedError,
+    )
+  })
+
+  it('throws when the provider answers without an id rather than returning a blank one', async () => {
+    // A `{ userId: '' }` here would be written into `users.id`, and the row
+    // would be unreachable with nothing having failed.
+    const provider = createSupabaseAuthProvider(
+      { jwksUrl: 'https://example.test/keys' },
+      {
+        adminClient: adminStub({
+          createUser: (async () => ({ data: { user: null }, error: null })) as never,
+        }),
+      },
+    )
+    await expect(provider.createUser({ email: 'a@b.test' })).rejects.toThrow(/no user id/)
+  })
+})
+
+describe('setSuspended', () => {
+  it('bans for about a century, and lifts with none', async () => {
+    const calls: Array<string | undefined> = []
+    const provider = createSupabaseAuthProvider(
+      { jwksUrl: 'https://example.test/keys' },
+      {
+        adminClient: adminStub({
+          updateUserById: (async (_id: string, attrs: { ban_duration?: string }) => {
+            calls.push(attrs.ban_duration)
+            return { data: { user: null }, error: null }
+          }) as never,
+        }),
+      },
+    )
+    await provider.setSuspended('u-1', true)
+    await provider.setSuspended('u-1', false)
+    // Reversible on purpose: for nine people a deactivation is nearly always
+    // temporary, which is why this is a ban and not a delete.
+    expect(calls).toEqual(['876600h', 'none'])
   })
 })

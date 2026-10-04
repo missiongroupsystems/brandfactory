@@ -151,7 +151,14 @@ describe('the password gate covers every prefix that is not deliberately open', 
     // If this list shrinks, either a feature was deleted or `app.routes` stopped
     // reporting what this test reads. Both deserve a look before the assertion
     // below is trusted.
-    expect(prefixes).toEqual(['/blob-urls', '/brands', '/projects', '/research', '/workspaces'])
+    expect(prefixes).toEqual([
+      '/blob-urls',
+      '/brands',
+      '/members',
+      '/projects',
+      '/research',
+      '/workspaces',
+    ])
   })
 
   it('refuses a flagged caller on every one of them', async () => {

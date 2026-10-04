@@ -39,3 +39,66 @@ export async function listBrandGrantsForUser(
     role: r.role,
   }))
 }
+
+/**
+ * Makes this person's grants exactly `wanted`, by **diff** — insert what is
+ * new, update what changed role, delete what is gone.
+ *
+ * ⚠️ **Not delete-all-then-insert**, and Launchpad's note is the reason:
+ *
+ * > *"`users.update` used to delete every row and re-insert. … a burst of
+ * > writes, and a window in which a concurrent read sees them on no team
+ * > project at all."*
+ *
+ * Here the window is smaller and worse-shaped: a concurrent request from the
+ * person being edited would be refused access to a brand they keep, because
+ * for a moment the grant did not exist. Saving a profile must not log somebody
+ * out of a brand.
+ *
+ * Returns what changed, so the caller can write one audit row per act rather
+ * than one per save.
+ */
+export async function setBrandGrants(
+  userId: UserId,
+  wanted: ReadonlyArray<{ brandId: BrandId; role: BrandRole }>,
+): Promise<{
+  granted: Array<{ brandId: BrandId; role: BrandRole }>
+  changed: Array<{ brandId: BrandId; from: BrandRole; to: BrandRole }>
+  revoked: Array<{ brandId: BrandId; from: BrandRole }>
+}> {
+  return db.transaction(async (tx) => {
+    const existing = await tx
+      .select({ brandId: userBrands.brandId, role: userBrands.role })
+      .from(userBrands)
+      .where(eq(userBrands.userId, userId))
+
+    const have = new Map(existing.map((r) => [r.brandId as BrandId, r.role]))
+    const want = new Map(wanted.map((r) => [r.brandId, r.role]))
+
+    const granted: Array<{ brandId: BrandId; role: BrandRole }> = []
+    const changed: Array<{ brandId: BrandId; from: BrandRole; to: BrandRole }> = []
+    const revoked: Array<{ brandId: BrandId; from: BrandRole }> = []
+
+    for (const [brandId, role] of want) {
+      const current = have.get(brandId)
+      if (current === undefined) {
+        await tx.insert(userBrands).values({ userId, brandId, role })
+        granted.push({ brandId, role })
+      } else if (current !== role) {
+        await tx
+          .update(userBrands)
+          .set({ role, updatedAt: new Date().toISOString() })
+          .where(and(eq(userBrands.userId, userId), eq(userBrands.brandId, brandId)))
+        changed.push({ brandId, from: current, to: role })
+      }
+    }
+    for (const [brandId, role] of have) {
+      if (want.has(brandId)) continue
+      await tx
+        .delete(userBrands)
+        .where(and(eq(userBrands.userId, userId), eq(userBrands.brandId, brandId)))
+      revoked.push({ brandId, from: role })
+    }
+    return { granted, changed, revoked }
+  })
+}

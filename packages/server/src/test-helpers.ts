@@ -80,7 +80,7 @@ import {
   InfluencerHandleTakenError,
   VendorUenTakenError,
 } from '@brandfactory/db'
-import type { ResearchJob, SectionAutofillEvent } from '@brandfactory/db'
+import type { AuditEntry, ResearchJob, SectionAutofillEvent } from '@brandfactory/db'
 import type { Db } from './db'
 import type { ShapeResearchFn, ShapeSectionFn } from './research/shape'
 import type { IdeateCopyFn, IdeateThemesFn } from './social/ideate'
@@ -166,6 +166,8 @@ export interface FakeDbState {
   users: Map<string, FakeUserRow>
   /** Per-brand grants. A workspace admin needs none — `isAdmin` short-circuits. */
   userBrands: Map<string, { userId: string; brandId: string; role: BrandRole }>
+  /** Every audit row written. Nothing reads the real table yet, so tests read this. */
+  credentialAudit: AuditEntry[]
   workspaces: Map<string, Workspace>
   brands: Map<string, Brand>
   sections: Map<string, BrandGuidelineSection>
@@ -205,6 +207,7 @@ export function createFakeDbState(): FakeDbState {
   return {
     users: new Map(),
     userBrands: new Map(),
+    credentialAudit: [],
     workspaces: new Map(),
     brands: new Map(),
     sections: new Map(),
@@ -448,6 +451,111 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         })
       }
       return out
+    },
+    async getUserByEmail(email) {
+      for (const row of state.users.values()) {
+        if (row.email.toLowerCase() === email.toLowerCase()) return row
+      }
+      return null
+    },
+    async listMembers() {
+      return [...state.users.values()]
+        .map((u) => ({
+          id: u.id as UserId,
+          email: u.email,
+          displayName: u.displayName,
+          role: u.role,
+          mustSetPassword: u.mustSetPassword,
+          deactivatedAt: u.deactivatedAt,
+          createdAt: u.createdAt,
+        }))
+        .sort((a, b) => a.email.localeCompare(b.email))
+    },
+    async countActiveAdmins() {
+      let n = 0
+      for (const row of state.users.values()) {
+        if (row.role === 'admin' && row.deactivatedAt === null) n += 1
+      }
+      return n
+    },
+    async insertMember(input) {
+      // Mirrors the real plain `insert`: a duplicate id or address throws rather
+      // than adopting the existing row.
+      if (state.users.has(input.id)) throw new Error('duplicate key value violates users_pkey')
+      for (const row of state.users.values()) {
+        if (row.email.toLowerCase() === input.email.toLowerCase()) {
+          throw new Error('duplicate key value violates users_email_lower_idx')
+        }
+      }
+      const row: FakeUserRow = {
+        id: input.id,
+        email: input.email,
+        displayName: input.displayName,
+        role: input.role,
+        mustSetPassword: input.mustSetPassword,
+        deactivatedAt: null,
+        createdAt: NOW,
+        updatedAt: NOW,
+      }
+      state.users.set(row.id, row)
+      return row
+    },
+    async updateMember(id, patch) {
+      const row = state.users.get(id)
+      if (!row) return null
+      if (patch.displayName !== undefined) row.displayName = patch.displayName
+      if (patch.role !== undefined) row.role = patch.role
+      return row
+    },
+    async setMemberDeactivated(id, deactivated) {
+      const row = state.users.get(id)
+      if (!row) return null
+      row.deactivatedAt = deactivated ? NOW : null
+      return row
+    },
+    async setMustSetPassword(id) {
+      const row = state.users.get(id)
+      if (!row) return false
+      row.mustSetPassword = true
+      return true
+    },
+    async setBrandGrants(userId, wanted) {
+      const granted: Array<{ brandId: BrandId; role: BrandRole }> = []
+      const changed: Array<{ brandId: BrandId; from: BrandRole; to: BrandRole }> = []
+      const revoked: Array<{ brandId: BrandId; from: BrandRole }> = []
+      const have = new Map<string, BrandRole>()
+      for (const [key, row] of state.userBrands) {
+        if (row.userId === userId) have.set(row.brandId, row.role)
+        void key
+      }
+      for (const w of wanted) {
+        const current = have.get(w.brandId)
+        if (current === undefined) {
+          state.userBrands.set(`${userId}:${w.brandId}`, {
+            userId,
+            brandId: w.brandId,
+            role: w.role,
+          })
+          granted.push({ brandId: w.brandId, role: w.role })
+        } else if (current !== w.role) {
+          state.userBrands.set(`${userId}:${w.brandId}`, {
+            userId,
+            brandId: w.brandId,
+            role: w.role,
+          })
+          changed.push({ brandId: w.brandId, from: current, to: w.role })
+        }
+      }
+      const want = new Set(wanted.map((w) => w.brandId as string))
+      for (const [brandId, role] of have) {
+        if (want.has(brandId)) continue
+        state.userBrands.delete(`${userId}:${brandId}`)
+        revoked.push({ brandId: brandId as BrandId, from: role })
+      }
+      return { granted, changed, revoked }
+    },
+    async writeAudit(entry) {
+      state.credentialAudit.push(entry)
     },
     async clearMustSetPassword(id) {
       const row = state.users.get(id)
@@ -2078,6 +2186,13 @@ export interface FakeAuthOptions {
   users?: Map<string, FakeUserRow>
   /** Called instead of talking to an identity provider. Throw to simulate a refusal. */
   onSetPassword?: (userId: string, password: string) => void | Promise<void>
+  /** False models the local dev provider, which holds no credential at all. */
+  holdsPasswords?: boolean
+  /** Throw to simulate the provider refusing a create; the default mints a stable id. */
+  onCreateUser?: (input: { email: string; password?: string }) => Promise<{ userId: string }>
+  /** Records the compensating delete a failed create must make. */
+  onDeleteUser?: (userId: string) => void
+  onSetSuspended?: (userId: string, suspended: boolean) => void | Promise<void>
 }
 
 export function createFakeAuth(
@@ -2107,6 +2222,19 @@ export function createFakeAuth(
     },
     async setPassword(userId: string, password: string) {
       await opts.onSetPassword?.(userId, password)
+    },
+    // Defaults to true because that is what production is. A test about the
+    // local provider's no-credential case sets it false.
+    holdsPasswords: opts.holdsPasswords ?? true,
+    async createUser(input: { email: string; password?: string }) {
+      if (opts.onCreateUser) return opts.onCreateUser(input)
+      return { userId: `sub-${input.email}` }
+    },
+    async deleteUser(userId: string) {
+      opts.onDeleteUser?.(userId)
+    },
+    async setSuspended(userId: string, suspended: boolean) {
+      await opts.onSetSuspended?.(userId, suspended)
     },
   }
 }
@@ -2217,6 +2345,13 @@ export function createTestApp(
     }>
     /** Called instead of an identity provider when a route sets a password. */
     onSetPassword?: (userId: string, password: string) => void | Promise<void>
+    /** False models the local dev provider, which holds no credential at all. */
+    holdsPasswords?: boolean
+    /** Throw to simulate the provider refusing a create; the default mints a stable id. */
+    onCreateUser?: (input: { email: string; password?: string }) => Promise<{ userId: string }>
+    /** Records the compensating delete a failed create must make. */
+    onDeleteUser?: (userId: string) => void
+    onSetSuspended?: (userId: string, suspended: boolean) => void | Promise<void>
     env?: Partial<Env>
     storage?: BlobStore
     llm?: LLMProvider
@@ -2251,7 +2386,14 @@ export function createTestApp(
   }
   const tokens: Record<string, string> = {}
   for (const u of opts.users ?? []) tokens[u.token] = u.id
-  const auth = createFakeAuth(tokens, { users: state.users, onSetPassword: opts.onSetPassword })
+  const auth = createFakeAuth(tokens, {
+    users: state.users,
+    onSetPassword: opts.onSetPassword,
+    holdsPasswords: opts.holdsPasswords,
+    onCreateUser: opts.onCreateUser,
+    onDeleteUser: opts.onDeleteUser,
+    onSetSuspended: opts.onSetSuspended,
+  })
   const env = testEnv(opts.env)
   const adapters = createFakeAdapters({
     db,

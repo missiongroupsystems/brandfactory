@@ -21,6 +21,7 @@ describe('GET /me', () => {
     // 403 rather than 401 because the token *is* valid. What is missing is an
     // account here, and that is authorization.
     const auth: AuthProvider = {
+      holdsPasswords: true,
       async verifyToken() {
         return { userId: 'ghost' }
       },
@@ -28,6 +29,11 @@ describe('GET /me', () => {
         return null
       },
       async setPassword() {},
+      async createUser() {
+        return { userId: 'never' }
+      },
+      async deleteUser() {},
+      async setSuspended() {},
     }
     const adapters = createFakeAdapters({ auth })
     const app = createApp({ ...adapters, env: testEnv(), log: silentLogger() })

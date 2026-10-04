@@ -12,6 +12,7 @@ import type { Env } from './env'
 import type { Logger } from './logger'
 import { createAuthMiddleware, createOptionalAuthMiddleware } from './middleware/auth'
 import { createPasswordGateMiddleware } from './middleware/password-gate'
+import { createAdminMiddleware } from './middleware/admin'
 import { onError } from './middleware/error'
 import { loggerMiddleware } from './middleware/logger'
 import { requestIdMiddleware } from './middleware/request-id'
@@ -47,6 +48,7 @@ import { createBrandsRouter, createWorkspaceBrandsRouter } from './routes/brands
 import { createCanvasRouter } from './routes/canvas'
 import { createHealthRouter } from './routes/health'
 import { createMeRouter } from './routes/me'
+import { createMembersRouter } from './routes/members'
 import { createMessagesRouter } from './routes/messages'
 import { createWorkspaceInfluencersRouter } from './routes/influencers'
 import { createWorkspaceOutletsRouter } from './routes/outlets'
@@ -134,6 +136,7 @@ export function createApp(deps: AppDeps) {
   // blobs, and `/rt` terminates at the ws upgrade handler, not HTTP.
   const authRequired = createAuthMiddleware(deps.auth)
   app.use('/me/*', authRequired)
+  app.use('/members/*', authRequired)
   app.use('/workspaces/*', authRequired)
   app.use('/brands/*', authRequired)
   app.use('/projects/*', authRequired)
@@ -155,10 +158,16 @@ export function createApp(deps: AppDeps) {
   app.use('/projects/*', passwordSet)
   app.use('/blob-urls/*', passwordSet)
   app.use('/research/*', passwordSet)
+  app.use('/members/*', passwordSet)
+
+  // Admin only, and this is the whole of it — there is no per-route check in
+  // `routes/members.ts` to forget.
+  app.use('/members/*', createAdminMiddleware())
 
   const composed = app
     .route('/health', createHealthRouter())
     .route('/me', createMeRouter({ auth: deps.auth, db: deps.db }))
+    .route('/members', createMembersRouter({ db: deps.db, auth: deps.auth }))
     // Deployment-level: is research on at all? Needed by the create dialog
     // before a brand exists; the brand-scoped GET still carries the same flag.
     .route('/research', createResearchConfigRouter({ env: deps.env }))

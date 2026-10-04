@@ -14,6 +14,15 @@ export interface Db {
   clearMustSetPassword: typeof db.clearMustSetPassword
   getBrandRoleForUser: typeof db.getBrandRoleForUser
   listBrandGrantsForUser: typeof db.listBrandGrantsForUser
+  getUserByEmail: typeof db.getUserByEmail
+  listMembers: typeof db.listMembers
+  countActiveAdmins: typeof db.countActiveAdmins
+  insertMember: typeof db.insertMember
+  updateMember: typeof db.updateMember
+  setMemberDeactivated: typeof db.setMemberDeactivated
+  setMustSetPassword: typeof db.setMustSetPassword
+  setBrandGrants: typeof db.setBrandGrants
+  writeAudit: typeof db.writeAudit
 
   // Workspaces
   getWorkspaceById: typeof db.getWorkspaceById
@@ -182,6 +191,15 @@ export function buildDbDeps(): Db {
     clearMustSetPassword: db.clearMustSetPassword,
     getBrandRoleForUser: db.getBrandRoleForUser,
     listBrandGrantsForUser: db.listBrandGrantsForUser,
+    getUserByEmail: db.getUserByEmail,
+    listMembers: db.listMembers,
+    countActiveAdmins: db.countActiveAdmins,
+    insertMember: db.insertMember,
+    updateMember: db.updateMember,
+    setMemberDeactivated: db.setMemberDeactivated,
+    setMustSetPassword: db.setMustSetPassword,
+    setBrandGrants: db.setBrandGrants,
+    writeAudit: db.writeAudit,
     getWorkspaceById: db.getWorkspaceById,
     listWorkspacesByOwner: db.listWorkspacesByOwner,
     listAllWorkspaces: db.listAllWorkspaces,

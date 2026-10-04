@@ -7,6 +7,7 @@ export * from './schema'
 // Query helpers, grouped by aggregate. "Dumb" CRUD; no business rules.
 export * from './queries/users'
 export * from './queries/user-brands'
+export * from './queries/credential-audit'
 export * from './queries/workspaces'
 export * from './queries/brands'
 export * from './queries/assets'

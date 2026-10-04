@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import type { UserId } from '@brandfactory/shared'
 import { getUserById as dbGetUserById, type User } from '@brandfactory/db'
 import { type AuthProvider, InvalidTokenError, PasswordNotSupportedError } from './port'
@@ -18,6 +19,10 @@ export function createLocalAuthProvider(deps: LocalAuthDeps = {}): AuthProvider 
   const lookup = deps.getUserById ?? ((id: string) => dbGetUserById(id as UserId))
 
   return {
+    // No credential exists here at all — the token is the user id. The create
+    // route reads this so it does not flag an account whose password nobody
+    // ever chose, and nobody ever will.
+    holdsPasswords: false,
     async verifyToken(token: string) {
       if (!UUID_RE.test(token)) {
         throw new InvalidTokenError('local auth token is not a uuid')
@@ -28,6 +33,22 @@ export function createLocalAuthProvider(deps: LocalAuthDeps = {}): AuthProvider 
     },
     async getUserById(id: string) {
       return lookup(id)
+    },
+    async createUser(input: { email: string; password?: string }) {
+      // Dev auth has no account to create, and the password is discarded
+      // rather than stored — `holdsPasswords` is false, so the caller does not
+      // send one. The id is what matters: it becomes both the `users.id` and
+      // the bearer token a dev session presents.
+      void input
+      return { userId: randomUUID() }
+    },
+    async deleteUser() {
+      // Nothing was created, so nothing to compensate. A throw here would turn
+      // a failed create's cleanup into a second, louder failure.
+    },
+    async setSuspended() {
+      // `users.deactivated_at` is the boundary; there is no credential here to
+      // suspend alongside it.
     },
     async setPassword() {
       // Dev auth has no credential to replace — the token is the user id. A
