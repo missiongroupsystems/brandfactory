@@ -34,8 +34,11 @@ import type {
   Influencer,
   InfluencerAccount,
   InfluencerId,
+  MarketingRequest,
+  MarketingRequestId,
   Outlet,
   OutletId,
+  UserId,
   Project,
   ProjectId,
   ProjectSummary,
@@ -58,6 +61,9 @@ import {
   byOutletName,
   byVendorName,
   byVersionRecency,
+  isClosedStatus,
+  marketingRequestReference,
+  MARKETING_REQUEST_FIRST_NUMBER,
   uniqueInfluencerSlug,
   uniqueOutletSlug,
   uniqueVendorSlug,
@@ -66,7 +72,9 @@ import { createAgentConcurrencyGuard, type AgentConcurrencyGuard } from './agent
 import { createApp, type AppDeps } from './app'
 import {
   AssetNotInBrandError,
+  AssigneeNotFoundError,
   BrandNotInWorkspaceError,
+  OutletNotInBrandError,
   InfluencerHandleTakenError,
   VendorUenTakenError,
 } from '@brandfactory/db'
@@ -107,6 +115,17 @@ export function shaped(drafts: ResearchDraft[], sectionsReturned = drafts.length
     reportChars: 2000,
     sectionsReturned,
   }
+}
+
+/**
+ * A request as the table holds it: user ids, not people, and a `deletedAt`.
+ * The fake joins the people on read, as the real query's left joins do, so a
+ * test that renames a user sees the new name on every request.
+ */
+type FakeMarketingRequestRow = Omit<MarketingRequest, 'reference' | 'requestedBy' | 'assignee'> & {
+  requestedByUserId: string | null
+  assigneeUserId: string | null
+  deletedAt: string | null
 }
 
 interface FakeUserRow {
@@ -161,6 +180,7 @@ export interface FakeDbState {
   failNextSectionAutofillRecord?: boolean
   socialPosts: Map<string, SocialPost>
   outlets: Map<string, Outlet>
+  marketingRequests: Map<string, FakeMarketingRequestRow>
   influencers: Map<string, Influencer>
   vendors: Map<string, Vendor>
   projects: Map<string, Project>
@@ -190,6 +210,7 @@ export function createFakeDbState(): FakeDbState {
     sectionAutofillEvents: [],
     socialPosts: new Map(),
     outlets: new Map(),
+    marketingRequests: new Map(),
     influencers: new Map(),
     vendors: new Map(),
     projects: new Map(),
@@ -233,6 +254,47 @@ function assertFakeBrandInWorkspace(
   if (!brandId) return
   const brand = state.brands.get(brandId)
   if (!brand || brand.workspaceId !== workspaceId) throw new BrandNotInWorkspaceError(brandId)
+}
+
+// The fake half of `assertOutletInBrand` in `queries/marketing-requests.ts`:
+// the outlet exists, is in this workspace, and belongs to this brand.
+function assertFakeOutletInBrand(
+  state: FakeDbState,
+  workspaceId: WorkspaceId,
+  brandId: BrandId,
+  outletId: OutletId | null | undefined,
+): void {
+  if (!outletId) return
+  const outlet = state.outlets.get(outletId)
+  if (!outlet || outlet.workspaceId !== workspaceId || outlet.brandId !== brandId) {
+    throw new OutletNotInBrandError(outletId)
+  }
+}
+
+function liveMarketingRequest(
+  state: FakeDbState,
+  workspaceId: WorkspaceId,
+  id: MarketingRequestId,
+): FakeMarketingRequestRow | null {
+  const row = state.marketingRequests.get(id)
+  return row && row.workspaceId === workspaceId && row.deletedAt === null ? row : null
+}
+
+function hydrateMarketingRequest(
+  state: FakeDbState,
+  row: FakeMarketingRequestRow,
+): MarketingRequest {
+  const person = (userId: string | null) => {
+    const user = userId ? state.users.get(userId) : undefined
+    return user ? { id: user.id as UserId, email: user.email, displayName: user.displayName } : null
+  }
+  const { requestedByUserId, assigneeUserId, deletedAt: _deletedAt, ...rest } = row
+  return {
+    ...rest,
+    reference: marketingRequestReference(row.number),
+    requestedBy: person(requestedByUserId),
+    assignee: person(assigneeUserId),
+  }
 }
 
 // The array-taking sibling, mirroring `assertBrandsInWorkspace` in
@@ -397,6 +459,10 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       for (const [oid, outlet] of [...state.outlets.entries()]) {
         if (outlet.workspaceId === id) state.outlets.delete(oid)
       }
+      // `marketing_requests.workspace_id` is ON DELETE CASCADE.
+      for (const [rid, request] of [...state.marketingRequests.entries()]) {
+        if (request.workspaceId === id) state.marketingRequests.delete(rid)
+      }
       // `influencers.workspace_id` is ON DELETE CASCADE too, and the link rows
       // go with each creator by their own cascade — which is why nothing here
       // has to touch `brandIds`.
@@ -521,6 +587,11 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       }
       for (const [pid, post] of state.socialPosts) {
         if (post.brandId === id) state.socialPosts.delete(pid)
+      }
+      // `marketing_requests.brand_id` is ON DELETE CASCADE: a request is about
+      // a brand and the column cannot be nulled.
+      for (const [rid, request] of [...state.marketingRequests.entries()]) {
+        if (request.brandId === id) state.marketingRequests.delete(rid)
       }
       // `outlets.brand_id` is ON DELETE **SET NULL**, not cascade — a lease
       // outlives its branding. Deleting the outlet here would make the fake
@@ -1298,6 +1369,91 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       if (!existing || existing.workspaceId !== workspaceId) return null
       state.outlets.delete(id)
       return existing
+    },
+
+    // Marketing requests. The real query's rules, each with a route test that
+    // a looser fake would pass: workspace scoping on every read and write, the
+    // brand and outlet-in-brand gates throwing the same typed errors, the
+    // number counting soft-deleted rows, and `resolvedAt` following the status.
+    async listMarketingRequestsByWorkspace(workspaceId) {
+      return [...state.marketingRequests.values()]
+        .filter((r) => r.workspaceId === workspaceId && r.deletedAt === null)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.number - a.number)
+        .map((r) => hydrateMarketingRequest(state, r))
+    },
+    async getMarketingRequest(workspaceId, id) {
+      const row = liveMarketingRequest(state, workspaceId, id)
+      return row ? hydrateMarketingRequest(state, row) : null
+    },
+    async createMarketingRequest(workspaceId, requestedByUserId, input) {
+      assertFakeBrandInWorkspace(state, workspaceId, input.brandId)
+      assertFakeOutletInBrand(state, workspaceId, input.brandId, input.outletId)
+      const numbers = [...state.marketingRequests.values()]
+        .filter((r) => r.workspaceId === workspaceId)
+        .map((r) => r.number)
+      const id = nextId('mr') as MarketingRequestId
+      const row: FakeMarketingRequestRow = {
+        id,
+        workspaceId,
+        brandId: input.brandId,
+        outletId: input.outletId ?? null,
+        number: numbers.length > 0 ? Math.max(...numbers) + 1 : MARKETING_REQUEST_FIRST_NUMBER,
+        type: input.type,
+        priority: input.priority,
+        status: 'new',
+        summary: input.summary,
+        details: input.details ?? null,
+        neededBy: input.neededBy ?? null,
+        requestedByUserId:
+          requestedByUserId && state.users.has(requestedByUserId) ? requestedByUserId : null,
+        assigneeUserId: null,
+        resolvedAt: null,
+        createdAt: NOW,
+        updatedAt: NOW,
+        deletedAt: null,
+      }
+      state.marketingRequests.set(id, row)
+      return hydrateMarketingRequest(state, row)
+    },
+    async updateMarketingRequest(workspaceId, id, patch) {
+      const existing = liveMarketingRequest(state, workspaceId, id)
+      if (!existing) return null
+      const brandId = patch.brandId ?? existing.brandId
+      const outletId = patch.outletId !== undefined ? patch.outletId : existing.outletId
+      if (patch.brandId !== undefined) assertFakeBrandInWorkspace(state, workspaceId, brandId)
+      if (patch.brandId !== undefined || patch.outletId !== undefined) {
+        assertFakeOutletInBrand(state, workspaceId, brandId, outletId)
+      }
+      if (patch.assigneeUserId && !state.users.has(patch.assigneeUserId)) {
+        throw new AssigneeNotFoundError(patch.assigneeUserId)
+      }
+      let resolvedAt = existing.resolvedAt
+      if (patch.status !== undefined) {
+        if (!isClosedStatus(patch.status)) resolvedAt = null
+        else if (!isClosedStatus(existing.status)) resolvedAt = NOW
+      }
+      const updated: FakeMarketingRequestRow = {
+        ...existing,
+        brandId,
+        outletId,
+        ...(patch.type !== undefined ? { type: patch.type } : {}),
+        ...(patch.priority !== undefined ? { priority: patch.priority } : {}),
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        ...(patch.summary !== undefined ? { summary: patch.summary } : {}),
+        ...(patch.details !== undefined ? { details: patch.details } : {}),
+        ...(patch.neededBy !== undefined ? { neededBy: patch.neededBy } : {}),
+        ...(patch.assigneeUserId !== undefined ? { assigneeUserId: patch.assigneeUserId } : {}),
+        resolvedAt,
+        updatedAt: NOW,
+      }
+      state.marketingRequests.set(id, updated)
+      return hydrateMarketingRequest(state, updated)
+    },
+    async softDeleteMarketingRequest(workspaceId, id) {
+      const existing = liveMarketingRequest(state, workspaceId, id)
+      if (!existing) return null
+      state.marketingRequests.set(id, { ...existing, deletedAt: NOW })
+      return hydrateMarketingRequest(state, existing)
     },
 
     // Influencers. The outlets rule again, plus one property those fakes do not

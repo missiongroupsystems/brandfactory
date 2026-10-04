@@ -1,6 +1,6 @@
 # MKT-5 — The marketing request form
 
-**Status:** proposal. Nothing below is built. Written 4 October 2026.
+**Status:** decisions taken 4 October 2026 — 1A, brand plus optional outlet, 3A. Phase 1 is built (`docs/completions/marketing-requests-phase-1-backend.md`). Written 4 October 2026.
 
 **Source:** Module 02 build plan, `docs/refs/2026-09-16-marketing-build-plan-module-02.md`, finding 6 and MKT-5: _"The marketing request form they asked for can be built with forms that already exist, once they have accounts."_
 
@@ -59,8 +59,8 @@ The sample form asks for an **outlet**. Brand Base's unit is the **brand**, and 
 - **Routes**, all behind the auth gate and `requireBrandAccess` or `requireWorkspaceAccess`:
   - `GET /workspaces/:id/marketing-requests` — the whole set, like influencers and vendors, with a tripwire comment at ~500 rows.
   - `POST /workspaces/:id/marketing-requests`.
-  - `PATCH /marketing-requests/:id` — status, assignee, the fields.
-  - `DELETE /marketing-requests/:id` — soft.
+  - `GET` and `PATCH /workspaces/:id/marketing-requests/:requestId` — status, assignee, the fields. (Built under `/workspaces`, the outlets shape, rather than a top-level `/marketing-requests`.)
+  - `DELETE /workspaces/:id/marketing-requests/:requestId` — soft.
 - **Shared schemas** in `@brandfactory/shared`. A generated migration.
 - **Tests:** the route tests with fakes, the reference sequence under two concurrent inserts, an outlet from another brand refused, and an `*.live.test.ts` for the sequence.
 

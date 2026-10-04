@@ -111,6 +111,13 @@ export interface Db {
   updateOutlet: typeof db.updateOutlet
   deleteOutlet: typeof db.deleteOutlet
 
+  // Marketing requests — workspace-scoped, one brand each (MKT-5)
+  listMarketingRequestsByWorkspace: typeof db.listMarketingRequestsByWorkspace
+  getMarketingRequest: typeof db.getMarketingRequest
+  createMarketingRequest: typeof db.createMarketingRequest
+  updateMarketingRequest: typeof db.updateMarketingRequest
+  softDeleteMarketingRequest: typeof db.softDeleteMarketingRequest
+
   // Influencers — workspace-scoped like outlets, with the same consequence: a
   // creator id from another workspace misses rather than being reached across the
   // boundary. The brand relation is a join table, so every write here can throw
@@ -243,6 +250,11 @@ export function buildDbDeps(): Db {
     createOutlet: db.createOutlet,
     updateOutlet: db.updateOutlet,
     deleteOutlet: db.deleteOutlet,
+    listMarketingRequestsByWorkspace: db.listMarketingRequestsByWorkspace,
+    getMarketingRequest: db.getMarketingRequest,
+    createMarketingRequest: db.createMarketingRequest,
+    updateMarketingRequest: db.updateMarketingRequest,
+    softDeleteMarketingRequest: db.softDeleteMarketingRequest,
     listInfluencersByWorkspace: db.listInfluencersByWorkspace,
     getInfluencerByRef: db.getInfluencerByRef,
     createInfluencer: db.createInfluencer,

@@ -33,6 +33,10 @@ import {
   type PlatformId,
   type PhotoCategoryId,
   type OutletId,
+  type MarketingRequest,
+  type MarketingRequestId,
+  type MarketingRequestPerson,
+  marketingRequestReference,
   type ProjectId,
   type ProjectSummary,
   type ProseMirrorDoc,
@@ -63,6 +67,7 @@ import type {
   influencerAccounts,
   influencers,
   outlets,
+  marketingRequests,
   projects,
   socialPosts,
   vendorContacts,
@@ -636,6 +641,46 @@ export function rowToFunnelActivity(row: FunnelActivityRow): FunnelActivity {
     startsOn: row.startsOn,
     endsOn: row.endsOn,
     note: row.note,
+    createdAt: toIsoTimestamp(row.createdAt),
+    updatedAt: toIsoTimestamp(row.updatedAt),
+  }
+}
+
+type MarketingRequestRow = typeof marketingRequests.$inferSelect
+type PersonRow = { id: string; email: string; displayName: string | null }
+
+function rowToPerson(row: PersonRow | null): MarketingRequestPerson | null {
+  // Drizzle hands back `null` for a nested left-joined object that found nobody.
+  if (row === null) return null
+  return { id: row.id as UserId, email: row.email, displayName: row.displayName }
+}
+
+/**
+ * One request row plus its two people → the wire shape. The people are read by
+ * a left join on every read, never stored as names, so a renamed account shows
+ * its new name on every request it ever touched.
+ */
+export function rowToMarketingRequest(
+  row: MarketingRequestRow,
+  requester: PersonRow | null,
+  assignee: PersonRow | null,
+): MarketingRequest {
+  return {
+    id: row.id as MarketingRequestId,
+    workspaceId: row.workspaceId as WorkspaceId,
+    brandId: row.brandId as BrandId,
+    outletId: (row.outletId as OutletId | null) ?? null,
+    number: row.number,
+    reference: marketingRequestReference(row.number),
+    type: row.type,
+    priority: row.priority,
+    status: row.status,
+    summary: row.summary,
+    details: row.details,
+    neededBy: row.neededBy,
+    requestedBy: rowToPerson(requester),
+    assignee: rowToPerson(assignee),
+    resolvedAt: toIsoTimestampOrNull(row.resolvedAt),
     createdAt: toIsoTimestamp(row.createdAt),
     updatedAt: toIsoTimestamp(row.updatedAt),
   }

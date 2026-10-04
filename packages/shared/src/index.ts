@@ -88,6 +88,10 @@ export * from './vendor/slug'
 export * from './vendor/create'
 export * from './vendor/update'
 
+// Marketing requests — what the business asks marketing for. Workspace-scoped,
+// one brand each; see `marketing-request/request.ts`.
+export * from './marketing-request/request'
+
 // Social posts
 export * from './social/post'
 export * from './social/create'

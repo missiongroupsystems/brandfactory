@@ -183,6 +183,13 @@
       "when": 1790612513062,
       "tag": "0025_black_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791123997503,
+      "tag": "0026_sloppy_juggernaut",
+      "breakpoints": true
     }
   ]
 }

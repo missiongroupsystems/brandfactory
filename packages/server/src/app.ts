@@ -49,6 +49,7 @@ import { createMeRouter } from './routes/me'
 import { createMessagesRouter } from './routes/messages'
 import { createWorkspaceInfluencersRouter } from './routes/influencers'
 import { createWorkspaceOutletsRouter } from './routes/outlets'
+import { createWorkspaceMarketingRequestsRouter } from './routes/marketing-requests'
 import { createWorkspaceVendorsRouter } from './routes/vendors'
 import {
   createBrandProjectsRouter,
@@ -184,6 +185,9 @@ export function createApp(deps: AppDeps) {
     // Vendors mount beside both for the same reasons: workspace-scoped,
     // reachable by slug, and holding no blob keys — so no `storage` either.
     .route('/workspaces', createWorkspaceVendorsRouter({ db: deps.db }))
+    // Marketing requests (MKT-5) — workspace-scoped, one brand each, and no
+    // blob keys. The requester is the session's user, never the body's.
+    .route('/workspaces', createWorkspaceMarketingRequestsRouter({ db: deps.db }))
     .route(
       '/brands',
       createBrandsRouter({

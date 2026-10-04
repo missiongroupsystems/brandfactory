@@ -47,6 +47,9 @@ export type InfluencerId = z.infer<typeof InfluencerIdSchema>
 export const VendorIdSchema = brandedId('VendorId')
 export type VendorId = z.infer<typeof VendorIdSchema>
 
+export const MarketingRequestIdSchema = brandedId('MarketingRequestId')
+export type MarketingRequestId = z.infer<typeof MarketingRequestIdSchema>
+
 export const UserIdSchema = brandedId('UserId')
 export type UserId = z.infer<typeof UserIdSchema>
 
