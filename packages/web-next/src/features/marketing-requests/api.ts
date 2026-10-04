@@ -1,67 +1,52 @@
-import { API_MODE, API_URL, apiFetch } from "@/lib/api/client";
-import { resolveMock } from "@/lib/api/mock";
-import type { FormSubmission, SubmissionStatus } from "@/lib/api/types";
+import type {
+  CreateMarketingRequestInput,
+  MarketingRequest,
+  UpdateMarketingRequestInput,
+} from "@brandfactory/shared";
 
-import { MARKETING_REQUEST_FORM } from "./fixture";
+import { bf, callJson } from "@/lib/api/bf-client";
 
 /**
- * Marketing Requests — the submissions behind the one request form. The form itself is code
- * (`./fixture`), not data; this service only moves what people submit.
+ * Marketing Requests — read and written against the Hono server (MKT-5, Phase 2).
  *
- * **The wire paths still say `forms`.** `/forms/{form_key}/submissions` and
- * `/forms/submissions/{id}` are the Operations Hub backend's, frozen in the generated
- * `schema.d.ts`, and renaming a transport path is not this app's to do — the same split the
- * registry-brands rename settled. The folder, the route and the label say `marketing-requests`;
- * the wire says `forms`. Keep the three in step and leave the fourth alone.
+ * **Workspace-scoped, because the record is.** Every route sits under
+ * `/workspaces/:workspaceId/marketing-requests`, the outlets shape, and `bf` checks each path
+ * against the server's route tree at compile time.
+ *
+ * **There is no public submit any more.** The sample's `/f/request` page posted with no token to
+ * an Ops path; the product decision for MKT-5 is signed-in users only, so `/f/request` now
+ * redirects into the app and the requester comes from the session on the server. A body here
+ * never names who sent it.
  */
 export const requestService = {
-  listSubmissions: () =>
-    apiFetch<FormSubmission[]>(`/forms/${MARKETING_REQUEST_FORM.id}/submissions`),
-  submit: (payload: Record<string, string>) =>
-    apiFetch<FormSubmission>(`/forms/${MARKETING_REQUEST_FORM.id}/submissions`, {
-      method: "POST",
-      body: JSON.stringify({ payload }),
-    }),
-  setStatus: (id: string, status: SubmissionStatus) =>
-    apiFetch<FormSubmission>(`/forms/submissions/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ status }),
-    }),
+  /** Every live request, newest first. A plain array — the inbox counts each rung over it. */
+  list: async (workspaceId: string): Promise<MarketingRequest[]> =>
+    callJson<MarketingRequest[]>(
+      await bf.workspaces[":workspaceId"]["marketing-requests"].$get({ param: { workspaceId } }),
+    ),
+
+  /** Answers `201` with the row, number and requester included. */
+  create: async (
+    workspaceId: string,
+    input: CreateMarketingRequestInput,
+  ): Promise<MarketingRequest> =>
+    callJson<MarketingRequest>(
+      await bf.workspaces[":workspaceId"]["marketing-requests"].$post({
+        param: { workspaceId },
+        json: input,
+      }),
+    ),
+
+  /** A real partial patch: an omitted key is left alone and `null` clears it. */
+  update: async (
+    workspaceId: string,
+    requestId: string,
+    input: UpdateMarketingRequestInput,
+  ): Promise<MarketingRequest> =>
+    callJson<MarketingRequest>(
+      await bf.workspaces[":workspaceId"]["marketing-requests"][":requestId"].$patch({
+        param: { workspaceId, requestId },
+        json: input,
+      }),
+    ),
 };
-
-/**
- * The **public** submit — a raw `fetch` with **no auth header**, to the unauthenticated
- * `/public/forms/{slug}/submissions`. This is the one reason left to reach past `apiFetch`
- * — `features/spaces` was the other, and it is gone: a shared `/f/<slug>` page must never
- * carry the app's API token, so it
- * composes `API_URL` and posts with no credentials. Returns just the confirmation reference.
- *
- * **It checks `API_MODE` itself**, which no other service does and which is worth the two lines:
- * skipping `apiFetch` also skips the mock swap point inside it, so under the default mock mode
- * this function was posting to a service that is not running and the public page could only
- * fail. Reaching past the transport means taking on what the transport was doing.
- */
-export async function publicSubmit(
-  slug: string,
-  payload: Record<string, string>,
-): Promise<{ reference: string }> {
-  const path = `/public/forms/${slug}/submissions`;
-
-  if (API_MODE === "mock") {
-    const result = resolveMock("POST", path, { payload });
-    if (!result.ok) throw new Error(result.detail);
-    return result.body as { reference: string };
-  }
-
-  const response = await fetch(`${API_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ payload }),
-  });
-  if (!response.ok) {
-    const body = (await response.json().catch(() => undefined)) as { detail?: unknown } | undefined;
-    const detail = typeof body?.detail === "string" ? body.detail : undefined;
-    throw new Error(detail ?? `Submit failed (${response.status})`);
-  }
-  return response.json() as Promise<{ reference: string }>;
-}

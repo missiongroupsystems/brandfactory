@@ -1,22 +1,19 @@
-import type { Metadata } from "next";
-
-import { PublicForm } from "@/features/marketing-requests/components/public-form";
-
-export const metadata: Metadata = {
-  title: "Marketing request — Mission Systems",
-  robots: { index: false },
-};
+import { notFound, redirect } from "next/navigation";
 
 /**
- * The public face of the Marketing Request, at `/f/<slug>` (today, `/f/request`). It lives
- * *outside* the `(app)` route group on purpose, so it renders under the root layout only — no
- * sidebar, no app chrome — a clean standalone page anyone can open and submit without logging in.
+ * `/f/request` was the sample's public form, open to anyone with the link. MKT-5 chose
+ * signed-in users only, so the address now lands on the same form inside the app — behind
+ * sign-in — rather than going dark for everybody who saved the old link.
+ *
+ * Any other slug is still a 404: `/f/<slug>` is a shape people paste, and a wrong link has to
+ * say so.
  */
-export default async function PublicFormPage({
+export default async function PublicFormRedirect({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  return <PublicForm slug={slug} />;
+  if (slug !== "request") notFound();
+  redirect("/marketing-requests?new=1");
 }

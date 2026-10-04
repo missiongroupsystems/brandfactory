@@ -1,41 +1,63 @@
 "use client";
 
+import type {
+  CreateMarketingRequestInput,
+  MarketingRequest,
+  UpdateMarketingRequestInput,
+} from "@brandfactory/shared";
+import * as React from "react";
 import useSWR from "swr";
 
+import { useActiveWorkspace } from "@/features/workspaces/active-workspace";
 import { SCOPES, useInvalidate } from "@/lib/api/cache";
-import type { FormSubmission, SubmissionStatus } from "@/lib/api/types";
 
 import { requestService } from "./api";
 
 /**
- * The inbox. **Bounded** — one team's requests, not a registry — so a plain fetch rather than
- * `useCursorPages`, and the filtering below it happens in the browser over the whole list.
+ * The inbox — the workspace's whole list, one request. The filtering happens in the browser over
+ * all of it, which is what lets the status control count each rung truthfully.
  *
- * There is one form now, so the scope needs no key. It was `[scope, formKey]` while there were
- * two, and the key went with the second form rather than being kept for a caller that cannot
- * exist: one scope, one list, one invalidation.
+ * The key is `null` until the workspace resolves: an array key is truthy however empty its
+ * contents, and `[scope, ""]` would fetch `/workspaces//marketing-requests`.
  */
 export function useRequests() {
-  return useSWR<FormSubmission[]>([SCOPES.formSubmissions], () => requestService.listSubmissions());
+  const { workspace, isLoading: workspaceLoading, error: workspaceError } = useActiveWorkspace();
+  const { data, error, isLoading } = useSWR<MarketingRequest[]>(
+    workspace?.id ? [SCOPES.bfMarketingRequests, workspace.id] : null,
+    () => requestService.list(workspace!.id),
+  );
+  const requests = React.useMemo(() => data ?? [], [data]);
+  return {
+    requests,
+    isLoading: workspaceLoading || isLoading,
+    error: workspaceError ?? error,
+  };
 }
 
 /**
- * Submit a request, and move one along the ladder. Both invalidate the inbox scope so the list
- * re-renders from the server — nothing optimistic, the API's answer is what shows. That rule
- * costs a visible beat on a status change and is kept anyway: the day this talks to a real
- * backend, the backend is the thing allowed to refuse.
+ * File a request and change one. Both invalidate the inbox so the list re-renders from the
+ * server — nothing optimistic, because the server is the thing allowed to refuse (an outlet from
+ * another brand, an assignee with no account).
  */
 export function useRequestMutations() {
+  const { workspace } = useActiveWorkspace();
   const invalidate = useInvalidate();
+
+  function workspaceId(): string {
+    if (!workspace?.id) throw new Error("The workspace has not loaded yet. Try again.");
+    return workspace.id;
+  }
+
   return {
-    async submit(payload: Record<string, string>) {
-      const created = await requestService.submit(payload);
-      await invalidate(SCOPES.formSubmissions);
+    async create(input: CreateMarketingRequestInput) {
+      const created = await requestService.create(workspaceId(), input);
+      await invalidate(SCOPES.bfMarketingRequests);
       return created;
     },
-    async setStatus(id: string, status: SubmissionStatus) {
-      await requestService.setStatus(id, status);
-      await invalidate(SCOPES.formSubmissions);
+    async update(id: string, input: UpdateMarketingRequestInput) {
+      const updated = await requestService.update(workspaceId(), id, input);
+      await invalidate(SCOPES.bfMarketingRequests);
+      return updated;
     },
   };
 }

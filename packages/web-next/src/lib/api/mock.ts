@@ -17,14 +17,9 @@
  *      already surfaces as a toast. Nothing is stored, and a form that silently appeared to
  *      save would be the worst outcome of the three.
  *
- * Rule 3 said "any mutation" until Marketing Requests, and the exception is narrow enough to
- * state in full: {@link WRITES} holds the three routes behind that one screen, and they write
- * to a module-level array in `fixtures/marketing-requests.ts`. The reason is that the screen's
- * subject *is* the mutation — an inbox exists to move a row from New to In progress to
- * Completed — so a status control that errors on every click is not a screen anyone can review.
- * The honesty moves to the surface instead of the transport: the page carries a `MockBanner`
- * saying the rows are samples held in memory, and the nav item carries a "Sample" tag. Nothing
- * written there survives a reload. Do not grow this list to make some other form feel finished.
+ * Rule 3 had one exception while Marketing Requests was a sample: three write routes into a
+ * module-level array. MKT-5 Phase 2 moved that screen to the Hono server and the exception went
+ * with it, so rule 3 is total again. Do not bring a write list back to make a form feel finished.
  *
  * As real BrandFactory screens replace Ops ones they move to the Hono client and its shared
  * `AppType`, per `CLAUDE.md`. This file shrinks as that happens; it is scaffolding, not a
@@ -35,14 +30,7 @@ import { brands } from "@/fixtures/brands";
 import { contracts, isCurrent, vendors } from "@/fixtures/contracts";
 import { dashboard } from "@/fixtures/dashboard";
 import { licenses, licenseTypes } from "@/fixtures/licenses";
-import {
-  addMarketingRequest,
-  listMarketingRequests,
-  setMarketingRequestStatus,
-} from "@/fixtures/marketing-requests";
 import { entities, outlets } from "@/fixtures/registry";
-
-import type { SubmissionStatus } from "./types";
 
 /** The result of a lookup. Deliberately not an `ApiError` — that lives in `client.ts`, which
  *  imports this module, and constructing it here would make the two files a cycle. */
@@ -320,81 +308,19 @@ const ROUTES: [RegExp, Handler][] = [
   //
   // Nothing replaces either one here. A route that answered creators from a fixture beside a
   // screen reading the server would be two sources for one table.
-
-  // Marketing Requests -----------------------------------------------------
-  // The inbox. Its two mutations are in {@link WRITES} below — the one exception to rule 3,
-  // argued in this file's header.
-  [/^\/forms\/marketing-request\/submissions$/, () => listMarketingRequests()],
 ];
 
 /**
- * The registered mutations — the exception to rule 3, and deliberately a separate list rather
- * than a `method` column on {@link ROUTES}. Reads and writes answer different questions here:
- * an unregistered read is an empty area and returns `EMPTY`, while an unregistered write is a
- * screen with no backend and must refuse. Two lists keep those two defaults apart instead of
- * hiding a branch inside one loop.
- *
- * A handler returns the response body, or `undefined` for "no such row" — which becomes a 404,
- * the same as a read.
+ * `body` stays in the signature for `apiFetch`, which passes every request's body. No route reads
+ * it since the Marketing Requests writes left; a mutation here only ever refuses.
  */
-type WriteHandler = (params: string[], body: unknown) => unknown;
-
-const WRITES: [string, RegExp, WriteHandler][] = [
-  // In-app submit, from the request sheet.
-  [
-    "POST",
-    /^\/forms\/marketing-request\/submissions$/,
-    (_p, body) => addMarketingRequest(payloadOf(body), new Date().toISOString()),
-  ],
-  // The public `/f/request` page, which posts with no token to the unauthenticated path. It
-  // reaches this file only because `publicSubmit` checks `API_MODE` — its own `fetch` would
-  // otherwise go straight to a service that is not there.
-  [
-    "POST",
-    /^\/public\/forms\/request\/submissions$/,
-    (_p, body) => ({
-      reference: addMarketingRequest(payloadOf(body), new Date().toISOString()).reference,
-    }),
-  ],
-  // Move one row along the ladder.
-  [
-    "PATCH",
-    /^\/forms\/submissions\/([^/]+)$/,
-    ([id], body) => setMarketingRequestStatus(id, statusOf(body)),
-  ],
-];
-
-/** The `{payload}` envelope both submit routes take. A body that is not that shape yields an
- *  empty payload rather than throwing — the fixture then records a row with no summary, which
- *  is visible on screen and therefore findable. */
-function payloadOf(body: unknown): Record<string, unknown> {
-  if (typeof body !== "object" || body === null) return {};
-  const payload = (body as { payload?: unknown }).payload;
-  return typeof payload === "object" && payload !== null
-    ? (payload as Record<string, unknown>)
-    : {};
-}
-
-function statusOf(body: unknown): SubmissionStatus {
-  const status = (body as { status?: unknown } | null)?.status;
-  return status === "in_review" || status === "resolved" ? status : "new";
-}
-
 export function resolveMock(method: string, path: string, body?: unknown): MockResult {
+  void body;
   const [pathname, rawSearch = ""] = path.split("?");
   const search = new URLSearchParams(rawSearch);
   const verb = method.toUpperCase();
 
   if (verb !== "GET") {
-    for (const [writeVerb, pattern, handler] of WRITES) {
-      if (writeVerb !== verb) continue;
-      const match = pattern.exec(pathname);
-      if (!match) continue;
-      const result = handler(match.slice(1), body);
-      if (result === undefined) return { ok: false, status: 404, detail: `${pathname} not found` };
-      return { ok: true, body: result };
-    }
-
     return {
       ok: false,
       status: 503,

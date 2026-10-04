@@ -212,9 +212,6 @@ export const SCOPES = {
   settings: "settings",
   // The live Expiring tab is its own aggregate scope, invalidated when the buffer changes.
   licensesExpiring: "licenses-expiring",
-  // The Marketing Requests inbox; a submit or a status change invalidates it. It was keyed per
-  // form while Ops Forms had two; there is one form now and the key went with the second.
-  formSubmissions: "form-submissions",
 
   // ── BrandFactory ─────────────────────────────────────────────────────────────
   // Scopes for the features that read the Hono server through `lib/api/bf-client.ts`
@@ -245,6 +242,9 @@ export const SCOPES = {
   // Distinctness is also *sufficient*: `matchesSerialised` compares the scope
   // with its quotes on, so `"outlets"` cannot match inside `"bf-outlets"`.
   bfOutlets: "bf-outlets",
+  // The Marketing Requests inbox (MKT-5), keyed `[bf-marketing-requests, workspaceId]`. It
+  // replaced the Ops `form-submissions` scope with the sample rows it keyed.
+  bfMarketingRequests: "bf-marketing-requests",
   bfOutlet: "bf-outlet",
   // BrandFactory's creators, keyed `[bf-influencers, workspaceId]` and
   // `[bf-influencer, workspaceId, ref]`.

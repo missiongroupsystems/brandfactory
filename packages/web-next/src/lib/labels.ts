@@ -43,7 +43,13 @@ import {
 // fourteen cut-from-nav Ops screens that still index these records with an
 // `OutletRead.status` keep type-checking — and if the two ever diverge, those
 // call sites break, which is the signal worth having.
-import type { OutletStatus, OutletType } from "@brandfactory/shared";
+import type {
+  MarketingRequestPriority,
+  MarketingRequestStatus,
+  MarketingRequestType,
+  OutletStatus,
+  OutletType,
+} from "@brandfactory/shared";
 
 // Same rule again, for the two features this file gained with the marketing
 // work: keyed off the shared unions, so a new member fails the typecheck here
@@ -160,6 +166,45 @@ export const OUTLET_STATUS_TONES: Record<OutletStatus, BadgeTone> = {
   open: "success",
   temporarily_closed: "warning",
   closed: "default",
+};
+
+/**
+ * Marketing requests (MKT-5). The **values** are the server's enum; the **labels** are
+ * marketing's words for the ladder — a marketer moves a request from arrived, to being worked,
+ * to delivered, and "In review" and "Resolved" are a support desk's ladder. `declined` is the
+ * rung the sample did not have: "we will not do this" is not "done".
+ */
+export const MARKETING_REQUEST_STATUS_LABELS: Record<MarketingRequestStatus, string> = {
+  new: "New",
+  in_review: "In progress",
+  resolved: "Completed",
+  declined: "Declined",
+};
+
+/** Declined is neutral, not red: a request turned down is an answer, not a fault. */
+export const MARKETING_REQUEST_STATUS_TONES: Record<MarketingRequestStatus, BadgeTone> = {
+  new: "info",
+  in_review: "warning",
+  resolved: "success",
+  declined: "default",
+};
+
+export const MARKETING_REQUEST_TYPE_LABELS: Record<MarketingRequestType, string> = {
+  social_post: "Social post",
+  email_campaign: "Email campaign",
+  print_collateral: "Print collateral",
+  in_store_signage: "In-store signage",
+  photography_video: "Photography or video",
+  event_activation: "Event or activation",
+  website_update: "Website update",
+  other: "Other",
+};
+
+export const MARKETING_REQUEST_PRIORITY_LABELS: Record<MarketingRequestPriority, string> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  urgent: "Urgent",
 };
 
 export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
@@ -942,6 +987,9 @@ export function optionsFrom<T extends string>(labels: Record<T, string>) {
 
 export const OUTLET_STATUS_OPTIONS = optionsFrom(OUTLET_STATUS_LABELS);
 export const OUTLET_TYPE_OPTIONS = optionsFrom(OUTLET_TYPE_LABELS);
+export const MARKETING_REQUEST_STATUS_OPTIONS = optionsFrom(MARKETING_REQUEST_STATUS_LABELS);
+export const MARKETING_REQUEST_TYPE_OPTIONS = optionsFrom(MARKETING_REQUEST_TYPE_LABELS);
+export const MARKETING_REQUEST_PRIORITY_OPTIONS = optionsFrom(MARKETING_REQUEST_PRIORITY_LABELS);
 export const ENTITY_STATUS_OPTIONS = optionsFrom(ENTITY_STATUS_LABELS);
 export const ENTITY_TYPE_OPTIONS = optionsFrom(ENTITY_TYPE_LABELS);
 export const DEVICE_TYPE_OPTIONS = optionsFrom(DEVICE_TYPE_LABELS);

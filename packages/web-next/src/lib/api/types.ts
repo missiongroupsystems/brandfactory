@@ -354,10 +354,6 @@ export type ReviewView = S["ReviewView"];
 export type ReviewSummary = S["ReviewSummary"];
 export type ReviewSweepReport = S["ReviewSweepReport"];
 
-// Ops Forms — the intake behind the two send-and-collect forms.
-export type FormSubmission = S["FormSubmissionRead"];
-export type SubmissionStatus = S["SubmissionStatus"];
-
 /**
  * Cursor-paginated response. The backend emits a distinct `Page_XRead_` schema per item
  * type, so this is declared structurally rather than aliased — one generic beats a dozen

@@ -176,8 +176,8 @@ export const NAV_ITEMS: NavItem[] = [
   // became one: the incident report was an Ops safety record with no marketing reading of it,
   // and what is left is the single request an outlet raises with the marketing team. A generic
   // plural pointing at one named thing is the mismatch `/brands` cost a release — folder, route
-  // and label all say `marketing-requests` now, and only the *wire* paths still say `forms`,
-  // because those are the backend's.
+  // and label all say `marketing-requests` now. Since MKT-5 Phase 2 the rows are the Hono
+  // server's and the "Sample" tag is gone with the fixture.
   //
   // `Inbox`, not `FormInput`: the screen is a queue you read, and the form is one button on it.
   // Deliberately not Review's `ClipboardCheck` (a data-quality queue, not a request queue).
@@ -186,7 +186,6 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/marketing-requests",
     icon: Inbox,
     phase: 3,
-    tag: "Sample",
     description: "What the business is asking marketing for — one inbox, one request form",
   },
 ];

@@ -1,79 +1,252 @@
 "use client";
 
+import type { MarketingRequest, MarketingRequestPriority, MarketingRequestType } from "@brandfactory/shared";
+import { Loader2Icon } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
+import { Field, FieldGrid } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   Sheet,
   SheetBody,
   SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useOutletIndex } from "@/features/registry/hooks";
-import type { FormSubmission } from "@/lib/api/types";
+import { Textarea } from "@/components/ui/textarea";
+import { useActiveBrand } from "@/features/brands/active-brand";
+import { useOutlets } from "@/features/outlets/hooks";
+import { useSubmit } from "@/hooks/use-submit";
+import { MARKETING_REQUEST_PRIORITY_OPTIONS, MARKETING_REQUEST_TYPE_OPTIONS } from "@/lib/labels";
 
-import { MARKETING_REQUEST_FORM } from "../fixture";
 import { useRequestMutations } from "../hooks";
-import { FormFiller } from "./form-fields";
+import {
+  initialRequestForm,
+  outletsForBrand,
+  requestFormProblem,
+  toCreateInput,
+  type RequestFormState,
+} from "../inbox";
 
 /**
- * The request form, in a sheet — the button on the inbox rather than the panel under it.
+ * The request form, in a sheet on the inbox.
  *
- * This is the whole of what moved when the screen was inverted. The form is unchanged, the
- * outlet list is still resolved from the registry, and the payload posted is the same
- * `{label: value}` the public page sends. What changed is that raising a request is now an
- * action you take on the queue, which is where the rest of this screen's work happens.
+ * **A brand is required and the outlet follows it.** Brand Base's unit is the brand, and an
+ * outlet belongs to exactly one, so the outlet select offers only the chosen brand's outlets and
+ * clears when the brand changes. The server checks the pair again; this only stops the reader
+ * from building one it will refuse.
+ *
+ * **Who asked is not a field.** It is the signed-in user, set by the server from the session.
+ *
+ * The draft resets when the sheet opens, during render rather than in an effect or by keying
+ * `SheetContent` — the adjust-state-on-prop-change pattern AGENTS.md prescribes.
  */
 export function NewRequestSheet({
   open,
   onOpenChange,
-  onSubmitted,
+  onCreated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The created row, so the caller can open it. Called after the toast, before the sheet closes. */
-  onSubmitted: (created: FormSubmission) => void;
+  onCreated: (created: MarketingRequest) => void;
 }) {
-  const { outlets } = useOutletIndex();
-  const outletNames = React.useMemo(
-    () => (outlets ?? []).map((outlet) => outlet.name).sort((a, b) => a.localeCompare(b)),
-    [outlets],
+  const { create } = useRequestMutations();
+  const { run, reset, isPending, formError, fieldErrors } = useSubmit();
+  const { brands, brand: activeBrand, isLoading: brandsLoading } = useActiveBrand();
+  const { outlets } = useOutlets();
+
+  const [form, setForm] = React.useState<RequestFormState>(() =>
+    initialRequestForm(activeBrand?.id),
+  );
+  const [problem, setProblem] = React.useState<string | null>(null);
+  const [wasOpen, setWasOpen] = React.useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setForm(initialRequestForm(activeBrand?.id));
+      setProblem(null);
+    }
+  }
+
+  const set = <K extends keyof RequestFormState>(key: K, value: RequestFormState[K]) =>
+    setForm((current) => ({ ...current, [key]: value }));
+
+  const brandOutlets = React.useMemo(
+    () => outletsForBrand(outlets, form.brandId),
+    [outlets, form.brandId],
   );
 
-  const { submit } = useRequestMutations();
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    const stop = requestFormProblem(form);
+    setProblem(stop);
+    if (stop) return;
+    const ok = await run(async () => {
+      const created = await create(toCreateInput(form));
+      toast.success(`Sent — the reference is ${created.reference}`);
+      onCreated(created);
+    });
+    if (ok) onOpenChange(false);
+  }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      {/* No `key`. A sheet's content survives its close, so a form reopened straight after a
-          successful submit would still hold the previous draft — but the fix here is
-          `FormFiller`'s own remount below, keyed on `open`, rather than a key on
-          `SheetContent`. Keying the content on anything that changes as the sheet dismisses
-          jams Base UI's exit animation and leaves the overlay eating clicks. See AGENTS.md. */}
+    <Sheet
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) reset();
+        onOpenChange(next);
+      }}
+    >
       <SheetContent size="wide">
         <SheetHeader>
-          <SheetTitle>{MARKETING_REQUEST_FORM.name}</SheetTitle>
-          <SheetDescription>{MARKETING_REQUEST_FORM.description}</SheetDescription>
+          <SheetTitle>New marketing request</SheetTitle>
+          <SheetDescription>
+            What you need from marketing — a post, a campaign, artwork, signage, a shoot. It arrives
+            in the inbox under your name.
+          </SheetDescription>
         </SheetHeader>
 
-        <SheetBody>
-          <FormFiller
-            // Remount on each opening, which is what clears the draft. `open` is a boolean and
-            // flips *before* the exit animation runs, so the remount lands on a sheet that is
-            // already closing — harmless — rather than mid-dismissal on a value derived from
-            // state that clears.
-            key={open ? "open" : "closed"}
-            form={MARKETING_REQUEST_FORM}
-            outletNames={outletNames}
-            submitLabel="Send request"
-            onSubmit={async (payload) => {
-              const created = await submit(payload);
-              toast.success(`Sent — your reference is ${created.reference}`);
-              onSubmitted(created);
-            }}
-          />
-        </SheetBody>
+        <form onSubmit={handleSubmit} className="contents" noValidate>
+          <SheetBody className="flex flex-col gap-6">
+            {problem || formError ? (
+              <p role="alert" className="rounded-lg bg-error-tint p-3 text-helper text-error">
+                {problem ?? formError}
+              </p>
+            ) : null}
+
+            <FieldGrid>
+              <Field label="Brand" required error={fieldErrors.brandId}>
+                {(field) => (
+                  <Select
+                    {...field}
+                    disabled={brandsLoading}
+                    value={form.brandId}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        brandId: event.target.value,
+                        // An outlet of the old brand is never right for the new one.
+                        outletId: "",
+                      }))
+                    }
+                  >
+                    <option value="">Select a brand…</option>
+                    {brands.map((brand) => (
+                      <option key={brand.id} value={brand.id}>
+                        {brand.name}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+
+              <Field
+                label="Outlet"
+                hint={form.brandId ? "Leave empty for the whole brand." : "Choose a brand first."}
+                error={fieldErrors.outletId}
+              >
+                {(field) => (
+                  <Select
+                    {...field}
+                    disabled={!form.brandId}
+                    value={form.outletId}
+                    onChange={(event) => set("outletId", event.target.value)}
+                  >
+                    <option value="">The whole brand</option>
+                    {brandOutlets.map((outlet) => (
+                      <option key={outlet.id} value={outlet.id}>
+                        {outlet.name}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+
+              <Field label="Request type" required error={fieldErrors.type}>
+                {(field) => (
+                  <Select
+                    {...field}
+                    value={form.type}
+                    onChange={(event) => set("type", event.target.value as MarketingRequestType)}
+                  >
+                    <option value="">Select…</option>
+                    {MARKETING_REQUEST_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+
+              <Field label="Priority" required error={fieldErrors.priority}>
+                {(field) => (
+                  <Select
+                    {...field}
+                    value={form.priority}
+                    onChange={(event) =>
+                      set("priority", event.target.value as MarketingRequestPriority)
+                    }
+                  >
+                    {MARKETING_REQUEST_PRIORITY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+
+              <Field label="Summary" required error={fieldErrors.summary} className="sm:col-span-2">
+                {(field) => (
+                  <Input
+                    {...field}
+                    maxLength={200}
+                    placeholder="One line — what do you need?"
+                    value={form.summary}
+                    onChange={(event) => set("summary", event.target.value)}
+                  />
+                )}
+              </Field>
+
+              <Field label="Details" error={fieldErrors.details} className="sm:col-span-2">
+                {(field) => (
+                  <Textarea
+                    {...field}
+                    rows={4}
+                    maxLength={5000}
+                    placeholder="Audience, message, where it runs, and anything marketing should know"
+                    value={form.details}
+                    onChange={(event) => set("details", event.target.value)}
+                  />
+                )}
+              </Field>
+
+              <Field label="Needed by" error={fieldErrors.neededBy}>
+                {(field) => (
+                  <Input
+                    {...field}
+                    type="date"
+                    value={form.neededBy}
+                    onChange={(event) => set("neededBy", event.target.value)}
+                  />
+                )}
+              </Field>
+            </FieldGrid>
+          </SheetBody>
+
+          <SheetFooter>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? <Loader2Icon className="animate-spin" data-icon="inline-start" /> : null}
+              {isPending ? "Sending" : "Send request"}
+            </Button>
+          </SheetFooter>
+        </form>
       </SheetContent>
     </Sheet>
   );
