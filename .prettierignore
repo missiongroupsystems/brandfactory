@@ -33,3 +33,6 @@ packages/web/src/toolcraft/
 # moment we need to read one. See that package's README for the diff recipe. Revisit once
 # the Ops screens are gone and the tree is genuinely ours.
 packages/web-next/
+
+# Supabase CLI scratch — the CLI writes it, so its formatting is not ours.
+supabase/.temp/

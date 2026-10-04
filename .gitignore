@@ -55,3 +55,7 @@ coverage/
 
 # Scratch: a manual test script, deliberately not versioned
 MANUAL-TEST-PLAN.md
+
+# Supabase CLI scratch — a link record and a version cache, written by the CLI
+# and meaningful only on this machine.
+supabase/.temp/

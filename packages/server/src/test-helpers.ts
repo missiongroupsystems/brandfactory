@@ -52,6 +52,7 @@ import type {
   VendorId,
   Workspace,
   WorkspaceId,
+  WorkspaceRole,
   WorkspaceSettings,
 } from '@brandfactory/shared'
 import {
@@ -132,6 +133,12 @@ interface FakeUserRow {
   id: string
   email: string
   displayName: string | null
+  // The access columns, defaulted to today's shared-access behaviour so that
+  // every existing test keeps asserting what it asserted before: an admin with
+  // no password flag and no deactivation. A test about the gate sets them.
+  role: WorkspaceRole | null
+  mustSetPassword: boolean
+  deactivatedAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -2041,6 +2048,9 @@ export function createFakeAuth(tokenToUserId: Record<string, string>): AuthProvi
         id,
         email: `${id}@example.com`,
         displayName: null,
+        role: 'admin' as const,
+        mustSetPassword: false,
+        deactivatedAt: null,
         createdAt: NOW,
         updatedAt: NOW,
       }
@@ -2171,6 +2181,9 @@ export function createTestApp(
       id: u.id,
       email: `${u.id}@example.com`,
       displayName: null,
+      role: 'admin',
+      mustSetPassword: false,
+      deactivatedAt: null,
       createdAt: NOW,
       updatedAt: NOW,
     })

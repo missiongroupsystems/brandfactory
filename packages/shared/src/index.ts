@@ -125,3 +125,8 @@ export * from './key-dates'
 
 // Mission Events, read-only — the projection the content calendar draws
 export * from './events/external-event'
+
+// Members — the workspace role, the per-brand role, and what the audit
+// records. See `member/role.ts`.
+export * from './member/role'
+export * from './member/password'

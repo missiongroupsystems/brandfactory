@@ -1,4 +1,6 @@
 export * from './users'
+export * from './user_brands'
+export * from './credential_audit'
 export * from './workspaces'
 export * from './workspace_settings'
 export * from './brands'
