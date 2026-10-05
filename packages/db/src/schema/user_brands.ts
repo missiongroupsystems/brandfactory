@@ -7,7 +7,7 @@ import { users } from './users'
 export const brandRole = pgEnum('brand_role', ['viewer', 'editor', 'manager'])
 
 // Which brands a person may reach, and how much they may do there. The plan is
-// `docs/executing/members-passwords-and-brand-access-plan.md`.
+// `docs/completions/members-passwords-and-brand-access-plan.md`.
 //
 // **Presence is access; the role is the degree.** A workspace admin needs no
 // row — `isAdmin` short-circuits ahead of this table — so a row here is only

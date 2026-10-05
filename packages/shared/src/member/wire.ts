@@ -5,7 +5,7 @@ import { BrandRoleSchema, WorkspaceRoleSchema } from './role'
 
 /**
  * The wire shapes for `/members`. The plan is
- * `docs/executing/members-passwords-and-brand-access-plan.md`.
+ * `docs/completions/members-passwords-and-brand-access-plan.md`.
  */
 
 /**

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.58.0** — 2026-10-05 — A valid token stops being a key to the whole estate: the auto-provisioner that admitted any stranger holding a Supabase token is closed, an administrator creates an account and sets its first password, and per-brand grants exist for the tenth person rather than to narrow the nine. Plus the marketing request inbox on real routes, and four Mission Events refusals that say what Events means by them. Migrations 0026–0027. 3352 tests.
 - **1.57.0** — 2026-09-30 — The product is Brand Base on screen, and the calendar gains what 1.56.0 left out: a week view wide enough to read the plan in, a post that names its shoot and its event — with the server now checking the shoot — and attachments from the brand's library. Plus the dev proxy every upload in `web-next` was missing. No migration. 3208 tests.
 - **1.56.0** — 2026-09-30 — The content calendar comes back, and this time it is a production pipeline: a deployment for the Vite app it had lost, one `/calendar` across seven brands with a list and an export, five stages from idea to posted, shoots, a read-through of Mission Events, and — last — a grid that can be written to. Plus a realtime backplane so two machines stop dropping half the messages. Migrations 0023–0025. 3195 tests.
 - **1.55.0** — 2026-09-01 — The set's loose ends close before it merges: a funnel activity gets its one real typed link — a social push, the only one of three named targets with a table to point at — the photography shelf learns to take a photograph and reorder one, a `web-next` write stops emptying the cache under every screen, and seven QA rounds harden the four features. A pre-merge review then finds one more: a deck delete swept nothing, so its version PDFs orphaned in storage — the Canva snapshot included. Migration 0022. 3104 tests.
@@ -109,6 +110,248 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.58.0 — 2026-10-05
+
+**Nine colleagues, and the tenth person this app could not add.** Five phases of members,
+passwords and per-brand access, written up together in
+`docs/completions/members-phases-a-to-e.md`, against the plan beside it. The release also carries
+MKT-5 of the September build plan — marketing requests on real routes — and two corrections to
+the Mission Events adapter. **Migrations 0026–0027.** 3352 tests (3172 passing, 180 skipped
+without a database).
+
+### The door was the auto-provisioner, not the signup endpoint
+
+`createSupabaseAuthProvider.verifyToken` inserted a `public.users` row for any `sub` whose token
+carried an address it had never seen, and `authz.ts` then admitted that row to every workspace,
+brand, project, asset and contract. The live path was: read the public anon key out of the
+deployed JavaScript — it ships in the bundle by design — create a Supabase account with an
+address you control, sign in, and read every brand. Confirming the address did not help, because
+the attacker confirms their own.
+
+The first draft of the plan proposed closing signups in the Supabase dashboard. That was a
+workaround for a hole in our own code, and the owner had already accepted and deferred that
+risk. This closes it in the code instead, so the deferred decision stays deferred. A stranger
+may still mint a valid token; they now reach a refusal.
+
+**Three distinct refusals, because the frontends answer them differently.** `NO_ACCOUNT` (403,
+a valid token with no `users` row), `ACCOUNT_DEACTIVATED` (403) and `PASSWORD_NOT_SET` (403). A
+bare 401 is for a token we cannot verify. The plan said an unknown token should answer 401;
+building it showed that to be wrong — both frontends probe `GET /me` at boot and sign the reader
+out on any non-ok answer, so a 401 returns a colleague whose account does not exist yet to the
+sign-in page with nothing said, where they sign in again successfully and bounce off a second
+time. *You were never added* and *your access was withdrawn* are different news, and the
+administrator reading the support message needs to know which happened.
+
+**`/rt` repeats all three refusals itself.** The socket verifies its own token and ends at the
+WebSocket upgrade, so it never enters the Hono middleware chain, and `app.routes` cannot see it
+either — the mount-list test does not cover it. `authorizeChannel` is not enough: it walks the
+aggregate chain and so refuses only *after* the socket is open and subscribed, which is a
+connection that should never have been accepted. Without the repetition, an account refused
+every HTTP route could still subscribe to a project channel and read the canvas traffic.
+
+### An administrator sets the first password
+
+No mailer, and that is deliberate. The second draft of the plan copied Launchpad's
+`generateLink` → own-domain confirm → SendGrid chain, which is right for a product that already
+sends mail and is one new outbound dependency, one secret and one page for nine people. The
+owner's answer is the Google Admin Console model: an administrator chooses a temporary password,
+reads it off their own screen, and the person is asked to replace it.
+
+`must_set_password` is the flag, and `middleware/password-gate.ts` is what makes it mean
+something. A frontend that redirects a flagged reader to a set-password page has improved the
+experience and closed nothing — the session is valid, so every route still answers a direct
+call. The gate is mounted on `/workspaces`, `/brands`, `/projects`, `/blob-urls`, `/research`
+and `/members`, and deliberately not on `/me`: the two routes a flagged person needs are
+reachable because of **where they live**, not because a string comparison exempted them.
+
+`app.test.ts` reads the prefixes the app actually registered from `app.routes`, subtracts the
+three open for stated reasons (`/me`, `/blobs`, `/health`), and requires every remaining one to
+refuse a flagged caller. A new top-level prefix must now be added to three mount lists, and
+forgetting the password gate is otherwise invisible — the routes authenticate correctly and
+answer an account that has not set its own password.
+
+**The server sets the password, not the browser.** Both halves go through `POST /me/password`,
+and the provider is called first — clearing the flag first and failing second leaves somebody
+past the gate holding a credential their administrator still knows. A password Supabase refuses
+is a 400 with its words; a timeout or a bad service key is a fault, because reporting it as
+*pick another password* sends somebody already locked out to try variations of a password that
+was never the problem.
+
+`PASSWORD_MIN_LENGTH` is 14 with no composition rules — *one capital, one digit, one symbol*
+pushes people towards `Password1!` — and the one non-length rule rejects a password containing
+the email's local part. `passwordProblem` lives in `@brandfactory/shared` and runs in both
+browsers and on the server, so three copies of a length rule cannot disagree.
+
+`/sign-in` in `web-next` now leads with email and password, keeps Google, and demotes the magic
+link to *Email me a sign-in link instead*. The link bypasses nothing: a flagged account meets
+the set-password screen behind it.
+
+### The columns, and the backfill that changed nothing (migration 0027)
+
+Three columns on `users` — `role`, `must_set_password`, `deactivated_at` — two tables,
+`user_brands` and `credential_audit`, and a unique index on `lower(email)`. The generated half is
+unremarkable; the hand-written half is why the phase existed. Every current user became an admin
+with every brand, so on the day enforcement landed nothing visibly changed. A migration that
+closed access and a migration that recorded it are two different changes, and doing them
+together is how a deploy locks nine people out of their own tool.
+
+`users_email_lower_idx` is **unique**, so it aborts the migration if two accounts differ only in
+the case of their address. That is the correct outcome: on a path that hands out a session, two
+such rows are a way to authenticate somebody as the wrong person.
+
+**We do not ask GoTrue whether a password already exists.** `auth.users.encrypted_password` is a
+schema a GoTrue upgrade may change with no notice, and the Admin API's `identities[]` does not
+settle it either, because a magic-link sign-in also creates an `email` identity. The default
+rests on a fact about our own code instead: this app has never had a password screen, so nobody
+has chosen a password through it.
+
+### Six routes under `/members`
+
+List, create, patch, reset somebody else's password, deactivate, reactivate — **admin only by
+their mount**, so there is no per-route check to forget, and behind the password gate, because an
+administrator holding a password somebody else chose is not an exception to it.
+
+**The create order is forced, not stylistic.** Refuse a duplicate address by name; create the
+identity-provider account; write our row **keyed to the id the provider returned**; delete the
+provider account if that insert throws; write the audit. `users.id` *is* the Supabase `sub`, and
+`upsertUserById` conflicts on that column only — so a row written with a fresh uuid collides on
+`email` the first time its owner signs in, the adapter swallows the error, and the row is
+unreachable forever.
+
+**Grants are diffed, never replaced.** A delete-all-and-reinsert would open a window in which a
+concurrent request from the person being edited is refused a brand they are **keeping**. Saving
+a display name must not log somebody out of a brand, and an omitted `brands` field means *leave
+as is*.
+
+**Four guards:** no self-demotion, no self-deactivation, no resetting your own password here —
+you would flag yourself into the set-password screen with no administrator left to free you —
+and the last active admin can be neither demoted nor deactivated, because a workspace with none
+cannot restore anybody except by SQL against production.
+
+**Deactivate and reactivate are ordered oppositely on purpose.** Deactivate writes our column
+first and suspends at the provider after, failing softly; reactivate lifts the provider ban
+first and propagates its failure. Each is ordered so a half-completed call leaves the account
+*less* reachable, not more.
+
+The audit is written and **nothing reads it**. One row per administrator act, FK-free, with the
+emails denormalised, never joining the caller's transaction — Launchpad's audit write held a
+foreign key to `users`, took `FOR KEY SHARE` on a row the request already held `FOR UPDATE`, and
+every user create deadlocked for two months. A test asserts the password appears nowhere in what
+was written. An unread audit table returns zero rows and no error, which reads as *nobody has
+ever done anything*; the reader is still owed.
+
+### The screen, and the row that is absent rather than disabled
+
+`/settings/members`: one table, no pagination, no filters, no search. At nine people none of that
+apparatus has a job. Row actions are **hidden where the server would refuse**, and `rowActions`
+in `model.ts` mirrors the service guards. Editing your own row is still offered — it carries a
+display name — and the role select inside the sheet is the part that refuses, with a sentence
+appearing only where the reader has the permission and the control is missing anyway.
+
+The status cell says **"Temporary password"**, never *"has not signed in yet"*: an
+administrator's reset sets the same flag, so the second wording would be a flat untruth about
+somebody who has used the product for a year.
+
+The suggested password is generated **in the browser**, from an alphabet without `0`/`O` or
+`1`/`l`/`I`, because it is read off one screen and typed into another. No password this app
+suggests was ever chosen on a server or written to a server log.
+
+`NavItem` gains `adminOnly` and the sidebar filters on it, which is about not offering a
+destination that would refuse — not a boundary. Somebody arriving anyway meets `AdminGate`,
+whose middle state draws nothing: for the second before `/me` lands there is no answer, and
+drawing the refusal then would flash *you are not an administrator* at an administrator on every
+cold load.
+
+Every write invalidates `me` as well as `[bf-members]`. `me` is deliberately outside every other
+screen's set — who you are does not change when you edit a brand — but this is the screen where
+an administrator can edit their own row, and a stale `me` leaves somebody looking at an app they
+can no longer use.
+
+### Per-brand access is built, and holds no restrictive data
+
+Decided by the owner on 5 October 2026: **all nine existing users stay administrators.** Phase
+A's backfill is the final state for the people who are here, not scaffolding — nine colleagues
+who all work across the estate, with no brand any of them should be kept out of. This retires
+Phase F of the plan rather than completing it.
+
+So the machinery exists and restricts nobody, which is exactly where Launchpad is — its own code
+records `user_brands` as empty in production. Worth stating plainly, because it would be easy to
+read five phases as having delivered per-brand access that is in use. It is not in use. What
+changed is that it *can* be: the tenth person can be added as a member with two brands instead
+of as an administrator with seven.
+
+Two consequences. **A new account defaults to `role: null`** — a member — and the form offers
+administrator as the deliberate choice, so nobody becomes one by inertia. And **`viewer` is
+refused in all three places**: `GRANTABLE_BRAND_ROLES` filters it from the select,
+`GrantableBrandRoleSchema` refuses it on the wire, and `canWriteBrand` is the rule that would
+make it mean something. `canWriteBrand` is correct and no route calls it — read access is
+enforced, `viewer` against `editor` is not, because that needs a write gate on every mutating
+route. All three open together or not at all; a member who set `viewer` and believed writes were
+blocked would be wrong, which is worse than not offering it.
+
+### Marketing requests (MKT-5, migration 0026)
+
+Two phases, in `docs/completions/marketing-requests-phase-*.md`. `marketing_requests` is
+workspace-scoped with three pgEnums — type (eight values), priority (four), status (`new`,
+`in_review`, `resolved`, `declined`). **`declined` is new:** the sample form's three-rung ladder
+could not say *we will not do this*.
+
+The reference is `MR-1001` upward per workspace. The create locks the workspace row `FOR UPDATE`
+and reads the maximum, so concurrent submits queue rather than collide, and soft-deleted rows
+still count — a number somebody quoted is never reissued. People are **joined, not copied**, so
+a rename shows everywhere. A brand is required; an outlet is optional and must belong to that
+brand, checked again when a patch changes the brand.
+
+The requester is the session's user, never a body field, so `/f/request` now redirects to
+`/marketing-requests?new=1` behind sign-in and any other `/f/<slug>` is a 404. The inbox gained
+an Assigned column, an *Assigned to me* toggle and its filters in the URL. The fixture, the mock
+banner, the `Sample` nav tag and the public form are deleted, so the rule that every mutation in
+`web-next`'s mock layer refuses with a 503 is total again.
+
+A request is a **ticket**: nothing is created when one is accepted. "Plan it" is a later phase.
+
+### Mission Events says what Events means
+
+A 422 now names all four causes in their spec — a missing service-key header, bad dates, `to`
+before `from`, or a range over 93 days — where it named only the last two. A 429 is their
+60-a-minute rate limit rather than a generic HTTP failure. The unauthorised error's default text
+still said *share link*; it says *service key*. And a 403 on production can no longer mean
+missing configuration on their side: Mission Events confirmed on 30 September that the endpoint
+is live there with our org id configured, so a 403 means our key is wrong. The staging caveat
+stays.
+
+### Three facts `CLAUDE.md` had wrong
+
+It said `authz.ts` compares `workspace.ownerUserId` to the user, which stopped being true in
+1.29.0; it counted five adapter ports where there are six; and it described `createApp` as taking
+five. `CLAUDE.md` is loaded into context every session, so a stale fact there is read far more
+often than one in a completion note. It now states the four access rules, the three refusal
+codes and why they are distinct, that nothing auto-provisions a `users` row, and the two traps a
+new top-level prefix walks into.
+
+`architecture.md` listed `AuthProvider` as two methods; it has six, plus a `holdsPasswords`
+capability flag the create route reads **instead of asking which vendor is configured**.
+
+⚠️ **`.env.example` now says the Supabase keys are the auth adapter's too.** It described
+`SUPABASE_URL` and `SUPABASE_SERVICE_KEY` as storage's. The auth adapter calls the GoTrue Admin
+API to create an account, set a password and suspend one, and it builds that client **lazily** —
+so a deployment missing those keys boots fine and then refuses the set-password screen, which is
+a lockout for every account whose password an administrator chose. Both are already set in
+production for storage. **Confirm that before deploying.**
+
+### Deploy order, which is not the commit order
+
+1. The password gate and its screen, then **all nine people set a password**. The flag has been
+   true for every one of them since migration 0027.
+2. Only then the closed door. An account that cannot complete the set-password screen has no
+   other way in.
+
+### Not in this release
+
+Write-role enforcement, and so `viewer`. A reader for `credential_audit`. Assigning a marketing
+request to anyone but yourself, editing one after it is filed, or an undo for its delete.
+Switching on the Mission Events feed and the realtime backplane, which are configuration.
 
 ## 1.57.0 — 2026-09-30
 

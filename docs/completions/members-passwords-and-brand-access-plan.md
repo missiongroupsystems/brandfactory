@@ -1,6 +1,10 @@
 # Members, first passwords and per-brand access
 
-**Status:** proposed. Nothing built. Written 4 October 2026, rewritten 5 October.
+**Status:** built. Phases A to E landed in 1.58.0; Phase F was retired rather than
+completed. Written 4 October 2026, rewritten 5 October, moved here 5 October. Read
+`docs/completions/members-phases-a-to-e.md` for what was actually built — three things
+departed from this plan, and it says why. **Awaiting production
+verification**, and the deploy order below is not the commit order.
 **Supersedes** two earlier drafts of this file:
 the first was wrong about where the door is, the second built an emailed invite the
 owner does not want.

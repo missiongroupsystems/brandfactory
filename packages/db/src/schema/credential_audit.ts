@@ -13,7 +13,7 @@ export const credentialAuditAction = pgEnum('credential_audit_action', [
 ])
 
 // Who changed whose access, and when. The plan is
-// `docs/executing/members-passwords-and-brand-access-plan.md`.
+// `docs/completions/members-passwords-and-brand-access-plan.md`.
 //
 // ⚠️ **IT STORES NO PASSWORD, and it never will.** It records *that* a
 // credential was set and *who* set it, never what it was.

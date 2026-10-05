@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 /**
  * Who may do what. The plan is
- * `docs/executing/members-passwords-and-brand-access-plan.md`.
+ * `docs/completions/members-passwords-and-brand-access-plan.md`.
  *
  * Member lists are duplicated with the pgEnums in
  * `packages/db/src/schema/users.ts` and `user_brands.ts`, per the zod-⇄-pgEnum

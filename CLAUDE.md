@@ -199,11 +199,23 @@ per-package `environment` and `alias`, and the workspace form keeps them.
 
 ## Conventions
 
-- **One document per phase.** Each implementation phase gets its own file in
-  `docs/completions/`. Never put two phases in one file. Move the files of a
-  finished feature to `docs/archive/`.
-- **Plan before build.** A proposal and an implementation plan go into
-  `docs/executing/` before the code.
+- **One document per feature, covering every phase.** A feature gets one file in
+  `docs/completions/`, named `<feature>-phases-<first>-to-<last>.md`, with one
+  `##` section per phase. Do not split a feature across one file per phase.
+  The earlier rule said the opposite, and the evidence is in the folder: the
+  per-phase rule produced **gaps**, not coverage — decks phases A–E and
+  resources phases A–C were never written at all, while
+  `funnel-phases-a-to-d.md` documented four phases in one file and lost
+  nothing. A single document also makes the cross-phase facts sayable in one
+  place: a deploy order, a test-count progression, and a phase that was
+  retired rather than completed.
+- **The docs pipeline is three folders, in this order.** A proposal and an
+  implementation plan go into `docs/executing/` before the code. The plan
+  moves to `docs/completions/` beside its completion document once the code
+  lands — this is where both sit while the work awaits testing and production
+  verification. Both move to `docs/archive/` only after that verification.
+  A plan in `docs/executing/` whose work has shipped is stale; check its
+  status line against the changelog rather than trusting the folder.
 - **Changelog.** Add a one-line entry to the index at the top of
   `docs/changelog.md`, then the full entry below. State the migration number,
   or state `No migration`. State the test count.
