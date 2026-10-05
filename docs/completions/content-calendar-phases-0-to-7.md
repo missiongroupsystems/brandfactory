@@ -315,10 +315,14 @@ why the team asked to see tentatives at all.
 
 ### The map is stored, not inferred
 
-`brands.events_outlet_id`, set once per brand. Six of the seven brands match an Events outlet by slug
-and `Firebird by Suetomi` matches `firebird`, so a normaliser would work *today* — and would quietly
-file the next brand under whichever concept had a similar name. A wrong mapping here puts another
-brand's parties on this brand's calendar.
+`brands.events_outlet_id`, set once per brand. Six of the seven brands match an Events outlet by
+slug, so a normaliser would work *today* — and would quietly file the next brand under whichever
+concept had a similar name. A wrong mapping here puts another brand's parties on this brand's
+calendar.
+
+**Verified against both live databases, 5 October 2026**, and the argument for storing it got
+stronger rather than weaker. See the verification section at the foot of this document: their
+`slug` is **not unique**, so there is no slug a normaliser could safely match on.
 
 An event whose outlet maps to nothing is dropped **and counted**. `unmappedOutlets` is what turns a
 missing mapping into a number on screen instead of an event that silently never appears.
@@ -458,8 +462,8 @@ our service key is wrong** — their org id is configured there, so the other ca
 out. On staging a 403 can still mean their org id is missing, so ask them before rotating a staging
 key. A 422 names all four causes in their spec; a 429 is their 60-a-minute rate limit.
 
-Then set the seven `brands.events_outlet_id` values from `listOutlets()`, and confirm
-`Firebird by Suetomi` against the slug `firebird` — the names do not match.
+Then set the `brands.events_outlet_id` values from `listOutlets()`. **Done, and verified on
+5 October 2026** — see the verification section at the foot of this document.
 
 ## Phase 4 — the screen the team asked for
 
@@ -793,12 +797,62 @@ No console errors.
 
 - **Step 6 — retire the Vite calendar**, once the team has worked in the new one for two weeks, and
   tell them the day it happens.
-- **The seven `events_outlet_id` values**, and the three secrets that switch the feed on.
-- **Curly's, AIR CCCC and Mountain** exist in Events and not in BrandFactory. Do they belong on the
-  marketing calendar?
+- **Nothing on the mapping or the secrets** — both are done. See the verification below.
+- **Five live Events outlets have no BrandFactory brand**: AIR CCCC, Firebird, Mountain, Nightjar and
+  Ungrafted Vines. Do they belong on the marketing calendar? Curly's was on this list and is now
+  **soft-deleted in Events**, so it answers itself.
 - **The shooting team's actual sheet.** A copy would let the list view and the export match its
   column order.
 - **The legacy planner and brainstorm.** Hide them in the new calendar (MKT-10 is KIV), or keep them
   one click away?
 - **The release gap.** A shipped screen left the nav and nobody was told. The fix is a rule, not code:
   a screen leaves the nav only with a changelog line and a message to the people who use it.
+
+## The mapping, verified against both live databases
+
+5 October 2026. Read directly from BrandFactory (`spffglhadlkfrkmbhzdv`) and Mission Events
+(`knugabprjyjszwddqgff`), joined on the id the code actually compares.
+
+**All six mappings resolve to a live, non-hidden outlet**, and the names match exactly:
+
+| Brand | Events slug | Events outlet |
+| --- | --- | --- |
+| Carlitos | `carlitos` | Carlitos |
+| Casa Vostra | `casa-vostra` | Casa Vostra |
+| Chin Mee Chin | `chin-mee-chin` | Chin Mee Chin |
+| Petra | `petra` | Petra |
+| Temper | `temper` | Temper |
+| Willow | `willow` | Willow |
+
+No duplicate mappings — the check for two brands sharing one outlet id returned nothing, which
+matters because `brandByOutlet.set(...)` would silently keep the last of them.
+
+**The seventh brand is `Mission Group`, deliberately unmapped.** It is group-level and there is no
+such outlet. `null` is the right answer, so the unmapped banner should never appear for it.
+
+### Three questions this closes, two of them the opposite way round
+
+**Casa Vostra exists over there.** Their spec framed this as an open question — *"if Casa Vostra is
+not in that list, it does not exist in production"*. It is, slug `casa-vostra`, and it is mapped.
+
+**The Firebird naming never arose.** Four documents, this one included, carried *"confirm `Firebird
+by Suetomi` against the slug `firebird` — the names do not match"*. Production holds no such brand:
+its seven are Mission Group, Willow, Chin Mee Chin, Carlitos, Petra, Temper and Casa Vostra. Every
+mapped slug is simply its brand name lower-cased. The caveat was advice about a brand that does not
+exist, and it is corrected wherever it appeared.
+
+**Matching on slug would have been wrong anyway, for a reason nobody predicted.** Their `slug` is
+not unique: `carlitos`, `chin-mee-chin`, `firebird`, `temper` and `willow` each appear twice, one row
+soft-deleted and one live. The soft-deleted `temper` is even named `Temper.` — with the full stop the
+seed still uses — while the live one is `Temper`. A slug match would have to choose between two rows;
+the id does not. **This is the strongest argument for the stored mapping, and it only appeared on the
+real data.**
+
+### A drift worth knowing
+
+The seed describes a different estate from production. It creates `Firebird by Suetomi` and
+`Ungrafted Vines`, which are not production brands, and omits `Mission Group` and `Petra`, which are.
+`temper.` is `Temper` in production. Both seed-only names exist as **live Events outlets**, which is
+probably where the list came from. Nothing reads the seed in production, so this is a documentation
+and dev-fixture question rather than a defect — but a reader comparing the two will be misled, and
+1.44.0's claim that the seed holds "the ten premises they actually trade from" is no longer true.

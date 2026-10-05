@@ -27,7 +27,9 @@ Brand Base Photos/
     ...
 ```
 
-- **One folder per brand**, spelled exactly as the brand is named in Brand Base: `Casa Vostra`, `Willow`, `Chin Mee Chin`, `temper.`, `Carlitos`, `Firebird by Suetomi`, `Ungrafted Vines`.
+- **One folder per brand**, spelled exactly as the brand is named in Brand Base: `Casa Vostra`, `Willow`, `Chin Mee Chin`, `Temper`, `Carlitos`, `Petra`, and `Mission Group` for anything that belongs to the group rather than to one venue.
+
+  > Corrected 5 October 2026, read from production. This line previously listed `temper.`, `Firebird by Suetomi` and `Ungrafted Vines` and omitted `Petra` and `Mission Group` — it had been written from the development seed, which describes a different estate. Following the old list would have meant two folders for brands that do not exist, two missing, and `Temper` misspelled.
 - **One folder per category** inside it. Use the category names the brand's Photography page shows. Start with the five above; add one only when a photo fits none of them.
 - Do not nest deeper. A third level (`Food/Mains/Pasta`) is a filename's job.
 

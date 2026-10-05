@@ -143,8 +143,10 @@ it spans days, ends at 23:59 on its last day. The adapter marks both shapes `all
 
 ### The brand map
 
-Events outlets match BrandFactory brands by slug for six of seven; `firebird` needs its alias to
-`Firebird by Suetomi`. The mapping is stored, not inferred: `brands.events_outlet_id`, set once. An
+Events outlets match BrandFactory brands by slug for six of seven; the seventh, `Mission Group`, is
+group-level and has no outlet. (This section originally said `firebird` needed an alias to
+`Firebird by Suetomi`. It does not: that brand is not in production — see the verification note in
+`content-calendar-phases-0-to-7.md`.) The mapping is stored, not inferred: `brands.events_outlet_id`, set once. An
 event whose outlet maps to no brand is dropped from the calendar and counted in a quiet "N events
 from unmapped outlets" line, so a missing mapping is visible rather than silent.
 

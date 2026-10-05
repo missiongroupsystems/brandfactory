@@ -20,6 +20,14 @@ browser.
   exist on their side (the Casa Vostra question). Match on the slug, not the display name (the
   Firebird naming).
 
+  > Both parenthetical questions were settled on 5 October 2026 against the live data, and the
+  > answers are the opposite of what they anticipated. **Casa Vostra exists** over there, slug
+  > `casa-vostra`, and is mapped. **The Firebird naming never arose**, because `Firebird by
+  > Suetomi` is not a production brand. What the data did show is that their **`slug` is not
+  > unique** — five slugs appear twice, one soft-deleted row and one live — so matching on slug
+  > would be ambiguous and we match on `id`. Left in place above because this file records their
+  > spec as they sent it.
+
 **Response envelope:** not `ListResponse`. Every list endpoint paginates as
 `{ "items": [...], "total", "skip", "limit" }`. Keep fetching while `skip + len(items) < total`.
 The default and maximum `limit` is 500.
