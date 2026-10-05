@@ -53,6 +53,7 @@ import { createMessagesRouter } from './routes/messages'
 import { createWorkspaceInfluencersRouter } from './routes/influencers'
 import { createWorkspaceOutletsRouter } from './routes/outlets'
 import { createWorkspaceMarketingRequestsRouter } from './routes/marketing-requests'
+import { createWorkspacePeopleRouter } from './routes/people'
 import { createWorkspaceVendorsRouter } from './routes/vendors'
 import {
   createBrandProjectsRouter,
@@ -214,6 +215,7 @@ export function createApp(deps: AppDeps) {
     // Marketing requests (MKT-5) — workspace-scoped, one brand each, and no
     // blob keys. The requester is the session's user, never the body's.
     .route('/workspaces', createWorkspaceMarketingRequestsRouter({ db: deps.db }))
+    .route('/workspaces', createWorkspacePeopleRouter({ db: deps.db }))
     .route(
       '/brands',
       createBrandsRouter({

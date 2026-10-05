@@ -2,6 +2,8 @@ import type {
   CreateMarketingRequestInput,
   MarketingRequest,
   UpdateMarketingRequestInput,
+  WorkspacePeopleResponse,
+  WorkspacePerson,
 } from "@brandfactory/shared";
 
 import { bf, callJson } from "@/lib/api/bf-client";
@@ -49,4 +51,17 @@ export const requestService = {
         json: input,
       }),
     ),
+};
+
+/**
+ * Who the work can be handed to. A separate route from `/members`, which is
+ * admin-only by its mount — see `packages/server/src/routes/people.ts`.
+ */
+export const peopleService = {
+  list: async (workspaceId: string): Promise<WorkspacePerson[]> =>
+    (
+      await callJson<WorkspacePeopleResponse>(
+        await bf.workspaces[":workspaceId"].people.$get({ param: { workspaceId } }),
+      )
+    ).people,
 };

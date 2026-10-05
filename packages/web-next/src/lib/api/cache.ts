@@ -250,6 +250,11 @@ export const SCOPES = {
   // `me`: an administrator can edit their own row there, and `me` is what the
   // auth boundary reads to decide whether to draw the app at all.
   bfMembers: "bf-members",
+  // Who a request can be handed to, keyed `[bf-people, workspaceId]`. Separate
+  // from `bfMembers` because it is a different route with a different gate: this
+  // one any member may read, `/members` is admin-only. A picker reading
+  // `bfMembers` would 403 for exactly the people the picker is for.
+  bfPeople: "bf-people",
   bfOutlet: "bf-outlet",
   // BrandFactory's creators, keyed `[bf-influencers, workspaceId]` and
   // `[bf-influencer, workspaceId, ref]`.

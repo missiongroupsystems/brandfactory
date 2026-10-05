@@ -132,3 +132,5 @@ export * from './member/role'
 export * from './member/password'
 export * from './member/access'
 export * from './member/wire'
+// Names only, for a picker. Deliberately NOT `MemberSummary` — see the file.
+export * from './member/people'

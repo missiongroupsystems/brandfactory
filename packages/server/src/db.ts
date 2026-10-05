@@ -16,6 +16,7 @@ export interface Db {
   listBrandGrantsForUser: typeof db.listBrandGrantsForUser
   getUserByEmail: typeof db.getUserByEmail
   listMembers: typeof db.listMembers
+  listActivePeople: typeof db.listActivePeople
   countActiveAdmins: typeof db.countActiveAdmins
   insertMember: typeof db.insertMember
   updateMember: typeof db.updateMember
@@ -193,6 +194,7 @@ export function buildDbDeps(): Db {
     listBrandGrantsForUser: db.listBrandGrantsForUser,
     getUserByEmail: db.getUserByEmail,
     listMembers: db.listMembers,
+    listActivePeople: db.listActivePeople,
     countActiveAdmins: db.countActiveAdmins,
     insertMember: db.insertMember,
     updateMember: db.updateMember,

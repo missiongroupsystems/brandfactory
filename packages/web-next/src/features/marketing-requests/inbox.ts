@@ -5,6 +5,8 @@ import type {
   MarketingRequestStatus,
   MarketingRequestType,
   Outlet,
+  UpdateMarketingRequestInput,
+  WorkspacePerson,
 } from "@brandfactory/shared";
 import { MarketingRequestStatusSchema } from "@brandfactory/shared";
 
@@ -131,4 +133,64 @@ export function toCreateInput(form: RequestFormState): CreateMarketingRequestInp
     details: form.details.trim() || null,
     neededBy: form.neededBy || null,
   };
+}
+
+/** One row of the assignee menu. `id: null` is the Unassigned choice. */
+export interface AssigneeOption {
+  id: string | null;
+  label: string;
+  isMe: boolean;
+}
+
+/**
+ * The assignee control's rows: `Unassigned` first, then everybody, the caller marked.
+ *
+ * **A native `<select>`, not a `DropdownMenu`.** The plan said menu, on the rule the influencer
+ * roster follows — and that rule is about a *table cell*, where arrow keys on a closed select fire
+ * one `change` per press and so one write per press. This control sits in a sheet, directly under
+ * a Status control that is already a native select for the same closed enum, and `AGENTS.md`'s
+ * package-level rule is the native control. A popup menu beside a native select, both picking one
+ * value from a short list, would be two answers to one question on one panel.
+ *
+ * **`Unassigned` is a real item, not an empty row.** Clearing an assignment is a choice somebody
+ * makes, and a menu whose first entry is blank reads as a rendering fault rather than an option.
+ *
+ * **The caller is marked rather than hoisted.** The list is ordered by the server in the order its
+ * labels read, and moving one name to the top would break that for the one person most likely to
+ * be looking for somebody else's. "Assign to me" is the fast path for taking it yourself and it is
+ * still on the sheet.
+ *
+ * `personLabel` is reused for the label, so a person reads the same in this menu as in the
+ * Assigned column and in "Requested by" — name if they set one, else their email.
+ */
+export function assigneeOptions(
+  people: readonly WorkspacePerson[],
+  meId: string | undefined,
+): AssigneeOption[] {
+  const rows: AssigneeOption[] = [{ id: null, label: "Unassigned", isMe: false }];
+  for (const person of people) {
+    const isMe = !!meId && person.id === meId;
+    rows.push({
+      id: person.id,
+      label: isMe ? `${personLabel(person)} (you)` : personLabel(person),
+      isMe,
+    });
+  }
+  return rows;
+}
+
+/**
+ * What the picker should send for a chosen row, or `null` when nothing changed.
+ *
+ * The patch schema refuses `{}` and an unchanged write would put back a value a colleague may
+ * have just altered, so choosing the row that is already set closes the menu and sends nothing —
+ * the rule `entry-form.ts` states for the calendar sheet, applied to one field.
+ */
+export function assigneePatch(
+  request: MarketingRequest,
+  chosen: NonNullable<UpdateMarketingRequestInput["assigneeUserId"]> | null,
+): Pick<UpdateMarketingRequestInput, "assigneeUserId"> | null {
+  const current = request.assignee?.id ?? null;
+  if (current === chosen) return null;
+  return { assigneeUserId: chosen };
 }

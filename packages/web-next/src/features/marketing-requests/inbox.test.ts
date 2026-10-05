@@ -1,8 +1,10 @@
-import type { MarketingRequest, Outlet } from "@brandfactory/shared";
+import type { MarketingRequest, Outlet, WorkspacePerson } from "@brandfactory/shared";
 import { describe, expect, it } from "vitest";
 
 import {
   REQUEST_STATUSES,
+  assigneeOptions,
+  assigneePatch,
   inSearch,
   initialRequestForm,
   isMine,
@@ -141,5 +143,61 @@ describe("the form", () => {
       details: null,
       neededBy: null,
     });
+  });
+});
+
+/** An assignee, cast once — `MarketingRequest.assignee` carries a branded `UserId`. */
+function holder(id: string, email: string, displayName: string | null = null) {
+  return { id, email, displayName } as NonNullable<MarketingRequest["assignee"]>;
+}
+
+const PEOPLE = [
+  { id: "u-1", displayName: "Marcus Tan", email: "marcus@example.com" },
+  { id: "u-2", displayName: null, email: "chloe@example.com" },
+] as WorkspacePerson[];
+
+describe("the assignee picker", () => {
+  it("offers Unassigned first, so clearing is a choice rather than a blank row", () => {
+    const rows = assigneeOptions(PEOPLE, "u-1");
+    expect(rows[0]).toEqual({ id: null, label: "Unassigned", isMe: false });
+  });
+
+  it("marks the caller rather than hoisting them", () => {
+    // The server orders the list the way its labels read. Moving one name to the
+    // top would break that for the person most likely to be looking for somebody
+    // else's — and "Assign to me" is already the fast path for taking it.
+    const rows = assigneeOptions(PEOPLE, "u-1");
+    expect(rows.map((r) => r.id)).toEqual([null, "u-1", "u-2"]);
+    expect(rows[1]).toMatchObject({ id: "u-1", label: "Marcus Tan (you)", isMe: true });
+    expect(rows[2]?.isMe).toBe(false);
+  });
+
+  it("falls back to the email for somebody with no display name", () => {
+    // Same rule as the Assigned column and "Requested by": `personLabel`. Most
+    // accounts here have no display name, so a picker that rendered the name
+    // alone would be a list of blanks.
+    expect(assigneeOptions(PEOPLE, undefined)[2]?.label).toBe("chloe@example.com");
+  });
+
+  it("marks nobody while `/me` is still loading", () => {
+    expect(assigneeOptions(PEOPLE, undefined).some((r) => r.isMe)).toBe(false);
+  });
+
+  it("sends nothing when the chosen person is already the assignee", () => {
+    // The patch schema refuses `{}`, and an unchanged write would put back a
+    // value a colleague may have altered a moment ago.
+    const assigned = request({ assignee: holder("u-2", "chloe@example.com") });
+    expect(assigneePatch(assigned, "u-2" as never)).toBeNull();
+  });
+
+  it("sends nothing when Unassigned is chosen on a request nobody holds", () => {
+    expect(assigneePatch(request(), null)).toBeNull();
+  });
+
+  it("sends the id for a change, and null to clear one", () => {
+    const assigned = request({ assignee: holder("u-2", "chloe@example.com") });
+    expect(assigneePatch(request(), "u-1" as never)).toEqual({ assigneeUserId: "u-1" });
+    expect(assigneePatch(assigned, null)).toEqual({ assigneeUserId: null });
+    expect(assigneePatch(assigned, "u-1" as never)).toEqual({ assigneeUserId: "u-1" });
   });
 });

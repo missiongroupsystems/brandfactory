@@ -4,7 +4,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { pool } from './client'
 import { createBrand, deleteBrand } from './queries/brands'
 import { getBrandRoleForUser, setBrandGrants } from './queries/user-brands'
-import { countActiveAdmins, insertMember, setMemberDeactivated } from './queries/users'
+import {
+  countActiveAdmins,
+  insertMember,
+  listActivePeople,
+  setMemberDeactivated,
+} from './queries/users'
 import { writeAudit } from './queries/credential-audit'
 import { createWorkspace, deleteWorkspace } from './queries/workspaces'
 import { seed } from './seed'
@@ -83,6 +88,41 @@ describe.skipIf(!hasDb)('members (live DB)', () => {
     // guard mean "last *usable* admin".
     await setMemberDeactivated(a.id as UserId, true)
     expect(await countActiveAdmins()).toBe(before)
+  })
+
+  it('lists active people in rendered-label order, and omits a deactivated one', async () => {
+    // Live, because the order is `coalesce(display_name, email)` evaluated by
+    // Postgres under the database's own collation. The fake sorts in JavaScript
+    // and so cannot answer whether this clause does what the picker needs.
+    const tag = randomUUID().slice(0, 8)
+    const withName = await insertMember({
+      id: randomUUID(),
+      email: `live-test-people-zz-${tag}@example.com`,
+      displayName: `AAA people ${tag}`,
+      role: null,
+      mustSetPassword: true,
+    })
+    createdUsers.push(withName.id as UserId)
+    const noName = await member(`live-test-people-mm-${tag}@example.com`)
+    const leaving = await member(`live-test-people-nn-${tag}@example.com`)
+
+    const ours = (await listActivePeople()).filter((p) => p.email.includes(tag))
+    expect(ours.map((p) => p.id)).toEqual([withName.id, noName.id, leaving.id])
+    // The row with a display name sorts by that name, not by its address —
+    // `zz@` first proves the coalesce rather than the email column.
+    expect(ours[0]?.displayName).toBe(`AAA people ${tag}`)
+
+    await setMemberDeactivated(leaving.id as UserId, true)
+    const after = (await listActivePeople()).filter((p) => p.email.includes(tag))
+    expect(after.map((p) => p.id)).toEqual([withName.id, noName.id])
+  })
+
+  it('returns only the three fields a picker may see', async () => {
+    // The guard on the over-sharing this route exists to avoid. A column added
+    // to `users` must not reach the picker by being swept into the select.
+    const u = await member(`live-test-people-shape-${randomUUID()}@example.com`)
+    const row = (await listActivePeople()).find((p) => p.id === u.id)
+    expect(row && Object.keys(row).sort()).toEqual(['displayName', 'email', 'id'])
   })
 
   it('diffs grants: inserts, changes a role, and removes what is gone', async () => {

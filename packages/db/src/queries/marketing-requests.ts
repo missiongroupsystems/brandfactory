@@ -29,10 +29,18 @@ export class OutletNotInBrandError extends Error {
   }
 }
 
-/** An assignee id with no account behind it. The route answers 400 `ASSIGNEE_NOT_FOUND`. */
+/**
+ * An assignee id that is not assignable: no account behind it, or a deactivated
+ * one. The route answers 400 `ASSIGNEE_NOT_FOUND` for both.
+ *
+ * **One code for two causes, deliberately.** The picker offers only assignable
+ * people, so either cause means the caller sent an id no screen offered — a
+ * stale list or a hand-made request. Telling those apart would also tell a
+ * caller which ids are real accounts, and nothing on this screen needs to know.
+ */
 export class AssigneeNotFoundError extends Error {
   constructor(userId: UserId) {
-    super(`No user with id: ${userId}`)
+    super(`No assignable user with id: ${userId}`)
     this.name = 'AssigneeNotFoundError'
   }
 }
@@ -97,9 +105,38 @@ async function assertOutletInBrand(
   if (rows.length === 0) throw new OutletNotInBrandError(outletId)
 }
 
-async function assertUserExists(tx: Tx, userId: UserId | null | undefined): Promise<void> {
+/**
+ * Whether a request may be handed to this account.
+ *
+ * ⚠️ **This checked only that the row existed until 5 October 2026**, which let
+ * a request be assigned to a **deactivated** account: the route answered 200,
+ * the inbox showed their name in the Assigned column, and the work sat with
+ * somebody who could not sign in. Nothing had hit it because the only value the
+ * screen could send was the caller's own id — the assignee picker is what makes
+ * every other id reachable, so the guard and the picker land together.
+ *
+ * `deactivated_at IS NULL` **is** the workspace rule, not a narrower one.
+ * `requireWorkspaceAccess` admits any active account because there is one
+ * workspace and no `user_workspaces` table, so this is the same set
+ * `listActivePeople` offers — which is the property worth keeping: every refusal
+ * here means a stale list or a hand-made request, so neither needs its own code
+ * or its own message.
+ *
+ * `null` passes, because clearing the assignee is a write this guard has no
+ * opinion about.
+ *
+ * **Deactivation does not unassign.** A request already held by somebody who is
+ * later deactivated keeps their name: the history is true and the inbox should
+ * show who is holding it. This guard is about new writes only. Adding a sweep to
+ * the deactivate route would be one line and would silently empty the Assigned
+ * column for work that is still genuinely theirs.
+ */
+async function assertAssignable(tx: Tx, userId: UserId | null | undefined): Promise<void> {
   if (!userId) return
-  const rows = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId))
+  const rows = await tx
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.id, userId), isNull(users.deactivatedAt)))
   if (rows.length === 0) throw new AssigneeNotFoundError(userId)
 }
 
@@ -225,7 +262,7 @@ export async function updateMarketingRequest(
     if (patch.brandId !== undefined || patch.outletId !== undefined) {
       await assertOutletInBrand(tx, workspaceId, brandId, outletId)
     }
-    await assertUserExists(tx, patch.assigneeUserId)
+    await assertAssignable(tx, patch.assigneeUserId)
 
     const now = new Date().toISOString()
     let resolvedAt: string | null | undefined

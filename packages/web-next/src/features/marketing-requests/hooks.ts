@@ -4,6 +4,7 @@ import type {
   CreateMarketingRequestInput,
   MarketingRequest,
   UpdateMarketingRequestInput,
+  WorkspacePerson,
 } from "@brandfactory/shared";
 import * as React from "react";
 import useSWR from "swr";
@@ -11,7 +12,7 @@ import useSWR from "swr";
 import { useActiveWorkspace } from "@/features/workspaces/active-workspace";
 import { SCOPES, useInvalidate } from "@/lib/api/cache";
 
-import { requestService } from "./api";
+import { peopleService, requestService } from "./api";
 
 /**
  * The inbox — the workspace's whole list, one request. The filtering happens in the browser over
@@ -29,6 +30,33 @@ export function useRequests() {
   const requests = React.useMemo(() => data ?? [], [data]);
   return {
     requests,
+    isLoading: workspaceLoading || isLoading,
+    error: workspaceError ?? error,
+  };
+}
+
+/**
+ * Who a request can be handed to.
+ *
+ * Its own hook and its own SWR scope, not a slice of the member screen's. The
+ * route behind it is `GET /workspaces/:id/people`, which any member may read —
+ * `/members` is admin-only by its mount, so a picker reading `bfMembers` would
+ * 403 for precisely the people who need the picker.
+ *
+ * `error` is returned rather than swallowed, because the sheet disables the
+ * picker on a failed read and leaves "Assign to me" working: that button needs
+ * no list, and taking it away would turn a missing dropdown into no way to pick
+ * anything up at all.
+ */
+export function usePeople() {
+  const { workspace, isLoading: workspaceLoading, error: workspaceError } = useActiveWorkspace();
+  const { data, error, isLoading } = useSWR<WorkspacePerson[]>(
+    workspace?.id ? [SCOPES.bfPeople, workspace.id] : null,
+    () => peopleService.list(workspace!.id),
+  );
+  const people = React.useMemo(() => data ?? [], [data]);
+  return {
+    people,
     isLoading: workspaceLoading || isLoading,
     error: workspaceError ?? error,
   };

@@ -165,6 +165,40 @@ describe('marketing request routes — patch', () => {
     expect(((await res.json()) as { code: string }).code).toBe('ASSIGNEE_NOT_FOUND')
   })
 
+  it('refuses a deactivated assignee, which it used to accept', async () => {
+    // ⚠️ This was a live defect until 5 October 2026. `assertUserExists`
+    // checked only that the row was there, so a request could be assigned to a
+    // deactivated account: 200 from the route, their name in the Assigned
+    // column, and the work sitting with somebody who cannot sign in. Nothing
+    // had reached it because the only id the screen could send was the
+    // caller's own — the assignee picker makes every other id reachable, so
+    // `assertAssignable` and the picker land together.
+    const { app, base, brandId, state } = await seed()
+    const row = await createOk(app, base, { ...BODY, brandId })
+    const other = state.users.get(OTHER.id)
+    if (other) other.deactivatedAt = '2026-10-01'
+    const res = await patch(app, `${base}/${row.id}`, { assigneeUserId: OTHER.id })
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { code: string }).code).toBe('ASSIGNEE_NOT_FOUND')
+  })
+
+  it('keeps an assignee who is deactivated afterwards', async () => {
+    // Deactivation must NOT unassign. The history is true and the inbox should
+    // show who is holding the work. A sweep on the deactivate route would be
+    // one line and would silently empty the Assigned column.
+    const { app, base, brandId, state } = await seed()
+    const row = await createOk(app, base, { ...BODY, brandId })
+    const path = `${base}/${row.id}`
+    const assigned = (await (
+      await patch(app, path, { assigneeUserId: OTHER.id })
+    ).json()) as MarketingRequest
+    expect(assigned.assignee?.id).toBe(OTHER.id)
+    const other = state.users.get(OTHER.id)
+    if (other) other.deactivatedAt = '2026-10-02'
+    const after = (await (await app.request(path, { headers: auth() })).json()) as MarketingRequest
+    expect(after.assignee?.id).toBe(OTHER.id)
+  })
+
   it('checks the kept outlet against a new brand', async () => {
     const { app, base, brandId, otherBrandId, outletId } = await seed()
     const row = await createOk(app, base, { ...BODY, brandId, outletId })

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.59.0** — 2026-10-05 — A request can be handed to a colleague, which needed a people route of its own: `GET /members` exists and is admin-only by its mount, so a picker built on it would 403 for the first person added as an ordinary member — the case the member work exists for. Three fields on the wire, and the assignee guard stops accepting a deactivated account. No migration. 3371 tests.
 - **1.58.0** — 2026-10-05 — A valid token stops being a key to the whole estate: the auto-provisioner that admitted any stranger holding a Supabase token is closed, an administrator creates an account and sets its first password, and per-brand grants exist for the tenth person rather than to narrow the nine. Plus the marketing request inbox on real routes, and four Mission Events refusals that say what Events means by them. Migrations 0026–0027. 3352 tests.
 - **1.57.0** — 2026-09-30 — The product is Brand Base on screen, and the calendar gains what 1.56.0 left out: a week view wide enough to read the plan in, a post that names its shoot and its event — with the server now checking the shoot — and attachments from the brand's library. Plus the dev proxy every upload in `web-next` was missing. No migration. 3208 tests.
 - **1.56.0** — 2026-09-30 — The content calendar comes back, and this time it is a production pipeline: a deployment for the Vite app it had lost, one `/calendar` across seven brands with a list and an export, five stages from idea to posted, shoots, a read-through of Mission Events, and — last — a grid that can be written to. Plus a realtime backplane so two machines stop dropping half the messages. Migrations 0023–0025. 3195 tests.
@@ -110,6 +111,68 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.59.0 — 2026-10-05
+
+**A request can be handed to a colleague.** The inbox could assign to *you* and to nobody else;
+Natalie and Chloe share one inbox. Full write-up in `docs/completions/assignee-picker.md`.
+**No migration.** 3371 tests (3189 passing, 182 skipped without a database).
+
+### `GET /members` existed and the people who need it cannot call it
+
+The route landed in 1.58.0 and the admin gate is mounted on its whole prefix, deliberately — *"Admin
+only, and this is the whole of it."* A picker fed from it would work today, because all nine current
+users are administrators, and would be wrong twice. It would make `mustSetPassword`, `deactivatedAt`,
+`role` and every brand grant readable from the marketing inbox. And it would **403 for the first
+person added as an ordinary member** — which is the case the member work was commissioned for.
+
+So `GET /workspaces/:workspaceId/people` instead, outside that prefix, answering three fields:
+`id`, `displayName` and `email`. `email` is there as the label's fallback, not as a contact detail —
+most accounts have no display name. Two tests pin the key set and name each field that must not
+appear, so a column added to `users` cannot reach the picker by being swept into a `select`.
+
+The query takes **no workspace argument**, and the omission is the honest shape: there is no
+`user_workspaces` table, so the workspace in the path is the access boundary rather than a filter,
+and a `where` clause naming it would filter nothing while claiming to. Ordered by
+`coalesce(display_name, email)`, because that is what the label renders.
+
+### The assignee guard was accepting a deactivated account
+
+`assertUserExists` proved the row existed and checked nothing else, so a request could be assigned
+to a deactivated account: 200, their name in the Assigned column, and the work with somebody who
+cannot sign in. Nothing had reached it because the only id the screen could send was the caller's
+own — the picker makes every other id reachable, so `assertAssignable` lands with it, refusing
+exactly the set the list omits.
+
+**Deactivation still does not unassign.** A request already held by somebody later deactivated keeps
+their name; the history is true and the inbox should show who is holding it. A test for each
+direction.
+
+### The control
+
+A native `<select>`, which is a **departure from the plan** — it said `DropdownMenu`, on the rule
+the influencer roster follows, and that rule is about a table cell where arrow keys on a closed
+select fire one write per press. This sits in a sheet under a Status control that is already a
+native select over a closed enum.
+
+`Unassigned` is a real option rather than a blank row. The caller is marked `(you)` rather than
+hoisted, because the server orders the list the way its labels read. "Assign to me" stays, and stays
+enabled when the picker is disabled — it needs no list. An assignee the list cannot show is appended
+so the control cannot read "Unassigned" over an assigned request. Choosing the row already set sends
+nothing, because the patch schema refuses `{}` and an unchanged write would put back a colleague's
+edit.
+
+### Not verified
+
+⚠️ **The two live tests did not run and there was no browser pass.** Both need the local Postgres,
+and colima's socket still points at the pre-migration home path. The live tests assert the
+`coalesce` ordering and the three-field shape against real Postgres — which is what the in-memory
+fake cannot be evidence for — so run them before trusting this in production.
+
+### Not in this release
+
+An *Assigned to* filter on the inbox. Any notification when somebody is assigned. Reassignment
+history. Any change to `/members`.
 
 ## 1.58.0 — 2026-10-05
 

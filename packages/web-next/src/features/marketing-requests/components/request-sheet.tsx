@@ -1,6 +1,10 @@
 "use client";
 
-import type { MarketingRequest, MarketingRequestStatus } from "@brandfactory/shared";
+import type {
+  MarketingRequest,
+  MarketingRequestStatus,
+  UpdateMarketingRequestInput,
+} from "@brandfactory/shared";
 import { Loader2Icon, UserCheckIcon, UserMinusIcon } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
@@ -25,13 +29,25 @@ import {
   MARKETING_REQUEST_TYPE_LABELS,
 } from "@/lib/labels";
 
-import { useRequestMutations } from "../hooks";
-import { REQUEST_STATUSES, personLabel } from "../inbox";
+import { usePeople, useRequestMutations } from "../hooks";
+
+/** The branded id the patch wants, named once so the cast below reads as one. */
+type AssigneeId = NonNullable<UpdateMarketingRequestInput["assigneeUserId"]>;
+import { REQUEST_STATUSES, assigneeOptions, assigneePatch, personLabel } from "../inbox";
 
 /**
  * One request in full, with the two things the inbox does to it: move it along the ladder, and
- * take it ("Assign to me"). Assigning anybody else waits for a route that lists the workspace's
- * people; until then, the person who will do the work takes it.
+ * decide who is doing it — either by taking it ("Assign to me") or by handing it to a colleague
+ * from the picker.
+ *
+ * **The picker reads `GET /workspaces/:id/people`, not `GET /members`.** That second route is
+ * admin-only by its mount in `app.ts`, so a picker built on it would 403 for the first person
+ * added as an ordinary member — which is the case the member work exists for. See
+ * `packages/server/src/routes/people.ts`.
+ *
+ * **"Assign to me" stays beside it.** It is one click for the common case and it works while the
+ * people list is still loading or has failed; removing it to avoid two paths to one field would
+ * make the frequent action slower to serve a tidiness nobody asked for.
  *
  * **Nothing optimistic.** A control in flight is disabled and shows the value the request still
  * holds; the new value appears because the server sent it back. A refusal is a toast carrying the
@@ -54,6 +70,7 @@ export function RequestSheet({
   onOpenChange: (open: boolean) => void;
 }) {
   const { update } = useRequestMutations();
+  const { people } = usePeople();
   const [pending, setPending] = React.useState<"status" | "assignee" | null>(null);
 
   if (!request) return null;
@@ -71,6 +88,15 @@ export function RequestSheet({
   }
 
   const mine = meId !== undefined && request.assignee?.id === meId;
+  // An assignee the list cannot show — somebody deactivated since they took it — still has to
+  // render as the selected option, or the control would read as "Unassigned" over a request that
+  // is assigned, and saving any other field would look like it cleared the assignment.
+  const options = assigneeOptions(
+    request.assignee && !people.some((p) => p.id === request.assignee?.id)
+      ? [...people, request.assignee]
+      : people,
+    meId,
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -117,7 +143,34 @@ export function RequestSheet({
                 {request.assignee ? (mine ? "you" : personLabel(request.assignee)) : "nobody yet"}
               </span>
             </span>
-            {mine ? (
+            <span className="flex flex-wrap items-center gap-2">
+              <Select
+                containerClassName="w-52"
+                aria-label={`Assignee of ${request.reference}`}
+                value={request.assignee?.id ?? ""}
+                // Disabled while a write is in flight, and while the list is empty — which is
+                // both "still loading" and "the read failed". The two buttons stay enabled in
+                // either case, because neither needs the list.
+                disabled={pending !== null || people.length === 0}
+                onChange={(event) => {
+                  // The one cast, at the DOM boundary: a `<select>` value is a plain string and
+                  // `assigneeUserId` is a branded `UserId`. The server re-checks the id either
+                  // way — `assertAssignable` refuses one with no active account behind it.
+                  const raw = event.target.value;
+                  const chosen = raw === "" ? null : (raw as AssigneeId);
+                  const patch = assigneePatch(request, chosen);
+                  // Choosing the row already set sends nothing: the patch schema refuses `{}`,
+                  // and an unchanged write would put back a value a colleague may have altered.
+                  if (patch) void save("assignee", patch);
+                }}
+              >
+                {options.map((option) => (
+                  <option key={option.id ?? "none"} value={option.id ?? ""}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+              {mine ? (
               <Button
                 variant="secondary"
                 size="sm"
@@ -151,7 +204,8 @@ export function RequestSheet({
                 )}
                 {request.assignee ? "Take it over" : "Assign to me"}
               </Button>
-            )}
+              )}
+            </span>
           </div>
 
           <DetailList>

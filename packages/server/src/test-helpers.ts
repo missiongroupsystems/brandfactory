@@ -471,6 +471,17 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
         }))
         .sort((a, b) => a.email.localeCompare(b.email))
     },
+    async listActivePeople() {
+      // Mirrors `listActivePeople`: active only, ordered by the label that
+      // renders. The real one does the coalesce in SQL under the database's
+      // collation, which is why `members.live.test.ts` asserts the order too —
+      // this fake cannot be evidence for it.
+      const label = (u: { displayName: string | null; email: string }) => u.displayName ?? u.email
+      return [...state.users.values()]
+        .filter((u) => u.deactivatedAt === null)
+        .map((u) => ({ id: u.id as UserId, displayName: u.displayName, email: u.email }))
+        .sort((a, b) => label(a).localeCompare(label(b)))
+    },
     async countActiveAdmins() {
       let n = 0
       for (const row of state.users.values()) {
@@ -1570,8 +1581,14 @@ export function createFakeDb(state: FakeDbState = createFakeDbState()): {
       if (patch.brandId !== undefined || patch.outletId !== undefined) {
         assertFakeOutletInBrand(state, workspaceId, brandId, outletId)
       }
-      if (patch.assigneeUserId && !state.users.has(patch.assigneeUserId)) {
-        throw new AssigneeNotFoundError(patch.assigneeUserId)
+      // Mirrors `assertAssignable`: the row must exist AND be active. The
+      // active half was missing here and in the query until 5 October 2026,
+      // which let a request be assigned to somebody who cannot sign in.
+      if (patch.assigneeUserId) {
+        const target = state.users.get(patch.assigneeUserId)
+        if (!target || target.deactivatedAt !== null) {
+          throw new AssigneeNotFoundError(patch.assigneeUserId)
+        }
       }
       let resolvedAt = existing.resolvedAt
       if (patch.status !== undefined) {

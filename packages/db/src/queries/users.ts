@@ -1,4 +1,4 @@
-import type { UserId } from '@brandfactory/shared'
+import type { UserId, WorkspacePerson } from '@brandfactory/shared'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import { db } from '../client'
 import { users } from '../schema'
@@ -97,6 +97,45 @@ export async function listMembers(): Promise<MemberRow[]> {
     .from(users)
     .orderBy(users.email)
   return rows as MemberRow[]
+}
+
+/**
+ * Everybody a workspace's work can be handed to: active accounts, ordered the
+ * way their labels render. Read by `GET /workspaces/:workspaceId/people`.
+ *
+ * ⚠️ **No workspace filter, and the omission is the honest shape.** There is no
+ * `user_workspaces` table: `requireWorkspaceAccess` admits any active account,
+ * and `authz.ts` says why — *"Per-brand is the dimension that narrows, not
+ * per-workspace. There is one workspace."* So the workspace in the route's path
+ * is the **access boundary**, not a predicate, and a `where` clause naming it
+ * would be a filter that filters nothing while claiming to.
+ *
+ * The day a second workspace exists, this function and that route change
+ * together, and the compiler will not tell you — so it is written down here.
+ *
+ * **Deactivated accounts are excluded.** Offering somebody work they cannot
+ * sign in to do is the defect the picker exists to avoid, and `assertAssignable`
+ * in `marketing-requests.ts` refuses the same set on the write.
+ *
+ * Ordered by `coalesce(display_name, email)` because that is exactly what
+ * `personLabel` renders. Ordering by `email` alone — as `listMembers` does, for
+ * a table that shows both columns — would read as unsorted in a list that shows
+ * one.
+ *
+ * No pagination. `listMembers` has none either, and past a couple of hundred the
+ * honest fix is a search rather than a bigger page.
+ */
+export async function listActivePeople(): Promise<WorkspacePerson[]> {
+  const rows = await db
+    .select({
+      id: users.id,
+      displayName: users.displayName,
+      email: users.email,
+    })
+    .from(users)
+    .where(isNull(users.deactivatedAt))
+    .orderBy(sql`coalesce(${users.displayName}, ${users.email})`)
+  return rows as WorkspacePerson[]
 }
 
 /**
