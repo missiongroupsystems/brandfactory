@@ -95,11 +95,31 @@ function EntryChip({
   );
 }
 
-function EventChip({ event }: { event: CalendarEvent }) {
+/**
+ * A booking from Mission Events, on the month grid.
+ *
+ * **It opens the day plan, and before 1.60.0 it opened nothing.** It was a
+ * `<div>` carrying a `Link2` icon, sitting between entry chips that are real
+ * buttons — so it promised a destination twice over and had none. The detail it
+ * was implying was already on screen one click away, in `DayPlan`'s event card:
+ * outlet, room, time, status, and the entries made for this booking.
+ *
+ * It selects the day rather than opening a sheet of its own. **The event is not
+ * ours to edit** — Mission Events owns the booking and the day plan says so in
+ * as many words — so a sheet here would offer controls that cannot exist. The
+ * day plan is where a read-only thing belongs.
+ *
+ * The visible name stays the accessible name and the rest is appended `sr-only`:
+ * an `aria-label` would *replace* it, and every chip in the month would then be
+ * announced identically. That is the lesson `CellTrigger` records.
+ */
+function EventChip({ event, onOpen }: { event: CalendarEvent; onOpen: () => void }) {
   return (
-    <div
+    <button
+      type="button"
+      onClick={onOpen}
       className={cn(
-        "flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px]",
+        "flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px]",
         // Tentative draws dashed: it is a thing that might happen, and a solid
         // chip would let somebody plan a shoot around a booking nobody confirmed.
         event.status === "tentative"
@@ -111,7 +131,8 @@ function EventChip({ event }: { event: CalendarEvent }) {
       <Ticket className="size-3 shrink-0 text-muted-foreground" />
       <span className="min-w-0 flex-1 truncate">{event.name}</span>
       <Link2 className="size-3 shrink-0 text-muted-foreground" />
-    </div>
+      <span className="sr-only">, from Mission Events — open this day</span>
+    </button>
   );
 }
 
@@ -399,6 +420,7 @@ export function CalendarView({
           onAdd={(key) =>
             setFormTarget({ mode: "create", brandId: brandFilter ?? undefined, date: key })
           }
+          onSelectDay={setSelectedDay}
         />
       ) : view === "list" ? (
         <CalendarList entries={shownEntries} brandName={brandName} onEdit={editEntry} />
@@ -438,7 +460,7 @@ export function CalendarView({
                   {day.getDate()}
                 </button>
                 {dayEvents.slice(0, 2).map((e) => (
-                  <EventChip key={e.id} event={e} />
+                  <EventChip key={e.id} event={e} onOpen={() => setSelectedDay(key)} />
                 ))}
                 {dayEntries.slice(0, 3).map((e) => (
                   <EntryChip

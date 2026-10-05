@@ -39,6 +39,7 @@ export function CalendarWeek({
   todayKey,
   onEdit,
   onAdd,
+  onSelectDay,
 }: {
   days: Date[];
   entriesByDay: Map<string, SocialPost[]>;
@@ -47,6 +48,8 @@ export function CalendarWeek({
   todayKey: string;
   onEdit: (entry: SocialPost) => void;
   onAdd: (dayKey: string) => void;
+  /** Opens the day plan, which is where a read-only booking's detail lives. */
+  onSelectDay: (dayKey: string) => void;
 }) {
   return (
     <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-border bg-border">
@@ -90,15 +93,21 @@ export function CalendarWeek({
               </Button>
             </div>
 
+            {/* A button, like the month grid's chip and for the same reason: the
+                Link2 icon promised a destination this card did not have, and the
+                detail was already one click away in the day plan. */}
             {events.map((e) => (
-              <div
+              <button
                 key={e.id}
+                type="button"
+                onClick={() => onSelectDay(key)}
                 className={cn(
-                  "rounded-md px-2 py-1.5 text-xs",
+                  "w-full rounded-md px-2 py-1.5 text-left text-xs",
                   e.status === "tentative"
                     ? "border border-dashed border-[var(--border-strong)] text-muted-foreground"
                     : "border border-border bg-[var(--surface-sunken)]",
                 )}
+                title={`${e.name} · ${e.outletName}`}
               >
                 <span className="flex items-center gap-1 font-medium">
                   <Ticket className="size-3 shrink-0" />
@@ -108,7 +117,8 @@ export function CalendarWeek({
                 <span className="block truncate text-muted-foreground">
                   {e.allDay ? "All day" : timeOf(e.start)} · {e.status}
                 </span>
-              </div>
+                <span className="sr-only">, from Mission Events — open this day</span>
+              </button>
             ))}
 
             {entries.map((entry) => {

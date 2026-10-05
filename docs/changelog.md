@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.60.0** — 2026-10-05 — An event on the calendar stops promising a destination it did not have: the chip was a `div` with a link icon, between entry chips that are real buttons, so it taught the reader to click it and then did nothing. It opens the day plan now, where the booking's outlet, room, time and owner already were. No migration. 3375 tests.
 - **1.59.0** — 2026-10-05 — A request can be handed to a colleague, which needed a people route of its own: `GET /members` exists and is admin-only by its mount, so a picker built on it would 403 for the first person added as an ordinary member — the case the member work exists for. Three fields on the wire, and the assignee guard stops accepting a deactivated account. No migration. 3371 tests.
 - **1.58.0** — 2026-10-05 — A valid token stops being a key to the whole estate: the auto-provisioner that admitted any stranger holding a Supabase token is closed, an administrator creates an account and sets its first password, and per-brand grants exist for the tenth person rather than to narrow the nine. Plus the marketing request inbox on real routes, and four Mission Events refusals that say what Events means by them. Migrations 0026–0027. 3352 tests.
 - **1.57.0** — 2026-09-30 — The product is Brand Base on screen, and the calendar gains what 1.56.0 left out: a week view wide enough to read the plan in, a post that names its shoot and its event — with the server now checking the shoot — and attachments from the brand's library. Plus the dev proxy every upload in `web-next` was missing. No migration. 3208 tests.
@@ -111,6 +112,38 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.60.0 — 2026-10-05
+
+**The event chip opens the day plan.** Reported by the owner: *"I can see the events on the
+calendar, but I cannot get more info. Clicking on it doesn't do anything. Is that right?"* It was,
+and it was also a defect. Full write-up in
+`docs/completions/calendar-event-chip-opens-the-day.md`. **No migration.** 3375 tests (3375
+passing, 0 skipped — run with a database).
+
+`EventChip` was a `<div>` with no handler, drawing a `Link2` icon, sitting between `EntryChip`s that
+are real buttons. The chips either side taught the reader that a chip opens something, the link
+glyph said it again, and nothing happened. The week view had the identical shape, so both are fixed
+— one and not the other would have left the same false promise a tab away.
+
+It **selects the day** rather than opening a sheet of its own. The detail was already one click
+away in `DayPlan`'s event card — outlet, room, time or *All day*, status, and the entries made for
+the booking. A sheet would imply controls that cannot exist, because Mission Events owns the
+booking and the day plan already says so.
+
+The visible name stays the accessible name, with the context appended `sr-only` — an `aria-label`
+would replace it and announce every chip in the month identically. A tentative booking still draws
+dashed, and that is asserted, because making it clickable does not make it certain.
+
+One screen test, against this package's usual rule, and the reason is that the browser pass could
+not be run: the events feed is production-only configuration. Checked against a deliberate break —
+with the `<div>` restored, all four fail.
+
+### Still owed
+
+A browser pass, which needs the events feed configured. And the one open question on MKT-2: whether
+all seven brands have an `events_outlet_id`, which the screen answers itself with *"N events could
+not be shown because their outlet is not linked to a brand here."*
 
 ## 1.59.0 — 2026-10-05
 
