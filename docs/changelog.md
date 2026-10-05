@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.61.0** — 2026-10-05 — The Events mapping is verified against both live databases and the seed stops describing a different estate: six brands map to live outlets, the seventh is group-level, and `Firebird by Suetomi` turns out not to be a brand in Brand Base at all — so four documents carried a caveat about a brand that does not exist. Migration none, but `db:seed` output changes. No migration. 3375 tests.
 - **1.60.0** — 2026-10-05 — An event on the calendar stops promising a destination it did not have: the chip was a `div` with a link icon, between entry chips that are real buttons, so it taught the reader to click it and then did nothing. It opens the day plan now, where the booking's outlet, room, time and owner already were. No migration. 3375 tests.
 - **1.59.0** — 2026-10-05 — A request can be handed to a colleague, which needed a people route of its own: `GET /members` exists and is admin-only by its mount, so a picker built on it would 403 for the first person added as an ordinary member — the case the member work exists for. Three fields on the wire, and the assignee guard stops accepting a deactivated account. No migration. 3371 tests.
 - **1.58.0** — 2026-10-05 — A valid token stops being a key to the whole estate: the auto-provisioner that admitted any stranger holding a Supabase token is closed, an administrator creates an account and sets its first password, and per-brand grants exist for the tenth person rather than to narrow the nine. Plus the marketing request inbox on real routes, and four Mission Events refusals that say what Events means by them. Migrations 0026–0027. 3352 tests.
@@ -112,6 +113,61 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.61.0 — 2026-10-05
+
+**What production actually holds.** MKT-2's mapping is verified and the seed is reconciled to it.
+Written up in the verification section of `docs/completions/content-calendar-phases-0-to-7.md`.
+**No migration** — but `db:seed` produces a different workspace, so recreate a local database to
+see it. 3375 tests (3375 passing, 0 skipped — run with a database).
+
+### The mapping is done
+
+Read from BrandFactory and Mission Events and joined on the id the code compares. All six mappings
+resolve to a **live, non-hidden** outlet whose slug is its brand name lower-cased, and no two brands
+share an outlet. The seventh brand is `Mission Group`, group-level, rightly unmapped. Nothing is
+outstanding on the mapping or the three secrets.
+
+Two anticipated questions came back inverted. **Casa Vostra exists** over there and is mapped — their
+spec had framed its absence as possible. And **the Firebird naming never arose**, because `Firebird
+by Suetomi` is not a brand in Brand Base; four documents and a schema comment carried *"confirm
+Firebird against the slug firebird — the names do not match"* as advice about a brand that does not
+exist. Corrected everywhere, including the MKT-6 asset guide, which had told Chloe to create folders
+for two brands that do not exist and to misspell `Temper` as `temper.`
+
+**Matching on slug would still have been wrong**, for a reason nobody predicted: their `slug` is not
+unique. Five slugs appear twice, one soft-deleted row and one live, and the dead `temper` is named
+`Temper.` while the live one is `Temper`. That argument is now in `brands.ts` where the next person
+considering a normaliser will read it.
+
+### The seed mirrors the roster, not the depth
+
+Production's seven are Mission Group, Casa Vostra, Willow, Chin Mee Chin, Carlitos, Temper and Petra.
+The seed had `Firebird by Suetomi` and `Ungrafted Vines` — real Mission Group concepts, live as Events
+outlets, but not brands anybody set up here — and spelled `temper.` with a full stop. Premises go from
+ten to nine with Firebird's.
+
+⚠️ **The depth is deliberately not mirrored.** Production holds **zero outlets** and a description on
+one brand, so a literal mirror would have deleted all nine premises and blanked six descriptions —
+leaving the outlets screen undevelopable locally and `outlets.live.test.ts`' collation assertion
+running against an empty list, passing without testing anything. `Petra` does carry `null` for both,
+because that is true of it.
+
+`seed.test.ts` now pins **two** empty brands with their two different reasons — `Mission Group` is not
+a venue, `Petra` has not opened — where it pinned `Ungrafted Vines` before.
+
+### Two traps this cost a cycle on
+
+The seed is insert-if-absent, so **the rename does not reach an existing local database**. And a
+recreated database inherits the cluster's collation, which on this machine is `C` — two live tests
+assert a linguistic order and fail until the database is created with `lc_collate 'en_US.UTF-8'`.
+Both are recorded in the completion note.
+
+### Not in this release
+
+The five live Events outlets with no brand here — AIR CCCC, Firebird, Mountain, Nightjar, Ungrafted
+Vines — stay unmapped. The owner's call: none of them runs active events today, and they will be
+configured when they do. Curly's was on that list and is now soft-deleted in Events.
 
 ## 1.60.0 — 2026-10-05
 

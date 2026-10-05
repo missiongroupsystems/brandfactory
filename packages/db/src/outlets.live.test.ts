@@ -130,9 +130,10 @@ describe.skipIf(!hasDb)('outlets (live DB)', () => {
     // database created with `LC_COLLATE=C` would need the code-unit comparison back.
     const collator = new Intl.Collator('en')
     expect(names).toEqual([...names].sort((a, b) => collator.compare(a, b)))
-    // The ten premises the group trades from. It was six until 1.44.0 rewrote the seed, and this
-    // assertion was not moved with it.
-    expect(rows.length).toBe(10)
+    // The nine premises the seed holds. Six until 1.44.0 rewrote it, ten until the 5 October 2026
+    // reconciliation dropped `Firebird by Suetomi` — a real Mission Group concept, but not a brand
+    // in Brand Base, and its single premise went with it.
+    expect(rows.length).toBe(9)
   })
 
   it('patches only the keys it is given, and clears on an explicit null', async () => {

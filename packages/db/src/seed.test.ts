@@ -78,7 +78,7 @@ describe.skipIf(!hasDb)('seed()', () => {
       // inserts brands directly — so the seed states them itself or the two
       // paths disagree about what a brand is.
       expect(stageRows).toHaveLength(7 * 6)
-      expect(outletRows).toHaveLength(10)
+      expect(outletRows).toHaveLength(9)
       expect(influencerRows).toHaveLength(0)
       // No creator, so no account. The guard sits above the parent loop, and the
       // accounts are written inside it — an account row here would mean the
@@ -171,13 +171,24 @@ describe.skipIf(!hasDb)('seed()', () => {
     // `ON CONFLICT DO NOTHING`, reads on screen as a shop the group does not have
     // rather than as an error.
     expect(allBrandRows).toHaveLength(7)
-    expect(outletRows).toHaveLength(10)
-    // Ungrafted Vines trades online and holds no premises. Pinned because an
-    // outlet accidentally attached to it would look ordinary in a table of nine
-    // real ones.
-    const ungrafted = allBrandRows.find((b) => b.name === 'Ungrafted Vines')
-    expect(ungrafted).toBeDefined()
-    expect(outletRows.filter((o) => o.brandId === ungrafted?.id)).toHaveLength(0)
+    expect(outletRows).toHaveLength(9)
+    // **Two brands hold no premises, for two different reasons**, and both are
+    // pinned because an outlet accidentally attached to either would look
+    // ordinary in a table of seven real ones.
+    //
+    // `Mission Group` is group-level — the workspace carries the same name — so
+    // it is not a venue and never will be. `Petra` is a venue that has not
+    // opened yet, so its row is right and its emptiness is temporary: when it
+    // opens, this assertion is the one that has to change with it.
+    //
+    // This replaced an assertion on `Ungrafted Vines`, which was the empty brand
+    // until the 5 October 2026 reconciliation removed it — it is not a brand in
+    // Brand Base.
+    for (const name of ['Mission Group', 'Petra']) {
+      const brand = allBrandRows.find((b) => b.name === name)
+      expect(brand, `${name} is missing from the seed`).toBeDefined()
+      expect(outletRows.filter((o) => o.brandId === brand?.id)).toHaveLength(0)
+    }
     expect(proj1Rows).toHaveLength(1)
     expect(proj2Rows).toHaveLength(1)
     expect(canvas1Rows).toHaveLength(1)

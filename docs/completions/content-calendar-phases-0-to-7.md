@@ -848,11 +848,29 @@ seed still uses — while the live one is `Temper`. A slug match would have to c
 the id does not. **This is the strongest argument for the stored mapping, and it only appeared on the
 real data.**
 
-### A drift worth knowing
+### The drift, and how it was closed
 
-The seed describes a different estate from production. It creates `Firebird by Suetomi` and
-`Ungrafted Vines`, which are not production brands, and omits `Mission Group` and `Petra`, which are.
-`temper.` is `Temper` in production. Both seed-only names exist as **live Events outlets**, which is
-probably where the list came from. Nothing reads the seed in production, so this is a documentation
-and dev-fixture question rather than a defect — but a reader comparing the two will be misled, and
-1.44.0's claim that the seed holds "the ten premises they actually trade from" is no longer true.
+The seed described a different estate from production: it created `Firebird by Suetomi` and
+`Ungrafted Vines`, omitted `Mission Group` and `Petra`, and spelled `temper.` with a full stop.
+Both seed-only names exist as **live Events outlets**, which is probably where the list came from —
+they are real Mission Group concepts, just not brands anybody has set up in Brand Base.
+
+**Reconciled on 5 October 2026.** The seed's roster is now production's seven: Mission Group, Casa
+Vostra, Willow, Chin Mee Chin, Carlitos, Temper, Petra. Premises went from ten to nine with
+Firebird's.
+
+⚠️ **The roster was mirrored and the depth was not, deliberately.** Production holds **zero
+outlets** and a `description` on only one brand, so a literal mirror would have deleted all nine
+premises and blanked six descriptions — leaving the outlets screen undevelopable locally and
+`outlets.live.test.ts`' collation assertion running against an empty list, where it passes without
+testing anything. The roster is what identifies a brand and what leaks into other documents; the
+descriptions and premises are fixture depth production has not filled in. `Petra` does carry
+`null` for both, because that is true of it and inventing copy for an unopened venue is the exact
+failure this reconciliation removed.
+
+⚠️ **Two things the next reader needs.** The seed is insert-if-absent
+(`onConflictDoNothing` on `brands.id`), so **the rename does not reach an existing local
+database** — `temper.` stays until the database is recreated. And a recreated database inherits
+the cluster's collation: this machine's cluster is `C`, and two live tests assert a *linguistic*
+order, so it must be created with `lc_collate 'en_US.UTF-8'` or those two fail. Both of those cost
+a debugging cycle here.

@@ -70,8 +70,8 @@ const DEMO_AGENT_MSG_2_ID = '00000000-0000-4000-8000-000000000010'
 const CHIN_MEE_CHIN_ID = '00000000-0000-4000-8000-000000000051'
 const TEMPER_ID = '00000000-0000-4000-8000-000000000052'
 const CARLITOS_ID = '00000000-0000-4000-8000-000000000053'
-const FIREBIRD_ID = '00000000-0000-4000-8000-000000000054'
-const UNGRAFTED_VINES_ID = '00000000-0000-4000-8000-000000000055'
+const MISSION_GROUP_BRAND_ID = '00000000-0000-4000-8000-000000000056'
+const PETRA_ID = '00000000-0000-4000-8000-000000000057'
 
 /**
  * Whether to write the two invented halves — the nineteen creators and the nine
@@ -120,8 +120,15 @@ const DEMO_PROJECT_2_NAME = 'Launch naming'
 interface SeedBrand {
   id: string
   name: string
-  description: string
-  websiteUrl: string
+  /**
+   * Both nullable, as the columns are — and both are `null` on at least one
+   * brand, which is why the type says so rather than being widened under
+   * protest. `Petra` has neither in Brand Base because it has not opened, and
+   * `Mission Group` has no site of its own. Inventing either would be the
+   * fiction the 5 October 2026 reconciliation removed.
+   */
+  description: string | null
+  websiteUrl: string | null
 }
 
 const SEED_BRANDS: SeedBrand[] = [
@@ -130,47 +137,53 @@ const SEED_BRANDS: SeedBrand[] = [
     name: 'Casa Vostra',
     description:
       'Gourmet Italian cuisine at casual prices — pasta and pizza made from scratch, by hand, every day.',
-    websiteUrl: 'https://www.casavostra.sg',
+    websiteUrl: 'https://casavostra.sg',
   },
   {
     id: WILLOW_ID,
     name: 'Willow',
     description:
       'A one MICHELIN-starred dining experience guided by instinct and a Singaporean perspective.',
-    websiteUrl: 'https://www.willowrestaurant.sg',
+    websiteUrl: 'https://www.willowrestaurant.sg/',
   },
   {
     id: CHIN_MEE_CHIN_ID,
     name: 'Chin Mee Chin',
     description:
       'A 100-year-old Hainanese heritage bakery — kaya toast, kopi and cream horns since 1925.',
-    websiteUrl: 'https://www.chinmeechin.sg',
+    websiteUrl: 'https://www.chinmeechin.sg/',
   },
   {
     id: TEMPER_ID,
-    name: 'temper.',
+    name: 'Temper',
     description: 'A social wine room, restaurant and lounge that thrives in the in-between.',
-    websiteUrl: 'https://www.temper.sg',
+    websiteUrl: 'https://www.temper.sg/',
   },
   {
     id: CARLITOS_ID,
     name: 'Carlitos',
     description:
       'A neighbourhood tapas bar — a native ritual of Spain, brought to life in Singapore.',
-    websiteUrl: 'https://www.carlitos.sg',
+    websiteUrl: 'https://carlitos.sg',
   },
   {
-    id: FIREBIRD_ID,
-    name: 'Firebird by Suetomi',
-    description: 'Tori-focused wood-fired omakase, at a twelve-seat counter.',
-    websiteUrl: 'https://www.firebirdbysuetomi.sg',
+    // Group-level, and the workspace carries the same name. It holds no premises
+    // because it is not a venue — `seed.test.ts` pins that.
+    id: MISSION_GROUP_BRAND_ID,
+    name: 'Mission Group',
+    description: 'This is the core Mission Group brand.',
+    websiteUrl: null,
   },
   {
-    id: UNGRAFTED_VINES_ID,
-    name: 'Ungrafted Vines',
-    description:
-      'Extraordinary pours for remarkable tastes — exclusive labels and boutique winemakers. Online only.',
-    websiteUrl: 'https://ungraftedvines.com',
+    // ⚠️ **No description and no website, deliberately.** Both are `null` in
+    // Brand Base, and Petra is not open yet. Writing marketing copy for an
+    // unopened venue is the fiction this reconciliation exists to remove — the
+    // asset guide shipped folder names for two brands that do not exist because
+    // somebody read them off this file.
+    id: PETRA_ID,
+    name: 'Petra',
+    description: null,
+    websiteUrl: null,
   },
 ]
 
@@ -382,6 +395,14 @@ const SEED_OUTLETS: SeedOutlet[] = [
     id: '00000000-0000-4000-8000-000000000017',
     brandId: TEMPER_ID,
     slug: 'temper-duxton',
+    // ⚠️ **The lowercase `t` and the full stop are load-bearing.** The brand is
+    // `Temper` in Brand Base; the venue styles itself `temper.`, which is how
+    // Mission Events' own retired row spells it. Keep it: this is the only
+    // seeded name that does not begin with a capital, and
+    // `outlets.live.test.ts`' collation assertion needs one — a list where every
+    // name starts uppercase sorts identically under a linguistic collation and a
+    // UTF-16 code-unit comparison, so that test would pass without testing
+    // anything.
     name: 'temper. Duxton',
     outletType: 'bar',
     status: 'open',
@@ -427,23 +448,6 @@ const SEED_OUTLETS: SeedOutlet[] = [
     openingDate: null,
     closingDate: null,
     notes: 'Opened November 2024; exact day not confirmed. Closed Monday and Tuesday.',
-  },
-  {
-    id: '00000000-0000-4000-8000-000000000020',
-    brandId: FIREBIRD_ID,
-    slug: 'firebird-by-suetomi',
-    name: 'Firebird by Suetomi',
-    outletType: 'restaurant',
-    status: 'open',
-    address: '83 Neil Road, Mondrian Singapore Duxton',
-    unit: '#01-04/05',
-    postalCode: '089813',
-    attributes: [],
-    targetOpeningDate: null,
-    openingDate: null,
-    closingDate: null,
-    notes:
-      'Opened spring 2025; exact day not confirmed. A twelve-seat counter. Tue–Sun 6pm–10.30pm.',
   },
 ]
 
@@ -516,9 +520,9 @@ const SEED_OUTLETS: SeedOutlet[] = [
  * page prints is therefore absent for the whole roster, which is honest.
  *
  * **`brandIds` is empty on every row.** There is no Curly's brand in this
- * workspace — the seven are Casa Vostra, Willow, Chin Mee Chin, temper.,
- * Carlitos, Firebird by Suetomi and Ungrafted Vines — and attaching this roster
- * to one of those would say the campaign is theirs. An empty set already reads
+ * workspace — the seven are Mission Group, Casa Vostra, Willow, Chin Mee Chin,
+ * Temper, Carlitos and Petra — and attaching this roster to one of those would
+ * say the campaign is theirs. An empty set already reads
  * as "Not engaged yet", which is true of every row until the brand exists.
  *
  * **`status` is `active` where the list says `Accepted`** to the PR kit, and
