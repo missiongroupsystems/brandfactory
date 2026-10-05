@@ -3,7 +3,7 @@
 **Status:** built, 5 October 2026. Written up in `docs/completions/assignee-picker.md`, which
 records one departure from this plan — a native `<select>` rather than a `DropdownMenu`, because
 the menu rule is about table cells and this control sits beside a native select.
-**Awaiting the two live tests and a browser pass**, both blocked on the local database.
+The two live tests have since run and pass. **Awaiting a browser pass.**
 **Surface:** `packages/shared` (one wire shape), `packages/db` (one query),
 `packages/server` (one route, one guard tightened), `packages/web-next`
 (one picker in an existing sheet).

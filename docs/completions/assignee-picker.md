@@ -146,20 +146,21 @@ different gate: a picker reading `bfMembers` would 403 for precisely the people 
 **3371 tests: 3189 passing, 182 skipped, 0 failed** — up 19 from 1.58.0's 3352. Eight on the new
 route, seven on the picker's pure rules, two on the tightened guard and its non-sweep, and two live.
 
-⚠️ **The two live tests were not run.** They need `DATABASE_URL` and the local Postgres is down —
-colima's socket still points at the pre-migration home path, which the machine-transfer notes
-record as expected. They assert the `coalesce` ordering and the three-field shape against real
-Postgres, which is exactly what the fake cannot be evidence for, so **run them before this is
-trusted in production**:
+**The two live tests ran and pass**, against the local Postgres on 5432 with migrations current
+through 0027. They were blocked for a while on a stale docker socket rather than on colima, which
+was running the whole time — the docker CLI was resolving `/Users/Dani_1/.colima`, the
+pre-migration home path.
 
-```bash
-docker compose -f docker/compose.yaml up -d
-pnpm -F @brandfactory/db db:migrate
-pnpm vitest run packages/db/src/members.live.test.ts
-```
+The whole suite was then run with `DATABASE_URL` set: **3371 passing, 0 skipped, 0 failed** across
+248 files. That is the first full run with a database in this work, so it also covers the 182 live
+tests that skipped through 1.58.0 — `marketing-requests.live.test.ts` and the rest of
+`packages/db` included.
 
-**No browser pass**, for the same reason: the stack needs the database. The claims that need one
-are the four screen decisions above.
+⚠️ **There was still no browser pass.** The four screen decisions above — `Unassigned` as a real
+option, the caller marked rather than hoisted, the two buttons staying enabled when the picker is
+disabled, and a deactivated assignee still rendering as selected — are the claims that need one.
+Opening a request on `branding.missionsystems.ai/marketing-requests` and looking at the Assigned
+dropdown exercises the route, the response shape and the picker together.
 
 ## What this does not do
 

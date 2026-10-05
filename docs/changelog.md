@@ -162,12 +162,15 @@ so the control cannot read "Unassigned" over an assigned request. Choosing the r
 nothing, because the patch schema refuses `{}` and an unchanged write would put back a colleague's
 edit.
 
-### Not verified
+### The live tests ran, and so did everything else
 
-⚠️ **The two live tests did not run and there was no browser pass.** Both need the local Postgres,
-and colima's socket still points at the pre-migration home path. The live tests assert the
-`coalesce` ordering and the three-field shape against real Postgres — which is what the in-memory
-fake cannot be evidence for — so run them before trusting this in production.
+The two new live tests pass against real Postgres: the `coalesce(display_name, email)` ordering,
+and that the query returns only the three fields a picker may see. The whole suite was then run
+with `DATABASE_URL` set — **3371 passing, 0 skipped, 0 failed** across 248 files, which is the
+first full run with a database since 1.57.0 and so also covers the 182 live tests that skipped
+through 1.58.0.
+
+⚠️ **No browser pass.** The four screen decisions are the claims that need one.
 
 ### Not in this release
 
