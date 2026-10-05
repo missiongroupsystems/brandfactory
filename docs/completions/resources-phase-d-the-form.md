@@ -1,6 +1,6 @@
 # Phase 1D — the form and the delete
 
-**Plan:** `docs/executing/four-asks-implementation-plan.md`, Phase 1D. Last phase of Plan 1;
+**Plan:** `docs/completions/four-asks-implementation-plan.md`, Phase 1D. Last phase of Plan 1;
 **this release ships Resources** (Phase 0, 1A, 1B, 1C and 1D together).
 **Files:** new `features/resources/components/resource-form.tsx`, `resource-form.test.tsx`;
 modified `features/resources/{api.ts,hooks.ts}`, `components/resources-view.tsx`,

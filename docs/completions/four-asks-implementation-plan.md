@@ -1,5 +1,9 @@
 # Four asks from marketing — implementation plan
 
+**Status:** built and shipped across 1.53.0, 1.54.0 and 1.55.0. **The checkboxes below were never
+ticked** — read the changelog and the four completion notes for what landed, not this file's boxes.
+**Awaiting archive.** Moved here 5 October 2026.
+
 > **For agentic workers:** use `superpowers:executing-plans` (or `subagent-driven-development` where
 > subagents are available). Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -13,7 +17,7 @@ router chained into `app.ts`, then a `web-next` feature folder reading the real 
 
 **Tech stack:** TypeScript, zod, Drizzle, Postgres, Hono, Next 16, TanStack Query, vitest.
 
-**Companion document:** `docs/executing/four-asks-from-marketing-plan.md` — the proposal, and the
+**Companion document:** `docs/completions/four-asks-from-marketing-plan.md` — the proposal, and the
 argument behind every decision below. **Read it first.** This document says *what to type*; that one
 says *why*, and the why is where eight review passes went.
 

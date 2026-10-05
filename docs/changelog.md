@@ -356,7 +356,7 @@ Switching on the Mission Events feed and the realtime backplane, which are confi
 ## 1.57.0 — 2026-09-30
 
 **The rest of the calendar, and a new name.** Phase 7 of the content calendar, in the notes at
-`docs/completions/content-calendar-phase-7-week-links-attachments.md`. **No migration** — every
+`docs/completions/content-calendar-phases-0-to-7.md`. **No migration** — every
 column this uses arrived in 0023. 3208 tests (3043 passing, 165 skipped without a database).
 
 ### Brand Base
@@ -545,7 +545,7 @@ in `docs/completions/`.
 
 **The other three asks, and the set closes.** 1.53.0 shipped Resources; this is Decks, Photography
 and the Marketing funnel — Plans 2 through 4 of
-`docs/executing/four-asks-from-marketing-plan.md`, fifteen phases and four migrations.
+`docs/completions/four-asks-from-marketing-plan.md`, fifteen phases and four migrations.
 
 **Decks.** A named presentation and the stack behind it, so a superseded deck stays reachable
 instead of becoming a folder of near-duplicates. **The Canva rule is what proves the tables have to
@@ -665,7 +665,8 @@ shipped. Three defects, two documentation corrections. **No migration, no route 
 change, no new dependency.** 2881 tests (2734 passing, 147 skipped without a database), 13 more
 than 1.52.0.
 
-Full write-up: `docs/completions/influencer-cell-editing-review-pass.md`.
+Full write-up: the review-pass section of
+`docs/completions/influencer-cell-editing-phases-a-to-f.md`.
 
 ### The record's own form never had this defect, and that is what makes it one
 
@@ -765,8 +766,8 @@ change, no new dependency.** 2868 tests (2721 passing, 147 skipped without a dat
 than 1.51.0.
 
 Six completion documents, starting at
-`docs/completions/influencer-cell-editing-phase-a-the-cell-is-the-control.md`. The plan is
-`docs/executing/influencer-cell-editing-and-profile-links-plan.md`.
+`docs/completions/influencer-cell-editing-phases-a-to-f.md`. The plan is
+`docs/completions/influencer-cell-editing-and-profile-links-plan.md`.
 
 ### The affordance is the cell, and the tint has to be a step deeper than the row's
 

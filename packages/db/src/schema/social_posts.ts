@@ -112,7 +112,7 @@ export const socialPosts = pgTable(
 
     // The Mission Events event this entry is for. **No foreign key**: the row
     // lives in another database owned by another app, and BrandFactory keeps
-    // no copy of it (`docs/executing/content-calendar-plan.md`). A reader that
+    // no copy of it (`docs/completions/content-calendar-plan.md`). A reader that
     // cannot find it says so.
     eventsEventId: uuid('events_event_id'),
 

@@ -1,6 +1,8 @@
 # The content calendar, and the order it comes back in
 
-**Status:** proposed. Nothing built.
+**Status:** built. Phases 0 to 6 shipped in 1.56.0 and phase 7 in 1.57.0, written up in
+`docs/completions/content-calendar-phases-0-to-7.md`. **Not finished:** step 6 — retiring the Vite
+calendar — and the open questions at the foot of this file. Moved here 5 October 2026.
 **Source:** `docs/refs/2026-09-16-marketing-build-plan-module-02.md` (MKT-0, MKT-1, MKT-2), plus the
 clarifications of 25 September 2026 recorded below.
 **Surface:** `packages/web-next` — one workspace-level route, `/calendar`, and one nav row.

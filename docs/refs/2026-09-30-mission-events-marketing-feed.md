@@ -3,7 +3,7 @@
 **Source:** the Mission Events team, 30 September 2026, when the feed went live in production.
 Recorded as they sent it, with two corrections agreed the same day (point 3 of the assumptions,
 and staging). BrandFactory's side of this is `packages/adapters/events/` and
-`docs/completions/content-calendar-events-service-endpoint.md`.
+the endpoint section of `docs/completions/content-calendar-phases-0-to-7.md`.
 
 The events feed is live in production. The service key is a server secret, so keep it out of the
 browser.

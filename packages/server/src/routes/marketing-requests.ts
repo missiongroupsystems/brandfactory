@@ -24,7 +24,7 @@ export interface MarketingRequestsDeps {
 
 /**
  * Marketing requests — what the business asks marketing for (MKT-5, Phase 1).
- * The plan is `docs/executing/marketing-request-form-plan.md`.
+ * The plan is `docs/completions/marketing-request-form-plan.md`.
  *
  * **One router under `/workspaces`**, the outlets shape: every handler needs
  * the workspace, and the query layer is workspace-scoped throughout, so an id

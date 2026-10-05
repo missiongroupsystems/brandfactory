@@ -1,6 +1,7 @@
 # The cell is the control, and a badge is the way out
 
-**Status:** shipped in 1.52.0. Six completion documents, `influencer-cell-editing-phase-a-…` to `-phase-f-…`.
+**Status:** shipped in 1.52.0, with a review pass as 1.52.1. Written up in
+`docs/completions/influencer-cell-editing-phases-a-to-f.md`. **Awaiting archive.**
 **Surface:** `/influencers` — the roster table, and the two other screens that read `account.url`.
 **Migration:** none. **Wire:** unchanged. **New dependency:** none.
 

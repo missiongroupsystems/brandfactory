@@ -10,7 +10,7 @@ import {
 /**
  * A marketing request — what somebody in the business asks the marketing team
  * for: a post, signage, a shoot. MKT-5; the plan is
- * `docs/executing/marketing-request-form-plan.md`.
+ * `docs/completions/marketing-request-form-plan.md`.
  *
  * **Workspace-scoped, one brand each.** Brand Base's unit is the brand, so a
  * request names exactly one; a request for the whole group picks the brand it

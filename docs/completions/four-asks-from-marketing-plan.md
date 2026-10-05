@@ -1,6 +1,9 @@
 # Four asks from marketing, and the order they land in
 
-**Status:** proposed. Nothing built.
+**Status:** built and shipped across 1.53.0, 1.54.0 and 1.55.0. The completion notes are
+`resources-phase-d-the-form.md`, `decks-phase-f-the-canva-snapshot.md`,
+`photography-phases-a-to-d.md` and `funnel-phases-a-to-d.md`. **Awaiting archive.**
+Moved here 5 October 2026.
 **Surface:** `packages/web-next` — four new brand-scoped areas, and the brand nav that has to hold them.
 **Migrations:** five at minimum. **Wire:** four new route groups. **New dependency:** none.
 

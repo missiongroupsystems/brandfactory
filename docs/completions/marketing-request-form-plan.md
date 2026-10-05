@@ -1,6 +1,6 @@
 # MKT-5 — The marketing request form
 
-**Status:** decisions taken 4 October 2026 — 1A, brand plus optional outlet, 3A. Phase 1 is built (`docs/completions/marketing-requests-phase-1-backend.md`). Written 4 October 2026.
+**Status:** decisions taken 4 October 2026 — 1A, brand plus optional outlet, 3A. Phases 1 and 2 are built and shipped in 1.58.0 (`docs/completions/marketing-requests-phases-1-to-2.md`); Phase 3 is deferred to its own plan. Written 4 October 2026.
 
 **Source:** Module 02 build plan, `docs/refs/2026-09-16-marketing-build-plan-module-02.md`, finding 6 and MKT-5: _"The marketing request form they asked for can be built with forms that already exist, once they have accounts."_
 
