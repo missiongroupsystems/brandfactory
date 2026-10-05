@@ -31,6 +31,21 @@ kill_signal    = "SIGINT"
   # no deployment.
   #
   #   fly secrets set REALTIME_PROVIDER=pg-backplane
+  #
+  # **The Machine count is also half of the connection budget**, and that half
+  # was missed until production answered a 500 on 5 October 2026. Each Machine
+  # holds its own `pg` Pool, so the app's total is `DATABASE_POOL_MAX` ×
+  # Machines and it must stay under the Supabase pooler's `pool_size` (15).
+  # At the default of 5 and two Machines that is 10, with headroom for
+  # `migrate.mjs` during a deploy. Raising either number without checking the
+  # other reaches `EMAXCONNSESSION`, which surfaces in `getUserById` — the
+  # first read every authenticated request makes — so it reads as the whole
+  # app being down. See `makePool` in `@brandfactory/db`.
+  #
+  # ⚠️ `DATABASE_URL` must be the **transaction-mode** pooler, port 6543. On
+  # 5432 the pooler is session-mode, where a pooled client holds a server
+  # connection for its whole life rather than for a statement, and the budget
+  # above does not apply.
   auto_stop_machines   = false
   auto_start_machines  = true
   min_machines_running = 1
