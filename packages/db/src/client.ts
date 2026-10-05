@@ -28,10 +28,20 @@ function makePool(): Pool {
   if (!connectionString) {
     throw new Error('DATABASE_URL is required')
   }
-  // Pooler-safety invariant (Supabase PgBouncer in transaction mode, port
-  // 6543): do NOT enable server-side prepared statements on this Pool and
-  // do NOT introduce `pg-native` — both break transaction-mode pooling by
-  // assuming session-scoped state that PgBouncer multiplexes away.
+  // Pooler-safety invariant: do NOT enable server-side prepared statements on
+  // this Pool and do NOT introduce `pg-native` — both break transaction-mode
+  // pooling by assuming session-scoped state that the pooler multiplexes away.
+  //
+  // ⚠️ **Production is on the SESSION-mode pooler, port 5432 — not transaction
+  // mode.** This comment claimed transaction mode on 6543 from Phase 2 until
+  // 5 October 2026, and it was never true; it described an intention. Keeping
+  // the rule above is still right, because transaction mode is where this is
+  // going, but do not read it as a description of the deployment.
+  //
+  // The move is blocked on one thing and it is not this file: the realtime
+  // backplane is Postgres LISTEN/NOTIFY and reuses `DATABASE_URL`, and `LISTEN`
+  // cannot survive a transaction pooler. The plan to split the two connection
+  // strings is `docs/executing/transaction-pooler-plan.md`.
   // node-postgres' default path is safe (no prepared-statement cache).
   //
   // ⚠️ **`max` is stated, because the default is 10 and nobody chose it.**
