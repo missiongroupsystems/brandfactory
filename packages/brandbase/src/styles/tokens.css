@@ -1,0 +1,157 @@
+/*
+ * BrandBase demo tokens: the one file that holds a colour. Values follow the Claude Design
+ * canvas "BrandBase Publish Flow". Components use them through the Tailwind theme in
+ * app/globals.css, never as a hex.
+ */
+:root {
+  --ink: #121212;
+  --ink-2: #55554f;
+  --ink-3: #6d6d66;
+  --ink-4: #8a8a83;
+  --ink-5: #a3a39c;
+
+  --page: #ffffff;
+  --paper: #f1f1ee;
+  --surface: #f4f4f1;
+  --surface-2: #f7f7f4;
+  --tile: #eeeeea;
+  --track: #e2e2dc;
+  --line: rgba(18, 18, 18, 0.08);
+  --line-strong: rgba(18, 18, 18, 0.16);
+
+  --live: #2f7d5b;
+  --fail: #c8442f;
+  --fail-ink: #a2401f;
+
+  /* Calendar layers: background and ink per layer. */
+  --layer-city: #e4ecf6;
+  --layer-city-ink: #24466b;
+  --layer-holiday: #f6ecda;
+  --layer-holiday-ink: #694814;
+  --layer-ours: #e2eee6;
+  --layer-ours-ink: #24523a;
+  --layer-shoot: #ece7f4;
+  --layer-shoot-ink: #4a3b6a;
+
+  --brand-casa-vostra: #b4532a;
+
+  /* Confetti: the calendar's own colours, a little brighter. */
+  --confetti-1: #b4532a;
+  --confetti-2: #2f7d5b;
+  --confetti-3: #4f6f94;
+  --confetti-4: #d9a441;
+  --confetti-5: #8a6bb0;
+  --confetti-6: #121212;
+  --avatar: #e9d7f2;
+  --avatar-ink: #3c2a47;
+
+  --scrim: rgba(250, 250, 248, 0.8);
+  --scrim-strong: rgba(250, 250, 248, 0.86);
+  --shadow-sheet: 0 0 0 1px rgba(18, 18, 18, 0.06), 0 30px 80px rgba(18, 18, 18, 0.14);
+  --shadow-pop: 0 10px 30px rgba(18, 18, 18, 0.13), 0 2px 6px rgba(18, 18, 18, 0.06);
+  --shadow-lift: 0 6px 16px rgba(18, 18, 18, 0.18);
+  --shadow-soft: 0 1px 3px rgba(18, 18, 18, 0.1);
+  --shadow-stage: 0 0 0 1px rgba(18, 18, 18, 0.06), 0 40px 120px rgba(18, 18, 18, 0.16);
+  --shadow-phone-up: 0 0 0 1px rgba(18, 18, 18, 0.06), 0 26px 50px rgba(18, 18, 18, 0.2);
+  --shadow-phone-down: 0 0 0 1px rgba(18, 18, 18, 0.08);
+
+  /*
+   * Platform chrome: the colours each app draws over a post in the phone previews
+   * (features/publish/phone-mocks.tsx). They copy the apps, not the BrandBase palette.
+   */
+  --pc-white: #ffffff;
+  --pc-black: #000000;
+  --pc-dim: rgba(255, 255, 255, 0.72);
+  --pc-faint: rgba(255, 255, 255, 0.4);
+  --pc-glass: rgba(255, 255, 255, 0.22);
+  --pc-scrim-top: rgba(0, 0, 0, 0.38);
+  --pc-scrim-bottom: rgba(0, 0, 0, 0.74);
+  --pc-glyph-shadow: rgba(0, 0, 0, 0.35);
+  --pc-avatar: #1f1d1b;
+  --pc-ig-dark-text: #f5f5f5;
+  --pc-ig-dark-muted: #a8a8a8;
+  --pc-ig-blue: #0095f6;
+  --pc-tt-red: #fe2c55;
+  --pc-tt-cyan: #25f4ee;
+  --pc-tt-disc: #2a2a2a;
+  --pc-tt-nav: #000000;
+  --pc-yt-red: #ff0033;
+  --pc-li-blue: #0a66c2;
+  --pc-li-text: rgba(0, 0, 0, 0.9);
+  --pc-li-muted: rgba(0, 0, 0, 0.6);
+  --pc-li-line: #e8e8e8;
+  --pc-li-like: #378fe9;
+  --pc-li-celebrate: #6dae4f;
+  --pc-li-love: #df704d;
+  --pc-fb-blue: #0866ff;
+  --pc-fb-text: #080809;
+  --pc-fb-muted: #65686c;
+  --pc-fb-line: #ced0d4;
+  --pc-fb-love: #f33e58;
+}
+
+/*
+ * ── Brand switcher ───────────────────────────────────────────────────────────────────────────
+ * One colour per brand, for its initial square (data/brands.ts names them). Casa Vostra's
+ * `--brand-casa-vostra` is defined above. Each one carries white text.
+ */
+:root {
+  --brand-temper: #5b2333;
+  --brand-carlitos: #a0611c;
+}
+
+/* Switching brand cross-fades the page (a view transition started in posts-store.tsx). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 240ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/*
+ * ── Calendar (features/schedule/week-grid.tsx) ──────────────────────────────────────────────
+ * Hairlines, hover washes and tile shadows for the month grid, and one dot colour per stage.
+ */
+:root {
+  --cal-line: rgba(18, 18, 18, 0.065);
+  --cal-hover: rgba(18, 18, 18, 0.018);
+  --cal-ghost: rgba(18, 18, 18, 0.14);
+  --cal-drop: rgba(18, 18, 18, 0.035);
+  /* What the insights suggest: the green the insights charts are drawn in. */
+  --insight: #1f8a5b;
+  --tile-ring: rgba(18, 18, 18, 0.06);
+  --tile-dash: rgba(255, 255, 255, 0.92);
+  --tile-pill: rgba(255, 255, 255, 0.92);
+  --tile-glyph-shadow: rgba(0, 0, 0, 0.45);
+  --shadow-tile: 0 0 0 1px var(--tile-ring);
+  --shadow-tile-hover: 0 0 0 1px var(--tile-ring), 0 12px 28px -10px rgba(18, 18, 18, 0.32);
+
+  /* Post stages, one colour per step, for the glyph on each tile. */
+  --stage-draft: #8a8a83;
+  --stage-approved: #4f6f94;
+  --stage-filming: #b4532a;
+  --stage-editing: #c98f2a;
+  --stage-scheduled: #7a5fa3;
+  --stage-posted: #2f7d5b;
+}
+
+/*
+ * ── Insights (features/insights) ────────────────────────────────────────────────────────────
+ * The charts draw in green, light to deep. `--insight` above is step 5 of this ramp; the ideas
+ * page borrows step 1 as a wash behind anything the insights produced.
+ */
+:root {
+  --insight-1: #e6f2eb;
+  --insight-2: #c4e2d1;
+  --insight-3: #93c9ab;
+  --insight-4: #55a97f;
+  --insight-5: #1f8a5b;
+  --insight-6: #15623f;
+  --insight-wash: rgba(31, 138, 91, 0.07);
+}

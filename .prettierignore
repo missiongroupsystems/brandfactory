@@ -36,3 +36,10 @@ packages/web-next/
 
 # Supabase CLI scratch — the CLI writes it, so its formatting is not ours.
 supabase/.temp/
+
+# Next build output and generated route types.
+**/.next/
+**/next-env.d.ts
+
+# Agent worktrees (full checkouts of other branches).
+.claude/

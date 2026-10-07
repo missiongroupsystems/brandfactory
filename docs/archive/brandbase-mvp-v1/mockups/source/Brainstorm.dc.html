@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ideas · BrandBase</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#fff}
+a{color:#173527;text-decoration:none}a:hover{color:#111413}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #237a61;outline-offset:2px}
+.rail{flex:0 0 68px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 0;box-sizing:border-box;background:#f7f9f8;border-right:1px solid rgba(17,20,19,.06)}
+.ri{position:relative;width:40px;height:40px;display:grid;place-items:center;border-radius:10px;color:#646c69;border:0;background:transparent;cursor:pointer;padding:0}
+.ri:hover{background:#eef1f0;color:#111413}
+.ri[aria-current="page"]{background:#fff;color:#173527;box-shadow:0 0 0 1px rgba(17,20,19,.07),0 1px 2px rgba(17,20,19,.05)}
+.tip{position:absolute;left:50px;top:50%;transform:translateY(-50%);background:#111413;color:#fff;font-size:12px;font-weight:500;line-height:1;padding:6px 8px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s;z-index:20}
+.ri:hover .tip,.ri:focus-visible .tip{opacity:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 16px;border-radius:10px;font:inherit;font-size:14px;font-weight:500;cursor:pointer;box-sizing:border-box;white-space:nowrap}
+.btn-p{background:#173527;color:#fff;border:1px solid #173527}.btn-p:hover{background:#0f2219;color:#fff}
+.btn-s{background:#fff;color:#111413;border:1px solid rgba(17,20,19,.12)}.btn-s:hover{background:#f7f9f8;color:#111413}
+.ib{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;border:0;background:transparent;color:#4a524f;cursor:pointer;padding:0}
+.ib:hover{background:#eef1f0;color:#111413}
+.bs{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 8px;margin-left:-8px;border-radius:9px;border:0;background:transparent;font:inherit;font-size:14px;font-weight:500;color:#111413;cursor:pointer}
+.bs:hover{background:#f3f5f4}
+.sd{width:8px;height:8px;border-radius:50%;box-sizing:border-box;display:inline-block;flex:none}
+.sd-ph{border:1.5px dashed #8b938f}.sd-idea{border:1.5px solid #8b938f}.sd-appr{border:1.5px solid #237a61}.sd-film{background:#c8930a}.sd-edit{background:#4f6f94}.sd-sched{background:#111413}.sd-post{background:#237a61}.sd-fail{background:#c8442f}
+.tab{height:40px;padding:0 2px;border:0;background:transparent;font:inherit;font-size:14px;color:#646c69;cursor:pointer;box-shadow:inset 0 -2px 0 transparent}
+.tab:hover{color:#111413}
+.tab[aria-selected="true"]{color:#111413;font-weight:500;box-shadow:inset 0 -2px 0 #111413}
+.flt{height:30px;padding:0 10px;border:0;border-radius:8px;background:transparent;font:inherit;font-size:13px;color:#646c69;cursor:pointer}
+.flt:hover{color:#111413;background:#f3f5f4}
+.flt[aria-pressed="true"]{color:#111413;background:#f3f5f4;font-weight:500}
+.card{display:flex;flex-direction:column;gap:8px;color:#111413}
+.card:hover{color:#111413}.card:hover .im{filter:brightness(.97)}
+.opt{box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;height:36px;padding:0 10px;border:0;border-radius:8px;background:transparent;font:inherit;font-size:13.5px;color:#111413;cursor:pointer;text-align:left}
+.opt:hover{background:#f3f5f4;color:#111413}
+.ib{position:relative}.ib .tip{left:50%;top:auto;bottom:calc(100% + 6px);transform:translateX(-50%)}.ib:hover .tip{opacity:1}
+@media (max-width:760px){.rail{flex:1 1 100%!important;flex-direction:row!important;justify-content:center;padding:8px!important;border-right:0!important;border-bottom:1px solid rgba(17,20,19,.06)}.rail .grow{display:none}.tip{display:none}.pg{padding:24px 16px 48px!important}}
+</style>
+</helmet>
+<div style="position: relative; min-height: 100vh; display: flex; flex-wrap: wrap; background: #ffffff; color: #111413; font-family: Geist, 'Helvetica Neue', system-ui, sans-serif; font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased">
+<nav class="rail" aria-label="Main">
+<a href="Main.dc.html" aria-label="BrandBase" style="width: 28px; height: 28px; border-radius: 8px; background: #173527; color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 600; margin-bottom: 14px">B</a>
+<a class="ri" href="Main.dc.html" aria-label="Home"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10.5 12 4l8.5 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"></path></svg><span class="tip" aria-hidden="true">Home</span></a>
+<a class="ri" href="Calendar.dc.html" aria-label="Calendar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg><span class="tip" aria-hidden="true">Calendar</span></a>
+<a class="ri" href="Brainstorm.dc.html" aria-label="Ideas" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 18h5M10.5 21h3M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"></path></svg><span class="tip" aria-hidden="true">Ideas</span></a>
+<a class="ri" href="Influencers.dc.html" aria-label="Creators"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.4 3.4-5.5 6.5-5.5s5.7 2.1 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.8.7 3 2.6 3.5 5.2"></path></svg><span class="tip" aria-hidden="true">Creators</span></a>
+<a class="ri" href="Guidelines.dc.html" aria-label="Brand"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5h7l9 9-6.5 6.5-9-9z"></path><circle cx="8.5" cy="9" r="1.5"></circle></svg><span class="tip" aria-hidden="true">Brand</span></a>
+<span class="grow" style="flex: 1"></span>
+<button type="button" class="ri" aria-label="Search and commands"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><span class="tip" aria-hidden="true">Search  ⌘K</span></button>
+<button type="button" class="ri" aria-label="Account and settings"><span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 50%; background: #e3e8e6; color: #4a524f; display: grid; place-items: center; font-size: 11px; font-weight: 600">MK</span><span class="tip" aria-hidden="true">Settings</span></button>
+</nav>
+<main class="pg" style="flex: 999 1 560px; min-width: 0; padding: 28px 56px 72px; box-sizing: border-box">
+<div style="max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 32px">
+
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div style="position: relative">
+<button type="button" class="bs" aria-label="Brand: {{brandName}}. Change brand" aria-expanded="{{brandExpanded}}" onClick="{{toggleBrand}}"><i aria-hidden="true" style="width: 9px; height: 9px; border-radius: 50%; background: {{brandDot}}; display: block"></i>{{brandName}}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#646c69" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg></button>
+<sc-if value="{{brandOpen}}" hint-placeholder-val="{{false}}">
+<div role="menu" aria-label="Brand" style="position: absolute; top: 40px; left: -8px; z-index: 25; width: 200px; background: #fff; border-radius: 12px; box-shadow: 0 0 0 1px rgba(17,20,19,.08), 0 16px 40px rgba(17,20,19,.12); padding: 6px">
+<sc-for list="{{brands}}" as="b" hint-placeholder-count="7"><button type="button" role="menuitem" class="opt" onClick="{{b.pick}}"><i aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: {{b.dot}}; display: block"></i>{{b.name}}</button></sc-for>
+</div>
+</sc-if>
+</div>
+<div style="position: relative">
+<button type="button" class="btn btn-p" aria-expanded="{{addExpanded}}" onClick="{{toggleAdd}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add</button>
+<sc-if value="{{addOpen}}" hint-placeholder-val="{{false}}">
+<div role="dialog" aria-label="Add a reference" style="position: absolute; top: 46px; right: 0; z-index: 25; width: 340px; background: #fff; border-radius: 14px; box-shadow: 0 0 0 1px rgba(17,20,19,.08), 0 16px 40px rgba(17,20,19,.12); padding: 10px; display: flex; flex-direction: column; gap: 6px">
+<label for="paste" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Paste a link</label>
+<input id="paste" placeholder="Paste an Instagram or TikTok link" style="height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(17,20,19,.12); font: inherit; font-size: 14px; color: #111413">
+<button type="button" class="opt"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 19.5h14"></path></svg>Upload</button>
+<a class="opt" href="#pinterest"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="9" rx="1.5"></rect><rect x="13" y="4" width="7" height="5" rx="1.5"></rect><rect x="13" y="11" width="7" height="9" rx="1.5"></rect><rect x="4" y="15" width="7" height="5" rx="1.5"></rect></svg><span style="flex: 1">Pinterest board</span><span style="font-size: 12px; color: #646c69">48 pins · synced</span></a>
+</div>
+</sc-if>
+</div>
+</div>
+
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px 40px">
+<h1 style="margin: 0; font-size: 32px; line-height: 1.1; font-weight: 600; letter-spacing: -0.03em">Ideas</h1>
+<div style="display: flex; align-items: center; gap: 18px; flex-wrap: wrap">
+<span style="font-size: 13px; color: #4a524f">November posts</span>
+<span role="img" aria-label="5 of 8 posts planned" style="display: flex; gap: 5px"><sc-for list="{{slots}}" as="s" hint-placeholder-count="8"><i style="width: 10px; height: 10px; border-radius: 50%; box-sizing: border-box; display: block; {{s.style}}"></i></sc-for></span>
+<span style="font-size: 13px; color: #4a524f"><strong style="font-weight: 600; color: #111413">5</strong> of 8 planned</span>
+<button type="button" class="btn btn-s" aria-expanded="{{ideasExpanded}}" onClick="{{toggleIdeas}}" style="height: 34px; padding: 0 12px; font-size: 13px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#237a61" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z"></path></svg>Fill gaps</button>
+</div>
+</header>
+
+<sc-if value="{{ideasOpen}}" hint-placeholder-val="{{false}}">
+<section aria-label="Suggestions for open slots" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px; margin-top: -8px">
+<sc-for list="{{ideas}}" as="i" hint-placeholder-count="3">
+<div style="background: #f7f9f8; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #646c69">{{i.slot}} · {{i.pillar}}</span>
+<span style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em">{{i.title}}</span>
+<span style="font-size: 12.5px; color: #646c69">From {{i.source}}</span>
+<span style="margin-top: 8px"><button type="button" class="btn btn-s" style="height: 32px; padding: 0 12px; font-size: 13px" onClick="{{i.add}}">{{i.addLabel}}</button></span>
+</div>
+</sc-for>
+</section>
+</sc-if>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(17,20,19,.08)">
+<div role="tablist" aria-label="View" style="display: flex; gap: 28px">
+<button type="button" role="tab" class="tab" aria-selected="{{savedSel}}" onClick="{{toSaved}}">Saved</button>
+<button type="button" role="tab" class="tab" aria-selected="{{compSel}}" onClick="{{toComp}}">Competitors</button>
+</div>
+<button type="button" class="ib" aria-label="Search references"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><span class="tip" aria-hidden="true">Search</span></button>
+</div>
+
+<sc-if value="{{isSaved}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 20px; margin-top: -12px">
+<div role="group" aria-label="Filter by tag" style="display: flex; flex-wrap: wrap; gap: 2px; margin-left: -10px">
+<sc-for list="{{tags}}" as="t" hint-placeholder-count="7"><button type="button" class="flt" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 28px 20px">
+<sc-for list="{{refs}}" as="r" hint-placeholder-count="9">
+<a class="card" href="#ref">
+<div class="im" aria-label="{{r.img}}" style="aspect-ratio: {{r.ratio}}; border-radius: 14px; background: {{r.bg}}; position: relative"><sc-if value="{{r.video}}" hint-placeholder-val="{{false}}"><span aria-hidden="true" style="position: absolute; right: 10px; bottom: 10px; width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,.85); display: grid; place-items: center"><svg width="10" height="10" viewBox="0 0 24 24" fill="#111413"><path d="M7 4.5v15l13-7.5z"></path></svg></span></sc-if></div>
+<span style="font-size: 13.5px; font-weight: 500; line-height: 1.35">{{r.title}}</span>
+</a>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{isComp}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 8px; margin-top: -12px">
+<span style="font-size: 12px; color: #8b938f; text-align: right; order: 0">Comments per post</span>
+<p style="margin: 0 0 8px; font-size: 15px; line-height: 1.55; max-width: 64ch">Pumpkin brunch is everywhere. Family-meal posts get the most comments. No one has posted for Deepavali yet.</p>
+<sc-for list="{{comp}}" as="c" hint-placeholder-count="5">
+<a href="#post" style="display: grid; grid-template-columns: 56px minmax(0, 1fr) 160px; gap: 16px; align-items: center; padding: 10px 0; border-top: 1px solid rgba(17,20,19,.06); color: #111413">
+<span aria-hidden="true" style="width: 56px; height: 56px; border-radius: 12px; background: {{c.bg}}"></span>
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{c.caption}}</span><span style="font-size: 12.5px; color: #646c69">{{c.who}} · {{c.format}} · {{c.when}}</span></span>
+<span style="display: flex; align-items: center; gap: 10px" aria-label="{{c.stats}}"><span aria-hidden="true" style="flex: 1; height: 4px; border-radius: 999px; background: #eef1f0; overflow: hidden"><span style="display: block; height: 100%; width: {{c.pct}}; background: #4a524f; border-radius: 999px"></span></span><span style="font-size: 12.5px; color: #4a524f; width: 36px; text-align: right">{{c.comments}}</span></span>
+</a>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"showIdeas":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const open = st.open !== undefined ? st.open : !!this.props.showIdeas;
+    const brand = st.brand || 'wi';
+    const tag = st.tag || 'All';
+    const view = st.view || 'saved';
+    const added = st.added || {};
+    const B = [['cv', 'Casa Vostra', '#b0623f'], ['wi', 'Willow', '#8aa483'], ['cmc', 'Chin Mee Chin', '#cfae63'], ['te', 'Temper', '#3e4756'], ['ca', 'Carlitos', '#e3bdb3'], ['mg', 'Mission Group', '#173527'], ['pe', 'Petra', '#75669a']];
+    const cur = B.find(b => b[0] === brand);
+    const bgs = ['#eef1f0', '#e9edeb', '#e3e8e6', '#f0f2f1'];
+    const ratios = ['4 / 5'];
+    const R = [
+      ['Pumpkin tart, top-down', ['Dishes', 'Seasonal'], 'Image: pumpkin tart', false],
+      ['Chef plating at the pass', ['Craft', 'Reels'], 'Video: plating at the pass', true],
+      ['Brunch table for four', ['Dishes'], 'Image: brunch table', false],
+      ['Herbs from the garden', ['Craft', 'Seasonal'], 'Image: herb close-up', false],
+      ['Chef answers one question', ['Chef personality', 'Reels'], 'Video: chef to camera', true],
+      ['Candlelit chef’s table', ['Events'], 'Image: chef’s table', false],
+      ['Barista pour, slow motion', ['Craft', 'Reels'], 'Video: coffee pour', true],
+      ['Staff family meal', ['Chef personality'], 'Image: staff at the table', false],
+      ['Menu card lettering', ['Dishes'], 'Image: menu card', false]
+    ];
+    const tagList = ['All', 'Dishes', 'Craft', 'Chef personality', 'Events', 'Seasonal', 'Reels'];
+    const I = [
+      ['pumpkin', 'Dishes', 'Mon 23', 'Pumpkin, three ways', 'Autumn salad + pumpkin tart pin'],
+      ['question', 'Chef', 'Thu 26', 'One question for the chef', 'the saved TikTok'],
+      ['garden', 'Craft', 'Mon 30', 'Garden to plate', 'Kitchen garden + herbs pin']
+    ];
+    const brandOpen = !!st.brandOpen, addOpen = !!st.addOpen;
+    const C = [
+      ['[Competitor A]', 'Thu', 'Pumpkin brunch is back', 'Reel', 62, '1.4k likes, 62 comments', '#e9edeb'],
+      ['[Competitor B]', 'Wed', 'Family meal before service', 'Carousel', 118, '860 likes, 118 comments', '#eef1f0'],
+      ['[Competitor A]', 'Tue', 'Bottomless weekday coffee', 'Story', 0, 'Story, no public numbers', '#e3e8e6'],
+      ['[Competitor C]', 'Mon', 'New three-course lunch set', 'Feed', 9, '410 likes, 9 comments', '#eef1f0'],
+      ['[Competitor B]', 'Sun', 'Sunday supper club, last seats', 'Feed', 21, '520 likes, 21 comments', '#e9edeb']
+    ];
+    return {
+      brandName: cur[1], brandDot: cur[2], brandOpen, brandExpanded: brandOpen ? 'true' : 'false',
+      toggleBrand: () => this.setState({ brandOpen: !brandOpen }),
+      brands: B.map(b => ({ name: b[1], dot: b[2], pick: () => this.setState({ brand: b[0], brandOpen: false }) })),
+      addOpen, addExpanded: addOpen ? 'true' : 'false', toggleAdd: () => this.setState({ addOpen: !addOpen }),
+      slots: [1, 1, 1, 1, 1, 0, 0, 0].map(f => ({ style: f ? 'background:#8aa483' : 'border:1.5px dashed #a3aaa7' })),
+      ideasOpen: open, ideasExpanded: open ? 'true' : 'false', toggleIdeas: () => this.setState({ open: !open }),
+      isSaved: view === 'saved', isComp: view === 'comp',
+      savedSel: view === 'saved' ? 'true' : 'false', compSel: view === 'comp' ? 'true' : 'false',
+      toSaved: () => this.setState({ view: 'saved' }), toComp: () => this.setState({ view: 'comp' }),
+      tags: tagList.map(t => ({ label: t, pressed: t === tag ? 'true' : 'false', pick: () => this.setState({ tag: t }) })),
+      refs: R.filter(r => tag === 'All' || r[1].indexOf(tag) >= 0).map((r, i) => ({ title: r[0], img: r[2], video: r[3], bg: bgs[i % 4], ratio: ratios[0] })),
+      ideas: I.map(i => ({ pillar: i[1], slot: i[2], title: i[3], source: i[4], addLabel: added[i[0]] ? 'Added' : 'Add as idea', add: () => this.setState({ added: Object.assign({}, added, { [i[0]]: true }) }) })),
+      comp: C.map(c => ({ who: c[0], when: c[1], caption: c[2], format: c[3], comments: c[4] ? String(c[4]) : '–', pct: Math.round(c[4] / 118 * 100) + '%', stats: c[5], bg: c[6] }))
+    };
+  }
+}
+</script>
+</body>
+</html>

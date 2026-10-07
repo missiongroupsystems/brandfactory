@@ -36,6 +36,11 @@ export default tseslint.config(
       // project covering these files, so type-aware rules error on every one of them
       // rather than reporting anything real. See `docs/executing/next-frontend-adoption-plan.md`.
       'packages/web-next/**',
+      // Next's build output and generated route types.
+      '**/.next/**',
+      '**/next-env.d.ts',
+      // Agent worktrees: full checkouts of other branches.
+      '.claude/**',
     ],
   },
   js.configs.recommended,
@@ -61,7 +66,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['packages/web/src/**/*.{ts,tsx}'],
+    files: ['packages/web/src/**/*.{ts,tsx}', 'packages/brandbase/src/**/*.{ts,tsx}'],
     plugins: {
       react,
       'react-hooks': reactHooks,

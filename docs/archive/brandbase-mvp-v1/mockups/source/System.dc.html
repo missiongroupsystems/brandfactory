@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BrandBase colour system and components</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#fff}
+a{color:#173527}a:hover{color:#111413}
+.btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;font:inherit;font-size:14px;font-weight:500;cursor:pointer;box-sizing:border-box;white-space:nowrap}
+.btn-s{background:#fff;color:#111413;border:1px solid rgba(17,20,19,.14)}
+.btn-p{background:#173527;color:#fff;border:1px solid #173527}
+.btn-g{background:transparent;color:#173527;border:1px solid transparent}
+.chip{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:500;white-space:nowrap;box-sizing:border-box;border:1px solid transparent}
+.chip i{width:6px;height:6px;border-radius:50%;display:block;flex:none}
+.st-ph{border:1px dashed rgba(17,20,19,.32);color:#4a524f}.st-ph i{display:none}
+.st-idea{background:#f3f5f4;color:#4a524f}.st-idea i{border:1px solid #646c69;width:4px;height:4px}
+.st-appr{background:#fff;border-color:rgba(35,122,97,.38);color:#173527}.st-appr i{background:#237a61}
+.st-film{background:#fbf3df;color:#74510a}.st-film i{background:#c8930a}
+.st-edit{background:#edf2f8;color:#2d4a6b}.st-edit i{background:#4f6f94}
+.st-sched{background:#fff;border-color:rgba(17,20,19,.24);color:#111413}.st-sched i{background:#111413}
+.st-post{background:rgba(35,122,97,.09);color:#173527}.st-post i{background:#237a61}
+.st-fail{background:#fbeeeb;color:#9a3322}.st-fail i{background:#c8442f}
+.c-draft{background:#eef1f0;color:#4a524f}.c-draft i{background:#8b938f}
+.c-neg{background:#fbf3df;color:#74510a}.c-neg i{background:#c8930a}
+.c-conf{background:#fff;border-color:rgba(17,20,19,.14);color:#111413}.c-conf i{background:#4f6f94}
+.c-pros{border:1px dashed rgba(17,20,19,.28);color:#4a524f}.c-pros i{border:1px solid #646c69;width:4px;height:4px}
+.s-paid{background:#173527;color:#fff}.s-paid i{background:#9fd3bd}
+.sd{width:8px;height:8px;border-radius:50%;box-sizing:border-box;display:inline-block;flex:none}
+.sd-ph{border:1.5px dashed #8b938f}.sd-idea{border:1.5px solid #8b938f}.sd-appr{border:1.5px solid #237a61}.sd-film{background:#c8930a}.sd-edit{background:#4f6f94}.sd-sched{background:#111413}.sd-post{background:#237a61}.sd-fail{background:#c8442f}
+.lab{font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#646c69}
+.mono{font-family:'Geist Mono',ui-monospace,Menlo,monospace;font-size:11.5px;color:#646c69}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1000px; box-sizing: border-box; padding: 48px 64px; background: #ffffff; color: #111413; font-family: Geist, 'Helvetica Neue', system-ui, sans-serif; font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 36px 64px; align-content: start">
+
+<header style="grid-column: 1 / -1; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding-bottom: 24px; border-bottom: 1px solid rgba(17,20,19,.08)">
+<div style="display: flex; flex-direction: column; gap: 6px"><h1 style="margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.02em">BrandBase system</h1><p style="margin: 0; font-size: 14px; color: #4a524f">Neutrals and Mission green. Colour marks state.</p></div>
+<p style="margin: 0; font-size: 13px; color: #646c69; text-align: right">Geist in mockups, Satoshi in production<br>Radii 8 · 10 · 14 · 20 · full</p>
+</header>
+
+<section aria-labelledby="pal" style="display: flex; flex-direction: column; gap: 16px">
+<h2 id="pal" class="lab" style="margin: 0">Palette</h2>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px 16px">
+<sc-for list="{{palette}}" as="p" hint-placeholder-count="12">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="height: 40px; border-radius: 10px; background: {{p.hex}}; box-shadow: inset 0 0 0 1px rgba(17,20,19,.08)"></span>
+<span style="font-size: 13px; font-weight: 500">{{p.name}}</span>
+<span class="mono">{{p.label}}</span>
+<span style="font-size: 12px; color: #4a524f">{{p.role}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section aria-labelledby="ty" style="display: flex; flex-direction: column; gap: 12px">
+<h2 id="ty" class="lab" style="margin: 0">Type</h2>
+<div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: baseline; gap: 12px 16px">
+<span class="mono">28 / 600</span><span style="font-size: 28px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2">14 posts this week</span>
+<span class="mono">17 / 600</span><span style="font-size: 17px; font-weight: 600">Section heading</span>
+<span class="mono">15 / 600</span><span style="font-size: 15px; font-weight: 600">Card title</span>
+<span class="mono">14 / 400</span><span style="font-size: 14px">Body and table rows</span>
+<span class="mono">13 / 400</span><span style="font-size: 13px; color: #4a524f">Meta and secondary text</span>
+<span class="mono">11.5 / 600</span><span class="lab">Label</span>
+</div>
+</section>
+
+<section aria-labelledby="ct" style="display: flex; flex-direction: column; gap: 16px">
+<h2 id="ct" class="lab" style="margin: 0">Controls</h2>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<button type="button" class="btn btn-p">New post</button>
+<button type="button" class="btn btn-s"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#237a61" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z"></path></svg>Fill gaps</button>
+<button type="button" class="btn btn-s" aria-label="Next month" style="width: 36px; padding: 0; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></button>
+<button type="button" class="btn btn-p" style="box-shadow: 0 0 0 2px #fff, 0 0 0 4px #237a61">Focused</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 6px"><label for="i1" style="font-size: 13px; font-weight: 500">Caption</label><input id="i1" value="White truffle season starts tonight." style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(17,20,19,.16); font: inherit; font-size: 14px"></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><label for="i2" style="font-size: 13px; font-weight: 500">Focused</label><input id="i2" value="7:00 pm" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #237a61; box-shadow: 0 0 0 3px rgba(35,122,97,.14); font: inherit; font-size: 14px; outline: none"></div>
+</div>
+</section>
+
+<section aria-labelledby="st" style="display: flex; flex-direction: column; gap: 16px">
+<h2 id="st" class="lab" style="margin: 0">Status</h2>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px"><span style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #111413"><i class="sd sd-ph"></i>Placeholder</span><span style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #111413"><i class="sd sd-idea"></i>Idea</span><span style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #111413"><i class="sd sd-appr"></i>Approved</span><span style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #111413"><i class="sd sd-film"></i>Filming</span><span style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #111413"><i class="sd sd-edit"></i>Editing</span><span style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #111413"><i class="sd sd-sched"></i>Scheduled</span><span style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #111413"><i class="sd sd-post"></i>Posted</span><span style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #111413"><i class="sd sd-fail"></i>Failed</span></div>
+<span style="font-size: 12.5px; color: #646c69">Ring: nothing made yet. Filled: media exists.</span>
+<span style="font-size: 12.5px; color: #646c69; padding-top: 12px; border-top: 1px solid rgba(17,20,19,.06)">Creators</span>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px"><span style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #111413"><i class="sd sd-ph"></i>Prospect</span><span style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #111413"><i class="sd sd-idea"></i>Contacted</span><span style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #111413"><i class="sd sd-film"></i>Negotiating</span><span style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #111413"><i class="sd sd-edit"></i>Confirmed</span><span style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #111413"><i class="sd sd-post"></i>Posted</span><span style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #111413"><i class="sd sd-sched"></i>Paid</span></div>
+</section>
+
+<section aria-labelledby="bd" style="grid-column: 1 / -1; display: flex; flex-direction: column; gap: 14px; padding-top: 24px; border-top: 1px solid rgba(17,20,19,.08)">
+<h2 id="bd" class="lab" style="margin: 0">Brand dots</h2>
+<div style="display: flex; flex-wrap: wrap; gap: 28px">
+<sc-for list="{{brands}}" as="b" hint-placeholder-count="7">
+<div style="display: flex; align-items: center; gap: 10px"><i aria-hidden="true" style="width: 12px; height: 12px; border-radius: 50%; background: {{b.hex}}; display: block"></i><span style="display: flex; flex-direction: column; line-height: 1.3"><span style="font-size: 13.5px; font-weight: 500">{{b.name}}</span><span class="mono">{{b.hex}}</span></span></div>
+</sc-for>
+</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      palette: [
+        { name: 'Ink', hex: '#111413', label: '#111413', role: 'Primary text' },
+        { name: 'Graphite', hex: '#4a524f', label: '#4A524F', role: 'Secondary text' },
+        { name: 'Slate', hex: '#646c69', label: '#646C69', role: 'Meta, captions' },
+        { name: 'Sheet', hex: '#ffffff', label: '#FFFFFF', role: 'Page' },
+        { name: 'Mist', hex: '#f3f5f4', label: '#F3F5F4', role: 'Sidebar, tags' },
+        { name: 'Band', hex: '#f7f9f8', label: '#F7F9F8', role: 'Panels, hover' },
+        { name: 'Mist 2', hex: '#eef1f0', label: '#EEF1F0', role: 'Tracks, drafts' },
+        { name: 'Hairline', hex: 'rgba(17,20,19,.10)', label: 'ink at 8–16%', role: 'Dividers, borders' },
+        { name: 'Mission green', hex: '#173527', label: '#173527', role: 'Primary button, active' },
+        { name: 'Green', hex: '#237a61', label: '#237A61', role: 'Focus, done, dots' },
+        { name: 'Green tint', hex: 'rgba(35,122,97,.09)', label: 'green at 8–9%', role: 'Selected, published' },
+        { name: 'Signal', hex: '#c8442f', label: '#C8442F', role: 'Failed, broken rule' }
+      ],
+      brands: [
+        { name: 'Mission Group', hex: '#173527' },
+        { name: 'Temper', hex: '#3e4756' },
+        { name: 'Petra', hex: '#75669a' },
+        { name: 'Casa Vostra', hex: '#b0623f' },
+        { name: 'Willow', hex: '#8aa483' },
+        { name: 'Chin Mee Chin', hex: '#cfae63' },
+        { name: 'Carlitos', hex: '#e3bdb3' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

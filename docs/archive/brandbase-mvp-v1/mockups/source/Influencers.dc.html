@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Creators · BrandBase</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#fff}
+a{color:#173527;text-decoration:none}a:hover{color:#111413}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #237a61;outline-offset:2px}
+.rail{flex:0 0 68px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 0;box-sizing:border-box;background:#f7f9f8;border-right:1px solid rgba(17,20,19,.06)}
+.ri{position:relative;width:40px;height:40px;display:grid;place-items:center;border-radius:10px;color:#646c69;border:0;background:transparent;cursor:pointer;padding:0}
+.ri:hover{background:#eef1f0;color:#111413}
+.ri[aria-current="page"]{background:#fff;color:#173527;box-shadow:0 0 0 1px rgba(17,20,19,.07),0 1px 2px rgba(17,20,19,.05)}
+.tip{position:absolute;left:50px;top:50%;transform:translateY(-50%);background:#111413;color:#fff;font-size:12px;font-weight:500;line-height:1;padding:6px 8px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s;z-index:20}
+.ri:hover .tip,.ri:focus-visible .tip{opacity:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 16px;border-radius:10px;font:inherit;font-size:14px;font-weight:500;cursor:pointer;box-sizing:border-box;white-space:nowrap}
+.btn-p{background:#173527;color:#fff;border:1px solid #173527}.btn-p:hover{background:#0f2219;color:#fff}
+.btn-s{background:#fff;color:#111413;border:1px solid rgba(17,20,19,.12)}.btn-s:hover{background:#f7f9f8;color:#111413}
+.ib{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;border:0;background:transparent;color:#4a524f;cursor:pointer;padding:0}
+.ib:hover{background:#eef1f0;color:#111413}
+.bs{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 8px;margin-left:-8px;border-radius:9px;border:0;background:transparent;font:inherit;font-size:14px;font-weight:500;color:#111413;cursor:pointer}
+.bs:hover{background:#f3f5f4}
+.sd{width:8px;height:8px;border-radius:50%;box-sizing:border-box;display:inline-block;flex:none}
+.sd-ph{border:1.5px dashed #8b938f}.sd-idea{border:1.5px solid #8b938f}.sd-appr{border:1.5px solid #237a61}.sd-film{background:#c8930a}.sd-edit{background:#4f6f94}.sd-sched{background:#111413}.sd-post{background:#237a61}.sd-fail{background:#c8442f}
+.tab{height:40px;padding:0 2px;border:0;background:transparent;font:inherit;font-size:14px;color:#646c69;cursor:pointer;box-shadow:inset 0 -2px 0 transparent;display:inline-flex;align-items:center;gap:8px}
+.tab:hover{color:#111413}
+.tab[aria-selected="true"]{color:#111413;font-weight:500;box-shadow:inset 0 -2px 0 #111413}
+.tab .n{font-size:12px;color:#8b938f;font-weight:400}
+.cs-prospect{border:1.5px dashed #8b938f}.cs-contacted{border:1.5px solid #8b938f}.cs-negotiating{background:#c8930a}.cs-confirmed{background:#4f6f94}.cs-posted{background:#237a61}.cs-paid{background:#111413}
+.dec{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(17,20,19,.12);background:#fff;color:#4a524f;cursor:pointer;padding:0}
+.dec:hover{background:#f7f9f8;color:#111413}
+.dec.ok[aria-pressed="true"]{background:#237a61;border-color:#237a61;color:#fff}
+.dec.no[aria-pressed="true"]{background:#c8442f;border-color:#c8442f;color:#fff}
+.cr{display:grid;grid-template-columns:minmax(0,2fr) 90px minmax(0,1fr) minmax(0,1fr) 120px;gap:16px;align-items:center;min-height:60px;padding:0 12px;border-radius:12px;color:#111413}
+.cr:hover{background:#f7f9f8;color:#111413}
+.ib{position:relative}.ib .tip{left:50%;top:auto;bottom:calc(100% + 6px);transform:translateX(-50%)}.ib:hover .tip{opacity:1}
+@media (max-width:760px){.cr{grid-template-columns:minmax(0,1fr) 70px}.cr .hs{display:none}}
+@media (max-width:760px){.rail{flex:1 1 100%!important;flex-direction:row!important;justify-content:center;padding:8px!important;border-right:0!important;border-bottom:1px solid rgba(17,20,19,.06)}.rail .grow{display:none}.tip{display:none}.pg{padding:24px 16px 48px!important}}
+</style>
+</helmet>
+<div style="position: relative; min-height: 100vh; display: flex; flex-wrap: wrap; background: #ffffff; color: #111413; font-family: Geist, 'Helvetica Neue', system-ui, sans-serif; font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased">
+<nav class="rail" aria-label="Main">
+<a href="Main.dc.html" aria-label="BrandBase" style="width: 28px; height: 28px; border-radius: 8px; background: #173527; color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 600; margin-bottom: 14px">B</a>
+<a class="ri" href="Main.dc.html" aria-label="Home"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10.5 12 4l8.5 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"></path></svg><span class="tip" aria-hidden="true">Home</span></a>
+<a class="ri" href="Calendar.dc.html" aria-label="Calendar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg><span class="tip" aria-hidden="true">Calendar</span></a>
+<a class="ri" href="Brainstorm.dc.html" aria-label="Ideas"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 18h5M10.5 21h3M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"></path></svg><span class="tip" aria-hidden="true">Ideas</span></a>
+<a class="ri" href="Influencers.dc.html" aria-label="Creators" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.4 3.4-5.5 6.5-5.5s5.7 2.1 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.8.7 3 2.6 3.5 5.2"></path></svg><span class="tip" aria-hidden="true">Creators</span></a>
+<a class="ri" href="Guidelines.dc.html" aria-label="Brand"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5h7l9 9-6.5 6.5-9-9z"></path><circle cx="8.5" cy="9" r="1.5"></circle></svg><span class="tip" aria-hidden="true">Brand</span></a>
+<span class="grow" style="flex: 1"></span>
+<button type="button" class="ri" aria-label="Search and commands"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><span class="tip" aria-hidden="true">Search  ⌘K</span></button>
+<button type="button" class="ri" aria-label="Account and settings"><span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 50%; background: #e3e8e6; color: #4a524f; display: grid; place-items: center; font-size: 11px; font-weight: 600">MK</span><span class="tip" aria-hidden="true">Settings</span></button>
+</nav>
+<main class="pg" style="flex: 999 1 560px; min-width: 0; padding: 28px 56px 72px; box-sizing: border-box">
+<div style="max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 32px">
+
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px">
+<button type="button" class="bs" aria-label="Brand: All brands. Change brand"><span aria-hidden="true" style="display: flex"><i style="width: 9px; height: 9px; border-radius: 50%; background: #b0623f; display: block; box-shadow: 0 0 0 2px #fff"></i><i style="width: 9px; height: 9px; border-radius: 50%; background: #8aa483; display: block; margin-left: -3px; box-shadow: 0 0 0 2px #fff"></i><i style="width: 9px; height: 9px; border-radius: 50%; background: #3e4756; display: block; margin-left: -3px; box-shadow: 0 0 0 2px #fff"></i></span>All brands<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#646c69" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg></button>
+<div style="display: flex; align-items: center; gap: 8px">
+<button type="button" class="ib" aria-label="Add creator" style="width: 38px; height: 38px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span class="tip" aria-hidden="true">Add creator</span></button>
+<sc-if value="{{isShort}}" hint-placeholder-val="{{true}}"><button type="button" class="btn btn-p"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3 3 10.5l7 2.5 2.5 7z"></path><path d="m21 3-11 10"></path></svg>Share with agency</button></sc-if>
+</div>
+</div>
+
+<header style="display: flex; flex-direction: column; gap: 20px">
+<h1 style="margin: 0; font-size: 32px; line-height: 1.1; font-weight: 600; letter-spacing: -0.03em">Creators</h1>
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(17,20,19,.08)">
+<div role="tablist" aria-label="View" style="display: flex; gap: 28px">
+<button type="button" role="tab" class="tab" aria-selected="{{shortSel}}" onClick="{{toShort}}">Shortlist<span class="n">5</span></button>
+<button type="button" role="tab" class="tab" aria-selected="{{allSel}}" onClick="{{toAll}}">All<span class="n">8</span></button>
+</div>
+<sc-if value="{{isAll}}" hint-placeholder-val="{{false}}"><div style="display: flex"><button type="button" class="ib" aria-label="Search creators"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><span class="tip" aria-hidden="true">Search</span></button><button type="button" class="ib" aria-label="Filter by platform, followers, niche, status or brand"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M19 7h1M4 17h3M13 17h7"></path><circle cx="16" cy="7" r="2.5"></circle><circle cx="10" cy="17" r="2.5"></circle></svg><span class="tip" aria-hidden="true">Filter</span></button></div></sc-if>
+</div>
+</header>
+
+<sc-if value="{{isShort}}" hint-placeholder-val="{{true}}">
+<section aria-label="Shortlist from the PR agency" style="display: flex; flex-direction: column; gap: 24px; margin-top: -8px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500"><i aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #b0623f; display: block"></i>Casa Vostra · Truffle season</span>
+<div style="display: flex; align-items: center; gap: 12px; flex: 0 1 300px">
+<span role="img" aria-label="{{summary}}" style="flex: 1; display: flex; gap: 3px"><sc-for list="{{segs}}" as="g" hint-placeholder-count="5"><span style="flex: 1; height: 6px; border-radius: 999px; background: {{g}}"></span></sc-for></span>
+<span style="font-size: 13px; color: #4a524f; white-space: nowrap">{{decided}}</span>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 16px">
+<sc-for list="{{shortlist}}" as="s" hint-placeholder-count="5">
+<article style="border: 1px solid rgba(17,20,19,.08); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 18px; background: {{s.bgCard}}">
+<div style="display: flex; align-items: center; gap: 12px">
+<span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 50%; background: {{s.bg}}; color: #4a524f; display: grid; place-items: center; font-size: 13px; font-weight: 600; flex: none">{{s.ini}}</span>
+<span style="display: flex; flex-direction: column; min-width: 0; flex: 1"><a href="Influencer.dc.html" style="font-size: 15px; font-weight: 600; color: #111413">{{s.name}}</a><span style="font-size: 12.5px; color: #646c69">{{s.handle}}</span></span>
+</div>
+<div style="display: flex; align-items: baseline; gap: 20px">
+<span style="display: flex; flex-direction: column"><span style="font-size: 26px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1">{{s.followers}}</span><span style="font-size: 12px; color: #646c69">followers</span></span>
+<span style="display: flex; flex-direction: column"><span style="font-size: 26px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1">{{s.er}}</span><span style="font-size: 12px; color: #646c69">engagement</span></span>
+</div>
+<span style="font-size: 13px; color: #4a524f">{{s.note}}</span>
+<div style="display: flex; align-items: center; justify-content: space-between; padding-top: 14px; border-top: 1px solid rgba(17,20,19,.06)">
+<span style="font-size: 14px; font-weight: 500">{{s.rate}}</span>
+<span style="display: flex; gap: 8px"><button type="button" class="dec no" aria-label="Reject {{s.name}}" aria-pressed="{{s.rejected}}" onClick="{{s.reject}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"></path></svg></button><button type="button" class="dec ok" aria-label="Approve {{s.name}}" aria-pressed="{{s.approved}}" onClick="{{s.approve}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></button></span>
+</div>
+</article>
+</sc-for>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{isAll}}" hint-placeholder-val="{{false}}">
+<section aria-label="All creators" style="display: flex; flex-direction: column; margin-top: -16px">
+<div class="cr hs" aria-hidden="true" style="min-height: 32px; font-size: 12px; color: #8b938f"><span></span><span style="text-align: right">Followers</span><span>Engagement</span><span>Worked with</span><span>Status</span></div>
+<sc-for list="{{creators}}" as="c" hint-placeholder-count="8">
+<a class="cr" href="Influencer.dc.html">
+<span style="display: flex; align-items: center; gap: 12px; min-width: 0"><span aria-hidden="true" style="width: 36px; height: 36px; border-radius: 50%; background: {{c.bg}}; color: #4a524f; display: grid; place-items: center; font-size: 12px; font-weight: 600; flex: none">{{c.ini}}</span><span style="display: flex; flex-direction: column; line-height: 1.3; min-width: 0"><span style="font-weight: 500">{{c.name}}</span><span style="font-size: 12.5px; color: #646c69">{{c.handle}} · {{c.platforms}} · {{c.niche}}</span></span></span>
+<span style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em; text-align: right">{{c.followers}}</span>
+<span class="hs" style="display: flex; align-items: center; gap: 10px" aria-label="Engagement {{c.er}}"><span aria-hidden="true" style="flex: 1; max-width: 120px; height: 4px; border-radius: 999px; background: #eef1f0; overflow: hidden"><span style="display: block; height: 100%; width: {{c.erPct}}; background: #4a524f"></span></span><span style="font-size: 12.5px; color: #4a524f">{{c.er}}</span></span>
+<span class="hs" style="font-size: 12.5px; color: #4a524f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{c.brandNames}}</span>
+<span class="hs" style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #4a524f"><i class="sd cs-{{c.sk}}" aria-hidden="true"></i>{{c.status}}</span>
+</a>
+</sc-for>
+</section>
+</sc-if>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const dec = st.dec || { mlt: 'ok' };
+    const view = st.view || 'short';
+    const B = { cv: ['Casa Vostra', '#b0623f'], wi: ['Willow', '#8aa483'], cmc: ['Chin Mee Chin', '#cfae63'], te: ['Temper', '#3e4756'], ca: ['Carlitos', '#e3bdb3'], pe: ['Petra', '#75669a'] };
+    const bgs = ['#e9edeb', '#eef1f0', '#e3e8e6'];
+    const C = [
+      ['mlt', 'Mei Lin Tan', '@meilin.eats', 'IG, TikTok', '48.2k', 4.1, 'Pasta', 'S$900', ['cv', 'pe'], 'Confirmed'],
+      ['ap', 'Arjun Pillai', '@arjuneatssg', 'IG', '22.5k', 5.6, 'Hawker', 'S$450', ['cmc'], 'Posted'],
+      ['sr', 'Sofia Reyes', '@sofiaonsunday', 'IG, TikTok', '31.0k', 3.8, 'Brunch', 'S$600', ['wi', 'ca'], 'Negotiating'],
+      ['dk', 'Daniel Koh', '@dk.grills', 'TikTok', '64.3k', 6.2, 'Grill', 'S$1,200', ['te'], 'Contacted'],
+      ['hy', 'Hana Yusof', '@hanaplates', 'IG', '15.4k', 7.0, 'Desserts', 'S$300', [], 'Prospect'],
+      ['ml', 'Marcus Lee', '@marcus.sips', 'IG', '27.8k', 4.4, 'Wine', 'S$550', ['pe', 'te'], 'Paid'],
+      ['pn', 'Priya Nair', '@priyabites', 'IG, TikTok', '39.1k', 4.9, 'Family', 'S$700', ['wi'], 'Prospect'],
+      ['jw', 'Ong Jun Wei', '@junwei.makan', 'TikTok', '82.0k', 5.1, 'Street food', 'S$1,400', [], 'Contacted']
+    ];
+    const ini = n => n.split(' ').map(w => w[0]).slice(0, 2).join('');
+    const S = [
+      ['mlt', 'Pasta reels average 21k views'],
+      ['ml', 'Pairs truffle with Petra wines'],
+      ['sr', 'Posted for [Competitor A] in August'],
+      ['hy', 'Small audience, highest engagement'],
+      ['pn', 'Family audience, weekend dining']
+    ];
+    const n = { ok: 0, no: 0 };
+    S.forEach(s => { if (dec[s[0]]) n[dec[s[0]]]++; });
+    const set = (id, v) => this.setState({ dec: Object.assign({}, dec, { [id]: dec[id] === v ? undefined : v }) });
+    const find = id => C.find(c => c[0] === id);
+    return {
+      isShort: view === 'short', isAll: view === 'all',
+      shortSel: view === 'short' ? 'true' : 'false', allSel: view === 'all' ? 'true' : 'false',
+      toShort: () => this.setState({ view: 'short' }), toAll: () => this.setState({ view: 'all' }),
+      summary: n.ok + ' approved, ' + n.no + ' rejected, ' + (S.length - n.ok - n.no) + ' to decide',
+      decided: (n.ok + n.no) + ' of ' + S.length + ' decided',
+      segs: S.map(s => dec[s[0]] === 'ok' ? '#237a61' : dec[s[0]] === 'no' ? '#c8442f' : '#e3e8e6'),
+      shortlist: S.map((s, i) => {
+        const c = find(s[0]);
+        return {
+          name: c[1], handle: c[2], followers: c[4], er: c[5].toFixed(1) + "%", note: s[1], rate: c[7], ini: ini(c[1]), bg: bgs[i % 3],
+          bgCard: dec[s[0]] === 'no' ? '#fbfcfb' : '#ffffff',
+          approved: dec[s[0]] === 'ok' ? 'true' : 'false', rejected: dec[s[0]] === 'no' ? 'true' : 'false',
+          approve: () => set(s[0], 'ok'), reject: () => set(s[0], 'no')
+        };
+      }),
+      creators: C.map((c, i) => ({
+        name: c[1], handle: c[2], platforms: c[3], followers: c[4], er: c[5].toFixed(1) + "%", erPct: Math.round(c[5] / 8 * 100) + '%', niche: c[6], ini: ini(c[1]), bg: bgs[i % 3],
+        brands: c[8].map(k => B[k][1]), brandNames: c[8].length ? c[8].map(k => B[k][0]).join(', ') : '–',
+        status: c[9], sk: c[9].toLowerCase()
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Casa Vostra guidelines · BrandBase</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#fff}
+a{color:#173527;text-decoration:none}a:hover{color:#111413}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #237a61;outline-offset:2px}
+.rail{flex:0 0 68px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 0;box-sizing:border-box;background:#f7f9f8;border-right:1px solid rgba(17,20,19,.06)}
+.ri{position:relative;width:40px;height:40px;display:grid;place-items:center;border-radius:10px;color:#646c69;border:0;background:transparent;cursor:pointer;padding:0}
+.ri:hover{background:#eef1f0;color:#111413}
+.ri[aria-current="page"]{background:#fff;color:#173527;box-shadow:0 0 0 1px rgba(17,20,19,.07),0 1px 2px rgba(17,20,19,.05)}
+.tip{position:absolute;left:50px;top:50%;transform:translateY(-50%);background:#111413;color:#fff;font-size:12px;font-weight:500;line-height:1;padding:6px 8px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s;z-index:20}
+.ri:hover .tip,.ri:focus-visible .tip{opacity:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 16px;border-radius:10px;font:inherit;font-size:14px;font-weight:500;cursor:pointer;box-sizing:border-box;white-space:nowrap}
+.btn-p{background:#173527;color:#fff;border:1px solid #173527}.btn-p:hover{background:#0f2219;color:#fff}
+.btn-s{background:#fff;color:#111413;border:1px solid rgba(17,20,19,.12)}.btn-s:hover{background:#f7f9f8;color:#111413}
+.ib{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;border:0;background:transparent;color:#4a524f;cursor:pointer;padding:0}
+.ib:hover{background:#eef1f0;color:#111413}
+.bs{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 8px;margin-left:-8px;border-radius:9px;border:0;background:transparent;font:inherit;font-size:14px;font-weight:500;color:#111413;cursor:pointer}
+.bs:hover{background:#f3f5f4}
+.sd{width:8px;height:8px;border-radius:50%;box-sizing:border-box;display:inline-block;flex:none}
+.sd-ph{border:1.5px dashed #8b938f}.sd-idea{border:1.5px solid #8b938f}.sd-appr{border:1.5px solid #237a61}.sd-film{background:#c8930a}.sd-edit{background:#4f6f94}.sd-sched{background:#111413}.sd-post{background:#237a61}.sd-fail{background:#c8442f}
+.tab{height:40px;padding:0 2px;border:0;background:transparent;font:inherit;font-size:14px;color:#646c69;cursor:pointer;box-shadow:inset 0 -2px 0 transparent}
+.tab:hover{color:#111413}
+.tab[aria-selected="true"]{color:#111413;font-weight:500;box-shadow:inset 0 -2px 0 #111413}
+.lbl{margin:0;font-size:12px;font-weight:500;color:#646c69}
+.w{display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;font-size:13.5px}
+.seg{display:inline-flex;padding:2px;border-radius:9px;background:#eef1f0;gap:2px}
+.seg button{height:28px;padding:0 12px;border-radius:7px;border:0;background:transparent;font:inherit;font-size:13px;color:#4a524f;cursor:pointer}
+.seg button[aria-pressed="true"]{background:#fff;color:#111413;font-weight:500;box-shadow:0 1px 2px rgba(17,20,19,.08)}
+.res{display:flex;align-items:center;gap:14px;min-height:56px;padding:0 12px;border-radius:12px;color:#111413}
+.res:hover{background:#f7f9f8;color:#111413}
+.opt{box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;height:36px;padding:0 10px;border:0;border-radius:8px;background:transparent;font:inherit;font-size:13.5px;color:#111413;cursor:pointer;text-align:left}
+.opt:hover{background:#f3f5f4}
+.ib{position:relative}.ib .tip{left:50%;top:auto;bottom:calc(100% + 6px);transform:translateX(-50%)}.ib:hover .tip{opacity:1}
+@media (max-width:760px){.rail{flex:1 1 100%!important;flex-direction:row!important;justify-content:center;padding:8px!important;border-right:0!important;border-bottom:1px solid rgba(17,20,19,.06)}.rail .grow{display:none}.tip{display:none}.pg{padding:24px 16px 48px!important}}
+</style>
+</helmet>
+<div style="position: relative; min-height: 100vh; display: flex; flex-wrap: wrap; background: #ffffff; color: #111413; font-family: Geist, 'Helvetica Neue', system-ui, sans-serif; font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased">
+<nav class="rail" aria-label="Main">
+<a href="Main.dc.html" aria-label="BrandBase" style="width: 28px; height: 28px; border-radius: 8px; background: #173527; color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 600; margin-bottom: 14px">B</a>
+<a class="ri" href="Main.dc.html" aria-label="Home"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10.5 12 4l8.5 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"></path></svg><span class="tip" aria-hidden="true">Home</span></a>
+<a class="ri" href="Calendar.dc.html" aria-label="Calendar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg><span class="tip" aria-hidden="true">Calendar</span></a>
+<a class="ri" href="Brainstorm.dc.html" aria-label="Ideas"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 18h5M10.5 21h3M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"></path></svg><span class="tip" aria-hidden="true">Ideas</span></a>
+<a class="ri" href="Influencers.dc.html" aria-label="Creators"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.4 3.4-5.5 6.5-5.5s5.7 2.1 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.8.7 3 2.6 3.5 5.2"></path></svg><span class="tip" aria-hidden="true">Creators</span></a>
+<a class="ri" href="Guidelines.dc.html" aria-label="Brand" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5h7l9 9-6.5 6.5-9-9z"></path><circle cx="8.5" cy="9" r="1.5"></circle></svg><span class="tip" aria-hidden="true">Brand</span></a>
+<span class="grow" style="flex: 1"></span>
+<button type="button" class="ri" aria-label="Search and commands"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><span class="tip" aria-hidden="true">Search  ⌘K</span></button>
+<button type="button" class="ri" aria-label="Account and settings"><span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 50%; background: #e3e8e6; color: #4a524f; display: grid; place-items: center; font-size: 11px; font-weight: 600">MK</span><span class="tip" aria-hidden="true">Settings</span></button>
+</nav>
+<main class="pg" style="flex: 999 1 560px; min-width: 0; padding: 28px 56px 72px; box-sizing: border-box">
+<div style="max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: 32px">
+
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<button type="button" class="bs" aria-label="Brand: Casa Vostra. Change brand"><i aria-hidden="true" style="width: 9px; height: 9px; border-radius: 50%; background: #b0623f; display: block"></i>Casa Vostra<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#646c69" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg></button>
+<div style="position: relative; display: flex; align-items: center; gap: 6px">
+<button type="button" class="ib" aria-label="What the AI sees" aria-expanded="{{aiExpanded}}" onClick="{{toggleAi}}" style="width: 38px; height: 38px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#237a61" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z"></path></svg><span class="tip" aria-hidden="true">What the AI sees</span></button>
+<button type="button" class="ib" aria-label="More" aria-expanded="{{menuExpanded}}" onClick="{{toggleMenu}}" style="width: 38px; height: 38px"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="18.5" cy="12" r="1.6"></circle></svg></button>
+<button type="button" class="btn btn-p">Edit</button>
+<sc-if value="{{menuOpen}}" hint-placeholder-val="{{false}}">
+<div role="menu" aria-label="More" style="position: absolute; top: 46px; right: 64px; z-index: 25; width: 190px; background: #fff; border-radius: 12px; box-shadow: 0 0 0 1px rgba(17,20,19,.08), 0 16px 40px rgba(17,20,19,.12); padding: 6px">
+<button type="button" role="menuitem" class="opt">Export PDF</button>
+<button type="button" role="menuitem" class="opt">Version history</button>
+</div>
+</sc-if>
+</div>
+</div>
+
+<header style="display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; align-items: baseline; gap: 12px"><h1 style="margin: 0; font-size: 32px; line-height: 1.1; font-weight: 600; letter-spacing: -0.03em">Casa Vostra</h1><span style="font-size: 13px; color: #8b938f">v4.1 · 6 Oct</span></div>
+<div role="tablist" aria-label="Guidelines" style="display: flex; gap: 28px; border-bottom: 1px solid rgba(17,20,19,.08)">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="4"><button type="button" role="tab" class="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
+</div>
+</header>
+
+<sc-if value="{{isVoice}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 48px">
+<p style="margin: 0; font-size: 24px; line-height: 1.4; letter-spacing: -0.015em; max-width: 30ch">The friend who cooks for you on a Sunday.</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 32px">
+<sc-for list="{{tones}}" as="v" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 10px"><span class="lbl">{{v.name}}</span><span style="font-size: 16px; line-height: 1.4">{{v.yes}}</span><span style="font-size: 13.5px; color: #8b938f; text-decoration: line-through">{{v.no}}</span></div>
+</sc-for>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 32px">
+<div style="display: flex; flex-direction: column; gap: 12px"><h2 class="lbl">Use</h2><div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{use}}" as="u" hint-placeholder-count="6"><span class="w" style="background: rgba(35,122,97,.08); color: #173527">{{u}}</span></sc-for></div></div>
+<div style="display: flex; flex-direction: column; gap: 12px"><h2 class="lbl">Avoid</h2><div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{avoid}}" as="u" hint-placeholder-count="6"><span class="w" style="background: #f3f5f4; color: #646c69; text-decoration: line-through; text-decoration-color: rgba(17,20,19,.3)">{{u}}</span></sc-for></div></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 40px">
+<section style="display: flex; flex-direction: column; gap: 6px"><h2 class="lbl" style="margin-bottom: 6px">Caption rules</h2>
+<sc-for list="{{rules}}" as="r" hint-placeholder-count="7"><div style="display: flex; gap: 14px; font-size: 14px; padding: 6px 0"><span style="color: #8b938f; width: 12px">{{r.n}}</span>{{r.t}}</div></sc-for>
+</section>
+<section style="display: flex; flex-direction: column; gap: 6px"><h2 class="lbl" style="margin-bottom: 6px">Closers</h2>
+<sc-for list="{{closers}}" as="c" hint-placeholder-count="4"><div style="display: flex; justify-content: space-between; gap: 16px; font-size: 14px; padding: 6px 0"><span>{{c.t}}</span><span style="font-size: 12px; color: #8b938f; white-space: nowrap">{{c.when}}</span></div></sc-for>
+</section>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{isContent}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 48px">
+<section style="display: flex; flex-direction: column; gap: 16px"><h2 class="lbl">Pillars</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 12px">
+<sc-for list="{{pillars}}" as="p" hint-placeholder-count="4"><div style="background: #f7f9f8; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 8px"><span style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em">{{p.name}}</span><span style="font-size: 13px; color: #4a524f">{{p.d}}</span></div></sc-for>
+</div>
+</section>
+<section style="display: flex; flex-wrap: wrap; gap: 48px 72px"><div style="display: flex; flex-direction: column; gap: 12px"><h2 class="lbl">Cadence</h2>
+<span style="display: flex; align-items: baseline; gap: 8px"><span style="font-size: 44px; font-weight: 600; letter-spacing: -0.035em; line-height: 1">2</span><span style="font-size: 15px; color: #4a524f">a week</span></span>
+<span style="display: flex; align-items: center; gap: 10px"><span aria-hidden="true" style="display: flex; gap: 5px"><sc-for list="{{month}}" as="m" hint-placeholder-count="8"><i style="width: 10px; height: 10px; border-radius: 50%; background: #b0623f; display: block"></i></sc-for></span><span style="font-size: 12.5px; color: #646c69">8 a month</span></span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px"><h2 class="lbl">Plan ahead</h2><span style="display: flex; align-items: baseline; gap: 8px"><span style="font-size: 44px; font-weight: 600; letter-spacing: -0.035em; line-height: 1">3–4</span><span style="font-size: 15px; color: #4a524f">weeks</span></span></div>
+<div style="display: flex; flex-direction: column; gap: 12px"><h2 class="lbl">Reels go to</h2><span style="font-size: 17px; font-weight: 500; padding-top: 8px">Instagram + TikTok</span></div>
+</section>
+</div>
+</sc-if>
+
+<sc-if value="{{isLook}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 48px">
+<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 16px">
+<sc-for list="{{colours}}" as="c" hint-placeholder-count="4"><div style="display: flex; flex-direction: column; gap: 8px"><span style="height: 120px; border-radius: 16px; background: {{c.hex}}; box-shadow: inset 0 0 0 1px rgba(17,20,19,.06)"></span><span style="font-size: 13.5px; font-weight: 500">{{c.name}}</span><span style="font-size: 12px; color: #646c69; font-family: 'Geist Mono', ui-monospace, monospace">{{c.hex}}</span></div></sc-for>
+</section>
+<section style="display: flex; flex-wrap: wrap; gap: 24px 72px; align-items: baseline">
+<div style="display: flex; flex-direction: column; gap: 6px"><span class="lbl">Headlines</span><span style="font-size: 28px; font-weight: 600; letter-spacing: -0.02em">[Display typeface]</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><span class="lbl">Text</span><span style="font-size: 17px">[Text typeface]</span></div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px"><h2 class="lbl">Photography</h2><div class="seg" role="group" aria-label="Category"><sc-for list="{{cats}}" as="c" hint-placeholder-count="4"><button type="button" aria-pressed="{{c.pressed}}" onClick="{{c.pick}}">{{c.label}}</button></sc-for></div></div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)); gap: 12px">
+<sc-for list="{{photos}}" as="p" hint-placeholder-count="4"><div aria-label="{{p.label}}" style="aspect-ratio: 1 / 1; border-radius: 14px; background: {{p.bg}}"></div></sc-for>
+</div>
+<span style="font-size: 13.5px; color: #4a524f">{{catNote}}</span>
+</section>
+</div>
+</sc-if>
+
+<sc-if value="{{isFiles}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; margin-top: -12px">
+<a class="res" href="#logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4a524f" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h6l2 2h8v10H4z"></path></svg><span style="flex: 1; font-size: 14px; font-weight: 500">Logo pack</span><span style="font-size: 12.5px; color: #8b938f">Drive</span></a>
+<a class="res" href="#menus"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4a524f" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8l4 4v13H6z"></path><path d="M14 3.5v4h4"></path></svg><span style="flex: 1; font-size: 14px; font-weight: 500">Current menus</span><span style="font-size: 12.5px; color: #8b938f">PDF · 1 Oct</span></a>
+<a class="res" href="#photos"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4a524f" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.6"></circle><path d="m4 17 5-4.5 4 3.5 3-2.5 4 3.5"></path></svg><span style="flex: 1; font-size: 14px; font-weight: 500">Photo library</span><span style="font-size: 12.5px; color: #8b938f">Drive</span></a>
+<a class="res" href="#examples"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4a524f" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8l4 4v13H6z"></path><path d="M9 12h6M9 15.5h6"></path></svg><span style="flex: 1; font-size: 14px; font-weight: 500">Captions we liked</span><span style="font-size: 12.5px; color: #8b938f">Doc</span></a>
+</div>
+</sc-if>
+</div>
+</main>
+
+<sc-if value="{{aiOpen}}" hint-placeholder-val="{{false}}">
+<aside aria-label="What the AI sees" style="position: absolute; top: 0; right: 0; bottom: 0; z-index: 20; width: min(440px, 100%); background: #fff; box-shadow: -1px 0 0 rgba(17,20,19,.08), -24px 0 48px rgba(17,20,19,.06); padding: 24px 28px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; overflow-y: auto">
+<div style="display: flex; align-items: center; justify-content: space-between"><h2 style="margin: 0; font-size: 15px; font-weight: 600">What the AI sees</h2><button type="button" class="ib" aria-label="Close" onClick="{{toggleAi}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button></div>
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #4a524f"><i class="sd sd-post" aria-hidden="true"></i>Up to date · v4.3 · 6 Oct, 10:05 am</span>
+<pre style="margin: 0; padding: 16px; background: #f7f9f8; border-radius: 12px; font-family: 'Geist Mono', ui-monospace, Menlo, monospace; font-size: 11.5px; line-height: 1.65; color: #111413; white-space: pre-wrap; overflow-wrap: anywhere">BRAND: Casa Vostra. Italian, Singapore.
+VOICE: Warm, specific, home-style. Never gushing or flowery.
+
+PILLARS: Craft, Chef personality, Dishes, Events
+CADENCE: 2 posts a week. Reels to Instagram and TikTok.
+
+USE: fresh, made in-house, share, the table, tonight, in season
+AVOID: authentic, elevated, indulge, foodies, mouth-watering, hidden gem
+
+CAPTIONS:
+- Short: two or three lines
+- Lead with the dish, not the offer
+- Sentences under 20 words
+- At most 1 emoji, never first
+- Max 5 hashtags, incl. #casavostrasg
+- No prices
+- End with a closer:
+  "Book at the link in our bio." (SevenRooms)
+  "Tables at the link in bio. Walk-ins welcome at the bar."
+  "Until it runs out. Book via the link in bio."
+  "Tag who you're bringing."
+
+PHOTOS: dishes, hands at work, the room, people</pre>
+<div><button type="button" class="btn btn-s" style="height: 34px; font-size: 13px">Copy</button></div>
+</aside>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const tab = st.tab || 'Voice';
+    const cat = st.cat || 'Dishes';
+    const ai = !!st.ai, menu = !!st.menu;
+    const C = {
+      'Dishes': ['Above or at 45°, daylight, linen or wood.', ['Tagliolini al tartufo, overhead', 'Burrata, 45°', 'Tiramisu, side light', 'Pici cacio e pepe, overhead']],
+      'Hands': ['Close, mid-movement. No faces needed.', ['Rolling pici', 'Shaving truffle', 'Plating at the pass', 'Pouring olive oil']],
+      'Room': ['Evening light, candles lit, guests soft.', ['Bar at 9 pm', 'Long table, set', 'Front window, dusk', 'Open kitchen']],
+      'People': ['The team as themselves, at work.', ['Head chef portrait', 'Pasta team', 'Floor team at family meal', 'Sommelier at the bar']]
+    };
+    const bgs = ['#e9edeb', '#eef1f0', '#e3e8e6', '#f0f2f1'];
+    return {
+      tabs: ['Voice', 'Content', 'Look', 'Files'].map(t => ({ label: t, sel: t === tab ? 'true' : 'false', pick: () => this.setState({ tab: t }) })),
+      isVoice: tab === 'Voice', isContent: tab === 'Content', isLook: tab === 'Look', isFiles: tab === 'Files',
+      aiOpen: ai, aiExpanded: ai ? 'true' : 'false', toggleAi: () => this.setState({ ai: !ai, menu: false }),
+      menuOpen: menu, menuExpanded: menu ? 'true' : 'false', toggleMenu: () => this.setState({ menu: !menu }),
+      tones: [
+        { name: 'Warm, not gushing', yes: '“Come hungry, we’ve made too much.”', no: '“OMG you HAVE to try this!!”' },
+        { name: 'Specific, not flowery', yes: '“Pici, rolled by hand at 4 pm.”', no: '“A symphony of flavours.”' },
+        { name: 'Italian at home', yes: '“Nonna’s ragù, Sunday rules.”', no: '“Bellissimo! Mamma mia!”' }
+      ],
+      use: ['fresh', 'made in-house', 'share', 'the table', 'tonight', 'in season'],
+      avoid: ['authentic', 'elevated', 'indulge', 'foodies', 'mouth-watering', 'hidden gem'],
+      rules: ['Two or three lines', 'Dish first, offer second', 'Sentences under 20 words', 'One emoji at most, never first', 'End with a closer', 'Up to 5 hashtags, incl. #casavostrasg', 'No prices'].map((t, i) => ({ n: i + 1, t })),
+      closers: [
+        { t: 'Book at the link in our bio.', when: 'SevenRooms' },
+        { t: 'Tables at the link in bio. Walk-ins welcome at the bar.', when: 'Weekdays' },
+        { t: 'Until it runs out. Book via the link in bio.', when: 'Seasonal' },
+        { t: 'Tag who you’re bringing.', when: 'Events' }
+      ],
+      pillars: [
+        { name: 'Craft', d: 'How the food is made.' },
+        { name: 'Chef personality', d: 'One chef, one opinion, one minute.' },
+        { name: 'Dishes', d: 'The plate itself, shot well.' },
+        { name: 'Events', d: 'Two weeks ahead, recap after.' }
+      ],
+      month: [1, 2, 3, 4, 5, 6, 7, 8],
+      colours: [{ name: 'Terracotta', hex: '#B0623F' }, { name: 'Plaster', hex: '#F3ECE0' }, { name: 'Olive', hex: '#5D6B3E' }, { name: 'Espresso', hex: '#2A2522' }],
+      cats: Object.keys(C).map(k => ({ label: k, pressed: k === cat ? 'true' : 'false', pick: () => this.setState({ cat: k }) })),
+      catNote: C[cat][0],
+      photos: C[cat][1].map((l, i) => ({ label: 'Pinned: ' + l, bg: bgs[i % 4] }))
+    };
+  }
+}
+</script>
+</body>
+</html>

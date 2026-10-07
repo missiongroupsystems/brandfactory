@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Post plan · BrandBase</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#fff}
+a{color:#173527;text-decoration:none}a:hover{color:#111413}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #237a61;outline-offset:2px}
+.rail{flex:0 0 68px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 0;box-sizing:border-box;background:#f7f9f8;border-right:1px solid rgba(17,20,19,.06)}
+.ri{position:relative;width:40px;height:40px;display:grid;place-items:center;border-radius:10px;color:#646c69;border:0;background:transparent;cursor:pointer;padding:0}
+.ri:hover{background:#eef1f0;color:#111413}
+.ri[aria-current="page"]{background:#fff;color:#173527;box-shadow:0 0 0 1px rgba(17,20,19,.07),0 1px 2px rgba(17,20,19,.05)}
+.tip{position:absolute;left:50px;top:50%;transform:translateY(-50%);background:#111413;color:#fff;font-size:12px;font-weight:500;line-height:1;padding:6px 8px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s;z-index:20}
+.ri:hover .tip,.ri:focus-visible .tip{opacity:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 16px;border-radius:10px;font:inherit;font-size:14px;font-weight:500;cursor:pointer;box-sizing:border-box;white-space:nowrap}
+.btn-p{background:#173527;color:#fff;border:1px solid #173527}.btn-p:hover{background:#0f2219;color:#fff}
+.btn-s{background:#fff;color:#111413;border:1px solid rgba(17,20,19,.12)}.btn-s:hover{background:#f7f9f8;color:#111413}
+.ib{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;border:0;background:transparent;color:#4a524f;cursor:pointer;padding:0}
+.ib:hover{background:#eef1f0;color:#111413}
+.bs{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 8px;margin-left:-8px;border-radius:9px;border:0;background:transparent;font:inherit;font-size:14px;font-weight:500;color:#111413;cursor:pointer}
+.bs:hover{background:#f3f5f4}
+.sd{width:8px;height:8px;border-radius:50%;box-sizing:border-box;display:inline-block;flex:none}
+.sd-ph{border:1.5px dashed #8b938f}.sd-idea{border:1.5px solid #8b938f}.sd-appr{border:1.5px solid #237a61}.sd-film{background:#c8930a}.sd-edit{background:#4f6f94}.sd-sched{background:#111413}.sd-post{background:#237a61}.sd-fail{background:#c8442f}
+textarea:focus-visible,select:focus-visible{outline:2px solid #237a61;outline-offset:2px}
+.lbl{font-size:12px;font-weight:500;color:#646c69}
+.fld{width:100%;box-sizing:border-box;height:40px;padding:0 12px;border-radius:10px;border:1px solid rgba(17,20,19,.12);background:#fff;font:inherit;font-size:14px;color:#111413}
+.fld:focus{outline:none;border-color:#237a61;box-shadow:0 0 0 3px rgba(35,122,97,.12)}
+textarea.fld{height:auto;padding:10px 12px;line-height:1.55;resize:vertical}
+.tab{height:40px;padding:0 2px;border:0;background:transparent;font:inherit;font-size:14px;color:#646c69;cursor:pointer;box-shadow:inset 0 -2px 0 transparent}
+.tab:hover{color:#111413}
+.tab[aria-selected="true"]{color:#111413;font-weight:500;box-shadow:inset 0 -2px 0 #111413}
+.pill{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:999px;border:1px solid rgba(17,20,19,.12);background:#fff;font:inherit;font-size:13px;color:#4a524f;cursor:pointer}
+.pill:hover{background:#f7f9f8}
+.pill[aria-pressed="true"]{background:#111413;border-color:#111413;color:#fff}
+.ck{display:flex;align-items:center;gap:12px;width:100%;min-height:40px;padding:0 6px;border:0;background:transparent;font:inherit;font-size:14px;text-align:left;cursor:pointer;color:#111413;border-radius:8px}
+.ck:hover{background:#f7f9f8}
+.ck .bx{width:18px;height:18px;border-radius:50%;border:1.5px solid #b4bab7;box-sizing:border-box;display:grid;place-items:center;flex:none}
+.ck[aria-pressed="true"] .bx{background:#173527;border-color:#173527}
+.ck[aria-pressed="false"] .bx svg{display:none}
+.ck[aria-pressed="true"] .t{color:#646c69;text-decoration:line-through}
+.more{display:flex;align-items:center;gap:8px;height:36px;padding:0;border:0;background:transparent;font:inherit;font-size:13px;font-weight:500;color:#4a524f;cursor:pointer}
+.more:hover{color:#111413}
+.more svg{transition:transform .15s}
+.more[aria-expanded="true"] svg{transform:rotate(90deg)}
+.seg{display:inline-flex;padding:2px;border-radius:9px;background:#eef1f0;gap:2px}
+.seg button{height:28px;padding:0 12px;border-radius:7px;border:0;background:transparent;font:inherit;font-size:13px;color:#4a524f;cursor:pointer}
+.seg button[aria-pressed="true"]{background:#fff;color:#111413;font-weight:500;box-shadow:0 1px 2px rgba(17,20,19,.08)}
+.opt{box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;height:34px;padding:0 10px;border:0;border-radius:8px;background:transparent;font:inherit;font-size:13.5px;color:#111413;cursor:pointer;text-align:left}
+.opt:hover{background:#f3f5f4}
+.tick{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;flex:none}
+.ib .tip{left:50%;top:auto;bottom:calc(100% + 6px);transform:translateX(-50%)}
+.ib{position:relative}.ib:hover .tip{opacity:1}
+@media (max-width:760px){.two{grid-template-columns:1fr!important}}
+@media (max-width:760px){.rail{flex:1 1 100%!important;flex-direction:row!important;justify-content:center;padding:8px!important;border-right:0!important;border-bottom:1px solid rgba(17,20,19,.06)}.rail .grow{display:none}.tip{display:none}.pg{padding:24px 16px 48px!important}}
+</style>
+</helmet>
+<div style="position: relative; min-height: 100vh; display: flex; flex-wrap: wrap; background: #ffffff; color: #111413; font-family: Geist, 'Helvetica Neue', system-ui, sans-serif; font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased">
+<nav class="rail" aria-label="Main">
+<a href="Main.dc.html" aria-label="BrandBase" style="width: 28px; height: 28px; border-radius: 8px; background: #173527; color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 600; margin-bottom: 14px">B</a>
+<a class="ri" href="Main.dc.html" aria-label="Home"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10.5 12 4l8.5 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"></path></svg><span class="tip" aria-hidden="true">Home</span></a>
+<a class="ri" href="Calendar.dc.html" aria-label="Calendar" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg><span class="tip" aria-hidden="true">Calendar</span></a>
+<a class="ri" href="Brainstorm.dc.html" aria-label="Ideas"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 18h5M10.5 21h3M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"></path></svg><span class="tip" aria-hidden="true">Ideas</span></a>
+<a class="ri" href="Influencers.dc.html" aria-label="Creators"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.4 3.4-5.5 6.5-5.5s5.7 2.1 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.8.7 3 2.6 3.5 5.2"></path></svg><span class="tip" aria-hidden="true">Creators</span></a>
+<a class="ri" href="Guidelines.dc.html" aria-label="Brand"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5h7l9 9-6.5 6.5-9-9z"></path><circle cx="8.5" cy="9" r="1.5"></circle></svg><span class="tip" aria-hidden="true">Brand</span></a>
+<span class="grow" style="flex: 1"></span>
+<button type="button" class="ri" aria-label="Search and commands"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><span class="tip" aria-hidden="true">Search  ⌘K</span></button>
+<button type="button" class="ri" aria-label="Account and settings"><span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 50%; background: #e3e8e6; color: #4a524f; display: grid; place-items: center; font-size: 11px; font-weight: 600">MK</span><span class="tip" aria-hidden="true">Settings</span></button>
+</nav>
+<main class="pg" style="flex: 999 1 560px; min-width: 0; padding: 24px 48px 72px; box-sizing: border-box">
+<div style="max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px">
+
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div style="position: relative; display: flex; align-items: center; gap: 6px">
+<a class="ib" href="Calendar.dc.html" aria-label="Back to calendar" style="width: 36px; height: 36px; margin-left: -8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg></a>
+<button type="button" class="pill" aria-label="Status: {{status}}. Change status" aria-expanded="{{statusExpanded}}" onClick="{{toggleStatus}}"><i class="sd sd-{{statusKey}}" aria-hidden="true"></i>{{status}}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg></button>
+<sc-if value="{{statusOpen}}" hint-placeholder-val="{{false}}">
+<div role="menu" aria-label="Status" style="position: absolute; top: 42px; left: 30px; z-index: 25; width: 200px; background: #fff; border-radius: 12px; box-shadow: 0 0 0 1px rgba(17,20,19,.08), 0 16px 40px rgba(17,20,19,.12); padding: 6px">
+<sc-for list="{{statuses}}" as="s" hint-placeholder-count="8"><button type="button" role="menuitem" class="opt" onClick="{{s.pick}}"><i class="sd sd-{{s.k}}" aria-hidden="true"></i>{{s.label}}</button></sc-for>
+</div>
+</sc-if>
+</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="font-size: 12.5px; color: #8b938f; margin-right: 4px">Saved</span>
+<button type="button" class="ib" aria-label="Share for review" style="width: 38px; height: 38px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg><span class="tip" aria-hidden="true">Share for review</span></button>
+<button type="button" class="btn btn-p">Schedule</button>
+</div>
+</div>
+
+<header style="display: flex; flex-direction: column; gap: 8px">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #4a524f"><i aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #b0623f; display: block"></i>Casa Vostra<span style="color: #b4bab7">·</span>{{fmt}}<span style="color: #b4bab7">·</span>Tue 6 Oct, 7:00 pm</span>
+<h1 style="margin: 0; font-size: 32px; line-height: 1.15; font-weight: 600; letter-spacing: -0.03em">Truffle season is here</h1>
+</header>
+
+<div role="tablist" aria-label="Post plan" style="display: flex; gap: 28px; border-bottom: 1px solid rgba(17,20,19,.08); margin-top: -4px">
+<button type="button" role="tab" class="tab" aria-selected="{{planSel}}" onClick="{{toPlan}}">Plan</button>
+<button type="button" role="tab" class="tab" aria-selected="{{postSel}}" onClick="{{toPost}}">Post</button>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 64px; align-items: flex-start">
+<form aria-label="Post plan" style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 32px">
+
+<sc-if value="{{isPlan}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 32px">
+<section style="display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; justify-content: space-between"><label class="lbl" for="hook">Hook</label>
+<button type="button" class="ib" aria-label="Strengthen this hook" aria-expanded="{{hookExpanded}}" onClick="{{toggleHook}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#237a61" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z"></path></svg><span class="tip" aria-hidden="true">Strengthen hook</span></button></div>
+<input id="hook" value="{{hook}}" style="width: 100%; box-sizing: border-box; height: 52px; padding: 0; border: 0; border-bottom: 1px solid rgba(17,20,19,.12); font: inherit; font-size: 22px; font-weight: 500; letter-spacing: -0.015em; color: #111413; outline: none; background: transparent">
+<sc-if value="{{hookOpen}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; background: #f7f9f8; border-radius: 14px; padding: 6px">
+<sc-for list="{{alts}}" as="a" hint-placeholder-count="3">
+<button type="button" class="opt" onClick="{{a.use}}" style="height: auto; min-height: 44px; justify-content: space-between; gap: 16px"><span style="font-size: 15px">{{a.text}}</span><span style="font-size: 12px; color: #646c69; white-space: nowrap">{{a.pillar}}</span></button>
+</sc-for>
+</div>
+</sc-if>
+</section>
+
+<div class="two" style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 8px"><label class="lbl" for="dish">Dish</label><input id="dish" class="fld" value="Tagliolini al tartufo bianco"></div>
+<div style="display: flex; flex-direction: column; gap: 8px"><span class="lbl" id="who">Featured</span>
+<div role="group" aria-labelledby="who" style="display: flex; gap: 6px; flex-wrap: wrap"><sc-for list="{{people}}" as="w" hint-placeholder-count="3"><button type="button" class="pill" aria-pressed="{{w.pressed}}" onClick="{{w.toggle}}" style="height: 40px">{{w.label}}</button></sc-for></div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<label class="lbl" for="tp">Talking points</label>
+<textarea id="tp" class="fld" rows="3">Truffle arrives twice a week from Alba.
+Shaved at the table, as much as you like.
+Only until it runs out, about three weeks.</textarea>
+</div>
+
+<section aria-labelledby="sl" style="display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px">
+<h2 id="sl" class="lbl" style="margin: 0">Shots</h2>
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #646c69"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7" fill="none" stroke="#e3e8e6" stroke-width="2.5"></circle><circle cx="9" cy="9" r="7" fill="none" stroke="#237a61" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="{{shotDash}}" transform="rotate(-90 9 9)"></circle></svg>{{shotsDone}}</span>
+</div>
+<sc-for list="{{shots}}" as="s" hint-placeholder-count="5">
+<button type="button" class="ck" aria-pressed="{{s.done}}" onClick="{{s.toggle}}"><span class="bx" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span class="t">{{s.label}}</span></button>
+</sc-for>
+<button type="button" class="ck" style="color: #646c69"><span aria-hidden="true" style="width: 18px; display: grid; place-items: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></span>Add shot</button>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 20px; border-top: 1px solid rgba(17,20,19,.07); padding-top: 12px">
+<button type="button" class="more" aria-expanded="{{planMoreExpanded}}" onClick="{{togglePlanMore}}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>More details</button>
+<sc-if value="{{planMore}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 8px"><span class="lbl" id="fmtl">Format</span><div class="seg" role="group" aria-labelledby="fmtl" style="align-self: flex-start"><sc-for list="{{formats}}" as="f" hint-placeholder-count="4"><button type="button" aria-pressed="{{f.pressed}}" onClick="{{f.pick}}">{{f.label}}</button></sc-for></div></div>
+<div class="two" style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 8px"><label class="lbl" for="pil">Pillar</label><select id="pil" class="fld"><option selected>Craft</option><option>Chef personality</option><option>Events</option><option>Dishes</option></select></div>
+<div style="display: flex; flex-direction: column; gap: 8px"><label class="lbl" for="obj">Objective</label><select id="obj" class="fld"><option>None</option><option>Awareness</option><option selected>Bookings</option></select></div>
+<div style="display: flex; flex-direction: column; gap: 8px"><label class="lbl" for="fb">Filmed by</label><select id="fb" class="fld"><option>Rui Tan, freelance</option><option>In-house, phone</option></select></div>
+<div style="display: flex; flex-direction: column; gap: 8px"><label class="lbl" for="canva">Canva</label><input id="canva" class="fld" value="canva.com/design/[link]"></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px"><span class="lbl">References</span>
+<div style="display: flex; gap: 8px; flex-wrap: wrap">
+<a href="Brainstorm.dc.html" aria-label="Reference: truffle close-up" style="width: 72px; height: 72px; border-radius: 10px; background: #e9edeb"></a>
+<a href="Brainstorm.dc.html" aria-label="Reference: pasta, overhead" style="width: 72px; height: 72px; border-radius: 10px; background: #eef1f0"></a>
+<a href="Brainstorm.dc.html" aria-label="Reference: recipe to camera" style="width: 72px; height: 72px; border-radius: 10px; background: #e3e8e6"></a>
+<button type="button" aria-label="Attach reference" style="width: 72px; height: 72px; border-radius: 10px; border: 1px dashed rgba(17,20,19,.2); background: #fff; display: grid; place-items: center; color: #646c69; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+</div></div>
+<div style="display: flex; flex-direction: column; gap: 8px"><label class="lbl" for="notes">Internal notes</label><textarea id="notes" class="fld" rows="2">Truffle supply confirmed for three weeks. No price in the caption.</textarea></div>
+</div>
+</sc-if>
+</section>
+</div>
+</sc-if>
+
+<sc-if value="{{isPost}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 32px">
+<section aria-label="Media" style="display: flex; gap: 10px; flex-wrap: wrap">
+<div aria-label="Tagliolini, overhead" style="width: 112px; height: 140px; border-radius: 12px; background: #e9edeb; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #237a61"></div>
+<div aria-label="Truffle shaving, close-up" style="width: 112px; height: 140px; border-radius: 12px; background: #eef1f0"></div>
+<div aria-label="Dining room, evening" style="width: 112px; height: 140px; border-radius: 12px; background: #e3e8e6"></div>
+<button type="button" aria-label="Add media" style="width: 112px; height: 140px; border-radius: 12px; border: 1px dashed rgba(17,20,19,.2); background: #fff; display: grid; place-items: center; color: #646c69; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 10px">
+<label class="lbl" for="cap">Caption</label>
+<textarea id="cap" class="fld" rows="4" style="font-size: 15px">White truffle season starts tonight. Fresh tagliolini, good butter and authentic Alba truffle, shaved at the table until it runs out.</textarea>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<button type="button" class="opt" aria-expanded="{{rulesExpanded}}" onClick="{{toggleRules}}" style="width: auto; padding: 0 8px; margin-left: -8px; gap: 4px" aria-label="Brand check: 3 of 5 rules met. Show rules">
+<span class="tick" style="background: rgba(35,122,97,.12)"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#237a61" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>
+<span class="tick" style="background: rgba(35,122,97,.12)"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#237a61" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>
+<span class="tick" style="background: rgba(35,122,97,.12)"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#237a61" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>
+<span class="tick" style="background: #fbeeeb"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#b83d2a" stroke-width="3.2" stroke-linecap="round" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"></path></svg></span>
+<span class="tick" style="background: #fbeeeb"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#b83d2a" stroke-width="3.2" stroke-linecap="round" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"></path></svg></span>
+<span style="font-size: 12.5px; color: #4a524f; margin-left: 6px">2 to fix</span>
+</button>
+<span style="font-size: 12px; color: #8b938f">133 / 2,200</span>
+</div>
+<sc-if value="{{rulesOpen}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; background: #f7f9f8; border-radius: 14px; padding: 6px 6px 6px 14px">
+<div style="display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 13.5px"><span style="flex: 1">“authentic” is on the avoid list</span><button type="button" class="btn btn-s" style="height: 30px; padding: 0 12px; font-size: 13px">Fix</button></div>
+<div style="display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 13.5px"><span style="flex: 1">No booking line</span><button type="button" class="btn btn-s" style="height: 30px; padding: 0 12px; font-size: 13px">Add</button></div>
+<div style="display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 13px; color: #646c69; border-top: 1px solid rgba(17,20,19,.06)"><span style="flex: 1">Dish first · short sentences · one emoji max</span><button type="button" class="ib" aria-label="Rewrite in brand voice"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#237a61" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z"></path></svg><span class="tip" aria-hidden="true">Rewrite in brand voice</span></button><button type="button" class="ib" aria-label="Shorten"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 8h14M5 12h9M5 16h5"></path></svg><span class="tip" aria-hidden="true">Shorten</span></button></div>
+</div>
+</sc-if>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 10px">
+<span class="lbl" id="chl">Channels</span>
+<div role="group" aria-labelledby="chl" style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{channels}}" as="c" hint-placeholder-count="5"><button type="button" class="pill" aria-pressed="{{c.pressed}}" onClick="{{c.toggle}}">{{c.label}}<sc-if value="{{c.manual}}" hint-placeholder-val="{{false}}"><span style="font-size: 11px; opacity: .7">manual</span></sc-if></button></sc-for>
+</div>
+</section>
+
+<div class="two" style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 8px"><label class="lbl" for="dt">Date</label><input id="dt" class="fld" value="Tue 6 Oct 2026"></div>
+<div style="display: flex; flex-direction: column; gap: 8px"><label class="lbl" for="tm">Time, Singapore</label><input id="tm" class="fld" value="7:00 pm"></div>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 20px; border-top: 1px solid rgba(17,20,19,.07); padding-top: 12px">
+<button type="button" class="more" aria-expanded="{{postMoreExpanded}}" onClick="{{togglePostMore}}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>More details</button>
+<sc-if value="{{postMore}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 8px"><label class="lbl" for="tags">Hashtags · 3 of 5</label><input id="tags" class="fld" value="#casavostrasg #trufflesg #sgeats"></div>
+<div style="display: flex; flex-direction: column; gap: 8px"><label class="lbl" for="fc">First comment</label><input id="fc" class="fld" value="Book at the link in our bio. Walk-ins welcome at the bar."></div>
+</div>
+</sc-if>
+</section>
+</div>
+</sc-if>
+</form>
+
+<aside aria-label="Preview" style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 14px">
+<div class="seg" role="group" aria-label="Preview format"><sc-for list="{{views}}" as="v" hint-placeholder-count="2"><button type="button" aria-pressed="{{v.pressed}}" onClick="{{v.pick}}">{{v.label}}</button></sc-for></div>
+<sc-if value="{{isReel}}" hint-placeholder-val="{{true}}">
+<div style="width: 100%; max-width: 300px; aspect-ratio: 9 / 16; border-radius: 22px; background: #dfe5e2; display: flex; flex-direction: column; justify-content: space-between; padding: 16px; box-sizing: border-box; box-shadow: 0 1px 2px rgba(17,20,19,.04), 0 16px 40px rgba(17,20,19,.08)">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600"><span aria-hidden="true" style="width: 24px; height: 24px; border-radius: 50%; background: #b0623f"></span>casavostra.sg</span>
+<span style="display: flex; flex-direction: column; gap: 10px"><span style="font-size: 17px; font-weight: 600; line-height: 1.3">{{hook}}</span><span style="align-self: flex-start; background: #fff; border-radius: 999px; padding: 7px 14px; font-size: 12.5px; font-weight: 600">Book a table</span></span>
+</div>
+</sc-if>
+<sc-if value="{{isFeed}}" hint-placeholder-val="{{false}}">
+<div style="width: 100%; max-width: 340px; border-radius: 18px; overflow: hidden; background: #fff; box-shadow: 0 0 0 1px rgba(17,20,19,.08), 0 16px 40px rgba(17,20,19,.08)">
+<div style="display: flex; align-items: center; gap: 8px; padding: 12px 14px; font-size: 13px; font-weight: 600"><span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 50%; background: #b0623f"></span>casavostra.sg</div>
+<div aria-label="Tagliolini, overhead" style="aspect-ratio: 4 / 5; background: #e9edeb"></div>
+<p style="margin: 0; padding: 12px 14px 16px; font-size: 13px; line-height: 1.5"><strong style="font-weight: 600">casavostra.sg</strong> White truffle season starts tonight. Fresh tagliolini, good butter and Alba truffle, shaved at the table until it runs out.</p>
+</div>
+</sc-if>
+</aside>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"startTab":{"editor":"enum","options":["Plan","Post"],"default":"Plan"},"$preview":{"width":1440,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const tab = st.tab || this.props.startTab || 'Plan';
+    const on = st.ch || { reel: true, feed: false, story: false, fb: false, tt: true };
+    const view = st.view || 'reel';
+    const fmt = st.fmt || 'Reel';
+    const hookOpen = !!st.hookOpen;
+    const hook = st.hook || 'White truffle season starts tonight.';
+    const who = st.who || { Chef: true, Staff: false, Talent: false };
+    const shotsDone = st.shots || { 0: true };
+    const sk = st.status || 'film';
+    const SL = [['ph', 'Placeholder'], ['idea', 'Idea'], ['appr', 'Approved'], ['film', 'Filming'], ['edit', 'Editing'], ['sched', 'Scheduled'], ['post', 'Posted'], ['fail', 'Failed']];
+    const list = [['reel', 'Instagram Reel'], ['feed', 'Feed'], ['story', 'Story'], ['fb', 'Facebook'], ['tt', 'TikTok']];
+    const shots = ['Truffle box opening, close-up', 'Fresh tagliolini into the pan', 'Shaving at the table, slow motion', "A guest's first bite", 'Chef to camera: one line on the truffle'];
+    const alts = [['We shave it until it runs out.', 'Craft'], ["Chef's been waiting all year for this box.", 'Chef'], ['Three weeks of white truffle. Then it is gone.', 'Dishes']];
+    const n = shots.filter((s, i) => shotsDone[i]).length;
+    const C = 2 * Math.PI * 7;
+    const planMore = !!st.planMore, postMore = !!st.postMore, rules = !!st.rules, statusOpen = !!st.statusOpen;
+    return {
+      isPlan: tab === 'Plan', isPost: tab === 'Post',
+      planSel: tab === 'Plan' ? 'true' : 'false', postSel: tab === 'Post' ? 'true' : 'false',
+      toPlan: () => this.setState({ tab: 'Plan' }), toPost: () => this.setState({ tab: 'Post' }),
+      status: SL.find(s => s[0] === sk)[1], statusKey: sk, statusOpen, statusExpanded: statusOpen ? 'true' : 'false',
+      toggleStatus: () => this.setState({ statusOpen: !statusOpen }),
+      statuses: SL.map(s => ({ k: s[0], label: s[1], pick: () => this.setState({ status: s[0], statusOpen: false }) })),
+      channels: list.map(([k, label]) => ({ label, manual: k === 'tt', pressed: on[k] ? 'true' : 'false', toggle: () => this.setState({ ch: Object.assign({}, on, { [k]: !on[k] }) }) })),
+      views: [['reel', 'Reel'], ['feed', 'Feed']].map(([k, label]) => ({ label, pressed: view === k ? 'true' : 'false', pick: () => this.setState({ view: k }) })),
+      isFeed: view === 'feed', isReel: view === 'reel',
+      fmt,
+      formats: ['Reel', 'Carousel', 'Photo', 'Story'].map(f => ({ label: f, pressed: f === fmt ? 'true' : 'false', pick: () => this.setState({ fmt: f }) })),
+      hook, hookOpen, hookExpanded: hookOpen ? 'true' : 'false',
+      toggleHook: () => this.setState({ hookOpen: !hookOpen }),
+      alts: alts.map(a => ({ text: a[0], pillar: a[1], use: () => this.setState({ hook: a[0], hookOpen: false }) })),
+      people: ['Chef', 'Staff', 'Talent'].map(k => ({ label: k, pressed: who[k] ? 'true' : 'false', toggle: () => this.setState({ who: Object.assign({}, who, { [k]: !who[k] }) }) })),
+      shots: shots.map((l, i) => ({ label: l, done: shotsDone[i] ? 'true' : 'false', toggle: () => this.setState({ shots: Object.assign({}, shotsDone, { [i]: !shotsDone[i] }) }) })),
+      shotsDone: n + '/' + shots.length,
+      shotDash: (C * n / shots.length).toFixed(1) + ' ' + C.toFixed(1),
+      planMore, planMoreExpanded: planMore ? 'true' : 'false', togglePlanMore: () => this.setState({ planMore: !planMore }),
+      postMore, postMoreExpanded: postMore ? 'true' : 'false', togglePostMore: () => this.setState({ postMore: !postMore }),
+      rulesOpen: rules, rulesExpanded: rules ? 'true' : 'false', toggleRules: () => this.setState({ rules: !rules })
+    };
+  }
+}
+</script>
+</body>
+</html>

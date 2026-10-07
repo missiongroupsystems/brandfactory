@@ -6,6 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **1.63.0** — 2026-10-07 — BrandBase's Ideate and Insights pages are redesigned from scratch. Ideate has two views: ideas shelved by format (reels at 9:16, carousels at 4:5) and the imported Pinterest boards as a masonry board; a Shoot brief project board plans each idea (status columns, drag to move, date and time) and the calendar follows it. Stories join reels and carousels. Insights leads with four headline numbers, then Overview, Posts and Creators tabs, every chart titled and every mark hoverable. No migration. 3420 tests.
+- **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 - **1.61.0** — 2026-10-05 — The Events mapping is verified against both live databases and the seed stops describing a different estate: six brands map to live outlets, the seventh is group-level, and `Firebird by Suetomi` turns out not to be a brand in Brand Base at all — so four documents carried a caveat about a brand that does not exist. Migration none, but `db:seed` output changes. No migration. 3375 tests.
 - **1.60.0** — 2026-10-05 — An event on the calendar stops promising a destination it did not have: the chip was a `div` with a link icon, between entry chips that are real buttons, so it taught the reader to click it and then did nothing. It opens the day plan now, where the booking's outlet, room, time and owner already were. No migration. 3375 tests.
 - **1.59.0** — 2026-10-05 — A request can be handed to a colleague, which needed a people route of its own: `GET /members` exists and is admin-only by its mount, so a picker built on it would 403 for the first person added as an ordinary member — the case the member work exists for. Three fields on the wire, and the assignee guard stops accepting a deactivated account. No migration. 3371 tests.
@@ -113,6 +115,81 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **0.1.0** — 2026-04-18 — Project bootstrap: vision, architecture, Phase 0 foundation.
 
 ---
+
+## 1.63.0 — 2026-10-07
+
+**Ideate and Insights, redesigned.** The first versions read as unclear: three columns of
+controls on Ideate, and charts on Insights whose meaning was not obvious at first glance.
+Completion notes: `docs/completions/brandbase-demo-plan.md`, last section. **No migration.**
+3420 tests (3238 passing, 182 skipped — the `*.live.test.ts` files, run without a database).
+
+- **Ideate** has two views. _By format_ shelves the month's ideas as Reels and Carousels, each tile
+  at the post's shape, with Moments ahead below. _Pinterest_ connects once per brand and shows every
+  board as a masonry of pins at their own aspect ratio, filtered by board or Saved posts. A card
+  or a pin opens the idea sheet (hook, reference, shot list, sharper hooks, Send to calendar).
+- **Insights** shows Reach, Engagement rate, New followers and a fourth brand number with a
+  12-week sparkline, then three tabs. Overview: three story cards with titled charts (follower
+  growth is indexed to week one, so a 2k TikTok and an 18k Instagram compare fairly) and a
+  day-by-daypart heatmap. Posts: ranked rows with reach against the average and engagement.
+  Creators: new data, views and engagement per creator, a scatter and an expandable list.
+- **Shoot brief** (`/ideate/brief`): a project board. Columns are the six stages (plus
+  Suggested while suggestions show); dragging a card or picking a status sets the post's stage,
+  a date makes the idea a post (`planPost`), a new date or time moves it (`reschedule`), so the
+  calendar shows what the board decided. A card opens a detail pane: hook, status, date, shots,
+  references, sharper hooks, Keep or Skip. Every Ideate tile, used pin and Insights idea opens
+  its card here; the idea sheet is gone. Ideate tiles show their stage as a pill, and a borrowed
+  reference photo is marked "Ref". A planned post carries the idea's own photo only.
+- **Stories** are an idea format: a Stories shelf, two story ideas per brand, and a planned story
+  sits in the calendar's story row as a ring in its stage's colour. They do not count toward the
+  8-a-month meter.
+- The store stops opening a card on Suggest; suggestions appear in place with Review and Skip.
+- 24 Unsplash pins added (credits in `public/demo/CREDITS.md`).
+
+## 1.62.0 — 2026-10-06
+
+**BrandBase, as a demo.** The six-phase plan built on the server is archived
+(`docs/archive/brandbase-mvp-v1/`) and replaced by a UI-only demo for a client meeting on
+7 October. Plan and completion: `docs/completions/brandbase-demo-plan.md`. Design: the Claude
+Design canvas "BrandBase Publish Flow", Option B. **No migration.** 3393 tests (3211 passing,
+182 skipped — the `*.live.test.ts` files, run without a database).
+
+### What it shows
+
+`packages/brandbase` on :3002, with no server, database or sign-in, and no import from any other
+package. The schedule draws four weeks of Casa Vostra's posts, stories and events, with a layers
+menu. New post starts from an idea or from media. Clicking a reel opens Publish: five phone-shaped
+previews, each showing the post as that channel's screen does, and tapping one includes it or leaves
+it out. One caption is fitted to each channel (YouTube gets the hook as its title, LinkedIn loses
+the emoji and keeps one hashtag), TikTok asks who can watch with no default, and one button
+schedules or publishes. Scheduling marks the calendar tile Scheduled; publishing now runs a timed
+upload in which LinkedIn fails and Reconnect retries it.
+
+### Why the rules are a model
+
+`src/features/publish/model.ts` holds every rule as a pure function and is unit-tested; the view
+only reads it through `usePublishDraft`. The canvas has two other designs for the same step (A, a
+share-sheet drawer; C, one sentence), and either would be a new view over the same model. The
+TikTok rules come from its Direct Post guidelines: no default privacy, interaction and promotion
+switches off, the consent sentence before Publish.
+
+### Notes
+
+- Only three photos ship, all of food: two canvas photos show identifiable people and stay out of
+  a public repository.
+- One bug found in the browser pass: the sheet reported its stage to the posts store from an
+  effect, and the store's setter changed identity on every change, so it looped ("Maximum update
+  depth exceeded"). The setter is stable and idempotent now, with a test.
+- The review before commit (an agent reading the code, then a Playwright run of the edge cases)
+  found three more, fixed: a double-click on Publish closed the sheet, because the sheet got
+  shorter and the second click landed on the scrim (the sheet now keeps its height); "Live
+  everywhere" could show while a reconnected LinkedIn was still uploading, because "done" was a
+  timer (it is now derived from the channels); and closing mid-upload left the calendar tile
+  behind (the post is marked posted when it starts going out).
+- After a first look, the area under the phones was redesigned to show only what the post needs:
+  one caption field, which switches to a channel's own text from that phone's Edit; YouTube's
+  title and made-for-kids inside YouTube's edit; TikTok as three hairline rows that collapse once
+  answered, with the consent line beneath. Going live everywhere ends in confetti, a small physics
+  simulation on a canvas (burst, drag, sway, flip), skipped under reduced motion.
 
 ## 1.61.0 — 2026-10-05
 

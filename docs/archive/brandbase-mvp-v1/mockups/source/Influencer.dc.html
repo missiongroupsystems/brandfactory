@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mei Lin Tan · BrandBase</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#fff}
+a{color:#173527;text-decoration:none}a:hover{color:#111413}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #237a61;outline-offset:2px}
+.rail{flex:0 0 68px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 0;box-sizing:border-box;background:#f7f9f8;border-right:1px solid rgba(17,20,19,.06)}
+.ri{position:relative;width:40px;height:40px;display:grid;place-items:center;border-radius:10px;color:#646c69;border:0;background:transparent;cursor:pointer;padding:0}
+.ri:hover{background:#eef1f0;color:#111413}
+.ri[aria-current="page"]{background:#fff;color:#173527;box-shadow:0 0 0 1px rgba(17,20,19,.07),0 1px 2px rgba(17,20,19,.05)}
+.tip{position:absolute;left:50px;top:50%;transform:translateY(-50%);background:#111413;color:#fff;font-size:12px;font-weight:500;line-height:1;padding:6px 8px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s;z-index:20}
+.ri:hover .tip,.ri:focus-visible .tip{opacity:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 16px;border-radius:10px;font:inherit;font-size:14px;font-weight:500;cursor:pointer;box-sizing:border-box;white-space:nowrap}
+.btn-p{background:#173527;color:#fff;border:1px solid #173527}.btn-p:hover{background:#0f2219;color:#fff}
+.btn-s{background:#fff;color:#111413;border:1px solid rgba(17,20,19,.12)}.btn-s:hover{background:#f7f9f8;color:#111413}
+.ib{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;border:0;background:transparent;color:#4a524f;cursor:pointer;padding:0}
+.ib:hover{background:#eef1f0;color:#111413}
+.bs{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 8px;margin-left:-8px;border-radius:9px;border:0;background:transparent;font:inherit;font-size:14px;font-weight:500;color:#111413;cursor:pointer}
+.bs:hover{background:#f3f5f4}
+.sd{width:8px;height:8px;border-radius:50%;box-sizing:border-box;display:inline-block;flex:none}
+.sd-ph{border:1.5px dashed #8b938f}.sd-idea{border:1.5px solid #8b938f}.sd-appr{border:1.5px solid #237a61}.sd-film{background:#c8930a}.sd-edit{background:#4f6f94}.sd-sched{background:#111413}.sd-post{background:#237a61}.sd-fail{background:#c8442f}
+.step{display:flex;flex-direction:column;align-items:flex-start;gap:10px;flex:1;min-width:0;border:0;background:transparent;padding:0;font:inherit;color:#111413;cursor:pointer;text-align:left}
+.step .bar{height:4px;width:100%;border-radius:999px;background:#e3e8e6}
+.step[aria-pressed="true"] .bar{background:#237a61}
+.step:hover .bar{filter:brightness(.95)}
+.cl{display:grid;grid-template-columns:minmax(0,1fr) 150px 96px 76px;gap:20px;align-items:center;width:100%;min-height:60px;padding:0 12px;border:0;border-radius:12px;background:transparent;font:inherit;color:#111413;cursor:pointer;text-align:left}
+.cl:hover{background:#f7f9f8}
+.cl[aria-expanded="true"]{background:#f7f9f8}
+.ib{position:relative}.ib .tip{left:50%;top:auto;bottom:calc(100% + 6px);transform:translateX(-50%)}.ib:hover .tip{opacity:1}
+.cs-confirmed{background:#4f6f94}
+dt{color:#646c69}dd{margin:0}
+.rates dd{text-align:right}
+@media (max-width:760px){.cl{grid-template-columns:minmax(0,1fr) 76px}.cl .hs{display:none}}
+@media (max-width:760px){.rail{flex:1 1 100%!important;flex-direction:row!important;justify-content:center;padding:8px!important;border-right:0!important;border-bottom:1px solid rgba(17,20,19,.06)}.rail .grow{display:none}.tip{display:none}.pg{padding:24px 16px 48px!important}}
+</style>
+</helmet>
+<div style="position: relative; min-height: 100vh; display: flex; flex-wrap: wrap; background: #ffffff; color: #111413; font-family: Geist, 'Helvetica Neue', system-ui, sans-serif; font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased">
+<nav class="rail" aria-label="Main">
+<a href="Main.dc.html" aria-label="BrandBase" style="width: 28px; height: 28px; border-radius: 8px; background: #173527; color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 600; margin-bottom: 14px">B</a>
+<a class="ri" href="Main.dc.html" aria-label="Home"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10.5 12 4l8.5 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"></path></svg><span class="tip" aria-hidden="true">Home</span></a>
+<a class="ri" href="Calendar.dc.html" aria-label="Calendar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg><span class="tip" aria-hidden="true">Calendar</span></a>
+<a class="ri" href="Brainstorm.dc.html" aria-label="Ideas"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 18h5M10.5 21h3M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"></path></svg><span class="tip" aria-hidden="true">Ideas</span></a>
+<a class="ri" href="Influencers.dc.html" aria-label="Creators" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.4 3.4-5.5 6.5-5.5s5.7 2.1 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.8.7 3 2.6 3.5 5.2"></path></svg><span class="tip" aria-hidden="true">Creators</span></a>
+<a class="ri" href="Guidelines.dc.html" aria-label="Brand"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5h7l9 9-6.5 6.5-9-9z"></path><circle cx="8.5" cy="9" r="1.5"></circle></svg><span class="tip" aria-hidden="true">Brand</span></a>
+<span class="grow" style="flex: 1"></span>
+<button type="button" class="ri" aria-label="Search and commands"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><span class="tip" aria-hidden="true">Search  ⌘K</span></button>
+<button type="button" class="ri" aria-label="Account and settings"><span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 50%; background: #e3e8e6; color: #4a524f; display: grid; place-items: center; font-size: 11px; font-weight: 600">MK</span><span class="tip" aria-hidden="true">Settings</span></button>
+</nav>
+<main class="pg" style="flex: 999 1 560px; min-width: 0; padding: 24px 56px 72px; box-sizing: border-box">
+<div style="max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: 48px">
+
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<a class="ib" href="Influencers.dc.html" aria-label="Back to creators" style="width: 36px; height: 36px; margin-left: -8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg></a>
+<div style="display: flex; align-items: center; gap: 8px">
+<button type="button" class="ib" aria-label="Contact, audience and rates" aria-expanded="{{detailsExpanded}}" onClick="{{toggleDetails}}" style="width: 38px; height: 38px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 11v5M12 8h.01"></path></svg><span class="tip" aria-hidden="true">Details</span></button>
+<button type="button" class="btn btn-p">Add to campaign</button>
+</div>
+</div>
+
+<header style="display: flex; align-items: center; gap: 20px; margin-top: -16px">
+<span aria-hidden="true" style="width: 72px; height: 72px; border-radius: 50%; background: #e3e8e6; color: #4a524f; display: grid; place-items: center; font-size: 22px; font-weight: 600; flex: none">MT</span>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-size: 32px; line-height: 1.1; font-weight: 600; letter-spacing: -0.03em">Mei Lin Tan</h1>
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: #4a524f"><i class="sd cs-confirmed" aria-hidden="true"></i>Confirmed<span style="color: #b4bab7">·</span>@meilin.eats<span style="color: #b4bab7">·</span>Instagram, TikTok<span style="color: #b4bab7">·</span>Pasta, date night</span>
+</div>
+</header>
+
+<section aria-label="Key numbers" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 24px">
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 44px; font-weight: 600; letter-spacing: -0.035em; line-height: 1.05">48.2k</span><span style="font-size: 13px; color: #646c69">followers</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 44px; font-weight: 600; letter-spacing: -0.035em; line-height: 1.05">4.1%</span><span style="font-size: 13px; color: #646c69">engagement</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 44px; font-weight: 600; letter-spacing: -0.035em; line-height: 1.05">21k</span><span style="font-size: 13px; color: #646c69">views per reel</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 44px; font-weight: 600; letter-spacing: -0.035em; line-height: 1.05; color: #237a61">13</span><span style="font-size: 13px; color: #646c69">bookings from 3 collabs</span></div>
+</section>
+
+<section aria-labelledby="cmp" style="display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px">
+<h2 id="cmp" style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600"><i aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #b0623f; display: block"></i>Casa Vostra · Truffle season</h2>
+<span style="font-size: 13px; color: #646c69">1 Reel, 2 Stories · S$1,600</span>
+</div>
+<div role="group" aria-label="Deliverables" style="display: flex; gap: 8px">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="4">
+<button type="button" class="step" aria-pressed="{{s.done}}" onClick="{{s.toggle}}"><span class="bar" aria-hidden="true"></span><span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 14px; font-weight: 500">{{s.label}}</span><span style="font-size: 12px; color: #646c69">{{s.meta}}</span></span></button>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column">
+<a href="Calendar.dc.html" style="display: grid; grid-template-columns: 80px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #111413; font-size: 13.5px"><span style="color: #646c69">Thu 8 Oct</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Truffle reel, collab post</span><span style="display: flex; align-items: center; gap: 8px; color: #4a524f; font-size: 13px"><i class="sd sd-sched" aria-hidden="true"></i>Scheduled</span></a>
+<a href="Calendar.dc.html" style="display: grid; grid-template-columns: 80px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #111413; font-size: 13.5px"><span style="color: #646c69">Thu 8 Oct</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Story reshare</span><span style="display: flex; align-items: center; gap: 8px; color: #4a524f; font-size: 13px"><i class="sd sd-appr" aria-hidden="true"></i>Approved</span></a>
+</div>
+</section>
+
+<section aria-labelledby="hist" style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 0 12px 0 0">
+<h2 id="hist" style="margin: 0; font-size: 15px; font-weight: 600">Past collabs</h2>
+<span style="font-size: 12px; color: #8b938f">vs her average</span>
+</div>
+<sc-for list="{{collabs}}" as="c" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column">
+<button type="button" class="cl" aria-expanded="{{c.expanded}}" onClick="{{c.toggle}}">
+<span style="display: flex; align-items: center; gap: 10px; min-width: 0"><i aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: {{c.dot}}; flex: none"></i><span style="font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{c.title}}</span><span style="font-size: 12.5px; color: #646c69; white-space: nowrap">{{c.when}}</span></span>
+<span class="hs" role="img" aria-label="{{c.vs}}" style="display: grid; grid-template-columns: 1fr 1px 1fr; align-items: center; gap: 0">
+<span style="display: flex; justify-content: flex-end"><span style="height: 8px; border-radius: 4px 0 0 4px; background: #c8930a; width: {{c.neg}}"></span></span>
+<span style="height: 16px; background: rgba(17,20,19,.25)"></span>
+<span style="display: flex"><span style="height: 8px; border-radius: 0 4px 4px 0; background: #237a61; width: {{c.pos}}"></span></span>
+</span>
+<span class="hs" style="font-size: 12.5px; color: #4a524f; white-space: nowrap">{{c.delta}}</span>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #4a524f"><span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: {{c.vBg}}"><sc-if value="{{c.yes}}" hint-placeholder-val="{{true}}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#237a61" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></sc-if><sc-if value="{{c.maybe}}" hint-placeholder-val="{{false}}"><span aria-hidden="true" style="width: 8px; height: 2px; background: #646c69; border-radius: 1px"></span></sc-if></span>{{c.verdict}}</span>
+</button>
+<sc-if value="{{c.open}}" hint-placeholder-val="{{false}}">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); gap: 12px 24px; padding: 12px 12px 20px 30px; font-size: 13.5px">
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #646c69">Made</span>{{c.made}}</div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #646c69">Paid</span>{{c.paid}}</div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #646c69">Result</span>{{c.result}}</div>
+<div style="display: flex; flex-direction: column; gap: 2px; grid-column: 1 / -1; color: #4a524f">{{c.note}}</div>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</section>
+</div>
+</main>
+
+<sc-if value="{{details}}" hint-placeholder-val="{{false}}">
+<aside aria-label="Contact, audience and rates" style="position: absolute; top: 0; right: 0; bottom: 0; z-index: 20; width: min(380px, 100%); background: #fff; box-shadow: -1px 0 0 rgba(17,20,19,.08), -24px 0 48px rgba(17,20,19,.06); padding: 24px 28px; box-sizing: border-box; display: flex; flex-direction: column; gap: 32px">
+<div style="display: flex; justify-content: space-between; align-items: center"><h2 style="margin: 0; font-size: 15px; font-weight: 600">Details</h2><button type="button" class="ib" aria-label="Close" onClick="{{toggleDetails}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button></div>
+<dl style="margin: -16px 0 0; display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 10px 12px; font-size: 13.5px">
+<dt>Email</dt><dd><a href="#email">meilin@example.com</a></dd>
+<dt>Phone</dt><dd>[Phone]</dd>
+<dt>Agent</dt><dd>None</dd>
+<dt>Outreach</dt><dd>PR agency</dd>
+</dl>
+<section aria-label="Audience" style="display: flex; flex-direction: column; gap: 14px">
+<sc-for list="{{audience}}" as="a" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span style="color: #4a524f">{{a.label}}</span><span style="font-weight: 500">{{a.value}}</span></div>
+<span aria-hidden="true" style="height: 4px; border-radius: 999px; background: #eef1f0; overflow: hidden; display: block"><span style="display: block; height: 100%; width: {{a.value}}; background: #4a524f"></span></span>
+</div>
+</sc-for>
+</section>
+<dl class="rates" style="margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; font-size: 13.5px">
+<dt>Feed post</dt><dd>S$900</dd>
+<dt>Reel</dt><dd>S$1,100</dd>
+<dt>Story</dt><dd>S$250</dd>
+<dt>TikTok</dt><dd>S$800</dd>
+<dt>Usage, 3 months</dt><dd>+20%</dd>
+</dl>
+</aside>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const done = st.done || { brief: true, approved: true, posted: false, paid: false };
+    const open = st.open !== undefined ? st.open : -1;
+    const details = !!st.details;
+    const steps = [['brief', 'Brief sent', 'Mon 28 Sep'], ['approved', 'Approved', 'Fri 2 Oct'], ['posted', 'Posted', 'Due Thu 8 Oct'], ['paid', 'Paid', '30 days after']];
+    const C = [
+      ['Petra · Natural wine launch', 'Jul', '#75669a', '1 Reel', 'S$1,100', '18.4k views · 4 bookings', -12, 'Views 12% under her average', true, 'Her audience asked where to buy the wines. Good for anything with a bar.'],
+      ['Casa Vostra · Pasta fresca class', 'Mar', '#b0623f', '1 post, 2 Stories', 'S$1,400', '140 saves · 9 bookings', 100, 'Saves twice her average', true, 'Class sold out. Delivered a day early.'],
+      ['Willow · Brunch launch', 'Jan', '#8aa483', '1 Reel', 'S$900', '6.1k views · 0 bookings', -71, 'Views 71% under her average', false, 'Brunch is not her audience. Keep her for dinner and pasta.']
+    ];
+    return {
+      details, detailsExpanded: details ? 'true' : 'false', toggleDetails: () => this.setState({ details: !details }),
+      steps: steps.map(s => ({ label: s[1], meta: s[2], done: done[s[0]] ? 'true' : 'false', toggle: () => this.setState({ done: Object.assign({}, done, { [s[0]]: !done[s[0]] }) }) })),
+      collabs: C.map((c, i) => ({
+        title: c[0], when: c[1], dot: c[2], made: c[3], paid: c[4], result: c[5], vs: c[7], note: c[9],
+        neg: c[6] < 0 ? Math.min(-c[6], 100) + '%' : '0%', pos: c[6] > 0 ? Math.min(c[6], 100) + '%' : '0%',
+        yes: c[8], maybe: !c[8], verdict: c[8] ? 'Re-use' : 'Maybe', delta: (c[6] > 0 ? '+' : '−') + Math.abs(c[6]) + '% ' + (c[6] > 0 ? 'saves' : 'views'), vBg: c[8] ? 'rgba(35,122,97,.12)' : '#eef1f0',
+        open: open === i, expanded: open === i ? 'true' : 'false', toggle: () => this.setState({ open: open === i ? -1 : i })
+      })),
+      audience: [{ label: 'In Singapore', value: '78%' }, { label: 'Aged 25 to 34', value: '52%' }, { label: 'Women', value: '64%' }]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,271 @@
+@import 'tailwindcss';
+@import '../styles/tokens.css';
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-ink-5: var(--ink-5);
+  --color-page: var(--page);
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-tile: var(--tile);
+  --color-track: var(--track);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-live: var(--live);
+  --color-fail: var(--fail);
+  --color-fail-ink: var(--fail-ink);
+  --color-scrim: var(--scrim);
+
+  --font-sans: var(--font-instrument-sans), 'Helvetica Neue', Helvetica, sans-serif;
+  --font-serif: var(--font-instrument-serif), Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --shadow-sheet: var(--shadow-sheet);
+  --shadow-pop: var(--shadow-pop);
+  --shadow-lift: var(--shadow-lift);
+  --shadow-soft: var(--shadow-soft);
+
+  /* The phone previews draw in the device's own system font, as the apps do. */
+  --font-device:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--page);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+}
+
+/* Motion. One vocabulary, used everywhere: rise, pop, draw, pulse, fold. */
+@keyframes bb-scrim {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes bb-sheet {
+  from {
+    opacity: 0;
+    transform: translateX(28px) scale(0.985);
+  }
+}
+@keyframes bb-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes bb-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+@keyframes bb-ring {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+@keyframes bb-draw {
+  from {
+    stroke-dashoffset: 48;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes bb-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes bb-stage {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+}
+@keyframes bb-deal {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.96);
+  }
+}
+@keyframes bb-menu {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@utility bb-scrim {
+  animation: bb-scrim 320ms ease both;
+}
+@utility bb-sheet {
+  animation: bb-sheet 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@utility bb-rise {
+  animation: bb-rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@utility bb-pop {
+  animation: bb-pop 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@utility bb-ring {
+  animation: bb-ring 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@utility bb-draw {
+  stroke-dasharray: 48;
+  animation: bb-draw 560ms 220ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+@utility bb-pulse {
+  animation: bb-pulse 1.4s ease-in-out infinite;
+}
+@utility bb-stage {
+  animation: bb-stage 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@utility bb-deal {
+  animation: bb-deal 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@utility bb-phone {
+  transition:
+    transform 560ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 420ms ease,
+    filter 420ms ease,
+    box-shadow 520ms ease;
+}
+@utility bb-menu {
+  animation: bb-menu 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@utility bb-press {
+  transition:
+    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 200ms ease,
+    color 200ms ease,
+    box-shadow 200ms ease;
+  &:active {
+    transform: scale(0.94);
+  }
+}
+@utility bb-fold {
+  display: grid;
+  transition:
+    grid-template-rows 360ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 260ms ease;
+  & > * {
+    overflow: hidden;
+    min-height: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/*
+ * ── Calendar ─────────────────────────────────────────────────────────────────────────────────
+ * bb-lane: an event lane draws in from its start day. bb-tile: the calendar tile's hover lift.
+ */
+@keyframes bb-lane {
+  from {
+    opacity: 0;
+    transform: scaleX(0.92);
+  }
+}
+@utility bb-lane {
+  transform-origin: left center;
+  animation: bb-lane 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+/* bb-land: a tile dropped on a new day settles into place. */
+@keyframes bb-land {
+  from {
+    opacity: 0.4;
+    transform: scale(0.94) translateY(4px);
+  }
+}
+@utility bb-land {
+  animation: bb-land 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@utility bb-tile {
+  box-shadow: var(--shadow-tile);
+  transition:
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 220ms ease;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-tile-hover);
+  }
+}
+/* bb-swap: the calendar settling in after a brand switch. */
+@keyframes bb-swap {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@utility bb-swap {
+  animation: bb-swap 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/*
+ * ── Insights and ideas ───────────────────────────────────────────────────────────────────────
+ * bb-trace: a line draws itself left to right, by a clip and not a dash: the charts draw with a
+ * non-scaling stroke, which measures dashes in screen pixels and ignores pathLength. bb-grow: a
+ * bar rises from its baseline. bb-fill: a bar extends from the left. bb-fade: a cell fades in.
+ */
+@keyframes bb-trace {
+  from {
+    clip-path: inset(-4px 100% -4px -4px);
+  }
+  to {
+    clip-path: inset(-4px -4px -4px -4px);
+  }
+}
+@utility bb-trace {
+  animation: bb-trace 1100ms 120ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+@keyframes bb-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+@utility bb-grow {
+  transform-origin: bottom;
+  animation: bb-grow 720ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes bb-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+@utility bb-fill {
+  transform-origin: left;
+  animation: bb-fill 720ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes bb-fade {
+  from {
+    opacity: 0;
+  }
+}
+@utility bb-fade {
+  animation: bb-fade 480ms ease both;
+}

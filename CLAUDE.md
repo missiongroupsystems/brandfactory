@@ -34,12 +34,13 @@ Run the full gate before you report that work is complete. The changelog
 records the result of this gate for each release.
 
 ```bash
-pnpm typecheck                         # tsc --noEmit in all 11 packages
+pnpm typecheck                         # tsc --noEmit in all 13 packages
 pnpm lint                              # eslint, whole repo
 pnpm format:check                      # prettier
 pnpm test                              # vitest, all packages
 pnpm -F @brandfactory/web build        # tsc --noEmit && vite build
 pnpm -F @brandfactory/web-next build   # next build
+pnpm -F @brandfactory/brandbase build  # next build (the UI-only demo, :3002)
 ```
 
 `lint` and `format:check` at the root **skip `packages/web-next`** on purpose —
@@ -83,8 +84,12 @@ automatically. Read `docs/vision.md` for the product and `docs/architecture.md`
 for the blueprint.
 
 The repository is a pnpm workspaces monorepo with a flat `packages/*` layout:
-`web`, `server`, `shared`, `db`, `agent` and `adapters` (six ports: auth,
-storage, realtime, llm, research, events).
+`web`, `web-next`, `brandbase`, `server`, `shared`, `db`, `agent` and `adapters`
+(six ports: auth, storage, realtime, llm, research, events).
+
+`brandbase` is a UI-only demo with static data and no server: it imports no other
+package, and its publish rules live in `src/features/publish/model.ts`. It follows
+the root eslint and prettier config, unlike `web-next`.
 
 These points need more than one file to understand.
 
@@ -186,7 +191,7 @@ of instances. A cross-instance adapter must land first.
 stays empty on purpose: `test.projects` in the root config dropped the
 per-package `environment` and `alias`, and the workspace form keeps them.
 
-- The `web` and `web-next` projects use `jsdom`, globals, a `src/test-setup.ts`
+- The `web`, `web-next` and `brandbase` projects use `jsdom`, globals, a `src/test-setup.ts`
   and the `@` alias. Every other project uses `node`.
 - `web-next` tests auth and workspace resolution and **not the screens**: most
   of that package is still borrowed Operations Hub UI, and the logic worth
@@ -221,7 +226,7 @@ per-package `environment` and `alias`, and the workspace form keeps them.
   or state `No migration`. State the test count.
 - **Migrations** are numbered SQL files in `packages/db/drizzle/`. Generate
   them; do not hand-number them.
-- **Not every fact needs a table.** `packages/web/src/lib/key-dates/` holds 92
+- **Not every fact needs a table.** `packages/shared/src/key-dates/` holds 92
   curated dates as static data. The data is the same for each brand, no user
   edits it, and it never crosses the wire, so it has no schema and no route.
   Apply the same test to new data.
