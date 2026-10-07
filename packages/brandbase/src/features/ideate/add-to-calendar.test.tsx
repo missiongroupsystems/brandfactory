@@ -104,6 +104,22 @@ describe('planning from the shoot brief', () => {
     expect(feedsOf(day(result.current.weeks, '23'))).toEqual([{ kind: 'post', postId: id }])
   })
 
+  it('changes nothing when a post is rescheduled to the day and time it has', () => {
+    // Publish reports the time from an effect: a new posts array each time would loop.
+    const { result } = renderHook(() => useBrand(), { wrapper })
+    const before = result.current.posts
+    let ok = false
+    act(() => {
+      ok = result.current.reschedule('pasta', '13', '12:00')
+    })
+    expect(ok).toBe(true)
+    expect(result.current.posts).toBe(before)
+    act(() => {
+      result.current.reschedule('pasta', '13', '19:30')
+    })
+    expect(result.current.byId('pasta')).toMatchObject({ slot: 'Tue 13 Oct, 19:30' })
+  })
+
   it('puts a story in the story row, one planned story a day, and moves it', () => {
     const { result } = renderHook(() => useBrand(), { wrapper })
     let a = ''

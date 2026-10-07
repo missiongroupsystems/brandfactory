@@ -8,6 +8,7 @@ import { ChevronIcon, PlusIcon, SparkIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
 import type { Format, Stage } from '@/data/demo'
+import { INSIGHTS_BY_BRAND } from '@/data/insights'
 
 import {
   CHANNELS,
@@ -46,6 +47,9 @@ const ALTERNATIVES = [
   'Smoke, blister, crack. The last ten seconds before your pizza lands 🔥 Raffles City. #casavostra #pizzasg',
 ]
 
+/** The times the picker offers; the brand's best hour joins them. */
+const POST_TIMES = ['08:00', '12:00', '15:00', '18:00', '19:30', '21:00']
+
 const PLURAL: Record<Format, string> = { reel: 'reels', carousel: 'carousels', story: 'stories' }
 
 /**
@@ -65,15 +69,29 @@ function tagFor(format: Format, channel: Channel, ownText: boolean): string {
  * phones carry each channel's status. Every rule comes from `model.ts`.
  */
 export function PublishSheet({
-  subject,
+  subject: given,
   onClose,
   onStage,
+  onTime,
 }: {
   subject: PublishSubject
   onClose: () => void
   onStage: (stage: Stage) => void
+  /** The post time the marketer picked, once the post is scheduled. */
+  onTime?: (time: string) => void
 }) {
-  const api = usePublishDraft(subject)
+  // The day comes with the post; the time is the marketer's to pick. Everything that prints the
+  // slot reads it from here, so the sent message and each channel's pill say the time picked.
+  const [time, setTime] = React.useState(given.slot.split(', ')[1] ?? '18:00')
+  const subject = React.useMemo(
+    () => ({
+      ...given,
+      slot: `${given.slot.split(', ')[0]}, ${time}`,
+      slotShort: `${given.slotShort.split(', ')[0]}, ${time}`,
+    }),
+    [given, time],
+  )
+  const api = usePublishDraft(given)
   const { brand } = useBrand()
   const { draft, phase, outcomes } = api
   const [editing, setEditing] = React.useState<ChannelKey | null>(null)
@@ -81,9 +99,12 @@ export function PublishSheet({
   React.useEffect(() => {
     // Posted as soon as it starts going out: the sheet says "you can close this", so closing
     // mid-upload must not leave the calendar behind.
-    if (phase === 'scheduled') onStage('scheduled')
+    if (phase === 'scheduled') {
+      onStage('scheduled')
+      onTime?.(time)
+    }
     if (phase === 'publishing' || phase === 'done') onStage('posted')
-  }, [phase, onStage])
+  }, [phase, onStage, onTime, time])
 
   const composing = phase === 'compose'
   const active = activeChannels(draft)
@@ -146,6 +167,8 @@ export function PublishSheet({
         <Compose
           api={api}
           subject={subject}
+          time={time}
+          onTime={setTime}
           editing={editKey}
           onEdit={setEditing}
           onApproval={onClose}
@@ -534,12 +557,16 @@ const FIELD_LABEL: Record<ChannelKey, string> = {
 function Compose({
   api,
   subject,
+  time,
+  onTime,
   editing,
   onEdit,
   onApproval,
 }: {
   api: PublishDraftApi
   subject: PublishSubject
+  time: string
+  onTime: (time: string) => void
   editing: ChannelKey | null
   onEdit: (channel: ChannelKey | null) => void
   onApproval: () => void
@@ -744,12 +771,13 @@ function Compose({
           label="When"
           pill
           options={[
-            { value: 'slot', label: subject.slot },
+            { value: 'slot', label: subject.slot.split(', ')[0]! },
             { value: 'now', label: 'Now' },
           ]}
           value={draft.when}
           onChange={(when) => update({ when })}
         />
+        {draft.when === 'slot' && <TimePicker value={time} onChange={onTime} />}
         <span className="flex-1" />
         <button
           type="button"
@@ -785,6 +813,87 @@ function Compose({
         </p>
       </footer>
     </div>
+  )
+}
+
+/**
+ * The post time: "at 18:00", which opens a row of times. The brand's best hour from Insights is
+ * marked, so the good default is one glance away. Escape or a click outside closes it.
+ */
+function TimePicker({ value, onChange }: { value: string; onChange: (time: string) => void }) {
+  const { brand } = useBrand()
+  const best = INSIGHTS_BY_BRAND[brand.id].best
+  const times = [...new Set([...POST_TIMES, best])].sort()
+  const [open, setOpen] = React.useState(false)
+  const box = React.useRef<HTMLSpanElement>(null)
+
+  React.useEffect(() => {
+    if (!open) return
+    function onDown(e: PointerEvent) {
+      if (!box.current?.contains(e.target as Node)) setOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      // The sheet closes on Escape too; the picker takes it first.
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        setOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', onDown)
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('keydown', onKey, true)
+    }
+  }, [open])
+
+  return (
+    <span ref={box} className="relative flex items-center gap-2 text-[13px] text-ink-3">
+      at
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Post time ${value}`}
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[13px] font-medium text-ink tabular-nums transition-colors hover:bg-paper"
+      >
+        {value}
+        {value === best && <span className="text-[11px] font-medium text-(--insight-6)">Best</span>}
+        <ChevronIcon open={open} size={8} />
+      </button>
+      {open && (
+        <span
+          role="listbox"
+          aria-label="Post time"
+          className="bb-menu absolute bottom-[calc(100%+8px)] left-0 z-10 flex gap-1 rounded-2xl bg-page p-1.5 shadow-pop"
+        >
+          {times.map((t) => {
+            const on = t === value
+            return (
+              <button
+                key={t}
+                type="button"
+                role="option"
+                aria-selected={on}
+                onClick={() => {
+                  onChange(t)
+                  setOpen(false)
+                }}
+                className={`flex h-12 min-w-[58px] flex-col items-center justify-center rounded-xl px-2 tabular-nums transition-colors ${on ? 'bg-ink text-page' : 'text-ink hover:bg-surface'}`}
+              >
+                <span className="text-[13px] font-medium">{t}</span>
+                <span
+                  className={`text-[9.5px] font-medium ${t === best ? (on ? 'text-(--insight-3)' : 'text-(--insight-6)') : 'invisible'}`}
+                >
+                  Best
+                </span>
+              </button>
+            )
+          })}
+        </span>
+      )}
+    </span>
   )
 }
 

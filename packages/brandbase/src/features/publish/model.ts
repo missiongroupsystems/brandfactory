@@ -95,14 +95,22 @@ export function activeChannels(draft: Draft): Channel[] {
 
 export const YOUTUBE_TITLE_MAX = 100
 
-/** YouTube needs a title; the hook is the best one the post already has. */
-export function youtubeTitle(draft: Draft): string {
-  const title = (draft.youtubeTitle ?? draft.hook).trim()
-  return title.length > YOUTUBE_TITLE_MAX ? title.slice(0, YOUTUBE_TITLE_MAX - 1) + '…' : title
-}
-
 const EMOJI = /\p{Extended_Pictographic}️?/gu
 const HASHTAG = /#[\p{L}\p{N}_]+/gu
+
+/**
+ * YouTube needs a title, and a Short shows it over the video. Until the marketer types one, it is
+ * the caption's opening phrase (up to the first full stop or emoji, no hashtags), so it follows
+ * the caption as it is written or drafted; with no caption yet, the hook.
+ */
+export function youtubeTitle(draft: Draft): string {
+  const opening = draft.caption
+    .replace(HASHTAG, '')
+    .split(/[.!?]|\p{Extended_Pictographic}/u)[0]!
+    .trim()
+  const title = (draft.youtubeTitle ?? (opening || draft.hook)).trim()
+  return title.length > YOUTUBE_TITLE_MAX ? title.slice(0, YOUTUBE_TITLE_MAX - 1) + '…' : title
+}
 
 /** LinkedIn reads better without emoji and with one hashtag, not a cloud of them. */
 export function linkedinText(caption: string): string {

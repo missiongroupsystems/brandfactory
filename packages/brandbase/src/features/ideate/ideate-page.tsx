@@ -662,11 +662,45 @@ function ConnectPinterest() {
   )
 }
 
+/**
+ * Each pin goes to the shortest column, by its shape, so the columns end level. Real columns,
+ * not CSS multi-column: Safari tears a pin apart across columns when anything in it animates
+ * (the hover zoom, the ring, the entrance), so pins flickered and vanished on hover.
+ */
+function toColumns(pins: Reference[], count: number) {
+  const columns: Array<Array<{ ref: Reference; i: number }>> = Array.from(
+    { length: count },
+    () => [],
+  )
+  const heights = Array<number>(count).fill(0)
+  pins.forEach((ref, i) => {
+    const shortest = heights.indexOf(Math.min(...heights))
+    columns[shortest]!.push({ ref, i })
+    // The photo's height over its width, plus about a quarter for the caption under it.
+    heights[shortest]! += (ref.ratio ?? 1.25) + 0.25
+  })
+  return columns
+}
+
 /** Pins at their own shape in columns, the way Pinterest lays out a board. */
 function Masonry({ pins }: { pins: Reference[] }) {
   const { brand, weeks, byId } = useBrand()
   const router = useRouter()
   const { ideas } = useIdeas(brand.id)
+  const box = React.useRef<HTMLDivElement>(null)
+  const [count, setCount] = React.useState(5)
+
+  // As many columns as the width holds, the way the CSS breakpoints did.
+  React.useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => {
+      const w = entry!.contentRect.width
+      setCount(w >= 1180 ? 5 : w >= 900 ? 4 : w >= 600 ? 3 : 2)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   function ideaOf(ref: Reference) {
     return ideas.find((i) => i.referenceId === ref.id && i.status !== 'suggested')
@@ -694,58 +728,62 @@ function Masonry({ pins }: { pins: Reference[] }) {
   }
 
   return (
-    <div className="columns-5 gap-4 max-xl:columns-4 max-lg:columns-3 max-sm:columns-2 max-sm:gap-3">
-      {pins.map((ref, i) => {
-        const card = ideaOf(ref)
-        return (
-          <div
-            key={ref.id}
-            className="bb-deal mb-6 flex break-inside-avoid flex-col gap-2"
-            style={{ animationDelay: `${Math.min(i, 12) * 45}ms` }}
-          >
-            <button
-              type="button"
-              onClick={() => open(ref)}
-              aria-label={`${card ? 'Open the idea from' : 'Start an idea from'} ${ref.account}: ${ref.borrow}`}
-              className={`group/pin relative block w-full overflow-hidden rounded-[16px] bg-tile text-left ${card ? 'shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--insight-4)]' : ''}`}
-              style={{ aspectRatio: `1 / ${ref.ratio ?? 1.25}` }}
-            >
-              {ref.image && (
-                <Image
-                  src={ref.image}
-                  alt=""
-                  fill
-                  sizes="(max-width: 640px) 50vw, 280px"
-                  className="object-cover transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] group-hover/pin:scale-[1.03]"
-                />
-              )}
-              <span className="absolute inset-0 bg-black/0 transition-colors duration-200 group-hover/pin:bg-black/25" />
-              {card && (
-                <span className="absolute top-2.5 left-2.5 rounded-full bg-(--insight-5) px-2 py-[3px] font-mono text-[9.5px] tracking-[0.06em] text-page uppercase">
-                  {usedOn(card)}
+    <div ref={box} className="flex items-start gap-4 max-sm:gap-3">
+      {toColumns(pins, count).map((column, c) => (
+        <div key={c} className="flex min-w-0 flex-1 flex-col gap-6">
+          {column.map(({ ref, i }) => {
+            const card = ideaOf(ref)
+            return (
+              <div
+                key={ref.id}
+                className="bb-deal flex flex-col gap-2"
+                style={{ animationDelay: `${Math.min(i, 12) * 45}ms` }}
+              >
+                <button
+                  type="button"
+                  onClick={() => open(ref)}
+                  aria-label={`${card ? 'Open the idea from' : 'Start an idea from'} ${ref.account}: ${ref.borrow}`}
+                  className={`group/pin relative block w-full overflow-hidden rounded-[16px] bg-tile text-left ${card ? 'shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--insight-4)]' : ''}`}
+                  style={{ aspectRatio: `1 / ${ref.ratio ?? 1.25}` }}
+                >
+                  {ref.image && (
+                    <Image
+                      src={ref.image}
+                      alt=""
+                      fill
+                      sizes="(max-width: 640px) 50vw, 280px"
+                      className="object-cover transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] group-hover/pin:scale-[1.03]"
+                    />
+                  )}
+                  <span className="absolute inset-0 bg-black/0 transition-colors duration-200 group-hover/pin:bg-black/25" />
+                  {card && (
+                    <span className="absolute top-2.5 left-2.5 rounded-full bg-(--insight-5) px-2 py-[3px] font-mono text-[9.5px] tracking-[0.06em] text-page uppercase">
+                      {usedOn(card)}
+                    </span>
+                  )}
+                  <span className="absolute top-2.5 right-2.5 flex h-8 translate-y-1 items-center gap-1.5 rounded-full bg-page px-3 text-[12px] font-medium text-ink opacity-0 shadow-soft transition-[opacity,transform] duration-200 group-hover/pin:translate-y-0 group-hover/pin:opacity-100 group-focus-visible/pin:translate-y-0 group-focus-visible/pin:opacity-100 max-md:hidden">
+                    {card ? (
+                      'Open idea'
+                    ) : (
+                      <>
+                        <PlusIcon size={9} />
+                        Start idea
+                      </>
+                    )}
+                  </span>
+                </button>
+                <span className="flex flex-col gap-0.5 px-1">
+                  <span className="text-[13px] leading-[1.3] text-ink">{ref.borrow}</span>
+                  <span className="flex items-center gap-1.5 truncate font-mono text-[9.5px] text-ink-4">
+                    <PlatformLogo platform={ref.platform} size={9} />
+                    <span className="truncate">{ref.account}</span>
+                  </span>
                 </span>
-              )}
-              <span className="absolute top-2.5 right-2.5 flex h-8 translate-y-1 items-center gap-1.5 rounded-full bg-page px-3 text-[12px] font-medium text-ink opacity-0 shadow-soft transition-[opacity,transform] duration-200 group-hover/pin:translate-y-0 group-hover/pin:opacity-100 group-focus-visible/pin:translate-y-0 group-focus-visible/pin:opacity-100 max-md:hidden">
-                {card ? (
-                  'Open idea'
-                ) : (
-                  <>
-                    <PlusIcon size={9} />
-                    Start idea
-                  </>
-                )}
-              </span>
-            </button>
-            <span className="flex flex-col gap-0.5 px-1">
-              <span className="text-[13px] leading-[1.3] text-ink">{ref.borrow}</span>
-              <span className="flex items-center gap-1.5 truncate font-mono text-[9.5px] text-ink-4">
-                <PlatformLogo platform={ref.platform} size={9} />
-                <span className="truncate">{ref.account}</span>
-              </span>
-            </span>
-          </div>
-        )
-      })}
+              </div>
+            )
+          })}
+        </div>
+      ))}
     </div>
   )
 }

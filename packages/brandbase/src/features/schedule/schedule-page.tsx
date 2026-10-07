@@ -9,6 +9,7 @@ import { NewPostDrawer } from '@/features/new-post/new-post-drawer'
 import { PublishSheet, type PublishSubject } from '@/features/publish/publish-sheet'
 
 import { LayersMenu } from './layers-menu'
+import { dayOf } from './move-post'
 import { useBrand } from './posts-store'
 import { WeekGrid } from './week-grid'
 
@@ -19,7 +20,7 @@ type Open =
   | { kind: 'publish'; postId: string | null; subject: PublishSubject }
 
 export function SchedulePage() {
-  const { brand, weeks, month, captions, byId, setStage } = useBrand()
+  const { brand, weeks, month, captions, byId, setStage, reschedule } = useBrand()
   const [layers, setLayers] = React.useState(DEFAULT_LAYERS)
   const [open, setOpen] = React.useState<Open>({ kind: 'none' })
 
@@ -66,6 +67,15 @@ export function SchedulePage() {
   }
 
   const postId = open.kind === 'publish' ? open.postId : null
+  // A scheduled post keeps its day and takes the time picked in Publish.
+  const onTime = React.useCallback(
+    (time: string) => {
+      const dayN = postId ? dayOf(weeks, postId) : null
+      if (postId && dayN) reschedule(postId, dayN, time)
+    },
+    [postId, weeks, reschedule],
+  )
+
   const onStage = React.useCallback(
     (stage: Parameters<typeof setStage>[1]) => {
       if (postId) setStage(postId, stage)
@@ -112,6 +122,7 @@ export function SchedulePage() {
           subject={open.subject}
           onClose={close}
           onStage={onStage}
+          onTime={onTime}
         />
       )}
     </div>

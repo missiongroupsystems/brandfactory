@@ -215,7 +215,9 @@ function Board({
               </span>
               <span className="font-mono text-[11px] text-ink-4 tabular-nums">{cards.length}</span>
             </header>
-            <ul className="flex min-h-0 flex-col gap-2 overflow-y-auto pb-1">
+            {/* The list scrolls, and a scroller clips shadows at its edge: a few pixels of room keep the
+                hover lift whole. */}
+            <ul className="-mx-1.5 -mt-1 flex min-h-0 flex-col gap-2 overflow-y-auto px-1.5 pt-1 pb-2">
               {cards.map((s) => (
                 <BoardCard
                   key={s.card.id}
@@ -262,7 +264,7 @@ function BoardCard({
         }}
         onDragEnd={() => onDrag(null)}
         aria-pressed={active}
-        className={`flex w-full flex-col gap-2.5 rounded-[14px] bg-page p-2.5 text-left transition-[box-shadow,transform] duration-200 ${active ? 'shadow-[0_0_0_1.5px_var(--ink)]' : 'shadow-soft hover:-translate-y-px hover:shadow-pop'} ${suggested ? '' : 'cursor-grab active:cursor-grabbing'}`}
+        className={`flex w-full flex-col gap-2.5 rounded-[14px] bg-page p-2.5 text-left transition-[box-shadow,transform] duration-200 ${active ? 'shadow-[inset_0_0_0_1.5px_var(--ink)]' : 'shadow-soft hover:-translate-y-px hover:shadow-pop'} ${suggested ? '' : 'cursor-grab active:cursor-grabbing'}`}
       >
         <span className="flex items-start gap-2.5">
           <span

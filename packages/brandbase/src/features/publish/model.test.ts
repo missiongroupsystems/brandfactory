@@ -83,8 +83,14 @@ describe('TikTok asks every time', () => {
 })
 
 describe('one caption, fitted to each channel', () => {
-  it('gives YouTube the hook as its required title, within 100 characters', () => {
-    expect(youtubeTitle(reel())).toBe('The final touch. Watch the crust.')
+  it('titles the Short from the caption until a title is typed, within 100 characters', () => {
+    // The Short shows its title over the video, so a new caption must change it.
+    expect(youtubeTitle(reel())).toBe('The final touch for a crispy crust')
+    expect(youtubeTitle(reel({ caption: 'Ten seconds of fire 🔥 Blowtorch finish. #pizza' }))).toBe(
+      'Ten seconds of fire',
+    )
+    expect(youtubeTitle(reel({ caption: '' }))).toBe('The final touch. Watch the crust.')
+    expect(youtubeTitle(reel({ youtubeTitle: 'Typed by hand' }))).toBe('Typed by hand')
     expect(youtubeTitle(reel({ youtubeTitle: 'x'.repeat(140) }))).toHaveLength(100)
   })
 

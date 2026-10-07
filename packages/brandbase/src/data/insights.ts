@@ -88,6 +88,8 @@ export interface BrandInsights {
   stories: Story[]
   /** How busy each part of the day is, 0–1: morning, lunch, afternoon, evening, late. */
   hours: number[]
+  /** The hour to post, from the best-time story: what the publish time picker marks "Best". */
+  best: string
   posts: PostStat[]
   creators: Creator[]
 }
@@ -235,6 +237,7 @@ const CASA_VOSTRA: BrandInsights = {
       chart: { kind: 'days', values: [0.3, 0.35, 0.4, 0.9, 1, 0.6, 0.35], best: [3, 4] },
     },
   ],
+  best: '18:00',
   hours: [0.15, 0.45, 0.3, 1, 0.55],
   posts: [
     {
@@ -514,6 +517,7 @@ const TEMPER: BrandInsights = {
       chart: { kind: 'days', values: [0.3, 0.45, 0.9, 1, 0.75, 0.5, 0.25], best: [2, 3] },
     },
   ],
+  best: '17:00',
   hours: [0.1, 0.2, 0.55, 1, 0.7],
   posts: [
     {
@@ -773,6 +777,7 @@ const CARLITOS: BrandInsights = {
       chart: { kind: 'days', values: [0.3, 0.3, 0.35, 0.4, 0.9, 1, 0.85], best: [4, 5] },
     },
   ],
+  best: '12:00',
   hours: [0.1, 1, 0.45, 0.7, 0.35],
   posts: [
     {

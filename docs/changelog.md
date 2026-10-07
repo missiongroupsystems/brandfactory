@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **1.63.0** — 2026-10-07 — BrandBase's Ideate and Insights pages are redesigned from scratch. Ideate has two views: ideas shelved by format (reels at 9:16, carousels at 4:5) and the imported Pinterest boards as a masonry board; a Shoot brief project board plans each idea (status columns, drag to move, date and time) and the calendar follows it. Stories join reels and carousels. Insights leads with four headline numbers, then Overview, Posts and Creators tabs, every chart titled and every mark hoverable. No migration. 3420 tests.
+- **1.63.0** — 2026-10-07 — BrandBase's Ideate and Insights pages are redesigned from scratch. Ideate has two views: ideas shelved by format (reels at 9:16, carousels at 4:5) and the imported Pinterest boards as a masonry board; a Shoot brief project board plans each idea (status columns, drag to move, date and time) and the calendar follows it. Stories join reels and carousels. Insights leads with four headline numbers, then Overview, Posts and Creators tabs, every chart titled and every mark hoverable. No migration. 3421 tests.
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 - **1.61.0** — 2026-10-05 — The Events mapping is verified against both live databases and the seed stops describing a different estate: six brands map to live outlets, the seventh is group-level, and `Firebird by Suetomi` turns out not to be a brand in Brand Base at all — so four documents carried a caveat about a brand that does not exist. Migration none, but `db:seed` output changes. No migration. 3375 tests.
 - **1.60.0** — 2026-10-05 — An event on the calendar stops promising a destination it did not have: the chip was a `div` with a link icon, between entry chips that are real buttons, so it taught the reader to click it and then did nothing. It opens the day plan now, where the booking's outlet, room, time and owner already were. No migration. 3375 tests.
@@ -121,7 +121,7 @@ One line each — full write-ups are under the matching `##` heading further dow
 **Ideate and Insights, redesigned.** The first versions read as unclear: three columns of
 controls on Ideate, and charts on Insights whose meaning was not obvious at first glance.
 Completion notes: `docs/completions/brandbase-demo-plan.md`, last section. **No migration.**
-3420 tests (3238 passing, 182 skipped — the `*.live.test.ts` files, run without a database).
+3421 tests (3239 passing, 182 skipped — the `*.live.test.ts` files, run without a database).
 
 - **Ideate** has two views. _By format_ shelves the month's ideas as Reels and Carousels, each tile
   at the post's shape, with Moments ahead below. _Pinterest_ connects once per brand and shows every
@@ -144,6 +144,14 @@ Completion notes: `docs/completions/brandbase-demo-plan.md`, last section. **No 
   8-a-month meter.
 - The store stops opening a card on Suggest; suggestions appear in place with Review and Skip.
 - 24 Unsplash pins added (credits in `public/demo/CREDITS.md`).
+- The Pinterest board lays pins into real columns instead of CSS multi-column: Safari tore a pin
+  across columns whenever something in it animated, so pins flickered and vanished on hover.
+- A Short's title follows the caption (its opening phrase, no hashtags or emoji) until one is
+  typed; it showed the hook, so a new caption never reached the YouTube preview. The caption
+  typewriter runs about 30% faster.
+- Publish picks the post time: "at 18:00" opens a row of times with the brand's best hour from
+  Insights marked, and a scheduled post keeps its day and takes that time on the calendar.
+  `reschedule` returns early when nothing changes, since Publish calls it from an effect.
 
 ## 1.62.0 — 2026-10-06
 

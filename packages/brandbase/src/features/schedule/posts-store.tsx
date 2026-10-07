@@ -199,6 +199,9 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       if (refusal && refusal !== 'same-day') return false
       if (post.format === 'story' && storyTaken(weeks, dayN, id)) return false
       const moved = { ...post, ...slotFor(weeks, dayN, `, ${time}`) }
+      // Same day, same time: nothing to change. Publish calls this from an effect, so a new
+      // array here on every call would loop, as setStage once did.
+      if (refusal === 'same-day' && moved.slot === post.slot) return true
       const posts = postsByBrand[brandId].map((p) => (p.id === id ? moved : p))
       if (!refusal) {
         const next =
