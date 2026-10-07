@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.2.1** — 2026-10-07 — Every demo photo is replaced with a sharp version (short side at least 1000 px, was 272–750), from the same Unsplash photo where the source was recorded and a matching free Unsplash photo where it was not; a check of every image on every page at 2x finds none under-resolved. No migration. 82 tests.
 - **2.2.0** — 2026-10-07 — The composer's best times become an hourly bar chart for the picked day (best hour in green, a bar sets the time); the send button reads "Schedule on" or "Post on" with each account's logo; every Current ideas card is 4:5; images ask next/image for enough pixels to stay sharp on 2x screens. No migration. 82 tests.
 - **2.1.0** — 2026-10-07 — Current ideas shows one idea at a time (photo, hook, why, "Plan it", "Sharpen") with a strip of thumbnails to move between ideas and the moments ahead, so it no longer reads as a second calendar; a failed post's retry starts on the account it failed on only and names its accounts by logo. No migration. 82 tests.
 - **2.0.0** — 2026-10-07 — `main` is brand base only: the old BrandFactory packages, Fly deploy and docs move to the branch `archive/main-2026-10-07`, and the demo moves from `packages/brandbase` to `packages/web-next` so the existing Vercel project deploys it unchanged. No migration. 78 tests.
@@ -14,6 +15,19 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.2.1 — 2026-10-07
+
+**Sharp photos.** The 56 photos in `public/demo/` were 272 to 750 px on their short side, so the
+4:5 and 9:16 frames enlarged them. Each is now at least 1000 px on its short side (most 1280×1600
+or 1600×1067), with the same file name and, for pins, the same shape. The 34 photos with a
+recorded Unsplash source are the same photo at full size; the other 22 (pins 1–6 of each brand,
+`crust`, `pasta`, `dish`, `wine-night`) are free Unsplash photos of the same subject, and
+`CREDITS.md` now names the photographer and source of all 56. `dish.jpg` no longer carries
+Temper's watermark. The story-row thumbnails ask for 32 px, not 18. The folder grows from 4.4 MB
+to 11.9 MB. A check of every image on every page at 2x finds none under-resolved.
+
+**No migration.** 82 tests (14 files), all passing.
 
 ## 2.2.0 — 2026-10-07
 

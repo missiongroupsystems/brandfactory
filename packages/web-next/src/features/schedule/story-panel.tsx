@@ -59,7 +59,7 @@ export function StoryDeck({
                 transform: `rotate(${(i - 1) * 4}deg)`,
               }}
             >
-              {s.image && <Media src={s.image} sizes="18px" />}
+              {s.image && <Media src={s.image} sizes="32px" />}
             </span>
           ))
           .reverse()}
