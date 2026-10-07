@@ -14,6 +14,7 @@ import { PlatformLogo } from '@/components/platform-logos'
 import {
   channelsOf,
   countsOf,
+  failedOf,
   itemsOf,
   postTime,
   storyCount,
@@ -350,9 +351,10 @@ function DaySummary({
   const { byId } = useBrand()
   const items = itemsOf(day, byId, stages)
   const counts = countsOf(items)
-  const failed = items.posts.filter((p) => p.stage === 'failed').length
+  const failed = failedOf(items)
   const stories = storyCount(items)
-  const empty = counts.length === 0 && items.ideas.length === 0 && stories === 0
+  const empty =
+    counts.length === 0 && failed.length === 0 && items.ideas.length === 0 && stories === 0
   return (
     <button
       type="button"
@@ -360,15 +362,17 @@ function DaySummary({
       aria-label={`Open ${day.n} in the day view`}
       className="flex min-h-[64px] w-full flex-wrap content-start items-start gap-1 rounded-[8px] text-left"
     >
-      {failed > 0 && (
+      {failed.map(({ channel, n }) => (
         <span
-          title={`${failed} post${failed > 1 ? 's' : ''} did not go out`}
+          key={channel ?? 'none'}
+          title={`${n} post${n > 1 ? 's' : ''} did not go out${channel ? ` on ${CHANNEL_NAME[channel]}` : ''}`}
           className="flex h-[22px] items-center gap-1.5 rounded-full bg-(--fail-soft) px-2 text-[11px] font-medium text-fail-ink tabular-nums shadow-[inset_0_0_0_1px_var(--fail-line)]"
         >
           <span className="size-1.5 rounded-full bg-fail" />
-          {failed}
+          {channel && <PlatformLogo platform={channel} size={11} />}
+          {n}
         </span>
-      )}
+      ))}
       {counts.map(({ channel, n }) => (
         <span
           key={channel}

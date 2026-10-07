@@ -88,10 +88,26 @@ export function storyCount(items: DayItems): number {
   return items.storiesPosted + (items.plannedStory ? 1 : 0)
 }
 
-/** A day's feed posts per channel. Stories have their own count (`storyCount`). */
+const CHANNEL_ORDER: ChannelKey[] = ['ig', 'tt', 'yt', 'fb', 'li']
+
+/**
+ * A day's feed posts per channel, failed posts left out: `failedOf` counts those, so one failed
+ * post never reads as three chips. Stories have their own count (`storyCount`).
+ */
 export function countsOf(items: DayItems): Array<{ channel: ChannelKey; n: number }> {
   const n: Partial<Record<ChannelKey, number>> = {}
-  for (const p of items.posts) for (const c of channelsOf(p)) n[c] = (n[c] ?? 0) + 1
-  const order: ChannelKey[] = ['ig', 'tt', 'yt', 'fb', 'li']
-  return order.flatMap((channel) => (n[channel] ? [{ channel, n: n[channel]! }] : []))
+  for (const p of items.posts) {
+    if (p.stage === 'failed') continue
+    for (const c of channelsOf(p)) n[c] = (n[c] ?? 0) + 1
+  }
+  return CHANNEL_ORDER.flatMap((channel) => (n[channel] ? [{ channel, n: n[channel]! }] : []))
+}
+
+/** A day's failed posts, counted once each, by the account each one failed on. */
+export function failedOf(items: DayItems): Array<{ channel?: ChannelKey; n: number }> {
+  const n = new Map<ChannelKey | undefined, number>()
+  for (const p of items.posts) {
+    if (p.stage === 'failed') n.set(p.failedOn, (n.get(p.failedOn) ?? 0) + 1)
+  }
+  return [...n].map(([channel, count]) => ({ channel, n: count }))
 }
