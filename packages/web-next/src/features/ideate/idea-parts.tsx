@@ -10,7 +10,7 @@ import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { dayIndex, dayLabel, dayOfHook } from './calendar-slot'
-import { useIdeas } from './ideas-store'
+import { setHook, useIdeas } from './ideas-store'
 
 /**
  * What the ideas page and the shoot brief share: an idea's status as the calendar knows it, its
@@ -101,4 +101,17 @@ export function StatusDot({ status }: { status: IdeaStatus }) {
 export function pictureOf(brandId: BrandId, card: IdeaCard): string | undefined {
   const reference = card.referenceId ? referenceById(brandId, card.referenceId) : undefined
   return card.image ?? (reference?.image || undefined)
+}
+
+/**
+ * A new hook for a card, carried to the calendar: its post takes the words, or its idea tile does,
+ * since an unplanned idea is found on the calendar by its hook.
+ */
+export function useRename(card: IdeaCard) {
+  const { brand, renamePost, renameIdea } = useBrand()
+  return (hook: string) => {
+    if (card.postId) renamePost(card.postId, hook)
+    else renameIdea(card.hook, hook)
+    setHook(brand.id, card.id, hook)
+  }
 }

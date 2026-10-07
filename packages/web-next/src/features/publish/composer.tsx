@@ -15,7 +15,7 @@ import type { Format, Post, Stage } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { dayLabel } from '@/features/ideate/calendar-slot'
-import { channelsOf } from '@/features/schedule/calendar-items'
+import { composeChannels, sentChannels } from '@/features/schedule/calendar-items'
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 
@@ -110,13 +110,17 @@ export function Composer({
     format: post?.format ?? start?.format ?? 'reel',
     hook: post?.hook ?? '',
     caption: post ? (captions[post.id] ?? post.hook) : '',
-    selected: post ? (post.channels ?? channelsOf(post)) : undefined,
+    selected: post ? composeChannels(post) : undefined,
     // A post that got as far as scheduled answered TikTok's question then.
     privacy:
       post && (post.stage === 'scheduled' || post.stage === 'failed') ? 'Everyone' : undefined,
   })
   const [reconnected, setReconnected] = React.useState(false)
-  const failedName = NAME[post?.failedOn ?? 'ig']
+  // The post as it opened: after a retry the live post is no longer failed, and a second send
+  // (after "Edit post") must still keep the accounts it had reached.
+  const [opened] = React.useState(post)
+  const failedKey = post?.failedOn ?? 'ig'
+  const failedName = NAME[failedKey]
   const { draft, update, phase } = api
 
   const [media, setMedia] = React.useState<string[]>(post?.images ?? [])
@@ -175,23 +179,29 @@ export function Composer({
   ]
   // Nothing can go out: a read-only post, or a blocker (a draft may be saved unfinished).
   const stuck = readOnly || (blocked.length > 0 && when !== 'draft')
-  const label =
-    active.length === 0
+  // A retry names its accounts by their logos, so the button shows exactly where it goes again.
+  // Before the reconnect, the account that failed is not ticked yet: the button names it anyway.
+  const retryOn = active.length > 0 ? active.map((c) => c.key) : reconnected ? [] : [failedKey]
+  const retry = retryOn.length > 0 && when === 'now' && !approval.on && post?.stage === 'failed'
+  const label = retry
+    ? 'Retry on'
+    : active.length === 0
       ? 'Pick an account'
       : when === 'draft'
         ? 'Save draft'
         : approval.on
           ? 'Send for approval'
           : when === 'now'
-            ? post?.stage === 'failed'
-              ? `Retry on ${active.length}`
-              : `Publish to ${active.length}`
+            ? `Publish to ${active.length}`
             : `Schedule on ${active.length}`
 
   /** The post on the calendar: moved and restaged if it exists, placed if it is new. */
   function toCalendar(stage: Stage): string | null {
     const day = when === 'now' ? '6' : dayN
-    const channels = active.map((c) => c.key)
+    const channels = sentChannels(
+      opened,
+      active.map((c) => c.key),
+    )
     if (targetId) {
       reschedule(targetId, day, time)
       setStage(targetId, stage)
@@ -264,10 +274,20 @@ export function Composer({
             <button
               type="button"
               aria-disabled={stuck}
+              aria-label={
+                retry ? `Retry on ${retryOn.map((k) => NAME[k]).join(' and ')}` : undefined
+              }
               onClick={primary}
-              className={`h-10 min-w-[160px] rounded-full px-5 text-[13.5px] font-medium transition-[background-color,box-shadow] ${stuck ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
+              className={`flex h-10 min-w-[160px] items-center justify-center gap-2 rounded-full px-5 text-[13.5px] font-medium transition-[background-color,box-shadow] ${stuck ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
             >
               {label}
+              {retry && (
+                <span className="flex items-center gap-1.5">
+                  {retryOn.map((k) => (
+                    <PlatformLogo key={k} platform={k} size={13} />
+                  ))}
+                </span>
+              )}
             </button>
           </div>
           <span aria-live="polite" className="min-h-[18px] text-[12px] text-ink-3">
@@ -310,8 +330,7 @@ export function Composer({
               onClick={() => {
                 setReconnected(true)
                 // The account that failed is connected again, and the post goes to it.
-                const key = post.failedOn ?? 'ig'
-                if (!draft.connected.includes(key)) api.connect(key)
+                if (!draft.connected.includes(failedKey)) api.connect(failedKey)
               }}
               className="bb-press h-9 shrink-0 rounded-full bg-page px-4 text-[13px] font-medium text-ink shadow-[0_0_0_1px_var(--line)] hover:shadow-[0_0_0_1px_var(--line-strong)]"
             >
@@ -1566,6 +1585,7 @@ function Outcomes({
   const { phase, outcomes, draft } = api
   const keys = Object.keys(outcomes) as ChannelKey[]
   const failed = keys.filter((k) => outcomes[k]?.state === 'failed').length
+  const accounts = keys.length === 1 ? '1 account' : `${keys.length} accounts`
   const title =
     phase === 'scheduled'
       ? 'Scheduled'
@@ -1576,12 +1596,12 @@ function Outcomes({
           : 'Live everywhere'
   const sub =
     phase === 'scheduled'
-      ? `${slot}, on ${keys.length} accounts. It is on the calendar.`
+      ? `${slot}, on ${accounts}. It is on the calendar.`
       : phase === 'publishing'
-        ? `Sending to ${keys.length} accounts. You can leave this page.`
+        ? `Sending to ${accounts}. You can leave this page.`
         : failed
           ? 'One account needs you.'
-          : `Posted to ${keys.length} accounts.`
+          : `Posted to ${accounts}.`
   return (
     <div className="flex flex-col items-center gap-8 pt-6">
       <header className="flex flex-col items-center gap-3 text-center" aria-live="polite">

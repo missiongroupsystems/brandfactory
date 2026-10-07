@@ -24,8 +24,9 @@ import {
   statusColour,
   useSlots,
   type Slot,
+  useRename,
 } from './idea-parts'
-import { editIdea, keepSuggestion, setDay, setHook, skipSuggestion, useIdeas } from './ideas-store'
+import { editIdea, keepSuggestion, setDay, skipSuggestion, useIdeas } from './ideas-store'
 
 const HAIR = 'border-(--cal-line)'
 const TIMES = ['08:00', '12:00', '15:00', '18:00', '19:30', '21:00']
@@ -785,19 +786,6 @@ function Shots({ card }: { card: IdeaCard }) {
       </form>
     </section>
   )
-}
-
-/**
- * A new hook for a card, carried to the calendar: its post takes the words, or its idea tile does,
- * since an unplanned idea is found on the calendar by its hook.
- */
-function useRename(card: IdeaCard) {
-  const { brand, renamePost, renameIdea } = useBrand()
-  return (hook: string) => {
-    if (card.postId) renamePost(card.postId, hook)
-    else renameIdea(card.hook, hook)
-    setHook(brand.id, card.id, hook)
-  }
 }
 
 /** Three stronger hooks; picking one swaps it in, and "Back to mine" restores the team's words. */

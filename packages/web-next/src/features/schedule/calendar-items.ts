@@ -48,6 +48,20 @@ export function channelsOf(post: Post): ChannelKey[] {
   return post.channels ?? DEFAULT_CHANNELS[post.format]
 }
 
+/**
+ * The accounts the composer starts on. A failed post went out everywhere but the account it failed
+ * on, so its retry starts on that account alone.
+ */
+export function composeChannels(post: Post): ChannelKey[] {
+  return post.stage === 'failed' && post.failedOn ? [post.failedOn] : channelsOf(post)
+}
+
+/** The accounts a post is on after a send: a retry adds the ones retried to those it reached. */
+export function sentChannels(post: Post | undefined, sent: ChannelKey[]): ChannelKey[] {
+  if (post?.stage !== 'failed') return sent
+  return [...new Set([...channelsOf(post), ...sent])]
+}
+
 export interface DayItems {
   /** Feed posts that pass the filter, by time. */
   posts: Post[]

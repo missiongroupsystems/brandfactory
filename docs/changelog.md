@@ -6,12 +6,42 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.1.0** — 2026-10-07 — Current ideas shows one idea at a time (photo, hook, why, "Plan it", "Sharpen") with a strip of thumbnails to move between ideas and the moments ahead, so it no longer reads as a second calendar; a failed post's retry starts on the account it failed on only and names its accounts by logo. No migration. 82 tests.
 - **2.0.0** — 2026-10-07 — `main` is brand base only: the old BrandFactory packages, Fly deploy and docs move to the branch `archive/main-2026-10-07`, and the demo moves from `packages/brandbase` to `packages/web-next` so the existing Vercel project deploys it unchanged. No migration. 78 tests.
 - **1.64.0** — 2026-10-07 — Schedule gets Month, Week and Day views and a stage filter beside Layers; a new post opens a full-page composer that writes one post for every platform (Brandwatch makes one per network); Ideate's views become Current ideas and Moodboard (Pinterest, Instagram, TikTok in one board). No migration. 3456 tests.
 - **1.63.0** — 2026-10-07 — BrandBase's Ideate and Insights pages are redesigned from scratch. Ideate has two views: ideas shelved by format (reels at 9:16, carousels at 4:5) and the imported Pinterest boards as a masonry board; a Shoot brief project board plans each idea (status columns, drag to move, date and time) and the calendar follows it. Stories join reels and carousels. Insights leads with four headline numbers, then Overview, Posts and Creators tabs, every chart titled and every mark hoverable. No migration. 3424 tests.
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.1.0 — 2026-10-07
+
+**Current ideas decides what to make.** The shelves of tiles by format, the "5 of 8" ring and
+the boxed "Moments ahead" made the view a second calendar. Each page now has one job: Schedule
+is when, the Shoot brief is production, the Moodboard is inspiration, and Current ideas is what
+to make and why.
+
+- **One idea at a time:** the photo at the post's shape (one width, so nothing moves between
+  ideas), the hook, the angle, one line on where it came from (the insight, the account it
+  borrows from, or the moment), "Plan it" (opens the idea on the Shoot brief) and "Sharpen" (the
+  three stronger hooks; a pick renames the idea and its calendar tile). Status and date are one
+  grey line.
+- **The strip:** every idea as a small thumbnail at its post's shape, then the moments not used
+  yet (their date on the holiday tint), "+" for a new idea and "Suggest N". Click a thumbnail or
+  use the arrow keys. "Use it" on a moment puts it on the calendar and opens the new idea.
+- **Removed:** the ring and the header Suggest button ("Suggest N" in the strip does that job),
+  "2 a week" above the title, and the subject line (the Shoot brief keeps it). `useRename` moves
+  to `idea-parts.tsx` so both pages share it.
+
+**A retry goes where the post failed.** A failed post opened with every account ticked, so
+"Retry on 2" also re-posted to TikTok, where the margherita reel was already live. It now opens
+on the failed account only (`composeChannels`); after the retry the post keeps the accounts it
+reached plus the retried ones (`sentChannels`), so the month view counts both. The button reads
+"Retry on" with each account's logo, and names the failed account before Reconnect. The outcome
+screen says "1 account", not "1 accounts". The month view also counts a failed post once, on the
+account it failed on (in 2.0.0's follow-up commit).
+
+**No migration.** 82 tests (14 files), all passing.
 
 ## 2.0.0 — 2026-10-07
 

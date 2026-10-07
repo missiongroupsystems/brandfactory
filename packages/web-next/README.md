@@ -43,7 +43,8 @@ clicks in front of a client) and reloads the page when files change, which wipes
 4. **Shoot brief** (you land here): pick a status and a date, tick a shot, drag a card to
    Scheduled. **Open in scheduler** takes a planned card to the composer.
 5. **Ideate** opens on the **Moodboard**: connect Pinterest, Instagram and TikTok into one
-   board. **Current ideas** shows each reel, carousel and story with its status.
+   board. **Current ideas** shows one idea at a time: move with the strip or the arrow keys,
+   **Sharpen** the hook, **Plan it** on the shoot brief.
 
 ## Docs (at the repo root)
 

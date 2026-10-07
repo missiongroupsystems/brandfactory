@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import { contentFor } from '@/data/brands'
 
-import { ALL_STAGES, countsOf, failedOf, itemsOf } from './calendar-items'
+import {
+  ALL_STAGES,
+  composeChannels,
+  countsOf,
+  failedOf,
+  itemsOf,
+  sentChannels,
+} from './calendar-items'
 
 const casa = contentFor('casa-vostra')
 const byId = (id: string) => casa.posts.find((p) => p.id === id)
@@ -29,5 +36,21 @@ describe('the month chips', () => {
       { channel: 'yt', n: 1 },
       { channel: 'fb', n: 1 },
     ])
+  })
+})
+
+describe('a retry', () => {
+  it('starts on the account the post failed on, not on the ones it already went out on', () => {
+    // The margherita reel went to Instagram and TikTok, and failed on Instagram.
+    const post = byId('margherita')!
+    expect(composeChannels(post)).toEqual(['ig'])
+    // Once retried, the post is on both: the retry adds Instagram, it does not drop TikTok.
+    expect(sentChannels(post, ['ig'])).toEqual(['ig', 'tt'])
+  })
+
+  it('leaves a post that did not fail on all its accounts, and a send replaces them', () => {
+    const post = byId('pasta')!
+    expect(composeChannels(post)).toEqual(['ig', 'tt', 'yt'])
+    expect(sentChannels(post, ['ig'])).toEqual(['ig'])
   })
 })
