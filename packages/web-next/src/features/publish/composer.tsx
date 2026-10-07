@@ -60,7 +60,6 @@ const VENUE: Record<BrandId, string> = {
 }
 
 const APPROVERS = ['Chef Marco', 'Chun (CEO)', 'Dione']
-const TIMES = ['08:00', '09:00', '12:00', '15:00', '17:00', '18:00', '19:30', '21:00']
 /** The parts of the day Insights scores, as the time each one posts at. */
 const DAYPART_TIME = ['09:00', '12:00', '15:00', '18:00', '21:00']
 const MEDIA_MAX: Record<Format, number> = { reel: 1, carousel: 10, story: 10 }
@@ -192,8 +191,10 @@ export function Composer({
         : approval.on
           ? 'Send for approval'
           : when === 'now'
-            ? `Publish to ${active.length}`
-            : `Schedule on ${active.length}`
+            ? 'Post on'
+            : 'Schedule on'
+  // A send names its accounts by their logos, so the button shows exactly where the post goes.
+  const logos = retry ? retryOn : approval.on || when === 'draft' ? [] : active.map((c) => c.key)
 
   /** The post on the calendar: moved and restaged if it exists, placed if it is new. */
   function toCalendar(stage: Stage): string | null {
@@ -274,16 +275,14 @@ export function Composer({
             <button
               type="button"
               aria-disabled={stuck}
-              aria-label={
-                retry ? `Retry on ${retryOn.map((k) => NAME[k]).join(' and ')}` : undefined
-              }
+              aria-label={logos.length > 0 ? `${label} ${namesOf(logos)}` : undefined}
               onClick={primary}
               className={`flex h-10 min-w-[160px] items-center justify-center gap-2 rounded-full px-5 text-[13.5px] font-medium transition-[background-color,box-shadow] ${stuck ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
             >
               {label}
-              {retry && (
+              {logos.length > 0 && (
                 <span className="flex items-center gap-1.5">
-                  {retryOn.map((k) => (
+                  {logos.map((k) => (
                     <PlatformLogo key={k} platform={k} size={13} />
                   ))}
                 </span>
@@ -598,7 +597,7 @@ function Content({
               key={src + i}
               className="group/m relative block h-[132px] w-[106px] overflow-hidden rounded-[12px] bg-tile"
             >
-              <Media src={src} sizes="106px" />
+              <Media src={src} sizes="260px" />
               <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/50 px-1.5 font-mono text-[10px] text-page">
                 {i + 1}
               </span>
@@ -672,7 +671,7 @@ function Content({
                 }}
                 className="relative block h-[72px] w-[58px] overflow-hidden rounded-[8px] bg-tile transition-transform hover:-translate-y-0.5"
               >
-                <Image src={src} alt="" fill sizes="58px" className="object-cover" />
+                <Image src={src} alt="" fill sizes="140px" className="object-cover" />
               </button>
             ))}
           </div>
@@ -1228,8 +1227,7 @@ function WhenCard({
   story: boolean
 }) {
   const { brand, weeks } = useBrand()
-  const best = bestTimes(brand.id, weeks)
-  const top = best[0]?.score ?? 1
+  const best = bestTimes(brand.id, weeks)[0]
   return (
     <section aria-label="When" className={CARD}>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1283,53 +1281,18 @@ function WhenCard({
                   )
                 })}
             </div>
-            <div className="flex flex-wrap gap-1 pt-1">
-              {TIMES.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  aria-pressed={t === time}
-                  onClick={() => setTime(t)}
-                  className={`h-8 rounded-full px-2.5 font-mono text-[11.5px] tabular-nums transition-colors ${t === time ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:text-ink'}`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <span className="flex items-center gap-1.5 text-[12.5px] text-ink-3">
-              <SparkIcon size={9} />
-              Best times for {brand.name}
-            </span>
-            <ol className="flex flex-col">
-              {best.map((b) => {
-                const on = b.dayN === dayN && b.time === time
-                return (
-                  <li key={b.dayN + b.time}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDayN(b.dayN)
-                        setTime(b.time)
-                      }}
-                      className={`grid w-full grid-cols-[minmax(0,1fr)_72px] items-center gap-3 rounded-[9px] px-2.5 py-2 text-left transition-colors ${on ? 'bg-surface' : 'hover:bg-surface-2'}`}
-                    >
-                      <span className="text-[12.5px] tabular-nums">
-                        {b.label}, {b.time}
-                      </span>
-                      <span className="h-1.5 overflow-hidden rounded-full bg-(--track)/60">
-                        <span
-                          className="block h-full rounded-full bg-(--insight-5)"
-                          style={{ width: `${(b.score / top) * 100}%` }}
-                        />
-                      </span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ol>
-          </div>
+          <DayChart
+            dayN={dayN}
+            time={time}
+            setTime={setTime}
+            best={best}
+            onBest={() => {
+              if (!best) return
+              setDayN(best.dayN)
+              setTime(best.time)
+            }}
+          />
         </div>
       </Fold>
       {story && when !== 'draft' && (
@@ -1342,12 +1305,128 @@ function WhenCard({
   )
 }
 
+/** "Instagram, TikTok and YouTube". */
+function namesOf(keys: ChannelKey[]): string {
+  const names = keys.map((k) => NAME[k])
+  return names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+}
+
+/** Each hour the chart draws, 8:00 to 22:00. */
+const HOURS = Array.from({ length: 15 }, (_, i) => 8 + i)
+
+/**
+ * How good each hour is, 0–1: Insights scores five parts of the day (9, 12, 15, 18 and 21), and an
+ * hour between two of them is read off the line between them.
+ */
+function hourly(parts: number[]): number[] {
+  return HOURS.map((h) => {
+    const x = (h - 9) / 3
+    if (x <= 0) return parts[0]! * (1 + x / 2)
+    if (x >= parts.length - 1) return parts.at(-1)! * (1 - (x - parts.length + 1) / 2)
+    const i = Math.floor(x)
+    return parts[i]! + (parts[i + 1]! - parts[i]!) * (x - i)
+  })
+}
+
+/** Insights' weight for each weekday, Monday first. */
+function dayWeights(brandId: BrandId): number[] {
+  const chart = INSIGHTS_BY_BRAND[brandId].stories.find((s) => s.chart.kind === 'days')?.chart
+  return chart && chart.kind === 'days' ? chart.values : [1, 1, 1, 1, 1, 1, 1]
+}
+
+/**
+ * The picked day's hours as bars, the way a map shows how busy a place is. The best hour is green;
+ * a bar sets the time. The bars share one scale across the week, so a quiet day looks quiet.
+ */
+function DayChart({
+  dayN,
+  time,
+  setTime,
+  best,
+  onBest,
+}: {
+  dayN: string
+  time: string
+  setTime: (t: string) => void
+  best?: { dayN: string; label: string; time: string }
+  onBest: () => void
+}) {
+  const { brand, weeks } = useBrand()
+  const [hover, setHover] = React.useState<number | null>(null)
+  const weekday = Math.max(
+    0,
+    weeks.map((w) => w.days.findIndex((d) => d.n === dayN)).find((i) => i >= 0) ?? 0,
+  )
+  const weights = dayWeights(brand.id)
+  const curve = hourly(INSIGHTS_BY_BRAND[brand.id].hours)
+  const top = Math.max(...weights) * Math.max(...curve)
+  const bars = curve.map((v) => (v * (weights[weekday] ?? 1)) / top)
+  const peak = bars.indexOf(Math.max(...bars))
+  const at = (h: number) => `${String(h).padStart(2, '0')}:00`
+  const shown = hover ?? HOURS.findIndex((h) => at(h) === time)
+
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="flex items-center justify-between gap-3 text-[12.5px]">
+        <span className={shown === peak ? 'text-(--insight-6)' : 'text-ink-3'}>
+          {shown >= 0 ? at(HOURS[shown]!) : time}
+          {shown === peak ? ' · Best time' : ''}
+        </span>
+        {best && !(best.dayN === dayN && best.time === time) && (
+          <button
+            type="button"
+            onClick={onBest}
+            className="flex items-center gap-1.5 text-ink-3 transition-colors hover:text-ink"
+          >
+            <SparkIcon size={9} />
+            Best: {best.label}, {best.time}
+          </button>
+        )}
+      </span>
+      <div role="radiogroup" aria-label="Post time" className="flex h-[96px] items-end gap-[3px]">
+        {HOURS.map((h, i) => {
+          const on = at(h) === time
+          return (
+            <button
+              key={h}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              aria-label={`${at(h)}${i === peak ? ', best time' : ''}`}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+              onFocus={() => setHover(i)}
+              onBlur={() => setHover(null)}
+              onClick={() => {
+                // A tap leaves no mouseleave behind: the label goes back to the picked hour.
+                setHover(null)
+                setTime(at(h))
+              }}
+              className="group/bar flex h-full flex-1 items-end"
+            >
+              <span
+                className={`block w-full rounded-t-[4px] transition-opacity ${i === peak ? 'bg-(--insight-5)' : 'bg-ink-5'} ${on ? 'shadow-[0_0_0_1.5px_var(--page),0_0_0_3px_var(--ink)]' : ''} ${on || i === peak ? 'opacity-100' : hover === i ? 'opacity-90' : 'opacity-45'}`}
+                style={{ height: `${Math.max(bars[i]! * 100, 4)}%` }}
+              />
+            </button>
+          )
+        })}
+      </div>
+      <div className="flex gap-[3px] border-t border-(--cal-line) pt-1.5 font-mono text-[9.5px] text-ink-5">
+        {HOURS.map((h) => (
+          <span key={h} className="flex-1 text-center whitespace-nowrap">
+            {h % 3 === 0 ? `${h % 12 || 12}${h < 12 ? 'a' : 'p'}` : ''}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /** The brand's best upcoming slots: Insights' day weight times its daypart weight, top five. */
 function bestTimes(brandId: BrandId, weeks: ReturnType<typeof useBrand>['weeks']) {
   const data = INSIGHTS_BY_BRAND[brandId]
-  const daysChart = data.stories.find((s) => s.chart.kind === 'days')?.chart
-  const dayWeights =
-    daysChart && daysChart.kind === 'days' ? daysChart.values : [1, 1, 1, 1, 1, 1, 1]
+  const weights = dayWeights(brandId)
   const out: Array<{ dayN: string; label: string; time: string; score: number }> = []
   for (const w of weeks) {
     w.days.forEach((d, i) => {
@@ -1357,7 +1436,7 @@ function bestTimes(brandId: BrandId, weeks: ReturnType<typeof useBrand>['weeks']
           dayN: d.n,
           label: dayLabel(weeks, d.n) ?? d.n,
           time: DAYPART_TIME[part]!,
-          score: (dayWeights[i] ?? 0) * h,
+          score: (weights[i] ?? 0) * h,
         })
       })
     })

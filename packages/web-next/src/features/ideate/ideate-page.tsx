@@ -40,8 +40,6 @@ import {
   type MoodSource,
 } from './ideas-store'
 
-/** Each idea drawn at the shape its post will have. */
-const RATIO: Record<IdeaFormat, string> = { reel: '9 / 16', carousel: '4 / 5', story: '9 / 16' }
 const FORMAT_LABEL: Record<IdeaFormat, string> = {
   reel: 'Reel',
   carousel: 'Carousel',
@@ -237,7 +235,7 @@ function Ideas({ slots, onToast }: { slots: Slot[]; onToast: (t: string) => void
           aria-label="New idea"
           title="New idea"
           onClick={() => setWriting(true)}
-          className={`flex h-[72px] w-[41px] shrink-0 items-center justify-center rounded-[8px] border border-dashed transition-colors ${writing ? 'border-ink text-ink' : 'border-(--cal-ghost) text-ink-4 hover:border-(--line-strong) hover:text-ink'}`}
+          className={`flex aspect-[4/5] h-[72px] shrink-0 items-center justify-center rounded-[8px] border border-dashed transition-colors ${writing ? 'border-ink text-ink' : 'border-(--cal-ghost) text-ink-4 hover:border-(--line-strong) hover:text-ink'}`}
         >
           <PlusIcon size={12} />
         </button>
@@ -261,24 +259,13 @@ function Ideas({ slots, onToast }: { slots: Slot[]; onToast: (t: string) => void
 }
 
 /**
- * The picture and the words beside it. The picture keeps the post's shape at one width, and the
- * spread a reel's height, so the words and the strip stay in place from one idea to the next.
+ * The picture and the words beside it. Every picture is one size, 4:5, whatever the format, so
+ * the words and the strip stay in place from one idea to the next.
  */
-function Spread({
-  format,
-  picture,
-  children,
-}: {
-  format: IdeaFormat
-  picture: React.ReactNode
-  children: React.ReactNode
-}) {
+function Spread({ picture, children }: { picture: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="bb-swap grid min-h-[455px] grid-cols-[256px_minmax(0,1fr)] items-start gap-16 max-md:grid-cols-1 max-md:gap-8">
-      <div
-        className="relative w-full overflow-hidden rounded-[18px] bg-tile max-md:mx-auto max-md:w-[60%]"
-        style={{ aspectRatio: RATIO[format] }}
-      >
+    <section className="bb-swap grid grid-cols-[320px_minmax(0,1fr)] items-start gap-16 max-md:grid-cols-1 max-md:gap-8">
+      <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[18px] bg-tile max-md:mx-auto max-md:w-[70%]">
         {picture}
       </div>
       <div className="flex max-w-[640px] flex-col items-start gap-6 pt-6 max-md:pt-0">
@@ -328,7 +315,7 @@ function IdeaSpread({ slot }: { slot: Slot }) {
   const [sharpen, setSharpen] = React.useState(false)
 
   return (
-    <Spread format={card.format} picture={<Picture format={card.format} src={src} sizes="256px" />}>
+    <Spread picture={<Picture format={card.format} src={src} sizes="320px" />}>
       <span className={`${EYEBROW} flex items-center gap-2`}>
         <FormatIcon format={card.format} size={11} />
         {FORMAT_LABEL[card.format]} · {card.pillar}
@@ -445,7 +432,6 @@ function MomentSpread({ moment, onUse }: { moment: Moment; onUse: () => void }) 
   const [, day, month] = moment.when.split(' ')
   return (
     <Spread
-      format={moment.seed.format}
       picture={
         <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-(--layer-holiday) text-(--layer-holiday-ink)">
           <span className="font-display text-[88px] leading-none tracking-[-0.04em]">{day}</span>
@@ -490,7 +476,7 @@ function NewIdea({ onAdd, onCancel }: { onAdd: (id: string) => void; onCancel: (
   }
 
   return (
-    <Spread format={format} picture={<Picture format={format} sizes="256px" />}>
+    <Spread picture={<Picture format={format} sizes="320px" />}>
       <span role="radiogroup" aria-label="Format" className="flex items-center gap-4">
         {(Object.keys(FORMAT_LABEL) as IdeaFormat[]).map((f) => (
           <button
@@ -525,7 +511,7 @@ function NewIdea({ onAdd, onCancel }: { onAdd: (id: string) => void; onCancel: (
   )
 }
 
-/** One idea in the strip, at its post's shape; a moment shows its day on the holiday tint. */
+/** One idea in the strip, at the size of every other; a moment shows its day on the holiday tint. */
 function Thumb({
   item,
   src,
@@ -546,12 +532,11 @@ function Thumb({
       aria-label={hook}
       aria-current={on}
       title={hook}
-      className={`relative h-[72px] shrink-0 overflow-hidden rounded-[8px] bg-tile transition-[opacity,transform,box-shadow] duration-200 ${on ? '-translate-y-1 shadow-[0_0_0_2px_var(--page),0_0_0_3.5px_var(--ink)]' : 'opacity-50 hover:opacity-100'}`}
-      style={{ aspectRatio: RATIO[format] }}
+      className={`relative aspect-[4/5] h-[72px] shrink-0 overflow-hidden rounded-[8px] bg-tile transition-[opacity,transform,box-shadow] duration-200 ${on ? '-translate-y-1 shadow-[0_0_0_2px_var(--page),0_0_0_3.5px_var(--ink)]' : 'opacity-50 hover:opacity-100'}`}
     >
       {item.kind === 'idea' ? (
         <>
-          <Picture format={format} src={src} sizes="41px" small />
+          <Picture format={format} src={src} sizes="58px" small />
           {item.slot.status === 'suggested' && (
             <span className="absolute top-1 right-1 size-2 rounded-full bg-(--insight-5) shadow-[0_0_0_1.5px_var(--page)]" />
           )}
@@ -721,7 +706,7 @@ function ConnectSources() {
                 transform: `rotate(${[-8, -3, 3, 8][i]}deg) translateY(${[8, 0, 0, 8][i]}px)`,
               }}
             >
-              <Image src={src} alt="" fill sizes="100px" className="object-cover" />
+              <Image src={src} alt="" fill sizes="250px" className="object-cover" />
             </span>
           ))}
       </span>

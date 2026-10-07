@@ -148,7 +148,7 @@ export function DayView({
             >
               <span className="font-mono text-[10px] text-ink-4 tabular-nums">{s.time}</span>
               <span className="relative block h-[44px] w-[25px] overflow-hidden rounded-[4px] bg-tile shadow-[0_0_0_1px_var(--line)]">
-                {s.image && <Media src={s.image} sizes="25px" />}
+                {s.image && <Media src={s.image} sizes="64px" />}
               </span>
             </button>
           ))}

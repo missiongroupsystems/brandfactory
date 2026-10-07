@@ -277,7 +277,7 @@ function BoardCard({
             className={`relative block w-10 shrink-0 overflow-hidden rounded-[7px] bg-tile ${card.format === 'carousel' ? 'aspect-[4/5]' : 'aspect-[9/16]'}`}
           >
             {src ? (
-              <Image src={src} alt="" fill sizes="40px" className="object-cover" />
+              <Image src={src} alt="" fill sizes="140px" className="object-cover" />
             ) : (
               <span
                 className="absolute inset-0"

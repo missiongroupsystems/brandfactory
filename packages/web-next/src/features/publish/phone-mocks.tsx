@@ -47,8 +47,9 @@ export function PhoneMock({
 
 /* ---------- Shared pieces ---------- */
 
+/** The phone is 215 px wide and 9:16 tall: a 4:5 or wide photo covering it needs far more width. */
 function Photo({ image }: { image: string | undefined }) {
-  return image ? <Media src={image} sizes="172px" /> : null
+  return image ? <Media src={image} sizes="480px" /> : null
 }
 
 /** The scrims every full-screen video app lays over the clip so white type reads. */

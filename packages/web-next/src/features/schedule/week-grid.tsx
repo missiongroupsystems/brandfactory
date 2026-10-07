@@ -92,6 +92,13 @@ function packLanes(events: CalendarEvent[]): { event: CalendarEvent; lane: numbe
  * can hold 28 stories); a day opens in the day view. Week: one week, each day its posts as
  * thumbnails by time, with drag between days.
  */
+
+/**
+ * The width a tile asks next/image for. A tile is about 175 px wide, and a wide photo that covers
+ * a tall tile needs about 1.6 times that: "124px" loaded a blurry 256 px image on a 2x screen.
+ */
+const TILE_SIZES = '280px'
+
 export function WeekGrid({
   weeks,
   layers,
@@ -600,14 +607,14 @@ export function PostTile({
     >
       {image?.startsWith('blob:') ? (
         // A file dropped in the composer, possibly a video: drawn as it is, not through next/image.
-        <Media src={image} sizes="124px" />
+        <Media src={image} sizes={TILE_SIZES} />
       ) : (
         image && (
           <Image
             src={image}
             alt=""
             fill
-            sizes="124px"
+            sizes={TILE_SIZES}
             draggable={false}
             loading={eager ? 'eager' : undefined}
             className="object-cover"

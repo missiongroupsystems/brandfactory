@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.2.0** — 2026-10-07 — The composer's best times become an hourly bar chart for the picked day (best hour in green, a bar sets the time); the send button reads "Schedule on" or "Post on" with each account's logo; every Current ideas card is 4:5; images ask next/image for enough pixels to stay sharp on 2x screens. No migration. 82 tests.
 - **2.1.0** — 2026-10-07 — Current ideas shows one idea at a time (photo, hook, why, "Plan it", "Sharpen") with a strip of thumbnails to move between ideas and the moments ahead, so it no longer reads as a second calendar; a failed post's retry starts on the account it failed on only and names its accounts by logo. No migration. 82 tests.
 - **2.0.0** — 2026-10-07 — `main` is brand base only: the old BrandFactory packages, Fly deploy and docs move to the branch `archive/main-2026-10-07`, and the demo moves from `packages/brandbase` to `packages/web-next` so the existing Vercel project deploys it unchanged. No migration. 78 tests.
 - **1.64.0** — 2026-10-07 — Schedule gets Month, Week and Day views and a stage filter beside Layers; a new post opens a full-page composer that writes one post for every platform (Brandwatch makes one per network); Ideate's views become Current ideas and Moodboard (Pinterest, Instagram, TikTok in one board). No migration. 3456 tests.
@@ -13,6 +14,29 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.2.0 — 2026-10-07
+
+**Best times as a chart.** The composer's list of five best slots becomes a bar chart of the
+picked day, one bar an hour from 8:00 to 22:00, the way a map shows how busy a place is. The bars
+come from Insights' five parts of the day, read off the line between them, times the weekday's
+weight, on one scale for the week, so a quiet day looks quiet. The best hour is green; hover shows
+an hour, a click sets it, and "Best: Fri 9 Oct, 18:00" jumps to the best slot. The time chips go:
+the bars are the picker, so the half-hour times (19:30) are no longer offered.
+
+**The send button names its accounts.** "Schedule on 3" and "Publish to 3" become "Schedule on"
+and "Post on" with the logo of each account the post goes to, like "Retry on" in 2.1.0; screen
+readers hear the account names.
+
+**One card size in Current ideas.** The photo, a moment's card and every thumbnail in the strip
+are 4:5 whatever the format, so nothing changes size from one idea to the next.
+
+**Sharper images.** A check of every image on every page at 2x found tiles asking next/image for
+too few pixels: the calendar asked for 124 px and drew 175 px tiles, and a wide photo covering a
+tall tile needs more again. The calendar (`TILE_SIZES`), day view, composer, phone preview, shoot
+brief and moodboard now ask for enough. Low-resolution source photos are replaced separately.
+
+**No migration.** 82 tests (14 files), all passing.
 
 ## 2.1.0 — 2026-10-07
 
