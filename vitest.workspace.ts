@@ -18,4 +18,5 @@ export default [
   'packages/web/vitest.config.ts',
   'packages/web-next/vitest.config.ts',
   'packages/brandbase/vitest.config.ts',
+  'packages/connect/vitest.config.ts',
 ]

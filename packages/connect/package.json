@@ -1,0 +1,23 @@
+{
+  "name": "@brandfactory/connect",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "dev": "tsx watch --env-file=.env src/main.ts",
+    "start": "tsx --env-file=.env src/main.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@hono/node-server": "^1.13.7",
+    "hono": "^4.6.12",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "vitest": "^2.1.8"
+  }
+}

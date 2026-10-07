@@ -68,7 +68,7 @@ export function InsightsPage() {
             <span className={EYEBROW}>
               {brand.name} · {data.period} · Instagram + TikTok
             </span>
-            <h1 className="font-serif text-[56px] leading-none tracking-[-0.015em] max-md:text-[44px]">
+            <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[44px]">
               Insights
             </h1>
           </div>
@@ -267,7 +267,7 @@ function Overview({ data }: { data: BrandInsights }) {
 function SectionTitle({ title, note }: { title: string; note: string }) {
   return (
     <div className={`flex items-baseline justify-between gap-4 border-b ${HAIR} pb-3`}>
-      <h2 className="font-serif text-[28px] leading-none">{title}</h2>
+      <h2 className="font-display text-[28px] leading-none">{title}</h2>
       <span className={`${EYEBROW} max-sm:hidden`}>{note}</span>
     </div>
   )
@@ -307,7 +307,7 @@ function StoryCard({ story, index }: { story: Story; index: number }) {
         <span className="text-[34px] leading-none font-semibold tracking-[-0.02em] text-(--insight-6) tabular-nums">
           {story.figure}
         </span>
-        <p className="font-serif text-[22px] leading-[1.15]">{story.text}</p>
+        <p className="font-display text-[22px] leading-[1.15]">{story.text}</p>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -324,7 +324,7 @@ function StoryCard({ story, index }: { story: Story; index: number }) {
                 <SparkIcon size={9} />
                 Idea · {idea.format} · {idea.pillar}
               </span>
-              <span className="font-serif text-[19px] leading-[1.15] italic">“{idea.hook}”</span>
+              <span className="font-display text-[19px] leading-[1.15] ">“{idea.hook}”</span>
               <span className="text-[13px] leading-[1.45] text-ink-2">{idea.angle}</span>
             </div>
           </Fold>
@@ -528,7 +528,7 @@ function BestTime({ story, days, hours }: { story: Story; days: number[]; hours:
           {story.figure}
         </span>
         <span className={EYEBROW}>{story.label}</span>
-        <p className="mt-2 max-w-[28ch] font-serif text-[24px] leading-[1.15]">{story.text}</p>
+        <p className="mt-2 max-w-[28ch] font-display text-[24px] leading-[1.15]">{story.text}</p>
       </div>
       <div ref={box} className="relative flex flex-col gap-3" onMouseLeave={() => setTip(null)}>
         <div className="grid grid-cols-[88px_repeat(7,minmax(0,1fr))] gap-1.5 max-sm:grid-cols-[64px_repeat(7,minmax(0,1fr))] max-sm:gap-1">
@@ -610,7 +610,7 @@ function Posts({ posts }: { posts: PostStat[] }) {
   return (
     <section aria-label="Posts" className="flex flex-col gap-5">
       <div className={`flex flex-wrap items-end justify-between gap-4 border-b ${HAIR} pb-3`}>
-        <h2 className="font-serif text-[28px] leading-none">{posts.length} posts this month</h2>
+        <h2 className="font-display text-[28px] leading-none">{posts.length} posts this month</h2>
         <div className="w-[260px]">
           <Segmented
             label="Rank by"
@@ -660,7 +660,7 @@ function Posts({ posts }: { posts: PostStat[] }) {
                 <Image src={p.image} alt="" fill sizes="48px" className="object-cover" />
               </span>
               <span className="flex min-w-0 flex-col gap-1">
-                <span className="truncate font-serif text-[17px] leading-[1.15] italic">
+                <span className="truncate font-display text-[17px] leading-[1.15] ">
                   “{p.hook}”
                 </span>
                 <span className="font-mono text-[10px] tracking-[0.06em] text-ink-4 uppercase">
@@ -731,7 +731,7 @@ function Creators({ creators }: { creators: Creator[] }) {
         <SectionTitle title="Creators" note={`Who posted about ${brand.name}`} />
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-5 max-lg:grid-cols-1">
           <div className="flex flex-col justify-between gap-8 rounded-[18px] bg-surface-2 p-7 max-md:p-5">
-            <p className="max-w-[30ch] font-serif text-[24px] leading-[1.15]">
+            <p className="max-w-[30ch] font-display text-[24px] leading-[1.15]">
               {ranked[0]!.name} drew the most views. {engaged.name}’s audience engaged the most.
             </p>
             <div className="grid grid-cols-3 gap-4">
@@ -832,7 +832,7 @@ function Creators({ creators }: { creators: Creator[] }) {
                     </span>
                     <span className="flex min-w-0 flex-col gap-1.5">
                       <span className={EYEBROW}>Their best post</span>
-                      <span className="font-serif text-[19px] leading-[1.15] italic">
+                      <span className="font-display text-[19px] leading-[1.15] ">
                         “{c.top.hook}”
                       </span>
                       <span className="font-mono text-[11px] text-ink-3 tabular-nums">

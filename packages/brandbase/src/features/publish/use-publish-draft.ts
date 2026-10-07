@@ -11,6 +11,8 @@ import {
   type ChannelKey,
   type Draft,
   type Outcome,
+  type Privacy,
+  type When,
 } from './model'
 
 export type Phase = 'compose' | 'scheduled' | 'publishing' | 'done'
@@ -22,7 +24,13 @@ export type Phase = 'compose' | 'scheduled' | 'publishing' | 'done'
  * LinkedIn fails at the end (a signed-out account, the commonest real failure), and Reconnect
  * sends it again. The timings are slow enough to watch and short enough not to bore a room.
  */
-export function usePublishDraft(input: { format: Format; hook: string; caption: string }) {
+export function usePublishDraft(input: {
+  format: Format
+  hook: string
+  caption: string
+  selected?: ChannelKey[]
+  privacy?: Privacy
+}) {
   const [draft, setDraft] = React.useState<Draft>(() => initialDraft(input))
   const [rawPhase, setPhase] = React.useState<Phase>('compose')
   const [outcomes, setOutcomes] = React.useState<Partial<Record<ChannelKey, Outcome>>>({})
@@ -68,20 +76,24 @@ export function usePublishDraft(input: { format: Format; hook: string; caption: 
     })
   }, [])
 
-  const send = React.useCallback(() => {
-    if (rawPhase !== 'compose' || blockers(draft).length > 0) return
-    const keys = activeChannels(draft).map((c) => c.key)
-    if (draft.when === 'slot') {
-      setOutcomes(Object.fromEntries(keys.map((k) => [k, { state: 'scheduled' } as Outcome])))
-      setPhase('scheduled')
-      return
-    }
-    setOutcomes(
-      Object.fromEntries(keys.map((k) => [k, { state: 'uploading', progress: 0 } as Outcome])),
-    )
-    setPhase('publishing')
-    upload(keys, keys.includes('li') ? 'li' : null)
-  }, [draft, rawPhase, upload])
+  // `when` can be passed in, so a view that sets it and sends in one click does not wait a render.
+  const send = React.useCallback(
+    (when: When = draft.when) => {
+      if (rawPhase !== 'compose' || blockers(draft).length > 0) return
+      const keys = activeChannels(draft).map((c) => c.key)
+      if (when === 'slot') {
+        setOutcomes(Object.fromEntries(keys.map((k) => [k, { state: 'scheduled' } as Outcome])))
+        setPhase('scheduled')
+        return
+      }
+      setOutcomes(
+        Object.fromEntries(keys.map((k) => [k, { state: 'uploading', progress: 0 } as Outcome])),
+      )
+      setPhase('publishing')
+      upload(keys, keys.includes('li') ? 'li' : null)
+    },
+    [draft, rawPhase, upload],
+  )
 
   const retry = React.useCallback(
     (key: ChannelKey) => {

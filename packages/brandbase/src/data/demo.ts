@@ -6,7 +6,11 @@
  */
 
 export type Format = 'reel' | 'carousel' | 'story'
-export type Stage = 'draft' | 'approved' | 'filming' | 'editing' | 'scheduled' | 'posted'
+/**
+ * A post's life, as Brandwatch counts it: drafted, waiting on someone's OK, scheduled, out. `failed`
+ * means it was due and did not go out; it needs someone now, so it is never quiet.
+ */
+export type Stage = 'draft' | 'awaiting' | 'scheduled' | 'posted' | 'failed'
 export type LayerKey = 'city' | 'holiday' | 'ours' | 'shoot'
 
 export const PHOTO = {
@@ -36,6 +40,12 @@ export interface Post {
   /** The calendar slot, already in words: the demo never computes a date. */
   slot: string
   slotShort: string
+  /** Why it did not go out, in plain words and what fixes it. Only on a failed post. */
+  error?: string
+  /** The account it failed on, which the fix reconnects. */
+  failedOn?: 'ig' | 'tt' | 'yt' | 'li' | 'fb'
+  /** The accounts it goes to, once someone picked them in the composer. */
+  channels?: Array<'ig' | 'tt' | 'yt' | 'li' | 'fb'>
 }
 
 export const POSTS: Post[] = [
@@ -45,7 +55,7 @@ export const POSTS: Post[] = [
     hook: 'The final touch. Watch the crust.',
     images: [PHOTO.crust],
     duration: '0:24',
-    stage: 'approved',
+    stage: 'awaiting',
     slot: 'Thu 8 Oct, 18:00',
     slotShort: 'Thu, 18:00',
   },
@@ -64,9 +74,34 @@ export const POSTS: Post[] = [
     hook: 'Pasta by hand in 30 seconds.',
     images: [PHOTO.pasta],
     duration: '0:30',
-    stage: 'editing',
+    stage: 'draft',
     slot: 'Tue 13 Oct, 12:00',
     slotShort: 'Tue, 12:00',
+  },
+  {
+    id: 'wine-night',
+    format: 'carousel',
+    hook: 'Wine pairing night, this Saturday.',
+    images: ['/demo/casa-vostra/wine-night.jpg'],
+    stage: 'failed',
+    slot: 'Mon 5 Oct, 19:30',
+    slotShort: 'Mon, 19:30',
+    channels: ['ig', 'fb'],
+    error: 'Facebook asks for the Page to be confirmed again. Reconnect Facebook to post it.',
+    failedOn: 'fb',
+  },
+  {
+    id: 'margherita',
+    format: 'reel',
+    hook: 'Margherita, oven to table in 90 seconds.',
+    images: ['/demo/pins/cv-p-12.jpg'],
+    duration: '0:18',
+    stage: 'failed',
+    slot: 'Tue 6 Oct, 12:00',
+    slotShort: 'Tue, 12:00',
+    channels: ['ig', 'tt'],
+    error: 'Instagram signed Casa Vostra out. Reconnect Instagram to post it.',
+    failedOn: 'ig',
   },
   {
     id: 'five-pastas',
@@ -143,8 +178,19 @@ export const WEEKS: Week[] = [
       { layer: 'city', text: 'TOKEN2049', col: 2, span: 3 },
     ],
     days: [
-      { n: '5', past: true, story: { kind: 'posted', image: PHOTO.ravioli, count: 4 } },
-      { n: '6', today: true, story: { kind: 'posted', image: PHOTO.pasta, count: 2 } },
+      {
+        n: '5',
+        past: true,
+        story: { kind: 'posted', image: PHOTO.ravioli, count: 4 },
+        feed: { kind: 'post', postId: 'wine-night' },
+      },
+      {
+        n: '6',
+        today: true,
+        story: { kind: 'posted', image: PHOTO.pasta, count: 2 },
+        // Due at noon today and not out: the calendar's one failed post.
+        feed: { kind: 'post', postId: 'margherita' },
+      },
       { n: '7', story: idea },
       {
         n: '8',
@@ -281,7 +327,7 @@ export const DEFAULT_LAYERS: Record<LayerKey, boolean> = {
   shoot: false,
 }
 
-/** The New post drawer's "From an idea" grid. */
+/** The ideas a new post can start from, in the composer. */
 export const IDEAS: Array<{
   hook: string
   format: Exclude<Format, 'story'>

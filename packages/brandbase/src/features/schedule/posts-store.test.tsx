@@ -12,14 +12,14 @@ import { BrandProvider, useBrand, usePosts } from './posts-store'
 const wrapper = ({ children }: { children: ReactNode }) => <BrandProvider>{children}</BrandProvider>
 
 describe('the posts store', () => {
-  it('moves a post to a new stage, so the calendar tile follows the drawer', () => {
+  it('moves a post to a new stage, so the calendar tile follows the composer', () => {
     const { result } = renderHook(() => usePosts(), { wrapper })
     act(() => result.current.setStage('crust', 'scheduled'))
     expect(result.current.byId('crust')?.stage).toBe('scheduled')
   })
 
   it('changes nothing, not even identities, when the stage is already set', () => {
-    // The publish drawer calls this from an effect. A new array per call, or a new
+    // The composer calls this from an effect. A new array per call, or a new
     // setStage per render, re-ran that effect forever ("Maximum update depth exceeded").
     const { result } = renderHook(() => usePosts(), { wrapper })
     act(() => result.current.setStage('crust', 'scheduled'))
@@ -38,6 +38,8 @@ describe('the brand switcher', () => {
       'crust',
       'ravioli',
       'pasta',
+      'wine-night',
+      'margherita',
       'five-pastas',
     ])
   })
@@ -48,7 +50,7 @@ describe('the brand switcher', () => {
     expect(result.current.brand.name).toBe('Carlitos')
     const ids = result.current.posts.map((p) => p.id)
     expect(ids.every((id) => id.startsWith('carlitos-'))).toBe(true)
-    // The calendar, the drawer and the publish caption all read the same brand.
+    // The calendar, the composer and the publish caption all read the same brand.
     const feedIds = result.current.weeks
       .flatMap((w) => w.days)
       .flatMap((d) => feedsOf(d).flatMap((f) => (f.kind === 'post' ? [f.postId] : [])))
@@ -62,15 +64,17 @@ describe('the brand switcher', () => {
     act(() => result.current.setBrandId('temper'))
     act(() => result.current.setStage('temper-pour', 'scheduled'))
     act(() => result.current.setBrandId('carlitos'))
-    expect(result.current.byId('carlitos-croquetas')?.stage).toBe('approved')
+    expect(result.current.byId('carlitos-croquetas')?.stage).toBe('awaiting')
     act(() => result.current.setBrandId('temper'))
     expect(result.current.byId('temper-pour')?.stage).toBe('scheduled')
     // A stage set on one brand never leaks into another's posts.
     act(() => result.current.setBrandId('casa-vostra'))
     expect(result.current.posts.map((p) => p.stage)).toEqual([
-      'approved',
+      'awaiting',
       'scheduled',
-      'editing',
+      'draft',
+      'failed',
+      'failed',
       'draft',
     ])
   })

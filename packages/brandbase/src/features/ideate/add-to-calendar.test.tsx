@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
 
 import { feedsOf } from '@/data/demo'
+import { channelsOf } from '@/features/schedule/calendar-items'
+import { storyTaken } from '@/features/schedule/move-post'
 import { BrandProvider, useBrand } from '@/features/schedule/posts-store'
 
 const wrapper = ({ children }: { children: ReactNode }) => <BrandProvider>{children}</BrandProvider>
@@ -61,26 +63,26 @@ describe('planning from the shoot brief', () => {
   it('turns an idea into a post at its stage, so the calendar shows what the brief decided', () => {
     const { result } = renderHook(() => useBrand(), { wrapper })
     let id = ''
-    // "Blindfold pizza" sits on 23 as an idea tile; the brief plans it for 22, approved.
+    // "Blindfold pizza" sits on 23 as an idea tile; the brief plans it for 22, awaiting approval.
     act(() => {
       id = result.current.planPost(
         { format: 'reel', hook: 'Blindfold pizza: the rematch.' },
         '22',
         '12:00',
-        'approved',
+        'awaiting',
       )
     })
     expect(feedsOf(day(result.current.weeks, '22'))).toEqual([{ kind: 'post', postId: id }])
     expect(feedsOf(day(result.current.weeks, '23'))).toEqual([])
-    expect(result.current.byId(id)).toMatchObject({ stage: 'approved', slot: 'Thu 22 Oct, 12:00' })
+    expect(result.current.byId(id)).toMatchObject({ stage: 'awaiting', slot: 'Thu 22 Oct, 12:00' })
 
-    act(() => result.current.setStage(id, 'filming'))
+    act(() => result.current.setStage(id, 'scheduled'))
     act(() => {
       result.current.reschedule(id, '27', '19:30')
     })
     expect(feedsOf(day(result.current.weeks, '22'))).toEqual([])
     expect(feedsOf(day(result.current.weeks, '27'))).toEqual([{ kind: 'post', postId: id }])
-    expect(result.current.byId(id)).toMatchObject({ stage: 'filming', slot: 'Tue 27 Oct, 19:30' })
+    expect(result.current.byId(id)).toMatchObject({ stage: 'scheduled', slot: 'Tue 27 Oct, 19:30' })
   })
 
   it('keeps an idea on its day when the brief renames it, so planning it leaves no stray tile', () => {
@@ -98,10 +100,25 @@ describe('planning from the shoot brief', () => {
         { format: 'reel', hook: 'Blindfold pizza, round two.' },
         '23',
         '18:00',
-        'approved',
+        'awaiting',
       )
     })
     expect(feedsOf(day(result.current.weeks, '23'))).toEqual([{ kind: 'post', postId: id }])
+  })
+
+  it('keeps the accounts picked in the composer, so the month counts each one', () => {
+    const { result } = renderHook(() => useBrand(), { wrapper })
+    let id = ''
+    act(() => {
+      id = result.current.planPost(
+        { format: 'reel', hook: 'One post, four accounts.', channels: ['ig', 'tt', 'yt', 'li'] },
+        '14',
+        '18:00',
+        'scheduled',
+      )
+    })
+    // A reel defaults to Instagram, TikTok and YouTube; the pick adds LinkedIn.
+    expect(channelsOf(result.current.byId(id)!)).toEqual(['ig', 'tt', 'yt', 'li'])
   })
 
   it('changes nothing when a post is rescheduled to the day and time it has', () => {
@@ -141,6 +158,8 @@ describe('planning from the shoot brief', () => {
       result.current.reschedule(a, '15', '08:00')
     })
     expect(day(result.current.weeks, '15').story).toEqual({ kind: 'post', postId: a })
-    expect(day(result.current.weeks, '12').story).toEqual({ kind: 'open', draftsReady: false })
+    expect(day(result.current.weeks, '12').story).toEqual({ kind: 'open', draftsReady: false }) // A day whose stories are already out holds no new one either.
+    expect(storyTaken(result.current.weeks, '5')).toBe(true)
+    expect(storyTaken(result.current.weeks, '20')).toBe(false)
   })
 })

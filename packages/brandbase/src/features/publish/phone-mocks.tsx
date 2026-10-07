@@ -7,7 +7,7 @@ import { useBrand } from '@/features/schedule/posts-store'
 import type { ChannelKey } from './model'
 
 /**
- * The post as each channel's own screen shows it. Pure drawing: the sheet decides the text.
+ * The post as each channel's own screen shows it. Pure drawing: the composer decides the text.
  * `text` is the caption that channel will show; for YouTube it is the title.
  *
  * Each screen copies its app's overlay at phone scale (172px wide). The counts are invented

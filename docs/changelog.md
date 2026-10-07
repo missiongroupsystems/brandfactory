@@ -6,7 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **1.63.0** — 2026-10-07 — BrandBase's Ideate and Insights pages are redesigned from scratch. Ideate has two views: ideas shelved by format (reels at 9:16, carousels at 4:5) and the imported Pinterest boards as a masonry board; a Shoot brief project board plans each idea (status columns, drag to move, date and time) and the calendar follows it. Stories join reels and carousels. Insights leads with four headline numbers, then Overview, Posts and Creators tabs, every chart titled and every mark hoverable. No migration. 3421 tests.
+- **1.64.0** — 2026-10-07 — Schedule gets Month, Week and Day views and a stage filter beside Layers; a new post opens a full-page composer that writes one post for every platform (Brandwatch makes one per network); Ideate's views become Current ideas and Moodboard (Pinterest, Instagram, TikTok in one board). No migration. 3456 tests.
+- **1.63.0** — 2026-10-07 — BrandBase's Ideate and Insights pages are redesigned from scratch. Ideate has two views: ideas shelved by format (reels at 9:16, carousels at 4:5) and the imported Pinterest boards as a masonry board; a Shoot brief project board plans each idea (status columns, drag to move, date and time) and the calendar follows it. Stories join reels and carousels. Insights leads with four headline numbers, then Overview, Posts and Creators tabs, every chart titled and every mark hoverable. No migration. 3424 tests.
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 - **1.61.0** — 2026-10-05 — The Events mapping is verified against both live databases and the seed stops describing a different estate: six brands map to live outlets, the seventh is group-level, and `Firebird by Suetomi` turns out not to be a brand in Brand Base at all — so four documents carried a caveat about a brand that does not exist. Migration none, but `db:seed` output changes. No migration. 3375 tests.
 - **1.60.0** — 2026-10-05 — An event on the calendar stops promising a destination it did not have: the chip was a `div` with a link icon, between entry chips that are real buttons, so it taught the reader to click it and then did nothing. It opens the day plan now, where the booking's outlet, room, time and owner already were. No migration. 3375 tests.
@@ -35,7 +36,7 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.41.0** — 2026-08-18 — Spaces leaves: the last screen in the nav that plans premises rather than brands goes whole — two routes, the largest feature folder in the package, and the only reason this marketing app shipped a 3D engine and a second state library. No migration. 2292 tests.
 - **1.40.1** — 2026-08-18 — Pre-push review of 1.40.0: the form's most ordinary mistake — entering a creator who is already on the roster — answered `Internal Server Error`, because influencers is this schema's first aggregate with a unique key somebody types. It is a 409 that names the pair. No migration. 2292 tests.
 - **1.40.0** — 2026-08-18 — A creator stops being a shape the frontend invented for itself and becomes an aggregate: two tables, five routes, an exhaustive list, a page each and a form that fills them — so the tier bands' counts are totals and the roster is whatever somebody put in the table. Migration 0014. 2286 tests.
-- **1.39.0** — 2026-08-17 — Influencers stops being the address book under a new label: a creator record this app declares, grouped by reach tier because that tier is *derived*, and no vendor anywhere — the six agencies leave for a fixture of their own, where six contracts still need them. Route moves to `/influencers`. No migration. 2211 tests.
+- **1.39.0** — 2026-08-17 — Influencers stops being the address book under a new label: a creator record this app declares, grouped by reach tier because that tier is _derived_, and no vendor anywhere — the six agencies leave for a fixture of their own, where six contracts still need them. Route moves to `/influencers`. No migration. 2211 tests.
 - **1.38.0** — 2026-08-17 — The Vendors table stops asking which counterparty kind you want — marketing buys from no landlords — and its Brands column stops being a number: the contracts cell moves to a shared component and names the brands on hover. First browser pass since 1.35.1. No migration. 2196 tests.
 - **1.37.0** — 2026-08-17 — A contract stops being an agreement about premises and becomes one about a brand: `/contracts` groups, filters and creates by brand, the outlet dimension leaves with the service workflow that hung off it, and `category` gets a marketing vocabulary. No migration. 2193 tests.
 - **1.36.2** — 2026-08-17 — Pre-push review of 1.36.0 and 1.36.1: a delete that drew an error over its own success, two surfaces that read a failed brand request as `No brand`, and a fixture wired to array order. No migration. 2190 tests.
@@ -58,7 +59,7 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.26.0** — 2026-08-10 — The calendar learns to plan: a month becomes a brief, a brief becomes ideas, and ideas become drafts that say who wrote them. Three doors, two passes, one stateless route. Migration 0012. 1973 tests.
 - **1.25.0** — 2026-08-07 — The session gets a face and a door: an account tile at the foot of the rail, the only round thing in a column of squares, holding the identity the boot probe had been fetching and discarding. No migration. 1688 tests.
 - **1.24.0** — 2026-08-07 — A brand stops being asked to describe itself twice: the `TL;DR` becomes the description line on the hub, on the workspace cards and in the prompt. No migration. 1674 tests.
-- **1.23.1** — 2026-08-06 — Pre-release review of 1.23.0: a horizon line that read *"Global are curated"*, a marker visible on a padding day and absent from the accessibility tree, twelve stated rules now asserted. No migration. 1637 tests.
+- **1.23.1** — 2026-08-06 — Pre-release review of 1.23.0: a horizon line that read _"Global are curated"_, a marker visible on a padding day and absent from the accessibility tree, twelve stated rules now asserted. No migration. 1637 tests.
 - **1.23.0** — 2026-08-06 — The social calendar borrows the year: 92 curated dates in three sets, seasons above the grid and days inside it, colour-coded and switched per brand. No migration. 1622 tests.
 - **1.22.1** — 2026-08-05 — Pre-release review of 1.22.0: one shelf name, five surfaces; a dev blob out of the commit. No migration. 1482 tests.
 - **1.22.0** — 2026-08-05 — `Visual identity` stops being a tile and becomes a card; one library, three shelves, filed by a column. Migrations 0010 + 0011. 1480 tests.
@@ -116,12 +117,64 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
+## 1.64.0 — 2026-10-07
+
+**Schedule v2, from the 7 Oct design review.** Plan: `docs/executing/brandbase-schedule-v2-plan.md`.
+**No migration.** 3456 tests (3274 passing, 182 skipped — the `*.live.test.ts` files).
+
+- **Calendar views.** Month counts each day's posts by platform (no thumbnails: a day can hold 28
+  stories) and opens a day on click; Week shows thumbnails in day columns with time and platforms;
+  Day is an hour rail with the brand's best two hours shaded. The arrows step by the view, Today
+  returns, and the place survives leaving the page (`calendar-view.ts`).
+- **Stage filter** beside Layers: Draft, Awaiting approval, Scheduled, Posted, Failed, with a dot
+  when something is hidden.
+- **Composer** (`/post/new`, `/post/<id>`) replaces the Publish sheet and the New post drawer. One
+  post for any mix of the brand's accounts: format once, media once, a shared caption with a tab per
+  account to override it and a live limit per platform (a new blocker in `model.ts`), details shown
+  only for the accounts that use them (location, first comment, collaborators, AI label, labels), a
+  collapsed row per account for what only it needs (TikTok, YouTube, Facebook, LinkedIn, Instagram),
+  when (now, a day and time with the brand's best times ranked, or a draft), approval, notes, and a
+  preview per account with Instagram's grid. Posts keep the accounts picked, so the month counts
+  them. `sheet.tsx`, `publish-sheet.tsx` and `new-post-drawer.tsx` are gone.
+- **Moodboard.** Ideate's "Pinterest" view joins the brand's Instagram saved and TikTok favourites
+  into one board, each tile marked with its source; "By format" is "Current ideas". Only Pinterest
+  can sync saved posts in production; Instagram and TikTok fill by pasted links (plan doc).
+- A used reference is a frosted check on the photo and "In plan · 24 Oct" in its caption row, in
+  place of the green ring and pill; the source logo is larger, in the platform's own colour.
+- Review fixes (one Sonnet pass, each confirmed in a browser): a second send after "Edit post"
+  moves the post instead of placing another; a reopened post keeps its accounts; the post page
+  belongs to the brand in the header (another brand's post is not shown, and switching brand
+  starts the composer over); a post started from an idea replaces that idea's tile; a day takes
+  one story, and a day whose stories are out takes none; posted and earlier-month posts open
+  read-only; the Week view's story ring follows the stage filter; a dropped video draws on its
+  calendar tile; an empty day or hour opens the composer on that day and time.
+- **Stages cut to Brandwatch's four, plus Failed:** Draft, Awaiting approval, Scheduled, Posted.
+  Approved, Filming and Editing are gone (seed posts mapped: approved → awaiting, filming and
+  editing → draft); "Send for approval" now saves a post as Awaiting approval. The shoot brief's
+  columns follow.
+- **Failed posts.** A `failed` stage with its reason and the account it failed on. Two are seeded on
+  Casa Vostra (Mon 5 Oct, Facebook; Tue 6 Oct, Instagram). The look is quiet but unmissable: a
+  blush ring and a white "Not posted" pill with a red dot on the tile (a past day does not fade it),
+  a tinted count first in the Month day, a hairline red card in the Day view, a tinted banner with
+  Reconnect then Retry in the composer, and "2 not posted" in the Schedule header. Pressing that
+  pill filters the calendar to failed posts (the stage filter's Failed alone) with the grid's rise;
+  pressing it again shows everything.
+- **Stories, redesigned (option B of three mockups).** The ring is gone. Each Week day shows a small
+  fanned deck of 9:16 frames and "4 stories" (the row keeps its height on empty days, so posts start
+  level); pressing it opens a side panel of that day's stories in time order — frame, time, title,
+  status — with "Add a story", which opens the composer on that day with Story chosen. Month gives
+  stories their own count beside the platform chips; the Day view puts each story at its time on
+  the rail's right edge. The demo keeps a count per day, so `stories.ts` gives each story a stable
+  time, title and frame; a planned story is its real post.
+- Week numbers are gone from the calendar (the left column and the "WK 41" beside titles): the
+  team plans by dates, as Google, Apple and Brandwatch show them.
+
 ## 1.63.0 — 2026-10-07
 
 **Ideate and Insights, redesigned.** The first versions read as unclear: three columns of
 controls on Ideate, and charts on Insights whose meaning was not obvious at first glance.
 Completion notes: `docs/completions/brandbase-demo-plan.md`, last section. **No migration.**
-3421 tests (3239 passing, 182 skipped — the `*.live.test.ts` files, run without a database).
+3424 tests (3242 passing, 182 skipped — the `*.live.test.ts` files, run without a database).
 
 - **Ideate** has two views. _By format_ shelves the month's ideas as Reels and Carousels, each tile
   at the post's shape, with Moments ahead below. _Pinterest_ connects once per brand and shows every
@@ -152,6 +205,13 @@ Completion notes: `docs/completions/brandbase-demo-plan.md`, last section. **No 
 - Publish picks the post time: "at 18:00" opens a row of times with the brand's best hour from
   Insights marked, and a scheduled post keeps its day and takes that time on the calendar.
   `reschedule` returns early when nothing changes, since Publish calls it from an effect.
+- Headings and hooks set in Geist (medium, slightly tight) instead of Instrument Serif, the same
+  family as the mono labels; `font-serif` is now `font-display`, and hooks lose their italic.
+- The calendar moves between months (arrows, Today). Other months are built from real dates
+  (`month.ts`): the weeks whose Monday falls in the month, the brand's real past posts from the
+  insights page, and Singapore holidays ahead. The archive stays out of the month's posts.
+- The board's idea pane takes references: drop photos or videos on it, or browse; added ones can
+  be removed.
 
 ## 1.62.0 — 2026-10-06
 
@@ -215,8 +275,8 @@ outstanding on the mapping or the three secrets.
 
 Two anticipated questions came back inverted. **Casa Vostra exists** over there and is mapped — their
 spec had framed its absence as possible. And **the Firebird naming never arose**, because `Firebird
-by Suetomi` is not a brand in Brand Base; four documents and a schema comment carried *"confirm
-Firebird against the slug firebird — the names do not match"* as advice about a brand that does not
+by Suetomi` is not a brand in Brand Base; four documents and a schema comment carried _"confirm
+Firebird against the slug firebird — the names do not match"_ as advice about a brand that does not
 exist. Corrected everywhere, including the MKT-6 asset guide, which had told Chloe to create folders
 for two brands that do not exist and to misspell `Temper` as `temper.`
 
@@ -256,8 +316,8 @@ configured when they do. Curly's was on that list and is now soft-deleted in Eve
 
 ## 1.60.0 — 2026-10-05
 
-**The event chip opens the day plan.** Reported by the owner: *"I can see the events on the
-calendar, but I cannot get more info. Clicking on it doesn't do anything. Is that right?"* It was,
+**The event chip opens the day plan.** Reported by the owner: _"I can see the events on the
+calendar, but I cannot get more info. Clicking on it doesn't do anything. Is that right?"_ It was,
 and it was also a defect. Full write-up in
 `docs/completions/calendar-event-chip-opens-the-day.md`. **No migration.** 3375 tests (3375
 passing, 0 skipped — run with a database).
@@ -268,7 +328,7 @@ glyph said it again, and nothing happened. The week view had the identical shape
 — one and not the other would have left the same false promise a tab away.
 
 It **selects the day** rather than opening a sheet of its own. The detail was already one click
-away in `DayPlan`'s event card — outlet, room, time or *All day*, status, and the entries made for
+away in `DayPlan`'s event card — outlet, room, time or _All day_, status, and the entries made for
 the booking. A sheet would imply controls that cannot exist, because Mission Events owns the
 booking and the day plan already says so.
 
@@ -283,19 +343,19 @@ with the `<div>` restored, all four fail.
 ### Still owed
 
 A browser pass, which needs the events feed configured. And the one open question on MKT-2: whether
-all seven brands have an `events_outlet_id`, which the screen answers itself with *"N events could
-not be shown because their outlet is not linked to a brand here."*
+all seven brands have an `events_outlet_id`, which the screen answers itself with _"N events could
+not be shown because their outlet is not linked to a brand here."_
 
 ## 1.59.0 — 2026-10-05
 
-**A request can be handed to a colleague.** The inbox could assign to *you* and to nobody else;
+**A request can be handed to a colleague.** The inbox could assign to _you_ and to nobody else;
 Natalie and Chloe share one inbox. Full write-up in `docs/completions/assignee-picker.md`.
 **No migration.** 3371 tests (3189 passing, 182 skipped without a database).
 
 ### `GET /members` existed and the people who need it cannot call it
 
-The route landed in 1.58.0 and the admin gate is mounted on its whole prefix, deliberately — *"Admin
-only, and this is the whole of it."* A picker fed from it would work today, because all nine current
+The route landed in 1.58.0 and the admin gate is mounted on its whole prefix, deliberately — _"Admin
+only, and this is the whole of it."_ A picker fed from it would work today, because all nine current
 users are administrators, and would be wrong twice. It would make `mustSetPassword`, `deactivatedAt`,
 `role` and every brand grant readable from the marketing inbox. And it would **403 for the first
 person added as an ordinary member** — which is the case the member work was commissioned for.
@@ -348,7 +408,7 @@ through 1.58.0.
 
 ### Not in this release
 
-An *Assigned to* filter on the inbox. Any notification when somebody is assigned. Reassignment
+An _Assigned to_ filter on the inbox. Any notification when somebody is assigned. Reassignment
 history. Any change to `/members`.
 
 ## 1.58.0 — 2026-10-05
@@ -380,13 +440,13 @@ bare 401 is for a token we cannot verify. The plan said an unknown token should 
 building it showed that to be wrong — both frontends probe `GET /me` at boot and sign the reader
 out on any non-ok answer, so a 401 returns a colleague whose account does not exist yet to the
 sign-in page with nothing said, where they sign in again successfully and bounce off a second
-time. *You were never added* and *your access was withdrawn* are different news, and the
+time. _You were never added_ and _your access was withdrawn_ are different news, and the
 administrator reading the support message needs to know which happened.
 
 **`/rt` repeats all three refusals itself.** The socket verifies its own token and ends at the
 WebSocket upgrade, so it never enters the Hono middleware chain, and `app.routes` cannot see it
 either — the mount-list test does not cover it. `authorizeChannel` is not enough: it walks the
-aggregate chain and so refuses only *after* the socket is open and subscribed, which is a
+aggregate chain and so refuses only _after_ the socket is open and subscribed, which is a
 connection that should never have been accepted. Without the repetition, an account refused
 every HTTP route could still subscribe to a project channel and read the canvas traffic.
 
@@ -415,16 +475,16 @@ answer an account that has not set its own password.
 and the provider is called first — clearing the flag first and failing second leaves somebody
 past the gate holding a credential their administrator still knows. A password Supabase refuses
 is a 400 with its words; a timeout or a bad service key is a fault, because reporting it as
-*pick another password* sends somebody already locked out to try variations of a password that
+_pick another password_ sends somebody already locked out to try variations of a password that
 was never the problem.
 
-`PASSWORD_MIN_LENGTH` is 14 with no composition rules — *one capital, one digit, one symbol*
+`PASSWORD_MIN_LENGTH` is 14 with no composition rules — _one capital, one digit, one symbol_
 pushes people towards `Password1!` — and the one non-length rule rejects a password containing
 the email's local part. `passwordProblem` lives in `@brandfactory/shared` and runs in both
 browsers and on the server, so three copies of a length rule cannot disagree.
 
 `/sign-in` in `web-next` now leads with email and password, keeps Google, and demotes the magic
-link to *Email me a sign-in link instead*. The link bypasses nothing: a flagged account meets
+link to _Email me a sign-in link instead_. The link bypasses nothing: a flagged account meets
 the set-password screen behind it.
 
 ### The columns, and the backfill that changed nothing (migration 0027)
@@ -454,15 +514,15 @@ administrator holding a password somebody else chose is not an exception to it.
 
 **The create order is forced, not stylistic.** Refuse a duplicate address by name; create the
 identity-provider account; write our row **keyed to the id the provider returned**; delete the
-provider account if that insert throws; write the audit. `users.id` *is* the Supabase `sub`, and
+provider account if that insert throws; write the audit. `users.id` _is_ the Supabase `sub`, and
 `upsertUserById` conflicts on that column only — so a row written with a fresh uuid collides on
 `email` the first time its owner signs in, the adapter swallows the error, and the row is
 unreachable forever.
 
 **Grants are diffed, never replaced.** A delete-all-and-reinsert would open a window in which a
 concurrent request from the person being edited is refused a brand they are **keeping**. Saving
-a display name must not log somebody out of a brand, and an omitted `brands` field means *leave
-as is*.
+a display name must not log somebody out of a brand, and an omitted `brands` field means _leave
+as is_.
 
 **Four guards:** no self-demotion, no self-deactivation, no resetting your own password here —
 you would flag yourself into the set-password screen with no administrator left to free you —
@@ -472,14 +532,14 @@ cannot restore anybody except by SQL against production.
 **Deactivate and reactivate are ordered oppositely on purpose.** Deactivate writes our column
 first and suspends at the provider after, failing softly; reactivate lifts the provider ban
 first and propagates its failure. Each is ordered so a half-completed call leaves the account
-*less* reachable, not more.
+_less_ reachable, not more.
 
 The audit is written and **nothing reads it**. One row per administrator act, FK-free, with the
 emails denormalised, never joining the caller's transaction — Launchpad's audit write held a
 foreign key to `users`, took `FOR KEY SHARE` on a row the request already held `FOR UPDATE`, and
 every user create deadlocked for two months. A test asserts the password appears nowhere in what
-was written. An unread audit table returns zero rows and no error, which reads as *nobody has
-ever done anything*; the reader is still owed.
+was written. An unread audit table returns zero rows and no error, which reads as _nobody has
+ever done anything_; the reader is still owed.
 
 ### The screen, and the row that is absent rather than disabled
 
@@ -489,7 +549,7 @@ in `model.ts` mirrors the service guards. Editing your own row is still offered 
 display name — and the role select inside the sheet is the part that refuses, with a sentence
 appearing only where the reader has the permission and the control is missing anyway.
 
-The status cell says **"Temporary password"**, never *"has not signed in yet"*: an
+The status cell says **"Temporary password"**, never _"has not signed in yet"_: an
 administrator's reset sets the same flag, so the second wording would be a flat untruth about
 somebody who has used the product for a year.
 
@@ -500,7 +560,7 @@ suggests was ever chosen on a server or written to a server log.
 `NavItem` gains `adminOnly` and the sidebar filters on it, which is about not offering a
 destination that would refuse — not a boundary. Somebody arriving anyway meets `AdminGate`,
 whose middle state draws nothing: for the second before `/me` lands there is no answer, and
-drawing the refusal then would flash *you are not an administrator* at an administrator on every
+drawing the refusal then would flash _you are not an administrator_ at an administrator on every
 cold load.
 
 Every write invalidates `me` as well as `[bf-members]`. `me` is deliberately outside every other
@@ -518,7 +578,7 @@ Phase F of the plan rather than completing it.
 So the machinery exists and restricts nobody, which is exactly where Launchpad is — its own code
 records `user_brands` as empty in production. Worth stating plainly, because it would be easy to
 read five phases as having delivered per-brand access that is in use. It is not in use. What
-changed is that it *can* be: the tenth person can be added as a member with two brands instead
+changed is that it _can_ be: the tenth person can be added as a member with two brands instead
 of as an administrator with seven.
 
 Two consequences. **A new account defaults to `role: null`** — a member — and the form offers
@@ -535,7 +595,7 @@ blocked would be wrong, which is worse than not offering it.
 Two phases, in `docs/completions/marketing-requests-phase-*.md`. `marketing_requests` is
 workspace-scoped with three pgEnums — type (eight values), priority (four), status (`new`,
 `in_review`, `resolved`, `declined`). **`declined` is new:** the sample form's three-rung ladder
-could not say *we will not do this*.
+could not say _we will not do this_.
 
 The reference is `MR-1001` upward per workspace. The create locks the workspace row `FOR UPDATE`
 and reads the maximum, so concurrent submits queue rather than collide, and soft-deleted rows
@@ -545,7 +605,7 @@ brand, checked again when a patch changes the brand.
 
 The requester is the session's user, never a body field, so `/f/request` now redirects to
 `/marketing-requests?new=1` behind sign-in and any other `/f/<slug>` is a 404. The inbox gained
-an Assigned column, an *Assigned to me* toggle and its filters in the URL. The fixture, the mock
+an Assigned column, an _Assigned to me_ toggle and its filters in the URL. The fixture, the mock
 banner, the `Sample` nav tag and the public form are deleted, so the rule that every mutation in
 `web-next`'s mock layer refuses with a 503 is total again.
 
@@ -556,7 +616,7 @@ A request is a **ticket**: nothing is created when one is accepted. "Plan it" is
 A 422 now names all four causes in their spec — a missing service-key header, bad dates, `to`
 before `from`, or a range over 93 days — where it named only the last two. A 429 is their
 60-a-minute rate limit rather than a generic HTTP failure. The unauthorised error's default text
-still said *share link*; it says *service key*. And a 403 on production can no longer mean
+still said _share link_; it says _service key_. And a 403 on production can no longer mean
 missing configuration on their side: Mission Events confirmed on 30 September that the endpoint
 is live there with our org id configured, so a 403 means our key is wrong. The staging caveat
 stays.
@@ -755,9 +815,9 @@ a tested original replaced. Round seven found nothing critical.
 
 ### A pre-merge review found a deck delete that swept nothing
 
-**Deck delete is a *hard* delete, and it orphaned every version's PDF.** The route deleted the deck
+**Deck delete is a _hard_ delete, and it orphaned every version's PDF.** The route deleted the deck
 row, its `deck_versions` cascaded away by FK, and nothing collected their `pdf_blob_key`s first — so
-the bytes stayed in object storage with no row left to point at them. A later *brand* delete could
+the bytes stayed in object storage with no row left to point at them. A later _brand_ delete could
 not recover them: `listBlobKeysByBrand` reads the versions that a brand delete is about to cascade,
 but a single-deck delete had already destroyed them. The router's own comment asserted the opposite,
 conflating this hard delete with an asset's **soft** delete, whose blob stays reachable and is swept
@@ -789,7 +849,7 @@ and the Marketing funnel — Plans 2 through 4 of
 
 **Decks.** A named presentation and the stack behind it, so a superseded deck stays reachable
 instead of becoming a folder of near-duplicates. **The Canva rule is what proves the tables have to
-be their own**: a Canva version holds a live link *and* the PDF export of that moment, which is
+be their own**: a Canva version holds a live link _and_ the PDF export of that moment, which is
 precisely the row `brand_assets_source_exactly_one` exists to forbid. Newest is derived, never a
 column — `version_date DESC, created_at DESC`, because a team entering a backlog of past dates in
 one sitting would otherwise find that the last thing they uploaded is not current. `author` is text
@@ -805,15 +865,15 @@ snapshot PDF too, so `source = 'pdf'` would have leaked every Canva snapshot in 
 silently, in object storage, on a delete nobody watches. `listBlobKeysByBrand`'s docstring had been
 warning about exactly this leak, through the gap it was about to open.
 
-**Photography**, in two releases because the seam is the request's own sentence: *the pin is a
-separate mark on the photo, not the manual drag order the library already supports.*
+**Photography**, in two releases because the seam is the request's own sentence: _the pin is a
+separate mark on the photo, not the manual drag order the library already supports._
 
 The pin takes **its own comparator**. `byPosition` has three callers and `logoAsset` is one of them,
 whose docstring fixes the resolution rule for every non-unique role — so a pin-aware `byPosition`
-would have decided *which image is the brand's logo* from a mark somebody made in a photo grid. No
+would have decided _which image is the brand's logo_ from a mark somebody made in a photo grid. No
 error, no failing test, just a different logo in the header one day.
 
-`category_id` is nullable because no rule could derive *interior* from a PNG, and **Uncategorised is
+`category_id` is nullable because no rule could derive _interior_ from a PNG, and **Uncategorised is
 a bucket the grid always offers** — every photo predating the column lives there, and hiding it
 would have hidden the entire existing library on day one. Deleting a subject names its count first:
 the photos survive, but they survive somewhere the reader is not looking.
@@ -835,7 +895,7 @@ is unreachable from this app, one has no referent in the schema, and one is a fi
 activity's note carries it meanwhile, which the request permits in as many words.
 
 **The nav.** `BRAND_NAV_ITEMS` reached six rows, so Phase 0's grouping layer filled as planned — and
-because those groups shipped *empty*, the orphan guard fired on each feature that added a row. It
+because those groups shipped _empty_, the orphan guard fired on each feature that added a row. It
 fired three times, which is what it was built for. `Tools` is gone with both its placeholders, and
 with them the last `Empty` tag in the product.
 
@@ -853,8 +913,8 @@ that have not executed here.
 with nothing behind it and become a real table: `brand_resources`, four routes, a screen grouped
 by type in the enum's own order, and a form that writes to all four verbs. Five phases —
 Phase 0's nav grouping, then 1A through 1D — landed on the branch together and release as one,
-per the plan's own framing: *"Every phase is independently shippable… nothing below assumes the
-next phase exists,"* and Plan 1 is the first of four to reach its own end.
+per the plan's own framing: _"Every phase is independently shippable… nothing below assumes the
+next phase exists,"_ and Plan 1 is the first of four to reach its own end.
 
 **Migration 0017** (`0017_productive_slyde.sql`, Phase 1A) — one table, one enum, one index. **No
 migration in Phase 1B, 1C or 1D.** 2928 tests.
@@ -867,7 +927,7 @@ came before it.
 A resource is a named external link — a font shop, a stock library, an icon set — held per brand.
 **Not a `brand_assets` row**: that table's `kind` is `color | image | file` and a website is none
 of the three, and the app stores no bytes here, ever. **No `deleted_at`**: soft delete is for a
-discarded *idea* (`brand_assets`, `canvas_blocks`), and a link to a font shop is not one — the
+discarded _idea_ (`brand_assets`, `canvas_blocks`), and a link to a font shop is not one — the
 three most recently built aggregates (influencers, vendors, outlets) carry none either. **No
 `position`**: the requirement asks for grouping by type, never for ordering inside one, and title
 order already does that.
@@ -886,7 +946,7 @@ nothing disappears ahead of that answer.
 
 The middle test is 1.33.1's regression guard, applied to the one BrandFactory form this codebase
 did not yet have when that release shipped: a mocked `AppError` refusal from `create` has to
-render as the server's own sentence, never as *"Could not reach the API"* — the defect
+render as the server's own sentence, never as _"Could not reach the API"_ — the defect
 `hooks/use-submit.ts` fixed once, and the reason `ResourceForm` goes through that hook rather than
 inventing its own error handling.
 
@@ -915,8 +975,8 @@ since it was written. The panel is the same three fields and shipped with none o
 
 **It is the laundering `toAccountPayload` documents, one field over, with the defence inverted.**
 That docstring spends a paragraph on `Number("") === 0` for followers — and the guard that catches
-an unreadable *follower* count is that it becomes `NaN`, which `InfluencerFollowersSchema` refuses.
-An unreadable *rate* becomes a value the schema wants. The two boxes fail in opposite directions
+an unreadable _follower_ count is that it becomes `NaN`, which `InfluencerFollowersSchema` refuses.
+An unreadable _rate_ becomes a value the schema wants. The two boxes fail in opposite directions
 and only one of them was noisy about it.
 
 Both halves are fixed, because either alone leaves a hole. `type="number"` makes a browser refuse
@@ -929,14 +989,14 @@ still reach the draft.
 ### The follower box had been answering in zod's words
 
 Same missing attribute, louder failure — and measured on the shipped panel rather than argued:
-`412,000` returned *"Invalid input: expected number, received NaN"*, `84.5` returned *"Invalid
-input: expected int, received number"*, `-5` returned *"Too small: expected number to be >=0"*.
+`412,000` returned _"Invalid input: expected number, received NaN"_, `84.5` returned _"Invalid
+input: expected int, received number"_, `-5` returned _"Too small: expected number to be >=0"_.
 
 A comma in a follower count is the likeliest mistake anybody makes here, because **the cell this
 panel opens from prints `412K` and `1.24M`**. And `accountsProblem`'s own docstring rejects exactly
-that shape of sentence: *"'Too small: expected string to have >=1 characters' is not a sentence
-anybody can act on."* All three are worded now, with the fix inside the sentence — *"Every follower
-count must be a whole number. Enter 412000 rather than 412,000."*
+that shape of sentence: _"'Too small: expected string to have >=1 characters' is not a sentence
+anybody can act on."_ All three are worded now, with the fix inside the sentence — _"Every follower
+count must be a whole number. Enter 412000 rather than 412,000."_
 
 ### A keyboard reader was dropped on `document.body` after every status edit
 
@@ -946,13 +1006,13 @@ the HTML focus fixup rule and blurs it, and focus falls to the body. The trigger
 and nothing puts focus back on it — so changing one status left a keyboard reader at the top of a
 146-row table.
 
-The `EditableCell` this release deleted held that property on purpose: *"a keyboard user who
-cancels an edit must not be dropped on `document.body` in the middle of a 146-row table."* Its
+The `EditableCell` this release deleted held that property on purpose: _"a keyboard user who
+cancels an edit must not be dropped on `document.body` in the middle of a 146-row table."_ Its
 pencil was never disabled.
 
 **Thirteen new tests walked past it because jsdom does not implement the focus fixup rule** — a
 focused button stays `activeElement` there after `disabled` is set. Every assertion in those files
-is true in jsdom *and* in a browser; the one thing that differs is the thing that broke. The test
+is true in jsdom _and_ in a browser; the one thing that differs is the thing that broke. The test
 that covers it now performs the blur by hand and says so in its comment, because a test that
 silently leans on a platform rule the runtime lacks is worse than no test.
 
@@ -963,8 +1023,8 @@ directions are asserted.
 ### `AGENTS.md` still described the pencils
 
 Not cosmetic — it is the file read before anybody touches this feature, and it described a screen
-that no longer exists: an editable name, a pencil on Reach and Platforms that *"opens the record's
-form"*, a cell in flight that *"shows its editor, disabled"*.
+that no longer exists: an editable name, a pencil on Reach and Platforms that _"opens the record's
+form"_, a cell in flight that _"shows its editor, disabled"_.
 
 Rewritten around what shipped, and it gains the two rules this pass paid for: **a control disabled
 mid-write owes a focus restore**, and **a panel in a popover owes its own refusals**, with both
@@ -979,7 +1039,7 @@ characters unreserved in a path segment — there is no escaping hole, and a han
 `@` because the schema refuses one. No stale import of the five deleted exports survives.
 
 **One suspected defect was measured and dismissed.** `accountsProblem` runs a zod `safeParse` on
-every render of every *closed* panel — 292 per table render, two per row. It costs **0.6 ms** for
+every render of every _closed_ panel — 292 per table render, two per row. It costs **0.6 ms** for
 the whole table. Recorded so nobody adds a `useMemo` on suspicion.
 
 ### A correction to 1.52.0's counted claim
@@ -998,8 +1058,8 @@ derived plus Jaime Lee's stored one. Everything else Phase E claims is exact aga
 **A pencil is not an affordance, it is a second target inside the first one.** Every editable
 column on `/influencers` carried a 14px glyph at its right edge, revealed on row hover, and it said
 the same thing about four different outcomes — a text box, a native select, a checkbox popover, and
-a navigation away to a whole-record form. The reader's words: *"Instead of a pencil icon next to
-each cell, let me click the cell and edit it there. The pen feels dated."*
+a navigation away to a whole-record form. The reader's words: _"Instead of a pencil icon next to
+each cell, let me click the cell and edit it there. The pen feels dated."_
 
 The cell is the control now. Six phases, one release. **No migration, no route change, no wire
 change, no new dependency.** 2868 tests (2721 passing, 147 skipped without a database), 28 more
@@ -1022,7 +1082,7 @@ from the density rung**, so nothing grows the row it opened in; and **nothing is
 cell in flight shows the value it still holds with a spinner beside it.
 
 It improves on one of them. Nothing is revealed, so nothing is reserved, so **nothing shifts on
-hover** — which retires the hack in the Reach cell where the pencil sat *before* the figure so its
+hover** — which retires the hack in the Reach cell where the pencil sat _before_ the figure so its
 reserved width could not push the numbers off the column's right edge.
 
 The tint is `bg-surface-selected` and not `bg-surface-hover`, and that is arithmetic rather than
@@ -1035,8 +1095,8 @@ Vertical and Status open a `DropdownMenu` of `menuitemradio` items with the curr
 the clear side of the line AGENTS.md draws, because this is one choice from a closed list rather
 than a panel of form controls.
 
-`EnumEditor`'s docstring recorded the cost it had accepted: *arrow keys on a closed select fire
-`change` per press*, so a keyboard user stepping through three statuses could fire three writes,
+`EnumEditor`'s docstring recorded the cost it had accepted: _arrow keys on a closed select fire
+`change` per press_, so a keyboard user stepping through three statuses could fire three writes,
 capped at one per open only because the control disabled itself mid-flight. That is a race won by a
 lock. A menu moves a highlight and commits on `Enter` or on click, so the case stops existing — and
 the test that fails if anybody puts a select back is three arrow presses and an assertion that
@@ -1044,10 +1104,10 @@ nothing was written.
 
 ### The Creator cell stops being editable, and that is a removal rather than an omission
 
-*"The Creator cell stays a link and always opens the creator's profile."* Out go `NameEditor`, the
+_"The Creator cell stays a link and always opens the creator's profile."_ Out go `NameEditor`, the
 `stacked` prop and its arithmetic, the `name` branch of `FieldEdit`, `patchFor` and `isUnchanged`,
 and `name` from `EDITABLE_FIELDS`. `UpdateInfluencerInputSchema.name` stays and the record's own
-form still renames; what went is *this table's* path to it.
+form still renames; what went is _this table's_ path to it.
 
 It was the most expensive cell on the table and the least used: a two-line stack whose editor had to
 take the height of the line it replaced rather than the cell's content box, which is the 10px
@@ -1061,25 +1121,25 @@ put a read-only view and an editable one behind two controls in one cell, and th
 strict subset. Its two hard-won properties carry over: `w-auto` with no `max-w`, because a truncated
 handle is the one value here nobody can act on, and `align="end"` on the right-aligned column.
 
-**The write is `{accounts}` and nothing else** — which makes it *safer* than the pencil it replaces.
+**The write is `{accounts}` and nothing else** — which makes it _safer_ than the pencil it replaces.
 That pencil opened `InfluencerForm`, which submits a whole `CreateInfluencerInput` and so rewrote
 the brand set on every save. The roster's second `InfluencerForm` is deleted along with it; the
 panel's footer links to the record, which has its own.
 
 Every list rule is imported from `account-drafts.ts` and none is rewritten. One is **composed** —
 `accountsProblem`, the sentence above a disabled `Save` — because a panel in a popover has no
-`<form>` to lean on and *"Too small: expected string to have >=1 characters"* is not a sentence
+`<form>` to lean on and _"Too small: expected string to have >=1 characters"_ is not a sentence
 anybody can act on.
 
 Three consequences worth stating: the panel now opens for a **single-account creator**, who can
 correct a follower count from the roster for the first time; `url` is **not in the panel** but does
 ride through the write untouched, which is the one way this could quietly lose data and so has a
 test of its own; and the account list is compared **as an ordered list, not as a set**, because
-position 0 *is* the primary account and a set comparison would silently throw a reorder away.
+position 0 _is_ the primary account and a set comparison would silently throw a reorder away.
 
 ### A badge links, because a URL is derived from a handle — for five platforms, not six
 
-The reversal. Four places said *"nothing derives a URL from a handle"*, and the argument was sound:
+The reversal. Four places said _"nothing derives a URL from a handle"_, and the argument was sound:
 a wrong link to a real stranger's profile is worse than no link. What made it untenable was the
 data. **215 of the 216 seeded accounts hold `url: null`**, so the linked badge 1.51.0 shipped lit up
 one row out of 146.
@@ -1090,7 +1150,7 @@ the quick-add lookup grounded survives. **XiaoHongShu never derives**, because i
 an opaque numeric id, which makes a templated link there not a wrong profile but no profile at all —
 and it is the one platform a reader could not check by eye. And **only a handle that is a plausible
 path segment derives** (`^[A-Za-z0-9._-]+$`): `InfluencerHandleSchema` accepts anything up to 100
-characters on purpose, and a handle carrying a space or a slash is a *name* somebody typed into the
+characters on purpose, and a handle carrying a space or a slash is a _name_ somebody typed into the
 wrong box.
 
 `accountProfileUrl` lives in `@brandfactory/shared` beside the schema whose docstring states the
@@ -1106,7 +1166,7 @@ TikTok, and nothing on screen tells a derived link from a stored one. Marking 21
 Counted in the browser across the whole roster on the dev database — **not the seed**, which
 holds no YouTube, Facebook or LinkedIn account at all; see 1.52.1 for the seed's own figure of 210:
 **226 badge links** — 146 Instagram, 75
-TikTok, 2 YouTube, 1 Facebook, 1 LinkedIn, and one `www.instagram.com`, which is the *stored* URL
+TikTok, 2 YouTube, 1 Facebook, 1 LinkedIn, and one `www.instagram.com`, which is the _stored_ URL
 winning over the template that would have produced `instagram.com`. Every Xiaohongshu badge is still
 plain text.
 
@@ -1150,7 +1210,7 @@ passing, 147 skipped without a database), 9 more than 1.50.1.
 ### What the cell used to cost the reader
 
 1.49.0 turned the column from a comma-joined sentence into six marks, and 1.49.1 capped it at two
-badges. Both passes were about *reading* the cell. Neither made it do anything: a reader looking at
+badges. Both passes were about _reading_ the cell. Neither made it do anything: a reader looking at
 an `Instagram` badge and wanting the profile behind it went row → record → the Accounts card →
 the handle's link. Four steps to reach a page the badge was already naming.
 
@@ -1161,15 +1221,15 @@ is deliberately **not** changed. Two tab stops to one destination in one row is 
 ### It derives nothing from a handle, and that is the whole risk in this change
 
 `InfluencerAccountSchema.url` already writes the rule down and the detail page already obeys it:
-*"a wrong link to a real stranger's profile is worse than no link, so the screens render plain
-text when this is `null`."* This is the second surface to obey it. A platform with no stored URL
+_"a wrong link to a real stranger's profile is worse than no link, so the screens render plain
+text when this is `null`."_ This is the second surface to obey it. A platform with no stored URL
 renders exactly the badge it always did — a mark, a word, and nothing to click.
 
-The temptation is real and it is specific: five of the six platforms *look* guessable from a
+The temptation is real and it is specific: five of the six platforms _look_ guessable from a
 handle. **XiaoHongShu is not** — it addresses users by an opaque numeric id — so a column that
 linked five platforms by template and the sixth by record would be wrong in precisely the one
 place a reader could not check it. `platforms.test.ts` now carries that as an assertion rather
-than as a paragraph: *"derives nothing from a handle"* fails the moment somebody adds a per-platform
+than as a paragraph: _"derives nothing from a handle"_ fails the moment somebody adds a per-platform
 URL template.
 
 ### Which URL, when a creator has three Instagram accounts
@@ -1180,7 +1240,7 @@ real creator — and one badge stands for all of them, so one URL has to win. Th
 in list order that carries one**.
 
 Position order, never follower count. Position 0 is the account the creator is known by
-(`primaryAccount`: *"here the order is the fact"*), and picking the largest would silently
+(`primaryAccount`: _"here the order is the fact"_), and picking the largest would silently
 re-point the link the day an import refreshed a number. A URL-less account is **skipped rather
 than terminating the search**, so a primary with no URL and a second account with one still gives
 the badge somewhere to go — a `.find()` on the platform alone would answer `null` there and refuse
@@ -1214,7 +1274,7 @@ the column does not have — `MAX_PLATFORM_BADGES` is 2 for exactly that reason.
 
 The linked badge is **visually identical to an unlinked one until the pointer is on it**
 (`hover:border-brand hover:text-brand`, no new variant). A permanently different-looking badge in a
-column read down its length would be taken for a different *platform state* rather than for a link.
+column read down its length would be taken for a different _platform state_ rather than for a link.
 
 ### The overflowed platforms stay unlinked, deliberately
 
@@ -1227,8 +1287,8 @@ account is listed with its own link.
 ### Honest about what this draws today
 
 **215 of the 216 seeded accounts have `url: null`.** The Curly's media list arrived in 1.47.0 as
-handles, and `seed.ts` records it: *"`url` is `null` on every account but one: Jaime Lee, whose
-media-list cell holds a profile URL rather than a handle."* So on the production roster as it
+handles, and `seed.ts` records it: _"`url` is `null` on every account but one: Jaime Lee, whose
+media-list cell holds a profile URL rather than a handle."_ So on the production roster as it
 stands, this change makes **one** badge clickable and leaves 145 creators looking exactly as they
 did.
 
@@ -1241,7 +1301,7 @@ added today is clickable; the imported roster becomes clickable a row at a time.
 ### The quick-add example
 
 `placeholder="novitalam"` on the handle box becomes `placeholder="ec24m"` — Jamie Chua. A
-placeholder is an example of the *kind of thing* to type, and it is read by somebody deciding
+placeholder is an example of the _kind of thing_ to type, and it is read by somebody deciding
 whether this box wants an `@`, a URL or a name. Nothing else in the sheet changed; the field is
 still validated by `handleError` and still refuses a leading `@`.
 
@@ -1253,7 +1313,7 @@ still validated by `handleError` and still refuses a leading `@`.
 
 **No browser pass.** The two claims a browser pass would have checked are the two the new component
 test asserts instead — that a URL-less badge does not become a link, and that `rel` travels with
-`target="_blank"` — because both are invisible on screen. What is *not* checked by anything here is
+`target="_blank"` — because both are invisible on screen. What is _not_ checked by anything here is
 how the hover state looks on a real badge; it is two token swaps on an existing pill, and the next
 browser pass over this table is where it gets looked at.
 
@@ -1286,14 +1346,14 @@ Measured rather than argued: given a 400-character name on an otherwise clean an
 
 That is what makes it a defect rather than a gap. `readUrl` goes through `LookupUrlSchema`,
 `readFollowers` checks the integer, the vertical goes through `InfluencerVerticalSchema`, the
-account goes through `LookupAccountDraftSchema`. The file's own rule is *"what is sent is loose;
-what is kept is strict"*, and the name was the exception to it. `readName` is the fourth of those
+account goes through `LookupAccountDraftSchema`. The file's own rule is _"what is sent is loose;
+what is kept is strict"_, and the name was the exception to it. `readName` is the fourth of those
 helpers now and sits beside them.
 
 **Refused rather than truncated**, for `readUrl`'s reason: a 400-character string cut at 200 is not
 a name, it is a sentence with its end removed, and it would sit in the Creator column of a media
 list looking like something somebody checked. It becomes `found.name === false`, which the sheet
-already renders as *"No name could be verified — this one is yours to fill in."* Refusing the name
+already renders as _"No name could be verified — this one is yours to fill in."_ Refusing the name
 costs nothing else — a test pins that the grounded follower count and its source survive it, which
 is the hardening pass's own finding one field over.
 
@@ -1308,11 +1368,11 @@ added by somebody reading rule 7, not this entry.
 ### Two smaller things
 
 **The sheet's name box had no cap.** `NameEditor` carries `maxLength={200}` and quick add's did
-not. The engine bounds what a *model* may propose; this bounds what a *person* may type over it —
+not. The engine bounds what a _model_ may propose; this bounds what a _person_ may type over it —
 the same number, from the same schema, on the two halves of one box.
 
-**A docstring that disagreed with its own code.** `toCreateInput` said *"`status` is omitted rather
-than sent"* and sent `status: "prospect"`. The code was right and could not be otherwise:
+**A docstring that disagreed with its own code.** `toCreateInput` said _"`status` is omitted rather
+than sent"_ and sent `status: "prospect"`. The code was right and could not be otherwise:
 `CreateInfluencerInputSchema.status` carries `.default('prospect')` and `z.infer` reads a schema's
 **output**, so the key is required and omitting it would not compile. The comment says that now.
 
@@ -1337,7 +1397,7 @@ CSS rule that is invalid as written.
 **No rate limit and no spend cap on the lookup.** Unchanged from Phase G, which records it as the
 accepted position — restated here because the feature is now live: 1.29.0 opened the owner gate, so
 every authenticated user reaches every workspace, and this is a paid route at ~$0.014 a hit and
-~$0.041 a miss. The guards that exist stop the two *accidental* ways of spending — an unknown
+~$0.041 a miss. The guards that exist stop the two _accidental_ ways of spending — an unknown
 workspace and a malformed body are both refused before the model, and the double-press guard is the
 client's. Nothing stops a script.
 
@@ -1345,7 +1405,7 @@ client's. Nothing stops a script.
 
 **Adding a creator stops costing more than knowing one.** Type a platform and a handle, and a
 search-grounded model goes and reads the public web for the rest. Nothing it says is written: what
-comes back is a *draft*, on a screen, with every unproven field left visibly blank and the pages
+comes back is a _draft_, on a screen, with every unproven field left visibly blank and the pages
 that were actually read listed underneath.
 
 This is release two of `docs/executing/influencer-quick-add-and-inline-edit-plan.md` — the fourth
@@ -1363,7 +1423,7 @@ response to disk before a line of the engine existed. It was worth every cent, b
 wrong about three things and two of them fail **silently**.
 
 **`generateObject` never searches.** The plan specified it. Given the `:online` model it returns a
-well-formed object that is byte-identical in character to what the *non-search* model returns: the
+well-formed object that is byte-identical in character to what the _non-search_ model returns: the
 AI SDK forces a tool call and OpenRouter's web plugin does not run beside one. An engine written to
 the plan would have shipped a lookup that never looked anything up, and every mocked unit test would
 have passed. So the engine calls the provider's completion endpoint directly, through a new
@@ -1377,7 +1437,7 @@ well-sourced accounts and reported `not-found` — the cheapest possible defect 
 looks like an honest failure.
 
 **And the user message is not a prompt.** It is a search query, because the grounding layer does not
-extract a query from it — it *searches* it. The plan's shape ("Instagram profile @lennardy —
+extract a query from it — it _searches_ it. The plan's shape ("Instagram profile @lennardy —
 follower count, real name… Read https://…") retrieved a Bubble forum thread about the Instagram API
 and three pages like it, because that is what the sentence is about. Moving to four bare words took
 identity resolution from **1/10 to 6/10 with the rules unchanged**. It is the largest single lever
@@ -1391,10 +1451,10 @@ precedent, applied to a case where the cost of believing an answer is a wrong nu
 rate is negotiated against.
 
 **The plan's rule 3 said to check the source the model cited. That check is worthless.** One spike
-candidate retrieved *nothing* across 26 calls and passed it 9 times out of 13 — by echoing back the
+candidate retrieved _nothing_ across 26 calls and passed it 9 times out of 13 — by echoing back the
 profile URL it had been handed, and, where it had nothing at all, by inventing an analytics URL
-carrying a real-looking profile id. So the question is not *did the model cite this handle* but *was
-a page naming this handle actually fetched*, and that is answered against the provider's own
+carrying a real-looking profile id. So the question is not _did the model cite this handle_ but _was
+a page naming this handle actually fetched_, and that is answered against the provider's own
 retrieval log, which the model cannot write to. An empty log fails it.
 
 It is a gate rather than a filter: an ungrounded answer loses its follower count **and its name**,
@@ -1409,8 +1469,8 @@ three models, **nought correctly named**; the two follower figures that came bac
 below the media list. Blanking the numbers would have been the softer answer and it is the wrong
 one, because the failure there is not a blank: the candidate that retrieved nothing answered two of
 three with a name, a plausible count, a Chinese-language page title and an opaque numeric RED id of
-exactly the form the real platform uses. This feature's safety rests on *nothing is written that a
-person has not seen*, and that assumes the person can tell. On this platform they cannot. The record
+exactly the form the real platform uses. This feature's safety rests on _nothing is written that a
+person has not seen_, and that assumes the person can tell. On this platform they cannot. The record
 still holds XHS accounts — six of the roster's 216 — and the full form still writes them.
 
 ### Two presses, and the screen between them is the feature
@@ -1420,7 +1480,7 @@ produces an ordinary `CreateInfluencerInput` and posts it to the route that alre
 brand check, the 409 on a taken handle and the server-chosen slug all apply unchanged.
 
 Nothing is zero-filled. A follower count the lookup could not verify arrives as an empty box with
-*"Not found — type it in"* in it, never as a `0` somebody accepts. Under each field is a line saying
+_"Not found — type it in"_ in it, never as a `0` somebody accepts. Under each field is a line saying
 whether it was found and, for the figure, a link to the page it was read from.
 
 **The duplicate check costs nothing and runs while you type.** The roster endpoint is exhaustive, so
@@ -1436,8 +1496,8 @@ so this is a demotion rather than a second green button.
 
 ### The Reach column can split into one per platform
 
-Off by default, on the View panel, in the URL. It answers *who has the biggest Instagram following
-on this list*, which is a question about the column and the one thing the per-creator breakdown
+Off by default, on the View panel, in the URL. It answers _who has the biggest Instagram following
+on this list_, which is a question about the column and the one thing the per-creator breakdown
 popover cannot do. Columns come from the filtered rows rather than the enum, so a roster on three
 platforms gets three columns; a creator not on a platform shows an em dash and sorts **last in both
 directions**, because "not on TikTok" is not a reading of zero.
@@ -1485,7 +1545,7 @@ They stop at the fixed-layout view now.
 That alone did not fix it. `SortableHead`'s button carries `-mx-1.5` so its padding does not indent
 the label past the cells below, and `max-w-full` so it cannot overflow its cell — and those two
 disagree by exactly the padding they are about. The negative margins make the column's min-content
-width the button's *margin* box; `max-w-full` clamps its *border* box to that same number, 12px
+width the button's _margin_ box; `max-w-full` clamps its _border_ box to that same number, 12px
 short, and `truncate` eats the difference. Every clipped column measured short by exactly 12px,
 which is what named it. The cap is `calc(100% + 0.75rem)` now — the margins doubled — and it is
 fixed in the shared component, because it will bite the next auto-layout table too. **Invisible
@@ -1583,7 +1643,7 @@ Plan: `docs/executing/influencer-quick-add-and-inline-edit-plan.md`. Four comple
 `Instagram, TikTok, YouTube +1` was a sentence, and 146 of them are 146 different lengths starting
 with 146 different words — there is nothing for the eye to fix on down the column, so every cell
 has to be read. The cell's own docstring had said as much for two releases and called drawing six
-brand marks *"not this release's work"*.
+brand marks _"not this release's work"_.
 
 It is six inline SVG paths in one file, not a package for six shapes — `lucide-react` is this
 repo's only icon dependency and it ships no brand marks, deliberately: a trademark is not a
@@ -1605,16 +1665,16 @@ carries the name everywhere it renders.
 ### The number that decides a budget was visible; the one that decides a brief was not
 
 `totalReach` is a sum and the column said so — `3 accounts` under the figure — but the split lived
-on the record page, so *how many of those 890k are on Instagram* cost one navigation per creator.
+on the record page, so _how many of those 890k are on Instagram_ cost one navigation per creator.
 
-`format.ts` describes that sub-line as *"the only thing on that screen that says the figure is a
-sum"*, which makes it the honest place to hang the parts. It becomes a `Popover` — content, not a
+`format.ts` describes that sub-line as _"the only thing on that screen that says the figure is a
+sum"_, which makes it the honest place to hang the parts. It becomes a `Popover` — content, not a
 menu of actions, which is the line `AGENTS.md` draws — holding one row per account over a footer
 that restates the two figures the row already shows. **The footer restates rather than adds**: a
 third number under a breakdown would make the panel a second opinion about a creator instead of an
 explanation of one.
 
-Rows stay in the record's own order, never re-sorted by size — position 0 *is* the primary-account
+Rows stay in the record's own order, never re-sorted by size — position 0 _is_ the primary-account
 fact, and a helpful `.sort()` would put this panel at odds with the `Primary` badge on the detail
 page. The exact count, not the compact one: a panel somebody opened to see the split is where they
 check a figure before quoting it. A single-account creator gets no control at all, because there is
@@ -1648,7 +1708,7 @@ either.
 **Nothing is optimistic**, so a cell in flight shows the editor, disabled, holding what the reader
 chose, with a spinner — "this is being saved", never "this is saved". A refusal gets a toast
 carrying the server's own sentence; a success gets none, because the new value is on screen
-*because the server sent it back*, which is the whole point.
+_because the server sent it back_, which is the whole point.
 
 ### The browser pass, and the 10px it found
 
@@ -1721,8 +1781,8 @@ class strings back and asserts the ladder descends on all six axes.
 
 `lib/stored-preference.ts` gains its third consumer after the active workspace and the active
 brand, and row height is the clearest case of the line those two draw. Filters, grouping and now
-sorting live in the URL because they describe *what is on screen* and a pasted link has to
-reproduce it. Density describes *how the reader likes to look at it*, and a link carrying one would
+sorting live in the URL because they describe _what is on screen_ and a pasted link has to
+reproduce it. Density describes _how the reader likes to look at it_, and a link carrying one would
 impose one person's eyesight on somebody else's.
 
 No pre-paint script, unlike the sibling app this is modelled on: every table here is a client
@@ -1761,7 +1821,7 @@ roster is at 146.
 
 **Sorting turns the grouping off**, and the two are exclusive rather than composed. A sort inside
 the tier bands gives the table two orders at once, and it makes the screen's one strong claim
-ambiguous — the bands exist to say *this is what reach buys*, which is a statement about ordering,
+ambiguous — the bands exist to say _this is what reach buys_, which is a statement about ordering,
 and a band whose rows are alphabetical stops making it. A click on a heading writes `group=none`
 with the sort and the Tier column comes back; the grouping toggle clears the sort. Clearing the
 sort does **not** re-group: the reader turned the bands off, and putting them back as the order
@@ -1806,8 +1866,8 @@ carries its content, so ignoring the CSV would protect nothing.
 have been 216 rows with a fraction of a person on each — and the reach tiers would have been wrong
 in exactly the direction 1.46.0 argued they were.
 
-**Lennard Yeong is Mega at 1.52M**: 534k on Instagram and 981.6k on TikTok, and *neither account
-alone clears the Macro floor of 500k*. Cristina Leontyeva crosses 1M the same way, on 119k and
+**Lennard Yeong is Mega at 1.52M**: 534k on Instagram and 981.6k on TikTok, and _neither account
+alone clears the Macro floor of 500k_. Cristina Leontyeva crosses 1M the same way, on 119k and
 890.1k. A test pins Lennard, because he is the release's whole argument reduced to one assertion.
 
 ### `db:import-influencers`, because `db:seed` was the wrong tool
@@ -1815,7 +1875,7 @@ alone clears the Macro floor of 500k*. Cristina Leontyeva crosses 1M the same wa
 Production is a live database: 6 real users, 4 workspaces, 4 real brands, 0 influencers. `db:seed`
 builds a whole demo world under fixed ids and **adopts nothing that is already there** — pointed at
 this database it would have inserted its own `DEMO_WORKSPACE_ID` beside the real one, so a real
-*Mission Group* would gain a second workspace of the same name, plus a demo user, seven brands, ten
+_Mission Group_ would gain a second workspace of the same name, plus a demo user, seven brands, ten
 outlets and nine invented vendors.
 
 `packages/db/src/import-influencers.ts` writes two tables and creates nothing else. It requires
@@ -1837,7 +1897,7 @@ flatten them.
 **Five did not import at all**: Lorraine Koh, Grant Wee, Natassia Siu, Marissa & Denise Lum and
 Jaclyn Chan. Four carry no handle and the candidates a search returns are real strangers who share a
 name; Grant Wee has one plausible account and nothing in the row to confirm it. Attaching a real
-person's profile to somebody else's record — on a record that *prices* them — is worse than a roster
+person's profile to somebody else's record — on a record that _prices_ them — is worse than a roster
 that is short by five. They are named here so the gap is fillable.
 
 `Zita` was entered twice against the same handle.
@@ -1864,7 +1924,7 @@ one account, not to the record.
   `past`: a creator who declined is still a name on a shortlist, and `past` means worked with and
   stopped.
 - **`vertical` is the nearest enum member; the original text survives in `notes`.** The list files
-  people by *audience* — `HNW DINKs`, `Premium lifestyle` — and the enum holds *content verticals*.
+  people by _audience_ — `HNW DINKs`, `Premium lifestyle` — and the enum holds _content verticals_.
   Category decides, then subcategory, then `food`, because this is a food brand's list. Within one
   cell the vertical beats the audience: `Pro / home chefs / Kids` is a chef.
 
@@ -1901,7 +1961,7 @@ live insert. The new file validates the roster against the shared schemas it nev
 
 ## 1.46.0 — 2026-08-18
 
-**`Add a creator` asked for a name, *a* handle, *a* platform and *a* follower count, and the hint
+**`Add a creator` asked for a name, _a_ handle, _a_ platform and _a_ follower count, and the hint
 under the platform select said the quiet part out loud: "One row per platform — two accounts are
 two follower counts."**
 
@@ -1930,7 +1990,7 @@ surrogate id, no timestamps, and a write replaces the whole list. `vendor_contac
 is a copy of.
 
 **Position 0 is the account the creator is known by**, and there is no `is_primary` column. On a
-vendor contact, *where a row sits* and *who answers the phone* are two facts; here they are one.
+vendor contact, _where a row sits_ and _who answers the phone_ are two facts; here they are one.
 Deriving the primary from the largest follower count instead would let a refreshed number silently
 change the line that identifies the person.
 
@@ -1940,7 +2000,7 @@ child, and a unique index needs them all on one row. Exactly one function writes
 
 ### The slug comes from the name
 
-`/influencers/priya-raman`. The handle was the source while the record *was* an account; a person
+`/influencers/priya-raman`. The handle was the source while the record _was_ an account; a person
 carries up to ten of them, and picking one would re-introduce the arbitrary choice this change
 removes. **No slug already in the table moved** — they are frozen at create and the migration
 touches no `slug` value, so every link shared before this release still resolves. Older records
@@ -1962,21 +2022,21 @@ it indexed, so that sort is now in JavaScript over an already-exhaustive read.
 
 ### The six phases
 
-| Phase | What landed | Tests |
-| --- | --- | --- |
-| **A — the record** | The contract first, in `@brandfactory/shared`: `InfluencerAccountSchema`, `InfluencerAccountsSchema` (1–10, repeated pairs refused with the row's own path), the four columns off `InfluencerSchema`, `reach.ts`, and `influencerSlug(name)`. Nothing visible — and every consumer stopped compiling, which is `hc<AppType>` working. | +27 |
-| **B — the table** | `influencer_accounts`, **migration 0016 hand-edited after generation**, `replaceInfluencerAccounts`, the three-query list assembly, and the seed adapted rather than rewritten. | +9 |
-| **C — the routes** | The handlers keep their shape; the 409 gains the holder's name from a best-effort read before the write. | +6 |
-| **D — the read surfaces** | Platforms as a set, Reach as a sum with the account count beneath it, blended engagement, the Accounts card, `has an account on` filtering and search across every handle. | +4 |
-| **E — the form** | The one genuinely new UI: a repeatable account row, `Add account` to ten, `Make primary`, a last row that cannot be removed and says why, and a duplicate flagged **on the row** before submit. | +19 |
-| **F — verify and release** | The full gate, the live database run, and the browser pass — which created a three-account creator, because the seed holds none. | +2 |
-| **Hardening** | The pre-push review. Four changes; see below. | +1 |
+| Phase                      | What landed                                                                                                                                                                                                                                                                                                                           | Tests |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| **A — the record**         | The contract first, in `@brandfactory/shared`: `InfluencerAccountSchema`, `InfluencerAccountsSchema` (1–10, repeated pairs refused with the row's own path), the four columns off `InfluencerSchema`, `reach.ts`, and `influencerSlug(name)`. Nothing visible — and every consumer stopped compiling, which is `hc<AppType>` working. | +27   |
+| **B — the table**          | `influencer_accounts`, **migration 0016 hand-edited after generation**, `replaceInfluencerAccounts`, the three-query list assembly, and the seed adapted rather than rewritten.                                                                                                                                                       | +9    |
+| **C — the routes**         | The handlers keep their shape; the 409 gains the holder's name from a best-effort read before the write.                                                                                                                                                                                                                              | +6    |
+| **D — the read surfaces**  | Platforms as a set, Reach as a sum with the account count beneath it, blended engagement, the Accounts card, `has an account on` filtering and search across every handle.                                                                                                                                                            | +4    |
+| **E — the form**           | The one genuinely new UI: a repeatable account row, `Add account` to ten, `Make primary`, a last row that cannot be removed and says why, and a duplicate flagged **on the row** before submit.                                                                                                                                       | +19   |
+| **F — verify and release** | The full gate, the live database run, and the browser pass — which created a three-account creator, because the seed holds none.                                                                                                                                                                                                      | +2    |
+| **Hardening**              | The pre-push review. Four changes; see below.                                                                                                                                                                                                                                                                                         | +1    |
 
 ### What changed on screen
 
 The table's `Platform` column became **Platforms** — up to three, then `+N`. **Reach** is the total,
 with `3 accounts` beneath it whenever there is more than one, which is the only line that says the
-figure is a sum. **Engagement** is the blend. The platform filter became *has an account on*, and
+figure is a sum. **Engagement** is the blend. The platform filter became _has an account on_, and
 search matches **any** handle — with the Creator cell showing whichever handle matched, so a row
 never matches invisibly.
 
@@ -1985,7 +2045,7 @@ exact follower count, that account's own rate, and the handle linked when a `url
 Nothing derives a URL from a handle — a wrong link to a real stranger's profile is worse than no
 link — and **XiaoHongShu is why the column exists at all**, because it addresses users by an opaque
 numeric id nobody can guess. The Audience card became `Total reach` and `Blended engagement`,
-labelled *blended* because an unlabelled 2.3% over three accounts is a number nobody can reproduce.
+labelled _blended_ because an unlabelled 2.3% over three accounts is a number nobody can reproduce.
 
 The form grew a repeatable account row: `Add account` up to ten, `Make primary` that moves a row to
 the top, a last row that cannot be removed and says why, and a duplicate `(platform, handle)`
@@ -1993,8 +2053,8 @@ flagged **on the row** before submit.
 
 ### The 409 names a person now
 
-*"@priyaskin on instagram is already on **Priya Raman**'s record. Open that creator and add the
-account there, or use a different handle."* It became possible to say because the conflict is now
+_"@priyaskin on instagram is already on **Priya Raman**'s record. Open that creator and add the
+account there, or use a different handle."_ It became possible to say because the conflict is now
 with another person's account rather than with a bare row, and it comes from a best-effort read
 before the write — the constraint is still the correctness boundary.
 
@@ -2010,7 +2070,7 @@ person — which is the point, and is worth knowing before the counts look wrong
 **No merge action, and no import.** The migration gives every existing row its own creator, so a
 person entered twice today stays two creators: two rows sharing a name are two people as often as
 one, and nothing can safely tell. `Import or sync creators` is still the stated placeholder it was;
-what changed is that the import is now *possible to write honestly*, per account rather than per
+what changed is that the import is now _possible to write honestly_, per account rather than per
 creator.
 
 ### The browser pass
@@ -2019,8 +2079,7 @@ The seed holds no multi-account creator, so the pass created one first. It drove
 create, the duplicate flag tripping and clearing on the row, the roster showing `140k` over
 `3 accounts` at `5.0%` blended — **Mid-tier, where every one of her three accounts alone is Micro**,
 which is this release's whole argument on screen — a `Make primary` reorder that moved the header's
-handle and left the total unchanged, a search on a non-primary handle, the platform filter, and the
-409.
+handle and left the total unchanged, a search on a non-primary handle, the platform filter, and the 409.
 
 It found two defects no test could see, because each rendered something valid: an unmeasured rate
 drew `…`, this app's mark for **a request in flight**, where it meant **not recorded**; and a handle
@@ -2096,7 +2155,7 @@ saying what it commits the brand to, and an **icon**.
 
 The icon is on the record rather than picked by the component from the list position. A component
 that indexed into a glyph array would give a pillar a new one the moment somebody reordered the
-list. When these become rows, the column holds an icon *name* out of a fixed set and the component
+list. When these become rows, the column holds an icon _name_ out of a fixed set and the component
 resolves it; a `LucideIcon` value is what a hardcoded list can hold and a database column cannot.
 
 ### 2. Five is a product decision, not a layout constraint
@@ -2110,8 +2169,8 @@ on a content-pillar strip a brand may legitimately have written twelve of.
 
 ### 3. The sample names no industry, and says so twice
 
-Five pillars — *Craft over volume*, *Say it plainly*, *The customer knows the job*, *Warm, never
-loud*, *Show the work*. They describe how a company behaves without naming what it sells, because
+Five pillars — _Craft over volume_, _Say it plainly_, _The customer knows the job_, _Warm, never
+loud_, _Show the work_. They describe how a company behaves without naming what it sells, because
 one hardcoded list renders under every brand in the switcher and a set of bakery pillars would
 read as a bug on the next brand along.
 
@@ -2127,7 +2186,7 @@ brand now holds five pillars. The control arrives with the column.
 ### 4. The grid
 
 Three-up at `lg`, two-up at `sm`, so the five land as 3 + 2 rather than as one cramped row of
-five: a pillar is a title *and* two sentences, and at a fifth of the measure the sentences stop
+five: a pillar is a title _and_ two sentences, and at a fifth of the measure the sentences stop
 being readable. Cards share a height, because five different bottom edges read as five different
 kinds of thing.
 
@@ -2167,7 +2226,7 @@ a seed that paraphrased either would put a wrong address on the one screen a rea
 be the source of truth. Every `description` here is the brand's own copy rather than a
 rewrite of it.
 
-A creator and an agency are records *about third parties*. Seeding a real influencer's name,
+A creator and an agency are records _about third parties_. Seeding a real influencer's name,
 handle and engagement rate would assert a working relationship that neither side agreed to —
 so the nineteen creators and the nine vendors keep the invented names 1.40.0 and 1.43.0 gave
 them, and only their `brandIds` move. The link counts are unchanged at 17 and 8, because the
@@ -2192,7 +2251,7 @@ Casa Vostra JEM, Chin Mee Chin East Coast Road, temper. Duxton, Willow and Fireb
 only to the month, or not at all. `opening_date` is a `date` column, so it renders as a **day**
 — and a guessed day prints as a fact with nothing on screen marking it as a guess.
 
-The month goes in `notes`, where a reader can see the word *approximately* and correct it. This
+The month goes in `notes`, where a reader can see the word _approximately_ and correct it. This
 is 1.43.0's argument for removing the contract counts rather than pinning them to zero, applied
 to a column that cannot hold "about October".
 
@@ -2252,10 +2311,10 @@ throughout and still serves production.
 
 ### 1. The question that prompted it, answered
 
-*"We'll have to create a new Vendors db model/table if I'm not mistaken."*
+_"We'll have to create a new Vendors db model/table if I'm not mistaken."_
 
 **Correct, and there was nothing to reuse.** BrandFactory's schema held seventeen tables and no
-company record of any kind. `outlets` is a place the brand trades *from*; `brands` is the thing the
+company record of any kind. `outlets` is a place the brand trades _from_; `brands` is the thing the
 work is for; `influencers` is a person the brand engages. None of the three is a counterparty, and
 none could be widened into one without carrying a follower count or a lease beside a UEN.
 
@@ -2269,15 +2328,15 @@ live retainers reading `0 contracts` is a false statement that looks like a true
 the most convincing false value there is — the argument `brand_ids_covered`'s own docstring already
 made about `outlets_covered`.
 
-**The Brands column stayed and stopped being derived.** It showed which brands a vendor's *live
-agreements* were held for; it now shows which brands the company works on, out of `vendor_brands`.
+**The Brands column stayed and stopped being derived.** It showed which brands a vendor's _live
+agreements_ were held for; it now shows which brands the company works on, out of `vendor_brands`.
 The cell's empty state changed with it, and the change is the point: `Group level` is a statement
 about an **agreement** held for the whole group, deliberately, with nothing to fix. A company
-nobody has put against a brand is `Not assigned yet`. The old cell needed *two* empty states
+nobody has put against a brand is `Not assigned yet`. The old cell needed _two_ empty states
 because it rendered a projection; one fact needs one word.
 
 The detail page's Contracts card is a **stated placeholder** for the same reason. Keeping the
-Operations Hub's list would have rendered *"No contracts with this vendor"* on every vendor,
+Operations Hub's list would have rendered _"No contracts with this vendor"_ on every vendor,
 forever — fixture contracts key on fixture vendor ids (`v2000000-…`, not even a uuid) and no real
 row can ever match one. An empty state that can never be non-empty is a false statement in the
 shape of one.
@@ -2293,13 +2352,13 @@ It is deliberately **not** `ContractCategory`, which names what an **agreement b
 one, so a media agency on a retainer would have to be filed under "Retainer", a fact about the
 paperwork rather than about the company.
 
-The form's own hint had been promising the opposite since 1.37.0: *"The trade they mostly work.
-**Shared with contracts.**"* That stopped being true when a contract took a marketing vocabulary
-and vendors kept `ServiceCategory` — thirteen *building trades*, of which a talent agency could
+The form's own hint had been promising the opposite since 1.37.0: _"The trade they mostly work.
+**Shared with contracts.**"_ That stopped being true when a contract took a marketing vocabulary
+and vendors kept `ServiceCategory` — thirteen _building trades_, of which a talent agency could
 only ever be `other`. Four of the six agency fixtures carried `other` for exactly that reason. No
 gate can see a string, so it took a reader.
 
-`category` is **nullable *and* has an `other` member**, and both are load-bearing: `null` is
+`category` is **nullable _and_ has an `other` member**, and both are load-bearing: `null` is
 "nobody has said", `other` is "stated, none of these". This is the one place vendors do the
 opposite of influencers on purpose — there, a creator with no vertical is a genuine generalist, so
 the union has no `other` to confuse them with.
@@ -2311,8 +2370,8 @@ name**, not on `23505` alone, so any other unique violation stays a 500 rather t
 as a duplicate registration.
 
 **A duplicate name cannot refuse a row, and that is a decision.** A company name is not an
-identifier — it carries legal suffixes, trading names and abbreviations — so refusing *"Sunbeam
-Social"* because *"Sunbeam Social Pte Ltd"* exists would refuse a legitimate second record while
+identifier — it carries legal suffixes, trading names and abbreviations — so refusing _"Sunbeam
+Social"_ because _"Sunbeam Social Pte Ltd"_ exists would refuse a legitimate second record while
 catching none of the real duplicates. The slug takes a `-2` and the row lands. A UEN genuinely is
 one company's identifier, and Postgres treats NULLs as distinct, so the seven unrecorded rows cost
 nothing.
@@ -2322,8 +2381,8 @@ form a person reads while looking at the box they typed into.
 
 ### 5. `kind` did not survive the move
 
-1.38.0 removed the `service_provider | landlord` control from the screen — *marketing buys from no
-landlords* — and left `VendorKind` on the record it controlled, on `VendorCreate`, and as a
+1.38.0 removed the `service_provider | landlord` control from the screen — _marketing buys from no
+landlords_ — and left `VendorKind` on the record it controlled, on `VendorCreate`, and as a
 `Select` in the form. This removes the column. The dimension left rather than being pinned to one
 value, which is the same call 1.37.0 made when the outlet dimension left the contracts table.
 
@@ -2343,7 +2402,7 @@ failed save leaves nothing half-written.
 rule, and here it also removed the work the index created.
 
 **The primary control became a checkbox, and that is a correction.** The Ops form used a native
-radio group, which *cannot express zero*: once one is checked, no interaction unchecks it.
+radio group, which _cannot express zero_: once one is checked, no interaction unchecks it.
 `VendorContactsSchema` says at most one, not exactly one, and one of the nine seeded vendors
 carries a person nobody has appointed. A form that could reach that state on the way in but never
 on the way out is a one-way door in the middle of a record.
@@ -2421,7 +2480,7 @@ Operations Hub UI and the logic worth asserting is the part a browser pass canno
 **The write path was driven against the real server instead of through a browser** — create with a
 name and nothing else (201, slug chosen, every optional field null), a duplicate UEN (409, the
 message above), a primary appointed, swapped and cleared in three patches, two primaries refused
-(400, *"At most one contact can be the primary"*), a delete (200), and the book back to nine.
+(400, _"At most one contact can be the primary"_), a delete (200), and the book back to nine.
 
 **No browser pass, and it is the third release running without one.** The stack was brought up for
 it — migration applied, book seeded, Hono on `:3001` and `next dev` reporting `✓ Ready` on a free
@@ -2463,7 +2522,7 @@ brand was a filter applied to a fixed set of screens.** It is not. The brand is 
 about, and the screens divide cleanly in two: eleven workspace tables that span every brand and
 carry a brand column, and the handful that have no meaning until you name one. The dropdown
 flattened the difference — it offered a brand switch on the Dashboard, where nothing answered to
-it, and it reached the brand profile through a `DropdownMenuRadioGroup`, which reports *changes*,
+it, and it reached the brand profile through a `DropdownMenuRadioGroup`, which reports _changes_,
 so re-picking the brand you were already in did nothing at all.
 
 **There are two navs now, and the path picks one.** `brandIdFromPath` returns the id under
@@ -2473,7 +2532,7 @@ name, and its own screens. Everywhere else it is the workspace's.
 
 **The mode is derived and never stored**, which is the decision the rest hangs off. A flag in
 state would have to be cleared on every navigation away from a brand, and the browser's back button
-is where that would eventually be forgotten — leaving a rail headed *Casa Vostra* over a workspace
+is where that would eventually be forgotten — leaving a rail headed _Casa Vostra_ over a workspace
 page. One pure function over `usePathname()` cannot drift. `nav.test.ts` pins it against the
 neighbours a plain `startsWith` would fall for, including the Operations Hub's `/registry-brands`,
 and tests `brandNavHref` and `brandIdFromPath` as a round trip: they are two ends of one switch,
@@ -2483,7 +2542,7 @@ a character in it.
 **`/brands` finally means what it says.** It was the Ops outlet-brand registry until 1.33.1 moved
 that aside, then sat unused for four releases while `/brand` and `/brand/:id` both rendered the
 profile of whichever brand a `localStorage` preference named — so a link to a brand profile opened
-a *different brand* for whoever you sent it to. It is now the workspace's brands as cards: the
+a _different brand_ for whoever you sent it to. It is now the workspace's brands as cards: the
 monogram, the line the brand describes itself with, and the two counts `BrandSummary` carries.
 Cards rather than the table every other list screen uses, because a workspace holds a handful of
 brands, nobody sorts them, and what matters is recognising one.
@@ -2491,7 +2550,7 @@ brands, nobody sorts them, and what matters is recognising one.
 **Outlets is scoped by the route rather than filtered by it**, and what that removes is the point.
 Handed a `brandId`, the table drops the brand line under each name, the brand filter, the "By
 brand" grouping and the brand half of its empty state: a column of one repeated value is furniture,
-and a filter the reader cannot clear is a lie about being a filter. Grouping is *forced* flat, not
+and a filter the reader cannot clear is a lie about being a filter. Grouping is _forced_ flat, not
 merely hidden, so a `?by=brand` pasted from the workspace table cannot resurrect a control the
 screen no longer draws — and the scope runs before every other predicate, so `Clear filters` cannot
 widen past it.
@@ -2544,7 +2603,7 @@ them.
 
 ```tsx
 export function PageState({ children }: { children: React.ReactNode }) {
-  return <div className="px-6 md:px-8">{children}</div>;
+  return <div className="px-6 md:px-8">{children}</div>
 }
 ```
 
@@ -2635,12 +2694,12 @@ largest single removal this package has taken.
 ### 1. The argument is the one 1.37.0 and 1.38.0 already made
 
 Three releases have now found the same seam in the inherited shell, and each time the answer was
-that the *dimension* was wrong rather than the screen:
+that the _dimension_ was wrong rather than the screen:
 
 - **1.37.0** — a contract stopped being an agreement about premises and became one about a brand.
   The outlet dimension left with the service workflow hanging off it.
 - **1.38.0** — the Vendors table stopped asking which counterparty kind you wanted, because
-  *marketing buys from no landlords*.
+  _marketing buys from no landlords_.
 - **1.41.0** — Spaces has no such reading. Contracts and Vendors each had a marketing question
   underneath the property one, so re-pointing them kept a screen. A floor plan does not: there is
   no brand-shaped thing a plan editor is secretly about.
@@ -2677,7 +2736,7 @@ zustand               ^5.0.14      the scheme store, and the only zustand store 
 
 Neither of the two that matter was a shared library that Spaces happened to use. Each was **the
 sole user**, which is why the removal takes them cleanly and why the check for that is worth
-recording: `three` matches the *word* "three" in sixty files of prose, and only `import * as THREE
+recording: `three` matches the _word_ "three" in sixty files of prose, and only `import * as THREE
 from "three"` in `walkthrough.tsx` is an import.
 
 `zustand` closes a note in `auth/store.ts`. That file argued, in 1.33.0, that `features/spaces`
@@ -2701,7 +2760,7 @@ Two things in the stylesheet existed for Spaces. They are treated differently on
 
 **The keyframes go.** `scrim-in` and `dialog-in`, and the `.animate-scrim-in` /
 `.animate-dialog-in` utilities that used them, had one consumer — the welcome dialog — and a
-header comment naming it. Their placement was itself deliberate (declared *above* the base layer's
+header comment naming it. Their placement was itself deliberate (declared _above_ the base layer's
 `prefers-reduced-motion` block, which is what lets that block mute them), and that reasoning is
 worth nothing once the rules animate nothing. A future dialog declares its own entrance.
 
@@ -2770,8 +2829,8 @@ No migration, no wire shape change, no client change. Three files and their test
 ### 1. Why this is new rather than inherited
 
 `createInfluencer`'s docstring already named the constraint and was explicit that it is **not** a
-race — *"the same creator entered twice on one platform, which is a duplicate rather than a second
-row"*. It stopped one step short of saying what the caller hears.
+race — _"the same creator entered twice on one platform, which is a duplicate rather than a second
+row"_. It stopped one step short of saying what the caller hears.
 
 The reason it stopped there is that nothing before it had to answer this question.
 **`influencers` is the first aggregate in this schema with a unique key somebody types.** An
@@ -2779,8 +2838,8 @@ outlet's only unique key is its slug, and `uniqueOutletSlug` always picks a free
 form can trip a constraint and none of them ever had to. A creator's handle goes into a box.
 
 Phase A had even written the rule down, one field over: `InfluencerBrandIdsSchema` rejects
-duplicate ids specifically so the join table's composite key is *never reached*, because a unique
-violation *"reaches the client as a 500 for what is really a malformed body"*. That reasoning
+duplicate ids specifically so the join table's composite key is _never reached_, because a unique
+violation _"reaches the client as a 500 for what is really a malformed body"_. That reasoning
 closed the case zod could close. This is the case zod cannot — only the table knows whether
 another row already says this — so it had to be caught rather than prevented.
 
@@ -2806,7 +2865,7 @@ gives both ways forward. A creator on a second platform is a legitimate second r
 who has just been refused is exactly the person who needs telling.
 
 **The patch takes it too.** Correcting a typo into somebody else's handle is the same mistake as
-entering them twice, and the key is the *pair* — so a patch can collide by moving either half.
+entering them twice, and the key is the _pair_ — so a patch can collide by moving either half.
 `updateInfluencer` reads the row before it writes, but only when the patch touches `handle` or
 `platform`, so the error can name the half the patch left alone. A failed transaction cannot be
 read from afterwards, which is why the read happens first rather than in the catch.
@@ -2833,8 +2892,8 @@ has nothing to mirror and the rule had to be restated: `assertFakeHandleFree` en
 patched so an edit re-sending its own values does not refuse itself.
 
 Without it the six new route tests would have passed against the very 500 this release removes,
-which is the same trap the file's own header warns about — *mirror the real query, do not do the
-obvious thing*.
+which is the same trap the file's own header warns about — _mirror the real query, do not do the
+obvious thing_.
 
 Ordering is asserted rather than assumed: a patch aimed at a row that does not exist is a **404**
 about the path even when the body also names a taken handle, because reporting the clash would
@@ -2886,7 +2945,7 @@ pass answers and a test cannot.
 ## 1.40.0 — 2026-08-18
 
 **1.39.0 replaced the record and left it unstored.** Its completion note said so in as many words —
-*"the day a real backend arrives it is generated against this shape"* — and this is that day.
+_"the day a real backend arrives it is generated against this shape"_ — and this is that day.
 
 A creator becomes a BrandFactory aggregate: two tables, three enums, five queries, five routes, a
 seeded roster, an exhaustive list, a page per creator and a form that can add, correct and remove
@@ -2900,7 +2959,7 @@ throughout and still serves production.
 
 ### 1. The question that prompted it, answered
 
-*"A new influencer model, or a general contacts table if we have one?"*
+_"A new influencer model, or a general contacts table if we have one?"_
 
 **There is no general contacts table to reuse, and building one would have been the mistake.**
 `/contacts` is the Operations Hub's address book — `ContactRead`, snake_case, `vendor_id`,
@@ -2922,7 +2981,7 @@ the first many-to-many between a brand and anything.
 
 A `uuid[]` column cannot carry a foreign key. Delete a brand and every array holding its id keeps
 holding it — and the cell that renders those ids treats an unresolvable one as **a request in
-flight**, because *a cached index that has not arrived is a pending request, never a missing fact*.
+flight**, because _a cached index that has not arrived is a pending request, never a missing fact_.
 A dangling id and a slow request would then look identical, permanently, in the one cell that rule
 exists to protect.
 
@@ -2936,9 +2995,9 @@ NULL` outlets chose, and for the same reason: the relationship outlives the bran
 with no cursor and no server-side filters. Outlets' call, and it pays off harder here because this
 screen carries **counts on its group headers**.
 
-Three things followed. The tier bands' counts stopped being *"of the rows loaded"* and became
-totals. The note above the table — *"Showing the first N creators — bands below may be
-incomplete"* — was **deleted**; it was built rather than written down precisely so it could go the
+Three things followed. The tier bands' counts stopped being _"of the rows loaded"_ and became
+totals. The note above the table — _"Showing the first N creators — bands below may be
+incomplete"_ — was **deleted**; it was built rather than written down precisely so it could go the
 day the route returned everything. And `useCursorPages`, `LoadMore`, `PAGE_LIMIT` and
 `Page<Influencer>` all went with it.
 
@@ -2987,7 +3046,7 @@ hide.
 ### 6. Two smaller corrections found on the way
 
 **A creator with no vertical says `Generalist`, not `—`.** `InfluencerSchema` is explicit that
-`null` there is *a genuine generalist, not an unclassified row* — which is why the union has no
+`null` there is _a genuine generalist, not an unclassified row_ — which is why the union has no
 `other` member — and the em dash is this app's word for "not recorded". The cell was stating the
 one thing the schema went out of its way not to mean. One constant, three surfaces.
 
@@ -3040,8 +3099,8 @@ and whether a create, an edit and a delete each leave the table saying what happ
 **The Influencers screen was the Operations Hub's address book wearing a new label, and the
 report against it was two sentences that are one complaint.**
 
-*"Grouping by vendor doesn't make any sense. Nor should those influencers be linked to
-Vendors."* Both are true, and both are the borrowed model showing through rather than a decision
+_"Grouping by vendor doesn't make any sense. Nor should those influencers be linked to
+Vendors."_ Both are true, and both are the borrowed model showing through rather than a decision
 anyone made about creators. The rows were `ContactRead` — name, role, email, phone, `vendor_id`,
 `is_primary` — so the screen filed people by the company they sit with and offered a filter over
 `ServiceCategory`, the Ops Hub's thirteen building trades, of which the only true value for a
@@ -3062,7 +3121,7 @@ ladder — computed from `followers` rather than stored.
 **The user chose this over brand, and it is the better axis for a reason the recommendation
 missed.** `ContactsBrowser` was 701 lines and the vendor grouping is most of why: its buckets came
 from the data, so their existence, their order and their names were three separate questions, and
-it carried *three* tiers of group — a named vendor, the real null bucket, and **a group whose
+it carried _three_ tiers of group — a named vendor, the real null bucket, and **a group whose
 vendor had not resolved yet**, kept apart from the null one because folding a slow request into
 "has no agency" states something untrue about a creator.
 
@@ -3070,7 +3129,7 @@ A tier is computed from a number the row already carries. No index to resolve, s
 pending; `followers` is not nullable, so there is no unknown bucket. The grouping is **total** —
 every loaded row lands in exactly one band, so the counts always sum to the rows, which is what
 lets the headers carry numbers honestly. `groupByTier` is a walk over a closed ordered list, and
-the walk *is* the sort.
+the walk _is_ the sort.
 
 Largest first, the opposite of every other grouped table here, because reach descending is the
 order a budget conversation happens in. The rail is by **position** rather than hashed: `railFor`
@@ -3086,7 +3145,7 @@ counterparties of six of the sixteen agreements.
 
 So they moved to `fixtures/agencies.ts`, and the split is finally the honest one: an **agency** is
 a company you have an agreement with, an **influencer** is a person you engage for a brand.
-Nothing joins the two files. `contacts` is `[]` on all six — the roster used to be *derived* into
+Nothing joins the two files. `contacts` is `[]` on all six — the roster used to be _derived_ into
 the agency's contact list, which was the same wrong model read from the company side.
 
 ### 3. Route, and what stayed behind
@@ -3171,14 +3230,14 @@ became `features/registry-brands/components/brand-names-cell.tsx` and
 rule `AGENTS.md` states for `components/`. The contracts table's rendering is unchanged.
 
 The cell takes one prop the contracts version did not need. **The vendors zero has two
-readings**: a vendor holding a live agreement works on no *named* brand, which is `Group level`
+readings**: a vendor holding a live agreement works on no _named_ brand, which is `Group level`
 and a stated fact; a vendor holding no live agreement has nothing to state, which is the em dash
 this table reads as "not recorded". So `empty` is the caller's node, and contracts keeps
 `Group level` as the default.
 
 ### 3. One stale sentence
 
-`/vendors`' page description named *"how many outlets they cover"* as the third aggregate, and
+`/vendors`' page description named _"how many outlets they cover"_ as the third aggregate, and
 had done since 1.37.0 took the outlet off a contract. It described a number the table does not
 hold. No gate can see a string; a reader found it.
 
@@ -3197,13 +3256,13 @@ pnpm -F @brandfactory/web-next build   clean
 The count moves by three: `brand-names-cell.test.ts` pins the rule that one unresolved id makes
 the **whole** cell pending, which is invisible in a browser pass on any day the index happens to
 have arrived — the mistake the contracts table made once. `contracts.test.ts` asserts the
-covered ids rather than their count, because a list of the right *length* holding the wrong
+covered ids rather than their count, because a list of the right _length_ holding the wrong
 brands would now put a real name against the wrong vendor.
 
 **And there was a browser pass** — the wall standing since 1.36.0. Both tables were read against
 `next start` on the real stack: the segment is gone, the Brands column shows `Group level`, a
 single name, `⌂ 3` and the em dash in the four places each belongs, and the tooltip lists
-*Eastside Kitchens · Harbour Table · Kopi & Co* on hover in both. What that still leaves unseen
+_Eastside Kitchens · Harbour Table · Kopi & Co_ on hover in both. What that still leaves unseen
 is the rest of 1.37.0 §5 — the group bands at four brands and eleven category glyphs at 16px.
 
 ---
@@ -3216,7 +3275,7 @@ the Operations Hub.**
 A contract carried `outlet_ids` and derived its brand two hops away — `contract → outlet →
 brand`. Every fixture outlet carried `brand_id: null` and `/brands` was deliberately
 unregistered, so the Brand column read "No brand yet" on every row and the Brand filter had no
-options at all. `category` was `ServiceCategory`, the Operations Hub's frozen list of *trades*,
+options at all. `category` was `ServiceCategory`, the Operations Hub's frozen list of _trades_,
 of whose thirteen values exactly two are true of a marketing agreement.
 
 Both are the same mistake seen twice: a marketing agreement is held **for a brand**, and the
@@ -3239,8 +3298,8 @@ It is built as `Omit<…> & {…}` over the existing aliases, so nineteen of the
 still arrive from one place and the delta is readable at a glance. `ServiceCategory` is
 untouched — vendors, influencers and the review queue still read it.
 
-The contracts fixture had argued this was impossible, and half that argument failed: *"inventing
-one here would put a slug on screen that no server would accept"* does not hold when the reason
+The contracts fixture had argued this was impossible, and half that argument failed: _"inventing
+one here would put a slug on screen that no server would accept"_ does not hold when the reason
 there is a fixture at all is that **there is no server**.
 
 ### 2. Brand went from two hops to zero
@@ -3270,12 +3329,12 @@ honestly be filed under.
 ### 4. `/brands` is registered again
 
 A deliberate reversal of 1.33.0. That decision was right while the Ops brand was only ever
-*resolved*; it is the grouping, the primary filter and the create form's first question now, and
+_resolved_; it is the grouping, the primary filter and the create form's first question now, and
 an empty index would mean one bucket called `…` over a screen that looks broken rather than
 empty — the reading 1.36.1 rejected one dimension down.
 
 Four brands, derived from the outlets that already imply them, one of them **retired and holding
-three contracts** — the case the filter is written not to hide. They are deliberately *not* the
+three contracts** — the case the filter is written not to hide. They are deliberately _not_ the
 brands the sidebar switcher shows, and `fixtures/brands.ts` opens with why a static fixture
 cannot be wired to ids a live server creates.
 
@@ -3319,13 +3378,13 @@ so the page drew its error panel over a delete that had worked — for the lengt
 navigation, with the success toast beside it.
 
 An `isDeleting` flag now suppresses that one error and nothing else. It is set when the delete
-starts and cleared only when the delete is *refused*, because a reader still sitting on the row
+starts and cleared only when the delete is _refused_, because a reader still sitting on the row
 is owed the page's error states back.
 
 ### 2. `No brand` was stated about outlets that have one
 
 The detail page resolved the name as `brand?.name ?? (brandsLoading ? PENDING : undefined)` and
-rendered **No brand** on `undefined`. A *failed* brands request leaves the list empty and
+rendered **No brand** on `undefined`. A _failed_ brands request leaves the list empty and
 `brandsLoading` false, so an outlet carrying a real `brandId` was described as unbranded. That is
 the class 1.33.1 already closed twice — two switchers that read a failed request as an empty
 account.
@@ -3340,7 +3399,7 @@ is the row catching up with the rail above it.
 
 `const [northlight, kite, …] = agencies.map((a) => a.id)` is one reordered array away from
 attaching every agreement to the wrong agency, and silently: the suite asserts that each
-reference *resolves*, not that it resolves to the row it was written for. The three providers
+reference _resolves_, not that it resolves to the row it was written for. The three providers
 `contracts.ts` declares itself were destructured off their own array the same way.
 
 Ids are looked up by name (agencies) and by slug (outlets) now, and the lookup throws on a miss.
@@ -3413,7 +3472,7 @@ The spread is the deliberate half. Every branch the table carries has a row that
   to nothing and the checkbox reads as dead.
 - **Every status, including the one that is not a status.** One expiry has neither a successor nor
   a close-off, so its Status cell renders the Renew / Close off buttons instead of a badge — the
-  branch 0.15's worklist argument was written for. One expiry *was* renewed and one contract is
+  branch 0.15's worklist argument was written for. One expiry _was_ renewed and one contract is
   terminated, so "Current" hides two rows that "All" shows and the toggle does something.
 - **A renewal pair**, linked both ways, which is the only place `renewed_by_id` and
   `renewed_from_id` are non-null.
@@ -3428,8 +3487,8 @@ local-time constructor.
 
 ### 2. The vendor aggregates stop being zero
 
-`influencers.ts` shipped every agency at `contracts_active: 0` and said why: *"a row claiming two
-active contracts would be a number the Contracts screen flatly contradicts."* That was the true
+`influencers.ts` shipped every agency at `contracts_active: 0` and said why: _"a row claiming two
+active contracts would be a number the Contracts screen flatly contradicts."_ That was the true
 answer for as long as there were no contracts. It is not the true answer now, and the constraint
 behind it has not softened — only the value that satisfies it has changed.
 
@@ -3461,7 +3520,7 @@ dropdown.
 
 ### 4. Category is two values, and that is the enum's fault
 
-`ServiceCategory` is the Operations Hub's vocabulary of *trades* — aircon, pest control, grease
+`ServiceCategory` is the Operations Hub's vocabulary of _trades_ — aircon, pest control, grease
 trap — frozen in the generated `schema.d.ts`, which this app does not own and may not edit. Of its
 thirteen values exactly two are true of a marketing agreement: `software` for a tool subscription
 and `other` for everything a creative agency does. So the glyph in front of each title is honest
@@ -3500,7 +3559,7 @@ disagree with.
 ### 6. What is not verified
 
 **Still no browser pass.** The wall is the one 1.34.0 §6, 1.34.1 §5, 1.35.0 §5 and 1.35.1 §5 all
-record: the shell is behind sign-in and the only door is a *Dev token* field. Every claim above
+record: the shell is behind sign-in and the only door is a _Dev token_ field. Every claim above
 about what a cell renders is read from the component and pinned by a fixture assertion, not seen.
 
 ---
@@ -3522,7 +3581,7 @@ before any code.
 
 **The holding-entity dimension goes.** BrandFactory has no entities table, and 1.34.0 cut the
 Entities item from the nav — so `entity_id` would be a foreign key pointing at nothing. The column,
-the filter, the *By entity* grouping and the detail page's company line all went with it. The
+the filter, the _By entity_ grouping and the detail page's company line all went with it. The
 outlet's only relation is its brand.
 
 **The detail page becomes the outlet.** It was 760 lines and thirteen cards over Contracts,
@@ -3543,7 +3602,7 @@ only, so every handler needs the workspace anyway.
 
 **`authz.ts` is unchanged and there is no `requireOutletAccess`.** The gate is
 `requireWorkspaceAccess` plus a query layer that takes the workspace on every helper, so an id
-from another workspace *misses* rather than being read or written across the boundary — the
+from another workspace _misses_ rather than being read or written across the boundary — the
 property `updateSocialPost(brandId, id, …)` already has. Four route tests hold it, including one
 asserting the row is untouched afterwards.
 
@@ -3559,7 +3618,7 @@ readers see as two days. `rowToOutlet` is the only mapper in that file that does
 
 **`attributes` is `text[]` and the wire accepts any key.** `OUTLET_ATTRIBUTES` is twelve rows of
 static data in `shared` — no table, no route, the `lib/key-dates/` precedent — and it is the
-*offered* catalogue, not the permitted one. Outlets will arrive by import, and refusing a batch
+_offered_ catalogue, not the permitted one. Outlets will arrive by import, and refusing a batch
 because a source system spells one tag its own way would be a sync failing on the data it exists
 to carry. An unknown key renders as itself; nothing says "Unknown".
 
@@ -3572,12 +3631,12 @@ than routing on the id: a link written today survives a rename. `UpdateOutletInp
 `GET /workspaces/:id/outlets` returns every outlet in name order — no cursor, no query parameters.
 The client narrows an array it holds completely, and three of the Ops screen's problems stop
 existing rather than being solved: the footer can say `6 outlets` and mean it (**the only place in
-`packages/web-next` allowed a total**); the grouped view no longer needs a *second* exhaustive
+`packages/web-next` allowed a total**); the grouped view no longer needs a _second_ exhaustive
 endpoint, because grouping a fetched page is the "Zephyr alone on page one" lie the repo bans for
 sorting; and the search box needs no debounce, because nothing is a request.
 
 **The cost is stated rather than hidden.** Fine at tens of rows, not at thousands — and when the
-estate outgrows one response the cursor and the SQL filters land *together*, or the first problem
+estate outgrows one response the cursor and the SQL filters land _together_, or the first problem
 comes back. `listOutletsByWorkspace` says so where somebody would change it.
 
 ### 5. Two things called an outlet
@@ -3614,15 +3673,15 @@ green with nothing skipped. That is what proves the parts a fake cannot: `date` 
 suffix, and `ON DELETE SET NULL` keeping an outlet when its brand is deleted.
 
 **And the wire was exercised end to end** against a running server on a real database: the six
-seeded outlets in name order, slug *and* id both resolving to one row, 404 on an unknown ref, 401
+seeded outlets in name order, slug _and_ id both resolving to one row, 404 on an unknown ref, 401
 with no token, a create from a name and a type answering `cafe-vostra-duxton` out of
 `Café Vostra — Duxton`, a rename that left the slug alone, `400` on an empty patch, `400
 BRAND_NOT_IN_WORKSPACE` on a foreign brand, and delete answering 200 then 404.
 
 ### 7. What is not verified
 
-**No page has been seen rendered.** The shell is behind sign-in and the only door there is a *Dev
-token* field — the same wall 1.34.0 §6, 1.34.1 §5 and 1.35.0 §5 record. The build proves both
+**No page has been seen rendered.** The shell is behind sign-in and the only door there is a _Dev
+token_ field — the same wall 1.34.0 §6, 1.34.1 §5 and 1.35.0 §5 record. The build proves both
 routes compile and prerender and §6 proves every byte the screens read and write, but nobody has
 looked at the table. `outlets-on-real-data.md` §9 lists the seven things to check on the first real
 pass; the first two are the table's width at 1280 (its caps were measured against a table with one
@@ -3634,8 +3693,8 @@ more column) and a save actually reaching the rows.
 
 **A heading promised the brand's foundations and delivered its competitive set.**
 
-Off a screenshot of the Brand Profile: a band headed **Brand pillars**, subtitled *from Values &
-positioning*, over two paragraphs — the second of which explains where Temper sits between the
+Off a screenshot of the Brand Profile: a band headed **Brand pillars**, subtitled _from Values &
+positioning_, over two paragraphs — the second of which explains where Temper sits between the
 hotel dining rooms and the seafood joints. That is a positioning argument. It is not a pillar, and
 nothing about the band said so.
 
@@ -3644,13 +3703,13 @@ No migration, no route change, no server change. Four source files and two test 
 
 ### 1. The equation did not survive real data
 
-`docs/archive/brand-profiles.md` §2 settled it: *"brand pillars are basically the brand values"*,
+`docs/archive/brand-profiles.md` §2 settled it: _"brand pillars are basically the brand values"_,
 so there is no ninth section and the band renders the row the product already has. The subtitle
 was §2.3 option (a) — be honest about where the words live, at the price of one line of chrome.
 
 The subtitle was the tell. `Values & positioning` answers **two** questions, and its own
-description in `suggested-categories.ts` says as much — *"what the brand stands for **and how it
-differs from the alternatives**"*. §2.1 split the section by shape to keep the halves apart, list
+description in `suggested-categories.ts` says as much — _"what the brand stands for **and how it
+differs from the alternatives**"_. §2.1 split the section by shape to keep the halves apart, list
 items becoming cards and paragraphs staying prose, which is a sound rule and was working exactly
 as written. It cannot help when the brand writes both halves as paragraphs, which is what a
 research run produces: two paragraphs, no list, no cards, and the whole section — positioning
@@ -3668,8 +3727,8 @@ before `Visual guidelines` — as one `SectionCard` under its own label, beside 
 
 Nothing was added to make that work. The card renders the list and the paragraph correctly because
 `RichText` always could, and the provenance chip, the copy action, the clamp and the edit sheet
-come with the card for free. The em-dash split that turned *"Provenance over provenance-speak — we
-name the mill"* into a card with a subtitle goes with the strip; in prose the clause belongs on its
+come with the card for free. The em-dash split that turned _"Provenance over provenance-speak — we
+name the mill"_ into a card with a subtitle goes with the strip; in prose the clause belongs on its
 item.
 
 ### 3. `Brand pillars` becomes a placeholder, and reads nothing
@@ -3709,7 +3768,7 @@ a test rather than as a screenshot.
 ### 5. What is not verified
 
 **Still no browser pass.** The wall is the one 1.34.0 §6, 1.34.1 §5 and 1.35.0 §5 all record: the
-shell is behind sign-in and the only door is a *Dev token* field. This change was found from a
+shell is behind sign-in and the only door is a _Dev token_ field. This change was found from a
 screenshot the user took and is verified by tests only.
 
 ---
@@ -3747,19 +3806,19 @@ two `useSWR` calls and a mapper, and **no component moved**. `fixtures.ts`, `sam
 The hard half is `blocks.ts`. `shared`'s `proseMirrorDocToPlainText` **cannot** map a section body:
 it flattens every block type to a string, so four bullets and four paragraphs come out identical —
 and that is precisely `types.ts`'s rule 1, which the pillar band is built on. A flattener that
-could not tell them apart would promote *"we sit between the hotel dining rooms and the seafood
-joints"* into a fourth pillar. So the walk is its own file with ten tests: nested lists flatten
+could not tell them apart would promote _"we sit between the hotel dining rooms and the seafood
+joints"_ into a fourth pillar. So the walk is its own file with ten tests: nested lists flatten
 into the enclosing one, an empty document is `[]` rather than a blank paragraph, and a body that
 is not a document answers rather than throws.
 
-**Marks are dropped and nothing is lost by it**, because the editor works on the *stored*
+**Marks are dropped and nothing is lost by it**, because the editor works on the _stored_
 document. `BrandProfileState` carries `source` beside `profile`: the view model is the read side,
 the ProseMirror doc is the write side, and they come from one request.
 
 Three mapper rules worth naming. An instant becomes the day the **server** named, by truncation
 and never by parsing — `new Date("…T02:00:00Z")` is yesterday west of Greenwich. A research date
-belongs only to a run that finished, which is two statuses (`COMPLETED` and `NO_FINDINGS`, *a
-success that found nothing*), and the status is tested as well as the timestamp. And `kind` comes
+belongs only to a run that finished, which is two statuses (`COMPLETED` and `NO_FINDINGS`, _a
+success that found nothing_), and the status is tested as well as the timestamp. And `kind` comes
 from `shared`'s `sectionKindForLabel`, because a second opinion about whether `TLDR` is the
 `TL;DR` is the drift `canonical-sections.ts` exists to prevent.
 
@@ -3793,7 +3852,7 @@ document. The cost is stated rather than hidden — **there is no reordering her
 round-trips untouched, and the page orders itself by the taxonomy anyway.
 
 **TipTap joins `packages/web-next`**, and the reason is data rather than polish: a section body is
-one document that *two apps write*, so a textarea would round-trip this page's own flattened
+one document that _two apps write_, so a textarea would round-trip this page's own flattened
 blocks perfectly and destroy every bold run, link and heading written in the other app.
 `src/editor/extensions.ts` mirrors the Vite app's `StarterKit` configuration and must stay
 identical to it.
@@ -3822,7 +3881,7 @@ case that was replaced.
 ### 5. What is not verified
 
 **No editor has been typed into, and no page has been seen rendered.** The shell is behind
-sign-in and the only door there is a *Dev token* field; pasting a token into a credential field is
+sign-in and the only door there is a _Dev token_ field; pasting a token into a credential field is
 not something this work will do — the same wall 1.34.0 §6, 1.34.1 §5 and `brand-profile-next.md`
 §8 all record. `brand-profile-editing.md` §7 lists the seven things to check on the first real
 pass, in the order they are most likely to be wrong; the first two are the section save reaching
@@ -3851,7 +3910,7 @@ Both moved, so the group reads **Contracts → Quotations → Vendors → Influe
 were rewritten rather than carried across: each one justified the old adjacency and would have
 become a false statement about the list underneath it. Quotations now sits after Contracts
 because a quotation is what becomes one; Vendors sits after both because a vendor is the
-counterparty each is *with* — the party, not the paperwork.
+counterparty each is _with_ — the party, not the paperwork.
 
 **The invariant had been written down since 1.31.0 and never asserted.** The file's own docstring
 says grouping "does **not** reorder, so every adjacency the comments above justify is preserved",
@@ -3863,7 +3922,7 @@ the groups name.
 ### 2. Influencers gets data
 
 The screen was reachable, correct and completely empty. `/contacts` was never a registered mock
-route, so it fell to rule 2 and returned `EMPTY` — not fixture rows, *no* rows. It is now
+route, so it fell to rule 2 and returned `EMPTY` — not fixture rows, _no_ rows. It is now
 `fixtures/influencers.ts`: **19 people across 6 agencies, and 6 independents**.
 
 The spread is chosen against the screen's conditionals rather than for volume. Four agencies hold
@@ -3876,7 +3935,7 @@ never agreed to it.
 
 **The agencies had to come with the people, and that is why `/vendors` is registered too.**
 `ContactsBrowser` groups by vendor and resolves each `vendor_id` through `useVendorIndex`; an id
-that resolves to nothing renders as `…`, because *a pending request is never a missing fact*. So
+that resolves to nothing renders as `…`, because _a pending request is never a missing fact_. So
 contacts without agencies would have been nineteen rows under a column of ellipses — a worse
 picture than no data at all. The two sets are one fixture because neither is legible alone. **The
 Vendors screen is populated as a consequence**, off the same route; that is a side effect of the
@@ -3887,7 +3946,7 @@ so a row claiming two active contracts would be a number the Contracts screen fl
 The vendors table renders each 0 as an em-dash, which is the honest answer.
 
 **The category filter is honest and nearly useless on this data, and that cannot be fixed here.**
-`ServiceCategory` is the Operations Hub's vocabulary of *trades* — aircon, grease trap, pest
+`ServiceCategory` is the Operations Hub's vocabulary of _trades_ — aircon, grease trap, pest
 control — frozen in the generated `schema.d.ts`, which this app does not own and may not edit. No
 value in it names a talent agency, so the only true one is `other`, and two agencies carry `null`
 because an independent manager has no trade at all. Real influencer verticals need an enum on a
@@ -3907,7 +3966,7 @@ client-side, which is client JavaScript executing and the exact opposite of the 
 
 `docs/completions/next-frontend-adoption.md` §8 is **left as it stands**, deliberately. It lists
 ten eliminated suspects and ends on "Not yet tested: an ordinary browser", and one passing load is
-not a cause. The defect was also recorded as *intermittent* — one dev load of `/outlets` hydrated
+not a cause. The defect was also recorded as _intermittent_ — one dev load of `/outlets` hydrated
 correctly before later loads stopped doing so — so a single success is precisely the observation
 that history says not to trust. What is claimed here is the observation, not the fix.
 
@@ -3933,7 +3992,7 @@ release. Nothing here adds another.
 ### 5. What is not verified
 
 **The Influencers screen has not been seen rendered.** The route is behind `AuthBoundary`, the
-only door on the sign-in page is a *Dev token* field, and pasting a token into a credential field
+only door on the sign-in page is a _Dev token_ field, and pasting a token into a credential field
 is not something this work will do — the same wall 1.34.0 §6 and the brand-profile page both hit.
 Four things to check once signed in, at `/contacts`:
 
@@ -3960,7 +4019,7 @@ Ops Forms screen turned inside out. **No migration, no server change, no wire ch
 
 `BrandFactory` becomes **Marketing Hub** everywhere a person reads it in this app — the sidebar,
 the sign-in lockup, the public form and all 17 page titles. The repository, the packages
-(`@brandfactory/*`), the server and every comment about the *codebase* keep the old name, and
+(`@brandfactory/*`), the server and every comment about the _codebase_ keep the old name, and
 the distinction is written into `AGENTS.md` so the next sweep does not take the other half. One
 comment in `features/brands/api.ts` was caught by the sed and put back.
 
@@ -3992,13 +4051,13 @@ leave another, so a switcher was offering a choice the product does not have.
 What survives is the **resolution**, which is not optional: `GET /workspaces/:id/brands` is the
 only brand-list route, so a shell that does not know its workspace cannot ask for brands at all.
 `useActiveWorkspace()` therefore keeps everything except `select`, which is removed rather than
-kept for a caller that no longer exists — this app now *reads* `bf_last_workspace` and never
+kept for a caller that no longer exists — this app now _reads_ `bf_last_workspace` and never
 writes it, so it follows wherever `packages/web` last was.
 
 The name moved into the **account menu** at the foot of the rail, under an `Account` heading and
 above the separator and Sign out, as a label/value pair with no chevron and no hover state. It
 keeps the distinction the two switchers had to learn twice in 1.33.1: `…` while the request is in
-flight, *Unavailable* on a failure, *Not set* only for a request that succeeded and returned
+flight, _Unavailable_ on a failure, _Not set_ only for a request that succeeded and returned
 nothing. Three of the four answers are not a name, and none of them is a name that is wrong.
 
 ### 4. Ops Forms becomes Marketing Requests, and the screen turns around
@@ -4008,7 +4067,7 @@ an operations safety record with no marketing reading of it, and keeping it made
 pick-one gallery for an audience that only ever wants one of the two. The remaining form is
 re-cut for the domain: the categories are deliverables (social post, email campaign, print
 collateral, in-store signage, photography, event, website update) rather than trades, and the
-status ladder is relabelled **New / In progress / Completed**. The *values* are still the
+status ladder is relabelled **New / In progress / Completed**. The _values_ are still the
 backend's `new | in_review | resolved`; only the labels are this screen's to choose.
 
 **The inbox is now the page.** The old layout put the blank form in the middle and the
@@ -4037,18 +4096,18 @@ fixture answers `GET` and nothing else, because `mock.ts` refuses mutations with
 argument that a form which appears to save is worse than one that plainly cannot. That argument
 still holds and the 503 still stands everywhere else.
 
-It is answered differently here for one reason: this screen's *subject* is the mutation. An inbox
+It is answered differently here for one reason: this screen's _subject_ is the mutation. An inbox
 exists to move a row from New to In progress to Completed, and a status control that errors on
 every click is not a design anyone can review. The honesty moves to the surface — a `MockBanner`
 saying the rows are held in memory, a "Sample" tag in the nav, and nothing surviving a reload.
 
-`mock.ts` gains a `WRITES` list beside `ROUTES`, deliberately separate: an unregistered *read* is
-an empty area and returns `EMPTY`, an unregistered *write* is a screen with no backend and must
+`mock.ts` gains a `WRITES` list beside `ROUTES`, deliberately separate: an unregistered _read_ is
+an empty area and returns `EMPTY`, an unregistered _write_ is a screen with no backend and must
 refuse — two defaults that should not share a loop. `resolveMock` takes a body now, and
 `apiFetch` parses `init.body` to supply it.
 
 `publicSubmit` also learned to check `API_MODE`. It reaches past `apiFetch` so a shared link
-never carries the app token — and in doing so it was skipping the mock swap point *inside*
+never carries the app token — and in doing so it was skipping the mock swap point _inside_
 `apiFetch`, so under the default mock mode the public page could only ever fail. Reaching past
 the transport means taking on what the transport was doing.
 
@@ -4072,18 +4131,18 @@ accident fails the suite rather than shipping a form that lies.
 
 **There was a partial browser pass, the first in four releases.** `next start`, and the two
 surfaces that sit outside the sign-in gate were checked in Chrome: `/sign-in` renders the
-Marketing Hub lockup and the tab reads *Sign in — Marketing Hub*; `/f/request` renders the
+Marketing Hub lockup and the tab reads _Sign in — Marketing Hub_; `/f/request` renders the
 lockup, the re-cut form and the corrected footer, and a real submission returned **MR-1034** —
 the public path, the mock write and the fixture's reference counter, end to end. `/forms` 404s,
 `/marketing-requests` and `/icon.svg` both serve 200.
 
 **Everything behind `AuthBoundary` is still unverified in a browser**, and that is most of this
 release: the sidebar header, the account menu, and the inbox itself. The only door on the sign-in
-page is a *Dev token* field, and pasting a token into a credential field is not something this
+page is a _Dev token_ field, and pasting a token into a credential field is not something this
 work will do — the same wall the brand-profile page hit. The five things to click, once signed
 in:
 
-1. The rail's top row — the mark, *Marketing Hub*, no Mock badge, and no workspace row under it.
+1. The rail's top row — the mark, _Marketing Hub_, no Mock badge, and no workspace row under it.
 2. The account tile — an **Account** heading, the workspace name, then Sign out.
 3. `/marketing-requests` — ten rows, the counts on the segmented control, and the search box.
 4. A row → the filled-in form; change its status there and in the table.
@@ -4152,8 +4211,8 @@ each is mutated **by name** while the plain one is left to the matcher.
 `hooks/use-submit.ts` decided its form-level message with one type test:
 
 ```ts
-if (error instanceof ApiError) return error.message;
-return "Could not reach the API. Check that the backend is running.";
+if (error instanceof ApiError) return error.message
+return 'Could not reach the API. Check that the backend is running.'
 ```
 
 `ApiError` is the **Operations Hub** client's class. `NewBrandSheet` is this package's first
@@ -4171,7 +4230,7 @@ the wrong place.
 narrow, with a comment saying why: it is a claim about the network and a lie about anything the
 server answered.
 
-**`fieldErrors()` was deliberately *not* extended.** It maps FastAPI's `detail` array onto input
+**`fieldErrors()` was deliberately _not_ extended.** It maps FastAPI's `detail` array onto input
 names. Mapping the BrandFactory server's issues onto fields as well would let an issue on a path
 the form does not render — a route param, say — populate `fields`, which suppresses the
 form-level message under this hook's existing precedence rule, and fail silently. That is the
@@ -4187,10 +4246,10 @@ fixed now rather than left for the first screen that does.
 Chasing §2 turned up why the message would often have been empty even once the class was
 recognised. The server refuses in **two** shapes, and `callJson` knew only the first:
 
-| | Shape | Sent by |
-| --- | --- | --- |
-| 1 | `{code, message, details?}` | `middleware/error.ts` — every `HttpError`, and a `ZodError` that reaches the handler |
-| 2 | `{success: false, error: {name, message}}`, **no top-level `code` or `message`** | `@hono/zod-validator`, which answers `c.json(result, 400)` itself and never throws |
+|     | Shape                                                                            | Sent by                                                                              |
+| --- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 1   | `{code, message, details?}`                                                      | `middleware/error.ts` — every `HttpError`, and a `ZodError` that reaches the handler |
+| 2   | `{success: false, error: {name, message}}`, **no top-level `code` or `message`** | `@hono/zod-validator`, which answers `c.json(result, 400)` itself and never throws   |
 
 Shape 2 is every `zValidator('json', …)` and `zValidator('param', …)` on the server — which is
 every body this app posts. Under it the old reader found no `code`, no `message`, fell back to
@@ -4224,8 +4283,8 @@ dropped connection as `isLoading: false, data: undefined` — indistinguishable 
 answer unless `error` is read. So the sidebar said **"No workspaces yet"** and **"No brands
 yet — create one"** on a request that never succeeded.
 
-Both files already carry a paragraph about the pending case — *"a list in flight is a pending
-request, never a missing fact"* — and stopped one state short of the failed one.
+Both files already carry a paragraph about the pending case — _"a list in flight is a pending
+request, never a missing fact"_ — and stopped one state short of the failed one.
 
 The brand row was the worse of the two, because its empty state is a **button**: a list that
 failed to load offered to create a brand into a workspace whose real contents the reader had
@@ -4237,8 +4296,8 @@ A 401 does not reach either of them — `callJson` signs out and the boundary na
 1.33.0 renamed `features/brands/` → `features/registry-brands/` so BrandFactory's central noun
 could have the plain word, and moved the cache scopes with it. **It stopped at the folder.** The
 page route did not move, so in a product whose central noun is Brand, `/brands` rendered a page
-titled *"Brands — BrandFactory"* reading *"The names over the doors… outlets and companies are
-assigned a brand"* — and, since the fixture was deleted in the same release, always empty.
+titled _"Brands — BrandFactory"_ reading _"The names over the doors… outlets and companies are
+assigned a brand"_ — and, since the fixture was deleted in the same release, always empty.
 
 Nothing in the nav points at it (nine items), so nobody reached it by clicking. It is still the
 first place the next reader would look, which is the entire argument the rename was made on.
@@ -4307,7 +4366,7 @@ something goes wrong — which is exactly when nobody is looking at a test suite
 The six things to click are unchanged from 1.33.0 §5, against `next start` rather than
 `next dev` (1.31.0's hydration defect is still open). Four checks are now worth adding to them:
 
-1. Stop the server, then open the sidebar — the two rows must say *unavailable*, not *none*.
+1. Stop the server, then open the sidebar — the two rows must say _unavailable_, not _none_.
 2. Create a brand — the header must move to it.
 3. Sign out, sign in as a second seeded user, open a list screen — no rows from the first session.
 4. `/registry-brands` loads and `/brands` 404s.
@@ -4352,7 +4411,7 @@ no `CORS_ALLOWED_ORIGINS` to keep in step with a port number.
 The Vite auth store reads `sessionStorage` at module scope, which under SSR is a
 `ReferenceError`. **Guarding it is worse than it looks**: the guarded version renders "signed
 out" into the static HTML and hydrates over a client that is signed in. `auth/store.ts` is
-`useSyncExternalStore` with a frozen server snapshot that is a *different object* from the
+`useSyncExternalStore` with a frozen server snapshot that is a _different object_ from the
 client's — the shape 1.32.0 introduced for the brand preference, applied to the thing that
 gates the app.
 
@@ -4371,7 +4430,7 @@ that looks like a state and means nothing.
 
 ### 5. The footer stops lying
 
-*"Alpha — authentication not yet wired. Every session runs as an administrator."* was true when
+_"Alpha — authentication not yet wired. Every session runs as an administrator."_ was true when
 written and false the moment the boundary went in. It is now 1.25.0's account tile — the only
 round thing in a column of squares, and the only neutral one.
 
@@ -4505,7 +4564,7 @@ Full write-up:
 The first plan was a port: rewrite the Ops screens into Vite + TanStack Router.
 That was costed — 36 files swapping `next/link`, 13 swapping `next/navigation`, 26
 server pages collapsing into route components. Standardising on Next instead made
-all of it unnecessary, because the Operations Hub *is* Next 16. What remained was
+all of it unnecessary, because the Operations Hub _is_ Next 16. What remained was
 packaging, a data layer and five gates.
 
 It also reversed the scope. Three areas had been chosen to cap the port's size;
@@ -4523,7 +4582,7 @@ defaults to `mock`.
 Three rules, and the second carries the fifteen areas with no fixtures:
 
 1. A registered `GET` returns its fixture.
-2. An unregistered `GET` returns an empty array that *also* carries `items` and
+2. An unregistered `GET` returns an empty array that _also_ carries `items` and
    `next_cursor` — one value satisfying both `T[]` and `Page<T>`, so those screens
    render their real empty states instead of throwing.
 3. Any mutation refuses with a `503` and an honest message, which the existing
@@ -4543,11 +4602,11 @@ is true of every screen.
 
 The nav was then cut from seventeen items to nine. Entities, Brands, Org chart,
 Networks, Tenancies and Servicing & Repairs went; the whole Compliance group
-(Licences *and* Certifications) went; Contacts became **Influencers**; the
+(Licences _and_ Certifications) went; Contacts became **Influencers**; the
 `Workspace` group became **Resources**.
 
 **The doors went, the rooms stayed.** Every removed route still exists and still
-answers. Deleting them is not a delete — `features/registry` holds Outlets *and*
+answers. Deleting them is not a delete — `features/registry` holds Outlets _and_
 Entities, and the Dashboard is built on licence renewals.
 
 ### 4. An eleventh package, and two exemptions
@@ -4696,7 +4755,7 @@ the one place it belongs. `userId` stays in that function's signature for the
 same reason. `listWorkspacesByOwner` is kept too; Passport will scope the list
 by org membership rather than owner.
 
-### 3. This is read *and* write
+### 3. This is read _and_ write
 
 Because the one gate covers reads and writes, every authenticated user now has
 full read and write on every workspace and brand — not view-only. That is what
@@ -4759,7 +4818,7 @@ Systems** umbrella logo. So the umbrella icon stands in, beside a set-text
 as a component with `fill="currentColor"`, so it takes the one brand green
 (`text-primary`) and follows the light/dark theme, rather than shipping a flat
 black raster that fights the surface. `BrandMark.tsx` was the wrong tool — that
-is the *customer's* brand monogram, not the app's.
+is the _customer's_ brand monogram, not the app's.
 
 ### 2. The form now reads in the siblings' order
 
@@ -4811,7 +4870,7 @@ meaningfully.
 magic link's email leg was broken end to end. So the login page grew a second
 door that needs no email.**
 
-Eight of nine invited users sat at *"Waiting for verification"* in Supabase. The
+Eight of nine invited users sat at _"Waiting for verification"_ in Supabase. The
 email arrived, but every confirmation link pointed at `url5617.supainc.co` — a
 SendGrid click-tracking domain that does not resolve (NXDOMAIN). A custom SMTP,
 configured on a placeholder sender domain (`hello@supainc.co`), rewrote each
@@ -4830,8 +4889,8 @@ because it carries no email at all.
 off `/login` on mount and calls `exchangeCodeForSession` by hand, because the
 client is built with `detectSessionInUrl: false`. Google OAuth returns the
 **same** `?code=` to the **same** `/login`. So `signInWithOAuth({ provider:
-'google', options: { redirectTo: \`${origin}/login\` } })` hands the return leg
-straight to the effect that was already there. One `handleGoogle`, one
+'google', options: { redirectTo: \`${origin}/login\` } })`hands the return leg
+straight to the effect that was already there. One`handleGoogle`, one
 "Continue with Google" button above the email form, an "or" divider. No new
 route, no new component.
 
@@ -4891,7 +4950,7 @@ pin the call's spelling and prove nothing about the round trip. The existing
 
 Off a screenshot of the social calendar's header: the page title sat further
 from the left edge, and further from the top, than the title on every other
-section of the same brand. The ask was that it looked *"shifted a bit"*, which
+section of the same brand. The ask was that it looked _"shifted a bit"_, which
 is the exact size of it — 8 pixels, in both axes, above the `lg` breakpoint.
 
 **No migration, no new route, no new component, no test change** — one
@@ -4905,10 +4964,10 @@ mini-app, the asset library and the studio. The fifth, the social calendar,
 began `mx-auto p-6 lg:p-8` under a `max-w-6xl` cap.
 
 That container is not an accident and it is not the calendar's own. It is the
-brand hub's, written in 1.7.0 with a comment saying so — *"This is the first
+brand hub's, written in 1.7.0 with a comment saying so — _"This is the first
 route in the app to constrain its width. Every other surface is `flex-1
 overflow-auto p-6`, which at 2000px leaves a title at one edge and its ⋯ menu
-at the other."* The calendar copied it whole in 1.20.0, cap and padding
+at the other."_ The calendar copied it whole in 1.20.0, cap and padding
 together, because the hub was the nearest page that had solved the width
 question.
 
@@ -4980,8 +5039,8 @@ home in a per-component test.
 **The first real model run of 1.26.0 failed, and the failure was ours.**
 
 1.26.0 shipped with §6 stating that no real model had run the feature. One did.
-A brainstorm in the `New post` dialog answered *"The model did not answer in the
-expected shape"*, with nothing in the browser console and nothing in Vercel.
+A brainstorm in the `New post` dialog answered _"The model did not answer in the
+expected shape"_, with nothing in the browser console and nothing in Vercel.
 
 The Fly log had it, and it was a success:
 `POST /brands/…/ideate/themes  status 200  durationMs 23247`. The model
@@ -5023,8 +5082,8 @@ Full detail in
 **The social calendar could hold a plan. It could not help you make one.**
 
 1.20.0 gave the calendar a grid, a list and an editor, and 1.23.0 gave it 92
-curated dates. Between them they answer *what is scheduled* perfectly and *what
-should be* not at all. Filling a month meant opening the dialog thirty-one times
+curated dates. Between them they answer _what is scheduled_ perfectly and _what
+should be_ not at all. Filling a month meant opening the dialog thirty-one times
 and re-explaining the brand to a generic tool in between.
 
 Seven phases, each independently shippable, each with its own note in
@@ -5044,8 +5103,8 @@ a batch of ideas grouped under content pillars, half of which you are expected t
 reject, and a commit that writes one row per (idea × platform) chip.
 
 **Door 2 — the honest month.** One sentence under the header, and no model
-behind it: *National Day (9 Aug) has no post. 31 days · 4 posts planned · 3 key
-dates unclaimed.* Every term was already on the page; nothing is fetched and
+behind it: _National Day (9 Aug) has no post. 31 days · 4 posts planned · 3 key
+dates unclaimed._ Every term was already on the page; nothing is fetched and
 nothing is spent. It shipped two phases before the engine because it is worth
 having on its own.
 
@@ -5065,8 +5124,8 @@ accepted ideas become posts through `POST /brands/:id/social-posts`, the one
 writer this table has ever had. That is what makes both handlers safe to retry.
 
 **The brand header is `buildSystemPrompt`'s, verbatim.** A planner that
-assembled its own would be the second answer to *what does the model know about
-this brand*, and the first to drift.
+assembled its own would be the second answer to _what does the model know about
+this brand_, and the first to drift.
 
 **The boundaries are enforced in code, not trusted to the prompt.** Ideas dated
 outside the window, ideas on a day+platform that already has a post, ideas on a
@@ -5109,7 +5168,7 @@ A review pass before the release found one defect that could write a wrong row
 and four quality faults. Full detail in
 [`docs/completions/planning-and-dispatch-review-hardening.md`](completions/planning-and-dispatch-review-hardening.md).
 
-The defect: `takenSlots` truncated the *never propose onto this* list to 400
+The defect: `takenSlots` truncated the _never propose onto this_ list to 400
 pairs without filtering to the window first. Since the post list is unbounded and
 ordered oldest-first, the surviving 400 were the pairs that could never collide,
 and the dropped ones were the only pairs that could — so a brand with roughly
@@ -5144,7 +5203,7 @@ applied: **112 passed, 0 skipped**.
 **You could sign in. You could not sign out, and the app never said who you
 were.**
 
-The request arrived as a complaint that the UI had *hidden* the user profile and
+The request arrived as a complaint that the UI had _hidden_ the user profile and
 the way in and out. It had not hidden them. Signing in worked and always had —
 every authenticated route redirects to `/login` without a token. The other two
 had never been built.
@@ -5173,7 +5232,7 @@ Full detail in
 
 **An account tile at the foot of `BrandRail`, under a hairline of its own.**
 
-The rail already reads top to bottom as *container → contents → controls*: the
+The rail already reads top to bottom as _container → contents → controls_: the
 workspace tile, a hairline, the brand marks, then the panel fold and the theme
 toggle. The account is the fourth thing and the lowest — it is the outermost
 container of all, the one the workspace itself hangs from. It is also a control
@@ -5231,7 +5290,7 @@ and collectively the reason the email stayed invisible.
 
 **`AuthBoundary` primes the key from the probe it already makes**, so the tile
 costs no extra round trip on a page load. The query keeps a real `queryFn`
-anyway, because a *fresh sign-in* does not go through that path — the boundary's
+anyway, because a _fresh sign-in_ does not go through that path — the boundary's
 effect ran at mount, before there was a token to probe with.
 
 ### 4. The cache is emptied after the redirect, not before it
@@ -5242,7 +5301,7 @@ void navigate({ to: '/login' }).finally(() => queryClient.clear())
 
 Every cached row belongs to the user who just left. Signing in as a second user
 in the same tab would otherwise open on the first user's workspaces while the
-refetches land — in a product whose vision document promises *privacy first*,
+refetches land — in a product whose vision document promises _privacy first_,
 that is not a cosmetic flicker.
 
 **Chained onto the navigation rather than run beside it.** `clear()` while the
@@ -5284,12 +5343,12 @@ the tile is inside the drawer and fully visible.
 **The brand had already said what it was. The header asked again.**
 
 The request arrived as a screenshot of the brand hub: the monogram, the name
-*Casa Vostra*, and under it the dotted-underline affordance **Add a
+_Casa Vostra_, and under it the dotted-underline affordance **Add a
 description**. The brand had a `TL;DR` written. Two fields had been answering
 the same question since 1.21.0 put `TL;DR` in the section taxonomy — a nullable
-`brands.description` column editable only in a dialog named *Rename*, and a
-guideline section whose own description reads *"the whole brand in a few
-sentences — what it is, who it is for, how it sounds."* `BrandIdentity`'s doc
+`brands.description` column editable only in a dialog named _Rename_, and a
+guideline section whose own description reads _"the whole brand in a few
+sentences — what it is, who it is for, how it sounds."_ `BrandIdentity`'s doc
 comment had already conceded the overlap in prose while the code kept the two
 entirely apart. That sentence was the specification; nothing implemented it.
 
@@ -5321,7 +5380,7 @@ truncating it**. `proseMirrorDocToPlainText` joins blocks with a blank line,
 which is right for a prompt and wrong for a `<p>`: HTML folds the newlines but
 not the spacing around them, so a two-paragraph TL;DR would render as one run
 with a gap in the middle of it. Length is deliberately untouched —
-`TLDR_TARGET_MAX_CHARS` binds what a *generator* writes, not what a person
+`TLDR_TARGET_MAX_CHARS` binds what a _generator_ writes, not what a person
 types, so the ceiling belongs to the surface that has to fit the text.
 
 `brandTldrLine` returns `null` for an **empty** body. A section row exists from
@@ -5354,8 +5413,8 @@ filtered aggregate:
 ```
 
 The label rule lives in `normaliseSectionLabel` and cannot run inside Postgres.
-Rather than let a regex in SQL quietly become a second definition of *what
-counts as a TL;DR*, the halves split by responsibility: the `where` clause
+Rather than let a regex in SQL quietly become a second definition of _what
+counts as a TL;DR_, the halves split by responsibility: the `where` clause
 **narrows** (and duplicates only the character strip — the label arrives bound
 as `TLDR_SECTION_KEY`, so the query never spells `TL;DR` at all), and
 `rowToBrandSummary` **decides**, re-checking the returned label with
@@ -5371,7 +5430,7 @@ The server needed no change at all — `listBrandSummariesByWorkspace` is a
 **The hub header** resolves both halves locally and gained a `line-clamp-3` it
 never had. A hand-typed description never needed one; a generated TL;DR reaches
 400 characters and a hand-written one has no ceiling, which at `max-w-prose`
-runs about six lines and turns a band whose whole job is *whose page is this*
+runs about six lines and turns a band whose whole job is _whose page is this_
 into the tallest thing above the fold. Clamping is safe **here specifically**
 because nothing is hidden — the full text is the rail's own `TL;DR` row, one
 card to the right on the same page.
@@ -5396,8 +5455,8 @@ something out of:
 section block rendered `### TL;DR` separately. For a brand holding both, the
 model therefore received **two competing answers to what the brand is** — and
 the losing one was invisible on every screen, so the user could neither see the
-conflict nor fix it. The completion note had stated the cost of §1 as *"a
-description nobody sees"*; the model saw it.
+conflict nor fix it. The completion note had stated the cost of §1 as _"a
+description nobody sees"_; the model saw it.
 
 The header now carries the description only when `brandTldrLine` finds no TL;DR.
 The TL;DR is **not** pushed in its place, because part 3 of the prompt already
@@ -5427,14 +5486,14 @@ through — shared unit, hub component, card component, db mapper, and now the
 prompt builder — which is deliberate: a rule stated once and wired four times
 can be wired backwards once.
 
-| File | Covers |
-| --- | --- |
+| File                                         | Covers                                                                                                           |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `shared/brand/description-line.test.ts` (16) | the rule itself: precedence, blank strings on both sides, empty-body TL;DR, punctuation tolerance, no truncation |
-| `web/…/BrandIdentity.test.tsx` (+7) | the band is wired to it, the multi-paragraph collapse, the clamp |
-| `web/…/BrandCard.test.tsx` (+4) | the card agrees with the band |
-| `db/mappers.test.ts` (+5) | the mapper's re-check, including a row the SQL let through and the rule rejects |
-| `db/brand-tldr.live.test.ts` (7, live) | **the SQL, executed** |
-| `agent/…/system-prompt.test.ts` (+5) | §5 — the header defers, and does not repeat |
+| `web/…/BrandIdentity.test.tsx` (+7)          | the band is wired to it, the multi-paragraph collapse, the clamp                                                 |
+| `web/…/BrandCard.test.tsx` (+4)              | the card agrees with the band                                                                                    |
+| `db/mappers.test.ts` (+5)                    | the mapper's re-check, including a row the SQL let through and the rule rejects                                  |
+| `db/brand-tldr.live.test.ts` (7, live)       | **the SQL, executed**                                                                                            |
+| `agent/…/system-prompt.test.ts` (+5)         | §5 — the header defers, and does not repeat                                                                      |
 
 The live file is not optional coverage. The aggregate is a raw string that no
 type checks, no lint reads and no unit test executes; a typo in it, a `->` where
@@ -5485,7 +5544,7 @@ copy changes, one attribute becomes conditional.
 ### 1. What was verified rather than believed
 
 The gate is not the interesting part; these four are, because each is a thing
-the six phases *asserted* about themselves.
+the six phases _asserted_ about themselves.
 
 - **The colour tokens produce actual CSS.** All nine `keydate-*` utilities are
   in the built stylesheet and the full four-tier chain resolves in both themes
@@ -5507,8 +5566,8 @@ no leftover container.
 ### 2. `Global are curated through December 2027.`
 
 The beyond-horizon line interpolated the set's label into
-`{label} are curated through …`. That reads correctly for *Singapore holidays*
-and *Singapore events* and not for *Global*, which is the one label in the map
+`{label} are curated through …`. That reads correctly for _Singapore holidays_
+and _Singapore events_ and not for _Global_, which is the one label in the map
 that is not grammatically plural — and the only one the tests never rendered,
 because `sg-events` is the set with the near horizon and therefore the set every
 example used.
@@ -5546,7 +5605,7 @@ still announced properly in its own month; this closes the other eleven-twelfths
 ### 4. Twelve rows stated a rule, and nothing held them to it
 
 `data.test.ts` opens by saying that nothing in it can catch a date that is
-simply *incorrect*, and that everything mechanically checkable is checked. The
+simply _incorrect_, and that everything mechanically checkable is checked. The
 first half is true of Deepavali. It is not true of the twelve rows whose
 `source` is a **rule rather than a link** — `Fixed: 4th Thursday in November`,
 `Fixed: 2nd Sunday in May`, `Western computus; Good Friday + 2 days`.
@@ -5621,7 +5680,7 @@ was a five-package vertical slice, and the instinct to reach for
 - They never cross the wire, so they need no zod schema at a boundary that does
   not exist.
 
-The one genuinely per-user fact is *which sets are on*, and that is a UI
+The one genuinely per-user fact is _which sets are on_, and that is a UI
 preference — `sidebar-prefs.ts`'s precedent, not a column.
 
 ### 2. Curated, never computed — Phase A
@@ -5648,7 +5707,7 @@ turns the annual refresh from archaeology into a mechanical job.
 
 **Six rows were dropped rather than guessed**, and each drop is asserted absent
 so re-adding one is a deliberate act with a test to update: Ramadan 2027 (the
-start is 9 *or* 10 February and MUIS announces which), Thaipusam 2027 (sources
+start is 9 _or_ 10 February and MUIS announces which), Thaipusam 2027 (sources
 split between two dates a fortnight apart), Pongal both years, the Singapore
 Food Festival and the Orchard Road light-up (both sites still on their 2025
 edition). A row whose dates are invented renders exactly like one that is
@@ -5706,7 +5765,7 @@ for a shelf name, so it is one map here.
 
 **Three new hues is the largest palette addition since the Mission Systems
 pass**, and the cheaper route was rejected on purpose: the feedback tints are
-unused by any component today, but they *mean* error, warning, success and
+unused by any component today, but they _mean_ error, warning, success and
 information, and a calendar painting Deepavali in the success colour spends a
 semantic token on a category. The first real warning state on that page would
 then be indistinguishable from a public holiday.
@@ -5742,12 +5801,12 @@ So the surface splits **by shape, not by set**:
   many there are.
 
 Markers are `pointer-events-none`, so the cell's existing full-bleed add button
-keeps the click: pressing a cell marked *Deepavali* opens "new post on
+keeps the click: pressing a cell marked _Deepavali_ opens "new post on
 8 November", which is exactly what a marketer clicking it wants, with no new
 interaction to build, learn or test.
 
 The list view gets both halves of the same fact — a suffix on day headings you
-have already planned into, and a **Key dates** block at the head of *Upcoming*.
+have already planned into, and a **Key dates** block at the head of _Upcoming_.
 The block is the part that earns the feature: suffixes only appear on days that
 already have posts, so without it a Deepavali nobody has planned for is
 invisible on the one surface whose job is to say what is coming.
@@ -5755,7 +5814,7 @@ invisible on the one surface whose job is to say what is coming.
 **One deviation from the plan, argued in Phase E's note**: that block is
 chronological rather than grouped by set. Grouping would scatter the timeline —
 with six entries over three sets the earliest date can land at the bottom — and
-*when* is the axis the block exists to answer. The named label on each row
+_when_ is the axis the block exists to answer. The named label on each row
 satisfies the never-colour-alone rule just as completely.
 
 ### 7. The preference — Phase C
@@ -5763,7 +5822,7 @@ satisfies the never-colour-alone rule just as completely.
 A dropdown of three checkbox items in the header, using the
 `DropdownMenuCheckboxItem` already built and exported: no new primitive, no new
 dependency. **Default is `global` on, both Singapore sets off** — the global set
-is never *wrong* for a brand in any market, so it makes the feature discoverable
+is never _wrong_ for a brand in any market, so it makes the feature discoverable
 without the app assuming where the brand sells.
 
 Persisted in `localStorage` **keyed by brand**, because an agency running a
@@ -5794,7 +5853,7 @@ worst-case month with no navigation at all.
 tests had already caught, which makes the pair worth recording together. Phase E's
 bug: the day-heading separator was CSS `gap` with no text node, so the screen was
 right and the accessible name read `Today·Deepavali`. Phase F's bug: the real
-text node was placed *inside* an `inline-flex` span, where it becomes a flex item
+text node was placed _inside_ an `inline-flex` span, where it becomes a flex item
 — and a flex item's surrounding whitespace is stripped, so the accessible name
 was right and the screen read `Sun 9 Aug· National Day`. `textContent` saw the
 separator either way, so the Phase E test kept passing throughout.
@@ -5913,8 +5972,8 @@ by copying its shape and says so.
 Worth fixing rather than tolerating because of what comments are for in this
 repo: they carry the reasoning, they name files by name, and a reader who greps
 for the file `AssetLibraryView.tsx` says owns its queries finds nothing. The one
-surviving mention is in `AssetLibraryPage` itself — *"It was `VisualIdentityPage`
-until the split"* — which is history and correct.
+surviving mention is in `AssetLibraryPage` itself — _"It was `VisualIdentityPage`
+until the split"_ — which is history and correct.
 
 ### 4. Deferred, with the reason, rather than fixed
 
@@ -5981,7 +6040,7 @@ only test edit was dropping the removed `title` prop from one render helper.
 
 **`Visual identity` was never a thing you start.**
 
-The brand hub's Workspace grid is headed *Start something*, and four of its five
+The brand hub's Workspace grid is headed _Start something_, and four of its five
 tiles were: a copywriting thread, a studio canvas, a week of posts, a freeform
 split-screen. The fifth was a place the brand's facts already live. 2E had to
 write an entire `unit` axis onto the registry to describe that one row, and the
@@ -6006,8 +6065,8 @@ per-phase detail is in the seven notes under `docs/completions/`.
 
 ### 1. Filing is a judgement, so it is a column — Phase A
 
-The page already had a Photography section. It was defined as *"an image that
-is not the logo"*, and that definition holds exactly until a brand uploads a
+The page already had a Photography section. It was defined as _"an image that
+is not the logo"_, and that definition holds exactly until a brand uploads a
 printable menu as a PNG — which is the ask's own example.
 
 `library` is the fourth axis on `BrandAsset`, beside `kind` (what it is),
@@ -6018,11 +6077,11 @@ than another `role` value.
 
 Three cases the old derivation misfiled, none of them exotic:
 
-| The thing | Where it landed | Where it belongs |
-| --- | --- | --- |
-| A printable menu exported as PNG | Photography (an image with no role) | Collateral |
-| A `.woff2` of the brand's typeface | Nowhere — the upload was refused | Visual identity |
-| A logo lockup delivered as a PDF | Files (`kind: 'file'`) | Visual identity |
+| The thing                          | Where it landed                     | Where it belongs |
+| ---------------------------------- | ----------------------------------- | ---------------- |
+| A printable menu exported as PNG   | Photography (an image with no role) | Collateral       |
+| A `.woff2` of the brand's typeface | Nowhere — the upload was refused    | Visual identity  |
+| A logo lockup delivered as a PDF   | Files (`kind: 'file'`)              | Visual identity  |
 
 `defaultLibraryFor` is the rule for a new asset when nobody said, and its doc
 comment **names its two callers** — the create route, and 0010's backfill —
@@ -6045,7 +6104,7 @@ in the table as a photograph — the most visible row there is, and the one nobo
 would think to check.
 
 **0011** adds `'typeface'` to `asset_role` and does nothing else. Postgres 12+
-permits `ALTER TYPE … ADD VALUE` inside a transaction but forbids *using* the
+permits `ALTER TYPE … ADD VALUE` inside a transaction but forbids _using_ the
 new value in that same transaction, and the migrator wraps the whole pending
 batch in one — so no `UPDATE` in the batch may mention it, here or in 0010.
 Folding the two together would have bought nothing and cost 0010 its backfill.
@@ -6099,7 +6158,7 @@ Two decisions that look like details and are not:
 - **The row keeps `id: 'visual'` while its shelf is `identity`.** Renaming it
   would make `miniAppById('visual')` miss, and that lookup is exactly what turns
   `/brands/:id/apps/visual` — live since 1.10.0, bookmarked, linked from the
-  rail — into a redirect rather than the *Unknown mini-app* page. Two rows of
+  rail — into a redirect rather than the _Unknown mini-app_ page. Two rows of
   three have `id === library`; nothing may derive one from the other.
 - **`brandNavKey` gained a fourth arm**, matched off a literal alternation of
   the three segments rather than `([^/]+)`. A wildcard would light a nav row for
@@ -6123,8 +6182,8 @@ shelf you are looking at.
 
 The Brand context card has held the brand's palette since 1.8.0 because there
 was nowhere else on the hub for it, under a hairline of its own, and the card's
-own comment conceded the point: *"the section list above is the meter … a swatch
-row inside it would be neither."*
+own comment conceded the point: _"the section list above is the meter … a swatch
+row inside it would be neither."_
 
 `VisualIdentityCard` is where it lives now — the mark, the palette, the
 typefaces, and two quiet links with counts into the other two shelves. The rail
@@ -6149,11 +6208,11 @@ fold and which sections render below the intake; the intake zone, the
 `Uploaded`/`Linked` pill, delete-with-Undo and Move to… are identical on all
 three.
 
-| Shelf | Sections |
-| --- | --- |
-| `identity` | Marks · Palette · **Typefaces** · Identity files |
-| `photography` | One grid |
-| `collateral` | An image grid, plus the file list |
+| Shelf         | Sections                                         |
+| ------------- | ------------------------------------------------ |
+| `identity`    | Marks · Palette · **Typefaces** · Identity files |
+| `photography` | One grid                                         |
+| `collateral`  | An image grid, plus the file list                |
 
 The old derivations are **deleted, not demoted to a secondary sort** — leaving
 that rule anywhere is how it comes back.
@@ -6182,11 +6241,11 @@ the toast is a second live focus scope.
 Font MIMEs joined `ALLOWED_UPLOAD_MIMES` — before this a `.woff2` was refused at
 the signed-write-URL, before any of the library was reached.
 **`CONTENT_TYPE_BY_EXTENSION` is deliberately left alone**, with the reason
-beside it: that map names types a browser may render *inline* from user bytes,
+beside it: that map names types a browser may render _inline_ from user bytes,
 and a font is a download, exactly as `text/plain` already is.
 
 Connected sources are **one sentence of copy**, not a disabled `Connect a
-source` button with a `Soon` pill. A line says the direction of travel *and* the
+source` button with a `Soon` pill. A line says the direction of travel _and_ the
 thing you can do right now, which is paste a URL; a disabled button says only
 the first, and this repo has spent two passes removing affordances that go
 nowhere.
@@ -6194,7 +6253,7 @@ nowhere.
 ### 7. Seen in a browser — Phase G
 
 **Non-skippable, and it earned that.** 1.21.0, 1.21.2 and 1.21.3 each shipped
-with a standing *"not seen in a browser"* caveat, and this pass moved a card,
+with a standing _"not seen in a browser"_ caveat, and this pass moved a card,
 removed a tile, added three routes and put a dropdown on every asset — the wrong
 one to make four in a row.
 
@@ -6242,7 +6301,7 @@ has carried.
   Fly's `release_command`; per 1.20.0's note, do not run `fly deploy` by hand
   alongside it.
 - **The post editor's image picker is unfiltered** (Q4). `assetsOfKind(assets,
-  'image')` is now photography *and* identity marks *and* image collateral,
+'image')` is now photography _and_ identity marks _and_ image collateral,
   undifferentiated. Left that way on purpose — a post legitimately wants the
   logo sometimes — and grouping it by library is a later pass.
 - **Renaming `Visual guidelines`** (prose) to `Art direction` (Q5) is not done:
@@ -6260,10 +6319,10 @@ has carried.
 **The click target was the leftover space, not the day.**
 
 Off two screenshots of the month grid: the hover affordance on 11 August drawn
-as a rounded box that starts *below* the date number and stops short of the
-cell's edges. The ask: *"the entire date box should be clickable vs what we
+as a rounded box that starts _below_ the date number and stops short of the
+cell's edges. The ask: _"the entire date box should be clickable vs what we
 have rn which is the click box is below the date strip… just make the entire
-box for each date clickable for ease of use."*
+box for each date clickable for ease of use."_
 
 **No migration, no new route, no new component, no wire change** — one
 component, `CalendarMonthGrid.tsx`.
@@ -6281,7 +6340,7 @@ every gap between chips were all dead.
 ### 2. Under the contents, not after them
 
 The button is now `absolute inset-0`: one element covering the cell edge to
-edge, laid *under* the day's contents rather than appended to them. Nothing is
+edge, laid _under_ the day's contents rather than appended to them. Nothing is
 nested — a cell-wide `<button>` wrapping the chips would put buttons inside a
 button, which is invalid and would fire both handlers on one click.
 
@@ -6346,7 +6405,7 @@ has posts" test passed before and after — it was never the case that was broke
 Off a screenshot of Temper's nav: the active tile in the 56px brand rail wore
 its accent ring on the top and bottom but not the sides, where it stopped in two
 straight vertical lines a few pixels from the tile. The ask was that the rail
-looked *"a bit squeezed"* — which is the right reading of it. The rail is not too
+looked _"a bit squeezed"_ — which is the right reading of it. The rail is not too
 narrow. The column inside it is.
 
 **No migration, no new route, no new component, no test change** — one element's
@@ -6414,7 +6473,7 @@ pnpm -F @brandfactory/web build   clean
 1 file modified, 0 added. **1392 → 1392 (+0), and that is the honest number.**
 The six existing `BrandRail` tests still pass, including the one asserting
 `ring-2` on the active link — it passed throughout, because the ring was always
-*applied*; it was being clipped by an ancestor two levels up. jsdom has no layout
+_applied_; it was being clipped by an ancestor two levels up. jsdom has no layout
 and no painting, so there is no assertion available here that would have caught
 this or would catch its return. A test on the container's `w-full` would assert
 the fix's spelling rather than its effect, and would pass just as happily if
@@ -6438,10 +6497,10 @@ the fix's spelling rather than its effect, and would pass just as happily if
 
 **The summaries were fourth and fifth, and 1.21.0 is the reason.**
 
-Off a screenshot of the Brand context card reading *3 written · 4 suggested*,
+Off a screenshot of the Brand context card reading _3 written · 4 suggested_,
 with `TL;DR` at row four and `Overview` at row five — below three written
-aspects, above two unwritten ones. The ask: *"should be visually/hierarchically
-at the top and perhaps even separated with a subtle line from the rest."*
+aspects, above two unwritten ones. The ask: _"should be visually/hierarchically
+at the top and perhaps even separated with a subtle line from the rest."_
 
 Ships [`docs/completions/brand-summary-sections-lead-the-rail.md`](completions/brand-summary-sections-lead-the-rail.md).
 **No migration, no new route, no new component, no wire change** — three
@@ -6450,7 +6509,7 @@ functions in `@brandfactory/shared` and one component restructured.
 ### 1. First in the unwritten rows is not first in the list
 
 1.21.0 §5 put the two summaries at the head of `SUGGESTED_SECTIONS` and said so:
-*"which puts them first in the rail's unwritten rows."* Every word true, and the
+_"which puts them first in the rail's unwritten rows."_ Every word true, and the
 missing sentence is the one that matters. `BrandContextRail` drew two adjacent
 `.map`s inside one `<ul>` — every written section, then every unwritten
 suggestion — so head-of-taxonomy only ever ordered the **unwritten tail**. The
@@ -6460,7 +6519,7 @@ that are not peers.
 
 **It degraded as the brand improved.** Each aspect written pushed the summaries
 one row down, so the TL;DR sank precisely as there came to be more for it to
-summarise — the *same failure shape* 1.21.0 §2 fixed one layer below, where the
+summarise — the _same failure shape_ 1.21.0 §2 fixed one layer below, where the
 "do not restate what belongs there" instruction grew stronger the more a brand
 had written. That pass corrected the prompt half and shipped the ordering half
 with the bug intact.
@@ -6471,7 +6530,7 @@ The rail's stated design — its own doc comment, and a test — is that **writt
 sections and unwritten suggestions are one list, and that list is the meter**; a
 previous pass kept the palette swatches out of it for exactly that reason.
 Splitting on `kind` does not contradict it, because written/unwritten is
-*progress* and `aspect`/`synthesis` is *kind*: both bands hold both states, and
+_progress_ and `aspect`/`synthesis` is _kind_: both bands hold both states, and
 the header still counts all seven. The list is still the meter, drawn in two
 pieces.
 
@@ -6495,7 +6554,7 @@ hand-rolled comparison against the two label constants.
 section recorded `SUGGESTED_SECTIONS[3].label` silently re-pointing at the wrong
 section when two entries were inserted above it, "passing every type check, lint
 and test that reads the constant rather than the string". A position resolved
-from the *label* at comparison time cannot drift that way. `Infinity` rather than
+from the _label_ at comparison time cannot drift that way. `Infinity` rather than
 `-1`, so a custom label sorts last under a plain numeric comparator instead of
 jumping to the front.
 
@@ -6511,11 +6570,11 @@ maps over two arrays cannot interleave, and the summary band has to — with onl
 `Overview` written, `TL;DR` must still draw above it.
 
 `splitRailRows` **sorts the summary band** by `suggestedSectionIndex`, ignoring
-`priority` and written-ness, because *the short version precedes the long one* is
+`priority` and written-ness, because _the short version precedes the long one_ is
 a fact about the two sections and must hold whichever was written first. It
 **does not sort the aspects**: they keep the user's own `priority`, then the
 taxonomy's order for what is unwritten. The summaries lead because of what they
-*are*; that is not a licence to overrule a drag the user performed in the editor.
+_are_; that is not a licence to overrule a drag the user performed in the editor.
 
 Both `<ul>`s carry an `aria-label` — the split is otherwise only visual, and a
 screen reader hearing "list, 2 items" then "list, 5 items" with nothing saying
@@ -6568,26 +6627,26 @@ claims 1376. The changelog was right.
 
 **Two sections that read across the other five.**
 
-The ask was one sentence — *"add a TLDR section/field as well as an Overview
-attached to each brand"* — with the purpose stated for later: the TL;DR is meant
+The ask was one sentence — _"add a TLDR section/field as well as an Overview
+attached to each brand"_ — with the purpose stated for later: the TL;DR is meant
 to become a perpetual system-context injection once there is something to inject
-it into. It arrived against a screenshot of the Brand context card reading *3
-written · 2 suggested*, and the two new entries belong in that list rather than
+it into. It arrived against a screenshot of the Brand context card reading _3
+written · 2 suggested_, and the two new entries belong in that list rather than
 beside it.
 
 Ships [`docs/completions/brand-tldr-and-overview.md`](completions/brand-tldr-and-overview.md).
 **No migration, no new route, no new component** — the work is entirely in the
-four places where a section that *summarises the others* behaves differently
+four places where a section that _summarises the others_ behaves differently
 from one that describes an aspect of the brand.
 
 ### 1. Sections, not columns on the brand row
 
-The ask says *field*, and a `brands.tldr` column was the obvious reading. The
-sentence after it is what rejected the idea: *"like all other context sections,
-can be edited manually or AI generated"* describes machinery that already exists
+The ask says _field_, and a `brands.tldr` column was the obvious reading. The
+sentence after it is what rejected the idea: _"like all other context sections,
+can be edited manually or AI generated"_ describes machinery that already exists
 and hangs off `guideline_sections`. A column would have needed a migration, a
 wire type, a route, an editor control, its own AI path and its own answer to
-*what does the sparkle do here* — all to arrive at a text field the section list
+_what does the sparkle do here_ — all to arrive at a text field the section list
 already is.
 
 So `TL;DR` and `Overview` are ordinary `SUGGESTED_SECTIONS` entries at the head
@@ -6600,25 +6659,25 @@ TL;DR, which §4 answers.
 ### 2. `kind: 'aspect' | 'synthesis'` — the change that makes the feature work
 
 Both auto-fill paths tell the model which sections the brand already has, and
-then: ***Do not restate what belongs there.*** That is exactly right for an
+then: **_Do not restate what belongs there._** That is exactly right for an
 aspect and exactly backwards for a summary. A TL;DR forbidden from mentioning
 voice, audience or values has been asked to summarise nothing — and the
 instruction gets **stronger the more the brand has written**. Left unflagged the
 sparkle would have failed hardest on the most complete brands and returned
-`no-material` on the ones it should work best on: a bug that reads as *the
-feature is broken*, not as *the brand is empty*.
+`no-material` on the ones it should work best on: a bug that reads as _the
+feature is broken_, not as _the brand is empty_.
 
 The same list is now introduced two ways, and only the instruction about it
 flips:
 
-> *…This section sits above them and summarises across all of them — draw on
+> _…This section sits above them and summarises across all of them — draw on
 > that ground freely, but write it as one coherent whole rather than a list of
-> the other sections.*
+> the other sections._
 
 The flag reaches **three** generators, because three places write a section body
 and all of them had the assumption baked in. `buildSectionShapePrompt` (Path R)
-also **swaps its rule 2**: *"Compress"* / *"the version someone reads in a
-sidebar"* aims a model at one passage, and rule 1 then gives it a compliant way
+also **swaps its rule 2**: _"Compress"_ / _"the version someone reads in a
+sidebar"_ aims a model at one passage, and rule 1 then gives it a compliant way
 to return nothing when it cannot find that passage. A summary is told to
 compress the whole report instead. `buildSectionSearchPrompt` (Path S) takes the
 same inversion. `buildShapePrompt` — the batch pass — has no `existingLabels` to
@@ -6632,7 +6691,7 @@ behaviour, which is what every label got before this existed.
 
 Every other section targets `DRAFT_TARGET_MAX_CHARS` (1200) — a comfortable
 paragraph or two in a sidebar. The TL;DR is the one section written to be
-*injected* rather than read, so its cost is paid on every request forever and
+_injected_ rather than read, so its cost is paid on every request forever and
 its job is to be the shortest true statement of the brand. `Overview` is
 deliberately uncapped: it is the long version of the same thing.
 
@@ -6644,7 +6703,7 @@ as its author wants, and nothing in this repo has ever enforced the target.
 The canonical label is `TL;DR`. What people type is `TLDR`. Under the previous
 comparison (`label.toLowerCase()`) those were two different sections: the row
 got no `description`, aspect rules and a 1200-character ceiling — precisely the
-combination that produces a bad TL;DR — the rail offered to *add* a TL;DR to a
+combination that produces a bad TL;DR — the rail offered to _add_ a TL;DR to a
 brand that had one, and the icon collapsed to the generic `FileText`.
 
 New `packages/shared/src/brand/canonical-sections.ts` is the one place that
@@ -6652,7 +6711,7 @@ decides this. `normaliseSectionLabel` lowercases and drops punctuation, so
 `TL;DR`, `TLDR`, `tl;dr` and `TL-DR` are one section; it is deliberately not
 clever, because inventing an equivalence between `Voice and tone` and
 `Voice & tone` would merge two rows a user meant to keep apart. The rule is
-*punctuation and case are noise; words are not* — which is why the class is
+_punctuation and case are noise; words are not_ — which is why the class is
 `\p{L}\p{N}` and not `a-z0-9`: an ASCII class does not keep letters, it keeps
 English, and a brand naming its sections in Japanese or Cyrillic would have had
 every label normalise to the empty string and every pair of them compare equal.
@@ -6662,14 +6721,14 @@ claimed its unwritten-suggestion filter matched "the same way the editor's
 quick-add chips decide what to offer, so the rail and the dialog never
 disagree" — and they did: the rail trimmed and lowercased, the editor compared
 `s.label === sg.label` raw. A brand with `voice & tone` in lower case got no
-rail suggestion *and* a chip that would append a second copy of a section
+rail suggestion _and_ a chip that would append a second copy of a section
 already on screen. Both call `sameSectionLabel` now, and the comment is true.
 
 ### 5. Ordering, and the positional reference it broke
 
 The two summaries lead `SUGGESTED_SECTIONS`, which puts them first in the rail's
 unwritten rows, first in the editor's quick-add chips and first in the deep
-report's headings. A brand's one-paragraph answer to *"what is this?"* is what
+report's headings. A brand's one-paragraph answer to _"what is this?"_ is what
 everything else is a detail of.
 
 Putting them at the head is also what surfaced a live hazard.
@@ -6686,7 +6745,7 @@ names it.
 version of the same thing, reading as a pair in a rail whose other five glyphs
 are all nouns. Keyword fallbacks cover the labels people write instead
 (`summary`, `in a nutshell`, `about`, `background`). The exact map is keyed on
-the *normalised* label so `TLDR` finds its glyph; the keyword pass stays on the
+the _normalised_ label so `TLDR` finds its glyph; the keyword pass stays on the
 plain lowercase string, because removing spaces first makes every word junction
 a possible match — `Custom Erasure` normalises to `customerasure`, which
 contains `customer`.
@@ -6732,8 +6791,8 @@ pnpm -F @brandfactory/web build   clean
   way to find out whether 400 characters is the right ceiling.
 - **The deep report now asks for seven headings instead of five**, on a run that
   costs ~$0.38 and has not been re-run since. The two extra headings are cheap
-  for the finder and their absence is already handled — *omit a heading entirely
-  rather than guess* is unchanged — but the first paid run after this is the
+  for the finder and their absence is already handled — _omit a heading entirely
+  rather than guess_ is unchanged — but the first paid run after this is the
   first evidence.
 - **The quick-add chip appends**, so a TL;DR added to a brand that already has
   sections lands last in the editor, last among the rail's written rows and last
@@ -6758,7 +6817,7 @@ a stub every time. Four tiles shipped that way; `visual` turned on at 2E,
 wearer, and the machinery behind it (`NavItem`'s `badge`, `ThreadListPage`'s
 Coming-soon panel) stays for an app that does not yet exist.
 
-What is behind it is the proposal's *conceptual* scheduling tool: the plan is
+What is behind it is the proposal's _conceptual_ scheduling tool: the plan is
 the product. Nothing here talks to a platform API, nothing publishes, and
 nothing flips its own status when a time passes — a `ready` post whose slot has
 gone is a plan that slipped, which is information, not an error.
@@ -6773,7 +6832,7 @@ the seven notes under `docs/completions/`.
 
 `social_posts` is `{platform, scheduledAt, body, status, assetIds}` over the
 usual soft-delete and timestamp columns. **There is no title field**: the copy
-*is* the artifact, and every surface that needs a caption composes one from
+_is_ the artifact, and every surface that needs a caption composes one from
 platform + time + a body excerpt. That single decision is why `postExcerpt`
 exists and why `body: ''` — a claimed slot with the copy still to come — falls
 back to the platform name rather than rendering a blank chip that reads as a
@@ -6812,7 +6871,7 @@ landed the same day and this generated as **0009** — `social_posts`,
 `POST :postId/restore`, each behind `requireBrandAccess`. `ASSET_NOT_IN_BRAND`
 (400) and `SOCIAL_POST_NOT_FOUND` (404) are the two codes. 29 route tests run
 the full `assets.test.ts` matrix — 401 and 403 on all five methods, cross-brand
-and soft-deleted `assetIds` refused on create *and* patch, `scheduledAt: null`
+and soft-deleted `assetIds` refused on create _and_ patch, `scheduledAt: null`
 unscheduling, omitted `assetIds` keeping attachments while `[]` clears them,
 double delete 404ing, replayed restore 404ing.
 
@@ -6838,11 +6897,11 @@ local**: a post at `23:30Z` belongs to different days in Berlin and London, and
 the cell has to be the reader's. No key in that file comes from
 `toISOString().slice(0, 10)`, which is the shortest way to write the bug.
 
-The second rule is arithmetical: days are added *by day*, never by 86 400 000
+The second rule is arithmetical: days are added _by day_, never by 86 400 000
 milliseconds, or a DST boundary duplicates or skips a cell twice a year. Its 44
 tests are timezone-agnostic on purpose — pinning `TZ` would hide the exact
 class of defect the module exists to prevent — so the DST case asserts that
-every cell is one *calendar* day after the last, which holds in every zone.
+every cell is one _calendar_ day after the last, which holds in every zone.
 
 ### 7. Two readings of one list
 
@@ -6854,7 +6913,7 @@ which belong to a month the grid is not showing.
 Its one blind spot is stated rather than hidden: an unscheduled post has no
 cell it could honestly occupy, so the header counts them and links to the
 **list view**, which leads with the tray for exactly that reason. The list then
-runs Upcoming forward and Past backward — both halves running *away* from now,
+runs Upcoming forward and Past backward — both halves running _away_ from now,
 so neither buries today under a year of history. The split is on the day key,
 not the timestamp: an 18:30 post is still today at noon.
 
@@ -6882,7 +6941,7 @@ The route dispatches on `MiniApp.unit` while the Soon stub keys off `enabled`,
 so splitting those edits ships a half-state — a tile that says Soon over a page
 that is a calendar, or the reverse. `unit` gains `'post'` (a fourth answer,
 counted like `'asset'`), the route gains a fourth branch, and `BrandNavPanel`
-counts posts — without which the row would count *threads* and read `0` for a
+counts posts — without which the row would count _threads_ and read `0` for a
 brand with a full month planned.
 
 `create`/`match` stay on the row for classification only, as on `visual` and
@@ -6890,7 +6949,7 @@ brand with a full month planned.
 landing in the hub's catch-all, though the page behind the tile is a calendar
 now and lists no threads at all.
 
-Three suites had borrowed the live `social` row as their *disabled* fixture and
+Three suites had borrowed the live `social` row as their _disabled_ fixture and
 each is corrected at its own altitude — the nav asserts the badge's absence,
 the route asserts dispatch, and `MiniAppTile` gets a **synthetic** disabled app
 so the next registry flip does not take three unrelated tile tests with it a
@@ -6928,8 +6987,8 @@ Supabase**, both app machines came up healthy, and the five routes are live.
 fires on every push, and a manual `fly deploy` from a laptop **collides with
 it**: this release produced a failed v49 (`fly deploy`) thirteen seconds before
 the successful v50 (Actions), with the manual attempt's release machine
-destroyed mid-start — *"aborted: machine destroyed, cannot add any more
-events"*. The workflow's `concurrency: {group: deploy-backend,
+destroyed mid-start — _"aborted: machine destroyed, cannot add any more
+events"_. The workflow's `concurrency: {group: deploy-backend,
 cancel-in-progress: false}` serialises CI runs against each other and can do
 nothing about a deploy started outside CI. The same pair appears at v43/v44 and
 v45/v46 earlier the same day, which is three collisions before anyone read the
@@ -6943,8 +7002,8 @@ deployed what.
 ### Caveats
 
 - **No live pass on this stream, and for the first time that is a choice
-  rather than a limitation.** Every note here repeats the standing *"no Docker,
-  no `.env`"* line inherited since 1.13.x — but 1.19.0's Phase E established
+  rather than a limitation.** Every note here repeats the standing _"no Docker,
+  no `.env`"_ line inherited since 1.13.x — but 1.19.0's Phase E established
   that both exist on this machine, and a Postgres container is running now.
   `social-posts.live.test.ts` (11 tests: mapper round-trips including a null
   `scheduledAt`, cross-brand `assetId` rejection, join-row cascade) has skipped
@@ -6973,7 +7032,7 @@ deployed what.
 
 The ask came off two screenshots — the brand-context pane of a research thread,
 and the Overview page's Brand context sections — and was the same in both:
-*Voice & tone and all the others should be AI auto-populatable.* The text
+_Voice & tone and all the others should be AI auto-populatable._ The text
 exists. For a brand that has been researched it is sitting in a 48,000-character
 report nobody re-reads; for one that has not, it is on the brand's own website.
 What was missing was the two lines of plumbing between either source and the row
@@ -6987,7 +7046,7 @@ Ships Phases A–E of
 `BrandGuidelinesEditor` is the single implementation behind all three mounts, so
 the affordance is one component's change: a labelled row with an empty body
 grows a `Sparkles` button beside its delete control. Click it, the text arrives
-in the TipTap editor, and **nothing is saved** — the ordinary *Save guidelines*
+in the TipTap editor, and **nothing is saved** — the ordinary _Save guidelines_
 is still the commit, through the one client writer every other landing path
 funnels through.
 
@@ -7007,8 +7066,8 @@ and pass `onAutofill` only when true. No prop, no sparkle.
 
 ### 2. The A0 spike bought the correctness requirement, not the cost estimate
 
-The plan sized the spike as *does the model follow the format, what does it
-cost*. The format never failed. What failed was the company: the same prompt run
+The plan sized the spike as _does the model follow the format, what does it
+cost_. The format never failed. What failed was the company: the same prompt run
 without pinning search to the brand's domain retrieved 19 generic "brand voice
 examples" articles and wrote a confident, cited `Voice & tone` section **about a
 same-named other business**. Pinned, all 11 sources were the brand's own pages
@@ -7025,8 +7084,7 @@ company into a brand's permanent guidelines.
 A spend ledger rather than a `kind` column on `brand_research_jobs`, whose
 partial unique in-flight index and three readers all assume one row-kind.
 Append-only: label, source, model, `numeric(12,6)` cost, sources, author, time.
-Only `source='search'` counts against `RESEARCH_SECTION_MAX_PER_DAY` (default
-20) — the cap protects vendor money and Path R spends none.
+Only `source='search'` counts against `RESEARCH_SECTION_MAX_PER_DAY` (default 20) — the cap protects vendor money and Path R spends none.
 
 It also carries the provenance guideline sections refuse: sections stay
 `{label, body, priority, createdBy}`, because a `sources` column on a table
@@ -7039,18 +7097,18 @@ user-created blank row that a machine fills was written by the machine.
 Docker and a working `PERPLEXITY_API_KEY` were both present for the first time
 since 1.13.x, so migration 0008 ran against real Postgres and the whole
 live-suite backlog ran with it. Then, asked for a `Franchise fee schedule` a
-Singapore F&B group does not have, `sonar-pro` obeyed the prompt's *"say so
-plainly and stop"* **exactly** — and wrote 600 characters explaining why it
+Singapore F&B group does not have, `sonar-pro` obeyed the prompt's _"say so
+plainly and stop"_ **exactly** — and wrote 600 characters explaining why it
 would not invent franchise terms.
 
-Right judgement, useless artefact, and *non-empty* — so it classified as `ok`,
+Right judgement, useless artefact, and _non-empty_ — so it classified as `ok`,
 and the client was one click from pasting the model's apology into the brand's
-guidelines as agent-written text and toasting *"drafted from 10 sources"*. The
+guidelines as agent-written text and toasting _"drafted from 10 sources"_. The
 instruction is correct in the deep prompt, where a human reads the paragraph.
 Reused per-section it produces prose where the caller needs a signal.
 
-The fix is a sentinel: the prompt now demands `NO_MATERIAL` *"and nothing else —
-no explanation, no apology"*, and `isNoMaterial` matches it on the whole body,
+The fix is a sentinel: the prompt now demands `NO_MATERIAL` _"and nothing else —
+no explanation, no apology"_, and `isNoMaterial` matches it on the whole body,
 normalised on both sides. Not a substring search — a real `Values` section may
 legitimately mention "no material waste". Re-validated live: the same label came
 back `no-material` in 2.6s, and a real section arrived at 1,168 characters,
@@ -7068,15 +7126,15 @@ found, because the environment could not reach them:
 
 - **The prose-refusal reader now runs on Path R too.** The batch schema gives
   that model a compliant way to say nothing (an empty `markdown`), which is why
-  `!text.trim()` was thought sufficient — but a writing model answering *"The
-  report does not cover Visual guidelines."* is in-schema, non-empty, and
+  `!text.trim()` was thought sufficient — but a writing model answering _"The
+  report does not cover Visual guidelines."_ is in-schema, non-empty, and
   exactly the artefact the sentinel exists to catch. One judgement, both paths.
 - **Upstream failures are `502 AUTOFILL_UPSTREAM`, not a bare 500.** Auto-fill
   is the first synchronous outbound call in this repo — the deep run's failures
   land on a job row — so it is the first place a vendor's bad afternoon reaches
-  someone watching a spinner, and what they got was *"Internal Server Error"*.
-  Now: *"The research provider is rate-limiting us right now"* at 429, *"could
-  not be reached"* otherwise, and *"check the model settings and its API key"*
+  someone watching a spinner, and what they got was _"Internal Server Error"_.
+  Now: _"The research provider is rate-limiting us right now"_ at 429, _"could
+  not be reached"_ otherwise, and _"check the model settings and its API key"_
   for a Path R model failure. The cause is logged with the request id and never
   returned.
 - **A failed ledger write no longer discards a paid draft.** The record happens
@@ -7126,17 +7184,18 @@ Off a screenshot of the Temper nav: the open research thread — nested under
 Brand context since 1.15.0 — read as a stray top-level row. Two defects
 compounding. The depth-1 "indent" was `pl-9` (36px of padding), which is
 exactly where a top-level label lands after its icon (10px padding + 16px icon
-+ 10px gap) — so a child row, which has no icon, aligned its text flush with
-its parent's label and the hierarchy existed only in the code. And the
-selected fill still spanned the full nav width, a big iconless pill among icon
-rows, starting left of its own text. Meanwhile the parent row showed nothing:
-`aria-current` correctly stays on the child, but visually nothing anchored the
-pill to Brand context two rows up.
+
+- 10px gap) — so a child row, which has no icon, aligned its text flush with
+  its parent's label and the hierarchy existed only in the code. And the
+  selected fill still spanned the full nav width, a big iconless pill among icon
+  rows, starting left of its own text. Meanwhile the parent row showed nothing:
+  `aria-current` correctly stays on the child, but visually nothing anchored the
+  pill to Brand context two rows up.
 
 ### 1. The child pill is inset by margin, not padding
 
 `NavItem` depth-1 becomes `ml-6 rounded-md py-1.5 pr-2.5 pl-3`: the margin
-insets the *fill*, which is the part padding can never do, and `pl-3` lands
+insets the _fill_, which is the part padding can never do, and `pl-3` lands
 the text back at 36px — children stay aligned with their parent's label while
 the pill edge shows the nesting. The tighter vertical padding and smaller
 radius make the child read subordinate rather than like a second, differently
@@ -7168,7 +7227,7 @@ pnpm -F @brandfactory/web build   clean
 
 1051 → **1054 (+3)**: the inset pill on a nested thread (and its absence on
 the parent), the parent row inked while its thread is open (asserting the
-*absence* of `text-muted-foreground`, since the muted variant carries
+_absence_ of `text-muted-foreground`, since the muted variant carries
 `hover:text-foreground` and a presence check would pass everywhere), and the
 same anchor on Brand context with the child still carrying `aria-current`.
 
@@ -7182,7 +7241,7 @@ is unobserved.
 
 **The $0.40 report rendered its own citations as debris.**
 
-The research thread's opening message *is* the Perplexity report (3F), and the
+The research thread's opening message _is_ the Perplexity report (3F), and the
 chat bubble was rendering it twice wrong. Its `prose prose-sm` classes were
 inert — this repo has no `@tailwindcss/typography`, a fact the report dialog
 wrote down in 1.14.0 while solving the same problem for itself — so the
@@ -7190,8 +7249,8 @@ report's `#` title fell through to the global 24px `h1`, a headline register
 inside a chat bubble. And Perplexity's `[20][1][7]` citation markers, 1-based
 indexes into a source list the vendor sends alongside the report, arrived as
 raw bracket runs: the text's strongest claims wearing its worst typography.
-The ask, off a screenshot of the Temper thread: *"format it nicer like
-Perplexity natively does"* — which native rendering is exactly two things,
+The ask, off a screenshot of the Temper thread: _"format it nicer like
+Perplexity natively does"_ — which native rendering is exactly two things,
 document typography and markers that are chips linking their sources.
 
 ### 1. `CitedMarkdown` — one markdown register, grown from the dialog's
@@ -7220,8 +7279,8 @@ row. Rather than re-land reports, the detail read learns the join: new db
 query `getResearchJobByReportProject`, and `GET /projects/:id` attaches the
 run's citations as an optional `researchSources` — only for a brand-context
 thread some job's `reportProjectId` names, and omitted rather than `[]`
-everywhere else, because the field is a statement that *these messages cite
-these sources* and an empty list would make "no citations" and "not a research
+everywhere else, because the field is a statement that _these messages cite
+these sources_ and an empty list would make "no citations" and "not a research
 thread" one state. `ChatPane` takes them as `citationSources`, knowing nothing
 about research — the same ignorance it maintains about brands.
 
@@ -7355,8 +7414,8 @@ the rail's own `Brand context` heading reads as structure or as a stutter.
 
 **Studio shipped a canvas nobody could see.**
 
-Reported from the outside, one release later, in five words: *"when I click onto
-the new Studio tab, nothing shows up"*. It was not a mount failure, and the
+Reported from the outside, one release later, in five words: _"when I click onto
+the new Studio tab, nothing shows up"_. It was not a mount failure, and the
 screenshot proved it in the same frame that reported it — the `Controls` panel
 and the zoom toolbar were both on screen, and those are `absolute` against the
 runtime's root (`panel-host-config.ts`). Their being there at all says the lazy
@@ -7365,8 +7424,8 @@ chunk arrived, the reducer ran, and the surface filled its container.
 What was missing was the artboard, and it was missing for **three true things
 compounding**, none of which is visible from reading any one of them.
 
-This is the bill for 1.16.0's own closing sentence — *"No live pass. No database
-means the app cannot boot, so none of this has been on a screen."*
+This is the bill for 1.16.0's own closing sentence — _"No live pass. No database
+means the app cannot boot, so none of this has been on a screen."_
 
 ### 1. The artboard had no surface of its own
 
@@ -7380,7 +7439,7 @@ rather than assuming, because 1.16.0 deleted forty of them. Upstream's
 `runtime/styles.css` at `682a159` was fetched and compared: it carries the same
 two canvas rules we kept (`color-scheme: normal`) and no surface either.
 Upstream's generated apps never look like this because their schema always drives
-something *into* the canvas — ours is generic by decision, so ours was the first
+something _into_ the canvas — ours is generic by decision, so ours was the first
 toolcraft app with nothing to draw.
 
 Which is why the fix is in `styles/toolcraft.css` and **the vendored tree is
@@ -7391,7 +7450,7 @@ Two details it turns on. **Tier-2 names** — inside `[data-toolcraft-theme]` th
 existing block points `--border` at full-contrast ink so toolcraft's
 `color-mix(…12%…)` call sites still work, so reading `--border` here would paint
 that ink neat; `--border-default` is the finished hairline. And **`box-shadow`
-rather than `border`**, because the element's width and height *are* the output
+rather than `border`**, because the element's width and height _are_ the output
 size in pixels — a border would quietly spend two of them.
 
 ### 2. …and its edges were off-screen anyway
@@ -7411,8 +7470,8 @@ the artboard at 100% should show it at 100%, and enlarging past that is a
 decision for the person, not for the opening frame.
 
 **Gated on persistence, not on state**, which is the one choice here worth
-arguing. The runtime hands back a zoom either way; only the *absence* of a
-snapshot separates *nobody has been here* from *somebody set it to this*. Keyed
+arguing. The runtime hands back a zoom either way; only the _absence_ of a
+snapshot separates _nobody has been here_ from _somebody set it to this_. Keyed
 off `studioStorageKey`, now exported so the schema and this share one definition,
 and typed off the runtime's own `` `toolcraft:${string}:state:v${number}` ``
 rather than `string`. Re-fitting on every visit would overrule the zoom control
@@ -7420,7 +7479,7 @@ every time the page was opened.
 
 The same component says what to do with an empty canvas. The sentence is
 counter-scaled by `100/zoom` out of the canvas transform: everything else in
-there is artboard content and *should* zoom with it, but a line about how to
+there is artboard content and _should_ zoom with it, but a line about how to
 begin is chrome, and at 25% it would be unreadable.
 
 ### 3. A cost `canvasContent` introduced, paid in the same pass
@@ -7449,8 +7508,8 @@ with their tokens intact.
 **The fit itself has no test, and cannot have one here.** jsdom reports
 `clientWidth: 0`, so `studioFitZoom` correctly returns `null` and the dispatch
 never runs. The maths is therefore a pure exported function with four cases
-pinned — including that `null` means *leave the zoom alone*, never *fall back to
-a guess* — and the half that measures a real element through `closest` is
+pinned — including that `null` means _leave the zoom alone_, never _fall back to
+a guess_ — and the half that measures a real element through `closest` is
 reasoned, not observed.
 
 **Still no live pass**, so this release fixes a bug found on a screen without
@@ -7468,7 +7527,7 @@ extension timed out and was abandoned rather than retried.
 
 `Visual identity` has held a brand's colours, marks and photography since 2E,
 and every one of them arrives by upload or by URL — a very good filing cabinet
-attached to a product whose other four tiles all *make* something.
+attached to a product whose other four tiles all _make_ something.
 
 [`pixel-point/toolcraft`](https://github.com/pixel-point/toolcraft) is a canvas
 with controls — upload, pan, zoom, radar, history, layers, keyframes, image and
@@ -7509,7 +7568,7 @@ zero times and `runtime` reaches into `ui` from six files, every one of them
 pulling only primitives, panel chrome and controls: the composites were
 reachable through a barrel and used by nothing. They were also a second
 `Dialog`, `Sidebar`, `Table`, `Tabs` and `Sonner` beside the Radix ones, which
-is how a codebase ends up with two answers to *which dialog do I import*.
+is how a codebase ends up with two answers to _which dialog do I import_.
 
 That removed **`cmdk` and `react-resizable-panels` entirely**; three new deps
 remain (`@base-ui/react`, `@phosphor-icons/react`, `motion`).
@@ -7525,7 +7584,7 @@ The vendored surface is styled entirely through the same
 `--background` / `--foreground` / `--border` contract tier 3 already publishes,
 so it inherits the CI by cascade. Upstream's theme block is **deleted, not
 overridden** — 40 tokens restated to neutralise 40 tokens — leaving seven
-genuine remappings: three *dilution bases* (toolcraft mixes `--border` to 12% at
+genuine remappings: three _dilution bases_ (toolcraft mixes `--border` to 12% at
 the use site, where ours is already the finished colour) and `--accent`, which
 is a saturated highlight there and a hover surface here. Studio's active states
 are brand green.
@@ -7550,7 +7609,7 @@ pnpm test                         1029 passed | 49 skipped (114 files)
 pnpm -F @brandfactory/web build   clean
 ```
 
-1024 → **1029 (+5)**. One existing `BrandHubView` assertion was *tightened*
+1024 → **1029 (+5)**. One existing `BrandHubView` assertion was _tightened_
 rather than dodged: `queryByText(/colour/)` meant the palette summary line but
 matched any tile description mentioning colours, which Studio's now does.
 
@@ -7573,7 +7632,7 @@ pill, a brand pill and a one-segment breadcrumb tail, and every pass since has
 added one more thing to it — create in 1.12.0, the research chip in 1.13.0 —
 because a strip is the only furniture a shell with no other furniture has.
 Underneath it both dashboards were doing double duty: workspace home opened on a
-grid of brand cards because the grid was the only way to *reach* a brand, and the
+grid of brand cards because the grid was the only way to _reach_ a brand, and the
 brand hub opened on a 2×2 of app tiles for the same reason.
 
 This gives the app the shape the Mission Systems styleguide has described all
@@ -7626,7 +7685,7 @@ app ahead of the content in DOM order, so `__root` opens with a **skip link** an
 ### 3. Both dashboards stop being menus
 
 The brand hub keeps what a nav row cannot do — a sentence saying what a category
-is *for* and a way to start one (`Apps` → `Start something`) — and gives up what
+is _for_ and a way to start one (`Apps` → `Start something`) — and gives up what
 it duplicates: the per-tile thread count, now permanently on screen in the nav,
 and the `Other threads` catch-all, now a group in the panel beside the categories
 it is defined against. It gains **`Recent threads`**: the counts said how much
@@ -7638,7 +7697,7 @@ the sidebar cannot show — and a summary line that is **counts, never a score**
 gains the monogram, which is what lets a name and a coloured square be learned as
 one thing here and used as a destination everywhere else.
 
-`BrandContextRail` is untouched: *what do we know about this brand* is not
+`BrandContextRail` is untouched: _what do we know about this brand_ is not
 navigation and never was.
 
 ### Verification
@@ -7675,7 +7734,7 @@ the right cap on nested threads.
 thread — the right home, and still the right home: capture works on it by
 construction, and `routes/agent.ts` re-reads the transcript every turn, so the
 next thing you say in that thread is answered against the research. What it never
-gave anybody was a way to *get there*. The rail's row —
+gave anybody was a way to _get there_. The rail's row —
 `Research finished — read the report` — was a `<Link>` to `/brands/:id/context`,
 which is the **list of every conversation the brand has.**
 
@@ -7684,8 +7743,8 @@ headed `Brand context` that does not mention research anywhere → work out whic
 card is the report by recognising a date inside
 `Brand research — Casa Vostra, 30 Jul 2026` → open it → scroll one
 68,000-character assistant bubble in a workspace built for chatting. Reported
-twice from the outside: *"I can't see the research results anywhere"* (1.13.1),
-then *"right now not intuitive enough"* after 1.13.2 had answered the version of
+twice from the outside: _"I can't see the research results anywhere"_ (1.13.1),
+then _"right now not intuitive enough"_ after 1.13.2 had answered the version of
 the complaint it could see.
 
 The row opens the report, and the conversation becomes the way **onward** rather
@@ -7714,14 +7773,14 @@ would be this repo withholding an answer it has.
 ### 2. Migration 0007 — the thread id stops going nowhere
 
 `landReportInThread` has computed the project id since 3F and handed it to a
-caller that ignores it, which is the *only* reason the rail could point at a list
+caller that ignores it, which is the _only_ reason the rail could point at a list
 rather than at a conversation. 1.13.2 named persisting it the better answer and
 deferred it for a stated reason; the modal is what made it worth taking, because
 a dialog that shows you the report needs somewhere honest to send you afterwards.
 
 **`ON DELETE set null`, not cascade.** Deleting the conversation must not delete
 the job: the row is the only record money was spent, and it holds the report
-itself. A stale pointer going null is the *correct* outcome, and it is why every
+itself. A stale pointer going null is the _correct_ outcome, and it is why every
 reader treats null as "offer the conversation list" rather than as an error.
 Written **last, after the message** — a job pointing at a thread with no report in
 it is a worse lie than one pointing at nothing — and inside the same swallowed
@@ -7756,7 +7815,7 @@ UTC, matching `researchThreadName`, or one run appears under two dates for anyon
 west of Greenwich in the evening.
 
 **Typography by descendant selector, not `prose`.** This repo has no
-`@tailwindcss/typography` — `ChatPane`'s `prose prose-sm` is *inert*, and its
+`@tailwindcss/typography` — `ChatPane`'s `prose prose-sm` is _inert_, and its
 `[&_p]:my-1` overrides are what actually do the work there. Adding the plugin
 would restyle every markdown surface in the app as a side effect of shipping a
 modal, so the rules live at the one call site that needs them, in the product's
@@ -7778,10 +7837,10 @@ tint, no status colour: a finished run is not an alert.
 `landReportInThread` swallows its own failure, so a completed job could send you
 to a Brand context that never received anything. Correct about the bug. Its
 remedy was to **drop the affordance** — no link, no button, `Research finished`,
-and *"Researching again produces a fresh report."*
+and _"Researching again produces a fresh report."_
 
 **The report is not in the thread. It is on the job row, and the thread was only
-ever a copy of it.** So a failed landing costs the *conversation*, never the
+ever a copy of it.** So a failed landing costs the _conversation_, never the
 report — and suppressing the row meant hiding a readable document in order to
 report a missing copy of it, leaving a $0.40 re-run as the only move.
 
@@ -7830,7 +7889,7 @@ now makes readable rather than silent.
 1.13.1 was justified as the release that makes the next live run diagnosable. It
 is not, on the most likely failure path — and it closed with an investigation
 plan that would have come back clean and pointed the wrong way. Four of the five
-findings sit one layer *underneath* the code that release wrote, in the parts of
+findings sit one layer _underneath_ the code that release wrote, in the parts of
 the lifecycle it depended on and did not touch.
 
 Detail in
@@ -7843,23 +7902,23 @@ Detail in
 fires **only from the `catch`**, and shaping had four ways to come back empty
 without throwing at all:
 
-| Path | Logged before |
-| --- | --- |
-| Model answered outside the schema (`safeParse` failed) | **no** |
-| Model returned a valid, empty section list | **no** |
-| Every section rejected here (empty body, blank label) | **no** |
-| Brand row missing at shaping time | **no** |
-| Model threw, or timed out | yes |
+| Path                                                   | Logged before |
+| ------------------------------------------------------ | ------------- |
+| Model answered outside the schema (`safeParse` failed) | **no**        |
+| Model returned a valid, empty section list             | **no**        |
+| Every section rejected here (empty body, blank label)  | **no**        |
+| Brand row missing at shaping time                      | **no**        |
+| Model threw, or timed out                              | yes           |
 
 So the plan produced a clean log on four of five paths, and the reasonable
-reading of a clean log is *shaping was not the problem*. Wrong conclusion, drawn
+reading of a clean log is _shaping was not the problem_. Wrong conclusion, drawn
 confidently, at $0.40 a run.
 
 `shapeResearchIntoSections` now returns **why** alongside what —
 `ShapeOutcome` is `ok | invalid-shape | no-sections | sections-dropped`, plus
 `reportChars` and `sectionsReturned` — and `reconcileNow` logs it where the job
 id lives, with `model` off the row rather than off env (3C still paying off).
-`invalid-shape` is `error` because it is *our* configuration; the other two are
+`invalid-shape` is `error` because it is _our_ configuration; the other two are
 `warn` because both can be the honest answer about a thin website.
 `sectionsReturned` is `0` on `invalid-shape` on purpose: nothing was returned to
 count, and any other number sends an operator looking for sections the model
@@ -7878,8 +7937,8 @@ for: **the shaping pass has never been observed to work against a real model** �
 
 ### 2. The finished-run row could promise a report that was not there
 
-`hasReportToRead` is `status === 'COMPLETED'`, called *"a fact rather than a
-guess"* because that is the condition `landReportInThread` runs under. It is one
+`hasReportToRead` is `status === 'COMPLETED'`, called _"a fact rather than a
+guess"_ because that is the condition `landReportInThread` runs under. It is one
 swallowed failure short of a fact: that function logs and returns `null` rather
 than throwing — correctly, a failed insert must not fail a paid run — so a
 completed job can send you to a Brand context that never received anything. The
@@ -7887,7 +7946,7 @@ exact class of claim the row exists to stop being made, one turn on.
 
 The hub already holds the project list, so it is the layer that can check. Zero
 brand-context threads → the row keeps `Research finished` and `Research again`,
-drops the link, and says the report *either failed to land or has been deleted*
+drops the link, and says the report _either failed to land or has been deleted_
 — both, because they are indistinguishable from the client. Derived in
 `BrandHubView` rather than passed as a second prop (two props would make "the
 rail thinks it landed but the tiles disagree" representable), and **`undefined`
@@ -7895,11 +7954,11 @@ keeps the promise**, against this repo's usual rule: suppressing on a pending
 query flashes the bare entry point back on every navigation, which is the 1.13.1
 bug itself.
 
-**No migration.** Persisting the project id would make this a per-job fact *and*
+**No migration.** Persisting the project id would make this a per-job fact _and_
 buy a direct link; it is the better answer and it is written up rather than
 taken, because 1.13.1 rejected it for a stated reason and the cheap check closes
 the falsifiable claim without reopening that. Residual, stated: a brand with
-*other* context threads that lost this run's still shows the link.
+_other_ context threads that lost this run's still shows the link.
 
 ### 3. `researchTicker.stop()` did not wait for the sweep it claimed to
 
@@ -7921,10 +7980,10 @@ now" method wants and what keeps the overlap test from deadlocking.
   connection is a worse lie than a frozen one — and left a bar smoothly advancing
   underneath it, in the one element that is `aria-hidden` by design. It dims and
   steps now. The clock keeps counting, which is consistent rather than an
-  oversight: elapsed time stays true without a connection; *work happening right
-  now* does not.
+  oversight: elapsed time stays true without a connection; _work happening right
+  now_ does not.
 - **The finished row was permanent chrome.** `COMPLETED` is forever, so the hint
-  *read it there and capture what matters into the guidelines* sat on every brand
+  _read it there and capture what matters into the guidelines_ sat on every brand
   ever researched, teaching a gesture the sections prove was already performed.
   It retires once the brand has sections. The missing-report line from finding 2
   is exempt — it explains an anomaly rather than teaching a gesture.
@@ -7965,9 +8024,9 @@ the next $0.40 is the verification, and it should be spent watching
 
 **The first real post-1.13 run, watched.** 1.13.0 closed by saying production
 was now capable of a live run and that the next one was the verification. It
-was, and it found two bugs — reported as *"the UI seems stuck here"* and, six
-minutes later, *"looks like research finished or died, but I can't see the
-research results anywhere"*. Both reports were right, and both are the same
+was, and it found two bugs — reported as _"the UI seems stuck here"_ and, six
+minutes later, _"looks like research finished or died, but I can't see the
+research results anywhere"_. Both reports were right, and both are the same
 mistake in two places: a state the user was in that the rail had no drawing for.
 
 Detail in
@@ -7977,20 +8036,20 @@ Detail in
 
 The in-flight row rendered `formatRelativeTime(startedAt)` **during render**,
 and nothing re-rendered it for the length of a run: React Query v5 has
-structural sharing *and* tracked properties on by default, and an `IN_PROGRESS`
+structural sharing _and_ tracked properties on by default, and an `IN_PROGRESS`
 summary is deeply identical on every 5-second poll — same `startedAt`,
 `drafts: []`, `sourceCount: 0`, `error: null`. Same reference, no re-render.
-`started 1 second ago` still read *1 second ago* twelve minutes in. A poll is
+`started 1 second ago` still read _1 second ago_ twelve minutes in. A poll is
 not a clock; `lib/use-now.ts` is.
 
 There is still **no vendor progress** — the poll is `{ status: 'running' }`
 until it is not — so the row states what is actually known:
 
-| Pace | When | Line |
-| --- | --- | --- |
-| `normal` | ≤ 15 min | *Usually 3–15 minutes…* |
-| `over` | > 15 min | *Longer than the usual 3–15 minutes. Still checking…* |
-| `ceiling` | ≥ ½ `RESEARCH_JOB_MAX_MINUTES` | *…closes on its own in about N minutes so you can try again.* |
+| Pace      | When                           | Line                                                          |
+| --------- | ------------------------------ | ------------------------------------------------------------- |
+| `normal`  | ≤ 15 min                       | _Usually 3–15 minutes…_                                       |
+| `over`    | > 15 min                       | _Longer than the usual 3–15 minutes. Still checking…_         |
+| `ceiling` | ≥ ½ `RESEARCH_JOB_MAX_MINUTES` | _…closes on its own in about N minutes so you can try again._ |
 
 The meter is `aria-hidden` with no `progressbar` role — a spoken "62% complete"
 would be 1.13.0's rejected fake meter arriving through another channel. The
@@ -8000,12 +8059,12 @@ reader would announce the elapsed time once per second.
 `RESEARCH_JOB_MAX_MINUTES` now rides the research envelope as `maxMinutes`. That
 ceiling has closed stuck runs since 1.11.2 and **no surface ever mentioned it**,
 so minute 4 and minute 47 of a hung run looked identical. It is optional on the
-schema though the server always sends it: the client also *writes* that cache
+schema though the server always sends it: the client also _writes_ that cache
 entry from the `POST` response, which knows nothing about the deployment, and a
 defaulted ceiling would be a number stated with confidence that nobody
 configured.
 
-New failure mode closed in the same pass: a clock ticking over a *failing* poll
+New failure mode closed in the same pass: a clock ticking over a _failing_ poll
 is a worse lie than a frozen one, so `researchUnreachable` replaces the pace
 line with a statement about the connection — and does not claim the run died.
 
@@ -8014,7 +8073,7 @@ line with a statement about the connection — and does not claim the run died.
 `COMPLETED` with `drafts.length === 0` fell through to the bare
 `Research this brand` entry point, pixel-identical to a brand nobody had ever
 researched. Two ordinary paths land there — shaping produced nothing (swallowed
-on purpose: *a paid-for report is not lost because the second stage failed*), and
+on purpose: _a paid-for report is not lost because the second stage failed_), and
 drafts already taken (1.11.2). The branch's comment only ever claimed the second.
 
 The report was never lost. 3F has landed it as a brand-context thread since it
@@ -8044,7 +8103,7 @@ Postgres or `.env` in this environment, so 1.11.2's warning stands unchanged.
 **No live pass**; the app cannot boot here. That the Temper run reached
 `COMPLETED` with zero drafts is inferred from which row rendered plus Fly logs
 showing no polling at either page load, and is confirmed by finding
-`Brand research — Temper, 30 Jul 2026` under *Talk it through*. Why shaping
+`Brand research — Temper, 30 Jul 2026` under _Talk it through_. Why shaping
 produced nothing is not established — the log line falls just outside the
 retained window.
 
@@ -8075,13 +8134,13 @@ The checkbox is here now:
     Needs a website. Runs in the background; the brand is created either way.
 ```
 
-| Condition | Behaviour |
-| --- | --- |
-| `RESEARCH_PROVIDER=none` | Checkbox **absent** (same dead-affordance gate as the rail row) |
-| Research on, website empty | Checkbox **disabled**, unchecked |
+| Condition                    | Behaviour                                                              |
+| ---------------------------- | ---------------------------------------------------------------------- |
+| `RESEARCH_PROVIDER=none`     | Checkbox **absent** (same dead-affordance gate as the rail row)        |
+| Research on, website empty   | Checkbox **disabled**, unchecked                                       |
 | Research on, website present | Checkbox **enabled**, default checked (opt-out, not silent auto-start) |
-| Create + opt-in | Brand first → navigate → `POST /brands/:id/research` → seed cache |
-| Research start fails | Toast only; the brand still exists (decision 2) |
+| Create + opt-in              | Brand first → navigate → `POST /brands/:id/research` → seed cache      |
+| Research start fails         | Toast only; the brand still exists (decision 2)                        |
 
 `GET /research` returns `{ enabled }` without a brand id — the dialog has to
 know before create. Shared as `ResearchConfigSchema`; client
@@ -8094,11 +8153,11 @@ The rail's `IN_PROGRESS` state was a single line of elapsed time, only on the
 brand hub. Leave for Visual identity or a project and a paid job had zero
 chrome anywhere.
 
-- **Rail** — second muted line: *Usually 3–15 minutes. Draft guideline sections
-  and a full report land on this brand when ready.* Expectation, not a fake
+- **Rail** — second muted line: _Usually 3–15 minutes. Draft guideline sections
+  and a full report land on this brand when ready._ Expectation, not a fake
   progress meter: the vendor poll is still `{ status: 'running' }` until
   completion, and inventing partial findings was rejected.
-- **Header chip** (`ResearchInFlightIndicator`) — spinner + *Researching…*,
+- **Header chip** (`ResearchInFlightIndicator`) — spinner + _Researching…_,
   links to the brand hub, only while the **active** brand has an in-flight job.
   Same presence rule as `BrandSwitcher`. Terminal states stay on the hub.
 
@@ -8114,7 +8173,7 @@ unset in `fly.toml` — so a fresh self-host never spends money by accident.
 What changed for operators:
 
 - **`.env.example`** — step list for a local watched run (provider + key,
-  restart, create with opt-in *or* rail).
+  restart, create with opt-in _or_ rail).
 - **`fly.toml`** — comment that research is deliberately unset, with the
   `fly secrets set` recipe and the ~$0.40 warning.
 - **`README.md`** — `RESEARCH_PROVIDER` / `PERPLEXITY_API_KEY` rows in the env
@@ -8154,7 +8213,7 @@ is now capable of one; the first real post-1.13 run is the live verification.
 ## 1.12.0 — 2026-07-30
 
 **The brand pill could switch brands but not add one.** 1.6.0 added it on the
-grounds that a brand is as much a *place* as a workspace is, and gave it the same
+grounds that a brand is as much a _place_ as a workspace is, and gave it the same
 pill — but creating a brand still meant going up to workspace home and back down,
 which is the trip the pill exists to remove.
 
@@ -8169,7 +8228,7 @@ which is the trip the pill exists to remove.
   exists in `EntityMenu`, and the same `setTimeout(…, 0)` the workspace switcher
   uses.
 - **Disabled with no workspace**, like `All brands` beside it.
-  `useActiveWorkspaceId` resolves the workspace *from the brand detail*, so on a
+  `useActiveWorkspaceId` resolves the workspace _from the brand detail_, so on a
   deep link it can be null while the name has already arrived from the
   workspace-wide list. There is no `POST` target then, which is also why the
   dialog is not mounted at all rather than mounted with an empty `wsId`.
@@ -8229,7 +8288,7 @@ Detail in
 
 `fly.toml` sets no `RESEARCH_PROVIDER`, so it defaults to `none` and **Stage 3
 ships dark** — routes 501, the ticker never starts, the rail's row does not
-render. Every finding is behind that flag, so this pass gates *enabling research*
+render. Every finding is behind that flag, so this pass gates _enabling research_
 rather than the release.
 
 Which is also the honest size of the risk removed: not "production was broken" but
@@ -8242,14 +8301,14 @@ A rule stated in a comment and enforced nowhere — or enforced somewhere that
 cannot see what it needs to see.
 
 - **The rail advertised drafts forever.** Its row renders on `COMPLETED &&
-  drafts.length > 0` and **nothing ever emptied `drafts`**, so a brand that had
+drafts.length > 0` and **nothing ever emptied `drafts`**, so a brand that had
   already taken them kept offering them, and re-accepting wrote a second copy of
   every section. Two artefacts described the missing piece:
   `BrandContextRail`'s fall-through comment names "a completed run whose drafts
   have already been dealt with" — a state the code could not reach — and the db
   writer had existed since 3E, wired into `Db`, faked in `test-helpers`, **called
   by nothing**. That is the `reorderAssets` shape 1.11.1 found, one stage later.
-- **The shaping spend had no guard.** `finishResearchJob` arbitrates the *write*;
+- **The shaping spend had no guard.** `finishResearchJob` arbitrates the _write_;
   above the write sits a vendor poll and a `generateObject` pass over a report
   measured at 67,780 characters. A 5-second client poll against a 30-second sweep
   paid for that pass two and three times and discarded all but one. Not an edge
@@ -8305,7 +8364,7 @@ was spent, and the daily cap counts rows precisely so a billed run still counts.
 ### Two bounds and a missing signal
 
 - **`label` was 200 at the producer and 120 at the destination**, over a wire that
-  takes the brand's *complete* section list — so one long label returned `400` for
+  takes the brand's _complete_ section list — so one long label returned `400` for
   the whole payload and lost all five drafts. 3G's `min(1)` bug, one bound over.
   Fixed by clamping at the producer and by giving the **model-facing schema no
   maximum at all**: `safeParse` is all-or-nothing, so a bound there turns one
@@ -8321,7 +8380,7 @@ was spent, and the daily cap counts rows precisely so a billed run still counts.
 
 `packages/shared/src/index.ts` exported `./research/job` **twice**, under two
 copies of the same comment. `createFakeDb` stamped research jobs with a **fixed
-date in the past**, harmless until a job's *age* became behaviour — at which point
+date in the past**, harmless until a job's _age_ became behaviour — at which point
 every reconcile test would assert against a job the code is right to abandon; that
 is how four tests went red on the first run. And **`app.test.ts` now exists**,
 asserting the app compiles to `SmartRouter + RegExpRouter`: 1.11.1 lost an
@@ -8377,7 +8436,7 @@ Detail in
 `fly.toml` runs `STORAGE_PROVIDER = "supabase"`. Every Stage 2 live pass ran on
 `local-disk`, and `app.ts` mounts `/blobs` **only** for `local-disk` — so 2D's
 content-type fix and the `sandbox` + `nosniff` headers beside it sit on a route
-production never loads. Stage 2 is the first feature whose content is *bytes*.
+production never loads. Stage 2 is the first feature whose content is _bytes_.
 
 Reading the two providers side by side turned that into a concrete defect:
 
@@ -8408,19 +8467,19 @@ upload → render → brand-delete cycle on a Supabase deploy, with an SVG.
   forms, the `backgroundColor` longhand, and the inline arm of both schemas.
 - **`kind` and `source` were orthogonal in the table and not in reality.**
   `{ kind: 'color', source: 'link' }` and `{ kind: 'image', source: 'inline' }`
-  passed the schema, the CHECK *and* the route, rendering as an empty swatch and
+  passed the schema, the CHECK _and_ the route, rendering as an empty swatch and
   a permanent `No preview`. Enforced as a biconditional at the wire — a colour
   is inline and an inline asset is a colour. No migration: adding a CHECK
   mid-Stage-3 would renumber one that stage had claimed.
 - **The blob sweep could destroy bytes it did not own.** Stage 2 turned a
-  client-supplied `blobKey` into something the brand cascade *deletes*, so a row
+  client-supplied `blobKey` into something the brand cascade _deletes_, so a row
   naming a key it did not mint made deleting your own brand delete another's
   file. Unreachable in practice — v4 UUIDs, single-owner workspaces — which is
   why it needed a test rather than a repro. Now the cascade subtracts whatever
   still points at a key **after** the delete, which depends on neither of those
   staying true. Applied to the project cascade too.
-- **Delete gets the Undo 1.10.0 asked for.** Its own caveats named it: *"the fix
-  is an Undo, not a dialog."* The row was always recoverable and simply had no
+- **Delete gets the Undo 1.10.0 asked for.** Its own caveats named it: _"the fix
+  is an Undo, not a dialog."_ The row was always recoverable and simply had no
   caller. `restoreAsset` is that caller — its own verb, not a patch field, since
   `deletedAt` is the one column a patch must not set. Three missing `deletedAt`
   guards came with it, on every soft-delete writer.
@@ -8466,7 +8525,7 @@ pnpm --filter @brandfactory/web build          ok · "demo" in dist → 0
 817 → **887 (+70)**. **No migration**, so nothing to roll back — every change is
 a schema refinement, a `where` clause, a route, or a test.
 
-On the *dev* database one test fails and it is not a defect:
+On the _dev_ database one test fails and it is not a defect:
 `listRecentProjectsByWorkspace` asserts an exact count of distinct brands, and
 the local database carries two hand-made ones. Established by running the suite
 against a freshly migrated database rather than assumed, and left alone — the
@@ -8505,7 +8564,7 @@ POST /brands/:id/research
 
 Below that last line the money is spent and a check can only hide the result. The
 order is not decorative either: the URL gate is second because a deep pass over
-the bare string "Casa Vostra" finds *a* Casa Vostra and writes a confident,
+the bare string "Casa Vostra" finds _a_ Casa Vostra and writes a confident,
 cited, entirely wrong profile — and the citations make it more convincing, not
 less. **Verified against a real report at 3G**, which came back about the company
 at the URL it was given.
@@ -8516,8 +8575,8 @@ closed after a grace period; a paid run with no row is money on the floor.
 ### The three decisions worth reading
 
 **Compression, not partition.** 3A's real report was 67,780 characters across
-five `##` headings, so *"turn the report into draft sections"* read literally
-produces a 16,000-character *Voice & tone* in a rail row built for a paragraph.
+five `##` headings, so _"turn the report into draft sections"_ read literally
+produces a 16,000-character _Voice & tone_ in a rail row built for a paragraph.
 `DRAFT_TARGET_MAX_CHARS = 1200` is asked for in the prompt and stated as a
 number, because "keep it short" without one is how a 16,000-character section
 happens.
@@ -8525,7 +8584,7 @@ happens.
 **Emptiness is answered when the drafts land, not at submission.** A deep run
 takes 3–15 minutes — ample time to start typing a Voice section by hand — so a
 brand that was empty when you clicked need not be empty when the report arrives.
-An unknown section list takes the path that *asks*, because the difference
+An unknown section list takes the path that _asks_, because the difference
 between "empty" and "not loaded yet" is a destructive write.
 
 **A new thread, never an append.** The report becomes the first `assistant`
@@ -8546,7 +8605,7 @@ capture                       48,607 chars → a 53,984-char section, in 3.1s
 
 **10% dearer and 30% slower than 3A's sample of one**, on the same target two
 days apart. Nothing depends on the exact figure — the daily cap is a job count —
-but *"a run costs $0.377"* should be read as *"around $0.40, and it varies"*.
+but _"a run costs $0.377"_ should be read as _"around $0.40, and it varies"_.
 
 **Shaping threw `Unauthorized`** on this environment's placeholder LLM key, and
 that verified the refusal it was written for: the run still reached `COMPLETED`
@@ -8558,13 +8617,13 @@ fabricated, shape-accurate drafts on real Postgres.
 ### Three bugs the live passes found and no test would have
 
 - **Accepted drafts landed below the fold.** New sections are appended and the
-  dialog opens at the top, so on a brand with six sections *Accept selected* put
+  dialog opens at the top, so on a brand with six sections _Accept selected_ put
   three drafts out of sight and looked like it had done nothing. Every test
-  passed: *the row exists* and *you can see the row* are not the same claim.
+  passed: _the row exists_ and _you can see the row_ are not the same claim.
 - **A capture could not be saved, and the toast said `Bad Request`.** `label` is
   `min(1)` on the shared schema and the editor sends the brand's **complete**
   section list, so one nameless row rejected the whole request and took every
-  other edit with it. Every capture is nameless *by design* — you name it and
+  other edit with it. Every capture is nameless _by design_ — you name it and
   trim it, then Save — so this has been reachable since 1.5.0; 3F is what made it
   the ordinary path, because the report is the thing people capture.
 - **The brand switcher's menu had no width cap.** One 90-character brand name
@@ -8590,7 +8649,7 @@ timing. Every "0 skipped, all green" in 3B, 3C and 3D was luck. Fixed with
 0, both run rather than assumed. Four comments that described the mockup in the
 present tense are corrected, and **1.8.0's invariant is formally closed**: every
 prop it added is fed by the real route, and the half that carries the weight —
-*every affordance renders nothing when its prop is absent* — has
+_every affordance renders nothing when its prop is absent_ — has
 `RESEARCH_PROVIDER=none` as its newest instance, checked live and button-for-button.
 
 ### Verification
@@ -8660,8 +8719,8 @@ write here. `railVariant` is gone — a prop with one legal value is a prop that
 has already been decided — and the rail's palette block stays read-only with its
 heading linking to the page that can change it.
 
-The rule the rail promises survives intact: *written sections and unwritten
-suggestions are one list, and that list is the meter*. A palette **block** — its
+The rule the rail promises survives intact: _written sections and unwritten
+suggestions are one list, and that list is the meter_. A palette **block** — its
 own border, heading and summary — is not a row in that list and does not enter
 the count.
 
@@ -8728,7 +8787,7 @@ and 0 blob files — which is also how the brand cascade's blob sweep was verifi
   dialog; neither is in this release.
 - **The agent still cannot see a brand's colours.** Assets are deliberately not
   in `ProjectDetail` or the system prompt. Named as the obvious next pass in the
-  plan's *What this plan does not settle*.
+  plan's _What this plan does not settle_.
 - **Nothing sets `alt`**, and **split-origin deploys are untested** — they need
   the absolute `BLOB_PUBLIC_BASE_URL` plus `CORS_ALLOWED_ORIGINS`, which nothing
   in Stage 2 exercised.
@@ -8817,7 +8876,7 @@ seam outlives the mockup, because it is what makes the hub testable without
 mounting a QueryClient.
 
 **What keeps the shipped hub unchanged is not the URL.** `BrandHubView` is
-*shared*, so every affordance P1–P4 added lands in a component `/brands/$brandId`
+_shared_, so every affordance P1–P4 added lands in a component `/brands/$brandId`
 mounts. The protection is an invariant, written down and tested:
 
 > The real route can only pass `null` / empty for every prop this pass adds, and
@@ -8826,7 +8885,7 @@ mounts. The protection is an invariant, written down and tested:
 Hence the research row is gated on its **callback**, not on the job it renders —
 a rail offering to research a brand against a backend with no research route is
 the dead affordance 1.7.0 spent a pass removing. And the rail variant defaults to
-**C, because C *is* 1.7.0**: the only one of the three arrangements that is also
+**C, because C _is_ 1.7.0**: the only one of the three arrangements that is also
 the shipped layout.
 
 ### The gate that did not gate
@@ -8951,10 +9010,10 @@ only by remembering it, and nine routes did not. Swapping `font-semibold` →
 starting from the same blank slate. So the base layer now carries h1/h2/h3 in
 full and the call sites drop their utilities: `<h1>{brand.name}</h1>` renders to
 spec because it is an `h1`. Overriding is still possible — it is now a
-*decision* rather than the only way to get the default.
+_decision_ rather than the only way to get the default.
 
 This is the argument the token tiers already make one layer down (§2). A
-component reading a raw hex is a bug *because* the correct value should not
+component reading a raw hex is a bug _because_ the correct value should not
 require recall; a heading restating the scale is that bug in typography.
 
 ### What shipped
@@ -8966,12 +9025,12 @@ require recall; a heading restating the scale is that bug in typography.
   12px/500 sentence case on the neutral beige pill §12.4 specifies. `kind`
   arrives lowercase off the wire, so `capitalize` is what makes it a sentence
   rather than dropping it to lowercase. `Workspace Settings` → `Workspace
-  settings`.
+settings`.
 - **§8 / §9, elevation and radii** — `shadow-sm`/`md`/`lg` are Tailwind's
   **black-based** defaults, and the point of a warm neutral ramp is that its
   shadows are warm too. Cards move to `elevation-1` + 12px (they were on
-  `rounded-lg`, the *button* radius); menus to `elevation-2` + 12px (they were
-  on `rounded-md`, the *tooltip* radius) with 8px items; the capture button and
+  `rounded-lg`, the _button_ radius); menus to `elevation-2` + 12px (they were
+  on `rounded-md`, the _tooltip_ radius) with 8px items; the capture button and
   the toaster to `elevation-2`.
 - **`alert-dialog`, the one real bug** — `AlertDialogContent` was
   `bg-background`, and in this repo's tier-3 map `--background` is
@@ -8984,13 +9043,13 @@ require recall; a heading restating the scale is that bug in typography.
   implementing one spec should be diffable.
 - **§4, accent budget** — four spends outside the named roles: a `bg-primary/10`
   badge (a 10% accent tint is not a colour the palette contains → `info` tint,
-  since *where did this value come from* is informational), chips turning green
+  since _where did this value come from_ is informational), chips turning green
   on hover (hover is a **surface** change, §10.1), a resize handle on
   `primary/40` (→ `--border-strong`), and a link reading `--primary`, the button
-  *fill*, instead of `--color-text-link` (§3.1). **Left alone** because they are
+  _fill_, instead of `--color-text-link` (§3.1). **Left alone** because they are
   the budget working: `ShortlistToggle`'s accent-filled selected segment is
   §12.5 verbatim, the spinner is §12.8's thin accent arc, the drop targets are
-  the active-state role, and `BrandMark`'s hue is the *customer's* brand rather
+  the active-state role, and `BrandMark`'s hue is the _customer's_ brand rather
   than the product's accent — 1.7.0's argument, unchanged.
 
 **`BrandMark` keeps `font-semibold`, deliberately.** A monogram in a coloured
@@ -9093,18 +9152,18 @@ after    ┌────┐  Mission Group                                      
 ### The load-bearing decision
 
 **Each of the three questions gets a zone, and each fact lives in exactly one of
-them — the one where you can act on it.** *Who is this* → identity band. *What
-can I do* → main column. *What do we know* → right rail, on screen while you
+them — the one where you can act on it.** _Who is this_ → identity band. _What
+can I do_ → main column. _What do we know_ → right rail, on screen while you
 choose rather than read and scrolled past.
 
 The corollary is what kept the design from bloating: **no fact appears twice.**
 `BrandIdentity` carries no counts, and a test pins that, because the rail is
-*about* sections and each tile already carries its own thread count. A stats
+_about_ sections and each tile already carries its own thread count. A stats
 strip in the header would have restated both a scroll earlier with nowhere to
 click.
 
 The rail is a column and not a band because that is the record-detail shape —
-Linear, Attio, GitHub's *About* sidebar — and the actions, not the reference
+Linear, Attio, GitHub's _About_ sidebar — and the actions, not the reference
 material, deserve the wide column.
 
 ### What shipped
@@ -9118,17 +9177,17 @@ material, deserve the wide column.
   fill — only the hue crosses the boundary, as a bare number on `--brand-hue`.
   In CSS rather than Tailwind utilities because light and dark are two rules
   over one inline variable, and an inline `style` cannot express a `.dark`
-  variant. On the **accent budget**: the hue is not the *product's* accent, it
-  is the *customer's brand* — the one thing on this page entitled to look like
+  variant. On the **accent budget**: the hue is not the _product's_ accent, it
+  is the _customer's brand_ — the one thing on this page entitled to look like
   itself, on one element per surface.
 - **`BrandIdentity`** — an absent description renders as **an action, not a
   gap**: "Add a description" opens `RenameDialog`, which already owns the field.
 - **`BrandContextRail`** supersedes `BrandContextBar`, which is **deleted**
   rather than left dead. **Written sections and unwritten suggestions are one
   list** — the suggestions are not a get-started widget that vanishes once you
-  begin, they are the same rows unwritten, which is what answers *what do we
-  know* and *what is missing* in one glance. Hence **no meter**: five rows, two
-  written, *is* the meter, and it is the version you can click. Still inside the
+  begin, they are the same rows unwritten, which is what answers _what do we
+  know_ and _what is missing_ in one glance. Hence **no meter**: five rows, two
+  written, _is_ the meter, and it is the version you can click. Still inside the
   D2 decision on `GuidelineMeter` — no percentage, no bar, no red/green; a brand
   at zero reads `Rides along into every thread`, not `0 of 5`, because zero
   sections is a legitimate brand state (`vision.md:28`). A written row is a
@@ -9172,7 +9231,7 @@ Caveats, stated the way 1.6.0 states them:
   unchanged, but that is not the same as observed.
 - **The stacked rail is wide.** Below `lg` a row's trailing glyph sits far from
   its label. The settings-list convention, and accepted rather than overlooked —
-  but it is the same *class* of thing this pass set out to fix.
+  but it is the same _class_ of thing this pass set out to fix.
 - **One hue lands near the error tint** — a coral monogram in dark reads faintly
   destructive. Seen and accepted.
 - **The 10 skips are the live-Postgres suites** (no local Docker daemon). This
@@ -9195,7 +9254,7 @@ two inert tiles.
 
 The brand becomes a **place you can move between**. 1.4.0 made the brand page a
 hub and 1.5.0 gave it a conversation; both assumed you were already in the right
-brand. The header could switch workspaces and could only *name* the brand, so
+brand. The header could switch workspaces and could only _name_ the brand, so
 going from one brand to another meant navigating up to workspace home and back
 down through the grid. Standalone pass, no plan document — requested directly.
 Detail in [`docs/completions/brand-switcher-header.md`](completions/brand-switcher-header.md).
@@ -9208,28 +9267,28 @@ after    BrandFactory   [ Mission Group ⌄ ] / [ Casa Vostra ⌄ ] / Copywritin
 ### The load-bearing decision
 
 **The brand moved out of the breadcrumb and into a switcher — it is not in both
-places.** `Breadcrumbs.tsx` already carried the sentence *"Brand / project tail
-only — workspace lives in the switcher"*, so the precedent was written down
+places.** `Breadcrumbs.tsx` already carried the sentence _"Brand / project tail
+only — workspace lives in the switcher"_, so the precedent was written down
 before this pass existed: a segment that gets a switcher **leaves** the crumb
 trail. Rendering both would print the same brand name twice within twelve pixels
 of chrome.
 
 Nothing is lost in the trade, which is what makes it safe: the crumb was a link
-to the brand hub, and the pill reaches the brand hub *and* every sibling brand.
+to the brand hub, and the pill reaches the brand hub _and_ every sibling brand.
 Everything else — a shrinking trail type, four routes that stop reporting a
 brand, a new separator rule — is downstream of that one choice.
 
 ### What shipped
 
 - **`useActiveBrandId` (`lib/active-brand.ts`)** — `params.brandId ??
-  project?.brand.id ?? null`. The route param on a brand hub, mini-app page or
+project?.brand.id ?? null`. The route param on a brand hub, mini-app page or
   brand-context thread; `project.brand.id` on a project page, where there is no
   `brandId` in the URL at all. The param is checked **before** the query, so a
   brand page renders its switcher on the first frame rather than after a
   round-trip, and `useProjectDetail` is already mounted by `useActiveWorkspaceId`
   in the same header, so React Query dedupes it and the hook costs no request.
 - **No storage fallback, unlike `useActiveWorkspaceId`** — and the asymmetry is
-  the point, so it is commented at the site. The shell always needs *a*
+  the point, so it is commented at the site. The shell always needs _a_
   workspace, so a remembered id beats none. A brand is contextual: on workspace
   home you are not in a brand, and a switcher that claimed one would sit there
   offering to navigate you away from the page you are on, to a brand you never
@@ -9237,7 +9296,7 @@ brand, a new separator rule — is downstream of that one choice.
 - **`BrandSwitcher`** is a deliberate near-clone of `WorkspaceSwitcher` — same
   pill, same `DropdownMenuRadioGroup` (the check mark is opacity-only, so without
   `aria-checked` the active brand is signalled visually and nowhere else), same
-  `aria-description`-never-`aria-label` (a label would *override* the button text
+  `aria-description`-never-`aria-label` (a label would _override_ the button text
   and hide which brand is active), comments included, because both are the kind
   of thing a well-meaning pass "fixes" in the wrong direction.
 - **Selecting a brand always lands on `/brands/$brandId`**, never the equivalent
@@ -9245,7 +9304,7 @@ brand, a new separator rule — is downstream of that one choice.
   a mini-app category may have no thread in the brand you are entering.
   `All brands` returns to workspace home, in the slot `Workspace settings`
   occupies in the sibling component.
-- **Each header segment renders its own *leading* separator**, stated in the
+- **Each header segment renders its own _leading_ separator**, stated in the
   header comment and followed by both switcher and trail. The alternative — the
   header emitting `/` between children — cannot work, because both children
   return `null` on most pages and the header cannot see it; that is how you get
@@ -9275,11 +9334,11 @@ pnpm test           426 passed | 10 skipped (436)
 ```
 
 Test count 426 → **436 (+10)**: +8 `BrandSwitcher.test.tsx` (trigger named after
-the active brand; nothing outside a brand; resolution from a *project* route with
+the active brand; nothing outside a brand; resolution from a _project_ route with
 no `brandId`; brand-detail fallback while the list loads; no pill before a name
 resolves; `aria-checked`; select navigates to the **hub**; `All brands` → workspace
-home), and `Breadcrumbs.test.tsx` 3 → 5, including *never renders a brand
-segment*. `useActiveBrandId` is deliberately **not mocked** in the switcher suite
+home), and `Breadcrumbs.test.tsx` 3 → 5, including _never renders a brand
+segment_. `useActiveBrandId` is deliberately **not mocked** in the switcher suite
 — brand resolution is the part worth pinning, and a mocked resolver would have
 tested the mock. Two mutation checks caught: dropping the `project?.brand.id`
 fallback fails 3 tests; dropping the `?? brand?.name` label fallback fails the
@@ -9314,7 +9373,7 @@ production (`brandfactory.fly.dev`), not part of a tracked phase plan. Detail in
 
 The report: a brand hub rendering its name and description correctly, with
 `Failed to load brand.` and `Failed to load threads.` in red beneath them, and
-three 401s in the console. Described as *"sometimes this happens"*, and
+three 401s in the console. Described as _"sometimes this happens"_, and
 self-healing on reload.
 
 ### The bug
@@ -9325,7 +9384,7 @@ The web app captured the Supabase access token **once, at sign-in**
 a JWT with a **1-hour default `exp`** and the server enforces it, so a tab left
 open past the hour 401s every query.
 
-Nothing refreshed the stored copy, because the `supabase-js` client that *does*
+Nothing refreshed the stored copy, because the `supabase-js` client that _does_
 auto-refresh was module-scoped **inside `providers/supabase.tsx` — a component
 that only mounts on `/login`.** Once you were signed in, no refresh listener was
 alive anywhere in the process.
@@ -9360,22 +9419,22 @@ written anywhere in this repo.**
   `getFreshAuthToken()` — the single accessor for anything that talks to the
   server, writing back into the store when the token differs — and
   `startSessionSync()`, which mirrors `onAuthStateChange` into the store so a
-  *background* refresh (supabase-js fires one on a timer and on tab focus, with
+  _background_ refresh (supabase-js fires one on a timer and on tab focus, with
   nobody calling the accessor) reaches the copy the route guards read. Guarded by
   a module flag, because StrictMode mounts effects twice and a second
   subscription doubles every store write for the life of the tab.
 - **Fall back to the stored token, never to `null`.** With no session, or if
   `getSession()` throws, we send what we have and let the server be the
   authority: a genuinely dead token earns a 401 that drives the logout path — the
-  correct outcome — and the server log records *who* it was. Returning `null`
+  correct outcome — and the server log records _who_ it was. Returning `null`
   produces the same 401 with less information.
 - **Concurrent calls de-dupe into one in-flight promise**, cleared in
   `.finally()`. A brand page mounts several queries at once and each asks for a
-  token; a *permanent* cache would make the first token resolved the only token
+  token; a _permanent_ cache would make the first token resolved the only token
   ever sent, which is the original bug wearing a different hat. Pinned by its own
   test.
 - **`getAuthToken()` survives with a narrowed remit** — still correct for
-  *presence* checks in the eight `beforeLoad` guards, where stale-but-present
+  _presence_ checks in the eight `beforeLoad` guards, where stale-but-present
   still means "signed in"; no longer correct for authenticating a request, and
   the comment says so. `store.ts` gains **`setToken`**, because the refresh path
   cannot use `setAuth`: that demands a `userId` a token rotation has no fresh
@@ -9383,11 +9442,11 @@ written anywhere in this repo.**
 - **Four consumers moved to the fresh accessor** — `api/client.ts` (the `hc`
   `headers` callback, now async; that hono version's awaiting of a promise-
   returning callback was checked in `node_modules`, not assumed from the docs),
-  `agent/useAgentChat.ts` (the `await` sits *before* the optimistic user-message
+  `agent/useAgentChat.ts` (the `await` sits _before_ the optimistic user-message
   append, preserving the property that a signed-out send leaves no orphan
   bubble), `api/queries/blobs.ts` (`fetchReadUrl` runs on a 4-minute
   `refetchInterval` for the life of any mounted image, which makes it the surface
-  most likely to be the *first* call made with an expired token), and
+  most likely to be the _first_ call made with an expired token), and
   `realtime/client.ts`.
 - **`realtime/client.ts` — async connect with a generation guard.** An open
   socket legitimately outlives its token (the server verifies once, at upgrade),
@@ -9399,13 +9458,13 @@ written anywhere in this repo.**
   pending attempt would build an orphan socket that nothing holds and nothing
   closes.
 - **`auth/AuthBoundary.tsx` stops causing the logout it was checking for.** It
-  probed `/me` with the *stored* token, so on a boot more than an hour after
+  probed `/me` with the _stored_ token, so on a boot more than an hour after
   sign-in it 401'd and signed the user out of a session still perfectly alive
   behind the refresh token. It now probes with a fresh token, and a store
   subscription watching the `prev.token && !state.token` **transition** (not the
   value) navigates to `/login` — which is what closes symptom (1): every 401
   handler clears the token, and now that clearing moves the user somewhere. A
-  first paint with no token and a plain token *rotation* both stay quiet, and
+  first paint with no token and a plain token _rotation_ both stay quiet, and
   both are covered.
 - **`providers/supabase.tsx` imports the client instead of building one.** Two
   clients over one localStorage session is two refresh schedulers racing each
@@ -9421,24 +9480,24 @@ pnpm --filter @brandfactory/web build   ok
 ```
 
 Test count 400 → **426 (+26)**: +12 `auth/session.test.ts` (refresh + store
-sync, `userId` preservation, in-flight de-dupe *and* that it clears after settle,
+sync, `userId` preservation, in-flight de-dupe _and_ that it clears after settle,
 both fallbacks, the unconfigured/local-auth path, `SIGNED_OUT`, subscribe-once),
 +7 `AuthBoundary.test.tsx`, +4 realtime (fresh token per reconnect; abandoned
 in-flight connect), +3 `api/client.test.ts`. The nine existing realtime tests
 were rewritten to await socket construction — two of them needed an explicit
-microtask drain *before* asserting a socket was **not** created, otherwise the
+microtask drain _before_ asserting a socket was **not** created, otherwise the
 assertion could not fail. Mutation checks caught both the deleted generation
 guard and an `AuthBoundary` reverted to the stored token; `api/client.ts` needs
 none, since its test asserts `Bearer fresh` while the store holds `expired`.
 
 **Not verified live.** The failure takes an hour of wall clock to reproduce by
 definition. The honest confirmation is: sign in, leave the tab open for over an
-hour, and load a brand page *without reloading*. Recorded rather than claimed, in
+hour, and load a brand page _without reloading_. Recorded rather than claimed, in
 the spirit of 1.5.0's Phase H note.
 
 ### Standing notes
 
-- **No boot-time session hydration.** `sessionStorage` is per-tab, so a *new* tab
+- **No boot-time session hydration.** `sessionStorage` is per-tab, so a _new_ tab
   still has no token, still bounces through `/login`, and still signs in silently
   via `getSession()`. A separate and much less harmful papercut; fixing it means
   blocking first paint on a session read in `main.tsx`.
@@ -9473,16 +9532,16 @@ enforced by the editor, not the wire contract" invariant survives untouched, and
 
 ### Phases at a glance
 
-| Phase | What | Tests | Status |
-| --- | --- | --- | --- |
-| [A](completions/brand-context-capture-phase-a.md) | Registry row + conversation surface | 332 → 347 (+15) | done |
-| [B](completions/brand-context-capture-phase-b.md) | The brand-context thread surface | 347 → 358 (+11) | done |
-| [C](completions/brand-context-capture-phase-c.md) | Drag a message into brand context | 358 → 375 (+17) | done |
-| [D](completions/brand-context-capture-phase-d.md) | Excerpt capture | 375 → 387 (+12) | done — **not cut** |
-| [E](completions/brand-context-capture-phase-e.md) | Capture from any thread | 387 → 393 (+6) | done |
-| [F](completions/brand-context-capture-phase-f.md) | Brand-context agent behaviour | 393 → 399 (+6) | done — **correctness fix** |
-| [G](completions/brand-context-capture-phase-g.md) | Tests (reconciliation) | 399 → 400 (+1) | done — **+1 bug fixed** |
-| [H](completions/brand-context-capture-phase-h.md) | Verification and live pass | — | **not run — skipped by decision** |
+| Phase                                             | What                                | Tests           | Status                            |
+| ------------------------------------------------- | ----------------------------------- | --------------- | --------------------------------- |
+| [A](completions/brand-context-capture-phase-a.md) | Registry row + conversation surface | 332 → 347 (+15) | done                              |
+| [B](completions/brand-context-capture-phase-b.md) | The brand-context thread surface    | 347 → 358 (+11) | done                              |
+| [C](completions/brand-context-capture-phase-c.md) | Drag a message into brand context   | 358 → 375 (+17) | done                              |
+| [D](completions/brand-context-capture-phase-d.md) | Excerpt capture                     | 375 → 387 (+12) | done — **not cut**                |
+| [E](completions/brand-context-capture-phase-e.md) | Capture from any thread             | 387 → 393 (+6)  | done                              |
+| [F](completions/brand-context-capture-phase-f.md) | Brand-context agent behaviour       | 393 → 399 (+6)  | done — **correctness fix**        |
+| [G](completions/brand-context-capture-phase-g.md) | Tests (reconciliation)              | 399 → 400 (+1)  | done — **+1 bug fixed**           |
+| [H](completions/brand-context-capture-phase-h.md) | Verification and live pass          | —               | **not run — skipped by decision** |
 
 Every phase left the repo green at its boundary and landed its own
 `docs/completions/` file, per repo convention.
@@ -9490,7 +9549,7 @@ Every phase left the repo green at its boundary and landed its own
 ### Phase A — registry row + conversation surface (+15)
 
 `MINI_APPS` was doing one job with two consumers that happened to agree:
-*classify* a thread by `templateId` (which `isOrphanThread` reads) and *display*
+_classify_ a thread by `templateId` (which `isOrphanThread` reads) and _display_
 a category tile (which the hub grid reads). The brand conversation is the first
 row where those diverge — it **must** be classified, or a conversation lands in
 the hub's "Other threads" catch-all filed under "we don't know what this is"; and
@@ -9537,7 +9596,7 @@ Phase C's capture handles are deliberately not brand-context-specific.
   triggers over one destructive full-list write is how you get a wipe nobody can
   trace. Pinned by a test, because a later "the pane should have its own footer"
   instinct quietly breaks it.
-- **Cache coherence.** A brand's sections are now cached in *two* places —
+- **Cache coherence.** A brand's sections are now cached in _two_ places —
   `brands/:id` and the `brand` embedded in each `ProjectDetail`.
   `useUpdateBrandGuidelines` only repointed the first, so the visible editor
   would have looked correct right up until a window-focus refetch put the
@@ -9583,7 +9642,7 @@ and the editor stays an editor.
 - **dnd-kit coexistence: the conflict does not exist**, verified against
   `@dnd-kit/core` source rather than assumed. `useSortable().attributes` never
   sets `draggable`; its `PointerSensor` activates on `onPointerDown`, which HTML5
-  drag events don't produce on the element being dragged *over*; and our grip
+  drag events don't produce on the element being dragged _over_; and our grip
   lives in `ChatPane`, outside the `DndContext` entirely. Recorded either way — a
   plausible-sounding conflict that turns out not to exist is worth writing down.
 
@@ -9612,7 +9671,7 @@ grew a section; no other file gained a concept.
 - **The cut criterion was real, and jsdom reproduced it.** A test that cleared
   the selection then clicked the button found the button already gone: the
   `selectionchange` lands during the click's yield, the hook clears state, React
-  unmounts the affordance *before the click is delivered*. Not a jsdom artifact —
+  unmounts the affordance _before the click is delivered_. Not a jsdom artifact —
   the production failure mode on production timing. `onMouseDown` +
   `preventDefault` is therefore **load-bearing, not polish**, and the comment now
   says so; it was written the other way round first.
@@ -9641,13 +9700,13 @@ context" would quietly drop the message **into the canvas**. A closed dialog
 cannot be dragged into. `hasDropTarget` is true only where the editor is on
 screen; the click and selection paths are destination-agnostic and need no gate.
 
-| | click action | selection affordance | drag grip |
-| --- | --- | --- | --- |
-| Brand context | yes | yes | yes |
-| Copywriting / Open canvas | yes | yes | **no** |
+|                           | click action | selection affordance | drag grip |
+| ------------------------- | ------------ | -------------------- | --------- |
+| Brand context             | yes          | yes                  | yes       |
+| Copywriting / Open canvas | yes          | yes                  | **no**    |
 
-Also worth recording: the route first refused to *open* the dialog in a
-brand-context thread **and** refused to *render* one. Each masked the other —
+Also worth recording: the route first refused to _open_ the dialog in a
+brand-context thread **and** refused to _render_ one. Each masked the other —
 deleting either left every test green, so the property was pinned by nothing.
 Collapsed to a single decision at the render site. Two guards for one property is
 not belt-and-braces, it is an untested property.
@@ -9661,7 +9720,7 @@ the model to use them, so an agent in a brand-context thread could call
 over the realtime bus, and rendered nowhere.** Work that silently vanishes.
 
 - **The canvas is withheld at both ends.** `buildCanvasTools` isn't called at all
-  (the applier is unreachable, not merely unused) *and* `buildCanvasContext`
+  (the applier is unreachable, not merely unused) _and_ `buildCanvasContext`
   isn't composed into `system`. Withholding only the tools would leave the model
   reasoning about, and describing, a canvas the user cannot see — there's a test
   asserting the blocks passed in go undescribed.
@@ -9674,7 +9733,7 @@ over the realtime bus, and rendered nowhere.** Work that silently vanishes.
   tools, and never writes to the brand itself.
 - **The byte-identity snapshot was recorded before the code changed** — added
   first, run against the pre-F build, and only then was `opts` introduced. So the
-  literal is genuinely *today's* prompt rather than a transcription of the prompt
+  literal is genuinely _today's_ prompt rather than a transcription of the prompt
   just written.
 - **The server got its own tests**, which the plan explicitly did not ask for. It
   is one pass-through argument, but it is the argument that decides whether the
@@ -9699,7 +9758,7 @@ prove each is paid or write it, and say plainly which ones jsdom cannot express.
 
 Sixteen were paid. **The seventeenth was hiding a real defect.**
 
-Item 11 asked that `pendingInsert` reach `insertContent` *and be cleared after*.
+Item 11 asked that `pendingInsert` reach `insertContent` _and be cleared after_.
 The first half was paid three times over; the second by nothing — and clearing
 has **no observable behaviour in the current UI**, so the honest question was not
 "is it cleared" but "what is the clearing protecting against". The answer is
@@ -9708,7 +9767,7 @@ React's dev-mode double-invoke runs the effect again.
 
 **Every captured message was pasted into its section twice in development.**
 
-It survived five phases because the guard that *looks* like it covers this —
+It survived five phases because the guard that _looks_ like it covers this —
 Phase C's `consumedStagedRef` — guards the **parent** and counts **sections**. A
 section appended twice and a body inserted twice are different bugs, and the
 existing test asserted only the former. Scope is dev-only (React doesn't
@@ -9727,16 +9786,16 @@ The plan's final phase, and the only one that did not execute. Repo gates plus a
 thirteen-step live browser walk, **skipped by an explicit decision on 2026-07-28
 to verify in production instead.**
 
-What *is* verified: typecheck 9/9, lint, format, build, and **400/400 tests with
+What _is_ verified: typecheck 9/9, lint, format, build, and **400/400 tests with
 zero skips in CI** — `.github/workflows/ci.yml` runs the suite against a Postgres
 16 sidecar, so the ten live-DB suites that skip locally do execute there. That is
 the no-skips half of H's gate, met by CI rather than by a local run.
 
 What is **unobserved** — the browser walk, in full. The highest-value items:
 
-1. **The loop closes** — after saving a captured section, the *next agent turn
-   reflects it*. The plan's own words: *"if only one step is verified, make it
-   this one."* It is the entire point of the feature.
+1. **The loop closes** — after saving a captured section, the _next agent turn
+   reflects it_. The plan's own words: _"if only one step is verified, make it
+   this one."_ It is the entire point of the feature.
 2. **No phantom canvas in real Postgres.** F is proven against the in-memory
    fake, which is the same code path but not the same storage.
 3. **Drop position** — content lands at the ProseMirror cursor rather than
@@ -9814,12 +9873,12 @@ A **mini-app** is a category of creative work with a purpose-built page. The
 brand hub advertises four as tiles, backed by a declarative `MINI_APPS` registry
 (`components/brand/miniApps.ts`):
 
-| id | title | kind | status |
-| --- | --- | --- | --- |
-| `copywriting` | Copywriting | standardized / `'copywriting'` | **live** |
-| `freeform` | Open canvas | freeform | **live** |
-| `visual` | Visual identity | standardized / `'visual'` | Soon |
-| `social` | Social calendar | standardized / `'social'` | Soon |
+| id            | title           | kind                           | status   |
+| ------------- | --------------- | ------------------------------ | -------- |
+| `copywriting` | Copywriting     | standardized / `'copywriting'` | **live** |
+| `freeform`    | Open canvas     | freeform                       | **live** |
+| `visual`      | Visual identity | standardized / `'visual'`      | Soon     |
+| `social`      | Social calendar | standardized / `'social'`      | Soon     |
 
 Each row carries a `match` predicate classifying which existing threads belong
 to it and a `create` descriptor. "Soon" tiles ship as `enabled: false` rows
@@ -9843,8 +9902,8 @@ bespoke UI. Threads are created **inside** a mini-app (each knows its own
   Phase E rewrite could be pure orchestration.
 - **D — brand context bar.** `BrandContextBar` — section chips (Phase B icons),
   a one-instance read-only body panel, collapse to an icon rail, an empty-state
-  invitation, and an Edit hand-off. Guidelines become *present* while you work,
-  not a thing you *do*.
+  invitation, and an Edit hand-off. Guidelines become _present_ while you work,
+  not a thing you _do_.
 - **E — rewrite the page as a hub.** Identity header (rename/delete kept
   verbatim) → context bar → a `MINI_APPS` tile grid with thread counts derived
   from `useBrandProjects`. Tiles are real `<Link>`s (cmd/middle-click work);
@@ -9874,7 +9933,7 @@ the whole suite now runs against a **live Postgres with no skips**:
 
 - **I1** — the context bar showed **stale body content after an edit**: the
   read-only editor seeds `content` once at mount and the panel keys on section
-  id, but a save returns the *same* ids, so the editor kept the pre-edit text
+  id, but a save returns the _same_ ids, so the editor kept the pre-edit text
   under a new heading. Fixed with an explicit `setContent` sync on `section.body`.
 - **I2** — the mini-app page rendered **blank when the brand query failed** (grid
   gated on `brand &&`, no `isError`/`isPending` branch). Collapsed the brand and
@@ -9985,11 +10044,11 @@ note that the generated version lost.
 
 ### Repo boundary, now explicit
 
-| | Upstream (`philholke`) | This fork |
-| --- | --- | --- |
-| Product code | owns | inherits |
-| `fly.toml`, `Dockerfile`, `.dockerignore`, `vercel.json` | removed | **owns** |
-| `packages/db/scripts/migrate.mjs` | owns (generic migrator) | inherits |
+|                                                          | Upstream (`philholke`)  | This fork |
+| -------------------------------------------------------- | ----------------------- | --------- |
+| Product code                                             | owns                    | inherits  |
+| `fly.toml`, `Dockerfile`, `.dockerignore`, `vercel.json` | removed                 | **owns**  |
+| `packages/db/scripts/migrate.mjs`                        | owns (generic migrator) | inherits  |
 
 Upstream `0.9.1` stripped the deploy layer from the OSS repo and ported this
 fork's product-code improvements — `ensureUser` auto-provisioning, the pg
@@ -10134,7 +10193,7 @@ The first release that makes the product reachable. Phases 5–7 built a
 split-screen agent canvas that, as of 0.8.1, could only be opened by pasting a
 UUID into the URL bar: `useBrandProjects` existed and was never called, nothing
 linked to `/projects/$projectId`, and there was no "New project" affordance
-anywhere. Workspaces were represented twice (a nav picker *and* a full-page
+anywhere. Workspaces were represented twice (a nav picker _and_ a full-page
 grid) with the picker reading `localStorage` rather than the route, so it could
 name a different workspace than the page you were on. Phase 9 fixes all three.
 
@@ -10244,7 +10303,7 @@ pnpm -F @brandfactory/web build         ✔
 
 ## 0.8.1 — 2026-07-22
 
-Ops patch, no feature surface and no app-code changes (test count stays **234**). The Fly app `brandfactory` (org `ebb-amp-flow-group`, region `sin`) had been deployed from files that only ever existed untracked on one teammate's machine — `fly.toml`, `packages/server/Dockerfile`, and the `migrate.mjs` the release command calls were in no checkout and nowhere in git history. Releases v7 (May 18) and v8 (Jul 20) failed, leaving both machines pinned to the v5 image from **May 7** — pre-dating everything in 0.7.x/0.8.0 that shipped since. This patch commits the full deploy recipe so `git clone` + `fly deploy` from the repo root works for anyone in the Fly org, and redeploys prod. (Distinct from the self-host deploy story Phase 8 dropped — this is the minimal recipe for *our* Fly app, not opinionated self-hoster templates.)
+Ops patch, no feature surface and no app-code changes (test count stays **234**). The Fly app `brandfactory` (org `ebb-amp-flow-group`, region `sin`) had been deployed from files that only ever existed untracked on one teammate's machine — `fly.toml`, `packages/server/Dockerfile`, and the `migrate.mjs` the release command calls were in no checkout and nowhere in git history. Releases v7 (May 18) and v8 (Jul 20) failed, leaving both machines pinned to the v5 image from **May 7** — pre-dating everything in 0.7.x/0.8.0 that shipped since. This patch commits the full deploy recipe so `git clone` + `fly deploy` from the repo root works for anyone in the Fly org, and redeploys prod. (Distinct from the self-host deploy story Phase 8 dropped — this is the minimal recipe for _our_ Fly app, not opinionated self-hoster templates.)
 
 ### `fly.toml` — recovered, not written
 
@@ -10258,7 +10317,7 @@ The build context is the repo root (`[build] dockerfile = 'packages/server/Docke
 - **No build step — tsx at runtime.** `@brandfactory/server`'s `start` script is `tsx src/main.ts`; workspace deps all point `main` at `./src/index.ts`. The image mirrors that: copy sources, install, run tsx. tsx is a devDependency, hence `pnpm install --prod=false`.
 - **Filtered install.** `--filter '@brandfactory/server...'` installs the server plus its workspace dependency closure only — `@brandfactory/web`'s React/Vite tree stays out of the image. `--frozen-lockfile` still needs every workspace `package.json` present (all importers must match the lockfile), which is why `.dockerignore` does **not** exclude `packages/web`.
 - **pnpm store as a BuildKit cache mount** (`--mount=type=cache,id=pnpm-store,target=/pnpm/store`) — Fly's depot builders persist BuildKit cache across builds, so repeat deploys skip re-downloading packages even though `COPY . .` invalidates the install layer.
-- **Final `WORKDIR /app/packages/server`** does double duty: tsx resolves `src/main.ts` from there, and the release command's *relative* `node_modules/@brandfactory/db` resolves through pnpm's workspace symlink to `/app/packages/db`.
+- **Final `WORKDIR /app/packages/server`** does double duty: tsx resolves `src/main.ts` from there, and the release command's _relative_ `node_modules/@brandfactory/db` resolves through pnpm's workspace symlink to `/app/packages/db`.
 - **`CMD ["./node_modules/.bin/tsx", "src/main.ts"]`** — exec'd directly, no `pnpm start` wrapper, so the node process is PID 1 and receives Fly's `SIGINT` itself; `main.ts` already handles SIGINT/SIGTERM graceful shutdown (WS close → HTTP close → pool end).
 
 ### `packages/db/scripts/migrate.mjs` — the missing release script
@@ -10302,7 +10361,7 @@ Spec source is `STYLEGUIDE_MISSION_SYSTEMS.md`, bundled with the `frontend:apply
 
 The single fact that made this ~390 lines instead of a rewrite: **the codebase already routed nearly every surface through shadcn's semantic contract.** Product code says `bg-card`, `text-muted-foreground`, `border` — almost nowhere does it say a hex or a `bg-slate-*`.
 
-The styleguide's §2 demands three token tiers where components read tier 2 or 3 and never a raw primitive. The shadcn contract *is* a tier-3 component-token layer; it was simply pointed at a greyscale oklch palette. So the re-skin reduces to: define tiers 1 and 2, re-point the existing tier-3 names, and fix the handful of places where product code had spent a token on the wrong role. Had colors been hard-coded at the point of use, this would have been a file-by-file rewrite with a far worse diff and far higher regression risk.
+The styleguide's §2 demands three token tiers where components read tier 2 or 3 and never a raw primitive. The shadcn contract _is_ a tier-3 component-token layer; it was simply pointed at a greyscale oklch palette. So the re-skin reduces to: define tiers 1 and 2, re-point the existing tier-3 names, and fix the handful of places where product code had spent a token on the wrong role. Had colors been hard-coded at the point of use, this would have been a file-by-file rewrite with a far worse diff and far higher regression risk.
 
 ### Token architecture (`index.css`, +371)
 
@@ -10314,13 +10373,13 @@ Plus the base-layer rules the styleguide states as absolutes: body at 14/1.5/**4
 
 The one trap in this job, and the one place where the obvious edit is wrong.
 
-**shadcn's `--accent` is not an accent.** In shadcn's vocabulary it's the hover/active *surface* — the thing behind a hovered menu item. In Mission's vocabulary (§4) "the accent" is `#1d3a2a`, spent on a fixed, deliberately scarce set of roles. Two tokens, same word, opposite intent. The naive mapping `--accent: var(--color-brand-accent)` reads correct and would have turned **every hover state in the application forest green** — blowing the accent budget on the least meaningful interaction in the product.
+**shadcn's `--accent` is not an accent.** In shadcn's vocabulary it's the hover/active _surface_ — the thing behind a hovered menu item. In Mission's vocabulary (§4) "the accent" is `#1d3a2a`, spent on a fixed, deliberately scarce set of roles. Two tokens, same word, opposite intent. The naive mapping `--accent: var(--color-brand-accent)` reads correct and would have turned **every hover state in the application forest green** — blowing the accent budget on the least meaningful interaction in the product.
 
 Shipped mapping: `--primary` → `var(--surface-accent)` (action, selection), `--accent` → `var(--surface-hover)` (beige). There's a comment at that line in `index.css` saying exactly this.
 
 ### Three accent-budget violations, all pre-existing
 
-Latent bugs. They looked fine in greyscale and only became violations the moment `--primary` started meaning something — flipping the token *revealed* rather than caused them, which is worth recording because it means §4 earns its keep as a review lens, not just a paint job.
+Latent bugs. They looked fine in greyscale and only became violations the moment `--primary` started meaning something — flipping the token _revealed_ rather than caused them, which is worth recording because it means §4 earns its keep as a review lens, not just a paint job.
 
 - **`ChatPane` painted every user message bubble `bg-primary`.** A ten-turn conversation would have rendered ten forest-green blocks down the pane. §4 permits the accent on one primary button, one hero metric, active/selected state, and small brand chrome; a chat log is none of those. Now `--surface-selected` — the faint accent-tinted beige, ink at 15.9:1 — which still says "this one is mine" without spending the accent.
 - **`workspaces.$wsId.settings` source pill was `bg-primary/10 text-primary`.** §12.4 is explicit that pills take a feedback tint or the neutral beige. "workspace setting" is a genuine informational state → `info` tint (6.3:1 on tint); "env default" → neutral beige.
@@ -10350,17 +10409,17 @@ pnpm test                                   ✔  239 passed + 1 skipped (240 tot
 pnpm --filter @brandfactory/web build       ✔  clean
 ```
 
-**Built-CSS emission check.** Tailwind *silently drops* utilities it can't resolve — a typo'd `bg-surface-selected` yields no error, no warning, and no style, so a passing build proves nothing about whether the new tokens reach the browser. The built stylesheet was therefore grepped directly: `bg-surface-{base,sunken,selected}`, `placeholder:text-tertiary`, `bg-status-info-tint`, `text-status-info`, `shadow-elevation-{1,3}`, all five `Satoshi-*.woff2` URLs, and the accent hex — all present.
+**Built-CSS emission check.** Tailwind _silently drops_ utilities it can't resolve — a typo'd `bg-surface-selected` yields no error, no warning, and no style, so a passing build proves nothing about whether the new tokens reach the browser. The built stylesheet was therefore grepped directly: `bg-surface-{base,sunken,selected}`, `placeholder:text-tertiary`, `bg-status-info-tint`, `text-status-info`, `shadow-elevation-{1,3}`, all five `Satoshi-*.woff2` URLs, and the accent hex — all present.
 
 **Visual verification: SKIPPED.** The skill's screenshot loop (Playwright at 1280×800 and 390×844, diffed against the bundled reference) was not run — the CLI is unavailable in this environment, and offered install-to-scratchpad / install-to-repo / drive-Chrome / skip, the operator chose skip.
 
-Stated plainly: **no human or agent has looked at this UI.** Everything above is spec conformance established by reading code and grepping build output. Unverified: whether Satoshi actually renders (vs. silently falling back to `system-ui`) and at which weights; the accent inventory as *rendered* rather than as grepped; contrast of real text on real backgrounds; mobile overflow at 390px; and every hover, focus, disabled, and loading state.
+Stated plainly: **no human or agent has looked at this UI.** Everything above is spec conformance established by reading code and grepping build output. Unverified: whether Satoshi actually renders (vs. silently falling back to `system-ui`) and at which weights; the accent inventory as _rendered_ rather than as grepped; contrast of real text on real backgrounds; mobile overflow at 390px; and every hover, focus, disabled, and loading state.
 
 **The one open risk.** `--background` now maps to `--surface-sunken` (beige `#f6f5f1`) per §3.2, correct for the card-grid pages and matching the reference. It is **unverified on the project split-screen** — that route is two content panes, not a card grid, and the canvas blocks are white `bg-card` on what is now a beige pane. That may read as intended layering or as muddy beige-on-beige; §17 has no split-screen analogue to check against. If it reads badly the fix is local: `bg-surface-base` on `SplitScreen`'s two panes. First thing to look at when the app is next opened.
 
 ### What 1.2.0 explicitly does NOT include
 
-**The §17 reference layout.** The canonical dashboard is a side-nav shell with stat cards, a data table, and a segmented time control. BrandFactory has none of those — it's a top-bar shell over card grids and a split-screen editor. The CI was applied as *tokens, type, density, components, and accent budget*; the reference layout was deliberately **not** imposed. Forcing a side-nav and stat-card row onto an app with no metrics to show would be cargo-culting the screenshot instead of applying the identity.
+**The §17 reference layout.** The canonical dashboard is a side-nav shell with stat cards, a data table, and a segmented time control. BrandFactory has none of those — it's a top-bar shell over card grids and a split-screen editor. The CI was applied as _tokens, type, density, components, and accent budget_; the reference layout was deliberately **not** imposed. Forcing a side-nav and stat-card row onto an app with no metrics to show would be cargo-culting the screenshot instead of applying the identity.
 
 **A monospace face.** `--font-mono` is defined per §5.4 but unused — the app surfaces no SKU, product code, hash, or copyable ID yet. The token waits for the day one appears; a second webfont for zero call sites is weight without benefit.
 
@@ -10372,7 +10431,7 @@ Stated plainly: **no human or agent has looked at this UI.** Everything above is
 
 ## 1.1.0 — 2026-05-18
 
-First post-deploy feature release. Closes the gap the 1.0.0 narrative quietly carried: Projects — the centerpiece of the vision — were fully implemented on the server (Phase 6) and the frontend (Phase 7 Steps 7–16) but **unreachable from the live UI**. The brand editor page had zero project references; the `useBrandProjects` query hook sat in `api/queries/brands.ts` with no caller; the split-screen route at `/projects/$projectId` could only be opened by typing the URL. 1.1.0 wires Projects into the brand page and makes the full daily-use entry point — *open brand → start or resume a project* — work for the first time.
+First post-deploy feature release. Closes the gap the 1.0.0 narrative quietly carried: Projects — the centerpiece of the vision — were fully implemented on the server (Phase 6) and the frontend (Phase 7 Steps 7–16) but **unreachable from the live UI**. The brand editor page had zero project references; the `useBrandProjects` query hook sat in `api/queries/brands.ts` with no caller; the split-screen route at `/projects/$projectId` could only be opened by typing the URL. 1.1.0 wires Projects into the brand page and makes the full daily-use entry point — _open brand → start or resume a project_ — work for the first time.
 
 Scope is **Thread A only** of [docs/executing/projects-reachable-and-functional.md](../executing/projects-reachable-and-functional.md). Thread B (end-to-end verification matrix + vision-bar observations) is a separate, manual, browser-driven workstream that lands as its own follow-up; 1.1.0 ships the wiring, Thread B will ship the Findings doc.
 
@@ -10405,7 +10464,7 @@ The visible phase. Until this lands, A.1's hook had no caller and A.2's dialog h
 Two new components above `BrandEditorPage`:
 
 - **`ProjectCard({ project })`** — clickable card mirroring `BrandCard`. Shows `project.name` (semibold) + `Created <date>` (muted). Navigates to `/projects/$projectId` on click. Uses the same `grid-cols-[repeat(auto-fill,minmax(220px,1fr))]` grid as `BrandCard` for visual rhythm.
-- **`ProjectsSection({ brandId })`** — wires `useBrandProjects(brandId)`, renders `<h2>Projects</h2>` + `<NewProjectDialog />` trigger on the right, plus loading / error / empty / populated states underneath. Empty-state copy: *"No projects yet. Create one to start brainstorming with the agent."* — single line, muted, inline (not centered).
+- **`ProjectsSection({ brandId })`** — wires `useBrandProjects(brandId)`, renders `<h2>Projects</h2>` + `<NewProjectDialog />` trigger on the right, plus loading / error / empty / populated states underneath. Empty-state copy: _"No projects yet. Create one to start brainstorming with the agent."_ — single line, muted, inline (not centered).
 
 Page-body restructure:
 
@@ -10413,7 +10472,7 @@ Page-body restructure:
 - **Projects above Guidelines** (Q2, confirmed). Daily-use flow: open brand → resume project. Guidelines are the slower-moving artifact.
 - **Guidelines wrapped in their own `<section className="border-t pt-6">`** with an `<h2>Guidelines</h2>` heading. Single horizontal rule between the two sections; `pt-6` gives breathing room from the heading.
 
-**Independent fetches.** `useBrand(brandId)` and `useBrandProjects(brandId)` are two separate TanStack Query subscriptions. `ProjectsSection` lives **outside** the `brand &&` guard in `BrandEditorPage`, keyed by route-params `brandId` (always available). The guidelines loading/error UI lives *inside* the Guidelines section, scoped to that fetch. Consequence: project list can render while guidelines are still loading, and a guidelines load failure doesn't blank the projects.
+**Independent fetches.** `useBrand(brandId)` and `useBrandProjects(brandId)` are two separate TanStack Query subscriptions. `ProjectsSection` lives **outside** the `brand &&` guard in `BrandEditorPage`, keyed by route-params `brandId` (always available). The guidelines loading/error UI lives _inside_ the Guidelines section, scoped to that fetch. Consequence: project list can render while guidelines are still loading, and a guidelines load failure doesn't blank the projects.
 
 **`<section>` not `<div>`** for both blocks — semantic HTML; a11y / outline tooling reads them as siblings. The brand header (back link + `<h1>`) intentionally stays as a `<div>` because it's the page header, not a content section.
 
@@ -10453,7 +10512,7 @@ Filename still matches the plan (`brands.$brandId.test.tsx`) — same co-locatio
 - **`staleTime: Infinity`** on the test `QueryClient` — by default TanStack Query marks a freshly `setQueryData`-populated entry as stale-but-cached; first render returns the cached value, then schedules a background refetch into `api.brands[':brandId'].projects.$get`. Under jsdom without a global `fetch` stub, that explodes (or silently noises up logs). `Infinity` keeps the seeded data fresh, refetch never fires, tests run deterministically. Test-only — no production code change.
 - **`retry: false`** on queries — matches the `useAgentChat` test convention. Belt-and-braces with `staleTime: Infinity`: even if a stray refetch slipped through, no retry-storm in the runner.
 
-**No `user-event`, no click assertions.** Plan said RTL only. A.5 went further — no DOM event asserted at all. The new wiring is *what renders*, not *what happens on click*. The mutation hook (A.1) and the dialog submit (A.2) are both glue around library calls (`useMutation`, `Dialog`); clicking would test the library, not the wiring.
+**No `user-event`, no click assertions.** Plan said RTL only. A.5 went further — no DOM event asserted at all. The new wiring is _what renders_, not _what happens on click_. The mutation hook (A.1) and the dialog submit (A.2) are both glue around library calls (`useMutation`, `Dialog`); clicking would test the library, not the wiring.
 
 **A small lesson recorded.** First iteration used `importOriginal<typeof import('@tanstack/react-router')>()`. Lint flagged it as a violation of `@typescript-eslint/consistent-type-imports` — `import()` expressions count as inline imports, which the project disallows in favour of top-level `import type` statements. Resolution: lift the module shape to a top-level `import type * as TanStackRouter` and reference that in the generic. Same runtime behaviour; satisfies the lint rule. Pattern now precedented for any future `vi.mock` that uses `importOriginal<typeof import(…)>()`.
 
@@ -10514,10 +10573,7 @@ The single code-bearing item across the phase: an auto-provision hook for the `p
 **Idempotent upsert.** New helper `upsertUserById({ id, email, displayName? })` in `packages/db/src/queries/users.ts`:
 
 ```ts
-await db
-  .insert(users)
-  .values({ id, email, displayName })
-  .onConflictDoNothing({ target: users.id })
+await db.insert(users).values({ id, email, displayName }).onConflictDoNothing({ target: users.id })
 ```
 
 `onConflictDoNothing` keeps the call boring and free of overwriting surprises. First-seen email is canonical — operator-driven email changes go through a separate flow, not here.
@@ -10616,11 +10672,11 @@ No code changes. The CORS gating shipped in v0.8.0 (Phase 8) — `parseCorsAllow
 
 **Smoke from the browser** (DevTools Network):
 
-| Request                              | Expected                                                                     |
-| ------------------------------------ | ---------------------------------------------------------------------------- |
-| `OPTIONS /me` (preflight)            | 204 with `Access-Control-Allow-Origin: <vercel-origin>`, `Access-Control-Allow-Credentials: true`, `Access-Control-Allow-Methods` / `-Headers` present. |
-| `GET /me` with `Authorization: Bearer <jwt>` | 200, body `{ id, email, ... }`. No CORS error in Console.                 |
-| `WS /rt?token=...`                   | 101 upgrade. `Origin` header carries the Vercel URL.                         |
+| Request                                      | Expected                                                                                                                                                |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPTIONS /me` (preflight)                    | 204 with `Access-Control-Allow-Origin: <vercel-origin>`, `Access-Control-Allow-Credentials: true`, `Access-Control-Allow-Methods` / `-Headers` present. |
+| `GET /me` with `Authorization: Bearer <jwt>` | 200, body `{ id, email, ... }`. No CORS error in Console.                                                                                               |
+| `WS /rt?token=...`                           | 101 upgrade. `Origin` header carries the Vercel URL.                                                                                                    |
 
 Optional WS deny-path smoke — `curl` with a forged `Origin: https://evil.test` against `/rt` should return 403 (the upgrade handler writes `HTTP/1.1 403 Forbidden\r\n\r\n` directly to the socket so the browser reads a permanent denial, not a transport error that would trigger reconnect loops).
 
@@ -10948,20 +11004,20 @@ Query hooks in `src/api/queries/` — one file per domain, each exports a `*Keys
 `src/realtime/client.ts` — singleton `RealtimeClient` with **ref-counted channel subscriptions over one WebSocket**. State machine: `idle → connecting → open ↔ reconnecting`. Socket opens on first `subscribe()` call, closes when the last handler unmounts. Multiple components on the same project share a single channel subscription; ref-counting (per-handler, not per-channel) prevents the last unsubscriber from tearing down what other mounted components still need.
 
 - **Reconnect:** exponential backoff starting at 1 s, doubling, capped at 30 s; resets to 1 s on successful `onOpen`. `onClose` is the canonical reconnect trigger — no `error` listener (WS errors always fire immediately before `close` and carry no useful data).
-- **Resync notification:** `onResynced(handler)` fires on every reconnect *after* the first (`connectionCount > 1`). `useProjectStream` uses this to invalidate `projectKeys.detail` — covers mutations that arrived while disconnected. Initial connection is skipped to avoid spurious invalidation at mount.
+- **Resync notification:** `onResynced(handler)` fires on every reconnect _after_ the first (`connectionCount > 1`). `useProjectStream` uses this to invalidate `projectKeys.detail` — covers mutations that arrived while disconnected. Initial connection is skipped to avoid spurious invalidation at mount.
 - **Payload validation:** raw frames go through `RealtimeServerMessageSchema.safeParse`; invalid frames silently dropped. Narrow trust boundary.
 - **WS URL:** `toWsUrl()` handles relative (`/rt` → `ws(s)://host/rt`) and absolute (`http→ws`, `https→wss`). Token appended as `?token=<jwt>` — matches the server's `?token` fallback in `ws.ts` (browser `WebSocket` can't send `Authorization` headers).
 
 `useRealtime(channel, handler)` is a thin `useEffect` wrapper returning the unsubscribe cleanup; callers memoize the handler (the hook documents this). `useProjectStream(projectId)` subscribes to `project:<projectId>` and runs an internal `applyEvent(qc, projectId, event)` dispatcher over the `AgentEvent` union:
 
-| Event | Cache action |
-|-------|--------------|
-| `canvas-op/add-block` | Append (dedupe by `block.id`) to `projectKeys.detail` + `projectKeys.blocks` |
-| `canvas-op/update-block` | Spread `op.patch` onto matching block in both caches |
-| `canvas-op/remove-block` | Filter out `op.blockId` from both caches |
-| `pin-op/pin` \| `unpin` | Flip `isPinned`; add/remove from `shortlistBlockIds` in `detail` |
-| `message` | Append (dedupe by `message.id`) to `recentMessages` |
-| `tool-call` | No-op (chat-pane render only) |
+| Event                    | Cache action                                                                 |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| `canvas-op/add-block`    | Append (dedupe by `block.id`) to `projectKeys.detail` + `projectKeys.blocks` |
+| `canvas-op/update-block` | Spread `op.patch` onto matching block in both caches                         |
+| `canvas-op/remove-block` | Filter out `op.blockId` from both caches                                     |
+| `pin-op/pin` \| `unpin`  | Flip `isPinned`; add/remove from `shortlistBlockIds` in `detail`             |
+| `message`                | Append (dedupe by `message.id`) to `recentMessages`                          |
+| `tool-call`              | No-op (chat-pane render only)                                                |
 
 `applyEvent` was renamed to `applyAgentEvent` and exported in Step 11 so `useAgentChat` can reuse the exact same cache writes; see 0.7.3.
 
@@ -10995,7 +11051,7 @@ Four read endpoints, five user canvas-op endpoints, two authed blob signed-URL e
 
 New facade helpers: `getBlockById` added to `@brandfactory/db` (5 lines) + wired into `packages/server/src/db.ts` for O(1) ownership verification in `requireBlock`. `updateBlock` and `softDeleteBlock` also exposed on the facade (they existed in `@brandfactory/db` but weren't wired into the server yet).
 
-**Step 0.3 — Blob signed-URL mints.** Both under `/blob-urls/*` with auth middleware applied at that prefix; the existing `/blobs/*` prefix stays auth-free because the signed URL *is* the capability — splitting prefixes avoids a negative-lookahead exception in the auth config.
+**Step 0.3 — Blob signed-URL mints.** Both under `/blob-urls/*` with auth middleware applied at that prefix; the existing `/blobs/*` prefix stays auth-free because the signed URL _is_ the capability — splitting prefixes avoids a negative-lookahead exception in the auth config.
 
 - **`POST /blob-urls/upload-url`** — validates `contentType` against `ALLOWED_UPLOAD_MIMES` (jpeg/png/gif/webp/svg/pdf/docx/txt, defined as a `const` tuple in `packages/shared/src/blob/upload.ts`), checks `size <= BLOB_MAX_BYTES` (25 MiB, 413 on overflow matching `/blobs`). Key format `uploads/<yyyy>/<mm>/<uuid>-<safe-filename>` — year/month prefix is time-indexable, UUID prevents guessing. 400 `INVALID_CONTENT_TYPE` on bad mime. 5-min TTL.
 - **`GET /blob-urls/:key{.+}/read-url`** — Hono regex path syntax `/:key{.+}` captures multi-segment keys (needed because keys contain slashes). Auth is sufficient access control for v1 single-seat self-hosted; cross-workspace blob authz flagged for later.
@@ -11030,7 +11086,7 @@ Phase 6 lands the first end-to-end streaming agent call. `POST /projects/:id/age
 Third event-shaped table after `canvas_events` and `workspace_settings`. Stores the per-turn user/assistant transcript so context survives across HTTP requests; the next turn's `streamText` call needs the prior messages.
 
 - **`packages/db/src/schema/agent_messages.ts`** — new `agent_message_role` `pgEnum('user' | 'assistant')` and `agent_messages(id uuid pk, project_id uuid fk projects.id ON DELETE cascade, role enum, content text, user_id uuid fk users.id ON DELETE set null, created_at timestamptz default now())`. One index: `agent_messages_project_created_idx (project_id, created_at)` — every read is "last N for project in insert order".
-- **Why a new table, not `canvas_events`.** Canvas events model *canvas mutations*. An assistant reply with no tool calls produces no canvas event; reusing that table would mean either mixing semantics or losing rows. Kept separate.
+- **Why a new table, not `canvas_events`.** Canvas events model _canvas mutations_. An assistant reply with no tool calls produces no canvas event; reusing that table would mean either mixing semantics or losing rows. Kept separate.
 - **`content` as `text`, not `jsonb`.** v1 `AgentMessage.content` is a plain string in `@brandfactory/shared`. If we later carry reasoning / citations / mixed parts, migrate to `jsonb` then — no speculative columns today.
 - **`user_id` nullable + `set null` on delete.** Assistant rows have no human author; user rows survive account deletion as historical record. Same pattern as `canvas_events.user_id`.
 - **`packages/db/drizzle/0002_oval_pet_avengers.sql`** — generated via `pnpm --filter @brandfactory/db db:generate` (drizzle-kit doesn't need a live DB for `generate`). `CREATE TYPE`, `CREATE TABLE`, two `ALTER TABLE` FK additions, one `CREATE INDEX`. Snapshot `meta/0002_snapshot.json` updated; `meta/_journal.json` extended.
@@ -11055,7 +11111,7 @@ Each method: **DB write** (`createBlock` for add, `setPinned(true|false)` for pi
 
 - **DB write → event → publish, not the reverse.** A failed publish leaves a persisted mutation that a refetching client will observe — strictly better than a phantom realtime event for a mutation that never landed. The two failure modes diverge in the right direction for self-hosted operations.
 - **No transaction across the three.** The event log is append-only and replay-safe by design. A missing event for an existing block is no worse than today's un-logged user writes — also un-wrapped. If we ever promote the event log to the source of truth, revisit.
-- **`userId` is the *human* who triggered the turn, not the agent.** Surfaced via `appendCanvasEvent.userId` so the audit trail stays readable even when `actor: 'agent'`. The applier closes over `userId` once at construction.
+- **`userId` is the _human_ who triggered the turn, not the agent.** Surfaced via `appendCanvasEvent.userId` so the audit trail stays readable even when `actor: 'agent'`. The applier closes over `userId` once at construction.
 - **`packages/server/src/agent/applier.test.ts`** — 5 cases against the in-memory fake `Db` and a capturing fake `RealtimeBus`: (1) `addCanvasBlock` writes a `text` block with `createdBy: 'agent'`, appends `add_block` event, publishes `canvas-op` on `project:<id>`; (2) `pinBlock` flips `isPinned: true`, appends `pin` event, publishes `pin-op`; (3) `unpinBlock` mirrors with `op: 'unpin'`; (4) **ordering invariant** — if `createBlock` throws, no realtime publish happens; (5) the applier identifies the canvas via the closed-over `deps.canvasId`, not anything from the input.
 
 ### Step 4 — In-memory per-project concurrency guard
@@ -11065,7 +11121,7 @@ Each method: **DB write** (`createBlock` for add, `setPinned(true|false)` for pi
 - **One concurrent turn per project, not per user.** Two browser tabs on the same project would otherwise race the same canvas. User-level rate-limiting is a separate concern for later.
 - **Process-local.** Fine for self-hosted v1. A horizontally-scaled deploy needs a Postgres advisory lock keyed on `hashtext(project_id)` — flagged for the post-Phase-6 hardening list.
 - **No queue / wait.** Explicit 409 over hidden delays. The frontend can surface "another turn is running" without guessing latency.
-- **Idempotent release.** A double-release won't free a different project's slot. Important because the route's pre-stream catch path *and* the SSE `onClose` both call `release()` — the SSE path is the canonical owner once the stream starts, but the catch path stays as a safety net for failures before the stream begins.
+- **Idempotent release.** A double-release won't free a different project's slot. Important because the route's pre-stream catch path _and_ the SSE `onClose` both call `release()` — the SSE path is the canonical owner once the stream starts, but the catch path stays as a safety net for failures before the stream begins.
 - **`packages/server/src/agent/concurrency.test.ts`** — 3 cases: acquire+release allows a follow-up acquire; double acquire returns `null`; double release is harmless.
 
 ### Step 5 — SSE wire format
@@ -11084,8 +11140,8 @@ Per-event frames terminated by `\n\n`. After the iterable completes, a synthetic
 
 Subtleties addressed:
 
-- **`onClose` instead of `finally` on the handler.** Hono returns the `Response` to `@hono/node-server`, which then keeps writing the body. A `finally` on the handler fires when the Response is constructed, *not* when the stream ends. Releasing the concurrency guard or persisting the assistant message there would race the second request and lose tokens. Fix: `streamResponseToSse` accepts an `onClose` callback fired in the `ReadableStream`'s own `finally` block, after the iteration loop closes. The route passes a callback that releases the slot and persists assistant text.
-- **`signal.aborted` mid-loop.** When `c.req.raw.signal` aborts (client disconnect), the for-await loop breaks before the next enqueue. The underlying `streamText` already gets the same signal so token generation stops too. The SSE helper's job is to stop *enqueueing* and let `onClose` run normally.
+- **`onClose` instead of `finally` on the handler.** Hono returns the `Response` to `@hono/node-server`, which then keeps writing the body. A `finally` on the handler fires when the Response is constructed, _not_ when the stream ends. Releasing the concurrency guard or persisting the assistant message there would race the second request and lose tokens. Fix: `streamResponseToSse` accepts an `onClose` callback fired in the `ReadableStream`'s own `finally` block, after the iteration loop closes. The route passes a callback that releases the slot and persists assistant text.
+- **`signal.aborted` mid-loop.** When `c.req.raw.signal` aborts (client disconnect), the for-await loop breaks before the next enqueue. The underlying `streamText` already gets the same signal so token generation stops too. The SSE helper's job is to stop _enqueueing_ and let `onClose` run normally.
 - **Persistence hook (`onEvent`) fires before serialization.** That's what lets the route accumulate assistant text from `message` events as they arrive, then persist once on close. A mid-stream failure still persists whatever was accumulated — explicit policy: partial assistant content is more useful to the user than nothing.
 - **No JSON re-validation on the wire.** `streamResponse` already emits typed events; re-parsing them would be paranoia.
 - **`ping.unref()` when supported.** Test harnesses spin up many short-lived streams with fast keep-alives; an active interval would block process exit. `unref()` is no-op-safe in environments that don't support it.
@@ -11106,7 +11162,7 @@ Subtleties addressed:
 9. **Return SSE response** with hooks:
    - `onEvent` accumulates `message` (assistant) text. It also fans `message` and `tool-call` events onto the realtime bus on `project:<id>` so sibling clients see typing without waiting for the turn to finish. (Canvas-op and pin-op already fan out from inside the applier — duplicating them here would publish twice.)
    - `onClose` persists the joined assistant content if non-empty (mid-stream failure → partial content still persisted), then releases the slot. Wrapped so a persistence failure can't prevent slot release.
-10. **Pre-stream failure path** — `try { … return streamResponseToSse({…}) } catch { slot.release(); throw }`. The SSE helper owns the slot once streaming begins; the catch only releases for failures *before* the stream starts (resolve, canvas load, user-message persist).
+10. **Pre-stream failure path** — `try { … return streamResponseToSse({…}) } catch { slot.release(); throw }`. The SSE helper owns the slot once streaming begins; the catch only releases for failures _before_ the stream starts (resolve, canvas load, user-message persist).
 
 Wired in:
 
@@ -11322,7 +11378,7 @@ Same review cadence as 0.4.1 / 0.5.1. Four items surfaced by a repo-wide audit o
 
 `adapter-realtime/native-ws.ts` previously did the dedup check synchronously (`if (unsubscribers.has(msg.channel)) return`) but populated the unsubscribers map only after `opts.authorize` resolved. Two `subscribe` messages for the same channel arriving in the same tick both passed the dedup check, both awaited authorize, and both registered a handler — the client then received every event N times for N rapid duplicates. Phase 6 fans agent text-deltas through this bus at high rate and any client that re-subscribes on reconnect / visibility-change can trigger it.
 
-- **`packages/adapters/realtime/src/native-ws.ts`** — stake a placeholder unsubscribe in the map *before* awaiting authorize. After authorize: if denied AND the slot still holds the placeholder, delete it; if the socket closed mid-await (the `close` handler clears the map), bail out. Otherwise replace the placeholder with the real unsubscribe. Single-tick dedup now works because the map is mutated synchronously on the first subscribe.
+- **`packages/adapters/realtime/src/native-ws.ts`** — stake a placeholder unsubscribe in the map _before_ awaiting authorize. After authorize: if denied AND the slot still holds the placeholder, delete it; if the socket closed mid-await (the `close` handler clears the map), bail out. Otherwise replace the placeholder with the real unsubscribe. Single-tick dedup now works because the map is mutated synchronously on the first subscribe.
 - **`packages/adapters/realtime/src/native-ws.test.ts`** — new case: fire two `subscribe` messages for the same channel back-to-back with an async `authorize` that takes 25ms; assert `authorize` runs exactly once and a single `publish` arrives at the client exactly once. Without the placeholder, both assertions fail.
 
 #### Blobs — `BLOB_MAX_BYTES`-gated 413 (MEDIUM)
@@ -11570,7 +11626,7 @@ Cleanup pass surfaced by a repo-wide review after Phase 3 landed. No new surface
 
 ### Server env loader — exhaustiveness + coverage
 
-- **`packages/server/src/env.ts`** — the `LLM_PROVIDER` switch inside `superRefine` now has a `default` branch with `const _exhaustive: never = env.LLM_PROVIDER` + a `ctx.addIssue` that reports `unhandled LLM_PROVIDER: <value>`. Why: the existing `as const satisfies readonly LLMProviderId[]` guard catches *syntactic* drift between the schema's enum tuple and `adapter-llm`'s `LLMProviderId`, but if the union widens and the switch isn't updated, the previous code silently skipped per-provider validation. Now a future widening fails the TS assignment (compile time) *and* the env loader (runtime) — belt and suspenders. How to apply: this is the standard "enum + switch" exhaustiveness pattern; use it any time we have a narrowing switch over a union imported from another package.
+- **`packages/server/src/env.ts`** — the `LLM_PROVIDER` switch inside `superRefine` now has a `default` branch with `const _exhaustive: never = env.LLM_PROVIDER` + a `ctx.addIssue` that reports `unhandled LLM_PROVIDER: <value>`. Why: the existing `as const satisfies readonly LLMProviderId[]` guard catches _syntactic_ drift between the schema's enum tuple and `adapter-llm`'s `LLMProviderId`, but if the union widens and the switch isn't updated, the previous code silently skipped per-provider validation. Now a future widening fails the TS assignment (compile time) _and_ the env loader (runtime) — belt and suspenders. How to apply: this is the standard "enum + switch" exhaustiveness pattern; use it any time we have a narrowing switch over a union imported from another package.
 - **`packages/server/src/env.test.ts`** — two new tests covering gaps the Phase 3 suite left open:
   - "rejects supabase storage missing all three required fields" — asserts all three messages (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_STORAGE_BUCKET`) appear in the single thrown error.
   - "reports every failure in a single error when multiple conditions are violated" — supabase auth + supabase storage + anthropic LLM all misconfigured in one env; asserts five distinct field names surface in the same error. Locks in `loadEnv`'s "report every issue, not just the first" contract. Test count for `env.test.ts` is now 8 (was 6).
@@ -11582,7 +11638,7 @@ Cleanup pass surfaced by a repo-wide review after Phase 3 landed. No new surface
   - `@typescript-eslint/no-explicit-any` — prevents `any` as an escape hatch; use `unknown` with a narrowing check instead.
   - `@typescript-eslint/consistent-type-imports` with `fixStyle: 'inline-type-imports'` — keeps runtime vs type-only imports explicit so bundlers can drop type-only imports cleanly and `verbatimModuleSyntax` doesn't surprise anyone. Also extended `ignores` with `**/drizzle/**` and `**/*.config.ts` so generated migration SQL and bespoke Node config files don't need to sit inside a tsconfig project for the type-aware parser.
 - **`packages/adapters/storage/src/local-disk.ts`** + **`supabase.ts`** — two import lines fixed by `eslint --fix` (type-only imports moved to `import type`). No runtime change.
-- Intentionally *not* adopted: `@typescript-eslint/recommendedTypeChecked` — it pulled in `require-await`, `no-unnecessary-type-assertion`, `no-base-to-string`, and `prefer-promise-reject-errors`, which collectively flagged 36 pre-existing issues across mappers, test fakes, and idiomatic drizzle casts. Adopting those rules is a bigger cleanup (and some of the flagged casts are load-bearing for drizzle's inferred row types). We picked the three rules that pay for themselves immediately and deferred the rest.
+- Intentionally _not_ adopted: `@typescript-eslint/recommendedTypeChecked` — it pulled in `require-await`, `no-unnecessary-type-assertion`, `no-base-to-string`, and `prefer-promise-reject-errors`, which collectively flagged 36 pre-existing issues across mappers, test fakes, and idiomatic drizzle casts. Adopting those rules is a bigger cleanup (and some of the flagged casts are load-bearing for drizzle's inferred row types). We picked the three rules that pay for themselves immediately and deferred the rest.
 
 ### Storage — constant-time `verifySignature`
 
@@ -11655,7 +11711,7 @@ Per locked decision 12, the WS framing schema lives in shared so both `web` and 
 
 ### Phase 3 implementation — four adapter packages
 
-Each adapter follows the same shape: `port.ts` declares the interface and any error classes, one file per impl exports a factory function (`createXxx(config, deps?)`) returning a plain object satisfying the port, `index.ts` is a barrel that opens with a header comment listing shipped *and* planned-but-not-yet-shipped impls so future intent survives without runtime stubs.
+Each adapter follows the same shape: `port.ts` declares the interface and any error classes, one file per impl exports a factory function (`createXxx(config, deps?)`) returning a plain object satisfying the port, `index.ts` is a barrel that opens with a header comment listing shipped _and_ planned-but-not-yet-shipped impls so future intent survives without runtime stubs.
 
 - **`@brandfactory/adapter-auth`** —
   - Port: `verifyToken(token) → { userId }` + `getUserById(id) → User | null`. `User` is re-exported from `@brandfactory/db` so callers get one canonical row type. `InvalidTokenError` for any rejection.
@@ -11669,7 +11725,7 @@ Each adapter follows the same shape: `port.ts` declares the interface and any er
 
 - **`@brandfactory/adapter-realtime`** —
   - Port: `RealtimeBus` with `publish(channel, event) → Promise<void>`
-    + `subscribe(channel, handler) → unsubscribe`. Event type imported from `@brandfactory/shared` (`AgentEvent | CanvasOpEvent | PinOpEvent`).
+    - `subscribe(channel, handler) → unsubscribe`. Event type imported from `@brandfactory/shared` (`AgentEvent | CanvasOpEvent | PinOpEvent`).
   - `native-ws`: in-process `Map<channel, Set<handler>>`. Empty sets are collected on unsubscribe. Handler exceptions are swallowed so one bad subscriber can't break fan-out (will surface via a logger in Phase 4).
   - `bindToNodeWebSocketServer(wss, { authenticate, authorize? })` wires a `ws.Server`'s `connection` event to per-client subscribe/unsubscribe handling. Failed `authenticate` → `socket.close(4401, 'unauthorized')`. Inbound frames are validated against `RealtimeClientMessageSchema` from shared. Outbound frames are typed as `RealtimeServerMessage`. Adapter does not own the HTTP upgrade — that lives in `packages/server` (Phase 4).
 
@@ -11686,7 +11742,7 @@ Each adapter follows the same shape: `port.ts` declares the interface and any er
   - `LLM_PROVIDER='anthropic'|'openai'|'openrouter'` → matching `*_API_KEY` required. `LLM_PROVIDER='ollama'` requires nothing.
   - `LLM_PROVIDER_IDS` declared `as const satisfies readonly LLMProviderId[]` so a future enum widening in `adapter-llm` won't silently drift from this schema — TS fails the satisfies check.
   - `loadEnv(source = process.env)` returns the parsed `Env` or throws with a multi-line `path: message` summary of every issue.
-- **`src/adapters.ts`** — `buildAdapters(env): { auth, storage, realtime, llm }` switches on each `*_PROVIDER` and calls the matching factory with the right env slice. Realtime is currently unconditional (only `native-ws` ships in Phase 3); adding a second impl widens the enum *and* the switch in lockstep, with the compiler enforcing exhaustiveness.
+- **`src/adapters.ts`** — `buildAdapters(env): { auth, storage, realtime, llm }` switches on each `*_PROVIDER` and calls the matching factory with the right env slice. Realtime is currently unconditional (only `native-ws` ships in Phase 3); adding a second impl widens the enum _and_ the switch in lockstep, with the compiler enforcing exhaustiveness.
 
 ### Vitest setup — root + per-package projects mode
 
@@ -11714,7 +11770,7 @@ Per the scaffolding plan, Phase 3's smoke is **unit tests per adapter**, not an 
 ### Cross-cutting changes outside the adapter packages
 
 - **`packages/shared`** — new `src/realtime/envelope.ts` + barrel re-export. No other shared changes.
-- **`packages/db/src/client.ts`** — `pool` and `db` are now lazy `Proxy`-wrapped singletons. The `DATABASE_URL` check moved from module-import time to first-access time. Required because vitest setup files run *after* module evaluation, so import-time `throw`s cannot be neutralized by a sentinel value. Real callers see identical behavior (still throws on first query if env isn't set); test-time imports for type-only consumers no longer fail.
+- **`packages/db/src/client.ts`** — `pool` and `db` are now lazy `Proxy`-wrapped singletons. The `DATABASE_URL` check moved from module-import time to first-access time. Required because vitest setup files run _after_ module evaluation, so import-time `throw`s cannot be neutralized by a sentinel value. Real callers see identical behavior (still throws on first query if env isn't set); test-time imports for type-only consumers no longer fail.
 - **Root `package.json`** — `vitest@^2.1.8` added to devDeps; root `test` script now runs `vitest run` instead of the old `pnpm -r --parallel test` recursion.
 - **Root `vitest.config.ts`** — new file, declares projects mode.
 
@@ -11724,7 +11780,7 @@ Per locked decision 10, `docs/architecture.md` originally sketched `AuthProvider
 
 ### API notes worth remembering
 
-- **Zod 4 vs AI-SDK peer:** the AI-SDK provider modules declare a peer dependency on `zod@^3.x`; this repo runs `zod@^4.3`. pnpm warns; the `LanguageModel` type we re-export is a plain TS interface and isn't zod-derived, so the version skew is harmless in our usage. If we ever consume a zod schema *exported* by an AI-SDK module, revisit.
+- **Zod 4 vs AI-SDK peer:** the AI-SDK provider modules declare a peer dependency on `zod@^3.x`; this repo runs `zod@^4.3`. pnpm warns; the `LanguageModel` type we re-export is a plain TS interface and isn't zod-derived, so the version skew is harmless in our usage. If we ever consume a zod schema _exported_ by an AI-SDK module, revisit.
 - **`ws@8` `connection` handler:** delivers `(socket, req: IncomingMessage)`; we read the request from the second arg for `authenticate`. Header-based auth (e.g. `Sec-WebSocket-Protocol: bearer.<token>`) belongs in the user-supplied `authenticate` callback, not in the bus.
 - **HMAC URL format choice:** `${method}\n${key}\n${exp}` was picked because newlines aren't valid in any of the inputs and the format is trivially debuggable (`echo -ne "GET\nfoo\n123" | openssl dgst -sha256 -hmac secret`). Verifier and signer share a single source-of-truth function.
 - **`jose.generateKeyPair('RS256')`** returns `KeyLike` (`CryptoKey | KeyObject`); the supabase auth test signs with `KeyLike` rather than `CryptoKey` to avoid pulling the DOM lib into our node-only tsconfig.
@@ -11732,7 +11788,7 @@ Per locked decision 10, `docs/architecture.md` originally sketched `AuthProvider
 
 ### Phase 3 completion record — `docs/completions/phase3.md`
 
-Phase-level wrap with per-task notes inline (Phase 3's surface area was tighter than Phase 2; one document is enough). Captures the fifteen locked design decisions delivered as specified, every adapter's port + impl + test detail, the cross-cutting changes outside the adapter packages (shared envelope, db client lazy singleton, root vitest config, root `package.json` test script), the architecture-doc TODO around `listUsers`, and the API quirks worth remembering. Also documents what Phase 3 explicitly did *not* include (HTTP server / routes / middleware / WS upgrade endpoint / blob HTTP routes / workspace-level LLM settings / agent prompt assembly / Supabase Auth ↔ users sync / API-key encryption at rest / e2e — all per the plan's exclusion list).
+Phase-level wrap with per-task notes inline (Phase 3's surface area was tighter than Phase 2; one document is enough). Captures the fifteen locked design decisions delivered as specified, every adapter's port + impl + test detail, the cross-cutting changes outside the adapter packages (shared envelope, db client lazy singleton, root vitest config, root `package.json` test script), the architecture-doc TODO around `listUsers`, and the API quirks worth remembering. Also documents what Phase 3 explicitly did _not_ include (HTTP server / routes / middleware / WS upgrade endpoint / blob HTTP routes / workspace-level LLM settings / agent prompt assembly / Supabase Auth ↔ users sync / API-key encryption at rest / e2e — all per the plan's exclusion list).
 
 ### Verification
 
@@ -11784,7 +11840,7 @@ Seven source files under `src/schema/`, six under `src/queries/`, one mapper mod
   - `canvases` — `project_id` FK + **unique** (one canvas per project in V1).
   - `canvas_blocks` — one wide table with nullable per-kind columns (`body`, `blob_key`, `alt`, `width`, `height`, `filename`, `mime`) rather than table-per-kind, matching shared's discriminated union. Carries `is_pinned` / `pinned_at`, `created_by`, `deleted_at`, integer `position`. Three partial indexes: active layout `(canvas_id, position) WHERE deleted_at IS NULL`, shortlist `(canvas_id) WHERE deleted_at IS NULL AND is_pinned = true`, and `(canvas_id, deleted_at)` for housekeeping.
   - `canvas_events` — append-only. FK to canvas, `block_id uuid` **without FK** (log survives any future hard-delete path), op
-    + actor pgEnums, `user_id` FK `ON DELETE set null`, `payload` jsonb. Only `created_at` — no `updated_at`. Indexes: `(canvas_id, created_at desc)` for the canvas timeline and `(block_id, created_at desc) WHERE block_id IS NOT NULL` for per-block history.
+    - actor pgEnums, `user_id` FK `ON DELETE set null`, `payload` jsonb. Only `created_at` — no `updated_at`. Indexes: `(canvas_id, created_at desc)` for the canvas timeline and `(block_id, created_at desc) WHERE block_id IS NOT NULL` for per-block history.
 - **Mappers.** `src/mappers.ts` — row → shared-type converters for workspaces, brands, guideline sections, projects, canvases, and canvas blocks. `rowToProject` discriminates on `kind`; throws on a null `template_id` when kind is `standardized`. `rowToCanvasBlock` reconstructs the discriminated union on read and throws on missing per-kind columns — a loud data-integrity signal, not a silent fallback.
 - **Query helpers (18, grouped by aggregate).** Dumb CRUD, no business rules. Inputs typed against `@brandfactory/shared` where they map 1:1, returns flow back through the mappers.
   - `users.ts` — `getUserById`, `getUserByEmail`, `createUser`. `User` type exposed as the inferred row (shared doesn't model users yet).
@@ -11809,14 +11865,14 @@ Runs end-to-end against the docker Postgres after `db:generate` + `db:migrate`. 
 ### Drizzle / pg API notes
 
 - `pgTable` third argument is an array (`(table) => [...]`) in drizzle-orm 0.36, not the object form from older releases.
-- Partial indexes use `.where(sql\`…\`)` on the index builder — generates the `WHERE …` clause verbatim in the migration SQL.
+- Partial indexes use `.where(sql\`…\`)`on the index builder — generates the`WHERE …` clause verbatim in the migration SQL.
 - `timestamp(..., { withTimezone: true, mode: 'string' })` gives `timestamptz` columns that round-trip as ISO-8601 strings, which is what `z.iso.datetime()` in shared already expects.
 - `pgEnum` values land as a real `CREATE TYPE` in the migration; adding a value later is a one-liner (`ALTER TYPE ADD VALUE`), removing a value is not — that trade-off is accepted for the value sets defined here.
 - `defaultRandom()` on a `uuid` column compiles to `DEFAULT gen_random_uuid()`; Postgres 13+ has it built in, no `pgcrypto` extension required.
 
 ### Phase 2 completion record — `docs/completions/phase2.md`
 
-Phase-level wrap with per-task records (`phase2-task1.md` through `phase2-task7.md`). Captures the nine locked design decisions delivered as specified, how each open question landed (enums kept as `pg_enum`, no FK on `canvas_events.block_id`, position rebalancing deferred until first collision, strict 1:1 canvas-per-project, plain jsonb event payloads validated at the app layer), and the cross-cutting changes outside `packages/db` (shared amendments, docker compose, repo `.env.example`, `.prettierignore`). Also documents what Phase 2 explicitly did *not* include (no auth / realtime / HTTP routes / agent_messages / seed data / multi-service compose / RLS — all per the plan's exclusion list) and the three intentional omissions from the plan itself: no build pipeline (exports `src/index.ts` directly, matching every other `workspace:*` package), no `createCanvas` helper (the plan's Task 4 list didn't include it), no parse-at-boundary runtime validation on reads (casts suffice for trusted rows; Phase 9 hardening owns that call).
+Phase-level wrap with per-task records (`phase2-task1.md` through `phase2-task7.md`). Captures the nine locked design decisions delivered as specified, how each open question landed (enums kept as `pg_enum`, no FK on `canvas_events.block_id`, position rebalancing deferred until first collision, strict 1:1 canvas-per-project, plain jsonb event payloads validated at the app layer), and the cross-cutting changes outside `packages/db` (shared amendments, docker compose, repo `.env.example`, `.prettierignore`). Also documents what Phase 2 explicitly did _not_ include (no auth / realtime / HTTP routes / agent_messages / seed data / multi-service compose / RLS — all per the plan's exclusion list) and the three intentional omissions from the plan itself: no build pipeline (exports `src/index.ts` directly, matching every other `workspace:*` package), no `createCanvas` helper (the plan's Task 4 list didn't include it), no parse-at-boundary runtime validation on reads (casts suffice for trusted rows; Phase 9 hardening owns that call).
 
 ### Verification
 
@@ -11868,7 +11924,7 @@ Nine source files under `src/`, grouped by domain, behind a single barrel.
 
 ### Phase 1 completion record — `docs/completions/phase1.md`
 
-Full record of what was written, where, and why. Includes the five locked design decisions, the plan's open questions resolved with justification, and the in-flight refinements to the execution plan (`ProjectBase` / `CanvasBlockBase` as plain object literals, `AgentEventSchema` as `z.union`, `BrandSummary` added as a `pick` projection, `GuidelineSectionCreatedBySchema` / `PinCreatedBySchema` exported as separate enums to hedge against future divergence). Also documents the cross-package `BrandSchema.parse(...)` probe and what Phase 1 explicitly does *not* include (Drizzle schema, curation UI, Yjs/CRDT, prompt assembly, validators).
+Full record of what was written, where, and why. Includes the five locked design decisions, the plan's open questions resolved with justification, and the in-flight refinements to the execution plan (`ProjectBase` / `CanvasBlockBase` as plain object literals, `AgentEventSchema` as `z.union`, `BrandSummary` added as a `pick` projection, `GuidelineSectionCreatedBySchema` / `PinCreatedBySchema` exported as separate enums to hedge against future divergence). Also documents the cross-package `BrandSchema.parse(...)` probe and what Phase 1 explicitly does _not_ include (Drizzle schema, curation UI, Yjs/CRDT, prompt assembly, validators).
 
 ### Verification
 
@@ -11920,7 +11976,7 @@ Everything required to `pnpm install && pnpm lint && pnpm typecheck` on a fresh 
 
 ### Phase 0 completion record — `docs/completions/phase0.md`
 
-Full record of what was written, where, and why, including decisions made during execution (e.g. deferring TypeScript project references, excluding `docs/` from Prettier, keeping pre-commit fast by leaving `tsc` out of the hook). Also lists what Phase 0 explicitly does *not* include so Phase 1 can land without ambiguity.
+Full record of what was written, where, and why, including decisions made during execution (e.g. deferring TypeScript project references, excluding `docs/` from Prettier, keeping pre-commit fast by leaving `tsc` out of the hook). Also lists what Phase 0 explicitly does _not_ include so Phase 1 can land without ambiguity.
 
 ### Verification
 

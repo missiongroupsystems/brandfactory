@@ -21,20 +21,17 @@ export const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 upp
 
 export const STATUS_LABEL: Record<IdeaStatus, string> = {
   suggested: 'Suggested',
-  idea: 'Idea',
-  draft: 'Idea',
-  approved: 'Approved',
-  filming: 'Filming',
-  editing: 'Editing',
+  idea: 'Draft',
+  draft: 'Draft',
+  awaiting: 'Awaiting approval',
   scheduled: 'Scheduled',
   posted: 'Posted',
+  failed: 'Failed',
 }
 
-export const CHIPS: Array<Exclude<IdeaStatus, 'suggested' | 'draft'>> = [
+export const CHIPS: Array<Exclude<IdeaStatus, 'suggested' | 'draft' | 'failed'>> = [
   'idea',
-  'approved',
-  'filming',
-  'editing',
+  'awaiting',
   'scheduled',
   'posted',
 ]

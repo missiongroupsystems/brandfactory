@@ -30,7 +30,14 @@ import {
   type Slot,
 } from './idea-parts'
 import { dayLabel, dayOfHook, landingDay } from './calendar-slot'
-import { addIdea, connectPinterest, skipSuggestion, suggest, useIdeas } from './ideas-store'
+import {
+  addIdea,
+  connectSource,
+  skipSuggestion,
+  suggest,
+  useIdeas,
+  type MoodSource,
+} from './ideas-store'
 
 const HAIR = 'border-(--cal-line)'
 
@@ -54,10 +61,10 @@ const FORMATS: Array<{ format: IdeaFormat; title: string; where: string; ratio: 
 type View = 'formats' | 'board'
 
 /**
- * The ideas page, in two views. "By format" shelves the month's ideas as reels, carousels and
- * stories, each tile at the post's own shape, with the moments ahead below. "Pinterest" shows
- * the team's imported boards as a board. A card opens the idea sheet; planning, dates and
- * statuses live on the shoot brief, where a pin's new idea goes straight away.
+ * The ideas page, in two views. "Moodboard", the default, is one board of everything the brand
+ * saved on Pinterest, Instagram and TikTok. "Current ideas" shelves the month's ideas as reels,
+ * carousels and stories, each tile at the post's own shape, with the moments ahead below. A card
+ * opens its plan on the shoot brief, where a pin's new idea goes straight away.
  */
 export function IdeatePage() {
   const { brand } = useBrand()
@@ -66,7 +73,8 @@ export function IdeatePage() {
   // The month's target is feed posts; stories ride alongside and do not fill a slot.
   const own = ideas.filter((i) => i.status !== 'suggested' && i.format !== 'story').length
   const suggestedCount = ideas.filter((i) => i.status === 'suggested').length
-  const [view, setView] = React.useState<View>('formats')
+  // The moodboard first: ideas start from what the team saved.
+  const [view, setView] = React.useState<View>('board')
   const [toast, setToast] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -82,7 +90,7 @@ export function IdeatePage() {
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-3">
             <span className={EYEBROW}>{brand.name} · October · 2 a week</span>
-            <h1 className="font-serif text-[56px] leading-none tracking-[-0.015em] max-md:text-[44px]">
+            <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[44px]">
               Ideas
             </h1>
           </div>
@@ -93,8 +101,8 @@ export function IdeatePage() {
               value={view}
               onChange={setView}
               options={[
-                { value: 'formats', label: 'By format' },
-                { value: 'board', label: 'Pinterest' },
+                { value: 'board', label: 'Moodboard' },
+                { value: 'formats', label: 'Current ideas' },
               ]}
             />
           </div>
@@ -199,7 +207,7 @@ function GapMeter({ own, suggested, target }: { own: number; suggested: number; 
         />
       </svg>
       <span className="flex flex-col">
-        <span className="font-serif text-[26px] leading-none tabular-nums">
+        <span className="font-display text-[26px] leading-none tabular-nums">
           {Math.min(n, target)} of {target}
         </span>
         <span className={`${EYEBROW} mt-1`}>
@@ -269,7 +277,7 @@ function FormatShelf({
           <span className="translate-y-[2px] text-ink-3">
             <FormatIcon format={shelf.format} size={15} />
           </span>
-          <h2 className="font-serif text-[28px] leading-none">{shelf.title}</h2>
+          <h2 className="font-display text-[28px] leading-none">{shelf.title}</h2>
           <span className="font-mono text-[12px] text-ink-4 tabular-nums">{slots.length}</span>
         </span>
         <span className={`${EYEBROW} max-sm:hidden`}>{shelf.where}</span>
@@ -307,7 +315,7 @@ function Cover({ card, src, sizes }: { card: IdeaCard; src?: string; sizes: stri
       <span className="text-ink/40">
         <FormatIcon format={card.format} size={14} />
       </span>
-      <span className="line-clamp-5 font-serif text-[17px] leading-[1.15] text-ink/75">
+      <span className="line-clamp-5 font-display text-[15px] leading-[1.2] text-ink/75">
         {card.angle || card.hook}
       </span>
     </span>
@@ -362,9 +370,7 @@ function IdeaTile({
         )}
       </Link>
       <span className="flex min-w-0 flex-col gap-1 px-0.5">
-        <span className="line-clamp-2 font-serif text-[16px] leading-[1.15] italic">
-          “{card.hook}”
-        </span>
+        <span className="line-clamp-2 font-display text-[16px] leading-[1.15] ">“{card.hook}”</span>
         <span className="font-mono text-[9.5px] tracking-[0.06em] text-ink-4 uppercase">
           {card.pillar}
         </span>
@@ -451,7 +457,7 @@ function NewTile({ format, ratio }: { format: IdeaFormat; ratio: string }) {
             }}
             placeholder="The hook, then Enter"
             aria-label={`New ${format} idea`}
-            className="w-full resize-none bg-transparent font-serif text-[20px] leading-[1.1] italic outline-none placeholder:font-sans placeholder:text-[13px] placeholder:not-italic placeholder:text-ink-5"
+            className="w-full resize-none bg-transparent font-display text-[20px] leading-[1.1] outline-none placeholder:font-sans placeholder:text-[13px] placeholder:text-ink-5"
           />
         </form>
       ) : (
@@ -488,7 +494,7 @@ function Moments({ moments, onToast }: { moments: Moment[]; onToast: (t: string)
   return (
     <section aria-label="Moments ahead" className="flex flex-col gap-4">
       <div className={`flex items-baseline justify-between gap-4 border-b ${HAIR} pb-3`}>
-        <h2 className="font-serif text-[28px] leading-none">Moments ahead</h2>
+        <h2 className="font-display text-[28px] leading-none">Moments ahead</h2>
         <span className={`${EYEBROW} max-sm:hidden`}>Near you · this month</span>
       </div>
       <ul className="grid grid-cols-3 gap-4 max-lg:grid-cols-1">
@@ -506,7 +512,7 @@ function Moments({ moments, onToast }: { moments: Moment[]; onToast: (t: string)
                 <span className={EYEBROW}>{m.near}</span>
               </span>
               <span className="text-[14px] font-medium">{m.title}</span>
-              <span className="truncate font-serif text-[17px] leading-[1.15] italic">
+              <span className="truncate font-display text-[17px] leading-[1.15] ">
                 “{m.seed.hook}”
               </span>
               {on ? (
@@ -539,37 +545,71 @@ function Moments({ moments, onToast }: { moments: Moment[]; onToast: (t: string)
 
 // ── Pinterest ────────────────────────────────────────────────────────────────────────────────
 
+const SOURCE_NAME: Record<MoodSource, string> = {
+  pinterest: 'Pinterest',
+  ig: 'Instagram',
+  tt: 'TikTok',
+}
+
 /**
- * The team's Pinterest boards. Disconnected per brand to start; Connect runs a short sign-in
- * (no real call) and brings every board in. Boards only: the official API reads a connected
- * account's own boards and pins, and has no public search.
+ * The moodboard: one board for everything the team saved, from this brand's own accounts only —
+ * its Pinterest boards, its Instagram saved folder and its TikTok favourites. Each connects with a
+ * short mock sign-in (no backend). A folder chip and a small logo under each tile say where a
+ * post came from; nothing is ever mixed in from another brand's accounts.
  */
 function Board() {
   const { brand } = useBrand()
-  const { pinterest } = useIdeas(brand.id)
+  const { sources } = useIdeas(brand.id)
   const { boards, references } = IDEAS_BY_BRAND[brand.id]
   const [filter, setFilter] = React.useState<string>('all')
   const [pasted, setPasted] = React.useState<Reference[]>([])
 
-  if (!pinterest) return <ConnectPinterest />
+  if (!sources.pinterest && !sources.ig && !sources.tt) return <ConnectSources />
 
+  // Saved posts are the brand's Instagram and TikTok bookmarks; a pasted link joins its platform.
   const saved = [...pasted, ...references]
-  const shown =
-    filter === 'all'
-      ? boards.flatMap((b) => b.pins)
-      : filter === 'saved'
-        ? saved
-        : (boards.find((b) => b.id === filter)?.pins ?? [])
+  const folders: Array<{ id: string; label: string; source: MoodSource; pins: Reference[] }> = [
+    ...(sources.pinterest
+      ? boards.map((b) => ({ id: b.id, label: b.name, source: 'pinterest' as const, pins: b.pins }))
+      : []),
+    ...(sources.ig
+      ? [
+          {
+            id: 'ig',
+            label: 'Saved',
+            source: 'ig' as const,
+            pins: saved.filter((r) => r.platform === 'ig'),
+          },
+        ]
+      : []),
+    ...(sources.tt
+      ? [
+          {
+            id: 'tt',
+            label: 'Favourites',
+            source: 'tt' as const,
+            pins: saved.filter((r) => r.platform === 'tt'),
+          },
+        ]
+      : []),
+  ]
+  // One board: the folders dealt in turn, so every source shows near the top.
+  const longest = Math.max(0, ...folders.map((f) => f.pins.length))
+  const all = Array.from({ length: longest }, (_, i) => folders.flatMap((f) => f.pins[i] ?? []))
+    .flat()
+    .filter((p, i, a) => a.findIndex((q) => q.id === p.id) === i)
+  const current = folders.find((f) => f.id === filter)
+  const shown = current ? current.pins : all
+  const missing = (Object.keys(SOURCE_NAME) as MoodSource[]).filter((k) => !sources[k])
   const chips = [
-    { id: 'all', label: 'All pins', n: boards.reduce((n, b) => n + b.pins.length, 0) },
-    ...boards.map((b) => ({ id: b.id, label: b.name, n: b.pins.length })),
-    { id: 'saved', label: 'Saved posts', n: saved.length },
+    { id: 'all', label: 'All', source: null, n: all.length },
+    ...folders.map((f) => ({ id: f.id, label: f.label, source: f.source, n: f.pins.length })),
   ]
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div role="tablist" aria-label="Boards" className="flex flex-wrap items-center gap-1.5">
+        <div role="tablist" aria-label="Folders" className="flex flex-wrap items-center gap-1.5">
           {chips.map((c) => {
             const on = c.id === filter
             return (
@@ -581,6 +621,7 @@ function Board() {
                 onClick={() => setFilter(c.id)}
                 className={`flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-medium transition-colors ${on ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
               >
+                {c.source && <PlatformLogo platform={c.source} size={11} />}
                 {c.label}
                 <span
                   className={`font-mono text-[11px] tabular-nums ${on ? 'text-page/60' : 'text-ink-4'}`}
@@ -590,33 +631,61 @@ function Board() {
               </button>
             )
           })}
+          {missing.map((m) => (
+            <ConnectChip key={m} source={m} />
+          ))}
         </div>
-        <span className="flex items-center gap-2 text-[12px] text-ink-4">
-          <PlatformLogo platform="pinterest" size={12} />
-          Synced from Pinterest · just now
+        <span className="text-[12px] text-ink-4">
+          Synced from {brand.name}&rsquo;s accounts · just now
         </span>
       </div>
-      {filter === 'saved' && <PasteLink onPaste={(r) => setPasted((p) => [r, ...p])} />}
+      {(filter === 'ig' || filter === 'tt') && (
+        <PasteLink onPaste={(r) => setPasted((p) => [r, ...p])} />
+      )}
       <Masonry key={filter} pins={shown} />
     </div>
   )
 }
 
-function ConnectPinterest() {
+/** A dashed chip for an account not connected yet: one tap runs the same mock sign-in. */
+function ConnectChip({ source }: { source: MoodSource }) {
+  const { brand } = useBrand()
+  const [busy, setBusy] = React.useState(false)
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (busy) return
+        setBusy(true)
+        window.setTimeout(() => connectSource(brand.id, source), 900)
+      }}
+      className="flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink"
+    >
+      {busy ? (
+        <span className="size-3 animate-spin rounded-full border-[1.5px] border-ink/20 border-t-ink" />
+      ) : (
+        <PlatformLogo platform={source} size={11} />
+      )}
+      {busy ? 'Connecting…' : `Add ${SOURCE_NAME[source]}`}
+    </button>
+  )
+}
+
+function ConnectSources() {
   const { brand } = useBrand()
   const { boards } = IDEAS_BY_BRAND[brand.id]
-  const [connecting, setConnecting] = React.useState(false)
+  const [connecting, setConnecting] = React.useState<MoodSource | null>(null)
 
-  function connect() {
+  function connect(source: MoodSource) {
     if (connecting) return
-    setConnecting(true)
-    window.setTimeout(() => connectPinterest(brand.id), 1100)
+    setConnecting(source)
+    window.setTimeout(() => connectSource(brand.id, source), 1100)
   }
 
   return (
     <section
-      aria-label="Pinterest"
-      className="mx-auto flex max-w-[560px] flex-col items-center gap-6 py-16 text-center"
+      aria-label="Connect your accounts"
+      className="mx-auto flex max-w-[620px] flex-col items-center gap-6 py-16 text-center"
     >
       <span className="flex -space-x-6">
         {boards
@@ -635,29 +704,41 @@ function ConnectPinterest() {
           ))}
       </span>
       <span className="flex flex-col gap-2">
-        <span className="font-serif text-[32px] leading-none">Bring in your boards</span>
+        <span className="font-display text-[32px] leading-none">Bring in your moodboard</span>
         <span className="text-[14px] text-ink-3">
-          Every pin becomes a starting point. Tap one to turn it into an idea.
+          Everything {brand.name} saved, in one place. Tap a post to turn it into an idea.
         </span>
       </span>
-      <button
-        type="button"
-        onClick={connect}
-        aria-live="polite"
-        className="bb-press flex h-11 min-w-[200px] items-center justify-center gap-2 rounded-full bg-ink px-5 text-[14px] font-medium text-page hover:opacity-85"
-      >
-        {connecting ? (
-          <>
-            <span className="size-3 animate-spin rounded-full border-[1.5px] border-white/30 border-t-white" />
-            Connecting…
-          </>
-        ) : (
-          <>
-            <PlatformLogo platform="pinterest" size={14} />
-            Connect Pinterest
-          </>
-        )}
-      </button>
+      <div className="flex flex-wrap items-center justify-center gap-2.5">
+        {(Object.keys(SOURCE_NAME) as MoodSource[]).map((source) => {
+          const busy = connecting === source
+          const dark = source === 'pinterest'
+          return (
+            <button
+              key={source}
+              type="button"
+              onClick={() => connect(source)}
+              aria-live="polite"
+              className={`bb-press flex h-11 min-w-[176px] items-center justify-center gap-2 rounded-full px-5 text-[14px] font-medium hover:opacity-85 ${dark ? 'bg-ink text-page' : 'bg-surface text-ink'}`}
+            >
+              {busy ? (
+                <>
+                  <span
+                    className={`size-3 animate-spin rounded-full border-[1.5px] ${dark ? 'border-white/30 border-t-white' : 'border-ink/20 border-t-ink'}`}
+                  />
+                  Connecting…
+                </>
+              ) : (
+                <>
+                  <PlatformLogo platform={source} size={14} />
+                  {SOURCE_NAME[source]}
+                </>
+              )}
+            </button>
+          )
+        })}
+      </div>
+      <span className="text-[12px] text-ink-4">{brand.name}&rsquo;s own accounts only</span>
     </section>
   )
 }
@@ -712,7 +793,7 @@ function Masonry({ pins }: { pins: Reference[] }) {
       ? dayOf(weeks, card.postId)
       : dayOfHook(weeks, card.hook, (id) => byId(id)?.hook)
     const label = n ? dayLabel(weeks, n) : null
-    return label ? `Used · ${label.slice(4)}` : 'Used'
+    return label ? `In plan · ${label.slice(4)}` : 'In plan'
   }
 
   /** A pin already used opens its idea; a new one goes to the shoot brief to be planned. */
@@ -743,7 +824,7 @@ function Masonry({ pins }: { pins: Reference[] }) {
                   type="button"
                   onClick={() => open(ref)}
                   aria-label={`${card ? 'Open the idea from' : 'Start an idea from'} ${ref.account}: ${ref.borrow}`}
-                  className={`group/pin relative block w-full overflow-hidden rounded-[16px] bg-tile text-left ${card ? 'shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--insight-4)]' : ''}`}
+                  className="group/pin relative block w-full overflow-hidden rounded-[16px] bg-tile text-left"
                   style={{ aspectRatio: `1 / ${ref.ratio ?? 1.25}` }}
                 >
                   {ref.image && (
@@ -757,8 +838,12 @@ function Masonry({ pins }: { pins: Reference[] }) {
                   )}
                   <span className="absolute inset-0 bg-black/0 transition-colors duration-200 group-hover/pin:bg-black/25" />
                   {card && (
-                    <span className="absolute top-2.5 left-2.5 rounded-full bg-(--insight-5) px-2 py-[3px] font-mono text-[9.5px] tracking-[0.06em] text-page uppercase">
-                      {usedOn(card)}
+                    // Used: a quiet frosted check, the way a photos app marks a picked image.
+                    <span
+                      aria-hidden="true"
+                      className="absolute top-2.5 left-2.5 flex size-6 items-center justify-center rounded-full bg-white/80 text-ink shadow-[0_1px_6px_rgba(0,0,0,0.18)] backdrop-blur-md"
+                    >
+                      <CheckIcon size={9} strokeWidth={2.4} />
                     </span>
                   )}
                   <span className="absolute top-2.5 right-2.5 flex h-8 translate-y-1 items-center gap-1.5 rounded-full bg-page px-3 text-[12px] font-medium text-ink opacity-0 shadow-soft transition-[opacity,transform] duration-200 group-hover/pin:translate-y-0 group-hover/pin:opacity-100 group-focus-visible/pin:translate-y-0 group-focus-visible/pin:opacity-100 max-md:hidden">
@@ -772,11 +857,21 @@ function Masonry({ pins }: { pins: Reference[] }) {
                     )}
                   </span>
                 </button>
-                <span className="flex flex-col gap-0.5 px-1">
+                <span className="flex flex-col gap-1.5 px-1">
                   <span className="text-[13px] leading-[1.3] text-ink">{ref.borrow}</span>
-                  <span className="flex items-center gap-1.5 truncate font-mono text-[9.5px] text-ink-4">
-                    <PlatformLogo platform={ref.platform} size={9} />
-                    <span className="truncate">{ref.account}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      title={SOURCE_NAME[ref.platform]}
+                      className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-surface"
+                    >
+                      <PlatformLogo platform={ref.platform} size={12} brand />
+                    </span>
+                    <span className="truncate text-[12px] text-ink-2">{ref.account}</span>
+                    {card && (
+                      <span className="ml-auto shrink-0 text-[11.5px] text-ink-4">
+                        {usedOn(card)}
+                      </span>
+                    )}
                   </span>
                 </span>
               </div>

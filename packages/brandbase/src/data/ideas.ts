@@ -70,6 +70,8 @@ export interface IdeaCard {
   shots: string[]
   /** The shots ticked off on the shoot brief. */
   done?: string[]
+  /** Photos and videos the team added on the brief, as media URLs (`components/media.tsx`). */
+  refs?: string[]
   sharper: Sharper[]
   builtOn?: BuiltOn
 }

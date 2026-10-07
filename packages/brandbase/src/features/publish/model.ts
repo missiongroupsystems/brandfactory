@@ -3,8 +3,7 @@ import type { Format } from '@/data/demo'
 /**
  * The publish model: every rule about where a post can go and what it needs, as pure functions.
  *
- * The drawer only reads this, so a different drawer (the canvas's Options B and C) is a new view
- * over the same model. The platform rules come from each API's documentation (October 2026):
+ * The composer only reads this, so a different publish view is a new view over the same model. The platform rules come from each API's documentation (October 2026):
  * TikTok's Direct Post guidelines forbid a default "who can watch" and require the interaction
  * switches and the promotion switch to start off; YouTube requires a title.
  */
@@ -63,9 +62,13 @@ export function initialDraft(input: {
   hook: string
   caption: string
   connected?: ChannelKey[]
+  /** The accounts a saved post already goes to; a new post starts on every connected one. */
+  selected?: ChannelKey[]
+  /** TikTok's answer, when the post was scheduled before and so already gave it. */
+  privacy?: Privacy
 }): Draft {
   const connected = input.connected ?? ['ig', 'tt', 'yt', 'li']
-  const wanted: ChannelKey[] = ['ig', 'tt', 'yt', 'li']
+  const wanted: ChannelKey[] = input.selected ?? ['ig', 'tt', 'yt', 'li']
   return {
     format: input.format,
     hook: input.hook,
@@ -76,7 +79,7 @@ export function initialDraft(input: {
     youtubeTitle: null,
     madeForKids: false,
     // No default, on purpose: TikTok's guidelines require the person to choose.
-    privacy: null,
+    privacy: input.privacy ?? null,
     interactions: { comments: false, duet: false, stitch: false },
     promo: { on: false, own: false, paid: false },
     when: 'slot',
@@ -131,7 +134,26 @@ export function textFor(draft: Draft, channel: ChannelKey): { text: string; adju
   return { text: draft.caption, adjusted: channel === 'yt' }
 }
 
-/** What stops the post from going out, in the order the sheet asks. Empty when it can go. */
+/**
+ * The most text each platform takes for this post, in characters. For YouTube it is the title,
+ * which is what `textFor` returns for it.
+ */
+export const TEXT_LIMIT: Record<ChannelKey, number> = {
+  ig: 2200,
+  tt: 2200,
+  yt: YOUTUBE_TITLE_MAX,
+  li: 3000,
+  fb: 63206,
+}
+
+/** The text an account will show, with its length against its platform's limit. */
+export function lengthFor(draft: Draft, channel: ChannelKey): { used: number; max: number } {
+  const text =
+    channel === 'yt' ? (draft.youtubeTitle ?? youtubeTitle(draft)) : textFor(draft, channel).text
+  return { used: [...text].length, max: TEXT_LIMIT[channel] }
+}
+
+/** What stops the post from going out, in the order the composer asks. Empty when it can go. */
 export function blockers(draft: Draft): string[] {
   const active = activeChannels(draft)
   if (active.length === 0) return ['Pick a channel.']
@@ -143,6 +165,11 @@ export function blockers(draft: Draft): string[] {
     }
   }
   if (draft.caption.trim() === '' && draft.format !== 'story') out.push('Write a caption.')
+  for (const c of active) {
+    const { used, max } = lengthFor(draft, c.key)
+    if (used > max)
+      out.push(`Shorten the ${c.key === 'yt' ? 'title' : 'text'} for ${c.name} (${used}/${max}).`)
+  }
   return out
 }
 

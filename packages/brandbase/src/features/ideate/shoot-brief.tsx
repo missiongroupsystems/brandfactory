@@ -6,6 +6,7 @@ import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
 import { CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
+import { fromFile, Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import type { Stage, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
@@ -35,6 +36,8 @@ type Column = Step | 'suggested'
 
 /** The board column a card sits in: "draft" is the calendar's word for an idea. */
 function columnOf(status: IdeaStatus): Column {
+  // A post that failed to go out was scheduled; the calendar is where it shouts.
+  if (status === 'failed') return 'scheduled'
   return status === 'draft' ? 'idea' : status
 }
 
@@ -83,7 +86,9 @@ export function ShootBrief() {
             </span>
             {brand.name} · Ideas
           </Link>
-          <h1 className="font-serif text-[40px] leading-none tracking-[-0.015em]">{shoot.title}</h1>
+          <h1 className="font-display tracking-[-0.035em] text-[40px] leading-none">
+            {shoot.title}
+          </h1>
         </div>
         <div className="flex flex-wrap items-center gap-x-7 gap-y-2">
           <Fact label="Shoot" value={shoot.when.split(' · ')[0]!} />
@@ -281,7 +286,9 @@ function BoardCard({
               />
             )}
           </span>
-          <span className="line-clamp-3 font-serif text-[15.5px] leading-[1.15]">{card.hook}</span>
+          <span className="line-clamp-3 font-display text-[15.5px] leading-[1.15]">
+            {card.hook}
+          </span>
         </span>
         <span className="flex items-center gap-2 font-mono text-[10px] tracking-[0.04em] text-ink-4">
           <FormatIcon format={card.format} size={10} />
@@ -402,8 +409,6 @@ function Detail({ slot, plan, onClose }: { slot: Slot; plan: Plan; onClose: () =
   const { brand, weeks } = useBrand()
   const { card, status, dayN } = slot
   const rename = useRename(card)
-  const ref = card.referenceId ? referenceById(brand.id, card.referenceId) : undefined
-  const mood = moodOf(brand.id, card)
   const suggested = status === 'suggested'
   const step = columnOf(status) as Step
 
@@ -434,7 +439,7 @@ function Detail({ slot, plan, onClose }: { slot: Slot; plan: Plan; onClose: () =
             rows={2}
             onChange={(e) => rename(e.target.value)}
             aria-label="Hook"
-            className="w-full resize-none bg-transparent font-serif text-[28px] leading-[1.08] tracking-[-0.01em] outline-none"
+            className="w-full resize-none bg-transparent font-display text-[28px] leading-[1.08] outline-none"
           />
           <textarea
             value={card.angle}
@@ -476,10 +481,18 @@ function Detail({ slot, plan, onClose }: { slot: Slot; plan: Plan; onClose: () =
             </div>
             <span className="pl-[68px] text-[12px] text-ink-4">
               {card.postId && dayN ? (
-                <Link href="/" className="text-(--insight-6) hover:underline">
-                  On the calendar · {dayLabel(weeks, dayN)}, {plan.time}
-                  {card.format === 'story' ? ' · story row' : ''}
-                </Link>
+                <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <Link href="/" className="text-(--insight-6) hover:underline">
+                    On the calendar · {dayLabel(weeks, dayN)}, {plan.time}
+                    {card.format === 'story' ? ' · story row' : ''}
+                  </Link>
+                  <Link
+                    href={`/post/${card.postId}`}
+                    className="font-medium text-ink underline-offset-2 hover:underline"
+                  >
+                    Open in scheduler →
+                  </Link>
+                </span>
               ) : dayN ? (
                 'An idea tile on the calendar. A status makes it a post.'
               ) : (
@@ -491,33 +504,7 @@ function Detail({ slot, plan, onClose }: { slot: Slot; plan: Plan; onClose: () =
 
         <Shots card={card} />
 
-        {(ref || mood.length > 0) && (
-          <section aria-label="References" className="flex flex-col gap-3">
-            <span className={EYEBROW}>References</span>
-            {mood.length > 0 && (
-              <div className="grid grid-cols-3 gap-1.5">
-                {mood.map((m) => (
-                  <span
-                    key={m.src}
-                    title={m.note}
-                    className="relative block aspect-[4/5] overflow-hidden rounded-[10px] bg-tile"
-                  >
-                    <Image src={m.src} alt="" fill sizes="130px" className="object-cover" />
-                  </span>
-                ))}
-              </div>
-            )}
-            {ref && (
-              <span className="flex flex-col gap-0.5 text-[13px]">
-                <span>Borrow: {ref.borrow}</span>
-                <span className="flex items-center gap-1.5 font-mono text-[10px] text-ink-4">
-                  <PlatformLogo platform={ref.platform} size={9} />
-                  {ref.account}
-                </span>
-              </span>
-            )}
-          </section>
-        )}
+        <References card={card} />
 
         <Sharpen card={card} />
 
@@ -532,6 +519,106 @@ function Detail({ slot, plan, onClose }: { slot: Slot; plan: Plan; onClose: () =
         </section>
       </div>
     </aside>
+  )
+}
+
+/**
+ * What to shoot from: the board's pins beside the idea's reference, then anything the team adds.
+ * Drop photos or videos anywhere on the section, or press Add to browse. An added one can be
+ * taken off again; the board's own pins stay.
+ */
+function References({ card }: { card: IdeaCard }) {
+  const { brand } = useBrand()
+  const ref = card.referenceId ? referenceById(brand.id, card.referenceId) : undefined
+  const mood = moodOf(brand.id, card)
+  const added = card.refs ?? []
+  const [over, setOver] = React.useState(false)
+  const input = React.useRef<HTMLInputElement>(null)
+
+  async function add(files: FileList | null) {
+    const media = [...(files ?? [])].filter((f) => /^(image|video)\//.test(f.type))
+    if (media.length === 0) return
+    const dropped = await Promise.all(media.map(fromFile))
+    editIdea(brand.id, card.id, { refs: [...added, ...dropped.map((d) => d.src)] })
+  }
+
+  return (
+    <section
+      aria-label="References"
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes('Files')) return
+        e.preventDefault()
+        setOver(true)
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false)
+      }}
+      onDrop={(e) => {
+        e.preventDefault()
+        setOver(false)
+        void add(e.dataTransfer.files)
+      }}
+      className={`-m-2 flex flex-col gap-3 rounded-[14px] p-2 transition-colors ${over ? 'bg-(--cal-drop) shadow-[inset_0_0_0_1px_var(--cal-ghost)]' : ''}`}
+    >
+      <span className={EYEBROW}>References</span>
+      <div className="grid grid-cols-3 gap-1.5">
+        {mood.map((m) => (
+          <span
+            key={m.src}
+            title={m.note}
+            className="relative block aspect-[4/5] overflow-hidden rounded-[10px] bg-tile"
+          >
+            <Image src={m.src} alt="" fill sizes="130px" className="object-cover" />
+          </span>
+        ))}
+        {added.map((src) => (
+          <span
+            key={src}
+            className="group/ref relative block aspect-[4/5] overflow-hidden rounded-[10px] bg-tile"
+          >
+            <Media src={src} sizes="130px" />
+            <button
+              type="button"
+              aria-label="Remove this reference"
+              onClick={() => editIdea(brand.id, card.id, { refs: added.filter((r) => r !== src) })}
+              className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-full bg-page text-ink-3 opacity-0 shadow-soft transition-opacity group-hover/ref:opacity-100 hover:text-ink focus-visible:opacity-100"
+            >
+              <CloseIcon />
+            </button>
+          </span>
+        ))}
+        <button
+          type="button"
+          onClick={() => input.current?.click()}
+          className={`flex aspect-[4/5] flex-col items-center justify-center gap-1.5 rounded-[10px] border border-dashed text-center transition-colors ${over ? 'border-ink-3 text-ink' : 'border-(--cal-ghost) text-ink-4 hover:border-(--line-strong) hover:text-ink'}`}
+        >
+          <PlusIcon size={12} />
+          <span className="px-2 text-[11.5px] leading-tight font-medium">
+            {over ? 'Drop to add' : 'Add or drop'}
+          </span>
+        </button>
+      </div>
+      <input
+        ref={input}
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        hidden
+        onChange={(e) => {
+          void add(e.target.files)
+          e.target.value = ''
+        }}
+      />
+      {ref && (
+        <span className="flex flex-col gap-0.5 text-[13px]">
+          <span>Borrow: {ref.borrow}</span>
+          <span className="flex items-center gap-1.5 font-mono text-[10px] text-ink-4">
+            <PlatformLogo platform={ref.platform} size={9} />
+            {ref.account}
+          </span>
+        </span>
+      )}
+    </section>
   )
 }
 
@@ -587,7 +674,7 @@ function Suggestion({ slot }: { slot: Slot }) {
             <SparkIcon size={9} />
             Built on your idea
           </span>
-          <span className="font-serif text-[16px] leading-[1.2]">“{b.idea.hook}”</span>
+          <span className="font-display text-[16px] leading-[1.2]">“{b.idea.hook}”</span>
           {b.insight && (
             <span className="text-[12.5px] text-ink-2">
               {b.insight.line} ({b.insight.unit})
@@ -747,7 +834,7 @@ function Sharpen({ card }: { card: IdeaCard }) {
               onClick={() => use(on ? mine : s.text)}
               className={`flex items-center justify-between gap-3 rounded-[10px] px-3 py-2 text-left transition-colors ${on ? 'bg-surface shadow-[inset_0_0_0_1px_var(--ink)]' : 'hover:bg-surface-2'}`}
             >
-              <span className="font-serif text-[15.5px] leading-[1.2]">{s.text}</span>
+              <span className="font-display text-[15.5px] leading-[1.2]">{s.text}</span>
               <span className="font-mono text-[9px] tracking-[0.08em] text-ink-5">{s.tag}</span>
             </button>
           )

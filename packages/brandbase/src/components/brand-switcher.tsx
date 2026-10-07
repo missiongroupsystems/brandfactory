@@ -11,7 +11,7 @@ function BrandMark({ brand, size }: { brand: Brand; size: 'sm' | 'md' }) {
   return (
     <span
       aria-hidden="true"
-      className={`flex shrink-0 items-center justify-center font-serif text-page ${
+      className={`flex shrink-0 items-center justify-center font-display text-page ${
         size === 'md' ? 'size-7 rounded-[7px] text-[17px]' : 'size-6 rounded-[6px] text-[15px]'
       }`}
       style={{ background: `var(${brand.colour})` }}

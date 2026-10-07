@@ -5,29 +5,40 @@ import Link from 'next/link'
 import * as React from 'react'
 
 import { CarouselIcon, PlusIcon, ReelIcon, SparkIcon } from '@/components/icons'
-import type {
-  CalendarEvent,
-  Day,
-  FeedMark,
-  LayerKey,
-  Post,
-  Stage,
-  StoryMark,
-  Week,
-} from '@/data/demo'
+import type { CalendarEvent, Day, FeedMark, LayerKey, Post, Stage, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 
+import { Media } from '@/components/media'
+import { PlatformLogo } from '@/components/platform-logos'
+
+import {
+  channelsOf,
+  countsOf,
+  itemsOf,
+  postTime,
+  storyCount,
+  type StageFilter,
+} from './calendar-items'
+import { storiesOf } from './stories'
+import { StoryDeck } from './story-panel'
 import { useBrand } from './posts-store'
 
 const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 
+const CHANNEL_NAME = {
+  ig: 'Instagram',
+  tt: 'TikTok',
+  yt: 'YouTube',
+  fb: 'Facebook',
+  li: 'LinkedIn',
+}
+
 const STAGE_LABEL: Record<Stage, string> = {
   draft: 'Draft',
-  approved: 'Approved',
-  filming: 'Filming',
-  editing: 'Editing',
+  awaiting: 'Awaiting approval',
   scheduled: 'Scheduled',
   posted: 'Posted',
+  failed: 'Failed',
 }
 
 /**
@@ -51,9 +62,11 @@ const DragContext = React.createContext<DragValue>({
   drop: () => {},
 })
 
-/** The week label column, then seven days. The lane overlay reuses it so bars meet the cells. */
-const GRID =
-  'grid grid-cols-[52px_repeat(7,minmax(0,1fr))] max-md:grid-cols-[40px_repeat(7,minmax(0,1fr))]'
+/**
+ * Seven days. No week-number column: the team plans by dates, as Google, Apple and Brandwatch show
+ * them. The lane overlay reuses the grid so bars meet the cells.
+ */
+const GRID = 'grid grid-cols-[repeat(7,minmax(0,1fr))]'
 
 /** Cell top padding (10) + the date row (24) + a gap (8): where the first lane starts. */
 const LANE_TOP = 42
@@ -73,16 +86,30 @@ function packLanes(events: CalendarEvent[]): { event: CalendarEvent; lane: numbe
     })
 }
 
+/**
+ * The month and week views. Month: every week, each day a count per platform, no thumbnails (a day
+ * can hold 28 stories); a day opens in the day view. Week: one week, each day its posts as
+ * thumbnails by time, with drag between days.
+ */
 export function WeekGrid({
   weeks,
   layers,
+  stages,
+  mode,
   onOpenPost,
   onNewPost,
+  onOpenDay,
+  onOpenStories,
 }: {
   weeks: Week[]
   layers: Record<LayerKey, boolean>
+  stages: StageFilter
+  mode: 'month' | 'week'
   onOpenPost: (postId: string) => void
-  onNewPost: () => void
+  onNewPost: (dayN?: string, time?: string) => void
+  onOpenDay: (week: number, day: number) => void
+  /** Opens a day's stories in the side panel. */
+  onOpenStories: (dayN: string) => void
 }) {
   const todayCol = weeks.flatMap((w) => w.days).findIndex((d) => d.today) % 7
   const { movePost } = useBrand()
@@ -107,36 +134,41 @@ export function WeekGrid({
   )
   return (
     <DragContext.Provider value={drag}>
-      <div className="mx-auto w-full max-w-[1440px] px-10 pb-24 max-md:px-4">
-        <div className="overflow-x-auto">
-          <div className="flex min-w-[760px] flex-col">
-            <div className={`${GRID} pb-2`}>
-              <span />
-              {DAY_NAMES.map((d, i) => (
-                <span
-                  key={d}
-                  className={`px-2.5 font-mono text-[10px] tracking-[0.08em] ${i === todayCol ? 'text-ink' : 'text-ink-5'}`}
-                >
-                  {d}
-                </span>
-              ))}
-            </div>
-            <div className="border-b border-(--cal-line)">
-              {weeks.map((week, w) => (
-                <WeekRow
-                  key={week.label}
-                  week={week}
-                  layers={layers}
-                  // The first two weeks fill the first screen: their photos load first.
-                  eager={w <= 1}
-                  onOpenPost={onOpenPost}
-                  onNewPost={onNewPost}
-                />
-              ))}
+      <WideTiles.Provider value={mode === 'week'}>
+        <div className="mx-auto w-full max-w-[1440px] px-10 pb-24 max-md:px-4">
+          <div className="overflow-x-auto">
+            <div className="flex min-w-[760px] flex-col">
+              <div className={`${GRID} pb-2`}>
+                {DAY_NAMES.map((d, i) => (
+                  <span
+                    key={d}
+                    className={`px-2.5 font-mono text-[10px] tracking-[0.08em] ${i === todayCol ? 'text-ink' : 'text-ink-5'}`}
+                  >
+                    {d}
+                  </span>
+                ))}
+              </div>
+              <div className="border-b border-(--cal-line)">
+                {weeks.map((week, w) => (
+                  <WeekRow
+                    key={week.label}
+                    week={week}
+                    layers={layers}
+                    stages={stages}
+                    mode={mode}
+                    onOpenDay={(d) => onOpenDay(w, d)}
+                    onOpenStories={onOpenStories}
+                    // The first two weeks fill the first screen: their photos load first.
+                    eager={w <= 1}
+                    onOpenPost={onOpenPost}
+                    onNewPost={onNewPost}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </WideTiles.Provider>
     </DragContext.Provider>
   )
 }
@@ -144,31 +176,37 @@ export function WeekGrid({
 function WeekRow({
   week,
   layers,
+  stages,
+  mode,
   eager,
   onOpenPost,
   onNewPost,
+  onOpenDay,
+  onOpenStories,
 }: {
   week: Week
   layers: Record<LayerKey, boolean>
+  stages: StageFilter
+  mode: 'month' | 'week'
   eager: boolean
   onOpenPost: (postId: string) => void
-  onNewPost: () => void
+  onNewPost: (dayN?: string, time?: string) => void
+  onOpenDay: (day: number) => void
+  onOpenStories: (dayN: string) => void
 }) {
   const lanes = packLanes(week.events.filter((e) => layers[e.layer]))
   const laneCount = lanes.reduce((n, l) => Math.max(n, l.lane + 1), 0)
   const laneSpace = laneCount ? laneCount * LANE_H + (laneCount - 1) * LANE_GAP + 6 : 0
-  const current = week.days.some((d) => d.today)
   return (
     <div className={`${GRID} relative border-t border-(--cal-line)`}>
-      <span
-        className={`pt-[15px] font-mono text-[10px] tracking-[0.08em] ${current ? 'text-ink-2' : 'text-ink-5'}`}
-      >
-        {week.label}
-      </span>
       {week.days.map((day, i) => (
         <DayCell
           key={day.n}
           day={day}
+          stages={stages}
+          mode={mode}
+          onOpen={() => onOpenDay(i)}
+          onOpenStories={() => onOpenStories(day.n)}
           name={DAY_NAMES[i]}
           first={i === 0}
           laneSpace={laneSpace}
@@ -187,7 +225,7 @@ function WeekRow({
             title={event.text}
             className="bb-lane pointer-events-auto mx-1 flex min-w-0 items-center rounded-[4px] px-2 text-[10.5px] leading-none font-medium"
             style={{
-              gridColumn: `${event.col + 1} / span ${event.span}`,
+              gridColumn: `${event.col} / span ${event.span}`,
               gridRow: lane + 1,
               background: `var(--layer-${event.layer})`,
               color: `var(--layer-${event.layer}-ink)`,
@@ -203,6 +241,10 @@ function WeekRow({
 
 function DayCell({
   day,
+  stages,
+  mode,
+  onOpen,
+  onOpenStories,
   name,
   first,
   laneSpace,
@@ -211,15 +253,20 @@ function DayCell({
   onNewPost,
 }: {
   day: Day
+  stages: StageFilter
+  mode: 'month' | 'week'
+  onOpen: () => void
+  onOpenStories: () => void
   name: string
   first: boolean
   laneSpace: number
   eager: boolean
   onOpenPost: (postId: string) => void
-  onNewPost: () => void
+  onNewPost: (dayN?: string, time?: string) => void
 }) {
   // A busy day can hold several feed posts; most hold one or none.
   const feeds = feedsOf(day)
+  const items = itemsOf(day, useBrand().byId, stages)
   const drag = React.useContext(DragContext)
   const [over, setOver] = React.useState(false)
   // A past day takes nothing, and the day a post is on is not a move.
@@ -260,31 +307,27 @@ function DayCell({
         >
           {day.n}
         </span>
-        <StoryRing mark={day.story} eager={eager} />
       </div>
       <div
         aria-hidden="true"
         className="shrink-0 transition-[height] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
         style={{ height: laneSpace }}
       />
-      <div className={`mt-2.5 ${day.past ? 'opacity-40' : ''}`}>
-        {feeds.length > 1 ? (
-          <FeedStack feeds={feeds} eager={eager} onOpenPost={onOpenPost} onNewPost={onNewPost} />
-        ) : feeds[0] ? (
-          <FeedTile mark={feeds[0]} eager={eager} onOpenPost={onOpenPost} onNewPost={onNewPost} />
+      {/* A past day fades, but a post that failed there stays in full: it still needs someone. */}
+      <div
+        className={`mt-2.5 ${day.past && !items.posts.some((p) => p.stage === 'failed') ? 'opacity-40' : ''}`}
+      >
+        {mode === 'month' ? (
+          <DaySummary day={day} stages={stages} onOpen={onOpen} />
         ) : (
-          !day.past && (
-            // A pointer shortcut: "Schedule new post" is the keyboard route to the same drawer.
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-hidden="true"
-              onClick={onNewPost}
-              className={`${TILE} flex items-center justify-center border border-dashed border-(--cal-ghost) text-ink-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:text-ink`}
-            >
-              <PlusIcon size={13} />
-            </button>
-          )
+          <WeekDay
+            day={day}
+            stages={stages}
+            onOpenStories={onOpenStories}
+            eager={eager}
+            onOpenPost={onOpenPost}
+            onNewPost={onNewPost}
+          />
         )}
       </div>
     </div>
@@ -292,125 +335,148 @@ function DayCell({
 }
 
 /**
- * A story planned on the shoot brief: one ring in its stage's colour, dashed while it is still an
- * idea, around its picture. The hook and the stage are the tooltip.
+ * A month day: one chip per platform with its count, stories counted on Instagram, and the ideas
+ * still to make. No thumbnails: the day opens in the day view for those.
  */
-function PlannedStory({ postId, eager }: { postId: string; eager: boolean }) {
+function DaySummary({
+  day,
+  stages,
+  onOpen,
+}: {
+  day: Day
+  stages: StageFilter
+  onOpen: () => void
+}) {
   const { byId } = useBrand()
-  const post = byId(postId)
-  if (!post) return null
-  const label = `Story · ${STAGE_LABEL[post.stage]}: ${post.hook}`
-  const image = post.images[0]
+  const items = itemsOf(day, byId, stages)
+  const counts = countsOf(items)
+  const failed = items.posts.filter((p) => p.stage === 'failed').length
+  const stories = storyCount(items)
+  const empty = counts.length === 0 && items.ideas.length === 0 && stories === 0
   return (
-    <span
-      role="img"
-      aria-label={label}
-      title={label}
-      className="bb-pop relative block size-6 shrink-0"
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Open ${day.n} in the day view`}
+      className="flex min-h-[64px] w-full flex-wrap content-start items-start gap-1 rounded-[8px] text-left"
     >
-      <svg
-        width="24"
-        height="24"
-        viewBox="0 0 36 36"
-        aria-hidden="true"
-        className="absolute inset-0 -rotate-90"
-      >
-        <circle
-          cx="18"
-          cy="18"
-          r="16.6"
-          fill="none"
-          stroke={`var(--stage-${post.stage})`}
-          strokeWidth="2"
-          strokeDasharray={post.stage === 'draft' ? '3 3' : undefined}
-        />
-      </svg>
-      <span className="absolute inset-[3px] overflow-hidden rounded-full bg-tile">
-        {image && (
-          <Image
-            src={image}
-            alt=""
-            width={18}
-            height={18}
-            loading={eager ? 'eager' : undefined}
-            className="size-full object-cover"
-          />
-        )}
-      </span>
-    </span>
+      {failed > 0 && (
+        <span
+          title={`${failed} post${failed > 1 ? 's' : ''} did not go out`}
+          className="flex h-[22px] items-center gap-1.5 rounded-full bg-(--fail-soft) px-2 text-[11px] font-medium text-fail-ink tabular-nums shadow-[inset_0_0_0_1px_var(--fail-line)]"
+        >
+          <span className="size-1.5 rounded-full bg-fail" />
+          {failed}
+        </span>
+      )}
+      {counts.map(({ channel, n }) => (
+        <span
+          key={channel}
+          title={`${n} on ${CHANNEL_NAME[channel]}`}
+          className="flex h-[22px] items-center gap-1 rounded-full bg-surface px-1.5 text-[11px] font-medium text-ink-2 tabular-nums"
+        >
+          <PlatformLogo platform={channel} size={11} />
+          {n}
+        </span>
+      ))}
+      {stories > 0 && (
+        <span
+          title={`${stories} ${stories > 1 ? 'stories' : 'story'}`}
+          className="flex h-[22px] items-center gap-1 rounded-full bg-surface px-1.5 text-[11px] font-medium text-ink-2 tabular-nums"
+        >
+          <StoriesIcon />
+          {stories}
+        </span>
+      )}
+      {items.ideas.length > 0 && (
+        <span
+          title={`${items.ideas.length} idea${items.ideas.length > 1 ? 's' : ''} for this day`}
+          className="flex h-[22px] items-center gap-1 rounded-full px-1.5 text-[11px] font-medium text-(--insight-6) shadow-[inset_0_0_0_1px_var(--cal-ghost)] tabular-nums"
+        >
+          <SparkIcon size={9} />
+          {items.ideas.length}
+        </span>
+      )}
+      {empty && <span className="sr-only">Nothing on this day</span>}
+    </button>
   )
 }
 
-function ringDash(n: number): string {
-  const c = 2 * Math.PI * 16.6
-  if (n <= 1) return `${c} 0`
-  const gap = 3.6
-  return `${c / n - gap} ${gap}`
-}
-
-/**
- * The day's Instagram Stories: the first frame in a ring cut into one segment per story, as
- * Instagram draws it. A day without stories shows nothing; the count is a tooltip.
- */
-function StoryRing({ mark, eager }: { mark: StoryMark; eager: boolean }) {
-  if (mark.kind === 'post') return <PlannedStory postId={mark.postId} eager={eager} />
-  if (mark.kind !== 'posted') return null
-  const label = `${mark.count} ${mark.count > 1 ? 'stories' : 'story'}`
+/** Two story frames, for the Month view's story count. */
+function StoriesIcon() {
   return (
-    <span role="img" aria-label={label} title={label} className="relative block size-6 shrink-0">
-      <svg
-        width="24"
-        height="24"
-        viewBox="0 0 36 36"
-        aria-hidden="true"
-        className="absolute inset-0 -rotate-90"
-      >
-        <circle
-          cx="18"
-          cy="18"
-          r="16.6"
-          fill="none"
-          stroke="var(--ink)"
-          strokeWidth="1.5"
-          strokeDasharray={ringDash(mark.count)}
-        />
-      </svg>
-      <span className="absolute inset-[3px] overflow-hidden rounded-full bg-tile">
-        <Image
-          src={mark.image}
-          alt=""
-          width={18}
-          height={18}
-          loading={eager ? 'eager' : undefined}
-          className="size-full object-cover"
-        />
-      </span>
-    </span>
+    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <rect x="1.5" y="1.5" width="5" height="9" rx="1.2" fill="currentColor" />
+      <rect x="7.6" y="2.5" width="3" height="7" rx="1" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
   )
 }
 
-const TILE = 'relative block aspect-[4/5] w-full max-w-[124px] overflow-hidden rounded-[8px]'
-
-function FeedTile({
-  mark,
+/** A week day: its stories as a deck that opens them, then each post with its time and channels. */
+function WeekDay({
+  day,
+  stages,
   eager,
   onOpenPost,
   onNewPost,
+  onOpenStories,
 }: {
-  mark: FeedMark
+  day: Day
+  stages: StageFilter
   eager: boolean
   onOpenPost: (postId: string) => void
-  onNewPost: () => void
+  onNewPost: (dayN?: string, time?: string) => void
+  onOpenStories: () => void
 }) {
-  const { byId } = useBrand()
+  const { brand, library, byId } = useBrand()
+  const items = itemsOf(day, byId, stages)
+  const stories = storiesOf(day.n, items, brand.id, library, byId)
+  return (
+    <div className="flex flex-col gap-3">
+      {/* The story row keeps its height on an empty day, so every day's posts start level. */}
+      <div className="flex h-[34px] items-center">
+        <StoryDeck stories={stories} onOpen={onOpenStories} />
+      </div>
+      {items.posts.map((post) => (
+        <div key={post.id} className="flex flex-col gap-1.5">
+          <PostTile post={post} eager={eager} onOpen={() => onOpenPost(post.id)} />
+          <span
+            className={`flex items-center gap-1.5 text-[11px] tabular-nums ${post.stage === 'failed' ? 'font-medium text-fail-ink' : 'text-ink-3'}`}
+          >
+            {postTime(post)}
+            {post.stage === 'failed' && <span>· Fix it</span>}
+            <span className="flex items-center gap-1 text-ink-4">
+              {channelsOf(post).map((c) => (
+                <PlatformLogo key={c} platform={c} size={10} />
+              ))}
+            </span>
+          </span>
+        </div>
+      ))}
+      {items.ideas.map((mark) => (
+        <IdeaTile key={mark.hook} mark={mark} onNewPost={onNewPost} />
+      ))}
+      {!day.past && (
+        <button
+          type="button"
+          onClick={() => onNewPost(day.n)}
+          aria-label={`New post on ${day.n}`}
+          className="flex h-9 max-w-[200px] items-center justify-center rounded-[8px] border border-dashed border-(--cal-ghost) text-ink-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:text-ink focus-visible:opacity-100"
+        >
+          <PlusIcon size={12} />
+        </button>
+      )}
+    </div>
+  )
+}
 
-  if (mark.kind === 'post') {
-    const post = byId(mark.postId)
-    if (!post) return null
-    return <PostTile post={post} eager={eager} onOpen={() => onOpenPost(post.id)} />
-  }
+const TILE_BASE = 'relative block aspect-[4/5] w-full overflow-hidden rounded-[8px]'
+const TILE = `${TILE_BASE} max-w-[124px]`
 
-  return <IdeaTile mark={mark} onNewPost={onNewPost} />
+/** The week view's tiles fill their day column; the month's stay small. */
+const WideTiles = React.createContext(false)
+function useTile(): string {
+  return React.useContext(WideTiles) ? `${TILE_BASE} max-w-[200px]` : TILE
 }
 
 /**
@@ -419,17 +485,18 @@ function FeedTile({
  * carries the insights' green and leads to the ideas page, so the calendar, the ideas and the
  * insights read as one loop.
  */
-function IdeaTile({
+export function IdeaTile({
   mark,
   onNewPost,
 }: {
   mark: Extract<FeedMark, { kind: 'idea' }>
-  onNewPost: () => void
+  onNewPost: (dayN?: string, time?: string) => void
 }) {
   const { brand } = useBrand()
   const tint = mark.suggested ? 'var(--insight)' : `var(${brand.colour})`
   const kind = mark.format === 'reel' ? 'Reel' : 'Carousel'
-  const className = `${TILE} group/idea bb-tile text-left text-ink`
+  const tile = useTile()
+  const className = `${tile} group/idea bb-tile text-left text-ink`
   const style = {
     background: `linear-gradient(165deg, color-mix(in oklab, ${tint} 12%, var(--page)) 0%, var(--page) 78%)`,
   }
@@ -448,9 +515,7 @@ function IdeaTile({
           </span>
         </span>
       </span>
-      <span className="mt-auto font-serif text-[14px] leading-[1.1] tracking-[-0.005em] text-ink-2">
-        {mark.hook}
-      </span>
+      <span className="mt-auto font-display text-[14px] leading-[1.1] text-ink-2">{mark.hook}</span>
       <span
         className="mt-1.5 line-clamp-2 text-[9.5px] leading-[1.25] font-medium"
         style={{ color: `color-mix(in oklab, ${tint} 70%, var(--ink-3))` }}
@@ -474,7 +539,7 @@ function IdeaTile({
   return (
     <button
       type="button"
-      onClick={onNewPost}
+      onClick={() => onNewPost()}
       aria-label={`${kind} idea: ${mark.hook} ${mark.why}`}
       className={className}
       style={style}
@@ -498,9 +563,19 @@ function ArrowIcon() {
   )
 }
 
-function PostTile({ post, eager, onOpen }: { post: Post; eager: boolean; onOpen: () => void }) {
+export function PostTile({
+  post,
+  eager,
+  onOpen,
+}: {
+  post: Post
+  eager: boolean
+  onOpen: () => void
+}) {
   const drag = React.useContext(DragContext)
+  const tile = useTile()
   const isDraft = post.stage === 'draft'
+  const failed = post.stage === 'failed'
   // A post that is live stays on its day.
   const movable = post.stage !== 'posted'
   const image = post.images[0]
@@ -516,24 +591,29 @@ function PostTile({ post, eager, onOpen }: { post: Post; eager: boolean; onOpen:
       }}
       onDragEnd={drag.end}
       aria-label={`${post.format === 'reel' ? 'Reel' : 'Carousel'}: ${post.hook}, ${STAGE_LABEL[post.stage].toLowerCase()}`}
-      className={`${TILE} group/tile bb-tile bg-tile text-left ${movable ? 'cursor-grab active:cursor-grabbing' : ''} ${drag.landed === post.id ? 'bb-land' : ''}`}
+      className={`${tile} group/tile bb-tile @container bg-tile text-left ${movable ? 'cursor-grab active:cursor-grabbing' : ''} ${drag.landed === post.id ? 'bb-land' : ''} ${failed ? 'shadow-[0_0_0_2px_var(--page),0_0_0_3.5px_var(--fail-line)]' : ''}`}
       style={{ opacity: drag.postId === post.id ? 0.35 : 1 }}
     >
-      {image && (
-        <Image
-          src={image}
-          alt=""
-          fill
-          sizes="124px"
-          draggable={false}
-          loading={eager ? 'eager' : undefined}
-          className="object-cover"
-        />
+      {image?.startsWith('blob:') ? (
+        // A file dropped in the composer, possibly a video: drawn as it is, not through next/image.
+        <Media src={image} sizes="124px" />
+      ) : (
+        image && (
+          <Image
+            src={image}
+            alt=""
+            fill
+            sizes="124px"
+            draggable={false}
+            loading={eager ? 'eager' : undefined}
+            className="object-cover"
+          />
+        )
       )}
       {isDraft && (
         <span className="pointer-events-none absolute inset-[3px] rounded-[6px] border border-dashed border-(--tile-dash)" />
       )}
-      <StageChip stage={post.stage} />
+      {failed ? <FailedBadge /> : <StageChip stage={post.stage} />}
       <span className="absolute top-2 right-2 text-page drop-shadow-[0_1px_2px_var(--tile-glyph-shadow)]">
         {post.format === 'reel' ? <ReelIcon size={12} /> : <CarouselIcon size={12} />}
       </span>
@@ -542,8 +622,23 @@ function PostTile({ post, eager, onOpen }: { post: Post; eager: boolean; onOpen:
 }
 
 /**
- * The stage as a glyph that says what is happening: a pencil while it is drafted, a check once
- * approved, a camera, scissors, a clock, and a paper plane once it is out. The word opens beside
+ * A post that did not go out: a red badge with its words always showing, never only on hover,
+ * so nobody scrolls past it.
+ */
+function FailedBadge() {
+  return (
+    // A frosted pill like the other stage chips, but always open, with the red kept to a dot.
+    // On a small tile (the Day view's) only the dot shows.
+    <span className="bb-pop absolute bottom-1.5 left-1.5 flex h-[20px] items-center gap-1.5 rounded-full bg-white/90 pr-2 pl-1.5 text-[10.5px] font-medium text-fail-ink shadow-[0_1px_4px_rgba(0,0,0,0.14)] backdrop-blur-sm @max-[100px]:size-[20px] @max-[100px]:justify-center @max-[100px]:p-0">
+      <span className="size-[7px] rounded-full bg-fail shadow-[0_0_0_2.5px_var(--fail-soft)]" />
+      <span className="@max-[100px]:hidden">Not posted</span>
+    </span>
+  )
+}
+
+/**
+ * The stage as a glyph that says what is happening: a pencil while it is drafted, a person while it
+ * waits on someone's OK, a clock once scheduled, and a paper plane once it is out. The word opens beside
  * it when the pointer is on the tile, so the calendar stays quiet until asked.
  */
 function StageChip({ stage }: { stage: Stage }) {
@@ -564,18 +659,10 @@ function StageChip({ stage }: { stage: Stage }) {
 
 const STAGE_PATH: Record<Stage, React.ReactNode> = {
   draft: <path d="M8.4 1.9l1.7 1.7-5.9 5.9-2.3.6.6-2.3z" />,
-  approved: <path d="M2.4 6.4L4.9 8.8L9.6 3.4" />,
-  filming: (
+  awaiting: (
     <>
-      <rect x="1.4" y="3.4" width="6.4" height="5.2" rx="1.2" />
-      <path d="M7.8 5.4L10.6 4v4L7.8 6.6" />
-    </>
-  ),
-  editing: (
-    <>
-      <circle cx="3.1" cy="3.4" r="1.4" />
-      <circle cx="3.1" cy="8.6" r="1.4" />
-      <path d="M4.3 4.2L10.4 8.9M4.3 7.8L10.4 3.1" />
+      <circle cx="6" cy="4.2" r="2" />
+      <path d="M2.4 10.4c.6-1.9 2-2.9 3.6-2.9s3 1 3.6 2.9" />
     </>
   ),
   scheduled: (
@@ -585,9 +672,10 @@ const STAGE_PATH: Record<Stage, React.ReactNode> = {
     </>
   ),
   posted: <path d="M10.6 1.4L1.4 5.2l3.9 1.5 1.5 3.9zM10.6 1.4L5.3 6.7" />,
+  failed: <path d="M6 2.6v4.2M6 9.2v.1" strokeWidth="2" />,
 }
 
-function StageGlyph({ stage }: { stage: Stage }) {
+export function StageGlyph({ stage }: { stage: Stage }) {
   return (
     <svg
       width="10"
@@ -603,79 +691,5 @@ function StageGlyph({ stage }: { stage: Stage }) {
     >
       {STAGE_PATH[stage]}
     </svg>
-  )
-}
-
-/**
- * Two or more posts on one day: a stack, the first in front and the rest peeking behind its
- * right edge, with a count. Pointing at the stack fans the cards out; the card under the pointer
- * (or with keyboard focus) is the one in front, and it stays in front until another card takes
- * its place, so moving back to the left card brings it back on top.
- *
- * "In front" is state, not `:hover`: with overlapping cards a CSS hover cannot hand the front back
- * to a card whose visible strip the pointer returns to. The swap is smoothed by the front card
- * lifting and scaling while the others ease back; only z-index changes instantly.
- */
-function FeedStack({
-  feeds,
-  eager,
-  onOpenPost,
-  onNewPost,
-}: {
-  feeds: FeedMark[]
-  eager: boolean
-  onOpenPost: (postId: string) => void
-  onNewPost: () => void
-}) {
-  const [open, setOpen] = React.useState(false)
-  const [top, setTop] = React.useState(0)
-  const last = feeds.length - 1
-
-  function close() {
-    setOpen(false)
-    setTop(0)
-  }
-
-  return (
-    <div
-      className="relative w-full max-w-[124px]"
-      onPointerEnter={() => setOpen(true)}
-      onPointerLeave={close}
-      onFocus={() => setOpen(true)}
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) close()
-      }}
-    >
-      {feeds.map((mark, i) => {
-        const front = i === top
-        const rest = i === 0 ? 'none' : `translateX(${7 * i}px) scale(${1 - 0.06 * i})`
-        const fan = `translateX(${i === 0 ? -4 : (44 * i) / last}%) translateY(${front ? -4 : 0}px) rotate(${-2 + (5 * i) / last}deg) scale(${front ? 1 : 0.95})`
-        return (
-          <div
-            key={i}
-            className={i === 0 ? 'relative' : 'absolute inset-0'}
-            style={{
-              zIndex: open ? 30 - Math.abs(i - top) : 30 - i,
-              transform: open ? fan : rest,
-              transformOrigin: 'left bottom',
-              transition:
-                'transform 380ms cubic-bezier(0.2, 0.8, 0.2, 1), filter 380ms cubic-bezier(0.2, 0.8, 0.2, 1)',
-              filter: open && !front ? 'saturate(0.85) brightness(0.97)' : 'none',
-            }}
-            onPointerEnter={() => setTop(i)}
-            onFocus={() => setTop(i)}
-          >
-            <FeedTile mark={mark} eager={eager} onOpenPost={onOpenPost} onNewPost={onNewPost} />
-          </div>
-        )
-      })}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-1.5 -left-1.5 z-40 flex size-[18px] items-center justify-center rounded-full bg-ink font-mono text-[9.5px] text-page shadow-soft transition-opacity duration-200"
-        style={{ opacity: open ? 0 : 1 }}
-      >
-        {feeds.length}
-      </span>
-    </div>
   )
 }

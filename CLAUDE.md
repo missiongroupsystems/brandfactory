@@ -34,7 +34,7 @@ Run the full gate before you report that work is complete. The changelog
 records the result of this gate for each release.
 
 ```bash
-pnpm typecheck                         # tsc --noEmit in all 13 packages
+pnpm typecheck                         # tsc --noEmit in all 14 packages
 pnpm lint                              # eslint, whole repo
 pnpm format:check                      # prettier
 pnpm test                              # vitest, all packages
@@ -84,8 +84,10 @@ automatically. Read `docs/vision.md` for the product and `docs/architecture.md`
 for the blueprint.
 
 The repository is a pnpm workspaces monorepo with a flat `packages/*` layout:
-`web`, `web-next`, `brandbase`, `server`, `shared`, `db`, `agent` and `adapters`
-(six ports: auth, storage, realtime, llm, research, events).
+`web`, `web-next`, `brandbase`, `connect`, `server`, `shared`, `db`, `agent` and `adapters`
+(six ports: auth, storage, realtime, llm, research, events). `connect` links each brand's social
+accounts (Meta, Pinterest, TikTok) by OAuth, with tokens encrypted per brand; it is separate from
+the `brandbase` demo and imports no other package (see its README).
 
 `brandbase` is a UI-only demo with static data and no server: it imports no other
 package, and its publish rules live in `src/features/publish/model.ts`. It follows

@@ -45,13 +45,10 @@
   --avatar: #e9d7f2;
   --avatar-ink: #3c2a47;
 
-  --scrim: rgba(250, 250, 248, 0.8);
-  --scrim-strong: rgba(250, 250, 248, 0.86);
   --shadow-sheet: 0 0 0 1px rgba(18, 18, 18, 0.06), 0 30px 80px rgba(18, 18, 18, 0.14);
   --shadow-pop: 0 10px 30px rgba(18, 18, 18, 0.13), 0 2px 6px rgba(18, 18, 18, 0.06);
   --shadow-lift: 0 6px 16px rgba(18, 18, 18, 0.18);
   --shadow-soft: 0 1px 3px rgba(18, 18, 18, 0.1);
-  --shadow-stage: 0 0 0 1px rgba(18, 18, 18, 0.06), 0 40px 120px rgba(18, 18, 18, 0.16);
   --shadow-phone-up: 0 0 0 1px rgba(18, 18, 18, 0.06), 0 26px 50px rgba(18, 18, 18, 0.2);
   --shadow-phone-down: 0 0 0 1px rgba(18, 18, 18, 0.08);
 
@@ -134,11 +131,13 @@
 
   /* Post stages, one colour per step, for the glyph on each tile. */
   --stage-draft: #8a8a83;
-  --stage-approved: #4f6f94;
-  --stage-filming: #b4532a;
-  --stage-editing: #c98f2a;
+  --stage-awaiting: #c98f2a;
   --stage-scheduled: #7a5fa3;
   --stage-posted: #2f7d5b;
+  --stage-failed: var(--fail);
+  /* A failed post's quiet surface: a tint and a hairline, the red kept to a dot and the words. */
+  --fail-soft: #fbf1ef;
+  --fail-line: rgba(200, 68, 47, 0.28);
 }
 
 /*

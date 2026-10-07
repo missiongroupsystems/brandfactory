@@ -16,11 +16,13 @@ import type { Format, Post, Stage, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 import { dayLabel, landingDay } from '@/features/ideate/calendar-slot'
 
+import { archiveFor } from './month'
+
 import { movePost as moveInWeeks, moveRefusal, placeStory, slotFor, storyTaken } from './move-post'
 
 /**
  * The demo's brands and their posts, in memory. Publishing changes a post's stage here, so the
- * calendar tile behind the drawer says "Scheduled" or "Posted" when the drawer closes. Posts are
+ * calendar tile says "Scheduled" or "Posted" when the composer sends it. Posts are
  * held per brand, so switching away and back keeps that stage. A reload starts over, which is
  * what a demo wants.
  */
@@ -51,13 +53,15 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
    * tile, wherever it sat, gives way to the post. The shoot brief calls it once a date is picked.
    */
   planPost: (
-    idea: { format: Format; hook: string; image?: string },
+    idea: { format: Format; hook: string; image?: string; channels?: Post['channels'] },
     dayN: string,
     time: string,
     stage: Stage,
   ) => string
   /** Moves a post to a day and a time. False if the move is refused, as a drag would be. */
   reschedule: (id: string, dayN: string, time: string) => boolean
+  /** The composer picked the accounts a post goes to. */
+  setChannels: (id: string, channels: NonNullable<Post['channels']>) => void
   /** The brief renamed the idea behind a post; the post says the same words. */
   renamePost: (id: string, hook: string) => void
   /**
@@ -79,6 +83,10 @@ const INITIAL_POSTS = Object.fromEntries(
   BRAND_CONTENT.map((c) => [c.brand.id, c.posts]),
 ) as PostsByBrand
 
+// What each brand posted before this month (month.ts). Posted, so it never changes: it stays out
+// of the month's posts and `byId` finds it here, for the earlier months the calendar draws.
+const ARCHIVE: Post[] = BRAND_CONTENT.flatMap((c) => archiveFor(c.brand.id))
+
 const INITIAL_WEEKS = Object.fromEntries(
   BRAND_CONTENT.map((c) => [c.brand.id, c.weeks]),
 ) as WeeksByBrand
@@ -88,7 +96,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   const [postsByBrand, setPostsByBrand] = React.useState<PostsByBrand>(INITIAL_POSTS)
   const [weeksByBrand, setWeeksByBrand] = React.useState<WeeksByBrand>(INITIAL_WEEKS)
 
-  // Stable, and a no-op when the stage is already set: the publish drawer calls it from an
+  // Stable, and a no-op when the stage is already set: the composer calls it from an
   // effect, so a new identity per render, or a new object per call, would loop.
   const setStage = React.useCallback((id: string, stage: Stage) => {
     setPostsByBrand((all) => {
@@ -111,7 +119,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // A dragged tile carries its post to the new day, and the post's slot follows, so the drawer
+  // A dragged tile carries its post to the new day, and the post's slot follows, so the composer
   // opened afterwards shows the day the tile is on. The time of day stays.
   const movePost = React.useCallback(
     (id: string, toDayN: string) => {
@@ -163,6 +171,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         format: idea.format,
         hook: idea.hook,
         images: idea.image ? [idea.image] : [],
+        ...(idea.channels ? { channels: idea.channels } : {}),
         stage,
         ...slotFor(weeks, dayN, `, ${time}`),
       }
@@ -216,6 +225,17 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     [brandId, weeksByBrand, postsByBrand],
   )
 
+  const setChannels = React.useCallback((id: string, channels: NonNullable<Post['channels']>) => {
+    setPostsByBrand((all) => {
+      for (const [brand, posts] of Object.entries(all) as Array<[BrandId, Post[]]>) {
+        if (posts.some((p) => p.id === id)) {
+          return { ...all, [brand]: posts.map((p) => (p.id === id ? { ...p, channels } : p)) }
+        }
+      }
+      return all
+    })
+  }, [])
+
   const renamePost = React.useCallback((id: string, hook: string) => {
     setPostsByBrand((all) => {
       for (const [brand, posts] of Object.entries(all) as Array<[BrandId, Post[]]>) {
@@ -260,6 +280,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       reschedule,
       renamePost,
       renameIdea,
+      setChannels,
       brands: BRANDS,
       setBrandId,
       setStage,
@@ -267,7 +288,8 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         posts.find((p) => p.id === id) ??
         Object.values(postsByBrand)
           .flat()
-          .find((p) => p.id === id),
+          .find((p) => p.id === id) ??
+        ARCHIVE.find((p) => p.id === id),
     }
   }, [
     brandId,
@@ -279,6 +301,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     reschedule,
     renamePost,
     renameIdea,
+    setChannels,
     setBrandId,
     setStage,
   ])

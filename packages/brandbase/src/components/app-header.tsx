@@ -30,7 +30,11 @@ export function AppHeader() {
       </Link>
       <nav aria-label="Main" className="flex gap-7 max-sm:gap-4">
         {NAV.map((n) => {
-          const current = n.href === '/' ? pathname === '/' : pathname.startsWith(n.href)
+          // A post's own page belongs to Schedule.
+          const current =
+            n.href === '/'
+              ? pathname === '/' || pathname.startsWith('/post')
+              : pathname.startsWith(n.href)
           return (
             <Link
               key={n.href}

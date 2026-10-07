@@ -18,10 +18,9 @@
   --color-live: var(--live);
   --color-fail: var(--fail);
   --color-fail-ink: var(--fail-ink);
-  --color-scrim: var(--scrim);
 
   --font-sans: var(--font-instrument-sans), 'Helvetica Neue', Helvetica, sans-serif;
-  --font-serif: var(--font-instrument-serif), Georgia, serif;
+  --font-display: var(--font-geist), 'Helvetica Neue', Helvetica, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
   --shadow-sheet: var(--shadow-sheet);
@@ -35,6 +34,12 @@
 }
 
 @layer base {
+  /* Geist at medium, drawn a little tight: a utility on the element still wins. */
+  .font-display {
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
   html,
   body {
     background: var(--page);
@@ -47,11 +52,6 @@
 }
 
 /* Motion. One vocabulary, used everywhere: rise, pop, draw, pulse, fold. */
-@keyframes bb-scrim {
-  from {
-    opacity: 0;
-  }
-}
 @keyframes bb-sheet {
   from {
     opacity: 0;
@@ -93,12 +93,6 @@
     opacity: 0.35;
   }
 }
-@keyframes bb-stage {
-  from {
-    opacity: 0;
-    transform: translateY(18px) scale(0.985);
-  }
-}
 @keyframes bb-deal {
   from {
     opacity: 0;
@@ -112,9 +106,6 @@
   }
 }
 
-@utility bb-scrim {
-  animation: bb-scrim 320ms ease both;
-}
 @utility bb-sheet {
   animation: bb-sheet 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
@@ -133,9 +124,6 @@
 }
 @utility bb-pulse {
   animation: bb-pulse 1.4s ease-in-out infinite;
-}
-@utility bb-stage {
-  animation: bb-stage 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 @utility bb-deal {
   animation: bb-deal 720ms cubic-bezier(0.16, 1, 0.3, 1) both;

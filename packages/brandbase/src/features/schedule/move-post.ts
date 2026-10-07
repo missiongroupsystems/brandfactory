@@ -27,9 +27,13 @@ export function dayOf(weeks: Week[], postId: string): string | null {
   return null
 }
 
-/** True when a day's story row already holds a planned story other than this one. */
+/**
+ * True when a day's story row is taken: by a planned story other than this one, or by stories
+ * already out that day.
+ */
 export function storyTaken(weeks: Week[], dayN: string, postId?: string): boolean {
   const day = weeks.flatMap((w) => w.days).find((d) => d.n === dayN)
+  if (day?.story.kind === 'posted') return true
   return day?.story.kind === 'post' && day.story.postId !== postId
 }
 

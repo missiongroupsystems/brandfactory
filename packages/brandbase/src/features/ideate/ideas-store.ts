@@ -10,12 +10,15 @@ import { IDEAS_BY_BRAND, type IdeaCard, type IdeaSource } from '@/data/ideas'
  * and the shoot brief find it after the navigation. No provider: `layout.tsx` stays as it is. A reload
  * starts over at five of eight, which is where the demo begins.
  */
+/** Where moodboard posts come from: the brand's Pinterest, Instagram saved and TikTok favourites. */
+export type MoodSource = 'pinterest' | 'ig' | 'tt'
+
 interface BrandIdeasState {
   /** Every card, the suggested ones included; those show only once `suggesting` is true. */
   ideas: IdeaCard[]
   suggesting: boolean
-  /** True once the team connected Pinterest: every board is on the page from then on. */
-  pinterest: boolean
+  /** Which of the brand's own accounts feed the moodboard. Never another brand's. */
+  sources: Record<MoodSource, boolean>
   /** How many ideas the team had when it asked for suggestions: "3 suggested from your 5". */
   suggestedFrom: number
 }
@@ -26,7 +29,12 @@ function initial(): State {
   return Object.fromEntries(
     Object.entries(IDEAS_BY_BRAND).map(([id, b]) => [
       id,
-      { ideas: b.ideas, suggesting: false, pinterest: false, suggestedFrom: 0 },
+      {
+        ideas: b.ideas,
+        suggesting: false,
+        sources: { pinterest: false, ig: false, tt: false },
+        suggestedFrom: 0,
+      },
     ]),
   ) as State
 }
@@ -86,8 +94,9 @@ export function suggest(brandId: BrandId) {
   }))
 }
 
-export function connectPinterest(brandId: BrandId) {
-  update(brandId, (s) => ({ ...s, pinterest: true }))
+/** Connects one of this brand's accounts to its moodboard. */
+export function connectSource(brandId: BrandId, source: MoodSource) {
+  update(brandId, (s) => ({ ...s, sources: { ...s.sources, [source]: true } }))
 }
 
 /** A suggestion becomes one of the team's ideas. */
@@ -110,7 +119,9 @@ export function setHook(brandId: BrandId, id: string, hook: string) {
 export function editIdea(
   brandId: BrandId,
   id: string,
-  fields: Partial<Pick<IdeaCard, 'hook' | 'angle' | 'feature' | 'shots' | 'done' | 'postId'>>,
+  fields: Partial<
+    Pick<IdeaCard, 'hook' | 'angle' | 'feature' | 'shots' | 'done' | 'refs' | 'postId'>
+  >,
 ) {
   patch(brandId, id, fields)
 }

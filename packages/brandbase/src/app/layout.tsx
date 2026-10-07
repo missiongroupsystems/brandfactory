@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist_Mono, Instrument_Sans, Instrument_Serif } from 'next/font/google'
+import { Geist, Geist_Mono, Instrument_Sans } from 'next/font/google'
 
 import { BrandProvider } from '@/features/schedule/posts-store'
 
@@ -10,11 +10,11 @@ const sans = Instrument_Sans({
   subsets: ['latin'],
   weight: ['400', '500', '600'],
 })
-const serif = Instrument_Serif({
-  variable: '--font-instrument-serif',
+// Headings and hooks: Geist, the family of the mono labels, so the type reads as one system.
+const display = Geist({
+  variable: '--font-geist',
   subsets: ['latin'],
-  weight: '400',
-  style: ['normal', 'italic'],
+  weight: ['500', '600'],
 })
 const mono = Geist_Mono({
   variable: '--font-geist-mono',
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="en" className={`${sans.variable} ${serif.variable} ${mono.variable} antialiased`}>
+    <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable} antialiased`}>
       <body className="min-h-svh font-sans text-sm leading-[1.45]">
         <BrandProvider>{children}</BrandProvider>
       </body>

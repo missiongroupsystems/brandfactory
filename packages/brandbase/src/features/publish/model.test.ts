@@ -120,3 +120,14 @@ describe('the one button', () => {
     expect(primaryLabel(reel({ selected: [] }))).toBe('Pick a channel')
   })
 })
+
+describe('one post, each platform its own limit', () => {
+  it('blocks only the account whose text runs over its platform', () => {
+    // LinkedIn takes 3,000 characters, Instagram 2,200: the same text can fit one and not the other.
+    const long = 'a'.repeat(2500)
+    const draft = reel({ caption: long, selected: ['ig', 'li'], privacy: 'Everyone' })
+    expect(blockers(draft)).toEqual(['Shorten the text for Instagram (2500/2200).'])
+    const fixed = reel({ ...draft, overrides: { ig: 'Short for Instagram.' } })
+    expect(blockers(fixed)).toEqual([])
+  })
+})
