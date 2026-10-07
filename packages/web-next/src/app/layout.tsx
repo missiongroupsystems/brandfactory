@@ -1,49 +1,38 @@
-import type { Metadata } from "next";
-import { Geist_Mono } from "next/font/google";
-import localFont from "next/font/local";
+import type { Metadata } from 'next'
+import { Geist, Geist_Mono, Instrument_Sans } from 'next/font/google'
 
-import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { BrandProvider } from '@/features/schedule/posts-store'
 
-import "./globals.css";
+import './globals.css'
 
-/**
- * Satoshi is the one Mission Systems typeface (styleguide §1.1). Self-hosted from
- * `src/app/fonts/` rather than a CDN: `next/font/local` emits the `@font-face` rules, hashes
- * the files, preloads them and computes fallback metrics, so the weight mapping below is the
- * only thing to keep in step with the styleguide.
- */
-const satoshi = localFont({
-  src: [
-    { path: "./fonts/satoshi/Satoshi-Light.woff2", weight: "300", style: "normal" },
-    { path: "./fonts/satoshi/Satoshi-Regular.woff2", weight: "400", style: "normal" },
-    { path: "./fonts/satoshi/Satoshi-Italic.woff2", weight: "400", style: "italic" },
-    { path: "./fonts/satoshi/Satoshi-Medium.woff2", weight: "500", style: "normal" },
-    { path: "./fonts/satoshi/Satoshi-Bold.woff2", weight: "700", style: "normal" },
-  ],
-  variable: "--font-satoshi",
-  display: "swap",
-});
-
-/** The one sanctioned second face (§5.4) — UENs, licence numbers, endpoints. Never prose. */
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const sans = Instrument_Sans({
+  variable: '--font-instrument-sans',
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+})
+// Headings and hooks: Geist, the family of the mono labels, so the type reads as one system.
+const display = Geist({
+  variable: '--font-geist',
+  subsets: ['latin'],
+  weight: ['500', '600'],
+})
+const mono = Geist_Mono({
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
+  weight: ['400', '500'],
+})
 
 export const metadata: Metadata = {
-  title: "Brand Base — Mission Systems",
-  description: "The Brand Operating System. Define the brand once; every surface inherits it.",
-};
+  title: 'brand base',
+  description: 'Plan, make and publish for Casa Vostra.',
+}
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html
-      lang="en"
-      className={`${satoshi.variable} ${geistMono.variable} h-full antialiased`}
-      suppressHydrationWarning
-    >
-      <body className="min-h-full">
-        <TooltipProvider>{children}</TooltipProvider>
-        <Toaster />
+    <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable} antialiased`}>
+      <body className="min-h-svh font-sans text-sm leading-[1.45]">
+        <BrandProvider>{children}</BrandProvider>
       </body>
     </html>
-  );
+  )
 }

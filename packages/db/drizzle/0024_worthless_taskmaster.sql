@@ -1,1 +1,0 @@
-ALTER TABLE "brands" ADD COLUMN "events_outlet_id" uuid;

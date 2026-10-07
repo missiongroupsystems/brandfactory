@@ -1,8 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "https://brandfactory.fly.dev/:path*" },
-    { "source": "/blobs/:path*", "destination": "https://brandfactory.fly.dev/blobs/:path*" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}

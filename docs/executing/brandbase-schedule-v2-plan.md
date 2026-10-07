@@ -1,7 +1,7 @@
 # BrandBase Schedule v2: plan
 
 Status: planned 2026-10-07, not started. Prototype due 3:00 PM the same day for the marketing
-meeting. Branch `feat/brandbase-mvp`, package `packages/brandbase` (UI-only demo, static data).
+meeting. Branch `feat/brandbase-mvp`, package `packages/web-next` (UI-only demo, static data).
 
 ## Why
 

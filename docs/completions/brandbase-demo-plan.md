@@ -13,7 +13,7 @@ model the view only reads.
 
 ## Shape
 
-`packages/brandbase` (`@brandfactory/brandbase`): Next.js 16 App Router,
+`packages/brandbase` (`@brandfactory/brandbase`, since moved to `packages/web-next`): Next.js 16 App Router,
 React 19, Tailwind 4, port 3002. Follows the root eslint and prettier config.
 No dependency on any other package.
 
