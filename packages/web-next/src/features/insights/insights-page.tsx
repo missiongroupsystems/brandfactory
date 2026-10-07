@@ -22,7 +22,9 @@ import { useBrand } from '@/features/schedule/posts-store'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 const HAIR = 'border-(--cal-line)'
+const CARD = 'rounded-[18px] bg-surface-2'
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const DAYS_LONG = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const DAYPARTS = [
   { name: 'Morning', hours: '8–11am' },
   { name: 'Lunch', hours: '11am–2pm' },
@@ -30,6 +32,24 @@ const DAYPARTS = [
   { name: 'Evening', hours: '5–8pm' },
   { name: 'Late', hours: '8–11pm' },
 ]
+
+/** What each headline number counts, said after it: "49.1k accounts reached". */
+const UNIT: Record<string, string> = {
+  Reach: 'accounts reached',
+  'Engagement rate': 'of people who saw a post reacted',
+  'New followers': 'new followers',
+  Saves: 'saves',
+  Shares: 'shares',
+  'Bookings from social': 'bookings from social',
+}
+
+/** The Monday of each of the twelve weeks behind a number: "This week" is the week of 5 Oct. */
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const WEEKS = Array.from({ length: 12 }, (_, i) => {
+  const d = new Date(2026, 9, 5 - (11 - i) * 7)
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`
+})
+const weekName = (i: number) => (i === WEEKS.length - 1 ? 'This week' : `Week of ${WEEKS[i]}`)
 
 /** 18420 → 18.4k; 480 → 480. */
 function k(n: number): string {
@@ -43,13 +63,29 @@ function ramp(v: number): string {
   return `var(--insight-${step})`
 }
 
+/** A round step for a chart's guide lines: 1, 2 or 5 times a power of ten. */
+function niceStep(raw: number): number {
+  const p = 10 ** Math.floor(Math.log10(raw))
+  const f = raw / p
+  return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p
+}
+
+/** "THURSDAY AND FRIDAY" → "Thursday and Friday"; "16 SEP" → "16 Sep". */
+function plain(s: string): string {
+  return s
+    .toLowerCase()
+    .split(' ')
+    .map((w) => (w === 'and' ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(' ')
+}
+
 type Tab = 'overview' | 'posts' | 'creators'
 
 /**
- * The insights page. The month's four numbers sit on top, always. Under them, three tabs:
- * Overview (what worked, and when the audience is online), Posts (each post's numbers) and
- * Creators (what each creator who posted about the brand earned). Every chart has a title that
- * says what it measures, and every mark shows its number on hover.
+ * The insights page, one calm column in three views, switched the way Ideate switches its two.
+ * Overview: the month in a sentence, one number at a time over its twelve weeks, what worked
+ * (each opens to its chart and its idea) and the best time to post. Posts and Creators: each
+ * post and each creator, ranked. Every chart shows its numbers on hover.
  */
 export function InsightsPage() {
   const { brand } = useBrand()
@@ -61,9 +97,9 @@ export function InsightsPage() {
       <AppHeader />
       <main
         key={brand.id}
-        className="bb-swap mx-auto flex w-full max-w-[1440px] flex-col px-10 pb-24 max-md:px-4"
+        className="bb-swap mx-auto flex w-full max-w-[760px] flex-col px-4 pb-24"
       >
-        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5 pt-6 pb-8 max-md:pt-2">
+        <div className="flex flex-col gap-5 pt-6 pb-8 max-md:pt-2">
           <div className="flex flex-col gap-3">
             <span className={EYEBROW}>
               {brand.name} · {data.period} · Instagram + TikTok
@@ -74,7 +110,7 @@ export function InsightsPage() {
           </div>
           <div className="w-[330px] max-sm:w-full">
             <Segmented
-              label="Section"
+              label="View"
               pill
               value={tab}
               onChange={setTab}
@@ -87,11 +123,9 @@ export function InsightsPage() {
           </div>
         </div>
 
-        <KpiStrip kpis={data.kpis} />
-
-        <div key={tab} className="bb-swap pt-12">
+        <div key={tab} className="bb-swap">
           {tab === 'overview' && <Overview data={data} />}
-          {tab === 'posts' && <Posts posts={data.posts} />}
+          {tab === 'posts' && <Posts posts={data.posts} period={data.period} />}
           {tab === 'creators' && <Creators creators={data.creators} />}
         </div>
       </main>
@@ -107,15 +141,26 @@ interface TipState {
   y: number
   title: string
   lines: string[]
+  /** A mark at an edge of a fold, which clips: the tip lines up with that edge instead. */
+  edge?: 'start' | 'end'
+  /** A mark on a fold's top row: the tip sits under it, with y at the mark's bottom. */
+  below?: boolean
 }
 
 /** The number behind a mark, shown above it on hover. Never covers the pointer. */
 function Tip({ tip }: { tip: TipState | null }) {
   if (!tip) return null
+  const x =
+    tip.edge === 'start'
+      ? '-translate-x-4'
+      : tip.edge === 'end'
+        ? '-translate-x-[calc(100%-16px)]'
+        : '-translate-x-1/2'
+  const y = tip.below ? 'translate-y-2.5' : '-translate-y-[calc(100%+10px)]'
   return (
     <span
       role="tooltip"
-      className="pointer-events-none absolute z-10 flex -translate-x-1/2 -translate-y-[calc(100%+10px)] flex-col gap-0.5 rounded-[10px] bg-ink px-3 py-2 whitespace-nowrap text-page shadow-pop"
+      className={`pointer-events-none absolute z-10 flex ${x} ${y} flex-col gap-0.5 rounded-[10px] bg-ink px-3 py-2 whitespace-nowrap text-page shadow-pop`}
       style={{ left: tip.x, top: tip.y }}
     >
       <span className="text-[12px] font-medium">{tip.title}</span>
@@ -135,140 +180,169 @@ function anchor(e: React.SyntheticEvent<Element>, box: HTMLElement | null) {
   return { x: r.left + r.width / 2 - (b?.left ?? 0), y: r.top - (b?.top ?? 0) }
 }
 
-// ── The four numbers ─────────────────────────────────────────────────────────────────────────
-
-function KpiStrip({ kpis }: { kpis: Kpi[] }) {
-  return (
-    <section
-      aria-label="This month in numbers"
-      className={`grid grid-cols-4 border-y ${HAIR} max-lg:grid-cols-2`}
-    >
-      {kpis.map((kpi, i) => (
-        <div
-          key={kpi.label}
-          className={`bb-rise flex flex-col gap-3 py-6 pr-6 ${i > 0 ? `border-l ${HAIR} pl-6` : ''} max-lg:[&:nth-child(3)]:border-l-0 max-lg:[&:nth-child(3)]:pl-0 max-lg:[&:nth-child(n+3)]:border-t max-lg:[&:nth-child(n+3)]:border-(--cal-line) max-sm:pr-3 max-sm:pl-3 max-sm:first:pl-0 max-sm:[&:nth-child(3)]:pl-0`}
-          style={{ animationDelay: `${i * 60}ms` }}
-        >
-          <span className="text-[13px] text-ink-3">{kpi.label}</span>
-          <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="text-[34px] leading-none font-semibold tracking-[-0.02em] tabular-nums max-sm:text-[26px]">
-              {kpi.value}
-            </span>
-            <Delta value={kpi.delta} />
-          </span>
-          <Spark kpi={kpi} />
-        </div>
-      ))}
-    </section>
-  )
-}
-
-function Delta({ value }: { value: number }) {
-  const up = value >= 0
-  return (
-    <span
-      title="Against the 30 days before"
-      className={`text-[12.5px] font-medium tabular-nums ${up ? 'text-(--insight-6)' : 'text-(--fail-ink)'}`}
-    >
-      {up ? '↑' : '↓'} {Math.abs(value)}%
-      <span className="ml-1.5 font-normal text-ink-4">vs last month</span>
-    </span>
-  )
-}
-
-/** Twelve weeks behind a headline number. Hover shows each week's value. */
-function Spark({ kpi }: { kpi: Kpi }) {
-  const box = React.useRef<HTMLDivElement>(null)
-  const [at, setAt] = React.useState<number | null>(null)
-  const { points } = kpi
-  const h = 40
-  const min = Math.min(...points)
-  const max = Math.max(...points)
-  const y = (p: number) => 3 + (1 - (p - min) / Math.max(max - min, 0.001)) * (h - 6)
-  const x = (i: number) => (i / (points.length - 1)) * 100
-  const line = points.map((p, i) => `${i ? 'L' : 'M'}${x(i)} ${y(p)}`).join(' ')
-  const fmt = (p: number) => (kpi.value.endsWith('%') ? `${p.toFixed(1)}%` : k(p))
-  return (
-    <div
-      ref={box}
-      className="relative h-10"
-      onMouseLeave={() => setAt(null)}
-      onMouseMove={(e) => {
-        const r = box.current!.getBoundingClientRect()
-        setAt(Math.round(((e.clientX - r.left) / r.width) * (points.length - 1)))
-      }}
-    >
-      <svg
-        viewBox={`0 0 100 ${h}`}
-        preserveAspectRatio="none"
-        aria-hidden="true"
-        className="block h-full w-full overflow-visible"
-      >
-        <path
-          d={line}
-          fill="none"
-          stroke="var(--insight-5)"
-          strokeWidth="2"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
-          className="bb-trace"
-        />
-      </svg>
-      {at !== null && (
-        <>
-          <span
-            className="pointer-events-none absolute inset-y-0 w-px bg-(--line-strong)"
-            style={{ left: `${x(at)}%` }}
-          />
-          <span
-            className="pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-(--insight-5) shadow-[0_0_0_2px_var(--page)]"
-            style={{ left: `${x(at)}%`, top: y(points[at]!) }}
-          />
-          <Tip
-            tip={{
-              x: `${x(at)}%`,
-              y: y(points[at]!),
-              title: at === points.length - 1 ? 'This week' : `${points.length - 1 - at} weeks ago`,
-              lines: [`${kpi.label}: ${fmt(points[at]!)}`],
-            }}
-          />
-        </>
-      )}
-    </div>
-  )
-}
-
 // ── Overview ─────────────────────────────────────────────────────────────────────────────────
 
 function Overview({ data }: { data: BrandInsights }) {
   const stories = data.stories.filter((s) => s.chart.kind !== 'days')
   const time = data.stories.find((s) => s.chart.kind === 'days')
   return (
-    <div className="flex flex-col gap-14">
-      <section aria-label="What worked" className="flex flex-col gap-5">
-        <SectionTitle title="What worked" note="Three things to do more of" />
-        <div className="grid grid-cols-3 gap-5 max-xl:grid-cols-2 max-lg:grid-cols-1">
+    <div className="flex flex-col gap-11">
+      <p className="text-[15px] leading-[1.6] text-ink-2">
+        <span className="mr-1.5 inline-flex items-center gap-1.5 font-medium text-ink">
+          <span className="text-(--insight-5)">
+            <SparkIcon size={10} />
+          </span>
+          Summary
+        </span>
+        {data.line}
+      </p>
+
+      <NumberCard kpis={data.kpis} />
+
+      <section aria-label="What worked" className="flex flex-col gap-3">
+        <Heading title="What worked" note="Open one to see why" />
+        <div className={`${CARD} overflow-hidden`}>
           {stories.map((s, i) => (
-            <StoryCard key={s.id} story={s} index={i} />
+            <Finding key={s.id} story={s} first={i === 0} />
           ))}
         </div>
       </section>
+
       {time && time.chart.kind === 'days' && (
-        <section aria-label="When to post" className="flex flex-col gap-5">
-          <SectionTitle title="When to post" note="When your audience is on the apps" />
-          <BestTime story={time} days={time.chart.values} hours={data.hours} />
+        <section aria-label="Best time to post" className="flex flex-col gap-3">
+          <Heading title="Best time to post" />
+          <BestTime story={time} days={time.chart} hours={data.hours} />
         </section>
       )}
     </div>
   )
 }
 
-function SectionTitle({ title, note }: { title: string; note: string }) {
+function Heading({ title, note }: { title: string; note?: string }) {
   return (
-    <div className={`flex items-baseline justify-between gap-4 border-b ${HAIR} pb-3`}>
-      <h2 className="font-display text-[28px] leading-none">{title}</h2>
-      <span className={`${EYEBROW} max-sm:hidden`}>{note}</span>
+    <div className="flex items-baseline justify-between gap-4">
+      <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em]">{title}</h2>
+      {note && <span className="text-[12.5px] text-ink-4">{note}</span>}
+    </div>
+  )
+}
+
+/** One headline number at a time, picked above it, with its last twelve weeks as bars. */
+function NumberCard({ kpis }: { kpis: Kpi[] }) {
+  const [at, setAt] = React.useState('0')
+  const kpi = kpis[Number(at)]!
+  const up = kpi.delta >= 0
+  return (
+    <section aria-label="The month in numbers" className={`${CARD} flex flex-col p-6 max-md:p-5`}>
+      {/* Four labels do not fit a phone: the picker scrolls there instead of overlapping. */}
+      <div className="-mx-1 overflow-x-auto px-1">
+        <div className="min-w-[520px]">
+          <Segmented
+            label="Number"
+            value={at}
+            onChange={setAt}
+            options={kpis.map((q, i) => ({ value: String(i), label: q.label }))}
+          />
+        </div>
+      </div>
+      <span className="mt-6 flex items-baseline gap-2.5">
+        <span className="font-display text-[40px] leading-none font-semibold tracking-[-0.03em] tabular-nums">
+          {kpi.value}
+        </span>
+        <span className="text-[14px] text-ink-3">{UNIT[kpi.label] ?? kpi.label.toLowerCase()}</span>
+      </span>
+      <p className="mt-2 text-[13.5px] text-ink-3">
+        <span className={`font-medium ${up ? 'text-(--insight-6)' : 'text-(--fail-ink)'}`}>
+          {up ? 'Up' : 'Down'} {Math.abs(kpi.delta)}%
+        </span>{' '}
+        on the 30 days before. Each bar is one week.
+      </p>
+      <div className="mt-7">
+        <WeekBars key={kpi.label} kpi={kpi} />
+      </div>
+    </section>
+  )
+}
+
+/** Twelve weekly bars from zero, this week in green, the guide values in a gutter on the right. */
+function WeekBars({ kpi }: { kpi: Kpi }) {
+  const [at, setAt] = React.useState<number | null>(null)
+  const { points } = kpi
+  const n = points.length
+  const h = 160
+  const step = niceStep(Math.max(...points) / 2.5)
+  const max = Math.ceil((Math.max(...points) * 1.02) / step) * step
+  const ticks = Array.from({ length: Math.round(max / step) }, (_, i) => (i + 1) * step)
+  const fmt = (v: number) => (kpi.value.endsWith('%') ? `${v.toFixed(1)}%` : k(v))
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_40px] gap-x-2.5 gap-y-2">
+      <div className="relative" style={{ height: h }} onMouseLeave={() => setAt(null)}>
+        {ticks.map((v) => (
+          <span
+            key={v}
+            className="absolute inset-x-0 border-t border-dashed border-(--line)"
+            style={{ bottom: `${(v / max) * 100}%` }}
+          />
+        ))}
+        <span className="absolute inset-x-0 bottom-0 border-t border-(--line)" />
+        <div className="absolute inset-0 flex items-end">
+          {points.map((p, i) => {
+            const last = i === n - 1
+            const colour =
+              at === i || (last && at === null)
+                ? 'bg-(--insight-5)'
+                : last
+                  ? 'bg-(--insight-3)'
+                  : 'bg-(--track)'
+            return (
+              <span
+                key={i}
+                role="img"
+                aria-label={`${weekName(i)}: ${fmt(p)}`}
+                onMouseEnter={() => setAt(i)}
+                className="flex h-full flex-1 items-end justify-center"
+              >
+                <span
+                  className={`bb-grow block w-[56%] max-w-[30px] rounded-t-[4px] rounded-b-[2px] transition-colors duration-150 ${colour}`}
+                  style={{ height: `${(p / max) * 100}%`, animationDelay: `${i * 25}ms` }}
+                />
+              </span>
+            )
+          })}
+        </div>
+        {at !== null && (
+          <Tip
+            tip={{
+              x: `${((at + 0.5) / n) * 100}%`,
+              y: h - (points[at]! / max) * h,
+              title: weekName(at),
+              lines: [`${kpi.label}: ${fmt(points[at]!)}`],
+            }}
+          />
+        )}
+      </div>
+      <span className="relative font-mono text-[10.5px] text-ink-4 tabular-nums">
+        {ticks.map((v) => (
+          <span
+            key={v}
+            className="absolute translate-y-1/2"
+            style={{ bottom: `${(v / max) * 100}%` }}
+          >
+            {fmt(v)}
+          </span>
+        ))}
+      </span>
+      <span className="relative h-4 font-mono text-[10.5px] text-ink-4 tabular-nums">
+        {[0, 4, 8, n - 1].map((i) => (
+          <span
+            key={i}
+            className="absolute -translate-x-1/2 whitespace-nowrap"
+            style={{ left: `${((i + 0.5) / n) * 100}%` }}
+          >
+            {i === n - 1 ? 'This week' : WEEKS[i]}
+          </span>
+        ))}
+      </span>
     </div>
   )
 }
@@ -280,91 +354,462 @@ function chartTitle(chart: StoryChart): string {
   return 'When your audience is online'
 }
 
-function StoryCard({ story, index }: { story: Story; index: number }) {
+/** A finding as one row: its figure and its sentence. Open, it shows its chart and its idea. */
+function Finding({ story, first }: { story: Story; first: boolean }) {
   const { brand } = useBrand()
   const { ideas } = useIdeas(brand.id)
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
-  const idea = story.idea
+  const [idea, setIdea] = React.useState(false)
 
   /** The idea lands on the shoot brief, open, ready to plan. */
-  function openInIdeas() {
-    if (!idea) return
-    const existing = ideas.find((i) => i.hook === idea.hook)
+  function plan() {
+    if (!story.idea) return
+    const existing = ideas.find((i) => i.hook === story.idea!.hook)
     const id =
       existing?.id ??
-      addIdea(brand.id, idea, { kind: 'insight', line: story.text.replace(/\.$/, '') })
+      addIdea(brand.id, story.idea, { kind: 'insight', line: story.text.replace(/\.$/, '') })
     router.push(`/ideate/brief#${id}`)
   }
 
   return (
-    <article
-      aria-label={story.text}
-      className="bb-rise flex min-w-0 flex-col gap-6 rounded-[18px] bg-surface-2 p-6 max-md:p-5"
-      style={{ animationDelay: `${index * 80}ms` }}
-    >
-      <div className="flex flex-col gap-2">
-        <span className="text-[34px] leading-none font-semibold tracking-[-0.02em] text-(--insight-6) tabular-nums">
+    <div className={first ? '' : `border-t ${HAIR}`}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="grid w-full grid-cols-[56px_minmax(0,1fr)_16px] items-center gap-3 px-6 py-4 text-left transition-colors hover:bg-(--cal-hover) max-md:px-5"
+      >
+        <span className="text-[14px] font-semibold text-(--insight-6) tabular-nums">
           {story.figure}
         </span>
-        <p className="font-display text-[22px] leading-[1.15]">{story.text}</p>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <span className="text-[12.5px] font-medium text-ink-3">{chartTitle(story.chart)}</span>
-        {story.chart.kind === 'compare' && <CompareBars chart={story.chart} />}
-        {story.chart.kind === 'trend' && <Growth chart={story.chart} />}
-      </div>
-
-      {idea && (
-        <div className="mt-auto flex flex-col">
-          <Fold open={open}>
-            <div className="mb-3 flex flex-col gap-2 rounded-[12px] bg-page p-4">
-              <span className="flex items-center gap-2 font-mono text-[10px] tracking-[0.08em] text-(--insight-6) uppercase">
-                <SparkIcon size={9} />
-                Idea · {idea.format} · {idea.pillar}
-              </span>
-              <span className="font-display text-[19px] leading-[1.15] ">“{idea.hook}”</span>
-              <span className="text-[13px] leading-[1.45] text-ink-2">{idea.angle}</span>
-            </div>
-          </Fold>
-          <span className="flex items-center gap-3">
-            {open ? (
-              <>
-                <button
-                  type="button"
-                  onClick={openInIdeas}
-                  className="bb-press flex h-10 items-center gap-2 rounded-full bg-ink px-4 text-[13.5px] font-medium text-page hover:opacity-85"
-                >
-                  Plan it
-                  <ArrowIcon />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="text-[13px] text-ink-3 transition-colors hover:text-ink"
-                >
-                  Undo
-                </button>
-              </>
+        <span className="text-[14px]">{story.text}</span>
+        <span
+          className="justify-self-end text-ink-5 transition-transform duration-200"
+          style={{ transform: open ? 'rotate(90deg)' : undefined }}
+        >
+          <ChevronRight />
+        </span>
+      </button>
+      <Fold open={open}>
+        <div className="flex flex-col gap-5 pr-6 pb-6 pl-[92px] max-md:pl-5">
+          <div className="flex flex-col gap-3">
+            <span className="text-[12.5px] text-ink-3">{chartTitle(story.chart)}</span>
+            {story.chart.kind === 'compare' && <CompareBars chart={story.chart} />}
+            {story.chart.kind === 'trend' && <Growth chart={story.chart} />}
+          </div>
+          {story.idea &&
+            (idea ? (
+              <div className="bb-rise flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5 rounded-[12px] bg-page p-4">
+                  <span className="flex items-center gap-1.5 text-[12px] font-medium text-(--insight-6)">
+                    <SparkIcon size={9} />
+                    Idea · {plain(story.idea.format)} · {story.idea.pillar}
+                  </span>
+                  <span className="font-display text-[16px] leading-[1.25] font-medium tracking-[-0.015em]">
+                    “{story.idea.hook}”
+                  </span>
+                  <span className="text-[13px] leading-[1.5] text-ink-2">{story.idea.angle}</span>
+                </div>
+                <span className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={plan}
+                    className="bb-press flex h-9 items-center gap-2 rounded-full bg-ink px-4 text-[13px] font-medium text-page hover:opacity-85"
+                  >
+                    Plan it
+                    <ArrowIcon />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIdea(false)}
+                    className="h-9 px-2 text-[13px] text-ink-3 transition-colors hover:text-ink"
+                  >
+                    Undo
+                  </button>
+                </span>
+              </div>
             ) : (
               <button
                 type="button"
-                onClick={() => setOpen(true)}
-                className="bb-press flex h-10 items-center gap-2 rounded-full bg-page px-4 text-[13.5px] font-medium text-ink shadow-soft transition-colors hover:bg-surface"
+                onClick={() => setIdea(true)}
+                className="bb-press flex h-9 w-fit items-center gap-2 rounded-full bg-page px-4 text-[13px] font-medium shadow-soft transition-colors hover:bg-surface"
               >
                 <span className="text-(--insight-5)">
                   <SparkIcon size={10} />
                 </span>
                 Turn into idea
               </button>
-            )}
-          </span>
+            ))}
         </div>
-      )}
-    </article>
+      </Fold>
+    </div>
   )
 }
+
+/** The best hours as one figure, the week as seven bars, and the full grid one click away. */
+function BestTime({
+  story,
+  days,
+  hours,
+}: {
+  story: Story
+  days: Extract<StoryChart, { kind: 'days' }>
+  hours: number[]
+}) {
+  const [open, setOpen] = React.useState(false)
+  const [at, setAt] = React.useState<number | null>(null)
+  const h = 88
+  return (
+    <div className={`${CARD} flex flex-col p-6 max-md:p-5`}>
+      <span className="flex items-baseline gap-2.5">
+        <span className="font-display text-[40px] leading-none font-semibold tracking-[-0.03em] tabular-nums">
+          {story.figure}
+        </span>
+        <span className="text-[14px] text-ink-3">{plain(story.label)}</span>
+      </span>
+      <p className="mt-2 text-[13.5px] text-ink-3">{story.text}</p>
+      <div className="mt-6 flex flex-col gap-2">
+        <div className="relative" style={{ height: h }} onMouseLeave={() => setAt(null)}>
+          <span className="absolute inset-x-0 bottom-0 border-t border-(--line)" />
+          <div className="absolute inset-0 flex items-end">
+            {days.values.map((v, i) => (
+              <span
+                key={i}
+                role="img"
+                aria-label={`${DAYS_LONG[i]}: ${Math.round(v * 100)}% of the busiest day`}
+                onMouseEnter={() => setAt(i)}
+                className="flex h-full flex-1 items-end justify-center"
+              >
+                <span
+                  className={`bb-grow block w-[40%] max-w-[30px] rounded-t-[4px] rounded-b-[2px] ${days.best.includes(i) ? 'bg-(--insight-5)' : 'bg-(--track)'}`}
+                  style={{ height: `${v * 100}%`, animationDelay: `${i * 30}ms` }}
+                />
+              </span>
+            ))}
+          </div>
+          {at !== null && (
+            <Tip
+              tip={{
+                x: `${((at + 0.5) / 7) * 100}%`,
+                y: h - days.values[at]! * h,
+                title: DAYS_LONG[at]!,
+                lines: [
+                  days.values[at] === 1
+                    ? 'The busiest day'
+                    : `${Math.round(days.values[at]! * 100)}% of the busiest day`,
+                ],
+              }}
+            />
+          )}
+        </div>
+        <span className="flex font-mono text-[10.5px] text-ink-4">
+          {DAYS.map((d, i) => (
+            <span
+              key={d}
+              className={`flex-1 text-center ${days.best.includes(i) ? 'text-ink' : ''}`}
+            >
+              {d}
+            </span>
+          ))}
+        </span>
+      </div>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="mt-5 flex w-fit items-center gap-1.5 text-[13px] text-ink-3 transition-colors hover:text-ink"
+      >
+        By time of day
+        <span
+          className="transition-transform duration-200"
+          style={{ transform: open ? 'rotate(180deg)' : undefined }}
+        >
+          <ChevronDown />
+        </span>
+      </button>
+      <Fold open={open}>
+        <div className="pt-5">
+          <Heat days={days.values} hours={hours} />
+        </div>
+      </Fold>
+    </div>
+  )
+}
+
+/** Days across, parts of the day down, deeper green where more of the audience is online. */
+function Heat({ days, hours }: { days: number[]; hours: number[] }) {
+  const box = React.useRef<HTMLDivElement>(null)
+  const [tip, setTip] = React.useState<TipState | null>(null)
+  const cells = hours.map((h) => days.map((d) => d * h))
+  const peak = Math.max(...cells.flat())
+  return (
+    <div ref={box} className="relative" onMouseLeave={() => setTip(null)}>
+      <div className="grid grid-cols-[76px_repeat(7,minmax(0,1fr))] items-center gap-1">
+        <span />
+        {DAYS.map((d) => (
+          <span key={d} className="pb-0.5 text-center font-mono text-[10.5px] text-ink-4">
+            {d}
+          </span>
+        ))}
+        {cells.map((row, r) => (
+          <React.Fragment key={DAYPARTS[r]!.name}>
+            <span className="text-[12px] text-ink-3">{DAYPARTS[r]!.name}</span>
+            {row.map((v, d) => {
+              const share = v / peak
+              return (
+                <span
+                  key={d}
+                  role="img"
+                  aria-label={`${DAYS[d]} ${DAYPARTS[r]!.name.toLowerCase()}: ${Math.round(share * 100)}% of the busiest slot`}
+                  onMouseEnter={(e) =>
+                    setTip({
+                      ...anchor(e, box.current),
+                      ...(r === 0 && {
+                        y:
+                          e.currentTarget.getBoundingClientRect().bottom -
+                          box.current!.getBoundingClientRect().top,
+                        below: true,
+                      }),
+                      edge: d >= 5 ? 'end' : undefined,
+                      title: `${DAYS[d]} · ${DAYPARTS[r]!.name}, ${DAYPARTS[r]!.hours}`,
+                      lines: [
+                        share === 1
+                          ? 'The busiest slot'
+                          : `${Math.round(share * 100)}% of the busiest slot`,
+                      ],
+                    })
+                  }
+                  className={`bb-fade h-[26px] rounded-[5px] transition-shadow hover:shadow-[0_0_0_1.5px_var(--surface-2),0_0_0_3px_var(--ink)] ${share === 1 ? 'shadow-[0_0_0_1.5px_var(--surface-2),0_0_0_3px_var(--insight-6)]' : ''}`}
+                  style={{
+                    background: share < 0.12 ? 'var(--surface)' : ramp(share),
+                    animationDelay: `${(r * 7 + d) * 6}ms`,
+                  }}
+                />
+              )
+            })}
+          </React.Fragment>
+        ))}
+      </div>
+      <Tip tip={tip} />
+    </div>
+  )
+}
+
+// ── Posts ────────────────────────────────────────────────────────────────────────────────────
+
+type PostSort = 'reach' | 'engagement'
+
+/** Every post this month, ranked by reach or by engagement, with the average as a divider. */
+function Posts({ posts, period }: { posts: PostStat[]; period: string }) {
+  const [sort, setSort] = React.useState<PostSort>('reach')
+  const ranked = [...posts].sort((a, b) => b[sort] - a[sort])
+  const avg = posts.reduce((n, p) => n + p[sort], 0) / posts.length
+  const below = ranked.findIndex((p) => p[sort] < avg)
+  return (
+    <section aria-label="Posts" className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[13px] text-ink-3">
+          {posts.length} posts · {plain(period)}
+        </span>
+        <div className="w-[260px]">
+          <Segmented
+            label="Rank by"
+            pill
+            value={sort}
+            onChange={setSort}
+            options={[
+              { value: 'reach', label: 'Most reach' },
+              { value: 'engagement', label: 'Most engaging' },
+            ]}
+          />
+        </div>
+      </div>
+      <ol className={`${CARD} px-6 py-1 max-md:px-4`}>
+        {ranked.map((p, i) => (
+          <React.Fragment key={p.hook}>
+            {i === below && (
+              <li
+                aria-hidden="true"
+                className="flex items-center gap-3 py-2 text-[12px] text-(--insight-6) before:flex-1 before:border-t before:border-dashed before:border-(--insight-3) after:flex-1 after:border-t after:border-dashed after:border-(--insight-3)"
+              >
+                Average{' '}
+                {sort === 'reach' ? `reach ${k(Math.round(avg))}` : `engagement ${avg.toFixed(1)}%`}
+              </li>
+            )}
+            <li
+              className={`bb-rise grid grid-cols-[18px_40px_minmax(0,1fr)_auto] items-center gap-3.5 py-3 ${i > 0 && i !== below ? `border-t ${HAIR}` : ''}`}
+              style={{ animationDelay: `${i * 35}ms` }}
+            >
+              <span className="font-mono text-[11px] text-ink-5 tabular-nums">{i + 1}</span>
+              <span className="relative block h-[50px] w-10 overflow-hidden rounded-[6px] bg-tile">
+                <Image src={p.image} alt="" fill sizes="80px" className="object-cover" />
+              </span>
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="truncate text-[14px] font-medium">{p.hook}</span>
+                <span className="text-[12px] text-ink-4">
+                  {plain(p.format)} · {p.pillar} · {plain(p.date)}
+                </span>
+              </span>
+              <span className="flex flex-col items-end gap-0.5 tabular-nums">
+                <span className="text-[14px] font-medium">
+                  {sort === 'reach' ? k(p.reach) : `${p.engagement}%`}
+                </span>
+                <span className="text-[12px] whitespace-nowrap text-ink-4">
+                  {sort === 'reach'
+                    ? `${p.engagement}% engaged · ${p.saves} saves`
+                    : `${k(p.reach)} reach · ${p.saves} saves`}
+                </span>
+              </span>
+            </li>
+          </React.Fragment>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+// ── Creators ─────────────────────────────────────────────────────────────────────────────────
+
+/** Who posted about the brand, ranked by views; a row opens to that creator's best post. */
+function Creators({ creators }: { creators: Creator[] }) {
+  const { brand } = useBrand()
+  const [open, setOpen] = React.useState<string | null>(null)
+  const ranked = [...creators].sort((a, b) => b.views - a.views)
+  const views = creators.reduce((n, c) => n + c.views, 0)
+  const posts = creators.reduce((n, c) => n + c.posts, 0)
+  // Weighted by views, so one small post does not set the average.
+  const engagement = creators.reduce((n, c) => n + c.engagement * c.views, 0) / views
+  const engaged = [...creators].sort((a, b) => b.engagement - a.engagement)[0]!
+
+  return (
+    <section aria-label="Creators" className="flex flex-col gap-4">
+      <p className="text-[15px] leading-[1.6] text-ink-2">
+        {creators.length} creators posted {posts} times about {brand.name}, for{' '}
+        <span className="font-medium text-ink">{k(views)} views</span> at {engagement.toFixed(1)}%
+        engagement. <span className="font-medium text-ink">{ranked[0]!.name}</span> drew the most
+        views; <span className="font-medium text-ink">{engaged.name}</span>’s audience engaged the
+        most.
+      </p>
+      <ol className={`${CARD} px-6 py-1 max-md:px-4`}>
+        {ranked.map((c, i) => {
+          const on = open === c.handle
+          return (
+            <li
+              key={c.handle}
+              className={`bb-rise ${i > 0 ? `border-t ${HAIR}` : ''}`}
+              style={{ animationDelay: `${i * 40}ms` }}
+            >
+              <button
+                type="button"
+                aria-expanded={on}
+                onClick={() => setOpen(on ? null : c.handle)}
+                className="grid w-full grid-cols-[36px_minmax(0,1fr)_auto_12px] items-center gap-3.5 py-3 text-left"
+              >
+                <Avatar name={c.name} />
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate text-[14px] font-medium">{c.name}</span>
+                  <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-ink-4">
+                    <PlatformLogo platform={c.platform} size={10} />
+                    <span className="truncate">
+                      {c.handle} · {k(c.followers)} followers
+                    </span>
+                  </span>
+                </span>
+                <span className="flex flex-col items-end gap-0.5 tabular-nums">
+                  <span className="text-[14px] font-medium">{k(c.views)} views</span>
+                  <span className="text-[12px] whitespace-nowrap text-ink-4">
+                    {c.engagement}% engaged · {c.posts} {c.posts > 1 ? 'posts' : 'post'}
+                  </span>
+                </span>
+                <span
+                  className="text-ink-5 transition-transform duration-200"
+                  style={{ transform: on ? 'rotate(180deg)' : undefined }}
+                >
+                  <ChevronDown />
+                </span>
+              </button>
+              <Fold open={on}>
+                <div className="flex items-center gap-3.5 pb-4 pl-[50px]">
+                  <span className="relative block h-[65px] w-[52px] shrink-0 overflow-hidden rounded-[8px] bg-tile">
+                    <Image src={c.top.image} alt="" fill sizes="104px" className="object-cover" />
+                  </span>
+                  <span className="flex min-w-0 flex-col gap-1">
+                    <span className="text-[12px] text-ink-4">Their best post</span>
+                    <span className="font-display text-[15px] leading-[1.25] font-medium tracking-[-0.01em]">
+                      “{c.top.hook}”
+                    </span>
+                    <span className="text-[12px] text-ink-4 tabular-nums">
+                      {k(c.top.views)} views · {Math.round((c.top.views / c.views) * 100)}% of their
+                      views for {brand.name}
+                    </span>
+                  </span>
+                </div>
+              </Fold>
+            </li>
+          )
+        })}
+      </ol>
+    </section>
+  )
+}
+
+function Avatar({ name }: { name: string }) {
+  const initials = name
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+  return (
+    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-(--insight-1) text-[12px] font-semibold text-(--insight-6)">
+      {initials}
+    </span>
+  )
+}
+
+function ChevronRight() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+      <path
+        d="M3.5 2L6.5 5L3.5 8"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function ChevronDown() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+      <path
+        d="M2 3.5L5 6.5L8 3.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function ArrowIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <path
+        d="M2.5 6h7M6.5 3l3 3-3 3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+// ── Finding charts ───────────────────────────────────────────────────────────────────────────
 
 /** The winner in green, the rest in grey, every bar labelled with its own number. */
 function CompareBars({ chart }: { chart: Extract<StoryChart, { kind: 'compare' }> }) {
@@ -415,6 +860,9 @@ function Growth({ chart }: { chart: Extract<StoryChart, { kind: 'trend' }> }) {
   const h = 132
   const x = (i: number) => (i / (n - 1)) * 100
   const y = (g: number) => 6 + (1 - g / top) * (h - 12)
+  // The hovered week's points; near the top of the fold, which clips, the tip drops below them.
+  const ys = at === null ? [] : series.map((s) => y(s.growth[at]!))
+  const low = ys.length > 0 && Math.min(...ys) < 80
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-[34px_minmax(0,1fr)] gap-2">
@@ -484,7 +932,9 @@ function Growth({ chart }: { chart: Extract<StoryChart, { kind: 'trend' }> }) {
               <Tip
                 tip={{
                   x: `${x(at)}%`,
-                  y: Math.min(...series.map((s) => y(s.growth[at]!))),
+                  edge: at >= n - 3 ? 'end' : at <= 1 ? 'start' : undefined,
+                  below: low,
+                  y: low ? Math.max(...ys) + 8 : Math.min(...ys),
                   title: at === n - 1 ? 'This week' : `${n - 1 - at} weeks ago`,
                   lines: series.map(
                     (s) =>
@@ -512,454 +962,5 @@ function Growth({ chart }: { chart: Extract<StoryChart, { kind: 'trend' }> }) {
         <span className="pl-[42px] text-[12.5px] text-(--insight-6)">{chart.note}</span>
       )}
     </div>
-  )
-}
-
-/** Days across, parts of the day down, deeper green where more of the audience is online. */
-function BestTime({ story, days, hours }: { story: Story; days: number[]; hours: number[] }) {
-  const box = React.useRef<HTMLDivElement>(null)
-  const [tip, setTip] = React.useState<TipState | null>(null)
-  const cells = hours.map((h) => days.map((d) => d * h))
-  const peak = Math.max(...cells.flat())
-  return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-center gap-12 rounded-[18px] bg-surface-2 p-8 max-lg:grid-cols-1 max-lg:gap-8 max-md:p-5">
-      <div className="flex flex-col gap-2">
-        <span className="text-[44px] leading-none font-semibold tracking-[-0.02em] text-(--insight-6) tabular-nums">
-          {story.figure}
-        </span>
-        <span className={EYEBROW}>{story.label}</span>
-        <p className="mt-2 max-w-[28ch] font-display text-[24px] leading-[1.15]">{story.text}</p>
-      </div>
-      <div ref={box} className="relative flex flex-col gap-3" onMouseLeave={() => setTip(null)}>
-        <div className="grid grid-cols-[88px_repeat(7,minmax(0,1fr))] gap-1.5 max-sm:grid-cols-[64px_repeat(7,minmax(0,1fr))] max-sm:gap-1">
-          <span />
-          {DAYS.map((d) => (
-            <span
-              key={d}
-              className="text-center font-mono text-[10px] tracking-[0.06em] text-ink-4 uppercase"
-            >
-              {d}
-            </span>
-          ))}
-          {cells.map((row, r) => (
-            <React.Fragment key={DAYPARTS[r]!.name}>
-              <span className="flex flex-col justify-center leading-tight">
-                <span className="text-[12.5px] text-ink-2">{DAYPARTS[r]!.name}</span>
-                <span className="font-mono text-[9.5px] text-ink-5 max-sm:hidden">
-                  {DAYPARTS[r]!.hours}
-                </span>
-              </span>
-              {row.map((v, d) => {
-                const share = v / peak
-                const best = share === 1
-                return (
-                  <span
-                    key={d}
-                    role="img"
-                    aria-label={`${DAYS[d]} ${DAYPARTS[r]!.name.toLowerCase()}: ${Math.round(share * 100)}% of the busiest hour`}
-                    onMouseEnter={(e) =>
-                      setTip({
-                        ...anchor(e, box.current),
-                        title: `${DAYS[d]} · ${DAYPARTS[r]!.name}, ${DAYPARTS[r]!.hours}`,
-                        lines: [
-                          best
-                            ? 'The busiest slot'
-                            : `${Math.round(share * 100)}% of the busiest slot`,
-                        ],
-                      })
-                    }
-                    className={`bb-pop h-10 rounded-[8px] max-sm:h-8 ${best ? 'shadow-[0_0_0_2px_var(--surface-2),0_0_0_3.5px_var(--insight-6)]' : ''}`}
-                    style={{
-                      background: share < 0.12 ? 'var(--surface)' : ramp(share),
-                      animationDelay: `${(r * 7 + d) * 8}ms`,
-                    }}
-                  />
-                )
-              })}
-            </React.Fragment>
-          ))}
-        </div>
-        <span className="flex items-center justify-end gap-2 font-mono text-[10px] text-ink-4">
-          Fewer
-          {[1, 2, 3, 4, 5].map((s) => (
-            <span
-              key={s}
-              className="h-2.5 w-5 rounded-[3px]"
-              style={{ background: `var(--insight-${s})` }}
-            />
-          ))}
-          More people online
-        </span>
-        <Tip tip={tip} />
-      </div>
-    </div>
-  )
-}
-
-// ── Posts ────────────────────────────────────────────────────────────────────────────────────
-
-type PostSort = 'reach' | 'engagement'
-
-/** Every post this month as a row, ranked by reach or by engagement. */
-function Posts({ posts }: { posts: PostStat[] }) {
-  const [sort, setSort] = React.useState<PostSort>('reach')
-  const ranked = [...posts].sort((a, b) => b[sort] - a[sort])
-  const maxReach = Math.max(...posts.map((p) => p.reach))
-  const avg = Math.round(posts.reduce((n, p) => n + p.reach, 0) / posts.length)
-  const maxEng = Math.max(...posts.map((p) => p.engagement))
-  return (
-    <section aria-label="Posts" className="flex flex-col gap-5">
-      <div className={`flex flex-wrap items-end justify-between gap-4 border-b ${HAIR} pb-3`}>
-        <h2 className="font-display text-[28px] leading-none">{posts.length} posts this month</h2>
-        <div className="w-[260px]">
-          <Segmented
-            label="Rank by"
-            pill
-            value={sort}
-            onChange={setSort}
-            options={[
-              { value: 'reach', label: 'Most reach' },
-              { value: 'engagement', label: 'Most engaging' },
-            ]}
-          />
-        </div>
-      </div>
-      <span className="flex items-center gap-4 text-[12px] text-ink-3 md:hidden">
-        <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-3 rounded-full bg-(--insight-5)" /> Reach
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-3 rounded-full bg-(--insight-3)" /> Engagement
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-px bg-ink-3" /> Average reach
-        </span>
-      </span>
-      <div className="grid grid-cols-[28px_minmax(0,2.2fr)_minmax(0,2fr)_minmax(0,1.2fr)_64px] items-center gap-x-6 px-2 max-md:hidden">
-        <span />
-        <span className={EYEBROW}>Post</span>
-        <span className={`${EYEBROW} flex items-center gap-2`}>
-          Reach
-          <span className="flex items-center gap-1 normal-case tracking-normal text-ink-5">
-            <span className="h-3 w-px bg-ink-3" /> average {k(avg)}
-          </span>
-        </span>
-        <span className={EYEBROW}>Engagement</span>
-        <span className={`${EYEBROW} text-right`}>Saves</span>
-      </div>
-      <ol className="flex flex-col">
-        {ranked.map((p, i) => (
-          <li
-            key={p.hook}
-            className={`bb-rise grid grid-cols-[28px_minmax(0,2.2fr)_minmax(0,2fr)_minmax(0,1.2fr)_64px] items-center gap-x-6 px-2 py-2.5 transition-colors hover:bg-surface-2 max-md:grid-cols-[22px_minmax(0,1fr)] max-md:gap-x-3 max-md:gap-y-2 ${i > 0 ? `border-t ${HAIR}` : ''}`}
-            style={{ animationDelay: `${i * 40}ms` }}
-          >
-            <span className="font-mono text-[12px] text-ink-4 tabular-nums">{i + 1}</span>
-            <span className="flex min-w-0 items-center gap-3.5">
-              <span className="relative block h-[60px] w-12 shrink-0 overflow-hidden rounded-[8px] bg-tile">
-                <Image src={p.image} alt="" fill sizes="48px" className="object-cover" />
-              </span>
-              <span className="flex min-w-0 flex-col gap-1">
-                <span className="truncate font-display text-[17px] leading-[1.15] ">
-                  “{p.hook}”
-                </span>
-                <span className="font-mono text-[10px] tracking-[0.06em] text-ink-4 uppercase">
-                  {p.format} · {p.pillar} · {p.date}
-                </span>
-              </span>
-            </span>
-            <span className="flex items-center gap-3 max-md:col-start-2">
-              <span className="relative h-2.5 flex-1 rounded-full bg-(--track)/50">
-                <span
-                  className="bb-fill absolute inset-y-0 left-0 rounded-full bg-(--insight-5)"
-                  style={{
-                    width: `${(p.reach / maxReach) * 100}%`,
-                    animationDelay: `${150 + i * 40}ms`,
-                  }}
-                />
-                <span
-                  aria-hidden="true"
-                  className="absolute -inset-y-1 w-px bg-ink-3"
-                  style={{ left: `${(avg / maxReach) * 100}%` }}
-                />
-              </span>
-              <span className="w-11 text-right font-mono text-[12px] text-ink tabular-nums">
-                {k(p.reach)}
-              </span>
-            </span>
-            <span className="flex items-center gap-3 max-md:col-start-2">
-              <span className="relative h-2.5 flex-1 rounded-full bg-(--track)/50">
-                <span
-                  className="bb-fill absolute inset-y-0 left-0 rounded-full bg-(--insight-3)"
-                  style={{
-                    width: `${(p.engagement / maxEng) * 100}%`,
-                    animationDelay: `${150 + i * 40}ms`,
-                  }}
-                />
-              </span>
-              <span className="w-11 text-right font-mono text-[12px] text-ink tabular-nums">
-                {p.engagement}%
-              </span>
-            </span>
-            <span className="text-right font-mono text-[12px] text-ink-2 tabular-nums max-md:col-start-2 max-md:text-left">
-              <span className="md:hidden text-ink-4">Saves </span>
-              {p.saves}
-            </span>
-          </li>
-        ))}
-      </ol>
-    </section>
-  )
-}
-
-// ── Creators ─────────────────────────────────────────────────────────────────────────────────
-
-function Creators({ creators }: { creators: Creator[] }) {
-  const { brand } = useBrand()
-  const ranked = [...creators].sort((a, b) => b.views - a.views)
-  const views = creators.reduce((n, c) => n + c.views, 0)
-  const posts = creators.reduce((n, c) => n + c.posts, 0)
-  // Weighted by views, so one small post does not set the average.
-  const engagement = creators.reduce((n, c) => n + c.engagement * c.views, 0) / views
-  const engaged = [...creators].sort((a, b) => b.engagement - a.engagement)[0]!
-  const [open, setOpen] = React.useState<string | null>(null)
-  const maxViews = ranked[0]!.views
-
-  return (
-    <div className="flex flex-col gap-14">
-      <section aria-label="Creators this month" className="flex flex-col gap-5">
-        <SectionTitle title="Creators" note={`Who posted about ${brand.name}`} />
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-5 max-lg:grid-cols-1">
-          <div className="flex flex-col justify-between gap-8 rounded-[18px] bg-surface-2 p-7 max-md:p-5">
-            <p className="max-w-[30ch] font-display text-[24px] leading-[1.15]">
-              {ranked[0]!.name} drew the most views. {engaged.name}’s audience engaged the most.
-            </p>
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { label: 'Creators', value: String(creators.length), sub: `${posts} posts` },
-                { label: 'Views', value: k(views), sub: 'from their posts' },
-                { label: 'Engagement', value: `${engagement.toFixed(1)}%`, sub: 'average' },
-              ].map((s) => (
-                <span key={s.label} className="flex flex-col gap-1">
-                  <span className="text-[12.5px] text-ink-3">{s.label}</span>
-                  <span className="text-[28px] leading-none font-semibold tracking-[-0.02em] tabular-nums">
-                    {s.value}
-                  </span>
-                  <span className="text-[12px] text-ink-4">{s.sub}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-          <Scatter creators={creators} />
-        </div>
-      </section>
-
-      <section aria-label="Each creator" className="flex flex-col gap-3">
-        <div className="grid grid-cols-[minmax(0,2fr)_72px_minmax(0,2fr)_minmax(0,1fr)_28px] items-center gap-x-6 px-2 max-md:hidden">
-          <span className={EYEBROW}>Creator</span>
-          <span className={`${EYEBROW} text-right`}>Posts</span>
-          <span className={EYEBROW}>Views</span>
-          <span className={EYEBROW}>Engagement</span>
-          <span />
-        </div>
-        <ol className="flex flex-col">
-          {ranked.map((c, i) => {
-            const on = open === c.handle
-            return (
-              <li
-                key={c.handle}
-                className={`bb-rise ${i > 0 ? `border-t ${HAIR}` : ''}`}
-                style={{ animationDelay: `${i * 50}ms` }}
-              >
-                <button
-                  type="button"
-                  aria-expanded={on}
-                  onClick={() => setOpen(on ? null : c.handle)}
-                  className="grid w-full grid-cols-[minmax(0,2fr)_72px_minmax(0,2fr)_minmax(0,1fr)_28px] items-center gap-x-6 rounded-[12px] px-2 py-3 text-left transition-colors hover:bg-surface-2 max-md:grid-cols-[minmax(0,1fr)_28px] max-md:gap-y-2"
-                >
-                  <span className="flex min-w-0 items-center gap-3">
-                    <Avatar name={c.name} />
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                      <span className="truncate text-[14px] font-medium">{c.name}</span>
-                      <span className="flex items-center gap-1.5 font-mono text-[10.5px] text-ink-4">
-                        <PlatformLogo platform={c.platform} size={10} />
-                        {c.handle} · {k(c.followers)} followers
-                      </span>
-                    </span>
-                  </span>
-                  <span className="text-right font-mono text-[12px] text-ink-2 tabular-nums max-md:hidden">
-                    {c.posts}
-                  </span>
-                  <span className="flex items-center gap-3 max-md:col-start-1">
-                    <span className="relative h-2.5 flex-1 rounded-full bg-(--track)/50">
-                      <span
-                        className="bb-fill absolute inset-y-0 left-0 rounded-full bg-(--insight-5)"
-                        style={{
-                          width: `${(c.views / maxViews) * 100}%`,
-                          animationDelay: `${150 + i * 50}ms`,
-                        }}
-                      />
-                    </span>
-                    <span className="w-11 text-right font-mono text-[12px] text-ink tabular-nums">
-                      {k(c.views)}
-                    </span>
-                  </span>
-                  <span className="font-mono text-[12px] text-ink tabular-nums max-md:col-start-1">
-                    {c.engagement}%
-                    <span className="ml-2 text-ink-4">
-                      {k(Math.round((c.views * c.engagement) / 100))} interactions
-                    </span>
-                  </span>
-                  <span
-                    className="justify-self-end text-ink-4 transition-transform duration-200 max-md:col-start-2 max-md:row-start-1"
-                    style={{ transform: on ? 'rotate(180deg)' : undefined }}
-                  >
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                      <path
-                        d="M2 3.5L5 6.5L8 3.5"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
-                <Fold open={on}>
-                  <div className="flex items-center gap-4 px-2 pt-1 pb-4 pl-[54px] max-md:pl-2">
-                    <span className="relative block h-[96px] w-[76px] shrink-0 overflow-hidden rounded-[10px] bg-tile">
-                      <Image src={c.top.image} alt="" fill sizes="76px" className="object-cover" />
-                    </span>
-                    <span className="flex min-w-0 flex-col gap-1.5">
-                      <span className={EYEBROW}>Their best post</span>
-                      <span className="font-display text-[19px] leading-[1.15] ">
-                        “{c.top.hook}”
-                      </span>
-                      <span className="font-mono text-[11px] text-ink-3 tabular-nums">
-                        {k(c.top.views)} views · {Math.round((c.top.views / c.views) * 100)}% of
-                        their views for {brand.name}
-                      </span>
-                    </span>
-                  </div>
-                </Fold>
-              </li>
-            )
-          })}
-        </ol>
-      </section>
-    </div>
-  )
-}
-
-function Avatar({ name }: { name: string }) {
-  const initials = name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-  return (
-    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-(--insight-1) text-[13px] font-semibold text-(--insight-6)">
-      {initials}
-    </span>
-  )
-}
-
-/** Each creator by reach across and engagement up: top right is big and engaged. */
-function Scatter({ creators }: { creators: Creator[] }) {
-  const box = React.useRef<HTMLDivElement>(null)
-  const [tip, setTip] = React.useState<TipState | null>(null)
-  const xMax = Math.ceil(Math.max(...creators.map((c) => c.views)) / 10000) * 10000
-  const yMax = Math.ceil(Math.max(...creators.map((c) => c.engagement)) / 4) * 4
-  const ticksX = [0, xMax / 2, xMax]
-  const ticksY = [0, yMax / 2, yMax]
-  return (
-    <div className="flex flex-col gap-3 rounded-[18px] bg-surface-2 p-7 max-md:p-5">
-      <span className="text-[12.5px] font-medium text-ink-3">
-        Views against engagement, per creator
-      </span>
-      <div className="grid grid-cols-[36px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_20px] gap-x-2">
-        <span className="relative font-mono text-[10px] text-ink-4 tabular-nums">
-          {ticksY.map((t) => (
-            <span
-              key={t}
-              className="absolute right-0 -translate-y-1/2"
-              style={{ top: `${(1 - t / yMax) * 100}%` }}
-            >
-              {t}%
-            </span>
-          ))}
-        </span>
-        <div ref={box} className="relative h-[220px]" onMouseLeave={() => setTip(null)}>
-          {ticksY.map((t) => (
-            <span
-              key={t}
-              className="absolute inset-x-0 h-px bg-(--cal-line)"
-              style={{ top: `${(1 - t / yMax) * 100}%` }}
-            />
-          ))}
-          {creators.map((c, i) => {
-            const left = (c.views / xMax) * 100
-            const top = (1 - c.engagement / yMax) * 100
-            return (
-              <span
-                key={c.handle}
-                className="absolute"
-                style={{ left: `${left}%`, top: `${top}%` }}
-              >
-                <span
-                  role="img"
-                  aria-label={`${c.name}: ${k(c.views)} views, ${c.engagement}% engagement`}
-                  onMouseEnter={(e) =>
-                    setTip({
-                      ...anchor(e, box.current),
-                      title: c.name,
-                      lines: [
-                        `${k(c.views)} views`,
-                        `${c.engagement}% engagement`,
-                        `${c.posts} posts`,
-                      ],
-                    })
-                  }
-                  className="bb-pop absolute block size-3 -translate-x-1/2 -translate-y-1/2 cursor-default rounded-full bg-(--insight-5) shadow-[0_0_0_2px_var(--surface-2)] outline-none before:absolute before:-inset-2 before:content-[''] focus-visible:shadow-[0_0_0_2px_var(--ink)]"
-                  style={{ animationDelay: `${200 + i * 70}ms` }}
-                />
-                <span
-                  className={`absolute top-0 -translate-y-1/2 text-[11.5px] whitespace-nowrap text-ink-2 ${left > 70 ? 'right-3' : 'left-3'}`}
-                >
-                  {c.name.split(' ')[0]}
-                </span>
-              </span>
-            )
-          })}
-          <Tip tip={tip} />
-        </div>
-        <span />
-        <span className="relative font-mono text-[10px] text-ink-4 tabular-nums">
-          {ticksX.map((t, i) => (
-            <span
-              key={t}
-              className={`absolute top-1.5 whitespace-nowrap ${i === 0 ? '' : i === ticksX.length - 1 ? '-translate-x-full' : '-translate-x-1/2'}`}
-              style={{ left: `${(t / xMax) * 100}%` }}
-            >
-              {i === ticksX.length - 1 ? `${k(t)} views` : k(t)}
-            </span>
-          ))}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function ArrowIcon() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-      <path
-        d="M2.5 6h7M6.5 3l3 3-3 3"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   )
 }

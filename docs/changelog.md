@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.3.0** — 2026-10-07 — Insights becomes one calm column with a pill switch like Ideate's: Overview (a summary line, one number at a time over twelve weekly bars, what worked as rows that open to their chart and idea, the best time to post), Posts and Creators. No migration. 82 tests.
 - **2.2.1** — 2026-10-07 — Every demo photo is replaced with a sharp version (short side at least 1000 px, was 272–750), from the same Unsplash photo where the source was recorded and a matching free Unsplash photo where it was not; a check of every image on every page at 2x finds none under-resolved. No migration. 82 tests.
 - **2.2.0** — 2026-10-07 — The composer's best times become an hourly bar chart for the picked day (best hour in green, a bar sets the time); the send button reads "Schedule on" or "Post on" with each account's logo; every Current ideas card is 4:5; images ask next/image for enough pixels to stay sharp on 2x screens. No migration. 82 tests.
 - **2.1.0** — 2026-10-07 — Current ideas shows one idea at a time (photo, hook, why, "Plan it", "Sharpen") with a strip of thumbnails to move between ideas and the moments ahead, so it no longer reads as a second calendar; a failed post's retry starts on the account it failed on only and names its accounts by logo. No migration. 82 tests.
@@ -15,6 +16,27 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.3.0 — 2026-10-07
+
+**Insights, one thing at a glance.** The page showed four numbers with sparklines, three story
+cards of five parts each and a 35-cell heatmap at once. It is now one 760 px column with a pill
+switch, the way Ideate switches Moodboard and Current ideas:
+
+- **Overview:** the month in one or two sentences (each brand's `line`, now a summary); one
+  number card, a picker over the brand's four numbers with the value, what it counts, the change
+  on the 30 days before and twelve weekly bars (this week in green, every bar on hover); "What
+  worked" as three rows, each opening to its chart and "Turn into idea" → "Plan it"; and the best
+  time to post as one figure over seven weekday bars, with the day-by-hour grid behind "By time of
+  day".
+- **Posts:** every post ranked by reach or by engagement, with the average as a divider.
+- **Creators:** one sentence on who drew the most views and whose audience engaged the most, then
+  each creator, opening to their best post.
+
+The sparklines under each number and the creators' scatter plot are gone: the number card's bars
+and the creator rows say the same with less. On a phone the number picker scrolls.
+
+**No migration.** 82 tests (14 files), all passing.
 
 ## 2.2.1 — 2026-10-07
 
