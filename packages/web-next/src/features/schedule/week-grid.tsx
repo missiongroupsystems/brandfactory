@@ -82,7 +82,7 @@ const LANE_H = 18
 const LANE_GAP = 3
 
 /** First-fit packing: each event takes the first lane that is free across its days. */
-function packLanes(events: CalendarEvent[]): { event: CalendarEvent; lane: number }[] {
+export function packLanes(events: CalendarEvent[]): { event: CalendarEvent; lane: number }[] {
   const ends: number[] = []
   return [...events]
     .sort((a, b) => a.col - b.col || b.span - a.span)
@@ -153,11 +153,9 @@ export function WeekGrid({
   return (
     <DragContext.Provider value={drag}>
       <WideTiles.Provider value={mode === 'week'}>
-        <div className="mx-auto w-full max-w-[1440px] px-10 pb-24 max-md:px-4">
+        <div className="mx-auto w-full max-w-[1440px] px-10 pb-24">
           <div className="overflow-x-auto">
-            <div
-              className={`flex min-w-[760px] flex-col ${mode === 'month' ? 'max-md:min-w-0' : ''}`}
-            >
+            <div className="flex min-w-[760px] flex-col">
               <div className={`${GRID} pb-2`}>
                 {DAY_NAMES.map((d, i) => (
                   <span
@@ -296,7 +294,7 @@ function DayCell({
     !feeds.some((m) => m.kind === 'post' && m.postId === drag.postId)
   return (
     <div
-      className={`group relative flex min-w-0 flex-col px-2.5 pt-2.5 pb-5 transition-colors max-md:px-1 ${first ? '' : 'border-l border-(--cal-line)'} ${day.past ? '' : 'hover:bg-(--cal-hover)'}`}
+      className={`group relative flex min-w-0 flex-col px-2.5 pt-2.5 pb-5 transition-colors ${first ? '' : 'border-l border-(--cal-line)'} ${day.past ? '' : 'hover:bg-(--cal-hover)'}`}
       aria-label={`${name} ${day.n}`}
       role="group"
       data-drop={day.n}
@@ -386,10 +384,9 @@ function DaySummary({
         <span
           key={channel ?? 'none'}
           title={`${n} post${n > 1 ? 's' : ''} did not go out${channel ? ` on ${CHANNEL_NAME[channel]}` : ''}`}
-          className="flex h-[22px] items-center gap-1.5 rounded-full bg-(--fail-soft) px-2 text-[11px] font-medium text-fail-ink tabular-nums shadow-[inset_0_0_0_1px_var(--fail-line)] max-md:px-1.5"
+          className="flex h-[22px] items-center gap-1.5 rounded-full bg-(--fail-soft) px-2 text-[11px] font-medium text-fail-ink tabular-nums shadow-[inset_0_0_0_1px_var(--fail-line)]"
         >
-          {/* On a phone the red chip alone says it failed: the dot would not fit the day. */}
-          <span className="size-1.5 rounded-full bg-fail max-md:hidden" />
+          <span className="size-1.5 rounded-full bg-fail" />
           {channel && <PlatformLogo platform={channel} size={11} />}
           {n}
         </span>

@@ -9,7 +9,7 @@ import { PlusIcon } from '@/components/icons'
 import { DEFAULT_LAYERS } from '@/data/demo'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 
-import { Agenda } from './agenda'
+import { PhoneCalendar } from './phone-calendar'
 import { setCalendarPlace, TODAY_PLACE, useCalendarPlace, type CalendarMode } from './calendar-view'
 import { itemsOf } from './calendar-items'
 import { DayView } from './day-view'
@@ -144,50 +144,35 @@ export function SchedulePage() {
   return (
     <div className="flex min-h-svh flex-col">
       <AppHeader />
-      {/* A phone gets its own layout of the same three views, under a strip of the week. */}
+      {/* A phone gets its own layout of the same three views: a grid of photos. */}
       <div className="md:hidden">
-        <Agenda
+        <PhoneCalendar
           weeks={shown.weeks}
           week={week}
           day={day}
           view={view}
-          // "12–18 Oct": the dash without its spaces, so the week fits a small phone's header.
-          title={view === 'week' ? title.replace(' – ', '–') : shown.title}
+          // "12–18 Oct" and "Tue 6 Oct": short, so the title fits a small phone's header.
+          title={
+            view === 'week'
+              ? title.replace(' – ', '–')
+              : view === 'day'
+                ? `${WEEKDAY[current.getDay()]!.slice(0, 3)} ${current.getDate()} ${SHORT_MONTH[current.getMonth()]}`
+                : shown.title
+          }
           layers={layers}
           stages={stages}
+          failed={failed}
+          // The phone picks a day in every view: away from today's day, Today shows.
+          atToday={atToday && day === TODAY_PLACE.day}
           onView={(v) => setCalendarPlace({ view: v })}
-          dayView={
-            <DayView
-              day={shownDay}
-              events={dayEvents}
-              stages={stages}
-              onOpenPost={openPost}
-              onNewPost={newPost}
-              onOpenStories={() => setStoryDay(shownDay.n)}
-            />
-          }
           onSelect={(w, d) => setCalendarPlace({ week: w, day: d })}
-          onStepWeek={(by) => moveWeek(by)}
-          onStepMonth={(by) => setCalendarPlace({ offset: offset + by, week: 0 })}
-          atToday={
-            offset === TODAY_PLACE.offset && week === TODAY_PLACE.week && day === TODAY_PLACE.day
-          }
+          onStep={step}
           onToday={() => setCalendarPlace(TODAY_PLACE)}
           onOpenPost={openPost}
           onNewPost={newPost}
           onOpenStories={setStoryDay}
-          controls={
-            <>
-              <FailedPill
-                posts={failed}
-                stages={stages}
-                onChange={(s) => setCalendarPlace({ stages: s })}
-                short
-              />
-              <LayersMenu value={layers} onChange={setLayers} />
-              <StageMenu value={stages} onChange={(s) => setCalendarPlace({ stages: s })} />
-            </>
-          }
+          onStages={(s) => setCalendarPlace({ stages: s })}
+          onLayers={setLayers}
         />
       </div>
       <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-end justify-between gap-x-6 gap-y-4 px-10 pt-6 pb-7 max-md:hidden">
@@ -215,7 +200,7 @@ export function SchedulePage() {
             stages={stages}
             onChange={(s) => setCalendarPlace({ stages: s })}
           />
-          <div className="w-[216px] max-md:order-last max-md:w-full">
+          <div className="w-[216px]">
             <Segmented<CalendarMode>
               label="View"
               pill
@@ -233,11 +218,10 @@ export function SchedulePage() {
           <button
             type="button"
             onClick={() => newPost()}
-            className="bb-press flex h-9 items-center gap-1.5 rounded-full bg-ink pr-4 pl-3.5 text-[13px] font-medium whitespace-nowrap text-page hover:opacity-85 max-md:ml-auto max-[360px]:w-9 max-[360px]:justify-center max-[360px]:px-0"
+            className="bb-press flex h-9 items-center gap-1.5 rounded-full bg-ink pr-4 pl-3.5 text-[13px] font-medium whitespace-nowrap text-page hover:opacity-85"
           >
             <PlusIcon size={12} />
-            <span className="max-sm:hidden">Schedule new post</span>
-            <span className="sm:hidden max-[360px]:sr-only">New post</span>
+            Schedule new post
           </button>
         </div>
       </div>

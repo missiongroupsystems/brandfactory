@@ -10,6 +10,7 @@ import { Fold, Segmented, Switch } from '@/components/controls'
 import { CheckIcon, ChevronIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
 import { fromFile, Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
+import { Sheet } from '@/components/sheet'
 import type { BrandId } from '@/data/brands'
 import type { Format, Post, Stage } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
@@ -565,69 +566,6 @@ function Row({
         <ChevronIcon size={11} />
       </span>
     </button>
-  )
-}
-
-/**
- * A phone's bottom sheet: one of the composer's cards, opened from its row. A tap outside, Done or
- * Escape closes it. The page under it does not scroll while it is open.
- */
-function Sheet({
-  title,
-  onClose,
-  children,
-}: {
-  title: string
-  onClose: () => void
-  children: React.ReactNode
-}) {
-  const done = React.useRef<HTMLButtonElement>(null)
-  React.useEffect(() => {
-    const { overflow } = document.body.style
-    document.body.style.overflow = 'hidden'
-    // Focus goes into the sheet, and back to the row that opened it when it closes.
-    const opener = document.activeElement as HTMLElement | null
-    done.current?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => {
-      document.body.style.overflow = overflow
-      window.removeEventListener('keydown', onKey)
-      opener?.focus()
-    }
-  }, [onClose])
-  // Only a phone's rows open it, but it stays visible if the window then widens, so it can close.
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end">
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={onClose}
-        className="bb-fade absolute inset-0 bg-ink/30"
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="bb-sheet-up relative flex max-h-[88svh] flex-col rounded-t-[22px] bg-page pb-[env(safe-area-inset-bottom)] shadow-sheet"
-      >
-        <span aria-hidden="true" className="mx-auto mt-2 h-1 w-9 rounded-full bg-track" />
-        <div className="flex h-12 items-center justify-between pr-2 pl-5">
-          <span className="text-[16px] font-medium">{title}</span>
-          <button
-            ref={done}
-            type="button"
-            onClick={onClose}
-            className="h-10 rounded-full px-3 text-[14px] font-medium text-ink-2 transition-colors hover:text-ink"
-          >
-            Done
-          </button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-1 pb-6">
-          {children}
-        </div>
-      </div>
-    </div>
   )
 }
 

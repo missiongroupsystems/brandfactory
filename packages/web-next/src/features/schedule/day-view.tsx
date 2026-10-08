@@ -17,11 +17,7 @@ import { IdeaTile, PostTile } from './week-grid'
 const FIRST_HOUR = 7
 const LAST_HOUR = 24
 const HOUR_H = 72
-/**
- * A post card: 340px, or what is left before the stories column (about 88px). A phone has no
- * stories column (the deck above opens them), so there the card takes the width, less one lane.
- * Set on the hours as `--card-w`.
- */
+/** A post card: 340px, or what is left before the stories column (about 88px). Set on the hours as `--card-w`. */
 const CARD_W = 'var(--card-w)'
 /** Posts in the same hour sit side by side; where there is no room for that, 24px apart in a stack. */
 const LANE_STEP = `min(${CARD_W} + 12px, max(24px, 100% - 164px - ${CARD_W}))`
@@ -73,7 +69,7 @@ export function DayView({
   const stories = storiesOf(day.n, items, brand.id, library, byId)
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] px-10 pb-24 max-md:px-4">
+    <div className="mx-auto w-full max-w-[1440px] px-10 pb-24">
       {/* A past day fades, but not when a post there failed: it still needs someone. */}
       <div
         className={`flex flex-col gap-6 ${day.past && !items.posts.some((p) => p.stage === 'failed') ? 'opacity-60' : ''}`}
@@ -112,7 +108,7 @@ export function DayView({
         )}
 
         <div
-          className="relative grid grid-cols-[64px_minmax(0,1fr)] [--card-w:min(340px,100%_-_164px)] max-md:overflow-x-clip max-md:[--card-w:calc(100%_-_108px)]"
+          className="relative grid grid-cols-[64px_minmax(0,1fr)] [--card-w:min(340px,100%_-_164px)]"
           style={{ height: hours.length * HOUR_H }}
         >
           {hours.map((h, i) => (
@@ -151,7 +147,7 @@ export function DayView({
               type="button"
               onClick={onOpenStories}
               title={`${s.time} · ${s.title}`}
-              className="absolute right-3 flex items-center gap-2 rounded-[8px] p-1 transition-colors hover:bg-surface max-md:hidden"
+              className="absolute right-3 flex items-center gap-2 rounded-[8px] p-1 transition-colors hover:bg-surface"
               style={{ top: top(s.time) + 4 }}
             >
               <span className="font-mono text-[10px] text-ink-4 tabular-nums">{s.time}</span>

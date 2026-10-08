@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.5.0** — 2026-10-08 — The phone calendar as a photo grid: Week is seven narrow columns of small square photos (three a day, then "+N") with the picked day's posts listed under it; Month is the same grid, one photo a day; Day is an hour list. The title switches views, one filter button holds the rest, and a dragged post lifts as a small photo just above the finger. Desktop unchanged. No migration. 83 tests.
 - **2.4.0** — 2026-10-08 — A layout made for phones, not a shrunk desktop: a tab bar at the bottom; Schedule keeps Month, Week and Day in a phone's shape (Week lists the seven days, Day keeps the hours, Month lists the day picked in the grid) under a week strip; the shoot brief shows one column at a time; New post becomes one white compose screen whose settings open as sheets from the bottom. TikTok's "who can watch" starts on Everyone, on every screen. A long press drags a post onto a day or a card onto a column by touch. Desktop unchanged. No migration. 83 tests.
 - **2.3.1** — 2026-10-08 — A phone pass: no page scrolls sideways at 320–430 px; the calendar toolbar wraps, Month fits seven days, the Day card and the menus stay on screen; the shoot brief opens an idea as a bottom sheet; a tap shows a chart value; touch screens see the controls that appear on hover, and phones get 16 px fields so iOS does not zoom. No migration. 82 tests.
 - **2.3.0** — 2026-10-07 — Insights becomes one calm column with a pill switch like Ideate's: Overview (a summary line, one number at a time over twelve weekly bars, what worked as rows that open to their chart and idea, the best time to post), Posts and Creators. No migration. 82 tests.
@@ -18,6 +19,36 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.5.0 — 2026-10-08
+
+**The phone calendar as a photo grid.** The 2.4.0 phone calendar listed every post as a full row, so
+a busy week ran long and read as clutter; a first redesign that kept the list and only moved the
+controls was dropped (branch `feat/mobile-calendar`). Below 768 px the calendar is now a grid of
+photos, chosen from three sketches; wider screens do not change.
+
+- **Week:** the day letters and numbers (the picked day filled, today ringed), thin lines for the
+  events, then seven narrow columns of square photos: three a day, then "+N". An idea is a tinted
+  square with a spark, a day's stories one ringed circle, a failed post a red dot. Under a hairline,
+  the picked day lists its best time, events, stories and posts (photo, hook, time and stage,
+  accounts; a failed post with its error).
+- **Month:** every week of the month in the same grid, one photo a day and "+N". **Day:** an hour
+  list from 07:00 to 23:00, the best two hours shaded; an empty hour starts a post at that time.
+- **Top:** the title switches Month, Week and Day; arrows or a swipe step them; "Today" appears away
+  from today. One filter button carries the not-posted count and opens a sheet for that filter, the
+  stages and the layers; a red line says when only the failed posts show. The black plus starts a
+  post on the picked day.
+- **Drag:** a long press on a photo or a row lifts a small square of the photo just above the
+  finger, never from where the photo was, and it drops on a day column or number. `touch-drag.ts`
+  takes this as an option; the tablet grid and the shoot brief drag as before.
+- **Code:** the phone calendar is `features/schedule/phone-calendar.tsx`; the bottom sheet moves to
+  `components/sheet.tsx`, shared with the post page.
+
+Checked at 320 and 390 px with a busy week built for the test (the demo data is unchanged): the
+lifted photo sits centred just above the finger at the lift and mid-drag; desktop and tablet
+screenshots match the earlier ones.
+
+**No migration.** 83 tests (14 files), all passing.
 
 ## 2.4.0 — 2026-10-08
 

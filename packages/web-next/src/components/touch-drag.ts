@@ -14,6 +14,8 @@ const HOLD_MS = 320
 const SLOP = 8
 /** Near the top or bottom edge, the page scrolls under the finger. */
 const EDGE = 72
+/** A lifted photo floats this far above the finger. */
+const LIFT_GAP = 14
 
 let lifted = false
 let pressing = false
@@ -41,6 +43,12 @@ export function startTouchDrag(
     over?: (key: string | null) => void
     drop: (key: string | null) => void
     end?: () => void
+    /**
+     * Lift only the item's photo: the element this selector finds in it (the item itself when
+     * absent), drawn `size` px square, centred just above the finger from the first frame. Without
+     * it the whole item lifts from where it lies.
+     */
+    lift?: { selector?: string; size: number }
   },
 ) {
   if (e.pointerType !== 'touch' || !e.isPrimary) return
@@ -53,11 +61,22 @@ export function startTouchDrag(
   let key: string | null = null
   pressing = true
 
+  /** Puts a lifted photo centred above the finger. */
+  function place(x: number, y: number) {
+    const size = on.lift!.size
+    ghost!.style.left = `${x - size / 2}px`
+    ghost!.style.top = `${y - size - LIFT_GAP}px`
+  }
+
   const timer = window.setTimeout(() => {
-    const r = source.getBoundingClientRect()
+    const part =
+      (on.lift?.selector && source.querySelector<HTMLElement>(on.lift.selector)) || source
+    const r = part.getBoundingClientRect()
     grab = { x: x0 - r.left, y: y0 - r.top }
-    ghost = source.cloneNode(true) as HTMLElement
+    ghost = part.cloneNode(true) as HTMLElement
     ghost.removeAttribute('id')
+    // A tile that just landed still runs its settle animation, which would hold the copy's transform.
+    ghost.style.animation = 'none'
     ghost.setAttribute('aria-hidden', 'true')
     Object.assign(ghost.style, {
       position: 'fixed',
@@ -69,16 +88,30 @@ export function startTouchDrag(
       zIndex: '80',
       pointerEvents: 'none',
       opacity: '0.94',
-      borderRadius: getComputedStyle(source).borderRadius,
+      borderRadius: getComputedStyle(part).borderRadius,
       boxShadow: 'var(--shadow-pop)',
       // Small and above the finger, so the day or column under it stays in sight.
       transformOrigin: `${grab.x}px ${grab.y}px`,
       transition: 'transform 200ms cubic-bezier(.2,.8,.2,1)',
     })
-    document.body.append(ghost)
     const g = ghost
+    if (on.lift) {
+      // The photo starts at the finger, small, and grows into place: it never leaves its old spot.
+      Object.assign(g.style, {
+        width: `${on.lift.size}px`,
+        height: `${on.lift.size}px`,
+        overflow: 'hidden',
+        borderRadius: '12px',
+        transformOrigin: '50% 100%',
+        transform: 'scale(0.6)',
+      })
+      place(x0, y0)
+    }
+    document.body.append(ghost)
+    // Read its layout once, so the browser takes the small start before it grows.
+    g.getBoundingClientRect()
     requestAnimationFrame(() => {
-      g.style.transform = 'translateY(-44px) scale(0.5) rotate(-2deg)'
+      g.style.transform = on.lift ? 'scale(1)' : 'translateY(-44px) scale(0.5) rotate(-2deg)'
     })
     lifted = true
     navigator.vibrate?.(8)
@@ -91,8 +124,11 @@ export function startTouchDrag(
       if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > SLOP) finish()
       return
     }
-    ghost.style.left = `${ev.clientX - grab.x}px`
-    ghost.style.top = `${ev.clientY - grab.y}px`
+    if (on.lift) place(ev.clientX, ev.clientY)
+    else {
+      ghost.style.left = `${ev.clientX - grab.x}px`
+      ghost.style.top = `${ev.clientY - grab.y}px`
+    }
     const at = document.elementFromPoint(ev.clientX, ev.clientY)
     const next = at?.closest<HTMLElement>('[data-drop]')?.dataset.drop ?? null
     if (next !== key) {
