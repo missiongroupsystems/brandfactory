@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.5.1** — 2026-10-08 — A calmer desktop calendar toolbar, from review feedback: the red "2 not posted" pill becomes a quiet "2 to fix" line beside the title, and the Layers and Stages buttons become one Filter button; the black "Schedule new post" is the only strong control left. The phone filter uses the same words. No migration. 83 tests.
 - **2.5.0** — 2026-10-08 — The phone calendar as a photo grid: Week is seven narrow columns of small square photos (three a day, then "+N") with the picked day's posts listed under it; Month is the same grid, one photo a day; Day is an hour list. The title switches views, one filter button holds the rest, and a dragged post lifts as a small photo just above the finger. Desktop unchanged. No migration. 83 tests.
 - **2.4.0** — 2026-10-08 — A layout made for phones, not a shrunk desktop: a tab bar at the bottom; Schedule keeps Month, Week and Day in a phone's shape (Week lists the seven days, Day keeps the hours, Month lists the day picked in the grid) under a week strip; the shoot brief shows one column at a time; New post becomes one white compose screen whose settings open as sheets from the bottom. TikTok's "who can watch" starts on Everyone, on every screen. A long press drags a post onto a day or a card onto a column by touch. Desktop unchanged. No migration. 83 tests.
 - **2.3.1** — 2026-10-08 — A phone pass: no page scrolls sideways at 320–430 px; the calendar toolbar wraps, Month fits seven days, the Day card and the menus stay on screen; the shoot brief opens an idea as a bottom sheet; a tap shows a chart value; touch screens see the controls that appear on hover, and phones get 16 px fields so iOS does not zoom. No migration. 82 tests.
@@ -17,6 +18,24 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.64.0** — 2026-10-07 — Schedule gets Month, Week and Day views and a stage filter beside Layers; a new post opens a full-page composer that writes one post for every platform (Brandwatch makes one per network); Ideate's views become Current ideas and Moodboard (Pinterest, Instagram, TikTok in one board). No migration. 3456 tests.
 - **1.63.0** — 2026-10-07 — BrandBase's Ideate and Insights pages are redesigned from scratch. Ideate has two views: ideas shelved by format (reels at 9:16, carousels at 4:5) and the imported Pinterest boards as a masonry board; a Shoot brief project board plans each idea (status columns, drag to move, date and time) and the calendar follows it. Stories join reels and carousels. Insights leads with four headline numbers, then Overview, Posts and Creators tabs, every chart titled and every mark hoverable. No migration. 3424 tests.
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
+
+---
+
+## 2.5.1 — 2026-10-08
+
+**A calmer desktop calendar toolbar.** Review feedback said the toolbar was cluttered, with every
+control at the same weight, and that the red "2 not posted" pill was too loud.
+
+- **"2 to fix":** the failed posts' pill is now a line of grey text with a small red dot, beside the
+  title and "Today" instead of among the controls. It still filters the calendar to the failed posts
+  and shows "×" while it does. It does not say "drafts": these posts were due and did not go out,
+  and Draft is a separate stage.
+- **One Filter button:** Layers and Stages merge into one borderless button whose menu lists the
+  stages, then the layers. A dot on it says a filter is on, as the Stages dot did.
+- **Order of weight:** the black "Schedule new post", then the view switch, then the Filter button.
+- The phone's filter button and sheet use "to fix" too.
+
+Gate: typecheck, lint, format, 83 tests (14 files), web-next build.
 
 ---
 

@@ -79,29 +79,13 @@ export function SparkIcon({ size = 12 }: { size?: number }) {
   )
 }
 
-export function LayersIcon() {
+/** Two sliders: what the calendar shows. */
+export function FilterIcon() {
   return (
-    <svg width="17" height="17" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-      <path
-        d="M9 2L16 5.8L9 9.6L2 5.8Z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M2 9.2L9 13L16 9.2"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M2 12.6L9 16.4L16 12.6"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2.5 5h11M2.5 11h11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="6" cy="5" r="1.9" fill="var(--page)" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="10" cy="11" r="1.9" fill="var(--page)" stroke="currentColor" strokeWidth="1.6" />
     </svg>
   )
 }

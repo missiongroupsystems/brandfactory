@@ -14,11 +14,10 @@ import { setCalendarPlace, TODAY_PLACE, useCalendarPlace, type CalendarMode } fr
 import { itemsOf } from './calendar-items'
 import { DayView } from './day-view'
 import { FailedPill } from './failed-menu'
-import { LayersMenu } from './layers-menu'
+import { FilterMenu } from './filter-menu'
 import { DEMO_MONTH, dateOf, monthView, weekCount } from './month'
 import { storyTaken } from './move-post'
 import { useBrand } from './posts-store'
-import { StageMenu } from './stage-menu'
 import { storiesOf } from './stories'
 import { StoryPanel } from './story-panel'
 import { WeekGrid } from './week-grid'
@@ -193,13 +192,14 @@ export function SchedulePage() {
               Today
             </button>
           )}
-        </div>
-        <div className="relative flex flex-wrap items-center gap-2">
+          {/* What needs someone sits with the title, as a line of text, not among the controls. */}
           <FailedPill
             posts={failed}
             stages={stages}
             onChange={(s) => setCalendarPlace({ stages: s })}
           />
+        </div>
+        <div className="relative flex flex-wrap items-center gap-2">
           <div className="w-[216px]">
             <Segmented<CalendarMode>
               label="View"
@@ -213,8 +213,12 @@ export function SchedulePage() {
               ]}
             />
           </div>
-          <LayersMenu value={layers} onChange={setLayers} />
-          <StageMenu value={stages} onChange={(s) => setCalendarPlace({ stages: s })} />
+          <FilterMenu
+            stages={stages}
+            layers={layers}
+            onStages={(s) => setCalendarPlace({ stages: s })}
+            onLayers={setLayers}
+          />
           <button
             type="button"
             onClick={() => newPost()}

@@ -14,9 +14,9 @@ export function onlyFailed(stages: StageFilter): boolean {
 }
 
 /**
- * Posts that did not go out, as one quiet pill in the header: "2 not posted". It stays one line
- * however many fail. Pressing it filters the calendar to them (the stage filter's Failed alone),
- * and pressing it again shows everything.
+ * Posts that did not go out, as a quiet line beside the title: "2 to fix". It stays one line however
+ * many fail. Pressing it filters the calendar to them (the stage filter's Failed alone), and pressing
+ * it again shows everything.
  */
 export function FailedPill({
   posts,
@@ -37,11 +37,11 @@ export function FailedPill({
       aria-pressed={on}
       title={on ? 'Show every post' : 'Show only the posts that did not go out'}
       onClick={() => onChange(on ? ALL_STAGES : ONLY_FAILED)}
-      className={`bb-pop flex h-9 items-center gap-2 rounded-full whitespace-nowrap pr-3.5 pl-3 text-[13px] font-medium transition-colors ${on ? 'bg-(--fail-soft) text-fail-ink shadow-[inset_0_0_0_1px_var(--fail-line)]' : 'bg-page text-fail-ink shadow-[inset_0_0_0_1px_var(--fail-line)] hover:bg-(--fail-soft)'}`}
+      className={`bb-pop flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] whitespace-nowrap transition-colors ${on ? 'bg-surface text-ink' : 'text-ink-3 hover:bg-surface hover:text-ink'}`}
     >
-      <span className="size-2 rounded-full bg-fail shadow-[0_0_0_3px_color-mix(in_oklab,var(--fail)_16%,transparent)]" />
-      {posts.length === 0 ? 'None not posted' : `${posts.length} not posted`}
-      {on && <span className="-mr-1 pl-0.5 text-[15px] leading-none opacity-70">×</span>}
+      <span className="size-1.5 rounded-full bg-fail" />
+      {posts.length === 0 ? 'None to fix' : `${posts.length} to fix`}
+      {on && <span className="-mr-0.5 pl-0.5 text-[14px] leading-none opacity-60">×</span>}
     </button>
   )
 }

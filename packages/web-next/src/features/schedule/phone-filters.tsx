@@ -3,6 +3,7 @@
 import * as React from 'react'
 
 import { Switch } from '@/components/controls'
+import { FilterIcon } from '@/components/icons'
 import { Sheet } from '@/components/sheet'
 import { DEFAULT_LAYERS, LAYERS, type LayerKey, type Post } from '@/data/demo'
 
@@ -41,7 +42,7 @@ export function PhoneFilters({
     <>
       <button
         type="button"
-        aria-label={`Filters${filtering ? ', on' : ''}${failed.length ? `, ${failed.length} not posted` : ''}`}
+        aria-label={`Filters${filtering ? ', on' : ''}${failed.length ? `, ${failed.length} to fix` : ''}`}
         aria-expanded={open}
         onClick={() => setOpen(true)}
         className={`relative flex size-9 items-center justify-center rounded-full transition-colors ${filtering ? 'bg-ink text-page' : 'text-ink-2 shadow-[inset_0_0_0_1px_var(--line)]'}`}
@@ -60,7 +61,7 @@ export function PhoneFilters({
               <div className="flex min-h-12 items-center justify-between gap-4 rounded-[14px] bg-(--fail-soft) px-4 py-3">
                 <span className="flex items-center gap-2.5 text-[14px] font-medium text-fail-ink">
                   <span className="size-2 shrink-0 rounded-full bg-fail shadow-[0_0_0_3px_color-mix(in_oklab,var(--fail)_16%,transparent)]" />
-                  {failed.length === 0 ? 'None not posted' : `Only the ${failed.length} not posted`}
+                  {failed.length === 0 ? 'None to fix' : `Only the ${failed.length} to fix`}
                 </span>
                 <Switch
                   label="Only the posts that did not go out"
@@ -136,16 +137,5 @@ export function PhoneFilters({
         </Sheet>
       )}
     </>
-  )
-}
-
-/** Two sliders: what the calendar shows. */
-function FilterIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M2.5 5h11M2.5 11h11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="6" cy="5" r="1.9" fill="var(--page)" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="10" cy="11" r="1.9" fill="var(--page)" stroke="currentColor" strokeWidth="1.6" />
-    </svg>
   )
 }
