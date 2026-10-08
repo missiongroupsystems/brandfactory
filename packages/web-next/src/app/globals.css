@@ -51,6 +51,18 @@
   }
 }
 
+/*
+ * iOS Safari zooms into a field set under 16px when it takes focus, and does not zoom back.
+ * Outside the layers, so it wins over the size utilities; display-size fields are larger already.
+ */
+@media (pointer: coarse) and (max-width: 767px) {
+  input:not(.font-display),
+  textarea:not(.font-display),
+  select {
+    font-size: 16px;
+  }
+}
+
 /* Motion. One vocabulary, used everywhere: rise, pop, draw, pulse, fold. */
 @keyframes bb-sheet {
   from {

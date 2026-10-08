@@ -694,7 +694,7 @@ function ConnectSources() {
       aria-label="Connect your accounts"
       className="mx-auto flex max-w-[620px] flex-col items-center gap-6 py-16 text-center"
     >
-      <span className="flex -space-x-6">
+      <span className="flex -space-x-6 max-[360px]:-space-x-10">
         {boards
           .flatMap((b) => b.covers.slice(0, 2))
           .slice(0, 4)

@@ -162,13 +162,13 @@ export function SchedulePage() {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="relative flex flex-wrap items-center gap-2">
           <FailedPill
             posts={failed}
             stages={stages}
             onChange={(s) => setCalendarPlace({ stages: s })}
           />
-          <div className="w-[216px]">
+          <div className="w-[216px] max-md:order-last max-md:w-full">
             <Segmented<CalendarMode>
               label="View"
               pill
@@ -186,10 +186,11 @@ export function SchedulePage() {
           <button
             type="button"
             onClick={() => newPost()}
-            className="bb-press flex h-9 items-center gap-1.5 rounded-full bg-ink pr-4 pl-3.5 text-[13px] font-medium text-page hover:opacity-85"
+            className="bb-press flex h-9 items-center gap-1.5 rounded-full bg-ink pr-4 pl-3.5 text-[13px] font-medium whitespace-nowrap text-page hover:opacity-85 max-md:ml-auto max-[360px]:w-9 max-[360px]:justify-center max-[360px]:px-0"
           >
             <PlusIcon size={12} />
-            Schedule new post
+            <span className="max-sm:hidden">Schedule new post</span>
+            <span className="sm:hidden max-[360px]:sr-only">New post</span>
           </button>
         </div>
       </div>

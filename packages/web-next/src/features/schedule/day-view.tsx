@@ -17,6 +17,10 @@ import { IdeaTile, PostTile } from './week-grid'
 const FIRST_HOUR = 7
 const LAST_HOUR = 24
 const HOUR_H = 72
+/** A post card: 340px, less on a phone, where it ends before the stories column (about 88px). */
+const CARD_W = 'min(340px, 100% - 164px)'
+/** Posts in the same hour sit side by side; where there is no room for that, 24px apart in a stack. */
+const LANE_STEP = `min(${CARD_W} + 12px, max(24px, 100% - 164px - ${CARD_W}))`
 
 const STAGE_LABEL = {
   draft: 'Draft',
@@ -155,8 +159,12 @@ export function DayView({
           {placed.map(({ post, lane }) => (
             <div
               key={post.id}
-              className={`absolute flex w-[340px] items-start gap-3 rounded-[12px] bg-page p-2 ${post.stage === 'failed' ? 'shadow-[0_0_0_1px_var(--fail-line),var(--shadow-soft)]' : 'shadow-[0_0_0_1px_var(--line),var(--shadow-soft)]'}`}
-              style={{ top: top(postTime(post)) + 4, left: 76 + lane * 352 }}
+              className={`absolute flex items-start gap-3 rounded-[12px] bg-page p-2 ${post.stage === 'failed' ? 'shadow-[0_0_0_1px_var(--fail-line),var(--shadow-soft)]' : 'shadow-[0_0_0_1px_var(--line),var(--shadow-soft)]'}`}
+              style={{
+                top: top(postTime(post)) + 4,
+                width: CARD_W,
+                left: `calc(76px + ${lane} * ${LANE_STEP})`,
+              }}
             >
               <div className="w-[64px] shrink-0">
                 <PostTile post={post} eager onOpen={() => onOpenPost(post.id)} />

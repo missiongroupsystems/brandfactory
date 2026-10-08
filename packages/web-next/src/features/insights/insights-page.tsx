@@ -300,6 +300,7 @@ function WeekBars({ kpi }: { kpi: Kpi }) {
                 role="img"
                 aria-label={`${weekName(i)}: ${fmt(p)}`}
                 onMouseEnter={() => setAt(i)}
+                onPointerDown={() => setAt(i)}
                 className="flex h-full flex-1 items-end justify-center"
               >
                 <span
@@ -315,6 +316,7 @@ function WeekBars({ kpi }: { kpi: Kpi }) {
             tip={{
               x: `${((at + 0.5) / n) * 100}%`,
               y: h - (points[at]! / max) * h,
+              edge: at <= 1 ? 'start' : at >= n - 2 ? 'end' : undefined,
               title: weekName(at),
               lines: [`${kpi.label}: ${fmt(points[at]!)}`],
             }}
@@ -479,6 +481,7 @@ function BestTime({
                 role="img"
                 aria-label={`${DAYS_LONG[i]}: ${Math.round(v * 100)}% of the busiest day`}
                 onMouseEnter={() => setAt(i)}
+                onPointerDown={() => setAt(i)}
                 className="flex h-full flex-1 items-end justify-center"
               >
                 <span
@@ -493,6 +496,7 @@ function BestTime({
               tip={{
                 x: `${((at + 0.5) / 7) * 100}%`,
                 y: h - days.values[at]! * h,
+                edge: at === 0 ? 'start' : at === 6 ? 'end' : undefined,
                 title: DAYS_LONG[at]!,
                 lines: [
                   days.values[at] === 1
@@ -557,29 +561,30 @@ function Heat({ days, hours }: { days: number[]; hours: number[] }) {
             <span className="text-[12px] text-ink-3">{DAYPARTS[r]!.name}</span>
             {row.map((v, d) => {
               const share = v / peak
+              const show = (e: React.MouseEvent<HTMLSpanElement>) =>
+                setTip({
+                  ...anchor(e, box.current),
+                  ...(r === 0 && {
+                    y:
+                      e.currentTarget.getBoundingClientRect().bottom -
+                      box.current!.getBoundingClientRect().top,
+                    below: true,
+                  }),
+                  edge: d >= 5 ? 'end' : undefined,
+                  title: `${DAYS[d]} · ${DAYPARTS[r]!.name}, ${DAYPARTS[r]!.hours}`,
+                  lines: [
+                    share === 1
+                      ? 'The busiest slot'
+                      : `${Math.round(share * 100)}% of the busiest slot`,
+                  ],
+                })
               return (
                 <span
                   key={d}
                   role="img"
                   aria-label={`${DAYS[d]} ${DAYPARTS[r]!.name.toLowerCase()}: ${Math.round(share * 100)}% of the busiest slot`}
-                  onMouseEnter={(e) =>
-                    setTip({
-                      ...anchor(e, box.current),
-                      ...(r === 0 && {
-                        y:
-                          e.currentTarget.getBoundingClientRect().bottom -
-                          box.current!.getBoundingClientRect().top,
-                        below: true,
-                      }),
-                      edge: d >= 5 ? 'end' : undefined,
-                      title: `${DAYS[d]} · ${DAYPARTS[r]!.name}, ${DAYPARTS[r]!.hours}`,
-                      lines: [
-                        share === 1
-                          ? 'The busiest slot'
-                          : `${Math.round(share * 100)}% of the busiest slot`,
-                      ],
-                    })
-                  }
+                  onMouseEnter={show}
+                  onPointerDown={show}
                   className={`bb-fade h-[26px] rounded-[5px] transition-shadow hover:shadow-[0_0_0_1.5px_var(--surface-2),0_0_0_3px_var(--ink)] ${share === 1 ? 'shadow-[0_0_0_1.5px_var(--surface-2),0_0_0_3px_var(--insight-6)]' : ''}`}
                   style={{
                     background: share < 0.12 ? 'var(--surface)' : ramp(share),
@@ -860,6 +865,10 @@ function Growth({ chart }: { chart: Extract<StoryChart, { kind: 'trend' }> }) {
   const h = 132
   const x = (i: number) => (i / (n - 1)) * 100
   const y = (g: number) => 6 + (1 - g / top) * (h - 12)
+  const pick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const r = box.current!.getBoundingClientRect()
+    setAt(Math.max(0, Math.min(n - 1, Math.round(((e.clientX - r.left) / r.width) * (n - 1)))))
+  }
   // The hovered week's points; near the top of the fold, which clips, the tip drops below them.
   const ys = at === null ? [] : series.map((s) => y(s.growth[at]!))
   const low = ys.length > 0 && Math.min(...ys) < 80
@@ -878,12 +887,8 @@ function Growth({ chart }: { chart: Extract<StoryChart, { kind: 'trend' }> }) {
           className="relative"
           style={{ height: h }}
           onMouseLeave={() => setAt(null)}
-          onMouseMove={(e) => {
-            const r = box.current!.getBoundingClientRect()
-            setAt(
-              Math.max(0, Math.min(n - 1, Math.round(((e.clientX - r.left) / r.width) * (n - 1)))),
-            )
-          }}
+          onMouseMove={pick}
+          onPointerDown={pick}
         >
           <svg
             viewBox={`0 0 100 ${h}`}

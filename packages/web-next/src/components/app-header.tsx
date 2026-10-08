@@ -17,7 +17,7 @@ const NAV = [
 export function AppHeader() {
   const pathname = usePathname()
   return (
-    <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-10 py-[22px] max-md:px-4">
+    <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-10 max-sm:gap-2 py-[22px] max-md:px-4">
       <Link
         href="/"
         aria-label="brand base"
@@ -28,7 +28,7 @@ export function AppHeader() {
           brand base
         </span>
       </Link>
-      <nav aria-label="Main" className="flex gap-7 max-sm:gap-4">
+      <nav aria-label="Main" className="flex gap-7 max-sm:gap-3">
         {NAV.map((n) => {
           // A post's own page belongs to Schedule.
           const current =
@@ -47,7 +47,7 @@ export function AppHeader() {
           )
         })}
       </nav>
-      <div className="flex items-center gap-2.5 justify-self-end">
+      <div className="flex items-center gap-2.5 justify-self-end max-sm:gap-1.5">
         <BrandSwitcher />
         <span
           aria-label="You"

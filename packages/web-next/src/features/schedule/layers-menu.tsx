@@ -32,7 +32,7 @@ export function LayersMenu({
   }, [open])
 
   return (
-    <div ref={root} className="relative">
+    <div ref={root} className="relative max-md:static">
       <button
         type="button"
         aria-label="Layers"
@@ -47,7 +47,7 @@ export function LayersMenu({
         <div
           role="menu"
           aria-label="Layers"
-          className="bb-menu absolute top-11 right-0 z-30 flex w-[224px] origin-top-right flex-col rounded-[12px] bg-page p-1 shadow-[0_0_0_1px_var(--line),var(--shadow-pop)]"
+          className="bb-menu absolute top-11 right-0 z-30 flex w-[224px] origin-top-right max-md:top-full max-md:left-0 max-md:mt-2 max-md:w-auto max-md:origin-top flex-col rounded-[12px] bg-page p-1 shadow-[0_0_0_1px_var(--line),var(--shadow-pop)]"
         >
           <span className="px-2.5 pt-2 pb-1.5 font-mono text-[9.5px] tracking-[0.08em] text-ink-5">
             SHOW ON CALENDAR

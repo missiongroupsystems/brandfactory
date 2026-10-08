@@ -72,11 +72,11 @@ export function ShootBrief() {
   const planned = slots.filter((s) => s.card.postId).length
 
   return (
-    <div className="flex h-svh flex-col overflow-hidden">
+    <div className="flex h-svh flex-col overflow-hidden max-md:h-auto max-md:min-h-svh max-md:overflow-visible">
       <div className="print:hidden">
         <AppHeader />
       </div>
-      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 px-10 pt-2 pb-6">
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 px-10 pt-2 pb-6 max-md:px-4">
         <div className="flex flex-col gap-2">
           <Link
             href="/ideate"
@@ -103,7 +103,7 @@ export function ShootBrief() {
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 gap-4 px-10 pb-6">
+      <div className="flex min-h-0 flex-1 gap-4 px-10 pb-6 max-md:px-4">
         <Board
           slots={slots}
           columns={columns}
@@ -416,7 +416,7 @@ function Detail({ slot, plan, onClose }: { slot: Slot; plan: Plan; onClose: () =
   return (
     <aside
       aria-label="Idea"
-      className="bb-sheet flex w-[440px] shrink-0 flex-col overflow-hidden rounded-[20px] bg-page shadow-sheet"
+      className="bb-sheet flex w-[440px] shrink-0 flex-col overflow-hidden rounded-[20px] bg-page shadow-sheet max-md:fixed max-md:inset-x-2 max-md:bottom-2 max-md:z-40 max-md:max-h-[85svh] max-md:w-auto"
     >
       <div className="flex items-center justify-between gap-3 px-6 pt-5">
         <span className={`${EYEBROW} flex items-center gap-2`}>
@@ -582,7 +582,7 @@ function References({ card }: { card: IdeaCard }) {
               type="button"
               aria-label="Remove this reference"
               onClick={() => editIdea(brand.id, card.id, { refs: added.filter((r) => r !== src) })}
-              className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-full bg-page text-ink-3 opacity-0 shadow-soft transition-opacity group-hover/ref:opacity-100 hover:text-ink focus-visible:opacity-100"
+              className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-full bg-page text-ink-3 opacity-0 shadow-soft transition-opacity group-hover/ref:opacity-100 hover:text-ink focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
             >
               <CloseIcon />
             </button>
@@ -756,7 +756,7 @@ function Shots({ card }: { card: IdeaCard }) {
                 type="button"
                 aria-label={`Remove shot: ${shot}`}
                 onClick={() => setShots(card.shots.filter((_, j) => j !== i))}
-                className="text-ink-5 opacity-0 transition-opacity group-hover/shot:opacity-100 hover:text-ink focus-visible:opacity-100"
+                className="text-ink-5 opacity-0 transition-opacity group-hover/shot:opacity-100 hover:text-ink focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
               >
                 <CloseIcon />
               </button>

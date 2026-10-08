@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.3.1** — 2026-10-08 — A phone pass: no page scrolls sideways at 320–430 px; the calendar toolbar wraps, Month fits seven days, the Day card and the menus stay on screen; the shoot brief opens an idea as a bottom sheet; a tap shows a chart value; touch screens see the controls that appear on hover, and phones get 16 px fields so iOS does not zoom. No migration. 82 tests.
 - **2.3.0** — 2026-10-07 — Insights becomes one calm column with a pill switch like Ideate's: Overview (a summary line, one number at a time over twelve weekly bars, what worked as rows that open to their chart and idea, the best time to post), Posts and Creators. No migration. 82 tests.
 - **2.2.1** — 2026-10-07 — Every demo photo is replaced with a sharp version (short side at least 1000 px, was 272–750), from the same Unsplash photo where the source was recorded and a matching free Unsplash photo where it was not; a check of every image on every page at 2x finds none under-resolved. No migration. 82 tests.
 - **2.2.0** — 2026-10-07 — The composer's best times become an hourly bar chart for the picked day (best hour in green, a bar sets the time); the send button reads "Schedule on" or "Post on" with each account's logo; every Current ideas card is 4:5; images ask next/image for enough pixels to stay sharp on 2x screens. No migration. 82 tests.
@@ -16,6 +17,34 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.3.1 — 2026-10-08
+
+**A phone pass.** Every page was checked on a 320, 360 and 390 px touch screen in Playwright, after
+a review of the code for phone defects.
+
+- **Schedule:** the toolbar wraps, with Month, Week and Day on a line of their own; the button reads
+  "New post" (a plus alone at 360 px and narrower) and the "not posted" pill stays on one line (its
+  chips in Month drop their dot). Month fits seven days on a phone (Week still scrolls sideways).
+  The Day view's post card is 340 px or what is left before the stories column; two posts in one
+  hour stack 24 px apart where they cannot sit side by side. The Layers and stage menus hang from
+  the toolbar at full width instead of off the left edge.
+- **Shoot brief:** on a phone the page scrolls as a whole and an open idea is a sheet from the
+  bottom, with its Close button on screen. It was a 440 px pane beside the board, cut off.
+- **Insights:** a tap shows a bar's, a cell's or a line's value (iOS sends no hover); the first and
+  last weeks' and days' tooltips stay inside the card.
+- **Touch screens:** the media actions in the composer and the remove buttons in the brief, which
+  appear on hover, always show; on a phone, text fields are 16 px, so iOS Safari does not zoom in on
+  focus.
+- **Small fixes:** "Draft with AI" stays on one line; the header and the moodboard's photo fan fit
+  320 px.
+
+Dragging a post or an idea still needs a mouse; the date pickers in the composer and the brief do
+the same on a phone. Two small changes reach wider screens: between 768 and 935 px two posts in one
+hour overlap instead of running over the stories column, and the tooltips of the first two and last
+two weeks sit inside the card.
+
+**No migration.** 82 tests (14 files), all passing.
 
 ## 2.3.0 — 2026-10-07
 

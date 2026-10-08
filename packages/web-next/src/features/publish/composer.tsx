@@ -601,7 +601,7 @@ function Content({
               <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/50 px-1.5 font-mono text-[10px] text-page">
                 {i + 1}
               </span>
-              <span className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 transition-opacity group-hover/m:opacity-100">
+              <span className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 transition-opacity group-hover/m:opacity-100 [@media(hover:none)]:opacity-100">
                 {i > 0 && (
                   <button
                     type="button"
@@ -709,7 +709,7 @@ function Content({
             type="button"
             onClick={draftWithAI}
             disabled={writing}
-            className="flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[12.5px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink disabled:opacity-60"
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 text-[12.5px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:bg-paper hover:text-ink disabled:opacity-60"
           >
             <SparkIcon size={10} />
             {writing ? 'Writing…' : drafted ? 'Try another' : 'Draft with AI'}

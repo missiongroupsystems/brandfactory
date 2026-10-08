@@ -145,7 +145,9 @@ export function WeekGrid({
       <WideTiles.Provider value={mode === 'week'}>
         <div className="mx-auto w-full max-w-[1440px] px-10 pb-24 max-md:px-4">
           <div className="overflow-x-auto">
-            <div className="flex min-w-[760px] flex-col">
+            <div
+              className={`flex min-w-[760px] flex-col ${mode === 'month' ? 'max-md:min-w-0' : ''}`}
+            >
               <div className={`${GRID} pb-2`}>
                 {DAY_NAMES.map((d, i) => (
                   <span
@@ -284,7 +286,7 @@ function DayCell({
     !feeds.some((m) => m.kind === 'post' && m.postId === drag.postId)
   return (
     <div
-      className={`group relative flex min-w-0 flex-col px-2.5 pt-2.5 pb-5 transition-colors ${first ? '' : 'border-l border-(--cal-line)'} ${day.past ? '' : 'hover:bg-(--cal-hover)'}`}
+      className={`group relative flex min-w-0 flex-col px-2.5 pt-2.5 pb-5 transition-colors max-md:px-1 ${first ? '' : 'border-l border-(--cal-line)'} ${day.past ? '' : 'hover:bg-(--cal-hover)'}`}
       aria-label={`${name} ${day.n}`}
       role="group"
       onDragOver={(e) => {
@@ -373,9 +375,10 @@ function DaySummary({
         <span
           key={channel ?? 'none'}
           title={`${n} post${n > 1 ? 's' : ''} did not go out${channel ? ` on ${CHANNEL_NAME[channel]}` : ''}`}
-          className="flex h-[22px] items-center gap-1.5 rounded-full bg-(--fail-soft) px-2 text-[11px] font-medium text-fail-ink tabular-nums shadow-[inset_0_0_0_1px_var(--fail-line)]"
+          className="flex h-[22px] items-center gap-1.5 rounded-full bg-(--fail-soft) px-2 text-[11px] font-medium text-fail-ink tabular-nums shadow-[inset_0_0_0_1px_var(--fail-line)] max-md:px-1.5"
         >
-          <span className="size-1.5 rounded-full bg-fail" />
+          {/* On a phone the red chip alone says it failed: the dot would not fit the day. */}
+          <span className="size-1.5 rounded-full bg-fail max-md:hidden" />
           {channel && <PlatformLogo platform={channel} size={11} />}
           {n}
         </span>
