@@ -22,13 +22,10 @@ export function FailedPill({
   posts,
   stages,
   onChange,
-  short = false,
 }: {
   posts: Post[]
   stages: StageFilter
   onChange: (next: StageFilter) => void
-  /** On a phone: the count alone, beside the dot. */
-  short?: boolean
 }) {
   const on = onlyFailed(stages)
   // While it filters, it stays even at none left (fixed, or another brand), so it can be cleared.
@@ -39,12 +36,11 @@ export function FailedPill({
       type="button"
       aria-pressed={on}
       title={on ? 'Show every post' : 'Show only the posts that did not go out'}
-      aria-label={short ? `${posts.length} not posted` : undefined}
       onClick={() => onChange(on ? ALL_STAGES : ONLY_FAILED)}
       className={`bb-pop flex h-9 items-center gap-2 rounded-full whitespace-nowrap pr-3.5 pl-3 text-[13px] font-medium transition-colors ${on ? 'bg-(--fail-soft) text-fail-ink shadow-[inset_0_0_0_1px_var(--fail-line)]' : 'bg-page text-fail-ink shadow-[inset_0_0_0_1px_var(--fail-line)] hover:bg-(--fail-soft)'}`}
     >
       <span className="size-2 rounded-full bg-fail shadow-[0_0_0_3px_color-mix(in_oklab,var(--fail)_16%,transparent)]" />
-      {short ? posts.length : posts.length === 0 ? 'None not posted' : `${posts.length} not posted`}
+      {posts.length === 0 ? 'None not posted' : `${posts.length} not posted`}
       {on && <span className="-mr-1 pl-0.5 text-[15px] leading-none opacity-70">×</span>}
     </button>
   )

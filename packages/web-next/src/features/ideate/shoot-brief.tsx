@@ -8,7 +8,6 @@ import { AppHeader } from '@/components/app-header'
 import { CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
 import { fromFile, Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
-import { startTouchDrag, touchDragPending } from '@/components/touch-drag'
 import type { Stage, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 import { IDEAS_BY_BRAND, referenceById, type IdeaCard, type IdeaStatus } from '@/data/ideas'
@@ -88,11 +87,11 @@ export function ShootBrief() {
             </span>
             {brand.name} · Ideas
           </Link>
-          <h1 className="font-display tracking-[-0.035em] text-[40px] leading-none max-md:text-[30px] max-md:leading-[1.05]">
+          <h1 className="font-display tracking-[-0.035em] text-[40px] leading-none">
             {shoot.title}
           </h1>
         </div>
-        <div className="flex flex-wrap items-center gap-x-7 gap-y-2 max-md:grid max-md:w-full max-md:grid-cols-2 max-md:gap-y-3">
+        <div className="flex flex-wrap items-center gap-x-7 gap-y-2">
           <Fact label="Shoot" value={shoot.when.split(' · ')[0]!} />
           <Fact
             label="Call"
@@ -187,107 +186,58 @@ function Board({
 }) {
   const [dragging, setDragging] = React.useState<string | null>(null)
   const [over, setOver] = React.useState<Column | null>(null)
-  // A phone shows one column at a time; its tabs take a dropped card.
-  const [picked, setShown] = React.useState<Column>(columns[0]!)
-  // Suggestions can end (a brand switch): their tab goes, and the first column shows.
-  const shown = columns.includes(picked) ? picked : columns[0]!
-  const cardsOf = (col: Column) => slots.filter((s) => columnOf(s.status) === col)
-  const nameOf = (col: Column) => (col === 'suggested' ? 'Suggested' : STATUS_LABEL[col])
-  const dot = (col: Column) => (col === 'suggested' ? 'var(--insight-5)' : statusColour(col))
-  const card = (s: Slot) => (
-    <BoardCard
-      key={s.card.id}
-      slot={s}
-      active={open === s.card.id}
-      onOpen={() => onOpen(s.card.id)}
-      onDrag={setDragging}
-      onOver={setOver}
-      onMove={onMove}
-    />
-  )
   return (
-    <>
-      <div className="flex min-w-0 flex-1 flex-col gap-3 md:hidden">
-        <div
-          role="tablist"
-          aria-label="Board columns"
-          className="sticky top-0 z-10 -mx-4 grid auto-cols-fr grid-flow-col gap-1 bg-page/95 px-4 py-2 backdrop-blur-xl"
-        >
-          {columns.map((col) => {
-            const target = dragging !== null && col !== 'suggested'
-            return (
-              <button
-                key={col}
-                type="button"
-                role="tab"
-                aria-selected={shown === col}
-                data-drop={col === 'suggested' ? undefined : col}
-                onClick={() => setShown(col)}
-                className={`flex h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[14px] transition-[background-color,box-shadow,color] duration-150 ${over === col && target ? 'bg-ink text-page' : shown === col ? 'bg-surface text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]' : target ? 'bg-surface text-ink-2 shadow-[inset_0_0_0_1px_var(--cal-ghost)]' : 'bg-surface text-ink-3'}`}
-              >
-                <span className="flex items-center gap-1.5 font-display text-[17px] leading-none tabular-nums">
-                  <span className="size-1.5 rounded-full" style={{ background: dot(col) }} />
-                  {cardsOf(col).length}
-                </span>
-                <span className="max-w-full truncate px-1 text-[11px] font-medium">
-                  {col === 'awaiting' ? 'Awaiting' : nameOf(col)}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-        <ul key={shown} className="bb-swap flex flex-col gap-2">
-          {cardsOf(shown).map(card)}
-          {cardsOf(shown).length === 0 && (
-            <li className="py-10 text-center text-[13px] text-ink-4">Nothing here yet.</li>
-          )}
-        </ul>
-        {cardsOf(shown).some((s) => s.status !== 'suggested') && (
-          <p className="text-center text-[12px] text-ink-4">
-            Press and hold a card, then drop it on a column.
-          </p>
-        )}
-      </div>
-      <div className="flex min-w-0 flex-1 gap-3 overflow-x-auto pb-2 max-md:hidden">
-        {columns.map((col) => {
-          const cards = cardsOf(col)
-          const droppable = dragging !== null && col !== 'suggested'
-          return (
-            <section
-              key={col}
-              aria-label={nameOf(col)}
-              data-drop={col === 'suggested' ? undefined : col}
-              onDragOver={(e) => {
-                if (!droppable) return
-                e.preventDefault()
-                setOver(col)
-              }}
-              onDragLeave={() => setOver((o) => (o === col ? null : o))}
-              onDrop={(e) => {
-                e.preventDefault()
-                setOver(null)
-                if (dragging && col !== 'suggested') onMove(dragging, col)
-                setDragging(null)
-              }}
-              className={`flex min-w-[220px] flex-1 flex-col gap-2 rounded-[18px] p-2 transition-colors duration-150 ${over === col && droppable ? 'bg-(--cal-drop) shadow-[inset_0_0_0_1px_var(--cal-ghost)]' : col === 'suggested' ? 'bg-(--insight-wash)' : 'bg-surface-2'}`}
-            >
-              <header className="flex items-center gap-2 px-2 pt-1.5 pb-1">
-                <span className="size-2 rounded-full" style={{ background: dot(col) }} />
-                <span className="text-[13px] font-medium">{nameOf(col)}</span>
-                <span className="font-mono text-[11px] text-ink-4 tabular-nums">
-                  {cards.length}
-                </span>
-              </header>
-              {/* The list scrolls, and a scroller clips shadows at its edge: a few pixels of room keep the
+    <div className="flex min-w-0 flex-1 gap-3 overflow-x-auto pb-2">
+      {columns.map((col) => {
+        const cards = slots.filter((s) => columnOf(s.status) === col)
+        const droppable = dragging !== null && col !== 'suggested'
+        return (
+          <section
+            key={col}
+            aria-label={col === 'suggested' ? 'Suggested' : STATUS_LABEL[col]}
+            onDragOver={(e) => {
+              if (!droppable) return
+              e.preventDefault()
+              setOver(col)
+            }}
+            onDragLeave={() => setOver((o) => (o === col ? null : o))}
+            onDrop={(e) => {
+              e.preventDefault()
+              setOver(null)
+              if (dragging && col !== 'suggested') onMove(dragging, col)
+              setDragging(null)
+            }}
+            className={`flex min-w-[220px] flex-1 flex-col gap-2 rounded-[18px] p-2 transition-colors duration-150 ${over === col ? 'bg-(--cal-drop) shadow-[inset_0_0_0_1px_var(--cal-ghost)]' : col === 'suggested' ? 'bg-(--insight-wash)' : 'bg-surface-2'}`}
+          >
+            <header className="flex items-center gap-2 px-2 pt-1.5 pb-1">
+              <span
+                className="size-2 rounded-full"
+                style={{
+                  background: col === 'suggested' ? 'var(--insight-5)' : statusColour(col),
+                }}
+              />
+              <span className="text-[13px] font-medium">
+                {col === 'suggested' ? 'Suggested' : STATUS_LABEL[col]}
+              </span>
+              <span className="font-mono text-[11px] text-ink-4 tabular-nums">{cards.length}</span>
+            </header>
+            {/* The list scrolls, and a scroller clips shadows at its edge: a few pixels of room keep the
                 hover lift whole. */}
-              <ul className="-mx-1.5 -mt-1 flex min-h-0 flex-col gap-2 overflow-y-auto px-1.5 pt-1 pb-2">
-                {cards.map(card)}
-              </ul>
-            </section>
-          )
-        })}
-      </div>
-    </>
+            <ul className="-mx-1.5 -mt-1 flex min-h-0 flex-col gap-2 overflow-y-auto px-1.5 pt-1 pb-2">
+              {cards.map((s) => (
+                <BoardCard
+                  key={s.card.id}
+                  slot={s}
+                  active={open === s.card.id}
+                  onOpen={() => onOpen(s.card.id)}
+                  onDrag={setDragging}
+                />
+              ))}
+            </ul>
+          </section>
+        )
+      })}
+    </div>
   )
 }
 
@@ -296,15 +246,11 @@ function BoardCard({
   active,
   onOpen,
   onDrag,
-  onOver,
-  onMove,
 }: {
   slot: Slot
   active: boolean
   onOpen: () => void
   onDrag: (id: string | null) => void
-  onOver: (col: Column | null) => void
-  onMove: (id: string, step: Step) => void
 }) {
   const { brand } = useBrand()
   const { card, label, status } = slot
@@ -317,28 +263,14 @@ function BoardCard({
         type="button"
         onClick={onOpen}
         draggable={!suggested}
-        onPointerDown={(e) => {
-          if (suggested) return
-          startTouchDrag(e, {
-            start: () => onDrag(card.id),
-            over: (key) => onOver(key as Column | null),
-            drop: (key) => {
-              const step = CHIPS.find((c) => c === key)
-              if (step && step !== columnOf(status)) onMove(card.id, step)
-            },
-            end: () => onDrag(null),
-          })
-        }}
         onDragStart={(e) => {
-          // A finger drags by `startTouchDrag`: a phone's own drag would run beside it.
-          if (touchDragPending()) return e.preventDefault()
           e.dataTransfer.effectAllowed = 'move'
           e.dataTransfer.setData('text/plain', card.id)
           onDrag(card.id)
         }}
         onDragEnd={() => onDrag(null)}
         aria-pressed={active}
-        className={`flex w-full flex-col gap-2.5 rounded-[14px] bg-page p-2.5 text-left transition-[box-shadow,transform] duration-200 ${active ? 'shadow-[inset_0_0_0_1.5px_var(--ink)]' : 'shadow-soft hover:-translate-y-px hover:shadow-pop'} ${suggested ? '' : 'bb-touch-drag cursor-grab active:cursor-grabbing'}`}
+        className={`flex w-full flex-col gap-2.5 rounded-[14px] bg-page p-2.5 text-left transition-[box-shadow,transform] duration-200 ${active ? 'shadow-[inset_0_0_0_1.5px_var(--ink)]' : 'shadow-soft hover:-translate-y-px hover:shadow-pop'} ${suggested ? '' : 'cursor-grab active:cursor-grabbing'}`}
       >
         <span className="flex items-start gap-2.5">
           <span

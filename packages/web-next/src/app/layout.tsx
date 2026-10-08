@@ -1,7 +1,6 @@
-import type { Metadata, Viewport } from 'next'
+import type { Metadata } from 'next'
 import { Geist, Geist_Mono, Instrument_Sans } from 'next/font/google'
 
-import { TabBar } from '@/components/tab-bar'
 import { BrandProvider } from '@/features/schedule/posts-store'
 
 import './globals.css'
@@ -28,17 +27,11 @@ export const metadata: Metadata = {
   description: 'Plan, make and publish for Casa Vostra.',
 }
 
-// The page runs under a phone's home bar; the tab bar pads itself clear of it.
-export const viewport: Viewport = { viewportFit: 'cover' }
-
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable} antialiased`}>
       <body className="min-h-svh font-sans text-sm leading-[1.45]">
-        <BrandProvider>
-          {children}
-          <TabBar />
-        </BrandProvider>
+        <BrandProvider>{children}</BrandProvider>
       </body>
     </html>
   )

@@ -74,7 +74,7 @@ export function IdeatePage() {
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-3">
             <span className={EYEBROW}>{brand.name} · October</span>
-            <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[34px]">
+            <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[44px]">
               Ideas
             </h1>
           </div>
@@ -110,7 +110,7 @@ export function IdeatePage() {
       {toast && (
         <div
           role="status"
-          className="bb-rise fixed right-6 bottom-6 z-50 flex h-11 items-center gap-3 rounded-full bg-ink pr-2 pl-4 text-[13px] font-medium text-page shadow-lift max-md:right-4 max-md:bottom-[calc(76px+env(safe-area-inset-bottom))]"
+          className="bb-rise fixed right-6 bottom-6 z-50 flex h-11 items-center gap-3 rounded-full bg-ink pr-2 pl-4 text-[13px] font-medium text-page shadow-lift max-md:right-4 max-md:bottom-4"
         >
           <span className="flex size-4 items-center justify-center rounded-full bg-(--insight-5) text-page">
             <CheckIcon size={8} strokeWidth={2.2} />

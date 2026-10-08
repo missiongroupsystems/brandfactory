@@ -10,7 +10,6 @@ import { feedsOf } from '@/data/demo'
 
 import { Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
-import { startTouchDrag, touchDragPending } from '@/components/touch-drag'
 
 import {
   channelsOf,
@@ -53,11 +52,7 @@ interface DragValue {
   landed: string | null
   start: (postId: string) => void
   end: () => void
-  /** A touch drag names its post: it began before `postId` was set. */
-  drop: (dayN: string, postId?: string) => void
-  /** The day under a finger that drags a post. */
-  touchOver: string | null
-  setTouchOver: (dayN: string | null) => void
+  drop: (dayN: string) => void
 }
 
 const DragContext = React.createContext<DragValue>({
@@ -66,8 +61,6 @@ const DragContext = React.createContext<DragValue>({
   start: () => {},
   end: () => {},
   drop: () => {},
-  touchOver: null,
-  setTouchOver: () => {},
 })
 
 /**
@@ -130,7 +123,6 @@ export function WeekGrid({
   const { movePost } = useBrand()
   const [postId, setPostId] = React.useState<string | null>(null)
   const [landed, setLanded] = React.useState<string | null>(null)
-  const [touchOver, setTouchOver] = React.useState<string | null>(null)
   const drag = React.useMemo<DragValue>(
     () => ({
       postId,
@@ -141,14 +133,12 @@ export function WeekGrid({
         requestAnimationFrame(() => setPostId(id))
       },
       end: () => setPostId(null),
-      drop: (dayN, id = postId ?? undefined) => {
-        if (id && movePost(id, dayN)) setLanded(id)
+      drop: (dayN) => {
+        if (postId && movePost(postId, dayN)) setLanded(postId)
         setPostId(null)
       },
-      touchOver,
-      setTouchOver,
     }),
-    [postId, landed, touchOver, movePost],
+    [postId, landed, movePost],
   )
   return (
     <DragContext.Provider value={drag}>
@@ -299,7 +289,6 @@ function DayCell({
       className={`group relative flex min-w-0 flex-col px-2.5 pt-2.5 pb-5 transition-colors max-md:px-1 ${first ? '' : 'border-l border-(--cal-line)'} ${day.past ? '' : 'hover:bg-(--cal-hover)'}`}
       aria-label={`${name} ${day.n}`}
       role="group"
-      data-drop={day.n}
       onDragOver={(e) => {
         if (!canDrop) return
         e.preventDefault()
@@ -318,7 +307,7 @@ function DayCell({
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-1.5 rounded-[10px] bg-(--cal-drop) shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-opacity duration-200"
-        style={{ opacity: (over || drag.touchOver === day.n) && canDrop ? 1 : 0 }}
+        style={{ opacity: over && canDrop ? 1 : 0 }}
       />
       <div
         className={`flex h-6 items-center justify-between gap-1 ${day.past ? 'opacity-40' : ''}`}
@@ -609,25 +598,14 @@ export function PostTile({
       type="button"
       onClick={onOpen}
       draggable={movable}
-      onPointerDown={(e) => {
-        if (!movable) return
-        startTouchDrag(e, {
-          start: () => drag.start(post.id),
-          over: drag.setTouchOver,
-          drop: (dayN) => (dayN ? drag.drop(dayN, post.id) : drag.end()),
-          end: drag.end,
-        })
-      }}
       onDragStart={(e) => {
-        // A finger drags by `startTouchDrag`: a phone's own drag would run beside it.
-        if (touchDragPending()) return e.preventDefault()
         e.dataTransfer.effectAllowed = 'move'
         e.dataTransfer.setData('text/plain', post.id)
         drag.start(post.id)
       }}
       onDragEnd={drag.end}
       aria-label={`${post.format === 'reel' ? 'Reel' : 'Carousel'}: ${post.hook}, ${STAGE_LABEL[post.stage].toLowerCase()}`}
-      className={`${tile} group/tile bb-tile @container bg-tile text-left ${movable ? 'bb-touch-drag cursor-grab active:cursor-grabbing' : ''} ${drag.landed === post.id ? 'bb-land' : ''} ${failed ? 'shadow-[0_0_0_2px_var(--page),0_0_0_3.5px_var(--fail-line)]' : ''}`}
+      className={`${tile} group/tile bb-tile @container bg-tile text-left ${movable ? 'cursor-grab active:cursor-grabbing' : ''} ${drag.landed === post.id ? 'bb-land' : ''} ${failed ? 'shadow-[0_0_0_2px_var(--page),0_0_0_3.5px_var(--fail-line)]' : ''}`}
       style={{ opacity: drag.postId === post.id ? 0.35 : 1 }}
     >
       {image?.startsWith('blob:') ? (

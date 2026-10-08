@@ -9,7 +9,6 @@ import { PlusIcon } from '@/components/icons'
 import { DEFAULT_LAYERS } from '@/data/demo'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 
-import { Agenda } from './agenda'
 import { setCalendarPlace, TODAY_PLACE, useCalendarPlace, type CalendarMode } from './calendar-view'
 import { itemsOf } from './calendar-items'
 import { DayView } from './day-view'
@@ -144,40 +143,7 @@ export function SchedulePage() {
   return (
     <div className="flex min-h-svh flex-col">
       <AppHeader />
-      {/* A phone gets its own layout: one day at a time, under a strip of the week. */}
-      <div className="md:hidden">
-        <Agenda
-          weeks={shown.weeks}
-          week={week}
-          day={day}
-          monthTitle={shown.title}
-          events={dayEvents}
-          stages={stages}
-          onSelect={(w, d) => setCalendarPlace({ week: w, day: d })}
-          onStepWeek={(by) => moveWeek(by)}
-          onStepMonth={(by) => setCalendarPlace({ offset: offset + by, week: 0 })}
-          atToday={
-            offset === TODAY_PLACE.offset && week === TODAY_PLACE.week && day === TODAY_PLACE.day
-          }
-          onToday={() => setCalendarPlace(TODAY_PLACE)}
-          onOpenPost={openPost}
-          onNewPost={newPost}
-          onOpenStories={setStoryDay}
-          controls={
-            <>
-              <FailedPill
-                posts={failed}
-                stages={stages}
-                onChange={(s) => setCalendarPlace({ stages: s })}
-                short
-              />
-              <LayersMenu value={layers} onChange={setLayers} />
-              <StageMenu value={stages} onChange={(s) => setCalendarPlace({ stages: s })} />
-            </>
-          }
-        />
-      </div>
-      <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-end justify-between gap-x-6 gap-y-4 px-10 pt-6 pb-7 max-md:hidden">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-end justify-between gap-x-6 gap-y-4 px-10 pt-6 pb-7 max-md:px-4 max-md:pt-2">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
           {/* Arrows first, so they stay put while the title changes width. */}
           <span className="-ml-2 flex items-center">
@@ -232,7 +198,7 @@ export function SchedulePage() {
       <div
         // Keyed by the filter too, so filtering (the Failed pill) replays the rise.
         key={`${brand.id}-${view}-${offset}-${view === 'month' ? '' : week}-${view === 'day' ? day : ''}-${Object.values(stages).join('')}`}
-        className="bb-swap max-md:hidden"
+        className="bb-swap"
       >
         {view === 'day' ? (
           <DayView

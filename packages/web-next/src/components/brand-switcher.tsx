@@ -75,11 +75,11 @@ export function BrandSwitcher() {
             setOpen(true)
           }
         }}
-        className={`flex h-9 items-center gap-2.5 rounded-[10px] whitespace-nowrap pr-3 pl-1 text-sm font-medium transition-colors hover:bg-paper ${open ? 'bg-paper' : 'bg-surface'}`}
+        className={`flex h-9 items-center gap-2.5 rounded-[10px] pr-3 pl-1 text-sm font-medium transition-colors hover:bg-paper max-sm:pr-1 ${open ? 'bg-paper' : 'bg-surface'}`}
       >
         <BrandMark brand={brand} size="md" />
-        <span>{brand.name}</span>
-        <span className="-ml-0.5 text-ink-4">
+        <span className="max-sm:hidden">{brand.name}</span>
+        <span className="-ml-0.5 text-ink-4 max-sm:hidden">
           <ChevronIcon open={open} />
         </span>
       </button>

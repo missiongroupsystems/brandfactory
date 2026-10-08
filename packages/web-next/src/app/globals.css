@@ -150,12 +150,6 @@
 @utility bb-menu {
   animation: bb-menu 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
-/* A long press drags on a phone (touch-drag.ts): it must not select text or open the image menu. */
-@utility bb-touch-drag {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-}
 @utility bb-press {
   transition:
     transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
