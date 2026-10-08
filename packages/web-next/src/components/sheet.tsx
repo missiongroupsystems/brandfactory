@@ -10,27 +10,33 @@ import { createPortal } from 'react-dom'
 export function Sheet({
   title,
   onClose,
+  onDone = onClose,
   children,
 }: {
   title: string
   onClose: () => void
+  /** What Done does when it is more than a close: the crop keeps its edit, a stray tap does not. */
+  onDone?: () => void
   children: React.ReactNode
 }) {
   const done = React.useRef<HTMLButtonElement>(null)
+  // The sheet's content may change what closing does (a crop in progress); the focus must not move
+  // again each time it does.
+  const close = React.useEffectEvent(onClose)
   React.useEffect(() => {
     const { overflow } = document.body.style
     document.body.style.overflow = 'hidden'
     // Focus goes into the sheet, and back to the control that opened it when it closes.
     const opener = document.activeElement as HTMLElement | null
     done.current?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
     window.addEventListener('keydown', onKey)
     return () => {
       document.body.style.overflow = overflow
       window.removeEventListener('keydown', onKey)
       opener?.focus()
     }
-  }, [onClose])
+  }, [])
   // Only a phone opens it, but it stays visible if the window then widens (a phone turned on its
   // side), so it can close: under the body, no phone-only wrapper can hide it. It mounts on a tap,
   // never on the server.
@@ -54,7 +60,7 @@ export function Sheet({
           <button
             ref={done}
             type="button"
-            onClick={onClose}
+            onClick={onDone}
             className="h-10 rounded-full px-3 text-[14px] font-medium text-ink-2 transition-colors hover:text-ink"
           >
             Done

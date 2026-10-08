@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
 
-import { Media } from '@/components/media'
 import type { Format } from '@/data/demo'
 import { useBrand } from '@/features/schedule/posts-store'
 
-import type { ChannelKey } from './model'
+import type { ChannelKey, Shot } from './model'
+import { ShotView } from './shot'
 
 /**
  * The post as each channel's own screen shows it. Pure drawing: the composer decides the text.
@@ -23,7 +23,7 @@ export function PhoneMock({
 }: {
   channel: ChannelKey
   format: Format
-  image: string | undefined
+  image: Shot | undefined
   text: string
   /** m:ss, shown where the platform prints a video's length. */
   duration?: string
@@ -48,8 +48,8 @@ export function PhoneMock({
 /* ---------- Shared pieces ---------- */
 
 /** The phone is 215 px wide and 9:16 tall: a 4:5 or wide photo covering it needs far more width. */
-function Photo({ image }: { image: string | undefined }) {
-  return image ? <Media src={image} sizes="480px" /> : null
+function Photo({ image }: { image: Shot | undefined }) {
+  return image ? <ShotView shot={image} sizes="480px" /> : null
 }
 
 /** The scrims every full-screen video app lays over the clip so white type reads. */
@@ -198,7 +198,7 @@ const PAPER_PLANE = (size: number, width = 2) => (
 
 /* ---------- Instagram ---------- */
 
-function InstagramReel({ image, text }: { image: string | undefined; text: string }) {
+function InstagramReel({ image, text }: { image: Shot | undefined; text: string }) {
   const { brand } = useBrand()
   return (
     <span className="absolute inset-0 text-(--pc-white)">
@@ -257,7 +257,7 @@ function InstagramReel({ image, text }: { image: string | undefined; text: strin
 }
 
 /** Instagram's feed photo post in dark mode, with the carousel's count chip and dots. */
-function InstagramPost({ image, text }: { image: string | undefined; text: string }) {
+function InstagramPost({ image, text }: { image: Shot | undefined; text: string }) {
   const { brand } = useBrand()
   return (
     <span className="absolute inset-0 flex flex-col bg-(--pc-black) text-(--pc-ig-dark-text)">
@@ -314,7 +314,7 @@ function TikTok({
   text,
   photos,
 }: {
-  image: string | undefined
+  image: Shot | undefined
   text: string
   photos: boolean
 }) {
@@ -479,7 +479,7 @@ function TikTokNav() {
 
 /* ---------- YouTube Shorts ---------- */
 
-function Shorts({ image, text }: { image: string | undefined; text: string }) {
+function Shorts({ image, text }: { image: Shot | undefined; text: string }) {
   const { brand } = useBrand()
   return (
     <span className="absolute inset-0 text-(--pc-white)">
@@ -564,7 +564,7 @@ function LinkedIn({
   duration = '0:24',
 }: {
   format: Format
-  image: string | undefined
+  image: Shot | undefined
   text: string
   duration?: string
 }) {
@@ -686,7 +686,7 @@ function Reaction({
 
 /* ---------- Facebook ---------- */
 
-function FacebookReel({ image, text }: { image: string | undefined; text: string }) {
+function FacebookReel({ image, text }: { image: Shot | undefined; text: string }) {
   const { brand } = useBrand()
   const short = clip(text, 46)
   return (
@@ -752,7 +752,7 @@ function FacebookReel({ image, text }: { image: string | undefined; text: string
 }
 
 /** Facebook's feed photo post, light mode. */
-function FacebookPost({ image, text }: { image: string | undefined; text: string }) {
+function FacebookPost({ image, text }: { image: Shot | undefined; text: string }) {
   const { brand } = useBrand()
   const short = clip(text, 80)
   const action = (label: string, icon: ReactNode) => (
@@ -820,7 +820,7 @@ function FacebookPost({ image, text }: { image: string | undefined; text: string
 
 /* ---------- Stories (Instagram and Facebook) ---------- */
 
-function Story({ channel, image }: { channel: 'ig' | 'fb'; image: string | undefined }) {
+function Story({ channel, image }: { channel: 'ig' | 'fb'; image: Shot | undefined }) {
   const { brand } = useBrand()
   return (
     <span className="absolute inset-0 text-(--pc-white)">

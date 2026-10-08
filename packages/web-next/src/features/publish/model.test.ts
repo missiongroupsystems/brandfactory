@@ -3,8 +3,13 @@ import { describe, expect, it } from 'vitest'
 import {
   activeChannels,
   blockers,
+  cropOffset,
+  cropScale,
+  defaultCrop,
+  frameRatio,
   initialDraft,
   linkedinText,
+  nudge,
   primaryLabel,
   textFor,
   tiktokConsent,
@@ -60,10 +65,11 @@ describe('TikTok', () => {
     expect(tiktokConsent(reel({ selected: ['ig'] }))).toBeNull()
   })
 
-  it('starts with comments, Duet, Stitch and promotion off', () => {
-    // TikTok's guidelines: the poster turns these on, the app never presets them.
+  it('starts with comments on, and Duet, Stitch and promotion off', () => {
+    // The owner wants comments on a brand post without a tap. TikTok's guidelines say the poster
+    // turns every interaction on, so real posting must drop this default before the audit.
     const draft = reel()
-    expect(draft.interactions).toEqual({ comments: false, duet: false, stitch: false })
+    expect(draft.interactions).toEqual({ comments: true, duet: false, stitch: false })
     expect(draft.promo).toEqual({ on: false, own: false, paid: false })
   })
 
@@ -122,6 +128,33 @@ describe('the one button', () => {
     expect(primaryLabel(reel())).toBe('Schedule on 4')
     expect(primaryLabel(reel({ when: 'now' }))).toBe('Publish to 4')
     expect(primaryLabel(reel({ selected: [] }))).toBe('Pick a channel')
+  })
+})
+
+describe('a photo in its frame', () => {
+  // A 4:5 photo, the shape the brands shoot in.
+  const portrait = defaultCrop(0.8)
+
+  it('shows the whole photo until it is cut or zoomed', () => {
+    expect(frameRatio(portrait)).toBe(0.8)
+    expect(cropScale(portrait)).toEqual({ w: 1, h: 1 })
+    expect(cropOffset(portrait)).toEqual({ tx: 0, ty: 0 })
+  })
+
+  it('cuts a portrait photo to a square by sliding it up or down, never sideways', () => {
+    // The square is as wide as the photo, so the only room left is above and below.
+    const square = { ...portrait, aspect: '1:1' as const }
+    expect(cropScale(square)).toEqual({ w: 1, h: 1.25 })
+    expect(nudge(square, 40, 40, 200, 200).x).toBe(0)
+    expect(nudge(square, 0, -25, 200, 200).y).toBe(-1)
+  })
+
+  it('never drags the photo out of its frame', () => {
+    // A wide frame on a tall photo leaves room above and below only; a long drag stops at the edge.
+    const wide = { ...portrait, aspect: '16:9' as const }
+    const dragged = nudge(wide, 0, 400, 200, 112.5)
+    expect(dragged.y).toBe(1)
+    expect(cropOffset(dragged).ty).toBeCloseTo(((cropScale(wide).h - 1) * 100) / 2)
   })
 })
 

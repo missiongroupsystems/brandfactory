@@ -80,7 +80,9 @@ export function initialDraft(input: {
     madeForKids: false,
     // The brands post in public. TikTok's audit wants no default here (see the note at the top).
     privacy: 'Everyone',
-    interactions: { comments: false, duet: false, stitch: false },
+    // Comments start on: a brand post wants them. TikTok's audit wants every interaction off by
+    // default (see the note at the top), so real posting must revisit this too.
+    interactions: { comments: true, duet: false, stitch: false },
     promo: { on: false, own: false, paid: false },
     when: 'slot',
   }
@@ -197,3 +199,79 @@ export type Outcome =
   | { state: 'uploading'; progress: number }
   | { state: 'live' }
   | { state: 'failed'; reason: string }
+
+// ── Crop ─────────────────────────────────────────────────────────────────────────────────────
+
+/** The frames a photo can be cut to: its own shape, or the shapes the platforms show. */
+export const ASPECTS = ['Original', '1:1', '4:5', '9:16', '16:9'] as const
+export type Aspect = (typeof ASPECTS)[number]
+
+export const ZOOM_MAX = 3
+
+/**
+ * How a photo sits in its frame. The photo covers the frame, then grows by `zoom`; `x` and `y`
+ * are the share of the room that leaves, −1 (left or top edge) to 1. `ratio` is the photo's own
+ * width over height, measured when the editor opens, so the frame can be drawn anywhere.
+ */
+export interface Crop {
+  aspect: Aspect
+  zoom: number
+  x: number
+  y: number
+  ratio: number
+}
+
+/** A photo or video in the post, with its crop; a video and an untouched photo have none. */
+export interface Shot {
+  src: string
+  crop: Crop | null
+}
+
+export function shotOf(src: string): Shot {
+  return { src, crop: null }
+}
+
+export function defaultCrop(ratio: number): Crop {
+  return { aspect: 'Original', zoom: 1, x: 0, y: 0, ratio }
+}
+
+/**
+ * The whole photo, as it came: the same as no crop, so the composer stores none. In its own shape
+ * at zoom 1 there is no room to slide, so a leftover offset changes nothing.
+ */
+export function isUncut(crop: Crop): boolean {
+  return crop.aspect === 'Original' && crop.zoom === 1
+}
+
+/** The frame's width over its height. */
+export function frameRatio(crop: Crop): number {
+  if (crop.aspect === 'Original') return crop.ratio
+  const [w, h] = crop.aspect.split(':').map(Number) as [number, number]
+  return w / h
+}
+
+/** The photo's width and height over the frame's, once it covers the frame and is zoomed: both ≥ 1. */
+export function cropScale(crop: Crop): { w: number; h: number } {
+  const over = crop.ratio / frameRatio(crop)
+  return over >= 1 ? { w: over * crop.zoom, h: crop.zoom } : { w: crop.zoom, h: crop.zoom / over }
+}
+
+/** The CSS translate, in percent of the frame, that puts the photo where the crop says. */
+export function cropOffset(crop: Crop): { tx: number; ty: number } {
+  const { w, h } = cropScale(crop)
+  return { tx: (crop.x * (w - 1) * 100) / 2, ty: (crop.y * (h - 1) * 100) / 2 }
+}
+
+const clamp = (v: number) => Math.min(1, Math.max(-1, v))
+
+/** The crop after a drag of `dx`, `dy` pixels over a frame drawn `width` by `height` pixels. */
+export function nudge(crop: Crop, dx: number, dy: number, width: number, height: number): Crop {
+  const { w, h } = cropScale(crop)
+  const roomX = (width * (w - 1)) / 2
+  const roomY = (height * (h - 1)) / 2
+  return {
+    ...crop,
+    x: roomX > 0 ? clamp(crop.x + dx / roomX) : 0,
+    y: roomY > 0 ? clamp(crop.y + dy / roomY) : 0,
+  }
+}
