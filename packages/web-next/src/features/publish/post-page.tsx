@@ -28,8 +28,11 @@ export function PostPage({
   const post = id && mine ? byId(id) : undefined
   return (
     <div className="flex min-h-svh flex-col bg-surface-2">
-      <AppHeader />
-      <main className="mx-auto w-full max-w-[1280px] px-10 pb-24 max-md:px-4">
+      {/* A post is a task: on a phone it fills the screen, with a back link and no header. */}
+      <div className="max-md:hidden">
+        <AppHeader />
+      </div>
+      <main className="mx-auto w-full max-w-[1280px] px-10 pb-24 max-md:px-4 max-md:pt-4 max-md:pb-[calc(140px+env(safe-area-inset-bottom))]">
         <div className="pb-5">
           <Link
             href="/"
