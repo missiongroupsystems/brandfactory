@@ -36,7 +36,8 @@ import { PhoneMock } from './phone-mocks'
 import { usePublishDraft, type PublishDraftApi } from './use-publish-draft'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
-const CARD = 'flex flex-col gap-4 rounded-[18px] bg-page p-6 shadow-[0_0_0_1px_var(--line)]'
+const CARD =
+  'flex flex-col gap-4 rounded-[18px] bg-page p-6 shadow-[0_0_0_1px_var(--line)] max-md:p-4'
 
 const NAME: Record<ChannelKey, string> = {
   ig: 'Instagram',
@@ -255,17 +256,18 @@ export function Composer({
               {status}
             </span>
           </span>
-          <h1 className="font-display text-[38px] leading-none tracking-[-0.035em]">
+          <h1 className="font-display text-[38px] leading-none tracking-[-0.035em] max-md:text-[28px] max-md:leading-[1.05]">
             {post ? post.hook : 'New post'}
           </h1>
         </div>
-        <div className="flex flex-col items-end gap-1.5">
+        {/* On a phone the send bar sits at the bottom, under the thumb, and stays there. */}
+        <div className="flex flex-col items-end gap-1.5 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-40 max-md:flex-col-reverse max-md:items-stretch max-md:gap-1 max-md:border-t max-md:border-line max-md:bg-page/95 max-md:px-4 max-md:pt-2.5 max-md:pb-[calc(10px+env(safe-area-inset-bottom))] max-md:backdrop-blur-xl">
           <div className="flex items-center gap-2">
             <button
               type="button"
               aria-pressed={notesOpen}
               onClick={() => setNotesOpen((o) => !o)}
-              className={`flex h-10 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium transition-colors ${notesOpen ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
+              className={`flex h-10 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium transition-colors max-md:h-12 ${notesOpen ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
             >
               Notes
               {notes.length > 0 && (
@@ -277,7 +279,7 @@ export function Composer({
               aria-disabled={stuck}
               aria-label={logos.length > 0 ? `${label} ${namesOf(logos)}` : undefined}
               onClick={primary}
-              className={`flex h-10 min-w-[160px] items-center justify-center gap-2 rounded-full px-5 text-[13.5px] font-medium transition-[background-color,box-shadow] ${stuck ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
+              className={`flex h-10 min-w-[160px] items-center justify-center gap-2 rounded-full px-5 max-md:h-12 max-md:flex-1 text-[13.5px] font-medium transition-[background-color,box-shadow] ${stuck ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
             >
               {label}
               {logos.length > 0 && (
@@ -289,7 +291,10 @@ export function Composer({
               )}
             </button>
           </div>
-          <span aria-live="polite" className="min-h-[18px] text-[12px] text-ink-3">
+          <span
+            aria-live="polite"
+            className="min-h-[18px] text-[12px] text-ink-3 max-md:min-h-0 max-md:text-center"
+          >
             {(stuck || when !== 'draft') && blocked[0] && (
               <span className="inline-flex items-center gap-1.5">
                 <span className="size-1.5 rounded-full bg-ink" />
@@ -398,7 +403,7 @@ function Accounts({ api }: { api: PublishDraftApi }) {
         <span className={EYEBROW}>Post to</span>
         <span className="text-[12px] text-ink-4">{brand.name}&rsquo;s accounts</span>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 max-md:grid max-md:grid-cols-2">
         {CHANNELS.map((c) => {
           const connected = draft.connected.includes(c.key)
           const takes = kindOn(draft.format, c.key)
@@ -409,7 +414,7 @@ function Accounts({ api }: { api: PublishDraftApi }) {
                 key={c.key}
                 type="button"
                 onClick={() => connect(c.key)}
-                className="flex h-11 items-center gap-2.5 rounded-full px-4 text-[13px] text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink"
+                className="flex h-11 items-center gap-2.5 rounded-full px-4 text-[13px] text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink max-md:col-span-2"
               >
                 <PlatformLogo platform={c.key} size={14} />
                 {c.name}
@@ -436,7 +441,9 @@ function Accounts({ api }: { api: PublishDraftApi }) {
               <PlatformLogo platform={c.key} size={14} />
               <span className="flex flex-col items-start leading-tight">
                 <span className="font-medium">{c.name}</span>
-                <span className={`text-[10.5px] ${on ? 'text-page/60' : 'text-ink-4'}`}>
+                <span
+                  className={`text-[10.5px] ${takes === null ? '' : 'max-md:hidden'} ${on ? 'text-page/60' : 'text-ink-4'}`}
+                >
                   {takes === null
                     ? `No ${draft.format}s`
                     : `${takes} · ${handleOn(brand.handle, brand.name, c.key)}`}
@@ -448,7 +455,7 @@ function Accounts({ api }: { api: PublishDraftApi }) {
       </div>
       <div className="flex flex-wrap items-center gap-3 border-t border-(--cal-line) pt-4">
         <span className={EYEBROW}>Format</span>
-        <div className="w-[300px]">
+        <div className="w-[300px] max-md:w-full">
           <Segmented<Format>
             label="Format"
             pill

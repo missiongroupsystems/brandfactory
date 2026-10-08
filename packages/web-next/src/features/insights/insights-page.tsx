@@ -104,7 +104,7 @@ export function InsightsPage() {
             <span className={EYEBROW}>
               {brand.name} · {data.period} · Instagram + TikTok
             </span>
-            <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[44px]">
+            <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[34px]">
               Insights
             </h1>
           </div>
