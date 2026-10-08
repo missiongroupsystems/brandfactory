@@ -32,19 +32,20 @@ clicks in front of a client) and reloads the page when files change, which wipes
 
 ## A two-minute path
 
-1. **Schedule** opens on this week, with thumbnails. Switch to **Month** (a count per platform
-   per day) and click a day to open it in **Day** (an hour rail with the best time shaded). The
-   stage icon beside Layers filters by stage.
-2. **Schedule new post** opens the composer: tick several accounts at once, pick a format, add
-   media, **Draft with AI**, change one account's text in its own tab, answer TikTok's question,
-   pick a best time, then **Schedule on 4**. Back on the calendar, the post is on its day.
-3. **Insights**: the four numbers, what worked, when to post, every post, every creator. Click
-   **Turn into idea**, then **Plan it**.
-4. **Shoot brief** (you land here): pick a status and a date, tick a shot, drag a card to
-   Scheduled. **Open in scheduler** takes a planned card to the composer.
-5. **Ideate** opens on the **Moodboard**: connect Pinterest, Instagram and TikTok into one
-   board. **Current ideas** shows one idea at a time: move with the strip or the arrow keys,
-   **Sharpen** the hook, **Plan it** on the shoot brief.
+1. **Schedule** opens on this week, with thumbnails; an idea shows its photo with a small spark.
+   Switch to **Month** (a count per platform per day, from the 1st) and click a day to open it in
+   **Day** (an hour rail with the best time shaded). The filter button beside the views filters by
+   stage and by layer.
+2. **Schedule new post** opens the composer: start from an idea or add media, crop a photo (the
+   crop button on its tile), tick several accounts, pick a format, **Draft with AI**, change one
+   account's text in its own tab, pick a best time, then **Schedule on** under the preview, or
+   **Save draft**. Back on the calendar, the post is on its day.
+3. **Ideate** opens on the **Moodboard**: connect Pinterest, Instagram and TikTok into one board,
+   pick a few posts, then **Plan idea from this**. **Current ideas** is every idea with its
+   inspiration posts: **Brief** opens its shoot brief (status, date, shots), **Plan it** puts it on
+   the calendar, **Sharpen** offers stronger hooks.
+4. **Insights**: what worked, when to post, every post, every creator. Click **Turn into idea**,
+   then **Plan it**: the idea opens with its brief on the ideas page.
 
 ## Docs (at the repo root)
 

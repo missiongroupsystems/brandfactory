@@ -18,6 +18,7 @@ import {
 import { fromFile, isVideo } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
+import { usePhone } from '@/components/use-phone'
 import type { BrandId } from '@/data/brands'
 import type { Format, Post, Stage } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
@@ -236,13 +237,22 @@ export function Composer({
     api.send(when === 'now' ? 'now' : 'slot')
   }
 
+  // A post already past draft keeps its stage when saved: saving a caption must not unschedule it.
+  const keeps = post !== undefined && post.stage !== 'draft'
+
   function saveDraft() {
     if (readOnly) return
-    toCalendar('draft')
+    toCalendar(keeps ? post.stage : 'draft')
     setSaved(true)
   }
 
-  if (saved) return <Saved onEdit={() => setSaved(false)} />
+  if (saved)
+    return (
+      <Saved
+        title={keeps ? 'Saved' : 'Saved as a draft on the calendar'}
+        onEdit={() => setSaved(false)}
+      />
+    )
   if (phase !== 'compose') {
     return (
       <Outcomes
@@ -294,7 +304,7 @@ export function Composer({
       )}
     </button>
   )
-  /** The quiet way out: the post goes on the calendar as a draft, finished or not. */
+  /** The quiet way out: the post goes on the calendar as a draft, finished or not, or keeps its stage. */
   const draftButton = (
     <button
       type="button"
@@ -302,7 +312,7 @@ export function Composer({
       onClick={saveDraft}
       className={`flex h-10 shrink-0 items-center rounded-full px-4 text-[13px] font-medium transition-colors max-md:h-12 max-md:text-[14px] ${readOnly ? 'cursor-not-allowed text-ink-5' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
     >
-      Save draft
+      {keeps ? 'Save' : 'Save draft'}
     </button>
   )
   // The sheet a phone row opened, over the same cards the desktop shows in place.
@@ -586,25 +596,8 @@ function Dialog({
   )
 }
 
-const PHONE = '(max-width: 767px)'
-const onPhone = (cb: () => void) => {
-  const mq = window.matchMedia(PHONE)
-  mq.addEventListener('change', cb)
-  return () => mq.removeEventListener('change', cb)
-}
-
-/** Below 768px the page is the phone layout (`max-md:`): what opens there is a sheet, not a dialog. */
-function usePhone(): boolean {
-  return React.useSyncExternalStore(
-    onPhone,
-    () => window.matchMedia(PHONE).matches,
-    () => false,
-  )
-}
-
 const STAGE_LABEL: Record<Stage, string> = {
   draft: 'Draft',
-  awaiting: 'Awaiting approval',
   scheduled: 'Scheduled',
   posted: 'Posted',
   failed: 'Failed',
@@ -618,10 +611,7 @@ function Accounts({ api }: { api: PublishDraftApi }) {
   const { draft, update, toggleChannel, connect } = api
   return (
     <section aria-label="Accounts" className={CARD}>
-      <div className="flex items-center justify-between gap-4 max-md:hidden">
-        <span className={EYEBROW}>Post to</span>
-        <span className="text-[12px] text-ink-4">{brand.name}&rsquo;s accounts</span>
-      </div>
+      <span className={`${EYEBROW} max-md:hidden`}>Post to</span>
       {/* Pills on a desktop; on a phone a list, one account a row, the tick at the right. */}
       <div className="flex flex-wrap gap-2 max-md:flex-col max-md:gap-0">
         {CHANNELS.map((c) => {
@@ -2102,15 +2092,13 @@ function OutcomePill({ outcome }: { outcome: Outcome }) {
 }
 
 /** A draft saved: it is on the calendar, nothing went out. */
-function Saved({ onEdit }: { onEdit: () => void }) {
+function Saved({ title, onEdit }: { title: string; onEdit: () => void }) {
   return (
     <div className="flex flex-col items-center gap-5 pt-16 text-center">
       <span className="bb-pop flex size-10 items-center justify-center rounded-full bg-ink text-page">
         <CheckIcon size={14} strokeWidth={2.2} />
       </span>
-      <h1 className="font-display text-[36px] leading-none tracking-[-0.035em]">
-        Saved as a draft on the calendar
-      </h1>
+      <h1 className="font-display text-[36px] leading-none tracking-[-0.035em]">{title}</h1>
       <div className="flex items-center gap-3">
         <button
           type="button"

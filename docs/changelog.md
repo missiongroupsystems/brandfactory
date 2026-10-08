@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.6.0** — 2026-10-09 — David's round-2 feedback: Ideate starts from the moodboard (pick posts from any platform, then "Plan idea from this"), Current ideas is an overview of ideas with their inspiration posts, and each idea opens its own shoot brief (the brief board page is gone); New post gets a crop editor, "Save draft" and "Schedule on" under the preview, comments on by default, and loses Approval and Notes; the approval stage and the seeded failed posts leave the demo; the month grid starts on the 1st; calendar idea tiles show a photo; a favicon. No migration. 95 tests.
 - **2.5.1** — 2026-10-08 — A calmer desktop calendar toolbar, from review feedback: the outlined "2 not posted" pill becomes a short red "2 failed" line beside the title, and the Layers and Stages buttons become one Filter button; the black "Schedule new post" is the only strong control left. The phone filter uses the same word. No migration. 83 tests.
 - **2.5.0** — 2026-10-08 — The phone calendar as a photo grid: Week is seven narrow columns of small square photos (three a day, then "+N") with the picked day's posts listed under it; Month is the same grid, one photo a day; Day is an hour list. The title switches views, one filter button holds the rest, and a dragged post lifts as a small photo just above the finger. Desktop unchanged. No migration. 83 tests.
 - **2.4.0** — 2026-10-08 — A layout made for phones, not a shrunk desktop: a tab bar at the bottom; Schedule keeps Month, Week and Day in a phone's shape (Week lists the seven days, Day keeps the hours, Month lists the day picked in the grid) under a week strip; the shoot brief shows one column at a time; New post becomes one white compose screen whose settings open as sheets from the bottom. TikTok's "who can watch" starts on Everyone, on every screen. A long press drags a post onto a day or a card onto a column by touch. Desktop unchanged. No migration. 83 tests.
@@ -18,6 +19,33 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.64.0** — 2026-10-07 — Schedule gets Month, Week and Day views and a stage filter beside Layers; a new post opens a full-page composer that writes one post for every platform (Brandwatch makes one per network); Ideate's views become Current ideas and Moodboard (Pinterest, Instagram, TikTok in one board). No migration. 3456 tests.
 - **1.63.0** — 2026-10-07 — BrandBase's Ideate and Insights pages are redesigned from scratch. Ideate has two views: ideas shelved by format (reels at 9:16, carousels at 4:5) and the imported Pinterest boards as a masonry board; a Shoot brief project board plans each idea (status columns, drag to move, date and time) and the calendar follows it. Stories join reels and carousels. Insights leads with four headline numbers, then Overview, Posts and Creators tabs, every chart titled and every mark hoverable. No migration. 3424 tests.
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
+
+---
+
+## 2.6.0 — 2026-10-09
+
+**David's round-2 feedback**, for his Marketing demo on 9 Oct. Plan and completion:
+`docs/completions/brandbase-feedback-round-2-plan.md` and
+`brandbase-feedback-round-2-phases-1-to-3.md`.
+
+- **Ideate.** On the moodboard, posts from Instagram, TikTok and Pinterest are checkboxes; "Plan
+  idea from this" makes an idea that keeps them as its inspiration. Every seeded idea has two to
+  four. Current ideas is a grid of every idea with its photos, status and date; nothing opens
+  full-page. Each idea opens its own brief (side panel, or a sheet on phones, at `/ideate#<id>`);
+  the `/ideate/brief` board page and the header link are gone, and with the board its drag columns,
+  Share and Print. "New idea" starts on the moodboard. The two "synced" and "own accounts" notes
+  are gone.
+- **New post.** A crop editor on each photo (Original, 1:1, 4:5, 9:16, 16:9, zoom, drag; no rotate)
+  that the previews follow. "Save draft" and "Schedule on" sit under the preview; the When switch is
+  Publish now or Schedule. Removing the media brings the idea picker back (it hid once the caption
+  was filled). TikTok comments start on (revisit before TikTok's audit). Approval, Notes, the
+  preview note and the accounts caption are gone.
+- **Schedule.** No approval stage, and no failed posts in the demo (the code stays; Failed leaves
+  the stage filter). The month grid lends the week before as a dimmed first row, so September starts
+  on the 1st. An idea tile shows its cover photo with a small spark.
+- **Site.** A favicon and an Apple touch icon.
+
+Gate: typecheck, lint, format, 95 tests (15 files), web-next build.
 
 ---
 

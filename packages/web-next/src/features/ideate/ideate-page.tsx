@@ -9,6 +9,7 @@ import { Segmented } from '@/components/controls'
 import { CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
+import { usePhone } from '@/components/use-phone'
 import {
   IDEAS_BY_BRAND,
   inspirationOf,
@@ -27,7 +28,6 @@ import {
   FormatIcon,
   STATUS_LABEL,
   statusColour,
-  usePhone,
   useRename,
   useSlots,
   type Slot,

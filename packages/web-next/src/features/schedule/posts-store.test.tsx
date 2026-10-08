@@ -59,18 +59,18 @@ describe('the brand switcher', () => {
     expect(result.current.library.every((src) => src.startsWith('/demo/carlitos/'))).toBe(true)
   })
 
-  it('keeps a scheduled stage when the user switches away and back', () => {
+  it('keeps a changed stage when the user switches away and back', () => {
     const { result } = renderHook(() => useBrand(), { wrapper })
     act(() => result.current.setBrandId('temper'))
-    act(() => result.current.setStage('temper-pour', 'scheduled'))
+    act(() => result.current.setStage('temper-pour', 'draft'))
     act(() => result.current.setBrandId('carlitos'))
-    expect(result.current.byId('carlitos-croquetas')?.stage).toBe('awaiting')
+    expect(result.current.byId('carlitos-croquetas')?.stage).toBe('scheduled')
     act(() => result.current.setBrandId('temper'))
-    expect(result.current.byId('temper-pour')?.stage).toBe('scheduled')
+    expect(result.current.byId('temper-pour')?.stage).toBe('draft')
     // A stage set on one brand never leaks into another's posts.
     act(() => result.current.setBrandId('casa-vostra'))
     expect(result.current.posts.map((p) => p.stage)).toEqual([
-      'awaiting',
+      'scheduled',
       'scheduled',
       'draft',
       'posted',

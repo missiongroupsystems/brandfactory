@@ -24,7 +24,6 @@ const LANE_STEP = `min(${CARD_W} + 12px, max(24px, 100% - 164px - ${CARD_W}))`
 
 const STAGE_LABEL = {
   draft: 'Draft',
-  awaiting: 'Awaiting approval',
   scheduled: 'Scheduled',
   posted: 'Posted',
   failed: 'Failed',

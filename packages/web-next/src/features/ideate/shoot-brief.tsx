@@ -8,6 +8,7 @@ import { CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
 import { fromFile, Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
+import { usePhone } from '@/components/use-phone'
 import type { Stage, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 import { inspirationOf, type IdeaCard, type IdeaStatus } from '@/data/ideas'
@@ -21,7 +22,6 @@ import {
   FormatIcon,
   STATUS_LABEL,
   statusColour,
-  usePhone,
   useSlots,
   type Slot,
   useRename,
@@ -418,7 +418,7 @@ function References({ card }: { card: IdeaCard }) {
   )
 }
 
-/** The six steps; the current one filled. Each step sets the post's stage on the calendar. */
+/** The three steps; the current one filled. Each step sets the post's stage on the calendar. */
 function StatusPicker({ value, onChange }: { value: Step; onChange: (s: Step) => void }) {
   return (
     <span role="radiogroup" aria-label="Status" className="flex flex-wrap gap-1">

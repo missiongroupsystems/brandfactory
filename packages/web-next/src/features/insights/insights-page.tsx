@@ -17,7 +17,7 @@ import {
   type Story,
   type StoryChart,
 } from '@/data/insights'
-import { addIdea, useIdeas } from '@/features/ideate/ideas-store'
+import { addIdea, keepSuggestion, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
@@ -380,6 +380,8 @@ function Finding({ story, first }: { story: Story; first: boolean }) {
   function plan() {
     if (!story.idea) return
     const existing = ideas.find((i) => i.hook === story.idea!.hook)
+    // A suggestion stays hidden until kept, and its brief cannot open: planning it keeps it.
+    if (existing?.status === 'suggested') keepSuggestion(brand.id, existing.id)
     const id =
       existing?.id ??
       addIdea(brand.id, story.idea, { kind: 'insight', line: story.text.replace(/\.$/, '') })

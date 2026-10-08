@@ -7,10 +7,11 @@
 
 export type Format = 'reel' | 'carousel' | 'story'
 /**
- * A post's life, as Brandwatch counts it: drafted, waiting on someone's OK, scheduled, out. `failed`
- * means it was due and did not go out; it needs someone now, so it is never quiet.
+ * A post's life: drafted, scheduled, out. Brandwatch adds a step for someone's OK; v1 has no
+ * approval, so it has no such stage. `failed` means it was due and did not go out; it needs someone
+ * now, so it is never quiet.
  */
-export type Stage = 'draft' | 'awaiting' | 'scheduled' | 'posted' | 'failed'
+export type Stage = 'draft' | 'scheduled' | 'posted' | 'failed'
 export type LayerKey = 'city' | 'holiday' | 'ours' | 'shoot'
 
 export const PHOTO = {
@@ -55,7 +56,7 @@ export const POSTS: Post[] = [
     hook: 'The final touch. Watch the crust.',
     images: [PHOTO.crust],
     duration: '0:24',
-    stage: 'awaiting',
+    stage: 'scheduled',
     slot: 'Thu 8 Oct, 18:00',
     slotShort: 'Thu, 18:00',
   },

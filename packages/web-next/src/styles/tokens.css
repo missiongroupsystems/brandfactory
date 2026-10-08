@@ -131,7 +131,6 @@
 
   /* Post stages, one colour per step, for the glyph on each tile. */
   --stage-draft: #8a8a83;
-  --stage-awaiting: #c98f2a;
   --stage-scheduled: #7a5fa3;
   --stage-posted: #2f7d5b;
   --stage-failed: var(--fail);

@@ -22,7 +22,6 @@ export const STATUS_LABEL: Record<IdeaStatus, string> = {
   suggested: 'Suggested',
   idea: 'Draft',
   draft: 'Draft',
-  awaiting: 'Awaiting approval',
   scheduled: 'Scheduled',
   posted: 'Posted',
   failed: 'Failed',
@@ -30,7 +29,6 @@ export const STATUS_LABEL: Record<IdeaStatus, string> = {
 
 export const CHIPS: Array<Exclude<IdeaStatus, 'suggested' | 'draft' | 'failed'>> = [
   'idea',
-  'awaiting',
   'scheduled',
   'posted',
 ]
@@ -93,22 +91,6 @@ export function StatusDot({ status }: { status: IdeaStatus }) {
       <span className="size-1.5 rounded-full" style={{ background: statusColour(status) }} />
       {STATUS_LABEL[status]}
     </span>
-  )
-}
-
-const PHONE = '(max-width: 767px)'
-const onPhone = (cb: () => void) => {
-  const mq = window.matchMedia(PHONE)
-  mq.addEventListener('change', cb)
-  return () => mq.removeEventListener('change', cb)
-}
-
-/** Below 768px the page is the phone layout (`max-md:`): what opens there is a sheet, not a panel. */
-export function usePhone(): boolean {
-  return React.useSyncExternalStore(
-    onPhone,
-    () => window.matchMedia(PHONE).matches,
-    () => false,
   )
 }
 

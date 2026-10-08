@@ -16,7 +16,6 @@ export type StageKey = 'idea' | Exclude<Stage, 'draft'>
  */
 export const STAGES: Array<{ key: StageKey; label: string; colour: string }> = [
   { key: 'idea', label: 'Draft', colour: 'var(--stage-draft)' },
-  { key: 'awaiting', label: 'Awaiting approval', colour: 'var(--stage-awaiting)' },
   { key: 'scheduled', label: 'Scheduled', colour: 'var(--stage-scheduled)' },
   { key: 'posted', label: 'Posted', colour: 'var(--stage-posted)' },
 ]
@@ -25,7 +24,6 @@ export type StageFilter = Record<StageKey, boolean>
 
 export const ALL_STAGES: StageFilter = {
   idea: true,
-  awaiting: true,
   scheduled: true,
   posted: true,
   failed: true,

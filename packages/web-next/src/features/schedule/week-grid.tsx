@@ -38,7 +38,6 @@ const CHANNEL_NAME = {
 
 const STAGE_LABEL: Record<Stage, string> = {
   draft: 'Draft',
-  awaiting: 'Awaiting approval',
   scheduled: 'Scheduled',
   posted: 'Posted',
   failed: 'Failed',
@@ -741,12 +740,6 @@ function StageChip({ stage }: { stage: Stage }) {
 
 const STAGE_PATH: Record<Stage, React.ReactNode> = {
   draft: <path d="M8.4 1.9l1.7 1.7-5.9 5.9-2.3.6.6-2.3z" />,
-  awaiting: (
-    <>
-      <circle cx="6" cy="4.2" r="2" />
-      <path d="M2.4 10.4c.6-1.9 2-2.9 3.6-2.9s3 1 3.6 2.9" />
-    </>
-  ),
   scheduled: (
     <>
       <circle cx="6" cy="6" r="4.6" />

@@ -12,7 +12,6 @@ import { StageGlyph } from './week-grid'
 
 const STAGE_LABEL: Record<Stage, string> = {
   draft: 'Draft',
-  awaiting: 'Awaiting approval',
   scheduled: 'Scheduled',
   posted: 'Posted',
   failed: 'Not posted',

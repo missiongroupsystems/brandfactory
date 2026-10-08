@@ -63,18 +63,18 @@ describe('planning from the shoot brief', () => {
   it('turns an idea into a post at its stage, so the calendar shows what the brief decided', () => {
     const { result } = renderHook(() => useBrand(), { wrapper })
     let id = ''
-    // "Blindfold pizza" sits on 23 as an idea tile; the brief plans it for 22, awaiting approval.
+    // "Blindfold pizza" sits on 23 as an idea tile; the brief plans it for 22 as a draft.
     act(() => {
       id = result.current.planPost(
         { format: 'reel', hook: 'Blindfold pizza: the rematch.' },
         '22',
         '12:00',
-        'awaiting',
+        'draft',
       )
     })
     expect(feedsOf(day(result.current.weeks, '22'))).toEqual([{ kind: 'post', postId: id }])
     expect(feedsOf(day(result.current.weeks, '23'))).toEqual([])
-    expect(result.current.byId(id)).toMatchObject({ stage: 'awaiting', slot: 'Thu 22 Oct, 12:00' })
+    expect(result.current.byId(id)).toMatchObject({ stage: 'draft', slot: 'Thu 22 Oct, 12:00' })
 
     act(() => result.current.setStage(id, 'scheduled'))
     act(() => {
@@ -100,7 +100,7 @@ describe('planning from the shoot brief', () => {
         { format: 'reel', hook: 'Blindfold pizza, round two.' },
         '23',
         '18:00',
-        'awaiting',
+        'scheduled',
       )
     })
     expect(feedsOf(day(result.current.weeks, '23'))).toEqual([{ kind: 'post', postId: id }])

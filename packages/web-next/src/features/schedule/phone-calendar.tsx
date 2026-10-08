@@ -32,7 +32,6 @@ const LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 const WEEKDAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const STAGE_LABEL = {
   draft: 'Draft',
-  awaiting: 'Awaiting approval',
   scheduled: 'Scheduled',
   posted: 'Posted',
   failed: 'Not posted',
