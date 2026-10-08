@@ -234,19 +234,31 @@ function NumberCard({ kpis }: { kpis: Kpi[] }) {
   const up = kpi.delta >= 0
   return (
     <section aria-label="The month in numbers" className={`${CARD} flex flex-col p-6 max-md:p-5`}>
-      {/* Four labels do not fit a phone: the picker scrolls there instead of overlapping. */}
-      <div className="-mx-1 overflow-x-auto px-1">
-        <div className="min-w-[520px]">
-          <Segmented
-            label="Number"
-            value={at}
-            onChange={setAt}
-            options={kpis.map((q, i) => ({ value: String(i), label: q.label }))}
-          />
-        </div>
+      <div className="max-md:hidden">
+        <Segmented
+          label="Number"
+          value={at}
+          onChange={setAt}
+          options={kpis.map((q, i) => ({ value: String(i), label: q.label }))}
+        />
+      </div>
+      {/* The labels do not fit one line on a phone: there they wrap as pills, all in sight. */}
+      <div role="radiogroup" aria-label="Number" className="flex flex-wrap gap-1.5 md:hidden">
+        {kpis.map((q, i) => (
+          <button
+            key={q.label}
+            type="button"
+            role="radio"
+            aria-checked={at === String(i)}
+            onClick={() => setAt(String(i))}
+            className={`h-8 rounded-full px-3 text-[12.5px] font-medium transition-colors ${at === String(i) ? 'bg-ink text-page' : 'bg-surface text-ink-3'}`}
+          >
+            {q.label}
+          </button>
+        ))}
       </div>
       <span className="mt-6 flex items-baseline gap-2.5">
-        <span className="font-display text-[40px] leading-none font-semibold tracking-[-0.03em] tabular-nums">
+        <span className="font-display text-[40px] leading-none font-semibold tracking-[-0.03em] whitespace-nowrap tabular-nums">
           {kpi.value}
         </span>
         <span className="text-[14px] text-ink-3">{UNIT[kpi.label] ?? kpi.label.toLowerCase()}</span>
@@ -465,7 +477,7 @@ function BestTime({
   return (
     <div className={`${CARD} flex flex-col p-6 max-md:p-5`}>
       <span className="flex items-baseline gap-2.5">
-        <span className="font-display text-[40px] leading-none font-semibold tracking-[-0.03em] tabular-nums">
+        <span className="font-display text-[40px] leading-none font-semibold tracking-[-0.03em] whitespace-nowrap tabular-nums">
           {story.figure}
         </span>
         <span className="text-[14px] text-ink-3">{plain(story.label)}</span>
@@ -651,16 +663,24 @@ function Posts({ posts, period }: { posts: PostStat[]; period: string }) {
                 <Image src={p.image} alt="" fill sizes="80px" className="object-cover" />
               </span>
               <span className="flex min-w-0 flex-col gap-0.5">
-                <span className="truncate text-[14px] font-medium">{p.hook}</span>
+                <span className="truncate text-[14px] font-medium max-md:line-clamp-2 max-md:whitespace-normal">
+                  {p.hook}
+                </span>
                 <span className="text-[12px] text-ink-4">
                   {plain(p.format)} · {p.pillar} · {plain(p.date)}
+                </span>
+                {/* On a phone the second figures move under the name, so the name has room. */}
+                <span className="text-[12px] text-ink-4 tabular-nums md:hidden">
+                  {sort === 'reach'
+                    ? `${p.engagement}% engaged · ${p.saves} saves`
+                    : `${k(p.reach)} reach · ${p.saves} saves`}
                 </span>
               </span>
               <span className="flex flex-col items-end gap-0.5 tabular-nums">
                 <span className="text-[14px] font-medium">
                   {sort === 'reach' ? k(p.reach) : `${p.engagement}%`}
                 </span>
-                <span className="text-[12px] whitespace-nowrap text-ink-4">
+                <span className="text-[12px] whitespace-nowrap text-ink-4 max-md:hidden">
                   {sort === 'reach'
                     ? `${p.engagement}% engaged · ${p.saves} saves`
                     : `${k(p.reach)} reach · ${p.saves} saves`}
@@ -720,10 +740,13 @@ function Creators({ creators }: { creators: Creator[] }) {
                       {c.handle} · {k(c.followers)} followers
                     </span>
                   </span>
+                  <span className="text-[12px] text-ink-4 tabular-nums md:hidden">
+                    {c.engagement}% engaged · {c.posts} {c.posts > 1 ? 'posts' : 'post'}
+                  </span>
                 </span>
                 <span className="flex flex-col items-end gap-0.5 tabular-nums">
                   <span className="text-[14px] font-medium">{k(c.views)} views</span>
-                  <span className="text-[12px] whitespace-nowrap text-ink-4">
+                  <span className="text-[12px] whitespace-nowrap text-ink-4 max-md:hidden">
                     {c.engagement}% engaged · {c.posts} {c.posts > 1 ? 'posts' : 'post'}
                   </span>
                 </span>

@@ -3,8 +3,6 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import { PlusIcon } from './icons'
-
 const TABS = [
   { href: '/', label: 'Schedule', icon: <CalendarGlyph /> },
   { href: '/ideate', label: 'Ideate', icon: <IdeaGlyph /> },
@@ -12,8 +10,8 @@ const TABS = [
 ] as const
 
 /**
- * A phone's navigation, at the bottom where a thumb reaches it: the three pages and, between them,
- * a new post. The header keeps the brand. A post's own page is a task, so it hides the bar and
+ * A phone's navigation, at the bottom where a thumb reaches it: the three pages. The header keeps
+ * the brand; Schedule has its own new-post button. A post's own page is a task, so it hides the bar and
  * keeps its own back link and send buttons.
  */
 export function TabBar() {
@@ -39,18 +37,7 @@ export function TabBar() {
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-30 flex items-start border-t border-line bg-page/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden print:hidden"
       >
-        <div className="flex h-[60px] w-full items-start">
-          {tab(TABS[0])}
-          {tab(TABS[1])}
-          <Link
-            href="/post/new"
-            aria-label="New post"
-            className="bb-press mx-1 mt-1.5 flex size-11 shrink-0 items-center justify-center rounded-full bg-ink text-page shadow-soft"
-          >
-            <PlusIcon size={16} />
-          </Link>
-          {tab(TABS[2])}
-        </div>
+        <div className="flex h-[60px] w-full items-start">{TABS.map(tab)}</div>
       </nav>
     </>
   )

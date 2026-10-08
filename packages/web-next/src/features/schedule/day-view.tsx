@@ -17,8 +17,12 @@ import { IdeaTile, PostTile } from './week-grid'
 const FIRST_HOUR = 7
 const LAST_HOUR = 24
 const HOUR_H = 72
-/** A post card: 340px, less on a phone, where it ends before the stories column (about 88px). */
-const CARD_W = 'min(340px, 100% - 164px)'
+/**
+ * A post card: 340px, or what is left before the stories column (about 88px). A phone has no
+ * stories column (the deck above opens them), so there the card takes the width, less one lane.
+ * Set on the hours as `--card-w`.
+ */
+const CARD_W = 'var(--card-w)'
 /** Posts in the same hour sit side by side; where there is no room for that, 24px apart in a stack. */
 const LANE_STEP = `min(${CARD_W} + 12px, max(24px, 100% - 164px - ${CARD_W}))`
 
@@ -108,7 +112,7 @@ export function DayView({
         )}
 
         <div
-          className="relative grid grid-cols-[64px_minmax(0,1fr)]"
+          className="relative grid grid-cols-[64px_minmax(0,1fr)] [--card-w:min(340px,100%_-_164px)] max-md:overflow-x-clip max-md:[--card-w:calc(100%_-_108px)]"
           style={{ height: hours.length * HOUR_H }}
         >
           {hours.map((h, i) => (
@@ -147,7 +151,7 @@ export function DayView({
               type="button"
               onClick={onOpenStories}
               title={`${s.time} · ${s.title}`}
-              className="absolute right-3 flex items-center gap-2 rounded-[8px] p-1 transition-colors hover:bg-surface"
+              className="absolute right-3 flex items-center gap-2 rounded-[8px] p-1 transition-colors hover:bg-surface max-md:hidden"
               style={{ top: top(s.time) + 4 }}
             >
               <span className="font-mono text-[10px] text-ink-4 tabular-nums">{s.time}</span>

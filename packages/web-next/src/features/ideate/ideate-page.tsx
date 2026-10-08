@@ -70,7 +70,7 @@ export function IdeatePage() {
   return (
     <div className="flex min-h-svh flex-col">
       <AppHeader />
-      <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-end justify-between gap-x-8 gap-y-5 px-10 pt-6 pb-8 max-md:px-4 max-md:pt-2">
+      <div className="relative mx-auto flex w-full max-w-[1440px] flex-wrap items-end justify-between gap-x-8 gap-y-5 px-10 pt-6 pb-8 max-md:px-4 max-md:pt-2 max-md:pb-5">
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-3">
             <span className={EYEBROW}>{brand.name} · October</span>
@@ -78,7 +78,7 @@ export function IdeatePage() {
               Ideas
             </h1>
           </div>
-          <div className="w-[240px]">
+          <div className="w-[240px] max-md:w-full">
             <Segmented
               label="View"
               pill
@@ -93,7 +93,7 @@ export function IdeatePage() {
         </div>
         <Link
           href="/ideate/brief"
-          className="flex h-10 items-center gap-2 rounded-full px-1 text-[13.5px] font-medium text-ink-3 transition-colors hover:text-ink"
+          className="flex h-10 items-center gap-2 rounded-full px-1 text-[13.5px] font-medium text-ink-3 transition-colors hover:text-ink max-md:absolute max-md:top-6 max-md:right-4 max-md:h-9 max-md:bg-surface max-md:px-3.5 max-md:text-ink-2"
         >
           Shoot brief
           <ArrowIcon />
@@ -265,7 +265,7 @@ function Ideas({ slots, onToast }: { slots: Slot[]; onToast: (t: string) => void
 function Spread({ picture, children }: { picture: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="bb-swap grid grid-cols-[320px_minmax(0,1fr)] items-start gap-16 max-md:grid-cols-1 max-md:gap-8">
-      <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[18px] bg-tile max-md:mx-auto max-md:w-[70%]">
+      <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[18px] bg-tile max-md:mx-auto max-md:w-auto max-md:h-[38svh]">
         {picture}
       </div>
       <div className="flex max-w-[640px] flex-col items-start gap-6 pt-6 max-md:pt-0">

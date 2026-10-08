@@ -115,7 +115,7 @@ export function StoryPanel({
       ref={panel}
       tabIndex={-1}
       aria-label={`Stories, ${label}`}
-      className="bb-sheet fixed top-[164px] right-4 bottom-4 z-40 flex w-[min(400px,calc(100%-32px))] flex-col overflow-hidden rounded-2xl bg-page shadow-sheet outline-none"
+      className="bb-sheet fixed top-[164px] right-4 bottom-4 z-40 max-md:top-auto max-md:max-h-[80svh] flex w-[min(400px,calc(100%-32px))] flex-col overflow-hidden rounded-2xl bg-page shadow-sheet outline-none"
     >
       <header className="flex items-start justify-between gap-3 px-6 pt-5 pb-4">
         <span className="flex flex-col gap-1">

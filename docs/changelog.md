@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.4.0** — 2026-10-08 — A layout made for phones, not a shrunk desktop: a tab bar at the bottom with a new-post button; Schedule becomes one day at a time under a week strip that opens into the month; the shoot brief shows one column at a time; the composer's send bar sits at the bottom. A long press drags a post onto a day or a card onto a column by touch. Desktop unchanged. No migration. 82 tests.
+- **2.4.0** — 2026-10-08 — A layout made for phones, not a shrunk desktop: a tab bar at the bottom; Schedule keeps Month, Week and Day in a phone's shape (Week lists the seven days, Day keeps the hours, Month lists the day picked in the grid) under a week strip; the shoot brief shows one column at a time; New post sends from a bar at the bottom and folds its extra sections. A long press drags a post onto a day or a card onto a column by touch. Desktop unchanged. No migration. 82 tests.
 - **2.3.1** — 2026-10-08 — A phone pass: no page scrolls sideways at 320–430 px; the calendar toolbar wraps, Month fits seven days, the Day card and the menus stay on screen; the shoot brief opens an idea as a bottom sheet; a tap shows a chart value; touch screens see the controls that appear on hover, and phones get 16 px fields so iOS does not zoom. No migration. 82 tests.
 - **2.3.0** — 2026-10-07 — Insights becomes one calm column with a pill switch like Ideate's: Overview (a summary line, one number at a time over twelve weekly bars, what worked as rows that open to their chart and idea, the best time to post), Posts and Creators. No migration. 82 tests.
 - **2.2.1** — 2026-10-07 — Every demo photo is replaced with a sharp version (short side at least 1000 px, was 272–750), from the same Unsplash photo where the source was recorded and a matching free Unsplash photo where it was not; a check of every image on every page at 2x finds none under-resolved. No migration. 82 tests.
@@ -22,29 +22,36 @@ One line each — full write-ups are under the matching `##` heading further dow
 ## 2.4.0 — 2026-10-08
 
 **A layout for phones.** 2.3.1 made every page fit a phone; it still read as a desktop page made
-small. Below 768 px the pages now take the shape of a phone app. Wider screens do not change.
+small. Below 768 px the pages now take the shape of a phone app. Wider screens do not change. A
+first version (a6eb2cf) put one day in place of the three views and a plus in the tab bar; it was
+reverted, and this one keeps the views.
 
-- **Tab bar:** Schedule, Ideate and Insights move from the header to a bar at the bottom, with a
-  black plus for a new post between them. The header keeps the logo, the brand (now with its name)
-  and the user. A post's own page hides the bar.
-- **Schedule:** one day at a time. A strip of the week's seven days stays at the top, with a dot per
-  post in its stage's colour; the month name opens the whole month, and a swipe or the arrows step a
-  week (a month when it is open). The day lists its events, stories, posts (a large row each: photo,
-  time, stage, hook, accounts, and the error of a failed post), ideas and "Add a post", with "Best
-  at" from Insights. Month, Week and Day stay on wider screens. On a phone the not-posted pill
-  shows its count alone.
-- **Shoot brief:** one column at a time, under four tabs with their counts; the facts sit in two
-  columns.
-- **Composer:** no header; the send button and Notes sit in a bar at the bottom, the accounts in two
-  columns, the cards with less padding.
-- **Titles:** Ideas, Insights and the brief open with a smaller title, so the page starts higher.
+- **Tab bar:** Schedule, Ideate and Insights move from the header to a bar at the bottom. The header
+  keeps the logo, the brand (now with its name) and the user. A post's own page hides the bar.
+- **Schedule:** the title, the not-posted count, Layers, Stages and a black plus for a new post on
+  one line; Month, Week and Day under it, with Today beside them. A strip of the week's days (the
+  month's in Month) stays on screen, with a dot per post in its stage's colour; a swipe or the
+  arrows step a week or a month. Week lists the seven days, each with its events (an event of
+  several days once, with its length), stories, posts as rows and ideas; an empty day is one line
+  that adds a post. Day keeps the hours, with the card wider and the stories in the deck above.
+  Month lists the day picked in the grid, with "Best at" from Insights.
+- **Shoot brief:** one column at a time, under four tabs with their counts; the facts in two
+  columns; no Print.
+- **New post:** no header; the send button and Notes in a bar at the bottom; Notes open at the top
+  of the form; the accounts in two columns; the details, the per-account settings and the approval
+  fold under "More options".
+- **Ideate and Insights:** smaller titles; Shoot brief beside the Ideas title; an idea's photo
+  leaves its hook and "Plan it" on the first screen. Insights picks a number from pills that wrap,
+  and Posts and Creators put their second figures under the name. The stories panel rises from the
+  bottom, as tall as its stories.
 
 **Drag by touch.** A phone's browser does not start the HTML drag from a finger, so dragging needed
 a mouse. A press of a third of a second now lifts a post or a card (`components/touch-drag.ts`): a
-small copy rides above the finger and the page holds still. A post drops on a day of the strip or
-the month, and the day opens; a card drops on a column tab. A tablet's week grid and board take the
-same drag. A tap still opens, a swipe before the press still scrolls, and the mouse drag is
-unchanged. Tested with touch events in Chromium at 320, 390 and 820 px; not yet on a real phone.
+small copy rides above the finger and the page holds still. A post drops on a day of the strip, of
+the month or of the week's list; a card drops on a column tab. A tablet's week grid and board take
+the same drag. A tap still opens, a swipe before the press still scrolls, and the mouse drag is
+unchanged. Tested with touch events in Chromium at 320, 390 and 820 px, and every page and its menus
+and sheets checked in screenshots at 320 and 390 px; not yet on a real phone.
 
 **No migration.** 82 tests (14 files), all passing.
 

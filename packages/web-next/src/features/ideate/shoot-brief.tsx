@@ -162,7 +162,7 @@ function BriefActions() {
       <button
         type="button"
         onClick={() => window.print()}
-        className="flex h-9 items-center rounded-full bg-surface px-3.5 text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink"
+        className="flex h-9 items-center rounded-full bg-surface px-3.5 max-md:hidden text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink"
       >
         Print
       </button>

@@ -144,15 +144,28 @@ export function SchedulePage() {
   return (
     <div className="flex min-h-svh flex-col">
       <AppHeader />
-      {/* A phone gets its own layout: one day at a time, under a strip of the week. */}
+      {/* A phone gets its own layout of the same three views, under a strip of the week. */}
       <div className="md:hidden">
         <Agenda
           weeks={shown.weeks}
           week={week}
           day={day}
-          monthTitle={shown.title}
-          events={dayEvents}
+          view={view}
+          // "12–18 Oct": the dash without its spaces, so the week fits a small phone's header.
+          title={view === 'week' ? title.replace(' – ', '–') : shown.title}
+          layers={layers}
           stages={stages}
+          onView={(v) => setCalendarPlace({ view: v })}
+          dayView={
+            <DayView
+              day={shownDay}
+              events={dayEvents}
+              stages={stages}
+              onOpenPost={openPost}
+              onNewPost={newPost}
+              onOpenStories={() => setStoryDay(shownDay.n)}
+            />
+          }
           onSelect={(w, d) => setCalendarPlace({ week: w, day: d })}
           onStepWeek={(by) => moveWeek(by)}
           onStepMonth={(by) => setCalendarPlace({ offset: offset + by, week: 0 })}

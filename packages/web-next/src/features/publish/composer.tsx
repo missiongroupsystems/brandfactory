@@ -156,6 +156,12 @@ export function Composer({
     igShareToFeed: true,
   })
   const [notesOpen, setNotesOpen] = React.useState(false)
+  // On a phone, notes open above the form: it scrolls there once, as they open.
+  const toNotes = React.useCallback((el: HTMLDivElement | null) => {
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+  // On a phone the details, the per-account settings and the approval fold under one row.
+  const [more, setMore] = React.useState(false)
   const [notes, setNotes] = React.useState<Array<{ kind: 'internal' | 'external'; text: string }>>(
     [],
   )
@@ -245,6 +251,8 @@ export function Composer({
   }
 
   const status = post ? STAGE_LABEL[post.stage] : 'New'
+  // TikTok's choices live in the fold: while the send waits on one, the fold stays open.
+  const unfolded = more || blocked.some((b) => b.includes('TikTok'))
 
   return (
     <div className="flex flex-col gap-6">
@@ -309,7 +317,7 @@ export function Composer({
       {post?.stage === 'failed' && (
         <div
           role="alert"
-          className={`flex items-center gap-3 rounded-[14px] px-4 py-3 transition-colors ${reconnected ? 'bg-(--insight-1) shadow-[inset_0_0_0_1px_var(--insight-2)]' : 'bg-(--fail-soft) shadow-[inset_0_0_0_1px_var(--fail-line)]'}`}
+          className={`flex items-center gap-3 rounded-[14px] px-4 py-3 transition-colors max-md:flex-wrap ${reconnected ? 'bg-(--insight-1) shadow-[inset_0_0_0_1px_var(--insight-2)]' : 'bg-(--fail-soft) shadow-[inset_0_0_0_1px_var(--fail-line)]'}`}
         >
           {reconnected ? (
             <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-(--insight-5) text-page">
@@ -318,7 +326,7 @@ export function Composer({
           ) : (
             <span className="ml-1.5 size-2 shrink-0 rounded-full bg-fail shadow-[0_0_0_3px_color-mix(in_oklab,var(--fail)_18%,transparent)]" />
           )}
-          <span className="flex flex-1 flex-col text-[13px] leading-[1.35]">
+          <span className="flex flex-1 flex-col text-[13px] leading-[1.35] max-md:basis-[calc(100%-36px)]">
             <span className={`font-medium ${reconnected ? 'text-ink' : 'text-fail-ink'}`}>
               {reconnected
                 ? `${failedName} is connected again.`
@@ -336,7 +344,7 @@ export function Composer({
                 // The account that failed is connected again, and the post goes to it.
                 if (!draft.connected.includes(failedKey)) api.connect(failedKey)
               }}
-              className="bb-press h-9 shrink-0 rounded-full bg-page px-4 text-[13px] font-medium text-ink shadow-[0_0_0_1px_var(--line)] hover:shadow-[0_0_0_1px_var(--line-strong)]"
+              className="bb-press h-9 shrink-0 rounded-full bg-page px-4 text-[13px] font-medium text-ink shadow-[0_0_0_1px_var(--line)] hover:shadow-[0_0_0_1px_var(--line-strong)] max-md:w-full"
             >
               Reconnect {failedName}
             </button>
@@ -346,6 +354,12 @@ export function Composer({
 
       <div className="grid grid-cols-[minmax(0,1fr)_400px] items-start gap-6 max-lg:grid-cols-1">
         <div className="flex min-w-0 flex-col gap-4">
+          {/* In one column the side column comes last: notes open at the top instead. */}
+          {notesOpen && (
+            <div className="scroll-mt-4 lg:hidden" ref={toNotes}>
+              <Notes notes={notes} setNotes={setNotes} />
+            </div>
+          )}
           <Accounts api={api} />
           <Content
             api={api}
@@ -355,14 +369,30 @@ export function Composer({
             ideas={post ? [] : ideas.filter((i) => !i.postId || !byId(i.postId))}
             onIdea={setIdeaHook}
           />
-          <Details
-            api={api}
-            details={details}
-            setDetails={setDetails}
-            labels={labels}
-            setLabels={setLabels}
-          />
-          {active.length > 0 && <PerAccount api={api} extra={extra} setExtra={setExtra} />}
+          <button
+            type="button"
+            aria-expanded={unfolded}
+            onClick={() => setMore((m) => !m)}
+            className="flex h-14 items-center justify-between rounded-[18px] bg-page px-4 text-left shadow-[0_0_0_1px_var(--line)] md:hidden"
+          >
+            <span className="flex flex-col">
+              <span className="text-[14px] font-medium">More options</span>
+              <span className="text-[12px] text-ink-4">Details, each account, approval</span>
+            </span>
+            <span className={`text-ink-4 transition-transform ${unfolded ? 'rotate-180' : ''}`}>
+              <ChevronIcon size={11} />
+            </span>
+          </button>
+          <div className={`flex min-w-0 flex-col gap-4 ${unfolded ? '' : 'max-md:hidden'}`}>
+            <Details
+              api={api}
+              details={details}
+              setDetails={setDetails}
+              labels={labels}
+              setLabels={setLabels}
+            />
+            {active.length > 0 && <PerAccount api={api} extra={extra} setExtra={setExtra} />}
+          </div>
           <WhenCard
             when={when}
             setWhen={setWhen}
@@ -372,10 +402,16 @@ export function Composer({
             setTime={setTime}
             story={draft.format === 'story' && active.some((c) => c.key === 'ig')}
           />
-          <ApprovalCard approval={approval} setApproval={setApproval} />
+          <div className={unfolded ? '' : 'max-md:hidden'}>
+            <ApprovalCard approval={approval} setApproval={setApproval} />
+          </div>
         </div>
         <div className="sticky top-6 flex flex-col gap-4 max-lg:static">
-          {notesOpen && <Notes notes={notes} setNotes={setNotes} />}
+          {notesOpen && (
+            <div className="max-lg:hidden">
+              <Notes notes={notes} setNotes={setNotes} />
+            </div>
+          )}
           <Preview api={api} media={media} />
         </div>
       </div>
@@ -434,7 +470,7 @@ function Accounts({ api }: { api: PublishDraftApi }) {
               className={`flex h-11 items-center gap-2.5 rounded-full pr-4 pl-3 text-[13px] transition-colors ${takes === null ? 'cursor-not-allowed text-ink-5' : on ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
             >
               <span
-                className={`flex size-5 items-center justify-center rounded-full ${on ? 'bg-page text-ink' : 'shadow-[inset_0_0_0_1.5px_var(--line-strong)]'}`}
+                className={`flex size-5 shrink-0 items-center justify-center rounded-full ${on ? 'bg-page text-ink' : 'shadow-[inset_0_0_0_1.5px_var(--line-strong)]'}`}
               >
                 {on && <CheckIcon size={8} strokeWidth={2.4} />}
               </span>
