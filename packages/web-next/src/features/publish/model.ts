@@ -4,8 +4,10 @@ import type { Format } from '@/data/demo'
  * The publish model: every rule about where a post can go and what it needs, as pure functions.
  *
  * The composer only reads this, so a different publish view is a new view over the same model. The platform rules come from each API's documentation (October 2026):
- * TikTok's Direct Post guidelines forbid a default "who can watch" and require the interaction
- * switches and the promotion switch to start off; YouTube requires a title.
+ * TikTok's Direct Post guidelines require the interaction switches and the promotion switch to
+ * start off; YouTube requires a title. They also forbid a default "who can watch": the demo starts
+ * on "Everyone" anyway, since the brands post in public, and real posting through TikTok's API must
+ * drop that default before its app review.
  */
 
 export type ChannelKey = 'ig' | 'tt' | 'yt' | 'li' | 'fb'
@@ -64,8 +66,6 @@ export function initialDraft(input: {
   connected?: ChannelKey[]
   /** The accounts a saved post already goes to; a new post starts on every connected one. */
   selected?: ChannelKey[]
-  /** TikTok's answer, when the post was scheduled before and so already gave it. */
-  privacy?: Privacy
 }): Draft {
   const connected = input.connected ?? ['ig', 'tt', 'yt', 'li']
   const wanted: ChannelKey[] = input.selected ?? ['ig', 'tt', 'yt', 'li']
@@ -78,8 +78,8 @@ export function initialDraft(input: {
     overrides: {},
     youtubeTitle: null,
     madeForKids: false,
-    // No default, on purpose: TikTok's guidelines require the person to choose.
-    privacy: input.privacy ?? null,
+    // The brands post in public. TikTok's audit wants no default here (see the note at the top).
+    privacy: 'Everyone',
     interactions: { comments: false, duet: false, stitch: false },
     promo: { on: false, own: false, paid: false },
     when: 'slot',

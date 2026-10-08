@@ -30,14 +30,20 @@ import {
   tiktokConsent,
   youtubeTitle,
   type ChannelKey,
+  type Draft,
   type Outcome,
 } from './model'
 import { PhoneMock } from './phone-mocks'
 import { usePublishDraft, type PublishDraftApi } from './use-publish-draft'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
+// On a phone a card is bare: the page is white, and a card opens in a sheet that has its own frame.
 const CARD =
-  'flex flex-col gap-4 rounded-[18px] bg-page p-6 shadow-[0_0_0_1px_var(--line)] max-md:p-4'
+  'flex flex-col gap-4 rounded-[18px] bg-page p-6 shadow-[0_0_0_1px_var(--line)] max-md:gap-5 max-md:rounded-none max-md:p-0 max-md:shadow-none'
+/** A row of chips that scrolls sideways on a phone instead of wrapping. */
+const STRIP = 'max-md:-mx-4 max-md:flex-nowrap max-md:overflow-x-auto max-md:px-4'
+/** A segmented control's options grow to a thumb's height on a phone. */
+const TAP = 'max-md:[&_button]:h-10'
 
 const NAME: Record<ChannelKey, string> = {
   ig: 'Instagram',
@@ -111,9 +117,6 @@ export function Composer({
     hook: post?.hook ?? '',
     caption: post ? (captions[post.id] ?? post.hook) : '',
     selected: post ? composeChannels(post) : undefined,
-    // A post that got as far as scheduled answered TikTok's question then.
-    privacy:
-      post && (post.stage === 'scheduled' || post.stage === 'failed') ? 'Everyone' : undefined,
   })
   const [reconnected, setReconnected] = React.useState(false)
   // The post as it opened: after a retry the live post is no longer failed, and a second send
@@ -156,12 +159,13 @@ export function Composer({
     igShareToFeed: true,
   })
   const [notesOpen, setNotesOpen] = React.useState(false)
-  // On a phone, notes open above the form: it scrolls there once, as they open.
+  // In one column (a tablet), notes open above the form: it scrolls there once, as they open.
   const toNotes = React.useCallback((el: HTMLDivElement | null) => {
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
-  // On a phone the details, the per-account settings and the approval fold under one row.
-  const [more, setMore] = React.useState(false)
+  // On a phone each card opens in a sheet from its row; one sheet at a time.
+  const [sheet, setSheet] = React.useState<SheetKey | null>(null)
+  const closeSheet = React.useCallback(() => setSheet(null), [])
   const [notes, setNotes] = React.useState<Array<{ kind: 'internal' | 'external'; text: string }>>(
     [],
   )
@@ -251,15 +255,117 @@ export function Composer({
   }
 
   const status = post ? STAGE_LABEL[post.stage] : 'New'
-  // TikTok's choices live in the fold: while the send waits on one, the fold stays open.
-  const unfolded = more || blocked.some((b) => b.includes('TikTok'))
+  const hint = (stuck || when !== 'draft') && blocked[0] && (
+    <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+      <span className="size-1.5 shrink-0 rounded-full bg-ink" />
+      <span className="min-w-0 truncate">{blocked[0]}</span>
+      {blocked.length > 1 && <span className="text-ink-4">+{blocked.length - 1}</span>}
+    </span>
+  )
+  /** The send button. On a phone, while it is disabled, it says what stops it. */
+  const send = (phone: boolean) => (
+    <button
+      type="button"
+      aria-disabled={stuck}
+      // While it shows what stops it, its name says so too, not where it would send.
+      aria-label={
+        phone && stuck && blocked[0]
+          ? `${label}: ${blocked.join(' ')}`
+          : logos.length > 0
+            ? `${label} ${namesOf(logos)}`
+            : undefined
+      }
+      onClick={primary}
+      className={`flex h-10 min-w-[160px] items-center justify-center gap-2 rounded-full px-5 text-[13.5px] font-medium transition-[background-color,box-shadow] max-md:h-12 max-md:min-w-0 max-md:flex-1 max-md:text-[14px] ${stuck ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
+    >
+      {phone && stuck ? (
+        <span className="flex min-w-0 max-w-full text-ink-3">{hint}</span>
+      ) : (
+        <>
+          {label}
+          {logos.length > 0 && (
+            <span className="flex items-center gap-1.5">
+              {logos.map((k) => (
+                <PlatformLogo key={k} platform={k} size={13} />
+              ))}
+            </span>
+          )}
+        </>
+      )}
+    </button>
+  )
+  const notesButton = (onClick: () => void, pressed: boolean) => (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      onClick={onClick}
+      className={`flex h-10 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium transition-colors max-md:h-12 ${pressed ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
+    >
+      Notes
+      {notes.length > 0 && <span className="font-mono text-[11px] opacity-60">{notes.length}</span>}
+    </button>
+  )
+  // The sheet a phone row opened, over the same cards the desktop shows in place.
+  const inSheet: Partial<Record<SheetKey, { title: string; body: React.ReactNode }>> = {
+    accounts: { title: 'Post to', body: <Accounts api={api} /> },
+    details: {
+      title: 'Details',
+      body: (
+        <Details
+          api={api}
+          details={details}
+          setDetails={setDetails}
+          labels={labels}
+          setLabels={setLabels}
+        />
+      ),
+    },
+    when: {
+      title: 'When',
+      body: (
+        <WhenCard
+          when={when}
+          setWhen={setWhen}
+          dayN={dayN}
+          setDayN={setDayN}
+          time={time}
+          setTime={setTime}
+          story={draft.format === 'story' && active.some((c) => c.key === 'ig')}
+        />
+      ),
+    },
+    approval: {
+      title: 'Approval',
+      body: <ApprovalCard approval={approval} setApproval={setApproval} />,
+    },
+    preview: { title: 'Preview', body: <Preview api={api} media={media} /> },
+    notes: { title: 'Notes', body: <Notes notes={notes} setNotes={setNotes} /> },
+    ...Object.fromEntries(
+      active.map((c) => [
+        c.key,
+        {
+          title: c.name,
+          body: <PerAccount api={api} extra={extra} setExtra={setExtra} only={c.key} />,
+        },
+      ]),
+    ),
+  }
+  const whenText =
+    when === 'now'
+      ? 'Now'
+      : when === 'draft'
+        ? 'Draft'
+        : `${dayLabel(weeks, dayN) ?? dayN}, ${time}`
+  const detailText = active.some((c) => DETAIL_ON.location.includes(c.key))
+    ? details.location || labels.join(', ')
+    : labels.join(', ')
 
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-2">
           <span className={`${EYEBROW} flex items-center gap-2`}>
-            {brand.name} ·
+            <span className="max-md:hidden">{brand.name} ·</span>
             <span className="rounded-full bg-surface px-2 py-[2px] tracking-normal normal-case text-ink-2">
               {status}
             </span>
@@ -268,51 +374,21 @@ export function Composer({
             {post ? post.hook : 'New post'}
           </h1>
         </div>
-        {/* On a phone the send bar sits at the bottom, under the thumb, and stays there. */}
-        <div className="flex flex-col items-end gap-1.5 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-40 max-md:flex-col-reverse max-md:items-stretch max-md:gap-1 max-md:border-t max-md:border-line max-md:bg-page/95 max-md:px-4 max-md:pt-2.5 max-md:pb-[calc(10px+env(safe-area-inset-bottom))] max-md:backdrop-blur-xl">
+        <div className="flex flex-col items-end gap-1.5 max-md:hidden">
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-pressed={notesOpen}
-              onClick={() => setNotesOpen((o) => !o)}
-              className={`flex h-10 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium transition-colors max-md:h-12 ${notesOpen ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
-            >
-              Notes
-              {notes.length > 0 && (
-                <span className="font-mono text-[11px] opacity-60">{notes.length}</span>
-              )}
-            </button>
-            <button
-              type="button"
-              aria-disabled={stuck}
-              aria-label={logos.length > 0 ? `${label} ${namesOf(logos)}` : undefined}
-              onClick={primary}
-              className={`flex h-10 min-w-[160px] items-center justify-center gap-2 rounded-full px-5 max-md:h-12 max-md:flex-1 text-[13.5px] font-medium transition-[background-color,box-shadow] ${stuck ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
-            >
-              {label}
-              {logos.length > 0 && (
-                <span className="flex items-center gap-1.5">
-                  {logos.map((k) => (
-                    <PlatformLogo key={k} platform={k} size={13} />
-                  ))}
-                </span>
-              )}
-            </button>
+            {notesButton(() => setNotesOpen((o) => !o), notesOpen)}
+            {send(false)}
           </div>
-          <span
-            aria-live="polite"
-            className="min-h-[18px] text-[12px] text-ink-3 max-md:min-h-0 max-md:text-center"
-          >
-            {(stuck || when !== 'draft') && blocked[0] && (
-              <span className="inline-flex items-center gap-1.5">
-                <span className="size-1.5 rounded-full bg-ink" />
-                {blocked[0]}
-                {blocked.length > 1 && <span className="text-ink-4">+{blocked.length - 1}</span>}
-              </span>
-            )}
+          <span aria-live="polite" className="min-h-[18px] text-[12px] text-ink-3">
+            {hint}
           </span>
         </div>
       </header>
+      {/* On a phone the send bar sits at the bottom, under the thumb, and stays there. */}
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-line bg-page/95 px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom))] backdrop-blur-xl md:hidden">
+        {notesButton(() => setSheet('notes'), sheet === 'notes')}
+        {send(true)}
+      </div>
 
       {post?.stage === 'failed' && (
         <div
@@ -344,7 +420,7 @@ export function Composer({
                 // The account that failed is connected again, and the post goes to it.
                 if (!draft.connected.includes(failedKey)) api.connect(failedKey)
               }}
-              className="bb-press h-9 shrink-0 rounded-full bg-page px-4 text-[13px] font-medium text-ink shadow-[0_0_0_1px_var(--line)] hover:shadow-[0_0_0_1px_var(--line-strong)] max-md:w-full"
+              className="bb-press h-9 shrink-0 rounded-full bg-page px-4 text-[13px] font-medium text-ink shadow-[0_0_0_1px_var(--line)] hover:shadow-[0_0_0_1px_var(--line-strong)] max-md:h-11 max-md:w-full"
             >
               Reconnect {failedName}
             </button>
@@ -353,14 +429,16 @@ export function Composer({
       )}
 
       <div className="grid grid-cols-[minmax(0,1fr)_400px] items-start gap-6 max-lg:grid-cols-1">
-        <div className="flex min-w-0 flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4 max-md:gap-7">
           {/* In one column the side column comes last: notes open at the top instead. */}
           {notesOpen && (
-            <div className="scroll-mt-4 lg:hidden" ref={toNotes}>
+            <div className="scroll-mt-4 max-md:hidden lg:hidden" ref={toNotes}>
               <Notes notes={notes} setNotes={setNotes} />
             </div>
           )}
-          <Accounts api={api} />
+          <div className="max-md:hidden">
+            <Accounts api={api} />
+          </div>
           <Content
             api={api}
             media={media}
@@ -369,21 +447,54 @@ export function Composer({
             ideas={post ? [] : ideas.filter((i) => !i.postId || !byId(i.postId))}
             onIdea={setIdeaHook}
           />
-          <button
-            type="button"
-            aria-expanded={unfolded}
-            onClick={() => setMore((m) => !m)}
-            className="flex h-14 items-center justify-between rounded-[18px] bg-page px-4 text-left shadow-[0_0_0_1px_var(--line)] md:hidden"
-          >
-            <span className="flex flex-col">
-              <span className="text-[14px] font-medium">More options</span>
-              <span className="text-[12px] text-ink-4">Details, each account, approval</span>
-            </span>
-            <span className={`text-ink-4 transition-transform ${unfolded ? 'rotate-180' : ''}`}>
-              <ChevronIcon size={11} />
-            </span>
-          </button>
-          <div className={`flex min-w-0 flex-col gap-4 ${unfolded ? '' : 'max-md:hidden'}`}>
+          {/* The phone's list: every other card as a row that says its answer and opens it. */}
+          <div className="flex flex-col border-t border-(--cal-line) md:hidden">
+            <Row
+              label="Post to"
+              value={
+                active.length > 0 ? (
+                  <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5">
+                      {active.map((c) => (
+                        <PlatformLogo key={c.key} platform={c.key} size={12} />
+                      ))}
+                    </span>
+                    · {FORMAT_LABEL[draft.format]}
+                  </span>
+                ) : (
+                  'No account'
+                )
+              }
+              dot={active.length === 0}
+              onClick={() => setSheet('accounts')}
+            />
+            <Row label="When" value={whenText} onClick={() => setSheet('when')} />
+            <Row label="Details" value={detailText} onClick={() => setSheet('details')} />
+            {active.map((c) => {
+              const s = summaryOf(draft, extra)[c.key]
+              return (
+                <Row
+                  key={c.key}
+                  label={
+                    <span className="flex items-center gap-2.5">
+                      <PlatformLogo platform={c.key} size={13} />
+                      {c.name}
+                    </span>
+                  }
+                  value={s.text}
+                  dot={s.needs}
+                  onClick={() => setSheet(c.key)}
+                />
+              )
+            })}
+            <Row
+              label="Approval"
+              value={approval.on ? approval.who.join(', ') || 'On, no one picked' : 'Off'}
+              onClick={() => setSheet('approval')}
+            />
+            <Row label="Preview" value="" onClick={() => setSheet('preview')} />
+          </div>
+          <div className="flex min-w-0 flex-col gap-4 max-md:hidden">
             <Details
               api={api}
               details={details}
@@ -392,27 +503,128 @@ export function Composer({
               setLabels={setLabels}
             />
             {active.length > 0 && <PerAccount api={api} extra={extra} setExtra={setExtra} />}
-          </div>
-          <WhenCard
-            when={when}
-            setWhen={setWhen}
-            dayN={dayN}
-            setDayN={setDayN}
-            time={time}
-            setTime={setTime}
-            story={draft.format === 'story' && active.some((c) => c.key === 'ig')}
-          />
-          <div className={unfolded ? '' : 'max-md:hidden'}>
+            <WhenCard
+              when={when}
+              setWhen={setWhen}
+              dayN={dayN}
+              setDayN={setDayN}
+              time={time}
+              setTime={setTime}
+              story={draft.format === 'story' && active.some((c) => c.key === 'ig')}
+            />
             <ApprovalCard approval={approval} setApproval={setApproval} />
           </div>
         </div>
-        <div className="sticky top-6 flex flex-col gap-4 max-lg:static">
+        <div className="sticky top-6 flex flex-col gap-4 max-lg:static max-md:hidden">
           {notesOpen && (
             <div className="max-lg:hidden">
               <Notes notes={notes} setNotes={setNotes} />
             </div>
           )}
           <Preview api={api} media={media} />
+        </div>
+      </div>
+      {sheet && inSheet[sheet] && (
+        <Sheet title={inSheet[sheet].title} onClose={closeSheet}>
+          {inSheet[sheet].body}
+        </Sheet>
+      )}
+    </div>
+  )
+}
+
+type SheetKey = 'accounts' | 'details' | 'when' | 'approval' | 'preview' | 'notes' | ChannelKey
+
+const FORMAT_LABEL: Record<Format, string> = { carousel: 'Post', reel: 'Reel', story: 'Story' }
+
+/** One line of the phone's list: what it is, its answer so far, and a chevron into its sheet. */
+function Row({
+  label,
+  value,
+  dot = false,
+  onClick,
+}: {
+  label: React.ReactNode
+  value: React.ReactNode
+  /** The row still needs an answer before the post can go. */
+  dot?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-[54px] w-full items-center gap-3 border-b border-(--cal-line) py-2 text-left"
+    >
+      <span className="shrink-0 text-[15px]">{label}</span>
+      <span className="flex min-w-0 flex-1 items-center justify-end gap-2 text-[14px] text-ink-3">
+        {dot && <span className="size-1.5 shrink-0 rounded-full bg-ink" />}
+        <span className="truncate">{value}</span>
+      </span>
+      <span className="-rotate-90 text-ink-4">
+        <ChevronIcon size={11} />
+      </span>
+    </button>
+  )
+}
+
+/**
+ * A phone's bottom sheet: one of the composer's cards, opened from its row. A tap outside, Done or
+ * Escape closes it. The page under it does not scroll while it is open.
+ */
+function Sheet({
+  title,
+  onClose,
+  children,
+}: {
+  title: string
+  onClose: () => void
+  children: React.ReactNode
+}) {
+  const done = React.useRef<HTMLButtonElement>(null)
+  React.useEffect(() => {
+    const { overflow } = document.body.style
+    document.body.style.overflow = 'hidden'
+    // Focus goes into the sheet, and back to the row that opened it when it closes.
+    const opener = document.activeElement as HTMLElement | null
+    done.current?.focus()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = overflow
+      window.removeEventListener('keydown', onKey)
+      opener?.focus()
+    }
+  }, [onClose])
+  // Only a phone's rows open it, but it stays visible if the window then widens, so it can close.
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        className="bb-fade absolute inset-0 bg-ink/30"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="bb-sheet-up relative flex max-h-[88svh] flex-col rounded-t-[22px] bg-page pb-[env(safe-area-inset-bottom)] shadow-sheet"
+      >
+        <span aria-hidden="true" className="mx-auto mt-2 h-1 w-9 rounded-full bg-track" />
+        <div className="flex h-12 items-center justify-between pr-2 pl-5">
+          <span className="text-[16px] font-medium">{title}</span>
+          <button
+            ref={done}
+            type="button"
+            onClick={onClose}
+            className="h-10 rounded-full px-3 text-[14px] font-medium text-ink-2 transition-colors hover:text-ink"
+          >
+            Done
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-1 pb-6">
+          {children}
         </div>
       </div>
     </div>
@@ -435,11 +647,12 @@ function Accounts({ api }: { api: PublishDraftApi }) {
   const { draft, update, toggleChannel, connect } = api
   return (
     <section aria-label="Accounts" className={CARD}>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 max-md:hidden">
         <span className={EYEBROW}>Post to</span>
         <span className="text-[12px] text-ink-4">{brand.name}&rsquo;s accounts</span>
       </div>
-      <div className="flex flex-wrap gap-2 max-md:grid max-md:grid-cols-2">
+      {/* Pills on a desktop; on a phone a list, one account a row, the tick at the right. */}
+      <div className="flex flex-wrap gap-2 max-md:flex-col max-md:gap-0">
         {CHANNELS.map((c) => {
           const connected = draft.connected.includes(c.key)
           const takes = kindOn(draft.format, c.key)
@@ -450,11 +663,13 @@ function Accounts({ api }: { api: PublishDraftApi }) {
                 key={c.key}
                 type="button"
                 onClick={() => connect(c.key)}
-                className="flex h-11 items-center gap-2.5 rounded-full px-4 text-[13px] text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink max-md:col-span-2"
+                className="flex h-11 items-center gap-2.5 rounded-full px-4 text-[13px] text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink max-md:h-14 max-md:rounded-none max-md:border-b max-md:border-(--cal-line) max-md:px-0 max-md:text-[15px] max-md:shadow-none"
               >
                 <PlatformLogo platform={c.key} size={14} />
                 {c.name}
-                <span className="text-[11.5px] font-medium text-fail-ink">Reconnect</span>
+                <span className="text-[11.5px] font-medium text-fail-ink max-md:ml-auto max-md:text-[14px]">
+                  Reconnect
+                </span>
               </button>
             )
           }
@@ -467,10 +682,10 @@ function Accounts({ api }: { api: PublishDraftApi }) {
               aria-disabled={takes === null}
               title={takes === null ? `${c.name} has no ${draft.format}s` : undefined}
               onClick={() => takes !== null && toggleChannel(c.key)}
-              className={`flex h-11 items-center gap-2.5 rounded-full pr-4 pl-3 text-[13px] transition-colors ${takes === null ? 'cursor-not-allowed text-ink-5' : on ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
+              className={`flex h-11 items-center gap-2.5 rounded-full pr-4 pl-3 text-[13px] transition-colors max-md:h-14 max-md:rounded-none max-md:border-b max-md:border-(--cal-line) max-md:bg-transparent max-md:px-0 max-md:text-[15px] ${takes === null ? 'cursor-not-allowed text-ink-5' : on ? 'bg-ink text-page max-md:text-ink' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink max-md:text-ink'}`}
             >
               <span
-                className={`flex size-5 shrink-0 items-center justify-center rounded-full ${on ? 'bg-page text-ink' : 'shadow-[inset_0_0_0_1.5px_var(--line-strong)]'}`}
+                className={`flex size-5 shrink-0 items-center justify-center rounded-full max-md:order-last max-md:ml-auto max-md:size-6 ${on ? 'bg-page text-ink max-md:bg-ink max-md:text-page' : 'shadow-[inset_0_0_0_1.5px_var(--line-strong)]'}`}
               >
                 {on && <CheckIcon size={8} strokeWidth={2.4} />}
               </span>
@@ -478,7 +693,7 @@ function Accounts({ api }: { api: PublishDraftApi }) {
               <span className="flex flex-col items-start leading-tight">
                 <span className="font-medium">{c.name}</span>
                 <span
-                  className={`text-[10.5px] ${takes === null ? '' : 'max-md:hidden'} ${on ? 'text-page/60' : 'text-ink-4'}`}
+                  className={`text-[10.5px] max-md:text-[12px] ${on ? 'text-page/60 max-md:text-ink-4' : 'text-ink-4'}`}
                 >
                   {takes === null
                     ? `No ${draft.format}s`
@@ -489,9 +704,9 @@ function Accounts({ api }: { api: PublishDraftApi }) {
           )
         })}
       </div>
-      <div className="flex flex-wrap items-center gap-3 border-t border-(--cal-line) pt-4">
+      <div className="flex flex-wrap items-center gap-3 border-t border-(--cal-line) pt-4 max-md:border-t-0 max-md:pt-0">
         <span className={EYEBROW}>Format</span>
-        <div className="w-[300px] max-md:w-full">
+        <div className={`w-[300px] max-md:w-full ${TAP}`}>
           <Segmented<Format>
             label="Format"
             pill
@@ -596,13 +811,23 @@ function Content({
 
   const own = (k: ChannelKey) =>
     k === 'yt' ? draft.youtubeTitle !== null : draft.overrides[k] !== undefined
+  // The shown tab has its own text: one tap drops it for the shared caption.
+  const shared = shownTab !== 'all' && own(shownTab)
+  const useShared = () =>
+    shownTab === 'yt'
+      ? update({ youtubeTitle: null })
+      : update({
+          overrides: Object.fromEntries(
+            Object.entries(draft.overrides).filter(([k]) => k !== shownTab),
+          ),
+        })
 
   return (
     <section aria-label="Content" className={CARD}>
       {ideas.length > 0 && media.length === 0 && draft.caption === '' && (
         <div className="flex flex-col gap-2">
           <span className={EYEBROW}>Start from an idea</span>
-          <div className="flex flex-wrap gap-1.5">
+          <div className={`flex flex-wrap gap-1.5 ${STRIP}`}>
             {ideas.slice(0, 4).map((idea) => (
               <button
                 key={idea.hook}
@@ -612,7 +837,7 @@ function Content({
                   onIdea(idea.hook)
                   setMedia(library.slice(0, 1))
                 }}
-                className="flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[12.5px] text-ink-2 transition-colors hover:bg-paper hover:text-ink"
+                className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 text-[12.5px] text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-10 max-md:text-[13.5px]"
               >
                 <SparkIcon size={9} />
                 {idea.hook}
@@ -628,7 +853,7 @@ function Content({
           <span className="text-[11.5px] text-ink-4">{MEDIA_RULE[draft.format]}</span>
         </div>
         <div
-          className="flex flex-wrap gap-2"
+          className={`flex flex-wrap gap-2 ${STRIP}`}
           onDragOver={(e) => e.dataTransfer.types.includes('Files') && e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault()
@@ -638,7 +863,7 @@ function Content({
           {media.map((src, i) => (
             <span
               key={src + i}
-              className="group/m relative block h-[132px] w-[106px] overflow-hidden rounded-[12px] bg-tile"
+              className="group/m relative block h-[132px] w-[106px] shrink-0 overflow-hidden rounded-[12px] bg-tile"
             >
               <Media src={src} sizes="260px" />
               <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/50 px-1.5 font-mono text-[10px] text-page">
@@ -654,7 +879,7 @@ function Content({
                       ;[next[i - 1], next[i]] = [next[i]!, next[i - 1]!]
                       setMedia(next)
                     }}
-                    className="flex size-6 items-center justify-center rounded-full bg-page text-[11px] text-ink-2 shadow-soft"
+                    className="flex size-6 items-center justify-center rounded-full bg-page text-[11px] text-ink-2 shadow-soft max-md:size-8"
                   >
                     ←
                   </button>
@@ -663,7 +888,7 @@ function Content({
                   type="button"
                   aria-label="Remove"
                   onClick={() => setMedia(media.filter((_, j) => j !== i))}
-                  className="flex size-6 items-center justify-center rounded-full bg-page text-ink-2 shadow-soft"
+                  className="flex size-6 items-center justify-center rounded-full bg-page text-ink-2 shadow-soft max-md:size-8"
                 >
                   <CloseIcon />
                 </button>
@@ -671,7 +896,7 @@ function Content({
             </span>
           ))}
           {media.length < max && (
-            <span className="flex h-[132px] w-[106px] flex-col overflow-hidden rounded-[12px] border border-dashed border-(--cal-ghost) text-[11.5px] text-ink-3">
+            <span className="flex h-[132px] w-[106px] shrink-0 flex-col overflow-hidden rounded-[12px] border border-dashed border-(--cal-ghost) text-[11.5px] text-ink-3">
               <button
                 type="button"
                 onClick={() => input.current?.click()}
@@ -703,7 +928,7 @@ function Content({
           />
         </div>
         <Fold open={libraryOpen}>
-          <div className="flex gap-2 pt-1">
+          <div className={`flex gap-2 pt-1 ${STRIP}`}>
             {library.map((src) => (
               <button
                 key={src}
@@ -712,7 +937,7 @@ function Content({
                   setMedia([...media, src].slice(-max))
                   setLibraryOpen(false)
                 }}
-                className="relative block h-[72px] w-[58px] overflow-hidden rounded-[8px] bg-tile transition-transform hover:-translate-y-0.5"
+                className="relative block h-[72px] w-[58px] shrink-0 overflow-hidden rounded-[8px] bg-tile transition-transform hover:-translate-y-0.5"
               >
                 <Image src={src} alt="" fill sizes="140px" className="object-cover" />
               </button>
@@ -723,10 +948,11 @@ function Content({
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
+          <span className={`${EYEBROW} md:hidden`}>Caption</span>
           <div
             role="tablist"
             aria-label="Caption for"
-            className="flex flex-wrap items-center gap-1"
+            className="flex flex-wrap items-center gap-1 max-md:hidden"
           >
             {[{ key: 'all' as const, name: 'All accounts' }, ...active].map((c) => {
               const on = c.key === shownTab
@@ -752,7 +978,7 @@ function Content({
             type="button"
             onClick={draftWithAI}
             disabled={writing}
-            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 text-[12.5px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:bg-paper hover:text-ink disabled:opacity-60"
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 text-[12.5px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:bg-paper hover:text-ink disabled:opacity-60 max-md:h-10 max-md:bg-transparent max-md:px-0 max-md:text-[13.5px]"
           >
             <SparkIcon size={10} />
             {writing ? 'Writing…' : drafted ? 'Try another' : 'Draft with AI'}
@@ -768,9 +994,56 @@ function Content({
               : `What ${NAME[shownTab]} shows instead`
           }
           aria-label={shownTab === 'all' ? 'Caption' : `${NAME[shownTab]} text`}
-          className="w-full resize-none rounded-[12px] bg-surface-2 p-4 text-[14.5px] leading-[1.5] outline-none placeholder:text-ink-5 focus:bg-surface"
+          className="w-full resize-none rounded-[12px] bg-surface-2 p-4 text-[14.5px] leading-[1.5] outline-none placeholder:text-ink-5 focus:bg-surface max-md:min-h-[96px] max-md:rounded-none max-md:bg-transparent max-md:px-0 max-md:py-1 max-md:field-sizing-content max-md:focus:bg-transparent"
         />
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        {/* On a phone one row does both: each account's count is also the tab that edits it. */}
+        <div
+          role="tablist"
+          aria-label="Caption for"
+          className={`flex items-center gap-1.5 md:hidden ${STRIP}`}
+        >
+          {[{ key: 'all' as const, name: 'All' }, ...active].map((c) => {
+            const on = c.key === shownTab
+            const { used, max: limit } =
+              c.key === 'all' ? { used: 0, max: 0 } : lengthFor(draft, c.key)
+            return (
+              <button
+                key={c.key}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => setTab(c.key)}
+                className={`flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-medium transition-colors ${on ? 'bg-ink text-page' : 'bg-surface text-ink-3'}`}
+              >
+                {c.key === 'all' ? (
+                  c.name
+                ) : (
+                  <>
+                    <PlatformLogo platform={c.key} size={11} />
+                    <span
+                      className={`font-mono text-[11px] tabular-nums ${used > limit ? 'text-fail-ink' : ''}`}
+                    >
+                      {used}/{limit.toLocaleString('en')}
+                    </span>
+                    {own(c.key) && (
+                      <span className={`size-1.5 rounded-full ${on ? 'bg-page' : 'bg-ink'}`} />
+                    )}
+                  </>
+                )}
+              </button>
+            )
+          })}
+        </div>
+        {shared && (
+          <button
+            type="button"
+            onClick={useShared}
+            className="h-10 self-start text-[13px] text-ink-3 md:hidden"
+          >
+            Use the shared text
+          </button>
+        )}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 max-md:hidden">
           {active.map((c) => {
             const { used, max: limit } = lengthFor(draft, c.key)
             const over = used > limit
@@ -784,18 +1057,10 @@ function Content({
               </span>
             )
           })}
-          {shownTab !== 'all' && own(shownTab) && (
+          {shared && (
             <button
               type="button"
-              onClick={() =>
-                shownTab === 'yt'
-                  ? update({ youtubeTitle: null })
-                  : update({
-                      overrides: Object.fromEntries(
-                        Object.entries(draft.overrides).filter(([k]) => k !== shownTab),
-                      ),
-                    })
-              }
+              onClick={useShared}
               className="ml-auto text-[12px] text-ink-3 hover:text-ink"
             >
               Use the shared text
@@ -843,17 +1108,18 @@ function Details({
   ]
   return (
     <section aria-label="Details" className={CARD}>
-      <span className={EYEBROW}>Details</span>
+      <span className={`${EYEBROW} max-md:hidden`}>Details</span>
+      {/* Label beside the field on a desktop; above it on a phone. */}
       <div className="flex flex-col">
         {rows
           .filter((r) => r.to.length > 0)
           .map((r) => (
             <div
               key={r.key}
-              className="grid grid-cols-[132px_minmax(0,1fr)] items-start gap-3 border-b border-(--cal-line) py-3 first:pt-0"
+              className="grid grid-cols-[132px_minmax(0,1fr)] items-start gap-3 border-b border-(--cal-line) py-3 first:pt-0 max-md:grid-cols-1 max-md:gap-1.5 max-md:py-4"
             >
-              <span className="flex flex-col gap-1 pt-1.5">
-                <span className="text-[13px]">{r.label}</span>
+              <span className="flex flex-col gap-1 pt-1.5 max-md:flex-row max-md:items-center max-md:gap-2 max-md:pt-0">
+                <span className="text-[13px] max-md:text-[14px]">{r.label}</span>
                 <span className="flex gap-1 text-ink-4">
                   {r.to.map((k) => (
                     <PlatformLogo key={k} platform={k} size={9} />
@@ -865,7 +1131,7 @@ function Details({
                   value={details.location}
                   onChange={(e) => setDetails({ ...details, location: e.target.value })}
                   aria-label="Location"
-                  className="h-9 rounded-[10px] bg-surface-2 px-3 text-[13.5px] outline-none focus:bg-surface"
+                  className="h-9 rounded-[10px] bg-surface-2 px-3 text-[13.5px] outline-none focus:bg-surface max-md:h-11"
                 />
               ) : r.key === 'comment' ? (
                 <textarea
@@ -886,10 +1152,10 @@ function Details({
               )}
             </div>
           ))}
-        <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 border-b border-(--cal-line) py-3">
-          <span className="text-[13px]">AI-generated</span>
-          <span className="flex items-center justify-between gap-3">
-            <span className="text-[12px] text-ink-4">
+        <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 border-b border-(--cal-line) py-3 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:py-4">
+          <span className="text-[13px] max-md:text-[14px]">AI-generated</span>
+          <span className="flex items-center justify-between gap-3 max-md:contents">
+            <span className="text-[12px] text-ink-4 max-md:order-last max-md:col-span-2">
               Labels the post where the platform asks for it
             </span>
             <Switch
@@ -899,9 +1165,9 @@ function Details({
             />
           </span>
         </div>
-        <div className="grid grid-cols-[132px_minmax(0,1fr)] items-start gap-3 pt-3">
-          <span className="flex flex-col gap-0.5 pt-1.5">
-            <span className="text-[13px]">Labels</span>
+        <div className="grid grid-cols-[132px_minmax(0,1fr)] items-start gap-3 pt-3 max-md:grid-cols-1 max-md:gap-1.5 max-md:pt-4">
+          <span className="flex flex-col gap-0.5 pt-1.5 max-md:flex-row max-md:items-baseline max-md:gap-2 max-md:pt-0">
+            <span className="text-[13px] max-md:text-[14px]">Labels</span>
             <span className="text-[11px] text-ink-4">Internal only</span>
           </span>
           <Chips values={labels} onChange={setLabels} placeholder="e.g. TMP_Wine, F1 weekend" />
@@ -925,7 +1191,7 @@ function Chips({
 }) {
   const [draft, setDraft] = React.useState('')
   return (
-    <div className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-[10px] bg-surface-2 px-2 py-1.5 focus-within:bg-surface">
+    <div className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-[10px] bg-surface-2 px-2 py-1.5 focus-within:bg-surface max-md:min-h-11">
       {values.map((v) => (
         <span
           key={v}
@@ -971,23 +1237,12 @@ interface Extra {
   igShareToFeed: boolean
 }
 
-/** What one platform alone needs, a row per ticked account; a row that needs an answer says so. */
-function PerAccount({
-  api,
-  extra,
-  setExtra,
-}: {
-  api: PublishDraftApi
-  extra: Extra
-  setExtra: (e: Extra) => void
-}) {
-  const { draft } = api
-  const active = activeChannels(draft)
-  const [open, setOpen] = React.useState<ChannelKey | null>(
-    active.some((c) => c.key === 'tt') && draft.privacy === null ? 'tt' : null,
-  )
-
-  const summary: Record<ChannelKey, { text: string; needs: boolean }> = {
+/** Each ticked account's settings in a line, and whether it still needs an answer. */
+function summaryOf(
+  draft: Draft,
+  extra: Extra,
+): Record<ChannelKey, { text: string; needs: boolean }> {
+  return {
     tt: {
       text: draft.privacy
         ? `${draft.privacy} · interactions ${Object.values(draft.interactions).some(Boolean) ? 'on' : 'off'}`
@@ -1012,32 +1267,57 @@ function PerAccount({
       needs: false,
     },
   }
+}
+
+/**
+ * What one platform alone needs, a row per ticked account; a row that needs an answer says so.
+ * With `only`, one account's settings alone, open: the phone shows each account in its own sheet.
+ */
+function PerAccount({
+  api,
+  extra,
+  setExtra,
+  only,
+}: {
+  api: PublishDraftApi
+  extra: Extra
+  setExtra: (e: Extra) => void
+  only?: ChannelKey
+}) {
+  const { draft } = api
+  const active = activeChannels(draft).filter((c) => !only || c.key === only)
+  const [open, setOpen] = React.useState<ChannelKey | null>(
+    active.some((c) => c.key === 'tt') && draft.privacy === null ? 'tt' : null,
+  )
+  const summary = summaryOf(draft, extra)
 
   return (
     <section aria-label="Per account" className={CARD}>
-      <span className={EYEBROW}>Per account</span>
+      {!only && <span className={EYEBROW}>Per account</span>}
       <div className="flex flex-col">
         {active.map((c) => {
           const s = summary[c.key]
-          const on = open === c.key
+          const on = only === c.key || open === c.key
           return (
             <div key={c.key} className="border-b border-(--cal-line) last:border-b-0">
-              <button
-                type="button"
-                aria-expanded={on}
-                onClick={() => setOpen(on ? null : c.key)}
-                className="flex min-h-12 w-full items-center gap-3 text-left"
-              >
-                <PlatformLogo platform={c.key} size={14} />
-                <span className="text-[13.5px] font-medium">{c.name}</span>
-                <span className="flex flex-1 items-center gap-1.5 text-[12.5px] text-ink-3">
-                  {s.needs && <span className="size-1.5 rounded-full bg-ink" />}
-                  {s.text}
-                </span>
-                <ChevronIcon open={on} size={9} />
-              </button>
+              {!only && (
+                <button
+                  type="button"
+                  aria-expanded={on}
+                  onClick={() => setOpen(on ? null : c.key)}
+                  className="flex min-h-12 w-full items-center gap-3 text-left"
+                >
+                  <PlatformLogo platform={c.key} size={14} />
+                  <span className="text-[13.5px] font-medium">{c.name}</span>
+                  <span className="flex flex-1 items-center gap-1.5 text-[12.5px] text-ink-3">
+                    {s.needs && <span className="size-1.5 rounded-full bg-ink" />}
+                    {s.text}
+                  </span>
+                  <ChevronIcon open={on} size={9} />
+                </button>
+              )}
               <Fold open={on}>
-                <div className="pb-4 pl-[26px]">
+                <div className={only ? 'pb-1' : 'pb-4 pl-[26px]'}>
                   {c.key === 'tt' ? (
                     <TikTokRows api={api} />
                   ) : c.key === 'yt' ? (
@@ -1141,8 +1421,11 @@ function Rows({
   return (
     <div className="flex flex-col gap-2">
       {rows.map((r) => (
-        <div key={r.label} className="flex min-h-10 items-center justify-between gap-4">
-          <span className="text-[13px] text-ink-2">{r.label}</span>
+        <div
+          key={r.label}
+          className="flex min-h-10 items-center justify-between gap-4 max-md:min-h-12"
+        >
+          <span className="text-[13px] text-ink-2 max-md:text-[14px]">{r.label}</span>
           {r.control}
         </div>
       ))}
@@ -1169,7 +1452,7 @@ function Choice({
           role="radio"
           aria-checked={o === value}
           onClick={() => onChange(o)}
-          className={`h-7 rounded-full px-3 text-[12px] font-medium transition-colors ${o === value ? 'bg-page text-ink shadow-soft' : 'text-ink-3 hover:text-ink'}`}
+          className={`h-7 rounded-full px-3 text-[12px] font-medium transition-colors max-md:h-9 max-md:text-[13px] ${o === value ? 'bg-page text-ink shadow-soft' : 'text-ink-3 hover:text-ink'}`}
         >
           {o}
         </button>
@@ -1178,23 +1461,25 @@ function Choice({
   )
 }
 
-/** TikTok's own questions: who can watch has no default, and the consent line sits under them. */
+/** TikTok's own questions: who can watch starts on Everyone, and the consent line sits under them. */
 function TikTokRows({ api }: { api: PublishDraftApi }) {
   const { draft, update } = api
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex min-h-10 flex-wrap items-center justify-between gap-3">
-        <span className="flex items-center gap-2 text-[13px] text-ink-2">
+      <div className="flex min-h-10 flex-wrap items-center justify-between gap-3 max-md:min-h-12">
+        <span className="flex items-center gap-2 text-[13px] text-ink-2 max-md:text-[14px]">
           {draft.privacy === null && <span className="size-1.5 rounded-full bg-ink" />}
           Who can watch
         </span>
-        <Segmented
-          label="Who can watch on TikTok"
-          pill
-          options={PRIVACY.map((p) => ({ value: p, label: p }))}
-          value={draft.privacy}
-          onChange={(privacy) => update({ privacy })}
-        />
+        <div className={`max-md:w-full ${TAP}`}>
+          <Segmented
+            label="Who can watch on TikTok"
+            pill
+            options={PRIVACY.map((p) => ({ value: p, label: p }))}
+            value={draft.privacy}
+            onChange={(privacy) => update({ privacy })}
+          />
+        </div>
       </div>
       {(
         [
@@ -1203,8 +1488,8 @@ function TikTokRows({ api }: { api: PublishDraftApi }) {
           ['stitch', 'Allow Stitch'],
         ] as const
       ).map(([key, label]) => (
-        <div key={key} className="flex min-h-9 items-center justify-between gap-3">
-          <span className="text-[13px] text-ink-2">{label}</span>
+        <div key={key} className="flex min-h-9 items-center justify-between gap-3 max-md:min-h-12">
+          <span className="text-[13px] text-ink-2 max-md:text-[14px]">{label}</span>
           <Switch
             label={label}
             checked={draft.interactions[key]}
@@ -1212,8 +1497,8 @@ function TikTokRows({ api }: { api: PublishDraftApi }) {
           />
         </div>
       ))}
-      <div className="flex min-h-9 items-center justify-between gap-3">
-        <span className="text-[13px] text-ink-2">Promotes a brand</span>
+      <div className="flex min-h-9 items-center justify-between gap-3 max-md:min-h-12">
+        <span className="text-[13px] text-ink-2 max-md:text-[14px]">Promotes a brand</span>
         <Switch
           label="Promotes a brand"
           checked={draft.promo.on}
@@ -1234,7 +1519,7 @@ function TikTokRows({ api }: { api: PublishDraftApi }) {
               role="checkbox"
               aria-checked={draft.promo[key]}
               onClick={() => update({ promo: { ...draft.promo, [key]: !draft.promo[key] } })}
-              className={`h-8 rounded-full px-3.5 text-[12.5px] font-medium ${draft.promo[key] ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:text-ink'}`}
+              className={`h-8 rounded-full px-3.5 text-[12.5px] font-medium max-md:h-10 ${draft.promo[key] ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:text-ink'}`}
             >
               {label}
             </button>
@@ -1274,8 +1559,8 @@ function WhenCard({
   return (
     <section aria-label="When" className={CARD}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className={EYEBROW}>When</span>
-        <div className="w-[330px]">
+        <span className={`${EYEBROW} max-md:hidden`}>When</span>
+        <div className={`w-[330px] max-md:w-full ${TAP}`}>
           <Segmented<WhenChoice>
             label="When"
             pill
@@ -1314,7 +1599,7 @@ function WhenCard({
                       disabled={disabled}
                       aria-pressed={on}
                       onClick={() => setDayN(d.n)}
-                      className={`relative flex h-9 items-center justify-center rounded-[9px] text-[12.5px] tabular-nums transition-colors ${on ? 'bg-ink text-page' : disabled ? 'text-ink-5' : 'text-ink hover:bg-surface'}`}
+                      className={`relative flex h-9 items-center justify-center rounded-[9px] text-[12.5px] tabular-nums transition-colors max-md:h-10 max-md:text-[14px] ${on ? 'bg-ink text-page' : disabled ? 'text-ink-5' : 'text-ink hover:bg-surface'}`}
                     >
                       {d.n}
                       {busy && !on && (
@@ -1504,8 +1789,8 @@ function ApprovalCard({
     <section aria-label="Approval" className={CARD}>
       <div className="flex items-center justify-between gap-3">
         <span className="flex flex-col gap-1">
-          <span className={EYEBROW}>Approval</span>
-          <span className="text-[12.5px] text-ink-3">
+          <span className={`${EYEBROW} max-md:hidden`}>Approval</span>
+          <span className="text-[12.5px] text-ink-3 max-md:text-[14px] max-md:text-ink">
             {approval.on
               ? 'Goes out once approved. They get a link, no login needed.'
               : 'Goes out without an approval step.'}
@@ -1533,7 +1818,7 @@ function ApprovalCard({
                     who: on ? approval.who.filter((x) => x !== p) : [...approval.who, p],
                   })
                 }
-                className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-medium transition-colors ${on ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:text-ink'}`}
+                className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-medium transition-colors max-md:h-10 max-md:px-3.5 max-md:text-[13.5px] ${on ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:text-ink'}`}
               >
                 {on && <CheckIcon size={8} strokeWidth={2.4} />}
                 {p}
@@ -1560,18 +1845,20 @@ function Notes({
   return (
     <section
       aria-label="Notes"
-      className="bb-rise flex flex-col gap-3 rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line)]"
+      className="bb-rise flex flex-col gap-3 rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line)] max-md:gap-4 max-md:p-0 max-md:shadow-none"
     >
-      <Segmented<'internal' | 'external'>
-        label="Notes"
-        pill
-        value={kind}
-        onChange={setKind}
-        options={[
-          { value: 'internal', label: 'Internal' },
-          { value: 'external', label: 'External' },
-        ]}
-      />
+      <div className={TAP}>
+        <Segmented<'internal' | 'external'>
+          label="Notes"
+          pill
+          value={kind}
+          onChange={setKind}
+          options={[
+            { value: 'internal', label: 'Internal' },
+            { value: 'external', label: 'External' },
+          ]}
+        />
+      </div>
       {shown.length === 0 ? (
         <p className="text-[12.5px] text-ink-4">
           {kind === 'internal'
@@ -1601,7 +1888,7 @@ function Notes({
           onChange={(e) => setDraft(e.target.value)}
           placeholder={`Add an ${kind} note`}
           aria-label={`Add an ${kind} note`}
-          className="h-9 w-full rounded-full bg-surface px-3.5 text-[13px] outline-none placeholder:text-ink-5"
+          className="h-9 w-full rounded-full bg-surface px-3.5 text-[13px] outline-none placeholder:text-ink-5 max-md:h-11 max-md:px-4"
         />
       </form>
     </section>
@@ -1622,7 +1909,7 @@ function Preview({ api, media }: { api: PublishDraftApi; media: string[] }) {
   return (
     <section
       aria-label="Preview"
-      className="flex flex-col gap-4 rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line)]"
+      className="flex flex-col gap-4 rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line)] max-md:p-0 max-md:shadow-none"
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1">
@@ -1633,14 +1920,14 @@ function Preview({ api, media }: { api: PublishDraftApi; media: string[] }) {
               aria-pressed={c.key === channel}
               aria-label={`Preview on ${c.name}`}
               onClick={() => setPicked(c.key)}
-              className={`flex size-8 items-center justify-center rounded-full transition-colors ${c.key === channel ? 'bg-ink text-page' : 'text-ink-3 hover:bg-page hover:text-ink'}`}
+              className={`flex size-8 items-center justify-center rounded-full transition-colors max-md:size-10 ${c.key === channel ? 'bg-ink text-page' : 'text-ink-3 hover:bg-page hover:text-ink'}`}
             >
               <PlatformLogo platform={c.key} size={13} />
             </button>
           ))}
         </div>
         {channel === 'ig' && draft.format !== 'story' && (
-          <div className="w-[136px]">
+          <div className={`w-[136px] ${TAP}`}>
             <Segmented<'phone' | 'grid'>
               label="Preview as"
               pill

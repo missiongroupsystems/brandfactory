@@ -44,11 +44,15 @@ describe('where a post can go', () => {
   })
 })
 
-describe('TikTok asks every time', () => {
-  it('blocks the button until somebody chooses who can watch', () => {
-    // TikTok's Direct Post guidelines forbid a default; a preset answer would fail its audit.
-    expect(blockers(reel())).toEqual(['Choose who can watch on TikTok.'])
-    expect(blockers(reel({ privacy: 'Everyone' }))).toEqual([])
+describe('TikTok', () => {
+  it('starts on Everyone, so a brand post is never stopped by the question', () => {
+    // The brands post in public. Real posting must drop this default before TikTok's audit.
+    expect(reel().privacy).toBe('Everyone')
+    expect(blockers(reel())).toEqual([])
+  })
+
+  it('still blocks the button when nobody has said who can watch', () => {
+    expect(blockers(reel({ privacy: null }))).toEqual(['Choose who can watch on TikTok.'])
   })
 
   it('asks nothing when TikTok is not chosen', () => {

@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.4.0** — 2026-10-08 — A layout made for phones, not a shrunk desktop: a tab bar at the bottom; Schedule keeps Month, Week and Day in a phone's shape (Week lists the seven days, Day keeps the hours, Month lists the day picked in the grid) under a week strip; the shoot brief shows one column at a time; New post sends from a bar at the bottom and folds its extra sections. A long press drags a post onto a day or a card onto a column by touch. Desktop unchanged. No migration. 82 tests.
+- **2.4.0** — 2026-10-08 — A layout made for phones, not a shrunk desktop: a tab bar at the bottom; Schedule keeps Month, Week and Day in a phone's shape (Week lists the seven days, Day keeps the hours, Month lists the day picked in the grid) under a week strip; the shoot brief shows one column at a time; New post becomes one white compose screen whose settings open as sheets from the bottom. TikTok's "who can watch" starts on Everyone, on every screen. A long press drags a post onto a day or a card onto a column by touch. Desktop unchanged. No migration. 83 tests.
 - **2.3.1** — 2026-10-08 — A phone pass: no page scrolls sideways at 320–430 px; the calendar toolbar wraps, Month fits seven days, the Day card and the menus stay on screen; the shoot brief opens an idea as a bottom sheet; a tap shows a chart value; touch screens see the controls that appear on hover, and phones get 16 px fields so iOS does not zoom. No migration. 82 tests.
 - **2.3.0** — 2026-10-07 — Insights becomes one calm column with a pill switch like Ideate's: Overview (a summary line, one number at a time over twelve weekly bars, what worked as rows that open to their chart and idea, the best time to post), Posts and Creators. No migration. 82 tests.
 - **2.2.1** — 2026-10-07 — Every demo photo is replaced with a sharp version (short side at least 1000 px, was 272–750), from the same Unsplash photo where the source was recorded and a matching free Unsplash photo where it was not; a check of every image on every page at 2x finds none under-resolved. No migration. 82 tests.
@@ -37,13 +37,21 @@ reverted, and this one keeps the views.
   Month lists the day picked in the grid, with "Best at" from Insights.
 - **Shoot brief:** one column at a time, under four tabs with their counts; the facts in two
   columns; no Print.
-- **New post:** no header; the send button and Notes in a bar at the bottom; Notes open at the top
-  of the form; the accounts in two columns; the details, the per-account settings and the approval
-  fold under "More options".
+- **New post:** one white compose screen, no header and no cards: the media strip, the caption as
+  plain text, one row of chips that are both the per-account caption tabs and their character
+  counts, then a short list (Post to, When, Details, one row per ticked account, Approval, Preview).
+  Each row shows its answer and opens a sheet from the bottom with the controls a wider screen shows
+  in place. The bottom bar holds Notes and the send button, which shows the first thing still
+  missing while it cannot send.
 - **Ideate and Insights:** smaller titles; Shoot brief beside the Ideas title; an idea's photo
   leaves its hook and "Plan it" on the first screen. Insights picks a number from pills that wrap,
   and Posts and Creators put their second figures under the name. The stories panel rises from the
   bottom, as tall as its stories.
+
+**TikTok starts on Everyone.** "Who can watch" was unanswered until someone chose, so every post
+with TikTok waited on it. The brands post in public, so a new post now starts on Everyone, on every
+screen. TikTok's Direct Post guidelines ask for no default here, and an app that presets it fails
+their audit: real posting through TikTok's API must drop this default first (noted in `model.ts`).
 
 **Drag by touch.** A phone's browser does not start the HTML drag from a finger, so dragging needed
 a mouse. A press of a third of a second now lifts a post or a card (`components/touch-drag.ts`): a
@@ -53,7 +61,7 @@ the same drag. A tap still opens, a swipe before the press still scrolls, and th
 unchanged. Tested with touch events in Chromium at 320, 390 and 820 px, and every page and its menus
 and sheets checked in screenshots at 320 and 390 px; not yet on a real phone.
 
-**No migration.** 82 tests (14 files), all passing.
+**No migration.** 83 tests (14 files), all passing.
 
 ## 2.3.1 — 2026-10-08
 

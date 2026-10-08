@@ -11,7 +11,6 @@ import {
   type ChannelKey,
   type Draft,
   type Outcome,
-  type Privacy,
   type When,
 } from './model'
 
@@ -29,7 +28,6 @@ export function usePublishDraft(input: {
   hook: string
   caption: string
   selected?: ChannelKey[]
-  privacy?: Privacy
 }) {
   const [draft, setDraft] = React.useState<Draft>(() => initialDraft(input))
   const [rawPhase, setPhase] = React.useState<Phase>('compose')

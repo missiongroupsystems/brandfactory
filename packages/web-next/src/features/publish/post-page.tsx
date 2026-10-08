@@ -27,13 +27,13 @@ export function PostPage({
   const mine = id ? posts.some((p) => p.id === id) || id.startsWith(`${brand.id}-archive`) : true
   const post = id && mine ? byId(id) : undefined
   return (
-    <div className="flex min-h-svh flex-col bg-surface-2">
-      {/* A post is a task: on a phone it fills the screen, with a back link and no header. */}
+    <div className="flex min-h-svh flex-col bg-surface-2 max-md:bg-page">
+      {/* A post is a task: on a phone it is one white screen, with a back link and no header. */}
       <div className="max-md:hidden">
         <AppHeader />
       </div>
-      <main className="mx-auto w-full max-w-[1280px] px-10 pb-24 max-md:px-4 max-md:pt-4 max-md:pb-[calc(140px+env(safe-area-inset-bottom))]">
-        <div className="pb-5">
+      <main className="mx-auto w-full max-w-[1280px] px-10 pb-24 max-md:px-4 max-md:pt-4 max-md:pb-[calc(96px+env(safe-area-inset-bottom))]">
+        <div className="pb-5 max-md:pb-4">
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase transition-colors hover:text-ink"
