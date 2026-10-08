@@ -7,8 +7,15 @@ import * as React from 'react'
 
 import { Confetti } from '@/components/confetti'
 import { Fold, Segmented, Switch } from '@/components/controls'
-import { CheckIcon, ChevronIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
-import { fromFile, Media } from '@/components/media'
+import {
+  CheckIcon,
+  ChevronIcon,
+  CloseIcon,
+  CropIcon,
+  PlusIcon,
+  SparkIcon,
+} from '@/components/icons'
+import { fromFile, isVideo } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import type { BrandId } from '@/data/brands'
 import type { Format, Post, Stage } from '@/data/demo'
@@ -19,21 +26,28 @@ import { composeChannels, sentChannels } from '@/features/schedule/calendar-item
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 
+import { CropEditor } from './crop-editor'
 import {
   activeChannels,
   blockers,
   CHANNELS,
+  defaultCrop,
+  isUncut,
   kindOn,
   lengthFor,
   PRIVACY,
+  shotOf,
   textFor,
   tiktokConsent,
   youtubeTitle,
   type ChannelKey,
+  type Crop,
   type Draft,
   type Outcome,
+  type Shot,
 } from './model'
 import { PhoneMock } from './phone-mocks'
+import { ratioOf, ShotView } from './shot'
 import { usePublishDraft, type PublishDraftApi } from './use-publish-draft'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
@@ -66,7 +80,6 @@ const VENUE: Record<BrandId, string> = {
   carlitos: 'Carlitos, Joo Chiat',
 }
 
-const APPROVERS = ['Chef Marco', 'Chun (CEO)', 'Dione']
 /** The parts of the day Insights scores, as the time each one posts at. */
 const DAYPART_TIME = ['09:00', '12:00', '15:00', '18:00', '21:00']
 const MEDIA_MAX: Record<Format, number> = { reel: 1, carousel: 10, story: 10 }
@@ -76,7 +89,7 @@ const MEDIA_RULE: Record<Format, string> = {
   story: 'Up to 10 frames, each shown for a few seconds',
 }
 
-type WhenChoice = 'now' | 'schedule' | 'draft'
+type WhenChoice = 'now' | 'schedule'
 
 /** Which accounts a detail is sent to. A detail with none of them selected stays hidden. */
 const DETAIL_ON: Record<'comment' | 'location' | 'collab', ChannelKey[]> = {
@@ -126,7 +139,7 @@ export function Composer({
   const failedName = NAME[failedKey]
   const { draft, update, phase } = api
 
-  const [media, setMedia] = React.useState<string[]>(post?.images ?? [])
+  const [media, setMedia] = React.useState<Shot[]>(() => (post?.images ?? []).map(shotOf))
   // A failed post was due already: the fix is to send it now.
   const [when, setWhen] = React.useState<WhenChoice>(post?.stage === 'failed' ? 'now' : 'schedule')
   const [dayN, setDayN] = React.useState<string>(
@@ -148,28 +161,16 @@ export function Composer({
     aiLabel: false,
   })
   const [labels, setLabels] = React.useState<string[]>([])
-  const [approval, setApproval] = React.useState<{ on: boolean; who: string[] }>({
-    on: false,
-    who: ['Chef Marco'],
-  })
   const [extra, setExtra] = React.useState({
     ytVisibility: 'Public',
     fbAudience: 'Everyone',
     liVisibility: 'Anyone',
     igShareToFeed: true,
   })
-  const [notesOpen, setNotesOpen] = React.useState(false)
-  // In one column (a tablet), notes open above the form: it scrolls there once, as they open.
-  const toNotes = React.useCallback((el: HTMLDivElement | null) => {
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [])
   // On a phone each card opens in a sheet from its row; one sheet at a time.
   const [sheet, setSheet] = React.useState<SheetKey | null>(null)
   const closeSheet = React.useCallback(() => setSheet(null), [])
-  const [notes, setNotes] = React.useState<Array<{ kind: 'internal' | 'external'; text: string }>>(
-    [],
-  )
-  const [saved, setSaved] = React.useState<string | null>(null)
+  const [saved, setSaved] = React.useState(false)
 
   const active = activeChannels(draft)
   const targetId = post?.id ?? madeId
@@ -187,25 +188,21 @@ export function Composer({
     ...blockers(draft),
     ...(when === 'schedule' && !dayN ? ['Pick a day.'] : []),
   ]
-  // Nothing can go out: a read-only post, or a blocker (a draft may be saved unfinished).
-  const stuck = readOnly || (blocked.length > 0 && when !== 'draft')
+  // Nothing can go out: a read-only post, or a blocker (a draft may still be saved unfinished).
+  const stuck = readOnly || blocked.length > 0
   // A retry names its accounts by their logos, so the button shows exactly where it goes again.
   // Before the reconnect, the account that failed is not ticked yet: the button names it anyway.
   const retryOn = active.length > 0 ? active.map((c) => c.key) : reconnected ? [] : [failedKey]
-  const retry = retryOn.length > 0 && when === 'now' && !approval.on && post?.stage === 'failed'
+  const retry = retryOn.length > 0 && when === 'now' && post?.stage === 'failed'
   const label = retry
     ? 'Retry on'
     : active.length === 0
       ? 'Pick an account'
-      : when === 'draft'
-        ? 'Save draft'
-        : approval.on
-          ? 'Send for approval'
-          : when === 'now'
-            ? 'Post on'
-            : 'Schedule on'
+      : when === 'now'
+        ? 'Post on'
+        : 'Schedule on'
   // A send names its accounts by their logos, so the button shows exactly where the post goes.
-  const logos = retry ? retryOn : approval.on || when === 'draft' ? [] : active.map((c) => c.key)
+  const logos = retry ? retryOn : active.map((c) => c.key)
 
   /** The post on the calendar: moved and restaged if it exists, placed if it is new. */
   function toCalendar(stage: Stage): string | null {
@@ -221,28 +218,30 @@ export function Composer({
       return targetId
     }
     const hook = ideaHook ?? (draft.caption.split(/[.!?\n]/)[0]?.trim() || 'New post')
-    const id = planPost({ format: draft.format, hook, image: media[0], channels }, day, time, stage)
+    const id = planPost(
+      { format: draft.format, hook, image: media[0]?.src, channels },
+      day,
+      time,
+      stage,
+    )
     setMadeId(id)
     return id
   }
 
   function primary() {
     if (stuck) return
-    if (when === 'draft' || approval.on) {
-      toCalendar(approval.on && when !== 'draft' ? 'awaiting' : 'draft')
-      setSaved(
-        approval.on
-          ? `Sent to ${approval.who.join(' and ')} for approval`
-          : 'Saved as a draft on the calendar',
-      )
-      return
-    }
     update({ when: when === 'now' ? 'now' : 'slot' })
     toCalendar(when === 'now' ? 'posted' : 'scheduled')
     api.send(when === 'now' ? 'now' : 'slot')
   }
 
-  if (saved) return <Saved message={saved} onEdit={() => setSaved(null)} />
+  function saveDraft() {
+    if (readOnly) return
+    toCalendar('draft')
+    setSaved(true)
+  }
+
+  if (saved) return <Saved onEdit={() => setSaved(false)} />
   if (phase !== 'compose') {
     return (
       <Outcomes
@@ -255,7 +254,7 @@ export function Composer({
   }
 
   const status = post ? STAGE_LABEL[post.stage] : 'New'
-  const hint = (stuck || when !== 'draft') && blocked[0] && (
+  const hint = blocked[0] && (
     <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
       <span className="size-1.5 shrink-0 rounded-full bg-ink" />
       <span className="min-w-0 truncate">{blocked[0]}</span>
@@ -276,7 +275,7 @@ export function Composer({
             : undefined
       }
       onClick={primary}
-      className={`flex h-10 min-w-[160px] items-center justify-center gap-2 rounded-full px-5 text-[13.5px] font-medium transition-[background-color,box-shadow] max-md:h-12 max-md:min-w-0 max-md:flex-1 max-md:text-[14px] ${stuck ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
+      className={`flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-full px-5 text-[13.5px] font-medium transition-[background-color,box-shadow] max-md:h-12 max-md:text-[14px] ${stuck ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
     >
       {phone && stuck ? (
         <span className="flex min-w-0 max-w-full text-ink-3">{hint}</span>
@@ -294,15 +293,15 @@ export function Composer({
       )}
     </button>
   )
-  const notesButton = (onClick: () => void, pressed: boolean) => (
+  /** The quiet way out: the post goes on the calendar as a draft, finished or not. */
+  const draftButton = (
     <button
       type="button"
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={`flex h-10 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium transition-colors max-md:h-12 ${pressed ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
+      aria-disabled={readOnly}
+      onClick={saveDraft}
+      className={`flex h-10 shrink-0 items-center rounded-full px-4 text-[13px] font-medium transition-colors max-md:h-12 max-md:text-[14px] ${readOnly ? 'cursor-not-allowed text-ink-5' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
     >
-      Notes
-      {notes.length > 0 && <span className="font-mono text-[11px] opacity-60">{notes.length}</span>}
+      Save draft
     </button>
   )
   // The sheet a phone row opened, over the same cards the desktop shows in place.
@@ -334,12 +333,7 @@ export function Composer({
         />
       ),
     },
-    approval: {
-      title: 'Approval',
-      body: <ApprovalCard approval={approval} setApproval={setApproval} />,
-    },
     preview: { title: 'Preview', body: <Preview api={api} media={media} /> },
-    notes: { title: 'Notes', body: <Notes notes={notes} setNotes={setNotes} /> },
     ...Object.fromEntries(
       active.map((c) => [
         c.key,
@@ -350,43 +344,27 @@ export function Composer({
       ]),
     ),
   }
-  const whenText =
-    when === 'now'
-      ? 'Now'
-      : when === 'draft'
-        ? 'Draft'
-        : `${dayLabel(weeks, dayN) ?? dayN}, ${time}`
+  const whenText = when === 'now' ? 'Now' : `${dayLabel(weeks, dayN) ?? dayN}, ${time}`
   const detailText = active.some((c) => DETAIL_ON.location.includes(c.key))
     ? details.location || labels.join(', ')
     : labels.join(', ')
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <span className={`${EYEBROW} flex items-center gap-2`}>
-            <span className="max-md:hidden">{brand.name} ·</span>
-            <span className="rounded-full bg-surface px-2 py-[2px] tracking-normal normal-case text-ink-2">
-              {status}
-            </span>
+      <header className="flex flex-col gap-2">
+        <span className={`${EYEBROW} flex items-center gap-2`}>
+          <span className="max-md:hidden">{brand.name} ·</span>
+          <span className="rounded-full bg-surface px-2 py-[2px] tracking-normal normal-case text-ink-2">
+            {status}
           </span>
-          <h1 className="font-display text-[38px] leading-none tracking-[-0.035em] max-md:text-[28px] max-md:leading-[1.05]">
-            {post ? post.hook : 'New post'}
-          </h1>
-        </div>
-        <div className="flex flex-col items-end gap-1.5 max-md:hidden">
-          <div className="flex items-center gap-2">
-            {notesButton(() => setNotesOpen((o) => !o), notesOpen)}
-            {send(false)}
-          </div>
-          <span aria-live="polite" className="min-h-[18px] text-[12px] text-ink-3">
-            {hint}
-          </span>
-        </div>
+        </span>
+        <h1 className="font-display text-[38px] leading-none tracking-[-0.035em] max-md:text-[28px] max-md:leading-[1.05]">
+          {post ? post.hook : 'New post'}
+        </h1>
       </header>
       {/* On a phone the send bar sits at the bottom, under the thumb, and stays there. */}
       <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-line bg-page/95 px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom))] backdrop-blur-xl md:hidden">
-        {notesButton(() => setSheet('notes'), sheet === 'notes')}
+        {draftButton}
         {send(true)}
       </div>
 
@@ -430,12 +408,6 @@ export function Composer({
 
       <div className="grid grid-cols-[minmax(0,1fr)_400px] items-start gap-6 max-lg:grid-cols-1">
         <div className="flex min-w-0 flex-col gap-4 max-md:gap-7">
-          {/* In one column the side column comes last: notes open at the top instead. */}
-          {notesOpen && (
-            <div className="scroll-mt-4 max-md:hidden lg:hidden" ref={toNotes}>
-              <Notes notes={notes} setNotes={setNotes} />
-            </div>
-          )}
           <div className="max-md:hidden">
             <Accounts api={api} />
           </div>
@@ -487,11 +459,6 @@ export function Composer({
                 />
               )
             })}
-            <Row
-              label="Approval"
-              value={approval.on ? approval.who.join(', ') || 'On, no one picked' : 'Off'}
-              onClick={() => setSheet('approval')}
-            />
             <Row label="Preview" value="" onClick={() => setSheet('preview')} />
           </div>
           <div className="flex min-w-0 flex-col gap-4 max-md:hidden">
@@ -512,16 +479,18 @@ export function Composer({
               setTime={setTime}
               story={draft.format === 'story' && active.some((c) => c.key === 'ig')}
             />
-            <ApprovalCard approval={approval} setApproval={setApproval} />
           </div>
         </div>
-        <div className="sticky top-6 flex flex-col gap-4 max-lg:static max-md:hidden">
-          {notesOpen && (
-            <div className="max-lg:hidden">
-              <Notes notes={notes} setNotes={setNotes} />
-            </div>
-          )}
+        {/* The button sits under the preview and scrolls with it, so what goes out is in view. */}
+        <div className="sticky top-6 flex flex-col gap-3 max-lg:static max-md:hidden">
           <Preview api={api} media={media} />
+          <div className="flex items-center gap-2 px-1">
+            {draftButton}
+            {send(false)}
+          </div>
+          <span aria-live="polite" className="min-h-[18px] px-1 text-[12px] text-ink-3">
+            {hint}
+          </span>
         </div>
       </div>
       {sheet && inSheet[sheet] && (
@@ -533,7 +502,7 @@ export function Composer({
   )
 }
 
-type SheetKey = 'accounts' | 'details' | 'when' | 'approval' | 'preview' | 'notes' | ChannelKey
+type SheetKey = 'accounts' | 'details' | 'when' | 'preview' | ChannelKey
 
 const FORMAT_LABEL: Record<Format, string> = { carousel: 'Post', reel: 'Reel', story: 'Story' }
 
@@ -575,27 +544,33 @@ function Row({
 function Sheet({
   title,
   onClose,
+  onDone = onClose,
   children,
 }: {
   title: string
   onClose: () => void
+  /** What Done does when it is more than a close: the crop keeps its edit, a stray tap does not. */
+  onDone?: () => void
   children: React.ReactNode
 }) {
   const done = React.useRef<HTMLButtonElement>(null)
+  // The sheet's content may change what closing does (a crop in progress); the focus must not move
+  // again each time it does.
+  const close = React.useEffectEvent(onClose)
   React.useEffect(() => {
     const { overflow } = document.body.style
     document.body.style.overflow = 'hidden'
     // Focus goes into the sheet, and back to the row that opened it when it closes.
     const opener = document.activeElement as HTMLElement | null
     done.current?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
     window.addEventListener('keydown', onKey)
     return () => {
       document.body.style.overflow = overflow
       window.removeEventListener('keydown', onKey)
       opener?.focus()
     }
-  }, [onClose])
+  }, [])
   // Only a phone's rows open it, but it stays visible if the window then widens, so it can close.
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end">
@@ -617,7 +592,7 @@ function Sheet({
           <button
             ref={done}
             type="button"
-            onClick={onClose}
+            onClick={onDone}
             className="h-10 rounded-full px-3 text-[14px] font-medium text-ink-2 transition-colors hover:text-ink"
           >
             Done
@@ -628,6 +603,70 @@ function Sheet({
         </div>
       </div>
     </div>
+  )
+}
+
+/** A desktop's modal: a card in the middle of the page. Escape or a click outside closes it. */
+function Dialog({
+  title,
+  onClose,
+  children,
+}: {
+  title: string
+  onClose: () => void
+  children: React.ReactNode
+}) {
+  const card = React.useRef<HTMLDivElement>(null)
+  const close = React.useEffectEvent(onClose)
+  React.useEffect(() => {
+    const { overflow } = document.body.style
+    document.body.style.overflow = 'hidden'
+    // Focus goes into the dialog, and back to the control that opened it when it closes.
+    const opener = document.activeElement as HTMLElement | null
+    card.current?.focus()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = overflow
+      window.removeEventListener('keydown', onKey)
+      opener?.focus()
+    }
+  }, [])
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        className="bb-fade absolute inset-0 bg-ink/30"
+      />
+      <div
+        ref={card}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="bb-rise relative w-[460px] max-w-full rounded-[18px] bg-page p-5 shadow-sheet outline-none"
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
+const PHONE = '(max-width: 767px)'
+const onPhone = (cb: () => void) => {
+  const mq = window.matchMedia(PHONE)
+  mq.addEventListener('change', cb)
+  return () => mq.removeEventListener('change', cb)
+}
+
+/** Below 768px the page is the phone layout (`max-md:`): what opens there is a sheet, not a dialog. */
+function usePhone(): boolean {
+  return React.useSyncExternalStore(
+    onPhone,
+    () => window.matchMedia(PHONE).matches,
+    () => false,
   )
 }
 
@@ -743,8 +782,8 @@ function Content({
   onIdea,
 }: {
   api: PublishDraftApi
-  media: string[]
-  setMedia: (m: string[]) => void
+  media: Shot[]
+  setMedia: (m: Shot[]) => void
   library: string[]
   ideas: Array<{ hook: string; format: Exclude<Format, 'story'> }>
   onIdea: (hook: string) => void
@@ -759,6 +798,25 @@ function Content({
   const input = React.useRef<HTMLInputElement>(null)
   const max = MEDIA_MAX[draft.format]
   const shownTab = tab !== 'all' && active.some((c) => c.key === tab) ? tab : 'all'
+  // The photo being cropped and its crop so far; the photo keeps it only on Done.
+  const [editing, setEditing] = React.useState<{ index: number; crop: Crop } | null>(null)
+  const phone = usePhone()
+  const edited = editing ? media[editing.index] : undefined
+
+  /** A first crop needs the photo's shape, so the editor waits for it to load. */
+  async function openCrop(index: number) {
+    const shot = media[index]!
+    setEditing({ index, crop: shot.crop ?? defaultCrop(await ratioOf(shot.src)) })
+  }
+  function keepCrop() {
+    if (!editing) return
+    setMedia(
+      media.map((m, i) =>
+        i === editing.index ? { ...m, crop: isUncut(editing.crop) ? null : editing.crop } : m,
+      ),
+    )
+    setEditing(null)
+  }
 
   React.useEffect(
     () => () => {
@@ -793,7 +851,7 @@ function Content({
   async function add(files: FileList | null) {
     const picked = [...(files ?? [])].filter((f) => /^(image|video)\//.test(f.type))
     const dropped = await Promise.all(picked.map(fromFile))
-    setMedia([...media, ...dropped.map((d) => d.src)].slice(-max))
+    setMedia([...media, ...dropped.map((d) => shotOf(d.src))].slice(-max))
   }
 
   const value =
@@ -824,7 +882,9 @@ function Content({
 
   return (
     <section aria-label="Content" className={CARD}>
-      {ideas.length > 0 && media.length === 0 && draft.caption === '' && (
+      {/* With no media there is nothing to post yet, so an idea is still on offer, caption or not:
+          an idea fills the caption, and its photo's X must not take the ideas away with it. */}
+      {ideas.length > 0 && media.length === 0 && (
         <div className="flex flex-col gap-2">
           <span className={EYEBROW}>Start from an idea</span>
           <div className={`flex flex-wrap gap-1.5 ${STRIP}`}>
@@ -835,7 +895,7 @@ function Content({
                 onClick={() => {
                   update({ caption: idea.hook, format: idea.format })
                   onIdea(idea.hook)
-                  setMedia(library.slice(0, 1))
+                  setMedia(library.slice(0, 1).map(shotOf))
                 }}
                 className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 text-[12.5px] text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-10 max-md:text-[13.5px]"
               >
@@ -860,15 +920,25 @@ function Content({
             void add(e.dataTransfer.files)
           }}
         >
-          {media.map((src, i) => (
+          {media.map((shot, i) => (
             <span
-              key={src + i}
+              key={shot.src + i}
               className="group/m relative block h-[132px] w-[106px] shrink-0 overflow-hidden rounded-[12px] bg-tile"
             >
-              <Media src={src} sizes="260px" />
+              <ShotView shot={shot} sizes="260px" />
               <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/50 px-1.5 font-mono text-[10px] text-page">
                 {i + 1}
               </span>
+              {!isVideo(shot.src) && (
+                <button
+                  type="button"
+                  aria-label="Crop"
+                  onClick={() => void openCrop(i)}
+                  className="absolute right-1.5 bottom-1.5 flex size-6 items-center justify-center rounded-full bg-page text-ink-2 opacity-0 shadow-soft transition-opacity group-hover/m:opacity-100 max-md:size-8 [@media(hover:none)]:opacity-100"
+                >
+                  <CropIcon />
+                </button>
+              )}
               <span className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 transition-opacity group-hover/m:opacity-100 [@media(hover:none)]:opacity-100">
                 {i > 0 && (
                   <button
@@ -934,7 +1004,7 @@ function Content({
                 key={src}
                 type="button"
                 onClick={() => {
-                  setMedia([...media, src].slice(-max))
+                  setMedia([...media, shotOf(src)].slice(-max))
                   setLibraryOpen(false)
                 }}
                 className="relative block h-[72px] w-[58px] shrink-0 overflow-hidden rounded-[8px] bg-tile transition-transform hover:-translate-y-0.5"
@@ -1068,7 +1138,81 @@ function Content({
           )}
         </div>
       </div>
+
+      {/* The crop opens over the page: a sheet on a phone, where Done is in its header; a dialog
+          on a desktop, with Done beside Cancel. Reset puts the whole photo back, centred. */}
+      {editing && edited && (
+        <CropOverlay
+          phone={phone}
+          onKeep={keepCrop}
+          onCancel={() => setEditing(null)}
+          onReset={() => setEditing({ ...editing, crop: defaultCrop(editing.crop.ratio) })}
+        >
+          <CropEditor
+            src={edited.src}
+            crop={editing.crop}
+            onChange={(crop) => setEditing({ ...editing, crop })}
+          />
+        </CropOverlay>
+      )}
     </section>
+  )
+}
+
+const QUIET =
+  'h-10 rounded-full px-4 text-[13px] font-medium text-ink-2 transition-colors hover:text-ink'
+
+function CropOverlay({
+  phone,
+  onKeep,
+  onCancel,
+  onReset,
+  children,
+}: {
+  phone: boolean
+  onKeep: () => void
+  onCancel: () => void
+  onReset: () => void
+  children: React.ReactNode
+}) {
+  const reset = (
+    <button type="button" onClick={onReset} className={`${QUIET} -ml-4`}>
+      Reset
+    </button>
+  )
+  const cancel = (
+    <button type="button" onClick={onCancel} className={QUIET}>
+      Cancel
+    </button>
+  )
+  if (phone) {
+    return (
+      <Sheet title="Crop" onClose={onCancel} onDone={onKeep}>
+        {children}
+        <div className="flex items-center justify-between pt-3">
+          {reset}
+          {cancel}
+        </div>
+      </Sheet>
+    )
+  }
+  return (
+    <Dialog title="Crop" onClose={onCancel}>
+      {children}
+      <div className="flex items-center justify-between pt-4">
+        {reset}
+        <div className="flex items-center gap-1">
+          {cancel}
+          <button
+            type="button"
+            onClick={onKeep}
+            className="bb-press h-10 rounded-full bg-ink px-5 text-[13px] font-medium text-page"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </Dialog>
   )
 }
 
@@ -1534,8 +1678,8 @@ function TikTokRows({ api }: { api: PublishDraftApi }) {
 // ── When ─────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * Now, a day and a time, or a draft. The day picker is the demo's month; the brand's best times,
- * from Insights, are ranked with bars like Brandwatch's, and one click uses one.
+ * Now, or a day and a time. The day picker is the demo's month; the brand's best times, from
+ * Insights, are ranked with bars like Brandwatch's, and one click uses one.
  */
 function WhenCard({
   when,
@@ -1560,7 +1704,7 @@ function WhenCard({
     <section aria-label="When" className={CARD}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className={`${EYEBROW} max-md:hidden`}>When</span>
-        <div className={`w-[330px] max-md:w-full ${TAP}`}>
+        <div className={`w-[240px] max-md:w-full ${TAP}`}>
           <Segmented<WhenChoice>
             label="When"
             pill
@@ -1569,7 +1713,6 @@ function WhenCard({
             options={[
               { value: 'now', label: 'Publish now' },
               { value: 'schedule', label: 'Schedule' },
-              { value: 'draft', label: 'Save as draft' },
             ]}
           />
         </div>
@@ -1623,7 +1766,7 @@ function WhenCard({
           />
         </div>
       </Fold>
-      {story && when !== 'draft' && (
+      {story && (
         <p className="text-[12px] text-ink-4">
           Stories with stickers or links go out from the phone: the team gets a reminder at the
           time.
@@ -1776,129 +1919,10 @@ function bestTimes(brandId: BrandId, weeks: ReturnType<typeof useBrand>['weeks']
     .slice(0, 5)
 }
 
-// ── Approval and notes ───────────────────────────────────────────────────────────────────────
-
-function ApprovalCard({
-  approval,
-  setApproval,
-}: {
-  approval: { on: boolean; who: string[] }
-  setApproval: (a: { on: boolean; who: string[] }) => void
-}) {
-  return (
-    <section aria-label="Approval" className={CARD}>
-      <div className="flex items-center justify-between gap-3">
-        <span className="flex flex-col gap-1">
-          <span className={`${EYEBROW} max-md:hidden`}>Approval</span>
-          <span className="text-[12.5px] text-ink-3 max-md:text-[14px] max-md:text-ink">
-            {approval.on
-              ? 'Goes out once approved. They get a link, no login needed.'
-              : 'Goes out without an approval step.'}
-          </span>
-        </span>
-        <Switch
-          label="Needs approval"
-          checked={approval.on}
-          onChange={(on) => setApproval({ ...approval, on })}
-        />
-      </div>
-      <Fold open={approval.on}>
-        <div className="flex flex-wrap gap-1.5">
-          {APPROVERS.map((p) => {
-            const on = approval.who.includes(p)
-            return (
-              <button
-                key={p}
-                type="button"
-                role="checkbox"
-                aria-checked={on}
-                onClick={() =>
-                  setApproval({
-                    ...approval,
-                    who: on ? approval.who.filter((x) => x !== p) : [...approval.who, p],
-                  })
-                }
-                className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-medium transition-colors max-md:h-10 max-md:px-3.5 max-md:text-[13.5px] ${on ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:text-ink'}`}
-              >
-                {on && <CheckIcon size={8} strokeWidth={2.4} />}
-                {p}
-              </button>
-            )
-          })}
-        </div>
-      </Fold>
-    </section>
-  )
-}
-
-/** Notes on the post: internal for the team, external for whoever approves or films it. */
-function Notes({
-  notes,
-  setNotes,
-}: {
-  notes: Array<{ kind: 'internal' | 'external'; text: string }>
-  setNotes: (n: Array<{ kind: 'internal' | 'external'; text: string }>) => void
-}) {
-  const [kind, setKind] = React.useState<'internal' | 'external'>('internal')
-  const [draft, setDraft] = React.useState('')
-  const shown = notes.filter((n) => n.kind === kind)
-  return (
-    <section
-      aria-label="Notes"
-      className="bb-rise flex flex-col gap-3 rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line)] max-md:gap-4 max-md:p-0 max-md:shadow-none"
-    >
-      <div className={TAP}>
-        <Segmented<'internal' | 'external'>
-          label="Notes"
-          pill
-          value={kind}
-          onChange={setKind}
-          options={[
-            { value: 'internal', label: 'Internal' },
-            { value: 'external', label: 'External' },
-          ]}
-        />
-      </div>
-      {shown.length === 0 ? (
-        <p className="text-[12.5px] text-ink-4">
-          {kind === 'internal'
-            ? 'Only the team sees these.'
-            : 'Shown to the people you share the post with.'}
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {shown.map((n, i) => (
-            <li key={i} className="rounded-[10px] bg-surface-2 px-3 py-2 text-[13px]">
-              <span className="block text-[11px] text-ink-4">You · just now</span>
-              {n.text}
-            </li>
-          ))}
-        </ul>
-      )}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (!draft.trim()) return
-          setNotes([...notes, { kind, text: draft.trim() }])
-          setDraft('')
-        }}
-      >
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={`Add an ${kind} note`}
-          aria-label={`Add an ${kind} note`}
-          className="h-9 w-full rounded-full bg-surface px-3.5 text-[13px] outline-none placeholder:text-ink-5 max-md:h-11 max-md:px-4"
-        />
-      </form>
-    </section>
-  )
-}
-
 // ── Preview ──────────────────────────────────────────────────────────────────────────────────
 
 /** The post as one account will show it: a tab per ticked account, and Instagram's grid. */
-function Preview({ api, media }: { api: PublishDraftApi; media: string[] }) {
+function Preview({ api, media }: { api: PublishDraftApi; media: Shot[] }) {
   const { draft } = api
   const { posts } = useBrand()
   const active = activeChannels(draft)
@@ -1945,14 +1969,16 @@ function Preview({ api, media }: { api: PublishDraftApi; media: string[] }) {
         <p className="py-16 text-center text-[13px] text-ink-4">Tick an account to preview it.</p>
       ) : showGrid ? (
         <div className="grid grid-cols-3 gap-[2px] overflow-hidden rounded-[12px]">
-          {[media[0], ...posts.flatMap((p) => p.images.slice(0, 1))].slice(0, 9).map((src, i) => (
-            <span
-              key={i}
-              className={`relative block aspect-[4/5] bg-tile ${i === 0 ? 'shadow-[inset_0_0_0_2px_var(--ink)]' : 'opacity-80'}`}
-            >
-              {src && <Media src={src} sizes="120px" />}
-            </span>
-          ))}
+          {[media[0], ...posts.flatMap((p) => p.images.slice(0, 1).map(shotOf))]
+            .slice(0, 9)
+            .map((shot, i) => (
+              <span
+                key={i}
+                className={`relative block aspect-[4/5] bg-tile ${i === 0 ? 'shadow-[inset_0_0_0_2px_var(--ink)]' : 'opacity-80'}`}
+              >
+                {shot && <ShotView shot={shot} sizes="120px" />}
+              </span>
+            ))}
         </div>
       ) : (
         <div className="flex justify-center">
@@ -1970,9 +1996,6 @@ function Preview({ api, media }: { api: PublishDraftApi; media: string[] }) {
           </Phone>
         </div>
       )}
-      <p className="text-center text-[11.5px] text-ink-4">
-        An approximate preview. Each app may draw it a little differently.
-      </p>
     </section>
   )
 }
@@ -1987,7 +2010,7 @@ function Outcomes({
   onBack,
 }: {
   api: PublishDraftApi
-  media: string[]
+  media: Shot[]
   slot: string
   onBack: () => void
 }) {
@@ -2146,14 +2169,16 @@ function OutcomePill({ outcome }: { outcome: Outcome }) {
   )
 }
 
-/** A draft saved or sent for approval: it is on the calendar, nothing went out. */
-function Saved({ message, onEdit }: { message: string; onEdit: () => void }) {
+/** A draft saved: it is on the calendar, nothing went out. */
+function Saved({ onEdit }: { onEdit: () => void }) {
   return (
     <div className="flex flex-col items-center gap-5 pt-16 text-center">
       <span className="bb-pop flex size-10 items-center justify-center rounded-full bg-ink text-page">
         <CheckIcon size={14} strokeWidth={2.2} />
       </span>
-      <h1 className="font-display text-[36px] leading-none tracking-[-0.035em]">{message}</h1>
+      <h1 className="font-display text-[36px] leading-none tracking-[-0.035em]">
+        Saved as a draft on the calendar
+      </h1>
       <div className="flex items-center gap-3">
         <button
           type="button"
