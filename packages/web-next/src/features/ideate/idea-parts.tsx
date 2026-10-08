@@ -3,9 +3,8 @@
 import * as React from 'react'
 
 import { CarouselIcon, ReelIcon, StoryIcon } from '@/components/icons'
-import type { BrandId } from '@/data/brands'
 import type { Stage } from '@/data/demo'
-import { referenceById, type IdeaCard, type IdeaFormat, type IdeaStatus } from '@/data/ideas'
+import type { IdeaCard, IdeaFormat, IdeaStatus } from '@/data/ideas'
 import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 
@@ -14,7 +13,7 @@ import { setHook, useIdeas } from './ideas-store'
 
 /**
  * What the ideas page and the shoot brief share: an idea's status as the calendar knows it, its
- * day, and its picture.
+ * day, and a new hook carried to the calendar.
  */
 
 export const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
@@ -97,10 +96,20 @@ export function StatusDot({ status }: { status: IdeaStatus }) {
   )
 }
 
-/** An idea's picture: its own photo, or else the reference it borrows from. */
-export function pictureOf(brandId: BrandId, card: IdeaCard): string | undefined {
-  const reference = card.referenceId ? referenceById(brandId, card.referenceId) : undefined
-  return card.image ?? (reference?.image || undefined)
+const PHONE = '(max-width: 767px)'
+const onPhone = (cb: () => void) => {
+  const mq = window.matchMedia(PHONE)
+  mq.addEventListener('change', cb)
+  return () => mq.removeEventListener('change', cb)
+}
+
+/** Below 768px the page is the phone layout (`max-md:`): what opens there is a sheet, not a panel. */
+export function usePhone(): boolean {
+  return React.useSyncExternalStore(
+    onPhone,
+    () => window.matchMedia(PHONE).matches,
+    () => false,
+  )
 }
 
 /**

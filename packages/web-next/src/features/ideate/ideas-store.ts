@@ -3,7 +3,14 @@
 import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
-import { IDEAS_BY_BRAND, type IdeaCard, type IdeaSource } from '@/data/ideas'
+import {
+  coverOf,
+  IDEAS_BY_BRAND,
+  type IdeaCard,
+  type IdeaFormat,
+  type IdeaSource,
+  type Reference,
+} from '@/data/ideas'
 
 /**
  * The ideas, in memory and outside React, so the insights page can add one and the ideas page
@@ -71,6 +78,19 @@ export function useIdeas(brandId: BrandId): BrandIdeasState & { target: number }
   return { ...s, target: IDEAS_BY_BRAND[brandId].target }
 }
 
+/**
+ * The cover for an idea tile on the calendar, which knows an idea by its hook: one of the ideas,
+ * or a moment ahead whose tile the calendar already shows. Undefined for a hook the ideas page
+ * does not know.
+ */
+export function useCoverOfHook(brandId: BrandId, hook: string): string | undefined {
+  const { ideas } = useIdeas(brandId)
+  const card =
+    ideas.find((i) => i.hook === hook) ??
+    IDEAS_BY_BRAND[brandId].moments.find((m) => m.seed.hook === hook)?.seed
+  return card ? coverOf(brandId, card) : undefined
+}
+
 /** Adds a card as an idea and returns its id. */
 export function addIdea(
   brandId: BrandId,
@@ -83,6 +103,32 @@ export function addIdea(
     ideas: [...s.ideas, { ...card, id, source, status: 'idea' }],
   }))
   return id
+}
+
+/**
+ * An idea planned from posts picked on the moodboard. The first post lends its seed (the hook,
+ * the format, the shots); every post stays with the idea as its inspiration.
+ */
+export function addIdeaFromPosts(
+  brandId: BrandId,
+  posts: Reference[],
+  edits: Partial<Pick<IdeaCard, 'hook' | 'format'>> = {},
+): string {
+  const [first] = posts
+  if (!first) throw new Error('An idea needs at least one post.')
+  const format: IdeaFormat = edits.format ?? first.seed.format
+  return addIdea(
+    brandId,
+    {
+      ...first.seed,
+      ...edits,
+      format,
+      // A story has no sharper hooks to offer.
+      sharper: format === 'story' ? [] : first.seed.sharper,
+      inspiration: posts.map((p) => p.id),
+    },
+    { kind: 'reference', account: first.account },
+  )
 }
 
 /** Shows the suggestions in place, beside the team's own ideas. */

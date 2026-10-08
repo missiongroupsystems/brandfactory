@@ -151,7 +151,7 @@ const CASA_VOSTRA: BrandInsights = {
         hook: 'Watch the dough become tagliatelle.',
         angle: 'Chef walks the dough from flour to pass. No talking, just sound.',
         feature: 'Tagliatelle · Chef Marco',
-        referenceId: 'cv-r-sfoglina',
+        inspiration: ['cv-r-sfoglina', 'cv-p-3'],
         shots: [
           'Flour and eggs, overhead',
           'The sheet through the roller, hands only',
@@ -183,7 +183,7 @@ const CASA_VOSTRA: BrandInsights = {
         hook: 'Meet the hands behind the ravioli.',
         angle: 'Chef Marco, to camera for once: one question, one answer, then back to the fold.',
         feature: 'Chef Marco',
-        referenceId: 'cv-p-3',
+        inspiration: ['cv-p-3', 'cv-r-sfoglina'],
         shots: ['Marco looks up', 'One question, one answer', 'Back to the fold'],
         sharper: sharper(
           'He has folded 400 ravioli today. Ask him anything.',
@@ -220,7 +220,7 @@ const CASA_VOSTRA: BrandInsights = {
         hook: 'Sound on: the pasta cut, in 9 seconds.',
         angle: 'The top craft reel, recut to 9 seconds for TikTok with the board sound up front.',
         feature: 'Tagliatelle · Chef Marco',
-        referenceId: 'cv-r-sfoglina',
+        inspiration: ['cv-r-sfoglina', 'cv-p-3'],
         shots: ['The board, sound first', 'The cut', 'The end card'],
         sharper: sharper(
           'Nine seconds. Sound on.',
@@ -433,7 +433,7 @@ const TEMPER: BrandInsights = {
         hook: 'What the sommelier drinks on a Monday.',
         angle: 'One bottle, one reason, the room empty behind her. Personality, not a lecture.',
         feature: 'Sommelier Lena',
-        referenceId: 'tp-r-wineroom',
+        inspiration: ['tp-r-wineroom', 'tp-p-4'],
         shots: ['Lena at the counter, room empty', 'The bottle, one line', 'The first sip'],
         sharper: sharper(
           'Her Monday bottle is not on the list.',
@@ -462,7 +462,7 @@ const TEMPER: BrandInsights = {
         hook: 'Last seating. Lights down.',
         angle: 'One slow push from the door to the counter at 10:30pm. Records on, no voice.',
         feature: 'The room',
-        referenceId: 'tp-r-brutal',
+        inspiration: ['tp-r-brutal', 'tp-p-1'],
         shots: ['The door at 10:30', 'The push to the counter', 'The record'],
         sharper: sharper(
           'This is the hour we built the room for.',
@@ -500,7 +500,7 @@ const TEMPER: BrandInsights = {
         hook: 'The in-between, in 9 seconds.',
         angle: 'The top room reel, recut to 9 seconds for TikTok, the record as the only sound.',
         feature: 'The room · 5pm',
-        referenceId: 'tp-r-brutal',
+        inspiration: ['tp-r-brutal', 'tp-p-1'],
         shots: ['5pm, empty', '6pm, first glasses', '7pm, full'],
         sharper: sharper(
           'Nine seconds of the in-between.',
@@ -694,7 +694,7 @@ const CARLITOS: BrandInsights = {
         hook: 'How to order tapas like a regular.',
         angle: 'Five slides, five rules, from "never one plate" to "ask what Carlos is eating".',
         feature: 'The counter',
-        referenceId: 'ca-r-sevilla',
+        inspiration: ['ca-r-sevilla', 'ca-p-6'],
         shots: ['Rule one, on the counter', 'Rule three, the plates', 'Rule five, Carlos'],
         sharper: sharper(
           'Rule one: never order one plate.',
@@ -723,7 +723,7 @@ const CARLITOS: BrandInsights = {
         hook: "The regular's order, in 15 seconds.",
         angle: 'One regular, one order, called out fast at the counter. Cut to the plates landing.',
         feature: 'A regular · the counter',
-        referenceId: 'ca-p-6',
+        inspiration: ['ca-p-6', 'ca-r-sevilla'],
         shots: ['The regular sits', 'The order, fast', 'The plates land'],
         sharper: sharper(
           'Fifteen seconds to order. Thirty years of practice.',
@@ -761,7 +761,7 @@ const CARLITOS: BrandInsights = {
         angle:
           'Camera on the barman, orders called out, plates sliding across. One take, TikTok first.',
         feature: 'The counter · Carlos',
-        referenceId: 'ca-r-sevilla',
+        inspiration: ['ca-r-sevilla', 'ca-p-6'],
         shots: ['Camera on the barman', 'Orders called', 'Plates slide across'],
         sharper: sharper(
           'One take, one counter, forty orders.',

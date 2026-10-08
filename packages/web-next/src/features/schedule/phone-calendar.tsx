@@ -10,6 +10,7 @@ import { PlatformLogo } from '@/components/platform-logos'
 import { startTouchDrag } from '@/components/touch-drag'
 import type { Day, FeedMark, LayerKey, Post, Week } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
+import { useCoverOfHook } from '@/features/ideate/ideas-store'
 
 import type { CalendarMode } from './calendar-view'
 import {
@@ -526,7 +527,11 @@ function Photo({ src }: { src?: string }) {
   return <Image src={src} alt="" fill sizes="112px" draggable={false} className="object-cover" />
 }
 
-/** An idea's square: its colour and a spark. The team's own starts the post; a suggestion opens Ideate. */
+/**
+ * An idea's square: its cover (its first inspiration post) under a small spark, or its colour and
+ * the spark alone when the ideas page does not know it. The team's own starts the post; a
+ * suggestion opens Ideate.
+ */
 function IdeaSquare({
   mark,
   onNew,
@@ -536,16 +541,33 @@ function IdeaSquare({
 }) {
   const { brand } = useBrand()
   const tint = mark.suggested ? 'var(--insight)' : `var(${brand.colour})`
-  const className = 'flex aspect-square w-full items-center justify-center rounded-[8px]'
-  const style = { background: `color-mix(in oklab, ${tint} 12%, var(--page))`, color: tint }
+  const cover = useCoverOfHook(brand.id, mark.hook)
+  const className =
+    'relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[8px]'
+  const style = cover
+    ? undefined
+    : { background: `color-mix(in oklab, ${tint} 12%, var(--page))`, color: tint }
   const label = `${mark.suggested ? 'Suggested idea' : 'Idea'}: ${mark.hook}`
+  const inner = cover ? (
+    <>
+      <Image src={cover} alt="" fill sizes="112px" draggable={false} className="object-cover" />
+      <span
+        className="absolute top-1 left-1 flex size-4 items-center justify-center rounded-full bg-(--tile-pill) shadow-[0_1px_3px_rgba(0,0,0,0.12)]"
+        style={{ color: tint }}
+      >
+        <SparkIcon size={8} />
+      </span>
+    </>
+  ) : (
+    <SparkIcon size={13} />
+  )
   return mark.suggested ? (
     <Link href="/ideate" aria-label={label} className={className} style={style}>
-      <SparkIcon size={13} />
+      {inner}
     </Link>
   ) : (
     <button type="button" onClick={onNew} aria-label={label} className={className} style={style}>
-      <SparkIcon size={13} />
+      {inner}
     </button>
   )
 }
@@ -817,7 +839,7 @@ function PostRow({
   )
 }
 
-/** An idea in the list: a spark in its colour, the hook, and why it sits on this day. */
+/** An idea in the list: its cover, or a spark in its colour, then the hook and why it sits on this day. */
 function IdeaRow({
   mark,
   onNew,
@@ -827,13 +849,30 @@ function IdeaRow({
 }) {
   const { brand } = useBrand()
   const tint = mark.suggested ? 'var(--insight)' : `var(${brand.colour})`
+  const cover = useCoverOfHook(brand.id, mark.hook)
   const inner = (
     <>
       <span
-        className="flex size-11 shrink-0 items-center justify-center rounded-[8px]"
-        style={{ background: `color-mix(in oklab, ${tint} 12%, var(--page))`, color: tint }}
+        className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-[8px]"
+        style={
+          cover
+            ? undefined
+            : { background: `color-mix(in oklab, ${tint} 12%, var(--page))`, color: tint }
+        }
       >
-        <SparkIcon size={13} />
+        {cover ? (
+          <>
+            <Image src={cover} alt="" fill sizes="88px" className="object-cover" />
+            <span
+              className="absolute top-1 left-1 flex size-4 items-center justify-center rounded-full bg-(--tile-pill) shadow-[0_1px_3px_rgba(0,0,0,0.12)]"
+              style={{ color: tint }}
+            >
+              <SparkIcon size={8} />
+            </span>
+          </>
+        ) : (
+          <SparkIcon size={13} />
+        )}
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[15px]">{mark.hook}</span>

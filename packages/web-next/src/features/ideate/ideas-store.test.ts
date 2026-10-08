@@ -1,10 +1,10 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { IDEAS_BY_BRAND } from '@/data/ideas'
+import { coverOf, IDEAS_BY_BRAND } from '@/data/ideas'
 
 import {
-  addIdea,
+  addIdeaFromPosts,
   keepSuggestion,
   resetIdeas,
   setDay,
@@ -58,21 +58,40 @@ describe('the ideas store', () => {
     expect(result.current.ideas.map((i) => i.id)).not.toContain('ca-s-sherry')
   })
 
-  it('adds an idea from a pin, and keeps the brands apart', () => {
+  it('plans an idea from the posts picked, keeps every post, and keeps the brands apart', () => {
     const temper = renderHook(() => useIdeas('temper'))
     const casa = renderHook(() => useIdeas('casa-vostra'))
-    const pin = IDEAS_BY_BRAND.temper.boards[0]!.pins[0]!
+    const { boards, references } = IDEAS_BY_BRAND.temper
+    // A pin first, then a saved Instagram post and a TikTok one: all three platforms in one idea.
+    const posts = [boards[0]!.pins[0]!, references[0]!, boards[1]!.pins[2]!]
     let id = ''
     act(() => {
-      id = addIdea('temper', pin.seed, { kind: 'reference', account: pin.account })
+      id = addIdeaFromPosts('temper', posts)
     })
-    expect(temper.result.current.ideas.at(-1)!.id).toBe(id)
-    expect(temper.result.current.ideas.at(-1)).toMatchObject({
-      hook: pin.seed.hook,
+    const idea = temper.result.current.ideas.at(-1)!
+    expect(idea.id).toBe(id)
+    // The first post lends its words and its shots; the idea remembers all three, in order.
+    expect(idea).toMatchObject({
+      hook: posts[0]!.seed.hook,
+      format: posts[0]!.seed.format,
+      shots: posts[0]!.seed.shots,
+      inspiration: posts.map((p) => p.id),
       status: 'idea',
       source: { kind: 'reference', account: 'Bar moods' },
     })
+    expect(coverOf('temper', idea)).toBe(posts[0]!.image)
     expect(casa.result.current.ideas).toHaveLength(IDEAS_BY_BRAND['casa-vostra'].ideas.length)
+  })
+
+  it('takes the hook and the format written in the plan step over the first post’s', () => {
+    const { result } = renderHook(() => useIdeas('carlitos'))
+    const posts = IDEAS_BY_BRAND.carlitos.boards[0]!.pins.slice(0, 2)
+    act(() => {
+      addIdeaFromPosts('carlitos', posts, { hook: 'Sunday, from the pan.', format: 'story' })
+    })
+    const idea = result.current.ideas.at(-1)!
+    expect(idea).toMatchObject({ hook: 'Sunday, from the pan.', format: 'story', sharper: [] })
+    expect(idea.inspiration).toEqual(posts.map((p) => p.id))
   })
 
   it('swaps a hook for a sharper one, and records the day it was sent to', () => {

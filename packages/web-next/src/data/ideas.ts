@@ -44,8 +44,8 @@ export interface Reference {
   borrow: string
   /** Height over width, for a pin on the board. */
   ratio?: number
-  /** The card "Start idea" pre-fills. */
-  seed: Omit<IdeaCard, 'id' | 'source' | 'status' | 'referenceId'>
+  /** The card "Plan idea from this" pre-fills when this post is picked first. */
+  seed: Omit<IdeaCard, 'id' | 'source' | 'status' | 'inspiration'>
 }
 
 export type IdeaStatus = 'suggested' | 'idea' | Stage
@@ -65,8 +65,11 @@ export interface IdeaCard {
   dayN?: string
   /** The post it became, whose stage is the status. */
   postId?: string
-  /** The reference it borrows from, by id, on the shelf or on a board. */
-  referenceId?: string
+  /**
+   * The saved posts it grew from, by id, on the shelf or on a board. The first is the one it
+   * borrows most from; its photo stands in as the cover when the idea has no photo of its own.
+   */
+  inspiration: string[]
   shots: string[]
   /** The shots ticked off on the shoot brief. */
   done?: string[]
@@ -97,21 +100,9 @@ export interface Moment {
   seed: Omit<IdeaCard, 'id' | 'source' | 'status' | 'image'>
 }
 
-/** The next shoot day, as the top of the shoot brief prints it. */
-export interface Shoot {
-  title: string
-  /** As printed: "Wed 7 Oct · Raffles City". */
-  when: string
-  call: { time: string; note: string }
-  window: { time: string; note: string }
-  crew: { name: string; note: string }
-  contact: { name: string; note: string }
-}
-
 export interface BrandIdeas {
   /** Two a week across the month. */
   target: number
-  shoot: Shoot
   ideas: IdeaCard[]
   references: Reference[]
   boards: Board[]
@@ -198,14 +189,6 @@ const PIN_RATIO: Record<string, number> = {
 
 const CASA_VOSTRA: BrandIdeas = {
   target: 8,
-  shoot: {
-    title: 'Pasta and pizza shoot',
-    when: 'Wed 7 Oct · Casa Vostra, Raffles City',
-    call: { time: '8:30', note: 'Call, kitchen door' },
-    window: { time: '9–11:30', note: 'Out before lunch' },
-    crew: { name: 'Rui Tan', note: 'Video, brings lights' },
-    contact: { name: 'Chef Marco', note: 'On the pass' },
-  },
   ideas: [
     {
       id: 'cv-five-pastas',
@@ -218,7 +201,7 @@ const CASA_VOSTRA: BrandIdeas = {
       source: { kind: 'own' },
       status: 'idea',
       postId: 'five-pastas',
-      referenceId: 'cv-r-sfoglina',
+      inspiration: ['cv-r-sfoglina', 'cv-p-10', 'cv-p-8'],
       shots: ['The sheet, overhead', 'Five cuts in a row', 'All five, plated'],
       sharper: [
         S('One dough. Five pastas. No shortcuts.', 'NUMBER'),
@@ -235,7 +218,7 @@ const CASA_VOSTRA: BrandIdeas = {
       feature: 'Tagliatelle al ragù',
       source: { kind: 'own' },
       status: 'idea',
-      referenceId: 'cv-r-cozy',
+      inspiration: ['cv-r-cozy', 'cv-p-8'],
       shots: ['Bibs on the table', 'The bowl lands', 'The route, out the window'],
       sharper: [
         S('The 21 km start at the dinner table.', 'NUMBER'),
@@ -252,7 +235,7 @@ const CASA_VOSTRA: BrandIdeas = {
       feature: 'Chef Marco vs Chef Dani',
       source: { kind: 'own' },
       status: 'idea',
-      referenceId: 'cv-r-dough',
+      inspiration: ['cv-r-dough', 'cv-p-11', 'cv-p-5'],
       shots: ['Blindfold on', 'One bite, one guess', 'The onions'],
       sharper: [
         S('He lost last time. He asked for this.', 'STORY'),
@@ -269,7 +252,7 @@ const CASA_VOSTRA: BrandIdeas = {
       feature: 'Halloween special',
       source: { kind: 'own' },
       status: 'idea',
-      referenceId: 'cv-r-nightshift',
+      inspiration: ['cv-r-nightshift', 'cv-p-12', 'cv-p-6'],
       shots: ['The eyes', 'The ghosts', 'The whole pie, lights low'],
       sharper: [
         S("Don't make eye contact with slice three.", 'NUMBER'),
@@ -287,7 +270,7 @@ const CASA_VOSTRA: BrandIdeas = {
       image: PHOTO.pasta,
       source: { kind: 'insight', line: 'Hand-made reels hold viewers 2× longer' },
       status: 'idea',
-      referenceId: 'cv-r-sfoglina',
+      inspiration: ['cv-r-sfoglina', 'cv-p-7', 'cv-p-10', 'cv-p-3'],
       shots: [
         'Flour and eggs, overhead',
         'The sheet through the roller, hands only',
@@ -309,7 +292,7 @@ const CASA_VOSTRA: BrandIdeas = {
       source: { kind: 'suggested' },
       status: 'suggested',
       dayN: '14',
-      referenceId: 'cv-p-1',
+      inspiration: ['cv-p-1', 'cv-p-9', 'cv-r-sfoglina'],
       shots: [
         'The shutter goes up, 6am, mall empty',
         'Flour hits the bench in first light',
@@ -344,7 +327,7 @@ const CASA_VOSTRA: BrandIdeas = {
       source: { kind: 'suggested' },
       status: 'suggested',
       dayN: '22',
-      referenceId: 'cv-r-dough',
+      inspiration: ['cv-r-dough', 'cv-p-11'],
       shots: ['Four faces, four answers', 'Each shape, held up', 'The argument'],
       sharper: [
         S('Four staff. Four pastas. One argument.', 'NUMBER'),
@@ -374,7 +357,7 @@ const CASA_VOSTRA: BrandIdeas = {
       source: { kind: 'suggested' },
       status: 'suggested',
       dayN: '29',
-      referenceId: 'cv-p-2',
+      inspiration: ['cv-p-2', 'cv-p-9', 'cv-r-cozy'],
       shots: ['The full table, overhead', 'Hands reaching in', 'The last plate'],
       sharper: [
         S('One table. Every plate in the middle.', 'PLACE'),
@@ -398,6 +381,7 @@ const CASA_VOSTRA: BrandIdeas = {
       feature: 'Fresh pasta · Chef Marco',
       source: { kind: 'own' },
       status: 'idea',
+      inspiration: ['cv-p-8', 'cv-p-10'],
       shots: ['Both pastas side by side', 'The poll sticker frame', 'The winner, plated'],
       sharper: [],
     },
@@ -410,6 +394,7 @@ const CASA_VOSTRA: BrandIdeas = {
       feature: 'The kitchen',
       source: { kind: 'own' },
       status: 'idea',
+      inspiration: ['cv-p-1', 'cv-p-9'],
       shots: ['7:02, lights on', '7:15, flour out', '7:40, the first sheet'],
       sharper: [],
     },
@@ -667,6 +652,7 @@ const CASA_VOSTRA: BrandIdeas = {
         hook: 'Pizza before the lights go out.',
         angle: 'The quick pre-race order, timed on camera, the circuit lights in the window.',
         feature: 'Margherita · race week',
+        inspiration: ['cv-p-6', 'cv-p-5'],
         shots: ['The order, timed', 'The window, circuit lights', 'Out the door'],
         sharper: [
           S('Lights out at 8. Pizza at 6:40.', 'TIME'),
@@ -687,6 +673,7 @@ const CASA_VOSTRA: BrandIdeas = {
         hook: 'Dinner before the concert, in 12 minutes.',
         angle: 'The quick pre-concert order, timed on camera, with the train line to the stadium.',
         feature: 'Pizza and a spritz',
+        inspiration: ['cv-r-cozy', 'cv-p-11'],
         shots: ['The clock starts', 'The plates land', 'The train platform'],
         sharper: [
           S('Doors at 8. Pizza at 6:40.', 'TIME'),
@@ -707,6 +694,7 @@ const CASA_VOSTRA: BrandIdeas = {
         hook: 'Trick, treat or tiramisu.',
         angle: 'Three desserts in costume, one per frame, the tiramisu as the reveal.',
         feature: 'Dessert trio',
+        inspiration: ['cv-p-6', 'cv-r-nightshift'],
         shots: ['Dessert one, in costume', 'Dessert two', 'The tiramisu, unmasked'],
         sharper: [
           S('Three desserts. One is in disguise.', 'NUMBER'),
@@ -728,14 +716,6 @@ const T = {
 
 const TEMPER: BrandIdeas = {
   target: 8,
-  shoot: {
-    title: 'Bar after dark',
-    when: 'Tue 13 Oct · Temper, Duxton',
-    call: { time: '16:00', note: 'Call, front door' },
-    window: { time: '16:30–18:00', note: 'Before first seating' },
-    crew: { name: 'Rui Tan', note: 'Video, low light kit' },
-    contact: { name: 'Sommelier Lena', note: 'Bar manager' },
-  },
   ideas: [
     {
       id: 'tp-sommelier',
@@ -746,7 +726,7 @@ const TEMPER: BrandIdeas = {
       feature: 'Sommelier Lena',
       source: { kind: 'insight', line: 'Faces get 3× the saves of bottles' },
       status: 'idea',
-      referenceId: 'tp-r-wineroom',
+      inspiration: ['tp-r-wineroom', 'tp-p-4', 'tp-p-13'],
       shots: ['Lena at the counter, room empty', 'The bottle, one line', 'The first sip'],
       sharper: [
         S('Her Monday bottle is not on the list.', 'STORY'),
@@ -763,7 +743,7 @@ const TEMPER: BrandIdeas = {
       feature: 'The late list',
       source: { kind: 'own' },
       status: 'idea',
-      referenceId: 'tp-r-cellar',
+      inspiration: ['tp-r-cellar', 'tp-p-5', 'tp-p-9'],
       shots: ['Five bottles in a row', 'Each label, close', 'The room after midnight'],
       sharper: [
         S('After the podium, the late list.', 'TIME'),
@@ -781,7 +761,7 @@ const TEMPER: BrandIdeas = {
       image: T.pour,
       source: { kind: 'own' },
       status: 'idea',
-      referenceId: 'tp-r-cellar',
+      inspiration: ['tp-r-cellar', 'tp-p-3', 'tp-p-14'],
       shots: ['The pour, close', 'The sip', 'One sentence to camera'],
       sharper: [
         S('One sip explains natural wine. Watch.', 'ASK'),
@@ -799,7 +779,7 @@ const TEMPER: BrandIdeas = {
       image: T.glass,
       source: { kind: 'own' },
       status: 'idea',
-      referenceId: 'tp-r-brutal',
+      inspiration: ['tp-r-brutal', 'tp-p-8', 'tp-p-7', 'tp-p-1'],
       shots: ['Four bottles against black', 'One glass, held to the lamp', 'A mask on the counter'],
       sharper: [
         S('Four reds darker than the room.', 'NUMBER'),
@@ -818,7 +798,7 @@ const TEMPER: BrandIdeas = {
       image: T.room,
       source: { kind: 'own' },
       status: 'idea',
-      referenceId: 'tp-r-brutal',
+      inspiration: ['tp-r-brutal', 'tp-p-10', 'tp-p-1'],
       shots: ['The counter, empty glasses', 'The record turns', 'The lamp'],
       sharper: [
         S('This is the hour we built the room for.', 'TIME'),
@@ -836,7 +816,7 @@ const TEMPER: BrandIdeas = {
       source: { kind: 'suggested' },
       status: 'suggested',
       dayN: '15',
-      referenceId: 'tp-r-wineroom',
+      inspiration: ['tp-r-wineroom', 'tp-p-2'],
       shots: ['The guest points', 'The floor picks', 'The better glass'],
       sharper: [
         S('The label lies. The floor does not.', 'BOLDER'),
@@ -866,7 +846,7 @@ const TEMPER: BrandIdeas = {
       source: { kind: 'suggested' },
       status: 'suggested',
       dayN: '16',
-      referenceId: 'tp-p-5',
+      inspiration: ['tp-p-5', 'tp-p-6', 'tp-p-12'],
       shots: ['Three glasses in a row', 'Each pour', 'The winemaker, last frame'],
       sharper: [
         S('She made all three. Come meet her.', 'STORY'),
@@ -891,7 +871,7 @@ const TEMPER: BrandIdeas = {
       source: { kind: 'suggested' },
       status: 'suggested',
       dayN: '22',
-      referenceId: 'tp-p-1',
+      inspiration: ['tp-p-1', 'tp-r-lowlight', 'tp-p-7'],
       shots: ['The record flips', 'The new bottle opens', 'The room, one minute'],
       sharper: [
         S('Side B is where the night starts.', 'STORY'),
@@ -917,6 +897,7 @@ const TEMPER: BrandIdeas = {
       feature: 'Sommelier Lena',
       source: { kind: 'own' },
       status: 'idea',
+      inspiration: ['tp-p-3', 'tp-p-14'],
       shots: ['The bottle at 5pm', 'The pour', 'Price and one line'],
       sharper: [],
     },
@@ -929,6 +910,7 @@ const TEMPER: BrandIdeas = {
       feature: 'Sommelier Lena',
       source: { kind: 'own' },
       status: 'idea',
+      inspiration: ['tp-r-wineroom', 'tp-p-11'],
       shots: ['The question sticker', 'Lena reads one', 'Her answer, to camera'],
       sharper: [],
     },
@@ -1182,6 +1164,7 @@ const TEMPER: BrandIdeas = {
         hook: 'Grand Prix night: the late list.',
         angle: 'Five bottles for after the race, each with a one-line reason to open it late.',
         feature: 'The late list',
+        inspiration: ['tp-p-10', 'tp-p-9'],
         shots: ['Five bottles in a row', 'Each label, close', 'The room after midnight'],
         sharper: [
           S('After the podium, the late list.', 'TIME'),
@@ -1202,6 +1185,7 @@ const TEMPER: BrandIdeas = {
         hook: 'The after-show glass.',
         angle: 'Late doors, the room filling after the encore. One tracking shot to the counter.',
         feature: 'The counter, late',
+        inspiration: ['tp-p-14', 'tp-p-2'],
         shots: ['The door at 11', 'The room fills', 'The counter'],
         sharper: [
           S('Encore done. We are still pouring.', 'TIME'),
@@ -1222,6 +1206,7 @@ const TEMPER: BrandIdeas = {
         hook: 'Masks on. Labels off.',
         angle: 'Masquerade night: blind pours, masked guests, the reveal of the bottle at the end.',
         feature: 'Masquerade wine night',
+        inspiration: ['tp-p-8', 'tp-p-7'],
         shots: ['Masks at the door', 'The blind pour', 'The reveal'],
         sharper: [
           S('You will not know what you are drinking. That is the point.', 'BOLDER'),
@@ -1245,14 +1230,6 @@ const K = {
 
 const CARLITOS: BrandIdeas = {
   target: 8,
-  shoot: {
-    title: 'Tapas shoot',
-    when: 'Mon 19 Oct · Carlitos, Joo Chiat',
-    call: { time: '9:30', note: 'Call, kitchen door' },
-    window: { time: '10–12:30', note: 'Out before lunch' },
-    crew: { name: 'Rui Tan', note: 'Video, brings lights' },
-    contact: { name: 'Carlos', note: 'Head chef' },
-  },
   ideas: [
     {
       id: 'ca-vermut',
@@ -1263,7 +1240,7 @@ const CARLITOS: BrandIdeas = {
       feature: 'Vermut hour · 5–7pm',
       source: { kind: 'own' },
       status: 'idea',
-      referenceId: 'ca-r-counters',
+      inspiration: ['ca-r-counters', 'ca-p-5', 'ca-p-6'],
       shots: ['The shophouse front, 5pm', 'Vermut on ice', 'The street going by'],
       sharper: [
         S('5pm on Joo Chiat. Vermut is on ice.', 'TIME'),
@@ -1280,7 +1257,7 @@ const CARLITOS: BrandIdeas = {
       feature: 'The counter',
       source: { kind: 'insight', line: 'How-to carousels are saved most' },
       status: 'idea',
-      referenceId: 'ca-r-sevilla',
+      inspiration: ['ca-r-sevilla', 'ca-p-6', 'ca-p-2'],
       shots: ['Rule one, on the counter', 'Rule three, the plates', 'Rule five, Carlos'],
       sharper: [
         S('Rule one: never order one plate.', 'NUMBER'),
@@ -1298,7 +1275,7 @@ const CARLITOS: BrandIdeas = {
       image: K.jamon,
       source: { kind: 'own' },
       status: 'idea',
-      referenceId: 'ca-r-cortador',
+      inspiration: ['ca-r-cortador', 'ca-p-8', 'ca-p-7'],
       shots: ['The knife, close', 'One slice per breath', 'The slice held to the light'],
       sharper: [
         S('One breath. One slice. Thirty years.', 'NUMBER'),
@@ -1315,7 +1292,7 @@ const CARLITOS: BrandIdeas = {
       feature: 'Paella · Sundays',
       source: { kind: 'own' },
       status: 'idea',
-      referenceId: 'ca-p-1',
+      inspiration: ['ca-p-1', 'ca-p-3', 'ca-p-9'],
       shots: ['The pan, top down', 'The socarrat scrape', 'Eight spoons'],
       sharper: [
         S('Listen for the socarrat.', 'SOUND'),
@@ -1334,7 +1311,7 @@ const CARLITOS: BrandIdeas = {
       image: K.croquetas,
       source: { kind: 'own' },
       status: 'idea',
-      referenceId: 'ca-r-barrio',
+      inspiration: ['ca-r-barrio', 'ca-p-2', 'ca-p-8'],
       shots: ['The three plates land', 'The receipt', 'The last croqueta'],
       sharper: [
         S('Two people. Three plates. $28.', 'NUMBER'),
@@ -1353,7 +1330,7 @@ const CARLITOS: BrandIdeas = {
       source: { kind: 'suggested' },
       status: 'suggested',
       dayN: '15',
-      referenceId: 'ca-r-counters',
+      inspiration: ['ca-r-counters', 'ca-p-7'],
       shots: ['Fino, with its plate', 'Amontillado', 'Oloroso, then the end card'],
       sharper: [
         S('Three sherries. Three plates. One Thursday.', 'NUMBER'),
@@ -1380,7 +1357,7 @@ const CARLITOS: BrandIdeas = {
       source: { kind: 'suggested' },
       status: 'suggested',
       dayN: '17',
-      referenceId: 'ca-p-2',
+      inspiration: ['ca-p-2', 'ca-p-11', 'ca-r-sevilla'],
       shots: ['The counter at 6', 'Sticks counted', 'Out the door at 7:15'],
       sharper: [
         S('Doors at 8. Pintxos at 6.', 'TIME'),
@@ -1404,7 +1381,7 @@ const CARLITOS: BrandIdeas = {
       source: { kind: 'suggested' },
       status: 'suggested',
       dayN: '22',
-      referenceId: 'ca-p-6',
+      inspiration: ['ca-p-6', 'ca-r-barrio'],
       shots: ['The regular sits', 'The order, fast', 'The plates land'],
       sharper: [
         S('He did not look at the menu.', 'STORY'),
@@ -1434,6 +1411,7 @@ const CARLITOS: BrandIdeas = {
       feature: 'Croquetas',
       source: { kind: 'own' },
       status: 'idea',
+      inspiration: ['ca-p-8', 'ca-r-barrio'],
       shots: ['The full tray, noon', 'Half gone', 'The last one'],
       sharper: [],
     },
@@ -1446,6 +1424,7 @@ const CARLITOS: BrandIdeas = {
       feature: 'Joo Chiat Road',
       source: { kind: 'own' },
       status: 'idea',
+      inspiration: ['ca-p-11', 'ca-p-5', 'ca-p-14'],
       shots: ['The MRT exit', 'The shophouse row', 'Our door, lights on'],
       sharper: [],
     },
@@ -1703,6 +1682,7 @@ const CARLITOS: BrandIdeas = {
         hook: 'Race night: pintxos and the big screen.',
         angle: 'Race on the counter TV, the room cheering, pintxos landing between laps.',
         feature: 'Race night at the counter',
+        inspiration: ['ca-p-6', 'ca-p-3'],
         shots: ['The screen', 'The room cheers', 'Pintxos between laps'],
         sharper: [
           S('No grandstand ticket? Counter seat.', 'ASK'),
@@ -1723,6 +1703,7 @@ const CARLITOS: BrandIdeas = {
         hook: 'Pintxos for the pre-gig crowd.',
         angle: 'Friday, 6pm, pintxos by the stick, out the door by 7:15 for the stadium.',
         feature: 'Pintxos night',
+        inspiration: ['ca-p-10', 'ca-p-5'],
         shots: ['The counter at 6', 'Sticks counted', 'Out the door at 7:15'],
         sharper: [
           S('Doors at 8. Pintxos at 6.', 'TIME'),
@@ -1743,6 +1724,7 @@ const CARLITOS: BrandIdeas = {
         hook: 'Bombas. Literally.',
         angle: 'The bomba as the Halloween prop: fuse, smoke, four frames, the bite at the end.',
         feature: 'Bombas',
+        inspiration: ['ca-p-7', 'ca-p-13'],
         shots: ['The fuse', 'The smoke', 'The bite'],
         sharper: [
           S('Light the fuse.', 'SHORTER'),
@@ -1760,8 +1742,36 @@ export const IDEAS_BY_BRAND: Record<BrandId, BrandIdeas> = {
   carlitos: CARLITOS,
 }
 
-/** Every reference a brand has, on the shelf or on a board, by id. */
+/** Links the team pasted onto the moodboard this session, newest first, so an idea can keep them. */
+const pasted: Partial<Record<BrandId, Reference[]>> = {}
+
+export function pastedReferences(brandId: BrandId): Reference[] {
+  return pasted[brandId] ?? []
+}
+
+export function pasteReference(brandId: BrandId, ref: Reference) {
+  pasted[brandId] = [ref, ...pastedReferences(brandId)]
+}
+
+/** Every reference a brand has, on the shelf, on a board or pasted in, by id. */
 export function referenceById(brandId: BrandId, id: string): Reference | undefined {
   const b = IDEAS_BY_BRAND[brandId]
-  return [...b.references, ...b.boards.flatMap((board) => board.pins)].find((r) => r.id === id)
+  return [
+    ...pastedReferences(brandId),
+    ...b.references,
+    ...b.boards.flatMap((board) => board.pins),
+  ].find((r) => r.id === id)
+}
+
+/** The posts an idea grew from, in the order they were picked. */
+export function inspirationOf(brandId: BrandId, card: Pick<IdeaCard, 'inspiration'>): Reference[] {
+  return card.inspiration.flatMap((id) => referenceById(brandId, id) ?? [])
+}
+
+/** An idea's cover: its own photo, else the first inspiration post that has one. */
+export function coverOf(
+  brandId: BrandId,
+  card: Pick<IdeaCard, 'image' | 'inspiration'>,
+): string | undefined {
+  return card.image ?? inspirationOf(brandId, card).find((r) => r.image)?.image
 }

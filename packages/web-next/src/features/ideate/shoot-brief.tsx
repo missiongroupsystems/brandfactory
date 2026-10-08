@@ -4,14 +4,13 @@ import Image from 'next/image'
 import Link from 'next/link'
 import * as React from 'react'
 
-import { AppHeader } from '@/components/app-header'
 import { CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
 import { fromFile, Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
-import { startTouchDrag, touchDragPending } from '@/components/touch-drag'
+import { Sheet } from '@/components/sheet'
 import type { Stage, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
-import { IDEAS_BY_BRAND, referenceById, type IdeaCard, type IdeaStatus } from '@/data/ideas'
+import { inspirationOf, type IdeaCard, type IdeaStatus } from '@/data/ideas'
 import { storyTaken } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 
@@ -21,375 +20,79 @@ import {
   EYEBROW,
   FormatIcon,
   STATUS_LABEL,
-  pictureOf,
   statusColour,
+  usePhone,
   useSlots,
   type Slot,
   useRename,
 } from './idea-parts'
-import { editIdea, keepSuggestion, setDay, skipSuggestion, useIdeas } from './ideas-store'
+import { editIdea, keepSuggestion, setDay, skipSuggestion } from './ideas-store'
 
 const HAIR = 'border-(--cal-line)'
 const TIMES = ['08:00', '12:00', '15:00', '18:00', '19:30', '21:00']
 const FORMAT_LABEL = { reel: 'Reel', carousel: 'Carousel', story: 'Story' } as const
 
 type Step = (typeof CHIPS)[number]
-type Column = Step | 'suggested'
 
-/** The board column a card sits in: "draft" is the calendar's word for an idea. */
-function columnOf(status: IdeaStatus): Column {
-  // A post that failed to go out was scheduled; the calendar is where it shouts.
+/** The step a card is at: "draft" is the calendar's word for an idea, and a failed post was scheduled. */
+function stepOf(status: IdeaStatus): Step {
   if (status === 'failed') return 'scheduled'
-  return status === 'draft' ? 'idea' : status
+  return status === 'draft' || status === 'suggested' ? 'idea' : status
 }
 
-/** The calendar's stage for a column: "Idea" is a draft post. */
+/** The calendar's stage for a step: "Idea" is a draft post. */
 function stageOf(step: Step): Stage {
   return step === 'idea' ? 'draft' : step
 }
 
 /**
- * The shoot brief, as a project board. Every idea is a card in the column of its status; drag a
- * card to change it, or open it to plan it: its date and time, its shots, its references. A date
- * makes the idea a post on the calendar and the column is that post's stage, so the calendar
- * always shows what the board says. Stories land in the calendar's story row.
+ * One idea's shoot brief: its words, its plan (status, date and time, which make it a post on
+ * the calendar), its shots, its inspiration and its sharper hooks. A side panel on a wide screen,
+ * a sheet on a phone; the ideas page opens it beside the overview, so no idea takes the page.
  */
-export function ShootBrief() {
-  const { brand } = useBrand()
-  const { suggesting } = useIdeas(brand.id)
-  const shoot = IDEAS_BY_BRAND[brand.id].shoot
+export function IdeaBrief({ id, onClose }: { id: string; onClose: () => void }) {
   const slots = useSlots()
   const plans = usePlans(slots)
-  // The open card lives in the URL: /ideate/brief#id is how a tile or a pin on Ideas lands here.
-  const open = React.useSyncExternalStore(subscribeHash, readHash, () => null)
+  const phone = usePhone()
+  const slot = slots.find((s) => s.card.id === id)
+  const plan = plans[id]
 
-  function choose(id: string | null) {
-    window.history.replaceState(null, '', id ? `#${id}` : window.location.pathname)
-    window.dispatchEvent(new HashChangeEvent('hashchange'))
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  // The card can go while its brief is open (a skipped suggestion, a brand switch, a reload that
+  // lost an idea made this session): the brief closes rather than leaving a dead hash in the URL.
+  const gone = !slot || !plan
+  React.useEffect(() => {
+    if (gone) onClose()
+  }, [gone, onClose])
+
+  if (gone) return null
+  if (phone) {
+    const { card } = slot
+    return (
+      <Sheet title={`${FORMAT_LABEL[card.format]} · ${card.pillar}`} onClose={onClose}>
+        <div className="flex flex-col gap-7 pt-1">
+          <Body key={id} slot={slot} plan={plan} />
+        </div>
+      </Sheet>
+    )
   }
-
-  const current = slots.find((s) => s.card.id === open) ?? null
-  const columns: Column[] = suggesting ? ['suggested', ...CHIPS] : [...CHIPS]
-  const planned = slots.filter((s) => s.card.postId).length
-
-  return (
-    <div className="flex h-svh flex-col overflow-hidden max-md:h-auto max-md:min-h-svh max-md:overflow-visible">
-      <div className="print:hidden">
-        <AppHeader />
-      </div>
-      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 px-10 pt-2 pb-6 max-md:px-4">
-        <div className="flex flex-col gap-2">
-          <Link
-            href="/ideate"
-            className={`${EYEBROW} flex w-fit items-center gap-1.5 transition-colors hover:text-ink`}
-          >
-            <span className="rotate-180">
-              <ArrowIcon />
-            </span>
-            {brand.name} · Ideas
-          </Link>
-          <h1 className="font-display tracking-[-0.035em] text-[40px] leading-none max-md:text-[30px] max-md:leading-[1.05]">
-            {shoot.title}
-          </h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-7 gap-y-2 max-md:grid max-md:w-full max-md:grid-cols-2 max-md:gap-y-3">
-          <Fact label="Shoot" value={shoot.when.split(' · ')[0]!} />
-          <Fact
-            label="Call"
-            value={`${shoot.call.time} · ${shoot.call.note.replace('Call, ', '')}`}
-          />
-          <Fact label="Crew" value={shoot.crew.name} />
-          <Fact label="On calendar" value={`${planned} of ${slots.length}`} />
-          <BriefActions />
-        </div>
-      </div>
-
-      <div className="flex min-h-0 flex-1 gap-4 px-10 pb-6 max-md:px-4">
-        <Board
-          slots={slots}
-          columns={columns}
-          open={open}
-          onOpen={choose}
-          onMove={(id, step) => plans[id]?.setStatus(step)}
-        />
-        {current && plans[current.card.id] && (
-          <Detail
-            key={current.card.id}
-            slot={current}
-            plan={plans[current.card.id]!}
-            onClose={() => choose(null)}
-          />
-        )}
-      </div>
-    </div>
-  )
-}
-
-function subscribeHash(onChange: () => void) {
-  window.addEventListener('hashchange', onChange)
-  return () => window.removeEventListener('hashchange', onChange)
-}
-
-function readHash(): string | null {
-  return decodeURIComponent(window.location.hash.slice(1)) || null
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="flex flex-col gap-0.5">
-      <span className={EYEBROW}>{label}</span>
-      <span className="text-[14px] font-medium tabular-nums">{value}</span>
-    </span>
-  )
-}
-
-/** Share the brief's link with the crew, or print it for the day. */
-function BriefActions() {
-  const [copied, setCopied] = React.useState(false)
-  return (
-    <span className="flex items-center gap-1.5 print:hidden">
-      <button
-        type="button"
-        onClick={() => {
-          void navigator.clipboard?.writeText(window.location.href.split('#')[0]!)
-          setCopied(true)
-        }}
-        className={`flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium transition-colors ${copied ? 'text-(--insight-6)' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
-      >
-        {copied && <CheckIcon size={9} strokeWidth={2.2} />}
-        {copied ? 'Link copied' : 'Share'}
-      </button>
-      <button
-        type="button"
-        onClick={() => window.print()}
-        className="flex h-9 items-center rounded-full bg-surface px-3.5 max-md:hidden text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink"
-      >
-        Print
-      </button>
-    </span>
-  )
-}
-
-// ── The board ────────────────────────────────────────────────────────────────────────────────
-
-function Board({
-  slots,
-  columns,
-  open,
-  onOpen,
-  onMove,
-}: {
-  slots: Slot[]
-  columns: Column[]
-  open: string | null
-  onOpen: (id: string) => void
-  onMove: (id: string, step: Step) => void
-}) {
-  const [dragging, setDragging] = React.useState<string | null>(null)
-  const [over, setOver] = React.useState<Column | null>(null)
-  // A phone shows one column at a time; its tabs take a dropped card.
-  const [picked, setShown] = React.useState<Column>(columns[0]!)
-  // Suggestions can end (a brand switch): their tab goes, and the first column shows.
-  const shown = columns.includes(picked) ? picked : columns[0]!
-  const cardsOf = (col: Column) => slots.filter((s) => columnOf(s.status) === col)
-  const nameOf = (col: Column) => (col === 'suggested' ? 'Suggested' : STATUS_LABEL[col])
-  const dot = (col: Column) => (col === 'suggested' ? 'var(--insight-5)' : statusColour(col))
-  const card = (s: Slot) => (
-    <BoardCard
-      key={s.card.id}
-      slot={s}
-      active={open === s.card.id}
-      onOpen={() => onOpen(s.card.id)}
-      onDrag={setDragging}
-      onOver={setOver}
-      onMove={onMove}
-    />
-  )
   return (
     <>
-      <div className="flex min-w-0 flex-1 flex-col gap-3 md:hidden">
-        <div
-          role="tablist"
-          aria-label="Board columns"
-          className="sticky top-0 z-10 -mx-4 grid auto-cols-fr grid-flow-col gap-1 bg-page/95 px-4 py-2 backdrop-blur-xl"
-        >
-          {columns.map((col) => {
-            const target = dragging !== null && col !== 'suggested'
-            return (
-              <button
-                key={col}
-                type="button"
-                role="tab"
-                aria-selected={shown === col}
-                data-drop={col === 'suggested' ? undefined : col}
-                onClick={() => setShown(col)}
-                className={`flex h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[14px] transition-[background-color,box-shadow,color] duration-150 ${over === col && target ? 'bg-ink text-page' : shown === col ? 'bg-surface text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]' : target ? 'bg-surface text-ink-2 shadow-[inset_0_0_0_1px_var(--cal-ghost)]' : 'bg-surface text-ink-3'}`}
-              >
-                <span className="flex items-center gap-1.5 font-display text-[17px] leading-none tabular-nums">
-                  <span className="size-1.5 rounded-full" style={{ background: dot(col) }} />
-                  {cardsOf(col).length}
-                </span>
-                <span className="max-w-full truncate px-1 text-[11px] font-medium">
-                  {col === 'awaiting' ? 'Awaiting' : nameOf(col)}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-        <ul key={shown} className="bb-swap flex flex-col gap-2">
-          {cardsOf(shown).map(card)}
-          {cardsOf(shown).length === 0 && (
-            <li className="py-10 text-center text-[13px] text-ink-4">Nothing here yet.</li>
-          )}
-        </ul>
-        {cardsOf(shown).some((s) => s.status !== 'suggested') && (
-          <p className="text-center text-[12px] text-ink-4">
-            Press and hold a card, then drop it on a column.
-          </p>
-        )}
-      </div>
-      <div className="flex min-w-0 flex-1 gap-3 overflow-x-auto pb-2 max-md:hidden">
-        {columns.map((col) => {
-          const cards = cardsOf(col)
-          const droppable = dragging !== null && col !== 'suggested'
-          return (
-            <section
-              key={col}
-              aria-label={nameOf(col)}
-              data-drop={col === 'suggested' ? undefined : col}
-              onDragOver={(e) => {
-                if (!droppable) return
-                e.preventDefault()
-                setOver(col)
-              }}
-              onDragLeave={() => setOver((o) => (o === col ? null : o))}
-              onDrop={(e) => {
-                e.preventDefault()
-                setOver(null)
-                if (dragging && col !== 'suggested') onMove(dragging, col)
-                setDragging(null)
-              }}
-              className={`flex min-w-[220px] flex-1 flex-col gap-2 rounded-[18px] p-2 transition-colors duration-150 ${over === col && droppable ? 'bg-(--cal-drop) shadow-[inset_0_0_0_1px_var(--cal-ghost)]' : col === 'suggested' ? 'bg-(--insight-wash)' : 'bg-surface-2'}`}
-            >
-              <header className="flex items-center gap-2 px-2 pt-1.5 pb-1">
-                <span className="size-2 rounded-full" style={{ background: dot(col) }} />
-                <span className="text-[13px] font-medium">{nameOf(col)}</span>
-                <span className="font-mono text-[11px] text-ink-4 tabular-nums">
-                  {cards.length}
-                </span>
-              </header>
-              {/* The list scrolls, and a scroller clips shadows at its edge: a few pixels of room keep the
-                hover lift whole. */}
-              <ul className="-mx-1.5 -mt-1 flex min-h-0 flex-col gap-2 overflow-y-auto px-1.5 pt-1 pb-2">
-                {cards.map(card)}
-              </ul>
-            </section>
-          )
-        })}
-      </div>
-    </>
-  )
-}
-
-function BoardCard({
-  slot,
-  active,
-  onOpen,
-  onDrag,
-  onOver,
-  onMove,
-}: {
-  slot: Slot
-  active: boolean
-  onOpen: () => void
-  onDrag: (id: string | null) => void
-  onOver: (col: Column | null) => void
-  onMove: (id: string, step: Step) => void
-}) {
-  const { brand } = useBrand()
-  const { card, label, status } = slot
-  const src = pictureOf(brand.id, card)
-  const done = card.done?.length ?? 0
-  const suggested = status === 'suggested'
-  return (
-    <li>
       <button
         type="button"
-        onClick={onOpen}
-        draggable={!suggested}
-        onPointerDown={(e) => {
-          if (suggested) return
-          startTouchDrag(e, {
-            start: () => onDrag(card.id),
-            over: (key) => onOver(key as Column | null),
-            drop: (key) => {
-              const step = CHIPS.find((c) => c === key)
-              if (step && step !== columnOf(status)) onMove(card.id, step)
-            },
-            end: () => onDrag(null),
-          })
-        }}
-        onDragStart={(e) => {
-          // A finger drags by `startTouchDrag`: a phone's own drag would run beside it.
-          if (touchDragPending()) return e.preventDefault()
-          e.dataTransfer.effectAllowed = 'move'
-          e.dataTransfer.setData('text/plain', card.id)
-          onDrag(card.id)
-        }}
-        onDragEnd={() => onDrag(null)}
-        aria-pressed={active}
-        className={`flex w-full flex-col gap-2.5 rounded-[14px] bg-page p-2.5 text-left transition-[box-shadow,transform] duration-200 ${active ? 'shadow-[inset_0_0_0_1.5px_var(--ink)]' : 'shadow-soft hover:-translate-y-px hover:shadow-pop'} ${suggested ? '' : 'bb-touch-drag cursor-grab active:cursor-grabbing'}`}
-      >
-        <span className="flex items-start gap-2.5">
-          <span
-            className={`relative block w-10 shrink-0 overflow-hidden rounded-[7px] bg-tile ${card.format === 'carousel' ? 'aspect-[4/5]' : 'aspect-[9/16]'}`}
-          >
-            {src ? (
-              <Image src={src} alt="" fill sizes="140px" className="object-cover" />
-            ) : (
-              <span
-                className="absolute inset-0"
-                style={{
-                  background: `linear-gradient(165deg, color-mix(in oklab, var(${brand.colour}) 22%, var(--page)), var(--tile))`,
-                }}
-              />
-            )}
-          </span>
-          <span className="line-clamp-3 font-display text-[15.5px] leading-[1.15]">
-            {card.hook}
-          </span>
-        </span>
-        <span className="flex items-center gap-2 font-mono text-[10px] tracking-[0.04em] text-ink-4">
-          <FormatIcon format={card.format} size={10} />
-          <span className={label ? 'text-ink-2' : ''}>{label ?? 'No date'}</span>
-          {card.shots.length > 0 && (
-            <span className="ml-auto flex items-center gap-1 tabular-nums">
-              <ShotRing done={done} total={card.shots.length} />
-              {done}/{card.shots.length}
-            </span>
-          )}
-        </span>
-      </button>
-    </li>
-  )
-}
-
-/** Shots done, as a small ring that fills. */
-function ShotRing({ done, total }: { done: number; total: number }) {
-  const c = 2 * Math.PI * 5
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" className="-rotate-90">
-      <circle cx="6" cy="6" r="5" fill="none" stroke="var(--track)" strokeWidth="1.6" />
-      <circle
-        cx="6"
-        cy="6"
-        r="5"
-        fill="none"
-        stroke="var(--insight-5)"
-        strokeWidth="1.6"
-        strokeDasharray={`${(c * done) / Math.max(total, 1)} ${c}`}
+        aria-label="Close the brief"
+        onClick={onClose}
+        className="fixed inset-0 z-30"
       />
-    </svg>
+      <Detail key={id} slot={slot} plan={plan} onClose={onClose} />
+    </>
   )
 }
 
@@ -474,17 +177,22 @@ function usePlans(slots: Slot[]): Record<string, Plan> {
 
 // ── The detail pane ──────────────────────────────────────────────────────────────────────────
 
+/** The brief as a panel at the right of a wide screen. */
 function Detail({ slot, plan, onClose }: { slot: Slot; plan: Plan; onClose: () => void }) {
-  const { brand, weeks } = useBrand()
-  const { card, status, dayN } = slot
-  const rename = useRename(card)
-  const suggested = status === 'suggested'
-  const step = columnOf(status) as Step
+  const { card } = slot
+  const panel = React.useRef<HTMLElement>(null)
+
+  // The brief opens over the page, so the keyboard starts inside it.
+  React.useEffect(() => panel.current?.focus(), [])
 
   return (
     <aside
+      ref={panel}
+      role="dialog"
+      aria-modal="true"
       aria-label="Idea"
-      className="bb-sheet flex w-[440px] shrink-0 flex-col overflow-hidden rounded-[20px] bg-page shadow-sheet max-md:fixed max-md:inset-x-2 max-md:bottom-2 max-md:z-40 max-md:max-h-[85svh] max-md:w-auto"
+      tabIndex={-1}
+      className="bb-sheet fixed top-3 right-3 bottom-3 z-40 flex w-[440px] flex-col overflow-hidden rounded-[20px] bg-page shadow-sheet outline-none"
     >
       <div className="flex items-center justify-between gap-3 px-6 pt-5">
         <span className={`${EYEBROW} flex items-center gap-2`}>
@@ -500,106 +208,125 @@ function Detail({ slot, plan, onClose }: { slot: Slot; plan: Plan; onClose: () =
           <CloseIcon />
         </button>
       </div>
-
       <div className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-6 pt-3 pb-6">
-        <div className="flex flex-col gap-2">
-          <textarea
-            value={card.hook}
-            rows={2}
-            onChange={(e) => rename(e.target.value)}
-            aria-label="Hook"
-            className="w-full resize-none bg-transparent font-display text-[28px] leading-[1.08] outline-none"
-          />
-          <textarea
-            value={card.angle}
-            rows={2}
-            onChange={(e) => editIdea(brand.id, card.id, { angle: e.target.value })}
-            placeholder="What the shot is, in a sentence."
-            aria-label="Note"
-            className="w-full resize-none bg-transparent text-[14px] leading-[1.5] text-ink-2 outline-none placeholder:text-ink-5"
-          />
-        </div>
-
-        {suggested ? (
-          <Suggestion slot={slot} />
-        ) : (
-          <section aria-label="Plan" className="flex flex-col gap-3">
-            <div className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-x-3 gap-y-3 text-[13px]">
-              <span className="pt-1.5 text-ink-4">Status</span>
-              <StatusPicker value={step} onChange={plan.setStatus} />
-              <span className="pt-1.5 text-ink-4">Post</span>
-              <span className="flex flex-wrap items-center gap-2">
-                <Select
-                  label="Post date"
-                  disabled={step === 'posted'}
-                  value={dayN ?? ''}
-                  onChange={plan.setDate}
-                  options={[
-                    ...(dayN ? [] : [{ value: '', label: 'No date', disabled: true }]),
-                    ...plan.days.map((d) => ({ value: d.n, label: d.label, disabled: d.taken })),
-                  ]}
-                />
-                <Select
-                  label="Post time"
-                  disabled={step === 'posted'}
-                  value={plan.time}
-                  onChange={plan.setTime}
-                  options={TIMES.map((t) => ({ value: t, label: t }))}
-                />
-              </span>
-            </div>
-            <span className="pl-[68px] text-[12px] text-ink-4">
-              {card.postId && dayN ? (
-                <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <Link href="/" className="text-(--insight-6) hover:underline">
-                    On the calendar · {dayLabel(weeks, dayN)}, {plan.time}
-                    {card.format === 'story' ? ' · story row' : ''}
-                  </Link>
-                  <Link
-                    href={`/post/${card.postId}`}
-                    className="font-medium text-ink underline-offset-2 hover:underline"
-                  >
-                    Open in scheduler →
-                  </Link>
-                </span>
-              ) : dayN ? (
-                'An idea tile on the calendar. A status makes it a post.'
-              ) : (
-                'Not on the calendar. Pick a date, or a status takes the first free day.'
-              )}
-            </span>
-          </section>
-        )}
-
-        <Shots card={card} />
-
-        <References card={card} />
-
-        <Sharpen card={card} />
-
-        <section aria-label="Subject" className="flex flex-col gap-1.5">
-          <span className={EYEBROW}>Subject</span>
-          <input
-            value={card.feature}
-            onChange={(e) => editIdea(brand.id, card.id, { feature: e.target.value })}
-            aria-label="Subject"
-            className="w-full bg-transparent text-[14px] outline-none"
-          />
-        </section>
+        <Body slot={slot} plan={plan} />
       </div>
     </aside>
   )
 }
 
+/** What the brief holds, in a panel or a sheet: the words, the plan, the shots, the inspiration. */
+function Body({ slot, plan }: { slot: Slot; plan: Plan }) {
+  const { brand, weeks } = useBrand()
+  const { card, status, dayN } = slot
+  const rename = useRename(card)
+  const suggested = status === 'suggested'
+  const step = stepOf(status)
+
+  return (
+    <>
+      <div className="flex flex-col gap-2">
+        <textarea
+          value={card.hook}
+          rows={2}
+          onChange={(e) => rename(e.target.value)}
+          aria-label="Hook"
+          className="w-full resize-none bg-transparent font-display text-[28px] leading-[1.08] outline-none"
+        />
+        <textarea
+          value={card.angle}
+          rows={2}
+          onChange={(e) => editIdea(brand.id, card.id, { angle: e.target.value })}
+          placeholder="What the shot is, in a sentence."
+          aria-label="Note"
+          className="w-full resize-none bg-transparent text-[14px] leading-[1.5] text-ink-2 outline-none placeholder:text-ink-5"
+        />
+      </div>
+
+      {suggested ? (
+        <Suggestion slot={slot} />
+      ) : (
+        <section aria-label="Plan" className="flex flex-col gap-3">
+          <div className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-x-3 gap-y-3 text-[13px]">
+            <span className="pt-1.5 text-ink-4">Status</span>
+            <StatusPicker value={step} onChange={plan.setStatus} />
+            <span className="pt-1.5 text-ink-4">Post</span>
+            <span className="flex flex-wrap items-center gap-2">
+              <Select
+                label="Post date"
+                disabled={step === 'posted'}
+                value={dayN ?? ''}
+                onChange={plan.setDate}
+                options={[
+                  ...(dayN ? [] : [{ value: '', label: 'No date', disabled: true }]),
+                  ...plan.days.map((d) => ({ value: d.n, label: d.label, disabled: d.taken })),
+                ]}
+              />
+              <Select
+                label="Post time"
+                disabled={step === 'posted'}
+                value={plan.time}
+                onChange={plan.setTime}
+                options={TIMES.map((t) => ({ value: t, label: t }))}
+              />
+            </span>
+          </div>
+          <span className="pl-[68px] text-[12px] text-ink-4">
+            {card.postId && dayN ? (
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <Link href="/" className="text-(--insight-6) hover:underline">
+                  On the calendar · {dayLabel(weeks, dayN)}, {plan.time}
+                  {card.format === 'story' ? ' · story row' : ''}
+                </Link>
+                <Link
+                  href={`/post/${card.postId}`}
+                  className="font-medium text-ink underline-offset-2 hover:underline"
+                >
+                  Open in scheduler →
+                </Link>
+              </span>
+            ) : dayN ? (
+              'An idea tile on the calendar. A status makes it a post.'
+            ) : (
+              'Not on the calendar. Pick a date, or a status takes the first free day.'
+            )}
+          </span>
+        </section>
+      )}
+
+      <Shots card={card} />
+
+      <References card={card} />
+
+      <Sharpen card={card} />
+
+      <section aria-label="Subject" className="flex flex-col gap-1.5">
+        <span className={EYEBROW}>Subject</span>
+        <input
+          value={card.feature}
+          onChange={(e) => editIdea(brand.id, card.id, { feature: e.target.value })}
+          aria-label="Subject"
+          className="w-full bg-transparent text-[14px] outline-none"
+        />
+      </section>
+    </>
+  )
+}
+
 /**
- * What to shoot from: the board's pins beside the idea's reference, then anything the team adds.
+ * What to shoot from: the idea's own photo, the posts it grew from, then anything the team adds.
  * Drop photos or videos anywhere on the section, or press Add to browse. An added one can be
- * taken off again; the board's own pins stay.
+ * taken off again; the inspiration posts stay.
  */
 function References({ card }: { card: IdeaCard }) {
   const { brand } = useBrand()
-  const ref = card.referenceId ? referenceById(brand.id, card.referenceId) : undefined
-  const mood = moodOf(brand.id, card)
+  const posts = inspirationOf(brand.id, card).filter((p) => p.image)
+  const [ref] = posts
+  // The idea's own photo may be a post's too (the demo reuses a few): one tile per photo.
+  const mood = [
+    ...(card.image ? [{ src: card.image, note: 'Your photo' }] : []),
+    ...posts.map((p) => ({ src: p.image, note: p.borrow })),
+  ].filter((m, i, a) => a.findIndex((o) => o.src === m.src) === i)
   const added = card.refs ?? []
   const [over, setOver] = React.useState(false)
   const input = React.useRef<HTMLInputElement>(null)
@@ -613,7 +340,7 @@ function References({ card }: { card: IdeaCard }) {
 
   return (
     <section
-      aria-label="References"
+      aria-label="Inspiration"
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes('Files')) return
         e.preventDefault()
@@ -629,7 +356,7 @@ function References({ card }: { card: IdeaCard }) {
       }}
       className={`-m-2 flex flex-col gap-3 rounded-[14px] p-2 transition-colors ${over ? 'bg-(--cal-drop) shadow-[inset_0_0_0_1px_var(--cal-ghost)]' : ''}`}
     >
-      <span className={EYEBROW}>References</span>
+      <span className={EYEBROW}>Inspiration</span>
       <div className="grid grid-cols-3 gap-1.5">
         {mood.map((m) => (
           <span
@@ -900,19 +627,6 @@ function Sharpen({ card }: { card: IdeaCard }) {
   )
 }
 
-/** The photos to shoot from: the idea's own, its reference, and the pins beside it on its board. */
-function moodOf(brandId: Parameters<typeof pictureOf>[0], card: IdeaCard) {
-  const out: Array<{ src: string; note: string }> = []
-  if (card.image) out.push({ src: card.image, note: 'Your photo' })
-  const ref = card.referenceId ? referenceById(brandId, card.referenceId) : undefined
-  if (ref?.image) out.push({ src: ref.image, note: ref.borrow })
-  const board = IDEAS_BY_BRAND[brandId].boards.find((b) => b.pins.some((p) => p.id === ref?.id))
-  for (const pin of board?.pins ?? []) {
-    if (pin.id !== ref?.id) out.push({ src: pin.image, note: pin.borrow })
-  }
-  return out.filter((m, i) => out.findIndex((o) => o.src === m.src) === i).slice(0, 3)
-}
-
 function Select({
   label,
   value,
@@ -953,19 +667,5 @@ function Select({
         </svg>
       </span>
     </span>
-  )
-}
-
-function ArrowIcon() {
-  return (
-    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-      <path
-        d="M2.5 6h7M6.5 3l3 3-3 3"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   )
 }

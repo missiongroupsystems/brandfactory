@@ -376,14 +376,14 @@ function Finding({ story, first }: { story: Story; first: boolean }) {
   const [open, setOpen] = React.useState(false)
   const [idea, setIdea] = React.useState(false)
 
-  /** The idea lands on the shoot brief, open, ready to plan. */
+  /** The idea lands on the ideas page with its brief open, ready to plan. */
   function plan() {
     if (!story.idea) return
     const existing = ideas.find((i) => i.hook === story.idea!.hook)
     const id =
       existing?.id ??
       addIdea(brand.id, story.idea, { kind: 'insight', line: story.text.replace(/\.$/, '') })
-    router.push(`/ideate/brief#${id}`)
+    router.push(`/ideate#${id}`)
   }
 
   return (
