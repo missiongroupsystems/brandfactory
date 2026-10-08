@@ -10,12 +10,15 @@ import { feedsOf } from '@/data/demo'
 /** The stage filter's steps. An idea tile and a draft post are both "Draft". */
 export type StageKey = 'idea' | Exclude<Stage, 'draft'>
 
+/**
+ * The rows of the stage filter. Failed is not one: a failed post is rare, and the "failed" line
+ * beside the title, which shows only while one exists, is its filter.
+ */
 export const STAGES: Array<{ key: StageKey; label: string; colour: string }> = [
   { key: 'idea', label: 'Draft', colour: 'var(--stage-draft)' },
   { key: 'awaiting', label: 'Awaiting approval', colour: 'var(--stage-awaiting)' },
   { key: 'scheduled', label: 'Scheduled', colour: 'var(--stage-scheduled)' },
   { key: 'posted', label: 'Posted', colour: 'var(--stage-posted)' },
-  { key: 'failed', label: 'Failed', colour: 'var(--stage-failed)' },
 ]
 
 export type StageFilter = Record<StageKey, boolean>

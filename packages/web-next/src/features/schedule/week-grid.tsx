@@ -287,6 +287,19 @@ function DayCell({
   const items = itemsOf(day, useBrand().byId, stages)
   const drag = React.useContext(DragContext)
   const [over, setOver] = React.useState(false)
+  // A day of the month around: its number, dimmed, and nothing to press or drop on.
+  if (day.outside) {
+    return (
+      <div
+        aria-hidden="true"
+        className={`px-2.5 pt-2.5 pb-5 ${first ? '' : 'border-l border-(--cal-line)'}`}
+      >
+        <span className="flex size-[22px] items-center justify-center text-[12px] font-medium text-ink-5 tabular-nums opacity-40">
+          {day.n}
+        </span>
+      </div>
+    )
+  }
   // A past day takes nothing, and the day a post is on is not a move.
   const canDrop =
     drag.postId !== null &&

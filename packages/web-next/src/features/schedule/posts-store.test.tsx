@@ -73,8 +73,8 @@ describe('the brand switcher', () => {
       'awaiting',
       'scheduled',
       'draft',
-      'failed',
-      'failed',
+      'posted',
+      'posted',
       'draft',
     ])
   })

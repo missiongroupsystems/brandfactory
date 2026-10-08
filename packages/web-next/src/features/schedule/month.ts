@@ -158,3 +158,36 @@ export function weekCount(offset: number): number {
   const m = new Date(DEMO_MONTH.year, DEMO_MONTH.month + offset, 1)
   return mondays(m.getFullYear(), m.getMonth()).length
 }
+
+/**
+ * The month grid's rows. Weeks belong to the month their Monday falls in, so the days before the
+ * first Monday sit in the month before: the grid adds that week as a first row, `lead`, so the
+ * month starts on the 1st. Every day outside the month, in the lead and in the last week, is marked.
+ */
+export function monthRows(
+  offset: number,
+  weeks: Week[],
+  before: Week[],
+): { lead?: Week; weeks: Week[] } {
+  const m = new Date(DEMO_MONTH.year, DEMO_MONTH.month + offset, 1).getMonth()
+  const mark = (week: Week, w: number): Week => {
+    const inside = week.days.map((_, i) => dateOf(offset, w, i).getMonth() === m)
+    const from = inside.indexOf(true) + 1
+    const to = inside.lastIndexOf(true) + 1
+    return {
+      ...week,
+      days: week.days.map((d, i) => (inside[i] ? d : { ...d, outside: true })),
+      // An event keeps only its days inside the month; one wholly outside it goes.
+      events: week.events.flatMap((e) => {
+        const col = Math.max(e.col, from)
+        const end = Math.min(e.col + e.span - 1, to)
+        return end < col ? [] : [{ ...e, col, span: end - col + 1 }]
+      }),
+    }
+  }
+  const last = before.at(-1)
+  return {
+    lead: dateOf(offset, 0, 0).getDate() === 1 || !last ? undefined : mark(last, -1),
+    weeks: weeks.map(mark),
+  }
+}

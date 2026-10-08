@@ -63,6 +63,8 @@ type Tile =
  */
 export function PhoneCalendar({
   weeks,
+  month,
+  onOpenLead,
   week,
   day,
   view,
@@ -82,6 +84,10 @@ export function PhoneCalendar({
   onLayers,
 }: {
   weeks: Week[]
+  /** The month grid's rows: the borrowed first week, if any, and the weeks with outside days marked. */
+  month: { lead?: Week; weeks: Week[] }
+  /** A day in the borrowed first row: it opens in its own month. */
+  onOpenLead: (day: number) => void
   week: number
   day: number
   view: CalendarMode
@@ -151,7 +157,21 @@ export function PhoneCalendar({
     ]
   }
 
+  // `wi` is -1 in the month grid's borrowed first row.
+  const pick = (wi: number, di: number) => (wi < 0 ? onOpenLead(di) : onSelect(wi, di))
+
   const number = (d: Day, wi: number, di: number) => {
+    if (d.outside) {
+      return (
+        <span
+          key={d.n}
+          aria-hidden="true"
+          className="flex h-10 items-center justify-center text-[15px] font-medium text-ink-5 tabular-nums opacity-50"
+        >
+          {d.n}
+        </span>
+      )
+    }
     const picked = wi === week && di === day
     const n = items(d).posts.length
     // In Day the number is the only place to drop, so it lights up under the finger.
@@ -160,8 +180,9 @@ export function PhoneCalendar({
       <button
         key={d.n}
         type="button"
-        data-drop={d.n}
-        onClick={() => onSelect(wi, di)}
+        // The borrowed row's days belong to another month: nothing drops there.
+        data-drop={wi < 0 ? undefined : d.n}
+        onClick={() => pick(wi, di)}
         aria-label={`${WEEKDAY[di]} ${d.n}${d.today ? ', today' : ''}${n ? `, ${n} post${n > 1 ? 's' : ''}` : ''}`}
         aria-pressed={picked}
         className="flex h-10 items-center justify-center"
@@ -198,37 +219,37 @@ export function PhoneCalendar({
   }
 
   const column = (d: Day, wi: number, di: number, limit: number) => {
+    if (d.outside) return <div key={d.n} aria-hidden="true" />
     const tiles = tilesOf(d)
     const more = tiles.length - limit
     const target = canTake(d)
     return (
       <div
         key={d.n}
-        data-drop={d.n}
+        data-drop={wi < 0 ? undefined : d.n}
         className={`flex flex-col gap-[3px] rounded-[9px] transition-[background-color,box-shadow] ${over === d.n && target ? 'bg-(--cal-drop) shadow-[inset_0_0_0_1.5px_var(--ink)]' : ''} ${d.past && !tiles.some((t) => t.kind === 'post' && t.post.stage === 'failed') ? 'opacity-60' : ''}`}
       >
-        {tiles
-          .slice(0, limit)
-          .map((t) =>
-            t.kind === 'post' ? (
-              <PhotoTile
-                key={t.post.id}
-                post={t.post}
-                dim={moving === t.post.id}
-                landed={landed === t.post.id}
-                onClick={() => onSelect(wi, di)}
-                onPointerDown={lift(t.post)}
-              />
-            ) : t.kind === 'idea' ? (
-              <IdeaSquare key={t.mark.hook} mark={t.mark} onNew={() => onNewPost(d.n)} />
-            ) : (
-              <StoryRing key="stories" stories={t.stories} onOpen={() => onOpenStories(d.n)} />
-            ),
-          )}
+        {tiles.slice(0, limit).map((t) =>
+          t.kind === 'post' ? (
+            <PhotoTile
+              key={t.post.id}
+              post={t.post}
+              dim={moving === t.post.id}
+              landed={landed === t.post.id}
+              onClick={() => pick(wi, di)}
+              // The borrowed row belongs to another month: its posts move from there.
+              onPointerDown={wi < 0 ? undefined : lift(t.post)}
+            />
+          ) : t.kind === 'idea' ? (
+            <IdeaSquare key={t.mark.hook} mark={t.mark} onNew={() => onNewPost(d.n)} />
+          ) : (
+            <StoryRing key="stories" stories={t.stories} onOpen={() => onOpenStories(d.n)} />
+          ),
+        )}
         {more > 0 && (
           <button
             type="button"
-            onClick={() => onSelect(wi, di)}
+            onClick={() => pick(wi, di)}
             className="font-mono text-[10px] tracking-[0.04em] text-ink-4 tabular-nums"
           >
             +{more}
@@ -330,7 +351,10 @@ export function PhoneCalendar({
           className="bb-swap"
         >
           {view === 'month' ? (
-            weeks.map((w, wi) => row(w, wi, LIMIT.month))
+            <>
+              {month.lead && row(month.lead, -1, LIMIT.month)}
+              {month.weeks.map((w, wi) => row(w, wi, LIMIT.month))}
+            </>
           ) : view === 'week' ? (
             row(shownWeek, week, LIMIT.week)
           ) : (
@@ -474,7 +498,7 @@ function PhotoTile({
   dim: boolean
   landed: boolean
   onClick: () => void
-  onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => void
+  onPointerDown?: (e: React.PointerEvent<HTMLButtonElement>) => void
 }) {
   return (
     <button

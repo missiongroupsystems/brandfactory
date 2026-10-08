@@ -83,12 +83,10 @@ export const POSTS: Post[] = [
     format: 'carousel',
     hook: 'Wine pairing night, this Saturday.',
     images: ['/demo/casa-vostra/wine-night.jpg'],
-    stage: 'failed',
+    stage: 'posted',
     slot: 'Mon 5 Oct, 19:30',
     slotShort: 'Mon, 19:30',
     channels: ['ig', 'fb'],
-    error: 'Facebook asks for the Page to be confirmed again. Reconnect Facebook to post it.',
-    failedOn: 'fb',
   },
   {
     id: 'margherita',
@@ -96,12 +94,10 @@ export const POSTS: Post[] = [
     hook: 'Margherita, oven to table in 90 seconds.',
     images: ['/demo/pins/cv-p-12.jpg'],
     duration: '0:18',
-    stage: 'failed',
+    stage: 'posted',
     slot: 'Tue 6 Oct, 12:00',
     slotShort: 'Tue, 12:00',
     channels: ['ig', 'tt'],
-    error: 'Instagram signed Casa Vostra out. Reconnect Instagram to post it.',
-    failedOn: 'ig',
   },
   {
     id: 'five-pastas',
@@ -137,6 +133,11 @@ export type FeedMark =
 
 export interface Day {
   n: string
+  /**
+   * A day of the month before or after, in the month grid only to fill out a week. It shows its
+   * number, dimmed, and nothing else.
+   */
+  outside?: boolean
   past?: boolean
   today?: boolean
   story: StoryMark
@@ -188,7 +189,6 @@ export const WEEKS: Week[] = [
         n: '6',
         today: true,
         story: { kind: 'posted', image: PHOTO.pasta, count: 2 },
-        // Due at noon today and not out: the calendar's one failed post.
         feed: { kind: 'post', postId: 'margherita' },
       },
       { n: '7', story: idea },

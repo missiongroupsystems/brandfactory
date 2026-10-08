@@ -15,7 +15,7 @@ import { itemsOf } from './calendar-items'
 import { DayView } from './day-view'
 import { FailedPill } from './failed-menu'
 import { FilterMenu } from './filter-menu'
-import { DEMO_MONTH, dateOf, monthView, weekCount } from './month'
+import { DEMO_MONTH, dateOf, monthRows, monthView, weekCount } from './month'
 import { storyTaken } from './move-post'
 import { useBrand } from './posts-store'
 import { storiesOf } from './stories'
@@ -58,6 +58,16 @@ export function SchedulePage() {
     const d = new Date(DEMO_MONTH.year, DEMO_MONTH.month + offset, 1)
     return monthView(brand.id, d.getFullYear(), d.getMonth())
   }, [offset, month, weeks, brand.id])
+  // The month grid starts on the 1st: it borrows the last week of the month before as its first row.
+  const rows = React.useMemo(() => {
+    const d = new Date(DEMO_MONTH.year, DEMO_MONTH.month + offset - 1, 1)
+    const before =
+      offset - 1 === 0 ? weeks : monthView(brand.id, d.getFullYear(), d.getMonth()).weeks
+    return monthRows(offset, shown.weeks, before)
+  }, [offset, weeks, shown.weeks, brand.id])
+  /** A day in the borrowed first row opens in the day view of its own month. */
+  const openLead = (d: number) =>
+    setCalendarPlace({ view: 'day', offset: offset - 1, week: weekCount(offset - 1) - 1, day: d })
   const shownWeek = shown.weeks[Math.min(week, shown.weeks.length - 1)]!
   const shownDay = shownWeek.days[day]!
 
@@ -91,13 +101,9 @@ export function SchedulePage() {
       : view === 'week'
         ? `${start.getDate()}${start.getMonth() === end.getMonth() ? '' : ` ${SHORT_MONTH[start.getMonth()]}`} – ${end.getDate()} ${SHORT_MONTH[end.getMonth()]}`
         : `${WEEKDAY[current.getDay()]} ${current.getDate()} ${SHORT_MONTH[current.getMonth()]}`
-  // Dates only: the month's range without its week numbers, and the year beside a single day.
+  // The year beside a month or a single day.
   const sub =
-    view === 'month'
-      ? shown.range.replace(/ · WK.*$/, '')
-      : view === 'week'
-        ? ''
-        : String(current.getFullYear())
+    view === 'week' ? '' : String(view === 'month' ? start.getFullYear() : current.getFullYear())
   const atToday =
     offset === TODAY_PLACE.offset &&
     (view === 'month' || week === TODAY_PLACE.week) &&
@@ -147,6 +153,8 @@ export function SchedulePage() {
       <div className="md:hidden">
         <PhoneCalendar
           weeks={shown.weeks}
+          month={rows}
+          onOpenLead={openLead}
           week={week}
           day={day}
           view={view}
@@ -246,16 +254,20 @@ export function SchedulePage() {
           />
         ) : (
           <WeekGrid
-            weeks={view === 'month' ? shown.weeks : [shownWeek]}
+            weeks={
+              view === 'month' ? [...(rows.lead ? [rows.lead] : []), ...rows.weeks] : [shownWeek]
+            }
             layers={layers}
             stages={stages}
             mode={view === 'month' ? 'month' : 'week'}
             onOpenPost={openPost}
             onNewPost={newPost}
             onOpenStories={setStoryDay}
-            onOpenDay={(w, d) =>
-              setCalendarPlace({ view: 'day', week: view === 'month' ? w : week, day: d })
-            }
+            onOpenDay={(w, d) => {
+              if (view !== 'month') return setCalendarPlace({ view: 'day', week, day: d })
+              if (rows.lead && w === 0) return openLead(d)
+              setCalendarPlace({ view: 'day', week: rows.lead ? w - 1 : w, day: d })
+            }}
           />
         )}
       </div>
