@@ -1,7 +1,7 @@
 # brand base demo
 
-A click-through demo of brand base for restaurant marketing teams: Schedule, Ideate (with the
-shoot brief board) and Insights, for three brands (Casa Vostra, Temper, Carlitos). It runs on
+A click-through demo of brand base for restaurant marketing teams: Schedule, Ideate (with a page
+per idea) and Insights, for three brands (Casa Vostra, Temper, Carlitos). It runs on
 your laptop with no server, database or sign-in. All data is static and every change lives in
 memory.
 
@@ -41,11 +41,11 @@ clicks in front of a client) and reloads the page when files change, which wipes
    account's text in its own tab, pick a best time, then **Schedule on** under the preview, or
    **Save draft**. Back on the calendar, the post is on its day.
 3. **Ideate** opens on the **Moodboard**: connect Pinterest, Instagram and TikTok into one board,
-   pick a few posts, then **Plan idea from this**. **Current ideas** is every idea with its
-   inspiration posts: **Brief** opens its shoot brief (status, date, shots), **Plan it** puts it on
-   the calendar, **Sharpen** offers stronger hooks.
+   pick a few posts, then **Plan idea from this**: the new idea opens on its own page (inspiration,
+   shots, status, date). **Current ideas** is every idea with its inspiration posts: a card or
+   **Brief** opens its page, **Plan it** puts it on the calendar, **Sharpen** offers stronger hooks.
 4. **Insights**: what worked, when to post, every post, every creator. Click **Turn into idea**,
-   then **Plan it**: the idea opens with its brief on the ideas page.
+   then **Plan it**: the idea opens on its own page.
 
 ## Docs (at the repo root)
 

@@ -1,8 +1,8 @@
 # BrandBase feedback round 2: completion
 
 The plan is `brandbase-feedback-round-2-plan.md` beside this file; its numbers are used below.
-Branch `feat/marketing-demo-feedback`, built 2026-10-09. Gate: typecheck, lint, format, 95 tests
-(15 files), web-next build.
+Branch `feat/marketing-demo-feedback`, built 2026-10-09. Gate after phase 3: typecheck, lint,
+format, 95 tests (15 files), web-next build; after phase 4: 100 tests (17 files).
 
 ## Phase 1: Schedule (lead)
 
@@ -49,20 +49,42 @@ Branch `feat/marketing-demo-feedback`, built 2026-10-09. Gate: typecheck, lint, 
 - **16, the brief per idea.** The header link and the `/ideate/brief` board page are gone. Each idea
   opens its brief (status, date and time, shots, inspiration, sharpen) in a side panel on desktop
   and the shared sheet on phones; the open brief is in the URL hash, `/ideate#<id>`, which Insights
-  links to. Dropped with the board: columns with drag by status, Share, Print and the shoot-day
+  links to (phase 4 replaced the panel and the hash with a page per idea). Dropped with the board: columns with drag by status, Share, Print and the shoot-day
   facts. Merged: "New idea" now starts on the moodboard, since every idea has inspiration posts.
 - **17.** Both moodboard notes are gone.
 - **4, calendar idea tiles.** An idea tile shows its cover (its own photo, else its first
   inspiration post) with a small spark, in Week, Day and on phones.
 
+## Phase 4: follow-ups from the preview (Fable agent for the page, merged)
+
+- **The selection bar at the top.** At the bottom of the screen it sat far from the posts at the
+  top of a long board. It now replaces the folder chips in a sticky row while posts are picked; the
+  plan card drops down under it, and its buttons sit over the card's backdrop so the X clears in one
+  click. Phone chips scroll in one row: wrapped, they made the board jump 84 px on the first pick.
+  Picking across folders now happens on All, since the folders hide while posts are picked.
+- **A page per idea.** The user: the brief should be a page, not a sidebar, since most of the
+  ideation goes into it. This reverses item 15's "nothing opens full-page". `/ideate/<id>` holds
+  everything the panel held; the one change of form is a borrow note under each inspiration post
+  instead of one line under the grid. Back is `/ideate?view=ideas`, so `/ideate` reads `?view=`
+  and builds as a dynamic route. Every entry point links to the page and `/ideate#<id>` is gone.
+  A new idea from the moodboard opens on its page; the overview's ring for it went with that. An
+  id the store does not know (session ideas after a reload, another brand's idea) shows a line and
+  the link back.
+
 ## Review
 
-One Opus review of the whole round after the merges (the two agents each ran a Sonnet review of
+Phases 1 to 3: one Opus review of the whole round after the merges (the two agents each ran a Sonnet review of
 their own work first). Fixed from it: Insights "Plan it" on a suggested idea (Carlitos) opened
 nothing, since a suggestion's brief cannot open (planning now keeps it); "Save draft" unscheduled a
-scheduled post; the README's demo path described the deleted board. Noted, not fixed: the brief
-panel and the crop dialog do not trap focus (nor does the older phone sheet); two ideas planned from
+scheduled post; the README's demo path described the deleted board. Noted, not fixed: the crop
+dialog does not trap focus (nor does the phone sheet); two ideas planned from
 the same first post with the same hook share a calendar tile, because tiles find ideas by hook.
+
+Phase 4: one Sonnet review of the selection bar and one of the idea page. Fixed from them: with the
+plan card open, the X first closed the card; Skip on a suggestion's page left a not-found line
+blaming a reload; the browser's Back from an idea opened the moodboard (the view now goes in the
+URL); the hook field had one row where `field-sizing` is not supported. Noted, not fixed: a time
+picked before a date is forgotten when the page is left.
 
 ## Not done, and why
 

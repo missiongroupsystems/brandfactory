@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.6.1** — 2026-10-09 — Each idea is a page of its own (`/ideate/<id>`): inspiration and shots in the wide column, plan, sharper hooks and subject in a sticky rail; it replaces the side panel, and a new idea from the moodboard opens on it. The moodboard's selection bar moves from the bottom of the screen to a sticky row at the top. No migration. 100 tests.
 - **2.6.0** — 2026-10-09 — David's round-2 feedback: Ideate starts from the moodboard (pick posts from any platform, then "Plan idea from this"), Current ideas is an overview of ideas with their inspiration posts, and each idea opens its own shoot brief (the brief board page is gone); New post gets a crop editor, "Save draft" and "Schedule on" under the preview, comments on by default, and loses Approval and Notes; the approval stage and the seeded failed posts leave the demo; the month grid starts on the 1st; calendar idea tiles show a photo; a favicon. No migration. 95 tests.
 - **2.5.1** — 2026-10-08 — A calmer desktop calendar toolbar, from review feedback: the outlined "2 not posted" pill becomes a short red "2 failed" line beside the title, and the Layers and Stages buttons become one Filter button; the black "Schedule new post" is the only strong control left. The phone filter uses the same word. No migration. 83 tests.
 - **2.5.0** — 2026-10-08 — The phone calendar as a photo grid: Week is seven narrow columns of small square photos (three a day, then "+N") with the picked day's posts listed under it; Month is the same grid, one photo a day; Day is an hour list. The title switches views, one filter button holds the rest, and a dragged post lifts as a small photo just above the finger. Desktop unchanged. No migration. 83 tests.
@@ -22,11 +23,28 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
+## 2.6.1 — 2026-10-09
+
+**Follow-ups to round 2**, from the user's review of the preview. Completion:
+`docs/completions/brandbase-feedback-round-2-phases-1-to-4.md`, phase 4.
+
+- **The idea page.** `/ideate/<id>` replaces the brief's side panel and phone sheet: the hook as
+  an editable title, then inspiration (each post with its own borrow note) and shots in the wide
+  column, and status, date, time, sharper hooks and subject in a sticky rail (one column on
+  phones, the plan first). "Current ideas" goes back to `/ideate?view=ideas`. Card, Brief, Review
+  and Insights' "Plan it" link to the page; `/ideate#<id>` is gone. "Plan idea from this" opens the
+  new idea's page, so the overview's ring for a new idea is gone. An unknown id (a reload drops
+  session ideas) says so with the link back.
+- **The selection bar.** "N selected" and "Plan idea from this" replace the folder chips in a
+  sticky row at the top of the moodboard; the plan card drops down under it. Phone folder chips
+  scroll in one row, so the board does not jump on the first pick. While posts are picked, the
+  folders are hidden: pick across folders on All.
+
 ## 2.6.0 — 2026-10-09
 
 **David's round-2 feedback**, for his Marketing demo on 9 Oct. Plan and completion:
 `docs/completions/brandbase-feedback-round-2-plan.md` and
-`brandbase-feedback-round-2-phases-1-to-3.md`.
+`brandbase-feedback-round-2-phases-1-to-4.md`.
 
 - **Ideate.** On the moodboard, posts from Instagram, TikTok and Pinterest are checkboxes; "Plan
   idea from this" makes an idea that keeps them as its inspiration. Every seeded idea has two to

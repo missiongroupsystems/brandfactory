@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
@@ -42,7 +43,7 @@ import {
   useIdeas,
   type MoodSource,
 } from './ideas-store'
-import { IdeaBrief } from './shoot-brief'
+import { IDEAS_HREF } from './idea-page'
 
 const FORMAT_LABEL: Record<IdeaFormat, string> = {
   reel: 'Reel',
@@ -56,18 +57,14 @@ type View = 'ideas' | 'board'
  * The ideas page, in two views. "Moodboard", the default, is one board of everything the brand
  * saved on Pinterest, Instagram and TikTok: pick any number of posts and plan an idea from them.
  * "Current ideas" is the overview: every idea with the posts it grew from, its hook and where it
- * stands. Nothing opens full-page; an idea's shoot brief opens beside the overview.
+ * stands. Each idea has its own page (`/ideate/<id>`); `?view=ideas` brings Back to the overview.
  */
-export function IdeatePage() {
+export function IdeatePage({ view: initial }: { view?: View }) {
   const { brand } = useBrand()
   const slots = useSlots()
-  // The open brief lives in the URL: /ideate#id is how Insights sends an idea here, ready to plan.
-  const open = React.useSyncExternalStore(subscribeHash, readHash, () => null)
-  // The moodboard first: ideas start from what the team saved. A brief sent here opens over the
-  // overview, which stays once the brief closes.
+  // The moodboard first: ideas start from what the team saved.
   const [picked, setView] = React.useState<View | null>(null)
-  const view = picked ?? (open ? 'ideas' : 'board')
-  const [landed, setLanded] = React.useState<string | null>(null)
+  const view = picked ?? initial ?? 'board'
   const [toast, setToast] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -76,15 +73,17 @@ export function IdeatePage() {
     return () => clearTimeout(t)
   }, [toast])
 
-  const close = React.useCallback(() => {
-    setView((v) => v ?? 'ideas')
-    setOpen(null)
-  }, [])
+  const router = useRouter()
 
-  /** A new idea from the moodboard joins the overview, marked, so the eye finds it. */
+  /** A new idea from the moodboard opens on its own page, where its brief gets written. */
   function planned(id: string) {
-    setLanded(id)
-    setView('ideas')
+    router.push(ideaHref(id))
+  }
+
+  /** The view goes in the URL too, so the browser's Back from an idea lands on the same view. */
+  function choose(v: View) {
+    setView(v)
+    router.replace(v === 'ideas' ? IDEAS_HREF : '/ideate', { scroll: false })
   }
 
   return (
@@ -102,10 +101,7 @@ export function IdeatePage() {
             label="View"
             pill
             value={view}
-            onChange={(v) => {
-              setLanded(null)
-              setView(v)
-            }}
+            onChange={choose}
             options={[
               { value: 'board', label: 'Moodboard' },
               { value: 'ideas', label: 'Current ideas' },
@@ -119,19 +115,11 @@ export function IdeatePage() {
         className="bb-swap mx-auto w-full max-w-[1440px] px-10 pb-16 max-md:px-4"
       >
         {view === 'ideas' ? (
-          <Ideas
-            slots={slots}
-            landed={landed}
-            onOpen={setOpen}
-            onToast={setToast}
-            onNew={() => setView('board')}
-          />
+          <Ideas slots={slots} onToast={setToast} onNew={() => choose('board')} />
         ) : (
           <Board onPlanned={planned} />
         )}
       </main>
-
-      {open && <IdeaBrief id={open} onClose={close} />}
 
       {toast && (
         <div
@@ -154,25 +142,8 @@ export function IdeatePage() {
   )
 }
 
-function subscribeHash(onChange: () => void) {
-  window.addEventListener('hashchange', onChange)
-  return () => window.removeEventListener('hashchange', onChange)
-}
-
-function readHash(): string | null {
-  try {
-    return decodeURIComponent(window.location.hash.slice(1)) || null
-  } catch {
-    // A hash that is not valid URI text (`#%`) opens nothing.
-    return null
-  }
-}
-
-/** Opens an idea's brief, or closes it, by writing the URL's hash. */
-function setOpen(id: string | null) {
-  window.history.replaceState(null, '', id ? `#${id}` : window.location.pathname)
-  window.dispatchEvent(new HashChangeEvent('hashchange'))
-}
+/** An idea's own page. */
+const ideaHref = (id: string) => `/ideate/${id}`
 
 // ── Current ideas ────────────────────────────────────────────────────────────────────────────
 
@@ -183,24 +154,21 @@ const ACT = 'text-[13px] font-medium transition-colors'
 
 /**
  * Every idea at once, each with the posts it grew from. Under them, the moments ahead not used
- * yet. "Plan it" puts an idea on the calendar's next free day; the brief, opened from any card,
- * does the rest.
+ * yet. "Plan it" puts an idea on the calendar's next free day; the idea's page, opened from any
+ * card, does the rest.
  */
 function Ideas({
   slots,
-  landed,
-  onOpen,
   onToast,
   onNew,
 }: {
   slots: Slot[]
-  landed: string | null
-  onOpen: (id: string) => void
   onToast: (t: string) => void
   onNew: () => void
 }) {
   const { brand, weeks, byId, addIdeaToCalendar } = useBrand()
   const { ideas, suggesting, target } = useIdeas(brand.id)
+  const router = useRouter()
 
   // A moment already used is one of the ideas now, so it leaves the list. Its idea is found by
   // the moment's title, which a sharper hook does not change, or else by its hook on the calendar.
@@ -213,9 +181,9 @@ function Ideas({
   const own = ideas.filter((i) => i.status !== 'suggested' && i.format !== 'story').length
   const open = Math.max(target - own, 0)
 
-  /** The idea takes the calendar's next free day; a story has no tile, so its brief opens. */
+  /** The idea takes the calendar's next free day; a story has no tile, so its page opens. */
   function plan(card: IdeaCard) {
-    if (card.format === 'story') return onOpen(card.id)
+    if (card.format === 'story') return router.push(ideaHref(card.id))
     const why =
       card.source.kind === 'insight'
         ? card.source.line
@@ -223,7 +191,7 @@ function Ideas({
           ? card.source.title
           : 'Team idea'
     const where = addIdeaToCalendar({ format: card.format, hook: card.hook, why }, card.dayN)
-    if (!where) return onOpen(card.id)
+    if (!where) return router.push(ideaHref(card.id))
     onToast(`On the calendar · ${where}`)
   }
 
@@ -260,12 +228,7 @@ function Ideas({
         <ul className={GRID}>
           {slots.map((slot) => (
             <li key={slot.card.id}>
-              <IdeaView
-                slot={slot}
-                landed={landed === slot.card.id}
-                onOpen={() => onOpen(slot.card.id)}
-                onPlan={() => plan(slot.card)}
-              />
+              <IdeaView slot={slot} onPlan={() => plan(slot.card)} />
             </li>
           ))}
           <li>
@@ -299,40 +262,25 @@ function Ideas({
 }
 
 /** One idea in the overview: its collage, its hook, where it stands, and what to do next. */
-function IdeaView({
-  slot,
-  landed,
-  onOpen,
-  onPlan,
-}: {
-  slot: Slot
-  landed: boolean
-  onOpen: () => void
-  onPlan: () => void
-}) {
+function IdeaView({ slot, onPlan }: { slot: Slot; onPlan: () => void }) {
   const { brand } = useBrand()
   const { card, status, label, placed } = slot
   const suggested = status === 'suggested'
+  const href = ideaHref(card.id)
   const [sharpen, setSharpen] = React.useState(false)
-  const self = React.useRef<HTMLElement>(null)
   const photos = [card.image, ...inspirationOf(brand.id, card).map((p) => p.image)].filter(
     (src, i, a): src is string => Boolean(src) && a.indexOf(src) === i,
   )
   const source = sourceOf(card)
 
-  React.useEffect(() => {
-    if (landed) self.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }, [landed])
-
   return (
-    <article ref={self} className={`flex flex-col gap-3 ${landed ? 'bb-rise' : ''}`}>
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label={`Open the brief: ${card.hook}`}
+    <article className="flex flex-col gap-3">
+      <Link
+        href={href}
+        aria-label={`Open the idea: ${card.hook}`}
         className="group/card flex w-full flex-col gap-3 text-left"
       >
-        <Collage photos={photos} format={card.format} suggested={suggested} ring={landed} />
+        <Collage photos={photos} format={card.format} suggested={suggested} />
         <span className="flex flex-col gap-1.5 px-0.5">
           <span className={HOOK}>{card.hook}</span>
           {source && (
@@ -354,13 +302,13 @@ function IdeaView({
             </span>
           </span>
         </span>
-      </button>
+      </Link>
       <span className="flex items-center gap-4 px-0.5">
         {suggested ? (
           <>
-            <button type="button" onClick={onOpen} className={`${ACT} text-ink hover:opacity-70`}>
+            <Link href={href} className={`${ACT} text-ink hover:opacity-70`}>
               Review
-            </button>
+            </Link>
             <button
               type="button"
               onClick={() => skipSuggestion(brand.id, card.id)}
@@ -369,13 +317,13 @@ function IdeaView({
               Skip
             </button>
           </>
+        ) : placed ? (
+          <Link href={href} className={`${ACT} text-ink hover:opacity-70`}>
+            Brief
+          </Link>
         ) : (
-          <button
-            type="button"
-            onClick={placed ? onOpen : onPlan}
-            className={`${ACT} text-ink hover:opacity-70`}
-          >
-            {placed ? 'Brief' : 'Plan it'}
+          <button type="button" onClick={onPlan} className={`${ACT} text-ink hover:opacity-70`}>
+            Plan it
           </button>
         )}
         {card.sharper.length > 0 && (
@@ -413,12 +361,10 @@ function Collage({
   photos,
   format,
   suggested,
-  ring,
 }: {
   photos: string[]
   format: IdeaFormat
   suggested: boolean
-  ring: boolean
 }) {
   const { brand } = useBrand()
   const shown = photos.slice(0, 3)
@@ -432,9 +378,7 @@ function Collage({
         ? 'row-span-2'
         : ''
   return (
-    <span
-      className={`relative grid aspect-[4/3] w-full grid-cols-3 grid-rows-2 gap-1 overflow-hidden rounded-[14px] bg-tile transition-shadow ${ring ? 'shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--ink)]' : ''}`}
-    >
+    <span className="relative grid aspect-[4/3] w-full grid-cols-3 grid-rows-2 gap-1 overflow-hidden rounded-[14px] bg-tile">
       {shown.length === 0 && (
         <span
           className="col-span-3 row-span-2 flex items-center justify-center text-ink/30"
