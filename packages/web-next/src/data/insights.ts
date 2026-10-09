@@ -8,7 +8,7 @@
 
 import type { BrandId } from './brands'
 import { PHOTO } from './demo'
-import type { IdeaCard, Pillar } from './ideas'
+import { storyboard, type IdeaCard, type Pillar } from './ideas'
 
 const PIN = (id: string) => `/demo/pins/${id}.jpg`
 
@@ -152,11 +152,11 @@ const CASA_VOSTRA: BrandInsights = {
         angle: 'Chef walks the dough from flour to pass. No talking, just sound.',
         feature: 'Tagliatelle · Chef Marco',
         inspiration: ['cv-r-sfoglina', 'cv-p-3'],
-        shots: [
+        shots: storyboard(
           'Flour and eggs, overhead',
           'The sheet through the roller, hands only',
           'The cut, then the pass',
-        ],
+        ),
         sharper: sharper(
           '48 hours for one plate of tagliatelle.',
           'Flour on Monday. Your plate on Wednesday.',
@@ -184,7 +184,7 @@ const CASA_VOSTRA: BrandInsights = {
         angle: 'Chef Marco, to camera for once: one question, one answer, then back to the fold.',
         feature: 'Chef Marco',
         inspiration: ['cv-p-3', 'cv-r-sfoglina'],
-        shots: ['Marco looks up', 'One question, one answer', 'Back to the fold'],
+        shots: storyboard('Marco looks up', 'One question, one answer', 'Back to the fold'),
         sharper: sharper(
           'He has folded 400 ravioli today. Ask him anything.',
           'The hands you see every day. The face you do not.',
@@ -221,7 +221,7 @@ const CASA_VOSTRA: BrandInsights = {
         angle: 'The top craft reel, recut to 9 seconds for TikTok with the board sound up front.',
         feature: 'Tagliatelle · Chef Marco',
         inspiration: ['cv-r-sfoglina', 'cv-p-3'],
-        shots: ['The board, sound first', 'The cut', 'The end card'],
+        shots: storyboard('The board, sound first', 'The cut', 'The end card'),
         sharper: sharper(
           'Nine seconds. Sound on.',
           'The cut, with nothing else.',
@@ -434,7 +434,11 @@ const TEMPER: BrandInsights = {
         angle: 'One bottle, one reason, the room empty behind her. Personality, not a lecture.',
         feature: 'Sommelier Lena',
         inspiration: ['tp-r-wineroom', 'tp-p-4'],
-        shots: ['Lena at the counter, room empty', 'The bottle, one line', 'The first sip'],
+        shots: storyboard(
+          'Lena at the counter, room empty',
+          'The bottle, one line',
+          'The first sip',
+        ),
         sharper: sharper(
           'Her Monday bottle is not on the list.',
           'Monday, 10pm, one glass. Hers.',
@@ -463,7 +467,7 @@ const TEMPER: BrandInsights = {
         angle: 'One slow push from the door to the counter at 10:30pm. Records on, no voice.',
         feature: 'The room',
         inspiration: ['tp-r-brutal', 'tp-p-1'],
-        shots: ['The door at 10:30', 'The push to the counter', 'The record'],
+        shots: storyboard('The door at 10:30', 'The push to the counter', 'The record'),
         sharper: sharper(
           'This is the hour we built the room for.',
           'Last seating left. Counter open.',
@@ -501,7 +505,7 @@ const TEMPER: BrandInsights = {
         angle: 'The top room reel, recut to 9 seconds for TikTok, the record as the only sound.',
         feature: 'The room · 5pm',
         inspiration: ['tp-r-brutal', 'tp-p-1'],
-        shots: ['5pm, empty', '6pm, first glasses', '7pm, full'],
+        shots: storyboard('5pm, empty', '6pm, first glasses', '7pm, full'),
         sharper: sharper(
           'Nine seconds of the in-between.',
           'Come at 5. Stay for the 7.',
@@ -695,7 +699,11 @@ const CARLITOS: BrandInsights = {
         angle: 'Five slides, five rules, from "never one plate" to "ask what Carlos is eating".',
         feature: 'The counter',
         inspiration: ['ca-r-sevilla', 'ca-p-6'],
-        shots: ['Rule one, on the counter', 'Rule three, the plates', 'Rule five, Carlos'],
+        shots: storyboard(
+          'Rule one, on the counter',
+          'Rule three, the plates',
+          'Rule five, Carlos',
+        ),
         sharper: sharper(
           'Rule one: never order one plate.',
           'Five rules the regulars will not tell you.',
@@ -724,7 +732,7 @@ const CARLITOS: BrandInsights = {
         angle: 'One regular, one order, called out fast at the counter. Cut to the plates landing.',
         feature: 'A regular · the counter',
         inspiration: ['ca-p-6', 'ca-r-sevilla'],
-        shots: ['The regular sits', 'The order, fast', 'The plates land'],
+        shots: storyboard('The regular sits', 'The order, fast', 'The plates land'),
         sharper: sharper(
           'Fifteen seconds to order. Thirty years of practice.',
           'He did not look at the menu.',
@@ -762,7 +770,7 @@ const CARLITOS: BrandInsights = {
           'Camera on the barman, orders called out, plates sliding across. One take, TikTok first.',
         feature: 'The counter · Carlos',
         inspiration: ['ca-r-sevilla', 'ca-p-6'],
-        shots: ['Camera on the barman', 'Orders called', 'Plates slide across'],
+        shots: storyboard('Camera on the barman', 'Orders called', 'Plates slide across'),
         sharper: sharper(
           'One take, one counter, forty orders.',
           'Friday night from behind the bar.',

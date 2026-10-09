@@ -41,8 +41,9 @@ clicks in front of a client) and reloads the page when files change, which wipes
    account's text in its own tab, pick a best time, then **Schedule on** under the preview, or
    **Save draft**. Back on the calendar, the post is on its day.
 3. **Ideate** opens on the **Moodboard**: connect Pinterest, Instagram and TikTok into one board,
-   pick a few posts, then **Plan idea from this**: the new idea opens on its own page (inspiration,
-   shots, status, date). **Current ideas** is every idea with its inspiration posts: a card or
+   pick a few posts, then **Plan idea from this**: the new idea opens on its own page, in four
+   stages: References (drag to reorder), Shots (drag a reference onto a shot, pick a shoot day),
+   Shoot (tick a shot, add its clip) and Post (status and date, synced with the calendar). **Current ideas** is every idea with its inspiration posts: a card or
    **Brief** opens its page, **Plan it** puts it on the calendar, **Sharpen** offers stronger hooks.
 4. **Insights**: what worked, when to post, every post, every creator. Click **Turn into idea**,
    then **Plan it**: the idea opens on its own page.

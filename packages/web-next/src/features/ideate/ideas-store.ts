@@ -161,15 +161,26 @@ export function setHook(brandId: BrandId, id: string, hook: string) {
   patch(brandId, id, { hook })
 }
 
-/** What the shoot brief edits on a card: its words, its shots, and the post it became. */
+/** What an idea's page edits on a card: its words, its references, its shots, and the post it became. */
+export type IdeaEdit = Partial<
+  Pick<IdeaCard, 'hook' | 'angle' | 'feature' | 'inspiration' | 'shots' | 'shootDay' | 'postId'>
+>
+
+/**
+ * Edits a card. A function gets the card as it is now, for a write that follows an await (a
+ * video's length loads first): it must not put back what the page knew before the wait.
+ */
 export function editIdea(
   brandId: BrandId,
   id: string,
-  fields: Partial<
-    Pick<IdeaCard, 'hook' | 'angle' | 'feature' | 'shots' | 'done' | 'refs' | 'postId'>
-  >,
+  fields: IdeaEdit | ((card: IdeaCard) => IdeaEdit),
 ) {
-  patch(brandId, id, fields)
+  update(brandId, (s) => ({
+    ...s,
+    ideas: s.ideas.map((i) =>
+      i.id === id ? { ...i, ...(typeof fields === 'function' ? fields(i) : fields) } : i,
+    ),
+  }))
 }
 
 /** The day a card was sent to on the calendar. */

@@ -50,10 +50,17 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
   ) => string | null
   /**
    * Makes an idea a post on a day, at a time and a stage, and returns the post's id. The idea's
-   * tile, wherever it sat, gives way to the post. The shoot brief calls it once a date is picked.
+   * tile, wherever it sat, gives way to the post. The idea's page calls it once a date is picked,
+   * with the media its shoot captured, in shot order; `image` is the one photo the composer has.
    */
   planPost: (
-    idea: { format: Format; hook: string; image?: string; channels?: Post['channels'] },
+    idea: {
+      format: Format
+      hook: string
+      image?: string
+      images?: string[]
+      channels?: Post['channels']
+    },
     dayN: string,
     time: string,
     stage: Stage,
@@ -64,6 +71,8 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
   setChannels: (id: string, channels: NonNullable<Post['channels']>) => void
   /** The brief renamed the idea behind a post; the post says the same words. */
   renamePost: (id: string, hook: string) => void
+  /** The idea's shoot captured media; the post carries it, in shot order. */
+  setImages: (id: string, images: string[]) => void
   /**
    * The brief renamed an idea that is still a tile on the current brand's calendar. A tile is
    * found by its hook, so it takes the new words or the idea would lose its day.
@@ -170,7 +179,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         id,
         format: idea.format,
         hook: idea.hook,
-        images: idea.image ? [idea.image] : [],
+        images: idea.images ?? (idea.image ? [idea.image] : []),
         ...(idea.channels ? { channels: idea.channels } : {}),
         stage,
         ...slotFor(weeks, dayN, `, ${time}`),
@@ -236,6 +245,21 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
+  // A no-op when the media is already the same: the idea's page calls it from an effect.
+  const setImages = React.useCallback((id: string, images: string[]) => {
+    setPostsByBrand((all) => {
+      for (const [brand, posts] of Object.entries(all) as Array<[BrandId, Post[]]>) {
+        const post = posts.find((p) => p.id === id)
+        if (!post) continue
+        const same =
+          post.images.length === images.length && post.images.every((m, i) => m === images[i])
+        if (same) return all
+        return { ...all, [brand]: posts.map((p) => (p.id === id ? { ...p, images } : p)) }
+      }
+      return all
+    })
+  }, [])
+
   const renamePost = React.useCallback((id: string, hook: string) => {
     setPostsByBrand((all) => {
       for (const [brand, posts] of Object.entries(all) as Array<[BrandId, Post[]]>) {
@@ -279,6 +303,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       planPost,
       reschedule,
       renamePost,
+      setImages,
       renameIdea,
       setChannels,
       brands: BRANDS,
@@ -300,6 +325,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     planPost,
     reschedule,
     renamePost,
+    setImages,
     renameIdea,
     setChannels,
     setBrandId,

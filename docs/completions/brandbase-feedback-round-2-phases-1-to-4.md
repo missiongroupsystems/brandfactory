@@ -2,7 +2,7 @@
 
 The plan is `brandbase-feedback-round-2-plan.md` beside this file; its numbers are used below.
 Branch `feat/marketing-demo-feedback`, built 2026-10-09. Gate after phase 3: typecheck, lint,
-format, 95 tests (15 files), web-next build; after phase 4: 102 tests (18 files).
+format, 95 tests (15 files), web-next build; after phase 4: 108 tests (18 files).
 
 ## Phase 1: Schedule (lead)
 
@@ -75,6 +75,18 @@ format, 95 tests (15 files), web-next build; after phase 4: 102 tests (18 files)
   A new idea from the moodboard opens on its page; the overview's ring for it went with that. An
   id the store does not know (session ideas after a reload, another brand's idea) shows a line and
   the link back.
+- **The page, redesigned around the job.** The user rejected the first page: a flat list with no
+  purpose and no order. Reading of the need: the page is the production document for one post,
+  run by one marketer from "we saw something" to "it is live", replacing a Pinterest board, a
+  shot list in Notes, messages to the chef, clips in Drive and the scheduler. So it follows the
+  work: References (what should it look like?), Shots (how do we shoot it?), Shoot (on the day),
+  Post. One long page with a sticky stage rail, not focused steps, because the stages feed each
+  other (a reference dragged onto a shot, the shoot's clips in Post). Done rules: References has
+  one; Shots has shots and a shoot day; Shoot has every shot captured; Post is posted. Shots
+  became objects (`title`, `ref`, `media`, `captured`), `done` and `refs` went, `shootDay` joined,
+  added media lives in `inspiration` as URLs that covers skip, and `planPost` takes the clips in
+  shot order. The idea's own photo moved from the references to Post ("The post carries").
+  Clips added after the post exists reach it too (`setImages` keeps the post's media in step).
 
 ## Review
 
@@ -88,7 +100,12 @@ the same first post with the same hook share a calendar tile, because tiles find
 Phase 4: one Sonnet review of the selection bar and one of the idea page. Fixed from them: with the
 plan card open, the X first closed the card (the card went later); Skip on a suggestion's page left a not-found line
 blaming a reload; the browser's Back from an idea opened the moodboard (the view now goes in the
-URL); the hook field had one row where `field-sizing` is not supported. Noted, not fixed: a time
+URL); the hook field had one row where `field-sizing` is not supported. A Sonnet review of the
+redesign: the Post panel listed clips the post did not have (now synced), a file dropped outside a
+drop zone opened in the browser and lost the demo (a window guard), writes after an upload used a
+stale card (edits now read the latest), a suggestion's Keep it / Skip sat at the bottom (now under
+the hook), and shoot-day options repeated keys and ignored date order; the picker got Escape and
+focus return. Noted, not fixed: a time
 picked before a date is forgotten when the page is left.
 
 ## Not done, and why
