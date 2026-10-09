@@ -230,9 +230,12 @@ export function SchedulePage() {
           <button
             type="button"
             onClick={() => newPost()}
-            className="bb-press flex h-9 items-center gap-1.5 rounded-full bg-ink pr-4 pl-3.5 text-[13px] font-medium whitespace-nowrap text-page hover:opacity-85"
+            className="bb-press group/new flex h-9 items-center gap-1.5 rounded-full bg-ink pr-4 pl-3.5 text-[13px] font-medium whitespace-nowrap text-page transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-[0_8px_18px_-8px_rgba(18,18,18,0.55)]"
           >
-            <PlusIcon size={12} />
+            {/* The one strong button: on hover it lifts a pixel and its plus turns a quarter. */}
+            <span className="flex transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-hover/new:rotate-90">
+              <PlusIcon size={12} />
+            </span>
             Schedule new post
           </button>
         </div>

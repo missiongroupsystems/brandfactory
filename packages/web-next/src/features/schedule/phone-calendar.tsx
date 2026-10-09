@@ -301,9 +301,11 @@ export function PhoneCalendar({
             type="button"
             onClick={() => onNewPost(shownDay.past ? undefined : shownDay.n)}
             aria-label="New post"
-            className="bb-press flex size-9 items-center justify-center rounded-full bg-ink text-page"
+            className="bb-press group/new flex size-9 items-center justify-center rounded-full bg-ink text-page"
           >
-            <PlusIcon size={13} />
+            <span className="flex transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-active/new:rotate-90">
+              <PlusIcon size={13} />
+            </span>
           </button>
         </span>
       </div>

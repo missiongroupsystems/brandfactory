@@ -48,6 +48,8 @@ post and a post not yet scheduled, so the two read the same.
   idea now stays, after the day's posts. A post remembers the tile it came from (`fromIdea`), so
   taking it back restores that tile's own words ("F1 weekend") and a suggestion stays one. A
   suggestion moved by date stays one too, and "Plan it" never leaves an idea on two days.
+- **The strong button moves a little.** "Schedule new post" lifts a pixel with a soft shadow on
+  hover and its plus turns a quarter; the phone's plus turns when tapped.
 
 ## 2.6.2 — 2026-10-09
 
