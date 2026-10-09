@@ -91,7 +91,8 @@ function stageOf(step: Step): Stage {
  * is not shown.
  */
 export function IdeaPage({ id }: { id: string }) {
-  const slot = useSlots().find((s) => s.card.id === id)
+  // A suggestion's page opens from the calendar too, before anyone pressed Suggest.
+  const slot = useSlots(true).find((s) => s.card.id === id)
   return (
     <div className="flex min-h-svh flex-col">
       <AppHeader />

@@ -51,13 +51,14 @@ export interface Slot {
   order: number
 }
 
-export function useSlots(): Slot[] {
+/** Every card as the calendar knows it. Suggestions are in once asked for, or when `all` is set. */
+export function useSlots(all = false): Slot[] {
   const { brand, weeks, byId } = useBrand()
   const { ideas, suggesting } = useIdeas(brand.id)
   return React.useMemo(() => {
     const hookOf = (id: string) => byId(id)?.hook
     return ideas
-      .filter((card) => suggesting || card.status !== 'suggested')
+      .filter((card) => all || suggesting || card.status !== 'suggested')
       .map((card) => {
         const stage: Stage | undefined = card.postId ? byId(card.postId)?.stage : undefined
         const status: IdeaStatus =
@@ -74,7 +75,7 @@ export function useSlots(): Slot[] {
         return { card, status, dayN, label: dayN ? dayLabel(weeks, dayN) : null, placed, order }
       })
       .sort((a, b) => a.order - b.order)
-  }, [ideas, suggesting, weeks, byId])
+  }, [ideas, suggesting, all, weeks, byId])
 }
 
 export function FormatIcon({ format, size = 12 }: { format: IdeaFormat; size?: number }) {

@@ -2,7 +2,7 @@
 
 The plan is `brandbase-feedback-round-2-plan.md` beside this file; its numbers are used below.
 Branch `feat/marketing-demo-feedback`, built 2026-10-09. Gate after phase 3: typecheck, lint,
-format, 95 tests (15 files), web-next build; after phase 4: 110 tests (18 files).
+format, 95 tests (15 files), web-next build; after phase 4: 116 tests (19 files).
 
 ## Phase 1: Schedule (lead)
 
@@ -96,6 +96,11 @@ format, 95 tests (15 files), web-next build; after phase 4: 110 tests (18 files)
   `dragstart` ends the drag, and FLIP must measure against the list, not the viewport. A reel's
   post carries one final cut (`IdeaCard.cut`): a published reel is one video, so the composer's
   one-media rule for reels stays and the shoot's clips are footage.
+- **Idea tiles read as plans.** Round 2's item 4 gave idea tiles a cover photo, and on the live
+  demo a plan looked like a post (only a missing stage mark and a small spark told them apart). The
+  tile now differs in shape and size, not in an icon: a short dashed card, words first, "Idea"
+  where a post has its time. A click opens the idea page; a tile with no idea card behind it (the
+  calendar's F1 and BIGBANG ideas are Ideate moments) gets one made from its moment, once.
 
 ## Review
 

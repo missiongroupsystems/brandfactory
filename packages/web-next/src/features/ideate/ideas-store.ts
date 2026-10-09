@@ -91,6 +91,46 @@ export function useCoverOfHook(brandId: BrandId, hook: string): string | undefin
   return card ? coverOf(brandId, card) : undefined
 }
 
+/** What the calendar knows of an idea tile. */
+export interface IdeaTileMark {
+  format: IdeaFormat
+  hook: string
+  why: string
+}
+
+/**
+ * The idea behind a calendar tile, by its hook: one of the brand's ideas, suggested or not; else
+ * one made now from the moment the tile came from; else one made from the tile's own words. Made
+ * once: the next look finds it by the same hook.
+ */
+export function ideaOfTile(brandId: BrandId, tile: IdeaTileMark, dayN?: string): string {
+  const found = state[brandId].ideas.find((i) => i.hook === tile.hook)
+  if (found) return found.id
+  const moment = IDEAS_BY_BRAND[brandId].moments.find((m) => m.seed.hook === tile.hook)
+  if (moment) {
+    return addIdea(
+      brandId,
+      { ...moment.seed, dayN: dayN ?? moment.dayN },
+      { kind: 'moment', title: moment.title },
+    )
+  }
+  return addIdea(
+    brandId,
+    {
+      format: tile.format,
+      pillar: 'Occasion',
+      hook: tile.hook,
+      angle: tile.why,
+      feature: '',
+      inspiration: [],
+      shots: [],
+      sharper: [],
+      ...(dayN ? { dayN } : {}),
+    },
+    { kind: 'own' },
+  )
+}
+
 /** Adds a card as an idea and returns its id. */
 export function addIdea(
   brandId: BrandId,

@@ -1,13 +1,14 @@
 'use client'
 
 import Image from 'next/image'
-import Link from 'next/link'
 import * as React from 'react'
 
 import { CarouselIcon, PlusIcon, ReelIcon, SparkIcon } from '@/components/icons'
 import type { CalendarEvent, Day, FeedMark, LayerKey, Post, Stage, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 import { useCoverOfHook } from '@/features/ideate/ideas-store'
+
+import { ideaLabel, useOpenIdea } from './open-idea'
 
 import { Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
@@ -489,7 +490,7 @@ function WeekDay({
         </div>
       ))}
       {items.ideas.map((mark) => (
-        <IdeaTile key={mark.hook} mark={mark} onNewPost={onNewPost} />
+        <IdeaTile key={mark.hook} mark={mark} dayN={day.n} />
       ))}
       {!day.past && (
         <button
@@ -514,107 +515,65 @@ function useTile(): string {
   return React.useContext(WideTiles) ? `${TILE_BASE} max-w-[200px]` : TILE
 }
 
+/** The idea's colour: the brand's for the team's own, the insights' green for a suggestion. */
+const tintOf = (mark: Extract<FeedMark, { kind: 'idea' }>, brandColour: string) =>
+  mark.suggested ? 'var(--insight)' : `var(${brandColour})`
+
 /**
- * A post that is not made yet. One card for every kind: the hook, and one line on why it sits on
- * this day, over the idea's cover (its first inspiration post) when the ideas page knows it. The
- * team's own idea carries the brand's colour and starts the post; a suggestion carries the
- * insights' green and leads to the ideas page, so the calendar, the ideas and the insights read
- * as one loop.
+ * A plan, not a post: a short card with the words first, outlined with a dashed hairline where a
+ * post is a filled photo. "Idea" (or "Suggested") stands where a post shows its time, with why it
+ * sits on this day; the idea's cover is a thumbnail at most. It opens the idea's own page in
+ * Ideate, never the composer. A suggestion carries the insights' green and its wash.
  */
 export function IdeaTile({
   mark,
-  onNewPost,
+  dayN,
 }: {
   mark: Extract<FeedMark, { kind: 'idea' }>
-  onNewPost: (dayN?: string, time?: string) => void
+  /** The day it sits on: an idea made from the tile keeps it. */
+  dayN?: string
 }) {
   const { brand } = useBrand()
-  const tint = mark.suggested ? 'var(--insight)' : `var(${brand.colour})`
+  const open = useOpenIdea()
+  const wide = React.useContext(WideTiles)
+  const tint = tintOf(mark, brand.colour)
   const kind = mark.format === 'reel' ? 'Reel' : 'Carousel'
-  const tile = useTile()
   // The calendar knows an idea by its hook, the same words the ideas page keeps.
   const cover = useCoverOfHook(brand.id, mark.hook)
-  const className = `${tile} group/idea bb-tile text-left ${cover ? 'bg-tile text-white' : 'text-ink'}`
-  const style = cover
-    ? undefined
-    : {
-        background: `linear-gradient(165deg, color-mix(in oklab, ${tint} 12%, var(--page)) 0%, var(--page) 78%)`,
-      }
-  const body = (
-    <>
-      {cover && (
-        <>
-          <Image
-            src={cover}
-            alt=""
-            fill
-            sizes={TILE_SIZES}
-            draggable={false}
-            className="object-cover"
-          />
-          <span className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/15 to-black/5" />
-        </>
-      )}
-      <span className="absolute inset-0 flex flex-col p-2.5">
-        <span className="flex items-center justify-between">
-          {cover ? (
-            <span
-              className="flex size-5 items-center justify-center rounded-full bg-(--tile-pill) shadow-[0_1px_3px_rgba(0,0,0,0.12)]"
-              style={{ color: tint }}
-            >
-              <SparkIcon size={9} />
-            </span>
-          ) : (
-            <span style={{ color: tint }}>
-              <SparkIcon size={11} />
-            </span>
-          )}
-          <span
-            className={`relative flex size-5 items-center justify-center ${cover ? 'drop-shadow-[0_1px_2px_var(--tile-glyph-shadow)]' : 'text-ink-5'}`}
-          >
-            <span className="transition-opacity duration-200 group-hover/idea:opacity-0">
-              {mark.format === 'reel' ? <ReelIcon size={11} /> : <CarouselIcon size={11} />}
-            </span>
-            <span className="absolute inset-0 flex scale-75 items-center justify-center rounded-full bg-ink text-page opacity-0 transition-[opacity,transform] duration-200 group-hover/idea:scale-100 group-hover/idea:opacity-100">
-              {mark.suggested ? <ArrowIcon /> : <PlusIcon size={9} />}
-            </span>
-          </span>
-        </span>
-        <span
-          className={`mt-auto font-display text-[14px] leading-[1.1] ${cover ? 'text-white drop-shadow-[0_1px_2px_var(--tile-glyph-shadow)]' : 'text-ink-2'}`}
-        >
-          {mark.hook}
-        </span>
-        <span
-          className={`mt-1.5 line-clamp-2 text-[9.5px] leading-[1.25] font-medium ${cover ? 'text-white/75' : ''}`}
-          style={cover ? undefined : { color: `color-mix(in oklab, ${tint} 70%, var(--ink-3))` }}
-        >
-          {mark.why}
-        </span>
-      </span>
-    </>
-  )
-  if (mark.suggested) {
-    return (
-      <Link
-        href="/ideate"
-        aria-label={`Suggested ${kind.toLowerCase()}: ${mark.hook} ${mark.why}`}
-        className={className}
-        style={style}
-      >
-        {body}
-      </Link>
-    )
-  }
   return (
     <button
       type="button"
-      onClick={() => onNewPost()}
-      aria-label={`${kind} idea: ${mark.hook} ${mark.why}`}
-      className={className}
-      style={style}
+      onClick={() => open(mark, dayN)}
+      aria-label={ideaLabel(mark, mark.why)}
+      className={`group/idea flex w-full flex-col gap-1 rounded-[10px] border border-dashed p-2.5 text-left transition-[border-color,background-color] ${wide ? 'max-w-[200px]' : 'max-w-[124px]'} ${mark.suggested ? 'bg-(--insight-wash)' : 'bg-page hover:bg-surface'}`}
+      style={{ borderColor: `color-mix(in oklab, ${tint} 55%, transparent)` }}
     >
-      {body}
+      <span
+        className="flex items-center gap-1 font-mono text-[9px] tracking-[0.08em] uppercase"
+        style={{ color: tint }}
+      >
+        {mark.suggested ? 'Suggested' : 'Idea'}
+      </span>
+      <span className="font-display text-[13.5px] leading-[1.15] text-ink">{mark.hook}</span>
+      <span className="line-clamp-2 text-[10.5px] leading-[1.3] text-ink-3">{mark.why}</span>
+      <span className="mt-1 flex items-center gap-1.5 text-[10px] text-ink-4">
+        {cover && (
+          <span className="relative size-4 shrink-0 overflow-hidden rounded-[4px] bg-tile">
+            <Image
+              src={cover}
+              alt=""
+              fill
+              sizes="16px"
+              draggable={false}
+              className="object-cover"
+            />
+          </span>
+        )}
+        {kind}
+        <span className="ml-auto text-ink-3 opacity-0 transition-opacity group-hover/idea:opacity-100">
+          <ArrowIcon />
+        </span>
+      </span>
     </button>
   )
 }

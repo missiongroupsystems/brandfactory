@@ -97,7 +97,7 @@ export function DayView({
                 <div className="flex gap-3">
                   {items.ideas.map((mark) => (
                     <div key={mark.hook} className="w-[124px]">
-                      <IdeaTile mark={mark} onNewPost={() => onNewPost(day.n)} />
+                      <IdeaTile mark={mark} dayN={day.n} />
                     </div>
                   ))}
                 </div>
