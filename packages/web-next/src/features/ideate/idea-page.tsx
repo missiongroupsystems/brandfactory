@@ -161,6 +161,9 @@ interface Plan {
 /** What the shoot captured, in shot order. */
 const capturedOf = (shots: Shot[]) => shots.flatMap((s) => (s.media ? [s.media] : []))
 
+const sameMedia = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((m, i) => m === b[i])
+
 /**
  * What the shoot hands the post, or null while it has nothing to hand: a reel's final cut (its
  * clips are footage, not the post), a carousel's captured slides, a story's captured frames.
@@ -191,9 +194,22 @@ function usePlan(slot: Slot): Plan {
     [ahead],
   )
   const handed = React.useMemo(() => handedBy(card), [card])
+  // What the post carried before the shoot took over, to give back if the shoot lets go again
+  // (the cut removed, the last slide cleared); the idea's photo when that is not known.
+  const before = React.useRef<string[] | null>(null)
   React.useEffect(() => {
-    if (post && handed) setImages(post.id, handed)
-  }, [post, handed, setImages])
+    if (!post) return
+    if (handed) {
+      if (!before.current && !sameMedia(post.images, handed)) before.current = post.images
+      setImages(post.id, handed)
+    } else if (before.current) {
+      setImages(post.id, before.current)
+      before.current = null
+    } else if (post.images.some((m) => m.startsWith('blob:'))) {
+      // A clip the shoot handed earlier, on a page that has since been reopened.
+      setImages(post.id, card.image ? [card.image] : [])
+    }
+  }, [post, handed, card.image, setImages])
   const media = handed ?? post?.images ?? (card.image ? [card.image] : [])
   const firstDay = () => {
     if (dayN && ahead.has(dayN) && !ahead.get(dayN)!.taken) return dayN
@@ -401,6 +417,13 @@ async function mediaFrom(files: FileList | null): Promise<string[]> {
 
 const at = (e: React.DragEvent) => ({ x: e.clientX, y: e.clientY })
 
+/** True when a point is inside an element's box. */
+function inside(el: Element | null, p: { x: number; y: number } | null): boolean {
+  if (!el || !p) return false
+  const r = el.getBoundingClientRect()
+  return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom
+}
+
 /** Moves an item by the keyboard: Option (Alt) with an arrow key on its handle. */
 function nudgeKey(e: React.KeyboardEvent): -1 | 1 | null {
   if (!e.altKey) return null
@@ -488,7 +511,13 @@ function Idea({ slot }: { slot: Slot }) {
   const [refSort, attachRefs] = useSortable(
     refs.map((r) => r.key),
     'x',
-    (keys) => setRefs(keys),
+    // The shown references take their new order; an entry the page cannot show stays in place.
+    (keys) =>
+      edit((c) => {
+        const shown = new Set(keys)
+        let i = 0
+        return { inspiration: c.inspiration.map((k) => (shown.has(k) ? keys[i++]! : k)) }
+      }),
   )
   const [shotSort, attachShots] = useSortable(
     card.shots.map((s) => s.id),
@@ -843,16 +872,20 @@ function RefTile({
       draggable
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest('button')) return
+        const list = e.currentTarget.parentElement
+        let last: { x: number; y: number } | null = null
         startTouchDrag(e, {
           start: begin,
           over: board.setOver,
           move: (k, p) => {
+            last = p
             if (k?.startsWith('ref:')) sort.overAt(k.slice(4), p)
           },
           drop: (k) => {
-            // On a shot it is a link, and the order goes back; anywhere else keeps the order.
+            // On a shot it is a link, and the order goes back; a lift inside the grid keeps the
+            // order it drew (a gap between tiles counts); a lift elsewhere puts it back.
             if (k?.startsWith('shot:')) onLinkToShot(k.slice(5))
-            finish(!k?.startsWith('shot:'))
+            finish(!k?.startsWith('shot:') && inside(list, last))
           },
           end: () => finish(false),
           lift: { selector: '[data-photo]', size: 96 },
@@ -1121,13 +1154,17 @@ function ShotCard({
       draggable
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest('button, textarea')) return
+        const list = e.currentTarget.parentElement
+        let last: { x: number; y: number } | null = null
         startTouchDrag(e, {
           start: begin,
           move: (k, p) => {
+            last = p
             if (k?.startsWith('shot:')) sort.overAt(k.slice(5), p)
           },
-          // The order under the finger is the one it saw: a lift anywhere keeps it.
-          drop: () => finish(true),
+          // A lift inside the storyboard keeps the order it drew (a gap between cards counts); a
+          // lift elsewhere puts it back, as the mouse does.
+          drop: () => finish(inside(list, last)),
           end: () => finish(false),
         })
       }}

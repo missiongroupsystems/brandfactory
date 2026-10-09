@@ -59,13 +59,14 @@ const items = (prefix: string) =>
  * every box is at 0,0: a pointer at -1 is on the near side of the item it is over, and the lifted
  * one goes before it.
  */
-function dragTo(from: HTMLElement, to: HTMLElement) {
+function dragTo(from: HTMLElement, to: HTMLElement, side: 'before' | 'after' = 'before') {
   const dataTransfer = { setData: vi.fn(), types: [] as string[], effectAllowed: 'move' }
   fireEvent.dragStart(from, { dataTransfer })
   // jsdom's drag event keeps no pointer position of its own.
   const over = createEvent.dragOver(to, { dataTransfer })
-  Object.defineProperty(over, 'clientX', { value: -1 })
-  Object.defineProperty(over, 'clientY', { value: -1 })
+  const p = side === 'before' ? -1 : 1
+  Object.defineProperty(over, 'clientX', { value: p })
+  Object.defineProperty(over, 'clientY', { value: p })
   fireEvent(to, over)
   fireEvent.drop(to, { dataTransfer })
   fireEvent.dragEnd(from, { dataTransfer })
@@ -129,6 +130,13 @@ describe('an idea page', () => {
     // A day with a post on it says so; the past cannot be picked.
     expect(within(picker).getByRole('button', { name: 'Thu 8 Oct, 2 posts' })).toBeInTheDocument()
     expect(within(picker).getByRole('button', { name: 'Mon 5 Oct' })).toBeDisabled()
+    // The arrows skip what cannot be picked: left from Wed 7 Oct, the first open day, stays put.
+    const wed = within(picker).getByRole('button', { name: 'Wed 7 Oct' })
+    act(() => wed.focus())
+    fireEvent.keyDown(wed, { key: 'ArrowLeft' })
+    expect(wed).toHaveFocus()
+    fireEvent.keyDown(wed, { key: 'ArrowRight' })
+    expect(within(picker).getByRole('button', { name: 'Thu 8 Oct, 2 posts' })).toHaveFocus()
     fireEvent.click(within(picker).getByRole('button', { name: 'Tue 27 Oct' }))
     expect(
       screen.getByRole('link', { name: /On the calendar · Tue 27 Oct, 18:00/ }),
@@ -156,6 +164,10 @@ describe('an idea page', () => {
     // An arrow without Option is not a move.
     fireEvent.keyDown(grip, { key: 'ArrowRight' })
     expect(shotTitles()).toEqual(['Blindfold on', 'The onions', 'One bite, one guess'])
+    // Past the far side of the last card, the first goes after it.
+    const now = items('shot:')
+    dragTo(now[0]!, now[2]!, 'after')
+    expect(shotTitles()).toEqual(['The onions', 'One bite, one guess', 'Blindfold on'])
   })
 
   it('shoots a shot like a reference, picked on the card or dragged onto it', () => {
@@ -201,17 +213,21 @@ describe('an idea page', () => {
   it('hands a reel only its final cut: the clips are footage, and nothing new goes before a cut', async () => {
     openWithPost('cv-blindfold')
     fireEvent.click(screen.getByRole('radio', { name: 'Scheduled' }))
-    expect(screen.getByTestId('post-images')).toHaveTextContent('')
+    expect(screen.getByTestId('post-images')).toBeEmptyDOMElement()
     upload('Add the clip for: Blindfold on')
     upload('Add the clip for: One bite, one guess')
     await waitFor(() => expect(screen.getAllByText('2 of 3 captured')).not.toHaveLength(0))
     expect(screen.getByRole('list', { name: "The shoot's clips" }).children).toHaveLength(2)
-    expect(screen.getByTestId('post-images')).toHaveTextContent('')
+    expect(screen.getByTestId('post-images')).toBeEmptyDOMElement()
     upload('Add the final cut', 'cut.png')
     await waitFor(() =>
       expect(screen.getByTestId('post-images')).toHaveTextContent('blob:file-3#photo'),
     )
     expect(screen.getByText('The final cut.')).toBeInTheDocument()
+    // The cut taken off again: the post stops carrying it.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the final cut' }))
+    expect(screen.getByTestId('post-images')).toBeEmptyDOMElement()
+    expect(screen.getByText('Nothing yet, until the final cut lands.')).toBeInTheDocument()
   })
 
   it('hands a carousel its captured slides, in shot order', async () => {
@@ -223,6 +239,10 @@ describe('an idea page', () => {
       expect(screen.getByTestId('post-images')).toHaveTextContent('blob:file-1#photo'),
     )
     expect(screen.getByText('1 from the shoot, in shot order.')).toBeInTheDocument()
+    // The slide cleared again: the post gets its three photos back.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the clip for: Five cuts in a row' }))
+    expect(screen.getByTestId('post-images')).toHaveTextContent(/tagliatelle.*ravioli.*pasta/)
+    expect(screen.getByTestId('post-images')).not.toHaveTextContent('blob:')
   })
 
   it('closes the reference picker on Escape and hands the focus back to the frame', async () => {

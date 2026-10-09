@@ -114,7 +114,10 @@ redesign: the Post panel listed clips the post did not have (now synced), a file
 drop zone opened in the browser and lost the demo (a window guard), writes after an upload used a
 stale card (edits now read the latest), a suggestion's Keep it / Skip sat at the bottom (now under
 the hook), and shoot-day options repeated keys and ignored date order; the picker got Escape and
-focus return. Noted, not fixed: a time
+focus return. A Sonnet review of the polish: the picker's arrows stuck on days it cannot take, the
+phone sheet lost focus on close, a touch lift outside the list kept a reorder, a reorder dropped
+hidden inspiration entries, and a removed cut or last slide stayed on the post (it now hands the
+post back what it carried before). Noted, not fixed: a time
 picked before a date is forgotten when the page is left.
 
 ## Not done, and why

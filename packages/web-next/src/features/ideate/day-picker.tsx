@@ -61,9 +61,12 @@ export function DayPicker({
   const pop = React.useRef<HTMLDivElement>(null)
   const id = React.useId()
 
+  // The field takes the focus back: now, and again once the popover or the sheet has gone, since
+  // the sheet hands the focus to what opened it, which was a day cell that is no longer there.
   const close = React.useCallback(() => {
     setOpen(false)
     field.current?.focus()
+    requestAnimationFrame(() => field.current?.focus())
   }, [])
 
   // A click outside the popover closes it, as does Escape; the sheet closes itself.
@@ -71,7 +74,7 @@ export function DayPicker({
     if (!open || phone) return
     const away = (e: PointerEvent) => {
       const t = e.target as Node
-      if (!pop.current?.contains(t) && !field.current?.contains(t)) setOpen(false)
+      if (!pop.current?.contains(t) && !field.current?.contains(t)) close()
     }
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -133,7 +136,7 @@ export function DayPicker({
       </button>
       {open &&
         (phone ? (
-          <Sheet title={label} onClose={() => setOpen(false)}>
+          <Sheet title={label} onClose={close}>
             {body}
           </Sheet>
         ) : (
@@ -187,10 +190,13 @@ function Body({
     cells.current.get(cursor)?.focus()
   }, [cursor])
 
+  /** Moves the cursor by `by` days, then on past any day that cannot be picked. */
   function step(by: number) {
     const i = days.findIndex((d) => d.day.n === cursor)
-    const next = days[i + by]
-    if (next) setCursor(next.day.n)
+    const dir = by < 0 ? -1 : 1
+    for (let j = i + by; j >= 0 && j < days.length; j += dir) {
+      if (!days[j]!.info.disabled) return setCursor(days[j]!.day.n)
+    }
   }
 
   return (
