@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.6.3** — 2026-10-09 — "Draft" means a post again: a plan is an "Idea" on the idea page, in Current ideas and in the calendar's filter (Idea · Draft · Scheduled · Posted). The Day view lists ideas as compact pills that wrap, folding past six behind "+N more". No migration. 120 tests.
+- **2.6.3** — 2026-10-09 — "Draft" means a post again: a plan is an "Idea" on the idea page, in Current ideas and in the calendar's filter (Idea · Draft · Scheduled · Posted). The Day view lists ideas as compact pills that wrap, folding past six behind "+N more". No migration. 123 tests.
 - **2.6.2** — 2026-10-09 — An idea on the calendar no longer looks like a post: it is a short card with a dashed outline, "Idea", the hook as text and the reason it sits on that day (a dashed "Idea" box in the phone grid; a dashed-square count in Month; a flat row in Day), and a click opens its idea page, not the composer. No migration. 116 tests.
 - **2.6.1** — 2026-10-09 — Each idea is a page of its own (`/ideate/<id>`), built as the production document for one post in four stages under a sticky rail: References, Shots (a storyboard, with references dragged onto shots and a shoot day), Shoot (tick and drop each clip) and Post; it replaces the side panel, and "Plan idea from this" opens the new idea there with no step between. The moodboard's selection bar moves from the bottom of the screen to a sticky row at the top, and the three connect buttons can be tapped together. No migration. 110 tests.
 - **2.6.0** — 2026-10-09 — David's round-2 feedback: Ideate starts from the moodboard (pick posts from any platform, then "Plan idea from this"), Current ideas is an overview of ideas with their inspiration posts, and each idea opens its own shoot brief (the brief board page is gone); New post gets a crop editor, "Save draft" and "Schedule on" under the preview, comments on by default, and loses Approval and Notes; the approval stage and the seeded failed posts leave the demo; the month grid starts on the 1st; calendar idea tiles show a photo; a favicon. No migration. 95 tests.
@@ -43,6 +43,11 @@ post and a post not yet scheduled, so the two read the same.
 - **A post with no media yet.** A post planned from an idea before anything was shot carried
   nothing (a reference photo is someone else's picture), so its tile was blank. Its idea's cover
   now stands in, faded and labelled "No media yet"; the post itself still has no media.
+- **Ideas stay put.** A post moved, planned or dragged onto a day used to drop that day's idea
+  tiles, and "Plan it" dropped the ideas on its day too: from when a day held one thing. Every other
+  idea now stays, after the day's posts. A post remembers the tile it came from (`fromIdea`), so
+  taking it back restores that tile's own words ("F1 weekend") and a suggestion stays one. A
+  suggestion moved by date stays one too, and "Plan it" never leaves an idea on two days.
 
 ## 2.6.2 — 2026-10-09
 

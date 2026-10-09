@@ -47,6 +47,8 @@ export interface Post {
   failedOn?: 'ig' | 'tt' | 'yt' | 'li' | 'fb'
   /** The accounts it goes to, once someone picked them in the composer. */
   channels?: Array<'ig' | 'tt' | 'yt' | 'li' | 'fb'>
+  /** The idea tile it was planned from, kept so taking it back to an idea restores that tile. */
+  fromIdea?: { why: string; suggested?: boolean }
 }
 
 export const POSTS: Post[] = [

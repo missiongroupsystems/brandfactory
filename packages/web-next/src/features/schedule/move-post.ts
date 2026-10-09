@@ -85,8 +85,9 @@ export function slotFor(
 }
 
 /**
- * Moves a post's tile to another day. The post takes the day's feed slot: an idea or an open slot
- * there gives way, and other posts stay, in time order. The day it leaves keeps any other posts.
+ * Moves a post's tile to another day. Posts there stay, in time order, and the day's ideas stay
+ * after them: a day holds many plans now, so none gives way to a post. The day it leaves keeps
+ * everything else.
  */
 export function movePost(weeks: Week[], posts: Post[], postId: string, toN: string): Week[] {
   const byTime = (marks: FeedMark[]) =>
@@ -97,7 +98,11 @@ export function movePost(weeks: Week[], posts: Post[], postId: string, toN: stri
       const marks = feedsOf(day)
       let next: FeedMark[] | null = null
       if (day.n === toN) {
-        next = byTime([...marks.filter((m) => m.kind === 'post'), { kind: 'post', postId }])
+        const others = marks.filter((m) => !(m.kind === 'post' && m.postId === postId))
+        next = [
+          ...byTime([...others.filter((m) => m.kind === 'post'), { kind: 'post', postId }]),
+          ...others.filter((m) => m.kind === 'idea'),
+        ]
       } else if (holds(marks, postId)) {
         next = marks.filter((m) => !(m.kind === 'post' && m.postId === postId))
       }

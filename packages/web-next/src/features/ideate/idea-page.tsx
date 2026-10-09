@@ -256,6 +256,7 @@ function usePlan(slot: Slot): Plan {
           format: card.format,
           hook: card.hook,
           why: tile?.kind === 'idea' ? tile.why : 'Team idea',
+          ...(tile?.kind === 'idea' && tile.suggested ? { suggested: true } : {}),
         },
         n,
       )

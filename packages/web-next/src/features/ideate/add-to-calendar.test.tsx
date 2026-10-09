@@ -36,7 +36,7 @@ describe('addIdeaToCalendar', () => {
     expect(feedsOf(casa)).toEqual([])
   })
 
-  it('refuses a day that holds a post, and replaces an idea on the day it takes', () => {
+  it('refuses a day that holds a post, and sits beside the ideas already on the day it takes', () => {
     const { result } = renderHook(() => useBrand(), { wrapper })
     // Casa Vostra, 8 Oct holds two posts: the idea goes to the first free day after this week.
     let label: string | null = null
@@ -46,13 +46,15 @@ describe('addIdeaToCalendar', () => {
     expect(label).toBe('Mon 12 Oct')
     const busy = result.current.weeks.flatMap((w) => w.days).find((d) => d.n === '8')!
     expect(feedsOf(busy).map((m) => m.kind)).toEqual(['post', 'post'])
-    // 23 Oct holds an idea; the new one takes its place.
+    // 23 Oct holds an idea; a day holds many plans, so the new one joins it.
     act(() => {
-      result.current.addIdeaToCalendar({ format: 'reel', hook: 'Replaces', why: 'Test' }, '23')
+      result.current.addIdeaToCalendar({ format: 'reel', hook: 'Joins', why: 'Test' }, '23')
     })
     const day = result.current.weeks.flatMap((w) => w.days).find((d) => d.n === '23')!
-    expect(feedsOf(day)).toHaveLength(1)
-    expect(feedsOf(day)[0]).toMatchObject({ kind: 'idea', hook: 'Replaces' })
+    expect(feedsOf(day).map((m) => (m.kind === 'idea' ? m.hook : m.kind))).toEqual([
+      'Blindfold pizza: the rematch.',
+      'Joins',
+    ])
   })
 })
 

@@ -88,7 +88,7 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
    */
   unplanPost: (id: string, idea: { format: Format; hook: string; why: string }) => void
   placeIdea: (
-    idea: { format: Exclude<Format, 'story'>; hook: string; why: string },
+    idea: { format: Exclude<Format, 'story'>; hook: string; why: string; suggested?: boolean },
     dayN: string,
   ) => void
 }
@@ -171,10 +171,17 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         [brandId]: all[brandId].map((week) => ({
           ...week,
           days: week.days.map((day) => {
-            if (day.n !== dayN) return day
-            // Posts on the day stay; an idea there gives way.
-            const posts = feedsOf(day).filter((m) => m.kind === 'post')
-            const next = [...posts, mark]
+            // Everything on a day stays; only this idea's own tile moves, so it is never on two days.
+            const marks = feedsOf(day)
+            const others = marks.filter((m) => !(m.kind === 'idea' && m.hook === idea.hook))
+            if (day.n !== dayN) {
+              if (others.length === marks.length) return day
+              const { feed: _drop, ...rest } = day
+              return others.length === 0
+                ? rest
+                : { ...rest, feed: others.length === 1 ? others[0] : others }
+            }
+            const next = [...others, mark]
             return { ...day, feed: next.length === 1 ? next[0] : next }
           }),
         })),
@@ -188,12 +195,19 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     (idea, dayN, time, stage) => {
       const id = `${brandId}-planned-${++planned}`
       const weeks = weeksByBrand[brandId]
+      // The tile the post replaces: its reason comes back if the post is taken back to an idea.
+      const tile = weeks
+        .flatMap((w) => w.days.flatMap(feedsOf))
+        .find((m) => m.kind === 'idea' && m.hook === idea.hook)
       const post: Post = {
         id,
         format: idea.format,
         hook: idea.hook,
         images: idea.images ?? (idea.image ? [idea.image] : []),
         ...(idea.channels ? { channels: idea.channels } : {}),
+        ...(tile?.kind === 'idea'
+          ? { fromIdea: { why: tile.why, ...(tile.suggested ? { suggested: true } : {}) } }
+          : {}),
         stage,
         ...slotFor(weeks, dayN, `, ${time}`),
       }
@@ -306,7 +320,13 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
 
   const placeIdea = React.useCallback<BrandValue['placeIdea']>(
     (idea, dayN) => {
-      const mark = { kind: 'idea' as const, format: idea.format, hook: idea.hook, why: idea.why }
+      const mark = {
+        kind: 'idea' as const,
+        format: idea.format,
+        hook: idea.hook,
+        why: idea.why,
+        ...(idea.suggested ? { suggested: true } : {}),
+      }
       setWeeksByBrand((all) => ({
         ...all,
         [brandId]: all[brandId].map((week) => ({
@@ -343,7 +363,16 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
             const next = [
               ...marks.filter((m) => !(m.kind === 'post' && m.postId === id)),
               ...(held && idea.format !== 'story'
-                ? [{ kind: 'idea' as const, format: idea.format, hook: idea.hook, why: idea.why }]
+                ? [
+                    {
+                      kind: 'idea' as const,
+                      format: idea.format,
+                      hook: idea.hook,
+                      // The tile it came from, word for word, when the post remembers it.
+                      why: post.fromIdea?.why ?? idea.why,
+                      ...(post.fromIdea?.suggested ? { suggested: true } : {}),
+                    },
+                  ]
                 : []),
             ]
             const { feed: _drop, ...rest } = day
