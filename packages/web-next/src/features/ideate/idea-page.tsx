@@ -578,7 +578,10 @@ function Idea({ slot }: { slot: Slot }) {
       ),
     })
   // Writes that follow an await read the card as it is then, not as it was before the wait.
-  const addRefs = (keys: string[]) => edit((c) => ({ inspiration: [...c.inspiration, ...keys] }))
+  const addRefs = (keys: string[]) =>
+    edit((c) => ({
+      inspiration: [...c.inspiration, ...keys.filter((k) => !c.inspiration.includes(k))],
+    }))
   const patchShot = (id: string, fields: Partial<Shot>) =>
     edit((c) => ({ shots: c.shots.map((s) => (s.id === id ? { ...s, ...fields } : s)) }))
   const linkRef = (id: string, key: string | undefined) => patchShot(id, { ref: key })
@@ -587,7 +590,7 @@ function Idea({ slot }: { slot: Slot }) {
   // A moodboard post picked on a shot joins the references, and the shot is shot like it.
   const adoptRef = (id: string, key: string) =>
     edit((c) => ({
-      inspiration: [...c.inspiration, key],
+      inspiration: c.inspiration.includes(key) ? c.inspiration : [...c.inspiration, key],
       shots: c.shots.map((s) => (s.id === id ? { ...s, ref: key } : s)),
     }))
 
@@ -1225,6 +1228,16 @@ function ShotCard({
     setChoosing(false)
     requestAnimationFrame(() => frame.current?.focus())
   }
+  // A tap or click outside the open picker closes it without a change, as Escape does.
+  const picker = React.useRef<HTMLSpanElement>(null)
+  React.useEffect(() => {
+    if (!choosing) return
+    const away = (e: PointerEvent) => {
+      if (!picker.current?.contains(e.target as Node)) setChoosing(false)
+    }
+    document.addEventListener('pointerdown', away)
+    return () => document.removeEventListener('pointerdown', away)
+  }, [choosing])
   const choose = (k: string | undefined) => {
     if (k !== shot.ref) onLink(k)
     close()
@@ -1376,10 +1389,25 @@ function ShotCard({
           // The picker covers the card while open: the idea's references, None, then the
           // moodboard's other posts, which join the references when picked.
           <span
+            ref={picker}
             role="group"
             aria-label={`A reference for ${n.toLowerCase()}`}
             className="bb-menu absolute inset-0 z-[2] flex flex-col gap-1 overflow-y-auto rounded-[14px] bg-page p-1.5 shadow-pop [scrollbar-width:none]"
           >
+            <span className="sticky top-0 z-[1] flex items-center justify-between px-1 pb-0.5">
+              <span className="font-mono text-[9px] tracking-[0.08em] text-ink-4 uppercase">
+                Shoot it like
+              </span>
+              <button
+                type="button"
+                aria-label="Close the picker"
+                onKeyDown={escape}
+                onClick={() => choose(shot.ref)}
+                className="flex size-6 items-center justify-center rounded-full bg-surface text-ink-3 hover:text-ink"
+              >
+                <CloseIcon />
+              </button>
+            </span>
             <span className={picks}>
               {refs.map((r, i) => (
                 <button

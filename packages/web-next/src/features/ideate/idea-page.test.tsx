@@ -322,4 +322,16 @@ describe('an idea page', () => {
     expect(screen.getByText(/This idea is not here/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Current ideas' })).toBeInTheDocument()
   })
+  it('closes the reference picker without a change, by its button or a tap outside', () => {
+    open('cv-blindfold')
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a reference for shot 1' }))
+    expect(screen.getByRole('group', { name: 'A reference for shot 1' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close the picker' }))
+    expect(screen.queryByRole('group', { name: 'A reference for shot 1' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a reference for shot 1' }))
+    fireEvent.pointerDown(document.body)
+    expect(screen.queryByRole('group', { name: 'A reference for shot 1' })).not.toBeInTheDocument()
+    // Neither way linked a reference: the shot still has none.
+    expect(screen.getByRole('button', { name: 'Pick a reference for shot 1' })).toBeInTheDocument()
+  })
 })
