@@ -616,31 +616,74 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div role="tablist" aria-label="Folders" className="flex flex-wrap items-center gap-1.5">
-        {chips.map((c) => {
-          const on = c.id === filter
-          return (
+      {/* The top row stays in view: the folders, or, once posts are picked, what to do with them.
+          Its buttons sit over the plan card's backdrop, so the X clears in one click. */}
+      <div className="sticky top-0 z-30 -mx-10 bg-page px-10 py-2 max-md:-mx-4 max-md:px-4">
+        {picked.length > 0 ? (
+          <div
+            role="region"
+            aria-label="Selection"
+            className="relative flex h-9 items-center gap-3"
+          >
             <button
-              key={c.id}
               type="button"
-              role="tab"
-              aria-selected={on}
-              onClick={() => setFilter(c.id)}
-              className={`flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-medium transition-colors ${on ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
+              aria-label="Clear the selection"
+              onClick={clear}
+              className="relative z-40 -ml-2 flex size-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:text-ink"
             >
-              {c.source && <PlatformLogo platform={c.source} size={11} />}
-              {c.label}
-              <span
-                className={`font-mono text-[11px] tabular-nums ${on ? 'text-page/60' : 'text-ink-4'}`}
-              >
-                {c.n}
-              </span>
+              <CloseIcon />
             </button>
-          )
-        })}
-        {missing.map((m) => (
-          <ConnectChip key={m} source={m} />
-        ))}
+            <span className="text-[13px] font-medium tabular-nums">{picked.length} selected</span>
+            <button
+              type="button"
+              onClick={() => setPlanning(true)}
+              className="bb-press relative z-40 ml-auto flex h-9 items-center rounded-full bg-ink px-4 text-[13px] font-medium text-page hover:opacity-85"
+            >
+              Plan idea from this
+            </button>
+            {planning && (
+              <PlanStep
+                posts={picked}
+                onBack={() => setPlanning(false)}
+                onPlanned={(id) => {
+                  clear()
+                  onPlanned(id)
+                }}
+              />
+            )}
+          </div>
+        ) : (
+          <div
+            role="tablist"
+            aria-label="Folders"
+            className="flex flex-wrap items-center gap-1.5 max-md:-mx-4 max-md:flex-nowrap max-md:overflow-x-auto max-md:px-4 max-md:[scrollbar-width:none] max-md:[&>*]:shrink-0"
+          >
+            {chips.map((c) => {
+              const on = c.id === filter
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => setFilter(c.id)}
+                  className={`flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-medium transition-colors ${on ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
+                >
+                  {c.source && <PlatformLogo platform={c.source} size={11} />}
+                  {c.label}
+                  <span
+                    className={`font-mono text-[11px] tabular-nums ${on ? 'text-page/60' : 'text-ink-4'}`}
+                  >
+                    {c.n}
+                  </span>
+                </button>
+              )
+            })}
+            {missing.map((m) => (
+              <ConnectChip key={m} source={m} />
+            ))}
+          </div>
+        )}
       </div>
       {(filter === 'ig' || filter === 'tt') && (
         <PasteLink
@@ -651,43 +694,6 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
         />
       )}
       <Masonry key={filter} pins={shown} selected={selected} onToggle={toggle} />
-
-      {picked.length > 0 &&
-        (planning ? (
-          <PlanStep
-            posts={picked}
-            onBack={() => setPlanning(false)}
-            onPlanned={(id) => {
-              clear()
-              onPlanned(id)
-            }}
-          />
-        ) : (
-          <div
-            role="region"
-            aria-label="Selection"
-            className="bb-rise fixed bottom-6 left-1/2 z-40 flex h-12 -translate-x-1/2 items-center gap-3 rounded-full bg-ink pr-1.5 pl-5 text-page shadow-lift max-md:inset-x-4 max-md:bottom-[calc(76px+env(safe-area-inset-bottom))] max-md:left-4 max-md:translate-x-0 max-md:justify-between max-md:pl-4"
-          >
-            <span className="text-[13px] font-medium tabular-nums">{picked.length} selected</span>
-            <span className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setPlanning(true)}
-                className="bb-press flex h-9 items-center rounded-full bg-page px-4 text-[13px] font-medium text-ink hover:opacity-85"
-              >
-                Plan idea from this
-              </button>
-              <button
-                type="button"
-                aria-label="Clear the selection"
-                onClick={clear}
-                className="flex size-9 items-center justify-center rounded-full text-page/70 transition-colors hover:text-page"
-              >
-                <CloseIcon />
-              </button>
-            </span>
-          </div>
-        ))}
     </div>
   )
 }
@@ -787,7 +793,7 @@ function PlanStep({
     </button>
   )
 
-  // A phone's sheet; Done takes the user back to the board. A wide screen gets a card over it.
+  // A phone's sheet; Done takes the user back to the board. A wide screen gets a card under the bar.
   if (phone) {
     return (
       <Sheet title="Plan an idea" onClose={onBack}>
@@ -808,7 +814,7 @@ function PlanStep({
       />
       <section
         aria-label="Plan an idea"
-        className="bb-rise fixed bottom-6 left-1/2 z-40 flex w-[480px] -translate-x-1/2 flex-col gap-5 rounded-[20px] bg-page p-5 shadow-sheet"
+        className="bb-rise absolute top-full right-0 z-40 mt-2 flex w-[480px] flex-col gap-5 rounded-[20px] bg-page p-5 shadow-sheet"
       >
         {body}
         <span className="flex items-center justify-between">
