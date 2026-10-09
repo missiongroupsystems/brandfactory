@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import * as React from 'react'
 
-import { CarouselIcon, PlusIcon, ReelIcon, SparkIcon } from '@/components/icons'
+import { CarouselIcon, PlusIcon, ReelIcon } from '@/components/icons'
 import type { CalendarEvent, Day, FeedMark, LayerKey, Post, Stage, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 import { useCoverOfHook } from '@/features/ideate/ideas-store'
@@ -380,9 +380,18 @@ function DaySummary({
   stages: StageFilter
   onOpen: () => void
 }) {
-  const { byId } = useBrand()
+  const { brand, byId } = useBrand()
   const items = itemsOf(day, byId, stages)
   const counts = countsOf(items)
+  // Plans in the tiles' language: a dashed mark, the team's ideas apart from suggestions.
+  const plans = [
+    {
+      n: items.ideas.filter((m) => !m.suggested).length,
+      word: 'idea',
+      tint: `var(${brand.colour})`,
+    },
+    { n: items.ideas.filter((m) => m.suggested).length, word: 'suggested', tint: 'var(--insight)' },
+  ].filter((p) => p.n > 0)
   const failed = failedOf(items)
   const stories = storyCount(items)
   const empty =
@@ -424,15 +433,22 @@ function DaySummary({
           {stories}
         </span>
       )}
-      {items.ideas.length > 0 && (
+      {plans.map(({ n, word, tint }) => (
         <span
-          title={`${items.ideas.length} idea${items.ideas.length > 1 ? 's' : ''} for this day`}
-          className="flex h-[22px] items-center gap-1 rounded-full px-1.5 text-[11px] font-medium text-(--insight-6) shadow-[inset_0_0_0_1px_var(--cal-ghost)] tabular-nums"
+          key={word}
+          title={`${n} ${word === 'idea' && n > 1 ? 'ideas' : word}`}
+          className="flex h-[22px] items-center gap-1 rounded-full bg-surface px-1.5 text-[11px] font-medium text-ink-2 tabular-nums"
         >
-          <SparkIcon size={9} />
-          {items.ideas.length}
+          {/* A plan's mark: the idea card's dashed outline, small. */}
+          <span
+            aria-hidden="true"
+            className="size-[10px] rounded-[3px] border border-dashed"
+            style={{ borderColor: tint }}
+          />
+          <span className="sr-only">{word === 'idea' ? 'Ideas:' : 'Suggested:'}</span>
+          {n}
         </span>
-      )}
+      ))}
       {empty && <span className="sr-only">Nothing on this day</span>}
     </button>
   )
@@ -528,10 +544,13 @@ const tintOf = (mark: Extract<FeedMark, { kind: 'idea' }>, brandColour: string) 
 export function IdeaTile({
   mark,
   dayN,
+  row = false,
 }: {
   mark: Extract<FeedMark, { kind: 'idea' }>
   /** The day it sits on: an idea made from the tile keeps it. */
   dayN?: string
+  /** One flat line, for the day view's band above the hours. */
+  row?: boolean
 }) {
   const { brand } = useBrand()
   const open = useOpenIdea()
@@ -540,6 +559,46 @@ export function IdeaTile({
   const kind = mark.format === 'reel' ? 'Reel' : 'Carousel'
   // The calendar knows an idea by its hook, the same words the ideas page keeps.
   const cover = useCoverOfHook(brand.id, mark.hook)
+  if (row) {
+    return (
+      <button
+        type="button"
+        onClick={() => open(mark, dayN)}
+        aria-label={ideaLabel(mark, mark.why)}
+        className={`group/idea flex h-12 w-full max-w-[720px] items-center gap-3 rounded-[10px] border border-dashed px-3.5 text-left transition-colors ${mark.suggested ? 'bg-(--insight-wash)' : 'bg-page hover:bg-surface'}`}
+        style={{ borderColor: `color-mix(in oklab, ${tint} 55%, transparent)` }}
+      >
+        <span
+          className="w-[68px] shrink-0 font-mono text-[9.5px] tracking-[0.08em] uppercase"
+          style={{ color: tint }}
+        >
+          {mark.suggested ? 'Suggested' : 'Idea'}
+        </span>
+        <span title={mark.hook} className="min-w-0 truncate font-display text-[15px] text-ink">
+          {mark.hook}
+        </span>
+        <span className="min-w-0 shrink-[3] truncate text-[12px] text-ink-3">{mark.why}</span>
+        <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[11px] text-ink-4">
+          {cover && (
+            <span className="relative size-5 overflow-hidden rounded-[5px] bg-tile">
+              <Image
+                src={cover}
+                alt=""
+                fill
+                sizes="20px"
+                draggable={false}
+                className="object-cover"
+              />
+            </span>
+          )}
+          {kind}
+          <span className="text-ink-3 opacity-0 transition-opacity group-hover/idea:opacity-100">
+            <ArrowIcon />
+          </span>
+        </span>
+      </button>
+    )
+  }
   return (
     <button
       type="button"

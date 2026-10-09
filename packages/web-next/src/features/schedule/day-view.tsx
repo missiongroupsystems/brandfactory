@@ -29,12 +29,16 @@ const STAGE_LABEL = {
   failed: 'Failed',
 } as const
 
+/** The hours' labels, also used for the band above them. */
+const GUTTER = 'font-mono text-[10px] text-ink-4'
+
 /**
  * One day by the hour. Each post sits at its time as a thumbnail with its hook, channels and
  * stage; the brand's best two hours from Insights are shaded, so a good slot is visible before
  * anything is planned. Stories and ideas without a time sit above the hours. An empty hour starts
  * a new post.
  */
+
 export function DayView({
   day,
   events,
@@ -74,34 +78,37 @@ export function DayView({
         className={`flex flex-col gap-6 ${day.past && !items.posts.some((p) => p.stage === 'failed') ? 'opacity-60' : ''}`}
       >
         {(events.length > 0 || stories.length > 0 || items.ideas.length > 0) && (
-          <div className="flex flex-wrap items-start gap-6 border-b border-(--cal-line) pb-6">
-            {events.map((e) => (
-              <span
-                key={e.text}
-                className="flex h-7 items-center rounded-[6px] px-2.5 text-[12px] font-medium"
-                style={{
-                  background: `var(--layer-${e.layer})`,
-                  color: `var(--layer-${e.layer}-ink)`,
-                }}
-              >
-                {e.text}
-              </span>
-            ))}
-            <StoryDeck stories={stories} onOpen={onOpenStories} size="md" />
+          // The band above the hours keeps the hours' gutter: what has no time, labelled on the left.
+          <div className="grid grid-cols-[64px_minmax(0,1fr)] gap-y-3 border-b border-(--cal-line) pb-6">
+            {(events.length > 0 || stories.length > 0) && (
+              <>
+                <span className={`${GUTTER} pt-2`}>All day</span>
+                <div className="flex flex-wrap items-start gap-3">
+                  {events.map((e) => (
+                    <span
+                      key={e.text}
+                      className="flex h-7 items-center rounded-[6px] px-2.5 text-[12px] font-medium"
+                      style={{
+                        background: `var(--layer-${e.layer})`,
+                        color: `var(--layer-${e.layer}-ink)`,
+                      }}
+                    >
+                      {e.text}
+                    </span>
+                  ))}
+                  <StoryDeck stories={stories} onOpen={onOpenStories} size="md" />
+                </div>
+              </>
+            )}
             {items.ideas.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <span className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.08em] text-(--insight-6) uppercase">
-                  <SparkIcon size={9} />
-                  Ideas for this day
-                </span>
-                <div className="flex gap-3">
+              <>
+                <span className={`${GUTTER} pt-[18px]`}>Ideas</span>
+                <div className="flex flex-col gap-2">
                   {items.ideas.map((mark) => (
-                    <div key={mark.hook} className="w-[124px]">
-                      <IdeaTile mark={mark} dayN={day.n} />
-                    </div>
+                    <IdeaTile key={mark.hook} mark={mark} dayN={day.n} row />
                   ))}
                 </div>
-              </div>
+              </>
             )}
           </div>
         )}

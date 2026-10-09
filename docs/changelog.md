@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.6.2** — 2026-10-09 — An idea on the calendar no longer looks like a post: it is a short card with a dashed outline, "Idea", the hook as text and the reason it sits on that day (a dashed "Idea" box in the phone grid), and a click opens its idea page, not the composer. No migration. 116 tests.
+- **2.6.2** — 2026-10-09 — An idea on the calendar no longer looks like a post: it is a short card with a dashed outline, "Idea", the hook as text and the reason it sits on that day (a dashed "Idea" box in the phone grid; a dashed-square count in Month; a flat row in Day), and a click opens its idea page, not the composer. No migration. 116 tests.
 - **2.6.1** — 2026-10-09 — Each idea is a page of its own (`/ideate/<id>`), built as the production document for one post in four stages under a sticky rail: References, Shots (a storyboard, with references dragged onto shots and a shoot day), Shoot (tick and drop each clip) and Post; it replaces the side panel, and "Plan idea from this" opens the new idea there with no step between. The moodboard's selection bar moves from the bottom of the screen to a sticky row at the top, and the three connect buttons can be tapped together. No migration. 110 tests.
 - **2.6.0** — 2026-10-09 — David's round-2 feedback: Ideate starts from the moodboard (pick posts from any platform, then "Plan idea from this"), Current ideas is an overview of ideas with their inspiration posts, and each idea opens its own shoot brief (the brief board page is gone); New post gets a crop editor, "Save draft" and "Schedule on" under the preview, comments on by default, and loses Approval and Notes; the approval stage and the seeded failed posts leave the demo; the month grid starts on the 1st; calendar idea tiles show a photo; a favicon. No migration. 95 tests.
 - **2.5.1** — 2026-10-08 — A calmer desktop calendar toolbar, from review feedback: the outlined "2 not posted" pill becomes a short red "2 failed" line beside the title, and the Layers and Stages buttons become one Filter button; the black "Schedule new post" is the only strong control left. The phone filter uses the same word. No migration. 83 tests.
@@ -33,7 +33,10 @@ Fri 9 Oct ("Pizza before the lights go out.") looked like a real post. Completio
 - **The tile.** Week and Day draw an idea as a plan card about half a post's height: a dashed
   hairline in the brand's colour, "Idea" where a post shows its time, the hook in display type,
   the reason, the format and at most a 16 px thumbnail. A suggestion is the same card in the
-  insight green ("Suggested"). Month keeps its outlined count chip. The phone grid draws a
+  insight green ("Suggested"). Month counts plans like posts, in the same filled chip, with a
+  small dashed square for the mark (brand colour for ideas, green for suggestions, counted apart).
+  Day puts its untimed things in a band on the hours' gutter: "All day" for events and stories,
+  "Ideas" with each plan as one flat dashed row. The phone grid draws a
   dashed half-height box marked "Idea"; the phone day list a dashed row headed "Idea · reason".
 - **The click.** Every idea tile opens `/ideate/<id>`. `ideaOfTile` finds the brand's idea by hook,
   else makes one from the Ideate moment with that hook (the Moments ahead path), else a bare idea
