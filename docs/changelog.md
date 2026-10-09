@@ -33,7 +33,9 @@ post and a post not yet scheduled, so the two read the same.
 - **Words.** An idea's status is "Idea" until it has a post; then it is the post's stage, so a
   plan with a draft post reads "Draft". The idea page's status steps are Idea · Draft · Scheduled ·
   Posted; Idea is locked once a post exists, since the page does not take a post back. The
-  calendar filter splits its first row into Idea (the plans) and Draft (draft posts). A date picked
+  calendar filter splits its first row into Idea (the plans) and Draft (draft posts). Idea's mark is
+  the calendar's dashed square, in the filters and on the idea page, so it never reads as a shade
+  of Draft's grey dot. A date picked
   on an idea moves its tile there (`placeIdea`, beside any posts and ideas on that day) and leaves
   it an idea; before, it quietly made a draft post.
 - **The Day view's ideas** are compact dashed pills (photo, "Idea" or "Suggested", the hook; the

@@ -6,6 +6,7 @@ import { CheckIcon, FilterIcon } from '@/components/icons'
 import { DEFAULT_LAYERS, LAYERS, type LayerKey } from '@/data/demo'
 
 import { ALL_STAGES, STAGES, type StageFilter } from './calendar-items'
+import { StageMark } from './stage-mark'
 
 const EYEBROW = 'px-2.5 pt-2 pb-1.5 font-mono text-[9.5px] tracking-[0.08em] text-ink-5'
 const ROW =
@@ -92,10 +93,11 @@ export function FilterMenu({
                 onClick={() => onStages({ ...stages, [s.key]: !active })}
                 className={`${ROW} ${active ? 'text-ink' : 'text-ink-4'}`}
               >
-                <span
-                  aria-hidden="true"
-                  className="size-2.5 rounded-full transition-opacity"
-                  style={{ background: s.colour, opacity: active ? 1 : 0.3 }}
+                <StageMark
+                  stage={s.key}
+                  colour={s.colour}
+                  className="size-2.5"
+                  style={{ opacity: active ? 1 : 0.3 }}
                 />
                 <span className="flex-1">{s.label}</span>
                 <Check on={active} />

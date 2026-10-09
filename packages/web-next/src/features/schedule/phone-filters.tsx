@@ -8,6 +8,7 @@ import { Sheet } from '@/components/sheet'
 import { DEFAULT_LAYERS, LAYERS, type LayerKey, type Post } from '@/data/demo'
 
 import { ALL_STAGES, STAGES, type StageFilter } from './calendar-items'
+import { StageMark } from './stage-mark'
 import { ONLY_FAILED, onlyFailed } from './failed-menu'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
@@ -95,9 +96,11 @@ export function PhoneFilters({
                       onClick={() => onStages({ ...stages, [s.key]: !on })}
                       className={`${CHIP} ${on ? 'bg-page text-ink shadow-[inset_0_0_0_1px_var(--line-strong)]' : 'bg-surface text-ink-4'}`}
                     >
-                      <span
-                        className="size-2 rounded-full"
-                        style={{ background: s.colour, opacity: on ? 1 : 0.5 }}
+                      <StageMark
+                        stage={s.key}
+                        colour={s.colour}
+                        className="size-2"
+                        style={{ opacity: on ? 1 : 0.5 }}
                       />
                       {s.label}
                     </button>

@@ -1792,6 +1792,7 @@ function FinalCut({
  * calendar; Idea is only where a card starts, so it cannot be picked once the card is a post.
  */
 function StatusPicker({ value, onChange }: { value: Step; onChange: (s: Step) => void }) {
+  const brandColour = useBrand().brand.colour
   return (
     <span role="radiogroup" aria-label="Status" className="flex flex-wrap gap-1">
       {CHIPS.map((c) => {
@@ -1808,10 +1809,18 @@ function StatusPicker({ value, onChange }: { value: Step; onChange: (s: Step) =>
             onClick={() => onChange(c)}
             className={`flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] transition-colors disabled:opacity-40 ${on ? 'bg-ink text-page' : 'bg-surface text-ink-3 enabled:hover:text-ink'}`}
           >
-            <span
-              className="size-1.5 rounded-full"
-              style={{ background: on ? 'var(--page)' : statusColour(c) }}
-            />
+            {c === 'idea' ? (
+              // A plan's mark, the calendar's dashed square, so Idea never reads as a shade of Draft.
+              <span
+                className="size-2 rounded-[2.5px] border border-dashed"
+                style={{ borderColor: on ? 'var(--page)' : `var(${brandColour})` }}
+              />
+            ) : (
+              <span
+                className="size-1.5 rounded-full"
+                style={{ background: on ? 'var(--page)' : statusColour(c) }}
+              />
+            )}
             {STATUS_LABEL[c]}
           </button>
         )
