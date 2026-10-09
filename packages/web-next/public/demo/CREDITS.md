@@ -78,3 +78,9 @@ named by pin id. Every pin comes from Unsplash at its own aspect ratio, which
 | `pins/ca-p-12.jpg` | Winel Sutanto          | https://unsplash.com/photos/RbSwWKvFGk0 |
 | `pins/ca-p-13.jpg` | K8                     | https://unsplash.com/photos/vt_gDOcdg9E |
 | `pins/ca-p-14.jpg` | Swaroop Satheesh       | https://unsplash.com/photos/6hSXcjrUHRM |
+
+## Brand logos
+
+`casa-vostra/logo.png`, `temper/logo.png` and `carlitos/logo.png` are each brand's own
+website icon (192 × 192 PNG), from casavostra.sg, temper.sg and carlitos.sg: Ebb & Flow
+Group's restaurants, shown in their own demo. They are not Unsplash photos.

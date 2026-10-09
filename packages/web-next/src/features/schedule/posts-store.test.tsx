@@ -201,6 +201,7 @@ describe('the brand switcher', () => {
 
   it('points every photo at a file that ships in public/, so no tile renders empty', () => {
     const srcs = BRAND_CONTENT.flatMap((c) => [
+      c.brand.logo,
       ...c.library,
       ...c.posts.flatMap((p) => p.images),
       ...c.weeks.flatMap((w) =>

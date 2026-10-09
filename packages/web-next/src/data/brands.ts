@@ -30,7 +30,8 @@ export type BrandId = 'casa-vostra' | 'temper' | 'carlitos'
 export interface Brand {
   id: BrandId
   name: string
-  initial: string
+  /** The brand's own mark, from its website's icon, drawn round in the brand switcher. */
+  logo: string
   handle: string
   /** A CSS custom property from `styles/tokens.css`; use it as `var(${brand.colour})`. */
   colour: `--brand-${BrandId}`
@@ -115,7 +116,7 @@ const CASA_VOSTRA: BrandContent = {
   brand: {
     id: 'casa-vostra',
     name: 'Casa Vostra',
-    initial: 'C',
+    logo: '/demo/casa-vostra/logo.png',
     handle: '@casavostrasg',
     colour: '--brand-casa-vostra',
     line: 'Gourmet Italian cuisine at casual prices — pasta and pizza made from scratch, by hand, every day.',
@@ -149,7 +150,7 @@ const TEMPER: BrandContent = {
   brand: {
     id: 'temper',
     name: 'Temper',
-    initial: 'T',
+    logo: '/demo/temper/logo.png',
     handle: '@temper.sg',
     colour: '--brand-temper',
     line: 'A social wine room, restaurant and lounge that thrives in the in-between.',
@@ -311,7 +312,7 @@ const CARLITOS: BrandContent = {
   brand: {
     id: 'carlitos',
     name: 'Carlitos',
-    initial: 'C',
+    logo: '/demo/carlitos/logo.png',
     handle: '@carlitos.sg',
     colour: '--brand-carlitos',
     line: 'A neighbourhood tapas bar — a native ritual of Spain, brought to life in Singapore.',

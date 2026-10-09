@@ -50,6 +50,9 @@ post and a post not yet scheduled, so the two read the same.
   suggestion moved by date stays one too, and "Plan it" never leaves an idea on two days.
 - **The strong button moves a little.** "Schedule new post" lifts a pixel with a soft shadow on
   hover and its plus turns a quarter; the phone's plus turns when tapped.
+- **Real brand logos.** The brand switcher shows each restaurant's own mark, round, in place of a
+  coloured letter: the 192 px icons from casavostra.sg, temper.sg and carlitos.sg, saved under
+  `public/demo/<brand>/logo.png` (sources in `CREDITS.md`). `Brand.initial` gives way to `logo`.
 
 ## 2.6.2 — 2026-10-09
 
