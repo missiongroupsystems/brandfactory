@@ -9,8 +9,6 @@ import { AppHeader } from '@/components/app-header'
 import { Segmented } from '@/components/controls'
 import { CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
-import { Sheet } from '@/components/sheet'
-import { usePhone } from '@/components/use-phone'
 import {
   IDEAS_BY_BRAND,
   inspirationOf,
@@ -504,7 +502,6 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   const [pasted, setPasted] = React.useState<Reference[]>(() => pastedReferences(brand.id))
   // The posts picked, in the order they were picked: the first lends the idea its words.
   const [selected, setSelected] = React.useState<string[]>([])
-  const [planning, setPlanning] = React.useState(false)
 
   if (!sources.pinterest && !sources.ig && !sources.tt) return <ConnectSources />
 
@@ -555,46 +552,37 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
 
   function clear() {
     setSelected([])
-    setPlanning(false)
+  }
+
+  /** The picked posts become an idea at once, worded from the first; its page does the rest. */
+  function plan() {
+    const id = addIdeaFromPosts(brand.id, picked)
+    clear()
+    onPlanned(id)
   }
 
   return (
     <div className="flex flex-col gap-6">
-      {/* The top row stays in view: the folders, or, once posts are picked, what to do with them.
-          Its buttons sit over the plan card's backdrop, so the X clears in one click. */}
+      {/* The top row stays in view: the folders, or, once posts are picked, what to do with them. */}
       <div className="sticky top-0 z-30 -mx-10 bg-page px-10 py-2 max-md:-mx-4 max-md:px-4">
         {picked.length > 0 ? (
-          <div
-            role="region"
-            aria-label="Selection"
-            className="relative flex h-9 items-center gap-3"
-          >
+          <div role="region" aria-label="Selection" className="flex h-9 items-center gap-3">
             <button
               type="button"
               aria-label="Clear the selection"
               onClick={clear}
-              className="relative z-40 -ml-2 flex size-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:text-ink"
+              className="-ml-2 flex size-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:text-ink"
             >
               <CloseIcon />
             </button>
             <span className="text-[13px] font-medium tabular-nums">{picked.length} selected</span>
             <button
               type="button"
-              onClick={() => setPlanning(true)}
-              className="bb-press relative z-40 ml-auto flex h-9 items-center rounded-full bg-ink px-4 text-[13px] font-medium text-page hover:opacity-85"
+              onClick={plan}
+              className="bb-press ml-auto flex h-9 items-center rounded-full bg-ink px-4 text-[13px] font-medium text-page hover:opacity-85"
             >
               Plan idea from this
             </button>
-            {planning && (
-              <PlanStep
-                posts={picked}
-                onBack={() => setPlanning(false)}
-                onPlanned={(id) => {
-                  clear()
-                  onPlanned(id)
-                }}
-              />
-            )}
           </div>
         ) : (
           <div
@@ -642,136 +630,6 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   )
 }
 
-/**
- * The step between picking posts and an idea: the posts in the order picked, the format, and
- * the hook, pre-filled from the first post, to edit before it joins Current ideas.
- */
-function PlanStep({
-  posts,
-  onBack,
-  onPlanned,
-}: {
-  posts: Reference[]
-  onBack: () => void
-  onPlanned: (id: string) => void
-}) {
-  const { brand } = useBrand()
-  const phone = usePhone()
-  const first = posts[0]!
-  const [format, setFormat] = React.useState<IdeaFormat>(first.seed.format)
-  const [hook, setHook] = React.useState(first.seed.hook)
-  const field = React.useRef<HTMLTextAreaElement>(null)
-
-  // The hook is the one thing to decide here, so the cursor starts on it, with the words picked.
-  React.useEffect(() => {
-    field.current?.focus()
-    field.current?.select()
-  }, [])
-
-  function plan() {
-    const text = hook.trim()
-    if (!text) return
-    onPlanned(addIdeaFromPosts(brand.id, posts, { hook: text, format }))
-  }
-
-  const body = (
-    <>
-      <span className="flex items-center gap-1.5">
-        {posts.slice(0, 6).map((p, i) => (
-          <span
-            key={p.id}
-            className="relative size-11 overflow-hidden rounded-[8px] bg-tile"
-            title={p.borrow}
-          >
-            {p.image && <Image src={p.image} alt="" fill sizes="44px" className="object-cover" />}
-            {i === 0 && (
-              <span className="absolute top-1 left-1 flex size-4 items-center justify-center rounded-full bg-ink font-mono text-[9px] text-page">
-                1
-              </span>
-            )}
-          </span>
-        ))}
-        {posts.length > 6 && (
-          <span className="pl-1 font-mono text-[12px] text-ink-4">+{posts.length - 6}</span>
-        )}
-      </span>
-      <span role="radiogroup" aria-label="Format" className="flex items-center gap-4">
-        {(Object.keys(FORMAT_LABEL) as IdeaFormat[]).map((f) => (
-          <button
-            key={f}
-            type="button"
-            role="radio"
-            aria-checked={f === format}
-            onClick={() => setFormat(f)}
-            className={`${EYEBROW} transition-colors ${f === format ? 'text-ink' : 'hover:text-ink'}`}
-          >
-            {FORMAT_LABEL[f]}
-          </button>
-        ))}
-      </span>
-      <textarea
-        ref={field}
-        value={hook}
-        rows={2}
-        onChange={(e) => setHook(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            plan()
-          }
-          if (e.key === 'Escape') onBack()
-        }}
-        placeholder="Write the hook"
-        aria-label="Hook"
-        className="w-full resize-none bg-transparent font-display text-[26px] leading-[1.1] tracking-[-0.02em] outline-none placeholder:text-ink-5"
-      />
-    </>
-  )
-  const planButton = (
-    <button
-      type="button"
-      onClick={plan}
-      className="bb-press flex h-10 items-center justify-center rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85 max-md:h-12 max-md:w-full max-md:text-[15px]"
-    >
-      Plan idea
-    </button>
-  )
-
-  // A phone's sheet; Done takes the user back to the board. A wide screen gets a card under the bar.
-  if (phone) {
-    return (
-      <Sheet title="Plan an idea" onClose={onBack}>
-        <div className="flex flex-col gap-5 pt-2">
-          {body}
-          {planButton}
-        </div>
-      </Sheet>
-    )
-  }
-  return (
-    <>
-      <button
-        type="button"
-        aria-label="Back to the moodboard"
-        onClick={onBack}
-        className="fixed inset-0 z-30"
-      />
-      <section
-        aria-label="Plan an idea"
-        className="bb-rise absolute top-full right-0 z-40 mt-2 flex w-[480px] flex-col gap-5 rounded-[20px] bg-page p-5 shadow-sheet"
-      >
-        {body}
-        <span className="flex items-center justify-between">
-          <button type="button" onClick={onBack} className={`${ACT} text-ink-3 hover:text-ink`}>
-            Back
-          </button>
-          {planButton}
-        </span>
-      </section>
-    </>
-  )
-}
-
 /** A dashed chip for an account not connected yet: one tap runs the same mock sign-in. */
 function ConnectChip({ source }: { source: MoodSource }) {
   const { brand } = useBrand()
@@ -799,12 +657,19 @@ function ConnectChip({ source }: { source: MoodSource }) {
 function ConnectSources() {
   const { brand } = useBrand()
   const { boards } = IDEAS_BY_BRAND[brand.id]
-  const [connecting, setConnecting] = React.useState<MoodSource | null>(null)
+  // Every account tapped joins one sign-in: each tap restarts the wait, and they connect together,
+  // so the board opens once with all of them.
+  const [connecting, setConnecting] = React.useState<MoodSource[]>([])
+  const timer = React.useRef<number | undefined>(undefined)
 
   function connect(source: MoodSource) {
-    if (connecting) return
-    setConnecting(source)
-    window.setTimeout(() => connectSource(brand.id, source), 1100)
+    if (connecting.includes(source)) return
+    const next = [...connecting, source]
+    setConnecting(next)
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => {
+      for (const s of next) connectSource(brand.id, s)
+    }, 1100)
   }
 
   return (
@@ -836,7 +701,7 @@ function ConnectSources() {
       </span>
       <div className="flex flex-wrap items-center justify-center gap-2.5">
         {(Object.keys(SOURCE_NAME) as MoodSource[]).map((source) => {
-          const busy = connecting === source
+          const busy = connecting.includes(source)
           const dark = source === 'pinterest'
           return (
             <button

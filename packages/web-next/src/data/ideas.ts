@@ -44,7 +44,7 @@ export interface Reference {
   borrow: string
   /** Height over width, for a pin on the board. */
   ratio?: number
-  /** The card "Plan idea from this" pre-fills when this post is picked first. */
+  /** What an idea planned from this post starts with, when it is picked first. */
   seed: Omit<IdeaCard, 'id' | 'source' | 'status' | 'inspiration'>
 }
 

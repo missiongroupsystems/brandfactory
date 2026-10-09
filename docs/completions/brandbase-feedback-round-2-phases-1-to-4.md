@@ -2,7 +2,7 @@
 
 The plan is `brandbase-feedback-round-2-plan.md` beside this file; its numbers are used below.
 Branch `feat/marketing-demo-feedback`, built 2026-10-09. Gate after phase 3: typecheck, lint,
-format, 95 tests (15 files), web-next build; after phase 4: 100 tests (17 files).
+format, 95 tests (15 files), web-next build; after phase 4: 102 tests (18 files).
 
 ## Phase 1: Schedule (lead)
 
@@ -58,10 +58,15 @@ format, 95 tests (15 files), web-next build; after phase 4: 100 tests (17 files)
 ## Phase 4: follow-ups from the preview (Fable agent for the page, merged)
 
 - **The selection bar at the top.** At the bottom of the screen it sat far from the posts at the
-  top of a long board. It now replaces the folder chips in a sticky row while posts are picked; the
-  plan card drops down under it, and its buttons sit over the card's backdrop so the X clears in one
-  click. Phone chips scroll in one row: wrapped, they made the board jump 84 px on the first pick.
+  top of a long board. It now replaces the folder chips in a sticky row while posts are picked. Phone chips scroll in one row: wrapped, they made the board jump 84 px on the first pick.
   Picking across folders now happens on All, since the folders hide while posts are picked.
+- **Plan straight to the page.** "Plan idea from this" first opened a card to set the format and
+  hook. The user asked for the page at once: the idea takes the first post's hook and format, and
+  the hook is the page's editable title. Dropped with the card: picking the format, which the page
+  does not offer.
+- **Connect together.** The connect buttons ignored taps while one account was connecting: one
+  pending slot and an early return. Each tap now joins one batch and restarts the wait; the batch
+  connects at once, so the board opens with every account tapped.
 - **A page per idea.** The user: the brief should be a page, not a sidebar, since most of the
   ideation goes into it. This reverses item 15's "nothing opens full-page". `/ideate/<id>` holds
   everything the panel held; the one change of form is a borrow note under each inspiration post
@@ -81,7 +86,7 @@ dialog does not trap focus (nor does the phone sheet); two ideas planned from
 the same first post with the same hook share a calendar tile, because tiles find ideas by hook.
 
 Phase 4: one Sonnet review of the selection bar and one of the idea page. Fixed from them: with the
-plan card open, the X first closed the card; Skip on a suggestion's page left a not-found line
+plan card open, the X first closed the card (the card went later); Skip on a suggestion's page left a not-found line
 blaming a reload; the browser's Back from an idea opened the moodboard (the view now goes in the
 URL); the hook field had one row where `field-sizing` is not supported. Noted, not fixed: a time
 picked before a date is forgotten when the page is left.
