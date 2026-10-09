@@ -53,6 +53,11 @@ post and a post not yet scheduled, so the two read the same.
 - **Real brand logos.** The brand switcher shows each restaurant's own mark, round, in place of a
   coloured letter: the 192 px icons from casavostra.sg, temper.sg and carlitos.sg, saved under
   `public/demo/<brand>/logo.png` (sources in `CREDITS.md`). `Brand.initial` gives way to `logo`.
+- **Where media goes, at a glance.** On the idea page every place that takes media shows it without
+  hover and on touch: an empty shot card offers "Reference" and "Upload" (the picker also lists
+  moodboard posts), each Shoot row ends in a clip slot, References and the final cut use the same
+  pills and slot, and a one-line drop hint shows where a mouse can drop. The giant shot numerals
+  are gone.
 
 ## 2.6.2 — 2026-10-09
 

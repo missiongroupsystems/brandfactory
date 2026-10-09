@@ -5,7 +5,14 @@ import { useRouter } from 'next/navigation'
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
-import { CheckIcon, CloseIcon, SparkIcon } from '@/components/icons'
+import {
+  CheckIcon,
+  CloseIcon,
+  PhotosIcon,
+  PlusIcon,
+  SparkIcon,
+  UploadIcon,
+} from '@/components/icons'
 import { fromFile, Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import { startTouchDrag, touchDragPending } from '@/components/touch-drag'
@@ -56,7 +63,14 @@ const CAN_TAKE = 'shadow-[inset_0_0_0_1px_var(--cal-ghost)]'
 /** Controls that show on hover or focus, and always under a finger. */
 const HOVER =
   'opacity-0 transition-opacity focus-visible:opacity-100 [@media(hover:none)]:opacity-100'
-const QUIET = 'text-[12.5px] text-ink-3 transition-colors hover:text-ink'
+/**
+ * Every place that takes media says so the same way: a small white pill with its icon (Upload,
+ * Reference, From the moodboard), or a slot the size of a thumbnail with the upload mark.
+ */
+const CHIP =
+  'bb-press flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-page px-2.5 text-[12px] text-ink-2 ring-1 ring-(--cal-ghost) select-none hover:text-ink hover:ring-(--line-strong) has-[:focus-visible]:ring-ink focus-visible:ring-ink focus-visible:outline-none'
+/** The line beside it that says a drop works too; a finger cannot drop a file, so not on touch. */
+const HINT = 'text-[12px] text-ink-4 [@media(hover:none)]:hidden'
 const SIZES = '(max-width: 768px) 50vw, 240px'
 /**
  * The lifted item: a touch lighter, a touch larger, with a shadow. It goes on a wrapper inside
@@ -497,6 +511,40 @@ function Handle({
   )
 }
 
+/**
+ * Upload, as a pill: a label around a file input that is out of sight but not out of reach, so
+ * a click or a tap opens the picker and the keyboard and a screen reader reach the input itself.
+ */
+function UploadChip({
+  label,
+  accept = 'image/*,video/*',
+  multiple,
+  onFiles,
+}: {
+  label: string
+  accept?: string
+  multiple?: boolean
+  onFiles: (files: FileList | null) => void
+}) {
+  return (
+    <label className={CHIP}>
+      <UploadIcon size={12} />
+      Upload
+      <input
+        type="file"
+        accept={accept}
+        multiple={multiple}
+        aria-label={label}
+        className="sr-only"
+        onChange={(e) => {
+          onFiles(e.target.files)
+          e.target.value = ''
+        }}
+      />
+    </label>
+  )
+}
+
 // ── The page ─────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -534,6 +582,14 @@ function Idea({ slot }: { slot: Slot }) {
   const patchShot = (id: string, fields: Partial<Shot>) =>
     edit((c) => ({ shots: c.shots.map((s) => (s.id === id ? { ...s, ...fields } : s)) }))
   const linkRef = (id: string, key: string | undefined) => patchShot(id, { ref: key })
+  // The brand's other posts, for the moodboard pickers: what is not on the page yet.
+  const more = referencesOf(brand.id).filter((r) => r.image && !card.inspiration.includes(r.id))
+  // A moodboard post picked on a shot joins the references, and the shot is shot like it.
+  const adoptRef = (id: string, key: string) =>
+    edit((c) => ({
+      inspiration: [...c.inspiration, key],
+      shots: c.shots.map((s) => (s.id === id ? { ...s, ref: key } : s)),
+    }))
 
   const [refSort, attachRefs] = useSortable(
     refs.map((r) => r.key),
@@ -608,6 +664,7 @@ function Idea({ slot }: { slot: Slot }) {
             }}
             setRefs={setRefs}
             addRefs={addRefs}
+            more={more}
           />
           <Sharpen card={card} />
         </StageSection>
@@ -624,6 +681,8 @@ function Idea({ slot }: { slot: Slot }) {
             setShots={setShots}
             patchShot={patchShot}
             linkRef={linkRef}
+            more={more}
+            adoptRef={adoptRef}
             onNudge={(id, by) => {
               const shot = card.shots.find((s) => s.id === id)
               moved(shot?.title || 'The shot', shotSort.order, id, by)
@@ -748,6 +807,7 @@ function References({
   onNudge,
   setRefs,
   addRefs,
+  more,
 }: {
   card: IdeaCard
   refs: Ref[]
@@ -759,14 +819,12 @@ function References({
   onNudge: (key: string, by: -1 | 1) => void
   setRefs: (inspiration: string[]) => void
   addRefs: (keys: string[]) => void
+  /** The moodboard's posts that are not on the page yet. */
+  more: Reference[]
 }) {
-  const { brand } = useBrand()
   const [picking, setPicking] = React.useState(false)
-  const input = React.useRef<HTMLInputElement>(null)
   const over = board.over === 'files:refs'
   const add = async (files: FileList | null) => addRefs(await mediaFrom(files))
-  // The brand's other posts, for the moodboard picker: what is not on the page yet.
-  const more = referencesOf(brand.id).filter((r) => r.image && !card.inspiration.includes(r.id))
 
   return (
     <div
@@ -813,31 +871,21 @@ function References({
           />
         ))}
       </ol>
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-        <button type="button" onClick={() => input.current?.click()} className={QUIET}>
-          {over ? 'Drop to add' : board.files ? 'Drop a file here' : 'Add a file'}
-        </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <UploadChip label="Add reference files" multiple onFiles={(f) => void add(f)} />
         <button
           type="button"
           aria-expanded={picking}
           onClick={() => setPicking((p) => !p)}
-          className={QUIET}
+          className={CHIP}
         >
-          {picking ? 'Done' : 'Add from the moodboard'}
+          <PhotosIcon />
+          {picking ? 'Done' : 'From the moodboard'}
         </button>
+        <span className={`pl-1.5 ${board.files ? 'text-[12px] text-ink' : HINT}`}>
+          {over ? 'Drop to add' : board.files ? 'Drop here to add' : 'or drop photos here'}
+        </span>
       </div>
-      <input
-        ref={input}
-        type="file"
-        accept="image/*,video/*"
-        multiple
-        hidden
-        aria-label="Add reference files"
-        onChange={(e) => {
-          void add(e.target.files)
-          e.target.value = ''
-        }}
-      />
       {picking && (
         <ol
           aria-label="From the moodboard"
@@ -1030,7 +1078,8 @@ const unitOf = (card: IdeaCard) => (card.format === 'carousel' ? 'Slide' : 'Shot
 /**
  * The storyboard: the shots in order, each a card with the reference to shoot it like and its
  * line. Drag a card to reorder (the others make way), drag a reference onto a card to shoot it
- * like that (or pick one on the card), drop a file on a card to hand the shot what was captured.
+ * like that (or pick one on the card), drop a file on a card or upload one to hand the shot what
+ * was captured. The last place in the row adds a shot.
  */
 function Storyboard({
   card,
@@ -1043,6 +1092,8 @@ function Storyboard({
   setShots,
   patchShot,
   linkRef,
+  more,
+  adoptRef,
   onNudge,
 }: {
   card: IdeaCard
@@ -1055,56 +1106,63 @@ function Storyboard({
   setShots: (shots: Shot[]) => void
   patchShot: (id: string, fields: Partial<Shot>) => void
   linkRef: (id: string, key: string | undefined) => void
+  more: Reference[]
+  adoptRef: (id: string, key: string) => void
   onNudge: (id: string, by: -1 | 1) => void
 }) {
   const unit = unitOf(card)
   const [fresh, setFresh] = React.useState<string | null>(null)
 
   return (
-    <div className="flex flex-col gap-4">
-      <ol
-        ref={attach}
-        onDragEnter={(e) => accept(e, board.drag?.kind === 'shot')}
-        onDragOver={(e) => accept(e, board.drag?.kind === 'shot')}
-        onDrop={(e) => {
-          if (board.drag?.kind !== 'shot') return
-          e.preventDefault()
-          sort.end(true)
-          board.end()
-        }}
-        className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-3 max-md:grid-cols-1"
-      >
-        {shots.map((s) => (
-          <ShotCard
-            key={s.id}
-            shot={s}
-            index={sort.order.indexOf(s.id)}
-            unit={unit}
-            refs={refs}
-            sort={sort}
-            board={board}
-            hint={hint}
-            fresh={fresh === s.id}
-            onTitle={(title) => patchShot(s.id, { title })}
-            onLink={(key) => linkRef(s.id, key)}
-            onMedia={(media) => patchShot(s.id, { media, captured: true })}
-            onNudge={(by) => onNudge(s.id, by)}
-            onRemove={() => setShots(card.shots.filter((o) => o.id !== s.id))}
-          />
-        ))}
-      </ol>
-      <button
-        type="button"
-        onClick={() => {
-          const shot = newShot('')
-          setFresh(shot.id)
-          setShots([...card.shots, shot])
-        }}
-        className={`self-start ${QUIET}`}
-      >
-        Add a {unit.toLowerCase()}
-      </button>
-    </div>
+    <ol
+      ref={attach}
+      onDragEnter={(e) => accept(e, board.drag?.kind === 'shot')}
+      onDragOver={(e) => accept(e, board.drag?.kind === 'shot')}
+      onDrop={(e) => {
+        if (board.drag?.kind !== 'shot') return
+        e.preventDefault()
+        sort.end(true)
+        board.end()
+      }}
+      className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-3 max-md:grid-cols-1"
+    >
+      {shots.map((s) => (
+        <ShotCard
+          key={s.id}
+          shot={s}
+          index={sort.order.indexOf(s.id)}
+          unit={unit}
+          refs={refs}
+          more={more}
+          sort={sort}
+          board={board}
+          hint={hint}
+          fresh={fresh === s.id}
+          onTitle={(title) => patchShot(s.id, { title })}
+          onLink={(key) => linkRef(s.id, key)}
+          onAdopt={(key) => adoptRef(s.id, key)}
+          onMedia={(media) => patchShot(s.id, { media, captured: true })}
+          onNudge={(by) => onNudge(s.id, by)}
+          onRemove={() => setShots(card.shots.filter((o) => o.id !== s.id))}
+        />
+      ))}
+      <li style={{ order: shots.length }}>
+        <button
+          type="button"
+          onClick={() => {
+            const shot = newShot('')
+            setFresh(shot.id)
+            setShots([...card.shots, shot])
+          }}
+          className="group/add flex size-full min-h-[120px] flex-col items-center justify-center gap-2 rounded-[14px] text-[13px] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:bg-surface-2 focus-visible:outline-none max-md:min-h-0 max-md:flex-row max-md:justify-start max-md:gap-3 max-md:px-2.5 max-md:py-2"
+        >
+          <span className="bb-press flex size-8 items-center justify-center rounded-full bg-page ring-1 ring-(--cal-ghost) group-hover/add:ring-(--line-strong)">
+            <PlusIcon size={11} />
+          </span>
+          Add a {unit.toLowerCase()}
+        </button>
+      </li>
+    </ol>
   )
 }
 
@@ -1113,12 +1171,14 @@ function ShotCard({
   index,
   unit,
   refs,
+  more,
   sort,
   board,
   hint,
   fresh,
   onTitle,
   onLink,
+  onAdopt,
   onMedia,
   onNudge,
   onRemove,
@@ -1127,6 +1187,8 @@ function ShotCard({
   index: number
   unit: string
   refs: Ref[]
+  /** The moodboard's posts not on the page yet: picking one adds it as a reference too. */
+  more: Reference[]
   sort: Sortable
   board: Board
   hint: string
@@ -1134,6 +1196,7 @@ function ShotCard({
   fresh: boolean
   onTitle: (title: string) => void
   onLink: (key: string | undefined) => void
+  onAdopt: (key: string) => void
   onMedia: (media: string) => void
   onNudge: (by: -1 | 1) => void
   onRemove: () => void
@@ -1141,24 +1204,34 @@ function ShotCard({
   const key = `shot:${shot.id}`
   const [choosing, setChoosing] = React.useState(false)
   const held = sort.dragging === shot.id
-  // A reference or a file held over this card.
+  // A reference or a file held over this card, and whether one is on its way anywhere.
   const over = board.over === key && !held
+  const coming = board.files || board.drag?.kind === 'ref'
   const like = shot.ref ? refs.find((r) => r.key === shot.ref) : undefined
+  // What fills the frame: the reference to shoot it like, else what the shoot captured.
+  const shown = like?.src ?? shot.media
   const n = `${unit} ${index + 1}`
   const line = React.useRef<HTMLTextAreaElement>(null)
   React.useEffect(() => {
     if (fresh) line.current?.focus()
   }, [fresh])
-  // The picker takes the focus while open and hands it back to the frame that opened it.
+  // The picker takes the focus while open and hands it back to the control that opened it.
   const frame = React.useRef<HTMLButtonElement>(null)
   const first = React.useRef<HTMLButtonElement>(null)
   React.useEffect(() => {
     if (choosing) first.current?.focus()
   }, [choosing])
-  const choose = (k: string | undefined) => {
-    if (k !== shot.ref) onLink(k)
+  const close = () => {
     setChoosing(false)
     requestAnimationFrame(() => frame.current?.focus())
+  }
+  const choose = (k: string | undefined) => {
+    if (k !== shot.ref) onLink(k)
+    close()
+  }
+  const adopt = (k: string) => {
+    onAdopt(k)
+    close()
   }
   const escape = (e: React.KeyboardEvent) => {
     if (e.key !== 'Escape') return
@@ -1173,6 +1246,9 @@ function ShotCard({
     sort.end(commit)
     board.end()
   }
+  const picks =
+    'grid shrink-0 grid-cols-3 auto-rows-[56px] gap-1 max-md:grid-cols-4 max-md:auto-rows-[64px]'
+  const pick = 'relative overflow-hidden rounded-[6px] bg-tile'
 
   return (
     <li
@@ -1180,7 +1256,7 @@ function ShotCard({
       data-flip={shot.id}
       draggable
       onPointerDown={(e) => {
-        if ((e.target as HTMLElement).closest('button, textarea')) return
+        if ((e.target as HTMLElement).closest('button, textarea, label, input')) return
         const list = e.currentTarget.parentElement
         let last: { x: number; y: number } | null = null
         startTouchDrag(e, {
@@ -1233,16 +1309,78 @@ function ShotCard({
         hint={hint}
         onNudge={onNudge}
       />
+      {/* One card, two layouts: the frame over the line, or on a phone the frame at the left,
+          the line beside it and the ways to fill the frame under the line. */}
       <div
-        className={`bb-rise flex h-full flex-col gap-2.5 rounded-[14px] bg-surface p-2.5 max-md:grid max-md:grid-cols-[96px_minmax(0,1fr)] max-md:items-start ${LIFTABLE} ${held ? LIFTED : ''} ${over ? OVER : board.files ? CAN_TAKE : ''}`}
+        className={`bb-rise relative grid h-full grid-rows-[auto_1fr] gap-2.5 rounded-[14px] bg-surface p-2.5 [grid-template-areas:'frame'_'text'] max-md:grid-cols-[88px_minmax(0,1fr)] max-md:gap-x-3 max-md:[grid-template-areas:'frame_text'_'frame_fill'] ${LIFTABLE} ${held ? LIFTED : ''} ${over ? `bg-(--cal-drop) ${OVER}` : coming ? CAN_TAKE : ''}`}
       >
-        <span className="relative block aspect-[4/3] overflow-hidden rounded-[10px] max-md:aspect-[4/5]">
-          {choosing ? (
-            <span
-              role="group"
-              aria-label={`A reference for ${n.toLowerCase()}`}
-              className="bb-menu absolute inset-0 grid auto-rows-[minmax(44px,1fr)] grid-cols-2 gap-1 overflow-y-auto rounded-[10px] bg-page p-1 shadow-soft"
+        <span className="relative block aspect-[4/3] overflow-hidden rounded-[10px] bg-surface-2 [grid-area:frame] max-md:aspect-[4/5]">
+          {shown ? (
+            <button
+              ref={frame}
+              type="button"
+              aria-label={`${like ? 'Change the' : 'Pick a'} reference for ${n.toLowerCase()}`}
+              onClick={() => setChoosing(true)}
+              className="absolute inset-0 block bg-tile"
             >
+              <span key={shown} className="bb-land absolute inset-0">
+                <Media src={shown} sizes="(max-width: 768px) 88px, 220px" />
+              </span>
+            </button>
+          ) : null}
+          {like && shot.media && !choosing && (
+            <span
+              key={shot.media}
+              className="bb-land absolute right-1.5 bottom-1.5 size-7 overflow-hidden rounded-[6px] shadow-soft ring-2 ring-(--surface)"
+            >
+              <Media src={shot.media} sizes="28px" />
+            </span>
+          )}
+        </span>
+        {!shown && !choosing && (
+          // An empty frame says how to fill it, at rest and under a finger: pick a reference,
+          // upload, or drop. On a phone the pills sit under the line, where a thumb reaches.
+          <span className="z-[1] flex flex-col items-center gap-2 self-center justify-self-center [grid-area:frame] max-md:items-start max-md:self-end max-md:justify-self-start max-md:[grid-area:fill]">
+            <span className="flex flex-wrap items-center justify-center gap-1.5">
+              <button
+                ref={frame}
+                type="button"
+                aria-label={`Pick a reference for ${n.toLowerCase()}`}
+                onClick={() => setChoosing(true)}
+                className={CHIP}
+              >
+                <PhotosIcon />
+                Reference
+              </button>
+              <UploadChip
+                label={`Upload a photo or clip for ${n.toLowerCase()}`}
+                onFiles={(f) => void mediaFrom(f).then(([m]) => m && onMedia(m))}
+              />
+            </span>
+            <span
+              className={
+                over || coming ? 'text-[12px] text-ink transition-colors' : `${HINT} max-md:hidden`
+              }
+            >
+              {over
+                ? board.drag?.kind === 'ref'
+                  ? 'Shoot it like this'
+                  : 'Drop to add'
+                : coming
+                  ? 'Drop it here'
+                  : 'or drop a photo here'}
+            </span>
+          </span>
+        )}
+        {choosing && (
+          // The picker covers the card while open: the idea's references, None, then the
+          // moodboard's other posts, which join the references when picked.
+          <span
+            role="group"
+            aria-label={`A reference for ${n.toLowerCase()}`}
+            className="bb-menu absolute inset-0 z-[2] flex flex-col gap-1 overflow-y-auto rounded-[14px] bg-page p-1.5 shadow-pop [scrollbar-width:none]"
+          >
+            <span className={picks}>
               {refs.map((r, i) => (
                 <button
                   key={r.key}
@@ -1252,7 +1390,7 @@ function ShotCard({
                   aria-pressed={r.key === shot.ref}
                   onKeyDown={escape}
                   onClick={() => choose(r.key)}
-                  className={`relative overflow-hidden rounded-[6px] bg-tile ${r.key === shot.ref ? OVER : ''}`}
+                  className={`${pick} ${r.key === shot.ref ? OVER : ''}`}
                 >
                   <Media src={r.src} sizes="96px" />
                 </button>
@@ -1268,48 +1406,33 @@ function ShotCard({
                 None
               </button>
             </span>
-          ) : like ? (
-            <button
-              ref={frame}
-              type="button"
-              aria-label={`Change the reference for ${n.toLowerCase()}`}
-              onClick={() => setChoosing(true)}
-              className="absolute inset-0 block bg-tile"
-            >
-              <Media src={like.src} sizes="(max-width: 768px) 96px, 220px" />
-            </button>
-          ) : (
-            <button
-              ref={frame}
-              type="button"
-              aria-label={`Pick a reference for ${n.toLowerCase()}`}
-              onClick={() => setChoosing(true)}
-              className="group/frame absolute inset-0 flex flex-col items-center justify-center gap-1 outline-none"
-            >
-              <span
-                className={`font-display text-[40px] leading-none tracking-[-0.04em] transition-colors ${over && board.drag?.kind === 'ref' ? 'text-ink' : 'text-ink-5'}`}
-              >
-                {String(index + 1).padStart(2, '0')}
-              </span>
-              <span
-                className={`text-[11.5px] text-ink-4 group-hover/shot:opacity-100 group-focus-visible/frame:opacity-100 ${HOVER}`}
-              >
-                {over && board.drag?.kind === 'ref' ? 'Shoot it like this' : 'Shoot it like…'}
-              </span>
-            </button>
-          )}
-          {shot.media && !choosing && (
-            <span
-              key={shot.media}
-              className="bb-land absolute right-1.5 bottom-1.5 size-7 overflow-hidden rounded-[6px] shadow-soft ring-2 ring-(--surface)"
-            >
-              <Media src={shot.media} sizes="28px" />
-            </span>
-          )}
-        </span>
-        <span className="flex min-w-0 flex-col gap-1 px-0.5 max-md:pt-0.5">
-          <span className={`${EYEBROW} flex items-center justify-between`}>
-            <span>{n}</span>
+            {more.length > 0 && (
+              <>
+                <span className="px-1 pt-2 pb-0.5 font-mono text-[9px] tracking-[0.08em] text-ink-4 uppercase">
+                  From the moodboard
+                </span>
+                <span className={picks}>
+                  {more.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      aria-label={`From the moodboard: ${r.account}, ${r.borrow}`}
+                      title={`${r.account} · ${r.borrow}`}
+                      onKeyDown={escape}
+                      onClick={() => adopt(r.id)}
+                      className={pick}
+                    >
+                      <Media src={r.image} sizes="96px" />
+                    </button>
+                  ))}
+                </span>
+              </>
+            )}
+          </span>
+        )}
+        <span className="flex min-w-0 flex-col gap-1 px-0.5 [grid-area:text] max-md:pt-0.5 max-md:pr-9">
+          <span className={`${EYEBROW} flex items-center justify-between gap-2`}>
+            <span className="shrink-0">{n}</span>
             {like && (
               <span className="truncate font-sans normal-case tracking-normal">
                 like {like.owner}
@@ -1399,8 +1522,9 @@ function ShotDetails({ card }: { card: IdeaCard }) {
 // ── 03 Shoot ─────────────────────────────────────────────────────────────────────────────────
 
 /**
- * On the day: the storyboard as a strip that fills in as frames are captured, then the shots as
- * a list to tick, each taking the photo or clip it became. Drop a file on a line, or Add.
+ * On the day: the storyboard as a strip that fills in as frames are captured, beside the shoot
+ * day, then the shots as a list to tick, each ending in the slot for the photo or clip it became.
+ * Drop a file on a line, or tap its slot.
  */
 function Capture({
   card,
@@ -1422,8 +1546,8 @@ function Capture({
   }
 
   return (
-    <div className="flex max-w-[720px] flex-col gap-5">
-      <div className="flex flex-col gap-3">
+    <div className="flex max-w-[560px] flex-col gap-4">
+      <div className="flex items-center gap-4">
         <Strip
           label="The storyboard, as captured"
           frames={card.shots.map((s) => ({
@@ -1434,11 +1558,21 @@ function Capture({
           }))}
           tall
         />
-        <p className="text-[13px] text-ink-4">
-          {shootDay ? `Shooting ${shootDay}.` : 'No shoot day yet: pick one under Shots.'}
-        </p>
+        <span className="flex min-w-0 flex-col gap-0.5">
+          {shootDay ? (
+            <span className="text-[13px] text-ink-2">{`Shooting ${shootDay}.`}</span>
+          ) : (
+            <span className="text-[13px] text-ink-4">
+              No shoot day yet.{' '}
+              <a href="#shots" className="text-ink underline-offset-2 hover:underline">
+                Pick one
+              </a>
+            </span>
+          )}
+          <span className={HINT}>Drop each photo or clip on its shot.</span>
+        </span>
       </div>
-      <ol className="flex flex-col">
+      <ol className="flex flex-col gap-1">
         {card.shots.map((s, i) => {
           const key = `files:capture:${s.id}`
           const over = board.over === key
@@ -1491,7 +1625,8 @@ function Capture({
               </span>
               <MediaSlot
                 media={s.media}
-                label={title}
+                label={`Add the clip for: ${title}`}
+                removeLabel={`Remove the clip for: ${title}`}
                 over={over}
                 files={board.files}
                 onMedia={(media) => patchShot(s.id, { media, captured: true })}
@@ -1505,62 +1640,67 @@ function Capture({
   )
 }
 
-/** A shot's photo or clip: the thumbnail once it is here, else a quiet Add on hover. */
+/**
+ * A slot that takes one photo or clip: the upload mark while empty, the thumbnail once it is
+ * here, and a tap on either picks a file. Like the Upload pill, it is a label around the input.
+ */
 function MediaSlot({
   media,
   label,
+  removeLabel,
+  accept = 'image/*,video/*',
+  tall = false,
   over,
   files,
   onMedia,
   onClear,
 }: {
   media: string | undefined
+  /** The input's name: "Add the clip for: The onions". */
   label: string
+  removeLabel: string
+  accept?: string
+  /** A reel's final cut stands as the reel does. */
+  tall?: boolean
   over: boolean
   files: boolean
   onMedia: (media: string) => void
   onClear: () => void
 }) {
-  const input = React.useRef<HTMLInputElement>(null)
+  const size = tall ? 'h-24 w-[54px]' : 'size-12'
   return (
-    <span className="group/media relative flex h-12 items-center">
-      {media ? (
-        <>
-          <span
-            key={media}
-            className="bb-land relative block size-12 overflow-hidden rounded-[8px] bg-tile"
-          >
-            <Media src={media} sizes="48px" />
+    <span className="group/media relative flex shrink-0">
+      <label
+        className={`bb-press relative flex ${size} cursor-pointer items-center justify-center overflow-hidden rounded-[10px] has-[:focus-visible]:ring-[1.5px] has-[:focus-visible]:ring-ink ${media ? 'bg-tile' : `ring-1 ${over ? 'bg-(--cal-drop) text-ink ring-ink' : files ? 'bg-page text-ink-2 ring-ink-4' : 'bg-page text-ink-3 ring-(--cal-ghost) hover:text-ink hover:ring-(--line-strong)'}`}`}
+      >
+        {media ? (
+          <span key={media} className="bb-land absolute inset-0">
+            <Media src={media} sizes={tall ? '54px' : '48px'} />
           </span>
-          <button
-            type="button"
-            aria-label={`Remove the clip for: ${label}`}
-            onClick={onClear}
-            className={`absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-page text-ink-3 shadow-soft group-hover/media:opacity-100 hover:text-ink ${HOVER}`}
-          >
-            <CloseIcon />
-          </button>
-        </>
-      ) : (
+        ) : (
+          <UploadIcon size={15} />
+        )}
+        <input
+          type="file"
+          accept={accept}
+          aria-label={label}
+          className="sr-only"
+          onChange={(e) => {
+            void mediaFrom(e.target.files).then(([m]) => m && onMedia(m))
+            e.target.value = ''
+          }}
+        />
+      </label>
+      {media && (
         <button
           type="button"
-          onClick={() => input.current?.click()}
-          className={`text-[12.5px] transition-[opacity,color] hover:text-ink ${over ? 'text-ink' : files ? 'text-ink-3' : `text-ink-4 group-hover/row:opacity-100 ${HOVER}`}`}
+          aria-label={removeLabel}
+          onClick={onClear}
+          className={`absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-page text-ink-3 shadow-soft group-hover/media:opacity-100 hover:text-ink ${HOVER}`}
         >
-          {over ? 'Drop it here' : files ? 'Drop here' : 'Add the clip'}
+          <CloseIcon />
         </button>
       )}
-      <input
-        ref={input}
-        type="file"
-        accept="image/*,video/*"
-        hidden
-        aria-label={`Add the clip for: ${label}`}
-        onChange={(e) => {
-          void mediaFrom(e.target.files).then(([m]) => m && onMedia(m))
-          e.target.value = ''
-        }}
-      />
     </span>
   )
 }
@@ -1715,8 +1855,8 @@ function PlanSection({
 }
 
 /**
- * A reel's final cut: the one video that goes out. Drop it here or Add it; the post carries it
- * from then on, and the shoot's clips stay as footage.
+ * A reel's final cut: the one video that goes out. Drop it here or tap its slot; the post carries
+ * it from then on, and the shoot's clips stay as footage.
  */
 function FinalCut({
   card,
@@ -1727,11 +1867,8 @@ function FinalCut({
   board: Board
   edit: (fields: IdeaEdit) => void
 }) {
-  const input = React.useRef<HTMLInputElement>(null)
   const key = 'files:cut'
   const over = board.over === key
-  const take = (files: FileList | null) =>
-    void mediaFrom(files).then(([m]) => m && edit({ cut: m }))
 
   return (
     <section
@@ -1748,55 +1885,33 @@ function FinalCut({
         if (!hasFiles(e)) return
         e.preventDefault()
         board.end()
-        take(e.dataTransfer.files)
+        void mediaFrom(e.dataTransfer.files).then(([m]) => m && edit({ cut: m }))
       }}
       className={`-m-3 flex flex-col gap-2.5 rounded-[14px] p-3 transition-[box-shadow,background-color] ${over ? `bg-(--cal-drop) ${OVER}` : board.files ? CAN_TAKE : ''}`}
     >
       <span className={EYEBROW}>Final cut</span>
-      {card.cut ? (
-        <span className="group/cut relative flex self-start">
-          <span
-            key={card.cut}
-            className="bb-land relative block h-24 w-[54px] overflow-hidden rounded-[8px] bg-tile ring-1 ring-(--cal-line)"
-          >
-            <Media src={card.cut} sizes="54px" />
-          </span>
-          <button
-            type="button"
-            aria-label="Remove the final cut"
-            onClick={() => edit({ cut: undefined })}
-            className={`absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-page text-ink-3 shadow-soft group-hover/cut:opacity-100 hover:text-ink ${HOVER}`}
-          >
-            <CloseIcon />
-          </button>
+      <span className="flex items-center gap-4">
+        <MediaSlot
+          media={card.cut}
+          label="Add the final cut"
+          removeLabel="Remove the final cut"
+          accept="video/*"
+          tall
+          over={over}
+          files={board.files}
+          onMedia={(cut) => edit({ cut })}
+          onClear={() => edit({ cut: undefined })}
+        />
+        <span className="flex flex-col gap-0.5">
+          <span className="text-[13px] text-ink-2">One video, as the reel goes out.</span>
+          {!card.cut && (
+            <span className="text-[12px] text-ink-4">
+              <span className="[@media(hover:none)]:hidden">Drop it here or upload it. </span>
+              Until then the post keeps its media.
+            </span>
+          )}
         </span>
-      ) : (
-        <button
-          type="button"
-          onClick={() => input.current?.click()}
-          className={`self-start ${QUIET} ${over ? 'text-ink' : ''}`}
-        >
-          {over
-            ? 'Drop the final cut here'
-            : board.files
-              ? 'Drop the final cut'
-              : 'Add the final cut'}
-        </button>
-      )}
-      <span className="text-[12px] text-ink-4">
-        One video, as the reel goes out. {card.cut ? '' : 'Until then the post keeps its media.'}
       </span>
-      <input
-        ref={input}
-        type="file"
-        accept="video/*"
-        hidden
-        aria-label="Add the final cut"
-        onChange={(e) => {
-          take(e.target.files)
-          e.target.value = ''
-        }}
-      />
     </section>
   )
 }

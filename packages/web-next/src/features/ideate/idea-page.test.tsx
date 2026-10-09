@@ -198,6 +198,44 @@ describe('an idea page', () => {
     expect(within(shoot).getByText('like @dough.diaries')).toBeInTheDocument()
   })
 
+  it('says on every empty shot and every Shoot row how media gets there, without a hover', async () => {
+    // The owner could not tell that a shot takes a reference or a file: both are named controls
+    // on the card at rest, and dragging stays a shortcut, never the only way in.
+    open('cv-blindfold')
+    const shots = screen.getByRole('region', { name: 'Shots' })
+    const shoot = screen.getByRole('region', { name: 'Shoot' })
+    expect(within(shots).getByRole('button', { name: 'Pick a reference for shot 1' })).toBeVisible()
+    expect(within(shots).getByLabelText('Upload a photo or clip for shot 1')).toHaveAttribute(
+      'type',
+      'file',
+    )
+    expect(within(shoot).getByLabelText('Add the clip for: Blindfold on')).toHaveAttribute(
+      'type',
+      'file',
+    )
+    // An upload on the card fills its frame and is the clip the Shoot row shows.
+    upload('Upload a photo or clip for shot 1')
+    await waitFor(() =>
+      expect(
+        within(shoot).getByRole('button', { name: 'Remove the clip for: Blindfold on' }),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.queryByLabelText('Upload a photo or clip for shot 1')).not.toBeInTheDocument()
+    expect(screen.getAllByText('1 of 3 captured')).not.toHaveLength(0)
+  })
+
+  it('adds a moodboard post picked on a shot to the references, and shoots the shot like it', () => {
+    open('cv-blindfold')
+    const before = items('ref:').length
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a reference for shot 3' }))
+    const option = screen.getAllByRole('button', { name: /^From the moodboard: / })[0]!
+    const account = option.getAttribute('aria-label')!.replace('From the moodboard: ', '')
+    fireEvent.click(option)
+    expect(items('ref:')).toHaveLength(before + 1)
+    const shots = screen.getByRole('region', { name: 'Shots' })
+    expect(within(shots).getByText(`like ${account.split(',')[0]}`)).toBeInTheDocument()
+  })
+
   it('reorders the references by a drag, and the first becomes the main look', () => {
     open('cv-blindfold')
     const refs = items('ref:')

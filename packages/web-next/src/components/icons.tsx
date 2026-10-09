@@ -168,15 +168,38 @@ export function PlayIcon() {
   )
 }
 
-export function UploadIcon() {
+export function UploadIcon({ size = 20 }: { size?: number }) {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
       <path
         d="M10 13V3M6 7L10 3L14 7M3 13V15.5A1.5 1.5 0 0 0 4.5 17H15.5A1.5 1.5 0 0 0 17 15.5V13"
         stroke="currentColor"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/** Two photos, one behind the other: pick from what is already saved. */
+export function PhotosIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <rect
+        x="1"
+        y="3.5"
+        width="7.5"
+        height="7.5"
+        rx="1.6"
+        stroke="currentColor"
+        strokeWidth="1.3"
+      />
+      <path
+        d="M3.5 1H9.4A1.6 1.6 0 0 1 11 2.6V8.5"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
       />
     </svg>
   )
