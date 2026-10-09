@@ -7,15 +7,16 @@ import { feedsOf } from '@/data/demo'
  * items once the filter has run.
  */
 
-/** The stage filter's steps. An idea tile and a draft post are both "Draft". */
-export type StageKey = 'idea' | Exclude<Stage, 'draft'>
+/** The stage filter's steps: an idea is a plan on the calendar, a draft a post not yet scheduled. */
+export type StageKey = 'idea' | Stage
 
 /**
  * The rows of the stage filter. Failed is not one: a failed post is rare, and the "failed" line
  * beside the title, which shows only while one exists, is its filter.
  */
 export const STAGES: Array<{ key: StageKey; label: string; colour: string }> = [
-  { key: 'idea', label: 'Draft', colour: 'var(--stage-draft)' },
+  { key: 'idea', label: 'Idea', colour: 'var(--ink-5)' },
+  { key: 'draft', label: 'Draft', colour: 'var(--stage-draft)' },
   { key: 'scheduled', label: 'Scheduled', colour: 'var(--stage-scheduled)' },
   { key: 'posted', label: 'Posted', colour: 'var(--stage-posted)' },
 ]
@@ -24,13 +25,14 @@ export type StageFilter = Record<StageKey, boolean>
 
 export const ALL_STAGES: StageFilter = {
   idea: true,
+  draft: true,
   scheduled: true,
   posted: true,
   failed: true,
 }
 
 export function stageKey(stage: Stage): StageKey {
-  return stage === 'draft' ? 'idea' : stage
+  return stage
 }
 
 /** "Thu 8 Oct, 18:00" → "18:00". */

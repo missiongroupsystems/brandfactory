@@ -15,7 +15,7 @@ import {
 const casa = contentFor('casa-vostra')
 const byId = (id: string) => casa.posts.find((p) => p.id === id)
 const dayN = (n: string) => casa.weeks.flatMap((w) => w.days).find((d) => d.n === n)!
-const onlyFailed = { ...ALL_STAGES, idea: false, scheduled: false, posted: false }
+const onlyFailed = { ...ALL_STAGES, idea: false, draft: false, scheduled: false, posted: false }
 // The demo seeds no failed post (an edge case for later), so these tests make their own.
 const failed = (id: string, on: Post['failedOn']): Post => ({
   ...byId(id)!,

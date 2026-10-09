@@ -20,22 +20,23 @@ export const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 upp
 
 export const STATUS_LABEL: Record<IdeaStatus, string> = {
   suggested: 'Suggested',
-  idea: 'Draft',
+  idea: 'Idea',
   draft: 'Draft',
   scheduled: 'Scheduled',
   posted: 'Posted',
   failed: 'Failed',
 }
 
-export const CHIPS: Array<Exclude<IdeaStatus, 'suggested' | 'draft' | 'failed'>> = [
+export const CHIPS: Array<Exclude<IdeaStatus, 'suggested' | 'failed'>> = [
   'idea',
+  'draft',
   'scheduled',
   'posted',
 ]
 
 export function statusColour(status: IdeaStatus): string {
   if (status === 'suggested') return 'var(--insight-5)'
-  if (status === 'idea' || status === 'draft') return 'var(--ink-5)'
+  if (status === 'idea') return 'var(--ink-5)'
   return `var(--stage-${status})`
 }
 
@@ -61,8 +62,7 @@ export function useSlots(all = false): Slot[] {
       .filter((card) => all || suggesting || card.status !== 'suggested')
       .map((card) => {
         const stage: Stage | undefined = card.postId ? byId(card.postId)?.stage : undefined
-        const status: IdeaStatus =
-          card.status === 'suggested' ? 'suggested' : stage && stage !== 'draft' ? stage : 'idea'
+        const status: IdeaStatus = card.status === 'suggested' ? 'suggested' : (stage ?? 'idea')
         // The calendar decides where a card is: a post sits where the post sits, an idea where its
         // tile is. A day the card remembers only counts for a suggestion, which proposes one.
         const onCalendar = card.postId

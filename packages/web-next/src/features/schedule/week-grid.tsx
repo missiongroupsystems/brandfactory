@@ -549,7 +549,7 @@ export function IdeaTile({
   mark: Extract<FeedMark, { kind: 'idea' }>
   /** The day it sits on: an idea made from the tile keeps it. */
   dayN?: string
-  /** One flat line, for the day view's band above the hours. */
+  /** A compact pill, for the day view's band above the hours, where many can sit side by side. */
   row?: boolean
 }) {
   const { brand } = useBrand()
@@ -565,37 +565,29 @@ export function IdeaTile({
         type="button"
         onClick={() => open(mark, dayN)}
         aria-label={ideaLabel(mark, mark.why)}
-        className={`group/idea flex h-12 w-full max-w-[720px] items-center gap-3 rounded-[10px] border border-dashed px-3.5 text-left transition-colors ${mark.suggested ? 'bg-(--insight-wash)' : 'bg-page hover:bg-surface'}`}
+        title={mark.why}
+        className={`group/idea flex h-8 max-w-[360px] min-w-0 items-center gap-2 rounded-full border border-dashed pr-3 pl-1.5 text-left transition-colors ${mark.suggested ? 'bg-(--insight-wash)' : 'bg-page hover:bg-surface'}`}
         style={{ borderColor: `color-mix(in oklab, ${tint} 55%, transparent)` }}
       >
+        <span className="relative size-5 shrink-0 overflow-hidden rounded-full bg-tile">
+          {cover && (
+            <Image
+              src={cover}
+              alt=""
+              fill
+              sizes="20px"
+              draggable={false}
+              className="object-cover"
+            />
+          )}
+        </span>
         <span
-          className="w-[68px] shrink-0 font-mono text-[9.5px] tracking-[0.08em] uppercase"
+          className="shrink-0 font-mono text-[9px] tracking-[0.08em] uppercase"
           style={{ color: tint }}
         >
           {mark.suggested ? 'Suggested' : 'Idea'}
         </span>
-        <span title={mark.hook} className="min-w-0 truncate font-display text-[15px] text-ink">
-          {mark.hook}
-        </span>
-        <span className="min-w-0 shrink-[3] truncate text-[12px] text-ink-3">{mark.why}</span>
-        <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[11px] text-ink-4">
-          {cover && (
-            <span className="relative size-5 overflow-hidden rounded-[5px] bg-tile">
-              <Image
-                src={cover}
-                alt=""
-                fill
-                sizes="20px"
-                draggable={false}
-                className="object-cover"
-              />
-            </span>
-          )}
-          {kind}
-          <span className="text-ink-3 opacity-0 transition-opacity group-hover/idea:opacity-100">
-            <ArrowIcon />
-          </span>
-        </span>
+        <span className="min-w-0 truncate text-[13px] text-ink">{mark.hook}</span>
       </button>
     )
   }

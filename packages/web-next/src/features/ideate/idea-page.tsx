@@ -68,15 +68,10 @@ const LIFTABLE = 'transition-[transform,opacity,box-shadow] duration-200'
 
 type Step = (typeof CHIPS)[number]
 
-/** The step a card is at: "draft" is the calendar's word for an idea, and a failed post was scheduled. */
+/** The step a card is at: an idea until it has a post, then the post's stage (a failed post was scheduled). */
 function stepOf(status: IdeaStatus): Step {
   if (status === 'failed') return 'scheduled'
-  return status === 'draft' || status === 'suggested' ? 'idea' : status
-}
-
-/** The calendar's stage for a step: "Idea" is a draft post. */
-function stageOf(step: Step): Stage {
-  return step === 'idea' ? 'draft' : step
+  return status === 'suggested' ? 'idea' : status
 }
 
 /**
@@ -177,13 +172,13 @@ function handedBy(card: IdeaCard): string[] | null {
 }
 
 /**
- * The card's plan. A date makes the idea a post on the calendar, a status sets that post's
- * stage, and a new date or time moves it. A status set before a date takes the first free day.
+ * The card's plan. A date puts the idea's tile on that day; a status makes it a post there (or on
+ * the first free day), and a new date or time moves the post.
  * The post carries the idea's own media only: a reference photo is somebody else's picture.
  * Once the shoot has something to hand it, the post carries that, and keeps up as more lands.
  */
 function usePlan(slot: Slot): Plan {
-  const { brand, weeks, byId, planPost, reschedule, setStage, setImages } = useBrand()
+  const { brand, weeks, byId, planPost, reschedule, setStage, setImages, placeIdea } = useBrand()
   // The time picked before the idea has a date; the post holds it from then on.
   const [picked, setPicked] = React.useState('18:00')
   const { card, dayN } = slot
@@ -233,8 +228,25 @@ function usePlan(slot: Slot): Plan {
     infoOf,
     media,
     fromShoot: handed && card.format !== 'reel' ? handed.length : 0,
-    setStatus: (step) => plan(stageOf(step), dayN, time),
-    setDate: (n) => plan(post?.stage ?? 'draft', n, time),
+    // "Idea" is where a card starts; once it is a post, the page does not take the post back.
+    setStatus: (step) => {
+      if (step !== 'idea') plan(step, dayN, time)
+    },
+    // A date moves a post; an idea without one stays an idea, its tile on the new day.
+    setDate: (n) => {
+      if (post || card.format === 'story') return plan(post?.stage ?? 'draft', n, time)
+      const tile = weeks
+        .flatMap((w) => w.days.flatMap(feedsOf))
+        .find((m) => m.kind === 'idea' && m.hook === card.hook)
+      placeIdea(
+        {
+          format: card.format,
+          hook: card.hook,
+          why: tile?.kind === 'idea' ? tile.why : 'Team idea',
+        },
+        n,
+      )
+    },
     setTime: (t) => (post && dayN ? reschedule(post.id, dayN, t) : setPicked(t)),
   }
 }
@@ -1775,20 +1787,26 @@ function FinalCut({
   )
 }
 
-/** The three steps; the current one filled. Each step sets the post's stage on the calendar. */
+/**
+ * The four steps; the current one filled. Draft, Scheduled and Posted set the post's stage on the
+ * calendar; Idea is only where a card starts, so it cannot be picked once the card is a post.
+ */
 function StatusPicker({ value, onChange }: { value: Step; onChange: (s: Step) => void }) {
   return (
     <span role="radiogroup" aria-label="Status" className="flex flex-wrap gap-1">
       {CHIPS.map((c) => {
         const on = c === value
+        const locked = c === 'idea' && value !== 'idea'
         return (
           <button
             key={c}
             type="button"
             role="radio"
             aria-checked={on}
+            disabled={locked}
+            title={locked ? 'Already a post' : undefined}
             onClick={() => onChange(c)}
-            className={`flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] transition-colors ${on ? 'bg-ink text-page' : 'bg-surface text-ink-3 hover:text-ink'}`}
+            className={`flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] transition-colors disabled:opacity-40 ${on ? 'bg-ink text-page' : 'bg-surface text-ink-3 enabled:hover:text-ink'}`}
           >
             <span
               className="size-1.5 rounded-full"

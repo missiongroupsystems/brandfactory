@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.6.3** — 2026-10-09 — "Draft" means a post again: a plan is an "Idea" on the idea page, in Current ideas and in the calendar's filter (Idea · Draft · Scheduled · Posted). The Day view lists ideas as compact pills that wrap, folding past six behind "+N more". No migration. 117 tests.
 - **2.6.2** — 2026-10-09 — An idea on the calendar no longer looks like a post: it is a short card with a dashed outline, "Idea", the hook as text and the reason it sits on that day (a dashed "Idea" box in the phone grid; a dashed-square count in Month; a flat row in Day), and a click opens its idea page, not the composer. No migration. 116 tests.
 - **2.6.1** — 2026-10-09 — Each idea is a page of its own (`/ideate/<id>`), built as the production document for one post in four stages under a sticky rail: References, Shots (a storyboard, with references dragged onto shots and a shoot day), Shoot (tick and drop each clip) and Post; it replaces the side panel, and "Plan idea from this" opens the new idea there with no step between. The moodboard's selection bar moves from the bottom of the screen to a sticky row at the top, and the three connect buttons can be tapped together. No migration. 110 tests.
 - **2.6.0** — 2026-10-09 — David's round-2 feedback: Ideate starts from the moodboard (pick posts from any platform, then "Plan idea from this"), Current ideas is an overview of ideas with their inspiration posts, and each idea opens its own shoot brief (the brief board page is gone); New post gets a crop editor, "Save draft" and "Schedule on" under the preview, comments on by default, and loses Approval and Notes; the approval stage and the seeded failed posts leave the demo; the month grid starts on the 1st; calendar idea tiles show a photo; a favicon. No migration. 95 tests.
@@ -23,6 +24,20 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.6.3 — 2026-10-09
+
+**Idea and draft apart, and a day of many ideas.** The word "Draft" covered both a plan with no
+post and a post not yet scheduled, so the two read the same.
+
+- **Words.** An idea's status is "Idea" until it has a post; then it is the post's stage, so a
+  plan with a draft post reads "Draft". The idea page's status steps are Idea · Draft · Scheduled ·
+  Posted; Idea is locked once a post exists, since the page does not take a post back. The
+  calendar filter splits its first row into Idea (the plans) and Draft (draft posts). A date picked
+  on an idea moves its tile there (`placeIdea`, beside any posts and ideas on that day) and leaves
+  it an idea; before, it quietly made a draft post.
+- **The Day view's ideas** are compact dashed pills (photo, "Idea" or "Suggested", the hook; the
+  reason in the tooltip) that wrap side by side; past six, the rest fold behind "+N more".
 
 ## 2.6.2 — 2026-10-09
 

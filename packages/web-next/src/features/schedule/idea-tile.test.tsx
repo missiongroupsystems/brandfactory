@@ -8,6 +8,7 @@ import { IdeaPage } from '@/features/ideate/idea-page'
 import { ideaOfTile, resetIdeas, useIdeas } from '@/features/ideate/ideas-store'
 
 import { BrandProvider } from './posts-store'
+import { IdeaPills } from './day-view'
 import { IdeaTile } from './week-grid'
 
 const push = vi.fn()
@@ -147,5 +148,23 @@ describe('an idea tile on the calendar', () => {
     expect(screen.getByLabelText('Hook')).toHaveValue('The 6am dough shift.')
     expect(screen.getByRole('button', { name: 'Keep it' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
+  })
+
+  it("folds a day's ideas past six behind one button, so many still fit above the hours", () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({
+      kind: 'idea' as const,
+      format: 'reel' as const,
+      hook: `Idea number ${i + 1}.`,
+      why: 'Team idea',
+    }))
+    render(
+      <BrandProvider>
+        <IdeaPills ideas={many} dayN="9" />
+      </BrandProvider>,
+    )
+    expect(screen.getAllByRole('button', { name: /^Idea: Idea number/ })).toHaveLength(6)
+    fireEvent.click(screen.getByRole('button', { name: '+3 more' }))
+    expect(screen.getAllByRole('button', { name: /^Idea: Idea number/ })).toHaveLength(9)
+    expect(screen.queryByRole('button', { name: /more$/ })).toBeNull()
   })
 })

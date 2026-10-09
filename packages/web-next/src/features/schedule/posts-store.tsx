@@ -78,6 +78,14 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
    * found by its hook, so it takes the new words or the idea would lose its day.
    */
   renameIdea: (from: string, to: string) => void
+  /**
+   * Puts an idea's tile on a day picked on its page: off whatever day it sat on, beside the posts
+   * and other ideas already there. It stays an idea; only a status makes it a post.
+   */
+  placeIdea: (
+    idea: { format: Exclude<Format, 'story'>; hook: string; why: string },
+    dayN: string,
+  ) => void
 }
 
 const BrandContext = React.createContext<BrandValue | null>(null)
@@ -291,6 +299,29 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     [brandId],
   )
 
+  const placeIdea = React.useCallback<BrandValue['placeIdea']>(
+    (idea, dayN) => {
+      const mark = { kind: 'idea' as const, format: idea.format, hook: idea.hook, why: idea.why }
+      setWeeksByBrand((all) => ({
+        ...all,
+        [brandId]: all[brandId].map((week) => ({
+          ...week,
+          days: week.days.map((day) => {
+            const before = feedsOf(day)
+            const marks = before.filter((m) => !(m.kind === 'idea' && m.hook === idea.hook))
+            if (day.n !== dayN && marks.length === before.length) return day
+            const next = day.n === dayN ? [...marks, mark] : marks
+            return {
+              ...day,
+              feed: next.length === 0 ? undefined : next.length === 1 ? next[0] : next,
+            }
+          }),
+        })),
+      }))
+    },
+    [brandId],
+  )
+
   const value = React.useMemo<BrandValue>(() => {
     const content = contentFor(brandId)
     const posts = postsByBrand[brandId]
@@ -305,6 +336,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       renamePost,
       setImages,
       renameIdea,
+      placeIdea,
       setChannels,
       brands: BRANDS,
       setBrandId,
@@ -327,6 +359,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     renamePost,
     setImages,
     renameIdea,
+    placeIdea,
     setChannels,
     setBrandId,
     setStage,

@@ -5,7 +5,7 @@ import * as React from 'react'
 import { SparkIcon } from '@/components/icons'
 import { Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
-import type { CalendarEvent, Day } from '@/data/demo'
+import type { CalendarEvent, Day, FeedMark } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
 
 import { channelsOf, itemsOf, postTime, type StageFilter } from './calendar-items'
@@ -102,12 +102,8 @@ export function DayView({
             )}
             {items.ideas.length > 0 && (
               <>
-                <span className={`${GUTTER} pt-[18px]`}>Ideas</span>
-                <div className="flex flex-col gap-2">
-                  {items.ideas.map((mark) => (
-                    <IdeaTile key={mark.hook} mark={mark} dayN={day.n} row />
-                  ))}
-                </div>
+                <span className={`${GUTTER} pt-2`}>Ideas</span>
+                <IdeaPills key={day.n} ideas={items.ideas} dayN={day.n} />
               </>
             )}
           </div>
@@ -210,6 +206,38 @@ export function DayView({
           ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+/** How many idea pills show before the rest fold behind "+N more". */
+const PILLS_SHOWN = 6
+
+/** A day's ideas as pills that wrap side by side; past six, the rest wait behind one quiet button. */
+export function IdeaPills({
+  ideas,
+  dayN,
+}: {
+  ideas: Array<Extract<FeedMark, { kind: 'idea' }>>
+  dayN: string
+}) {
+  const [all, setAll] = React.useState(false)
+  const shown = all ? ideas : ideas.slice(0, PILLS_SHOWN)
+  const more = ideas.length - shown.length
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {shown.map((mark) => (
+        <IdeaTile key={mark.hook} mark={mark} dayN={dayN} row />
+      ))}
+      {more > 0 && (
+        <button
+          type="button"
+          onClick={() => setAll(true)}
+          className="h-8 rounded-full px-2.5 text-[12px] text-ink-3 transition-colors hover:text-ink"
+        >
+          +{more} more
+        </button>
+      )}
     </div>
   )
 }

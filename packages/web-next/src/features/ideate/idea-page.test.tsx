@@ -112,7 +112,12 @@ describe('an idea page', () => {
     for (const name of ['References', 'Shots', 'Shoot', 'Post']) {
       expect(screen.getByRole('region', { name })).toBeInTheDocument()
     }
+    // A plan with no post is an idea, not a draft: "Draft" is a post's word.
+    expect(screen.getByRole('radio', { name: 'Idea' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Draft' })).not.toBeChecked()
+    fireEvent.click(screen.getByRole('radio', { name: 'Draft' }))
     expect(screen.getByRole('radio', { name: 'Draft' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Idea' })).toBeDisabled()
     expect(shotTitles()).toEqual(['Blindfold on', 'One bite, one guess', 'The onions'])
   })
 
@@ -123,7 +128,7 @@ describe('an idea page', () => {
     expect(screen.getByRole('link', { name: 'Open in scheduler →' })).toBeInTheDocument()
   })
 
-  it('puts the post on the day and at the time picked on the calendar', () => {
+  it('moves the idea to the day picked, and a status then makes it a post at that day and time', () => {
     open('cv-blindfold')
     fireEvent.click(screen.getByRole('button', { name: 'Post date' }))
     const picker = screen.getByRole('dialog', { name: 'Post date' })
@@ -138,16 +143,19 @@ describe('an idea page', () => {
     fireEvent.keyDown(wed, { key: 'ArrowRight' })
     expect(within(picker).getByRole('button', { name: 'Thu 8 Oct, 2 posts' })).toHaveFocus()
     fireEvent.click(within(picker).getByRole('button', { name: 'Tue 27 Oct' }))
-    expect(
-      screen.getByRole('link', { name: /On the calendar · Tue 27 Oct, 18:00/ }),
-    ).toBeInTheDocument()
     fireEvent.click(within(picker).getByRole('radio', { name: /12:00/ }))
-    expect(
-      screen.getByRole('link', { name: /On the calendar · Tue 27 Oct, 12:00/ }),
-    ).toBeInTheDocument()
     // Picking the time closes the picker and hands the focus back to the field.
     expect(screen.queryByRole('dialog', { name: 'Post date' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Post date' })).toHaveFocus()
+    // A date alone moves the plan; it is still an idea, and no post exists yet.
+    expect(screen.getByRole('button', { name: 'Post date' })).toHaveTextContent('Tue 27 Oct, 12:00')
+    expect(screen.getByRole('radio', { name: 'Idea' })).toBeChecked()
+    expect(screen.queryByRole('link', { name: /On the calendar/ })).not.toBeInTheDocument()
+    // A status makes it a post, on the day and at the time picked.
+    fireEvent.click(screen.getByRole('radio', { name: 'Scheduled' }))
+    expect(
+      screen.getByRole('link', { name: /On the calendar · Tue 27 Oct, 12:00/ }),
+    ).toBeInTheDocument()
   })
 
   it('reorders the shots by a drag, and by Option with an arrow key on a shot', () => {
