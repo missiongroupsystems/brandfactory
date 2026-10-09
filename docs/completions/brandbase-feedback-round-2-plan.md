@@ -1,6 +1,6 @@
 # BrandBase feedback round 2: plan
 
-Status: built 2026-10-09 on `feat/marketing-demo-feedback`; see `brandbase-feedback-round-2-phases-1-to-4.md`. Not yet on `main`. Due before David's Marketing demo at 4:00 PM on 9 Oct.
+Status: built 2026-10-09 on `feat/marketing-demo-feedback`; see `brandbase-feedback-round-2-phases-1-to-4.md`. On `main` 2026-10-09, with the follow-ups in phase 4. Due before David's Marketing demo at 4:00 PM on 9 Oct.
 Branch `feat/marketing-demo-feedback`, cut from `feat/mobile-calendar-grid` (the phone photo grid
 and the calmer desktop toolbar, not yet on `main`). Package `packages/web-next`.
 
