@@ -5,15 +5,17 @@ import { useRouter } from 'next/navigation'
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
-import { CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
+import { CheckIcon, CloseIcon, SparkIcon } from '@/components/icons'
 import { fromFile, Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import { startTouchDrag, touchDragPending } from '@/components/touch-drag'
+import { usePhone } from '@/components/use-phone'
 import type { BrandId } from '@/data/brands'
-import type { Stage, Week } from '@/data/demo'
+import type { Day, Stage, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 import {
   isMediaRef,
+  newShot,
   referenceById,
   referencesOf,
   type IdeaCard,
@@ -21,10 +23,12 @@ import {
   type Reference,
   type Shot,
 } from '@/data/ideas'
+import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { storyTaken } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 
-import { dayIndex, dayLabel, landingDay } from './calendar-slot'
+import { dayLabel, landingDay } from './calendar-slot'
+import { DayPicker, type DayInfo } from './day-picker'
 import {
   CHIPS,
   EYEBROW,
@@ -36,18 +40,31 @@ import {
   useRename,
 } from './idea-parts'
 import { editIdea, keepSuggestion, setDay, skipSuggestion, type IdeaEdit } from './ideas-store'
+import { useSortable, type Sortable } from './sortable'
 
 const HAIR = 'border-(--cal-line)'
 const TIMES = ['08:00', '12:00', '15:00', '18:00', '19:30', '21:00']
 const FORMAT_LABEL = { reel: 'Reel', carousel: 'Carousel', story: 'Story' } as const
+/** A carousel takes ten slides at most, as the composer says. */
+const SLIDES_MAX = 10
 /** Where Back goes: the overview, not the moodboard the ideas page opens on. */
 export const IDEAS_HREF = '/ideate?view=ideas'
 /** The ring a tile or a card wears while something is held over it. */
 const OVER = 'shadow-[inset_0_0_0_1.5px_var(--ink)]'
-/** Controls that show on hover, and always under a finger. */
+/** The faint ring every target wears while a file is somewhere over the page. */
+const CAN_TAKE = 'shadow-[inset_0_0_0_1px_var(--cal-ghost)]'
+/** Controls that show on hover or focus, and always under a finger. */
 const HOVER =
   'opacity-0 transition-opacity focus-visible:opacity-100 [@media(hover:none)]:opacity-100'
+const QUIET = 'text-[12.5px] text-ink-3 transition-colors hover:text-ink'
 const SIZES = '(max-width: 768px) 50vw, 240px'
+/**
+ * The lifted item: a touch lighter, a touch larger, with a shadow. It goes on a wrapper inside
+ * the dragged node, never on the node itself: a transform on the drag's source ends the drag, and
+ * so does an entrance animation that is still applied, which is why `bb-rise` sits there too.
+ */
+const LIFTED = 'scale-[1.03] opacity-60 shadow-pop'
+const LIFTABLE = 'transition-[transform,opacity,box-shadow] duration-200'
 
 type Step = (typeof CHIPS)[number]
 
@@ -110,30 +127,31 @@ export function IdeaPage({ id }: { id: string }) {
 
 // ── The plan ─────────────────────────────────────────────────────────────────────────────────
 
-/** The days ahead a post can take, in words; a story cannot share its row with another story. */
+/** The days ahead a post can take; a story cannot share its row with another story. */
 function daysAhead(weeks: Week[], card: IdeaCard) {
-  return weeks
-    .flatMap((w) => w.days)
-    .filter((d) => !d.past && !d.today)
-    .map((d) => {
-      // Other posts on the day; this idea's own post does not count.
-      const posts = feedsOf(d).filter((m) => m.kind === 'post' && m.postId !== card.postId).length
-      const taken = card.format === 'story' && storyTaken(weeks, d.n, card.postId)
-      const note = taken
-        ? ' · story planned'
-        : card.format !== 'story' && posts
-          ? ` · ${posts} post${posts > 1 ? 's' : ''}`
-          : ''
-      return { n: d.n, label: `${dayLabel(weeks, d.n)}${note}`, taken }
-    })
+  const ahead = new Map<string, DayInfo & { taken: boolean }>()
+  for (const d of weeks.flatMap((w) => w.days)) {
+    if (d.past || d.today) continue
+    // Other posts on the day; this idea's own post does not count.
+    const posts = feedsOf(d).filter((m) => m.kind === 'post' && m.postId !== card.postId).length
+    const taken = card.format === 'story' && storyTaken(weeks, d.n, card.postId)
+    const note = taken
+      ? 'story planned'
+      : posts
+        ? `${posts} post${posts > 1 ? 's' : ''}`
+        : undefined
+    ahead.set(d.n, { taken, disabled: taken, dot: posts > 0 || taken, note })
+  }
+  return ahead
 }
 
 interface Plan {
   time: string
-  days: ReturnType<typeof daysAhead>
-  /** What the post carries: the shoot's media in shot order, else the post's, else the idea's photo. */
+  /** What the picker says of a day: ahead or not, taken, how many posts it holds. */
+  infoOf: (day: Day) => DayInfo
+  /** What the post carries, in order. */
   media: string[]
-  /** How many of those the shoot captured. */
+  /** How many of those the shoot captured (the slides of a carousel, the frames of a story). */
   fromShoot: number
   setStatus: (step: Step) => void
   setDate: (dayN: string) => void
@@ -144,10 +162,21 @@ interface Plan {
 const capturedOf = (shots: Shot[]) => shots.flatMap((s) => (s.media ? [s.media] : []))
 
 /**
+ * What the shoot hands the post, or null while it has nothing to hand: a reel's final cut (its
+ * clips are footage, not the post), a carousel's captured slides, a story's captured frames.
+ */
+function handedBy(card: IdeaCard): string[] | null {
+  if (card.format === 'reel') return card.cut ? [card.cut] : null
+  const captured = capturedOf(card.shots)
+  const media = card.format === 'carousel' ? captured.slice(0, SLIDES_MAX) : captured
+  return media.length > 0 ? media : null
+}
+
+/**
  * The card's plan. A date makes the idea a post on the calendar, a status sets that post's
  * stage, and a new date or time moves it. A status set before a date takes the first free day.
  * The post carries the idea's own media only: a reference photo is somebody else's picture.
- * Once the shoot has captured something, the post carries that, and keeps up as more lands.
+ * Once the shoot has something to hand it, the post carries that, and keeps up as more lands.
  */
 function usePlan(slot: Slot): Plan {
   const { brand, weeks, byId, planPost, reschedule, setStage, setImages } = useBrand()
@@ -156,15 +185,19 @@ function usePlan(slot: Slot): Plan {
   const { card, dayN } = slot
   const post = card.postId ? byId(card.postId) : undefined
   const time = post?.slot.split(', ')[1] ?? picked
-  const days = daysAhead(weeks, card)
-  const captured = React.useMemo(() => capturedOf(card.shots), [card.shots])
+  const ahead = React.useMemo(() => daysAhead(weeks, card), [weeks, card])
+  const infoOf = React.useCallback(
+    (d: Day): DayInfo => ahead.get(d.n) ?? { disabled: true },
+    [ahead],
+  )
+  const handed = React.useMemo(() => handedBy(card), [card])
   React.useEffect(() => {
-    if (post && captured.length > 0) setImages(post.id, captured)
-  }, [post, captured, setImages])
-  const media = captured.length > 0 ? captured : (post?.images ?? (card.image ? [card.image] : []))
+    if (post && handed) setImages(post.id, handed)
+  }, [post, handed, setImages])
+  const media = handed ?? post?.images ?? (card.image ? [card.image] : [])
   const firstDay = () => {
-    if (dayN && days.some((d) => d.n === dayN && !d.taken)) return dayN
-    if (card.format === 'story') return days.find((d) => !d.taken)?.n ?? null
+    if (dayN && ahead.has(dayN) && !ahead.get(dayN)!.taken) return dayN
+    if (card.format === 'story') return [...ahead].find(([, d]) => !d.taken)?.[0] ?? null
     return landingDay(weeks, card.dayN)
   }
   const plan = (stage: Stage, day: string | null, t: string) => {
@@ -180,9 +213,9 @@ function usePlan(slot: Slot): Plan {
   }
   return {
     time,
-    days,
+    infoOf,
     media,
-    fromShoot: captured.length,
+    fromShoot: handed && card.format !== 'reel' ? handed.length : 0,
     setStatus: (step) => plan(stageOf(step), dayN, time),
     setDate: (n) => plan(post?.stage ?? 'draft', n, time),
     setTime: (t) => (post && dayN ? reschedule(post.id, dayN, t) : setPicked(t)),
@@ -277,15 +310,19 @@ function stagesOf(
   return stages.map((s, i) => ({ ...s, n: `0${i + 1}`, current: s.key === current }))
 }
 
-/** What is being dragged: a reference by its key, or a shot by its place. */
-type Drag = { kind: 'ref'; key: string } | { kind: 'shot'; index: number }
+/** What is being dragged across the page: a reference by its key, or a shot by its id. */
+type Drag = { kind: 'ref'; key: string } | { kind: 'shot'; id: string }
 
-/** The drag in flight and what it is over (`ref:<key>`, `shot:<i>`, `files:<where>`). */
+/**
+ * The drag in flight, what it is over (`ref:<key>`, `shot:<id>`, `files:<where>`), and whether a
+ * file from outside is somewhere over the page, when every place it can land shows itself.
+ */
 interface Board {
   drag: Drag | null
   /** The same drag, readable from a touch drop, whose callbacks were made before it began. */
   held: React.RefObject<Drag | null>
   over: string | null
+  files: boolean
   start: (d: Drag) => void
   setOver: (key: string | null) => void
   end: () => void
@@ -294,11 +331,39 @@ interface Board {
 function useBoard(): Board {
   const [drag, setDrag] = React.useState<Drag | null>(null)
   const [over, setOver] = React.useState<string | null>(null)
+  const [files, setFiles] = React.useState(false)
   const held = React.useRef<Drag | null>(null)
+
+  // A file dropped between the drop zones would open in the tab, and the demo's memory with it.
+  // While a file is over the page, the places it can land show themselves.
+  React.useEffect(() => {
+    const over = (e: DragEvent) => {
+      if (!hasFiles(e)) return
+      e.preventDefault()
+      setFiles(true)
+    }
+    const leave = (e: DragEvent) => {
+      if (e.relatedTarget === null) setFiles(false)
+    }
+    const drop = (e: DragEvent) => {
+      if (hasFiles(e)) e.preventDefault()
+      setFiles(false)
+    }
+    window.addEventListener('dragover', over)
+    window.addEventListener('dragleave', leave)
+    window.addEventListener('drop', drop)
+    return () => {
+      window.removeEventListener('dragover', over)
+      window.removeEventListener('dragleave', leave)
+      window.removeEventListener('drop', drop)
+    }
+  }, [])
+
   return {
     drag,
     held,
     over,
+    files,
     start: (d) => {
       held.current = d
       setDrag(d)
@@ -312,24 +377,74 @@ function useBoard(): Board {
   }
 }
 
-/** The list with one item moved. */
-function move<T>(list: T[], from: number, to: number): T[] {
-  if (from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return list
-  const next = [...list]
-  const [item] = next.splice(from, 1)
-  next.splice(to, 0, item!)
-  return next
-}
-
 /** True when a drag carries files from outside the page. */
 function hasFiles(e: { dataTransfer: DataTransfer | null }): boolean {
   return Array.from(e.dataTransfer?.types ?? []).includes('Files')
+}
+
+/**
+ * Lets a drag land: the browser asks on `dragenter` and again on every `dragover`, and refuses the
+ * drop unless the last answer was yes. An item that slides under a still pointer is asked once,
+ * on `dragenter`, so both get the same answer.
+ */
+function accept(e: React.DragEvent, when: boolean) {
+  if (!when) return false
+  e.preventDefault()
+  return true
 }
 
 /** The photos and videos among dropped or picked files, as media URLs. */
 async function mediaFrom(files: FileList | null): Promise<string[]> {
   const media = [...(files ?? [])].filter((f) => /^(image|video)\//.test(f.type))
   return (await Promise.all(media.map(fromFile))).map((d) => d.src)
+}
+
+const at = (e: React.DragEvent) => ({ x: e.clientX, y: e.clientY })
+
+/** Moves an item by the keyboard: Option (Alt) with an arrow key on its handle. */
+function nudgeKey(e: React.KeyboardEvent): -1 | 1 | null {
+  if (!e.altKey) return null
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') return -1
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') return 1
+  return null
+}
+
+/**
+ * The keyboard's grip on a tile or a card: out of sight until it has the focus, when it shows as
+ * a small mark in the corner. Option with an arrow key moves the item; the drag is the pointer's.
+ */
+function Handle({
+  label,
+  hint,
+  onNudge,
+}: {
+  label: string
+  hint: string
+  onNudge: (by: -1 | 1) => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-describedby={hint}
+      onKeyDown={(e) => {
+        const by = nudgeKey(e)
+        if (!by) return
+        e.preventDefault()
+        onNudge(by)
+      }}
+      className="sr-only top-2 left-2 z-10 rounded-full bg-page text-ink-3 shadow-soft focus-visible:not-sr-only focus-visible:absolute focus-visible:flex focus-visible:size-7 focus-visible:items-center focus-visible:justify-center focus-visible:outline-none"
+    >
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
+        <circle cx="3" cy="2" r="1" />
+        <circle cx="7" cy="2" r="1" />
+        <circle cx="3" cy="5" r="1" />
+        <circle cx="7" cy="5" r="1" />
+        <circle cx="3" cy="8" r="1" />
+        <circle cx="7" cy="8" r="1" />
+      </svg>
+    </button>
+  )
 }
 
 // ── The page ─────────────────────────────────────────────────────────────────────────────────
@@ -341,6 +456,7 @@ async function mediaFrom(files: FileList | null): Promise<string[]> {
  */
 function Idea({ slot }: { slot: Slot }) {
   const { brand, weeks } = useBrand()
+  const phone = usePhone()
   const plan = usePlan(slot)
   const board = useBoard()
   const { card, status } = slot
@@ -348,27 +464,13 @@ function Idea({ slot }: { slot: Slot }) {
   const refs = refsOf(brand.id, card)
   const stages = stagesOf(refs, card, slot, weeks, plan.time)
   const stage = (key: StageKey) => stages.find((s) => s.key === key)!
+  // What a keyboard move did, read out once.
+  const [said, say] = React.useState('')
+  const hint = React.useId()
 
   const edit = (fields: IdeaEdit | ((c: IdeaCard) => IdeaEdit)) =>
     editIdea(brand.id, card.id, fields)
   const setShots = (shots: Shot[]) => edit({ shots })
-  // Writes that follow an await read the card as it is then, not as it was before the wait.
-  const addRefs = (keys: string[]) => edit((c) => ({ inspiration: [...c.inspiration, ...keys] }))
-  const patchShot = (index: number, fields: Partial<Shot>) =>
-    edit((c) => ({ shots: c.shots.map((s, i) => (i === index ? { ...s, ...fields } : s)) }))
-
-  // A file dropped between the drop zones would open in the tab, and the demo's memory with it.
-  React.useEffect(() => {
-    const guard = (e: DragEvent) => {
-      if (hasFiles(e)) e.preventDefault()
-    }
-    window.addEventListener('dragover', guard)
-    window.addEventListener('drop', guard)
-    return () => {
-      window.removeEventListener('dragover', guard)
-      window.removeEventListener('drop', guard)
-    }
-  }, [])
   const setRefs = (inspiration: string[]) =>
     edit({
       inspiration,
@@ -377,25 +479,28 @@ function Idea({ slot }: { slot: Slot }) {
         s.ref && !inspiration.includes(s.ref) ? { ...s, ref: undefined } : s,
       ),
     })
+  // Writes that follow an await read the card as it is then, not as it was before the wait.
+  const addRefs = (keys: string[]) => edit((c) => ({ inspiration: [...c.inspiration, ...keys] }))
+  const patchShot = (id: string, fields: Partial<Shot>) =>
+    edit((c) => ({ shots: c.shots.map((s) => (s.id === id ? { ...s, ...fields } : s)) }))
+  const linkRef = (id: string, key: string | undefined) => patchShot(id, { ref: key })
 
-  const actions = {
-    moveRef: (from: number, to: number) => setRefs(move(card.inspiration, from, to)),
-    linkRef: (index: number, key: string | undefined) =>
-      setShots(card.shots.map((s, i) => (i === index ? { ...s, ref: key } : s))),
-    moveShot: (from: number, to: number) => setShots(move(card.shots, from, to)),
-  }
+  const [refSort, attachRefs] = useSortable(
+    refs.map((r) => r.key),
+    'x',
+    (keys) => setRefs(keys),
+  )
+  const [shotSort, attachShots] = useSortable(
+    card.shots.map((s) => s.id),
+    phone ? 'y' : 'x',
+    (ids) => edit((c) => ({ shots: ids.flatMap((id) => c.shots.filter((s) => s.id === id)) })),
+  )
 
-  /** Where a drag lands, by touch or by mouse: `ref:<key>` or `shot:<i>`. */
-  function land(target: string | null) {
-    const drag = board.held.current
-    if (!drag || !target) return
-    const at = target.indexOf(':')
-    const kind = target.slice(0, at)
-    const id = target.slice(at + 1)
-    if (drag.kind === 'ref' && kind === 'ref') {
-      actions.moveRef(card.inspiration.indexOf(drag.key), card.inspiration.indexOf(id))
-    } else if (drag.kind === 'ref' && kind === 'shot') actions.linkRef(Number(id), drag.key)
-    else if (drag.kind === 'shot' && kind === 'shot') actions.moveShot(drag.index, Number(id))
+  /** A keyboard move, said aloud: "The onions is now 1 of 3". */
+  function moved(name: string, list: string[], key: string, by: -1 | 1) {
+    const to = list.indexOf(key) + by
+    if (to < 0 || to >= list.length) return
+    say(`${name} is now ${to + 1} of ${list.length}`)
   }
 
   return (
@@ -424,17 +529,29 @@ function Idea({ slot }: { slot: Slot }) {
       </header>
 
       <Rail stages={stages} />
+      <p aria-live="polite" className="sr-only">
+        {said}
+      </p>
+      <p id={hint} className="sr-only">
+        Press Option with an arrow key to move it.
+      </p>
 
       <div className="flex flex-col gap-16 max-md:gap-12">
         <StageSection stage={stage('references')}>
           <References
             card={card}
             refs={refs}
+            sort={refSort}
+            attach={attachRefs}
             board={board}
-            land={land}
+            hint={hint}
+            onLinkToShot={linkRef}
+            onNudge={(key, by) => {
+              moved('The reference', refSort.order, key, by)
+              refSort.nudge(key, by)
+            }}
             setRefs={setRefs}
             addRefs={addRefs}
-            moveRef={actions.moveRef}
           />
           <Sharpen card={card} />
         </StageSection>
@@ -442,13 +559,20 @@ function Idea({ slot }: { slot: Slot }) {
         <StageSection stage={stage('shots')}>
           <Storyboard
             card={card}
+            shots={card.shots}
             refs={refs}
+            sort={shotSort}
+            attach={attachShots}
             board={board}
-            land={land}
+            hint={hint}
             setShots={setShots}
             patchShot={patchShot}
-            linkRef={actions.linkRef}
-            moveShot={actions.moveShot}
+            linkRef={linkRef}
+            onNudge={(id, by) => {
+              const shot = card.shots.find((s) => s.id === id)
+              moved(shot?.title || 'The shot', shotSort.order, id, by)
+              shotSort.nudge(id, by)
+            }}
           />
           <ShotDetails card={card} />
         </StageSection>
@@ -463,7 +587,7 @@ function Idea({ slot }: { slot: Slot }) {
               Keep it first: a kept idea takes a status, a date and a time.
             </p>
           ) : (
-            <PlanSection slot={slot} plan={plan} />
+            <PlanSection slot={slot} plan={plan} board={board} edit={edit} />
           )}
         </StageSection>
       </div>
@@ -503,18 +627,24 @@ function Rail({ stages }: { stages: StageState[] }) {
   )
 }
 
-/** A stage's mark: filled once done, ringed with a dot while current, a faint ring ahead. */
+/**
+ * A stage's mark: filled once done, ringed with a dot while current, a faint ring ahead. The
+ * tick pops in the moment the stage completes.
+ */
 function StageMark({ done, current }: { done: boolean; current: boolean }) {
   if (done) {
     return (
-      <span className="flex size-4 items-center justify-center rounded-full bg-ink text-page">
+      <span
+        key="done"
+        className="bb-pop flex size-4 items-center justify-center rounded-full bg-ink text-page"
+      >
         <CheckIcon size={8} strokeWidth={2.4} />
       </span>
     )
   }
   return (
     <span
-      className={`flex size-4 items-center justify-center rounded-full border ${current ? 'border-[1.5px] border-ink' : 'border-(--line-strong)'}`}
+      className={`flex size-4 items-center justify-center rounded-full border transition-colors ${current ? 'border-[1.5px] border-ink' : 'border-(--line-strong)'}`}
     >
       {current && <span className="size-1.5 rounded-full bg-ink" />}
     </span>
@@ -547,26 +677,32 @@ function StageSection({ stage, children }: { stage: StageState; children: React.
 
 /**
  * What it should look like: the posts the idea grew from and the files the team added, in
- * order, the first as the main look. Drag a tile onto another to reorder (or use its arrows),
- * drag it onto a shot to shoot that shot like it, drop files anywhere here to add them, or add a
- * post from the moodboard.
+ * order, the first as the main look. Drag a tile to reorder (the others make way as it moves),
+ * drag it onto a shot to shoot that shot like it, drop files here to add them, or add a post from
+ * the moodboard.
  */
 function References({
   card,
   refs,
+  sort,
+  attach,
   board,
-  land,
+  hint,
+  onLinkToShot,
+  onNudge,
   setRefs,
   addRefs,
-  moveRef,
 }: {
   card: IdeaCard
   refs: Ref[]
+  sort: Sortable
+  attach: (el: HTMLElement | null) => void
   board: Board
-  land: (target: string | null) => void
+  hint: string
+  onLinkToShot: (shotId: string, key: string) => void
+  onNudge: (key: string, by: -1 | 1) => void
   setRefs: (inspiration: string[]) => void
   addRefs: (keys: string[]) => void
-  moveRef: (from: number, to: number) => void
 }) {
   const { brand } = useBrand()
   const [picking, setPicking] = React.useState(false)
@@ -578,10 +714,10 @@ function References({
 
   return (
     <div
+      onDragEnter={(e) => accept(e, hasFiles(e))}
       onDragOver={(e) => {
-        if (!hasFiles(e)) return
-        e.preventDefault()
-        board.setOver('files:refs')
+        if (!accept(e, hasFiles(e))) return
+        if (!over) board.setOver('files:refs')
       }}
       onDragLeave={(e) => {
         if (over && !e.currentTarget.contains(e.relatedTarget as Node | null)) board.setOver(null)
@@ -592,34 +728,48 @@ function References({
         board.end()
         void add(e.dataTransfer.files)
       }}
-      className={`-m-3 flex flex-col gap-5 rounded-[18px] p-3 transition-colors ${over ? 'bg-(--cal-drop)' : ''}`}
+      className={`-m-3 flex flex-col gap-5 rounded-[18px] p-3 transition-[box-shadow,background-color] ${over ? `bg-(--cal-drop) ${OVER}` : board.files ? CAN_TAKE : ''}`}
     >
-      <ol className="grid grid-cols-4 gap-x-3 gap-y-5 max-xl:grid-cols-3 max-md:grid-cols-2">
-        {refs.map((r, i) => (
+      <ol
+        ref={attach}
+        onDragEnter={(e) => accept(e, board.drag?.kind === 'ref')}
+        onDragOver={(e) => accept(e, board.drag?.kind === 'ref')}
+        onDrop={(e) => {
+          // A drop in a gap between the tiles keeps the order the drag drew.
+          if (board.drag?.kind !== 'ref') return
+          e.preventDefault()
+          sort.end(true)
+          board.end()
+        }}
+        className="grid grid-cols-4 gap-x-3 gap-y-5 max-xl:grid-cols-3 max-md:grid-cols-2"
+      >
+        {refs.map((r) => (
           <RefTile
             key={r.key}
             r={r}
-            index={i}
-            count={refs.length}
+            index={sort.order.indexOf(r.key)}
+            sort={sort}
             board={board}
-            land={land}
-            onMove={(to) => moveRef(i, to)}
+            hint={hint}
+            onLinkToShot={(shotId) => onLinkToShot(shotId, r.key)}
+            onNudge={(by) => onNudge(r.key, by)}
             onRemove={() => setRefs(card.inspiration.filter((k) => k !== r.key))}
           />
         ))}
-        <li>
-          <button
-            type="button"
-            onClick={() => input.current?.click()}
-            className={`flex aspect-[4/5] w-full flex-col items-center justify-center gap-2 rounded-[14px] border border-dashed text-center transition-colors ${over ? 'border-ink-3 text-ink' : 'border-(--cal-ghost) text-ink-4 hover:border-(--line-strong) hover:text-ink'}`}
-          >
-            <PlusIcon size={14} />
-            <span className="px-3 text-[13px] leading-tight font-medium">
-              {over ? 'Drop to add' : 'Add or drop a file'}
-            </span>
-          </button>
-        </li>
       </ol>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <button type="button" onClick={() => input.current?.click()} className={QUIET}>
+          {over ? 'Drop to add' : board.files ? 'Drop a file here' : 'Add a file'}
+        </button>
+        <button
+          type="button"
+          aria-expanded={picking}
+          onClick={() => setPicking((p) => !p)}
+          className={QUIET}
+        >
+          {picking ? 'Done' : 'Add from the moodboard'}
+        </button>
+      </div>
       <input
         ref={input}
         type="file"
@@ -632,36 +782,26 @@ function References({
           e.target.value = ''
         }}
       />
-      <div className="flex flex-col gap-3">
-        <button
-          type="button"
-          aria-expanded={picking}
-          onClick={() => setPicking((p) => !p)}
-          className="self-start text-[13px] text-ink-3 transition-colors hover:text-ink"
+      {picking && (
+        <ol
+          aria-label="From the moodboard"
+          className="bb-rise -mx-3 flex gap-2 overflow-x-auto px-3 pb-2 [scrollbar-width:none]"
         >
-          {picking ? 'Done' : 'Add from the moodboard'}
-        </button>
-        {picking && (
-          <ol
-            aria-label="From the moodboard"
-            className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-2 [scrollbar-width:none]"
-          >
-            {more.map((r) => (
-              <li key={r.id} className="shrink-0">
-                <button
-                  type="button"
-                  aria-label={`Add ${r.account}: ${r.borrow}`}
-                  title={`${r.account} · ${r.borrow}`}
-                  onClick={() => addRefs([r.id])}
-                  className="bb-press relative block size-[72px] overflow-hidden rounded-[10px] bg-tile hover:opacity-85"
-                >
-                  <Media src={r.image} sizes="72px" />
-                </button>
-              </li>
-            ))}
-          </ol>
-        )}
-      </div>
+          {more.map((r) => (
+            <li key={r.id} className="shrink-0">
+              <button
+                type="button"
+                aria-label={`Add ${r.account}: ${r.borrow}`}
+                title={`${r.account} · ${r.borrow}`}
+                onClick={() => addRefs([r.id])}
+                className="bb-press relative block size-[72px] overflow-hidden rounded-[10px] bg-tile hover:opacity-85"
+              >
+                <Media src={r.image} sizes="72px" />
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   )
 }
@@ -670,34 +810,51 @@ function References({
 function RefTile({
   r,
   index,
-  count,
+  sort,
   board,
-  land,
-  onMove,
+  hint,
+  onLinkToShot,
+  onNudge,
   onRemove,
 }: {
   r: Ref
   index: number
-  count: number
+  sort: Sortable
   board: Board
-  land: (target: string | null) => void
-  onMove: (to: number) => void
+  hint: string
+  onLinkToShot: (shotId: string) => void
+  onNudge: (by: -1 | 1) => void
   onRemove: () => void
 }) {
   const key = `ref:${r.key}`
-  const held = board.drag?.kind === 'ref' && board.drag.key === r.key
-  const over = board.over === key && !held
+  const held = sort.dragging === r.key
+  const begin = () => {
+    sort.start(r.key)
+    board.start({ kind: 'ref', key: r.key })
+  }
+  const finish = (commit: boolean) => {
+    sort.end(commit)
+    board.end()
+  }
   return (
     <li
       data-drop={key}
+      data-flip={r.key}
       draggable
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest('button')) return
         startTouchDrag(e, {
-          start: () => board.start({ kind: 'ref', key: r.key }),
+          start: begin,
           over: board.setOver,
-          drop: land,
-          end: board.end,
+          move: (k, p) => {
+            if (k?.startsWith('ref:')) sort.overAt(k.slice(4), p)
+          },
+          drop: (k) => {
+            // On a shot it is a link, and the order goes back; anywhere else keeps the order.
+            if (k?.startsWith('shot:')) onLinkToShot(k.slice(5))
+            finish(!k?.startsWith('shot:'))
+          },
+          end: () => finish(false),
           lift: { selector: '[data-photo]', size: 96 },
         })
       }}
@@ -705,103 +862,59 @@ function RefTile({
         if (touchDragPending()) return e.preventDefault()
         e.dataTransfer.effectAllowed = 'move'
         e.dataTransfer.setData('text/plain', key)
-        board.start({ kind: 'ref', key: r.key })
+        begin()
       }}
-      onDragEnd={board.end}
+      onDragEnd={() => finish(false)}
+      onDragEnter={(e) => accept(e, board.drag?.kind === 'ref')}
       onDragOver={(e) => {
-        if (board.drag?.kind !== 'ref' || held) return
-        e.preventDefault()
+        if (!accept(e, board.drag?.kind === 'ref')) return
         e.stopPropagation()
-        if (board.over !== key) board.setOver(key)
+        sort.overAt(r.key, at(e))
       }}
       onDrop={(e) => {
         if (board.drag?.kind !== 'ref') return
         e.preventDefault()
         e.stopPropagation()
-        land(key)
-        board.end()
+        finish(true)
       }}
-      className="group/ref bb-touch-drag flex cursor-grab flex-col gap-2 active:cursor-grabbing"
-      style={{ opacity: held ? 0.35 : 1 }}
+      // The live order is drawn, not written to the DOM: a moved node would end a finger's drag.
+      style={{ order: index }}
+      className="group/ref bb-touch-drag relative cursor-grab active:cursor-grabbing"
     >
-      <span
-        data-photo
-        className={`relative block aspect-[4/5] overflow-hidden rounded-[14px] bg-tile transition-shadow ${over ? OVER : ''}`}
+      <Handle label={`Move reference ${index + 1}: ${r.note}`} hint={hint} onNudge={onNudge} />
+      <div
+        className={`bb-rise flex flex-col gap-2 rounded-[14px] ${LIFTABLE} ${held ? LIFTED : ''}`}
       >
-        <Media src={r.src} sizes={SIZES} />
-        {index === 0 && (
-          <span className="absolute top-2 left-2 rounded-full bg-page/90 px-2 py-1 font-mono text-[9px] tracking-[0.08em] text-ink uppercase">
-            Main look
-          </span>
-        )}
         <span
-          className={`absolute right-2 bottom-2 flex items-center gap-0.5 rounded-full bg-page/92 p-0.5 text-ink-3 shadow-soft group-hover/ref:opacity-100 ${HOVER}`}
+          data-photo
+          className="relative block aspect-[4/5] overflow-hidden rounded-[14px] bg-tile"
         >
-          <Nudge
-            label={`Move reference ${index + 1} earlier`}
-            dir="back"
-            disabled={index === 0}
-            onClick={() => onMove(index - 1)}
-          />
-          <Nudge
-            label={`Move reference ${index + 1} later`}
-            dir="on"
-            disabled={index === count - 1}
-            onClick={() => onMove(index + 1)}
-          />
+          <Media src={r.src} sizes={SIZES} />
+          {index === 0 && (
+            <span className="absolute top-2 left-2 rounded-full bg-page/90 px-2 py-1 font-mono text-[9px] tracking-[0.08em] text-ink uppercase">
+              Main look
+            </span>
+          )}
           <button
             type="button"
             aria-label={`Remove reference ${index + 1}`}
             onClick={onRemove}
-            className="flex size-6 items-center justify-center rounded-full hover:text-ink"
+            className={`absolute top-2 right-2 flex size-7 items-center justify-center rounded-full bg-page/92 text-ink-3 shadow-soft group-hover/ref:opacity-100 hover:text-ink ${HOVER}`}
           >
             <CloseIcon />
           </button>
         </span>
-      </span>
-      <span className="flex flex-col gap-1 px-1">
-        <span className="text-[13px] leading-[1.3] text-ink">{r.note}</span>
-        {r.post && (
-          <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-ink-3">
-            <PlatformLogo platform={r.post.platform} size={10} />
-            <span className="truncate">{r.post.account}</span>
-          </span>
-        )}
-      </span>
+        <span className="flex flex-col gap-1 px-1">
+          <span className="text-[13px] leading-[1.3] text-ink">{r.note}</span>
+          {r.post && (
+            <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-ink-3">
+              <PlatformLogo platform={r.post.platform} size={10} />
+              <span className="truncate">{r.post.account}</span>
+            </span>
+          )}
+        </span>
+      </div>
     </li>
-  )
-}
-
-/** A small arrow that moves an item one place; the click path beside the drag. */
-function Nudge({
-  label,
-  dir,
-  disabled,
-  onClick,
-}: {
-  label: string
-  dir: 'back' | 'on'
-  disabled: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="flex size-6 items-center justify-center rounded-full hover:text-ink disabled:opacity-30 disabled:hover:text-ink-3"
-    >
-      <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-        <path
-          d={dir === 'back' ? 'M7.5 2.5L4 6l3.5 3.5' : 'M4.5 2.5L8 6l-3.5 3.5'}
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </button>
   )
 }
 
@@ -856,101 +969,119 @@ const unitOf = (card: IdeaCard) => (card.format === 'carousel' ? 'Slide' : 'Shot
 
 /**
  * The storyboard: the shots in order, each a card with the reference to shoot it like and its
- * line. Drag a card onto another to reorder, drag a reference onto a card to shoot it like that
- * (or pick one on the card), drop a file on a card to hand the shot what was captured.
+ * line. Drag a card to reorder (the others make way), drag a reference onto a card to shoot it
+ * like that (or pick one on the card), drop a file on a card to hand the shot what was captured.
  */
 function Storyboard({
   card,
+  shots,
   refs,
+  sort,
+  attach,
   board,
-  land,
+  hint,
   setShots,
   patchShot,
   linkRef,
-  moveShot,
+  onNudge,
 }: {
   card: IdeaCard
+  shots: Shot[]
   refs: Ref[]
+  sort: Sortable
+  attach: (el: HTMLElement | null) => void
   board: Board
-  land: (target: string | null) => void
+  hint: string
   setShots: (shots: Shot[]) => void
-  patchShot: (index: number, fields: Partial<Shot>) => void
-  linkRef: (index: number, key: string | undefined) => void
-  moveShot: (from: number, to: number) => void
+  patchShot: (id: string, fields: Partial<Shot>) => void
+  linkRef: (id: string, key: string | undefined) => void
+  onNudge: (id: string, by: -1 | 1) => void
 }) {
   const unit = unitOf(card)
-  const [fresh, setFresh] = React.useState<number | null>(null)
+  const [fresh, setFresh] = React.useState<string | null>(null)
 
   return (
-    <ol className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-3 max-md:grid-cols-1">
-      {card.shots.map((s, i) => (
-        <ShotCard
-          key={i}
-          shot={s}
-          index={i}
-          count={card.shots.length}
-          unit={unit}
-          refs={refs}
-          board={board}
-          land={land}
-          fresh={fresh === i}
-          onTitle={(title) => patchShot(i, { title })}
-          onLink={(key) => linkRef(i, key)}
-          onMedia={(media) => patchShot(i, { media, captured: true })}
-          onMove={(to) => moveShot(i, to)}
-          onRemove={() => setShots(card.shots.filter((_, j) => j !== i))}
-        />
-      ))}
-      <li>
-        <button
-          type="button"
-          onClick={() => {
-            setFresh(card.shots.length)
-            setShots([...card.shots, { title: '' }])
-          }}
-          className="flex h-full min-h-[120px] w-full flex-col items-center justify-center gap-2 rounded-[14px] border border-dashed border-(--cal-ghost) text-ink-4 transition-colors hover:border-(--line-strong) hover:text-ink max-md:min-h-[56px] max-md:flex-row"
-        >
-          <PlusIcon size={13} />
-          <span className="text-[13px] font-medium">Add a {unit.toLowerCase()}</span>
-        </button>
-      </li>
-    </ol>
+    <div className="flex flex-col gap-4">
+      <ol
+        ref={attach}
+        onDragEnter={(e) => accept(e, board.drag?.kind === 'shot')}
+        onDragOver={(e) => accept(e, board.drag?.kind === 'shot')}
+        onDrop={(e) => {
+          if (board.drag?.kind !== 'shot') return
+          e.preventDefault()
+          sort.end(true)
+          board.end()
+        }}
+        className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-3 max-md:grid-cols-1"
+      >
+        {shots.map((s) => (
+          <ShotCard
+            key={s.id}
+            shot={s}
+            index={sort.order.indexOf(s.id)}
+            unit={unit}
+            refs={refs}
+            sort={sort}
+            board={board}
+            hint={hint}
+            fresh={fresh === s.id}
+            onTitle={(title) => patchShot(s.id, { title })}
+            onLink={(key) => linkRef(s.id, key)}
+            onMedia={(media) => patchShot(s.id, { media, captured: true })}
+            onNudge={(by) => onNudge(s.id, by)}
+            onRemove={() => setShots(card.shots.filter((o) => o.id !== s.id))}
+          />
+        ))}
+      </ol>
+      <button
+        type="button"
+        onClick={() => {
+          const shot = newShot('')
+          setFresh(shot.id)
+          setShots([...card.shots, shot])
+        }}
+        className={`self-start ${QUIET}`}
+      >
+        Add a {unit.toLowerCase()}
+      </button>
+    </div>
   )
 }
 
 function ShotCard({
   shot,
   index,
-  count,
   unit,
   refs,
+  sort,
   board,
-  land,
+  hint,
   fresh,
   onTitle,
   onLink,
   onMedia,
-  onMove,
+  onNudge,
   onRemove,
 }: {
   shot: Shot
   index: number
-  count: number
   unit: string
   refs: Ref[]
+  sort: Sortable
   board: Board
-  land: (target: string | null) => void
+  hint: string
   /** Just added: the line takes the cursor. */
   fresh: boolean
   onTitle: (title: string) => void
   onLink: (key: string | undefined) => void
   onMedia: (media: string) => void
-  onMove: (to: number) => void
+  onNudge: (by: -1 | 1) => void
   onRemove: () => void
 }) {
-  const key = `shot:${index}`
+  const key = `shot:${shot.id}`
   const [choosing, setChoosing] = React.useState(false)
-  const held = board.drag?.kind === 'shot' && board.drag.index === index
+  const held = sort.dragging === shot.id
+  // A reference or a file held over this card.
   const over = board.over === key && !held
   const like = shot.ref ? refs.find((r) => r.key === shot.ref) : undefined
   const n = `${unit} ${index + 1}`
@@ -964,8 +1095,8 @@ function ShotCard({
   React.useEffect(() => {
     if (choosing) first.current?.focus()
   }, [choosing])
-  const choose = (key: string | undefined) => {
-    if (key !== shot.ref) onLink(key)
+  const choose = (k: string | undefined) => {
+    if (k !== shot.ref) onLink(k)
     setChoosing(false)
     requestAnimationFrame(() => frame.current?.focus())
   }
@@ -974,31 +1105,48 @@ function ShotCard({
     e.stopPropagation()
     choose(shot.ref)
   }
+  const begin = () => {
+    sort.start(shot.id)
+    board.start({ kind: 'shot', id: shot.id })
+  }
+  const finish = (commit: boolean) => {
+    sort.end(commit)
+    board.end()
+  }
 
   return (
     <li
       data-drop={key}
+      data-flip={shot.id}
       draggable
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest('button, textarea')) return
         startTouchDrag(e, {
-          start: () => board.start({ kind: 'shot', index }),
-          over: board.setOver,
-          drop: land,
-          end: board.end,
+          start: begin,
+          move: (k, p) => {
+            if (k?.startsWith('shot:')) sort.overAt(k.slice(5), p)
+          },
+          // The order under the finger is the one it saw: a lift anywhere keeps it.
+          drop: () => finish(true),
+          end: () => finish(false),
         })
       }}
       onDragStart={(e) => {
         if (touchDragPending()) return e.preventDefault()
         e.dataTransfer.effectAllowed = 'move'
         e.dataTransfer.setData('text/plain', key)
-        board.start({ kind: 'shot', index })
+        begin()
       }}
-      onDragEnd={board.end}
+      onDragEnd={() => finish(false)}
+      onDragEnter={(e) => accept(e, !!board.drag || hasFiles(e))}
       onDragOver={(e) => {
-        // A shot takes another shot's place, a reference, or a file; nothing else.
-        if (!(board.drag && !held) && !hasFiles(e)) return
-        e.preventDefault()
+        // Another shot slides past; a reference or a file lands here; nothing else.
+        const { drag } = board
+        if (!accept(e, !!drag || hasFiles(e))) return
+        if (drag?.kind === 'shot') {
+          if (!held) sort.overAt(shot.id, at(e))
+          return
+        }
         if (board.over !== key) board.setOver(key)
       }}
       onDragLeave={(e) => {
@@ -1006,116 +1154,123 @@ function ShotCard({
       }}
       onDrop={(e) => {
         e.preventDefault()
+        e.stopPropagation()
+        const { drag } = board
         if (hasFiles(e)) void mediaFrom(e.dataTransfer.files).then(([m]) => m && onMedia(m))
-        else land(key)
-        board.end()
+        else if (drag?.kind === 'ref') onLink(drag.key)
+        if (drag?.kind === 'shot') finish(true)
+        else board.end()
       }}
-      className={`group/shot bb-touch-drag relative flex cursor-grab flex-col gap-2.5 rounded-[14px] bg-surface p-2.5 transition-shadow active:cursor-grabbing max-md:grid max-md:grid-cols-[96px_minmax(0,1fr)] max-md:items-start ${over ? OVER : ''}`}
-      style={{ opacity: held ? 0.35 : 1 }}
+      style={{ order: index }}
+      className="group/shot bb-touch-drag relative cursor-grab active:cursor-grabbing"
     >
-      <span className="relative block aspect-[4/3] overflow-hidden rounded-[10px] bg-tile max-md:aspect-[4/5]">
-        {choosing ? (
-          <span
-            role="group"
-            aria-label={`A reference for ${n.toLowerCase()}`}
-            className="absolute inset-0 grid auto-rows-[minmax(44px,1fr)] grid-cols-2 gap-1 overflow-y-auto bg-surface p-1"
-          >
-            {refs.map((r, i) => (
-              <button
-                key={r.key}
-                ref={i === 0 ? first : undefined}
-                type="button"
-                aria-label={`Like ${r.owner}`}
-                aria-pressed={r.key === shot.ref}
-                onKeyDown={escape}
-                onClick={() => choose(r.key)}
-                className={`relative overflow-hidden rounded-[6px] bg-tile ${r.key === shot.ref ? OVER : ''}`}
-              >
-                <Media src={r.src} sizes="96px" />
-              </button>
-            ))}
-            <button
-              type="button"
-              ref={refs.length === 0 ? first : undefined}
-              aria-pressed={!shot.ref}
-              onKeyDown={escape}
-              onClick={() => choose(undefined)}
-              className={`flex items-center justify-center rounded-[6px] border border-dashed border-(--cal-ghost) text-[11px] text-ink-4 hover:text-ink ${shot.ref ? '' : OVER}`}
+      <Handle
+        label={`Move ${n.toLowerCase()}: ${shot.title || 'untitled'}`}
+        hint={hint}
+        onNudge={onNudge}
+      />
+      <div
+        className={`bb-rise flex h-full flex-col gap-2.5 rounded-[14px] bg-surface p-2.5 max-md:grid max-md:grid-cols-[96px_minmax(0,1fr)] max-md:items-start ${LIFTABLE} ${held ? LIFTED : ''} ${over ? OVER : board.files ? CAN_TAKE : ''}`}
+      >
+        <span className="relative block aspect-[4/3] overflow-hidden rounded-[10px] max-md:aspect-[4/5]">
+          {choosing ? (
+            <span
+              role="group"
+              aria-label={`A reference for ${n.toLowerCase()}`}
+              className="bb-menu absolute inset-0 grid auto-rows-[minmax(44px,1fr)] grid-cols-2 gap-1 overflow-y-auto rounded-[10px] bg-page p-1 shadow-soft"
             >
-              None
+              {refs.map((r, i) => (
+                <button
+                  key={r.key}
+                  ref={i === 0 ? first : undefined}
+                  type="button"
+                  aria-label={`Like ${r.owner}`}
+                  aria-pressed={r.key === shot.ref}
+                  onKeyDown={escape}
+                  onClick={() => choose(r.key)}
+                  className={`relative overflow-hidden rounded-[6px] bg-tile ${r.key === shot.ref ? OVER : ''}`}
+                >
+                  <Media src={r.src} sizes="96px" />
+                </button>
+              ))}
+              <button
+                type="button"
+                ref={refs.length === 0 ? first : undefined}
+                aria-pressed={!shot.ref}
+                onKeyDown={escape}
+                onClick={() => choose(undefined)}
+                className={`flex items-center justify-center rounded-[6px] text-[11px] text-ink-4 hover:text-ink ${shot.ref ? 'bg-surface' : OVER}`}
+              >
+                None
+              </button>
+            </span>
+          ) : like ? (
+            <button
+              ref={frame}
+              type="button"
+              aria-label={`Change the reference for ${n.toLowerCase()}`}
+              onClick={() => setChoosing(true)}
+              className="absolute inset-0 block bg-tile"
+            >
+              <Media src={like.src} sizes="(max-width: 768px) 96px, 220px" />
             </button>
-          </span>
-        ) : like ? (
-          <button
-            ref={frame}
-            type="button"
-            aria-label={`Change the reference for ${n.toLowerCase()}`}
-            onClick={() => setChoosing(true)}
-            className="absolute inset-0 block"
-          >
-            <Media src={like.src} sizes="(max-width: 768px) 96px, 220px" />
-          </button>
-        ) : (
-          <button
-            ref={frame}
-            type="button"
-            aria-label={`Pick a reference for ${n.toLowerCase()}`}
-            onClick={() => setChoosing(true)}
-            className={`absolute inset-0 flex flex-col items-center justify-center gap-1 px-2 text-center text-[12px] leading-tight text-ink-4 transition-colors hover:text-ink ${over && board.drag?.kind === 'ref' ? 'text-ink' : ''}`}
-          >
-            Shoot it like…
-            <span className="text-[11px] text-ink-5">drop a reference</span>
-          </button>
-        )}
-        {shot.media && !choosing && (
-          <span className="absolute right-1.5 bottom-1.5 size-7 overflow-hidden rounded-[6px] shadow-soft ring-2 ring-(--surface)">
-            <Media src={shot.media} sizes="28px" />
-          </span>
-        )}
-      </span>
-      <span className="flex min-w-0 flex-col gap-1 px-0.5 max-md:pt-0.5">
-        <span className={`${EYEBROW} flex items-center justify-between`}>
-          <span>{n}</span>
-          {like && (
-            <span className="truncate font-sans normal-case tracking-normal">
-              like {like.owner}
+          ) : (
+            <button
+              ref={frame}
+              type="button"
+              aria-label={`Pick a reference for ${n.toLowerCase()}`}
+              onClick={() => setChoosing(true)}
+              className="group/frame absolute inset-0 flex flex-col items-center justify-center gap-1 outline-none"
+            >
+              <span
+                className={`font-display text-[40px] leading-none tracking-[-0.04em] transition-colors ${over && board.drag?.kind === 'ref' ? 'text-ink' : 'text-ink-5'}`}
+              >
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <span
+                className={`text-[11.5px] text-ink-4 group-hover/shot:opacity-100 group-focus-visible/frame:opacity-100 ${HOVER}`}
+              >
+                {over && board.drag?.kind === 'ref' ? 'Shoot it like this' : 'Shoot it like…'}
+              </span>
+            </button>
+          )}
+          {shot.media && !choosing && (
+            <span
+              key={shot.media}
+              className="bb-land absolute right-1.5 bottom-1.5 size-7 overflow-hidden rounded-[6px] shadow-soft ring-2 ring-(--surface)"
+            >
+              <Media src={shot.media} sizes="28px" />
             </span>
           )}
         </span>
-        <textarea
-          value={shot.title}
-          ref={line}
-          rows={1}
-          onChange={(e) => onTitle(e.target.value)}
-          placeholder="What is in the frame"
-          aria-label={n}
-          className="w-full resize-none bg-transparent text-[14px] leading-[1.35] [field-sizing:content] outline-none placeholder:text-ink-5"
-        />
-      </span>
-      <span
-        className={`absolute top-4 right-4 flex items-center gap-0.5 rounded-full bg-page/92 p-0.5 text-ink-3 shadow-soft group-hover/shot:opacity-100 ${HOVER} ${choosing ? 'hidden' : ''}`}
+        <span className="flex min-w-0 flex-col gap-1 px-0.5 max-md:pt-0.5">
+          <span className={`${EYEBROW} flex items-center justify-between`}>
+            <span>{n}</span>
+            {like && (
+              <span className="truncate font-sans normal-case tracking-normal">
+                like {like.owner}
+              </span>
+            )}
+          </span>
+          <textarea
+            value={shot.title}
+            ref={line}
+            rows={1}
+            onChange={(e) => onTitle(e.target.value)}
+            placeholder="What is in the frame"
+            aria-label={n}
+            className="w-full resize-none bg-transparent text-[14px] leading-[1.35] [field-sizing:content] outline-none placeholder:text-ink-5"
+          />
+        </span>
+      </div>
+      <button
+        type="button"
+        aria-label={`Remove ${n.toLowerCase()}`}
+        onClick={onRemove}
+        className={`absolute top-4 right-4 flex size-6 items-center justify-center rounded-full bg-page/92 text-ink-3 shadow-soft group-hover/shot:opacity-100 hover:text-ink ${HOVER} ${choosing ? 'hidden' : ''}`}
       >
-        <Nudge
-          label={`Move ${n.toLowerCase()} earlier`}
-          dir="back"
-          disabled={index === 0}
-          onClick={() => onMove(index - 1)}
-        />
-        <Nudge
-          label={`Move ${n.toLowerCase()} later`}
-          dir="on"
-          disabled={index === count - 1}
-          onClick={() => onMove(index + 1)}
-        />
-        <button
-          type="button"
-          aria-label={`Remove ${n.toLowerCase()}`}
-          onClick={onRemove}
-          className="flex size-6 items-center justify-center rounded-full hover:text-ink"
-        >
-          <CloseIcon />
-        </button>
-      </span>
+        <CloseIcon />
+      </button>
     </li>
   )
 }
@@ -1123,29 +1278,34 @@ function ShotCard({
 /** Who or what is in frame, and the shoot day: one of the calendar's shoots, or any day. */
 function ShotDetails({ card }: { card: IdeaCard }) {
   const { brand, weeks } = useBrand()
-  // Two shoots can share a day: each is its own option, and they run in date order.
-  const shoots = weeks
-    .flatMap((w) =>
-      w.events
-        .filter((e) => e.layer === 'shoot')
-        .flatMap((e) => {
-          const day = w.days[e.col - 1]
-          return day && !day.past
-            ? [
-                {
-                  key: `${e.text}:${day.n}`,
-                  value: day.n,
-                  label: `${e.text} · ${dayLabel(weeks, day.n)}`,
-                },
-              ]
-            : []
-        }),
-    )
-    .sort((a, b) => dayIndex(weeks, a.value) - dayIndex(weeks, b.value))
-  const days = weeks
-    .flatMap((w) => w.days)
-    .filter((d) => !d.past && !shoots.some((s) => s.value === d.n))
-    .map((d) => ({ value: d.n, label: dayLabel(weeks, d.n) ?? d.n }))
+  // The calendar's shoots, in date order; two can share a day.
+  const shoots = React.useMemo(
+    () =>
+      weeks.flatMap((w) =>
+        w.events
+          .filter((e) => e.layer === 'shoot')
+          .flatMap((e) => {
+            const day = w.days[e.col - 1]
+            return day && !day.past
+              ? [
+                  {
+                    key: `${e.text}:${day.n}`,
+                    dayN: day.n,
+                    label: `${e.text.replace(/^Shoot · /, '')} · ${dayLabel(weeks, day.n)}`,
+                  },
+                ]
+              : []
+          }),
+      ),
+    [weeks],
+  )
+  const infoOf = React.useCallback(
+    (d: Day): DayInfo => {
+      const here = shoots.filter((s) => s.dayN === d.n)
+      return { disabled: !!d.past, dot: here.length > 0, note: here.map((s) => s.label).join(', ') }
+    },
+    [shoots],
+  )
   return (
     <div className="grid max-w-[560px] grid-cols-[80px_minmax(0,1fr)] items-center gap-x-3 gap-y-3 text-[13px]">
       <span className="text-ink-4">In frame</span>
@@ -1158,15 +1318,14 @@ function ShotDetails({ card }: { card: IdeaCard }) {
       />
       <span className="text-ink-4">Shoot day</span>
       <span className="flex">
-        <Select
+        <DayPicker
           label="Shoot day"
-          value={card.shootDay ?? ''}
-          onChange={(shootDay) => editIdea(brand.id, card.id, { shootDay: shootDay || undefined })}
-          options={[
-            { value: '', label: 'No shoot day' },
-            { group: 'Shoots on the calendar', options: shoots },
-            { group: 'Another day', options: days },
-          ]}
+          value={card.shootDay ?? null}
+          placeholder="Pick a shoot day"
+          onChange={(shootDay) => editIdea(brand.id, card.id, { shootDay })}
+          onClear={() => editIdea(brand.id, card.id, { shootDay: undefined })}
+          infoOf={infoOf}
+          shortcuts={shoots}
         />
       </span>
     </div>
@@ -1176,8 +1335,8 @@ function ShotDetails({ card }: { card: IdeaCard }) {
 // ── 03 Shoot ─────────────────────────────────────────────────────────────────────────────────
 
 /**
- * On the day: the shots as a list to tick, each taking the photo or clip it became. Drop a file
- * on a line, or press Add; a shot with media counts as captured.
+ * On the day: the storyboard as a strip that fills in as frames are captured, then the shots as
+ * a list to tick, each taking the photo or clip it became. Drop a file on a line, or Add.
  */
 function Capture({
   card,
@@ -1188,32 +1347,45 @@ function Capture({
   card: IdeaCard
   refs: Ref[]
   board: Board
-  patchShot: (index: number, fields: Partial<Shot>) => void
+  patchShot: (id: string, fields: Partial<Shot>) => void
 }) {
   const { weeks } = useBrand()
-  const patch = patchShot
   const shootDay = card.shootDay ? dayLabel(weeks, card.shootDay) : null
+  const unit = unitOf(card)
 
   if (card.shots.length === 0) {
     return <p className="text-[14px] text-ink-4">Add shots to the storyboard first.</p>
   }
 
   return (
-    <div className="flex max-w-[720px] flex-col gap-3">
-      <p className="text-[13px] text-ink-4">
-        {shootDay ? `Shooting ${shootDay}.` : 'No shoot day yet: pick one under Shots.'}
-      </p>
+    <div className="flex max-w-[720px] flex-col gap-5">
+      <div className="flex flex-col gap-3">
+        <Strip
+          label="The storyboard, as captured"
+          frames={card.shots.map((s) => ({
+            key: s.id,
+            src: s.media,
+            done: !!s.captured,
+            title: s.title || unit,
+          }))}
+          tall
+        />
+        <p className="text-[13px] text-ink-4">
+          {shootDay ? `Shooting ${shootDay}.` : 'No shoot day yet: pick one under Shots.'}
+        </p>
+      </div>
       <ol className="flex flex-col">
         {card.shots.map((s, i) => {
-          const key = `files:capture:${i}`
+          const key = `files:capture:${s.id}`
           const over = board.over === key
           const like = s.ref ? refs.find((r) => r.key === s.ref) : undefined
+          const title = s.title || `${unit} ${i + 1}`
           return (
             <li
-              key={i}
+              key={s.id}
+              onDragEnter={(e) => accept(e, hasFiles(e))}
               onDragOver={(e) => {
-                if (!hasFiles(e)) return
-                e.preventDefault()
+                if (!accept(e, hasFiles(e))) return
                 if (board.over !== key) board.setOver(key)
               }}
               onDragLeave={(e) => {
@@ -1226,33 +1398,40 @@ function Capture({
                 e.preventDefault()
                 board.end()
                 void mediaFrom(e.dataTransfer.files).then(
-                  ([m]) => m && patch(i, { media: m, captured: true }),
+                  ([m]) => m && patchShot(s.id, { media: m, captured: true }),
                 )
               }}
-              className={`-mx-3 grid grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-x-4 rounded-[12px] px-3 py-2.5 transition-colors ${over ? 'bg-(--cal-drop)' : ''}`}
+              className={`group/row -mx-3 grid grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-x-4 rounded-[12px] px-3 py-2.5 transition-[box-shadow,background-color] ${over ? `bg-(--cal-drop) ${OVER}` : board.files ? CAN_TAKE : ''}`}
             >
               <button
                 type="button"
                 role="checkbox"
                 aria-checked={!!s.captured}
-                aria-label={`Captured: ${s.title || `${unitOf(card)} ${i + 1}`}`}
-                onClick={() => patch(i, { captured: !s.captured })}
+                aria-label={`Captured: ${title}`}
+                onClick={() => patchShot(s.id, { captured: !s.captured })}
                 className={`flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors ${s.captured ? 'border-(--insight-5) bg-(--insight-5) text-page' : 'border-(--line-strong) hover:border-ink-3'}`}
               >
-                {s.captured && <CheckIcon size={9} strokeWidth={2.4} />}
+                {s.captured && (
+                  <span key="on" className="bb-pop flex">
+                    <CheckIcon size={9} strokeWidth={2.4} />
+                  </span>
+                )}
               </button>
               <span className="flex min-w-0 flex-col">
-                <span className={`truncate text-[15px] ${s.captured ? 'text-ink-4' : 'text-ink'}`}>
-                  {s.title || `${unitOf(card)} ${i + 1}`}
+                <span
+                  className={`truncate text-[15px] transition-colors ${s.captured ? 'text-ink-4' : 'text-ink'}`}
+                >
+                  {title}
                 </span>
                 {like && <span className="text-[12px] text-ink-4">like {like.owner}</span>}
               </span>
               <MediaSlot
-                shot={s}
-                label={s.title || `${unitOf(card)} ${i + 1}`}
+                media={s.media}
+                label={title}
                 over={over}
-                onMedia={(media) => patch(i, { media, captured: true })}
-                onClear={() => patch(i, { media: undefined })}
+                files={board.files}
+                onMedia={(media) => patchShot(s.id, { media, captured: true })}
+                onClear={() => patchShot(s.id, { media: undefined })}
               />
             </li>
           )
@@ -1262,27 +1441,32 @@ function Capture({
   )
 }
 
-/** A shot's photo or clip: the thumbnail once it is here, else a small dashed Add. */
+/** A shot's photo or clip: the thumbnail once it is here, else a quiet Add on hover. */
 function MediaSlot({
-  shot,
+  media,
   label,
   over,
+  files,
   onMedia,
   onClear,
 }: {
-  shot: Shot
+  media: string | undefined
   label: string
   over: boolean
+  files: boolean
   onMedia: (media: string) => void
   onClear: () => void
 }) {
   const input = React.useRef<HTMLInputElement>(null)
   return (
-    <span className="group/media relative flex">
-      {shot.media ? (
+    <span className="group/media relative flex h-12 items-center">
+      {media ? (
         <>
-          <span className="relative block size-12 overflow-hidden rounded-[8px] bg-tile">
-            <Media src={shot.media} sizes="48px" />
+          <span
+            key={media}
+            className="bb-land relative block size-12 overflow-hidden rounded-[8px] bg-tile"
+          >
+            <Media src={media} sizes="48px" />
           </span>
           <button
             type="button"
@@ -1297,10 +1481,9 @@ function MediaSlot({
         <button
           type="button"
           onClick={() => input.current?.click()}
-          className={`flex h-12 items-center gap-1.5 rounded-[8px] border border-dashed px-3 text-[12px] transition-colors ${over ? 'border-ink-3 text-ink' : 'border-(--cal-ghost) text-ink-4 hover:border-(--line-strong) hover:text-ink'}`}
+          className={`text-[12.5px] transition-[opacity,color] hover:text-ink ${over ? 'text-ink' : files ? 'text-ink-3' : `text-ink-4 group-hover/row:opacity-100 ${HOVER}`}`}
         >
-          <PlusIcon size={10} />
-          {over ? 'Drop it' : 'Add the clip'}
+          {over ? 'Drop it here' : files ? 'Drop here' : 'Add the clip'}
         </button>
       )}
       <input
@@ -1318,14 +1501,76 @@ function MediaSlot({
   )
 }
 
+/**
+ * Frames in a row: the storyboard filling in as the shoot captures it, or the media a post
+ * carries, in order. A reel's or a story's frames stand tall, a carousel's square.
+ */
+function Strip({
+  label,
+  frames,
+  tall,
+}: {
+  label: string
+  frames: Array<{ key: string; src?: string; done?: boolean; title: string }>
+  tall: boolean
+}) {
+  return (
+    <ol aria-label={label} className="flex flex-wrap gap-1.5">
+      {frames.map((f, i) => (
+        <li
+          key={f.key}
+          title={f.title}
+          className={`relative overflow-hidden rounded-[6px] bg-surface-2 ring-1 ring-(--cal-line) transition-colors ${tall ? 'h-14 w-9' : 'size-12'}`}
+        >
+          {f.src ? (
+            <span key={f.src} className="bb-land absolute inset-0">
+              <Media src={f.src} sizes="56px" />
+            </span>
+          ) : f.done ? (
+            <span className="absolute inset-0 flex items-center justify-center text-(--insight-5)">
+              <CheckIcon size={10} strokeWidth={2.2} />
+            </span>
+          ) : (
+            <span className="absolute inset-0 flex items-center justify-center font-mono text-[9px] text-ink-5">
+              {i + 1}
+            </span>
+          )}
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 // ── 04 Post ──────────────────────────────────────────────────────────────────────────────────
 
 /** Status, date and time, where the idea stands on the calendar, and what the post carries. */
-function PlanSection({ slot, plan }: { slot: Slot; plan: Plan }) {
-  const { weeks } = useBrand()
+function PlanSection({
+  slot,
+  plan,
+  board,
+  edit,
+}: {
+  slot: Slot
+  plan: Plan
+  board: Board
+  edit: (fields: IdeaEdit | ((c: IdeaCard) => IdeaEdit)) => void
+}) {
+  const { brand, weeks } = useBrand()
   const { card, status, dayN } = slot
   const step = stepOf(status)
   const { media, fromShoot } = plan
+  const reel = card.format === 'reel'
+  const footage = capturedOf(card.shots)
+  const carries = reel
+    ? card.cut
+      ? 'The final cut.'
+      : `${card.postId && media.length ? "The post's media" : media.length ? 'Your photo' : 'Nothing yet'}, until the final cut lands.`
+    : fromShoot > 0
+      ? `${fromShoot} from the shoot, in shot order.`
+      : media.length > 0
+        ? `${card.postId ? "The post's media" : 'Your photo'}. What the shoot captures takes its place, in shot order.`
+        : 'Nothing yet. What the shoot captures lands here, in shot order.'
+
   return (
     <div className="flex flex-col gap-8">
       <section aria-label="Plan" className="flex flex-col gap-3">
@@ -1334,22 +1579,17 @@ function PlanSection({ slot, plan }: { slot: Slot; plan: Plan }) {
           <StatusPicker value={step} onChange={plan.setStatus} />
           <span className="pt-1.5 text-ink-4">Post</span>
           <span className="flex flex-wrap items-center gap-2">
-            <Select
+            <DayPicker
               label="Post date"
+              value={dayN}
+              placeholder="Pick a day and a time"
               disabled={step === 'posted'}
-              value={dayN ?? ''}
               onChange={plan.setDate}
-              options={[
-                ...(dayN ? [] : [{ value: '', label: 'No date', disabled: true }]),
-                ...plan.days.map((d) => ({ value: d.n, label: d.label, disabled: d.taken })),
-              ]}
-            />
-            <Select
-              label="Post time"
-              disabled={step === 'posted'}
-              value={plan.time}
-              onChange={plan.setTime}
-              options={TIMES.map((t) => ({ value: t, label: t }))}
+              infoOf={plan.infoOf}
+              time={plan.time}
+              times={TIMES}
+              best={INSIGHTS_BY_BRAND[brand.id].best}
+              onTime={plan.setTime}
             />
           </span>
         </div>
@@ -1374,32 +1614,126 @@ function PlanSection({ slot, plan }: { slot: Slot; plan: Plan }) {
           )}
         </span>
       </section>
+      {reel && <FinalCut card={card} board={board} edit={edit} />}
       <section aria-label="Media" className="flex flex-col gap-2.5">
         <span className={`${EYEBROW} flex items-center gap-2`}>
           The post carries
           <span className="text-ink-5 tabular-nums">{media.length}</span>
         </span>
-        {media.length > 0 ? (
-          <ol className="flex flex-wrap gap-2">
-            {media.map((m, i) => (
-              <li key={m} className="relative size-16 overflow-hidden rounded-[10px] bg-tile">
-                <Media src={m} sizes="64px" />
-                <span className="absolute bottom-1 left-1 rounded-full bg-page/90 px-1.5 font-mono text-[9px] text-ink">
-                  {i + 1}
-                </span>
-              </li>
-            ))}
-          </ol>
-        ) : null}
-        <span className="text-[12px] text-ink-4">
-          {fromShoot > 0
-            ? `${fromShoot} from the shoot, in shot order.`
-            : media.length > 0
-              ? `${card.postId ? "The post's media" : 'Your photo'}. What the shoot captures takes its place, in shot order.`
-              : 'Nothing yet. What the shoot captures lands here, in shot order.'}
-        </span>
+        {media.length > 0 && (
+          <Strip
+            label="What the post carries"
+            frames={media.map((m, i) => ({ key: m, src: m, title: `${i + 1}` }))}
+            tall={card.format !== 'carousel'}
+          />
+        )}
+        <span className="text-[12px] text-ink-4">{carries}</span>
       </section>
+      {reel && footage.length > 0 && (
+        <section aria-label="Footage" className="flex flex-col gap-2.5">
+          <span className={`${EYEBROW} flex items-center gap-2`}>
+            Footage
+            <span className="text-ink-5 tabular-nums">{footage.length}</span>
+          </span>
+          <Strip
+            label="The shoot's clips"
+            frames={footage.map((m, i) => ({ key: m, src: m, title: `Clip ${i + 1}` }))}
+            tall
+          />
+          <span className="text-[12px] text-ink-4">
+            {footage.length === 1 ? 'One clip' : `${footage.length} clips`} from the shoot, in shot
+            order: what the final cut is made from.
+          </span>
+        </section>
+      )}
     </div>
+  )
+}
+
+/**
+ * A reel's final cut: the one video that goes out. Drop it here or Add it; the post carries it
+ * from then on, and the shoot's clips stay as footage.
+ */
+function FinalCut({
+  card,
+  board,
+  edit,
+}: {
+  card: IdeaCard
+  board: Board
+  edit: (fields: IdeaEdit) => void
+}) {
+  const input = React.useRef<HTMLInputElement>(null)
+  const key = 'files:cut'
+  const over = board.over === key
+  const take = (files: FileList | null) =>
+    void mediaFrom(files).then(([m]) => m && edit({ cut: m }))
+
+  return (
+    <section
+      aria-label="Final cut"
+      onDragEnter={(e) => accept(e, hasFiles(e))}
+      onDragOver={(e) => {
+        if (!accept(e, hasFiles(e))) return
+        if (!over) board.setOver(key)
+      }}
+      onDragLeave={(e) => {
+        if (over && !e.currentTarget.contains(e.relatedTarget as Node | null)) board.setOver(null)
+      }}
+      onDrop={(e) => {
+        if (!hasFiles(e)) return
+        e.preventDefault()
+        board.end()
+        take(e.dataTransfer.files)
+      }}
+      className={`-m-3 flex flex-col gap-2.5 rounded-[14px] p-3 transition-[box-shadow,background-color] ${over ? `bg-(--cal-drop) ${OVER}` : board.files ? CAN_TAKE : ''}`}
+    >
+      <span className={EYEBROW}>Final cut</span>
+      {card.cut ? (
+        <span className="group/cut relative flex self-start">
+          <span
+            key={card.cut}
+            className="bb-land relative block h-24 w-[54px] overflow-hidden rounded-[8px] bg-tile ring-1 ring-(--cal-line)"
+          >
+            <Media src={card.cut} sizes="54px" />
+          </span>
+          <button
+            type="button"
+            aria-label="Remove the final cut"
+            onClick={() => edit({ cut: undefined })}
+            className={`absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-page text-ink-3 shadow-soft group-hover/cut:opacity-100 hover:text-ink ${HOVER}`}
+          >
+            <CloseIcon />
+          </button>
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => input.current?.click()}
+          className={`self-start ${QUIET} ${over ? 'text-ink' : ''}`}
+        >
+          {over
+            ? 'Drop the final cut here'
+            : board.files
+              ? 'Drop the final cut'
+              : 'Add the final cut'}
+        </button>
+      )}
+      <span className="text-[12px] text-ink-4">
+        One video, as the reel goes out. {card.cut ? '' : 'Until then the post keeps its media.'}
+      </span>
+      <input
+        ref={input}
+        type="file"
+        accept="video/*"
+        hidden
+        aria-label="Add the final cut"
+        onChange={(e) => {
+          take(e.target.files)
+          e.target.value = ''
+        }}
+      />
+    </section>
   )
 }
 
@@ -1486,59 +1820,5 @@ function Suggestion({ slot }: { slot: Slot }) {
         </button>
       </span>
     </section>
-  )
-}
-
-type Option = { value: string; label: string; disabled?: boolean; key?: string }
-
-function Select({
-  label,
-  value,
-  options,
-  onChange,
-  disabled = false,
-}: {
-  label: string
-  value: string
-  options: Array<Option | { group: string; options: Option[] }>
-  onChange: (value: string) => void
-  disabled?: boolean
-}) {
-  const option = (o: Option) => (
-    <option key={o.key ?? o.value} value={o.value} disabled={o.disabled}>
-      {o.label}
-    </option>
-  )
-  return (
-    <span className="relative flex">
-      <select
-        aria-label={label}
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-8 cursor-pointer appearance-none rounded-full bg-surface pr-7 pl-3 text-[12.5px] font-medium text-ink outline-none hover:bg-paper focus-visible:shadow-[0_0_0_2px_var(--ink)] disabled:cursor-default disabled:opacity-50"
-      >
-        {options.map((o) =>
-          'group' in o
-            ? o.options.length > 0 && (
-                <optgroup key={o.group} label={o.group}>
-                  {o.options.map(option)}
-                </optgroup>
-              )
-            : option(o),
-        )}
-      </select>
-      <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-ink-4">
-        <svg width="8" height="8" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-          <path
-            d="M2 3.5L5 6.5L8 3.5"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </span>
-    </span>
   )
 }

@@ -2,7 +2,7 @@
 
 The plan is `brandbase-feedback-round-2-plan.md` beside this file; its numbers are used below.
 Branch `feat/marketing-demo-feedback`, built 2026-10-09. Gate after phase 3: typecheck, lint,
-format, 95 tests (15 files), web-next build; after phase 4: 108 tests (18 files).
+format, 95 tests (15 files), web-next build; after phase 4: 110 tests (18 files).
 
 ## Phase 1: Schedule (lead)
 
@@ -87,6 +87,15 @@ format, 95 tests (15 files), web-next build; after phase 4: 108 tests (18 files)
   added media lives in `inspiration` as URLs that covers skip, and `planPost` takes the clips in
   shot order. The idea's own photo moved from the references to Post ("The post carries").
   Clips added after the post exists reach it too (`setImages` keeps the post's media in step).
+- **Polish.** The user kept the structure and asked for calendar and time pickers, no placeholder
+  furniture, drag without arrows and small animations. `day-picker.tsx` (a month grid, time chips
+  with the brand's best time; a sheet on phones; arrows, Enter and Escape) replaced the selects.
+  `sortable.ts` reorders live with FLIP, drawing the order with CSS `order` because a moved node
+  ends a finger's drag; a hidden grip with Option+Arrow keeps a keyboard path. `touch-drag.ts`
+  gained a `move` callback. Two Chromium facts, both commented: a transform on the drag source at
+  `dragstart` ends the drag, and FLIP must measure against the list, not the viewport. A reel's
+  post carries one final cut (`IdeaCard.cut`): a published reel is one video, so the composer's
+  one-media rule for reels stays and the shoot's clips are footage.
 
 ## Review
 

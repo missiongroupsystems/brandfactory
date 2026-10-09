@@ -41,6 +41,8 @@ export function startTouchDrag(
   on: {
     start: () => void
     over?: (key: string | null) => void
+    /** Every move of the finger, with where it is: a list that reorders live reads the position. */
+    move?: (key: string | null, at: { x: number; y: number }) => void
     drop: (key: string | null) => void
     end?: () => void
     /**
@@ -135,6 +137,7 @@ export function startTouchDrag(
       key = next
       on.over?.(key)
     }
+    on.move?.(key, { x: ev.clientX, y: ev.clientY })
     if (ev.clientY < EDGE) window.scrollBy(0, -10)
     else if (ev.clientY > window.innerHeight - EDGE) window.scrollBy(0, 10)
   }

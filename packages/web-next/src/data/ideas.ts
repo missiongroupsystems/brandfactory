@@ -52,6 +52,8 @@ export type IdeaStatus = 'suggested' | 'idea' | Stage
 
 /** One shot of the storyboard: a slide of a carousel, or a beat of a reel or a story. */
 export interface Shot {
+  /** Its own, so the storyboard can be reordered: a title repeats, an id does not. */
+  id: string
   title: string
   /** The reference to shoot it like: an entry of the idea's `inspiration`. */
   ref?: string
@@ -61,8 +63,13 @@ export interface Shot {
   captured?: boolean
 }
 
+let shotSerial = 0
+
+/** A shot with a fresh id. */
+export const newShot = (title: string): Shot => ({ id: `shot-${++shotSerial}`, title })
+
 /** Shots from their titles, as the seeds write them. */
-export const storyboard = (...titles: string[]): Shot[] => titles.map((title) => ({ title }))
+export const storyboard = (...titles: string[]): Shot[] => titles.map(newShot)
 
 /** True for a reference that is a file the team added, not a saved post. */
 export const isMediaRef = (ref: string) => /^(blob:|data:|\/|https?:)/.test(ref)
@@ -91,6 +98,8 @@ export interface IdeaCard {
   shots: Shot[]
   /** The day the team shoots it, on the calendar. */
   shootDay?: string
+  /** A reel's final cut: the one video that goes out, as a media URL. The clips are its footage. */
+  cut?: string
   sharper: Sharper[]
   builtOn?: BuiltOn
 }

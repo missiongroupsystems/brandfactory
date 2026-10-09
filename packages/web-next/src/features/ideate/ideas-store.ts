@@ -163,7 +163,10 @@ export function setHook(brandId: BrandId, id: string, hook: string) {
 
 /** What an idea's page edits on a card: its words, its references, its shots, and the post it became. */
 export type IdeaEdit = Partial<
-  Pick<IdeaCard, 'hook' | 'angle' | 'feature' | 'inspiration' | 'shots' | 'shootDay' | 'postId'>
+  Pick<
+    IdeaCard,
+    'hook' | 'angle' | 'feature' | 'inspiration' | 'shots' | 'shootDay' | 'cut' | 'postId'
+  >
 >
 
 /**

@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.6.1** — 2026-10-09 — Each idea is a page of its own (`/ideate/<id>`), built as the production document for one post in four stages under a sticky rail: References, Shots (a storyboard, with references dragged onto shots and a shoot day), Shoot (tick and drop each clip) and Post; it replaces the side panel, and "Plan idea from this" opens the new idea there with no step between. The moodboard's selection bar moves from the bottom of the screen to a sticky row at the top, and the three connect buttons can be tapped together. No migration. 108 tests.
+- **2.6.1** — 2026-10-09 — Each idea is a page of its own (`/ideate/<id>`), built as the production document for one post in four stages under a sticky rail: References, Shots (a storyboard, with references dragged onto shots and a shoot day), Shoot (tick and drop each clip) and Post; it replaces the side panel, and "Plan idea from this" opens the new idea there with no step between. The moodboard's selection bar moves from the bottom of the screen to a sticky row at the top, and the three connect buttons can be tapped together. No migration. 110 tests.
 - **2.6.0** — 2026-10-09 — David's round-2 feedback: Ideate starts from the moodboard (pick posts from any platform, then "Plan idea from this"), Current ideas is an overview of ideas with their inspiration posts, and each idea opens its own shoot brief (the brief board page is gone); New post gets a crop editor, "Save draft" and "Schedule on" under the preview, comments on by default, and loses Approval and Notes; the approval stage and the seeded failed posts leave the demo; the month grid starts on the 1st; calendar idea tiles show a photo; a favicon. No migration. 95 tests.
 - **2.5.1** — 2026-10-08 — A calmer desktop calendar toolbar, from review feedback: the outlined "2 not posted" pill becomes a short red "2 failed" line beside the title, and the Layers and Stages buttons become one Filter button; the black "Schedule new post" is the only strong control left. The phone filter uses the same word. No migration. 83 tests.
 - **2.5.0** — 2026-10-08 — The phone calendar as a photo grid: Week is seven narrow columns of small square photos (three a day, then "+N") with the picked day's posts listed under it; Month is the same grid, one photo a day; Day is an hour list. The title switches views, one filter button holds the rest, and a dragged post lifts as a small photo just above the finger. Desktop unchanged. No migration. 83 tests.
@@ -34,7 +34,12 @@ One line each — full write-ups are under the matching `##` heading further dow
   sharper hooks here), **Shots** (a storyboard: reorder, drag a reference onto a shot or pick one,
   who is in frame, a shoot day from the calendar's shoots), **Shoot** (tick each shot, drop its
   clip) and **Post** (status, date and time synced with the calendar, the media in shot order,
-  "Open in scheduler"). Every drag has a click path; phones drag by long press. Shots become
+  "Open in scheduler"). Dates and times are picked on a small calendar with time chips (the brand's best time
+  marked), shoot days on the same calendar with the brand's shoots. Reordering is by drag, with the
+  others sliding aside as you move; Option+Arrow on a focused item does it by keyboard. No dashed
+  placeholders: drop targets light up only while a file is dragged. A reel's post carries one
+  final cut, with the shoot's clips as its footage; a carousel's slides are the clips in shot order.
+  Every drag has a click path; phones drag by long press. Shots become
   `{ title, ref?, media?, captured? }`; added media joins `inspiration` as URLs. "Current ideas" goes back to `/ideate?view=ideas`. Card, Brief, Review
   and Insights' "Plan it" link to the page; `/ideate#<id>` is gone. "Plan idea from this" makes the
   idea at once, worded from the first post picked, and opens its page: the plan card (format and
