@@ -30,6 +30,54 @@ describe('the posts store', () => {
   })
 })
 
+describe('taking a post back to an idea', () => {
+  it('lifts the post off its day and puts the idea tile back there', () => {
+    const { result } = renderHook(() => useBrand(), { wrapper })
+    let id = ''
+    act(() => {
+      id = result.current.planPost(
+        { format: 'reel', hook: 'Back to a plan.' },
+        '27',
+        '18:00',
+        'draft',
+      )
+    })
+    act(() =>
+      result.current.unplanPost(id, { format: 'reel', hook: 'Back to a plan.', why: 'Team idea' }),
+    )
+    expect(result.current.byId(id)).toBeUndefined()
+    const day = result.current.weeks.flatMap((w) => w.days).find((d) => d.n === '27')!
+    expect(feedsOf(day)).toContainEqual({
+      kind: 'idea',
+      format: 'reel',
+      hook: 'Back to a plan.',
+      why: 'Team idea',
+    })
+  })
+
+  it("opens a story's slot in the story row again", () => {
+    const { result } = renderHook(() => useBrand(), { wrapper })
+    let id = ''
+    act(() => {
+      id = result.current.planPost({ format: 'story', hook: 'A story.' }, '27', '18:00', 'draft')
+    })
+    act(() =>
+      result.current.unplanPost(id, { format: 'story', hook: 'A story.', why: 'Team idea' }),
+    )
+    const day = result.current.weeks.flatMap((w) => w.days).find((d) => d.n === '27')!
+    expect(day.story).toEqual({ kind: 'open', draftsReady: false })
+    expect(feedsOf(day).some((m) => m.kind === 'idea' && m.hook === 'A story.')).toBe(false)
+  })
+
+  it('never takes back a post that went out', () => {
+    const { result } = renderHook(() => useBrand(), { wrapper })
+    act(() =>
+      result.current.unplanPost('margherita', { format: 'reel', hook: 'x', why: 'Team idea' }),
+    )
+    expect(result.current.byId('margherita')?.stage).toBe('posted')
+  })
+})
+
 describe('the brand switcher', () => {
   it('opens on Casa Vostra, so the demo starts where the deck does', () => {
     const { result } = renderHook(() => useBrand(), { wrapper })

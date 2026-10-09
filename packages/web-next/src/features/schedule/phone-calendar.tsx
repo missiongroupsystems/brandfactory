@@ -9,7 +9,7 @@ import { PlatformLogo } from '@/components/platform-logos'
 import { startTouchDrag } from '@/components/touch-drag'
 import type { Day, FeedMark, LayerKey, Post, Week } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
-import { useCoverOfHook } from '@/features/ideate/ideas-store'
+import { useCoverOfHook, useCoverOfPost } from '@/features/ideate/ideas-store'
 
 import { ideaLabel, useOpenIdea } from './open-idea'
 
@@ -501,6 +501,7 @@ function PhotoTile({
   onClick: () => void
   onPointerDown?: (e: React.PointerEvent<HTMLButtonElement>) => void
 }) {
+  const standIn = useStandIn(post)
   return (
     <button
       type="button"
@@ -510,7 +511,7 @@ function PhotoTile({
       className={`bb-touch-drag relative block aspect-square w-full overflow-hidden rounded-[8px] bg-tile transition-opacity ${landed ? 'bb-land' : ''}`}
       style={{ opacity: dim ? 0.3 : 1 }}
     >
-      <Photo src={post.images[0]} />
+      <Photo src={post.images[0]} standIn={standIn} />
       {post.stage === 'draft' && (
         <span className="pointer-events-none absolute inset-[3px] rounded-[6px] border border-dashed border-(--tile-dash)" />
       )}
@@ -521,10 +522,29 @@ function PhotoTile({
   )
 }
 
-function Photo({ src }: { src?: string }) {
-  if (!src) return null
+function Photo({ src, standIn }: { src?: string; standIn?: string }) {
+  if (!src) {
+    // A post with no media yet shows its idea's cover, faded, as the desktop tile does.
+    if (!standIn) return null
+    return (
+      <Image
+        src={standIn}
+        alt=""
+        fill
+        sizes="112px"
+        draggable={false}
+        className="object-cover opacity-40 grayscale-[0.4]"
+      />
+    )
+  }
   if (src.startsWith('blob:')) return <Media src={src} sizes="112px" />
   return <Image src={src} alt="" fill sizes="112px" draggable={false} className="object-cover" />
+}
+
+/** The cover a post with no media borrows from its idea. */
+function useStandIn(post: Post): string | undefined {
+  const cover = useCoverOfPost(useBrand().brand.id, post)
+  return post.images.length === 0 ? cover : undefined
 }
 
 /** The idea's colour: the brand's for the team's own, the insights' green for a suggestion. */
@@ -777,6 +797,7 @@ function PostRow({
   /** Inside an hour: no line under it. */
   bare?: boolean
 }) {
+  const standIn = useStandIn(post)
   const failed = post.stage === 'failed'
   return (
     <button
@@ -790,7 +811,7 @@ function PostRow({
         data-photo
         className="relative block size-11 shrink-0 overflow-hidden rounded-[8px] bg-tile"
       >
-        <Photo src={post.images[0]} />
+        <Photo src={post.images[0]} standIn={standIn} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[15px]">{post.hook}</span>

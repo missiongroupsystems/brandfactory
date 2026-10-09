@@ -117,7 +117,13 @@ describe('an idea page', () => {
     expect(screen.getByRole('radio', { name: 'Draft' })).not.toBeChecked()
     fireEvent.click(screen.getByRole('radio', { name: 'Draft' }))
     expect(screen.getByRole('radio', { name: 'Draft' })).toBeChecked()
-    expect(screen.getByRole('radio', { name: 'Idea' })).toBeDisabled()
+    expect(screen.getByRole('link', { name: /On the calendar/ })).toBeInTheDocument()
+    // Idea takes the post back to a plan: no post on the calendar, the idea checked again.
+    fireEvent.click(screen.getByRole('radio', { name: 'Idea' }))
+    expect(screen.getByRole('radio', { name: 'Idea' })).toBeChecked()
+    expect(screen.queryByRole('link', { name: /On the calendar/ })).not.toBeInTheDocument()
+    // The plan keeps its day.
+    expect(screen.getByRole('button', { name: 'Post date' })).toHaveTextContent('Fri 23 Oct')
     expect(shotTitles()).toEqual(['Blindfold on', 'One bite, one guess', 'The onions'])
   })
 

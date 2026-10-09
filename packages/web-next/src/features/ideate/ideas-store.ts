@@ -91,6 +91,17 @@ export function useCoverOfHook(brandId: BrandId, hook: string): string | undefin
   return card ? coverOf(brandId, card) : undefined
 }
 
+/** The cover a post with no media borrows: its own idea's, else an idea with its words. */
+export function useCoverOfPost(
+  brandId: BrandId,
+  post: { id: string; hook: string },
+): string | undefined {
+  const { ideas } = useIdeas(brandId)
+  const byHook = useCoverOfHook(brandId, post.hook)
+  const own = ideas.find((i) => i.postId === post.id)
+  return own ? coverOf(brandId, own) : byHook
+}
+
 /** What the calendar knows of an idea tile. */
 export interface IdeaTileMark {
   format: IdeaFormat

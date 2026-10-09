@@ -23,8 +23,9 @@ export function PostPage({
   start?: { day?: string; time?: string; format?: 'story' }
 }) {
   const { brand, posts, byId } = useBrand()
-  // Past posts (an earlier month) carry the brand's id in theirs.
-  const mine = id ? posts.some((p) => p.id === id) || id.startsWith(`${brand.id}-archive`) : true
+  // Past posts (an earlier month) and posts planned from an idea carry the brand's id in theirs,
+  // so one taken back to an idea still reads as this brand's, gone from the demo.
+  const mine = id ? posts.some((p) => p.id === id) || id.startsWith(`${brand.id}-`) : true
   const post = id && mine ? byId(id) : undefined
   return (
     <div className="flex min-h-svh flex-col bg-surface-2 max-md:bg-page">

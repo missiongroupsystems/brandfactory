@@ -6,7 +6,7 @@ import * as React from 'react'
 import { CarouselIcon, PlusIcon, ReelIcon } from '@/components/icons'
 import type { CalendarEvent, Day, FeedMark, LayerKey, Post, Stage, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
-import { useCoverOfHook } from '@/features/ideate/ideas-store'
+import { useCoverOfHook, useCoverOfPost } from '@/features/ideate/ideas-store'
 
 import { ideaLabel, useOpenIdea } from './open-idea'
 
@@ -659,6 +659,9 @@ export function PostTile({
   // A post that is live stays on its day.
   const movable = post.stage !== 'posted'
   const image = post.images[0]
+  // A post planned from an idea before anything was shot has no media: its idea's cover stands
+  // in, faded and labelled, so the tile reads as the post it will be, not as finished content.
+  const standIn = useCoverOfPost(useBrand().brand.id, post)
   return (
     <button
       type="button"
@@ -700,6 +703,21 @@ export function PostTile({
             className="object-cover"
           />
         )
+      )}
+      {!image && standIn && (
+        <>
+          <Image
+            src={standIn}
+            alt=""
+            fill
+            sizes={TILE_SIZES}
+            draggable={false}
+            className="object-cover opacity-40 grayscale-[0.4]"
+          />
+          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-page/90 px-2 py-1 font-mono text-[9px] tracking-[0.08em] whitespace-nowrap text-ink-2 uppercase">
+            No media yet
+          </span>
+        </>
       )}
       {isDraft && (
         <span className="pointer-events-none absolute inset-[3px] rounded-[6px] border border-dashed border-(--tile-dash)" />

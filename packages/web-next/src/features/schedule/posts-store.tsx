@@ -82,6 +82,11 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
    * Puts an idea's tile on a day picked on its page: off whatever day it sat on, beside the posts
    * and other ideas already there. It stays an idea; only a status makes it a post.
    */
+  /**
+   * Takes a post back to an idea: the post leaves the calendar and the idea's tile returns to its
+   * day (a story's slot in the story row opens again). Nothing that went out is taken back.
+   */
+  unplanPost: (id: string, idea: { format: Format; hook: string; why: string }) => void
   placeIdea: (
     idea: { format: Exclude<Format, 'story'>; hook: string; why: string },
     dayN: string,
@@ -322,6 +327,40 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     [brandId],
   )
 
+  const unplanPost = React.useCallback<BrandValue['unplanPost']>(
+    (id, idea) => {
+      const post = postsByBrand[brandId].find((p) => p.id === id)
+      if (!post || post.stage === 'posted') return
+      setWeeksByBrand((all) => ({
+        ...all,
+        [brandId]: all[brandId].map((week) => ({
+          ...week,
+          days: week.days.map((day) => {
+            const marks = feedsOf(day)
+            const held = marks.some((m) => m.kind === 'post' && m.postId === id)
+            const story = day.story.kind === 'post' && day.story.postId === id
+            if (!held && !story) return day
+            const next = [
+              ...marks.filter((m) => !(m.kind === 'post' && m.postId === id)),
+              ...(held && idea.format !== 'story'
+                ? [{ kind: 'idea' as const, format: idea.format, hook: idea.hook, why: idea.why }]
+                : []),
+            ]
+            const { feed: _drop, ...rest } = day
+            return {
+              ...rest,
+              ...(next.length > 0 ? { feed: next.length === 1 ? next[0] : next } : {}),
+              // A story's slot opens again, as a moved story leaves the row it left.
+              ...(story ? { story: { kind: 'open' as const, draftsReady: false } } : {}),
+            }
+          }),
+        })),
+      }))
+      setPostsByBrand((all) => ({ ...all, [brandId]: all[brandId].filter((p) => p.id !== id) }))
+    },
+    [brandId, postsByBrand],
+  )
+
   const value = React.useMemo<BrandValue>(() => {
     const content = contentFor(brandId)
     const posts = postsByBrand[brandId]
@@ -337,6 +376,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       setImages,
       renameIdea,
       placeIdea,
+      unplanPost,
       setChannels,
       brands: BRANDS,
       setBrandId,
@@ -360,6 +400,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     setImages,
     renameIdea,
     placeIdea,
+    unplanPost,
     setChannels,
     setBrandId,
     setStage,

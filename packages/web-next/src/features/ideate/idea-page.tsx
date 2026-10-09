@@ -178,7 +178,8 @@ function handedBy(card: IdeaCard): string[] | null {
  * Once the shoot has something to hand it, the post carries that, and keeps up as more lands.
  */
 function usePlan(slot: Slot): Plan {
-  const { brand, weeks, byId, planPost, reschedule, setStage, setImages, placeIdea } = useBrand()
+  const { brand, weeks, byId, planPost, reschedule, setStage, setImages, placeIdea, unplanPost } =
+    useBrand()
   // The time picked before the idea has a date; the post holds it from then on.
   const [picked, setPicked] = React.useState('18:00')
   const { card, dayN } = slot
@@ -229,8 +230,20 @@ function usePlan(slot: Slot): Plan {
     media,
     fromShoot: handed && card.format !== 'reel' ? handed.length : 0,
     // "Idea" is where a card starts; once it is a post, the page does not take the post back.
+    // Idea takes a post back to a plan on its day, unless the post already went out.
     setStatus: (step) => {
-      if (step !== 'idea') plan(step, dayN, time)
+      if (step !== 'idea') return plan(step, dayN, time)
+      if (!post || post.stage === 'posted') return
+      const why =
+        card.source.kind === 'moment'
+          ? card.source.title
+          : card.source.kind === 'insight'
+            ? card.source.line
+            : 'Team idea'
+      // What the old post carried before the shoot belongs to that post, not to the next one.
+      before.current = null
+      unplanPost(post.id, { format: card.format, hook: card.hook, why })
+      editIdea(brand.id, card.id, { postId: undefined })
     },
     // A date moves a post; an idea without one stays an idea, its tile on the new day.
     setDate: (n) => {
@@ -1789,7 +1802,7 @@ function FinalCut({
 
 /**
  * The four steps; the current one filled. Draft, Scheduled and Posted set the post's stage on the
- * calendar; Idea is only where a card starts, so it cannot be picked once the card is a post.
+ * calendar; Idea takes the post back to a plan, except once it has gone out.
  */
 function StatusPicker({ value, onChange }: { value: Step; onChange: (s: Step) => void }) {
   const brandColour = useBrand().brand.colour
@@ -1797,7 +1810,7 @@ function StatusPicker({ value, onChange }: { value: Step; onChange: (s: Step) =>
     <span role="radiogroup" aria-label="Status" className="flex flex-wrap gap-1">
       {CHIPS.map((c) => {
         const on = c === value
-        const locked = c === 'idea' && value !== 'idea'
+        const locked = c === 'idea' && value === 'posted'
         return (
           <button
             key={c}
@@ -1805,7 +1818,7 @@ function StatusPicker({ value, onChange }: { value: Step; onChange: (s: Step) =>
             role="radio"
             aria-checked={on}
             disabled={locked}
-            title={locked ? 'Already a post' : undefined}
+            title={locked ? 'Already posted' : undefined}
             onClick={() => onChange(c)}
             className={`flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] transition-colors disabled:opacity-40 ${on ? 'bg-ink text-page' : 'bg-surface text-ink-3 enabled:hover:text-ink'}`}
           >
