@@ -9,8 +9,8 @@ import type { Shoot } from '@/data/shoots'
 /** "12:00–17:00". */
 export const timeRange = (s: Pick<Shoot, 'start' | 'end'>) => `${s.start}–${s.end}`
 
-/** What the calendar prints: "12:00–17:00 · Raffles City". */
-export const eventText = (s: Shoot) => `${timeRange(s)} · ${s.title}`
+/** What the calendar prints, so the chip says what it is: "Shoot 12:00–17:00 · Raffles City". */
+export const eventText = (s: Shoot) => `Shoot ${timeRange(s)} · ${s.title}`
 
 const minutes = (t: string) => {
   const [h, m] = t.split(':').map(Number)

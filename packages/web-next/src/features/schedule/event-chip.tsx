@@ -33,8 +33,8 @@ export function EventChip({
   return (
     <Link
       href={`/shoot/${event.shootId}`}
-      title={`Shoot · ${event.text}`}
-      aria-label={`Shoot, ${event.text}`}
+      title={event.text}
+      aria-label={event.text}
       className={`${className} transition-[filter] hover:brightness-95`}
       style={colours}
     >
