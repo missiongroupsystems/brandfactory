@@ -17,14 +17,17 @@ import {
  * and the shoot brief find it after the navigation. No provider: `layout.tsx` stays as it is. A reload
  * starts over at five of eight, which is where the demo begins.
  */
-/** Where moodboard posts come from: the brand's Pinterest, Instagram saved and TikTok favourites. */
-export type MoodSource = 'pinterest' | 'ig' | 'tt'
+/**
+ * Where moodboard posts come from: the brand's board on the team's Pinterest account, and posts
+ * DM'd to the moodboard account on Instagram with the brand's tag.
+ */
+export type MoodSource = 'pinterest' | 'dm'
 
 interface BrandIdeasState {
   /** Every card, the suggested ones included; those show only once `suggesting` is true. */
   ideas: IdeaCard[]
   suggesting: boolean
-  /** Which of the brand's own accounts feed the moodboard. Never another brand's. */
+  /** Which sources feed the brand's moodboard. Never another brand's board or tag. */
   sources: Record<MoodSource, boolean>
   /** How many ideas the team had when it asked for suggestions: "3 suggested from your 5". */
   suggestedFrom: number
@@ -39,7 +42,7 @@ function initial(): State {
       {
         ideas: b.ideas,
         suggesting: false,
-        sources: { pinterest: false, ig: false, tt: false },
+        sources: { pinterest: false, dm: false },
         suggestedFrom: 0,
       },
     ]),
@@ -191,7 +194,7 @@ export function suggest(brandId: BrandId) {
   }))
 }
 
-/** Connects one of this brand's accounts to its moodboard. */
+/** Connects one source to this brand's moodboard. */
 export function connectSource(brandId: BrandId, source: MoodSource) {
   update(brandId, (s) => ({ ...s, sources: { ...s.sources, [source]: true } }))
 }

@@ -32,6 +32,7 @@ import {
 } from '@/data/ideas'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { storyTaken } from '@/features/schedule/move-post'
+import { VoiceNote } from '@/features/brand/voice-note'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { dayLabel, landingDay } from './calendar-slot'
@@ -1041,6 +1042,7 @@ function Sharpen({ card }: { card: IdeaCard }) {
     <section aria-label="Sharpen the hook" className="flex max-w-[560px] flex-col gap-2">
       <span className="flex items-center justify-between">
         <span className={EYEBROW}>Sharpen the hook</span>
+        <VoiceNote className="mr-auto ml-3" />
         {picked >= 0 && (
           <button
             type="button"

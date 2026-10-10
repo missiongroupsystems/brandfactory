@@ -31,6 +31,8 @@ beforeEach(() => {
 
 afterEach(() => vi.useRealTimers())
 
+const ideasOf = (id: 'casa-vostra' | 'temper') => renderHook(() => useIdeas(id)).result.current
+
 const openMoodboard = () =>
   render(
     <BrandProvider>
@@ -39,21 +41,45 @@ const openMoodboard = () =>
   )
 
 describe('the moodboard', () => {
-  it('connects every account tapped while the first is still connecting', () => {
-    // One pending slot once ignored the second and third taps.
+  it("connects the brand's own board from the team's one Pinterest account", () => {
+    // The team keeps one Pinterest account with a board per brand: another brand's board must
+    // never feed this moodboard.
     openMoodboard()
     fireEvent.click(screen.getByRole('button', { name: 'Pinterest' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Instagram' }))
+    expect(screen.getByRole('radio', { name: 'Casa Vostra board' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(screen.getByRole('radio', { name: 'Temper board' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Casa Vostra’s board' }))
     act(() => {
-      vi.advanceTimersByTime(1200)
+      vi.advanceTimersByTime(1000)
     })
-    const { result } = renderHook(() => useIdeas('casa-vostra'))
-    expect(result.current.sources).toMatchObject({ pinterest: true, ig: true, tt: false })
+    expect(ideasOf('casa-vostra').sources).toEqual({ pinterest: true, dm: false })
+    expect(ideasOf('temper').sources.pinterest).toBe(false)
+  })
+
+  it('brings Instagram in by DM to the moodboard account, with the brand tag', () => {
+    // Instagram lets no app read saved posts, so the honest route is a DM with the brand's tag.
+    openMoodboard()
+    fireEvent.click(screen.getByRole('button', { name: 'Instagram DMs' }))
+    expect(screen.getAllByText('@mission.moodboards').length).toBeGreaterThan(0)
+    expect(screen.getByText('#casavostra')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Turn on' }))
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(ideasOf('casa-vostra').sources).toEqual({ pinterest: false, dm: true })
+    expect(screen.getByRole('tab', { name: /Shared/ })).toBeInTheDocument()
   })
 
   it('makes the idea from the picked posts and opens its page, with no step between', () => {
     openMoodboard()
     fireEvent.click(screen.getByRole('button', { name: 'Pinterest' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Casa Vostra’s board' }))
     act(() => {
       vi.advanceTimersByTime(1200)
     })

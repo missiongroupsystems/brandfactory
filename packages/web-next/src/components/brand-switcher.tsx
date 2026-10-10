@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import * as React from 'react'
 
 import type { Brand } from '@/data/brands'
@@ -26,7 +27,7 @@ export function BrandSwitcher() {
   const [open, setOpen] = React.useState(false)
   const root = React.useRef<HTMLDivElement>(null)
   const trigger = React.useRef<HTMLButtonElement>(null)
-  const items = React.useRef<Array<HTMLButtonElement | null>>([])
+  const items = React.useRef<Array<HTMLElement | null>>([])
 
   const close = React.useCallback((refocus: boolean) => {
     setOpen(false)
@@ -46,8 +47,8 @@ export function BrandSwitcher() {
   }, [open, close, brands, brand.id])
 
   function onMenuKey(e: React.KeyboardEvent) {
-    const list = items.current.filter((el): el is HTMLButtonElement => el !== null)
-    const at = list.indexOf(document.activeElement as HTMLButtonElement)
+    const list = items.current.filter((el): el is HTMLElement => el !== null)
+    const at = list.indexOf(document.activeElement as HTMLElement)
     const go = (i: number) => list[(i + list.length) % list.length]?.focus()
     if (e.key === 'Escape') close(true)
     else if (e.key === 'Tab') close(false)
@@ -121,6 +122,21 @@ export function BrandSwitcher() {
               </button>
             )
           })}
+          <span aria-hidden="true" className="mx-2 my-1.5 h-px bg-line" />
+          {/* The current brand's voice, colours and files: not a daily page, so it lives here. */}
+          <Link
+            ref={(el) => {
+              items.current[brands.length] = el
+            }}
+            href="/brand"
+            role="menuitem"
+            tabIndex={-1}
+            onClick={() => close(false)}
+            className="flex items-center justify-between rounded-[8px] px-2.5 py-[7px] text-[13.5px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface"
+          >
+            Brand kit
+            <span className="text-[12px] text-ink-4">{brand.name}</span>
+          </Link>
         </div>
       )}
     </div>

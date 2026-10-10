@@ -9,6 +9,7 @@ import { AppHeader } from '@/components/app-header'
 import { Segmented } from '@/components/controls'
 import { CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
+import { MOODBOARD_ACCOUNT, moodboardTag, PINTEREST_ACCOUNT } from '@/data/brand-kit'
 import {
   IDEAS_BY_BRAND,
   inspirationOf,
@@ -52,8 +53,8 @@ const FORMAT_LABEL: Record<IdeaFormat, string> = {
 type View = 'ideas' | 'board'
 
 /**
- * The ideas page, in two views. "Moodboard", the default, is one board of everything the brand
- * saved on Pinterest, Instagram and TikTok: pick any number of posts and plan an idea from them.
+ * The ideas page, in two views. "Moodboard", the default, is one board of everything the team
+ * saved for the brand, from Pinterest and Instagram DMs: pick any number of posts and plan an idea from them.
  * "Current ideas" is the overview: every idea with the posts it grew from, its hook and where it
  * stands. Each idea has its own page (`/ideate/<id>`); `?view=ideas` brings Back to the overview.
  */
@@ -484,14 +485,26 @@ function MomentView({ moment, onUse }: { moment: Moment; onUse: () => void }) {
 
 const SOURCE_NAME: Record<MoodSource, string> = {
   pinterest: 'Pinterest',
+  dm: 'Instagram DMs',
+}
+
+/** Where a post itself is from: a DM or a pasted link may carry a TikTok. */
+const PLATFORM_NAME: Record<Reference['platform'], string> = {
+  pinterest: 'Pinterest',
   ig: 'Instagram',
   tt: 'TikTok',
 }
 
+/** Instagram DMs carry Instagram's logo. */
+const SOURCE_LOGO: Record<MoodSource, 'pinterest' | 'ig'> = { pinterest: 'pinterest', dm: 'ig' }
+
 /**
- * The moodboard: one board for everything the team saved, from this brand's own accounts: its
- * Pinterest boards, its Instagram saved folder and its TikTok favourites. Each connects with a
- * short mock sign-in (no backend). Tap posts to pick them; a bar then plans an idea from them.
+ * The moodboard: one board for everything the team saved for this brand. Two sources, both of
+ * which a real integration can read: the brand's board on the team's one Pinterest account, and
+ * posts DM'd to the moodboard account on Instagram with the brand's tag (Instagram does not let an
+ * app read saved posts). TikTok favourites are closed to apps too, so a TikTok joins by a pasted
+ * link or a DM. Each source connects in a short mock step (no backend). Tap posts to pick them; a
+ * bar then plans an idea from them.
  */
 function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   const { brand } = useBrand()
@@ -502,32 +515,24 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   const [pasted, setPasted] = React.useState<Reference[]>(() => pastedReferences(brand.id))
   // The posts picked, in the order they were picked: the first lends the idea its words.
   const [selected, setSelected] = React.useState<string[]>([])
+  // The source being set up from its chip, shown under the chip row.
+  const [adding, setAdding] = React.useState<MoodSource | null>(null)
 
-  if (!sources.pinterest && !sources.ig && !sources.tt) return <ConnectSources />
+  if (!sources.pinterest && !sources.dm) return <ConnectSources />
 
-  // Saved posts are the brand's Instagram and TikTok bookmarks; a pasted link joins its platform.
-  const saved = [...pasted, ...references]
+  // The brand's board sections on Pinterest, then everything sent by DM or pasted as a link. Pins
+  // come only from the board.
   const folders: Array<{ id: string; label: string; source: MoodSource; pins: Reference[] }> = [
     ...(sources.pinterest
       ? boards.map((b) => ({ id: b.id, label: b.name, source: 'pinterest' as const, pins: b.pins }))
       : []),
-    ...(sources.ig
+    ...(sources.dm
       ? [
           {
-            id: 'ig',
-            label: 'Saved',
-            source: 'ig' as const,
-            pins: saved.filter((r) => r.platform === 'ig'),
-          },
-        ]
-      : []),
-    ...(sources.tt
-      ? [
-          {
-            id: 'tt',
-            label: 'Favourites',
-            source: 'tt' as const,
-            pins: saved.filter((r) => r.platform === 'tt'),
+            id: 'dm',
+            label: 'Shared',
+            source: 'dm' as const,
+            pins: [...pasted, ...references].filter((r) => r.platform !== 'pinterest'),
           },
         ]
       : []),
@@ -601,7 +606,7 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
                   onClick={() => setFilter(c.id)}
                   className={`flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-medium transition-colors ${on ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
                 >
-                  {c.source && <PlatformLogo platform={c.source} size={11} />}
+                  {c.source && <PlatformLogo platform={SOURCE_LOGO[c.source]} size={11} />}
                   {c.label}
                   <span
                     className={`font-mono text-[11px] tabular-nums ${on ? 'text-page/60' : 'text-ink-4'}`}
@@ -612,65 +617,137 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
               )
             })}
             {missing.map((m) => (
-              <ConnectChip key={m} source={m} />
+              <button
+                key={m}
+                type="button"
+                aria-expanded={adding === m}
+                onClick={() => setAdding((a) => (a === m ? null : m))}
+                className="flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink"
+              >
+                <PlatformLogo platform={SOURCE_LOGO[m]} size={11} />
+                Add {SOURCE_NAME[m]}
+              </button>
             ))}
           </div>
         )}
       </div>
-      {(filter === 'ig' || filter === 'tt') && (
-        <PasteLink
-          onPaste={(r) => {
-            pasteReference(brand.id, r)
-            setPasted(pastedReferences(brand.id))
-          }}
-        />
+      {adding && !sources[adding] && (
+        <div key={adding} className="bb-pop max-w-[460px] rounded-[18px] bg-surface-2 p-5">
+          <SourceSetup source={adding} />
+        </div>
+      )}
+      {filter === 'dm' && (
+        <div className="flex flex-col gap-3">
+          <DmHint />
+          <PasteLink
+            onPaste={(r) => {
+              pasteReference(brand.id, r)
+              setPasted(pastedReferences(brand.id))
+            }}
+          />
+        </div>
       )}
       <Masonry key={filter} pins={shown} selected={selected} onToggle={toggle} />
     </div>
   )
 }
 
-/** A dashed chip for an account not connected yet: one tap runs the same mock sign-in. */
-function ConnectChip({ source }: { source: MoodSource }) {
+/** How a post reaches this brand's board by DM, in one line, with the tag to type. */
+function DmHint() {
   const { brand } = useBrand()
-  const [busy, setBusy] = React.useState(false)
   return (
+    <p className="text-[13px] text-ink-3">
+      Share any post or reel by DM to{' '}
+      <span className="font-medium text-ink">{MOODBOARD_ACCOUNT}</span> with{' '}
+      <span className="font-medium text-ink">{moodboardTag(brand)}</span>, or paste a link.
+    </p>
+  )
+}
+
+/**
+ * Setting up one source. Pinterest: the team's one account keeps a board per brand, and this
+ * brand's board is the one that connects; the others belong to their own brands. Instagram: the
+ * steps to DM a post to the moodboard account, then a button to turn the source on.
+ */
+function SourceSetup({ source }: { source: MoodSource }) {
+  const { brand, brands } = useBrand()
+  const [busy, setBusy] = React.useState(false)
+
+  function connect() {
+    if (busy) return
+    setBusy(true)
+    window.setTimeout(() => connectSource(brand.id, source), 900)
+  }
+
+  const action = (label: string) => (
     <button
       type="button"
-      onClick={() => {
-        if (busy) return
-        setBusy(true)
-        window.setTimeout(() => connectSource(brand.id, source), 900)
-      }}
-      className="flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink"
+      onClick={connect}
+      className="bb-press flex h-10 items-center justify-center gap-2 self-start rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85"
     >
-      {busy ? (
-        <span className="size-3 animate-spin rounded-full border-[1.5px] border-ink/20 border-t-ink" />
-      ) : (
-        <PlatformLogo platform={source} size={11} />
+      {busy && (
+        <span className="size-3 animate-spin rounded-full border-[1.5px] border-white/30 border-t-white" />
       )}
-      {busy ? 'Connecting…' : `Add ${SOURCE_NAME[source]}`}
+      {busy ? 'Connecting…' : label}
     </button>
+  )
+
+  if (source === 'dm') {
+    return (
+      <div className="flex flex-col gap-4 text-left">
+        <span className={EYEBROW}>Instagram · {MOODBOARD_ACCOUNT}</span>
+        <ol className="flex flex-col gap-2 text-[13.5px] text-ink-2">
+          <li>1. On Instagram, tap Share on any post or reel.</li>
+          <li>
+            2. Send it to <span className="font-medium text-ink">{MOODBOARD_ACCOUNT}</span> with{' '}
+            <span className="font-medium text-ink">{moodboardTag(brand)}</span>.
+          </li>
+          <li>3. It lands on {brand.name}’s moodboard.</li>
+        </ol>
+        {action('Turn on')}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-4 text-left">
+      <span className={EYEBROW}>Pinterest · {PINTEREST_ACCOUNT}</span>
+      <div role="radiogroup" aria-label="Boards" className="flex flex-col">
+        {brands.map((b) => {
+          const own = b.id === brand.id
+          const pins = IDEAS_BY_BRAND[b.id].boards.reduce((n, s) => n + s.pinCount, 0)
+          return (
+            <span
+              key={b.id}
+              role="radio"
+              aria-checked={own}
+              aria-disabled={!own}
+              aria-label={`${b.name} board`}
+              className={`flex items-center gap-3 border-t border-line py-2.5 first:border-t-0 ${own ? '' : 'opacity-45'}`}
+            >
+              <span className="relative size-7 shrink-0 overflow-hidden rounded-full">
+                <Image src={b.logo} alt="" fill sizes="56px" />
+              </span>
+              <span className="flex flex-1 flex-col">
+                <span className="text-[13.5px] font-medium">{b.name}</span>
+                <span className="text-[12px] text-ink-4">
+                  {pins} pins{own ? '' : ` · on ${b.name}’s moodboard`}
+                </span>
+              </span>
+              {own && <CheckIcon size={13} />}
+            </span>
+          )
+        })}
+      </div>
+      {action(`Connect ${brand.name}’s board`)}
+    </div>
   )
 }
 
 function ConnectSources() {
   const { brand } = useBrand()
   const { boards } = IDEAS_BY_BRAND[brand.id]
-  // Every account tapped joins one sign-in: each tap restarts the wait, and they connect together,
-  // so the board opens once with all of them.
-  const [connecting, setConnecting] = React.useState<MoodSource[]>([])
-  const timer = React.useRef<number | undefined>(undefined)
-
-  function connect(source: MoodSource) {
-    if (connecting.includes(source)) return
-    const next = [...connecting, source]
-    setConnecting(next)
-    window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(() => {
-      for (const s of next) connectSource(brand.id, s)
-    }, 1100)
-  }
+  const [open, setOpen] = React.useState<MoodSource | null>(null)
 
   return (
     <section
@@ -696,38 +773,32 @@ function ConnectSources() {
       <span className="flex flex-col gap-2">
         <span className="font-display text-[32px] leading-none">Bring in your moodboard</span>
         <span className="text-[14px] text-ink-3">
-          Everything {brand.name} saved, in one place. Pick posts, then plan an idea from them.
+          Everything the team saved for {brand.name}, in one place. Pick posts, then plan an idea
+          from them.
         </span>
       </span>
       <div className="flex flex-wrap items-center justify-center gap-2.5">
         {(Object.keys(SOURCE_NAME) as MoodSource[]).map((source) => {
-          const busy = connecting.includes(source)
-          const dark = source === 'pinterest'
+          const on = open === source
           return (
             <button
               key={source}
               type="button"
-              onClick={() => connect(source)}
-              aria-live="polite"
-              className={`bb-press flex h-11 min-w-[176px] items-center justify-center gap-2 rounded-full px-5 text-[14px] font-medium hover:opacity-85 ${dark ? 'bg-ink text-page' : 'bg-surface text-ink'}`}
+              aria-expanded={on}
+              onClick={() => setOpen(on ? null : source)}
+              className={`bb-press flex h-11 min-w-[176px] items-center justify-center gap-2 rounded-full px-5 text-[14px] font-medium hover:opacity-85 ${on ? 'bg-ink text-page' : 'bg-surface text-ink'}`}
             >
-              {busy ? (
-                <>
-                  <span
-                    className={`size-3 animate-spin rounded-full border-[1.5px] ${dark ? 'border-white/30 border-t-white' : 'border-ink/20 border-t-ink'}`}
-                  />
-                  Connecting…
-                </>
-              ) : (
-                <>
-                  <PlatformLogo platform={source} size={14} />
-                  {SOURCE_NAME[source]}
-                </>
-              )}
+              <PlatformLogo platform={SOURCE_LOGO[source]} size={14} />
+              {SOURCE_NAME[source]}
             </button>
           )
         })}
       </div>
+      {open && (
+        <div key={open} className="bb-pop w-full max-w-[420px] rounded-[18px] bg-surface-2 p-5">
+          <SourceSetup source={open} />
+        </div>
+      )}
     </section>
   )
 }
@@ -834,7 +905,7 @@ function Masonry({
                   <span className="text-[13px] leading-[1.3] text-ink">{ref.borrow}</span>
                   <span className="flex min-w-0 items-center gap-2">
                     <span
-                      title={SOURCE_NAME[ref.platform]}
+                      title={PLATFORM_NAME[ref.platform]}
                       className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-surface"
                     >
                       <PlatformLogo platform={ref.platform} size={12} brand />

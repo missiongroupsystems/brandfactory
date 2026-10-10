@@ -26,6 +26,7 @@ import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { composeChannels, sentChannels } from '@/features/schedule/calendar-items'
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
+import { VoiceNote } from '@/features/brand/voice-note'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { CropEditor } from './crop-editor'
@@ -966,6 +967,7 @@ function Content({
               )
             })}
           </div>
+          <VoiceNote className="ml-auto" />
           <button
             type="button"
             onClick={draftWithAI}
