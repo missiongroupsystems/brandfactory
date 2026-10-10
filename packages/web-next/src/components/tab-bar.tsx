@@ -3,19 +3,25 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
+import { useWaiting } from '@/features/inbox/inbox-store'
+import { useBrand } from '@/features/schedule/posts-store'
+
 const TABS = [
   { href: '/', label: 'Schedule', icon: <CalendarGlyph /> },
   { href: '/ideate', label: 'Ideate', icon: <IdeaGlyph /> },
   { href: '/insights', label: 'Insights', icon: <ChartGlyph /> },
+  { href: '/inbox', label: 'Inbox', icon: <InboxGlyph /> },
 ] as const
 
 /**
- * A phone's navigation, at the bottom where a thumb reaches it: the three pages. The header keeps
+ * A phone's navigation, at the bottom where a thumb reaches it: the four pages. The header keeps
  * the brand; Schedule has its own new-post button. A post's own page is a task, so it hides the bar and
  * keeps its own back link and send buttons.
  */
 export function TabBar() {
   const pathname = usePathname()
+  const { brand } = useBrand()
+  const waiting = useWaiting(brand.id)
   if (pathname.startsWith('/post')) return null
   const current = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href))
   const tab = (t: (typeof TABS)[number]) => (
@@ -25,7 +31,14 @@ export function TabBar() {
       aria-current={current(t.href) ? 'page' : undefined}
       className={`flex flex-1 flex-col items-center gap-1 pt-2 text-[10.5px] font-medium transition-colors ${current(t.href) ? 'text-ink' : 'text-ink-4'}`}
     >
-      {t.icon}
+      <span className="relative">
+        {t.icon}
+        {t.href === '/inbox' && waiting > 0 && (
+          <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-ink px-1 text-[10px] leading-none font-semibold text-page tabular-nums">
+            {waiting}
+          </span>
+        )}
+      </span>
       {t.label}
     </Link>
   )
@@ -87,6 +100,26 @@ function ChartGlyph() {
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function InboxGlyph() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+      <path
+        d="M3.5 12.5l2.1-6.4a2 2 0 0 1 1.9-1.4h7a2 2 0 0 1 1.9 1.4l2.1 6.4v3.5a2.5 2.5 0 0 1-2.5 2.5H6a2.5 2.5 0 0 1-2.5-2.5z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M3.5 12.5h4l1.2 2h4.6l1.2-2h4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   )
