@@ -9,6 +9,7 @@ import type { CalendarEvent, Day, FeedMark } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
 
 import { channelsOf, itemsOf, postTime, type StageFilter } from './calendar-items'
+import { EventChip } from './event-chip'
 import { useBrand } from './posts-store'
 import { storiesOf } from './stories'
 import { StoryDeck } from './story-panel'
@@ -85,16 +86,13 @@ export function DayView({
                 <span className={`${GUTTER} pt-2`}>All day</span>
                 <div className="flex flex-wrap items-start gap-3">
                   {events.map((e) => (
-                    <span
+                    <EventChip
                       key={e.text}
+                      event={e}
                       className="flex h-7 items-center rounded-[6px] px-2.5 text-[12px] font-medium"
-                      style={{
-                        background: `var(--layer-${e.layer})`,
-                        color: `var(--layer-${e.layer}-ink)`,
-                      }}
                     >
                       {e.text}
-                    </span>
+                    </EventChip>
                   ))}
                   <StoryDeck stories={stories} onOpen={onOpenStories} size="md" />
                 </div>

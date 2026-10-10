@@ -30,7 +30,7 @@ export function FilterMenu({
   const [open, setOpen] = React.useState(false)
   const root = React.useRef<HTMLDivElement>(null)
   const hidden = STAGES.filter((s) => !stages[s.key]).length
-  // Shoots are off until asked for: only a change from the usual layers counts as a filter.
+  // Only a change from the usual layers counts as a filter.
   const filtering = hidden > 0 || LAYERS.some((l) => layers[l.key] !== DEFAULT_LAYERS[l.key])
 
   React.useEffect(() => {
@@ -126,6 +126,7 @@ export function FilterMenu({
                   }}
                 />
                 <span className="flex-1">{l.name}</span>
+                {l.key === 'shoot' && <span className="text-[11.5px] text-ink-4">Lark</span>}
                 <Check on={active} />
               </button>
             )

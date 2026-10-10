@@ -159,6 +159,8 @@ export interface CalendarEvent {
   /** 1 = Monday. */
   col: number
   span: number
+  /** A shoot's event opens its call sheet (`data/shoots.ts`). */
+  shootId?: string
 }
 
 export interface Week {
@@ -327,7 +329,7 @@ export const DEFAULT_LAYERS: Record<LayerKey, boolean> = {
   city: true,
   holiday: true,
   ours: true,
-  shoot: false,
+  shoot: true,
 }
 
 /** The ideas a new post can start from, in the composer. */

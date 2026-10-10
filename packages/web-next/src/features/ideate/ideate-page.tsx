@@ -22,6 +22,7 @@ import {
 } from '@/data/ideas'
 import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
+import { planShoot } from '@/features/shoot/shoots-store'
 
 import {
   EYEBROW,
@@ -168,6 +169,15 @@ function Ideas({
   const { brand, weeks, byId, addIdeaToCalendar } = useBrand()
   const { ideas, suggesting, target } = useIdeas(brand.id)
   const router = useRouter()
+  // Picking ideas to shoot together: null while the cards open their pages.
+  const [picking, setPicking] = React.useState<string[] | null>(null)
+  const togglePick = (id: string) =>
+    setPicking((p) => (p ? (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]) : [id]))
+  /** The picked ideas become one shoot, whose call sheet opens to set the day and the crew. */
+  function shootPicked() {
+    if (!picking?.length) return
+    router.push(`/shoot/${planShoot(brand.id, weeks, picking)}`)
+  }
 
   // A moment already used is one of the ideas now, so it leaves the list. Its idea is found by
   // the moment's title, which a sharper hook does not change, or else by its hook on the calendar.
@@ -209,25 +219,67 @@ function Ideas({
   return (
     <div className="flex flex-col gap-14">
       <section aria-label="Ideas" className="flex flex-col gap-6">
-        <div className="flex h-9 items-center justify-between">
-          <span className={EYEBROW}>
-            {own} of {target} this month
-          </span>
-          {!suggesting && open > 0 && (
+        {picking ? (
+          <div
+            role="region"
+            aria-label="Selection"
+            className="sticky top-0 z-30 -mx-10 flex h-[52px] items-center gap-3 bg-page px-10 max-md:-mx-4 max-md:px-4"
+          >
             <button
               type="button"
-              onClick={() => suggest(brand.id)}
-              className="flex h-9 items-center gap-2 rounded-full px-3 text-[13px] font-medium text-(--insight-6) transition-colors hover:bg-(--insight-wash)"
+              aria-label="Stop selecting"
+              onClick={() => setPicking(null)}
+              className="-ml-2 flex size-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:text-ink"
             >
-              <SparkIcon size={10} />
-              Suggest {open}
+              <CloseIcon />
             </button>
-          )}
-        </div>
+            <span className="text-[13px] font-medium tabular-nums">
+              {picking.length ? `${picking.length} selected` : 'Pick the ideas to shoot together'}
+            </span>
+            <button
+              type="button"
+              onClick={shootPicked}
+              disabled={picking.length === 0}
+              className="bb-press ml-auto flex h-9 items-center rounded-full bg-ink px-4 text-[13px] font-medium text-page transition-opacity hover:opacity-85 disabled:opacity-30"
+            >
+              Plan a shoot
+            </button>
+          </div>
+        ) : (
+          <div className="flex h-9 items-center justify-between">
+            <span className={EYEBROW}>
+              {own} of {target} this month
+            </span>
+            <span className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPicking([])}
+                className="flex h-9 items-center rounded-full px-3 text-[13px] font-medium text-ink-3 transition-colors hover:bg-surface hover:text-ink"
+              >
+                Select
+              </button>
+              {!suggesting && open > 0 && (
+                <button
+                  type="button"
+                  onClick={() => suggest(brand.id)}
+                  className="flex h-9 items-center gap-2 rounded-full px-3 text-[13px] font-medium text-(--insight-6) transition-colors hover:bg-(--insight-wash)"
+                >
+                  <SparkIcon size={10} />
+                  Suggest {open}
+                </button>
+              )}
+            </span>
+          </div>
+        )}
         <ul className={GRID}>
           {slots.map((slot) => (
             <li key={slot.card.id}>
-              <IdeaView slot={slot} onPlan={() => plan(slot.card)} />
+              <IdeaView
+                slot={slot}
+                onPlan={() => plan(slot.card)}
+                picked={picking?.includes(slot.card.id) ?? null}
+                onPick={() => togglePick(slot.card.id)}
+              />
             </li>
           ))}
           <li>
@@ -261,7 +313,18 @@ function Ideas({
 }
 
 /** One idea in the overview: its collage, its hook, where it stands, and what to do next. */
-function IdeaView({ slot, onPlan }: { slot: Slot; onPlan: () => void }) {
+function IdeaView({
+  slot,
+  onPlan,
+  picked,
+  onPick,
+}: {
+  slot: Slot
+  onPlan: () => void
+  /** Whether it is picked for a shoot; null when nothing is being picked. */
+  picked: boolean | null
+  onPick: () => void
+}) {
   const { brand } = useBrand()
   const { card, status, label, placed } = slot
   const suggested = status === 'suggested'
@@ -272,8 +335,27 @@ function IdeaView({ slot, onPlan }: { slot: Slot; onPlan: () => void }) {
   )
   const source = sourceOf(card)
 
+  // A suggestion is not the team's yet, so it is not shot.
+  const picking = picked !== null && !suggested
   return (
-    <article className="flex flex-col gap-3">
+    <article
+      className={`relative flex flex-col gap-3 ${picked === null || picking ? '' : 'opacity-40'}`}
+    >
+      {picking && (
+        <button
+          type="button"
+          aria-pressed={picked}
+          aria-label={`Shoot: ${card.hook}`}
+          onClick={onPick}
+          className="absolute inset-0 z-10 rounded-[14px] focus-visible:shadow-[0_0_0_2px_var(--ink)] focus-visible:outline-none"
+        >
+          <span
+            className={`absolute top-2.5 left-2.5 flex size-6 items-center justify-center rounded-full transition-colors ${picked ? 'bg-ink text-page shadow-[0_0_0_1.5px_var(--page)]' : 'bg-white/70 shadow-[inset_0_0_0_1.5px_rgba(18,18,18,0.35)] backdrop-blur-md'}`}
+          >
+            {picked && <CheckIcon size={10} strokeWidth={2.2} />}
+          </span>
+        </button>
+      )}
       <Link
         href={href}
         aria-label={`Open the idea: ${card.hook}`}

@@ -10,6 +10,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BrandProvider, useBrand } from '@/features/schedule/posts-store'
+import { resetShoots } from '@/features/shoot/shoots-store'
 
 import { IdeaPage } from './idea-page'
 import { resetIdeas, suggest, useIdeas } from './ideas-store'
@@ -36,6 +37,7 @@ const url = URL as { createObjectURL?: (f: Blob) => string }
 
 beforeEach(() => {
   resetIdeas()
+  resetShoots()
   push.mockClear()
   blobs = 0
   url.createObjectURL = () => `blob:file-${++blobs}`
@@ -253,9 +255,9 @@ describe('an idea page', () => {
     expect(screen.getAllByText('0 of 3 captured')).not.toHaveLength(0)
     fireEvent.click(screen.getByRole('checkbox', { name: 'Captured: Blindfold on' }))
     expect(screen.getAllByText('1 of 3 captured')).not.toHaveLength(0)
-    // The calendar's shoot on Wed 7 Oct is on offer; picking it moves the idea on to Shoot.
+    // The shoot on Wed 7 Oct is on offer, with its start; picking it moves the idea on to Shoot.
     fireEvent.click(screen.getByRole('button', { name: 'Shoot day' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Raffles City · Wed 7 Oct' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Raffles City · Wed 7 Oct, 12:00' }))
     const rail = screen.getByRole('navigation', { name: 'Stages' })
     expect(within(rail).getByRole('link', { current: 'step' })).toHaveTextContent('Shoot')
     expect(screen.getByText('Shooting Wed 7 Oct.')).toBeInTheDocument()

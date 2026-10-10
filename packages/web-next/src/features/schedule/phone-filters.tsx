@@ -36,7 +36,7 @@ export function PhoneFilters({
   const [open, setOpen] = React.useState(false)
   const close = React.useCallback(() => setOpen(false), [])
   const hiddenStages = STAGES.filter((s) => !stages[s.key]).length
-  // Shoots are off until asked for: only a change from the usual layers counts as a filter.
+  // Only a change from the usual layers counts as a filter.
   const filtering = hiddenStages > 0 || LAYERS.some((l) => layers[l.key] !== DEFAULT_LAYERS[l.key])
   const failedOnly = onlyFailed(stages)
   return (
@@ -131,6 +131,7 @@ export function PhoneFilters({
                         }}
                       />
                       {l.name}
+                      {l.key === 'shoot' && <span className="text-ink-4">· Lark</span>}
                     </button>
                   )
                 })}

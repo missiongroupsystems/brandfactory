@@ -11,6 +11,7 @@ import type { Day, FeedMark, LayerKey, Post, Week } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { useCoverOfHook, useCoverOfPost } from '@/features/ideate/ideas-store'
 
+import { EventChip } from './event-chip'
 import { ideaLabel, useOpenIdea } from './open-idea'
 
 import type { CalendarMode } from './calendar-view'
@@ -635,16 +636,13 @@ function DayHead({
       {(events.length > 0 || stories.length > 0) && (
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
           {events.map((e) => (
-            <span
+            <EventChip
               key={e.text}
+              event={e}
               className="flex h-7 items-center rounded-[6px] px-2.5 text-[12px] font-medium"
-              style={{
-                background: `var(--layer-${e.layer})`,
-                color: `var(--layer-${e.layer}-ink)`,
-              }}
             >
               {e.text}
-            </span>
+            </EventChip>
           ))}
           <StoryDeck stories={stories} onOpen={onOpenStories} size="md" />
         </div>

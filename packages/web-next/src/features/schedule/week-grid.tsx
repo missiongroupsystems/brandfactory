@@ -8,6 +8,7 @@ import type { CalendarEvent, Day, FeedMark, LayerKey, Post, Stage, Week } from '
 import { feedsOf } from '@/data/demo'
 import { useCoverOfHook, useCoverOfPost } from '@/features/ideate/ideas-store'
 
+import { EventChip } from './event-chip'
 import { ideaLabel, useOpenIdea } from './open-idea'
 
 import { Media } from '@/components/media'
@@ -239,19 +240,14 @@ function WeekRow({
         style={{ top: LANE_TOP, gridAutoRows: LANE_H, rowGap: LANE_GAP }}
       >
         {lanes.map(({ event, lane }) => (
-          <span
+          <EventChip
             key={event.text}
-            title={event.text}
+            event={event}
             className="bb-lane pointer-events-auto mx-1 flex min-w-0 items-center rounded-[4px] px-2 text-[10.5px] leading-none font-medium"
-            style={{
-              gridColumn: `${event.col} / span ${event.span}`,
-              gridRow: lane + 1,
-              background: `var(--layer-${event.layer})`,
-              color: `var(--layer-${event.layer}-ink)`,
-            }}
+            style={{ gridColumn: `${event.col} / span ${event.span}`, gridRow: lane + 1 }}
           >
             <span className="truncate">{event.text}</span>
-          </span>
+          </EventChip>
         ))}
       </div>
     </div>

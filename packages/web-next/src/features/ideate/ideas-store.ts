@@ -81,6 +81,24 @@ export function useIdeas(brandId: BrandId): BrandIdeasState & { target: number }
   return { ...s, target: IDEAS_BY_BRAND[brandId].target }
 }
 
+/** Any brand's ideas by id, for a page that a link opens with only the id (a shared brief). */
+export function useIdeasById(): Map<string, { brandId: BrandId; card: IdeaCard }> {
+  const all = React.useSyncExternalStore(
+    subscribe,
+    () => state,
+    () => state,
+  )
+  return React.useMemo(
+    () =>
+      new Map(
+        (Object.entries(all) as Array<[BrandId, BrandIdeasState]>).flatMap(([brandId, s]) =>
+          s.ideas.map((card) => [card.id, { brandId, card }] as const),
+        ),
+      ),
+    [all],
+  )
+}
+
 /**
  * The cover for an idea tile on the calendar, which knows an idea by its hook: one of the ideas,
  * or a moment ahead whose tile the calendar already shows. Undefined for a hook the ideas page

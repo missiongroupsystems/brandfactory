@@ -34,6 +34,16 @@ import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { storyTaken } from '@/features/schedule/move-post'
 import { VoiceNote } from '@/features/brand/voice-note'
 import { useBrand } from '@/features/schedule/posts-store'
+import { Comments } from '@/features/share/comments'
+import { ShareButton } from '@/features/share/share-button'
+import { moveStart, timeRange } from '@/features/shoot/model'
+import {
+  editShoot,
+  leaveShoot,
+  shootIdeaOn,
+  useShootOf,
+  useShoots,
+} from '@/features/shoot/shoots-store'
 
 import { dayLabel, landingDay } from './calendar-slot'
 import { DayPicker, type DayInfo } from './day-picker'
@@ -107,7 +117,7 @@ export function IdeaPage({ id }: { id: string }) {
     <div className="flex min-h-svh flex-col">
       <AppHeader />
       <main className="mx-auto w-full max-w-[1440px] px-10 pb-24 max-md:px-4 max-md:pt-2 max-md:pb-[calc(96px+env(safe-area-inset-bottom))]">
-        <div className="pb-6 max-md:pb-5">
+        <div className="flex items-center justify-between gap-3 pb-6 max-md:pb-5">
           <Link
             href={IDEAS_HREF}
             className="inline-flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase transition-colors hover:text-ink"
@@ -123,6 +133,7 @@ export function IdeaPage({ id }: { id: string }) {
             </svg>
             Current ideas
           </Link>
+          {slot && <ShareButton kind="idea" id={id} />}
         </div>
         {slot ? (
           <Idea key={id} slot={slot} />
@@ -558,7 +569,13 @@ function Idea({ slot }: { slot: Slot }) {
   const phone = usePhone()
   const plan = usePlan(slot)
   const board = useBoard()
-  const { card, status } = slot
+  const { status } = slot
+  // The idea's shoot day is its shoot's day, which the call sheet can move.
+  const shoot = useShootOf(brand.id, slot.card.id)
+  const card = React.useMemo(
+    () => (shoot ? { ...slot.card, shootDay: shoot.dayN } : slot.card),
+    [slot.card, shoot],
+  )
   const rename = useRename(card)
   const refs = refsOf(brand.id, card)
   const stages = stagesOf(refs, card, slot, weeks, plan.time)
@@ -697,6 +714,7 @@ function Idea({ slot }: { slot: Slot }) {
         </StageSection>
 
         <StageSection stage={stage('shoot')}>
+          <ShootLine card={card} />
           <Capture card={card} refs={refs} board={board} patchShot={patchShot} />
         </StageSection>
 
@@ -710,6 +728,7 @@ function Idea({ slot }: { slot: Slot }) {
           )}
         </StageSection>
       </div>
+      <Comments kind="idea" id={card.id} />
     </article>
   )
 }
@@ -1492,30 +1511,30 @@ function ShotCard({
   )
 }
 
-/** Who or what is in frame, and the shoot day: one of the calendar's shoots, or any day. */
+/** The start times a shoot day offers on an idea's page; the call sheet has every half hour. */
+const SHOOT_STARTS = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00']
+
+/**
+ * Who or what is in frame, and the shoot day and time: one of the brand's shoots, or any day,
+ * which starts a shoot there. The idea joins that shoot; its call sheet holds the rest.
+ */
 function ShotDetails({ card }: { card: IdeaCard }) {
   const { brand, weeks } = useBrand()
-  // The calendar's shoots, in date order; two can share a day.
-  const shoots = React.useMemo(
-    () =>
-      weeks.flatMap((w) =>
-        w.events
-          .filter((e) => e.layer === 'shoot')
-          .flatMap((e) => {
-            const day = w.days[e.col - 1]
-            return day && !day.past
-              ? [
-                  {
-                    key: `${e.text}:${day.n}`,
-                    dayN: day.n,
-                    label: `${e.text.replace(/^Shoot · /, '')} · ${dayLabel(weeks, day.n)}`,
-                  },
-                ]
-              : []
-          }),
-      ),
-    [weeks],
-  )
+  const all = useShoots(brand.id)
+  const shoot = all.find((s) => s.ideaIds.includes(card.id))
+  // The time picked before a day: the shoot it starts begins then.
+  const [start, setStart] = React.useState('12:00')
+  // The shoots ahead, as shortcuts; two can share a day.
+  const shoots = React.useMemo(() => {
+    const ahead = new Set(weeks.flatMap((w) => w.days.filter((d) => !d.past).map((d) => d.n)))
+    return all
+      .filter((s) => ahead.has(s.dayN))
+      .map((s) => ({
+        key: s.id,
+        dayN: s.dayN,
+        label: `${s.title} · ${dayLabel(weeks, s.dayN)}, ${s.start}`,
+      }))
+  }, [all, weeks])
   const infoOf = React.useCallback(
     (d: Day): DayInfo => {
       const here = shoots.filter((s) => s.dayN === d.n)
@@ -1537,15 +1556,61 @@ function ShotDetails({ card }: { card: IdeaCard }) {
       <span className="flex">
         <DayPicker
           label="Shoot day"
-          value={card.shootDay ?? null}
+          value={shoot?.dayN ?? null}
           placeholder="Pick a shoot day"
-          onChange={(shootDay) => editIdea(brand.id, card.id, { shootDay })}
-          onClear={() => editIdea(brand.id, card.id, { shootDay: undefined })}
+          onChange={(dayN) => shootIdeaOn(brand.id, weeks, card.id, dayN, shoot?.start ?? start)}
+          onClear={() => leaveShoot(brand.id, card.id)}
           infoOf={infoOf}
           shortcuts={shoots}
+          time={shoot?.start ?? start}
+          times={SHOOT_STARTS}
+          onTime={(t) => (shoot ? editShoot(brand.id, shoot.id, moveStart(shoot, t)) : setStart(t))}
         />
       </span>
     </div>
+  )
+}
+
+/** The shoot this idea is in, when and where, with its call sheet a click away. */
+function ShootLine({ card }: { card: IdeaCard }) {
+  const { brand, weeks } = useBrand()
+  const shoot = useShootOf(brand.id, card.id)
+  if (!shoot) return null
+  const others = shoot.ideaIds.length - 1
+  return (
+    <Link
+      href={`/shoot/${shoot.id}`}
+      className="group/shoot flex max-w-[560px] items-center gap-4 rounded-[16px] bg-(--layer-shoot) px-4 py-3 text-(--layer-shoot-ink) transition-[filter] hover:brightness-[0.97]"
+    >
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-[14px] font-medium">
+          {dayLabel(weeks, shoot.dayN)}, {timeRange(shoot)} · {shoot.title}
+        </span>
+        <span className="truncate text-[12px] opacity-75">
+          {shoot.crew.length} people
+          {others > 0 ? ` · ${others} more ${others === 1 ? 'idea' : 'ideas'} that day` : ''}
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center gap-1 text-[12.5px] font-medium">
+        Call sheet
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 12 12"
+          fill="none"
+          aria-hidden="true"
+          className="transition-transform group-hover/shoot:translate-x-0.5"
+        >
+          <path
+            d="M2.5 6h7M6.5 3l3 3-3 3"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+    </Link>
   )
 }
 

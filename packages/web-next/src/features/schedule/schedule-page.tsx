@@ -8,6 +8,8 @@ import { Segmented } from '@/components/controls'
 import { PlusIcon } from '@/components/icons'
 import { DEFAULT_LAYERS } from '@/data/demo'
 import { dayLabel } from '@/features/ideate/calendar-slot'
+import { withShoots } from '@/features/shoot/model'
+import { useShoots } from '@/features/shoot/shoots-store'
 
 import { PhoneCalendar } from './phone-calendar'
 import { setCalendarPlace, TODAY_PLACE, useCalendarPlace, type CalendarMode } from './calendar-view'
@@ -45,7 +47,10 @@ const WEEKDAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday
  */
 export function SchedulePage() {
   const router = useRouter()
-  const { brand, weeks, month, posts, library, byId } = useBrand()
+  const { brand, weeks: plain, month, posts, library, byId } = useBrand()
+  // This month's shoots are the ones the team planned, with their times; they open their sheet.
+  const shoots = useShoots(brand.id)
+  const weeks = React.useMemo(() => withShoots(plain, shoots), [plain, shoots])
   // The day whose stories are open in the side panel.
   const [storyDay, setStoryDay] = React.useState<string | null>(null)
   const failed = posts.filter((p) => p.stage === 'failed')
