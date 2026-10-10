@@ -17,8 +17,22 @@ import {
   type Story,
   type StoryChart,
 } from '@/data/insights'
+import {
+  DAYS as PERIOD_DAYS,
+  HUB_BY_BRAND,
+  SOURCES,
+  dayName,
+  dayOf,
+  type BrandHub,
+  type MetricId,
+  type Sentiment,
+  type SourceId,
+  type Split,
+} from '@/data/insights-hub'
 import { addIdea, keepSuggestion, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
+
+import { addSplits, bestOffSocial, bookingsByFormat, percents, sum } from './hub-model'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 const HAIR = 'border-(--cal-line)'
@@ -79,18 +93,23 @@ function plain(s: string): string {
     .join(' ')
 }
 
-type Tab = 'overview' | 'posts' | 'creators'
+type Tab = 'overview' | 'posts' | 'sentiment' | 'creators'
 
 /**
- * The insights page, one calm column in three views, switched the way Ideate switches its two.
- * Overview: the month in a sentence, one number at a time over its twelve weeks, what worked
- * (each opens to its chart and its idea) and the best time to post. Posts and Creators: each
- * post and each creator, ranked. Every chart shows its numbers on hover.
+ * The insights page, one calm column in four views, switched the way Ideate switches its two.
+ * It reads five sources: Instagram, TikTok, the website, Google Business Profile and
+ * reservations. Overview: the month in a sentence, one number at a time over its twelve weeks,
+ * every source on one time axis beside the posts, what worked (each opens to its chart and its
+ * idea) and the best time to post. Posts and Creators: each post and each creator, ranked.
+ * Sentiment: what people think of the brand, from comments and mentions. Every chart shows its
+ * numbers on hover.
  */
 export function InsightsPage() {
   const { brand } = useBrand()
   const data = INSIGHTS_BY_BRAND[brand.id]
+  const hub = HUB_BY_BRAND[brand.id]
   const [tab, setTab] = React.useState<Tab>('overview')
+  const [sources, setSources] = React.useState(false)
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -101,14 +120,62 @@ export function InsightsPage() {
       >
         <div className="flex flex-col gap-5 pt-6 pb-8 max-md:pt-2">
           <div className="flex flex-col gap-3">
-            <span className={EYEBROW}>
-              {brand.name} · {data.period} · Instagram + TikTok
+            <span className={`${EYEBROW} flex flex-wrap items-center gap-x-1.5 gap-y-1`}>
+              {brand.name} · {data.period} ·
+              <button
+                type="button"
+                aria-expanded={sources}
+                onClick={() => setSources((o) => !o)}
+                className="flex items-center gap-1.5 uppercase transition-colors hover:text-ink"
+              >
+                <span className="flex">
+                  {SOURCES.map((s, i) => (
+                    <span
+                      key={s.id}
+                      className={`flex size-[18px] items-center justify-center rounded-full bg-surface text-ink-3 shadow-[0_0_0_1.5px_var(--page)] ${i > 0 ? '-ml-1' : ''}`}
+                    >
+                      <SourceGlyph id={s.id} size={9} />
+                    </span>
+                  ))}
+                </span>
+                {SOURCES.length} sources
+                <span
+                  className="transition-transform duration-200"
+                  style={{ transform: sources ? 'rotate(180deg)' : undefined }}
+                >
+                  <ChevronDown />
+                </span>
+              </button>
             </span>
             <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[34px]">
               Insights
             </h1>
           </div>
-          <div className="w-[330px] max-sm:w-full">
+          <Fold open={sources}>
+            <ul
+              aria-label="Sources"
+              className="grid grid-cols-2 gap-x-6 gap-y-3 pt-1 max-md:grid-cols-1"
+            >
+              {SOURCES.map((s) => (
+                <li key={s.id} className="flex items-center gap-3">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface text-ink-2">
+                    <SourceGlyph id={s.id} size={13} />
+                  </span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="flex items-center gap-1.5 text-[13.5px] font-medium">
+                      {s.name}
+                      <span
+                        aria-label="Connected"
+                        className="size-1.5 rounded-full bg-(--insight-5)"
+                      />
+                    </span>
+                    <span className="text-[12px] text-ink-4">{s.brings}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Fold>
+          <div className="w-[440px] max-sm:w-full">
             <Segmented
               label="View"
               pill
@@ -117,6 +184,7 @@ export function InsightsPage() {
               options={[
                 { value: 'overview', label: 'Overview' },
                 { value: 'posts', label: 'Posts' },
+                { value: 'sentiment', label: 'Sentiment' },
                 { value: 'creators', label: 'Creators' },
               ]}
             />
@@ -124,8 +192,11 @@ export function InsightsPage() {
         </div>
 
         <div key={tab} className="bb-swap">
-          {tab === 'overview' && <Overview data={data} />}
-          {tab === 'posts' && <Posts posts={data.posts} period={data.period} />}
+          {tab === 'overview' && <Overview data={data} hub={hub} />}
+          {tab === 'posts' && (
+            <Posts posts={data.posts} period={data.period} splits={hub.sentiment.posts} />
+          )}
+          {tab === 'sentiment' && <SentimentView sentiment={hub.sentiment} />}
           {tab === 'creators' && <Creators creators={data.creators} />}
         </div>
       </main>
@@ -182,7 +253,7 @@ function anchor(e: React.SyntheticEvent<Element>, box: HTMLElement | null) {
 
 // ── Overview ─────────────────────────────────────────────────────────────────────────────────
 
-function Overview({ data }: { data: BrandInsights }) {
+function Overview({ data, hub }: { data: BrandInsights; hub: BrandHub }) {
   const stories = data.stories.filter((s) => s.chart.kind !== 'days')
   const time = data.stories.find((s) => s.chart.kind === 'days')
   return (
@@ -198,6 +269,11 @@ function Overview({ data }: { data: BrandInsights }) {
       </p>
 
       <NumberCard kpis={data.kpis} />
+
+      <section aria-label="Beyond social" className="flex flex-col gap-3">
+        <Heading title="Beyond social" note="Each row is scaled to its own peak" />
+        <Lineup posts={data.posts} hub={hub} />
+      </section>
 
       <section aria-label="What worked" className="flex flex-col gap-3">
         <Heading title="What worked" note="Open one to see why" />
@@ -619,8 +695,19 @@ function Heat({ days, hours }: { days: number[]; hours: number[] }) {
 
 type PostSort = 'reach' | 'engagement'
 
-/** Every post this month, ranked by reach or by engagement, with the average as a divider. */
-function Posts({ posts, period }: { posts: PostStat[]; period: string }) {
+/**
+ * Every post this month, ranked by reach or by engagement, with the average as a divider. Each
+ * post carries what its comments said, as a small positive, neutral and negative bar.
+ */
+function Posts({
+  posts,
+  period,
+  splits,
+}: {
+  posts: PostStat[]
+  period: string
+  splits: Record<string, Split>
+}) {
   const [sort, setSort] = React.useState<PostSort>('reach')
   const ranked = [...posts].sort((a, b) => b[sort] - a[sort])
   const avg = posts.reduce((n, p) => n + p[sort], 0) / posts.length
@@ -677,6 +764,7 @@ function Posts({ posts, period }: { posts: PostStat[]; period: string }) {
                     ? `${p.engagement}% engaged · ${p.saves} saves`
                     : `${k(p.reach)} reach · ${p.saves} saves`}
                 </span>
+                {splits[p.hook] && <PostMood split={splits[p.hook]!} />}
               </span>
               <span className="flex flex-col items-end gap-0.5 tabular-nums">
                 <span className="text-[14px] font-medium">
@@ -991,6 +1079,575 @@ function Growth({ chart }: { chart: Extract<StoryChart, { kind: 'trend' }> }) {
       {chart.note && (
         <span className="pl-[42px] text-[12.5px] text-(--insight-6)">{chart.note}</span>
       )}
+    </div>
+  )
+}
+
+// ── Sources ──────────────────────────────────────────────────────────────────────────────────
+
+/** Each source's own mark: the apps' logos, and plain line icons for the rest. */
+function SourceGlyph({ id, size }: { id: SourceId; size: number }) {
+  if (id === 'ig' || id === 'tt') return <PlatformLogo platform={id} size={size} />
+  const path = {
+    // A globe for the website.
+    web: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm-9 9h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z',
+    // A map pin for Google Business Profile.
+    gbp: 'M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z',
+    // A calendar for reservations.
+    res: 'M4.5 6.5h15v13h-15zM4.5 10.5h15M8.5 4v4M15.5 4v4',
+  }[id]
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d={path} stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** The rows of the line-up, top to bottom: on social first, then what people did next. */
+const ROWS: Array<{ metric: MetricId; source: SourceId; name: string; unit: string }> = [
+  { metric: 'ig', source: 'ig', name: 'Instagram', unit: 'reach' },
+  { metric: 'tt', source: 'tt', name: 'TikTok', unit: 'views' },
+  { metric: 'web', source: 'web', name: 'Website', unit: 'visits' },
+  { metric: 'maps', source: 'gbp', name: 'Google', unit: 'Maps views' },
+  { metric: 'bookings', source: 'res', name: 'Reservations', unit: 'bookings' },
+]
+
+const FORMAT_NAME = { reel: 'Reels', carousel: 'Carousels', photo: 'Photos' } as const
+
+/**
+ * Every source on one time axis, one small chart each, with a line down through all of them for
+ * each post: a rise in Maps views or bookings sits right after the post before it. Each row has
+ * its own scale, never a second axis on one chart. The post that bookings rose most after leads,
+ * in a sentence, with its two days shaded green.
+ */
+function Lineup({ posts, hub }: { posts: PostStat[]; hub: BrandHub }) {
+  const box = React.useRef<HTMLDivElement>(null)
+  const [at, setAt] = React.useState<number | null>(null)
+  const [byFormat, setByFormat] = React.useState(false)
+  const lead = bestOffSocial(posts, hub)
+  const formats = bookingsByFormat(posts, hub.daily.bookings)
+  const n = PERIOD_DAYS
+  const rh = 44
+  const gap = 10
+  const strip = 14
+  const height = strip + ROWS.length * rh + (ROWS.length - 1) * gap
+  const x = (d: number) => (d / (n - 1)) * 100
+  const half = 50 / (n - 1)
+  const pick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const r = box.current!.getBoundingClientRect()
+    setAt(Math.max(0, Math.min(n - 1, Math.round(((e.clientX - r.left) / r.width) * (n - 1)))))
+  }
+  const pct = (v: number) => Math.round((v - 1) * 100)
+  const posted = at === null ? undefined : posts.find((p) => dayOf(p.date) === at)
+  const { searches, calls, directions } = hub.daily
+  const total = (m: MetricId) => hub.daily[m].reduce((a, v) => a + v, 0)
+
+  return (
+    <div className={`${CARD} flex flex-col p-6 max-md:p-5`}>
+      <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        <span className="font-display text-[40px] leading-none font-semibold tracking-[-0.03em] whitespace-nowrap tabular-nums">
+          +{pct(lead.bookings)}%
+        </span>
+        <span className="text-[14px] text-ink-3">bookings after one post</span>
+      </span>
+      <p className="mt-2 text-[13.5px] leading-[1.55] text-ink-3">
+        In the two days after{' '}
+        <span className="font-medium text-ink">“{lead.post.hook.replace(/\.$/, '')}”</span> (
+        {plain(lead.post.date)}), bookings ran {pct(lead.bookings)}% above a usual{' '}
+        {DAYS_LONG[(lead.day + 1) % 7]} and {DAYS_LONG[(lead.day + 2) % 7]}, and Google Maps views{' '}
+        {pct(lead.maps)}% above. Green marks those two days.
+      </p>
+
+      <div className="mt-7 grid grid-cols-[116px_minmax(0,1fr)] gap-x-4 gap-y-2 max-md:grid-cols-[100px_minmax(0,1fr)] max-md:gap-x-3">
+        <div className="flex flex-col" style={{ paddingTop: strip, gap }}>
+          {ROWS.map((r) => (
+            <span
+              key={r.metric}
+              className="flex flex-col justify-center gap-0.5"
+              style={{ height: rh }}
+            >
+              <span className="flex items-center gap-1.5 text-[13px] font-medium max-md:text-[12px]">
+                <span className="text-ink-3">
+                  <SourceGlyph id={r.source} size={11} />
+                </span>
+                <span className="truncate">{r.name}</span>
+              </span>
+              <span className="truncate font-mono text-[10.5px] text-ink-4 tabular-nums">
+                {k(total(r.metric))} {r.unit}
+              </span>
+            </span>
+          ))}
+        </div>
+
+        <div
+          ref={box}
+          className="relative touch-pan-y"
+          style={{ height }}
+          onMouseMove={pick}
+          onPointerDown={pick}
+          onMouseLeave={() => setAt(null)}
+        >
+          <span
+            aria-hidden="true"
+            className="absolute bottom-0 rounded-[4px] bg-(--insight-wash)"
+            style={{ top: strip, left: `${x(lead.day + 1) - half}%`, width: `${half * 4}%` }}
+          />
+          {posts.map((p) => {
+            const d = dayOf(p.date)
+            const on = d === lead.day
+            return (
+              <React.Fragment key={p.hook}>
+                <span
+                  aria-hidden="true"
+                  className={`absolute bottom-0 w-px ${on ? 'bg-(--insight-4)' : 'bg-(--line-strong)'}`}
+                  style={{ top: 4, left: `${x(d)}%` }}
+                />
+                <span
+                  role="img"
+                  aria-label={`Posted ${plain(p.date)}: ${p.hook}`}
+                  className={`absolute top-0 size-2 -translate-x-1/2 rounded-full shadow-[0_0_0_2px_var(--surface-2)] ${on ? 'bg-(--insight-5)' : 'bg-ink-4'}`}
+                  style={{ left: `${x(d)}%` }}
+                />
+              </React.Fragment>
+            )
+          })}
+          {ROWS.map((r, i) => {
+            const values = hub.daily[r.metric]
+            const max = Math.max(...values)
+            const y = (v: number) => rh - 1 - (v / max) * (rh - 6)
+            const line = values.map((v, d) => `${d ? 'L' : 'M'}${x(d)} ${y(v)}`).join(' ')
+            return (
+              <svg
+                key={r.metric}
+                viewBox={`0 0 100 ${rh}`}
+                preserveAspectRatio="none"
+                aria-hidden="true"
+                className="absolute inset-x-0 block w-full overflow-visible"
+                style={{ top: strip + i * (rh + gap), height: rh }}
+              >
+                <path d={`${line} L100 ${rh} L0 ${rh} Z`} fill="var(--track)" opacity="0.45" />
+                <line
+                  x1="0"
+                  x2="100"
+                  y1={rh}
+                  y2={rh}
+                  stroke="var(--line)"
+                  vectorEffect="non-scaling-stroke"
+                />
+                <path
+                  d={line}
+                  fill="none"
+                  stroke="var(--ink-3)"
+                  strokeWidth="1.5"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                  className="bb-trace"
+                />
+              </svg>
+            )
+          })}
+          {at !== null && (
+            <>
+              <span
+                className="pointer-events-none absolute bottom-0 w-px bg-ink"
+                style={{ top: strip, left: `${x(at)}%` }}
+              />
+              {ROWS.map((r, i) => {
+                const values = hub.daily[r.metric]
+                const top =
+                  strip + i * (rh + gap) + rh - 1 - (values[at]! / Math.max(...values)) * (rh - 6)
+                return (
+                  <span
+                    key={r.metric}
+                    className="pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink shadow-[0_0_0_2px_var(--surface-2)]"
+                    style={{ left: `${x(at)}%`, top }}
+                  />
+                )
+              })}
+              <Tip
+                tip={{
+                  x: `${x(at)}%`,
+                  y: 0,
+                  edge: at <= 4 ? 'start' : at >= n - 5 ? 'end' : undefined,
+                  title: posted ? `${dayName(at)} · posted “${posted.hook}”` : dayName(at),
+                  // Google also brings searches, calls and directions: a second line under its own.
+                  lines: ROWS.flatMap((r) => [
+                    `${r.name}: ${hub.daily[r.metric][at]!.toLocaleString('en-US')} ${r.unit}`,
+                    ...(r.source === 'gbp'
+                      ? [
+                          `  ${searches[at]} searches · ${calls[at]} calls · ${directions[at]} directions`,
+                        ]
+                      : []),
+                  ]),
+                }}
+              />
+            </>
+          )}
+        </div>
+
+        <span />
+        <span className="relative h-4 font-mono text-[10.5px] text-ink-4 tabular-nums">
+          {[0, 7, 14, 21, n - 1].map((d, i, all) => (
+            <span
+              key={d}
+              // A phone has room for three dates: the weekly ones in between drop out.
+              className={`absolute whitespace-nowrap ${i === 0 ? '' : i === all.length - 1 ? '-translate-x-full' : '-translate-x-1/2'} ${d === 7 || d === 21 ? 'max-md:hidden' : ''}`}
+              style={{ left: `${x(d)}%` }}
+            >
+              {dayName(d).slice(4)}
+            </span>
+          ))}
+        </span>
+      </div>
+
+      <p className="mt-5 text-[12.5px] text-ink-4 tabular-nums">
+        Google Business Profile, all month: {k(total('searches'))} searches · {k(total('maps'))}{' '}
+        Maps views · {total('calls')} calls · {total('directions')} direction requests
+      </p>
+
+      <button
+        type="button"
+        aria-expanded={byFormat}
+        onClick={() => setByFormat((o) => !o)}
+        className="mt-4 flex w-fit items-center gap-1.5 text-[13px] text-ink-3 transition-colors hover:text-ink"
+      >
+        Bookings by kind of post
+        <span
+          className="transition-transform duration-200"
+          style={{ transform: byFormat ? 'rotate(180deg)' : undefined }}
+        >
+          <ChevronDown />
+        </span>
+      </button>
+      <Fold open={byFormat}>
+        <div className="flex flex-col gap-3 pt-5">
+          <span className="text-[12.5px] text-ink-3">
+            Bookings above a usual day, in the two days after
+          </span>
+          <CompareBars
+            chart={{
+              kind: 'compare',
+              unit: 'bookings',
+              suffix: '%',
+              rows: formats.map((f) => ({
+                label: `${FORMAT_NAME[f.format]} · ${f.posts} ${f.posts > 1 ? 'posts' : 'post'}`,
+                value: f.percent,
+              })),
+            }}
+          />
+        </div>
+      </Fold>
+    </div>
+  )
+}
+
+// ── Sentiment ────────────────────────────────────────────────────────────────────────────────
+
+/** The three tones, in the order a diverging scale reads: positive, the grey middle, negative. */
+const TONES = [
+  { key: 'pos', label: 'Positive', colour: 'var(--sent-pos)' },
+  { key: 'neu', label: 'Neutral', colour: 'var(--sent-neu)' },
+  { key: 'neg', label: 'Negative', colour: 'var(--sent-neg)' },
+] as const
+
+/** "73% positive, 19% neutral, 8% negative". */
+function splitWords(s: Split): string {
+  const p = percents(s)
+  return TONES.map((t) => `${p[t.key]}% ${t.label.toLowerCase()}`).join(', ')
+}
+
+/** A split as one bar of three parts, a 2px gap between them. Hover a part for its count. */
+function SplitBar({ split, height = 6, title }: { split: Split; height?: number; title?: string }) {
+  const box = React.useRef<HTMLSpanElement>(null)
+  const [tip, setTip] = React.useState<TipState | null>(null)
+  const p = percents(split)
+  return (
+    <span
+      ref={box}
+      role="img"
+      aria-label={splitWords(split)}
+      className="relative flex w-full gap-[2px]"
+      style={{ height }}
+      onMouseLeave={() => setTip(null)}
+    >
+      {TONES.filter((t) => split[t.key] > 0).map((t, i) => (
+        <span
+          key={t.key}
+          onMouseEnter={(e) =>
+            title &&
+            setTip({
+              ...anchor(e, box.current),
+              title: `${t.label} · ${title}`,
+              lines: [`${p[t.key]}% · ${split[t.key]} of ${sum(split)}`],
+            })
+          }
+          className="bb-fill block h-full min-w-[3px] rounded-full"
+          style={{
+            flex: `${split[t.key]} 1 0`,
+            background: t.colour,
+            animationDelay: `${120 + i * 90}ms`,
+          }}
+        />
+      ))}
+      <Tip tip={tip} />
+    </span>
+  )
+}
+
+/** A post's comments in one line: their bar, how many, and the tone most of them took. */
+function PostMood({ split }: { split: Split }) {
+  const p = percents(split)
+  const top = [...TONES].sort((a, b) => p[b.key] - p[a.key])[0]!
+  return (
+    <span className="mt-1 flex items-center gap-2 text-[12px] text-ink-4 tabular-nums">
+      <span className="w-14 shrink-0">
+        <SplitBar split={split} height={5} title="comments on this post" />
+      </span>
+      <span className="whitespace-nowrap">
+        {sum(split)} comments ·{' '}
+        <span className={top.key === 'neg' ? 'font-medium text-ink-2' : ''}>
+          {p[top.key]}% {top.label.toLowerCase()}
+        </span>
+      </span>
+    </span>
+  )
+}
+
+/**
+ * What people think of the brand: the month's split across comments and mentions, its trend week
+ * by week, what they praise and what to work on, and a few of their own words.
+ */
+function SentimentView({ sentiment }: { sentiment: Sentiment }) {
+  const { brand } = useBrand()
+  const comments = addSplits(Object.values(sentiment.posts))
+  const all = addSplits([comments, sentiment.mentions])
+  const p = percents(all)
+  const now = percents(addSplits(sentiment.weeks.slice(-4))).pos
+  const before = percents(addSplits(sentiment.weeks.slice(-8, -4))).pos
+  const change = now - before
+  const worst = sentiment.complaints[0]
+  const top = Math.max(...[...sentiment.praise, ...sentiment.complaints].map((t) => t.count))
+
+  return (
+    <section aria-label="Sentiment" className="flex flex-col gap-11">
+      <p className="text-[15px] leading-[1.6] text-ink-2">
+        <span className="font-medium text-ink">{p.pos}% positive</span> across {sum(comments)}{' '}
+        comments on your posts and {sum(sentiment.mentions)} posts that mention {brand.name}.
+        {worst && (
+          <>
+            {' '}
+            <span className="font-medium text-ink">{worst.theme}</span> is the top complaint, the
+            first thing to work on.
+          </>
+        )}
+      </p>
+
+      <div className={`${CARD} flex flex-col p-6 max-md:p-5`}>
+        <span className="flex items-baseline gap-2.5">
+          <span className="font-display text-[40px] leading-none font-semibold tracking-[-0.03em] tabular-nums">
+            {p.pos}%
+          </span>
+          <span className="text-[14px] text-ink-3">of what people said was positive</span>
+        </span>
+        <p className="mt-2 text-[13.5px] text-ink-3">
+          {change === 0 ? (
+            'The same as the 30 days before.'
+          ) : (
+            <>
+              <span
+                className={`font-medium ${change > 0 ? 'text-(--insight-6)' : 'text-(--fail-ink)'}`}
+              >
+                {change > 0 ? 'Up' : 'Down'} {Math.abs(change)} points
+              </span>{' '}
+              on the 30 days before.
+            </>
+          )}
+        </p>
+        <div className="mt-6">
+          <SplitBar split={all} height={12} title={`all ${sum(all)}`} />
+        </div>
+        <span className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5">
+          {TONES.map((t) => (
+            <span key={t.key} className="flex items-center gap-2 text-[12.5px] text-ink-2">
+              <span className="size-2 rounded-full" style={{ background: t.colour }} />
+              {t.label}
+              <span className="font-mono text-[11px] text-ink-4 tabular-nums">{p[t.key]}%</span>
+            </span>
+          ))}
+        </span>
+        <div className={`mt-6 flex flex-col gap-4 border-t pt-5 ${HAIR}`}>
+          {[
+            { label: 'Comments on your posts', split: comments },
+            { label: 'Posts that tag or mention you', split: sentiment.mentions },
+          ].map((row) => (
+            <div
+              key={row.label}
+              className="grid grid-cols-[minmax(0,200px)_minmax(0,1fr)_auto] items-center gap-4 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-y-2"
+            >
+              <span className="flex flex-col">
+                <span className="text-[13px]">{row.label}</span>
+                <span className="font-mono text-[10.5px] text-ink-4 tabular-nums">
+                  {sum(row.split)}
+                </span>
+              </span>
+              <span className="max-md:order-last max-md:col-span-2">
+                <SplitBar split={row.split} height={6} title={row.label.toLowerCase()} />
+              </span>
+              <span className="font-mono text-[11px] text-ink-3 tabular-nums">
+                {percents(row.split).pos}% · {percents(row.split).neu}% · {percents(row.split).neg}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <section aria-label="Week by week" className="flex flex-col gap-3">
+        <Heading title="Week by week" note="Each bar is one week" />
+        <div className={`${CARD} p-6 max-md:p-5`}>
+          <WeekMood weeks={sentiment.weeks} />
+        </div>
+      </section>
+
+      <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-11">
+        <Themes title="What people praise" themes={sentiment.praise} max={top} tone="pos" />
+        <Themes title="What to work on" themes={sentiment.complaints} max={top} tone="neg" />
+      </div>
+
+      <section aria-label="In their words" className="flex flex-col gap-3">
+        <Heading title="In their words" />
+        <ul className={`${CARD} px-6 py-1 max-md:px-5`}>
+          {sentiment.quotes.map((q, i) => {
+            const tone = TONES.find((t) => t.key === q.tone)!
+            return (
+              <li
+                key={q.who}
+                className={`bb-rise flex flex-col gap-1.5 py-4 ${i > 0 ? `border-t ${HAIR}` : ''}`}
+                style={{ animationDelay: `${i * 40}ms` }}
+              >
+                <span className="flex items-center gap-2 text-[12px] text-ink-3">
+                  <span className="size-2 rounded-full" style={{ background: tone.colour }} />
+                  {tone.label}
+                </span>
+                <span className="font-display text-[15px] leading-[1.4] font-medium tracking-[-0.01em]">
+                  “{q.text}”
+                </span>
+                <span className="text-[12px] text-ink-4">
+                  {q.who} ·{' '}
+                  {q.where === 'comment' ? `a comment on “${q.on.replace(/\.$/, '')}”` : q.on}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      </section>
+    </section>
+  )
+}
+
+/** Praise or complaints, most first, each a thin bar on one scale shared by both lists. */
+function Themes({
+  title,
+  themes,
+  max,
+  tone,
+}: {
+  title: string
+  themes: Array<{ theme: string; count: number }>
+  max: number
+  tone: 'pos' | 'neg'
+}) {
+  return (
+    <section aria-label={title} className="flex flex-col gap-3">
+      <Heading title={title} />
+      <ol className={`${CARD} flex flex-1 flex-col gap-3.5 p-6 max-md:p-5`}>
+        {themes.map((t, i) => (
+          <li key={t.theme} className="flex flex-col gap-1.5">
+            <span className="flex items-baseline justify-between gap-3 text-[13px]">
+              <span className={i === 0 ? 'font-medium text-ink' : 'text-ink-2'}>{t.theme}</span>
+              <span className="font-mono text-[11.5px] text-ink-3 tabular-nums">{t.count}</span>
+            </span>
+            <span className="h-1.5 overflow-hidden rounded-full bg-(--track)/50">
+              <span
+                className="bb-fill block h-full rounded-full"
+                style={{
+                  width: `${(t.count / max) * 100}%`,
+                  background: tone === 'pos' ? 'var(--sent-pos)' : 'var(--sent-neg)',
+                  animationDelay: `${150 + i * 80}ms`,
+                }}
+              />
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+/** Twelve weeks, each a full bar split positive at the base, neutral, negative on top. */
+function WeekMood({ weeks }: { weeks: Split[] }) {
+  const [at, setAt] = React.useState<number | null>(null)
+  const n = weeks.length
+  const h = 140
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="relative" style={{ height: h }} onMouseLeave={() => setAt(null)}>
+        <div className="absolute inset-0 flex">
+          {weeks.map((w, i) => (
+            <span
+              key={i}
+              role="img"
+              aria-label={`${weekName(i)}: ${splitWords(w)}`}
+              onMouseEnter={() => setAt(i)}
+              onPointerDown={() => setAt(i)}
+              className="flex h-full flex-1 justify-center"
+            >
+              <span
+                className={`bb-grow flex w-[56%] max-w-[30px] flex-col-reverse gap-[2px] transition-opacity duration-150 ${at !== null && at !== i ? 'opacity-55' : ''}`}
+                style={{ animationDelay: `${i * 25}ms` }}
+              >
+                {TONES.map((t, j) => (
+                  <span
+                    key={t.key}
+                    className={
+                      j === 0
+                        ? 'rounded-t-[2px] rounded-b-[4px]'
+                        : j === 2
+                          ? 'rounded-t-[4px] rounded-b-[2px]'
+                          : 'rounded-[2px]'
+                    }
+                    style={{ flex: `${w[t.key]} 1 0`, background: t.colour }}
+                  />
+                ))}
+              </span>
+            </span>
+          ))}
+        </div>
+        {at !== null && (
+          <Tip
+            tip={{
+              x: `${((at + 0.5) / n) * 100}%`,
+              y: 0,
+              edge: at <= 1 ? 'start' : at >= n - 2 ? 'end' : undefined,
+              title: weekName(at),
+              lines: TONES.map(
+                (t) => `${t.label}: ${percents(weeks[at]!)[t.key]}% (${weeks[at]![t.key]})`,
+              ),
+            }}
+          />
+        )}
+      </div>
+      <span className="relative h-4 font-mono text-[10.5px] text-ink-4 tabular-nums">
+        {[0, 4, 8, n - 1].map((i) => (
+          <span
+            key={i}
+            className="absolute -translate-x-1/2 whitespace-nowrap"
+            style={{ left: `${((i + 0.5) / n) * 100}%` }}
+          >
+            {i === n - 1 ? 'This week' : WEEKS[i]}
+          </span>
+        ))}
+      </span>
     </div>
   )
 }

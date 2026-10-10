@@ -152,4 +152,14 @@
   --insight-5: #1f8a5b;
   --insight-6: #15623f;
   --insight-wash: rgba(31, 138, 91, 0.07);
+
+  /*
+   * Sentiment, a diverging scale: the insights green for positive, a deep brick for negative, a
+   * grey midpoint for neutral. The two poles pass the dataviz validator against --surface-2
+   * (deutan ΔE 9.2, both above 3:1); the grey is the midpoint, so every share also prints as a
+   * number beside it.
+   */
+  --sent-pos: var(--insight-5);
+  --sent-neu: #c4c4bc;
+  --sent-neg: #8f3b36;
 }

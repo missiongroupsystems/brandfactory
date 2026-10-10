@@ -31,3 +31,29 @@ describe('planning an idea from a finding', () => {
     expect(push.mock.calls[0]![0]).toMatch(/^\/ideate\/[\w-]+$/)
   })
 })
+
+describe('the marketing hub', () => {
+  it('names what to work on, from the complaints people raise most', () => {
+    render(
+      <BrandProvider>
+        <InsightsPage />
+      </BrandProvider>,
+    )
+    fireEvent.click(screen.getByRole('radio', { name: 'Sentiment' }))
+    // Nat's ask: "so we know what areas we need to work on".
+    expect(screen.getByRole('region', { name: 'What to work on' })).toHaveTextContent(
+      'Wait for a table',
+    )
+  })
+
+  it('leads the off-social chart with the post bookings rose after', () => {
+    render(
+      <BrandProvider>
+        <InsightsPage />
+      </BrandProvider>,
+    )
+    expect(screen.getByRole('region', { name: 'Beyond social' })).toHaveTextContent(
+      /two days after “Ravioli, filled by hand”/,
+    )
+  })
+})
