@@ -116,11 +116,14 @@ export function SourceMark({ source, size }: { source: SourceKey; size: number }
 
 /** How long the pretend sign-in takes: long enough to read as a sign-in, short enough not to wait. */
 export const CONNECT_DELAY = 700
+/** How long the sheet shows it worked before it closes: the tick has drawn and been seen. */
+export const CONNECTED_HOLD = 1400
 
 /**
  * The sign-in a link opens, as an OAuth screen reads: what brand base asks to do, then Allow.
  * Simulated: nothing leaves the browser. Allow links the source for the brand in the header,
- * then `onConnected` carries on with what the user was doing (the Drive picker, the invites).
+ * shows it worked (the dots join into a line and a tick pops in), then `onConnected` carries on
+ * with what the user was doing (the Drive picker, the invites).
  * A dialog on a desktop, a sheet from the bottom on a phone.
  */
 export function ConnectSheet({
@@ -134,10 +137,13 @@ export function ConnectSheet({
 }) {
   const { brand } = useBrand()
   const info = SOURCES[source]
-  const [busy, setBusy] = React.useState(false)
+  const [step, setStep] = React.useState<'ask' | 'busy' | 'done'>('ask')
+  const busy = step === 'busy'
   const allowRef = React.useRef<HTMLButtonElement>(null)
   const timer = React.useRef(0)
-  const close = React.useEffectEvent(onClose)
+  // Once it has linked, closing the sheet early still carries on (the picker, the invites).
+  const dismiss = () => (step === 'done' ? onConnected() : onClose())
+  const close = React.useEffectEvent(dismiss)
 
   React.useEffect(() => {
     const { overflow } = document.body.style
@@ -157,11 +163,12 @@ export function ConnectSheet({
   }, [])
 
   function allow() {
-    if (busy) return
-    setBusy(true)
+    if (step !== 'ask') return
+    setStep('busy')
     timer.current = window.setTimeout(() => {
       connect(brand.id, source)
-      onConnected()
+      setStep('done')
+      timer.current = window.setTimeout(onConnected, CONNECTED_HOLD)
     }, CONNECT_DELAY)
   }
 
@@ -170,31 +177,69 @@ export function ConnectSheet({
       <button
         type="button"
         aria-label="Close"
-        onClick={onClose}
+        onClick={dismiss}
         className="bb-fade absolute inset-0 bg-ink/30"
       />
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`Connect ${info.name}`}
+        aria-label={step === 'done' ? `${info.name} connected` : `Connect ${info.name}`}
         className="bb-rise relative flex w-[380px] flex-col gap-6 rounded-[22px] bg-page p-7 shadow-sheet max-md:bb-sheet-up max-md:w-full max-md:rounded-b-none max-md:px-5 max-md:pt-6 max-md:pb-[calc(20px+env(safe-area-inset-bottom))]"
       >
         <span aria-hidden="true" className="flex items-center gap-2.5 text-ink">
-          <span className="flex size-11 items-center justify-center rounded-[13px] bg-surface">
+          <span
+            className={`flex size-11 items-center justify-center rounded-[13px] bg-surface ${step === 'done' ? 'bb-hug' : ''}`}
+          >
             <LogoMark />
           </span>
-          <span className="flex gap-1">
-            {[0, 1, 2].map((i) => (
-              <span key={i} className="size-1 rounded-full bg-ink-5" />
-            ))}
+          <span className="relative flex h-6 w-8 items-center justify-center">
+            {step === 'done' ? (
+              <>
+                <span className="bb-fill absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-live" />
+                <span
+                  className="bb-pop relative flex size-6 items-center justify-center rounded-full bg-live text-white"
+                  style={{ animationDelay: '160ms' }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 26 26" fill="none">
+                    <path
+                      className="bb-draw"
+                      d="M6 13.5L11 18.5L20 8"
+                      stroke="currentColor"
+                      strokeWidth="3.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              </>
+            ) : (
+              <span className="flex gap-1">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className={`size-1 rounded-full bg-ink-5 ${busy ? 'bb-pulse' : ''}`}
+                    style={busy ? { animationDelay: `${i * 160}ms` } : undefined}
+                  />
+                ))}
+              </span>
+            )}
           </span>
-          <span className="flex size-11 items-center justify-center rounded-[13px] bg-surface text-ink-2">
+          <span
+            className={`flex size-11 items-center justify-center rounded-[13px] bg-surface text-ink-2 ${step === 'done' ? 'bb-hug' : ''}`}
+            style={{ '--hug': '-4px' } as React.CSSProperties}
+          >
             <SourceMark source={source} size={18} />
           </span>
         </span>
         <div className="flex flex-col gap-1.5">
-          <h2 className="text-[19px] font-medium tracking-[-0.02em]">Connect {info.name}</h2>
-          <p className="text-[13.5px] text-ink-3">For {brand.name}, brand base wants to:</p>
+          <h2 className="text-[19px] font-medium tracking-[-0.02em]">
+            {step === 'done' ? `${info.name} connected` : `Connect ${info.name}`}
+          </h2>
+          <p className="text-[13.5px] text-ink-3">
+            {step === 'done'
+              ? `${brand.name} is linked as ${info.account(brand)}.`
+              : `For ${brand.name}, brand base wants to:`}
+          </p>
         </div>
         <ul className="flex flex-col gap-2.5">
           {info.asks(brand).map((line) => (
@@ -206,7 +251,10 @@ export function ConnectSheet({
             </li>
           ))}
         </ul>
-        <div className="flex items-center justify-end gap-1 max-md:flex-col-reverse max-md:items-stretch max-md:gap-2">
+        <div
+          className={`flex items-center justify-end gap-1 transition-opacity duration-300 max-md:flex-col-reverse max-md:items-stretch max-md:gap-2 ${step === 'done' ? 'opacity-0' : ''}`}
+          inert={step === 'done'}
+        >
           <button
             type="button"
             onClick={onClose}

@@ -117,6 +117,12 @@
     transform: translateY(40px) scale(0.96);
   }
 }
+/* Two things that just linked lean in toward each other once; --hug sets the side. */
+@keyframes bb-hug {
+  45% {
+    transform: translateX(var(--hug, 4px));
+  }
+}
 @keyframes bb-menu {
   from {
     opacity: 0;
@@ -145,6 +151,9 @@
 }
 @utility bb-pulse {
   animation: bb-pulse 1.4s ease-in-out infinite;
+}
+@utility bb-hug {
+  animation: bb-hug 560ms 120ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 @utility bb-deal {
   animation: bb-deal 720ms cubic-bezier(0.16, 1, 0.3, 1) both;

@@ -11,7 +11,7 @@ import { BrandProvider, useBrand } from '@/features/schedule/posts-store'
 import { ShootPage } from '@/features/shoot/shoot-page'
 import { resetShoots } from '@/features/shoot/shoots-store'
 
-import { CONNECT_DELAY } from './connect-sheet'
+import { CONNECT_DELAY, CONNECTED_HOLD } from './connect-sheet'
 import { ConnectionsPage } from './connections-page'
 import { resetConnections } from './connections-store'
 
@@ -54,6 +54,11 @@ const allow = () => {
   fireEvent.click(screen.getByRole('button', { name: 'Allow' }))
   act(() => {
     vi.advanceTimersByTime(CONNECT_DELAY)
+  })
+  // The sheet shows it worked before it closes.
+  expect(screen.getByRole('heading', { name: /connected$/ })).toBeInTheDocument()
+  act(() => {
+    vi.advanceTimersByTime(CONNECTED_HOLD)
   })
 }
 
@@ -118,6 +123,18 @@ describe('first-time Google Drive', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Google Drive' }))
     expect(screen.getByRole('dialog', { name: 'Connect Google Drive' })).toBeInTheDocument()
     allow()
+    expect(screen.getByRole('dialog', { name: 'Google Drive' })).toBeInTheDocument()
+  })
+
+  it('still opens the picker when the sheet is closed while it shows it worked', () => {
+    show(<Composer />, 'carlitos')
+    fireEvent.click(screen.getByRole('button', { name: 'Google Drive' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Allow' }))
+    act(() => {
+      vi.advanceTimersByTime(CONNECT_DELAY)
+    })
+    // Drive is linked by now: an early Escape must not strand the user with no picker.
+    fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.getByRole('dialog', { name: 'Google Drive' })).toBeInTheDocument()
   })
 
