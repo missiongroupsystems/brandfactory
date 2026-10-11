@@ -13,12 +13,16 @@ export const initialsOf = (name: string) =>
     .slice(0, 2)
     .toUpperCase()
 
-const person = (a: { name: string; handle: string }, meta: string): Suggestion => ({
+const person = (
+  a: { name: string; handle: string; picture?: string },
+  meta: string,
+): Suggestion => ({
   value: a.handle,
   name: a.name,
   detail: a.handle,
   meta,
   initials: initialsOf(a.name),
+  picture: a.picture,
 })
 
 const collabMeta = (a: Account) => `Collab · ${a.collab}`

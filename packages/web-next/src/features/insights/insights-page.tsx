@@ -8,6 +8,7 @@ import { AppHeader } from '@/components/app-header'
 import { Fold, Segmented } from '@/components/controls'
 import { SparkIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
+import { ProfilePicture } from '@/components/profile-picture'
 import {
   INSIGHTS_BY_BRAND,
   type BrandInsights,
@@ -829,7 +830,8 @@ function Creators({ creators }: { creators: Creator[] }) {
                 onClick={() => setOpen(on ? null : c.handle)}
                 className="grid w-full grid-cols-[36px_minmax(0,1fr)_auto_12px] items-center gap-3.5 py-3 text-left"
               >
-                <Avatar name={c.name} />
+                {/* Instagram returns a creator's picture; TikTok has no lookup by username. */}
+                <Avatar name={c.name} picture={c.platform === 'ig' ? c.top.image : undefined} />
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="truncate text-[14px] font-medium">{c.name}</span>
                   <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-ink-4">
@@ -880,16 +882,18 @@ function Creators({ creators }: { creators: Creator[] }) {
   )
 }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, picture }: { name: string; picture?: string }) {
   const initials = name
     .split(' ')
     .map((w) => w[0])
     .join('')
     .slice(0, 2)
   return (
-    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-(--insight-1) text-[12px] font-semibold text-(--insight-6)">
-      {initials}
-    </span>
+    <ProfilePicture src={picture} size={36} className="rounded-full">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-(--insight-1) text-[12px] font-semibold text-(--insight-6)">
+        {initials}
+      </span>
+    </ProfilePicture>
   )
 }
 

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 
+import { ProfilePicture } from '@/components/profile-picture'
 import type { Format } from '@/data/demo'
+import { useBrandKit } from '@/features/brand/brand-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { collabHeader, type ChannelKey, type Shot, type Tag } from './model'
@@ -94,9 +96,19 @@ function initials(name: string): string {
     .toUpperCase()
 }
 
+/** The brand's own account: every platform returns its picture, so the preview shows the logo. */
 function Avatar({ size, ring = false }: { size: number; ring?: boolean }) {
   const { brand } = useBrand()
-  return <Initials name={brand.name} size={size} ring={ring} />
+  const { src } = useBrandKit(brand.id).logo
+  return (
+    <ProfilePicture
+      src={src}
+      size={size}
+      className={`rounded-full bg-(--pc-white) ${ring ? 'shadow-[0_0_0_1px_var(--pc-white)]' : ''}`}
+    >
+      <Initials name={brand.name} size={size} ring={ring} />
+    </ProfilePicture>
+  )
 }
 
 /** A collaboration's avatars: the brand's, and the first collaborator's tucked behind it. */

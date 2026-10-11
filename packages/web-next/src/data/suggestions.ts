@@ -17,30 +17,85 @@ export interface Account {
   collab?: string
   /** How many posts tagged them. */
   tagged?: number
+  /**
+   * The profile picture. Instagram returns one only for a business or creator account (Business
+   * Discovery, by username, on the brand's own token); a personal account has none, and shows
+   * initials. In the demo, one of the brand's own photos stands in.
+   */
+  picture?: string
 }
 
 export const ACCOUNTS: Record<BrandId, Account[]> = {
   'casa-vostra': [
-    { name: 'Daniel Ang', handle: '@danielfooddiary', collab: '27 Sep' },
-    { name: 'Antonio Ferri', handle: '@chefantonio', collab: '12 Sep', tagged: 3 },
-    { name: 'Sfoglina Bologna', handle: '@sfoglina.bologna', collab: '2 Aug' },
+    { name: 'Daniel Ang', handle: '@danielfooddiary', collab: '27 Sep', picture: '/demo/dish.jpg' },
+    {
+      name: 'Antonio Ferri',
+      handle: '@chefantonio',
+      collab: '12 Sep',
+      tagged: 3,
+      picture: '/demo/casa-vostra/tagliatelle.jpg',
+    },
+    {
+      name: 'Sfoglina Bologna',
+      handle: '@sfoglina.bologna',
+      collab: '2 Aug',
+      picture: '/demo/pasta.jpg',
+    },
     { name: 'Marco Rossi', handle: '@chefmarco.cv', tagged: 14 },
     { name: 'Giulia Conti', handle: '@giulia.conti', tagged: 6 },
-    { name: 'Raffles City', handle: '@rafflescity', tagged: 5 },
+    {
+      name: 'Raffles City',
+      handle: '@rafflescity',
+      tagged: 5,
+      picture: '/demo/casa-vostra/wine-night.jpg',
+    },
     { name: 'Nat Lim', handle: '@natlim.films', tagged: 3 },
   ],
   temper: [
-    { name: 'Clara Goh', handle: '@winewithclara', collab: '30 Sep' },
-    { name: 'Maison Vauclair', handle: '@maison.vauclair', collab: '14 Sep', tagged: 2 },
-    { name: 'Duxton Hill Collective', handle: '@duxtonhill', collab: '22 Aug' },
+    {
+      name: 'Clara Goh',
+      handle: '@winewithclara',
+      collab: '30 Sep',
+      picture: '/demo/temper/glass.jpg',
+    },
+    {
+      name: 'Maison Vauclair',
+      handle: '@maison.vauclair',
+      collab: '14 Sep',
+      tagged: 2,
+      picture: '/demo/temper/pour.jpg',
+    },
+    {
+      name: 'Duxton Hill Collective',
+      handle: '@duxtonhill',
+      collab: '22 Aug',
+      picture: '/demo/temper/room.jpg',
+    },
     { name: 'Elise Moreau', handle: '@elise.pours', tagged: 11 },
     { name: 'Lena Koh', handle: '@lenakoh', tagged: 7 },
     { name: 'Sam Lee', handle: '@samlee.sg', tagged: 3 },
   ],
   carlitos: [
-    { name: 'Farid Rahman', handle: '@faridfeeds', collab: '3 Oct' },
-    { name: 'Flamenco SG', handle: '@flamenco.sg', collab: '19 Sep', tagged: 4 },
-    { name: 'Carlos Ruiz', handle: '@chefcarlosruiz', collab: '28 Aug', tagged: 8 },
+    {
+      name: 'Farid Rahman',
+      handle: '@faridfeeds',
+      collab: '3 Oct',
+      picture: '/demo/carlitos/croquetas.jpg',
+    },
+    {
+      name: 'Flamenco SG',
+      handle: '@flamenco.sg',
+      collab: '19 Sep',
+      tagged: 4,
+      picture: '/demo/carlitos/pintxos.jpg',
+    },
+    {
+      name: 'Carlos Ruiz',
+      handle: '@chefcarlosruiz',
+      collab: '28 Aug',
+      tagged: 8,
+      picture: '/demo/carlitos/jamon.jpg',
+    },
     { name: 'Lucía Romero', handle: '@lucia.romero', tagged: 9 },
     { name: 'Javier Ortega', handle: '@javi.ortega', tagged: 4 },
   ],

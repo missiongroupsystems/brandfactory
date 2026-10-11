@@ -4,6 +4,7 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 
 import { PlusIcon } from './icons'
+import { ProfilePicture } from './profile-picture'
 
 /**
  * Suggestions under a field: what the brand typed before, offered again as the user types. One
@@ -24,6 +25,8 @@ export interface Suggestion {
   meta?: string
   /** Initials on a round avatar, for a person. */
   initials?: string
+  /** A profile picture, shown in place of the initials when there is one. */
+  picture?: string
 }
 
 /** The value typed in full, offered when no suggestion is it: "Use @newhandle". */
@@ -198,13 +201,19 @@ function List({
                 </span>
               ) : (
                 row.initials && (
-                  <span
-                    aria-hidden="true"
-                    className="flex size-7 shrink-0 items-center justify-center rounded-full text-[10.5px] font-semibold"
-                    style={{ background: 'var(--avatar)', color: 'var(--avatar-ink)' }}
+                  <ProfilePicture
+                    src={row.picture}
+                    size={28}
+                    className="rounded-full shadow-[inset_0_0_0_1px_var(--line)]"
                   >
-                    {row.initials}
-                  </span>
+                    <span
+                      aria-hidden="true"
+                      className="flex size-7 shrink-0 items-center justify-center rounded-full text-[10.5px] font-semibold"
+                      style={{ background: 'var(--avatar)', color: 'var(--avatar-ink)' }}
+                    >
+                      {row.initials}
+                    </span>
+                  </ProfilePicture>
                 )
               )}
               <span className="flex min-w-0 flex-1 flex-col">
