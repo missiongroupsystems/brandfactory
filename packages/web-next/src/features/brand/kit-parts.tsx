@@ -18,32 +18,14 @@ export type Colour = BrandKit['colours'][number]
 export function Section({
   label,
   action,
-  onCancel,
   children,
 }: {
   label: string
   action?: React.ReactNode
-  /** Escape leaves the section's fields without saving them. */
-  onCancel?: () => void
   children: React.ReactNode
 }) {
-  const root = React.useRef<HTMLElement>(null)
-  // On the section, not the window, so Escape in one open section leaves the others open.
-  React.useEffect(() => {
-    const el = root.current
-    if (!el || !onCancel) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel()
-    }
-    el.addEventListener('keydown', onKey)
-    return () => el.removeEventListener('keydown', onKey)
-  }, [onCancel])
   return (
-    <section
-      ref={root}
-      aria-label={label}
-      className="flex flex-col gap-6 border-t border-line py-9"
-    >
+    <section aria-label={label} className="flex flex-col gap-6 border-t border-line py-9">
       <div className="-my-1.5 flex h-8 items-center justify-between">
         <h2 className={EYEBROW}>{label}</h2>
         {action}

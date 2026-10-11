@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BrandProvider } from '@/features/schedule/posts-store'
 
 import { BrandPage } from './brand-page'
 import { resetBrandKit } from './brand-store'
+import { resetVoiceVersions } from './voice/versions'
 import { VoiceNote } from './voice-note'
 
 vi.mock('next/navigation', () => ({
@@ -12,7 +13,11 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
 
-beforeEach(() => resetBrandKit())
+beforeEach(() => {
+  resetBrandKit()
+  resetVoiceVersions()
+})
+afterEach(() => vi.useRealTimers())
 
 const open = () =>
   render(
@@ -58,13 +63,32 @@ describe('the brand page', () => {
 })
 
 describe('editing the kit', () => {
+  // The voice changes through its flow: a few steps, then the proof, then Make this the voice.
+  const step = () => {
+    fireEvent.click(screen.getByRole('button', { name: /^Continue/ }))
+    act(() => {
+      vi.advanceTimersByTime(400)
+    })
+  }
+  const makeItTheVoice = () => {
+    fireEvent.click(screen.getByRole('button', { name: /Make this the voice/ }))
+    act(() => {
+      vi.advanceTimersByTime(3000)
+    })
+  }
+
   it('saves a new voice where AI drafts read it, beside the composer’s AI button', () => {
+    vi.useFakeTimers()
     open()
     fireEvent.click(screen.getByRole('button', { name: 'Edit voice' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'How the brand sounds' }), {
       target: { value: 'Short and bright. Never fussy.' },
     })
-    fireEvent.click(voice().getByRole('button', { name: 'Done' }))
+    step()
+    step()
+    step()
+    makeItTheVoice()
+    vi.useRealTimers()
     expect(voice().getByText('Short and bright. Never fussy.')).toBeInTheDocument()
 
     render(
@@ -79,22 +103,30 @@ describe('editing the kit', () => {
   })
 
   it('removes a pair and adds one, and keeps neither change after Escape', () => {
+    vi.useFakeTimers()
     open()
     fireEvent.click(screen.getByRole('button', { name: 'Edit voice' }))
+    step()
     fireEvent.click(screen.getByRole('button', { name: 'Remove wood-fired' }))
     fireEvent.click(screen.getByRole('button', { name: 'Add a pair' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Say 4' }), { target: { value: 'pasta' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'Not 4' }), { target: { value: 'carbs' } })
-    fireEvent.click(voice().getByRole('button', { name: 'Done' }))
+    step()
+    step()
+    makeItTheVoice()
     expect(voice().queryByText('wood-fired')).not.toBeInTheDocument()
     expect(voice().getByText('carbs')).toBeInTheDocument()
 
     // Escape drops an edit in progress: the pair removed while open comes back.
     fireEvent.click(screen.getByRole('button', { name: 'Edit voice' }))
+    step()
     fireEvent.click(screen.getByRole('button', { name: 'Remove pasta' }))
-    fireEvent.keyDown(screen.getByRole('textbox', { name: 'How the brand sounds' }), {
-      key: 'Escape',
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Say 1' }), { key: 'Escape' })
+    act(() => {
+      vi.advanceTimersByTime(1000)
     })
+    vi.useRealTimers()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(voice().getByText('pasta')).toBeInTheDocument()
   })
 

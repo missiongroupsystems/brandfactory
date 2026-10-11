@@ -5,7 +5,7 @@ import { BRAND_KIT } from '@/data/brand-kit'
 import { BrandProvider } from '@/features/schedule/posts-store'
 
 import { BrandPage } from '../brand-page'
-import { resetBrandKit } from '../brand-store'
+import { editKit, resetBrandKit, useBrandKit } from '../brand-store'
 import { changesBetween, diffWords, SAMPLES, written } from './preview'
 import { publishVoice, resetVoiceVersions } from './versions'
 
@@ -48,76 +48,127 @@ describe('publishing a voice', () => {
     expect(v.voice.summary).toBe(casa.summary)
     expect(v.voice.examples).toEqual(['Hi.'])
   })
+
+  it('builds on the kit voice, so an edit made elsewhere is not lost', () => {
+    // The page, the composer and the inbox read the kit; a stale copy here would undo an edit.
+    editKit('casa-vostra', (k) => ({ ...k, voice: { ...k.voice, summary: 'Edited elsewhere.' } }))
+    const v = publishVoice('casa-vostra', { ...casa, summary: '' })
+    expect(v.voice.summary).toBe('Edited elsewhere.')
+  })
 })
 
-describe('the three concepts', () => {
+describe('the voice flow', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  const open = (concept: 1 | 2 | 3) =>
+  /** The kit's voice, as the composer's and the inbox's voice notes read it. */
+  function KitSummary() {
+    return <span data-testid="kit-summary">{useBrandKit('casa-vostra').voice.summary}</span>
+  }
+  const open = () =>
     render(
       <BrandProvider>
-        <BrandPage voiceConcept={concept} />
+        <BrandPage />
+        <KitSummary />
       </BrandProvider>,
     )
-  const voice = () => within(screen.getByRole('region', { name: 'Voice' }))
+  const section = () => within(screen.getByRole('region', { name: 'Voice' }))
+  const history = () => section().getByRole('button', { name: 'Version history' })
+  const heading = () => within(screen.getByRole('dialog')).getByRole('heading', { level: 2 })
+  const wait = (ms: number) =>
+    act(() => {
+      vi.advanceTimersByTime(ms)
+    })
+  const next = () => {
+    fireEvent.click(screen.getByRole('button', { name: /^Continue/ }))
+    wait(400)
+  }
 
-  it('1: nothing goes live until the new version is published', () => {
-    open(1)
+  it('publishes through the voiceEdited rules, for every reader at once', () => {
+    open()
     fireEvent.click(screen.getByRole('button', { name: 'Edit voice' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'How the brand sounds' }), {
-      target: { value: 'Short and bright.' },
+      target: { value: '   ' },
     })
-    expect(voice().queryByText('Short and bright.')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Publish v5' }))
-    const dialog = within(screen.getByRole('dialog', { name: 'Publish v5' }))
-    expect(dialog.getByText('New summary')).toBeInTheDocument()
-    fireEvent.click(dialog.getByRole('button', { name: 'Publish v5' }))
-    act(() => {
-      vi.advanceTimersByTime(4000)
+    next()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Say 1' }), {
+      target: { value: 'rolled this morning' },
     })
-    expect(voice().getByText('Short and bright.')).toBeInTheDocument()
-    expect(voice().getByText('v5 · You · Today')).toBeInTheDocument()
+    next()
+    next()
+    fireEvent.click(screen.getByRole('button', { name: /Make this the voice/ }))
+    expect(within(screen.getByRole('status')).getByText('v5 is in use')).toBeInTheDocument()
+    wait(3000)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // A blank summary keeps the old one; the new pair is live on the page and in the kit.
+    expect(screen.getByTestId('kit-summary')).toHaveTextContent(casa.summary)
+    expect(section().getByText('rolled this morning')).toBeInTheDocument()
+    expect(history()).toHaveTextContent('v5You · Today')
+    // The history says what changed, so the team can tell versions apart.
+    expect(section().getByText('“made this morning” → “rolled this morning”')).toBeInTheDocument()
   })
 
-  it('2: a tap on the hold button signs nothing; a full hold does', () => {
-    open(2)
+  it('brings back an old version as a new one, not a rewind', () => {
+    open()
+    fireEvent.click(history())
+    fireEvent.click(section().getByRole('button', { name: 'Bring back' }))
+    expect(heading()).toHaveTextContent('Bring back v3?')
+    fireEvent.click(screen.getByRole('button', { name: /Make this the voice/ }))
+    wait(3000)
+    // v3 had no "by hand"; it comes back as v5, and v4 stays in the history.
+    expect(section().queryByText('by hand')).not.toBeInTheDocument()
+    expect(section().getByText('Brought back v3')).toBeInTheDocument()
+    const list = within(section().getByRole('list'))
+    expect(list.getAllByText(/^v\d$/).map((e) => e.textContent)).toEqual(['v5', 'v4', 'v3'])
+  })
+
+  it('changes nothing when closed midway, even with a step on its way', () => {
+    open()
     fireEvent.click(screen.getByRole('button', { name: 'Edit voice' }))
-    act(() => {
-      vi.advanceTimersByTime(600)
-    })
+    next()
     fireEvent.change(screen.getByRole('textbox', { name: 'Say 1' }), {
       target: { value: 'rolled' },
     })
-    const hold = screen.getByRole('button', { name: 'Hold to sign v5' })
-    fireEvent.pointerDown(hold)
-    act(() => {
-      vi.advanceTimersByTime(400)
-    })
-    fireEvent.pointerUp(hold)
-    act(() => {
-      vi.advanceTimersByTime(2000)
-    })
-    expect(voice().queryByText('rolled')).not.toBeInTheDocument()
-
-    fireEvent.pointerDown(hold)
-    act(() => {
-      vi.advanceTimersByTime(5000)
-    })
-    expect(voice().getByText('rolled')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Continue/ }))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    wait(5000)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(section().queryByText('rolled')).not.toBeInTheDocument()
+    expect(history()).toHaveTextContent('v4')
+    // Opening again starts from the voice in use, not the dropped draft.
+    fireEvent.click(screen.getByRole('button', { name: 'Edit voice' }))
+    next()
+    expect(screen.getByRole('textbox', { name: 'Say 1' })).toHaveValue('made this morning')
   })
 
-  it('3: brings back an old version from the history as a new one', () => {
-    open(3)
-    expect(voice().getByText('by hand')).toBeInTheDocument()
-    fireEvent.click(voice().getByRole('button', { name: /History/ }))
-    fireEvent.click(voice().getByRole('button', { name: 'Bring back' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Make this the voice' }))
-    act(() => {
-      vi.advanceTimersByTime(3000)
-    })
-    // v3 had no "by hand"; bringing it back makes it v5, not a rewind.
-    expect(voice().queryByText('by hand')).not.toBeInTheDocument()
-    expect(voice().getByText('Brought back v3')).toBeInTheDocument()
+  it('goes by keyboard: Enter continues, ⌘Enter makes it the voice, Escape finishes', () => {
+    open()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit voice' }))
+    const summary = screen.getByRole('textbox', { name: 'How the brand sounds' })
+    expect(summary).toHaveFocus()
+    fireEvent.keyDown(summary, { key: 'Enter' })
+    wait(400)
+    expect(heading()).toHaveTextContent('Say this, not that.')
+    const say = screen.getByRole('textbox', { name: 'Say 1' })
+    expect(say).toHaveFocus()
+    fireEvent.change(say, { target: { value: 'rolled' } })
+    fireEvent.keyDown(say, { key: 'Enter' })
+    wait(400)
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Line 1' }), { key: 'Enter' })
+    wait(400)
+    // On the proof a plain Enter publishes nothing; only ⌘Enter does.
+    fireEvent.keyDown(heading(), { key: 'Enter' })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    fireEvent.keyDown(heading(), { key: 'Enter', metaKey: true })
+    expect(within(screen.getByRole('status')).getByText('v5 is in use')).toBeInTheDocument()
+    // Escape once it is in use closes at once, without waiting out the hold.
+    fireEvent.keyDown(window, { key: 'Escape' })
+    wait(400)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(section().getByText('rolled')).toBeInTheDocument()
+    // The old flow's hold timer must not close a flow opened after it.
+    fireEvent.click(screen.getByRole('button', { name: 'Edit voice' }))
+    wait(5000)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })

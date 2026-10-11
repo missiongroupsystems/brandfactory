@@ -7,7 +7,7 @@ import { CloseIcon, PlusIcon } from '@/components/icons'
 import { EYEBROW, QUIET, type Voice } from '../kit-parts'
 
 /**
- * The voice's fields for the three concepts: the voice as it reads at rest, set in the same type,
+ * The voice's fields, one step at a time: the voice as it reads at rest, set in the same type,
  * with a caret where you type and no boxes. A field shows itself only by a hairline on focus.
  */
 
@@ -16,30 +16,18 @@ const BARE = 'min-w-0 bg-transparent outline-none placeholder:text-ink-5'
 export function SummaryField({
   value,
   onChange,
-  size = 'lg',
-  focusFirst = false,
 }: {
   value: string
   onChange: (v: string) => void
-  size?: 'md' | 'lg'
-  focusFirst?: boolean
 }) {
-  const ref = React.useRef<HTMLTextAreaElement>(null)
-  React.useEffect(() => {
-    const el = ref.current
-    if (!focusFirst || !el) return
-    el.focus({ preventScroll: true })
-    el.setSelectionRange(el.value.length, el.value.length)
-  }, [focusFirst])
   return (
     <textarea
-      ref={ref}
       aria-label="How the brand sounds"
       value={value}
       placeholder="How does the brand sound?"
       onChange={(e) => onChange(e.target.value)}
       rows={2}
-      className={`${BARE} w-full field-sizing-content resize-none font-display tracking-[-0.025em] caret-ink ${size === 'lg' ? 'text-[34px] leading-[1.18] max-md:text-[24px] max-md:leading-[1.25]' : 'text-[24px] leading-[1.3] max-md:text-[20px]'}`}
+      className={`${BARE} w-full field-sizing-content resize-none font-display text-[26px] leading-[1.28] tracking-[-0.025em] caret-ink max-md:text-[21px] max-md:leading-[1.32]`}
     />
   )
 }
@@ -152,66 +140,27 @@ export function LinesField({
 }
 
 /**
- * For a space that takes the screen: the page under it holds still, Escape calls `onEscape`, and
- * the focus goes back to the control that opened it when it closes.
+ * For a space that takes the screen: the page under it holds still and cannot take the focus,
+ * Escape calls `onEscape`, and the focus goes back to the control that opened it on close.
  */
-export function useTakeover(onEscape: () => void) {
+export function useTakeover(root: React.RefObject<HTMLElement | null>, onEscape: () => void) {
   const escape = React.useEffectEvent(onEscape)
   React.useEffect(() => {
     const { overflow } = document.body.style
     document.body.style.overflow = 'hidden'
     const opener = document.activeElement as HTMLElement | null
+    // Everything beside the space, so Tab stays inside it.
+    const behind = [...document.body.children].filter(
+      (el): el is HTMLElement => el instanceof HTMLElement && el !== root.current && !el.inert,
+    )
+    behind.forEach((el) => (el.inert = true))
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && escape()
     window.addEventListener('keydown', onKey)
     return () => {
       document.body.style.overflow = overflow
+      behind.forEach((el) => (el.inert = false))
       window.removeEventListener('keydown', onKey)
       opener?.focus({ preventScroll: true })
     }
-  }, [])
-}
-
-/** "v4 · Giulia · 12 Sep": who made the voice what it is, and when. */
-export function VersionLine({
-  n,
-  by,
-  when,
-  className = '',
-}: {
-  n: number
-  by: string
-  when: string
-  className?: string
-}) {
-  return (
-    <span className={`font-mono text-[11px] tracking-[0.02em] text-ink-4 ${className}`}>
-      v{n} · {by} · {when}
-    </span>
-  )
-}
-
-/** All three fields, in the order the page reads them. */
-export function VoiceFields({
-  draft,
-  onChange,
-  focusFirst,
-}: {
-  draft: Voice
-  onChange: (v: Voice) => void
-  focusFirst?: boolean
-}) {
-  return (
-    <div className="flex flex-col gap-10">
-      <SummaryField
-        value={draft.summary}
-        focusFirst={focusFirst}
-        onChange={(summary) => onChange({ ...draft, summary })}
-      />
-      <WordsField words={draft.words} onChange={(words) => onChange({ ...draft, words })} />
-      <LinesField
-        lines={draft.examples}
-        onChange={(examples) => onChange({ ...draft, examples })}
-      />
-    </div>
-  )
+  }, [root])
 }

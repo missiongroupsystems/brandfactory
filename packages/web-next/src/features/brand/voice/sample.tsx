@@ -7,14 +7,14 @@ import { diffWords, type Piece, written } from './preview'
 
 /**
  * One draft as two voices write it. The old one is quiet, its lost words struck; the new one is
- * in ink, its new words marked. `stagger` lets the marks land one after another.
+ * in ink, its new words marked. `stagger` (a delay in ms) lets the marks land one by one.
  */
 export function SampleDiff({
   draft,
   before,
   after,
   labels,
-  stagger = false,
+  stagger,
   hideBefore = false,
 }: {
   draft: string
@@ -22,7 +22,7 @@ export function SampleDiff({
   after: Voice
   /** A short name for each side, as "v4" and "v5". */
   labels?: [string, string]
-  stagger?: boolean
+  stagger?: number
   /** The old line folds away, once the new voice is the voice. */
   hideBefore?: boolean
 }) {
@@ -65,16 +65,16 @@ export function SampleDiff({
 function Pieces({
   pieces,
   kind,
-  stagger = false,
+  stagger,
 }: {
   pieces: Piece[]
   kind: 'lost' | 'won'
-  stagger?: boolean
+  stagger?: number
 }) {
   let n = 0
   return pieces.map((p, i) => {
     if (!p.changed) return <React.Fragment key={i}>{p.text}</React.Fragment>
-    const delay = stagger ? `${200 + n++ * 90}ms` : undefined
+    const delay = stagger === undefined ? undefined : `${stagger + n++ * 90}ms`
     return kind === 'lost' ? (
       <s key={i} className="decoration-ink-4">
         {p.text}

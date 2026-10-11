@@ -10,9 +10,11 @@ import type { Voice } from '../kit-parts'
 import { voiceEdited } from '../model'
 
 /**
- * Each brand's voice as a list of published versions, newest first: the voice AI writes in is
- * the first one. In memory, like `brand-store.ts`. The older versions are invented, so a history
- * has something in it.
+ * Each brand's published voice versions, newest first. In memory, like `brand-store.ts`. The
+ * voice in use is the kit's (`useBrandKit(id).voice`), never a copy kept here, so the Brand page,
+ * this history and the voice notes in the composer and inbox read one value. A version keeps its
+ * voice only so it can be brought back. The older versions are invented, so a history has
+ * something in it.
  */
 
 export interface VoiceVersion {
@@ -65,18 +67,24 @@ export function useVoiceVersions(brandId: BrandId): VoiceVersion[] {
   )
 }
 
-/** Makes the draft the brand's voice, as a new version, under `voiceEdited`'s rules. */
+/**
+ * Makes the draft the brand's voice, as a new version, under `voiceEdited`'s rules. It builds on
+ * the kit's voice as it is now, so an edit made anywhere else is not lost.
+ */
 export function publishVoice(brandId: BrandId, draft: Voice, note = ''): VoiceVersion {
-  const [current] = state[brandId]
+  let voice = draft
+  editKit(brandId, (k) => {
+    voice = voiceEdited(k.voice, draft)
+    return { ...k, voice }
+  })
   const version: VoiceVersion = {
-    n: current.n + 1,
+    n: state[brandId][0].n + 1,
     by: 'You',
     when: 'Today',
     note: note.trim(),
-    voice: voiceEdited(current.voice, draft),
+    voice,
   }
   state = { ...state, [brandId]: [version, ...state[brandId]] }
-  editKit(brandId, (k) => ({ ...k, voice: version.voice }))
   listeners.forEach((l) => l())
   return version
 }

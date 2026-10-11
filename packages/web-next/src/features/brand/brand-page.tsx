@@ -3,27 +3,16 @@
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
-import { CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
+import { SparkIcon } from '@/components/icons'
 import type { BrandFile, FileKind } from '@/data/brand-kit'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { BrandLogo } from './brand-logo'
 import { editFiles, editKit, newFileId, useBrandFiles, useBrandKit } from './brand-store'
 import { ColoursEditable } from './kit-colours'
-import { EYEBROW, QUIET, Section, type Voice, VoiceView } from './kit-parts'
-import { removed, renamed, replaced, uploaded, voiceEdited } from './model'
-import { VoiceCardSection } from './voice/concept-card'
-import { VoiceStepsSection } from './voice/concept-steps'
-import { VoiceStudioSection } from './voice/concept-studio'
-
-/** Three ways to edit the voice, behind `/brand?voice=1|2|3`, for the team to pick one. */
-export type VoiceConcept = 1 | 2 | 3
-
-const VOICE_CONCEPTS = {
-  1: VoiceStudioSection,
-  2: VoiceCardSection,
-  3: VoiceStepsSection,
-} satisfies Record<VoiceConcept, React.ComponentType>
+import { EYEBROW, QUIET, Section } from './kit-parts'
+import { removed, renamed, replaced, uploaded } from './model'
+import { VoiceSection } from './voice/voice-section'
 
 const KIND_LABEL: Record<FileKind, string> = {
   pdf: 'PDF',
@@ -70,12 +59,11 @@ function FileIcon({ file }: { file: BrandFile }) {
  * daily; a new hire reads it once, and AI drafts read it every time. Voice first, since that is
  * what AI uses most, then colours, the logo, and the team's files, each with a plain title.
  *
- * At rest it reads as a page, not a form. Each section has one quiet control at its top right:
- * Edit turns that section into fields and Done saves them, so a tap on a swatch still copies it.
+ * At rest it reads as a page, not a form. Each section has one quiet control at its top right;
+ * the voice's Edit opens a flow of its own (`voice/voice-section.tsx`).
  */
-export function BrandPage({ voiceConcept }: { voiceConcept?: VoiceConcept }) {
+export function BrandPage() {
   const { brand } = useBrand()
-  const VoiceArea = voiceConcept ? VOICE_CONCEPTS[voiceConcept] : VoiceSection
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -98,201 +86,12 @@ export function BrandPage({ voiceConcept }: { voiceConcept?: VoiceConcept }) {
           </span>
         </div>
 
-        <VoiceArea />
+        <VoiceSection />
         <ColoursEditable />
         <LogoSection />
         <Files />
       </main>
     </div>
-  )
-}
-
-function EditToggle({
-  label,
-  editing,
-  onEdit,
-  onDone,
-}: {
-  label: string
-  editing: boolean
-  onEdit: () => void
-  onDone: () => void
-}) {
-  const [saved, setSaved] = React.useState(false)
-  React.useEffect(() => {
-    if (!saved) return
-    const t = setTimeout(() => setSaved(false), 1400)
-    return () => clearTimeout(t)
-  }, [saved])
-  if (editing)
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          onDone()
-          setSaved(true)
-        }}
-        className="bb-press flex h-8 items-center rounded-full bg-ink px-3.5 text-[12.5px] font-medium text-page hover:opacity-85"
-      >
-        Done
-      </button>
-    )
-  return (
-    <button
-      type="button"
-      aria-label={`Edit ${label}`}
-      onClick={onEdit}
-      className={`${QUIET} -mr-3`}
-    >
-      {saved ? (
-        <>
-          <CheckIcon size={10} />
-          Saved
-        </>
-      ) : (
-        'Edit'
-      )}
-    </button>
-  )
-}
-
-/** A field in an open section: a soft surface, so it is plain what can change. */
-const FIELD =
-  'min-w-0 rounded-[10px] bg-surface outline-none transition-shadow focus:shadow-[inset_0_0_0_1px_var(--line-strong)]'
-
-function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-4 transition-colors hover:bg-surface-2 hover:text-ink max-md:size-7"
-    >
-      <CloseIcon />
-    </button>
-  )
-}
-
-function AddButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className={`${QUIET} -ml-3 self-start`}>
-      <PlusIcon size={11} />
-      {children}
-    </button>
-  )
-}
-
-function VoiceSection() {
-  const { brand } = useBrand()
-  const voice = useBrandKit(brand.id).voice
-  // The open section's fields, null at rest: Done saves them, Escape drops them.
-  const [draft, setDraft] = React.useState<Voice | null>(null)
-
-  return (
-    <Section
-      label="Voice"
-      onCancel={() => setDraft(null)}
-      action={
-        <EditToggle
-          label="voice"
-          editing={draft !== null}
-          onEdit={() => setDraft(voice)}
-          onDone={() => {
-            if (draft) editKit(brand.id, (k) => ({ ...k, voice: voiceEdited(k.voice, draft) }))
-            setDraft(null)
-          }}
-        />
-      }
-    >
-      {draft ? <VoiceFields draft={draft} onChange={setDraft} /> : <VoiceView voice={voice} />}
-    </Section>
-  )
-}
-
-function VoiceFields({ draft, onChange }: { draft: Voice; onChange: (v: Voice) => void }) {
-  const summary = React.useRef<HTMLTextAreaElement>(null)
-  // Edit was a tap on this section, so the cursor goes to the end of the summary at once.
-  React.useEffect(() => {
-    const el = summary.current
-    if (!el) return
-    el.focus()
-    el.setSelectionRange(el.value.length, el.value.length)
-  }, [])
-  const word = (i: number, key: 'use' | 'avoid', value: string) =>
-    onChange({ ...draft, words: draft.words.map((w, j) => (j === i ? { ...w, [key]: value } : w)) })
-  const line = (i: number, value: string) =>
-    onChange({ ...draft, examples: draft.examples.map((l, j) => (j === i ? value : l)) })
-
-  return (
-    <>
-      <textarea
-        ref={summary}
-        aria-label="How the brand sounds"
-        value={draft.summary}
-        onChange={(e) => onChange({ ...draft, summary: e.target.value })}
-        rows={2}
-        className={`${FIELD} w-full field-sizing-content md:-mx-3 md:w-[calc(100%+24px)] resize-none px-3 py-2 font-display text-[24px] leading-[1.3] tracking-[-0.02em] max-md:text-[20px]`}
-      />
-      <div className="flex flex-col gap-1.5">
-        <div className="grid grid-cols-[1fr_1fr_32px] gap-x-2 max-md:grid-cols-[1fr_1fr_28px] max-md:gap-x-1.5">
-          <span className={EYEBROW}>Say</span>
-          <span className={EYEBROW}>Not</span>
-        </div>
-        {draft.words.map((w, i) => (
-          <div
-            key={i}
-            className="grid grid-cols-[1fr_1fr_32px] items-center gap-x-2 max-md:grid-cols-[1fr_1fr_28px] max-md:gap-x-1.5"
-          >
-            <input
-              aria-label={`Say ${i + 1}`}
-              value={w.use}
-              spellCheck={false}
-              onChange={(e) => word(i, 'use', e.target.value)}
-              className={`${FIELD} px-2.5 py-2 text-[14.5px] max-md:px-2`}
-            />
-            <input
-              aria-label={`Not ${i + 1}`}
-              value={w.avoid}
-              spellCheck={false}
-              onChange={(e) => word(i, 'avoid', e.target.value)}
-              className={`${FIELD} px-2.5 py-2 text-[14.5px] max-md:px-2 text-ink-3`}
-            />
-            <RemoveButton
-              label={`Remove ${w.use || 'pair'}`}
-              onClick={() => onChange({ ...draft, words: draft.words.filter((_, j) => j !== i) })}
-            />
-          </div>
-        ))}
-        <AddButton
-          onClick={() => onChange({ ...draft, words: [...draft.words, { use: '', avoid: '' }] })}
-        >
-          Add a pair
-        </AddButton>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <span className={EYEBROW}>Sounds like</span>
-        {draft.examples.map((l, i) => (
-          <div key={i} className="flex items-start gap-2">
-            <textarea
-              aria-label={`Line ${i + 1}`}
-              value={l}
-              rows={1}
-              onChange={(e) => line(i, e.target.value)}
-              className={`${FIELD} flex-1 field-sizing-content resize-none px-2.5 py-2 text-[15px] text-ink-2`}
-            />
-            <RemoveButton
-              label={`Remove line ${i + 1}`}
-              onClick={() =>
-                onChange({ ...draft, examples: draft.examples.filter((_, j) => j !== i) })
-              }
-            />
-          </div>
-        ))}
-        <AddButton onClick={() => onChange({ ...draft, examples: [...draft.examples, ''] })}>
-          Add a line
-        </AddButton>
-      </div>
-    </>
   )
 }
 
