@@ -23,6 +23,17 @@ const open = () =>
 
 const files = () => within(screen.getByRole('region', { name: 'Files' }))
 const voice = () => within(screen.getByRole('region', { name: 'Voice' }))
+// A desktop: the colour picker floats by its swatch and closes on a tap outside.
+if (!window.matchMedia) {
+  window.matchMedia = () =>
+    ({
+      matches: false,
+      addEventListener() {},
+      removeEventListener() {},
+    }) as unknown as MediaQueryList
+}
+const tapOutside = () => fireEvent.pointerDown(document.body)
+
 const colours = () => within(screen.getByRole('region', { name: 'Colours' }))
 
 describe('the brand page', () => {
@@ -87,33 +98,34 @@ describe('editing the kit', () => {
     expect(voice().getByText('pasta')).toBeInTheDocument()
   })
 
-  it('changes a colour by its hex, and never saves a hex that is not one', () => {
+  it('changes a colour in the picker, and never saves a hex that is not one', () => {
     open()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit colours' }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Terracotta hex' }), {
-      target: { value: '#12ab' },
-    })
-    expect(screen.getByRole('textbox', { name: 'Terracotta hex' })).toHaveAttribute(
-      'aria-invalid',
-      'true',
-    )
-    fireEvent.change(screen.getByRole('textbox', { name: 'Basil hex' }), {
-      target: { value: '2f5d3a' },
-    })
-    fireEvent.click(colours().getByRole('button', { name: 'Done' }))
-    expect(colours().getByRole('button', { name: 'Copy Terracotta, #D9572B' })).toBeInTheDocument()
-    expect(colours().getByRole('button', { name: 'Copy Basil, #2F5D3A' })).toBeInTheDocument()
+    fireEvent.click(colours().getByRole('button', { name: 'Edit Terracotta, #D9572B' }))
+    const picker = within(screen.getByRole('dialog', { name: 'Terracotta' }))
+    fireEvent.change(picker.getByRole('textbox', { name: 'Hex' }), { target: { value: '#12ab' } })
+    expect(picker.getByRole('textbox', { name: 'Hex' })).toHaveAttribute('aria-invalid', 'true')
+    tapOutside()
+    // A half-typed hex leaves the colour as it was.
+    expect(colours().getByRole('button', { name: 'Edit Terracotta, #D9572B' })).toBeInTheDocument()
+
+    fireEvent.click(colours().getByRole('button', { name: 'Edit Basil, #3E6B48' }))
+    const basil = within(screen.getByRole('dialog', { name: 'Basil' }))
+    fireEvent.change(basil.getByRole('textbox', { name: 'Hex' }), { target: { value: '2f5d3a' } })
+    tapOutside()
+    expect(colours().getByRole('button', { name: 'Edit Basil, #2F5D3A' })).toBeInTheDocument()
   })
 
   it('adds a named colour and removes another', () => {
     open()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit colours' }))
+    fireEvent.click(colours().getByRole('button', { name: 'Edit Char, #1E1A17' }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove Char' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Add colour' }))
-    const names = screen.getAllByRole('textbox', { name: 'Colour name' })
-    fireEvent.change(names[names.length - 1]!, { target: { value: 'Olive oil' } })
-    fireEvent.click(colours().getByRole('button', { name: 'Done' }))
     expect(colours().queryByText('Char')).not.toBeInTheDocument()
+
+    fireEvent.click(colours().getByRole('button', { name: 'Add colour' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Colour name' }), {
+      target: { value: 'Olive oil' },
+    })
+    tapOutside()
     expect(colours().getByText('Olive oil')).toBeInTheDocument()
   })
 
