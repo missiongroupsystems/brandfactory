@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.10.0** — 2026-10-11 — Changing the voice is a four-step flow that ends on what AI will write before and after, then a new version with a history to bring old ones back; the kit's colours get a picker with suggested shades; files show as quiet kind icons. The inbox thread holds whole conversations in a calmer panel, and a complaint can go to several people. Ideate's title settles in like the other pages; the brand kit fits a phone. No migration. 238 tests.
 - **2.9.0** — 2026-10-11 — The Brand kit is editable: voice, Say/Not pairs, sample lines, colours and the logo, one section at a time with Edit and Done; the composer, idea page and inbox read the edited voice, and a new logo shows everywhere. A connection that succeeds now shows a short animation before its sheet closes. Rachel's inbox complaint is about the food and goes to the head chef. No migration. 218 tests.
 - **2.8.0** — 2026-10-11 — A Connections page per brand, from the brand switcher: every source grouped by job with one action each, a pretend sign-in, and first-time connect steps for Google Drive in the composer and Lark on the call sheet; Insights' sources follow it. A feasibility study for the real Drive and Lark integrations. No migration. 208 tests.
 - **2.7.0** — 2026-10-11 — What marketing asked for in the 9 October call: tags and collaborators apart, a wrong-shape crop flag, Google Drive, only the brand's own platforms and any time of day in the composer; shoots with a time, a call sheet, Lark invites and replies, on the calendar and added by hand or from ideas; public share links with guest comments; a Brand kit the AI writes from; Insights with website, Google Business Profile and bookings on one time axis, and a Sentiment view; an Inbox with complaints first and replies in the brand's voice. No migration. 200 tests.
@@ -28,9 +29,28 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
+## 2.10.0 — 2026-10-11
+
+**Voice as a version, and a calmer inbox.** Phase 5 of `docs/completions/brandbase-marketing-call-phases-1-to-5.md`.
+
+- **Voice.** Edit opens a full-screen flow in four steps (how it sounds, say this not that,
+  sample lines, what changes) whose last screen shows a caption, hook and reply before and after.
+  Making it the voice publishes a new version through `voiceEdited`; a history under the section
+  brings back an older voice as a new version. Two other concepts and the old Edit/Done editor
+  were tried and removed; `/brand` is prerendered again.
+- **Colours.** A tap on a swatch opens a picker (shade square, hue, hex, copy, five steps of the
+  colour, nine restaurant colours); a tap outside (Done on a phone) saves, Escape drops the change.
+- **Files** show their kind as a quiet monochrome tile.
+- **Inbox.** The thread panel has its own height, with the header and composer fixed and the
+  conversation scrolling between them; DMs carry earlier messages and team notes. "Send to" picks
+  one person in a tap or several from a checklist ("Sent to Marco and Giulia").
+- **Ideate**'s title settles in with the page; the brand kit's editor and swatches fit a phone.
+
+Gate: typecheck, lint, format, 238 tests in 31 files, `next build`.
+
 ## 2.9.0 — 2026-10-11
 
-**An editable Brand kit.** Phase 4 of `docs/completions/brandbase-marketing-call-phases-1-to-4.md`.
+**An editable Brand kit.** Phase 4 of `docs/completions/brandbase-marketing-call-phases-1-to-5.md`.
 
 - `/brand`: Voice (summary, Say/Not pairs, "Sounds like" lines), Colours (hex checked as typed,
   the system picker, add, remove, name) and Logo (Replace) each have one quiet Edit; Done saves,
@@ -48,7 +68,7 @@ Gate: typecheck, lint, format, 218 tests in 29 files, `next build`.
 
 ## 2.8.0 — 2026-10-11
 
-**Connections.** Phase 3 of `docs/completions/brandbase-marketing-call-phases-1-to-4.md`.
+**Connections.** Phase 3 of `docs/completions/brandbase-marketing-call-phases-1-to-5.md`.
 
 - `/brand/connections` lists Instagram, TikTok, Facebook, Pinterest, Google Drive, Lark calendar,
   website, Google Business Profile and bookings, grouped by job, with Connect, Reconnect and
@@ -65,7 +85,7 @@ Gate: typecheck, lint, format, 208 tests in 29 files, `next build`.
 
 **What marketing asked for.** David demoed the tool to Nat (marketing) on 9 October; the plan and
 completion are `docs/completions/brandbase-marketing-call-plan.md` and
-`brandbase-marketing-call-phases-1-to-4.md`. Everything stays simulated on static data.
+`brandbase-marketing-call-phases-1-to-5.md`. Everything stays simulated on static data.
 
 - **Composer.** Tag people (on the photo) and Collaborators (an invite the other account accepts)
   are two rows. A photo in a shape the format does not take shows "Crop 4:5" or "Crop 9:16"; a feed

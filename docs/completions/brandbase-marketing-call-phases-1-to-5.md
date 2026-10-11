@@ -99,3 +99,24 @@ reload, like the files.
 
 Also in this round: a short success animation on the connect sheet, and Rachel's inbox complaint
 now goes to the head chef. AI drafts and Improve still use canned text and do not read the voice.
+
+## Phase 5: the voice as a version, and a calmer inbox
+
+Review of phase 4 on the preview: editing the voice in grey fields "feels very temporary", when a
+change to the voice changes every caption and reply AI writes. Three editing designs (edit in
+place, a side sheet, popovers) were rejected; of three more (a studio with a publish step, a card
+signed by holding, four steps ending on proof) the team chose the steps, then asked for polish.
+
+- **Voice** (`features/brand/voice/`): Edit opens four steps; the last shows a caption, hook and
+  reply before and after (`preview.ts` replaces each Not word with its Say word). Making it the
+  voice publishes a version (`versions.ts`, on top of the brand store's voice through
+  `voiceEdited`); "Bring back" makes an old voice the next version. Edit was first called
+  "Rewrite"; the team preferred Edit.
+- **Colours**: a hand-written picker (`colour-picker.tsx`, `colour.ts`) with suggested shades.
+- **Files**: kind icons went from coloured tiles, to file thumbnails, to quiet monochrome tiles;
+  the first two did not fit the page.
+- **Inbox**: the thread panel was cluttered (no frame or height, 770 px lines, equal weights). It
+  now has its own height and a 600 px column; DMs have `earlier` messages and team notes, with
+  times only where a gap starts. A complaint can go to several people.
+
+Left out: a sent reply is not added to the thread; the phone keyboard over the composer is untested.
