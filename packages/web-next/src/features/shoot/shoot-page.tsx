@@ -6,8 +6,10 @@ import * as React from 'react'
 import { AppHeader } from '@/components/app-header'
 import { Fold } from '@/components/controls'
 import { CheckIcon, CloseIcon, PlusIcon } from '@/components/icons'
+import { Combobox } from '@/components/suggest'
 import type { Day } from '@/data/demo'
-import { ROLES, type Reply, type Shoot } from '@/data/shoots'
+import { HOME, ROLES, type Reply, type Shoot } from '@/data/shoots'
+import { PAST_CREW, PAST_PLACES } from '@/data/suggestions'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { DayPicker, type DayInfo } from '@/features/ideate/day-picker'
 import { EYEBROW } from '@/features/ideate/idea-parts'
@@ -18,7 +20,7 @@ import { useBrand } from '@/features/schedule/posts-store'
 import { Comments } from '@/features/share/comments'
 import { ShareButton } from '@/features/share/share-button'
 
-import { moveStart, replySummary, setEnd, SHOOT_TIMES } from './model'
+import { moveStart, pastCrew, pastPlaces, replySummary, setEnd, SHOOT_TIMES } from './model'
 import {
   addCrew,
   editShoot,
@@ -273,7 +275,12 @@ export function Details({
   edit: (fields: Parameters<typeof editShoot>[2]) => void
 }) {
   const { brand } = useBrand()
-  const others = useShoots(brand.id).filter((s) => s.id !== shoot.id)
+  const shoots = useShoots(brand.id)
+  const others = shoots.filter((s) => s.id !== shoot.id)
+  const places = pastPlaces(HOME[brand.id], shoots, PAST_PLACES[brand.id]).map((p) => ({
+    value: p.place,
+    meta: p.place === HOME[brand.id] ? 'Home' : p.shoots ? shootsMeta(p.shoots) : 'Past shoot',
+  }))
   const infoOf = React.useCallback(
     (d: Day): DayInfo => {
       const here = others.filter((s) => s.dayN === d.n)
@@ -329,15 +336,19 @@ export function Details({
         className={INPUT}
       />
       <span className="text-ink-4">Address</span>
-      <input
+      <Combobox
         value={shoot.place}
-        onChange={(e) => edit({ place: e.target.value })}
+        onChange={(place) => edit({ place })}
+        options={places}
+        onPick={(place) => edit({ place })}
         aria-label="Address"
         className={INPUT}
       />
     </div>
   )
 }
+
+const shootsMeta = (n: number) => `${n} ${n === 1 ? 'shoot' : 'shoots'}`
 
 /** What a person's line says, from the invite and their answer to it. */
 const STATUS: Record<Reply | 'waiting' | 'none', { text: string; className: string }> = {
@@ -357,9 +368,20 @@ function Crew({ shoot, invited }: { shoot: Shoot; invited: string[] }) {
   const asked = shoot.crew.map((c) => c.name).filter((n) => invited.includes(n))
   const [name, setName] = React.useState('')
   const [role, setRole] = React.useState<string>(ROLES[0])
-  function add() {
-    if (!name.trim()) return
-    addCrew(brand.id, shoot.id, { name: name.trim(), role })
+  // Someone from an earlier shoot comes back in the role they had there.
+  const known = pastCrew(useShoots(brand.id), PAST_CREW[brand.id]).filter(
+    (c) => !shoot.crew.some((on) => on.name === c.name),
+  )
+  const options = known.map((c) => ({
+    value: c.name,
+    name: c.name,
+    detail: c.role,
+    meta: c.shoots ? shootsMeta(c.shoots) : 'Past shoot',
+    initials: initials(c.name),
+  }))
+  function add(person = { name: name.trim(), role }) {
+    if (!person.name) return
+    addCrew(brand.id, shoot.id, person)
     setName('')
   }
   return (
@@ -413,9 +435,14 @@ function Crew({ shoot, invited }: { shoot: Shoot; invited: string[] }) {
         }}
         className="flex items-center gap-2"
       >
-        <input
+        <Combobox
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={setName}
+          options={options}
+          create={(typed) => typed.trim()}
+          onPick={(picked) =>
+            add({ name: picked, role: known.find((c) => c.name === picked)?.role ?? role })
+          }
           aria-label="Name of the person"
           placeholder="Add someone"
           className={`${INPUT} min-w-0 flex-1`}

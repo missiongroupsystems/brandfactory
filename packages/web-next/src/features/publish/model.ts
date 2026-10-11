@@ -366,14 +366,17 @@ export function collabHeader(handle: string, collabs: string[]): string {
   return `${own} and ${collabs.length} others`
 }
 
+/** Names in a sentence: "@a", "@a and @b", "@a, @b and @c". */
+export const namesIn = (names: string[]) =>
+  names.length === 1 ? names[0]! : `${names.slice(0, -1).join(', ')} and ${names.at(-1)!}`
+
 /**
  * What the composer says about the collaborators' invites once the button is pressed. Instagram
  * sends the invite when the post goes out, so a scheduled post's invite is still to come.
  */
 export function inviteNote(collabs: string[], sent: boolean): string | null {
   if (collabs.length === 0) return null
-  const who =
-    collabs.length === 1 ? collabs[0]! : `${collabs.slice(0, -1).join(', ')} and ${collabs.at(-1)!}`
+  const who = namesIn(collabs)
   return sent
     ? `Invite sent to ${who}, waiting for them to accept.`
     : `The invite goes to ${who} when the post goes out.`

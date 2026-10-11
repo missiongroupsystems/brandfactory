@@ -1,5 +1,5 @@
 import type { CalendarEvent, Week } from '@/data/demo'
-import type { Reply, Shoot } from '@/data/shoots'
+import type { CrewMember, Reply, Shoot } from '@/data/shoots'
 
 /**
  * The shoot rules, apart from React: how a shoot reads on the calendar, which day a new one
@@ -77,4 +77,26 @@ export function replySummary(invited: string[], replies: Record<string, Reply>):
     .filter(([n]) => n > 0)
     .map(([n, words]) => `${n} ${words}`)
     .join(' · ')
+}
+
+/**
+ * Who came to the brand's shoots, as the crew field offers them: the most shoots first, each with
+ * the role they had last, then the people of earlier months. It reads the live shoots, so a
+ * person added today is offered on the next shoot.
+ */
+export function pastCrew(shoots: Shoot[], earlier: CrewMember[]) {
+  const seen = new Map<string, CrewMember & { shoots: number }>()
+  for (const c of shoots.flatMap((s) => s.crew)) {
+    seen.set(c.name, { ...c, shoots: (seen.get(c.name)?.shoots ?? 0) + 1 })
+  }
+  for (const c of earlier) if (!seen.has(c.name)) seen.set(c.name, { ...c, shoots: 0 })
+  return [...seen.values()].sort((a, b) => b.shoots - a.shoots)
+}
+
+/** The addresses shoots went to: the brand's own room, this month's places, then earlier ones. */
+export function pastPlaces(home: string, shoots: Shoot[], earlier: string[]) {
+  return [...new Set([home, ...shoots.map((s) => s.place), ...earlier])].map((place) => ({
+    place,
+    shoots: shoots.filter((s) => s.place === place).length,
+  }))
 }

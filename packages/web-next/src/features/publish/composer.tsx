@@ -18,6 +18,7 @@ import {
 import { fromFile, isVideo } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
+import { Combobox, useMention, type Suggestion } from '@/components/suggest'
 import { usePhone } from '@/components/use-phone'
 import type { BrandId } from '@/data/brands'
 import type { Format, Post, Stage } from '@/data/demo'
@@ -47,6 +48,7 @@ import {
   kindOn,
   lengthFor,
   linkedChannels,
+  namesIn,
   parseTime,
   EARLIEST_POST,
   PRIVACY,
@@ -66,6 +68,7 @@ import {
 } from './model'
 import { PhoneMock, type People } from './phone-mocks'
 import { ratioOf, ShotView } from './shot'
+import { hashtagsOf, labelsOf, peopleOf, placesOf } from './suggestions'
 import {
   saveTikTokDefault,
   tiktokDefault,
@@ -859,6 +862,12 @@ function Content({
     else if (shownTab === 'yt') update({ youtubeTitle: text })
     else update({ overrides: { ...draft.overrides, [shownTab]: text } })
   }
+  const mention = useMention({
+    value,
+    onChange: edit,
+    people: peopleOf(brand.id, 'caption'),
+    hashtags: hashtagsOf(brand.id),
+  })
 
   const own = (k: ChannelKey) =>
     k === 'yt' ? draft.youtubeTitle !== null : draft.overrides[k] !== undefined
@@ -1073,9 +1082,8 @@ function Content({
           </button>
         </div>
         <textarea
-          value={value}
+          {...mention.field}
           rows={shownTab === 'yt' ? 2 : 5}
-          onChange={(e) => edit(e.target.value)}
           placeholder={
             shownTab === 'all'
               ? 'Write once for every account. Change one account in its own tab.'
@@ -1084,6 +1092,7 @@ function Content({
           aria-label={shownTab === 'all' ? 'Caption' : `${NAME[shownTab]} text`}
           className="w-full resize-none rounded-[12px] bg-surface-2 p-4 text-[14.5px] leading-[1.5] outline-none placeholder:text-ink-5 focus:bg-surface max-md:min-h-[96px] max-md:rounded-none max-md:bg-transparent max-md:px-0 max-md:py-1 max-md:field-sizing-content max-md:focus:bg-transparent"
         />
+        {mention.list}
         {/* On a phone one row does both: each account's count is also the tab that edits it. */}
         <div
           role="tablist"
@@ -1495,7 +1504,14 @@ function Details({
   setMedia: (m: Shot[]) => void
 }) {
   const phone = usePhone()
+  const { brand } = useBrand()
   const [tagging, setTagging] = React.useState(false)
+  const comment = useMention({
+    value: details.comment,
+    onChange: (text) => setDetails({ ...details, comment: text }),
+    people: peopleOf(brand.id, 'caption'),
+    hashtags: hashtagsOf(brand.id),
+  })
   const active = activeChannels(api.draft).map((c) => c.key)
   const for_ = (keys: ChannelKey[]) => keys.filter((k) => active.includes(k))
   const story = api.draft.format === 'story'
@@ -1516,22 +1532,26 @@ function Details({
 
   const control: Record<keyof typeof DETAIL_ON, React.ReactNode> = {
     location: (
-      <input
+      <Combobox
         value={details.location}
-        onChange={(e) => setDetails({ ...details, location: e.target.value })}
+        onChange={(location) => setDetails({ ...details, location })}
+        options={placesOf(brand.id)}
+        onPick={(location) => setDetails({ ...details, location })}
         aria-label="Location"
         className="h-9 rounded-[10px] bg-surface-2 px-3 text-[13.5px] outline-none focus:bg-surface max-md:h-11"
       />
     ),
     comment: (
-      <textarea
-        value={details.comment}
-        rows={2}
-        onChange={(e) => setDetails({ ...details, comment: e.target.value })}
-        placeholder="Posted under the post as the first comment, e.g. the booking link or hashtags"
-        aria-label="First comment"
-        className="resize-none rounded-[10px] bg-surface-2 px-3 py-2 text-[13.5px] outline-none placeholder:text-ink-5 focus:bg-surface"
-      />
+      <>
+        <textarea
+          {...comment.field}
+          rows={2}
+          placeholder="Posted under the post as the first comment, e.g. the booking link or hashtags"
+          aria-label="First comment"
+          className="resize-none rounded-[10px] bg-surface-2 px-3 py-2 text-[13.5px] outline-none placeholder:text-ink-5 focus:bg-surface"
+        />
+        {comment.list}
+      </>
     ),
     tags: spot ? (
       <div className="flex min-h-9 flex-wrap items-center gap-1.5 max-md:min-h-11">
@@ -1559,6 +1579,7 @@ function Details({
         placeholder="@account"
         max={TAG_MAX}
         normalize={handleOf}
+        options={peopleOf(brand.id, 'tag')}
       />
     ) : (
       <span className="flex h-9 items-center text-[13px] text-ink-4 max-md:h-auto">
@@ -1572,6 +1593,7 @@ function Details({
         placeholder={`@account, up to ${COLLAB_MAX}`}
         max={COLLAB_MAX}
         normalize={handleOf}
+        options={peopleOf(brand.id, 'collab')}
       />
     ),
   }
@@ -1579,7 +1601,10 @@ function Details({
     tags: spot
       ? 'Shown on the photo where you tap. They get a notification.'
       : 'Named on the post. They get a notification.',
-    collab: `${details.collab[0] ?? 'They'} ${details.collab.length > 1 ? 'and the others get' : 'gets'} an invite in their own Instagram. Once accepted, the post shows both names.`,
+    collab:
+      details.collab.length === 0
+        ? 'They get an invite in their own Instagram. Once accepted, the post shows both names.'
+        : `${namesIn(details.collab)} ${details.collab.length === 1 ? 'gets' : 'each get'} an invite in their own Instagram. Once accepted, the post shows ${details.collab.length === 1 ? 'both names' : 'every name'}.`,
   }
 
   return (
@@ -1628,7 +1653,12 @@ function Details({
             <span className="text-[13px] max-md:text-[14px]">Labels</span>
             <span className="text-[11px] text-ink-4">Internal only</span>
           </span>
-          <Chips values={labels} onChange={setLabels} placeholder="e.g. TMP_Wine, F1 weekend" />
+          <Chips
+            values={labels}
+            onChange={setLabels}
+            placeholder="e.g. TMP_Wine, F1 weekend"
+            options={labelsOf(brand.id)}
+          />
         </div>
       </div>
       {tagging && (
@@ -1672,11 +1702,12 @@ function TagEditor({
   const [index, setIndex] = React.useState(photos[0]!)
   const [pending, setPending] = React.useState<{ x: number; y: number } | null>(null)
   const [typed, setTyped] = React.useState('')
-  const field = React.useRef<HTMLInputElement>(null)
+  const form = React.useRef<HTMLFormElement>(null)
+  const people = peopleOf(useBrand().brand.id, 'tag')
   const shot = media[index]!
   // The account box takes the typing as soon as it opens at the tapped spot.
   React.useEffect(() => {
-    if (pending) field.current?.focus()
+    if (pending) form.current?.querySelector('input')?.focus()
   }, [pending])
   const full = shot.tags.length >= TAG_MAX
 
@@ -1686,8 +1717,7 @@ function TagEditor({
     setPending({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height })
     setTyped('')
   }
-  function keep() {
-    const handle = handleOf(typed)
+  function keep(handle = handleOf(typed)) {
     if (!pending || !handle) return
     const tags = [...shot.tags.filter((t) => t.handle !== handle), { handle, at: pending }]
     setMedia(media.map((m, i) => (i === index ? { ...m, tags } : m)))
@@ -1741,16 +1771,20 @@ function TagEditor({
           >
             <span className="size-0 border-x-[5px] border-b-[5px] border-x-transparent border-b-page" />
             <form
+              ref={form}
               onSubmit={(e) => {
                 e.preventDefault()
                 keep()
               }}
               className="flex h-9 items-center gap-1 rounded-[9px] bg-page pr-1 pl-2.5 shadow-pop"
             >
-              <input
-                ref={field}
+              <Combobox
                 value={typed}
-                onChange={(e) => setTyped(e.target.value)}
+                onChange={setTyped}
+                options={people.filter((o) => !shot.tags.some((t) => t.handle === o.value))}
+                create={handleOf}
+                anchor={form}
+                onPick={(handle) => keep(handle)}
                 placeholder="@account"
                 aria-label="Account to tag"
                 className="w-[120px] bg-transparent text-[13px] outline-none placeholder:text-ink-5"
@@ -1835,37 +1869,45 @@ function Chip({ value, onRemove }: { value: string; onRemove: () => void }) {
   )
 }
 
-/** Values as chips; type and press Enter to add one. `normalize` spells a value as it is kept. */
+/**
+ * Values as chips; type and pick one of the brand's `options`, or press Enter to add what was
+ * typed. `normalize` spells a value as it is kept.
+ */
 function Chips({
   values,
   onChange,
   placeholder,
   max,
   normalize = (v) => v.trim(),
+  options,
 }: {
   values: string[]
   onChange: (v: string[]) => void
   placeholder: string
   max?: number
   normalize?: (typed: string) => string
+  options: Suggestion[]
 }) {
   const [draft, setDraft] = React.useState('')
+  const box = React.useRef<HTMLDivElement>(null)
   return (
-    <div className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-[10px] bg-surface-2 px-2 py-1.5 focus-within:bg-surface max-md:min-h-11">
+    <div
+      ref={box}
+      className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-[10px] bg-surface-2 px-2 py-1.5 focus-within:bg-surface max-md:min-h-11"
+    >
       {values.map((v) => (
         <Chip key={v} value={v} onRemove={() => onChange(values.filter((x) => x !== v))} />
       ))}
       {(max === undefined || values.length < max) && (
-        <input
+        <Combobox
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            const value = normalize(draft)
-            if (e.key === 'Enter' && value) {
-              e.preventDefault()
-              if (!values.includes(value)) onChange([...values, value])
-              setDraft('')
-            }
+          onChange={setDraft}
+          options={options.filter((o) => !values.includes(o.value))}
+          create={normalize}
+          anchor={box}
+          onPick={(value) => {
+            if (!values.includes(value)) onChange([...values, value])
+            setDraft('')
           }}
           placeholder={values.length ? '' : placeholder}
           aria-label={placeholder}
