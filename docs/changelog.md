@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.7.0** — 2026-10-11 — What marketing asked for in the 9 October call: tags and collaborators apart, a wrong-shape crop flag, Google Drive, only the brand's own platforms and any time of day in the composer; shoots with a time, a call sheet, Lark invites and replies, on the calendar and added by hand or from ideas; public share links with guest comments; a Brand kit the AI writes from; Insights with website, Google Business Profile and bookings on one time axis, and a Sentiment view; an Inbox with complaints first and replies in the brand's voice. No migration. 200 tests.
 - **2.6.3** — 2026-10-09 — "Draft" means a post again: a plan is an "Idea" on the idea page, in Current ideas and in the calendar's filter (Idea · Draft · Scheduled · Posted). The Day view lists ideas as compact pills that wrap, folding past six behind "+N more". No migration. 126 tests.
 - **2.6.2** — 2026-10-09 — An idea on the calendar no longer looks like a post: it is a short card with a dashed outline, "Idea", the hook as text and the reason it sits on that day (a dashed "Idea" box in the phone grid; a dashed-square count in Month; a flat row in Day), and a click opens its idea page, not the composer. No migration. 116 tests.
 - **2.6.1** — 2026-10-09 — Each idea is a page of its own (`/ideate/<id>`), built as the production document for one post in four stages under a sticky rail: References, Shots (a storyboard, with references dragged onto shots and a shoot day), Shoot (tick and drop each clip) and Post; it replaces the side panel, and "Plan idea from this" opens the new idea there with no step between. The moodboard's selection bar moves from the bottom of the screen to a sticky row at the top, and the three connect buttons can be tapped together. No migration. 110 tests.
@@ -22,6 +23,35 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.64.0** — 2026-10-07 — Schedule gets Month, Week and Day views and a stage filter beside Layers; a new post opens a full-page composer that writes one post for every platform (Brandwatch makes one per network); Ideate's views become Current ideas and Moodboard (Pinterest, Instagram, TikTok in one board). No migration. 3456 tests.
 - **1.63.0** — 2026-10-07 — BrandBase's Ideate and Insights pages are redesigned from scratch. Ideate has two views: ideas shelved by format (reels at 9:16, carousels at 4:5) and the imported Pinterest boards as a masonry board; a Shoot brief project board plans each idea (status columns, drag to move, date and time) and the calendar follows it. Stories join reels and carousels. Insights leads with four headline numbers, then Overview, Posts and Creators tabs, every chart titled and every mark hoverable. No migration. 3424 tests.
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
+
+---
+
+## 2.7.0 — 2026-10-11
+
+**What marketing asked for.** David demoed the tool to Nat (marketing) on 9 October; the plan and
+completion are `docs/completions/brandbase-marketing-call-plan.md` and
+`brandbase-marketing-call-phases-1-to-2.md`. Everything stays simulated on static data.
+
+- **Composer.** Tag people (on the photo) and Collaborators (an invite the other account accepts)
+  are two rows. A photo in a shape the format does not take shows "Crop 4:5" or "Crop 9:16"; a feed
+  post takes 4:5 to 1.91:1. Only Instagram, TikTok and Facebook show (`LINKED`); the calendar's
+  reels follow. Google Drive beside Upload. Per-brand AI drafts, and "Improve" for typed text. Any
+  time of day. The outcome says when a collab invite goes. TikTok gains Sound and a saved default.
+- **Shoots.** A shoot has a day, hours, place, crew and ideas, a call sheet at `/shoot/<id>`,
+  simulated Lark invites and replies. It starts from selected ideas, an idea's shoot day, or "New
+  shoot" on Schedule. Calendar chips read "Shoot · Raffles City · 12:00"; the Day view draws it
+  over its hours. Shoots are on by default.
+- **Sharing.** `/share/idea/<id>` and `/share/shoot/<id>`: no app navigation, guests comment with a
+  name, and the comments show on the team's page.
+- **Brand kit** at `/brand` (from the brand switcher): voice, colours, logo, titled files. The
+  moodboard connects the brand's Pinterest board from one shared account, Instagram by DM to the
+  moodboard account, and TikTok saves.
+- **Insights.** Five sources; "Beyond social" lines up reach, website visits, Maps views and
+  bookings on one axis with post markers; a Sentiment view; each post shows its sentiment split.
+- **Inbox** at `/inbox`, the fourth nav item: complaints first, AI replies in the brand's voice,
+  "Send to" for complaints.
+
+Gate: typecheck, lint, format, 200 tests in 28 files, build.
 
 ---
 
