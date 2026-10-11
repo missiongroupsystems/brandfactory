@@ -1,4 +1,4 @@
-import type { InboxKind, InboxMessage, InboxPlatform } from '@/data/inbox'
+import type { InboxEarlier, InboxKind, InboxMessage, InboxPlatform } from '@/data/inbox'
 
 /** The inbox's one filter: everything, the public comments and mentions, or the DMs. */
 export type InboxFilter = 'all' | 'comments' | 'dms'
@@ -46,6 +46,46 @@ export function nextAfter(open: InboxMessage[], id: string): string | null {
 /** The draft Regenerate shows on its nth press: round the brand's drafts, then again. */
 export function draftAt(m: InboxMessage, n: number): string {
   return m.drafts.length ? m.drafts[n % m.drafts.length]! : ''
+}
+
+/** The whole thread, oldest first, ending with the message the reply answers. */
+export function conversation(m: InboxMessage): InboxEarlier[] {
+  return [...(m.earlier ?? []), { from: 'them', text: m.text, minutes: m.minutes }]
+}
+
+/** The demo's clock: Sunday 11 October 2026, 3pm. Message ages count back from it. */
+const NOW = new Date(2026, 9, 11, 15, 0)
+const DAY = 24 * 60
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** 130 → "Today 12:50 pm"; 1500 → "Saturday 2:00 pm"; a week or more back → "2 Oct 9:15 am". */
+export function stamp(minutes: number): string {
+  const at = new Date(NOW.getTime() - minutes * 60_000)
+  const today = new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate()).getTime()
+  const day = new Date(at.getFullYear(), at.getMonth(), at.getDate()).getTime()
+  const back = Math.round((today - day) / (DAY * 60_000))
+  const h = at.getHours()
+  const time = `${h % 12 || 12}:${String(at.getMinutes()).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`
+  const date =
+    back === 0
+      ? 'Today'
+      : back === 1
+        ? 'Yesterday'
+        : back < 7
+          ? WEEKDAYS[at.getDay()]
+          : `${at.getDate()} ${MONTHS[at.getMonth()]}`
+  return `${date} ${time}`
+}
+
+/**
+ * Where a thread shows the time: above its first message, then only where an hour or more has
+ * passed, as the messaging apps do. A message that follows soon after carries none.
+ */
+export function stamps(items: Array<{ minutes: number }>): Array<string | null> {
+  return items.map((e, i) =>
+    i === 0 || items[i - 1]!.minutes - e.minutes >= 60 ? stamp(e.minutes) : null,
+  )
 }
 
 /** 25 → "25m"; 130 → "2h"; 1380 → "1d". */

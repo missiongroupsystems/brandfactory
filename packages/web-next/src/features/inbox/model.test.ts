@@ -2,7 +2,17 @@ import { describe, expect, it } from 'vitest'
 
 import { INBOX_BY_BRAND, type InboxMessage } from '@/data/inbox'
 
-import { ago, draftAt, firstNames, isNoise, nextAfter, queue } from './model'
+import {
+  ago,
+  conversation,
+  draftAt,
+  firstNames,
+  isNoise,
+  nextAfter,
+  queue,
+  stamp,
+  stamps,
+} from './model'
 
 const msg = (fields: Partial<InboxMessage> & Pick<InboxMessage, 'id'>): InboxMessage => ({
   platform: 'ig',
@@ -106,4 +116,48 @@ describe('who has a complaint', () => {
       'Marco, Giulia and Daniel',
     )
   })
+})
+
+describe('a thread', () => {
+  it('ends with the latest message, the one the reply answers', () => {
+    const m = msg({
+      id: 't',
+      kind: 'dm',
+      text: 'Is there a set menu?',
+      minutes: 40,
+      earlier: [
+        { from: 'them', text: 'Table for 12 on Friday?', minutes: 57 },
+        { from: 'us', text: 'Yes, Friday works.', minutes: 49 },
+      ],
+    })
+    expect(conversation(m).map((e) => e.text)).toEqual([
+      'Table for 12 on Friday?',
+      'Yes, Friday works.',
+      'Is there a set menu?',
+    ])
+    expect(conversation(m).at(-1)).toMatchObject({ from: 'them', minutes: 40 })
+  })
+
+  it('shows the time above the first message and after a gap, not on every bubble', () => {
+    // Two days back, a reply soon after, then today: the reply needs no time of its own.
+    const times = stamps([{ minutes: 2950 }, { minutes: 2925 }, { minutes: 132 }, { minutes: 130 }])
+    expect(times).toEqual(['Friday 1:50 pm', null, 'Today 12:48 pm', null])
+    expect(stamp(24 * 60)).toBe('Yesterday 3:00 pm')
+    expect(stamp(8 * 24 * 60)).toBe('3 Oct 3:00 pm')
+  })
+})
+
+describe('the demo threads', () => {
+  it.each(Object.entries(INBOX_BY_BRAND))(
+    '%s: a thread runs oldest first, and every note is signed by a real person',
+    (_, inbox) => {
+      for (const m of inbox.messages) {
+        const ages = conversation(m).map((e) => e.minutes)
+        expect(ages).toEqual([...ages].sort((a, b) => b - a))
+        for (const e of m.earlier ?? []) {
+          if (e.from === 'note') expect(inbox.people.map((p) => p.name)).toContain(e.by)
+        }
+      }
+    },
+  )
 })

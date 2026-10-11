@@ -10,18 +10,20 @@ import { CheckIcon, ChevronIcon, SparkIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import { usePhone } from '@/components/use-phone'
 import type { Brand } from '@/data/brands'
-import { INBOX_BY_BRAND, type BrandInbox, type InboxMessage } from '@/data/inbox'
+import { INBOX_BY_BRAND, type BrandInbox, type InboxEarlier, type InboxMessage } from '@/data/inbox'
 import { VoiceNote } from '@/features/brand/voice-note'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { markDone, sendTo, useInbox } from './inbox-store'
 import {
   ago,
+  conversation,
   draftAt,
   firstName,
   firstNames,
   nextAfter,
   queue,
+  stamps,
   whereFrom,
   type InboxFilter,
 } from './model'
@@ -151,7 +153,8 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
                 />
               </FullScreen>
             ) : (
-              <div className="sticky top-6">
+              // A panel of its own height: the thread scrolls inside it, and the reply stays in view.
+              <div className="sticky top-6 flex h-[max(440px,calc(100svh-280px))] flex-col rounded-[20px] border border-line bg-page">
                 <Thread
                   key={current.id}
                   m={current}
@@ -181,11 +184,11 @@ function FullScreen({ onBack, children }: { onBack: () => void; children: React.
     }
   }, [])
   return createPortal(
-    <div className="bb-sheet fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-page px-4 pt-3 pb-[calc(32px+env(safe-area-inset-bottom))]">
+    <div className="bb-sheet fixed inset-0 z-40 flex flex-col bg-page pt-[env(safe-area-inset-top)]">
       <button
         type="button"
         onClick={onBack}
-        className="-ml-1 mb-3 flex h-10 items-center gap-1.5 text-[15px] text-ink-2"
+        className="mx-3 flex h-11 shrink-0 items-center gap-1.5 self-start text-[15px] text-ink-2"
       >
         <span className="rotate-90">
           <ChevronIcon size={12} />
@@ -387,6 +390,15 @@ function Thread({
   const [n, setN] = React.useState(0)
   const [text, setText] = React.useState(() => draftAt(m, 0))
   const [thinking, setThinking] = React.useState(false)
+  const scroller = React.useRef<HTMLDivElement>(null)
+  const items = conversation(m)
+  const marks = stamps(items)
+
+  // A long thread opens at its latest message, the one the reply answers.
+  React.useLayoutEffect(() => {
+    const el = scroller.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [])
 
   function regenerate() {
     setThinking(true)
@@ -397,66 +409,92 @@ function Thread({
     }, THINK_MS)
   }
 
+  // Messages from the same side with no time between them sit together as one group.
+  const together = (a: number, b: number) =>
+    items[a] !== undefined && items[b] !== undefined && items[a].from === items[b].from && !marks[b]
+
   return (
-    <article aria-label={`${m.from.name}, ${whereFrom(m)}`} className="bb-swap flex flex-col gap-6">
-      <header className="flex flex-wrap items-center gap-3">
-        <Avatar m={m} size={44} />
+    <article
+      aria-label={`${m.from.name}, ${whereFrom(m)}`}
+      className="bb-swap flex min-h-0 flex-1 flex-col"
+    >
+      <header className="flex shrink-0 items-center gap-3 border-b border-line px-6 py-3.5 max-md:px-4 max-md:pt-1 max-md:pb-3">
+        <Avatar m={m} size={36} />
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-[16px] font-medium">{m.from.name}</span>
-          <span className="truncate text-[13px] text-ink-4">
-            {whereFrom(m)} · {ago(m.minutes)}
-          </span>
+          <span className="truncate text-[15px] font-medium">{m.from.name}</span>
+          <span className="truncate text-[12.5px] text-ink-4">{whereFrom(m)}</span>
         </div>
         {m.tone === 'complaint' && (
           <SendTo brandId={brand.id} m={m} people={data.people} sentTo={routedTo} />
         )}
       </header>
 
-      <div className="flex flex-col gap-3">
-        {m.post && (
-          <div className="flex items-center gap-3">
-            <span className="relative h-[60px] w-12 shrink-0 overflow-hidden rounded-[8px] bg-tile">
-              <Image src={m.post.image} alt="" fill sizes="96px" className="object-cover" />
-            </span>
-            <span
-              title={m.kind === 'mention' ? `Their post, tagging ${brand.handle}` : 'Your post'}
-              className="line-clamp-2 min-w-0 text-[13px] text-ink-3"
+      <div
+        ref={scroller}
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain"
+      >
+        <ol
+          aria-label="Conversation"
+          className="mx-auto mt-auto flex w-full max-w-[600px] flex-col px-6 pt-6 pb-4 max-md:px-4"
+        >
+          {m.post && (
+            <li className="mb-6 flex max-w-full items-center gap-3 self-start rounded-[12px] bg-surface-2 p-1.5 pr-4">
+              <span className="relative h-10 w-8 shrink-0 overflow-hidden rounded-[7px] bg-tile">
+                <Image src={m.post.image} alt="" fill sizes="64px" className="object-cover" />
+              </span>
+              <span className="flex min-w-0 flex-col">
+                <span className="text-[11.5px] text-ink-4">
+                  {m.kind === 'mention' ? 'Their post' : 'Your post'}
+                </span>
+                <span className="truncate text-[13px] text-ink-3">{m.post.caption}</span>
+              </span>
+            </li>
+          )}
+          {items.map((e, i) => (
+            <li
+              key={i}
+              className={`flex flex-col ${i === 0 ? '' : together(i - 1, i) ? 'mt-1' : 'mt-3'}`}
             >
-              {m.post.caption}
-            </span>
-          </div>
-        )}
-        {m.earlier?.map((e, i) => (
-          <Bubble key={i} ours={e.from === 'us'} text={e.text} />
-        ))}
-        <Bubble text={m.text} />
+              {marks[i] && (
+                <time
+                  className={`self-center pb-3 text-[11.5px] text-ink-4 ${i === 0 ? '' : 'pt-4'}`}
+                >
+                  {marks[i]}
+                </time>
+              )}
+              <Bubble item={e} tail={!together(i, i + 1)} />
+            </li>
+          ))}
+        </ol>
       </div>
 
-      <div className="flex flex-col rounded-[18px] border border-line bg-page shadow-soft focus-within:border-line-strong">
-        <label htmlFor={`reply-${m.id}`} className="sr-only">
-          Reply to {m.from.name}
-        </label>
-        <textarea
-          id={`reply-${m.id}`}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          disabled={thinking}
-          rows={4}
-          className={`field-sizing-content min-h-[112px] resize-none rounded-t-[18px] bg-transparent px-4 pt-4 pb-2 text-[15px] leading-[1.5] outline-none ${thinking ? 'bb-pulse' : ''}`}
-        />
-        <div className="flex flex-wrap items-center gap-3 px-4 pt-1 pb-3">
-          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[12px] text-ink-4 max-md:basis-full">
-            <span className="shrink-0 text-(--insight)">
-              <SparkIcon size={10} />
+      <div className="shrink-0 px-6 pt-1 pb-5 max-md:px-4 max-md:pb-[calc(12px+env(safe-area-inset-bottom))]">
+        <div className="mx-auto flex max-w-[552px] flex-col rounded-[18px] border border-line bg-page transition-colors focus-within:border-line-strong">
+          <label htmlFor={`reply-${m.id}`} className="sr-only">
+            Reply to {m.from.name}
+          </label>
+          <textarea
+            id={`reply-${m.id}`}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            disabled={thinking}
+            rows={2}
+            className={`field-sizing-content max-h-[214px] min-h-[64px] resize-none bg-transparent px-4 pt-3.5 pb-1 text-[14.5px] leading-[1.5] outline-none max-md:max-h-[162px] ${thinking ? 'bb-pulse' : ''}`}
+          />
+          <div className="flex items-center gap-1 py-2 pr-2 pl-4">
+            <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-[12px] text-ink-4">
+              <span className="shrink-0 text-(--insight)">
+                <SparkIcon size={10} />
+              </span>
+              <span className="truncate">
+                <VoiceNote plain />
+              </span>
             </span>
-            <VoiceNote plain />
-          </span>
-          <div className="ml-auto flex items-center gap-1">
             <button
               type="button"
               onClick={regenerate}
               disabled={thinking}
-              className="bb-press h-9 rounded-full px-3.5 text-[13px] font-medium text-ink-2 transition-colors hover:bg-surface hover:text-ink disabled:opacity-50"
+              className="bb-press h-8 shrink-0 rounded-full px-3 text-[13px] text-ink-3 transition-colors hover:bg-surface hover:text-ink disabled:opacity-50"
             >
               {thinking ? 'Writing…' : 'Regenerate'}
             </button>
@@ -464,7 +502,7 @@ function Thread({
               type="button"
               onClick={onSend}
               disabled={thinking || !text.trim()}
-              className="bb-press h-9 rounded-full bg-ink px-4 text-[13px] font-medium text-page disabled:opacity-40"
+              className="bb-press h-8 shrink-0 rounded-full bg-ink px-3.5 text-[13px] font-medium text-page disabled:opacity-40"
             >
               Send reply
             </button>
@@ -475,12 +513,28 @@ function Thread({
   )
 }
 
-function Bubble({ text, ours = false }: { text: string; ours?: boolean }) {
+/**
+ * One message in the thread. The guest's sit left and the brand's right; the last of a group
+ * keeps a tail corner. A teammate's note sits apart, dashed, and says the guest never sees it.
+ */
+function Bubble({ item, tail }: { item: InboxEarlier; tail: boolean }) {
+  if (item.from === 'note') {
+    return (
+      <div className="flex max-w-[82%] flex-col gap-0.5 self-center rounded-[14px] border border-dashed border-line-strong px-3.5 py-2.5 text-center">
+        <span className="text-[11.5px] text-ink-4">
+          {firstName(item.by ?? '')} · only the team sees this
+        </span>
+        <p className="text-[13.5px] leading-[1.45] text-ink-2">{item.text}</p>
+      </div>
+    )
+  }
+  const ours = item.from === 'us'
+  const side = ours
+    ? `self-end bg-ink text-page ${tail ? 'rounded-br-[6px]' : ''}`
+    : `self-start bg-surface ${tail ? 'rounded-bl-[6px]' : ''}`
   return (
-    <p
-      className={`max-w-[88%] rounded-[18px] px-4 py-2.5 text-[15px] leading-[1.45] ${ours ? 'self-end bg-ink text-page' : 'self-start bg-surface'}`}
-    >
-      {text}
+    <p className={`max-w-[80%] rounded-[18px] px-3.5 py-2 text-[14.5px] leading-[1.45] ${side}`}>
+      {item.text}
     </p>
   )
 }
@@ -527,7 +581,7 @@ function SendTo({
     return (
       <span
         title={`${who.join('; ')}: got an alert`}
-        className="bb-rise flex h-8 items-center gap-1.5 text-[13px] text-ink-3 max-md:basis-full max-md:pl-14"
+        className="bb-rise flex h-8 shrink-0 items-center gap-1.5 text-[13px] text-ink-3"
       >
         <span className="bb-pop flex">
           <CheckIcon size={11} strokeWidth={2} />
@@ -543,17 +597,16 @@ function SendTo({
   const chosen = people.map((p) => p.name).filter((n) => picked.includes(n))
 
   return (
-    <div ref={root} className="flex items-center gap-2.5 max-md:basis-full max-md:pl-14">
-      <span className="flex items-center gap-1.5 text-[12px] text-ink-3">
-        <span aria-hidden="true" className="size-1.5 rounded-full bg-fail" />
-        Complaint
-      </span>
-      <div className="relative flex items-center rounded-full bg-surface">
+    <div ref={root} className="shrink-0">
+      {/* The red dot says complaint, as it does in the list; the button says what to do. */}
+      <span className="sr-only">Complaint</span>
+      <div title="Complaint" className="relative flex items-center rounded-full bg-surface">
         <button
           type="button"
           onClick={() => sendTo(brandId, m.id, [first.name])}
-          className="h-8 rounded-l-full pr-2 pl-3.5 text-[13px] font-medium"
+          className="flex h-8 items-center gap-2 rounded-l-full pr-2 pl-3 text-[13px] font-medium transition-colors hover:bg-tile"
         >
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-fail" />
           Send to {firstName(first.name)}
         </button>
         <button
@@ -561,7 +614,7 @@ function SendTo({
           aria-label="Send to more people"
           aria-expanded={menu}
           onClick={() => setMenu((o) => !o)}
-          className="flex h-8 items-center rounded-r-full border-l border-line pr-3 pl-2 text-ink-3"
+          className="flex h-8 items-center rounded-r-full border-l border-line pr-3 pl-2 text-ink-3 transition-colors hover:bg-tile"
         >
           <ChevronIcon open={menu} />
         </button>

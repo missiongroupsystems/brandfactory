@@ -23,6 +23,16 @@ export interface InboxPerson {
   role: string
 }
 
+export interface InboxEarlier {
+  /** The guest, the brand, or a teammate's note to the team. */
+  from: 'them' | 'us' | 'note'
+  text: string
+  /** How long ago it was sent, in minutes: more than every later message in the thread. */
+  minutes: number
+  /** A note's author, by name from the brand's `people`. */
+  by?: string
+}
+
 export interface InboxMessage {
   id: string
   platform: InboxPlatform
@@ -34,8 +44,12 @@ export interface InboxMessage {
   tone: InboxTone
   /** The post a comment sits on, or the post that tags the brand. */
   post?: { image: string; caption: string }
-  /** A DM's earlier messages, oldest first. */
-  earlier?: Array<{ from: 'them' | 'us'; text: string }>
+  /**
+   * What came before `text` in the same thread, oldest first: the guest's earlier messages, the
+   * brand's replies, and notes the team left for each other, which the guest never sees. `text`
+   * is always the latest, and the one the reply answers.
+   */
+  earlier?: InboxEarlier[]
   /** Replies in the brand's voice, in the order Regenerate shows them. Empty for noise. */
   drafts: string[]
   /** A complaint's first choice of person, by name from the brand's `people`. */
@@ -83,12 +97,29 @@ const CASA_VOSTRA: BrandInbox = {
       platform: 'ig',
       kind: 'dm',
       from: { name: 'Aisha Rahman', handle: '@aisharahman.sg' },
-      text: "We booked a table for 6 for my mum's birthday last night and when we arrived there was no record of it. We were seated after 30 minutes, next to the door. Pretty disappointing.",
+      text: 'We were seated after 30 minutes, next to the door. Pretty disappointing.',
       minutes: 130,
+      earlier: [
+        {
+          from: 'them',
+          text: "Hi! Just checking our booking for Saturday, 6 people at 7pm under Rahman. It's my mum's birthday 🎂",
+          minutes: 2950,
+        },
+        {
+          from: 'us',
+          text: "Ciao Aisha! All confirmed: 6 at 7pm on Saturday. We'll have something sweet ready for your mum 🎂",
+          minutes: 2925,
+        },
+        {
+          from: 'them',
+          text: 'We came for the birthday last night and when we arrived there was no record of the booking.',
+          minutes: 132,
+        },
+      ],
       tone: 'complaint',
       drafts: [
-        "Aisha, we're so sorry. Your mum's birthday deserved a table ready and waiting, not half an hour at the door. Marco, our venue manager, is looking into what happened with the booking. Could you share the name and number it was under? We'd love to host your family again, with dessert on us.",
-        "Hi Aisha, thank you for letting us know, and happy birthday to your mum. We're really sorry the evening started like that. Could you send the booking name? We'll find out where it went wrong and make your next visit a proper celebration.",
+        "Aisha, we're so sorry. Your mum's birthday deserved a table ready and waiting, not half an hour at the door, least of all after we confirmed it. Marco, our venue manager, is finding out where the booking under Rahman went. We'd love to host your family again, with dessert on us.",
+        "Hi Aisha, thank you for letting us know, and happy birthday to your mum. We confirmed that table and we let you down, and we're really sorry. Marco is finding out where it went wrong, and we'd love to make your next visit a proper celebration.",
       ],
       sendTo: 'Marco Bellini',
     },
@@ -97,13 +128,31 @@ const CASA_VOSTRA: BrandInbox = {
       platform: 'ig',
       kind: 'dm',
       from: { name: 'Jonathan Koh', handle: '@jkoh' },
-      text: "Hello! Do you take reservations for 12 people this Friday around 7.30? It's a work dinner.",
+      text: 'Perfect. Is there a set menu? A couple of us are vegetarian.',
       minutes: 40,
       tone: 'question',
-      earlier: [{ from: 'them', text: 'Hi there' }],
+      earlier: [
+        { from: 'them', text: 'Hi there', minutes: 58 },
+        {
+          from: 'them',
+          text: "Do you take reservations for 12 people this Friday around 7.30? It's a work dinner.",
+          minutes: 57,
+        },
+        {
+          from: 'us',
+          text: 'Ciao Jonathan! Yes, Friday at 7.30 for 12 works. We can set the long table by the window.',
+          minutes: 49,
+        },
+        {
+          from: 'note',
+          by: 'Daniel Lim',
+          text: 'Long table is free on Friday. Group set menu is $68 a head, vegetarian swaps on every course.',
+          minutes: 46,
+        },
+      ],
       drafts: [
-        "Ciao Jonathan! We'd love to have your team. Friday at 7.30 for 12 works. Could you send a name and a phone number? We'll set the long table by the window.",
-        'Hi Jonathan, yes, we can seat 12 on Friday at 7.30. Send us the booking name and a number, and we can also prepare a sharing menu so nobody has to choose.',
+        "There is! For groups we do a sharing set menu at $68 a head, and every course has a vegetarian dish, so nobody misses out. Could you send a name and a phone number? We'll hold the long table for you.",
+        'Yes, Jonathan: a sharing menu at $68 a head, with vegetarian pastas and antipasti on every course. Send us the booking name and a number and the table is yours.',
       ],
     },
     {
@@ -283,12 +332,30 @@ const TEMPER: BrandInbox = {
       platform: 'ig',
       kind: 'dm',
       from: { name: 'Natasha Pillai', handle: '@tash.pillai' },
-      text: "Hi! Can we book the back room for 20 for a birthday on 24 Oct? What's the minimum spend?",
+      text: 'Great. We might be 24 now, is that ok?',
       minutes: 55,
       tone: 'question',
+      earlier: [
+        {
+          from: 'them',
+          text: "Hi! Can we book the back room for 20 for a birthday on 24 Oct? What's the minimum spend?",
+          minutes: 1530,
+        },
+        {
+          from: 'us',
+          text: 'Hi Natasha, happy early birthday! The back room is free on the 24th. Minimum spend is $2,500 for the evening.',
+          minutes: 1490,
+        },
+        { from: 'them', text: 'Amazing. Can we bring our own cake?', minutes: 1482 },
+        {
+          from: 'us',
+          text: "Of course. We'll keep it cold and bring it out with candles.",
+          minutes: 1475,
+        },
+      ],
       drafts: [
-        'Hi Natasha, happy early birthday! The back room seats 20 and the 24th is free. Minimum spend is $2,500 for the evening. Shall we send the menu and hold the date for you?',
-        "We'd love to host it. The back room is open on the 24th, $2,500 minimum spend, wine pairings included if you like. Send us an email address and we'll send the details.",
+        '24 is fine, Natasha. The back room takes 24 around the long table, and the minimum spend stays at $2,500. Shall we hold the 24th under your name?',
+        "No problem at all. We'll set the room for 24, same minimum spend. Send us an email address and we'll send the menu and hold the date.",
       ],
     },
     {

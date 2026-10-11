@@ -107,4 +107,24 @@ describe('the inbox', () => {
     }
     expect(screen.getByRole('heading', { name: 'All caught up' })).toBeTruthy()
   })
+
+  it('shows a DM thread in order, ending with the message the reply answers', () => {
+    page()
+    // The list shows where the thread stands now: its latest message.
+    const row = screen.getByRole('button', { name: /Jonathan Koh/ })
+    expect(within(row).getByText(/^Perfect\. Is there a set menu/)).toBeTruthy()
+    fireEvent.click(row)
+    const thread = screen.getByRole('article', { name: /Jonathan Koh/ })
+    const said = within(thread)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent ?? '')
+    expect(said).toHaveLength(5)
+    expect(said[0]).toMatch(/Hi there/)
+    expect(said[2]).toMatch(/Ciao Jonathan! Yes, Friday/)
+    // The team's own note sits in the thread, marked as never reaching the guest.
+    expect(said[3]).toMatch(/Daniel · only the team sees this/)
+    expect(said.at(-1)).toMatch(/Is there a set menu\? A couple of us are vegetarian\.$/)
+    // The draft answers that last question, not the first.
+    expect(reply().value).toMatch(/set menu at \$68 a head/)
+  })
 })
