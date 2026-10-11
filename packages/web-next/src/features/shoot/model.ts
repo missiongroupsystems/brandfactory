@@ -1,9 +1,9 @@
 import type { CalendarEvent, Week } from '@/data/demo'
-import type { Shoot } from '@/data/shoots'
+import type { Reply, Shoot } from '@/data/shoots'
 
 /**
  * The shoot rules, apart from React: how a shoot reads on the calendar, which day a new one
- * takes, and what a new start time does to its end.
+ * takes, what a new start time does to its end, and how the crew answered the invite.
  */
 
 /** "12:00–17:00". */
@@ -60,4 +60,21 @@ export function freeShootDay(weeks: Week[], shoots: Shoot[]): string {
   const ahead = weeks.flatMap((w) => w.days).filter((d) => !d.past && !d.today)
   const taken = new Set(shoots.map((s) => s.dayN))
   return (ahead.find((d) => !taken.has(d.n)) ?? ahead[ahead.length - 1]!).n
+}
+
+/**
+ * The answers of the people invited, in one line: "2 going · 1 can't make it · 1 no reply". A
+ * count of zero is left out, so a sheet everyone said yes to reads "4 going".
+ */
+export function replySummary(invited: string[], replies: Record<string, Reply>): string {
+  const count = (reply?: Reply) => invited.filter((n) => replies[n] === reply).length
+  const parts: Array<[number, string]> = [
+    [count('going'), 'going'],
+    [count('cant'), "can't make it"],
+    [count(undefined), 'no reply'],
+  ]
+  return parts
+    .filter(([n]) => n > 0)
+    .map(([n, words]) => `${n} ${words}`)
+    .join(' · ')
 }

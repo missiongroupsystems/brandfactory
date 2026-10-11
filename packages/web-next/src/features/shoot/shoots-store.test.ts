@@ -1,17 +1,20 @@
-import { renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { act, renderHook } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { WEEKS } from '@/data/demo'
 
 import {
   addCrew,
+  addShoot,
   leaveShoot,
   planShoot,
+  REPLY_DELAY,
   resetShoots,
   sendInvites,
   shootIdeaOn,
   shootOfIdea,
   useInvited,
+  useReplies,
   useShoots,
 } from './shoots-store'
 
@@ -71,5 +74,55 @@ describe('the Lark invites', () => {
     const invited = renderHook(() => useInvited('cv-shoot-raffles')).result.current
     expect(invited).toEqual(['Nat Lim', 'Jules Tan', 'Chef Marco', 'Chef Dani'])
     expect(invited).not.toContain('Ana Lee')
+  })
+})
+
+describe('a shoot added by hand', () => {
+  it('stays on the calendar with no ideas, and an idea picked for its day joins it', () => {
+    // Nat books shoots in Lark before any idea exists: an empty one must not vanish.
+    const id = addShoot(BRAND, {
+      title: 'Terrace',
+      place: 'Casa Vostra terrace',
+      dayN: '15',
+      start: '14:00',
+      end: '15:00',
+    })
+    expect(shoots().find((s) => s.id === id)).toMatchObject({ ideaIds: [], dayN: '15' })
+    expect(shootIdeaOn(BRAND, WEEKS, 'cv-blindfold', '15', '12:00')).toBe(id)
+    // Its hours are the ones typed in, not the idea's.
+    expect(shoots().find((s) => s.id === id)).toMatchObject({
+      start: '14:00',
+      ideaIds: ['cv-blindfold'],
+    })
+    leaveShoot(BRAND, 'cv-blindfold')
+    expect(shoots().some((s) => s.id === id)).toBe(true)
+  })
+})
+
+describe('the answers to the invite', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  const replies = () => renderHook(() => useReplies('cv-shoot-raffles')).result.current
+
+  it("come in a moment after the invite: going, can't make it, or none yet", () => {
+    sendInvites(BRAND, 'cv-shoot-raffles')
+    // Nobody answers an invite the second it lands.
+    expect(replies()).toEqual({})
+    act(() => {
+      vi.advanceTimersByTime(REPLY_DELAY)
+    })
+    expect(replies()).toEqual({ 'Nat Lim': 'going', 'Jules Tan': 'going', 'Chef Dani': 'cant' })
+    // Chef Marco has not answered: the sheet shows him as no reply yet.
+    expect(replies()['Chef Marco']).toBeUndefined()
+  })
+
+  it('never arrive for an invite a reset took back', () => {
+    sendInvites(BRAND, 'cv-shoot-raffles')
+    resetShoots()
+    act(() => {
+      vi.advanceTimersByTime(REPLY_DELAY)
+    })
+    expect(replies()).toEqual({})
   })
 })

@@ -7,6 +7,8 @@ import { Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import type { CalendarEvent, Day, FeedMark } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
+import { timeRange } from '@/features/shoot/model'
+import { useShoots } from '@/features/shoot/shoots-store'
 
 import { channelsOf, itemsOf, postTime, type StageFilter } from './calendar-items'
 import { EventChip } from './event-chip'
@@ -36,8 +38,8 @@ const GUTTER = 'font-mono text-[10px] text-ink-4'
 /**
  * One day by the hour. Each post sits at its time as a thumbnail with its hook, channels and
  * stage; the brand's best two hours from Insights are shaded, so a good slot is visible before
- * anything is planned. Stories and ideas without a time sit above the hours. An empty hour starts
- * a new post.
+ * anything is planned. A shoot covers its own hours, beside the posts. Stories and ideas without
+ * a time sit above the hours. An empty hour starts a new post.
  */
 
 export function DayView({
@@ -71,6 +73,13 @@ export function DayView({
     return { post, lane: same.length }
   })
   const stories = storiesOf(day.n, items, brand.id, library, byId)
+  // A shoot has its hours, so it sits on them; the other events have none and stay above.
+  const shoots = useShoots(brand.id)
+  const timed = events.flatMap((event) => {
+    const shoot = shoots.find((s) => s.id === event.shootId)
+    return shoot ? [{ event, shoot }] : []
+  })
+  const allDay = events.filter((e) => !timed.some((t) => t.event === e))
 
   return (
     <div className="mx-auto w-full max-w-[1440px] px-10 pb-24">
@@ -78,14 +87,14 @@ export function DayView({
       <div
         className={`flex flex-col gap-6 ${day.past && !items.posts.some((p) => p.stage === 'failed') ? 'opacity-60' : ''}`}
       >
-        {(events.length > 0 || stories.length > 0 || items.ideas.length > 0) && (
+        {(allDay.length > 0 || stories.length > 0 || items.ideas.length > 0) && (
           // The band above the hours keeps the hours' gutter: what has no time, labelled on the left.
           <div className="grid grid-cols-[64px_minmax(0,1fr)] gap-y-3 border-b border-(--cal-line) pb-6">
-            {(events.length > 0 || stories.length > 0) && (
+            {(allDay.length > 0 || stories.length > 0) && (
               <>
                 <span className={`${GUTTER} pt-2`}>All day</span>
                 <div className="flex flex-wrap items-start gap-3">
-                  {events.map((e) => (
+                  {allDay.map((e) => (
                     <EventChip
                       key={e.shootId ?? e.text}
                       event={e}
@@ -140,6 +149,32 @@ export function DayView({
               Best time to post
             </span>
           </div>
+          {/*
+            A shoot, over its hours, in the room right of the first post card and left of the best
+            time's label and the stories: under a post that shares its hour, never over one.
+          */}
+          {timed.map(({ event, shoot }) => {
+            const from = Math.max(top(shoot.start), 0)
+            return (
+              <EventChip
+                key={shoot.id}
+                event={event}
+                className="absolute flex max-w-[300px] flex-col gap-0.5 overflow-hidden rounded-[10px] px-3 py-2.5 text-[12px] shadow-[inset_2px_0_0_var(--layer-shoot-ink)]"
+                style={{
+                  top: from + 2,
+                  height: Math.max(top(shoot.end) - from - 4, 28),
+                  left: `calc(76px + ${CARD_W} + 16px)`,
+                  right: 148,
+                }}
+              >
+                <span className="font-mono text-[10.5px] tabular-nums opacity-75">
+                  Shoot · {timeRange(shoot)}
+                </span>
+                <span className="truncate text-[14px] font-medium">{shoot.title}</span>
+                <span className="truncate opacity-75">{shoot.place}</span>
+              </EventChip>
+            )
+          })}
           {/* Stories, each at its own time, in a narrow column at the rail's right edge. */}
           {stories.map((s) => (
             <button

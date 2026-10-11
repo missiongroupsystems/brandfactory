@@ -9,6 +9,7 @@ import { PlusIcon } from '@/components/icons'
 import { DEFAULT_LAYERS } from '@/data/demo'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { withShoots } from '@/features/shoot/model'
+import { NewShootButton } from '@/features/shoot/new-shoot'
 import { useShoots } from '@/features/shoot/shoots-store'
 
 import { PhoneCalendar } from './phone-calendar'
@@ -147,6 +148,8 @@ export function SchedulePage() {
       onOpenPost={openPost}
     />
   ) : null
+  // A shoot added from the day view takes the day shown, if it is ahead in the demo's month.
+  const shootDay = offset === 0 && !shownDay.past && !shownDay.outside ? shownDay.n : undefined
   const dayEvents = shownWeek.events.filter(
     (e) => e.col - 1 <= day && day < e.col - 1 + e.span && layers[e.layer],
   )
@@ -182,6 +185,7 @@ export function SchedulePage() {
           onToday={() => setCalendarPlace(TODAY_PLACE)}
           onOpenPost={openPost}
           onNewPost={newPost}
+          shootDay={shootDay}
           onOpenStories={setStoryDay}
           onStages={(s) => setCalendarPlace({ stages: s })}
           onLayers={setLayers}
@@ -232,6 +236,7 @@ export function SchedulePage() {
             onStages={(s) => setCalendarPlace({ stages: s })}
             onLayers={setLayers}
           />
+          <NewShootButton dayN={view === 'day' ? shootDay : undefined} />
           <button
             type="button"
             onClick={() => newPost()}

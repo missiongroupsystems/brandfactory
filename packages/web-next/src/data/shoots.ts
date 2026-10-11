@@ -39,6 +39,22 @@ export interface GuestComment {
   when: string
 }
 
+/** A crew member's answer to the Lark invite. No answer yet is the absence of one. */
+export type Reply = 'going' | 'cant'
+
+/**
+ * How each person answers a Lark invite in the demo (simulated: nothing leaves the browser), so
+ * one call sheet shows all three: going, can't make it and no reply yet. Anyone not here never
+ * answers, like someone added on the day.
+ */
+export const REPLY_OF: Record<string, Reply> = {
+  'Nat Lim': 'going',
+  'Jules Tan': 'going',
+  'Chef Dani': 'cant',
+  'Lena Koh': 'cant',
+  'Carlos Ruiz': 'going',
+}
+
 /** The roles a person on a shoot can have, in the order the call sheet offers them. */
 export const ROLES = ['Videographer', 'Photographer', 'Chef', 'Producer', 'Talent'] as const
 

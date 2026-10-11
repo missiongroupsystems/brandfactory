@@ -4,7 +4,15 @@ import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
 import type { Week } from '@/data/demo'
-import { HOME, SHOOTS_BY_BRAND, USUAL_CREW, type CrewMember, type Shoot } from '@/data/shoots'
+import {
+  HOME,
+  REPLY_OF,
+  SHOOTS_BY_BRAND,
+  USUAL_CREW,
+  type CrewMember,
+  type Reply,
+  type Shoot,
+} from '@/data/shoots'
 
 import { freeShootDay, moveStart } from './model'
 
@@ -18,14 +26,17 @@ import { freeShootDay, moveStart } from './model'
 
 /** Who got the Lark invite: names, as the crew lists them. */
 type Invited = Record<string, string[]>
+/** What each invited person answered, by shoot and name. */
+type Replies = Record<string, Record<string, Reply>>
 
 interface State {
   shoots: Record<BrandId, Shoot[]>
   invited: Invited
+  replies: Replies
 }
 
 function initial(): State {
-  return { shoots: { ...SHOOTS_BY_BRAND }, invited: {} }
+  return { shoots: { ...SHOOTS_BY_BRAND }, invited: {}, replies: {} }
 }
 
 let state: State = initial()
@@ -83,7 +94,17 @@ export function useInvited(shootId: string): string[] {
   return useState().invited[shootId] ?? []
 }
 
-/** Shoots planned in the demo, not synced from Lark: one exists only for its ideas. */
+const NO_REPLIES: Record<string, Reply> = {}
+
+/** The answers to a shoot's Lark invite, by name. */
+export function useReplies(shootId: string): Record<string, Reply> {
+  return useState().replies[shootId] ?? NO_REPLIES
+}
+
+/**
+ * Shoots planned from ideas in the demo: one exists only for its ideas. A shoot from Lark, or one
+ * added by hand on the calendar, stays with none.
+ */
 const planned = new Set<string>()
 
 /**
@@ -122,6 +143,20 @@ export function planShoot(
   }
   planned.add(id)
   update(brandId, (list) => [...without(list, ideaIds), shoot])
+  return id
+}
+
+/**
+ * A shoot added by hand on the calendar, as the team keeps one in Lark: a name, a place, a day
+ * and its hours, with the brand's usual crew. It has no ideas yet; they join from an idea's page.
+ * Returns its id.
+ */
+export function addShoot(
+  brandId: BrandId,
+  fields: Pick<Shoot, 'title' | 'place' | 'dayN' | 'start' | 'end'>,
+): string {
+  const id = `${brandId}-shoot-${++serial}`
+  update(brandId, (list) => [...list, { id, ...fields, crew: USUAL_CREW[brandId], ideaIds: [] }])
   return id
 }
 
@@ -171,11 +206,25 @@ export function removeCrew(brandId: BrandId, id: string, index: number) {
   )
 }
 
-/** The Lark invite goes to everyone on the crew (simulated: nothing leaves the browser). */
+/** How long the crew takes to answer an invite in the demo. */
+export const REPLY_DELAY = 1500
+
+/**
+ * The Lark invite goes to everyone on the crew (simulated: nothing leaves the browser). The
+ * answers come in a moment later, from `REPLY_OF`; whoever is not there stays at no reply.
+ */
 export function sendInvites(brandId: BrandId, id: string) {
   const shoot = state.shoots[brandId].find((s) => s.id === id)
   if (!shoot) return
-  set({ ...state, invited: { ...state.invited, [id]: shoot.crew.map((c) => c.name) } })
+  const names = shoot.crew.map((c) => c.name)
+  set({ ...state, invited: { ...state.invited, [id]: names } })
+  setTimeout(() => {
+    // A reset in between (a test) un-invites everyone: no answer arrives then.
+    const asked = names.filter((n) => state.invited[id]?.includes(n) && REPLY_OF[n])
+    if (asked.length === 0) return
+    const answers = Object.fromEntries(asked.map((n) => [n, REPLY_OF[n]!]))
+    set({ ...state, replies: { ...state.replies, [id]: { ...state.replies[id], ...answers } } })
+  }, REPLY_DELAY)
 }
 
 /** For tests. */

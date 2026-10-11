@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { WEEKS } from '@/data/demo'
 import { SHOOTS_BY_BRAND, type Shoot } from '@/data/shoots'
 
-import { eventText, freeShootDay, moveStart, setEnd, withShoots } from './model'
+import { eventText, freeShootDay, moveStart, replySummary, setEnd, withShoots } from './model'
 
 const raffles = SHOOTS_BY_BRAND['casa-vostra'][0]!
 
@@ -54,5 +54,16 @@ describe('the day a new shoot takes', () => {
     // Today is 6 Oct, and the 7th already has the Raffles City shoot.
     expect(freeShootDay(WEEKS, [raffles])).toBe('8')
     expect(freeShootDay(WEEKS, [])).toBe('7')
+  })
+})
+
+describe('the answers to the invite', () => {
+  it('counts each answer in one line, leaving out what nobody said', () => {
+    const invited = ['Nat Lim', 'Jules Tan', 'Chef Marco', 'Chef Dani']
+    const replies = { 'Nat Lim': 'going', 'Jules Tan': 'going', 'Chef Dani': 'cant' } as const
+    expect(replySummary(invited, replies)).toBe("2 going · 1 can't make it · 1 no reply")
+    expect(replySummary(invited, {})).toBe('4 no reply')
+    // An answer from someone not invited (removed from the crew) does not count.
+    expect(replySummary(['Nat Lim'], { 'Nat Lim': 'going', 'Lena Koh': 'cant' })).toBe('1 going')
   })
 })

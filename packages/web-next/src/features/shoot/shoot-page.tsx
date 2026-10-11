@@ -7,7 +7,7 @@ import { AppHeader } from '@/components/app-header'
 import { Fold } from '@/components/controls'
 import { CheckIcon, CloseIcon, PlusIcon } from '@/components/icons'
 import type { Day } from '@/data/demo'
-import { ROLES, type Shoot } from '@/data/shoots'
+import { ROLES, type Reply, type Shoot } from '@/data/shoots'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { DayPicker, type DayInfo } from '@/features/ideate/day-picker'
 import { EYEBROW } from '@/features/ideate/idea-parts'
@@ -16,8 +16,16 @@ import { useBrand } from '@/features/schedule/posts-store'
 import { Comments } from '@/features/share/comments'
 import { ShareButton } from '@/features/share/share-button'
 
-import { moveStart, setEnd, SHOOT_TIMES } from './model'
-import { addCrew, editShoot, removeCrew, sendInvites, useInvited, useShoots } from './shoots-store'
+import { moveStart, replySummary, setEnd, SHOOT_TIMES } from './model'
+import {
+  addCrew,
+  editShoot,
+  removeCrew,
+  sendInvites,
+  useInvited,
+  useReplies,
+  useShoots,
+} from './shoots-store'
 import { shotCount, ShotList } from './shot-list'
 
 /**
@@ -224,8 +232,11 @@ const SELECT =
 const INPUT =
   'h-8 w-full rounded-full bg-surface px-3.5 text-[13px] outline-none placeholder:text-ink-5 focus-visible:shadow-[0_0_0_2px_var(--ink)]'
 
-/** The details the team changes: the day, the hours, the name and the address. */
-function Details({
+/**
+ * The details the team changes: the day, the hours, the name and the address. A shoot added on
+ * the calendar asks for the same (`new-shoot.tsx`).
+ */
+export function Details({
   shoot,
   edit,
 }: {
@@ -285,6 +296,7 @@ function Details({
         value={shoot.title}
         onChange={(e) => edit({ title: e.target.value })}
         aria-label="Name"
+        placeholder="Pasta day"
         className={INPUT}
       />
       <span className="text-ink-4">Address</span>
@@ -298,9 +310,22 @@ function Details({
   )
 }
 
-/** Who comes: each person with their role and whether the Lark invite went out, then one more. */
+/** What a person's line says, from the invite and their answer to it. */
+const STATUS: Record<Reply | 'waiting' | 'none', { text: string; className: string }> = {
+  going: { text: 'Going', className: 'text-(--live)' },
+  cant: { text: "Can't make it", className: 'text-fail-ink' },
+  waiting: { text: 'No reply yet', className: 'text-ink-4' },
+  none: { text: 'Not invited', className: 'text-ink-5' },
+}
+
+/**
+ * Who comes: each person with their role and their answer to the Lark invite, the answers
+ * counted in one line, then one more person.
+ */
 function Crew({ shoot, invited }: { shoot: Shoot; invited: string[] }) {
   const { brand } = useBrand()
+  const replies = useReplies(shoot.id)
+  const asked = shoot.crew.map((c) => c.name).filter((n) => invited.includes(n))
   const [name, setName] = React.useState('')
   const [role, setRole] = React.useState<string>(ROLES[0])
   function add() {
@@ -310,10 +335,17 @@ function Crew({ shoot, invited }: { shoot: Shoot; invited: string[] }) {
   }
   return (
     <section aria-label="Who comes" className="flex flex-col gap-4 lg:sticky lg:top-6">
-      <span className={EYEBROW}>Who comes</span>
+      <span className="flex items-baseline justify-between gap-3">
+        <span className={EYEBROW}>Who comes</span>
+        {asked.length > 0 && (
+          <span className="text-[12px] text-ink-3 tabular-nums">
+            {replySummary(asked, replies)}
+          </span>
+        )}
+      </span>
       <ul className="flex flex-col">
         {shoot.crew.map((c, i) => {
-          const sent = invited.includes(c.name)
+          const status = STATUS[invited.includes(c.name) ? (replies[c.name] ?? 'waiting') : 'none']
           return (
             <li
               key={`${c.name}-${i}`}
@@ -331,9 +363,7 @@ function Crew({ shoot, invited }: { shoot: Shoot; invited: string[] }) {
                 <span className="text-[12px] text-ink-4">{c.role}</span>
               </span>
               <span className="flex items-center gap-2">
-                <span className={`text-[12px] ${sent ? 'text-(--live)' : 'text-ink-5'}`}>
-                  {sent ? 'Invited' : 'Not invited'}
-                </span>
+                <span className={`text-[12px] ${status.className}`}>{status.text}</span>
                 <button
                   type="button"
                   aria-label={`Remove ${c.name}`}
