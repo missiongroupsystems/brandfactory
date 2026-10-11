@@ -11,10 +11,34 @@ import {
   type ChannelKey,
   type Draft,
   type Outcome,
+  type TikTokSettings,
   type When,
 } from './model'
 
 export type Phase = 'compose' | 'scheduled' | 'publishing' | 'done'
+
+/**
+ * Where a TikTok's sound comes from. TikTok's API posts the video's own audio only; a song from
+ * TikTok's library is added in the app, so that choice sends the video to the account's TikTok
+ * inbox at the time instead, and the team picks the sound there and posts.
+ */
+export type Sound = 'own' | 'library'
+
+export type TikTokDefault = TikTokSettings & { sound: Sound }
+
+/**
+ * Each brand's saved TikTok answers, the start of its next new post. Kept for the session in
+ * memory: the demo has no server, and a reload goes back to the model's defaults.
+ */
+const tiktokDefaults = new Map<string, TikTokDefault>()
+
+export function tiktokDefault(brand: string): TikTokDefault | undefined {
+  return tiktokDefaults.get(brand)
+}
+
+export function saveTikTokDefault(brand: string, settings: TikTokDefault) {
+  tiktokDefaults.set(brand, settings)
+}
 
 /**
  * The draft and the simulated send, for any publish view.
@@ -30,6 +54,7 @@ export function usePublishDraft(input: {
   selected?: ChannelKey[]
   linked?: ChannelKey[]
   connected?: ChannelKey[]
+  tiktok?: TikTokSettings
 }) {
   const [draft, setDraft] = React.useState<Draft>(() => initialDraft(input))
   const [rawPhase, setPhase] = React.useState<Phase>('compose')

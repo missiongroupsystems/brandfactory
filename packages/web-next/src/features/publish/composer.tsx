@@ -23,7 +23,7 @@ import type { BrandId } from '@/data/brands'
 import type { Format, Post, Stage } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
-import { DRIVE, folderAt, LINKED } from '@/data/publish'
+import { CAPTION_DRAFTS, DRIVE, folderAt, HASHTAGS, LINKED } from '@/data/publish'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { composeChannels, sentChannels } from '@/features/schedule/calendar-items'
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
@@ -38,16 +38,21 @@ import {
   defaultCrop,
   frameRatio,
   handleOf,
+  improveCaption,
+  initialDraft,
+  inviteNote,
   isUncut,
   kindOn,
   lengthFor,
   linkedChannels,
+  parseTime,
   PRIVACY,
   shapeFix,
   shotOf,
   TAG_MAX,
   textFor,
   tiktokConsent,
+  tiktokSettings,
   youtubeTitle,
   type Aspect,
   type ChannelKey,
@@ -58,7 +63,14 @@ import {
 } from './model'
 import { PhoneMock, type People } from './phone-mocks'
 import { ratioOf, ShotView } from './shot'
-import { usePublishDraft, type PublishDraftApi } from './use-publish-draft'
+import {
+  saveTikTokDefault,
+  tiktokDefault,
+  usePublishDraft,
+  type PublishDraftApi,
+  type Sound,
+  type TikTokDefault,
+} from './use-publish-draft'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 // On a phone a card is bare: the page is white, and a card opens in a sheet that has its own frame.
@@ -76,12 +88,6 @@ const NAME: Record<ChannelKey, string> = {
   li: 'LinkedIn',
   fb: 'Facebook',
 }
-
-/** Captions "Draft with AI" cycles through. The demo has no model behind it. */
-const ALTERNATIVES = [
-  'Ten seconds of fire, a crust that cracks 🔥 Blowtorch finish at Raffles City. #casavostra #pizzasg #rafflescity',
-  'Smoke, blister, crack. The last ten seconds before your pizza lands 🔥 Raffles City. #casavostra #pizzasg',
-]
 
 /** Where each brand's location tag defaults to: the venue, as the team tags it today. */
 const VENUE: Record<BrandId, string> = {
@@ -143,6 +149,7 @@ export function Composer({
     selected: post ? composeChannels(post) : undefined,
     linked: LINKED[brand.id],
     connected: LINKED[brand.id],
+    tiktok: tiktokDefault(brand.id),
   })
   const [reconnected, setReconnected] = React.useState(false)
   // The post as it opened: after a retry the live post is no longer failed, and a second send
@@ -179,7 +186,7 @@ export function Composer({
     fbAudience: 'Everyone',
     liVisibility: 'Anyone',
     igShareToFeed: true,
-    ttSound: 'own' as Sound,
+    ttSound: tiktokDefault(brand.id)?.sound ?? ('own' as Sound),
   })
   // On a phone each card opens in a sheet from its row; one sheet at a time.
   const [sheet, setSheet] = React.useState<SheetKey | null>(null)
@@ -790,11 +797,29 @@ function Content({
     [],
   )
 
-  /** The demo has no model: a prepared caption types itself in, by grapheme. */
-  function draftWithAI() {
-    if (writing) return
-    const target = ALTERNATIVES[drafted % ALTERNATIVES.length]!
-    setDrafted((n) => n + 1)
+  const { brand } = useBrand()
+  const drafts = CAPTION_DRAFTS[brand.id]
+  // A caption the marketer wrote is improved, not replaced; an empty box or a draft gets a draft.
+  const typed = draft.caption.trim() !== '' && !drafts.includes(draft.caption)
+  const improved = typed ? improveCaption(draft.caption, HASHTAGS[brand.id]) : null
+  const aiLabel = writing
+    ? 'Writing…'
+    : !typed
+      ? draft.caption
+        ? 'Try another'
+        : 'Draft with AI'
+      : improved !== draft.caption
+        ? 'Improve'
+        : 'Looks good'
+
+  /**
+   * The demo has no model: a prepared caption, or the marketer's own one cleaned, types itself
+   * in, by grapheme.
+   */
+  function writeWithAI() {
+    if (writing || aiLabel === 'Looks good') return
+    const target = improved ?? drafts[drafted % drafts.length]!
+    if (!improved) setDrafted((n) => n + 1)
     setTab('all')
     const parts = [
       ...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(target),
@@ -1036,12 +1061,12 @@ function Content({
           <VoiceNote className="ml-auto" />
           <button
             type="button"
-            onClick={draftWithAI}
-            disabled={writing}
+            onClick={writeWithAI}
+            disabled={writing || aiLabel === 'Looks good'}
             className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 text-[12.5px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:bg-paper hover:text-ink disabled:opacity-60 max-md:h-10 max-md:bg-transparent max-md:px-0 max-md:text-[13.5px]"
           >
-            <SparkIcon size={10} />
-            {writing ? 'Writing…' : drafted ? 'Try another' : 'Draft with AI'}
+            {aiLabel === 'Looks good' ? <CheckIcon size={9} /> : <SparkIcon size={10} />}
+            {aiLabel}
           </button>
         </div>
         <textarea
@@ -1840,13 +1865,6 @@ function Chips({
 
 // ── Per-account settings ─────────────────────────────────────────────────────────────────────
 
-/**
- * Where a TikTok's sound comes from. TikTok's API posts the video's own audio only; a song from
- * TikTok's library is added in the app, so that choice sends the video to the account's TikTok
- * inbox at the time instead, and the team picks the sound there and posts.
- */
-type Sound = 'own' | 'library'
-
 interface Extra {
   ytVisibility: string
   fbAudience: string
@@ -2083,7 +2101,8 @@ function Choice({
 
 /**
  * TikTok's own questions: who can watch starts on Everyone, then the sound, the interactions and
- * whether the video is commercial content; the consent line sits under them.
+ * whether the video is commercial content; the consent line sits under them. Changed answers can
+ * be kept as the brand's start for its next posts, so nobody has to check them every time.
  */
 function TikTokRows({
   api,
@@ -2095,6 +2114,17 @@ function TikTokRows({
   setExtra: (e: Extra) => void
 }) {
   const { draft, update } = api
+  const { brand } = useBrand()
+  const current: TikTokDefault = { ...tiktokSettings(draft), sound: extra.ttSound }
+  // What a new post starts on: the brand's saved answers, or the model's own.
+  const [start, setStart] = React.useState<TikTokDefault>(
+    () =>
+      tiktokDefault(brand.id) ?? {
+        ...tiktokSettings(initialDraft({ format: draft.format, hook: '', caption: '' })),
+        sound: 'own',
+      },
+  )
+  const asStart = JSON.stringify(current) === JSON.stringify(start)
   return (
     <div className="flex flex-col gap-2">
       <div className="flex min-h-10 flex-wrap items-center justify-between gap-3 max-md:min-h-12">
@@ -2177,6 +2207,25 @@ function TikTokRows({
         </div>
       </Fold>
       <p className="text-[12px] leading-[1.45] text-ink-4">{tiktokConsent(draft)}</p>
+      {!asStart ? (
+        <button
+          type="button"
+          onClick={() => {
+            saveTikTokDefault(brand.id, current)
+            setStart(current)
+          }}
+          className="h-8 self-start text-[12.5px] font-medium text-ink-3 underline-offset-2 transition-colors hover:text-ink hover:underline max-md:h-10 max-md:text-[13.5px]"
+        >
+          Save as {brand.name} default
+        </button>
+      ) : (
+        tiktokDefault(brand.id) && (
+          <span className="flex h-8 items-center gap-1.5 text-[12.5px] text-ink-4 max-md:h-10 max-md:text-[13.5px]">
+            <CheckIcon size={9} />
+            {brand.name} default
+          </span>
+        )
+      )}
     </div>
   )
 }
@@ -2186,7 +2235,8 @@ function TikTokRows({
 /**
  * Now, or a day and a time. The answer leads, in one line, with the brand's best time beside it
  * to take in one click; under it the demo's month picks the day, and the day's hours, scored
- * from Insights as bars like Brandwatch's, pick the time.
+ * from Insights as bars like Brandwatch's, pick the hour. Any time at all is typed over the time
+ * in the answer line.
  */
 function WhenCard({
   when,
@@ -2229,7 +2279,7 @@ function WhenCard({
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-1 pb-4">
           <span className="flex items-baseline gap-2.5">
             <span className="font-display text-[22px] leading-none tracking-[-0.02em] max-md:text-[20px]">
-              {dayLabel(weeks, dayN)}, {time}
+              {dayLabel(weeks, dayN)}, <TimeField time={time} setTime={setTime} />
             </span>
             {onBest && <span className="text-[12.5px] text-(--insight-6)">Best time</span>}
           </span>
@@ -2293,6 +2343,38 @@ function WhenCard({
   )
 }
 
+/**
+ * The time in the answer line, typed over in place: "19:30", "1930" and "7.30pm" all land as
+ * 19:30; what is not a time goes back to the time it was.
+ */
+function TimeField({ time, setTime }: { time: string; setTime: (t: string) => void }) {
+  const [typed, setTyped] = React.useState<string | null>(null)
+  // Escape blurs too: the blur must then drop the typed text, not keep it.
+  const cancelled = React.useRef(false)
+  return (
+    <input
+      aria-label="Post time"
+      value={typed ?? time}
+      onFocus={(e) => {
+        setTyped(time)
+        e.currentTarget.select()
+      }}
+      onChange={(e) => setTyped(e.target.value)}
+      onBlur={() => {
+        const t = typed === null || cancelled.current ? null : parseTime(typed)
+        if (t) setTime(t)
+        setTyped(null)
+        cancelled.current = false
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') cancelled.current = true
+        if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur()
+      }}
+      className="-mx-1 field-sizing-content rounded-[6px] bg-transparent px-1 tabular-nums underline decoration-ink-5 decoration-dotted decoration-1 underline-offset-[5px] outline-none transition-colors hover:bg-surface focus:bg-surface focus:no-underline"
+    />
+  )
+}
+
 /** "Instagram, TikTok and YouTube". */
 function namesOf(keys: ChannelKey[]): string {
   const names = keys.map((k) => NAME[k])
@@ -2324,7 +2406,7 @@ function dayWeights(brandId: BrandId): number[] {
 
 /**
  * The picked day's hours as bars, the way a map shows how busy a place is. The best hour is green;
- * a bar sets the time. The bars share one scale across the week, so a quiet day looks quiet.
+ * a bar sets the hour. The bars share one scale across the week, so a quiet day looks quiet.
  */
 function DayChart({
   dayN,
@@ -2346,21 +2428,32 @@ function DayChart({
   const top = Math.max(...weights) * Math.max(...curve)
   const bars = curve.map((v) => (v * (weights[weekday] ?? 1)) / top)
   const peak = bars.indexOf(Math.max(...bars))
-  const at = (h: number) => `${String(h).padStart(2, '0')}:00`
-  const shown = hover ?? HOURS.findIndex((h) => at(h) === time)
+  // A bar picks the hour and keeps the minutes; the quarters beside the label pick the minutes.
+  const hour = Number(time.slice(0, 2))
+  const minutes = time.slice(3)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const at = (h: number) => `${pad(h)}:${minutes}`
+  const shown = hover ?? HOURS.indexOf(hour)
 
   return (
     <div className="flex flex-col gap-3">
-      <span className="text-[12.5px]">
-        <span className="text-ink-3">Time </span>
-        <span className={shown === peak ? 'text-(--insight-6)' : 'text-ink-3'}>
-          {shown >= 0 ? at(HOURS[shown]!) : time}
-          {shown === peak ? ' · best hour of the day' : ''}
+      <div className="flex min-h-8 items-center justify-between gap-3">
+        <span className="text-[12.5px]">
+          <span className="text-ink-3">Time </span>
+          <span className={shown === peak ? 'text-(--insight-6)' : 'text-ink-3'}>
+            {shown >= 0 ? at(HOURS[shown]!) : time}
+            {shown === peak ? ' · best hour' : ''}
+          </span>
         </span>
-      </span>
+        <Choice
+          value={`:${minutes}`}
+          options={[':00', ':15', ':30', ':45']}
+          onChange={(m) => setTime(`${pad(hour)}${m}`)}
+        />
+      </div>
       <div role="radiogroup" aria-label="Post time" className="flex h-[96px] items-end gap-[3px]">
         {HOURS.map((h, i) => {
-          const on = at(h) === time
+          const on = h === hour
           return (
             <button
               key={h}
@@ -2541,6 +2634,10 @@ function Outcomes({
         : failed
           ? 'One account needs you.'
           : `Posted to ${accounts}.`
+  // Collaborators are Instagram's: their invite leaves once the Instagram post is live.
+  const ig = outcomes.ig
+  const invite =
+    draft.format === 'story' || !ig ? null : inviteNote(people.collabs, ig.state === 'live')
   return (
     <div className="flex flex-col items-center gap-8 pt-6">
       <header className="flex flex-col items-center gap-3 text-center" aria-live="polite">
@@ -2556,6 +2653,12 @@ function Outcomes({
         </span>
         <h1 className="font-display text-[40px] leading-none tracking-[-0.035em]">{title}</h1>
         <p className="text-[14px] text-ink-2">{sub}</p>
+        {invite && (
+          <p className="flex items-center gap-1.5 text-[13px] text-ink-3">
+            <PersonGlyph size={11} />
+            {invite}
+          </p>
+        )}
       </header>
       <div className="flex flex-wrap justify-center gap-6">
         {keys.map((k) => {

@@ -1,9 +1,11 @@
 /**
  * What the composer knows about each brand's accounts and files. Static and invented, like
- * `demo.ts`: the platforms each restaurant posts on, and its Google Drive folder of final edits.
+ * `demo.ts`: the platforms each restaurant posts on, its caption drafts and hashtags, and its
+ * Google Drive folder of final edits.
  *
  * The photos are the demo's own (see `public/demo/CREDITS.md`). A few are the moodboard's
- * landscape and tall pins, so a picked file can be the wrong shape for a post and show the flag.
+ * landscape and tall pins, so a picked file can be the wrong shape (a tall pin in a post, a
+ * landscape one in a reel) and show the flag.
  */
 
 import type { BrandId } from './brands'
@@ -15,6 +17,32 @@ export const LINKED: Record<BrandId, ChannelKey[]> = {
   'casa-vostra': ['ig', 'tt', 'fb'],
   temper: ['ig', 'tt', 'fb'],
   carlitos: ['ig', 'tt', 'fb'],
+}
+
+/**
+ * Captions "Draft with AI" cycles through when the box is empty, each in its brand's voice. The
+ * demo has no model behind it.
+ */
+export const CAPTION_DRAFTS: Record<BrandId, string[]> = {
+  'casa-vostra': [
+    'Ten seconds of fire, a crust that cracks 🔥 Blowtorch finish at Raffles City. #casavostra #pizzasg #rafflescity',
+    'Smoke, blister, crack. The last ten seconds before your pizza lands 🔥 Raffles City. #casavostra #pizzasg',
+  ],
+  temper: [
+    'The fire is lit and the first bottle is open. Duxton, from 5pm 🍷 #temper #winebarsg #duxton',
+    'Something orange, something skin-contact, something we only have six of. Ask the floor. #temper #naturalwine',
+  ],
+  carlitos: [
+    'Crunch first, then the jamón. Croquetas straight from the fryer, all night in Joo Chiat 🔥 #carlitossg #tapas #joochiat',
+    'Pick a stool, pick a pintxo, pay by the stick. ¡Vamos! #carlitossg #pintxos #joochiat',
+  ],
+}
+
+/** The hashtags each brand puts on every post: "Improve" adds the ones a caption is missing. */
+export const HASHTAGS: Record<BrandId, string[]> = {
+  'casa-vostra': ['#casavostra', '#pizzasg'],
+  temper: ['#temper', '#winebarsg'],
+  carlitos: ['#carlitossg', '#tapas'],
 }
 
 export interface DriveFile {

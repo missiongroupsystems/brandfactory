@@ -72,6 +72,8 @@ export function initialDraft(input: {
   linked?: ChannelKey[]
   /** The accounts a saved post already goes to; a new post starts on every connected one. */
   selected?: ChannelKey[]
+  /** The TikTok answers the brand saved as its default, over the ones below. */
+  tiktok?: TikTokSettings
 }): Draft {
   const linked = input.linked ?? CHANNELS.map((c) => c.key)
   const connected = (input.connected ?? ['ig', 'tt', 'yt', 'li']).filter((k) => linked.includes(k))
@@ -92,8 +94,17 @@ export function initialDraft(input: {
     // default (see the note at the top), so real posting must revisit this too.
     interactions: { comments: true, duet: false, stitch: false },
     promo: { on: false, own: false, paid: false },
+    ...(input.tiktok && tiktokSettings(input.tiktok)),
     when: 'slot',
   }
+}
+
+/** The TikTok answers a brand can keep as the start of every new post. */
+export type TikTokSettings = Pick<Draft, 'privacy' | 'interactions' | 'promo'>
+
+/** The TikTok answers alone, out of a draft or anything that carries them. */
+export function tiktokSettings(from: TikTokSettings): TikTokSettings {
+  return { privacy: from.privacy, interactions: from.interactions, promo: from.promo }
 }
 
 /** The brand's own platforms, in the model's order: the only ones the composer shows. */
@@ -223,13 +234,14 @@ export const ZOOM_MAX = 3
 
 /**
  * The shape each format shows whole on Instagram, the strictest of the brand's platforms: a feed
- * post from 4:5 to square, a reel or a story 9:16. A photo outside it is cut or letterboxed by
- * the app, so the composer flags it and offers the crop on the first shape.
+ * post from 4:5 to landscape 1.91:1, a reel or a story 9:16. A photo outside it is cut or
+ * letterboxed by the app, so the composer flags it and offers the crop on the nearest preset: a
+ * photo too tall for a post goes to 4:5, one too wide to 16:9.
  */
-const SHAPES: Record<Format, { min: number; max: number; fix: Aspect }> = {
-  carousel: { min: 4 / 5, max: 1, fix: '4:5' },
-  reel: { min: 9 / 16, max: 9 / 16, fix: '9:16' },
-  story: { min: 9 / 16, max: 9 / 16, fix: '9:16' },
+const SHAPES: Record<Format, { min: number; max: number; tall: Aspect; wide: Aspect }> = {
+  carousel: { min: 4 / 5, max: 1.91, tall: '4:5', wide: '16:9' },
+  reel: { min: 9 / 16, max: 9 / 16, tall: '9:16', wide: '9:16' },
+  story: { min: 9 / 16, max: 9 / 16, tall: '9:16', wide: '9:16' },
 }
 
 /** A 1080 px photo a few pixels off its shape still fits: 2% either way. */
@@ -240,8 +252,10 @@ const SHAPE_SLACK = 0.02
  * the photo already fits.
  */
 export function shapeFix(ratio: number, format: Format): Aspect | null {
-  const { min, max, fix } = SHAPES[format]
-  return ratio >= min * (1 - SHAPE_SLACK) && ratio <= max * (1 + SHAPE_SLACK) ? null : fix
+  const { min, max, tall, wide } = SHAPES[format]
+  if (ratio < min * (1 - SHAPE_SLACK)) return tall
+  if (ratio > max * (1 + SHAPE_SLACK)) return wide
+  return null
 }
 
 /**
@@ -350,4 +364,90 @@ export function collabHeader(handle: string, collabs: string[]): string {
   if (collabs.length === 0) return own
   if (collabs.length === 1) return `${own} and ${collabs[0]!.replace(/^@/, '')}`
   return `${own} and ${collabs.length} others`
+}
+
+/**
+ * What the composer says about the collaborators' invites once the button is pressed. Instagram
+ * sends the invite when the post goes out, so a scheduled post's invite is still to come.
+ */
+export function inviteNote(collabs: string[], sent: boolean): string | null {
+  if (collabs.length === 0) return null
+  const who =
+    collabs.length === 1 ? collabs[0]! : `${collabs.slice(0, -1).join(', ')} and ${collabs.at(-1)!}`
+  return sent
+    ? `Invite sent to ${who}, waiting for them to accept.`
+    : `The invite goes to ${who} when the post goes out.`
+}
+
+// ── Caption ──────────────────────────────────────────────────────────────────────────────────
+
+/** Slips the demo's "Improve" puts right. The demo has no model behind it. */
+const TYPOS: Record<string, string> = {
+  teh: 'the',
+  adn: 'and',
+  dont: 'don’t',
+  cant: 'can’t',
+  didnt: 'didn’t',
+  im: 'I’m',
+  ive: 'I’ve',
+  youre: 'you’re',
+  thats: 'that’s',
+  recieve: 'receive',
+  definately: 'definitely',
+  tommorow: 'tomorrow',
+  tomorow: 'tomorrow',
+  untill: 'until',
+  tonite: 'tonight',
+  wierd: 'weird',
+  delicous: 'delicious',
+  resturant: 'restaurant',
+  i: 'I',
+}
+
+/** A whole word, not part of a handle or a contraction. */
+const WORD = /(?<![@\p{L}’'])\p{L}+(?![\p{L}’'])/gu
+
+/**
+ * The marketer's own caption, cleaned: the slips above fixed, each sentence started with a
+ * capital, the spacing tidied, a full stop where the text just stops, and the brand's hashtags it
+ * does not have yet added after its own, at the end. Their words stay theirs: nothing is rewritten.
+ */
+export function improveCaption(text: string, hashtags: string[]): string {
+  const tags = text.match(HASHTAG) ?? []
+  let body = text
+    .replace(HASHTAG, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ ?\n ?/g, '\n')
+    .replace(/ +([,.!?])/g, '$1')
+    .replace(/([,!?])(?=\p{L})/gu, '$1 ')
+    .replace(/\.(?=\p{Lu})/gu, '. ')
+    .replace(WORD, (w) => TYPOS[w.toLowerCase()] ?? w)
+    .trim()
+    .replace(/(^|[.!?]\s+|\n)(\p{Ll})/gu, (_, lead: string, c: string) => lead + c.toUpperCase())
+  if (/[\p{L}\p{N}]$/u.test(body)) body += '.'
+  const have = new Set(tags.map((t) => t.toLowerCase()))
+  const all = [...tags, ...hashtags.filter((t) => !have.has(t.toLowerCase()))]
+  return [body, all.join(' ')].filter(Boolean).join(' ')
+}
+
+// ── When ─────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A typed time as the calendar stores it, "HH:MM" on the 24-hour clock, or `null` when it is not
+ * a time: "19:30", "1930", "7.30pm", "7pm" and "9" are all read.
+ */
+export function parseTime(typed: string): string | null {
+  const m = typed
+    .trim()
+    .toLowerCase()
+    .match(/^(\d{1,2})(?:[:.h]?(\d{2}))?\s*(am|pm|a|p)?$/)
+  if (!m) return null
+  let h = Number(m[1])
+  const min = m[2] === undefined ? 0 : Number(m[2])
+  const half = m[3]?.[0]
+  if (half && (h < 1 || h > 12)) return null
+  if (half === 'p' && h < 12) h += 12
+  if (half === 'a' && h === 12) h = 0
+  if (h > 23 || min > 59) return null
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
 }

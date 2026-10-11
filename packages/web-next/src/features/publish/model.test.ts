@@ -9,14 +9,18 @@ import {
   defaultCrop,
   frameRatio,
   handleOf,
+  improveCaption,
   initialDraft,
+  inviteNote,
   linkedChannels,
   linkedinText,
   nudge,
+  parseTime,
   primaryLabel,
   shapeFix,
   textFor,
   tiktokConsent,
+  tiktokSettings,
   youtubeTitle,
   type Draft,
 } from './model'
@@ -203,16 +207,27 @@ describe('one post, each platform its own limit', () => {
 })
 
 describe('a photo in the wrong shape', () => {
-  it('flags a landscape photo in a feed post and fixes it to 4:5', () => {
-    expect(shapeFix(16 / 9, 'carousel')).toBe('4:5')
+  it('flags a photo too tall for a feed post and fixes it to 4:5', () => {
     expect(shapeFix(9 / 16, 'carousel')).toBe('4:5')
+    expect(shapeFix(2 / 3, 'carousel')).toBe('4:5')
   })
 
-  it('lets a post through from 4:5 to square, as Instagram shows them whole', () => {
+  it('lets a post through from 4:5 to landscape 1.91:1, as Instagram shows them whole', () => {
     expect(shapeFix(4 / 5, 'carousel')).toBeNull()
     expect(shapeFix(1, 'carousel')).toBeNull()
+    expect(shapeFix(1.91, 'carousel')).toBeNull()
     // A camera's 1081 × 1351 is a pixel off 4:5, not a wrong shape.
     expect(shapeFix(1081 / 1351, 'carousel')).toBeNull()
+  })
+
+  it('accepts the 16:9 preset on a post, so a landscape crop is never flagged', () => {
+    // The marketer picks landscape in the crop: the rule must not then call it the wrong shape.
+    expect(shapeFix(16 / 9, 'carousel')).toBeNull()
+    expect(shapeFix(3 / 2, 'carousel')).toBeNull()
+  })
+
+  it('fixes a panorama on a post to landscape, not to a tall 4:5', () => {
+    expect(shapeFix(3, 'carousel')).toBe('16:9')
   })
 
   it('wants 9:16 for a reel or a story, so a 4:5 or landscape photo is flagged', () => {
@@ -234,5 +249,80 @@ describe('tags and collaborators', () => {
     expect(collabHeader('@casavostrasg', [])).toBe('casavostrasg')
     expect(collabHeader('@casavostrasg', ['@chefantonio'])).toBe('casavostrasg and chefantonio')
     expect(collabHeader('@casavostrasg', ['@a', '@b'])).toBe('casavostrasg and 2 others')
+  })
+
+  it('says the invite is still to come on a scheduled post, and sent once it is live', () => {
+    expect(inviteNote([], false)).toBeNull()
+    expect(inviteNote(['@chefantonio'], false)).toBe(
+      'The invite goes to @chefantonio when the post goes out.',
+    )
+    expect(inviteNote(['@a', '@b', '@c'], true)).toBe(
+      'Invite sent to @a, @b and @c, waiting for them to accept.',
+    )
+  })
+})
+
+describe('the brand’s TikTok default', () => {
+  it('starts a new post on the answers the brand saved, not the model’s own', () => {
+    const saved = {
+      privacy: 'Friends' as const,
+      interactions: { comments: true, duet: true, stitch: true },
+      promo: { on: true, own: true, paid: false },
+    }
+    const draft = initialDraft({ format: 'reel', hook: '', caption: '', tiktok: saved })
+    expect(tiktokSettings(draft)).toEqual(saved)
+  })
+
+  it('takes only the TikTok answers from what was saved', () => {
+    const saved = { ...tiktokSettings(reel()), sound: 'library', when: 'now' }
+    const draft = initialDraft({ format: 'reel', hook: '', caption: '', tiktok: saved })
+    expect(draft).not.toHaveProperty('sound')
+    expect(draft.when).toBe('slot')
+  })
+})
+
+describe('Improve keeps the marketer’s words', () => {
+  const TAGS = ['#casavostra', '#pizzasg']
+
+  it('fixes slips, capitals and spacing, and adds the brand’s hashtags', () => {
+    expect(improveCaption('teh crust is ready ,come by tonite  i promise', TAGS)).toBe(
+      'The crust is ready, come by tonight I promise. #casavostra #pizzasg',
+    )
+  })
+
+  it('starts each sentence with a capital and leaves an emoji ending alone', () => {
+    expect(improveCaption('fresh pasta. made this morning 🔥', TAGS)).toBe(
+      'Fresh pasta. Made this morning 🔥 #casavostra #pizzasg',
+    )
+  })
+
+  it('keeps the hashtags and handles already there, and adds only the missing ones', () => {
+    expect(improveCaption('With @chefim tonight. #PizzaSG #rafflescity', TAGS)).toBe(
+      'With @chefim tonight. #PizzaSG #rafflescity #casavostra',
+    )
+  })
+
+  it('changes nothing in a caption that is already clean', () => {
+    const clean = 'Pasta by hand, every morning. #casavostra #pizzasg'
+    expect(improveCaption(clean, TAGS)).toBe(clean)
+  })
+})
+
+describe('a typed post time', () => {
+  it('reads the ways people type a time, as the calendar stores it', () => {
+    expect(parseTime('19:30')).toBe('19:30')
+    expect(parseTime('1930')).toBe('19:30')
+    expect(parseTime('930')).toBe('09:30')
+    expect(parseTime('7.30pm')).toBe('19:30')
+    expect(parseTime('7pm')).toBe('19:00')
+    expect(parseTime('12am')).toBe('00:00')
+    expect(parseTime('9')).toBe('09:00')
+  })
+
+  it('refuses what is not a time, so the field goes back to the time it had', () => {
+    expect(parseTime('25:00')).toBeNull()
+    expect(parseTime('19:75')).toBeNull()
+    expect(parseTime('13pm')).toBeNull()
+    expect(parseTime('soon')).toBeNull()
   })
 })
