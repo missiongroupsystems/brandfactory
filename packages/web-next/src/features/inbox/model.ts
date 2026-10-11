@@ -69,3 +69,11 @@ export function whereFrom(m: InboxMessage): string {
 
 /** "Marco Bellini" → "Marco". */
 export const firstName = (name: string) => name.split(' ')[0]!
+
+/** Who has it, as a sentence says it: "Giulia", "Giulia and Marco", "Giulia, Marco and Daniel". */
+export function firstNames(names: string[]): string {
+  const first = names.map(firstName)
+  return first.length < 2
+    ? (first[0] ?? '')
+    : `${first.slice(0, -1).join(', ')} and ${first.at(-1)}`
+}

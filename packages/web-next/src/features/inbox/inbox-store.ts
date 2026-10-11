@@ -14,8 +14,8 @@ import { queue } from './model'
 interface BrandInboxState {
   /** Replied to, or cleared as noise. */
   done: ReadonlySet<string>
-  /** A complaint sent on to a person: message id → their name. */
-  sentTo: Readonly<Record<string, string>>
+  /** A complaint sent on to people: message id → their names. */
+  sentTo: Readonly<Record<string, string[]>>
 }
 
 type State = Record<BrandId, BrandInboxState>
@@ -59,9 +59,9 @@ export function markDone(brandId: BrandId, ids: string[]) {
   update(brandId, (s) => ({ ...s, done: new Set([...s.done, ...ids]) }))
 }
 
-/** The complaint went to a person, who got an alert (simulated). */
-export function sendTo(brandId: BrandId, id: string, name: string) {
-  update(brandId, (s) => ({ ...s, sentTo: { ...s.sentTo, [id]: name } }))
+/** The complaint went to one person or more, who each got an alert (simulated). */
+export function sendTo(brandId: BrandId, id: string, names: string[]) {
+  update(brandId, (s) => ({ ...s, sentTo: { ...s.sentTo, [id]: names } }))
 }
 
 /** For tests: back to the inbox as the demo starts. */

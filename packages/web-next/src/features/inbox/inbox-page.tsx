@@ -15,7 +15,16 @@ import { VoiceNote } from '@/features/brand/voice-note'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { markDone, sendTo, useInbox } from './inbox-store'
-import { ago, draftAt, firstName, nextAfter, queue, whereFrom, type InboxFilter } from './model'
+import {
+  ago,
+  draftAt,
+  firstName,
+  firstNames,
+  nextAfter,
+  queue,
+  whereFrom,
+  type InboxFilter,
+} from './model'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 /** How long a replied row takes to tick, slide and fold away before it leaves the store. */
@@ -227,7 +236,7 @@ function Row({
   m: InboxMessage
   current: boolean
   leaving: boolean
-  sentTo?: string
+  sentTo?: string[]
   onOpen: () => void
 }) {
   return (
@@ -272,11 +281,11 @@ function Row({
 }
 
 /** A complaint is a small dot by the name; once it has gone to someone, a quiet tick. */
-function ComplaintMark({ sentTo }: { sentTo?: string }) {
+function ComplaintMark({ sentTo }: { sentTo?: string[] }) {
   return sentTo ? (
     <span
-      title={`Sent to ${sentTo}`}
-      aria-label={`Complaint, sent to ${firstName(sentTo)}`}
+      title={`Sent to ${sentTo.join(', ')}`}
+      aria-label={`Complaint, sent to ${firstNames(sentTo)}`}
       className="flex shrink-0 text-ink-4"
     >
       <CheckIcon size={10} />
@@ -372,7 +381,7 @@ function Thread({
   m: InboxMessage
   brand: Brand
   data: BrandInbox
-  sentTo?: string
+  sentTo?: string[]
   onSend: () => void
 }) {
   const [n, setN] = React.useState(0)
@@ -477,8 +486,9 @@ function Bubble({ text, ours = false }: { text: string; ours?: boolean }) {
 }
 
 /**
- * A complaint goes to the person who can fix it, in one tap: the suggested person, or another
- * from the menu. They get an alert (simulated), and the message says who has it.
+ * A complaint goes to the person who can fix it, in one tap: the suggested person. The menu
+ * picks more than one (the chef and the venue manager), starting from that person. Each gets an
+ * alert (simulated), and the message says who has it.
  */
 function SendTo({
   brandId,
@@ -489,11 +499,12 @@ function SendTo({
   brandId: Brand['id']
   m: InboxMessage
   people: BrandInbox['people']
-  sentTo?: string
+  sentTo?: string[]
 }) {
-  const [menu, setMenu] = React.useState(false)
-  const root = React.useRef<HTMLDivElement>(null)
   const first = people.find((p) => p.name === m.sendTo) ?? people[0]!
+  const [menu, setMenu] = React.useState(false)
+  const [picked, setPicked] = React.useState<string[]>([first.name])
+  const root = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
     if (!menu) return
@@ -509,19 +520,27 @@ function SendTo({
   }, [menu])
 
   if (routedTo) {
-    const person = people.find((p) => p.name === routedTo)
+    const who = routedTo.map((n) => {
+      const person = people.find((p) => p.name === n)
+      return person ? `${n}, ${person.role}` : n
+    })
     return (
       <span
-        title={person ? `${routedTo}, ${person.role}, got an alert` : undefined}
+        title={`${who.join('; ')}: got an alert`}
         className="bb-rise flex h-8 items-center gap-1.5 text-[13px] text-ink-3 max-md:basis-full max-md:pl-14"
       >
         <span className="bb-pop flex">
           <CheckIcon size={11} strokeWidth={2} />
         </span>
-        Sent to {firstName(routedTo)}
+        Sent to {firstNames(routedTo)}
       </span>
     )
   }
+
+  const toggle = (name: string) =>
+    setPicked((p) => (p.includes(name) ? p.filter((n) => n !== name) : [...p, name]))
+  // In the brand's order, so "Giulia and Marco" reads the same whichever was ticked first.
+  const chosen = people.map((p) => p.name).filter((n) => picked.includes(n))
 
   return (
     <div ref={root} className="flex items-center gap-2.5 max-md:basis-full max-md:pl-14">
@@ -532,14 +551,14 @@ function SendTo({
       <div className="relative flex items-center rounded-full bg-surface">
         <button
           type="button"
-          onClick={() => sendTo(brandId, m.id, first.name)}
+          onClick={() => sendTo(brandId, m.id, [first.name])}
           className="h-8 rounded-l-full pr-2 pl-3.5 text-[13px] font-medium"
         >
           Send to {firstName(first.name)}
         </button>
         <button
           type="button"
-          aria-label="Send to someone else"
+          aria-label="Send to more people"
           aria-expanded={menu}
           onClick={() => setMenu((o) => !o)}
           className="flex h-8 items-center rounded-r-full border-l border-line pr-3 pl-2 text-ink-3"
@@ -548,24 +567,47 @@ function SendTo({
         </button>
         {menu && (
           <div
-            role="menu"
-            className="bb-menu absolute top-full right-0 z-20 mt-2 flex w-[260px] flex-col rounded-[14px] bg-page p-1.5 shadow-pop"
+            role="group"
+            aria-label="Send to"
+            className="bb-menu absolute top-full right-0 z-20 mt-2 flex w-[268px] flex-col rounded-[14px] bg-page p-1.5 shadow-pop"
           >
-            {people.map((p) => (
-              <button
-                key={p.name}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenu(false)
-                  sendTo(brandId, m.id, p.name)
-                }}
-                className="flex flex-col rounded-[10px] px-3 py-2 text-left transition-colors hover:bg-surface"
-              >
-                <span className="text-[13px] font-medium">{p.name}</span>
-                <span className="text-[12px] text-ink-4">{p.role}</span>
-              </button>
-            ))}
+            {people.map((p) => {
+              const on = picked.includes(p.name)
+              return (
+                <button
+                  key={p.name}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={on}
+                  onClick={() => toggle(p.name)}
+                  className="flex items-center gap-3 rounded-[10px] px-3 py-2 text-left transition-colors hover:bg-surface"
+                >
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="text-[13px] font-medium">{p.name}</span>
+                    <span className="text-[12px] text-ink-4">{p.role}</span>
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className={`flex size-[18px] shrink-0 items-center justify-center rounded-full transition-colors ${on ? 'bg-ink text-page' : 'shadow-[inset_0_0_0_1.5px_var(--line-strong)]'}`}
+                  >
+                    {on && <CheckIcon size={9} strokeWidth={2.4} />}
+                  </span>
+                </button>
+              )
+            })}
+            <button
+              type="button"
+              disabled={chosen.length === 0}
+              onClick={() => {
+                setMenu(false)
+                sendTo(brandId, m.id, chosen)
+              }}
+              className="bb-press mt-1 h-9 rounded-[10px] bg-ink text-[13px] font-medium text-page transition-opacity disabled:opacity-30"
+            >
+              {chosen.length === 1
+                ? `Send to ${firstName(chosen[0]!)}`
+                : `Send to ${chosen.length}`}
+            </button>
           </div>
         )}
       </div>

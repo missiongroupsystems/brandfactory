@@ -59,6 +59,22 @@ describe('the inbox', () => {
     expect(screen.getByRole('button', { name: 'Send to Marco' })).toBeTruthy()
   })
 
+  it('sends a complaint to more than one person', () => {
+    page()
+    // The food and the evening both went wrong: the chef and the venue manager both need it.
+    fireEvent.click(screen.getByRole('button', { name: 'Send to more people' }))
+    expect(screen.getByRole('checkbox', { name: /Giulia Conti/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: /Marco Bellini/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send to 2' }))
+    const thread = screen.getByRole('article', { name: /Rachel Tan/ })
+    expect(within(thread).getByText('Sent to Marco and Giulia')).toBeTruthy()
+    const row = screen.getByRole('button', { name: /Rachel Tan/ })
+    expect(within(row).getByLabelText('Complaint, sent to Marco and Giulia')).toBeTruthy()
+  })
+
   it('clears a replied message and moves on to the next', () => {
     page()
     fireEvent.change(reply(), { target: { value: 'Sorry, Rachel. DM us?' } })

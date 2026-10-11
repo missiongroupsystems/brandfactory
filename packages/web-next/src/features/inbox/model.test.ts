@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { INBOX_BY_BRAND, type InboxMessage } from '@/data/inbox'
 
-import { ago, draftAt, isNoise, nextAfter, queue } from './model'
+import { ago, draftAt, firstNames, isNoise, nextAfter, queue } from './model'
 
 const msg = (fields: Partial<InboxMessage> & Pick<InboxMessage, 'id'>): InboxMessage => ({
   platform: 'ig',
@@ -96,4 +96,14 @@ describe('the demo data', () => {
       expect(queue(inbox.messages, new Set()).open[0]!.tone).toBe('complaint')
     },
   )
+})
+
+describe('who has a complaint', () => {
+  it('reads as a sentence, however many people it went to', () => {
+    expect(firstNames(['Giulia Conti'])).toBe('Giulia')
+    expect(firstNames(['Marco Bellini', 'Giulia Conti'])).toBe('Marco and Giulia')
+    expect(firstNames(['Marco Bellini', 'Giulia Conti', 'Daniel Lim'])).toBe(
+      'Marco, Giulia and Daniel',
+    )
+  })
 })
