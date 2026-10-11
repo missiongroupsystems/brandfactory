@@ -11,6 +11,8 @@ import { ROLES, type Reply, type Shoot } from '@/data/shoots'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { DayPicker, type DayInfo } from '@/features/ideate/day-picker'
 import { EYEBROW } from '@/features/ideate/idea-parts'
+import { ConnectSheet } from '@/features/connections/connect-sheet'
+import { useConnected } from '@/features/connections/connections-store'
 import { useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import { Comments } from '@/features/share/comments'
@@ -99,6 +101,11 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
   const shots = shotCount(cards)
   const waiting = shoot.crew.filter((c) => !invited.includes(c.name)).length
   const edit = (fields: Parameters<typeof editShoot>[2]) => editShoot(brand.id, shoot.id, fields)
+  // Without the brand's Lark calendar the invites have nowhere to go: they ask to connect first,
+  // then go out. `then` is what runs once it is connected.
+  const lark = useConnected(brand.id, 'lark')
+  const [linking, setLinking] = React.useState<{ then?: () => void } | null>(null)
+  const invite = () => sendInvites(brand.id, shoot.id)
 
   return (
     <article className="flex flex-col gap-10 max-md:gap-8">
@@ -109,7 +116,7 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
           <button
             type="button"
             disabled={waiting === 0}
-            onClick={() => sendInvites(brand.id, shoot.id)}
+            onClick={() => (lark ? invite() : setLinking({ then: invite }))}
             className="bb-press flex h-9 items-center gap-1.5 rounded-full bg-ink px-4 text-[13px] font-medium text-page transition-opacity hover:opacity-85 disabled:bg-surface disabled:text-ink-3 disabled:hover:opacity-100"
           >
             {waiting === 0 && <CheckIcon size={10} strokeWidth={2.2} />}
@@ -126,10 +133,21 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
       <header className="flex flex-col gap-5">
         <span className={`${EYEBROW} flex flex-wrap items-center gap-x-3 gap-y-1`}>
           Call sheet · {brand.name}
-          <span className="flex items-center gap-1.5 normal-case tracking-normal font-sans text-[11.5px] text-ink-4">
-            <span className="size-1.5 rounded-full bg-(--live)" />
-            Synced with Lark
-          </span>
+          {lark ? (
+            <span className="flex items-center gap-1.5 normal-case tracking-normal font-sans text-[11.5px] text-ink-4">
+              <span className="size-1.5 rounded-full bg-(--live)" />
+              Synced with Lark
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setLinking({})}
+              className="flex items-center gap-1.5 normal-case tracking-normal font-sans text-[11.5px] text-ink-3 underline-offset-2 transition-colors hover:text-ink hover:underline"
+            >
+              <span className="size-1.5 rounded-full shadow-[inset_0_0_0_1px_var(--ink-4)]" />
+              Connect Lark calendar
+            </button>
+          )}
         </span>
         <dl className="grid grid-cols-3 overflow-hidden rounded-[20px] bg-surface max-md:grid-cols-1">
           <Fact label="When">
@@ -176,6 +194,17 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
           </Fold>
         </div>
       </header>
+
+      {linking && (
+        <ConnectSheet
+          source="lark"
+          onClose={() => setLinking(null)}
+          onConnected={() => {
+            setLinking(null)
+            linking.then?.()
+          }}
+        />
+      )}
 
       <div className="grid grid-cols-[minmax(0,1fr)_340px] items-start gap-16 max-lg:grid-cols-1 max-md:gap-12">
         <section aria-label="Shot list" className="flex flex-col gap-6">

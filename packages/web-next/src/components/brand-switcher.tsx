@@ -5,6 +5,7 @@ import Link from 'next/link'
 import * as React from 'react'
 
 import type { Brand } from '@/data/brands'
+import { useConnections } from '@/features/connections/connections-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { CheckIcon, ChevronIcon } from './icons'
@@ -24,6 +25,7 @@ function BrandMark({ brand, size }: { brand: Brand; size: 'sm' | 'md' }) {
 /** The header pill: shows the current brand and opens a menu to switch to another. */
 export function BrandSwitcher() {
   const { brand, brands, setBrandId } = useBrand()
+  const attention = Object.values(useConnections(brand.id)).includes('attention')
   const [open, setOpen] = React.useState(false)
   const root = React.useRef<HTMLDivElement>(null)
   const trigger = React.useRef<HTMLButtonElement>(null)
@@ -136,6 +138,22 @@ export function BrandSwitcher() {
           >
             Brand kit
             <span className="text-[12px] text-ink-4">{brand.name}</span>
+          </Link>
+          {/* What the brand has linked; a dot when something needs signing in again. */}
+          <Link
+            ref={(el) => {
+              items.current[brands.length + 1] = el
+            }}
+            href="/brand/connections"
+            role="menuitem"
+            tabIndex={-1}
+            onClick={() => close(false)}
+            className="flex items-center justify-between rounded-[8px] px-2.5 py-[7px] text-[13.5px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface"
+          >
+            Connections
+            {attention && (
+              <span aria-label="Needs attention" className="size-1.5 rounded-full bg-fail" />
+            )}
           </Link>
         </div>
       )}

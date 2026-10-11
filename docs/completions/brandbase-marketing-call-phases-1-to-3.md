@@ -59,4 +59,30 @@ Left out on purpose:
 - One story per day is an earlier product rule, though Instagram allows more; left for a decision.
 - Shared pages are view and comment only; no guest editing or PDF export.
 - No AI tags on moodboard posts (ideation ships after scheduling).
-- Lark and Google Drive feasibility research is a separate task.
+- Lark and Google Drive feasibility research is a separate task (done in phase 3).
+
+## Phase 3: one place for a brand's connections
+
+Each source used to connect only where it was used, and Drive and Lark had no connect step.
+
+- **Connections** (`/brand/connections`, from the brand switcher under Brand kit): the brand's
+  sources grouped by job (Publishing, Moodboard, Files and calendar, Insights). One row per source,
+  with its account, its state (connected, not connected, needs attention) and one action. Connect
+  opens a short pretend sign-in ("For Carlitos, brand base wants to:", two lines, Allow).
+- **One store** (`features/connections/connections-store.ts`, seeded by `data/connections.ts`).
+  Publishing accounts start from `LINKED`, so the default demo is unchanged. Pinterest stays in the
+  ideas store and is passed through. The composer's accounts, the Drive button, the call sheet and
+  the Insights sources list read it.
+- **First-time steps.** Carlitos starts with Drive and Lark off: the composer's Drive button and
+  the call sheet's "Send Lark invites" ask to connect first, then carry on. The call sheet shows
+  "Connect Lark calendar" in place of "Synced with Lark". Temper's website needs attention, so that
+  state shows once (on Connections and in the Insights sources list).
+- **Research.** `docs/executing/brandbase-lark-drive-feasibility.md`: Drive by the Google Picker
+  with `drive.file` (no security assessment), about 4–5 days; Lark by an internal tenant app that
+  polls invite replies, about 5–7 days; both on top of the live backend.
+
+Disconnecting an account removes it everywhere: a saved post on that account loses it when saved
+again.
+
+Left out: no Google Calendar row (the call chose Lark); the moodboard's own setup popovers stay;
+Lark shows a plain "L" (no logo in Simple Icons).

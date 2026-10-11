@@ -217,6 +217,11 @@ export function connectSource(brandId: BrandId, source: MoodSource) {
   update(brandId, (s) => ({ ...s, sources: { ...s.sources, [source]: true } }))
 }
 
+/** Unlinks a source on the Connections page: its posts leave the moodboard. */
+export function disconnectSource(brandId: BrandId, source: MoodSource) {
+  update(brandId, (s) => ({ ...s, sources: { ...s.sources, [source]: false } }))
+}
+
 /** A suggestion becomes one of the team's ideas. */
 export function keepSuggestion(brandId: BrandId, id: string) {
   patch(brandId, id, { status: 'idea' })

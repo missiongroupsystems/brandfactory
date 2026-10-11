@@ -1,8 +1,11 @@
 import {
   siFacebook,
+  siGoogle,
+  siGoogledrive,
   siInstagram,
   siPinterest,
   siTiktok,
+  siWix,
   siYoutube,
   siYoutubeshorts,
 } from 'simple-icons'
@@ -29,6 +32,10 @@ const LOGOS = {
   li: LINKEDIN,
   fb: siFacebook,
   pinterest: siPinterest,
+  // The services a brand links on the Connections page.
+  drive: siGoogledrive,
+  google: siGoogle,
+  wix: siWix,
 } as const
 
 export type PlatformLogoKey = keyof typeof LOGOS

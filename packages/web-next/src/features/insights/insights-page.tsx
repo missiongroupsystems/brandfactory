@@ -29,6 +29,7 @@ import {
   type SourceId,
   type Split,
 } from '@/data/insights-hub'
+import { useConnections } from '@/features/connections/connections-store'
 import { addIdea, keepSuggestion, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
@@ -110,6 +111,7 @@ export function InsightsPage() {
   const hub = HUB_BY_BRAND[brand.id]
   const [tab, setTab] = React.useState<Tab>('overview')
   const [sources, setSources] = React.useState(false)
+  const links = useConnections(brand.id)
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -164,10 +166,16 @@ export function InsightsPage() {
                   <span className="flex min-w-0 flex-col">
                     <span className="flex items-center gap-1.5 text-[13.5px] font-medium">
                       {s.name}
-                      <span
-                        aria-label="Connected"
-                        className="size-1.5 rounded-full bg-(--insight-5)"
-                      />
+                      {links[s.id] === 'connected' ? (
+                        <span
+                          aria-label="Connected"
+                          className="size-1.5 rounded-full bg-(--insight-5)"
+                        />
+                      ) : (
+                        <span className="text-[12px] font-normal text-fail-ink">
+                          {links[s.id] === 'attention' ? 'Sign in again' : 'Not connected'}
+                        </span>
+                      )}
                     </span>
                     <span className="text-[12px] text-ink-4">{s.brings}</span>
                   </span>

@@ -20,6 +20,16 @@ export const LINKED: Record<BrandId, ChannelKey[]> = {
 }
 
 /**
+ * Where each brand's location tag defaults to, and where its Google Business Profile points: the
+ * venue, as the team tags it today.
+ */
+export const VENUE: Record<BrandId, string> = {
+  'casa-vostra': 'Casa Vostra, Raffles City',
+  temper: 'Temper, Duxton Road',
+  carlitos: 'Carlitos, Joo Chiat',
+}
+
+/**
  * Captions "Draft with AI" cycles through when the box is empty, each in its brand's voice. The
  * demo has no model behind it.
  */

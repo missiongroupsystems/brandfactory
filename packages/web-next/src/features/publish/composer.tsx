@@ -23,11 +23,13 @@ import type { BrandId } from '@/data/brands'
 import type { Format, Post, Stage } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
-import { CAPTION_DRAFTS, DRIVE, folderAt, HASHTAGS, LINKED } from '@/data/publish'
+import { CAPTION_DRAFTS, DRIVE, folderAt, HASHTAGS, VENUE } from '@/data/publish'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { composeChannels, sentChannels } from '@/features/schedule/calendar-items'
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
 import { VoiceNote } from '@/features/brand/voice-note'
+import { ConnectSheet } from '@/features/connections/connect-sheet'
+import { useConnections, useConnected } from '@/features/connections/connections-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { CropEditor } from './crop-editor'
@@ -90,13 +92,6 @@ const NAME: Record<ChannelKey, string> = {
   fb: 'Facebook',
 }
 
-/** Where each brand's location tag defaults to: the venue, as the team tags it today. */
-const VENUE: Record<BrandId, string> = {
-  'casa-vostra': 'Casa Vostra, Raffles City',
-  temper: 'Temper, Duxton Road',
-  carlitos: 'Carlitos, Joo Chiat',
-}
-
 /** The parts of the day Insights scores, as the time each one posts at. */
 const DAYPART_TIME = ['09:00', '12:00', '15:00', '18:00', '21:00']
 const MEDIA_MAX: Record<Format, number> = { reel: 1, carousel: 10, story: 10 }
@@ -143,13 +138,17 @@ export function Composer({
     setStage,
     setChannels,
   } = useBrand()
+  // The accounts linked on the Connections page. One that needs signing in again still shows,
+  // with Reconnect; one disconnected there is gone from the composer.
+  const links = useConnections(brand.id)
+  const publishing = (['ig', 'tt', 'fb'] as const).filter((k) => links[k] !== 'off')
   const api = usePublishDraft({
     format: post?.format ?? start?.format ?? 'reel',
     hook: post?.hook ?? '',
     caption: post ? (captions[post.id] ?? post.hook) : '',
     selected: post ? composeChannels(post) : undefined,
-    linked: LINKED[brand.id],
-    connected: LINKED[brand.id],
+    linked: publishing,
+    connected: publishing.filter((k) => links[k] === 'connected'),
     tiktok: tiktokDefault(brand.id),
   })
   const [reconnected, setReconnected] = React.useState(false)
@@ -765,6 +764,10 @@ function Content({
   const phone = usePhone()
   const edited = editing ? media[editing.index] : undefined
   const [driveOpen, setDriveOpen] = React.useState(false)
+  const { brand } = useBrand()
+  // A brand whose Drive is not linked yet signs in to it first, then the picker opens.
+  const driveLinked = useConnected(brand.id, 'drive')
+  const [linkingDrive, setLinkingDrive] = React.useState(false)
   const ratios = useRatios(media)
 
   /**
@@ -798,7 +801,6 @@ function Content({
     [],
   )
 
-  const { brand } = useBrand()
   const drafts = CAPTION_DRAFTS[brand.id]
   // A caption the marketer wrote is improved, not replaced; an empty box or a draft gets a draft.
   const typed = draft.caption.trim() !== '' && !drafts.includes(draft.caption)
@@ -984,7 +986,7 @@ function Content({
               </button>
               <button
                 type="button"
-                onClick={() => setDriveOpen(true)}
+                onClick={() => (driveLinked ? setDriveOpen(true) : setLinkingDrive(true))}
                 className="flex items-center justify-center gap-1.5 border-t border-dashed border-(--cal-ghost) py-2 transition-colors hover:bg-surface-2 hover:text-ink"
               >
                 <DriveGlyph />
@@ -1155,6 +1157,16 @@ function Content({
         </div>
       </div>
 
+      {linkingDrive && (
+        <ConnectSheet
+          source="drive"
+          onClose={() => setLinkingDrive(false)}
+          onConnected={() => {
+            setLinkingDrive(false)
+            setDriveOpen(true)
+          }}
+        />
+      )}
       {driveOpen && (
         <DrivePicker
           phone={phone}
