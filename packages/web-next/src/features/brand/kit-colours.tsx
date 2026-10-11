@@ -47,7 +47,7 @@ export function ColoursEditable() {
               setDraft(shown)
               setOpen({ i, anchor: anchorOf(e.currentTarget) })
             }}
-            className="group flex flex-col gap-2.5 text-left"
+            className="group flex flex-col gap-2.5 rounded-[14px] text-left outline-offset-4"
           >
             <span
               className={`block h-[88px] w-full rounded-[14px] transition-[transform,box-shadow] duration-200 group-hover:-translate-y-0.5 ${open?.i === i ? 'shadow-[inset_0_0_0_1px_var(--line),0_0_0_2px_var(--page),0_0_0_4px_var(--ink)]' : 'shadow-[inset_0_0_0_1px_var(--line)]'}`}

@@ -153,7 +153,7 @@ function RemoveButton({ label, onClick }: { label: string; onClick: () => void }
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-4 transition-colors hover:bg-surface-2 hover:text-ink"
+      className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-4 transition-colors hover:bg-surface-2 hover:text-ink max-md:size-7"
     >
       <CloseIcon />
     </button>
@@ -218,28 +218,31 @@ function VoiceFields({ draft, onChange }: { draft: Voice; onChange: (v: Voice) =
         value={draft.summary}
         onChange={(e) => onChange({ ...draft, summary: e.target.value })}
         rows={2}
-        className={`${FIELD} -mx-3 w-[calc(100%+24px)] field-sizing-content resize-none px-3 py-2 font-display text-[24px] leading-[1.3] tracking-[-0.02em] max-md:text-[20px]`}
+        className={`${FIELD} w-full field-sizing-content md:-mx-3 md:w-[calc(100%+24px)] resize-none px-3 py-2 font-display text-[24px] leading-[1.3] tracking-[-0.02em] max-md:text-[20px]`}
       />
       <div className="flex flex-col gap-1.5">
-        <div className="grid grid-cols-[1fr_1fr_32px] gap-x-2">
+        <div className="grid grid-cols-[1fr_1fr_32px] gap-x-2 max-md:grid-cols-[1fr_1fr_28px] max-md:gap-x-1.5">
           <span className={EYEBROW}>Say</span>
           <span className={EYEBROW}>Not</span>
         </div>
         {draft.words.map((w, i) => (
-          <div key={i} className="grid grid-cols-[1fr_1fr_32px] items-center gap-x-2">
+          <div
+            key={i}
+            className="grid grid-cols-[1fr_1fr_32px] items-center gap-x-2 max-md:grid-cols-[1fr_1fr_28px] max-md:gap-x-1.5"
+          >
             <input
               aria-label={`Say ${i + 1}`}
               value={w.use}
               spellCheck={false}
               onChange={(e) => word(i, 'use', e.target.value)}
-              className={`${FIELD} px-2.5 py-2 text-[14.5px]`}
+              className={`${FIELD} px-2.5 py-2 text-[14.5px] max-md:px-2`}
             />
             <input
               aria-label={`Not ${i + 1}`}
               value={w.avoid}
               spellCheck={false}
               onChange={(e) => word(i, 'avoid', e.target.value)}
-              className={`${FIELD} px-2.5 py-2 text-[14.5px] text-ink-3`}
+              className={`${FIELD} px-2.5 py-2 text-[14.5px] max-md:px-2 text-ink-3`}
             />
             <RemoveButton
               label={`Remove ${w.use || 'pair'}`}
