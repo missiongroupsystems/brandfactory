@@ -84,21 +84,15 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
     <main className="bb-swap mx-auto flex w-full max-w-[1120px] flex-col px-10 pb-24 max-md:px-4">
       <div className="flex items-end justify-between gap-6 pt-6 pb-8 max-md:flex-col max-md:items-stretch max-md:gap-5 max-md:pt-2 max-md:pb-6">
         <div className="flex flex-col gap-3">
-          <span className={EYEBROW}>{brand.name} · Instagram, TikTok, Facebook</span>
+          <span className={EYEBROW}>{brand.name}</span>
           <h1 className="font-display text-[56px] leading-none tracking-[-0.035em] max-md:text-[34px]">
             Inbox
           </h1>
           <p className="text-[15px] text-ink-3" aria-live="polite">
-            {waiting.length === 0
-              ? 'Nothing waiting for a reply.'
-              : `${waiting.length} waiting for a reply${
-                  waiting.some((m) => m.tone === 'complaint')
-                    ? `, ${plural(waiting.filter((m) => m.tone === 'complaint').length, 'complaint')} first`
-                    : ''
-                }.`}
+            {waiting.length === 0 ? 'Nothing to reply to.' : `${waiting.length} to reply to`}
           </p>
         </div>
-        <div className="w-[300px] max-md:w-full">
+        <div className="w-[260px] max-md:w-full">
           <Segmented
             label="Show"
             pill
@@ -128,20 +122,9 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
       ) : (
         <div className="grid grid-cols-[360px_minmax(0,1fr)] items-start gap-12 max-lg:grid-cols-[320px_minmax(0,1fr)] max-lg:gap-8 max-md:grid-cols-1">
           <div className="flex flex-col">
-            {complaints.length > 0 && (
-              <>
-                <span className={`${EYEBROW} px-3 pb-2`}>Complaints</span>
-                {complaints.map(row)}
-              </>
-            )}
-            {rest.length > 0 && (
-              <>
-                <span className={`${EYEBROW} px-3 pb-2 ${complaints.length ? 'pt-6' : ''}`}>
-                  To reply
-                </span>
-                {rest.map(row)}
-              </>
-            )}
+            {/* Complaints first, marked by a dot: no headings to read. */}
+            {complaints.map(row)}
+            {rest.map(row)}
             {noise.length > 0 && <Noise brandId={brand.id} noise={noise} />}
           </div>
           {/* The open message: beside the list on a desktop, over it on a phone. */}
@@ -204,8 +187,6 @@ function FullScreen({ onBack, children }: { onBack: () => void; children: React.
     document.body,
   )
 }
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
 // ── The list ─────────────────────────────────────────────────────────────────────────────────
 
@@ -273,15 +254,15 @@ function Row({
           ) : (
             <Avatar m={m} />
           )}
-          <span className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className="flex items-baseline gap-2">
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="flex items-center gap-2">
               <span className="truncate text-[14px] font-medium">{m.from.name}</span>
+              {m.tone === 'complaint' && <ComplaintMark sentTo={sentTo} />}
               <span className="ml-auto shrink-0 text-[12px] text-ink-4 tabular-nums">
                 {ago(m.minutes)}
               </span>
             </span>
-            <span className="line-clamp-2 text-[13px] leading-[1.4] text-ink-2">{m.text}</span>
-            {m.tone === 'complaint' && <ComplaintTag sentTo={sentTo} />}
+            <span className="truncate text-[13px] text-ink-3">{m.text}</span>
           </span>
         </button>
       </div>
@@ -289,17 +270,22 @@ function Row({
   )
 }
 
-function ComplaintTag({ sentTo }: { sentTo?: string }) {
+/** A complaint is a small dot by the name; once it has gone to someone, a quiet tick. */
+function ComplaintMark({ sentTo }: { sentTo?: string }) {
   return sentTo ? (
-    <span className="mt-0.5 inline-flex items-center gap-1 self-start text-[12px] text-ink-3">
+    <span
+      title={`Sent to ${sentTo}`}
+      aria-label={`Complaint, sent to ${firstName(sentTo)}`}
+      className="flex shrink-0 text-ink-4"
+    >
       <CheckIcon size={10} />
-      Sent to {firstName(sentTo)}
     </span>
   ) : (
-    <span className="mt-0.5 inline-flex items-center gap-1.5 self-start text-[12px] font-medium text-fail-ink">
-      <span aria-hidden="true" className="size-1.5 rounded-full bg-fail" />
-      Complaint
-    </span>
+    <span
+      title="Complaint"
+      aria-label="Complaint"
+      className="size-1.5 shrink-0 rounded-full bg-fail"
+    />
   )
 }
 
@@ -403,20 +389,18 @@ function Thread({
 
   return (
     <article aria-label={`${m.from.name}, ${whereFrom(m)}`} className="bb-swap flex flex-col gap-6">
-      <header className="flex items-center gap-3">
+      <header className="flex flex-wrap items-center gap-3">
         <Avatar m={m} size={44} />
-        <div className="flex min-w-0 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[16px] font-medium">{m.from.name}</span>
           <span className="truncate text-[13px] text-ink-4">
-            {m.from.handle.startsWith('@') ? `${m.from.handle} · ` : ''}
             {whereFrom(m)} · {ago(m.minutes)}
           </span>
         </div>
+        {m.tone === 'complaint' && (
+          <SendTo brandId={brand.id} m={m} people={data.people} sentTo={routedTo} />
+        )}
       </header>
-
-      {m.tone === 'complaint' && (
-        <SendTo brandId={brand.id} m={m} people={data.people} sentTo={routedTo} />
-      )}
 
       <div className="flex flex-col gap-3">
         {m.post && (
@@ -424,11 +408,11 @@ function Thread({
             <span className="relative h-[60px] w-12 shrink-0 overflow-hidden rounded-[8px] bg-tile">
               <Image src={m.post.image} alt="" fill sizes="96px" className="object-cover" />
             </span>
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-[12px] text-ink-4">
-                {m.kind === 'mention' ? `Their post, tagging ${brand.handle}` : 'On your post'}
-              </span>
-              <span className="line-clamp-2 text-[13px] text-ink-2">{m.post.caption}</span>
+            <span
+              title={m.kind === 'mention' ? `Their post, tagging ${brand.handle}` : 'Your post'}
+              className="line-clamp-2 min-w-0 text-[13px] text-ink-3"
+            >
+              {m.post.caption}
             </span>
           </div>
         )}
@@ -455,9 +439,7 @@ function Thread({
             <span className="shrink-0 text-(--insight)">
               <SparkIcon size={10} />
             </span>
-            <span>
-              Drafted in {brand.name}&rsquo;s tone of voice: {data.voice}
-            </span>
+            <span title={data.voice}>In {brand.name}&rsquo;s voice</span>
           </span>
           <div className="ml-auto flex items-center gap-1">
             <button
@@ -528,31 +510,25 @@ function SendTo({
   if (routedTo) {
     const person = people.find((p) => p.name === routedTo)
     return (
-      <div className="bb-rise flex items-center gap-3 rounded-[14px] bg-surface px-4 py-3">
-        <span className="bb-pop flex size-6 shrink-0 items-center justify-center rounded-full bg-ink text-page">
-          <CheckIcon size={10} strokeWidth={2} />
+      <span
+        title={person ? `${routedTo}, ${person.role}, got an alert` : undefined}
+        className="bb-rise flex h-8 items-center gap-1.5 text-[13px] text-ink-3 max-md:basis-full max-md:pl-14"
+      >
+        <span className="bb-pop flex">
+          <CheckIcon size={11} strokeWidth={2} />
         </span>
-        <span className="text-[13px] text-ink-2">
-          <span className="font-medium text-ink">Sent to {routedTo}</span>
-          {person ? `, ${person.role.charAt(0).toLowerCase()}${person.role.slice(1)}` : ''}.{' '}
-          {firstName(routedTo)} got an alert just now.
-        </span>
-      </div>
+        Sent to {firstName(routedTo)}
+      </span>
     )
   }
 
   return (
-    <div
-      ref={root}
-      className="flex flex-wrap items-center gap-3 rounded-[14px] border border-(--fail-line) bg-(--fail-soft) px-4 py-3"
-    >
-      <span className="flex min-w-0 flex-1 items-center gap-2 text-[13px] text-fail-ink">
-        <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-fail" />
-        <span>
-          <span className="font-medium">Complaint.</span> Send it to whoever can fix it.
-        </span>
+    <div ref={root} className="flex items-center gap-2.5 max-md:basis-full max-md:pl-14">
+      <span className="flex items-center gap-1.5 text-[12px] text-ink-3">
+        <span aria-hidden="true" className="size-1.5 rounded-full bg-fail" />
+        Complaint
       </span>
-      <div className="relative ml-auto flex items-center rounded-full bg-page shadow-soft">
+      <div className="relative flex items-center rounded-full bg-surface">
         <button
           type="button"
           onClick={() => sendTo(brandId, m.id, first.name)}

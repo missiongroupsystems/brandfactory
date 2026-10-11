@@ -41,15 +41,17 @@ describe('the inbox', () => {
     page()
     expect(screen.getByRole('article', { name: /Rachel Tan/ })).toBeTruthy()
     expect(reply().value).toMatch(/^Rachel, we're so sorry/)
-    expect(screen.getByText(/Casa Vostra’s tone of voice/)).toBeTruthy()
+    expect(screen.getByText(/In Casa Vostra’s voice/)).toBeTruthy()
   })
 
   it('sends a complaint to the venue manager and says so on the message', () => {
     page()
     fireEvent.click(screen.getByRole('button', { name: 'Send to Marco' }))
-    expect(screen.getByText(/Marco got an alert/)).toBeTruthy()
+    // The open message says who has it, and so does its row in the list.
+    const thread = screen.getByRole('article', { name: /Rachel Tan/ })
+    expect(within(thread).getByText('Sent to Marco')).toBeTruthy()
     const row = screen.getByRole('button', { name: /Rachel Tan/ })
-    expect(within(row).getByText('Sent to Marco')).toBeTruthy()
+    expect(within(row).getByLabelText('Complaint, sent to Marco')).toBeTruthy()
   })
 
   it('clears a replied message and moves on to the next', () => {
