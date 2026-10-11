@@ -118,6 +118,8 @@ export function SourceMark({ source, size }: { source: SourceKey; size: number }
 export const CONNECT_DELAY = 700
 /** How long the sheet shows it worked before it closes: the tick has drawn and been seen. */
 export const CONNECTED_HOLD = 1400
+/** How long the card takes to go once it has shown it worked. */
+export const LEAVE = 240
 
 /**
  * The sign-in a link opens, as an OAuth screen reads: what brand base asks to do, then Allow.
@@ -139,6 +141,7 @@ export function ConnectSheet({
   const info = SOURCES[source]
   const [step, setStep] = React.useState<'ask' | 'busy' | 'done'>('ask')
   const busy = step === 'busy'
+  const [leaving, setLeaving] = React.useState(false)
   const allowRef = React.useRef<HTMLButtonElement>(null)
   const timer = React.useRef(0)
   // Once it has linked, closing the sheet early still carries on (the picker, the invites).
@@ -168,7 +171,11 @@ export function ConnectSheet({
     timer.current = window.setTimeout(() => {
       connect(brand.id, source)
       setStep('done')
-      timer.current = window.setTimeout(onConnected, CONNECTED_HOLD)
+      timer.current = window.setTimeout(() => {
+        // The card settles away before the next thing opens, so the close reads as an ending.
+        setLeaving(true)
+        timer.current = window.setTimeout(onConnected, LEAVE)
+      }, CONNECTED_HOLD)
     }, CONNECT_DELAY)
   }
 
@@ -178,13 +185,13 @@ export function ConnectSheet({
         type="button"
         aria-label="Close"
         onClick={dismiss}
-        className="bb-fade absolute inset-0 bg-ink/30"
+        className={`absolute inset-0 bg-ink/30 ${leaving ? 'bb-fade-out' : 'bb-fade'}`}
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={step === 'done' ? `${info.name} connected` : `Connect ${info.name}`}
-        className="bb-rise relative flex w-[380px] flex-col gap-6 rounded-[22px] bg-page p-7 shadow-sheet max-md:bb-sheet-up max-md:w-full max-md:rounded-b-none max-md:px-5 max-md:pt-6 max-md:pb-[calc(20px+env(safe-area-inset-bottom))]"
+        className={`${leaving ? 'bb-leave max-md:bb-sheet-down' : 'bb-rise max-md:bb-sheet-up'} relative flex w-[380px] flex-col gap-6 rounded-[22px] bg-page p-7 shadow-sheet max-md:w-full max-md:rounded-b-none max-md:px-5 max-md:pt-6 max-md:pb-[calc(20px+env(safe-area-inset-bottom))]`}
       >
         <span aria-hidden="true" className="flex items-center gap-2.5 text-ink">
           <span

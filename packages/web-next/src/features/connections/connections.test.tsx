@@ -11,7 +11,7 @@ import { BrandProvider, useBrand } from '@/features/schedule/posts-store'
 import { ShootPage } from '@/features/shoot/shoot-page'
 import { resetShoots } from '@/features/shoot/shoots-store'
 
-import { CONNECT_DELAY, CONNECTED_HOLD } from './connect-sheet'
+import { CONNECT_DELAY, CONNECTED_HOLD, LEAVE } from './connect-sheet'
 import { ConnectionsPage } from './connections-page'
 import { resetConnections } from './connections-store'
 
@@ -59,6 +59,11 @@ const allow = () => {
   expect(screen.getByRole('heading', { name: /connected$/ })).toBeInTheDocument()
   act(() => {
     vi.advanceTimersByTime(CONNECTED_HOLD)
+  })
+  // Then the card goes, and only after that does the next step open.
+  expect(screen.getByRole('dialog', { name: /connected$/ })).toBeInTheDocument()
+  act(() => {
+    vi.advanceTimersByTime(LEAVE)
   })
 }
 

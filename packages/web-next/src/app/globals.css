@@ -123,6 +123,23 @@
     transform: translateX(var(--hug, 4px));
   }
 }
+/* Leaving: a card settles back and fades; a phone's sheet drops away; a backdrop clears. */
+@keyframes bb-leave {
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+}
+@keyframes bb-sheet-down {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes bb-fade-out {
+  to {
+    opacity: 0;
+  }
+}
 @keyframes bb-menu {
   from {
     opacity: 0;
@@ -154,6 +171,15 @@
 }
 @utility bb-hug {
   animation: bb-hug 560ms 120ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@utility bb-leave {
+  animation: bb-leave 240ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+@utility bb-sheet-down {
+  animation: bb-sheet-down 240ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+@utility bb-fade-out {
+  animation: bb-fade-out 240ms ease both;
 }
 @utility bb-deal {
   animation: bb-deal 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
