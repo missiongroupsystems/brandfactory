@@ -21,6 +21,49 @@ const KIND_LABEL: Record<FileKind, string> = {
   image: 'Image',
 }
 
+/** Each kind's colour, as the apps that make them use it: a file is known by its icon at a glance. */
+const KIND_HUE: Record<FileKind, string> = {
+  pdf: '#E5484D',
+  deck: '#F76B15',
+  doc: '#3E63DD',
+  sheet: '#30A46C',
+  image: '#8E4EC6',
+}
+
+const PAGE = 'M7 3.5h6.5L18 8v12.5H7z M13.5 3.5V8H18'
+
+const KIND_PATH: Record<FileKind, string> = {
+  pdf: `${PAGE} M9.5 12.5h6 M9.5 16h4`,
+  doc: `${PAGE} M9.5 11.5h6 M9.5 14.5h6 M9.5 17.5h3.5`,
+  deck: 'M3.5 5h17v11h-17z M12 16v3.5 M8.5 19.5h7 M7.5 12.5l3-3 2 2 3.5-3.5',
+  sheet: 'M4.5 5h15v14h-15z M4.5 10h15 M4.5 14.5h15 M10 5v14',
+  image: 'M4 5h16v14H4z M4 16l4.5-4.5 4 4 2.5-2.5L20 18 M15.5 9.5h.01',
+}
+
+function KindIcon({ kind }: { kind: FileKind }) {
+  return (
+    <span
+      role="img"
+      aria-label={KIND_LABEL[kind]}
+      className="flex size-10 shrink-0 items-center justify-center rounded-[11px]"
+      style={{
+        color: KIND_HUE[kind],
+        background: `color-mix(in oklab, ${KIND_HUE[kind]} 12%, var(--page))`,
+      }}
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d={KIND_PATH[kind]}
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  )
+}
+
 type Voice = BrandKit['voice']
 type Colour = BrandKit['colours'][number]
 
@@ -650,9 +693,7 @@ function FileRow({
 }) {
   return (
     <li className="flex items-center gap-3.5 border-t border-line py-3 first:border-t-0">
-      <span className="flex h-10 w-9 shrink-0 items-end justify-center rounded-[7px] bg-surface pb-1.5 font-mono text-[8.5px] tracking-[0.04em] text-ink-3 uppercase">
-        {KIND_LABEL[file.kind]}
-      </span>
+      <KindIcon kind={file.kind} />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         {editing ? (
           <TitleInput title={file.title} onDone={onRename} onCancel={onCancel} />
