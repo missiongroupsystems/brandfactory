@@ -21,60 +21,34 @@ const KIND_LABEL: Record<FileKind, string> = {
   image: 'Image',
 }
 
-/** Each kind's colour, as the apps that make them use it: a file is known by its tag at a glance. */
-const KIND_HUE: Record<FileKind, string> = {
-  pdf: '#E5484D',
-  deck: '#F76B15',
-  doc: '#3E63DD',
-  sheet: '#30A46C',
-  image: '#8E4EC6',
+const PAGE = 'M7 3.5h6.5L18 8v12.5H7z M13.5 3.5V8H18'
+
+/** One thin glyph per kind, drawn like the rest of the app's icons: no colour, no badge. */
+const KIND_PATH: Record<FileKind, string> = {
+  pdf: PAGE,
+  doc: `${PAGE} M9.5 12h6 M9.5 15h6 M9.5 18h3.5`,
+  deck: 'M3.5 5h17v11h-17z M12 16v3.5 M8.5 19.5h7',
+  sheet: 'M4.5 5h15v14h-15z M4.5 10h15 M4.5 14.5h15 M10 5v14',
+  image: 'M4 5h16v14H4z M4 16l4.5-4.5 4 4 2.5-2.5L20 18 M15.5 9.5h.01',
 }
 
-/** The extension as typed ("PDF", "DOCX"), or the kind when the name has none. */
-const extOf = (file: BrandFile) =>
-  /\.([a-z0-9]{2,4})$/i.exec(file.name)?.[1]?.toUpperCase() ?? KIND_LABEL[file.kind]
-
-/**
- * A file as a desktop draws one: a sheet of paper with a folded corner and a few faint lines,
- * tagged with its extension in the colour of its kind.
- */
+/** The file's kind in a quiet tile, the size of the Connections page's source marks. */
 function FileIcon({ file }: { file: BrandFile }) {
-  const ext = extOf(file)
-  // The tag names the format, so a deck exported to PDF is tagged as a PDF.
-  const hue = ext === 'PDF' ? KIND_HUE.pdf : KIND_HUE[file.kind]
   return (
     <span
       role="img"
       aria-label={KIND_LABEL[file.kind]}
-      className="relative h-10 w-8 shrink-0 drop-shadow-[0_1px_1.5px_rgba(18,18,18,0.12)]"
+      className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-surface text-ink-3"
     >
-      <svg width="32" height="40" viewBox="0 0 32 40" fill="none" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
-          d="M6 .75h14.25L29.25 9.75V36A3.25 3.25 0 0 1 26 39.25H6A3.25 3.25 0 0 1 2.75 36V4A3.25 3.25 0 0 1 6 .75Z"
-          fill="var(--page)"
-          stroke="var(--line-strong)"
-          strokeWidth="0.75"
-        />
-        <path
-          d="M20.25.75v6.5a2.5 2.5 0 0 0 2.5 2.5h6.5"
-          fill="var(--surface)"
-          stroke="var(--line-strong)"
-          strokeWidth="0.75"
+          d={KIND_PATH[file.kind]}
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <path
-          d="M8 15h12M8 18.5h16M8 22h10"
-          stroke="var(--line-strong)"
-          strokeWidth="1.25"
-          strokeLinecap="round"
-        />
       </svg>
-      <span
-        className="absolute bottom-[5px] left-[2px] rounded-[3px] px-[3px] py-px font-mono text-[7px] leading-none font-semibold tracking-[0.02em] text-white"
-        style={{ background: hue }}
-      >
-        {ext}
-      </span>
     </span>
   )
 }
