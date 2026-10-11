@@ -87,7 +87,7 @@ export function DayView({
                 <div className="flex flex-wrap items-start gap-3">
                   {events.map((e) => (
                     <EventChip
-                      key={e.text}
+                      key={e.shootId ?? e.text}
                       event={e}
                       className="flex h-7 items-center rounded-[6px] px-2.5 text-[12px] font-medium"
                     >

@@ -14,7 +14,7 @@ describe('shoots on the calendar', () => {
     // One event per shoot: the seed's untimed "Shoot · Raffles City" is gone, not doubled.
     expect(shootEvents).toHaveLength(SHOOTS_BY_BRAND['casa-vostra'].length)
     expect(shootEvents[0]).toMatchObject({
-      text: 'Shoot 12:00–17:00 · Raffles City',
+      text: 'Shoot · Raffles City · 12:00',
       col: 3,
       span: 1,
       shootId: 'cv-shoot-raffles',
@@ -31,7 +31,7 @@ describe('shoots on the calendar', () => {
   })
 
   it('reads as the team says it: hours, then the place', () => {
-    expect(eventText(raffles)).toBe('Shoot 12:00–17:00 · Raffles City')
+    expect(eventText(raffles)).toBe('Shoot · Raffles City · 12:00')
   })
 })
 

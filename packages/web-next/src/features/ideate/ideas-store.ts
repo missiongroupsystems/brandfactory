@@ -18,10 +18,10 @@ import {
  * starts over at five of eight, which is where the demo begins.
  */
 /**
- * Where moodboard posts come from: the brand's board on the team's Pinterest account, and posts
- * DM'd to the moodboard account on Instagram with the brand's tag.
+ * Where moodboard posts come from: the brand's board on the team's Pinterest account, posts DM'd
+ * to the moodboard account on Instagram with the brand's tag, and the brand's TikTok saves.
  */
-export type MoodSource = 'pinterest' | 'dm'
+export type MoodSource = 'pinterest' | 'dm' | 'tt'
 
 interface BrandIdeasState {
   /** Every card, the suggested ones included; those show only once `suggesting` is true. */
@@ -42,7 +42,7 @@ function initial(): State {
       {
         ideas: b.ideas,
         suggesting: false,
-        sources: { pinterest: false, dm: false },
+        sources: { pinterest: false, dm: false, tt: false },
         suggestedFrom: 0,
       },
     ]),

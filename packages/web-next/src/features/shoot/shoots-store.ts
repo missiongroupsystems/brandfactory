@@ -83,13 +83,21 @@ export function useInvited(shootId: string): string[] {
   return useState().invited[shootId] ?? []
 }
 
-/** Takes ideas out of whatever shoot holds them. */
+/** Shoots planned in the demo, not synced from Lark: one exists only for its ideas. */
+const planned = new Set<string>()
+
+/**
+ * Takes ideas out of whatever shoot holds them. A planned shoot left with no ideas goes too, so
+ * moving an idea to another day does not leave an empty shoot behind; a shoot from Lark stays.
+ */
 const without = (shoots: Shoot[], ideaIds: string[]) =>
-  shoots.map((s) =>
-    s.ideaIds.some((i) => ideaIds.includes(i))
-      ? { ...s, ideaIds: s.ideaIds.filter((i) => !ideaIds.includes(i)) }
-      : s,
-  )
+  shoots
+    .map((s) =>
+      s.ideaIds.some((i) => ideaIds.includes(i))
+        ? { ...s, ideaIds: s.ideaIds.filter((i) => !ideaIds.includes(i)) }
+        : s,
+    )
+    .filter((s) => s.ideaIds.length > 0 || !planned.has(s.id))
 
 /**
  * A new shoot for ideas picked on the ideas page, at the brand's own room with its usual crew,
@@ -112,6 +120,7 @@ export function planShoot(
     crew: USUAL_CREW[brandId],
     ideaIds,
   }
+  planned.add(id)
   update(brandId, (list) => [...without(list, ideaIds), shoot])
   return id
 }
@@ -139,7 +148,7 @@ export function shootIdeaOn(
   return there.id
 }
 
-/** The idea leaves its shoot; the shoot stays on the calendar for the others. */
+/** The idea leaves its shoot; a shoot from Lark stays on the calendar for the others. */
 export function leaveShoot(brandId: BrandId, ideaId: string) {
   update(brandId, (list) => without(list, [ideaId]))
 }

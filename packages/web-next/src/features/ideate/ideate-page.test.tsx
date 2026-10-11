@@ -58,7 +58,7 @@ describe('the moodboard', () => {
     act(() => {
       vi.advanceTimersByTime(1000)
     })
-    expect(ideasOf('casa-vostra').sources).toEqual({ pinterest: true, dm: false })
+    expect(ideasOf('casa-vostra').sources).toEqual({ pinterest: true, dm: false, tt: false })
     expect(ideasOf('temper').sources.pinterest).toBe(false)
   })
 
@@ -72,7 +72,7 @@ describe('the moodboard', () => {
     act(() => {
       vi.advanceTimersByTime(1000)
     })
-    expect(ideasOf('casa-vostra').sources).toEqual({ pinterest: false, dm: true })
+    expect(ideasOf('casa-vostra').sources).toEqual({ pinterest: false, dm: true, tt: false })
     expect(screen.getByRole('tab', { name: /Shared/ })).toBeInTheDocument()
   })
 

@@ -51,6 +51,17 @@ describe('planning a shoot', () => {
     leaveShoot(BRAND, 'cv-blindfold')
     expect(shootOfIdea(shoots(), 'cv-blindfold')).toBeUndefined()
   })
+
+  it('drops a planned shoot its last idea leaves, but keeps a shoot from Lark', () => {
+    // Moving the idea to another day must not leave an empty shoot on the old one.
+    const first = shootIdeaOn(BRAND, WEEKS, 'cv-blindfold', '15', '16:00')
+    shootIdeaOn(BRAND, WEEKS, 'cv-blindfold', '16', '16:00')
+    expect(shoots().some((s) => s.id === first)).toBe(false)
+    // A shoot booked in Lark is on the team's calendar whatever ideas it has.
+    leaveShoot(BRAND, 'cv-carb-up')
+    planShoot(BRAND, WEEKS, ['cv-dough'])
+    expect(shoots().find((s) => s.id === 'cv-shoot-raffles')?.ideaIds).toEqual([])
+  })
 })
 
 describe('the Lark invites', () => {

@@ -206,7 +206,7 @@ export function PhoneCalendar({
       <div aria-hidden="true" className="grid grid-cols-7 gap-x-0.5 gap-y-[3px] pb-1.5">
         {packed.map(({ event, lane }) => (
           <span
-            key={event.text}
+            key={event.shootId ?? event.text}
             className="bb-lane mx-[3px] h-[3px] rounded-full"
             style={{
               gridColumn: `${event.col} / span ${event.span}`,
@@ -637,7 +637,7 @@ function DayHead({
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
           {events.map((e) => (
             <EventChip
-              key={e.text}
+              key={e.shootId ?? e.text}
               event={e}
               className="flex h-7 items-center rounded-[6px] px-2.5 text-[12px] font-medium"
             >

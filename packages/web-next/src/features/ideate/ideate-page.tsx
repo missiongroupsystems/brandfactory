@@ -568,6 +568,7 @@ function MomentView({ moment, onUse }: { moment: Moment; onUse: () => void }) {
 const SOURCE_NAME: Record<MoodSource, string> = {
   pinterest: 'Pinterest',
   dm: 'Instagram DMs',
+  tt: 'TikTok',
 }
 
 /** Where a post itself is from: a DM or a pasted link may carry a TikTok. */
@@ -578,14 +579,17 @@ const PLATFORM_NAME: Record<Reference['platform'], string> = {
 }
 
 /** Instagram DMs carry Instagram's logo. */
-const SOURCE_LOGO: Record<MoodSource, 'pinterest' | 'ig'> = { pinterest: 'pinterest', dm: 'ig' }
+const SOURCE_LOGO: Record<MoodSource, 'pinterest' | 'ig' | 'tt'> = {
+  pinterest: 'pinterest',
+  dm: 'ig',
+  tt: 'tt',
+}
 
 /**
- * The moodboard: one board for everything the team saved for this brand. Two sources, both of
- * which a real integration can read: the brand's board on the team's one Pinterest account, and
- * posts DM'd to the moodboard account on Instagram with the brand's tag (Instagram does not let an
- * app read saved posts). TikTok favourites are closed to apps too, so a TikTok joins by a pasted
- * link or a DM. Each source connects in a short mock step (no backend). Tap posts to pick them; a
+ * The moodboard: one board for everything the team saved for this brand. Three sources: the
+ * brand's board on the team's one Pinterest account, posts DM'd to the moodboard account on
+ * Instagram with the brand's tag (Instagram does not let an app read saved posts), and the brand's
+ * TikTok saves. Each source connects in a short mock step (no backend). Tap posts to pick them; a
  * bar then plans an idea from them.
  */
 function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
@@ -600,10 +604,10 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   // The source being set up from its chip, shown under the chip row.
   const [adding, setAdding] = React.useState<MoodSource | null>(null)
 
-  if (!sources.pinterest && !sources.dm) return <ConnectSources />
+  if (!sources.pinterest && !sources.dm && !sources.tt) return <ConnectSources />
 
-  // The brand's board sections on Pinterest, then everything sent by DM or pasted as a link. Pins
-  // come only from the board.
+  // The brand's board sections on Pinterest, everything sent by DM or pasted as a link, then the
+  // brand's TikTok saves. Pins come only from the board.
   const folders: Array<{ id: string; label: string; source: MoodSource; pins: Reference[] }> = [
     ...(sources.pinterest
       ? boards.map((b) => ({ id: b.id, label: b.name, source: 'pinterest' as const, pins: b.pins }))
@@ -614,7 +618,19 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
             id: 'dm',
             label: 'Shared',
             source: 'dm' as const,
-            pins: [...pasted, ...references].filter((r) => r.platform !== 'pinterest'),
+            pins: [...pasted, ...references.filter((r) => r.platform === 'ig')].filter(
+              (r) => r.platform !== 'pinterest',
+            ),
+          },
+        ]
+      : []),
+    ...(sources.tt
+      ? [
+          {
+            id: 'tt',
+            label: 'TikTok saves',
+            source: 'tt' as const,
+            pins: references.filter((r) => r.platform === 'tt'),
           },
         ]
       : []),
@@ -773,6 +789,18 @@ function SourceSetup({ source }: { source: MoodSource }) {
       {busy ? 'Connecting…' : label}
     </button>
   )
+
+  if (source === 'tt') {
+    return (
+      <div className="flex flex-col gap-4 text-left">
+        <span className={EYEBROW}>TikTok · {brand.handle}</span>
+        <p className="text-[13.5px] text-ink-2">
+          Videos saved on {brand.name}’s TikTok land on its moodboard.
+        </p>
+        {action('Connect TikTok')}
+      </div>
+    )
+  }
 
   if (source === 'dm') {
     return (
