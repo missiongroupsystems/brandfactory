@@ -603,6 +603,24 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   const [selected, setSelected] = React.useState<string[]>([])
   // The source being set up from its chip, shown under the chip row.
   const [adding, setAdding] = React.useState<MoodSource | null>(null)
+  const top = React.useRef<HTMLDivElement>(null)
+  // Where the chip that opened the setup starts, so on a wide screen the setup opens under it.
+  const [anchor, setAnchor] = React.useState(0)
+
+  // The setup floats over the board like a menu: a tap outside or Escape closes it.
+  React.useEffect(() => {
+    if (!adding) return
+    const close = (e: PointerEvent) => {
+      if (!top.current?.contains(e.target as Node)) setAdding(null)
+    }
+    const escape = (e: KeyboardEvent) => e.key === 'Escape' && setAdding(null)
+    document.addEventListener('pointerdown', close)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', close)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [adding])
 
   if (!sources.pinterest && !sources.dm && !sources.tt) return <ConnectSources />
 
@@ -667,7 +685,10 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   return (
     <div className="flex flex-col gap-6">
       {/* The top row stays in view: the folders, or, once posts are picked, what to do with them. */}
-      <div className="sticky top-0 z-30 -mx-10 bg-page px-10 py-2 max-md:-mx-4 max-md:px-4">
+      <div
+        ref={top}
+        className="sticky top-0 z-30 -mx-10 bg-page px-10 py-2 max-md:-mx-4 max-md:px-4"
+      >
         {picked.length > 0 ? (
           <div role="region" aria-label="Selection" className="flex h-9 items-center gap-3">
             <button
@@ -719,7 +740,13 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
                 key={m}
                 type="button"
                 aria-expanded={adding === m}
-                onClick={() => setAdding((a) => (a === m ? null : m))}
+                onClick={(e) => {
+                  const row = top.current?.getBoundingClientRect()
+                  const chip = e.currentTarget.getBoundingClientRect()
+                  // Kept on screen: a chip near the right edge opens the setup leftwards.
+                  if (row) setAnchor(Math.min(chip.left - row.left, row.width - 360 - 40))
+                  setAdding((a) => (a === m ? null : m))
+                }}
                 className="flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink"
               >
                 <PlatformLogo platform={SOURCE_LOGO[m]} size={11} />
@@ -728,21 +755,25 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
             ))}
           </div>
         )}
+        {adding && !sources[adding] && (
+          <div
+            key={adding}
+            style={{ '--x': `${anchor}px` } as React.CSSProperties}
+            className="bb-pop absolute top-full left-(--x) mt-1 w-[360px] rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line),0_16px_40px_-16px_rgba(0,0,0,0.22)] max-md:right-4 max-md:left-4 max-md:w-auto"
+          >
+            <SourceSetup source={adding} />
+          </div>
+        )}
       </div>
-      {adding && !sources[adding] && (
-        <div key={adding} className="bb-pop max-w-[460px] rounded-[18px] bg-surface-2 p-5">
-          <SourceSetup source={adding} />
-        </div>
-      )}
       {filter === 'dm' && (
-        <div className="flex flex-col gap-3">
-          <DmHint />
+        <div className="flex max-w-[420px] flex-col gap-2">
           <PasteLink
             onPaste={(r) => {
               pasteReference(brand.id, r)
               setPasted(pastedReferences(brand.id))
             }}
           />
+          <DmHint />
         </div>
       )}
       <Masonry key={filter} pins={shown} selected={selected} onToggle={toggle} />
@@ -754,10 +785,10 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
 function DmHint() {
   const { brand } = useBrand()
   return (
-    <p className="text-[13px] text-ink-3">
-      Share any post or reel by DM to{' '}
-      <span className="font-medium text-ink">{MOODBOARD_ACCOUNT}</span> with{' '}
-      <span className="font-medium text-ink">{moodboardTag(brand)}</span>, or paste a link.
+    <p className="px-4 text-[12px] text-ink-4">
+      Or share any post or reel by DM to{' '}
+      <span className="font-medium text-ink-2">{MOODBOARD_ACCOUNT}</span> with{' '}
+      <span className="font-medium text-ink-2">{moodboardTag(brand)}</span>.
     </p>
   )
 }
