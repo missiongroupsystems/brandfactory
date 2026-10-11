@@ -12,6 +12,18 @@ import { editFiles, editKit, newFileId, useBrandFiles, useBrandKit } from './bra
 import { ColoursEditable } from './kit-colours'
 import { EYEBROW, QUIET, Section, type Voice, VoiceView } from './kit-parts'
 import { removed, renamed, replaced, uploaded, voiceEdited } from './model'
+import { VoiceCardSection } from './voice/concept-card'
+import { VoiceStepsSection } from './voice/concept-steps'
+import { VoiceStudioSection } from './voice/concept-studio'
+
+/** Three ways to edit the voice, behind `/brand?voice=1|2|3`, for the team to pick one. */
+export type VoiceConcept = 1 | 2 | 3
+
+const VOICE_CONCEPTS = {
+  1: VoiceStudioSection,
+  2: VoiceCardSection,
+  3: VoiceStepsSection,
+} satisfies Record<VoiceConcept, React.ComponentType>
 
 const KIND_LABEL: Record<FileKind, string> = {
   pdf: 'PDF',
@@ -61,8 +73,9 @@ function FileIcon({ file }: { file: BrandFile }) {
  * At rest it reads as a page, not a form. Each section has one quiet control at its top right:
  * Edit turns that section into fields and Done saves them, so a tap on a swatch still copies it.
  */
-export function BrandPage() {
+export function BrandPage({ voiceConcept }: { voiceConcept?: VoiceConcept }) {
   const { brand } = useBrand()
+  const VoiceArea = voiceConcept ? VOICE_CONCEPTS[voiceConcept] : VoiceSection
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -85,7 +98,7 @@ export function BrandPage() {
           </span>
         </div>
 
-        <VoiceSection />
+        <VoiceArea />
         <ColoursEditable />
         <LogoSection />
         <Files />

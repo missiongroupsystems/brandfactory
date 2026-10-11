@@ -293,3 +293,66 @@
 @utility bb-fade {
   animation: bb-fade 480ms ease both;
 }
+
+/*
+ * ── Brand voice ──────────────────────────────────────────────────────────────────────────────
+ * bb-room: a space that takes the screen settles in, and bb-room-out leaves. bb-mark: a word
+ * that changed gets a soft wash, drawn left to right. bb-stamp: a version seal lands. bb-flip:
+ * a card turns over; its faces hide their backs.
+ */
+@keyframes bb-room {
+  from {
+    opacity: 0;
+    transform: scale(0.985) translateY(12px);
+  }
+}
+@utility bb-room {
+  animation: bb-room 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes bb-room-out {
+  to {
+    opacity: 0;
+    transform: scale(0.99) translateY(8px);
+  }
+}
+@utility bb-room-out {
+  animation: bb-room-out 320ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes bb-mark {
+  from {
+    background-size: 0% 100%;
+  }
+}
+@utility bb-mark {
+  background-image: linear-gradient(var(--tile), var(--tile));
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  box-decoration-break: clone;
+  padding: 1px 3px;
+  margin: 0 -3px;
+  animation: bb-mark 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes bb-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.8) rotate(-14deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.94) rotate(-7deg);
+  }
+  100% {
+    transform: scale(1) rotate(-8deg);
+  }
+}
+@utility bb-stamp {
+  animation: bb-stamp 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@utility bb-flip {
+  transform-style: preserve-3d;
+  transition: transform 820ms cubic-bezier(0.65, 0, 0.35, 1);
+  & > * {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+}
