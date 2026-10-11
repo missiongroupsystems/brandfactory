@@ -90,7 +90,11 @@ export function IdeatePage({ view: initial }: { view?: View }) {
   return (
     <div className="flex min-h-svh flex-col">
       <AppHeader />
-      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-10 pt-6 pb-8 max-md:px-4 max-md:pt-2 max-md:pb-5">
+      {/* The title settles in with the page, as on Schedule, Insights and Inbox. */}
+      <div
+        key={brand.id}
+        className="bb-swap mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-10 pt-6 pb-8 max-md:px-4 max-md:pt-2 max-md:pb-5"
+      >
         <div className="flex flex-col gap-3">
           <span className={EYEBROW}>{brand.name} · October</span>
           <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[34px]">
