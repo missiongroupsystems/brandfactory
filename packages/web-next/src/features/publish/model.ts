@@ -44,6 +44,11 @@ export type When = 'slot' | 'now'
 
 export interface Draft {
   format: Format
+  /**
+   * The platforms the brand has accounts on. The model knows five; a brand that posts on three sees
+   * three, and a channel outside this list never shows, not even as an account to connect.
+   */
+  linked: ChannelKey[]
   hook: string
   caption: string
   selected: ChannelKey[]
@@ -64,13 +69,16 @@ export function initialDraft(input: {
   hook: string
   caption: string
   connected?: ChannelKey[]
+  linked?: ChannelKey[]
   /** The accounts a saved post already goes to; a new post starts on every connected one. */
   selected?: ChannelKey[]
 }): Draft {
-  const connected = input.connected ?? ['ig', 'tt', 'yt', 'li']
-  const wanted: ChannelKey[] = input.selected ?? ['ig', 'tt', 'yt', 'li']
+  const linked = input.linked ?? CHANNELS.map((c) => c.key)
+  const connected = (input.connected ?? ['ig', 'tt', 'yt', 'li']).filter((k) => linked.includes(k))
+  const wanted: ChannelKey[] = input.selected ?? connected
   return {
     format: input.format,
+    linked,
     hook: input.hook,
     caption: input.caption,
     selected: wanted.filter((k) => connected.includes(k) && kindOn(input.format, k) !== null),
@@ -88,9 +96,14 @@ export function initialDraft(input: {
   }
 }
 
-/** The channels this post will actually go to: selected, connected and able to take it. */
+/** The brand's own platforms, in the model's order: the only ones the composer shows. */
+export function linkedChannels(draft: Draft): Channel[] {
+  return CHANNELS.filter((c) => draft.linked.includes(c.key))
+}
+
+/** The channels this post will actually go to: linked, selected, connected and able to take it. */
 export function activeChannels(draft: Draft): Channel[] {
-  return CHANNELS.filter(
+  return linkedChannels(draft).filter(
     (c) =>
       draft.selected.includes(c.key) &&
       draft.connected.includes(c.key) &&
@@ -209,6 +222,29 @@ export type Aspect = (typeof ASPECTS)[number]
 export const ZOOM_MAX = 3
 
 /**
+ * The shape each format shows whole on Instagram, the strictest of the brand's platforms: a feed
+ * post from 4:5 to square, a reel or a story 9:16. A photo outside it is cut or letterboxed by
+ * the app, so the composer flags it and offers the crop on the first shape.
+ */
+const SHAPES: Record<Format, { min: number; max: number; fix: Aspect }> = {
+  carousel: { min: 4 / 5, max: 1, fix: '4:5' },
+  reel: { min: 9 / 16, max: 9 / 16, fix: '9:16' },
+  story: { min: 9 / 16, max: 9 / 16, fix: '9:16' },
+}
+
+/** A 1080 px photo a few pixels off its shape still fits: 2% either way. */
+const SHAPE_SLACK = 0.02
+
+/**
+ * The preset that fixes a photo of this shape (width over height) for this format, or `null` when
+ * the photo already fits.
+ */
+export function shapeFix(ratio: number, format: Format): Aspect | null {
+  const { min, max, fix } = SHAPES[format]
+  return ratio >= min * (1 - SHAPE_SLACK) && ratio <= max * (1 + SHAPE_SLACK) ? null : fix
+}
+
+/**
  * How a photo sits in its frame. The photo covers the frame, then grows by `zoom`; `x` and `y`
  * are the share of the room that leaves, −1 (left or top edge) to 1. `ratio` is the photo's own
  * width over height, measured when the editor opens, so the frame can be drawn anywhere.
@@ -221,14 +257,25 @@ export interface Crop {
   ratio: number
 }
 
-/** A photo or video in the post, with its crop; a video and an untouched photo have none. */
+/**
+ * An account tagged inside a photo, at the spot the marketer tapped: `x` and `y` are 0–1 across
+ * and down the photo as the post shows it. Instagram places a tag on a feed photo; a reel's tags
+ * have no spot, so theirs is `null`.
+ */
+export interface Tag {
+  handle: string
+  at: { x: number; y: number } | null
+}
+
+/** A photo or video in the post, with its crop and tags; a video and an untouched photo have no crop. */
 export interface Shot {
   src: string
   crop: Crop | null
+  tags: Tag[]
 }
 
 export function shotOf(src: string): Shot {
-  return { src, crop: null }
+  return { src, crop: null, tags: [] }
 }
 
 export function defaultCrop(ratio: number): Crop {
@@ -274,4 +321,33 @@ export function nudge(crop: Crop, dx: number, dy: number, width: number, height:
     x: roomX > 0 ? clamp(crop.x + dx / roomX) : 0,
     y: roomY > 0 ? clamp(crop.y + dy / roomY) : 0,
   }
+}
+
+// ── People ───────────────────────────────────────────────────────────────────────────────────
+
+/** Instagram takes up to 3 collaborators on a post and up to 20 tags on a photo. */
+export const COLLAB_MAX = 3
+export const TAG_MAX = 20
+
+/**
+ * A handle as Instagram spells it, whatever was typed: "@Chef Antonio" → "@chefantonio". Empty
+ * when nothing usable was typed.
+ */
+export function handleOf(typed: string): string {
+  const name = typed
+    .toLowerCase()
+    .replace(/[^a-z0-9._]/g, '')
+    .replace(/^\.+|\.+$/g, '')
+  return name ? `@${name}` : ''
+}
+
+/**
+ * The name line a collaboration post shows once the invites are accepted: "casavostrasg and
+ * chefantonio", or "casavostrasg and 2 others".
+ */
+export function collabHeader(handle: string, collabs: string[]): string {
+  const own = handle.replace(/^@/, '')
+  if (collabs.length === 0) return own
+  if (collabs.length === 1) return `${own} and ${collabs[0]!.replace(/^@/, '')}`
+  return `${own} and ${collabs.length} others`
 }

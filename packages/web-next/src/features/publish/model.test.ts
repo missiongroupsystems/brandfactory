@@ -3,14 +3,18 @@ import { describe, expect, it } from 'vitest'
 import {
   activeChannels,
   blockers,
+  collabHeader,
   cropOffset,
   cropScale,
   defaultCrop,
   frameRatio,
+  handleOf,
   initialDraft,
+  linkedChannels,
   linkedinText,
   nudge,
   primaryLabel,
+  shapeFix,
   textFor,
   tiktokConsent,
   youtubeTitle,
@@ -45,7 +49,36 @@ describe('where a post can go', () => {
       caption: '',
       connected: ['ig', 'tt', 'fb'],
     })
-    expect(activeChannels(story).map((c) => c.key)).toEqual(['ig'])
+    expect(activeChannels(story).map((c) => c.key)).toEqual(['ig', 'fb'])
+  })
+})
+
+describe("only the brand's own platforms", () => {
+  // The restaurants post on Instagram, TikTok and Facebook. YouTube and LinkedIn must not show up,
+  // not even as an account to connect, or the team is asked about platforms it does not use.
+  const ours = (format: 'reel' | 'carousel', selected?: Draft['selected']) =>
+    initialDraft({
+      format,
+      hook: 'h',
+      caption: 'c',
+      linked: ['ig', 'tt', 'fb'],
+      connected: ['ig', 'tt', 'fb'],
+      selected,
+    })
+
+  it('shows and sends to the linked platforms only', () => {
+    expect(linkedChannels(ours('reel')).map((c) => c.key)).toEqual(['ig', 'tt', 'fb'])
+    // A new post starts on every account the brand has, Facebook included.
+    expect(activeChannels(ours('reel')).map((c) => c.key)).toEqual(['ig', 'tt', 'fb'])
+    const everywhere = ours('reel', ['ig', 'tt', 'yt', 'li', 'fb'])
+    expect(activeChannels(everywhere).map((c) => c.key)).toEqual(['ig', 'tt', 'fb'])
+  })
+
+  it('drops an unlinked platform a saved post still names', () => {
+    // A reel saved with the old default (Instagram, TikTok, YouTube) opens on the two it can use.
+    const draft = ours('reel', ['ig', 'tt', 'yt'])
+    expect(draft.selected).toEqual(['ig', 'tt'])
+    expect(activeChannels({ ...draft, selected: ['yt'] })).toEqual([])
   })
 })
 
@@ -166,5 +199,40 @@ describe('one post, each platform its own limit', () => {
     expect(blockers(draft)).toEqual(['Shorten the text for Instagram (2500/2200).'])
     const fixed = reel({ ...draft, overrides: { ig: 'Short for Instagram.' } })
     expect(blockers(fixed)).toEqual([])
+  })
+})
+
+describe('a photo in the wrong shape', () => {
+  it('flags a landscape photo in a feed post and fixes it to 4:5', () => {
+    expect(shapeFix(16 / 9, 'carousel')).toBe('4:5')
+    expect(shapeFix(9 / 16, 'carousel')).toBe('4:5')
+  })
+
+  it('lets a post through from 4:5 to square, as Instagram shows them whole', () => {
+    expect(shapeFix(4 / 5, 'carousel')).toBeNull()
+    expect(shapeFix(1, 'carousel')).toBeNull()
+    // A camera's 1081 × 1351 is a pixel off 4:5, not a wrong shape.
+    expect(shapeFix(1081 / 1351, 'carousel')).toBeNull()
+  })
+
+  it('wants 9:16 for a reel or a story, so a 4:5 or landscape photo is flagged', () => {
+    expect(shapeFix(9 / 16, 'reel')).toBeNull()
+    expect(shapeFix(1000 / 1777, 'story')).toBeNull()
+    expect(shapeFix(4 / 5, 'reel')).toBe('9:16')
+    expect(shapeFix(16 / 9, 'story')).toBe('9:16')
+  })
+})
+
+describe('tags and collaborators', () => {
+  it('spells a handle the way Instagram does, whatever was typed', () => {
+    expect(handleOf('@Chef Antonio')).toBe('@chefantonio')
+    expect(handleOf('casa.vostra_sg')).toBe('@casa.vostra_sg')
+    expect(handleOf('  @ ')).toBe('')
+  })
+
+  it('names both accounts on a collaboration, as the post shows once accepted', () => {
+    expect(collabHeader('@casavostrasg', [])).toBe('casavostrasg')
+    expect(collabHeader('@casavostrasg', ['@chefantonio'])).toBe('casavostrasg and chefantonio')
+    expect(collabHeader('@casavostrasg', ['@a', '@b'])).toBe('casavostrasg and 2 others')
   })
 })

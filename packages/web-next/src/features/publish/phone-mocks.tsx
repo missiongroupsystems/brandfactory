@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { Format } from '@/data/demo'
 import { useBrand } from '@/features/schedule/posts-store'
 
-import type { ChannelKey, Shot } from './model'
+import { collabHeader, type ChannelKey, type Shot, type Tag } from './model'
 import { ShotView } from './shot'
 
 /**
@@ -20,6 +20,7 @@ export function PhoneMock({
   image,
   text,
   duration,
+  people = NOBODY,
 }: {
   channel: ChannelKey
   format: Format
@@ -27,6 +28,8 @@ export function PhoneMock({
   text: string
   /** m:ss, shown where the platform prints a video's length. */
   duration?: string
+  /** Instagram's collaborators and the shown photo's tags; the other apps have neither here. */
+  people?: People
 }) {
   let screen: ReactNode
   if (channel === 'li')
@@ -34,16 +37,23 @@ export function PhoneMock({
   else if (format === 'story' && (channel === 'ig' || channel === 'fb'))
     screen = <Story channel={channel} image={image} />
   else if (format === 'carousel' && channel === 'ig')
-    screen = <InstagramPost image={image} text={text} />
+    screen = <InstagramPost image={image} text={text} people={people} />
   else if (format === 'carousel' && channel === 'fb')
     screen = <FacebookPost image={image} text={text} />
-  else if (channel === 'ig') screen = <InstagramReel image={image} text={text} />
+  else if (channel === 'ig') screen = <InstagramReel image={image} text={text} people={people} />
   else if (channel === 'tt')
     screen = <TikTok image={image} text={text} photos={format === 'carousel'} />
   else if (channel === 'yt') screen = <Shorts image={image} text={text} />
   else screen = <FacebookReel image={image} text={text} />
   return <span className="absolute inset-0 font-device antialiased">{screen}</span>
 }
+
+export interface People {
+  collabs: string[]
+  tags: Tag[]
+}
+
+const NOBODY: People = { collabs: [], tags: [] }
 
 /* ---------- Shared pieces ---------- */
 
@@ -86,9 +96,47 @@ function initials(name: string): string {
 
 function Avatar({ size, ring = false }: { size: number; ring?: boolean }) {
   const { brand } = useBrand()
+  return <Initials name={brand.name} size={size} ring={ring} />
+}
+
+/** A collaboration's avatars: the brand's, and the first collaborator's tucked behind it. */
+function Avatars({ size, collabs }: { size: number; collabs: string[] }) {
+  if (collabs.length === 0) return <Avatar size={size} />
+  return (
+    <span className="relative flex shrink-0" style={{ width: size * 1.45, height: size }}>
+      <span className="absolute top-0 right-0 opacity-90">
+        <Initials name={collabs[0]!.slice(1)} size={size * 0.8} tone />
+      </span>
+      <span className="absolute top-0 left-0 rounded-full shadow-[0_0_0_1.5px_var(--pc-black)]">
+        <Avatar size={size} />
+      </span>
+    </span>
+  )
+}
+
+/** Instagram's person glyph: a photo with tags shows it, bottom left. */
+const PERSON = (size: number) => (
+  <Svg size={size} fill="currentColor">
+    <circle cx="12" cy="8" r="4.2" />
+    <path d="M3.8 21c1.1-4.3 4.3-6.6 8.2-6.6s7.1 2.3 8.2 6.6H3.8Z" />
+  </Svg>
+)
+
+function Initials({
+  name,
+  size,
+  ring = false,
+  tone = false,
+}: {
+  name: string
+  size: number
+  ring?: boolean
+  /** A second account's avatar, a shade apart from the brand's. */
+  tone?: boolean
+}) {
   return (
     <span
-      className="flex shrink-0 items-center justify-center rounded-full bg-(--pc-avatar) font-semibold tracking-[-0.02em] text-(--pc-white)"
+      className={`flex shrink-0 items-center justify-center rounded-full font-semibold tracking-[-0.02em] text-(--pc-white) ${tone ? 'bg-(--pc-ig-dark-muted)' : 'bg-(--pc-avatar)'}`}
       style={{
         width: size,
         height: size,
@@ -96,7 +144,7 @@ function Avatar({ size, ring = false }: { size: number; ring?: boolean }) {
         boxShadow: ring ? '0 0 0 1px var(--pc-white)' : undefined,
       }}
     >
-      {initials(brand.name)}
+      {initials(name)}
     </span>
   )
 }
@@ -198,7 +246,15 @@ const PAPER_PLANE = (size: number, width = 2) => (
 
 /* ---------- Instagram ---------- */
 
-function InstagramReel({ image, text }: { image: Shot | undefined; text: string }) {
+function InstagramReel({
+  image,
+  text,
+  people,
+}: {
+  image: Shot | undefined
+  text: string
+  people: People
+}) {
   const { brand } = useBrand()
   return (
     <span className="absolute inset-0 text-(--pc-white)">
@@ -236,10 +292,12 @@ function InstagramReel({ image, text }: { image: Shot | undefined; text: string 
       </span>
 
       <span className="absolute right-[36px] bottom-[12px] left-[10px] flex flex-col gap-[5px]">
-        <span className="flex items-center gap-[5px]">
-          <Avatar size={18} />
-          <span className="text-[8.5px] font-semibold">{brand.handle.slice(1)}</span>
-          <span className="rounded-[5px] px-[5px] py-[2px] text-[7.5px] font-semibold shadow-[inset_0_0_0_0.75px_var(--pc-dim)]">
+        <span className="flex min-w-0 items-center gap-[5px]">
+          <Avatars size={18} collabs={people.collabs} />
+          <span className="truncate text-[8.5px] font-semibold">
+            {collabHeader(brand.handle, people.collabs)}
+          </span>
+          <span className="shrink-0 rounded-[5px] px-[5px] py-[2px] text-[7.5px] font-semibold shadow-[inset_0_0_0_0.75px_var(--pc-dim)]">
             Follow
           </span>
         </span>
@@ -247,9 +305,19 @@ function InstagramReel({ image, text }: { image: Shot | undefined; text: string 
           <span className="truncate">{text}</span>
           <span className="shrink-0 pl-[2px] text-(--pc-dim)">more</span>
         </span>
-        <span className="flex items-center gap-[3px] text-[7.5px] leading-none">
+        <span className="flex min-w-0 items-center gap-[3px] text-[7.5px] leading-none">
           {MUSIC}
           <span className="truncate">{brand.handle.slice(1)} · Original audio</span>
+          {people.tags.length > 0 && (
+            <span className="flex min-w-0 shrink items-center gap-[2px] pl-[3px]">
+              {PERSON(7)}
+              <span className="truncate">
+                {people.tags.length === 1
+                  ? people.tags[0]!.handle.slice(1)
+                  : `${people.tags.length} people`}
+              </span>
+            </span>
+          )}
         </span>
       </span>
     </span>
@@ -257,16 +325,52 @@ function InstagramReel({ image, text }: { image: Shot | undefined; text: string 
 }
 
 /** Instagram's feed photo post in dark mode, with the carousel's count chip and dots. */
-function InstagramPost({ image, text }: { image: Shot | undefined; text: string }) {
+function InstagramPost({
+  image,
+  text,
+  people,
+}: {
+  image: Shot | undefined
+  text: string
+  people: People
+}) {
   const { brand } = useBrand()
   return (
     <span className="absolute inset-0 flex flex-col bg-(--pc-black) text-(--pc-ig-dark-text)">
       <span className="flex h-[28px] shrink-0 items-center gap-[6px] px-[8px]">
-        <Avatar size={20} />
-        <span className="text-[8.5px] font-semibold">{brand.handle.slice(1)}</span>
+        <Avatars size={people.collabs.length > 0 ? 17 : 20} collabs={people.collabs} />
+        <span
+          className={`truncate font-semibold ${people.collabs.length > 0 ? 'text-[7.5px]' : 'text-[8.5px]'}`}
+        >
+          {collabHeader(brand.handle, people.collabs)}
+        </span>
       </span>
       <span className="relative min-h-0 w-full flex-1">
         <Photo image={image} />
+        {/* Tags show as a tap reveals them, so the preview says who is where. */}
+        {people.tags.map(
+          (t) =>
+            t.at && (
+              <span
+                key={t.handle}
+                className="absolute flex -translate-x-1/2 flex-col items-center"
+                style={{
+                  left: `${Math.min(80, Math.max(20, t.at.x * 100))}%`,
+                  top: `${t.at.y * 100}%`,
+                }}
+              >
+                <span className="size-0 border-x-[3px] border-b-[3px] border-x-transparent border-b-black/80" />
+                <span className="rounded-[3px] bg-black/80 px-[4px] py-[2px] text-[6.5px] leading-none font-semibold text-white">
+                  {t.handle.slice(1)}
+                </span>
+              </span>
+            ),
+        )}
+        {people.tags.length > 0 && (
+          <span className="absolute bottom-[6px] left-[6px] flex size-[13px] items-center justify-center rounded-full bg-black/70 text-white">
+            {PERSON(7)}
+          </span>
+        )}
         <span className="absolute top-[38px] right-[8px] rounded-full bg-(--pc-scrim-bottom) px-[6px] py-[2px] text-[7px] font-medium">
           1/5
         </span>

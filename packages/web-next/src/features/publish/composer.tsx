@@ -23,6 +23,7 @@ import type { BrandId } from '@/data/brands'
 import type { Format, Post, Stage } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
+import { DRIVE, folderAt, LINKED } from '@/data/publish'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { composeChannels, sentChannels } from '@/features/schedule/calendar-items'
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
@@ -33,23 +34,29 @@ import { CropEditor } from './crop-editor'
 import {
   activeChannels,
   blockers,
-  CHANNELS,
+  COLLAB_MAX,
   defaultCrop,
+  frameRatio,
+  handleOf,
   isUncut,
   kindOn,
   lengthFor,
+  linkedChannels,
   PRIVACY,
+  shapeFix,
   shotOf,
+  TAG_MAX,
   textFor,
   tiktokConsent,
   youtubeTitle,
+  type Aspect,
   type ChannelKey,
   type Crop,
   type Draft,
   type Outcome,
   type Shot,
 } from './model'
-import { PhoneMock } from './phone-mocks'
+import { PhoneMock, type People } from './phone-mocks'
 import { ratioOf, ShotView } from './shot'
 import { usePublishDraft, type PublishDraftApi } from './use-publish-draft'
 
@@ -95,9 +102,10 @@ const MEDIA_RULE: Record<Format, string> = {
 type WhenChoice = 'now' | 'schedule'
 
 /** Which accounts a detail is sent to. A detail with none of them selected stays hidden. */
-const DETAIL_ON: Record<'comment' | 'location' | 'collab', ChannelKey[]> = {
+const DETAIL_ON: Record<'comment' | 'location' | 'tags' | 'collab', ChannelKey[]> = {
   comment: ['ig', 'fb'],
   location: ['ig', 'fb'],
+  tags: ['ig'],
   collab: ['ig'],
 }
 
@@ -133,6 +141,8 @@ export function Composer({
     hook: post?.hook ?? '',
     caption: post ? (captions[post.id] ?? post.hook) : '',
     selected: post ? composeChannels(post) : undefined,
+    linked: LINKED[brand.id],
+    connected: LINKED[brand.id],
   })
   const [reconnected, setReconnected] = React.useState(false)
   // The post as it opened: after a retry the live post is no longer failed, and a second send
@@ -169,6 +179,7 @@ export function Composer({
     fbAudience: 'Everyone',
     liVisibility: 'Anyone',
     igShareToFeed: true,
+    ttSound: 'own' as Sound,
   })
   // On a phone each card opens in a sheet from its row; one sheet at a time.
   const [sheet, setSheet] = React.useState<SheetKey | null>(null)
@@ -259,6 +270,7 @@ export function Composer({
       <Outcomes
         api={api}
         media={media}
+        people={{ collabs: details.collab, tags: media[0]?.tags ?? [] }}
         slot={`${dayLabel(weeks, dayN) ?? ''}, ${time}`}
         onBack={() => router.push('/')}
       />
@@ -316,6 +328,11 @@ export function Composer({
       {keeps ? 'Save' : 'Save draft'}
     </button>
   )
+  // What Instagram shows of the people: the collaborators in its name line, the first photo's tags.
+  const people = {
+    collabs: draft.format === 'story' ? [] : details.collab,
+    tags: draft.format === 'story' ? [] : (media[0]?.tags ?? []),
+  }
   // The sheet a phone row opened, over the same cards the desktop shows in place.
   const inSheet: Partial<Record<SheetKey, { title: string; body: React.ReactNode }>> = {
     accounts: { title: 'Post to', body: <Accounts api={api} /> },
@@ -328,6 +345,8 @@ export function Composer({
           setDetails={setDetails}
           labels={labels}
           setLabels={setLabels}
+          media={media}
+          setMedia={setMedia}
         />
       ),
     },
@@ -345,7 +364,7 @@ export function Composer({
         />
       ),
     },
-    preview: { title: 'Preview', body: <Preview api={api} media={media} /> },
+    preview: { title: 'Preview', body: <Preview api={api} media={media} people={people} /> },
     ...Object.fromEntries(
       active.map((c) => [
         c.key,
@@ -357,9 +376,16 @@ export function Composer({
     ),
   }
   const whenText = when === 'now' ? 'Now' : `${dayLabel(weeks, dayN) ?? dayN}, ${time}`
-  const detailText = active.some((c) => DETAIL_ON.location.includes(c.key))
-    ? details.location || labels.join(', ')
-    : labels.join(', ')
+  const onIg = active.some((c) => c.key === 'ig') && draft.format !== 'story'
+  const tagCount = onIg ? taggedIn(media).length : 0
+  const detailText =
+    [
+      active.some((c) => DETAIL_ON.location.includes(c.key)) ? details.location : '',
+      tagCount > 0 ? `${tagCount} tagged` : '',
+      onIg && details.collab.length > 0 ? `with ${details.collab.join(', ')}` : '',
+    ]
+      .filter(Boolean)
+      .join(' · ') || labels.join(', ')
 
   return (
     <div className="flex flex-col gap-6">
@@ -480,6 +506,8 @@ export function Composer({
               setDetails={setDetails}
               labels={labels}
               setLabels={setLabels}
+              media={media}
+              setMedia={setMedia}
             />
             {active.length > 0 && <PerAccount api={api} extra={extra} setExtra={setExtra} />}
             <WhenCard
@@ -495,7 +523,7 @@ export function Composer({
         </div>
         {/* The button sits under the preview and scrolls with it, so what goes out is in view. */}
         <div className="sticky top-6 flex flex-col gap-3 max-lg:static max-md:hidden">
-          <Preview api={api} media={media} />
+          <Preview api={api} media={media} people={people} />
           <div className="flex items-center gap-2 px-1">
             {draftButton}
             {send(false)}
@@ -553,10 +581,13 @@ function Row({
 function Dialog({
   title,
   onClose,
+  wide = false,
   children,
 }: {
   title: string
   onClose: () => void
+  /** Room for a grid of photos. */
+  wide?: boolean
   children: React.ReactNode
 }) {
   const card = React.useRef<HTMLDivElement>(null)
@@ -589,7 +620,7 @@ function Dialog({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="bb-rise relative w-[460px] max-w-full rounded-[18px] bg-page p-5 shadow-sheet outline-none"
+        className={`bb-rise relative max-h-[calc(100svh-48px)] max-w-full overflow-y-auto rounded-[18px] bg-page p-5 shadow-sheet outline-none ${wide ? 'w-[560px]' : 'w-[460px]'}`}
       >
         {children}
       </div>
@@ -606,7 +637,7 @@ const STAGE_LABEL: Record<Stage, string> = {
 
 // ── Accounts and format ──────────────────────────────────────────────────────────────────────
 
-/** The brand's accounts on every platform, ticked together, and the format they all take. */
+/** The brand's accounts on the platforms it uses, ticked together, and the format they all take. */
 function Accounts({ api }: { api: PublishDraftApi }) {
   const { brand } = useBrand()
   const { draft, update, toggleChannel, connect } = api
@@ -615,7 +646,7 @@ function Accounts({ api }: { api: PublishDraftApi }) {
       <span className={`${EYEBROW} max-md:hidden`}>Post to</span>
       {/* Pills on a desktop; on a phone a list, one account a row, the tick at the right. */}
       <div className="flex flex-wrap gap-2 max-md:flex-col max-md:gap-0">
-        {CHANNELS.map((c) => {
+        {linkedChannels(draft).map((c) => {
           const connected = draft.connected.includes(c.key)
           const takes = kindOn(draft.format, c.key)
           const on = connected && takes !== null && draft.selected.includes(c.key)
@@ -725,11 +756,22 @@ function Content({
   const [editing, setEditing] = React.useState<{ index: number; crop: Crop } | null>(null)
   const phone = usePhone()
   const edited = editing ? media[editing.index] : undefined
+  const [driveOpen, setDriveOpen] = React.useState(false)
+  const ratios = useRatios(media)
 
-  /** A first crop needs the photo's shape, so the editor waits for it to load. */
-  async function openCrop(index: number) {
+  /**
+   * A first crop needs the photo's shape, so the editor waits for it to load. The wrong-shape fix
+   * opens it on the shape the format takes.
+   */
+  async function openCrop(index: number, aspect?: Aspect) {
     const shot = media[index]!
-    setEditing({ index, crop: shot.crop ?? defaultCrop(await ratioOf(shot.src)) })
+    const crop = shot.crop ?? defaultCrop(await ratioOf(shot.src))
+    setEditing({ index, crop: aspect ? { ...crop, aspect } : crop })
+  }
+  /** The shape this photo needs for the format, or `null` when it fits or is not measured yet. */
+  function fixFor(shot: Shot): Aspect | null {
+    const ratio = shot.crop ? frameRatio(shot.crop) : ratios[shot.src]
+    return ratio === undefined || isVideo(shot.src) ? null : shapeFix(ratio, draft.format)
   }
   function keepCrop() {
     if (!editing) return
@@ -843,51 +885,67 @@ function Content({
             void add(e.dataTransfer.files)
           }}
         >
-          {media.map((shot, i) => (
-            <span
-              key={shot.src + i}
-              className="group/m relative block h-[132px] w-[106px] shrink-0 overflow-hidden rounded-[12px] bg-tile"
-            >
-              <ShotView shot={shot} sizes="260px" />
-              <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/50 px-1.5 font-mono text-[10px] text-page">
-                {i + 1}
-              </span>
-              {!isVideo(shot.src) && (
-                <button
-                  type="button"
-                  aria-label="Crop"
-                  onClick={() => void openCrop(i)}
-                  className="absolute right-1.5 bottom-1.5 flex size-6 items-center justify-center rounded-full bg-page text-ink-2 opacity-0 shadow-soft transition-opacity group-hover/m:opacity-100 max-md:size-8 [@media(hover:none)]:opacity-100"
-                >
-                  <CropIcon />
-                </button>
-              )}
-              <span className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 transition-opacity group-hover/m:opacity-100 [@media(hover:none)]:opacity-100">
-                {i > 0 && (
+          {media.map((shot, i) => {
+            const fix = fixFor(shot)
+            return (
+              <span
+                key={shot.src + i}
+                className="group/m relative block h-[132px] w-[106px] shrink-0 overflow-hidden rounded-[12px] bg-tile"
+              >
+                <ShotView shot={shot} sizes="260px" />
+                <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/50 px-1.5 font-mono text-[10px] text-page">
+                  {i + 1}
+                </span>
+                {/* The wrong shape for this format: said quietly, fixed in one tap. */}
+                {fix ? (
                   <button
                     type="button"
-                    aria-label="Move earlier"
-                    onClick={() => {
-                      const next = [...media]
-                      ;[next[i - 1], next[i]] = [next[i]!, next[i - 1]!]
-                      setMedia(next)
-                    }}
-                    className="flex size-6 items-center justify-center rounded-full bg-page text-[11px] text-ink-2 shadow-soft max-md:size-8"
+                    aria-label={`Wrong shape for a ${FORMAT_LABEL[draft.format].toLowerCase()}: crop to ${fix}`}
+                    onClick={() => void openCrop(i, fix)}
+                    className="absolute right-1.5 bottom-1.5 flex h-6 items-center gap-1 rounded-full bg-page pr-2 pl-1.5 text-[10.5px] font-medium text-ink shadow-soft transition-transform hover:-translate-y-px max-md:h-8 max-md:pr-2.5 max-md:pl-2 max-md:text-[11.5px]"
                   >
-                    ←
+                    <span className="size-1.5 rounded-full bg-(--fail)" />
+                    Crop {fix}
                   </button>
+                ) : (
+                  !isVideo(shot.src) && (
+                    <button
+                      type="button"
+                      aria-label="Crop"
+                      onClick={() => void openCrop(i)}
+                      className="absolute right-1.5 bottom-1.5 flex size-6 items-center justify-center rounded-full bg-page text-ink-2 opacity-0 shadow-soft transition-opacity group-hover/m:opacity-100 max-md:size-8 [@media(hover:none)]:opacity-100"
+                    >
+                      <CropIcon />
+                    </button>
+                  )
                 )}
-                <button
-                  type="button"
-                  aria-label="Remove"
-                  onClick={() => setMedia(media.filter((_, j) => j !== i))}
-                  className="flex size-6 items-center justify-center rounded-full bg-page text-ink-2 shadow-soft max-md:size-8"
-                >
-                  <CloseIcon />
-                </button>
+                <span className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 transition-opacity group-hover/m:opacity-100 [@media(hover:none)]:opacity-100">
+                  {i > 0 && (
+                    <button
+                      type="button"
+                      aria-label="Move earlier"
+                      onClick={() => {
+                        const next = [...media]
+                        ;[next[i - 1], next[i]] = [next[i]!, next[i - 1]!]
+                        setMedia(next)
+                      }}
+                      className="flex size-6 items-center justify-center rounded-full bg-page text-[11px] text-ink-2 shadow-soft max-md:size-8"
+                    >
+                      ←
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    aria-label="Remove"
+                    onClick={() => setMedia(media.filter((_, j) => j !== i))}
+                    className="flex size-6 items-center justify-center rounded-full bg-page text-ink-2 shadow-soft max-md:size-8"
+                  >
+                    <CloseIcon />
+                  </button>
+                </span>
               </span>
-            </span>
-          ))}
+            )
+          })}
           {media.length < max && (
             <span className="flex h-[132px] w-[106px] shrink-0 flex-col overflow-hidden rounded-[12px] border border-dashed border-(--cal-ghost) text-[11.5px] text-ink-3">
               <button
@@ -897,6 +955,14 @@ function Content({
               >
                 <PlusIcon size={12} />
                 Upload
+              </button>
+              <button
+                type="button"
+                onClick={() => setDriveOpen(true)}
+                className="flex items-center justify-center gap-1.5 border-t border-dashed border-(--cal-ghost) py-2 transition-colors hover:bg-surface-2 hover:text-ink"
+              >
+                <DriveGlyph />
+                Google Drive
               </button>
               <button
                 type="button"
@@ -1063,6 +1129,17 @@ function Content({
         </div>
       </div>
 
+      {driveOpen && (
+        <DrivePicker
+          phone={phone}
+          room={max - media.length}
+          onClose={() => setDriveOpen(false)}
+          onPick={(srcs) => {
+            setMedia([...media, ...srcs.map(shotOf)].slice(-max))
+            setDriveOpen(false)
+          }}
+        />
+      )}
       {/* The crop opens over the page: a sheet on a phone, where Done is in its header; a dialog
           on a desktop, with Done beside Cancel. Reset puts the whole photo back, centred. */}
       {editing && edited && (
@@ -1140,6 +1217,206 @@ function CropOverlay({
   )
 }
 
+/** Each photo's own shape, width over height, once it has loaded; a video is never measured. */
+function useRatios(media: Shot[]): Record<string, number> {
+  const [ratios, setRatios] = React.useState<Record<string, number>>({})
+  React.useEffect(() => {
+    let live = true
+    for (const { src } of media) {
+      if (isVideo(src)) continue
+      // A photo already measured comes back from the browser's cache at once.
+      void ratioOf(src).then((r) => live && setRatios((o) => (src in o ? o : { ...o, [src]: r })))
+    }
+    return () => {
+      live = false
+    }
+  }, [media])
+  return ratios
+}
+
+/** Drive's mark as a plain outline, in the text colour: the word says whose it is. */
+function DriveGlyph({ size = 11 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M8.2 3h7.6l6.2 10.8-3.8 6.7H5.8L2 13.8 8.2 3Zm0 0 7.6 13.2M15.8 3 8.4 16.2M2 13.8h20"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function FolderGlyph() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.6l2 2.2h8.4A1.5 1.5 0 0 1 21 8.7v9.8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5v-12Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/**
+ * The brand's Google Drive, opened on this month's final edits: the folder path to climb, its
+ * folders, and its photos to tick. Add puts the ticked photos in the post, as an upload does.
+ * The demo has no Drive behind it; the folders are `data/publish.ts`.
+ */
+function DrivePicker({
+  phone,
+  room,
+  onClose,
+  onPick,
+}: {
+  phone: boolean
+  /** How many more the format takes. */
+  room: number
+  onClose: () => void
+  onPick: (srcs: string[]) => void
+}) {
+  const { brand } = useBrand()
+  const drive = DRIVE[brand.id]
+  const [path, setPath] = React.useState(drive.start)
+  const [picked, setPicked] = React.useState<string[]>([])
+  const folder = folderAt(drive.root, path)
+  const crumbs = [drive.root.name, ...path]
+
+  function toggle(src: string) {
+    setPicked((p) =>
+      p.includes(src)
+        ? p.filter((s) => s !== src)
+        : room === 1
+          ? [src]
+          : p.length < room
+            ? [...p, src]
+            : p,
+    )
+  }
+
+  const body = (
+    <div className="flex flex-col gap-4">
+      <nav aria-label="Folder" className="flex flex-wrap items-center gap-1 text-[13px]">
+        {crumbs.map((name, i) => {
+          const last = i === crumbs.length - 1
+          return (
+            <React.Fragment key={i}>
+              {i > 0 ? (
+                <span className="text-ink-5">›</span>
+              ) : (
+                <span className="text-ink-4">
+                  <DriveGlyph size={13} />
+                </span>
+              )}
+              <button
+                type="button"
+                aria-current={last ? 'location' : undefined}
+                onClick={() => setPath(path.slice(0, i))}
+                className={`rounded-md px-1 py-0.5 transition-colors ${last ? 'font-medium text-ink' : 'text-ink-3 hover:text-ink'}`}
+              >
+                {name}
+              </button>
+            </React.Fragment>
+          )
+        })}
+      </nav>
+      {folder.folders.length > 0 && (
+        <div className="flex flex-col">
+          {folder.folders.map((f) => (
+            <button
+              key={f.name}
+              type="button"
+              onClick={() => setPath([...path, f.name])}
+              className="flex h-11 items-center gap-3 border-b border-(--cal-line) text-left text-[13.5px] text-ink-2 transition-colors last:border-b-0 hover:text-ink max-md:h-12 max-md:text-[14.5px]"
+            >
+              <span className="text-ink-4">
+                <FolderGlyph />
+              </span>
+              <span className="flex-1">{f.name}</span>
+              <span className="text-[12px] text-ink-4">
+                {f.files.length > 0 ? `${f.files.length} photos` : ''}
+              </span>
+              <span className="-rotate-90 text-ink-4">
+                <ChevronIcon size={10} />
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      {folder.files.length > 0 ? (
+        <div className="grid grid-cols-3 gap-2">
+          {folder.files.map((f) => {
+            const on = picked.includes(f.src)
+            return (
+              <button
+                key={f.src}
+                type="button"
+                role="checkbox"
+                aria-checked={on}
+                aria-label={f.name}
+                onClick={() => toggle(f.src)}
+                className="flex min-w-0 flex-col gap-1.5 text-left"
+              >
+                <span
+                  className={`relative block aspect-square w-full overflow-hidden rounded-[10px] bg-tile transition-shadow ${on ? 'shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--ink)]' : ''}`}
+                >
+                  <Image src={f.src} alt="" fill sizes="160px" className="object-cover" />
+                  <span
+                    className={`absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full ${on ? 'bg-ink text-page' : 'bg-black/25 shadow-[inset_0_0_0_1.5px_rgba(255,255,255,0.9)]'}`}
+                  >
+                    {on && <CheckIcon size={8} strokeWidth={2.4} />}
+                  </span>
+                </span>
+                <span className="truncate text-[11.5px] text-ink-3">{f.name}</span>
+              </button>
+            )
+          })}
+        </div>
+      ) : (
+        folder.folders.length === 0 && (
+          <p className="py-8 text-center text-[13px] text-ink-4">No photos in this folder.</p>
+        )
+      )}
+    </div>
+  )
+  const add = (
+    <button
+      type="button"
+      aria-disabled={picked.length === 0}
+      onClick={() => picked.length > 0 && onPick(picked)}
+      className={`h-10 rounded-full px-5 text-[13px] font-medium max-md:h-12 max-md:w-full max-md:text-[14px] ${picked.length > 0 ? 'bb-press bg-ink text-page' : 'cursor-not-allowed bg-surface text-ink-4'}`}
+    >
+      {picked.length > 0 ? `Add ${picked.length}` : room === 1 ? 'Pick a photo' : 'Pick photos'}
+    </button>
+  )
+  if (phone) {
+    return (
+      <Sheet
+        title="Google Drive"
+        onClose={onClose}
+        onDone={() => (picked.length > 0 ? onPick(picked) : onClose())}
+      >
+        {body}
+        <div className="pt-4">{add}</div>
+      </Sheet>
+    )
+  }
+  return (
+    <Dialog title="Google Drive" onClose={onClose} wide>
+      {body}
+      <div className="flex items-center justify-end gap-1 pt-4">
+        <button type="button" onClick={onClose} className={QUIET}>
+          Cancel
+        </button>
+        {add}
+      </div>
+    </Dialog>
+  )
+}
+
 // ── Details ──────────────────────────────────────────────────────────────────────────────────
 
 interface DetailState {
@@ -1149,9 +1426,18 @@ interface DetailState {
   aiLabel: boolean
 }
 
+/** Every account tagged in the post, once each, in the order the photos come. */
+function taggedIn(media: Shot[]): string[] {
+  return [...new Set(media.flatMap((m) => m.tags.map((t) => t.handle)))]
+}
+
 /**
  * The extras Brandwatch shows as buttons under the caption. Each appears only when an account
  * that uses it is ticked, and says which accounts get it.
+ *
+ * Tag people and Collaborators look alike and are not: a tag names an account on the photo; a
+ * collaborator is invited, accepts in their own Instagram, and the post then shows on both
+ * profiles under both names. Each row says its half of that in one line.
  */
 function Details({
   api,
@@ -1159,21 +1445,105 @@ function Details({
   setDetails,
   labels,
   setLabels,
+  media,
+  setMedia,
 }: {
   api: PublishDraftApi
   details: DetailState
   setDetails: (d: DetailState) => void
   labels: string[]
   setLabels: (l: string[]) => void
+  media: Shot[]
+  setMedia: (m: Shot[]) => void
 }) {
+  const phone = usePhone()
+  const [tagging, setTagging] = React.useState(false)
   const active = activeChannels(api.draft).map((c) => c.key)
   const for_ = (keys: ChannelKey[]) => keys.filter((k) => active.includes(k))
   const story = api.draft.format === 'story'
+  // A feed photo takes a tag at a spot; a reel, or a post that is one video, takes names only.
+  const spot = api.draft.format === 'carousel' && media.some((m) => !isVideo(m.src))
+  const tagged = taggedIn(media)
   const rows: Array<{ key: keyof typeof DETAIL_ON; label: string; to: ChannelKey[] }> = [
     { key: 'location', label: 'Location', to: for_(DETAIL_ON.location) },
     { key: 'comment', label: 'First comment', to: story ? [] : for_(DETAIL_ON.comment) },
+    { key: 'tags', label: 'Tag people', to: story ? [] : for_(DETAIL_ON.tags) },
     { key: 'collab', label: 'Collaborators', to: story ? [] : for_(DETAIL_ON.collab) },
   ]
+
+  /** Drops an account's tag from every photo. */
+  function untag(handle: string) {
+    setMedia(media.map((m) => ({ ...m, tags: m.tags.filter((t) => t.handle !== handle) })))
+  }
+
+  const control: Record<keyof typeof DETAIL_ON, React.ReactNode> = {
+    location: (
+      <input
+        value={details.location}
+        onChange={(e) => setDetails({ ...details, location: e.target.value })}
+        aria-label="Location"
+        className="h-9 rounded-[10px] bg-surface-2 px-3 text-[13.5px] outline-none focus:bg-surface max-md:h-11"
+      />
+    ),
+    comment: (
+      <textarea
+        value={details.comment}
+        rows={2}
+        onChange={(e) => setDetails({ ...details, comment: e.target.value })}
+        placeholder="Posted under the post as the first comment, e.g. the booking link or hashtags"
+        aria-label="First comment"
+        className="resize-none rounded-[10px] bg-surface-2 px-3 py-2 text-[13.5px] outline-none placeholder:text-ink-5 focus:bg-surface"
+      />
+    ),
+    tags: spot ? (
+      <div className="flex min-h-9 flex-wrap items-center gap-1.5 max-md:min-h-11">
+        {tagged.map((h) => (
+          <Chip key={h} value={h} onRemove={() => untag(h)} />
+        ))}
+        <button
+          type="button"
+          onClick={() => setTagging(true)}
+          className="flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[12.5px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-10 max-md:text-[13.5px]"
+        >
+          <PersonGlyph />
+          {tagged.length > 0 ? 'Edit tags' : 'Tag on the photo'}
+        </button>
+      </div>
+    ) : media.length > 0 ? (
+      <Chips
+        values={media[0]!.tags.map((t) => t.handle)}
+        onChange={(handles) =>
+          setMedia([
+            { ...media[0]!, tags: handles.map((handle) => ({ handle, at: null })) },
+            ...media.slice(1),
+          ])
+        }
+        placeholder="@account"
+        max={TAG_MAX}
+        normalize={handleOf}
+      />
+    ) : (
+      <span className="flex h-9 items-center text-[13px] text-ink-4 max-md:h-auto">
+        Add the photo or video first.
+      </span>
+    ),
+    collab: (
+      <Chips
+        values={details.collab}
+        onChange={(collab) => setDetails({ ...details, collab })}
+        placeholder={`@account, up to ${COLLAB_MAX}`}
+        max={COLLAB_MAX}
+        normalize={handleOf}
+      />
+    ),
+  }
+  const line: Partial<Record<keyof typeof DETAIL_ON, string>> = {
+    tags: spot
+      ? 'Shown on the photo where you tap. They get a notification.'
+      : 'Named on the post. They get a notification.',
+    collab: `${details.collab[0] ?? 'They'} ${details.collab.length > 1 ? 'and the others get' : 'gets'} an invite in their own Instagram. Once accepted, the post shows both names.`,
+  }
+
   return (
     <section aria-label="Details" className={CARD}>
       <span className={`${EYEBROW} max-md:hidden`}>Details</span>
@@ -1194,30 +1564,12 @@ function Details({
                   ))}
                 </span>
               </span>
-              {r.key === 'location' ? (
-                <input
-                  value={details.location}
-                  onChange={(e) => setDetails({ ...details, location: e.target.value })}
-                  aria-label="Location"
-                  className="h-9 rounded-[10px] bg-surface-2 px-3 text-[13.5px] outline-none focus:bg-surface max-md:h-11"
-                />
-              ) : r.key === 'comment' ? (
-                <textarea
-                  value={details.comment}
-                  rows={2}
-                  onChange={(e) => setDetails({ ...details, comment: e.target.value })}
-                  placeholder="Posted under the post as the first comment, e.g. the booking link or hashtags"
-                  aria-label="First comment"
-                  className="resize-none rounded-[10px] bg-surface-2 px-3 py-2 text-[13.5px] outline-none placeholder:text-ink-5 focus:bg-surface"
-                />
-              ) : (
-                <Chips
-                  values={details.collab}
-                  onChange={(collab) => setDetails({ ...details, collab })}
-                  placeholder="@account, up to 3"
-                  max={3}
-                />
-              )}
+              <div className="flex min-w-0 flex-col gap-1.5">
+                {control[r.key]}
+                {line[r.key] && (
+                  <span className="text-[12px] leading-[1.4] text-ink-4">{line[r.key]}</span>
+                )}
+              </div>
             </div>
           ))}
         <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 border-b border-(--cal-line) py-3 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:py-4">
@@ -1241,49 +1593,239 @@ function Details({
           <Chips values={labels} onChange={setLabels} placeholder="e.g. TMP_Wine, F1 weekend" />
         </div>
       </div>
+      {tagging && (
+        <TagEditor
+          phone={phone}
+          media={media}
+          setMedia={setMedia}
+          onClose={() => setTagging(false)}
+        />
+      )}
     </section>
   )
 }
 
-/** Values as chips; type and press Enter to add one. */
+function PersonGlyph({ size = 11 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
+      <path d="M4 21c1.2-4 4.3-6 8-6s6.8 2 8 6" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  )
+}
+
+/**
+ * Tags placed on the photos: a tap on a spot asks for the account there, and a tag's cross takes
+ * it off. The photo shows in a feed post's 4:5, as Instagram does, so a tag sits where it will.
+ * Each change is kept at once; Done only closes.
+ */
+function TagEditor({
+  phone,
+  media,
+  setMedia,
+  onClose,
+}: {
+  phone: boolean
+  media: Shot[]
+  setMedia: (m: Shot[]) => void
+  onClose: () => void
+}) {
+  const photos = media.flatMap((m, i) => (isVideo(m.src) ? [] : [i]))
+  const [index, setIndex] = React.useState(photos[0]!)
+  const [pending, setPending] = React.useState<{ x: number; y: number } | null>(null)
+  const [typed, setTyped] = React.useState('')
+  const field = React.useRef<HTMLInputElement>(null)
+  const shot = media[index]!
+  // The account box takes the typing as soon as it opens at the tapped spot.
+  React.useEffect(() => {
+    if (pending) field.current?.focus()
+  }, [pending])
+  const full = shot.tags.length >= TAG_MAX
+
+  function place(e: React.PointerEvent<HTMLDivElement>) {
+    if (full) return
+    const r = e.currentTarget.getBoundingClientRect()
+    setPending({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height })
+    setTyped('')
+  }
+  function keep() {
+    const handle = handleOf(typed)
+    if (!pending || !handle) return
+    const tags = [...shot.tags.filter((t) => t.handle !== handle), { handle, at: pending }]
+    setMedia(media.map((m, i) => (i === index ? { ...m, tags } : m)))
+    setPending(null)
+  }
+  function untag(handle: string) {
+    const tags = shot.tags.filter((t) => t.handle !== handle)
+    setMedia(media.map((m, i) => (i === index ? { ...m, tags } : m)))
+  }
+  // A label near an edge would run off the photo: it is held inside it.
+  const anchor = (x: number) => `${Math.min(80, Math.max(20, x * 100))}%`
+
+  const body = (
+    <div className="flex flex-col gap-3">
+      <div
+        role="img"
+        aria-label="The photo: tap where someone is to tag them"
+        onPointerUp={place}
+        className={`relative mx-auto aspect-[4/5] w-full max-w-[340px] overflow-hidden rounded-[12px] bg-tile select-none ${full ? '' : 'cursor-crosshair'}`}
+      >
+        <ShotView shot={shot} sizes="680px" />
+        {shot.tags.map(
+          (t) =>
+            t.at && (
+              <span
+                key={t.handle}
+                onPointerUp={(e) => e.stopPropagation()}
+                className="absolute flex -translate-x-1/2 flex-col items-center"
+                style={{ left: anchor(t.at.x), top: `${t.at.y * 100}%` }}
+              >
+                <span className="size-0 border-x-[5px] border-b-[5px] border-x-transparent border-b-black/80" />
+                <span className="flex h-7 items-center gap-1 rounded-[7px] bg-black/80 pr-1 pl-2.5 text-[12px] font-medium text-white">
+                  {t.handle.slice(1)}
+                  <button
+                    type="button"
+                    aria-label={`Remove the tag ${t.handle}`}
+                    onClick={() => untag(t.handle)}
+                    className="flex size-5 items-center justify-center rounded-full text-white/70 hover:text-white"
+                  >
+                    <CloseIcon />
+                  </button>
+                </span>
+              </span>
+            ),
+        )}
+        {pending && (
+          <span
+            onPointerUp={(e) => e.stopPropagation()}
+            className="absolute flex -translate-x-1/2 flex-col items-center"
+            style={{ left: anchor(pending.x), top: `${pending.y * 100}%` }}
+          >
+            <span className="size-0 border-x-[5px] border-b-[5px] border-x-transparent border-b-page" />
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                keep()
+              }}
+              className="flex h-9 items-center gap-1 rounded-[9px] bg-page pr-1 pl-2.5 shadow-pop"
+            >
+              <input
+                ref={field}
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                placeholder="@account"
+                aria-label="Account to tag"
+                className="w-[120px] bg-transparent text-[13px] outline-none placeholder:text-ink-5"
+              />
+              <button
+                type="submit"
+                className="h-7 rounded-[7px] bg-ink px-2.5 text-[12px] font-medium text-page"
+              >
+                Tag
+              </button>
+            </form>
+          </span>
+        )}
+      </div>
+      <p className="text-center text-[12.5px] text-ink-3">
+        {full
+          ? `${TAG_MAX} tags is the most a photo takes.`
+          : 'Tap the photo where someone is to tag them.'}
+      </p>
+      {photos.length > 1 && (
+        <div className={`flex justify-center gap-1.5 ${STRIP}`}>
+          {photos.map((i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Photo ${i + 1}`}
+              aria-pressed={i === index}
+              onClick={() => {
+                setIndex(i)
+                setPending(null)
+              }}
+              className={`relative block h-[60px] w-[48px] shrink-0 overflow-hidden rounded-[8px] bg-tile transition-shadow ${i === index ? 'shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--ink)]' : 'opacity-70'}`}
+            >
+              <ShotView shot={media[i]!} sizes="120px" />
+              {media[i]!.tags.length > 0 && (
+                <span className="absolute right-1 bottom-1 rounded-full bg-black/60 px-1 font-mono text-[9.5px] text-white">
+                  {media[i]!.tags.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+  if (phone) {
+    return (
+      <Sheet title="Tag people" onClose={onClose}>
+        {body}
+      </Sheet>
+    )
+  }
+  return (
+    <Dialog title="Tag people" onClose={onClose}>
+      {body}
+      <div className="flex justify-end pt-4">
+        <button
+          type="button"
+          onClick={onClose}
+          className="bb-press h-10 rounded-full bg-ink px-5 text-[13px] font-medium text-page"
+        >
+          Done
+        </button>
+      </div>
+    </Dialog>
+  )
+}
+
+function Chip({ value, onRemove }: { value: string; onRemove: () => void }) {
+  return (
+    <span className="flex h-6 items-center gap-1 rounded-full bg-page px-2 text-[12px] shadow-soft max-md:h-8 max-md:px-2.5 max-md:text-[13px]">
+      {value}
+      <button
+        type="button"
+        aria-label={`Remove ${value}`}
+        onClick={onRemove}
+        className="text-ink-4 hover:text-ink"
+      >
+        <CloseIcon />
+      </button>
+    </span>
+  )
+}
+
+/** Values as chips; type and press Enter to add one. `normalize` spells a value as it is kept. */
 function Chips({
   values,
   onChange,
   placeholder,
   max,
+  normalize = (v) => v.trim(),
 }: {
   values: string[]
   onChange: (v: string[]) => void
   placeholder: string
   max?: number
+  normalize?: (typed: string) => string
 }) {
   const [draft, setDraft] = React.useState('')
   return (
     <div className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-[10px] bg-surface-2 px-2 py-1.5 focus-within:bg-surface max-md:min-h-11">
       {values.map((v) => (
-        <span
-          key={v}
-          className="flex h-6 items-center gap-1 rounded-full bg-page px-2 text-[12px] shadow-soft"
-        >
-          {v}
-          <button
-            type="button"
-            aria-label={`Remove ${v}`}
-            onClick={() => onChange(values.filter((x) => x !== v))}
-            className="text-ink-4 hover:text-ink"
-          >
-            <CloseIcon />
-          </button>
-        </span>
+        <Chip key={v} value={v} onRemove={() => onChange(values.filter((x) => x !== v))} />
       ))}
       {(max === undefined || values.length < max) && (
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && draft.trim()) {
+            const value = normalize(draft)
+            if (e.key === 'Enter' && value) {
               e.preventDefault()
-              if (!values.includes(draft.trim())) onChange([...values, draft.trim()])
+              if (!values.includes(value)) onChange([...values, value])
               setDraft('')
             }
           }}
@@ -1298,11 +1840,19 @@ function Chips({
 
 // ── Per-account settings ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Where a TikTok's sound comes from. TikTok's API posts the video's own audio only; a song from
+ * TikTok's library is added in the app, so that choice sends the video to the account's TikTok
+ * inbox at the time instead, and the team picks the sound there and posts.
+ */
+type Sound = 'own' | 'library'
+
 interface Extra {
   ytVisibility: string
   fbAudience: string
   liVisibility: string
   igShareToFeed: boolean
+  ttSound: Sound
 }
 
 /** Each ticked account's settings in a line, and whether it still needs an answer. */
@@ -1312,9 +1862,11 @@ function summaryOf(
 ): Record<ChannelKey, { text: string; needs: boolean }> {
   return {
     tt: {
-      text: draft.privacy
-        ? `${draft.privacy} · interactions ${Object.values(draft.interactions).some(Boolean) ? 'on' : 'off'}`
-        : 'Who can watch?',
+      text: !draft.privacy
+        ? 'Who can watch?'
+        : extra.ttSound === 'library'
+          ? `${draft.privacy} · sound added in TikTok`
+          : `${draft.privacy} · interactions ${Object.values(draft.interactions).some(Boolean) ? 'on' : 'off'}`,
       needs: draft.privacy === null || (draft.promo.on && !draft.promo.own && !draft.promo.paid),
     },
     yt: {
@@ -1387,7 +1939,7 @@ function PerAccount({
               <Fold open={on}>
                 <div className={only ? 'pb-1' : 'pb-4 pl-[26px]'}>
                   {c.key === 'tt' ? (
-                    <TikTokRows api={api} />
+                    <TikTokRows api={api} extra={extra} setExtra={setExtra} />
                   ) : c.key === 'yt' ? (
                     <Rows
                       rows={[
@@ -1529,8 +2081,19 @@ function Choice({
   )
 }
 
-/** TikTok's own questions: who can watch starts on Everyone, and the consent line sits under them. */
-function TikTokRows({ api }: { api: PublishDraftApi }) {
+/**
+ * TikTok's own questions: who can watch starts on Everyone, then the sound, the interactions and
+ * whether the video is commercial content; the consent line sits under them.
+ */
+function TikTokRows({
+  api,
+  extra,
+  setExtra,
+}: {
+  api: PublishDraftApi
+  extra: Extra
+  setExtra: (e: Extra) => void
+}) {
   const { draft, update } = api
   return (
     <div className="flex flex-col gap-2">
@@ -1549,6 +2112,22 @@ function TikTokRows({ api }: { api: PublishDraftApi }) {
           />
         </div>
       </div>
+      <div className="flex min-h-10 items-center justify-between gap-3 max-md:min-h-12">
+        <span className="text-[13px] text-ink-2 max-md:text-[14px]">Sound</span>
+        <Choice
+          value={extra.ttSound === 'own' ? 'In the video' : 'From TikTok'}
+          options={['In the video', 'From TikTok']}
+          onChange={(v) =>
+            setExtra({ ...extra, ttSound: v === 'In the video' ? 'own' : 'library' })
+          }
+        />
+      </div>
+      {extra.ttSound === 'library' && (
+        <p className="-mt-1 text-[12px] leading-[1.45] text-ink-4">
+          At the time, the video lands in the TikTok inbox: pick a song from the library there and
+          post.
+        </p>
+      )}
       {(
         [
           ['comments', 'Allow comments'],
@@ -1566,9 +2145,12 @@ function TikTokRows({ api }: { api: PublishDraftApi }) {
         </div>
       ))}
       <div className="flex min-h-9 items-center justify-between gap-3 max-md:min-h-12">
-        <span className="text-[13px] text-ink-2 max-md:text-[14px]">Promotes a brand</span>
+        <span className="flex flex-col text-[13px] text-ink-2 max-md:text-[14px]">
+          Commercial content
+          <span className="text-[11.5px] text-ink-4">Promotes your brand or a partner&apos;s</span>
+        </span>
         <Switch
-          label="Promotes a brand"
+          label="Commercial content"
           checked={draft.promo.on}
           onChange={(v) => update({ promo: { ...draft.promo, on: v } })}
         />
@@ -1602,8 +2184,9 @@ function TikTokRows({ api }: { api: PublishDraftApi }) {
 // ── When ─────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * Now, or a day and a time. The day picker is the demo's month; the brand's best times, from
- * Insights, are ranked with bars like Brandwatch's, and one click uses one.
+ * Now, or a day and a time. The answer leads, in one line, with the brand's best time beside it
+ * to take in one click; under it the demo's month picks the day, and the day's hours, scored
+ * from Insights as bars like Brandwatch's, pick the time.
  */
 function WhenCard({
   when,
@@ -1624,6 +2207,7 @@ function WhenCard({
 }) {
   const { brand, weeks } = useBrand()
   const best = bestTimes(brand.id, weeks)[0]
+  const onBest = best !== undefined && best.dayN === dayN && best.time === time
   return (
     <section aria-label="When" className={CARD}>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1642,11 +2226,30 @@ function WhenCard({
         </div>
       </div>
       <Fold open={when === 'schedule'}>
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6 pt-1 max-md:grid-cols-1">
-          <div className="flex flex-col gap-2">
-            <span className="text-[12.5px] text-ink-3">
-              {dayLabel(weeks, dayN)} at {time}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-1 pb-4">
+          <span className="flex items-baseline gap-2.5">
+            <span className="font-display text-[22px] leading-none tracking-[-0.02em] max-md:text-[20px]">
+              {dayLabel(weeks, dayN)}, {time}
             </span>
+            {onBest && <span className="text-[12.5px] text-(--insight-6)">Best time</span>}
+          </span>
+          {best && !onBest && (
+            <button
+              type="button"
+              onClick={() => {
+                setDayN(best.dayN)
+                setTime(best.time)
+              }}
+              className="flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[12.5px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-10"
+            >
+              <SparkIcon size={9} />
+              Best time: {best.label}, {best.time}
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6 max-md:grid-cols-1">
+          <div className="flex flex-col gap-2">
+            <span className="text-[12.5px] text-ink-3">Day</span>
             <div className="grid grid-cols-7 gap-1 text-center">
               {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
                 <span key={i} className="font-mono text-[9.5px] text-ink-5">
@@ -1677,17 +2280,7 @@ function WhenCard({
                 })}
             </div>
           </div>
-          <DayChart
-            dayN={dayN}
-            time={time}
-            setTime={setTime}
-            best={best}
-            onBest={() => {
-              if (!best) return
-              setDayN(best.dayN)
-              setTime(best.time)
-            }}
-          />
+          <DayChart dayN={dayN} time={time} setTime={setTime} />
         </div>
       </Fold>
       {story && (
@@ -1737,14 +2330,10 @@ function DayChart({
   dayN,
   time,
   setTime,
-  best,
-  onBest,
 }: {
   dayN: string
   time: string
   setTime: (t: string) => void
-  best?: { dayN: string; label: string; time: string }
-  onBest: () => void
 }) {
   const { brand, weeks } = useBrand()
   const [hover, setHover] = React.useState<number | null>(null)
@@ -1762,21 +2351,12 @@ function DayChart({
 
   return (
     <div className="flex flex-col gap-3">
-      <span className="flex items-center justify-between gap-3 text-[12.5px]">
+      <span className="text-[12.5px]">
+        <span className="text-ink-3">Time </span>
         <span className={shown === peak ? 'text-(--insight-6)' : 'text-ink-3'}>
           {shown >= 0 ? at(HOURS[shown]!) : time}
-          {shown === peak ? ' · Best time' : ''}
+          {shown === peak ? ' · best hour of the day' : ''}
         </span>
-        {best && !(best.dayN === dayN && best.time === time) && (
-          <button
-            type="button"
-            onClick={onBest}
-            className="flex items-center gap-1.5 text-ink-3 transition-colors hover:text-ink"
-          >
-            <SparkIcon size={9} />
-            Best: {best.label}, {best.time}
-          </button>
-        )}
       </span>
       <div role="radiogroup" aria-label="Post time" className="flex h-[96px] items-end gap-[3px]">
         {HOURS.map((h, i) => {
@@ -1846,7 +2426,7 @@ function bestTimes(brandId: BrandId, weeks: ReturnType<typeof useBrand>['weeks']
 // ── Preview ──────────────────────────────────────────────────────────────────────────────────
 
 /** The post as one account will show it: a tab per ticked account, and Instagram's grid. */
-function Preview({ api, media }: { api: PublishDraftApi; media: Shot[] }) {
+function Preview({ api, media, people }: { api: PublishDraftApi; media: Shot[]; people: People }) {
   const { draft } = api
   const { posts } = useBrand()
   const active = activeChannels(draft)
@@ -1911,6 +2491,7 @@ function Preview({ api, media }: { api: PublishDraftApi; media: Shot[] }) {
               channel={channel}
               format={draft.format}
               image={media[0]}
+              people={people}
               text={
                 channel === 'yt'
                   ? (draft.youtubeTitle ?? youtubeTitle(draft))
@@ -1930,11 +2511,13 @@ function Preview({ api, media }: { api: PublishDraftApi; media: Shot[] }) {
 function Outcomes({
   api,
   media,
+  people,
   slot,
   onBack,
 }: {
   api: PublishDraftApi
   media: Shot[]
+  people: People
   slot: string
   onBack: () => void
 }) {
@@ -1984,6 +2567,7 @@ function Outcomes({
                   channel={k}
                   format={draft.format}
                   image={media[0]}
+                  people={draft.format === 'story' ? undefined : people}
                   text={
                     k === 'yt'
                       ? (draft.youtubeTitle ?? youtubeTitle(draft))

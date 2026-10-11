@@ -21,13 +21,15 @@ export type Phase = 'compose' | 'scheduled' | 'publishing' | 'done'
  *
  * The demo has no server, so "Publish now" is a timer: each channel uploads at its own pace,
  * LinkedIn fails at the end (a signed-out account, the commonest real failure), and Reconnect
- * sends it again. The timings are slow enough to watch and short enough not to bore a room.
+ * sends it again. A brand without LinkedIn sees every account go live. The timings are slow enough to watch and short enough not to bore a room.
  */
 export function usePublishDraft(input: {
   format: Format
   hook: string
   caption: string
   selected?: ChannelKey[]
+  linked?: ChannelKey[]
+  connected?: ChannelKey[]
 }) {
   const [draft, setDraft] = React.useState<Draft>(() => initialDraft(input))
   const [rawPhase, setPhase] = React.useState<Phase>('compose')
