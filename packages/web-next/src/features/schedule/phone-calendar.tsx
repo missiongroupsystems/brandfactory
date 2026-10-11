@@ -537,7 +537,15 @@ function NewMenu({ onPost, shootDay }: { onPost: () => void; shootDay?: string }
           aria-label="New"
           className="bb-menu absolute top-11 right-0 z-30 flex w-[168px] origin-top-right flex-col rounded-[12px] bg-page p-1 shadow-[0_0_0_1px_var(--line),var(--shadow-pop)]"
         >
-          <button type="button" role="menuitem" onClick={onPost} className={item}>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false)
+              onPost()
+            }}
+            className={item}
+          >
             New post
           </button>
           <button

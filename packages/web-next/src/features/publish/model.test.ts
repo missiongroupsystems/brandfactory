@@ -302,6 +302,16 @@ describe('Improve keeps the marketer’s words', () => {
     )
   })
 
+  it('never touches a link, a handle or a hashtag used as a word', () => {
+    // A booking link that breaks, or a handle "fixed" into another account, would go out live.
+    expect(
+      improveCaption('book at https://casavostra.sg/book?src=ig,dont miss @nat_im', TAGS),
+    ).toBe('Book at https://casavostra.sg/book?src=ig,dont miss @nat_im #casavostra #pizzasg')
+    expect(improveCaption('loving #sunset vibes at casavostra.sg/dont-miss', TAGS)).toBe(
+      'Loving #sunset vibes at casavostra.sg/dont-miss #casavostra #pizzasg',
+    )
+  })
+
   it('changes nothing in a caption that is already clean', () => {
     const clean = 'Pasta by hand, every morning. #casavostra #pizzasg'
     expect(improveCaption(clean, TAGS)).toBe(clean)

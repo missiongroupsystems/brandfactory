@@ -21,7 +21,8 @@ export function NewShootForm({ dayN }: { dayN?: string }) {
   const [draft, setDraft] = React.useState<Shoot>(() => ({
     id: '',
     title: '',
-    dayN: dayN ?? freeShootDay(weeks, shoots),
+    // The day picked, unless a shoot is on it already: two would sit on the same hours.
+    dayN: dayN && !shoots.some((s) => s.dayN === dayN) ? dayN : freeShootDay(weeks, shoots),
     start: '12:00',
     end: '17:00',
     place: HOME[brand.id],

@@ -46,6 +46,7 @@ import {
   lengthFor,
   linkedChannels,
   parseTime,
+  EARLIEST_POST,
   PRIVACY,
   shapeFix,
   shotOf,
@@ -2362,7 +2363,8 @@ function TimeField({ time, setTime }: { time: string; setTime: (t: string) => vo
       onChange={(e) => setTyped(e.target.value)}
       onBlur={() => {
         const t = typed === null || cancelled.current ? null : parseTime(typed)
-        if (t) setTime(t)
+        // Anything else, or a time before the calendar's day starts, goes back to the old time.
+        if (t && t >= EARLIEST_POST) setTime(t)
         setTyped(null)
         cancelled.current = false
       }}

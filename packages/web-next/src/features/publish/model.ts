@@ -407,15 +407,20 @@ const TYPOS: Record<string, string> = {
 /** A whole word, not part of a handle or a contraction. */
 const WORD = /(?<![@\p{L}’'])\p{L}+(?![\p{L}’'])/gu
 
+/** Links, handles and hashtags: kept exactly as typed, wherever they sit. */
+const KEPT = /https?:\/\/\S+|\b[\w-]+(?:\.[\w-]+)+(?:\/\S*)?|[@#][\p{L}\p{N}_.]+/gu
+
 /**
  * The marketer's own caption, cleaned: the slips above fixed, each sentence started with a
  * capital, the spacing tidied, a full stop where the text just stops, and the brand's hashtags it
- * does not have yet added after its own, at the end. Their words stay theirs: nothing is rewritten.
+ * does not have yet added at the end. Their words stay theirs: nothing is rewritten, and a link,
+ * handle or hashtag is never touched or moved.
  */
 export function improveCaption(text: string, hashtags: string[]): string {
-  const tags = text.match(HASHTAG) ?? []
-  let body = text
-    .replace(HASHTAG, '')
+  const kept: string[] = []
+  // Each kept token becomes a placeholder with no letters in it, so no rule below can reach it.
+  const hidden = text.replace(KEPT, (t) => `\uE000${kept.push(t) - 1}\uE000`)
+  let body = hidden
     .replace(/[ \t]+/g, ' ')
     .replace(/ ?\n ?/g, '\n')
     .replace(/ +([,.!?])/g, '$1')
@@ -424,13 +429,18 @@ export function improveCaption(text: string, hashtags: string[]): string {
     .replace(WORD, (w) => TYPOS[w.toLowerCase()] ?? w)
     .trim()
     .replace(/(^|[.!?]\s+|\n)(\p{Ll})/gu, (_, lead: string, c: string) => lead + c.toUpperCase())
+  // A full stop where words just stop, not after a link or a tag.
   if (/[\p{L}\p{N}]$/u.test(body)) body += '.'
-  const have = new Set(tags.map((t) => t.toLowerCase()))
-  const all = [...tags, ...hashtags.filter((t) => !have.has(t.toLowerCase()))]
-  return [body, all.join(' ')].filter(Boolean).join(' ')
+  body = body.replace(/\uE000(\d+)\uE000/g, (_, i: string) => kept[Number(i)]!)
+  const have = new Set((text.match(HASHTAG) ?? []).map((t) => t.toLowerCase()))
+  const missing = hashtags.filter((t) => !have.has(t.toLowerCase()))
+  return [body, missing.join(' ')].filter(Boolean).join(' ')
 }
 
 // ── When ─────────────────────────────────────────────────────────────────────────────────────
+
+/** The earliest a post can go: the calendar's day starts at 07:00, so an earlier post has no place. */
+export const EARLIEST_POST = '07:00'
 
 /**
  * A typed time as the calendar stores it, "HH:MM" on the 24-hour clock, or `null` when it is not
