@@ -1,12 +1,12 @@
 'use client'
 
-import Image from 'next/image'
 import * as React from 'react'
 
 import { Media } from '@/components/media'
 import { contentFor, type BrandId } from '@/data/brands'
 import { isMediaRef, referenceById, type IdeaCard } from '@/data/ideas'
 import type { Shoot } from '@/data/shoots'
+import { BrandLogo } from '@/features/brand/brand-logo'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { EYEBROW, FormatIcon } from '@/features/ideate/idea-parts'
 import { useIdeasById } from '@/features/ideate/ideas-store'
@@ -29,7 +29,7 @@ function Frame({ brandId, children }: { brandId: BrandId; children: React.ReactN
       <header className="mx-auto flex w-full max-w-[760px] items-center justify-between gap-4 px-6 pt-6 pb-2 max-md:px-4 max-md:pt-4">
         <span className="flex items-center gap-2.5">
           <span className="relative size-8 overflow-hidden rounded-full bg-surface">
-            <Image src={brand.logo} alt="" fill sizes="32px" className="object-cover" />
+            <BrandLogo brandId={brandId} sizes="32px" className="object-cover" />
           </span>
           <span className="text-[14px] font-semibold tracking-[-0.01em]">{brand.name}</span>
         </span>

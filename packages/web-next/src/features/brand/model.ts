@@ -1,4 +1,4 @@
-import type { BrandFile, FileKind } from '@/data/brand-kit'
+import type { BrandFile, BrandKit, FileKind } from '@/data/brand-kit'
 
 /**
  * The rules of a brand's file list. The title is what AI reads to know what a file is about, so
@@ -58,4 +58,34 @@ export function replaced(files: BrandFile[], id: string, name: string): BrandFil
 
 export function removed(files: BrandFile[], id: string): BrandFile[] {
   return files.filter((f) => f.id !== id)
+}
+
+type Voice = BrandKit['voice']
+type Colour = BrandKit['colours'][number]
+
+/**
+ * The voice as the team left it after an edit. AI reads every part of it, so nothing half-done
+ * gets through: a blank summary keeps the old one, a pair needs both its words, and a blank line
+ * is dropped.
+ */
+export function voiceEdited(old: Voice, draft: Voice): Voice {
+  const summary = draft.summary.trim() || old.summary
+  const words = draft.words
+    .map((w) => ({ use: w.use.trim(), avoid: w.avoid.trim() }))
+    .filter((w) => w.use && w.avoid)
+  const examples = draft.examples.map((l) => l.trim()).filter(Boolean)
+  return { summary, words, examples }
+}
+
+/** "#d9572b", "d9572b" or "#d52" as "#D9572B"; anything else is null, so a typo is never saved. */
+export function hexOf(input: string): string | null {
+  const h = input.trim().replace(/^#/, '')
+  if (/^[0-9a-f]{3}$/i.test(h)) return `#${[...h].map((c) => c + c).join('')}`.toUpperCase()
+  if (/^[0-9a-f]{6}$/i.test(h)) return `#${h}`.toUpperCase()
+  return null
+}
+
+/** Colours as the team left them: a colour keeps a name, since the name is what people say. */
+export function coloursEdited(draft: Colour[]): Colour[] {
+  return draft.map((c) => ({ name: c.name.trim() || 'Untitled', hex: c.hex }))
 }

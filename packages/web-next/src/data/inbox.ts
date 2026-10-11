@@ -1,6 +1,6 @@
 /**
  * The inbox's data, one set per brand: the comments, mentions and DMs waiting on the brand's
- * Instagram, TikTok and Facebook, the people a complaint can go to, and the brand's tone of voice.
+ * Instagram, TikTok and Facebook, and the people a complaint can go to.
  * Invented, plausible for a Singapore restaurant. Each message carries the replies an AI would
  * draft in the brand's voice, in the order Regenerate shows them.
  */
@@ -43,8 +43,6 @@ export interface InboxMessage {
 }
 
 export interface BrandInbox {
-  /** The tone of voice the drafts follow, said in a few words. */
-  voice: string
   /** Who a complaint can go to. */
   people: InboxPerson[]
   messages: InboxMessage[]
@@ -55,7 +53,6 @@ const OPS: InboxPerson = { name: 'Daniel Lim', role: 'Operations manager' }
 // ── Casa Vostra ──────────────────────────────────────────────────────────────────────────────
 
 const CASA_VOSTRA: BrandInbox = {
-  voice: 'warm, generous, a little Italian',
   people: [
     { name: 'Marco Bellini', role: 'Venue manager, Raffles City' },
     { name: 'Giulia Conti', role: 'Head chef' },
@@ -243,7 +240,6 @@ const CASA_VOSTRA: BrandInbox = {
 // ── Temper ───────────────────────────────────────────────────────────────────────────────────
 
 const TEMPER: BrandInbox = {
-  voice: 'relaxed, grown-up, quietly witty',
   people: [
     { name: 'Sam Lee', role: 'Venue manager, Duxton' },
     { name: 'Elise Moreau', role: 'Head sommelier' },
@@ -406,7 +402,6 @@ const TEMPER: BrandInbox = {
 // ── Carlitos ─────────────────────────────────────────────────────────────────────────────────
 
 const CARLITOS: BrandInbox = {
-  voice: 'lively, friendly, a little Spanish',
   people: [
     { name: 'Javier Ortega', role: 'Venue manager, Joo Chiat' },
     { name: 'Lucía Romero', role: 'Head chef' },

@@ -3,7 +3,17 @@ import { describe, expect, it } from 'vitest'
 import type { BrandFile } from '@/data/brand-kit'
 import { moodboardTag } from '@/data/brand-kit'
 
-import { kindOf, plainTitle, removed, renamed, replaced, uploaded } from './model'
+import {
+  coloursEdited,
+  hexOf,
+  kindOf,
+  plainTitle,
+  removed,
+  renamed,
+  replaced,
+  uploaded,
+  voiceEdited,
+} from './model'
 
 const deck: BrandFile = {
   id: 'd',
@@ -41,6 +51,47 @@ describe('brand files', () => {
     expect(kindOf('Logo.PNG')).toBe('image')
     expect(kindOf('wine_list.xlsx')).toBe('sheet')
     expect(plainTitle('README')).toBe('README')
+  })
+})
+
+describe('the voice and colours, after an edit', () => {
+  const voice = {
+    summary: 'Warm and quick.',
+    words: [{ use: 'by hand', avoid: 'handcrafted' }],
+    examples: ['Come hungry.'],
+  }
+
+  it('keeps the old summary when the edit leaves it blank, since AI drafts from it', () => {
+    expect(voiceEdited(voice, { ...voice, summary: '  ' }).summary).toBe('Warm and quick.')
+  })
+
+  it('drops a half-filled pair and a blank line, so AI never reads a rule with one side', () => {
+    const next = voiceEdited(voice, {
+      summary: ' Loud. ',
+      words: [...voice.words, { use: 'tapas', avoid: '' }, { use: ' share ', avoid: ' sample ' }],
+      examples: ['Come hungry.', '   '],
+    })
+    expect(next).toEqual({
+      summary: 'Loud.',
+      words: [
+        { use: 'by hand', avoid: 'handcrafted' },
+        { use: 'share', avoid: 'sample' },
+      ],
+      examples: ['Come hungry.'],
+    })
+  })
+
+  it('reads a hex the way people paste it, and refuses anything that is not one', () => {
+    expect(hexOf('d9572b')).toBe('#D9572B')
+    expect(hexOf(' #d52 ')).toBe('#DD5522')
+    expect(hexOf('#D9572')).toBeNull()
+    expect(hexOf('red')).toBeNull()
+  })
+
+  it('gives a colour a name when the edit leaves it blank', () => {
+    expect(coloursEdited([{ name: ' ', hex: '#000000' }])).toEqual([
+      { name: 'Untitled', hex: '#000000' },
+    ])
   })
 })
 

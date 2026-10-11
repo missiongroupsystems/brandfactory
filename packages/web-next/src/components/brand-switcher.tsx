@@ -1,10 +1,10 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import * as React from 'react'
 
 import type { Brand } from '@/data/brands'
+import { BrandLogo } from '@/features/brand/brand-logo'
 import { useConnections } from '@/features/connections/connections-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
@@ -17,7 +17,7 @@ function BrandMark({ brand, size }: { brand: Brand; size: 'sm' | 'md' }) {
       className={`relative shrink-0 overflow-hidden rounded-full ${size === 'md' ? 'size-7' : 'size-6'}`}
       style={{ background: `var(${brand.colour})` }}
     >
-      <Image src={brand.logo} alt="" fill sizes="56px" className="object-cover" />
+      <BrandLogo brandId={brand.id} sizes="56px" className="object-cover" />
     </span>
   )
 }

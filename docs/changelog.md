@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.9.0** — 2026-10-11 — The Brand kit is editable: voice, Say/Not pairs, sample lines, colours and the logo, one section at a time with Edit and Done; the composer, idea page and inbox read the edited voice, and a new logo shows everywhere. A connection that succeeds now shows a short animation before its sheet closes. Rachel's inbox complaint is about the food and goes to the head chef. No migration. 218 tests.
 - **2.8.0** — 2026-10-11 — A Connections page per brand, from the brand switcher: every source grouped by job with one action each, a pretend sign-in, and first-time connect steps for Google Drive in the composer and Lark on the call sheet; Insights' sources follow it. A feasibility study for the real Drive and Lark integrations. No migration. 208 tests.
 - **2.7.0** — 2026-10-11 — What marketing asked for in the 9 October call: tags and collaborators apart, a wrong-shape crop flag, Google Drive, only the brand's own platforms and any time of day in the composer; shoots with a time, a call sheet, Lark invites and replies, on the calendar and added by hand or from ideas; public share links with guest comments; a Brand kit the AI writes from; Insights with website, Google Business Profile and bookings on one time axis, and a Sentiment view; an Inbox with complaints first and replies in the brand's voice. No migration. 200 tests.
 - **2.6.3** — 2026-10-09 — "Draft" means a post again: a plan is an "Idea" on the idea page, in Current ideas and in the calendar's filter (Idea · Draft · Scheduled · Posted). The Day view lists ideas as compact pills that wrap, folding past six behind "+N more". No migration. 126 tests.
@@ -27,9 +28,27 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
+## 2.9.0 — 2026-10-11
+
+**An editable Brand kit.** Phase 4 of `docs/completions/brandbase-marketing-call-phases-1-to-4.md`.
+
+- `/brand`: Voice (summary, Say/Not pairs, "Sounds like" lines), Colours (hex checked as typed,
+  the system picker, add, remove, name) and Logo (Replace) each have one quiet Edit; Done saves,
+  Escape drops the edit. Nothing half-filled is saved, since AI reads every part of the kit.
+- One store (`features/brand/brand-store.ts`) holds the whole kit, seeded from `BRAND_KIT`. The
+  voice note's tooltip in the composer, idea page and inbox shows the kit's voice (the inbox's
+  shorter tone phrases are gone), and the brand switcher, share page and Ideate show the new logo.
+  In the inbox the note is plain text, not a link, so a tap does not lose a typed reply.
+- Connect sheet: on success the dots join into a line, a tick pops in and the two logos lean
+  together; closing it early still opens the Drive picker or sends the Lark invites.
+- Inbox: Rachel's complaint is a soggy, burnt diavola and goes to Giulia, the head chef; the lost
+  booking still goes to Marco.
+
+Gate: typecheck, lint, format, 218 tests in 29 files, `next build`.
+
 ## 2.8.0 — 2026-10-11
 
-**Connections.** Phase 3 of `docs/completions/brandbase-marketing-call-phases-1-to-3.md`.
+**Connections.** Phase 3 of `docs/completions/brandbase-marketing-call-phases-1-to-4.md`.
 
 - `/brand/connections` lists Instagram, TikTok, Facebook, Pinterest, Google Drive, Lark calendar,
   website, Google Business Profile and bookings, grouped by job, with Connect, Reconnect and
@@ -46,7 +65,7 @@ Gate: typecheck, lint, format, 208 tests in 29 files, `next build`.
 
 **What marketing asked for.** David demoed the tool to Nat (marketing) on 9 October; the plan and
 completion are `docs/completions/brandbase-marketing-call-plan.md` and
-`brandbase-marketing-call-phases-1-to-3.md`. Everything stays simulated on static data.
+`brandbase-marketing-call-phases-1-to-4.md`. Everything stays simulated on static data.
 
 - **Composer.** Tag people (on the photo) and Collaborators (an invite the other account accepts)
   are two rows. A photo in a shape the format does not take shows "Crop 4:5" or "Crop 9:16"; a feed

@@ -11,6 +11,7 @@ import { PlatformLogo } from '@/components/platform-logos'
 import { usePhone } from '@/components/use-phone'
 import type { Brand } from '@/data/brands'
 import { INBOX_BY_BRAND, type BrandInbox, type InboxMessage } from '@/data/inbox'
+import { VoiceNote } from '@/features/brand/voice-note'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { markDone, sendTo, useInbox } from './inbox-store'
@@ -439,7 +440,7 @@ function Thread({
             <span className="shrink-0 text-(--insight)">
               <SparkIcon size={10} />
             </span>
-            <span title={data.voice}>In {brand.name}&rsquo;s voice</span>
+            <VoiceNote plain />
           </span>
           <div className="ml-auto flex items-center gap-1">
             <button

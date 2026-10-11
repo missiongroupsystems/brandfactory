@@ -82,4 +82,4 @@ The full gate passes, every changed page has a desktop and a phone screenshot, a
 before the commit. The branch goes to a Vercel preview for an eyeball before main.
 
 Status: built on `feat/marketing-call-asks`; see
-`brandbase-marketing-call-phases-1-to-3.md`.
+`brandbase-marketing-call-phases-1-to-4.md`.

@@ -86,3 +86,16 @@ again.
 
 Left out: no Google Calendar row (the call chose Lark); the moodboard's own setup popovers stay;
 Lark shows a plain "L" (no logo in Simple Icons).
+
+## Phase 4: an editable Brand kit
+
+The kit was read-only apart from its files. Voice, Say/Not pairs, "Sounds like" lines, colours
+and the logo now edit one section at a time: Edit opens fields that keep the resting type sizes,
+Done saves, Escape drops the edit, and the button reads "Saved" for a moment. A blank summary keeps
+the old one, a pair needs both words, an invalid hex never reaches the store. The kit lives in
+`features/brand/brand-store.ts`, seeded from `BRAND_KIT`; every reader uses it, so an edited voice
+shows in the voice note and a new logo in the switcher, share page and Ideate. Edits last until a
+reload, like the files.
+
+Also in this round: a short success animation on the connect sheet, and Rachel's inbox complaint
+now goes to the head chef. AI drafts and Improve still use canned text and do not read the voice.

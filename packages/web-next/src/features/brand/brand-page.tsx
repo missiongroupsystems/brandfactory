@@ -1,15 +1,15 @@
 'use client'
 
-import Image from 'next/image'
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
-import { SparkIcon } from '@/components/icons'
-import { BRAND_KIT, type BrandFile, type FileKind } from '@/data/brand-kit'
+import { CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
+import type { BrandFile, BrandKit, FileKind } from '@/data/brand-kit'
 import { useBrand } from '@/features/schedule/posts-store'
 
-import { editFiles, newFileId, useBrandFiles } from './brand-store'
-import { removed, renamed, replaced, uploaded } from './model'
+import { BrandLogo } from './brand-logo'
+import { editFiles, editKit, newFileId, useBrandFiles, useBrandKit } from './brand-store'
+import { coloursEdited, hexOf, removed, renamed, replaced, uploaded, voiceEdited } from './model'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 
@@ -21,14 +21,19 @@ const KIND_LABEL: Record<FileKind, string> = {
   image: 'Image',
 }
 
+type Voice = BrandKit['voice']
+type Colour = BrandKit['colours'][number]
+
 /**
  * The brand page: the one place for how the current brand looks and sounds. Nobody opens it
  * daily; a new hire reads it once, and AI drafts read it every time. Voice first, since that is
  * what AI uses most, then colours, the logo, and the team's files, each with a plain title.
+ *
+ * At rest it reads as a page, not a form. Each section has one quiet control at its top right:
+ * Edit turns that section into fields and Done saves them, so a tap on a swatch still copies it.
  */
 export function BrandPage() {
   const { brand } = useBrand()
-  const kit = BRAND_KIT[brand.id]
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -49,73 +54,461 @@ export function BrandPage() {
           </span>
         </div>
 
-        <Section label="Voice">
-          <p className="font-display text-[24px] leading-[1.3] tracking-[-0.02em] max-md:text-[20px]">
-            {kit.voice.summary}
-          </p>
-          <div className="grid grid-cols-2 gap-x-6">
-            <span className={`${EYEBROW} pb-2`}>Say</span>
-            <span className={`${EYEBROW} pb-2`}>Not</span>
-            {kit.voice.words.map((w) => (
-              <React.Fragment key={w.use}>
-                <span className="border-t border-line py-2.5 text-[14.5px]">{w.use}</span>
-                <span className="border-t border-line py-2.5 text-[14.5px] text-ink-4 line-through decoration-ink-5">
-                  {w.avoid}
-                </span>
-              </React.Fragment>
-            ))}
-          </div>
-          <div className="flex flex-col gap-3">
-            <span className={EYEBROW}>Sounds like</span>
-            {kit.voice.examples.map((line) => (
-              <p key={line} className="border-l-2 border-line-strong pl-4 text-[15px] text-ink-2">
-                {line}
-              </p>
-            ))}
-          </div>
-        </Section>
-
-        <Section label="Colours">
-          <div className="grid grid-cols-4 gap-3 max-sm:grid-cols-2">
-            {kit.colours.map((c) => (
-              <Swatch key={c.hex} name={c.name} hex={c.hex} />
-            ))}
-          </div>
-        </Section>
-
-        <Section label="Logo">
-          <div className="flex items-center gap-5">
-            <span className="flex size-[120px] shrink-0 items-center justify-center rounded-[18px] bg-surface">
-              <span className="relative size-[88px] overflow-hidden rounded-full">
-                <Image src={brand.logo} alt={`${brand.name} logo`} fill sizes="176px" />
-              </span>
-            </span>
-            <span className="flex flex-col gap-1">
-              <span className="text-[14.5px] font-medium">Mark</span>
-              <span className="text-[12.5px] text-ink-4">PNG · 192 × 192</span>
-              <a
-                href={brand.logo}
-                download={`${brand.id}-logo.png`}
-                className="mt-1 text-[12.5px] text-ink-2 underline-offset-2 hover:text-ink hover:underline"
-              >
-                Download
-              </a>
-            </span>
-          </div>
-        </Section>
-
+        <VoiceSection />
+        <ColoursSection />
+        <LogoSection />
         <Files />
       </main>
     </div>
   )
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function Section({
+  label,
+  action,
+  onCancel,
+  children,
+}: {
+  label: string
+  action?: React.ReactNode
+  /** Escape leaves the section's fields without saving them. */
+  onCancel?: () => void
+  children: React.ReactNode
+}) {
+  const root = React.useRef<HTMLElement>(null)
+  // On the section, not the window, so Escape in one open section leaves the others open.
+  React.useEffect(() => {
+    const el = root.current
+    if (!el || !onCancel) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    el.addEventListener('keydown', onKey)
+    return () => el.removeEventListener('keydown', onKey)
+  }, [onCancel])
   return (
-    <section aria-label={label} className="flex flex-col gap-6 border-t border-line py-9">
-      <h2 className={EYEBROW}>{label}</h2>
+    <section
+      ref={root}
+      aria-label={label}
+      className="flex flex-col gap-6 border-t border-line py-9"
+    >
+      <div className="-my-1.5 flex items-center justify-between">
+        <h2 className={EYEBROW}>{label}</h2>
+        {action}
+      </div>
       {children}
     </section>
+  )
+}
+
+const QUIET =
+  'flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] text-ink-3 transition-colors hover:bg-surface hover:text-ink'
+
+/** Edit at rest, Done while editing, and a short "Saved" after, in place of a toast. */
+function EditToggle({
+  label,
+  editing,
+  onEdit,
+  onDone,
+}: {
+  label: string
+  editing: boolean
+  onEdit: () => void
+  onDone: () => void
+}) {
+  const [saved, setSaved] = React.useState(false)
+  React.useEffect(() => {
+    if (!saved) return
+    const t = setTimeout(() => setSaved(false), 1400)
+    return () => clearTimeout(t)
+  }, [saved])
+  if (editing)
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          onDone()
+          setSaved(true)
+        }}
+        className="bb-press flex h-8 items-center rounded-full bg-ink px-3.5 text-[12.5px] font-medium text-page hover:opacity-85"
+      >
+        Done
+      </button>
+    )
+  return (
+    <button
+      type="button"
+      aria-label={`Edit ${label}`}
+      onClick={onEdit}
+      className={`${QUIET} -mr-3`}
+    >
+      {saved ? (
+        <>
+          <CheckIcon size={10} />
+          Saved
+        </>
+      ) : (
+        'Edit'
+      )}
+    </button>
+  )
+}
+
+/** A field in an open section: a soft surface, so it is plain what can change. */
+const FIELD =
+  'min-w-0 rounded-[10px] bg-surface outline-none transition-shadow focus:shadow-[inset_0_0_0_1px_var(--line-strong)]'
+
+function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-4 transition-colors hover:bg-surface-2 hover:text-ink"
+    >
+      <CloseIcon />
+    </button>
+  )
+}
+
+function AddButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className={`${QUIET} -ml-3 self-start`}>
+      <PlusIcon size={11} />
+      {children}
+    </button>
+  )
+}
+
+function VoiceSection() {
+  const { brand } = useBrand()
+  const voice = useBrandKit(brand.id).voice
+  // The open section's fields, null at rest: Done saves them, Escape drops them.
+  const [draft, setDraft] = React.useState<Voice | null>(null)
+
+  return (
+    <Section
+      label="Voice"
+      onCancel={() => setDraft(null)}
+      action={
+        <EditToggle
+          label="voice"
+          editing={draft !== null}
+          onEdit={() => setDraft(voice)}
+          onDone={() => {
+            if (draft) editKit(brand.id, (k) => ({ ...k, voice: voiceEdited(k.voice, draft) }))
+            setDraft(null)
+          }}
+        />
+      }
+    >
+      {draft ? <VoiceFields draft={draft} onChange={setDraft} /> : <VoiceView voice={voice} />}
+    </Section>
+  )
+}
+
+function VoiceView({ voice }: { voice: Voice }) {
+  return (
+    <>
+      <p className="font-display text-[24px] leading-[1.3] tracking-[-0.02em] max-md:text-[20px]">
+        {voice.summary}
+      </p>
+      {voice.words.length > 0 && (
+        <div className="grid grid-cols-2 gap-x-6">
+          <span className={`${EYEBROW} pb-2`}>Say</span>
+          <span className={`${EYEBROW} pb-2`}>Not</span>
+          {voice.words.map((w, i) => (
+            // Edits may repeat a word, so the place is the key.
+            <React.Fragment key={i}>
+              <span className="border-t border-line py-2.5 text-[14.5px]">{w.use}</span>
+              <span className="border-t border-line py-2.5 text-[14.5px] text-ink-4 line-through decoration-ink-5">
+                {w.avoid}
+              </span>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+      {voice.examples.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <span className={EYEBROW}>Sounds like</span>
+          {voice.examples.map((line, i) => (
+            <p key={i} className="border-l-2 border-line-strong pl-4 text-[15px] text-ink-2">
+              {line}
+            </p>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+function VoiceFields({ draft, onChange }: { draft: Voice; onChange: (v: Voice) => void }) {
+  const summary = React.useRef<HTMLTextAreaElement>(null)
+  // Edit was a tap on this section, so the cursor goes to the end of the summary at once.
+  React.useEffect(() => {
+    const el = summary.current
+    if (!el) return
+    el.focus()
+    el.setSelectionRange(el.value.length, el.value.length)
+  }, [])
+  const word = (i: number, key: 'use' | 'avoid', value: string) =>
+    onChange({ ...draft, words: draft.words.map((w, j) => (j === i ? { ...w, [key]: value } : w)) })
+  const line = (i: number, value: string) =>
+    onChange({ ...draft, examples: draft.examples.map((l, j) => (j === i ? value : l)) })
+
+  return (
+    <>
+      <textarea
+        ref={summary}
+        aria-label="How the brand sounds"
+        value={draft.summary}
+        onChange={(e) => onChange({ ...draft, summary: e.target.value })}
+        rows={2}
+        className={`${FIELD} -mx-3 w-[calc(100%+24px)] field-sizing-content resize-none px-3 py-2 font-display text-[24px] leading-[1.3] tracking-[-0.02em] max-md:text-[20px]`}
+      />
+      <div className="flex flex-col gap-1.5">
+        <div className="grid grid-cols-[1fr_1fr_32px] gap-x-2">
+          <span className={EYEBROW}>Say</span>
+          <span className={EYEBROW}>Not</span>
+        </div>
+        {draft.words.map((w, i) => (
+          <div key={i} className="grid grid-cols-[1fr_1fr_32px] items-center gap-x-2">
+            <input
+              aria-label={`Say ${i + 1}`}
+              value={w.use}
+              onChange={(e) => word(i, 'use', e.target.value)}
+              className={`${FIELD} px-2.5 py-2 text-[14.5px]`}
+            />
+            <input
+              aria-label={`Not ${i + 1}`}
+              value={w.avoid}
+              onChange={(e) => word(i, 'avoid', e.target.value)}
+              className={`${FIELD} px-2.5 py-2 text-[14.5px] text-ink-3`}
+            />
+            <RemoveButton
+              label={`Remove ${w.use || 'pair'}`}
+              onClick={() => onChange({ ...draft, words: draft.words.filter((_, j) => j !== i) })}
+            />
+          </div>
+        ))}
+        <AddButton
+          onClick={() => onChange({ ...draft, words: [...draft.words, { use: '', avoid: '' }] })}
+        >
+          Add a pair
+        </AddButton>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className={EYEBROW}>Sounds like</span>
+        {draft.examples.map((l, i) => (
+          <div key={i} className="flex items-start gap-2">
+            <textarea
+              aria-label={`Line ${i + 1}`}
+              value={l}
+              rows={1}
+              onChange={(e) => line(i, e.target.value)}
+              className={`${FIELD} flex-1 field-sizing-content resize-none px-2.5 py-2 text-[15px] text-ink-2`}
+            />
+            <RemoveButton
+              label={`Remove line ${i + 1}`}
+              onClick={() =>
+                onChange({ ...draft, examples: draft.examples.filter((_, j) => j !== i) })
+              }
+            />
+          </div>
+        ))}
+        <AddButton onClick={() => onChange({ ...draft, examples: [...draft.examples, ''] })}>
+          Add a line
+        </AddButton>
+      </div>
+    </>
+  )
+}
+
+function ColoursSection() {
+  const { brand } = useBrand()
+  const colours = useBrandKit(brand.id).colours
+  const [draft, setDraft] = React.useState<Colour[] | null>(null)
+
+  return (
+    <Section
+      label="Colours"
+      onCancel={() => setDraft(null)}
+      action={
+        <EditToggle
+          label="colours"
+          editing={draft !== null}
+          onEdit={() => setDraft(colours)}
+          onDone={() => {
+            if (draft) editKit(brand.id, (k) => ({ ...k, colours: coloursEdited(draft) }))
+            setDraft(null)
+          }}
+        />
+      }
+    >
+      <div className="grid grid-cols-4 gap-3 max-sm:grid-cols-2">
+        {draft ? (
+          <>
+            {draft.map((c, i) => (
+              <SwatchFields
+                key={i}
+                colour={c}
+                onChange={(next) =>
+                  setDraft(draft.map((d, j) => (j === i ? { ...d, ...next } : d)))
+                }
+                onRemove={() => setDraft(draft.filter((_, j) => j !== i))}
+              />
+            ))}
+            <button
+              type="button"
+              onClick={() => setDraft([...draft, { name: 'New colour', hex: '#B9B2A8' }])}
+              className="flex h-[88px] items-center justify-center gap-1.5 rounded-[14px] border border-dashed border-line-strong text-[12.5px] text-ink-3 transition-colors hover:bg-surface hover:text-ink"
+            >
+              <PlusIcon size={11} />
+              Add colour
+            </button>
+          </>
+        ) : (
+          colours.map((c, i) => <Swatch key={i} name={c.name} hex={c.hex} />)
+        )}
+      </div>
+    </Section>
+  )
+}
+
+/**
+ * One colour while the section is open. A tap on the swatch opens the system picker; the hex
+ * field takes a pasted code, and only a valid one changes the colour.
+ */
+function SwatchFields({
+  colour,
+  onChange,
+  onRemove,
+}: {
+  colour: Colour
+  onChange: (c: Partial<Colour>) => void
+  onRemove: () => void
+}) {
+  return (
+    <div className="group flex min-w-0 flex-col gap-1.5">
+      <span
+        className="relative mb-1 block h-[88px] rounded-[14px] shadow-[inset_0_0_0_1px_var(--line)]"
+        style={{ background: colour.hex }}
+      >
+        <input
+          type="color"
+          aria-label={`Pick ${colour.name}`}
+          value={colour.hex.toLowerCase()}
+          onChange={(e) => onChange({ hex: e.target.value.toUpperCase() })}
+          className="absolute inset-0 size-full cursor-pointer opacity-0"
+        />
+        <span className="absolute top-1.5 right-1.5 rounded-full bg-page shadow-soft transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
+          <RemoveButton label={`Remove ${colour.name}`} onClick={onRemove} />
+        </span>
+      </span>
+      <input
+        aria-label="Colour name"
+        value={colour.name}
+        onChange={(e) => onChange({ name: e.target.value })}
+        className={`${FIELD} px-2 py-1 text-[13.5px] font-medium`}
+      />
+      <HexInput hex={colour.hex} name={colour.name} onHex={(hex) => onChange({ hex })} />
+    </div>
+  )
+}
+
+function HexInput({ hex, name, onHex }: { hex: string; name: string; onHex: (h: string) => void }) {
+  const [text, setText] = React.useState(hex)
+  // The picker changes the hex from outside: follow it, unless the change came from this field.
+  const [seen, setSeen] = React.useState(hex)
+  if (hex !== seen) {
+    setSeen(hex)
+    if (hexOf(text) !== hex) setText(hex)
+  }
+  const valid = hexOf(text) !== null
+  return (
+    <input
+      aria-label={`${name} hex`}
+      aria-invalid={!valid}
+      value={text}
+      spellCheck={false}
+      autoComplete="off"
+      onChange={(e) => {
+        setText(e.target.value)
+        const h = hexOf(e.target.value)
+        if (h) onHex(h)
+      }}
+      onBlur={() => setText(hex)}
+      className={`${FIELD} px-2 py-1 font-mono text-[11.5px] uppercase ${valid ? 'text-ink-4' : 'text-fail-ink'}`}
+    />
+  )
+}
+
+/** The logo: Replace takes a new file at once, since there is nothing to type. */
+function LogoSection() {
+  const { brand } = useBrand()
+  const logo = useBrandKit(brand.id).logo
+  const input = React.useRef<HTMLInputElement>(null)
+
+  return (
+    <Section
+      label="Logo"
+      action={
+        <>
+          <button type="button" onClick={() => input.current?.click()} className={`${QUIET} -mr-3`}>
+            Replace
+          </button>
+          <input
+            ref={input}
+            type="file"
+            accept="image/*"
+            hidden
+            aria-label="Upload a new logo"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) {
+                const src = URL.createObjectURL(file)
+                editKit(brand.id, (k) => {
+                  // The old upload has no other reader once it is replaced.
+                  if (k.logo.src.startsWith('blob:')) URL.revokeObjectURL(k.logo.src)
+                  return { ...k, logo: { src, name: file.name } }
+                })
+              }
+              e.target.value = ''
+            }}
+          />
+        </>
+      }
+    >
+      <div className="flex items-center gap-5">
+        <span className="flex size-[120px] shrink-0 items-center justify-center rounded-[18px] bg-surface">
+          {/* A new logo settles in, so the replace reads as done; the brand's own does not. */}
+          <span
+            key={logo.src}
+            className={`relative size-[88px] overflow-hidden rounded-full ${logo.name ? 'bb-pop' : ''}`}
+          >
+            <BrandLogo
+              brandId={brand.id}
+              alt={`${brand.name} logo`}
+              sizes="176px"
+              className="object-cover"
+            />
+          </span>
+        </span>
+        <span className="flex min-w-0 flex-col gap-1">
+          <span className="text-[14.5px] font-medium">Mark</span>
+          <span className="truncate text-[12.5px] text-ink-4">
+            {logo.name ? `Updated today · ${logo.name}` : 'PNG · 192 × 192'}
+          </span>
+          <a
+            href={logo.src}
+            download={logo.name ?? `${brand.id}-logo.png`}
+            className="mt-1 self-start text-[12.5px] text-ink-2 underline-offset-2 hover:text-ink hover:underline"
+          >
+            Download
+          </a>
+        </span>
+      </div>
+    </Section>
   )
 }
 

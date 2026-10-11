@@ -20,6 +20,7 @@ import {
   type Moment,
   type Reference,
 } from '@/data/ideas'
+import { BrandLogo } from '@/features/brand/brand-logo'
 import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 import { planShoot } from '@/features/shoot/shoots-store'
@@ -867,7 +868,7 @@ function SourceSetup({ source }: { source: MoodSource }) {
               className={`flex items-center gap-3 border-t border-line py-2.5 first:border-t-0 ${own ? '' : 'opacity-45'}`}
             >
               <span className="relative size-7 shrink-0 overflow-hidden rounded-full">
-                <Image src={b.logo} alt="" fill sizes="56px" />
+                <BrandLogo brandId={b.id} sizes="56px" />
               </span>
               <span className="flex flex-1 flex-col">
                 <span className="text-[13.5px] font-medium">{b.name}</span>

@@ -41,7 +41,8 @@ describe('the inbox', () => {
     page()
     expect(screen.getByRole('article', { name: /Rachel Tan/ })).toBeTruthy()
     expect(reply().value).toMatch(/^Rachel, we're so sorry/)
-    expect(screen.getByText(/In Casa Vostra’s voice/)).toBeTruthy()
+    // Not a link: leaving for the Brand page would lose the reply being typed.
+    expect(screen.getByText(/In Casa Vostra’s voice/).closest('a')).toBeNull()
   })
 
   it('sends a complaint to the person it is about, and says so on the message', () => {
