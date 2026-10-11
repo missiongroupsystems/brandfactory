@@ -44,14 +44,18 @@ describe('the inbox', () => {
     expect(screen.getByText(/In Casa Vostra’s voice/)).toBeTruthy()
   })
 
-  it('sends a complaint to the venue manager and says so on the message', () => {
+  it('sends a complaint to the person it is about, and says so on the message', () => {
     page()
-    fireEvent.click(screen.getByRole('button', { name: 'Send to Marco' }))
+    // A complaint about the food goes to the head chef.
+    fireEvent.click(screen.getByRole('button', { name: 'Send to Giulia' }))
     // The open message says who has it, and so does its row in the list.
     const thread = screen.getByRole('article', { name: /Rachel Tan/ })
-    expect(within(thread).getByText('Sent to Marco')).toBeTruthy()
+    expect(within(thread).getByText('Sent to Giulia')).toBeTruthy()
     const row = screen.getByRole('button', { name: /Rachel Tan/ })
-    expect(within(row).getByLabelText('Complaint, sent to Marco')).toBeTruthy()
+    expect(within(row).getByLabelText('Complaint, sent to Giulia')).toBeTruthy()
+    // A lost booking goes to the venue manager.
+    fireEvent.click(screen.getByRole('button', { name: /Aisha Rahman/ }))
+    expect(screen.getByRole('button', { name: 'Send to Marco' })).toBeTruthy()
   })
 
   it('clears a replied message and moves on to the next', () => {

@@ -63,11 +63,11 @@ const CASA_VOSTRA: BrandInbox = {
   ],
   messages: [
     {
-      id: 'cv-cold-pizza',
+      id: 'cv-soggy-pizza',
       platform: 'ig',
       kind: 'comment',
       from: { name: 'Rachel Tan', handle: '@racheltxn' },
-      text: 'Waited 50 minutes for two pizzas on Saturday night and the second one came out cold. Not what we expected from you guys 😕',
+      text: 'Had the diavola on Saturday night. Base was soggy in the middle and burnt underneath, and the toppings barely covered it. Not what we expected from you guys 😕',
       minutes: 25,
       tone: 'complaint',
       post: {
@@ -76,10 +76,10 @@ const CASA_VOSTRA: BrandInbox = {
           'The final touch for a crispy crust and a smoky finish 🔥 Find us at Raffles City.',
       },
       drafts: [
-        "Rachel, we're so sorry. Fifty minutes and a cold pizza is not the Casa Vostra we want you to have. Could you send us a DM with your booking name? Marco, our venue manager, would like to make it right.",
-        "Hi Rachel, thank you for telling us, and we're really sorry about Saturday. A pizza should reach you hot from the oven, every time. Send us a DM and we'll have the next one on us.",
+        "Rachel, we're so sorry. A soggy, burnt base is not the diavola we want you to have. Giulia, our head chef, is looking at what happened in the kitchen on Saturday. Could you send us a DM? Your next pizza is on us.",
+        "Hi Rachel, thank you for telling us, and we're really sorry about Saturday. Every pizza should leave the oven crisp and generous. Send us a DM and we'll make the next one properly, on us.",
       ],
-      sendTo: 'Marco Bellini',
+      sendTo: 'Giulia Conti',
     },
     {
       id: 'cv-lost-booking',
