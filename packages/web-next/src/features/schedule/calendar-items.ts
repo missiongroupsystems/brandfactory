@@ -40,9 +40,12 @@ export function postTime(post: Post): string {
   return post.slot.split(', ')[1] ?? '12:00'
 }
 
-/** Where a format goes by default: the demo's posts carry no channel list of their own. */
+/**
+ * Where a format goes by default: the demo's posts carry no channel list of their own. The brands
+ * post on Instagram, TikTok and Facebook only (see `LINKED` in `data/publish.ts`).
+ */
 const DEFAULT_CHANNELS: Record<Format, ChannelKey[]> = {
-  reel: ['ig', 'tt', 'yt'],
+  reel: ['ig', 'tt'],
   carousel: ['ig', 'fb'],
   story: ['ig'],
 }

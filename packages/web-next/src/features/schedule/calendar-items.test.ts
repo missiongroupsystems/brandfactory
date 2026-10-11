@@ -37,13 +37,12 @@ describe('the month chips', () => {
   })
 
   it('count every account of a post that did not fail', () => {
-    // 8 Oct: a carousel for Instagram and Facebook, and a reel for Instagram, TikTok and YouTube.
+    // 8 Oct: a carousel for Instagram and Facebook, and a reel for Instagram and TikTok.
     const items = itemsOf(dayN('8'), byId, ALL_STAGES)
     expect(failedOf(items)).toEqual([])
     expect(countsOf(items)).toEqual([
       { channel: 'ig', n: 2 },
       { channel: 'tt', n: 1 },
-      { channel: 'yt', n: 1 },
       { channel: 'fb', n: 1 },
     ])
   })
@@ -60,7 +59,7 @@ describe('a retry', () => {
 
   it('leaves a post that did not fail on all its accounts, and a send replaces them', () => {
     const post = byId('pasta')!
-    expect(composeChannels(post)).toEqual(['ig', 'tt', 'yt'])
+    expect(composeChannels(post)).toEqual(['ig', 'tt'])
     expect(sentChannels(post, ['ig'])).toEqual(['ig'])
   })
 })
