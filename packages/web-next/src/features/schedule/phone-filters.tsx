@@ -131,7 +131,6 @@ export function PhoneFilters({
                         }}
                       />
                       {l.name}
-                      {l.key === 'shoot' && <span className="text-ink-4">· Lark</span>}
                     </button>
                   )
                 })}

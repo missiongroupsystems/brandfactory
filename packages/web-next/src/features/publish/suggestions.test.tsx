@@ -69,16 +69,6 @@ describe('Collaborators', () => {
 
     expect(screen.getByRole('button', { name: 'Remove @chefantonio' })).toBeInTheDocument()
     expect(collaborators()).toHaveValue('')
-    expect(
-      screen.getByText(
-        '@chefantonio gets an invite in their own Instagram. Once accepted, the post shows both names.',
-      ),
-    ).toBeInTheDocument()
-  })
-
-  it('says "They get" before anyone is added', () => {
-    show()
-    expect(screen.getByText(/^They get an invite in their own Instagram\./)).toBeInTheDocument()
   })
 
   it('takes a handle nobody suggested, spelled as Instagram keeps it', () => {
@@ -101,9 +91,6 @@ describe('Collaborators', () => {
     expect(within(details).getAllByRole('button', { name: /^Remove @/ })).toHaveLength(COLLAB_MAX)
     // Full: the field is gone, so nothing more can be typed or picked.
     expect(screen.queryByRole('combobox', { name: /^@account, up to/ })).toBeNull()
-    expect(
-      screen.getByText(/^@danielfooddiary, @chefantonio and @sfoglina\.bologna each get an invite/),
-    ).toBeInTheDocument()
   })
 })
 

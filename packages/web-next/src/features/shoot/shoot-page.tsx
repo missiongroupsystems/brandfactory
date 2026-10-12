@@ -133,24 +133,6 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
 
       {/* The sheet's head: three facts across, as a call sheet prints them. */}
       <header className="flex flex-col gap-5">
-        <span className={`${EYEBROW} flex flex-wrap items-center gap-x-3 gap-y-1`}>
-          Call sheet · {brand.name}
-          {lark ? (
-            <span className="flex items-center gap-1.5 normal-case tracking-normal font-sans text-[11.5px] text-ink-4">
-              <span className="size-1.5 rounded-full bg-(--live)" />
-              Synced with Lark
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setLinking({})}
-              className="flex items-center gap-1.5 normal-case tracking-normal font-sans text-[11.5px] text-ink-3 underline-offset-2 transition-colors hover:text-ink hover:underline"
-            >
-              <span className="size-1.5 rounded-full shadow-[inset_0_0_0_1px_var(--ink-4)]" />
-              Connect Lark calendar
-            </button>
-          )}
-        </span>
         <dl className="grid grid-cols-3 overflow-hidden rounded-[20px] bg-surface max-md:grid-cols-1">
           <Fact label="When">
             <span>{dayLabel(weeks, shoot.dayN)}</span>
@@ -183,14 +165,32 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
           </Fact>
         </dl>
         <div className="flex flex-col gap-3">
-          <button
-            type="button"
-            aria-expanded={editing}
-            onClick={() => setEditing((e) => !e)}
-            className="self-start text-[13px] font-medium text-ink-3 transition-colors hover:text-ink"
-          >
-            {editing ? 'Done' : 'Edit details'}
-          </button>
+          {/* One quiet line under the facts: edit them, and where the Lark calendar stands. */}
+          <div className="flex items-center justify-between gap-3 text-[13px]">
+            <button
+              type="button"
+              aria-expanded={editing}
+              onClick={() => setEditing((e) => !e)}
+              className="font-medium text-ink-3 transition-colors hover:text-ink"
+            >
+              {editing ? 'Done' : 'Edit details'}
+            </button>
+            {lark ? (
+              <span className="flex items-center gap-1.5 text-[12px] text-ink-4">
+                <span className="size-1.5 rounded-full bg-(--live)" />
+                Synced with Lark
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setLinking({})}
+                className="flex items-center gap-1.5 text-[12px] text-ink-3 underline-offset-2 transition-colors hover:text-ink hover:underline"
+              >
+                <span className="size-1.5 rounded-full shadow-[inset_0_0_0_1px_var(--ink-4)]" />
+                Connect Lark calendar
+              </button>
+            )}
+          </div>
           <Fold open={editing}>
             <Details shoot={shoot} edit={edit} />
           </Fold>
@@ -211,8 +211,7 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
       <div className="grid grid-cols-[minmax(0,1fr)_340px] items-start gap-16 max-lg:grid-cols-1 max-md:gap-12">
         <section aria-label="Shot list" className="flex flex-col gap-6">
           <span className={EYEBROW}>
-            Shot list · {shots} {shots === 1 ? 'shot' : 'shots'}, {cards.length}{' '}
-            {cards.length === 1 ? 'idea' : 'ideas'}
+            Shot list · {shots} {shots === 1 ? 'shot' : 'shots'}
           </span>
           {cards.length === 0 ? (
             <p className="text-[14px] text-ink-4">
@@ -350,12 +349,15 @@ export function Details({
 
 const shootsMeta = (n: number) => `${n} ${n === 1 ? 'shoot' : 'shoots'}`
 
-/** What a person's line says, from the invite and their answer to it. */
+/**
+ * What a person's line says, from the invite and their answer to it. Before any invite goes out
+ * the line says nothing: the button above says the invites are still to send.
+ */
 const STATUS: Record<Reply | 'waiting' | 'none', { text: string; className: string }> = {
   going: { text: 'Going', className: 'text-(--live)' },
   cant: { text: "Can't make it", className: 'text-fail-ink' },
   waiting: { text: 'No reply yet', className: 'text-ink-4' },
-  none: { text: 'Not invited', className: 'text-ink-5' },
+  none: { text: '', className: '' },
 }
 
 /**
@@ -414,7 +416,9 @@ function Crew({ shoot, invited }: { shoot: Shoot; invited: string[] }) {
                 <span className="text-[12px] text-ink-4">{c.role}</span>
               </span>
               <span className="flex items-center gap-2">
-                <span className={`text-[12px] ${status.className}`}>{status.text}</span>
+                {status.text && (
+                  <span className={`text-[12px] ${status.className}`}>{status.text}</span>
+                )}
                 <button
                   type="button"
                   aria-label={`Remove ${c.name}`}
@@ -466,12 +470,6 @@ function Crew({ shoot, invited }: { shoot: Shoot; invited: string[] }) {
           <PlusIcon size={11} />
         </button>
       </form>
-      {invited.length > 0 && (
-        <p className="text-[12px] text-ink-4">
-          The Lark invite went to {invited.length} {invited.length === 1 ? 'person' : 'people'},
-          with this sheet linked.
-        </p>
-      )}
     </section>
   )
 }

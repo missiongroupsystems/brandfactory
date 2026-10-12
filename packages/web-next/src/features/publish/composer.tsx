@@ -28,7 +28,6 @@ import { CAPTION_DRAFTS, DRIVE, folderAt, HASHTAGS, VENUE } from '@/data/publish
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { composeChannels, sentChannels } from '@/features/schedule/calendar-items'
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
-import { VoiceNote } from '@/features/brand/voice-note'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
 import { useBrand } from '@/features/schedule/posts-store'
@@ -48,7 +47,6 @@ import {
   kindOn,
   lengthFor,
   linkedChannels,
-  namesIn,
   parseTime,
   EARLIEST_POST,
   PRIVACY,
@@ -287,7 +285,6 @@ export function Composer({
     )
   }
 
-  const status = post ? STAGE_LABEL[post.stage] : 'New'
   const hint = blocked[0] && (
     <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
       <span className="size-1.5 shrink-0 rounded-full bg-ink" />
@@ -370,7 +367,6 @@ export function Composer({
           setDayN={setDayN}
           time={time}
           setTime={setTime}
-          story={draft.format === 'story' && active.some((c) => c.key === 'ig')}
         />
       ),
     },
@@ -400,12 +396,12 @@ export function Composer({
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <span className={`${EYEBROW} flex items-center gap-2`}>
-          <span className="max-md:hidden">{brand.name} ·</span>
-          <span className="rounded-full bg-surface px-2 py-[2px] tracking-normal normal-case text-ink-2">
-            {status}
+        {/* A post that exists says where it is; a new one is new, as its title says. */}
+        {post && (
+          <span className="self-start rounded-full bg-surface px-2 py-[2px] text-[11px] font-medium text-ink-2">
+            {STAGE_LABEL[post.stage]}
           </span>
-        </span>
+        )}
         <h1 className="font-display text-[38px] leading-none tracking-[-0.035em] max-md:text-[28px] max-md:leading-[1.05]">
           {post ? post.hook : 'New post'}
         </h1>
@@ -527,7 +523,6 @@ export function Composer({
               setDayN={setDayN}
               time={time}
               setTime={setTime}
-              story={draft.format === 'story' && active.some((c) => c.key === 'ig')}
             />
           </div>
         </div>
@@ -654,62 +649,57 @@ function Accounts({ api }: { api: PublishDraftApi }) {
   return (
     <section aria-label="Accounts" className={CARD}>
       <span className={`${EYEBROW} max-md:hidden`}>Post to</span>
-      {/* Pills on a desktop; on a phone a list, one account a row, the tick at the right. */}
-      <div className="flex flex-wrap gap-2 max-md:flex-col max-md:gap-0">
-        {linkedChannels(draft).map((c) => {
-          const connected = draft.connected.includes(c.key)
-          const takes = kindOn(draft.format, c.key)
-          const on = connected && takes !== null && draft.selected.includes(c.key)
-          if (!connected) {
+      {/* Pills on a desktop, the format beside them; on a phone a list, one account a row, the
+          tick at the right, and the format under it. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 max-md:flex-col max-md:items-stretch max-md:gap-5">
+        <div className="flex flex-wrap gap-2 max-md:flex-col max-md:gap-0">
+          {linkedChannels(draft).map((c) => {
+            const connected = draft.connected.includes(c.key)
+            const takes = kindOn(draft.format, c.key)
+            const on = connected && takes !== null && draft.selected.includes(c.key)
+            if (!connected) {
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => connect(c.key)}
+                  className="flex h-10 items-center gap-2.5 rounded-full px-4 text-[13px] text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink max-md:h-14 max-md:rounded-none max-md:border-b max-md:border-(--cal-line) max-md:px-0 max-md:text-[15px] max-md:shadow-none"
+                >
+                  <PlatformLogo platform={c.key} size={14} />
+                  {c.name}
+                  <span className="text-[11.5px] font-medium text-fail-ink max-md:ml-auto max-md:text-[14px]">
+                    Reconnect
+                  </span>
+                </button>
+              )
+            }
             return (
               <button
                 key={c.key}
                 type="button"
-                onClick={() => connect(c.key)}
-                className="flex h-11 items-center gap-2.5 rounded-full px-4 text-[13px] text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink max-md:h-14 max-md:rounded-none max-md:border-b max-md:border-(--cal-line) max-md:px-0 max-md:text-[15px] max-md:shadow-none"
+                role="checkbox"
+                aria-checked={on}
+                aria-disabled={takes === null}
+                title={
+                  takes === null
+                    ? `${c.name} has no ${draft.format}s`
+                    : handleOn(brand.handle, brand.name, c.key)
+                }
+                onClick={() => takes !== null && toggleChannel(c.key)}
+                className={`flex h-10 items-center gap-2.5 rounded-full pr-4 pl-3 text-[13px] transition-colors max-md:h-14 max-md:rounded-none max-md:border-b max-md:border-(--cal-line) max-md:bg-transparent max-md:px-0 max-md:text-[15px] ${takes === null ? 'cursor-not-allowed text-ink-5' : on ? 'bg-ink text-page max-md:text-ink' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink max-md:text-ink'}`}
               >
-                <PlatformLogo platform={c.key} size={14} />
-                {c.name}
-                <span className="text-[11.5px] font-medium text-fail-ink max-md:ml-auto max-md:text-[14px]">
-                  Reconnect
+                <span
+                  className={`flex size-5 shrink-0 items-center justify-center rounded-full max-md:order-last max-md:ml-auto max-md:size-6 ${on ? 'bg-page text-ink max-md:bg-ink max-md:text-page' : 'shadow-[inset_0_0_0_1.5px_var(--line-strong)]'}`}
+                >
+                  {on && <CheckIcon size={8} strokeWidth={2.4} />}
                 </span>
+                <PlatformLogo platform={c.key} size={14} />
+                <span className="font-medium">{c.name}</span>
               </button>
             )
-          }
-          return (
-            <button
-              key={c.key}
-              type="button"
-              role="checkbox"
-              aria-checked={on}
-              aria-disabled={takes === null}
-              title={takes === null ? `${c.name} has no ${draft.format}s` : undefined}
-              onClick={() => takes !== null && toggleChannel(c.key)}
-              className={`flex h-11 items-center gap-2.5 rounded-full pr-4 pl-3 text-[13px] transition-colors max-md:h-14 max-md:rounded-none max-md:border-b max-md:border-(--cal-line) max-md:bg-transparent max-md:px-0 max-md:text-[15px] ${takes === null ? 'cursor-not-allowed text-ink-5' : on ? 'bg-ink text-page max-md:text-ink' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink max-md:text-ink'}`}
-            >
-              <span
-                className={`flex size-5 shrink-0 items-center justify-center rounded-full max-md:order-last max-md:ml-auto max-md:size-6 ${on ? 'bg-page text-ink max-md:bg-ink max-md:text-page' : 'shadow-[inset_0_0_0_1.5px_var(--line-strong)]'}`}
-              >
-                {on && <CheckIcon size={8} strokeWidth={2.4} />}
-              </span>
-              <PlatformLogo platform={c.key} size={14} />
-              <span className="flex flex-col items-start leading-tight">
-                <span className="font-medium">{c.name}</span>
-                <span
-                  className={`text-[10.5px] max-md:text-[12px] ${on ? 'text-page/60 max-md:text-ink-4' : 'text-ink-4'}`}
-                >
-                  {takes === null
-                    ? `No ${draft.format}s`
-                    : `${takes} · ${handleOn(brand.handle, brand.name, c.key)}`}
-                </span>
-              </span>
-            </button>
-          )
-        })}
-      </div>
-      <div className="flex flex-wrap items-center gap-3 border-t border-(--cal-line) pt-4 max-md:border-t-0 max-md:pt-0">
-        <span className={EYEBROW}>Format</span>
-        <div className={`w-[300px] max-md:w-full ${TAP}`}>
+          })}
+        </div>
+        <div className={`w-[240px] max-md:w-full ${TAP}`}>
           <Segmented<Format>
             label="Format"
             pill
@@ -910,10 +900,6 @@ function Content({
       )}
 
       <div className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className={EYEBROW}>Media</span>
-          <span className="text-[11.5px] text-ink-4">{MEDIA_RULE[draft.format]}</span>
-        </div>
         <div
           className={`flex flex-wrap gap-2 ${STRIP}`}
           onDragOver={(e) => e.dataTransfer.types.includes('Files') && e.preventDefault()}
@@ -984,7 +970,11 @@ function Content({
             )
           })}
           {media.length < max && (
-            <span className="flex h-[132px] w-[106px] shrink-0 flex-col overflow-hidden rounded-[12px] border border-dashed border-(--cal-ghost) text-[11.5px] text-ink-3">
+            // What the format takes is on the tile's tooltip, not printed over the card.
+            <span
+              title={MEDIA_RULE[draft.format]}
+              className="flex h-[132px] w-[106px] shrink-0 flex-col overflow-hidden rounded-[12px] border border-dashed border-(--cal-ghost) text-[11.5px] text-ink-3"
+            >
               <button
                 type="button"
                 onClick={() => input.current?.click()}
@@ -1070,7 +1060,6 @@ function Content({
               )
             })}
           </div>
-          <VoiceNote className="ml-auto" />
           <button
             type="button"
             onClick={writeWithAI}
@@ -1085,9 +1074,7 @@ function Content({
           {...mention.field}
           rows={shownTab === 'yt' ? 2 : 5}
           placeholder={
-            shownTab === 'all'
-              ? 'Write once for every account. Change one account in its own tab.'
-              : `What ${NAME[shownTab]} shows instead`
+            shownTab === 'all' ? 'Write a caption…' : `What ${NAME[shownTab]} shows instead`
           }
           aria-label={shownTab === 'all' ? 'Caption' : `${NAME[shownTab]} text`}
           className="w-full resize-none rounded-[12px] bg-surface-2 p-4 text-[14.5px] leading-[1.5] outline-none placeholder:text-ink-5 focus:bg-surface max-md:min-h-[96px] max-md:rounded-none max-md:bg-transparent max-md:px-0 max-md:py-1 max-md:field-sizing-content max-md:focus:bg-transparent"
@@ -1140,9 +1127,11 @@ function Content({
             Use the shared text
           </button>
         )}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 max-md:hidden">
+        {/* Each account's count against its limit, once there is something to count. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 empty:hidden max-md:hidden">
           {active.map((c) => {
             const { used, max: limit } = lengthFor(draft, c.key)
+            if (used === 0) return null
             const over = used > limit
             return (
               <span
@@ -1546,7 +1535,7 @@ function Details({
         <textarea
           {...comment.field}
           rows={2}
-          placeholder="Posted under the post as the first comment, e.g. the booking link or hashtags"
+          placeholder="Booking link, hashtags…"
           aria-label="First comment"
           className="resize-none rounded-[10px] bg-surface-2 px-3 py-2 text-[13.5px] outline-none placeholder:text-ink-5 focus:bg-surface"
         />
@@ -1597,16 +1586,6 @@ function Details({
       />
     ),
   }
-  const line: Partial<Record<keyof typeof DETAIL_ON, string>> = {
-    tags: spot
-      ? 'Shown on the photo where you tap. They get a notification.'
-      : 'Named on the post. They get a notification.',
-    collab:
-      details.collab.length === 0
-        ? 'They get an invite in their own Instagram. Once accepted, the post shows both names.'
-        : `${namesIn(details.collab)} ${details.collab.length === 1 ? 'gets' : 'each get'} an invite in their own Instagram. Once accepted, the post shows ${details.collab.length === 1 ? 'both names' : 'every name'}.`,
-  }
-
   return (
     <section aria-label="Details" className={CARD}>
       <span className={`${EYEBROW} max-md:hidden`}>Details</span>
@@ -1619,28 +1598,13 @@ function Details({
               key={r.key}
               className="grid grid-cols-[132px_minmax(0,1fr)] items-start gap-3 border-b border-(--cal-line) py-3 first:pt-0 max-md:grid-cols-1 max-md:gap-1.5 max-md:py-4"
             >
-              <span className="flex flex-col gap-1 pt-1.5 max-md:flex-row max-md:items-center max-md:gap-2 max-md:pt-0">
-                <span className="text-[13px] max-md:text-[14px]">{r.label}</span>
-                <span className="flex gap-1 text-ink-4">
-                  {r.to.map((k) => (
-                    <PlatformLogo key={k} platform={k} size={9} />
-                  ))}
-                </span>
-              </span>
-              <div className="flex min-w-0 flex-col gap-1.5">
-                {control[r.key]}
-                {line[r.key] && (
-                  <span className="text-[12px] leading-[1.4] text-ink-4">{line[r.key]}</span>
-                )}
-              </div>
+              <span className="pt-1.5 text-[13px] max-md:pt-0 max-md:text-[14px]">{r.label}</span>
+              <div className="flex min-w-0 flex-col gap-1.5">{control[r.key]}</div>
             </div>
           ))}
         <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 border-b border-(--cal-line) py-3 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:py-4">
-          <span className="text-[13px] max-md:text-[14px]">AI-generated</span>
-          <span className="flex items-center justify-between gap-3 max-md:contents">
-            <span className="text-[12px] text-ink-4 max-md:order-last max-md:col-span-2">
-              Labels the post where the platform asks for it
-            </span>
+          <span className="text-[13px] max-md:text-[14px]">AI-generated label</span>
+          <span className="flex max-md:justify-end">
             <Switch
               label="AI-generated label"
               checked={details.aiLabel}
@@ -1649,10 +1613,7 @@ function Details({
           </span>
         </div>
         <div className="grid grid-cols-[132px_minmax(0,1fr)] items-start gap-3 pt-3 max-md:grid-cols-1 max-md:gap-1.5 max-md:pt-4">
-          <span className="flex flex-col gap-0.5 pt-1.5 max-md:flex-row max-md:items-baseline max-md:gap-2 max-md:pt-0">
-            <span className="text-[13px] max-md:text-[14px]">Labels</span>
-            <span className="text-[11px] text-ink-4">Internal only</span>
-          </span>
+          <span className="pt-1.5 text-[13px] max-md:pt-0 max-md:text-[14px]">Labels</span>
           <Chips
             values={labels}
             onChange={setLabels}
@@ -2037,7 +1998,6 @@ function PerAccount({
                           ),
                         },
                       ]}
-                      note="The title is the YouTube tab above the caption. Up to 3 minutes and vertical makes it a Short."
                     />
                   ) : c.key === 'fb' ? (
                     <Rows
@@ -2230,10 +2190,7 @@ function TikTokRows({
         </div>
       ))}
       <div className="flex min-h-9 items-center justify-between gap-3 max-md:min-h-12">
-        <span className="flex flex-col text-[13px] text-ink-2 max-md:text-[14px]">
-          Commercial content
-          <span className="text-[11.5px] text-ink-4">Promotes your brand or a partner&apos;s</span>
-        </span>
+        <span className="text-[13px] text-ink-2 max-md:text-[14px]">Commercial content</span>
         <Switch
           label="Commercial content"
           checked={draft.promo.on}
@@ -2300,7 +2257,6 @@ function WhenCard({
   setDayN,
   time,
   setTime,
-  story,
 }: {
   when: WhenChoice
   setWhen: (w: WhenChoice) => void
@@ -2308,7 +2264,6 @@ function WhenCard({
   setDayN: (d: string) => void
   time: string
   setTime: (t: string) => void
-  story: boolean
 }) {
   const { brand, weeks } = useBrand()
   const best = bestTimes(brand.id, weeks)[0]
@@ -2354,7 +2309,6 @@ function WhenCard({
         </div>
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6 max-md:grid-cols-1">
           <div className="flex flex-col gap-2">
-            <span className="text-[12.5px] text-ink-3">Day</span>
             <div className="grid grid-cols-7 gap-1 text-center">
               {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
                 <span key={i} className="font-mono text-[9.5px] text-ink-5">
@@ -2388,12 +2342,6 @@ function WhenCard({
           <DayChart dayN={dayN} time={time} setTime={setTime} />
         </div>
       </Fold>
-      {story && (
-        <p className="text-[12px] text-ink-4">
-          Stories with stickers or links go out from the phone: the team gets a reminder at the
-          time.
-        </p>
-      )}
     </section>
   )
 }

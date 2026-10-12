@@ -380,8 +380,6 @@ export function PhoneCalendar({
           events={shownWeek.events.filter(
             (e) => layers[e.layer] && e.col - 1 <= day && day < e.col - 1 + e.span,
           )}
-          best={view === 'day' ? undefined : best}
-          onBest={() => onNewPost(shownDay.n, best)}
           stories={stories(shownDay, items(shownDay))}
           onOpenStories={() => onOpenStories(shownDay.n)}
         />
@@ -674,45 +672,28 @@ function StoryRing({ stories, onOpen }: { stories: Story[]; onOpen: () => void }
   )
 }
 
-/** The picked day's name, its events, its stories and the best hour from Insights. */
+/** The picked day's name, its events and its stories. */
 function DayHead({
   day,
   di,
   events,
-  best,
-  onBest,
   stories,
   onOpenStories,
 }: {
   day: Day
   di: number
   events: Week['events']
-  /** The hour to post, when the view does not show it on the hours. */
-  best?: string
-  onBest: () => void
   stories: Story[]
   onOpenStories: () => void
 }) {
   return (
     <>
-      <div className="flex items-center justify-between gap-3">
-        <h2
-          className={`text-[17px] font-semibold tracking-[-0.01em] ${day.past ? 'text-ink-3' : ''}`}
-        >
-          {WEEKDAY[di]!.slice(0, 3)} {day.n}
-          {day.today && <span className="ml-2 text-[13px] font-medium text-ink-4">Today</span>}
-        </h2>
-        {best && !day.past && (
-          <button
-            type="button"
-            onClick={onBest}
-            className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-(--insight-6)"
-          >
-            <SparkIcon size={9} />
-            Best at {best}
-          </button>
-        )}
-      </div>
+      <h2
+        className={`text-[17px] font-semibold tracking-[-0.01em] ${day.past ? 'text-ink-3' : ''}`}
+      >
+        {WEEKDAY[di]!.slice(0, 3)} {day.n}
+        {day.today && <span className="ml-2 text-[13px] font-medium text-ink-4">Today</span>}
+      </h2>
       {(events.length > 0 || stories.length > 0) && (
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
           {events.map((e) => (

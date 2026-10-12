@@ -4,7 +4,6 @@ import * as React from 'react'
 
 import { CloseIcon, PlusIcon } from '@/components/icons'
 import { Media } from '@/components/media'
-import { PlatformLogo } from '@/components/platform-logos'
 import type { Stage } from '@/data/demo'
 
 import type { Story } from './stories'
@@ -106,9 +105,6 @@ export function StoryPanel({
     }
   }, [onClose])
 
-  const posted = stories.filter((s) => s.stage === 'posted').length
-  const planned = stories.length - posted
-
   return (
     <aside
       ref={panel}
@@ -117,26 +113,10 @@ export function StoryPanel({
       className="bb-sheet fixed top-[164px] right-4 bottom-4 z-40 max-md:top-auto max-md:max-h-[80svh] flex w-[min(400px,calc(100%-32px))] flex-col overflow-hidden rounded-2xl bg-page shadow-sheet outline-none"
     >
       <header className="flex items-start justify-between gap-3 px-6 pt-5 pb-4">
-        <span className="flex flex-col gap-1">
-          <span className="flex items-baseline gap-2.5">
-            <span className="font-display text-[24px] leading-none tracking-[-0.02em]">
-              Stories
-            </span>
-            <span className="font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase">
-              {label}
-            </span>
-          </span>
-          <span className="flex items-center gap-1.5 text-[12.5px] text-ink-3">
-            <PlatformLogo platform="ig" size={11} />
-            {stories.length} on Instagram
-            {stories.length > 0 && (
-              <>
-                {' · '}
-                {[posted && `${posted} posted`, planned && `${planned} planned`]
-                  .filter(Boolean)
-                  .join(', ')}
-              </>
-            )}
+        <span className="flex items-baseline gap-2.5 pt-1">
+          <span className="font-display text-[24px] leading-none tracking-[-0.02em]">Stories</span>
+          <span className="font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase">
+            {label}
           </span>
         </span>
         <button

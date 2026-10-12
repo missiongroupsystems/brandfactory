@@ -9,7 +9,6 @@ import { PlusIcon } from '@/components/icons'
 import { DEFAULT_LAYERS } from '@/data/demo'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { withShoots } from '@/features/shoot/model'
-import { NewShootButton } from '@/features/shoot/new-shoot'
 import { useShoots } from '@/features/shoot/shoots-store'
 
 import { PhoneCalendar } from './phone-calendar'
@@ -17,7 +16,7 @@ import { setCalendarPlace, TODAY_PLACE, useCalendarPlace, type CalendarMode } fr
 import { itemsOf } from './calendar-items'
 import { DayView } from './day-view'
 import { FailedPill } from './failed-menu'
-import { FilterMenu } from './filter-menu'
+import { MoreMenu } from './filter-menu'
 import { DEMO_MONTH, dateOf, monthRows, monthView, weekCount } from './month'
 import { storyTaken } from './move-post'
 import { useBrand } from './posts-store'
@@ -107,9 +106,6 @@ export function SchedulePage() {
       : view === 'week'
         ? `${start.getDate()}${start.getMonth() === end.getMonth() ? '' : ` ${SHORT_MONTH[start.getMonth()]}`} – ${end.getDate()} ${SHORT_MONTH[end.getMonth()]}`
         : `${WEEKDAY[current.getDay()]} ${current.getDate()} ${SHORT_MONTH[current.getMonth()]}`
-  // The year beside a month or a single day.
-  const sub =
-    view === 'week' ? '' : String(view === 'month' ? start.getFullYear() : current.getFullYear())
   const atToday =
     offset === TODAY_PLACE.offset &&
     (view === 'month' || week === TODAY_PLACE.week) &&
@@ -199,7 +195,6 @@ export function SchedulePage() {
             <StepArrow label={`Next ${unit}`} onClick={() => step(1)} />
           </span>
           <h1 className="font-display text-[38px] leading-none tracking-[-0.035em]">{title}</h1>
-          <span className="font-mono text-[10px] tracking-[0.08em] text-ink-4">{sub}</span>
           {!atToday && (
             <button
               type="button"
@@ -230,13 +225,13 @@ export function SchedulePage() {
               ]}
             />
           </div>
-          <FilterMenu
+          <MoreMenu
             stages={stages}
             layers={layers}
             onStages={(s) => setCalendarPlace({ stages: s })}
             onLayers={setLayers}
+            shootDay={view === 'day' ? shootDay : undefined}
           />
-          <NewShootButton dayN={view === 'day' ? shootDay : undefined} />
           <button
             type="button"
             onClick={() => newPost()}
@@ -246,7 +241,7 @@ export function SchedulePage() {
             <span className="flex transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-hover/new:rotate-90">
               <PlusIcon size={12} />
             </span>
-            Schedule new post
+            New post
           </button>
         </div>
       </div>

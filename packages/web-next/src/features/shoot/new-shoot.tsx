@@ -13,6 +13,7 @@ import { addShoot, useShoots } from './shoots-store'
 /**
  * A shoot added by hand on the calendar, as the team adds one to its Lark calendar today: the
  * call sheet's own details, then Add opens the new sheet. Ideas join it later from an idea's page.
+ * A wide screen opens it from the calendar's "…" menu, a phone from its plus.
  */
 export function NewShootForm({ dayN }: { dayN?: string }) {
   const router = useRouter()
@@ -50,54 +51,5 @@ export function NewShootForm({ dayN }: { dayN?: string }) {
         Add shoot
       </button>
     </form>
-  )
-}
-
-/**
- * The quiet way in on a wide screen: a plain button beside "Schedule new post", whose panel holds
- * the form. A tap outside or Escape closes it.
- */
-export function NewShootButton({ dayN }: { dayN?: string }) {
-  const [open, setOpen] = React.useState(false)
-  const root = React.useRef<HTMLDivElement>(null)
-
-  React.useEffect(() => {
-    if (!open) return
-    function onPointer(e: PointerEvent) {
-      if (!root.current?.contains(e.target as Node)) setOpen(false)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('pointerdown', onPointer)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('pointerdown', onPointer)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
-  return (
-    <div ref={root} className="relative">
-      <button
-        type="button"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className={`flex h-9 items-center rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:bg-surface hover:text-ink ${open ? 'bg-surface text-ink' : ''}`}
-      >
-        New shoot
-      </button>
-      {open && (
-        <div
-          role="dialog"
-          aria-label="New shoot"
-          className="bb-menu absolute top-11 right-0 z-30 flex w-[400px] origin-top-right flex-col gap-3 rounded-[16px] bg-page p-4 shadow-[0_0_0_1px_var(--line),var(--shadow-pop)]"
-        >
-          <span className="text-[14px] font-medium">New shoot</span>
-          <NewShootForm dayN={dayN} />
-        </div>
-      )}
-    </div>
   )
 }
