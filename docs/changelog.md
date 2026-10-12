@@ -70,7 +70,7 @@ as many UI elements as you possibly can without affecting functionality"), appli
 - **Share.** A link opens for anyone with it or only the team, and a guest can view, comment or
   edit; the guest page follows. The card is an access row, one Copy link button and an eye for the
   guest preview.
-- **Shoot page** (`docs/completions/brandbase-shoot-page-and-comments-plan.md`). One reading order:
+- **Shoot page** (`docs/archive/brandbase-shoot-page-and-comments-plan.md`). One reading order:
   head, Who comes (with guest comments beside it), then the shot list as one horizontal timeline of
   every shot, grouped by idea under a lavender bar. Groups drag by their label to reorder the ideas,
   shots drag within their group, on `@dnd-kit/core` 6.3.1 and `@dnd-kit/sortable` 10.0.0 (mouse,
@@ -93,7 +93,7 @@ Gate: typecheck, lint, format, 299 tests in 39 files, `next build`.
 
 ## 2.10.0 — 2026-10-11
 
-**Voice as a version, and a calmer inbox.** Phase 5 of `docs/completions/brandbase-marketing-call-phases-1-to-5.md`.
+**Voice as a version, and a calmer inbox.** Phase 5 of `docs/archive/brandbase-marketing-call-phases-1-to-5.md`.
 
 - **Voice.** Edit opens a full-screen flow in four steps (how it sounds, say this not that,
   sample lines, what changes) whose last screen shows a caption, hook and reply before and after.
@@ -112,7 +112,7 @@ Gate: typecheck, lint, format, 238 tests in 31 files, `next build`.
 
 ## 2.9.0 — 2026-10-11
 
-**An editable Brand kit.** Phase 4 of `docs/completions/brandbase-marketing-call-phases-1-to-5.md`.
+**An editable Brand kit.** Phase 4 of `docs/archive/brandbase-marketing-call-phases-1-to-5.md`.
 
 - `/brand`: Voice (summary, Say/Not pairs, "Sounds like" lines), Colours (hex checked as typed,
   the system picker, add, remove, name) and Logo (Replace) each have one quiet Edit; Done saves,
@@ -130,7 +130,7 @@ Gate: typecheck, lint, format, 218 tests in 29 files, `next build`.
 
 ## 2.8.0 — 2026-10-11
 
-**Connections.** Phase 3 of `docs/completions/brandbase-marketing-call-phases-1-to-5.md`.
+**Connections.** Phase 3 of `docs/archive/brandbase-marketing-call-phases-1-to-5.md`.
 
 - `/brand/connections` lists Instagram, TikTok, Facebook, Pinterest, Google Drive, Lark calendar,
   website, Google Business Profile and bookings, grouped by job, with Connect, Reconnect and
@@ -146,7 +146,7 @@ Gate: typecheck, lint, format, 208 tests in 29 files, `next build`.
 ## 2.7.0 — 2026-10-11
 
 **What marketing asked for.** David demoed the tool to Nat (marketing) on 9 October; the plan and
-completion are `docs/completions/brandbase-marketing-call-plan.md` and
+completion are `docs/archive/brandbase-marketing-call-plan.md` and
 `brandbase-marketing-call-phases-1-to-5.md`. Everything stays simulated on static data.
 
 - **Composer.** Tag people (on the photo) and Collaborators (an invite the other account accepts)
@@ -210,7 +210,7 @@ post and a post not yet scheduled, so the two read the same.
 
 **Idea tiles read as plans**, from David's and the user's review of the live demo: the F1 idea on
 Fri 9 Oct ("Pizza before the lights go out.") looked like a real post. Completion:
-`docs/completions/brandbase-feedback-round-2-phases-1-to-4.md`, phase 4.
+`docs/archive/brandbase-feedback-round-2-phases-1-to-4.md`, phase 4.
 
 - **The tile.** Week and Day draw an idea as a plan card about half a post's height: a dashed
   hairline in the brand's colour, "Idea" where a post shows its time, the hook in display type,
@@ -227,7 +227,7 @@ Fri 9 Oct ("Pizza before the lights go out.") looked like a real post. Completio
 ## 2.6.1 — 2026-10-09
 
 **Follow-ups to round 2**, from the user's review of the preview. Completion:
-`docs/completions/brandbase-feedback-round-2-phases-1-to-4.md`, phase 4.
+`docs/archive/brandbase-feedback-round-2-phases-1-to-4.md`, phase 4.
 
 - **The idea page.** `/ideate/<id>` replaces the brief's side panel and phone sheet. Under the
   editable hook, a sticky rail shows four stages, each done, current or ahead, none locked:
@@ -256,7 +256,7 @@ Fri 9 Oct ("Pizza before the lights go out.") looked like a real post. Completio
 ## 2.6.0 — 2026-10-09
 
 **David's round-2 feedback**, for his Marketing demo on 9 Oct. Plan and completion:
-`docs/completions/brandbase-feedback-round-2-plan.md` and
+`docs/archive/brandbase-feedback-round-2-plan.md` and
 `brandbase-feedback-round-2-phases-1-to-4.md`.
 
 - **Ideate.** On the moodboard, posts from Instagram, TikTok and Pinterest are checkboxes; "Plan
@@ -511,7 +511,7 @@ live-database tests went with `packages/db`.
 
 ## 1.64.0 — 2026-10-07
 
-**Schedule v2, from the 7 Oct design review.** Plan: `docs/executing/brandbase-schedule-v2-plan.md`.
+**Schedule v2, from the 7 Oct design review.** Plan: `docs/archive/brandbase-schedule-v2-plan.md`.
 **No migration.** 3456 tests (3274 passing, 182 skipped — the `*.live.test.ts` files).
 
 - **Calendar views.** Month counts each day's posts by platform (no thumbnails: a day can hold 28
@@ -565,7 +565,7 @@ live-database tests went with `packages/db`.
 
 **Ideate and Insights, redesigned.** The first versions read as unclear: three columns of
 controls on Ideate, and charts on Insights whose meaning was not obvious at first glance.
-Completion notes: `docs/completions/brandbase-demo-plan.md`, last section. **No migration.**
+Completion notes: `docs/archive/brandbase-demo-plan.md`, last section. **No migration.**
 3424 tests (3242 passing, 182 skipped — the `*.live.test.ts` files, run without a database).
 
 - **Ideate** has two views. _By format_ shelves the month's ideas as Reels and Carousels, each tile
@@ -609,7 +609,7 @@ Completion notes: `docs/completions/brandbase-demo-plan.md`, last section. **No 
 
 **BrandBase, as a demo.** The six-phase plan built on the server is archived
 (`docs/archive/brandbase-mvp-v1/`) and replaced by a UI-only demo for a client meeting on
-7 October. Plan and completion: `docs/completions/brandbase-demo-plan.md`. Design: the Claude
+7 October. Plan and completion: `docs/archive/brandbase-demo-plan.md`. Design: the Claude
 Design canvas "BrandBase Publish Flow", Option B. **No migration.** 3393 tests (3211 passing,
 182 skipped — the `*.live.test.ts` files, run without a database).
 

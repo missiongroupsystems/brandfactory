@@ -1,5 +1,14 @@
 # BrandBase: connecting real accounts
 
+> **Status, 12 Oct 2026.** The platform research below still holds. Three points are stale:
+> (1) "the composer already follows" TikTok's Direct Post rules is no longer true: the demo
+> composer defaults privacy to Everyone and comments on (`features/publish/model.ts:91-96`) and
+> shows no `creator_info` nickname; (2) YouTube and LinkedIn are out of scope for now, since every
+> brand links only Instagram, TikTok and Facebook (`data/publish.ts`); (3) the minimum backend's
+> `social_connections` now exists in `packages/connect` (OAuth state is a signed state bound to a
+> nonce cookie there, not an `oauth_states` table), but `publish_jobs` and the queue are still not
+> built. See `docs/executing/brandbase-backend-handoff.md`.
+
 Research of 7 Oct 2026 from the official docs. Nothing was created or signed in to. Re-check before
 building: these platforms change often.
 

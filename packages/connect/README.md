@@ -6,7 +6,7 @@ tokens encrypted, refreshes them, and handles the platforms' removal and deletio
 It does not publish anything.
 
 The research behind it (flows, scopes, token lifetimes, review requirements) is in
-`accounts-integration.md`, the brief of 7 Oct 2026 that was in `brandbase-app/docs/`. The facts
+`docs/executing/brandbase-accounts-integration.md`, the brief of 7 Oct 2026. The facts
 this package depends on are repeated below, so this file stands on its own.
 
 ## The brand rule
@@ -32,16 +32,14 @@ It needs no database server and no native build. pnpm 10 blocks build scripts un
 workspace root allows them, which rules out `better-sqlite3`, and `node:sqlite` is not in Node 20. The UNIQUE rule and the guarded upsert are plain Postgres, so `pglite-store.ts` ports to the
 monorepo database unchanged.
 
-## Add it to the monorepo
+## Run it
 
-This folder is shaped as `packages/connect`. It imports no other workspace package.
+This package lives at `packages/connect` and imports no other workspace package. The root
+`vitest.workspace.ts` already lists it.
 
-1. Copy the folder to `packages/connect` in the brandfactory repository.
-2. Add `'packages/connect/vitest.config.ts',` to `vitest.workspace.ts`.
-3. Run `pnpm install` at the root.
-4. Copy `.env.example` to `packages/connect/.env` and fill it in. For the key, run
+1. Copy `.env.example` to `packages/connect/.env` and fill it in. For the key, run
    `openssl rand -base64 32`.
-5. Run `pnpm -F @brandfactory/connect dev`, then open <http://localhost:3010>.
+2. Run `pnpm -F @brandfactory/connect dev`, then open <http://localhost:3010>.
 
 The root `typecheck`, `lint`, `format:check` and `test` cover the package with no other change.
 The root `.gitignore` already ignores `.env` and `.data/`, where the database is kept.

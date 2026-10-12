@@ -1,5 +1,8 @@
 # BrandBase: getting Instagram and TikTok posts into a moodboard from a phone
 
+> **Status, 12 Oct 2026.** Still a proposal: nothing below is built, and the demo still shows
+> "Instagram DMs" and a "TikTok saves" source as described.
+
 Proposal of 11 Oct 2026. Research only. Nothing was created, signed in to or deployed, and no app
 code changed. The context is the marketing call of 9 Oct (transcript lines 425 to 460), where we
 told Nat the team could DM posts to a shared moodboards account and the board would sort them by

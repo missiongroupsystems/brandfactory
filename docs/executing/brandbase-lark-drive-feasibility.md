@@ -1,5 +1,14 @@
 # BrandBase: real Google Drive and Lark calendar integrations
 
+> **Status, 12 Oct 2026.** Still accurate, with one gap. The demo's Drive picker is no longer
+> "photos to tick": since 2.11.0 it shows videos, searches every folder, numbers the picks in
+> order, picks a range with Shift, takes one file for a reel and rests the other tiles when full
+> (`features/publish/drive-picker.tsx`, tested). Swapping in the Google Picker, as recommended
+> below, would lose those rules; the handoff (`docs/executing/brandbase-backend-handoff.md`,
+> decision 4) recommends keeping the demo's picker over server-listed Drive files instead. Note
+> also that the archive's `social_posts` is one platform per row with its own stages, which does
+> not fit the demo's multi-channel post (handoff, decision 5).
+
 Feasibility study of 11 Oct 2026, asked for by David after the marketing call. Research only.
 Nothing was created, signed in to or deployed, and no app code changed. Sources were read on
 11 Oct 2026; each claim names its source, and "unverified" marks what the docs did not settle.

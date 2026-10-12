@@ -50,9 +50,10 @@ clicks in front of a client) and reloads the page when files change, which wipes
 
 ## Docs (at the repo root)
 
-- `docs/executing/brandbase-schedule-v2-plan.md`: the current plan, what we take from Brandwatch, and the API notes
-  for the real build (per-platform rules, what can be synced, brand-account isolation).
-- `docs/completions/brandbase-demo-plan.md`: how the demo was first built, and its earlier redesigns.
+- `docs/executing/brandbase-backend-handoff.md`: what the UI relies on, feature by feature, for the backend
+  build: rules, edge cases, decisions to make first and the riskiest items.
+- `docs/archive/`: finished plans and completion notes, including the schedule v2 plan and how the demo was
+  first built.
 - `docs/executing/brandbase-accounts-integration.md`: how to connect real Pinterest, Instagram, Facebook and TikTok
   accounts, what to ask the client, and the minimum backend.
 - `docs/changelog.md`: what changed, newest first.

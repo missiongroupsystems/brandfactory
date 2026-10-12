@@ -76,6 +76,10 @@ fits. Do not create a new Fly app, Supabase project or database when one exists.
 `git show origin/archive/main-2026-10-07:<path>`, and read that branch's `CLAUDE.md` for the rules the
 server followed (authorization chain, mount lists, one server instance).
 
+Read `docs/executing/brandbase-backend-handoff.md` before you start: it lists what the demo's UI relies
+on (rules, edge cases, the decisions to settle first and the riskiest items), with a code or test
+citation for each.
+
 ## Testing
 
 `vitest.workspace.ts` lists one config per package. The root `vitest.config.ts`
