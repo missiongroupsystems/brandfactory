@@ -139,6 +139,24 @@ describe('an idea page', () => {
     expect(screen.getByRole('link', { name: 'Open in scheduler →' })).toBeInTheDocument()
   })
 
+  it('asks before it marks a post posted, and nothing changes a posted post after', () => {
+    open('cv-blindfold')
+    fireEvent.click(screen.getByRole('radio', { name: 'Scheduled' }))
+    // Posted cannot be undone, so a stray click only asks; Cancel leaves the post as it was.
+    fireEvent.click(screen.getByRole('radio', { name: 'Posted' }))
+    expect(screen.getByRole('alertdialog', { name: 'Mark as posted?' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Scheduled' })).toBeChecked()
+    // Confirmed, it is posted, and the other steps rest.
+    fireEvent.click(screen.getByRole('radio', { name: 'Posted' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Mark as posted' }))
+    expect(screen.getByRole('radio', { name: 'Posted' })).toBeChecked()
+    for (const step of ['Idea', 'Draft', 'Scheduled']) {
+      expect(screen.getByRole('radio', { name: step })).toBeDisabled()
+    }
+  })
+
   it('moves the idea to the day picked, and a status then makes it a post at that day and time', () => {
     open('cv-blindfold')
     fireEvent.click(screen.getByRole('button', { name: 'Post date' }))

@@ -26,20 +26,20 @@ or the test that encodes it; the tests are the spec.
    pnpm test && pnpm -F @brandfactory/web-next build`), and follow the docs pipeline in
    `/CLAUDE.md`: a plan in `docs/executing/` before code.
 
-## Decisions for the owner before building
+## Decisions (settled by the owner, 13 Oct 2026)
 
-These are product calls the code cannot settle. Each has a recommendation.
+Build on these. Each was a product call the code could not settle.
 
-| # | Decision | Recommendation |
+| # | Decision | Settled |
 |---|---|---|
-| 1 | Client-made ids or server-made ids (the UI navigates to a new idea, shoot or post in the same tick it creates it) | Client-made UUIDs, accepted by the server, so the UI keeps its instant feel without new pending states |
-| 2 | What "Idea" does to a post that already went out (the owner allowed it on 12 Oct) | Detach the calendar row and keep the platform post and its insights; never delete published content |
-| 3 | Whether the idea page may set Scheduled or Posted by hand | Keep it, but store "marked by hand" apart from "published by us", and refuse a manual Scheduled with no channels |
-| 4 | Keep the demo's Drive picker or switch to the Google Picker | Keep the demo's picker over server-listed Drive files (it holds tested rules: videos, search, ordered picks, limits); the Google Picker loses them |
-| 5 | Post model: the archive's `social_posts` is one platform per row with stages idea/approved/filming/editing/posted; the demo has one post across several channels with draft/scheduled/posted/failed | A post row plus one job row per account; the post stage is derived from its jobs |
-| 6 | Guest "Can edit" on a share link | Define it as "edit the brief's text and storyboard on the share page", or drop the option until it has a meaning |
-| 7 | TikTok defaults (Everyone, comments on) break TikTok's audit rule | Drop both defaults before any real TikTok posting |
-| 8 | Brand timezone | One timezone per brand (all three are Singapore, UTC+8), stored on the brand and used for every "today" and "this week" rule |
+| 1 | Client-made or server-made ids (the UI navigates to a new idea, shoot or post in the same tick it creates it) | **Client-made UUIDs**, accepted by the server, so the UI keeps its instant feel without new pending states |
+| 2 | Can a posted post change state | **No. Posted is final.** Nothing takes a posted post back to an idea, a draft or a schedule. Marking a post Posted by hand asks for confirmation first ("Mark as posted? It can't be changed after."). Built in 2.11.3: the store's `setStage` and `unplanPost` refuse a posted post, and the idea page's status chips rest once a post is posted. The server must enforce the same |
+| 3 | Can the idea page set Scheduled or Posted by hand | **Yes**, but store "marked by hand" apart from "published by us", and refuse a manual Scheduled with no channels |
+| 4 | The demo's Drive picker or the Google Picker | **Keep the demo's picker** over server-listed Drive files; it holds tested rules (videos, search, ordered picks, limits) the Google Picker would lose |
+| 5 | Post model (the archive's `social_posts` is one platform per row with stages idea/approved/filming/editing/posted; the demo has one post across several channels with draft/scheduled/posted/failed) | **A post row plus one job row per account**; the post stage is derived from its jobs |
+| 6 | Guest "Can edit" on a share link | **Edit the brief's text and storyboard on the share page**; drop the option if that is not built |
+| 7 | TikTok's defaults (privacy Everyone, comments on) | **Keep them as they are.** The owner chose to ignore this. For the record, TikTok's Content Sharing Guidelines (Direct Post API, "Required UX Implementation in Your App", point 2b and 2c) say privacy must be picked by hand with "no default value" and that interactions must have "none ... checked by default": <https://developers.tiktok.com/doc/content-sharing-guidelines> |
+| 8 | Brand timezone | **One timezone per brand** (all three are Singapore, UTC+8), stored on the brand and used for every "today" and "this week" rule |
 
 ## Doc status (12 Oct 2026)
 
@@ -152,8 +152,7 @@ A server must either accept client-made UUIDs or have each caller await the crea
 - **unplanPost(id, idea)** (`posts-store.tsx:350-391`):
   - It removes the post and puts an idea tile back on the same day with the original `why` and the `suggested` flag. A story's slot opens again.
   - **The post record is deleted** (`filter(p => p.id !== id)`).
-  - It is allowed for a **posted** post (commit 4b3ca6c). Test: "takes a posted post back to an idea too: the team decides, not the stage". The code comment says: "Nothing that went out is taken back."
-  - For the backend: never delete the published platform post or its insights. Detach the calendar row and keep the external record. [Inference]
+  - It refuses a **posted** post, and `setStage` refuses to change one (decision 2, 2.11.3). Test: "never takes back a post that went out, nor moves it to another stage".
   - Tests: "lifts the post off its day and puts the idea tile back there", "gives the tile back its own words, and a suggestion stays a suggestion".
 - **placeIdea and addIdeaToCalendar:** an idea is on one day only. Other marks on the day stay.
   - `addIdeaToCalendar` refuses a preferred day that holds a post. It then falls back to `landingDay`: the first empty day after this week, "since a shoot needs lead time". It returns null when the month is full (`calendar-slot.ts:56-63`).
@@ -509,10 +508,10 @@ A server must either accept client-made UUIDs or have each caller await the crea
 2. **Synchronous client ids.** `planPost` then `editIdea`, and `addIdea` or `planShoot` then `router.push`. Pick client UUIDs or an await-with-pending pattern. Make `ideaOfTile` and Send idempotent.
 3. **The time model.** `dayN` strings, one hard-coded month, three different "nows", no timezone, slot as text. Every rule (past day, landing day, best times, story per day) must be rebuilt on brand-timezone dates. `liftAfter` also needs its series to start on a Monday.
 4. **Partial publishes.** Today the stage is set before any send result. A post needs a status per account (job), with the post stage derived from the jobs. The idea page lets a person set Scheduled or Posted by hand with no checks.
-5. **unplanPost deletes a posted post.** On a server this must detach the calendar row, not delete the external post or its insights.
+5. **Posted is final (decision 2).** The UI refuses to change a posted post; the server must refuse it too, whatever client calls it.
 6. **Lost composer state.** Caption, per-account settings, tags, crops, labels, first comment and location are never saved, and media edits on existing posts are dropped. The server schema must hold all of them. The archive's one-platform-per-row `social_posts` does not fit.
 7. **Media.** Blob URLs and the `#video` fragment must become uploaded files with a kind, poster, duration and dimensions. Video limits (90 s, 9:16) are not validated, and story frames are not capped on the idea page.
 8. **Share links** use raw ids with no token, and guest "Can edit" has no server meaning.
-9. **TikTok defaults** (Everyone, comments on) break TikTok's audit rule and must change before real posting.
+9. **TikTok defaults** (Everyone, comments on) stay, by the owner's choice (decision 7); TikTok's guideline is linked there.
 10. **No loading, error or rollback states anywhere.** Drags, sends, connects, invites, AI writes and suggestions all assume success.
 11. **Two-source conflicts to flag for cleanup.** The composer's static idea list against the ideas store. Pinterest status in the ideas store against the connections store. The composer's local Reconnect against the connections store. `planned` shoots tracked outside the store state.

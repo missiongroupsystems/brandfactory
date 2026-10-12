@@ -250,8 +250,9 @@ function usePlan(slot: Slot): Plan {
     time,
     infoOf,
     media,
-    // Idea takes a post back to a plan on its day, whatever stage the post is at.
+    // Idea takes a post back to a plan on its day. Posted is final: nothing changes it.
     setStatus: (step) => {
+      if (post?.stage === 'posted') return
       if (step !== 'idea') return plan(step, dayN, time)
       if (!post) return
       const why =
@@ -1894,39 +1895,96 @@ function FinalCut({
 
 /**
  * The four steps; the current one filled. Draft, Scheduled and Posted set the post's stage on the
- * calendar; Idea takes the post back to a plan, from any of them.
+ * calendar; Idea takes the post back to a plan. Posted is final, so picking it asks first, and once
+ * a post is posted the other steps rest.
  */
 function StatusPicker({ value, onChange }: { value: Step; onChange: (s: Step) => void }) {
   const brandColour = useBrand().brand.colour
+  const [asking, setAsking] = React.useState(false)
+  const final = value === 'posted'
+  const root = React.useRef<HTMLSpanElement>(null)
+  const confirm = React.useRef<HTMLButtonElement>(null)
+
+  React.useEffect(() => {
+    if (!asking) return
+    // The question takes the focus, so Enter confirms and Escape backs out.
+    confirm.current?.focus()
+    const away = (e: PointerEvent) => root.current?.contains(e.target as Node) || setAsking(false)
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && setAsking(false)
+    document.addEventListener('pointerdown', away)
+    window.addEventListener('keydown', key)
+    return () => {
+      document.removeEventListener('pointerdown', away)
+      window.removeEventListener('keydown', key)
+    }
+  }, [asking])
+
   return (
-    <span role="radiogroup" aria-label="Status" className="flex flex-wrap gap-1">
-      {CHIPS.map((c) => {
-        const on = c === value
-        return (
-          <button
-            key={c}
-            type="button"
-            role="radio"
-            aria-checked={on}
-            onClick={() => onChange(c)}
-            className={`flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] transition-colors ${on ? 'bg-ink text-page' : 'bg-surface text-ink-3 hover:text-ink'}`}
-          >
-            {c === 'idea' ? (
-              // A plan's mark, the calendar's dashed square, so Idea never reads as a shade of Draft.
-              <span
-                className="size-2 rounded-[2.5px] border border-dashed"
-                style={{ borderColor: on ? 'var(--page)' : `var(${brandColour})` }}
-              />
-            ) : (
-              <span
-                className="size-1.5 rounded-full"
-                style={{ background: on ? 'var(--page)' : statusColour(c) }}
-              />
-            )}
-            {STATUS_LABEL[c]}
-          </button>
-        )
-      })}
+    <span ref={root} className="relative flex">
+      <span role="radiogroup" aria-label="Status" className="flex flex-wrap gap-1">
+        {CHIPS.map((c) => {
+          const on = c === value
+          const locked = final && !on
+          return (
+            <button
+              key={c}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              disabled={locked}
+              title={locked ? 'Posted is final' : undefined}
+              onClick={() => (c === 'posted' && !on ? setAsking(true) : onChange(c))}
+              className={`flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] transition-colors disabled:opacity-40 ${on ? 'bg-ink text-page' : 'bg-surface text-ink-3 enabled:hover:text-ink'}`}
+            >
+              {c === 'idea' ? (
+                // A plan's mark, the calendar's dashed square, so Idea never reads as a shade of Draft.
+                <span
+                  className="size-2 rounded-[2.5px] border border-dashed"
+                  style={{ borderColor: on ? 'var(--page)' : `var(${brandColour})` }}
+                />
+              ) : (
+                <span
+                  className="size-1.5 rounded-full"
+                  style={{ background: on ? 'var(--page)' : statusColour(c) }}
+                />
+              )}
+              {STATUS_LABEL[c]}
+            </button>
+          )
+        })}
+      </span>
+      {asking && (
+        <span
+          role="alertdialog"
+          aria-label="Mark as posted?"
+          className="bb-menu absolute top-full left-0 z-30 mt-2 flex w-[264px] origin-top-left flex-col gap-3 rounded-[14px] bg-page p-3.5 shadow-pop"
+        >
+          <span className="flex flex-col gap-1">
+            <span className="text-[13px] font-medium">Mark as posted?</span>
+            <span className="text-[12px] text-ink-3">It can’t be changed after.</span>
+          </span>
+          <span className="flex justify-end gap-1.5">
+            <button
+              type="button"
+              onClick={() => setAsking(false)}
+              className="h-8 rounded-full px-3 text-[12.5px] text-ink-3 transition-colors hover:text-ink"
+            >
+              Cancel
+            </button>
+            <button
+              ref={confirm}
+              type="button"
+              onClick={() => {
+                setAsking(false)
+                onChange('posted')
+              }}
+              className="bb-press h-8 rounded-full bg-ink px-3.5 text-[12.5px] font-medium text-page hover:opacity-85"
+            >
+              Mark as posted
+            </button>
+          </span>
+        </span>
+      )}
     </span>
   )
 }

@@ -123,7 +123,8 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   const setStage = React.useCallback((id: string, stage: Stage) => {
     setPostsByBrand((all) => {
       for (const [brand, posts] of Object.entries(all) as Array<[BrandId, Post[]]>) {
-        if (posts.some((p) => p.id === id && p.stage !== stage)) {
+        // Posted is final: what went out is not taken back to a plan, a draft or a schedule.
+        if (posts.some((p) => p.id === id && p.stage !== stage && p.stage !== 'posted')) {
           return { ...all, [brand]: posts.map((p) => (p.id === id ? { ...p, stage } : p)) }
         }
       }
@@ -350,7 +351,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   const unplanPost = React.useCallback<BrandValue['unplanPost']>(
     (id, idea) => {
       const post = postsByBrand[brandId].find((p) => p.id === id)
-      if (!post) return
+      if (!post || post.stage === 'posted') return
       setWeeksByBrand((all) => ({
         ...all,
         [brandId]: all[brandId].map((week) => ({
