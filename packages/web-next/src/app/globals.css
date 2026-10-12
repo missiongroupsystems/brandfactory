@@ -288,27 +288,67 @@
 
 /*
  * ── Composer preview (features/publish/preview-media.tsx) ────────────────────────────────────
- * bb-glyph: the play or pause glyph a tap
- * flashes, in and out in one go. pm-empty: with no media yet, the app's chrome fades and only
+ * bb-tap / bb-tap-out: the play button answers a tap (play: it springs in and lifts away; pause:
+ * it presses in and settles before the steady play button returns). bb-ripple: a ring in the
+ * brand's accent spreads from the tap. pm-empty: with no media yet, the app's chrome fades and only
  * the placeholder stays at full strength.
  */
-@keyframes bb-glyph {
+@keyframes bb-tap {
   0% {
     opacity: 0;
-    transform: scale(0.6);
+    transform: scale(0.72);
   }
-  28%,
-  62% {
+  24% {
+    opacity: 1;
+    transform: scale(1.07);
+  }
+  42% {
+    transform: scale(0.95);
+  }
+  60% {
     opacity: 1;
     transform: scale(1);
   }
   100% {
     opacity: 0;
-    transform: scale(1.1);
+    transform: scale(1.12);
   }
 }
-@utility bb-glyph {
-  animation: bb-glyph 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+@utility bb-tap {
+  animation: bb-tap 640ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes bb-tap-out {
+  0% {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+  28% {
+    opacity: 1;
+    transform: scale(0.92);
+  }
+  52% {
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@utility bb-tap-out {
+  animation: bb-tap-out 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes bb-ripple {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.75);
+  }
+}
+@utility bb-ripple {
+  animation: bb-ripple 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 @utility pm-empty {
   & > span > :not([data-media], :has([data-media])) {

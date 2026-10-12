@@ -5,6 +5,8 @@ import * as React from 'react'
 import { CarouselIcon, ReelIcon } from '@/components/icons'
 import { posterOf } from '@/components/media'
 import type { Format } from '@/data/demo'
+import { useBrandKit } from '@/features/brand/brand-store'
+import { hsvOf, luminance } from '@/features/brand/colour'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import type { Shot } from './model'
@@ -57,6 +59,22 @@ export interface Player {
   /** The glyph a tap flashes mid-frame, keyed so each tap replays it. */
   flash: { kind: 'play' | 'pause'; key: number } | null
   endFlash: () => void
+}
+
+/**
+ * Three tones from the brand kit for the preview's own controls: its lightest colour, its darkest,
+ * and the most vivid of the rest as the accent (Flour, Char and Terracotta for Casa Vostra).
+ */
+export function useKitTones(): { light: string; dark: string; accent: string } {
+  const { brand } = useBrand()
+  const colours = useBrandKit(brand.id).colours.map((c) => c.hex)
+  const byLight = [...colours].sort((a, b) => luminance(a) - luminance(b))
+  const dark = byLight[0] ?? '#1a1816'
+  const light = byLight.at(-1) ?? '#f7f5f2'
+  const rest = colours.filter((c) => c !== dark && c !== light)
+  const accent =
+    [...rest].sort((a, b) => hsvOf(b).s * hsvOf(b).v - hsvOf(a).s * hsvOf(a).v)[0] ?? light
+  return { light, dark, accent }
 }
 
 /**
@@ -123,12 +141,19 @@ export function ReelVideo({ shot, player, fresh }: { shot: Shot; player: Player;
 }
 
 const PLAY = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <svg
+    width="15"
+    height="15"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden="true"
+    className="translate-x-[1px]"
+  >
     <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
   </svg>
 )
 const PAUSE = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <rect x="6" y="5" width="4.2" height="14" rx="1.2" />
     <rect x="13.8" y="5" width="4.2" height="14" rx="1.2" />
   </svg>
@@ -158,8 +183,14 @@ const SOUND = (
  * `inset` lifts the tap and the line above an app's own bottom bar.
  */
 export function ReelControls({ player, inset = 0 }: { player: Player; inset?: number }) {
-  const glyph =
-    'flex size-[38px] items-center justify-center rounded-full bg-(--pc-glyph-shadow) text-(--pc-white) backdrop-blur-[2px]'
+  const tones = useKitTones()
+  // A disc in the kit's lightest colour with the glyph in its darkest: the brand's own play button.
+  const discCls =
+    'relative flex size-[44px] items-center justify-center rounded-full shadow-[0_6px_18px_-6px_rgba(0,0,0,0.55)] backdrop-blur-[3px]'
+  const discStyle = {
+    background: `color-mix(in oklab, ${tones.light} 90%, transparent)`,
+    color: tones.dark,
+  }
   return (
     <>
       <button
@@ -174,15 +205,27 @@ export function ReelControls({ player, inset = 0 }: { player: Player; inset?: nu
         style={{ bottom: inset }}
       >
         {player.flash ? (
-          <span
-            key={player.flash.key}
-            onAnimationEnd={player.endFlash}
-            className={`bb-glyph ${glyph}`}
-          >
-            {player.flash.kind === 'play' ? PLAY : PAUSE}
+          <span key={player.flash.key} className="relative flex">
+            {/* A ring in the accent spreads from the tap, and the disc gives under it. */}
+            <span
+              aria-hidden="true"
+              className="bb-ripple absolute inset-0 rounded-full"
+              style={{ boxShadow: `0 0 0 2px ${tones.accent}` }}
+            />
+            <span
+              onAnimationEnd={(e) => e.target === e.currentTarget && player.endFlash()}
+              className={`${discCls} ${player.flash.kind === 'pause' ? 'bb-tap-out' : 'bb-tap'}`}
+              style={discStyle}
+            >
+              {player.flash.kind === 'play' ? PLAY : PAUSE}
+            </span>
           </span>
         ) : (
-          !player.playing && <span className={`bb-pop ${glyph}`}>{PLAY}</span>
+          !player.playing && (
+            <span className={`bb-pop ${discCls}`} style={discStyle}>
+              {PLAY}
+            </span>
+          )
         )}
       </span>
       <button
@@ -390,30 +433,41 @@ const PLUS_GLYPH = (
 )
 
 /**
- * The media area before anything is added: a calm surface with the brand's tint glowing behind
- * the middle, a frosted plus and one line, with a quieter hint under it. In the composer it is a button that opens the picker. `light` is for the
+ * The media area before anything is added, in the brand kit's own colours: a calm surface, a
+ * plus on the same disc as the play button, and one line with a quieter hint under it. In the composer it is a button that opens the picker. `light` is for the
  * apps that show a photo on a white feed.
  */
 export function Placeholder({ light, onAdd }: { light: boolean; onAdd?: () => void }) {
-  const { brand } = useBrand()
-  const tint = `var(${brand.colour})`
+  const tones = useKitTones()
+  // The kit's own colours: its darkest as the surface with the accent glowing low behind the
+  // middle; on a white feed its lightest. The plus is the same disc as the play button.
   const background = light
-    ? `linear-gradient(180deg, color-mix(in oklab, ${tint} 7%, #f5f3ef), #ebe8e3)`
-    : `radial-gradient(70% 45% at 50% 46%, color-mix(in oklab, ${tint} 18%, #1c1a18), #0e0d0c 100%)`
+    ? `linear-gradient(180deg, ${tones.light}, color-mix(in oklab, ${tones.light} 86%, ${tones.dark}))`
+    : `radial-gradient(75% 48% at 50% 52%, color-mix(in oklab, ${tones.accent} 22%, ${tones.dark}), color-mix(in oklab, ${tones.dark} 88%, black) 100%)`
+  const ink = light ? tones.dark : tones.light
   const inner = (
     <>
       <span
-        className={`flex size-[34px] items-center justify-center rounded-full ${light ? 'bg-black/[0.05] text-black/55 shadow-[inset_0_0_0_0.5px_rgba(0,0,0,0.12)]' : 'bg-white/[0.08] text-white/80 shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.18)] backdrop-blur-sm'}`}
+        className="flex size-[40px] items-center justify-center rounded-full shadow-[0_6px_18px_-8px_rgba(0,0,0,0.5)]"
+        style={
+          light
+            ? { background: tones.dark, color: tones.light }
+            : {
+                background: `color-mix(in oklab, ${tones.light} 92%, transparent)`,
+                color: tones.dark,
+              }
+        }
       >
         {PLUS_GLYPH}
       </span>
-      <span className="flex flex-col items-center gap-[3px]">
-        <span
-          className={`text-[9px] leading-none font-medium ${light ? 'text-black/65' : 'text-white/75'}`}
-        >
+      <span className="flex flex-col items-center gap-[4px]">
+        <span className="text-[9px] leading-none font-medium" style={{ color: ink }}>
           Add a photo or video
         </span>
-        <span className={`text-[7.5px] leading-none ${light ? 'text-black/35' : 'text-white/35'}`}>
+        <span
+          className="text-[7.5px] leading-none"
+          style={{ color: `color-mix(in oklab, ${ink} 50%, transparent)` }}
+        >
           or drop it here
         </span>
       </span>
