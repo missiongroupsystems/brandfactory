@@ -134,7 +134,7 @@ export function ShotList({
         <ol
           ref={attach}
           aria-label="Shots in order"
-          className="flex w-max min-w-full items-start gap-5 rounded-[18px] bg-surface p-3 max-md:gap-4 max-md:rounded-[14px] max-md:p-2"
+          className="flex w-max min-w-full items-start gap-7 max-md:gap-5"
         >
           {ideas.map((card) => (
             <Group
@@ -281,12 +281,18 @@ function Group({
             drag.begin()
           }}
           onDragEnd={() => drag?.finish(false)}
-          className={`group/label bb-touch-drag relative flex h-7 max-w-full min-w-0 items-center gap-2 self-start rounded-full bg-page pr-2.5 pl-3 text-[12.5px] font-medium shadow-[0_0_0_1px_var(--cal-line)] ${drag ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          className={`group/label bb-touch-drag relative flex w-full min-w-0 flex-col gap-2 pb-1 text-[12.5px] font-medium ${drag ? 'cursor-grab active:cursor-grabbing' : ''}`}
         >
           {drag && <Handle label={`Move group: ${card.hook}`} hint={hint} onNudge={drag.nudge} />}
-          {hook}
-          {format}
-          {remove}
+          <span className="flex min-w-0 items-center gap-2 px-0.5">
+            {hook}
+            {format}
+            {remove}
+          </span>
+          {/* The clip bar: it spans the group's clips, and deepens under the pointer or a drag. */}
+          <span
+            className={`h-[3px] w-full rounded-full transition-colors duration-200 ${drag?.held ? 'bg-(--layer-shoot-ink)' : 'bg-(--layer-shoot) group-hover/label:bg-(--layer-shoot-ink)'}`}
+          />
         </div>
       )}
       {card.shots.length === 0 ? (

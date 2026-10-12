@@ -126,6 +126,14 @@ Two looks were tried (`round4-concept-a|b-desktop.png`): A, the track band above
 straight on the page with a thin lavender bar under each group's label (read as tabs; the clips
 floated).
 
+## Round 5: look B
+
+The owner picked B. The band goes: the clips sit on the page, 28 px between groups. Each group's
+label is a block as wide as its clips: the hook, the format and Remove on one line, and under
+them a 3 px lavender bar (`--layer-shoot`) that spans the clips, like a clip's colour strip in an
+editor. The bar deepens to `--layer-shoot-ink` under the pointer and while the group is held, so
+the grip reads before the drag starts. Everything else from round 4 stays.
+
 ## Tests
 
 - Custom role: pick Other, type a role, add a person; the row shows that role.
