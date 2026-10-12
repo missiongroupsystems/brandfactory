@@ -566,6 +566,14 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
     }
   }, [adding])
 
+  // A source just connected: the popover closes, so it never jumps to a source nobody picked.
+  const linked = Object.values(sources).filter(Boolean).length
+  const [linkedBefore, setLinkedBefore] = React.useState(linked)
+  if (linkedBefore !== linked) {
+    setLinkedBefore(linked)
+    setAdding(false)
+  }
+
   if (!sources.pinterest && !sources.dm && !sources.tt) return <ConnectSources />
 
   // The brand's board sections on Pinterest, everything sent by DM or pasted as a link, then the
@@ -703,12 +711,15 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
         )}
       </div>
       {filter === 'dm' && (
-        <PasteLink
-          onPaste={(r) => {
-            pasteReference(brand.id, r)
-            setPasted(pastedReferences(brand.id))
-          }}
-        />
+        <div className="flex max-w-[420px] flex-col gap-2">
+          <PasteLink
+            onPaste={(r) => {
+              pasteReference(brand.id, r)
+              setPasted(pastedReferences(brand.id))
+            }}
+          />
+          <DmHint />
+        </div>
       )}
       <Masonry key={filter} pins={shown} selected={selected} onToggle={toggle} />
     </div>
@@ -734,6 +745,18 @@ function AddSource({ missing }: { missing: MoodSource[] }) {
         </button>
       ))}
     </div>
+  )
+}
+
+/** How a post reaches this brand's board by DM, in one line, with the tag to type. */
+function DmHint() {
+  const { brand } = useBrand()
+  return (
+    <p className="px-4 text-[12px] text-ink-4">
+      Or share any post or reel by DM to{' '}
+      <span className="font-medium text-ink-2">{MOODBOARD_ACCOUNT}</span> with{' '}
+      <span className="font-medium text-ink-2">{moodboardTag(brand)}</span>.
+    </p>
   )
 }
 

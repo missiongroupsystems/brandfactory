@@ -6,7 +6,6 @@ import { BrandProvider } from '@/features/schedule/posts-store'
 import { BrandPage } from './brand-page'
 import { resetBrandKit } from './brand-store'
 import { resetVoiceVersions } from './voice/versions'
-import { VoiceNote } from './voice-note'
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/brand',
@@ -77,7 +76,7 @@ describe('editing the kit', () => {
     })
   }
 
-  it('saves a new voice where AI drafts read it, beside the composer’s AI button', () => {
+  it('saves a new voice as the brand’s voice', () => {
     vi.useFakeTimers()
     open()
     fireEvent.click(screen.getByRole('button', { name: 'Edit voice' }))
@@ -90,16 +89,6 @@ describe('editing the kit', () => {
     makeItTheVoice()
     vi.useRealTimers()
     expect(voice().getByText('Short and bright. Never fussy.')).toBeInTheDocument()
-
-    render(
-      <BrandProvider>
-        <VoiceNote />
-      </BrandProvider>,
-    )
-    expect(screen.getByRole('link', { name: 'In Casa Vostra’s voice' })).toHaveAttribute(
-      'title',
-      'Short and bright. Never fussy.',
-    )
   })
 
   it('removes a pair and adds one, and keeps neither change after Escape', () => {

@@ -91,6 +91,8 @@ describe('the moodboard', () => {
       vi.advanceTimersByTime(1000)
     })
     expect(ideasOf('casa-vostra').sources).toEqual({ pinterest: true, dm: false, tt: true })
+    // The popover closes; it does not jump on to the Instagram setup nobody asked for.
+    expect(screen.queryByText(/It lands on/)).toBeNull()
   })
 
   it('makes the idea from the picked posts and opens its page, with no step between', () => {
