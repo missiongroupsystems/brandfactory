@@ -8,6 +8,7 @@ import { AppHeader } from '@/components/app-header'
 import { Fold } from '@/components/controls'
 import { CheckIcon, ChevronIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
+import { Sheet } from '@/components/sheet'
 import { usePhone } from '@/components/use-phone'
 import type { Brand } from '@/data/brands'
 import { INBOX_BY_BRAND, type BrandInbox, type InboxEarlier, type InboxMessage } from '@/data/inbox'
@@ -21,6 +22,7 @@ import {
   firstName,
   firstNames,
   nextAfter,
+  PLATFORM,
   queue,
   stamps,
   whereFrom,
@@ -461,16 +463,7 @@ function Thread({
           <span className="truncate text-[12.5px] text-ink-4">{whereFrom(m)}</span>
         </div>
         {/* The post it is about, as a thumbnail at the edge, the way Instagram shows it. */}
-        {m.post && (
-          <span
-            role="img"
-            aria-label={`${m.kind === 'mention' ? 'Their post' : 'Your post'}: ${m.post.caption}`}
-            title={m.post.caption}
-            className="relative h-10 w-8 shrink-0 overflow-hidden rounded-[7px] bg-tile"
-          >
-            <Image src={m.post.image} alt="" fill sizes="64px" className="object-cover" />
-          </span>
-        )}
+        {m.post && <PostPeek m={m} post={m.post} />}
         {m.tone === 'complaint' && (
           <SendTo brandId={brand.id} m={m} people={data.people} sentTo={routedTo} />
         )}
@@ -712,6 +705,72 @@ function SendTo({
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * The post a message is about: a thumbnail that lifts under the pointer, and opens to the post
+ * itself, the picture and its caption. A card under the thumbnail on a computer, a sheet on a phone.
+ */
+function PostPeek({ m, post }: { m: InboxMessage; post: NonNullable<InboxMessage['post']> }) {
+  const phone = usePhone()
+  const [open, setOpen] = React.useState(false)
+  const root = React.useRef<HTMLDivElement>(null)
+  const whose = m.kind === 'mention' ? 'Their post' : 'Your post'
+
+  React.useEffect(() => {
+    if (!open || phone) return
+    const onPointer = (e: PointerEvent) =>
+      root.current?.contains(e.target as Node) || setOpen(false)
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('pointerdown', onPointer)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open, phone])
+
+  const body = (
+    <div className="flex flex-col gap-3">
+      <span className="relative aspect-[4/5] max-h-[52svh] w-full overflow-hidden rounded-[12px] bg-tile">
+        <Image src={post.image} alt="" fill sizes="320px" className="object-cover" />
+      </span>
+      <span className="flex items-center gap-1.5 text-[12px] text-ink-4">
+        <PlatformLogo platform={m.platform} size={10} />
+        {whose} on {PLATFORM[m.platform]}
+      </span>
+      <p className="text-[13.5px] leading-[1.5] text-ink-2">{post.caption}</p>
+    </div>
+  )
+
+  return (
+    <div ref={root} className="relative shrink-0">
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={`${whose}: ${post.caption}`}
+        onClick={() => setOpen((o) => !o)}
+        className={`relative block h-10 w-8 overflow-hidden rounded-[7px] bg-tile transition-[transform,box-shadow] duration-200 ease-out hover:-rotate-3 hover:scale-[1.08] hover:shadow-soft focus-visible:shadow-[0_0_0_2px_var(--page),0_0_0_3.5px_var(--ink)] focus-visible:outline-none motion-reduce:transition-none motion-reduce:hover:transform-none ${open ? 'scale-[1.08] shadow-soft' : ''}`}
+      >
+        <Image src={post.image} alt="" fill sizes="64px" className="object-cover" />
+      </button>
+      {open &&
+        (phone ? (
+          <Sheet title={whose} onClose={() => setOpen(false)}>
+            {body}
+          </Sheet>
+        ) : (
+          <div
+            role="dialog"
+            aria-label={whose}
+            className="bb-menu absolute top-12 right-0 z-20 w-[300px] origin-top-right rounded-[16px] bg-page p-3 shadow-pop"
+          >
+            {body}
+          </div>
+        ))}
     </div>
   )
 }

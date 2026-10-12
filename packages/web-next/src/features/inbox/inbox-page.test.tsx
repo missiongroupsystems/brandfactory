@@ -55,8 +55,15 @@ describe('the inbox', () => {
     page()
     const thread = screen.getByRole('article', { name: /Rachel Tan/ })
     // The post it is about sits in the header, not in the conversation.
-    expect(within(thread).getByRole('img', { name: /^Your post: The final touch/ })).toBeTruthy()
-    expect(within(thread).queryByText('Your post')).toBeNull()
+    const thumb = within(thread).getByRole('button', { name: /^Your post: The final touch/ })
+    expect(within(thread).queryByRole('dialog')).toBeNull()
+    // A click opens the post itself: what the comment is on, in full.
+    fireEvent.click(thumb)
+    const peek = within(thread).getByRole('dialog', { name: 'Your post' })
+    expect(within(peek).getByText(/Find us at Raffles City/)).toBeTruthy()
+    expect(within(peek).getByText('Your post on Instagram')).toBeTruthy()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(within(thread).queryByRole('dialog')).toBeNull()
     expect(directions().map((b) => b.textContent)).toEqual([
       'Apologise and invite to DM',
       'Offer to make it right',

@@ -90,7 +90,11 @@ export function ago(minutes: number): string {
   return `${Math.floor(minutes / (60 * 24))}d`
 }
 
-const PLATFORM: Record<InboxPlatform, string> = { ig: 'Instagram', tt: 'TikTok', fb: 'Facebook' }
+export const PLATFORM: Record<InboxPlatform, string> = {
+  ig: 'Instagram',
+  tt: 'TikTok',
+  fb: 'Facebook',
+}
 const KIND: Record<InboxKind, string> = {
   comment: 'Comment',
   mention: 'Tagged you',
