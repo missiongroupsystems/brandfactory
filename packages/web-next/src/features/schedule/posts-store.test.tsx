@@ -136,12 +136,13 @@ describe('taking a post back to an idea', () => {
     expect(feedsOf(day).some((m) => m.kind === 'idea' && m.hook === 'A story.')).toBe(false)
   })
 
-  it('never takes back a post that went out', () => {
+  it('takes a posted post back to an idea too: the team decides, not the stage', () => {
     const { result } = renderHook(() => useBrand(), { wrapper })
+    expect(result.current.byId('margherita')?.stage).toBe('posted')
     act(() =>
       result.current.unplanPost('margherita', { format: 'reel', hook: 'x', why: 'Team idea' }),
     )
-    expect(result.current.byId('margherita')?.stage).toBe('posted')
+    expect(result.current.byId('margherita')).toBeUndefined()
   })
 })
 

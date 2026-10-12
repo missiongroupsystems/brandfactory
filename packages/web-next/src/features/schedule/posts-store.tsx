@@ -350,7 +350,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   const unplanPost = React.useCallback<BrandValue['unplanPost']>(
     (id, idea) => {
       const post = postsByBrand[brandId].find((p) => p.id === id)
-      if (!post || post.stage === 'posted') return
+      if (!post) return
       setWeeksByBrand((all) => ({
         ...all,
         [brandId]: all[brandId].map((week) => ({

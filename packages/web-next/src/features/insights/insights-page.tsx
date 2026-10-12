@@ -481,7 +481,8 @@ function BestTime({
   days: Extract<StoryChart, { kind: 'days' }>
   hours: number[]
 }) {
-  const [open, setOpen] = React.useState(false)
+  // The hours are the answer to "when", so they show from the start; the fold can still close.
+  const [open, setOpen] = React.useState(true)
   const [at, setAt] = React.useState<number | null>(null)
   const h = 88
   return (

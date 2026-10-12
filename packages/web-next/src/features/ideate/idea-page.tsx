@@ -250,11 +250,10 @@ function usePlan(slot: Slot): Plan {
     time,
     infoOf,
     media,
-    // "Idea" is where a card starts; once it is a post, the page does not take the post back.
-    // Idea takes a post back to a plan on its day, unless the post already went out.
+    // Idea takes a post back to a plan on its day, whatever stage the post is at.
     setStatus: (step) => {
       if (step !== 'idea') return plan(step, dayN, time)
-      if (!post || post.stage === 'posted') return
+      if (!post) return
       const why =
         card.source.kind === 'moment'
           ? card.source.title
@@ -1895,7 +1894,7 @@ function FinalCut({
 
 /**
  * The four steps; the current one filled. Draft, Scheduled and Posted set the post's stage on the
- * calendar; Idea takes the post back to a plan, except once it has gone out.
+ * calendar; Idea takes the post back to a plan, from any of them.
  */
 function StatusPicker({ value, onChange }: { value: Step; onChange: (s: Step) => void }) {
   const brandColour = useBrand().brand.colour
@@ -1903,17 +1902,14 @@ function StatusPicker({ value, onChange }: { value: Step; onChange: (s: Step) =>
     <span role="radiogroup" aria-label="Status" className="flex flex-wrap gap-1">
       {CHIPS.map((c) => {
         const on = c === value
-        const locked = c === 'idea' && value === 'posted'
         return (
           <button
             key={c}
             type="button"
             role="radio"
             aria-checked={on}
-            disabled={locked}
-            title={locked ? 'Already posted' : undefined}
             onClick={() => onChange(c)}
-            className={`flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] transition-colors disabled:opacity-40 ${on ? 'bg-ink text-page' : 'bg-surface text-ink-3 enabled:hover:text-ink'}`}
+            className={`flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] transition-colors ${on ? 'bg-ink text-page' : 'bg-surface text-ink-3 hover:text-ink'}`}
           >
             {c === 'idea' ? (
               // A plan's mark, the calendar's dashed square, so Idea never reads as a shade of Draft.

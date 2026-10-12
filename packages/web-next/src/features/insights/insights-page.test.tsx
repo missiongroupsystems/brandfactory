@@ -59,4 +59,16 @@ describe('the marketing hub', () => {
       }),
     ).toBeInTheDocument()
   })
+
+  it('shows the best time by hour from the start, and the fold still closes', () => {
+    render(
+      <BrandProvider>
+        <InsightsPage />
+      </BrandProvider>,
+    )
+    const fold = screen.getByRole('button', { name: /By time of day/ })
+    expect(fold).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(fold)
+    expect(fold).toHaveAttribute('aria-expanded', 'false')
+  })
 })
