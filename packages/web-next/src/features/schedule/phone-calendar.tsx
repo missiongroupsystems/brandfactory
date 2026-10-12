@@ -4,7 +4,7 @@ import Image from 'next/image'
 import * as React from 'react'
 
 import { CheckIcon, ChevronIcon, PlusIcon, SparkIcon } from '@/components/icons'
-import { Media } from '@/components/media'
+import { isVideo, Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
 import { startTouchDrag } from '@/components/touch-drag'
@@ -618,7 +618,7 @@ function Photo({ src, standIn }: { src?: string; standIn?: string }) {
       />
     )
   }
-  if (src.startsWith('blob:')) return <Media src={src} sizes="112px" />
+  if (src.startsWith('blob:') || isVideo(src)) return <Media src={src} sizes="112px" />
   return <Image src={src} alt="" fill sizes="112px" draggable={false} className="object-cover" />
 }
 

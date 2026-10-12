@@ -15,7 +15,7 @@ import {
   PlusIcon,
   SparkIcon,
 } from '@/components/icons'
-import { fromFile, isVideo } from '@/components/media'
+import { fromFile, isVideo, Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
 import { Combobox, useMention, type Suggestion } from '@/components/suggest'
@@ -33,6 +33,7 @@ import { useConnections, useConnected } from '@/features/connections/connections
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { CropEditor } from './crop-editor'
+import { DropZone } from './drop-zone'
 import {
   activeChannels,
   blockers,
@@ -65,6 +66,7 @@ import {
   type Shot,
 } from './model'
 import { PhoneMock, type People } from './phone-mocks'
+import { TypeBadge } from './preview-media'
 import { ratioOf, ShotView } from './shot'
 import { hashtagsOf, labelsOf, peopleOf, placesOf } from './suggestions'
 import {
@@ -161,6 +163,20 @@ export function Composer({
   const { draft, update, phase } = api
 
   const [media, setMedia] = React.useState<Shot[]>(() => (post?.images ?? []).map(shotOf))
+  /**
+   * Files from the picker or a drop, on the strip or on the preview: photos and videos only,
+   * added in order, the format's limit kept from the end.
+   */
+  const addFiles = React.useCallback(
+    async (files: FileList | null) => {
+      const picked = [...(files ?? [])].filter((f) => /^(image|video)\//.test(f.type))
+      if (picked.length === 0) return
+      const dropped = await Promise.all(picked.map(fromFile))
+      const max = MEDIA_MAX[draft.format]
+      setMedia((m) => [...m, ...dropped.map((d) => shotOf(d.src))].slice(-max))
+    },
+    [draft.format],
+  )
   // A failed post was due already: the fix is to send it now.
   const [when, setWhen] = React.useState<WhenChoice>(post?.stage === 'failed' ? 'now' : 'schedule')
   const [dayN, setDayN] = React.useState<string>(
@@ -370,7 +386,10 @@ export function Composer({
         />
       ),
     },
-    preview: { title: 'Preview', body: <Preview api={api} media={media} people={people} /> },
+    preview: {
+      title: 'Preview',
+      body: <Preview api={api} media={media} people={people} onFiles={addFiles} />,
+    },
     ...Object.fromEntries(
       active.map((c) => [
         c.key,
@@ -459,6 +478,7 @@ export function Composer({
             api={api}
             media={media}
             setMedia={setMedia}
+            onFiles={addFiles}
             library={library}
             ideas={post ? [] : ideas.filter((i) => !i.postId || !byId(i.postId))}
             onIdea={setIdeaHook}
@@ -528,7 +548,7 @@ export function Composer({
         </div>
         {/* The button sits under the preview and scrolls with it, so what goes out is in view. */}
         <div className="sticky top-6 flex flex-col gap-3 max-lg:static max-md:hidden">
-          <Preview api={api} media={media} people={people} />
+          <Preview api={api} media={media} people={people} onFiles={addFiles} />
           <div className="flex items-center gap-2 px-1">
             {draftButton}
             {send(false)}
@@ -731,6 +751,7 @@ function Content({
   api,
   media,
   setMedia,
+  onFiles,
   library,
   ideas,
   onIdea,
@@ -738,6 +759,7 @@ function Content({
   api: PublishDraftApi
   media: Shot[]
   setMedia: (m: Shot[]) => void
+  onFiles: (files: FileList | null) => Promise<void>
   library: string[]
   ideas: Array<{ hook: string; format: Exclude<Format, 'story'> }>
   onIdea: (hook: string) => void
@@ -834,12 +856,6 @@ function Content({
     writer.current = window.setTimeout(step, 320)
   }
 
-  async function add(files: FileList | null) {
-    const picked = [...(files ?? [])].filter((f) => /^(image|video)\//.test(f.type))
-    const dropped = await Promise.all(picked.map(fromFile))
-    setMedia([...media, ...dropped.map((d) => shotOf(d.src))].slice(-max))
-  }
-
   const value =
     shownTab === 'all'
       ? draft.caption
@@ -905,7 +921,7 @@ function Content({
           onDragOver={(e) => e.dataTransfer.types.includes('Files') && e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault()
-            void add(e.dataTransfer.files)
+            void onFiles(e.dataTransfer.files)
           }}
         >
           {media.map((shot, i) => {
@@ -1001,17 +1017,7 @@ function Content({
               </button>
             </span>
           )}
-          <input
-            ref={input}
-            type="file"
-            hidden
-            multiple={max > 1}
-            accept={draft.format === 'reel' ? 'video/*,image/*' : 'image/*,video/*'}
-            onChange={(e) => {
-              void add(e.target.files)
-              e.target.value = ''
-            }}
-          />
+          <MediaInput ref={input} format={draft.format} onFiles={onFiles} />
         </div>
         <Fold open={libraryOpen}>
           <div className={`flex gap-2 pt-1 ${STRIP}`}>
@@ -1025,7 +1031,8 @@ function Content({
                 }}
                 className="relative block h-[72px] w-[58px] shrink-0 overflow-hidden rounded-[8px] bg-tile transition-transform hover:-translate-y-0.5"
               >
-                <Image src={src} alt="" fill sizes="140px" className="object-cover" />
+                <Media src={src} sizes="140px" still />
+                {isVideo(src) && <TypeBadge format="reel" slides={1} />}
               </button>
             ))}
           </div>
@@ -1193,6 +1200,31 @@ function Content({
         </CropOverlay>
       )}
     </section>
+  )
+}
+
+/** The file picker behind Upload and behind the preview's empty state; one file for a reel. */
+function MediaInput({
+  ref,
+  format,
+  onFiles,
+}: {
+  ref: React.Ref<HTMLInputElement>
+  format: Format
+  onFiles: (files: FileList | null) => Promise<void>
+}) {
+  return (
+    <input
+      ref={ref}
+      type="file"
+      hidden
+      multiple={MEDIA_MAX[format] > 1}
+      accept={format === 'reel' ? 'video/*,image/*' : 'image/*,video/*'}
+      onChange={(e) => {
+        void onFiles(e.target.files)
+        e.target.value = ''
+      }}
+    />
   )
 }
 
@@ -2522,15 +2554,36 @@ function bestTimes(brandId: BrandId, weeks: ReturnType<typeof useBrand>['weeks']
 
 // ── Preview ──────────────────────────────────────────────────────────────────────────────────
 
-/** The post as one account will show it: a tab per ticked account, and Instagram's grid. */
-function Preview({ api, media, people }: { api: PublishDraftApi; media: Shot[]; people: People }) {
+/**
+ * The post as one account will show it: a tab per ticked account, and Instagram's grid. The
+ * phone is live: a reel plays, a carousel swipes, and files dropped on it join the post.
+ */
+function Preview({
+  api,
+  media,
+  people,
+  onFiles,
+}: {
+  api: PublishDraftApi
+  media: Shot[]
+  people: People
+  onFiles: (files: FileList | null) => Promise<void>
+}) {
   const { draft } = api
   const { posts } = useBrand()
   const active = activeChannels(draft)
   const [picked, setPicked] = React.useState<ChannelKey | null>(null)
   const [grid, setGrid] = React.useState(false)
+  const input = React.useRef<HTMLInputElement>(null)
   const channel = active.find((c) => c.key === picked)?.key ?? active[0]?.key
   const showGrid = grid && channel === 'ig' && draft.format !== 'story'
+  // Instagram's grid: this post first, then the brand's feed posts. Stories never show in it.
+  const tiles = [
+    { shot: media[0], format: draft.format, slides: media.length },
+    ...posts
+      .filter((p) => p.images.length > 0 && p.format !== 'story')
+      .map((p) => ({ shot: shotOf(p.images[0]!), format: p.format, slides: p.images.length })),
+  ].slice(0, 9)
   return (
     <section
       aria-label="Preview"
@@ -2569,33 +2622,40 @@ function Preview({ api, media, people }: { api: PublishDraftApi; media: Shot[]; 
       {!channel ? (
         <p className="py-16 text-center text-[13px] text-ink-4">Tick an account to preview it.</p>
       ) : showGrid ? (
-        <div className="grid grid-cols-3 gap-[2px] overflow-hidden rounded-[12px]">
-          {[media[0], ...posts.flatMap((p) => p.images.slice(0, 1).map(shotOf))]
-            .slice(0, 9)
-            .map((shot, i) => (
-              <span
-                key={i}
-                className={`relative block aspect-[4/5] bg-tile ${i === 0 ? 'shadow-[inset_0_0_0_2px_var(--ink)]' : 'opacity-80'}`}
-              >
-                {shot && <ShotView shot={shot} sizes="120px" />}
-              </span>
-            ))}
+        <div
+          key="grid"
+          className="bb-swap grid grid-cols-3 gap-[2px] overflow-hidden rounded-[12px]"
+        >
+          {tiles.map((t, i) => (
+            <span
+              key={i}
+              className={`relative block aspect-[4/5] overflow-hidden bg-tile ${i === 0 ? 'shadow-[inset_0_0_0_2px_var(--ink)]' : 'opacity-80'}`}
+            >
+              {t.shot && <ShotView shot={t.shot} sizes="120px" still />}
+              {t.shot && <TypeBadge format={t.format} slides={t.slides} />}
+            </span>
+          ))}
         </div>
       ) : (
-        <div className="flex justify-center">
-          <Phone channel={channel} scale={1.25}>
-            <PhoneMock
-              channel={channel}
-              format={draft.format}
-              image={media[0]}
-              people={people}
-              text={
-                channel === 'yt'
-                  ? (draft.youtubeTitle ?? youtubeTitle(draft))
-                  : textFor(draft, channel).text
-              }
-            />
-          </Phone>
+        <div key={channel} className="bb-swap flex justify-center">
+          <DropZone onFiles={onFiles} radius={22 * 1.25}>
+            <Phone channel={channel} scale={1.25}>
+              <PhoneMock
+                channel={channel}
+                format={draft.format}
+                shots={media}
+                people={people}
+                text={
+                  channel === 'yt'
+                    ? (draft.youtubeTitle ?? youtubeTitle(draft))
+                    : textFor(draft, channel).text
+                }
+                live
+                onAdd={() => input.current?.click()}
+              />
+            </Phone>
+          </DropZone>
+          <MediaInput ref={input} format={draft.format} onFiles={onFiles} />
         </div>
       )}
     </section>
@@ -2673,7 +2733,7 @@ function Outcomes({
                 <PhoneMock
                   channel={k}
                   format={draft.format}
-                  image={media[0]}
+                  shots={media}
                   people={draft.format === 'story' ? undefined : people}
                   text={
                     k === 'yt'

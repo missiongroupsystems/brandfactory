@@ -22,6 +22,11 @@ export const PHOTO = {
   ravioli: '/demo/casa-vostra/ravioli.jpg',
 } as const
 
+/** The demo's one reel clip (see `public/demo/CREDITS.md`); `#video` tells `Media` its kind. */
+export const VIDEO = {
+  margherita: '/demo/casa-vostra/margherita-reel.mp4#video',
+} as const
+
 export const BRAND = {
   name: 'Casa Vostra',
   initial: 'C',
@@ -95,8 +100,8 @@ export const POSTS: Post[] = [
     id: 'margherita',
     format: 'reel',
     hook: 'Margherita, oven to table in 90 seconds.',
-    images: ['/demo/pins/cv-p-12.jpg'],
-    duration: '0:18',
+    images: [VIDEO.margherita],
+    duration: '0:14',
     stage: 'posted',
     slot: 'Tue 6 Oct, 12:00',
     slotShort: 'Tue, 12:00',
@@ -363,4 +368,10 @@ export const IDEAS: Array<{
 ]
 
 /** The media library shown when starting from scratch. */
-export const LIBRARY: string[] = [PHOTO.crust, PHOTO.pasta, PHOTO.tagliatelle, PHOTO.ravioli]
+export const LIBRARY: string[] = [
+  PHOTO.crust,
+  PHOTO.pasta,
+  PHOTO.tagliatelle,
+  PHOTO.ravioli,
+  VIDEO.margherita,
+]

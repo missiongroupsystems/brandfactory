@@ -277,6 +277,45 @@
 }
 
 /*
+ * ── Composer preview (features/publish/preview-media.tsx) ────────────────────────────────────
+ * bb-breathe: the empty state's glyph breathes. bb-glyph: the play or pause glyph a tap
+ * flashes, in and out in one go. pm-empty: with no media yet, the app's chrome fades and only
+ * the placeholder stays at full strength.
+ */
+@keyframes bb-breathe {
+  50% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+}
+@utility bb-breathe {
+  animation: bb-breathe 3.6s ease-in-out infinite;
+}
+@keyframes bb-glyph {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  28%,
+  62% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.1);
+  }
+}
+@utility bb-glyph {
+  animation: bb-glyph 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@utility pm-empty {
+  & > span > :not([data-media], :has([data-media])) {
+    opacity: 0.4;
+  }
+}
+
+/*
  * ── Insights and ideas ───────────────────────────────────────────────────────────────────────
  * bb-trace: a line draws itself left to right, by a clip and not a dash: the charts draw with a
  * non-scaling stroke, which measures dashes in screen pixels and ignores pathLength. bb-grow: a

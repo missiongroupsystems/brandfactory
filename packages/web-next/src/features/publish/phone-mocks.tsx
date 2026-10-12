@@ -1,11 +1,24 @@
 import type { ReactNode } from 'react'
 
+import { isVideo } from '@/components/media'
 import { ProfilePicture } from '@/components/profile-picture'
 import type { Format } from '@/data/demo'
 import { useBrandKit } from '@/features/brand/brand-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { collabHeader, type ChannelKey, type Shot, type Tag } from './model'
+import {
+  Carousel,
+  Dots,
+  Placeholder,
+  ReelControls,
+  ReelVideo,
+  useFresh,
+  useReelPlayer,
+  useSlides,
+  type Player,
+  type Slides,
+} from './preview-media'
 import { ShotView } from './shot'
 
 /**
@@ -19,35 +32,69 @@ import { ShotView } from './shot'
 export function PhoneMock({
   channel,
   format,
-  image,
+  shots,
   text,
   duration,
   people = NOBODY,
+  live = false,
+  onAdd,
 }: {
   channel: ChannelKey
   format: Format
-  image: Shot | undefined
+  /** The post's media, in order: a reel or a story shows the first, a carousel every one. */
+  shots: Shot[]
   text: string
   /** m:ss, shown where the platform prints a video's length. */
   duration?: string
   /** Instagram's collaborators and the shown photo's tags; the other apps have neither here. */
   people?: People
+  /** The composer's preview: a video pauses and unmutes on tap, and the empty state takes files. */
+  live?: boolean
+  /** Opens the file picker, from the empty state. */
+  onAdd?: () => void
 }) {
+  const first = shots[0]
+  // The feed screens show a carousel. The full-screen apps play one clip under the controls;
+  // LinkedIn frames its clip mid-feed, where the controls' geometry does not fit, so it runs alone.
+  const strip = format === 'carousel' && channel !== 'yt'
+  const plays = live && !strip && channel !== 'li' && first !== undefined && isVideo(first.src)
+  const player = useReelPlayer(plays ? first.src : null)
+  const slides = useSlides(shots.length)
+  const fresh = useFresh(shots)
+  const media: MockMedia = { shots, player, slides, fresh, onAdd: live ? onAdd : undefined }
   let screen: ReactNode
   if (channel === 'li')
-    screen = <LinkedIn format={format} image={image} text={text} duration={duration} />
+    screen = <LinkedIn format={format} media={media} text={text} duration={duration} />
   else if (format === 'story' && (channel === 'ig' || channel === 'fb'))
-    screen = <Story channel={channel} image={image} />
+    screen = <Story channel={channel} media={media} />
   else if (format === 'carousel' && channel === 'ig')
-    screen = <InstagramPost image={image} text={text} people={people} />
+    screen = <InstagramPost media={media} text={text} people={people} />
   else if (format === 'carousel' && channel === 'fb')
-    screen = <FacebookPost image={image} text={text} />
-  else if (channel === 'ig') screen = <InstagramReel image={image} text={text} people={people} />
+    screen = <FacebookPost media={media} text={text} />
+  else if (channel === 'ig') screen = <InstagramReel media={media} text={text} people={people} />
   else if (channel === 'tt')
-    screen = <TikTok image={image} text={text} photos={format === 'carousel'} />
-  else if (channel === 'yt') screen = <Shorts image={image} text={text} />
-  else screen = <FacebookReel image={image} text={text} />
-  return <span className="absolute inset-0 font-device antialiased">{screen}</span>
+    screen = <TikTok media={media} text={text} photos={format === 'carousel'} />
+  else if (channel === 'yt') screen = <Shorts media={media} text={text} />
+  else screen = <FacebookReel media={media} text={text} />
+  return (
+    <span
+      className={`group/phone absolute inset-0 font-device antialiased ${shots.length === 0 ? 'pm-empty' : ''}`}
+    >
+      {screen}
+      {player && <ReelControls player={player} inset={channel === 'tt' ? 26 : 0} />}
+    </span>
+  )
+}
+
+/** The media and its state, handed to every screen. */
+interface MockMedia {
+  shots: Shot[]
+  /** Set when the first shot is a video the preview plays itself. */
+  player: Player | null
+  slides: Slides
+  /** Whether a shot arrived after the mock opened, so it settles in. */
+  fresh: (shot: Shot) => boolean
+  onAdd?: () => void
 }
 
 export interface People {
@@ -59,9 +106,40 @@ const NOBODY: People = { collabs: [], tags: [] }
 
 /* ---------- Shared pieces ---------- */
 
-/** The phone is 215 px wide and 9:16 tall: a 4:5 or wide photo covering it needs far more width. */
-function Photo({ image }: { image: Shot | undefined }) {
-  return image ? <ShotView shot={image} sizes="480px" /> : null
+/**
+ * The media area. The phone is 215 px wide and 9:16 tall: a 4:5 or wide photo covering it needs
+ * far more width. `still` is a rail thumbnail; `slides` a feed screen's carousel; `light` an
+ * empty state on a white feed.
+ */
+function Photo({
+  media,
+  still = false,
+  slides = false,
+  light = false,
+}: {
+  media: MockMedia
+  still?: boolean
+  slides?: boolean
+  light?: boolean
+}) {
+  const { shots, player, fresh } = media
+  const first = shots[0]
+  if (still) return first ? <ShotView shot={first} sizes="64px" still /> : null
+  if (!first) {
+    return (
+      <span data-media="" className="absolute inset-0">
+        <Placeholder light={light} onAdd={media.onAdd} />
+      </span>
+    )
+  }
+  if (slides && shots.length > 1)
+    return <Carousel shots={shots} slides={media.slides} fresh={fresh} />
+  if (player) return <ReelVideo shot={first} player={player} fresh={fresh(first)} />
+  return (
+    <span className={`absolute inset-0 ${fresh(first) ? 'bb-land' : ''}`}>
+      <ShotView shot={first} sizes="480px" />
+    </span>
+  )
 }
 
 /** The scrims every full-screen video app lays over the clip so white type reads. */
@@ -259,18 +337,18 @@ const PAPER_PLANE = (size: number, width = 2) => (
 /* ---------- Instagram ---------- */
 
 function InstagramReel({
-  image,
+  media,
   text,
   people,
 }: {
-  image: Shot | undefined
+  media: MockMedia
   text: string
   people: People
 }) {
   const { brand } = useBrand()
   return (
     <span className="absolute inset-0 text-(--pc-white)">
-      <Photo image={image} />
+      <Photo media={media} />
       <Scrims />
       <span className="absolute top-[11px] left-[11px] flex items-center gap-[3px] text-[13px] leading-none font-bold tracking-[-0.02em]">
         Reels
@@ -299,7 +377,7 @@ function InstagramReel({
         <RailItem icon={PAPER_PLANE(15)} label="41" />
         <RailItem icon={DOTS_H(13)} />
         <span className="relative size-[16px] overflow-hidden rounded-[4px] shadow-[0_0_0_1.5px_var(--pc-white)]">
-          <Photo image={image} />
+          <Photo media={media} still />
         </span>
       </span>
 
@@ -338,11 +416,11 @@ function InstagramReel({
 
 /** Instagram's feed photo post in dark mode, with the carousel's count chip and dots. */
 function InstagramPost({
-  image,
+  media,
   text,
   people,
 }: {
-  image: Shot | undefined
+  media: MockMedia
   text: string
   people: People
 }) {
@@ -358,7 +436,7 @@ function InstagramPost({
         </span>
       </span>
       <span className="relative min-h-0 w-full flex-1">
-        <Photo image={image} />
+        <Photo media={media} slides />
         {/* Tags show as a tap reveals them, so the preview says who is where. */}
         {people.tags.map(
           (t) =>
@@ -383,9 +461,6 @@ function InstagramPost({
             {PERSON(7)}
           </span>
         )}
-        <span className="absolute top-[38px] right-[8px] rounded-full bg-(--pc-scrim-bottom) px-[6px] py-[2px] text-[7px] font-medium">
-          1/5
-        </span>
       </span>
       <span className="relative flex h-[24px] shrink-0 items-center gap-[10px] px-[8px]">
         <Svg size={14} stroke="currentColor">
@@ -395,14 +470,15 @@ function InstagramPost({
           <path d="M20.66 17.01a9.99 9.99 0 1 0-3.59 3.61L22 22Z" />
         </Svg>
         {PAPER_PLANE(13)}
-        <span className="absolute left-1/2 flex -translate-x-1/2 gap-[3px]">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <span
-              key={i}
-              className={`size-[3.5px] rounded-full ${i === 0 ? 'bg-(--pc-ig-blue)' : 'bg-(--pc-ig-dark-muted) opacity-60'}`}
+        {media.slides.count > 1 && (
+          <span className="absolute left-1/2 -translate-x-1/2">
+            <Dots
+              slides={media.slides}
+              on="bg-(--pc-ig-blue)"
+              off="bg-(--pc-ig-dark-muted) opacity-60"
             />
-          ))}
-        </span>
+          </span>
+        )}
         <span className="ml-auto">
           <Svg size={14} stroke="currentColor">
             <path d="M20 21 12 13.44 4 21V3h16Z" />
@@ -425,20 +501,12 @@ function InstagramPost({
 
 /* ---------- TikTok ---------- */
 
-function TikTok({
-  image,
-  text,
-  photos,
-}: {
-  image: Shot | undefined
-  text: string
-  photos: boolean
-}) {
+function TikTok({ media, text, photos }: { media: MockMedia; text: string; photos: boolean }) {
   const { brand } = useBrand()
   return (
     <span className="absolute inset-0 bg-(--pc-tt-nav) text-(--pc-white)">
       <span className="absolute inset-x-0 top-0 bottom-[26px]">
-        <Photo image={image} />
+        <Photo media={media} slides={photos} />
         <Scrims top={18} bottom={42} />
       </span>
 
@@ -514,14 +582,9 @@ function TikTok({
       </span>
 
       <span className="absolute right-[40px] bottom-[34px] left-[9px] flex flex-col gap-[3px]">
-        {photos && (
-          <span className="mb-[4px] flex gap-[3px] self-center pl-[30px]">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <span
-                key={i}
-                className={`h-[3px] rounded-full ${i === 0 ? 'w-[8px] bg-(--pc-white)' : 'w-[3px] bg-(--pc-faint)'}`}
-              />
-            ))}
+        {photos && media.slides.count > 1 && (
+          <span className="mb-[4px] self-center pl-[30px]">
+            <Dots slides={media.slides} on="bg-(--pc-white)" off="bg-(--pc-faint)" wide />
           </span>
         )}
         <span className="text-[9px] leading-none font-bold" style={lift}>
@@ -595,11 +658,11 @@ function TikTokNav() {
 
 /* ---------- YouTube Shorts ---------- */
 
-function Shorts({ image, text }: { image: Shot | undefined; text: string }) {
+function Shorts({ media, text }: { media: MockMedia; text: string }) {
   const { brand } = useBrand()
   return (
     <span className="absolute inset-0 text-(--pc-white)">
-      <Photo image={image} />
+      <Photo media={media} />
       <Scrims top={16} bottom={44} />
 
       <span className="absolute right-[6px] bottom-[16px] flex flex-col items-center gap-[9px]">
@@ -647,7 +710,7 @@ function Shorts({ image, text }: { image: Shot | undefined; text: string }) {
           label="Remix"
         />
         <span className="relative mt-[2px] size-[18px] overflow-hidden rounded-[4px] shadow-[0_0_0_1.5px_var(--pc-white)]">
-          <Photo image={image} />
+          <Photo media={media} still />
         </span>
       </span>
 
@@ -675,12 +738,12 @@ function Shorts({ image, text }: { image: Shot | undefined; text: string }) {
 
 function LinkedIn({
   format,
-  image,
+  media,
   text,
   duration = '0:24',
 }: {
   format: Format
-  image: Shot | undefined
+  media: MockMedia
   text: string
   duration?: string
 }) {
@@ -721,7 +784,7 @@ function LinkedIn({
       </span>
 
       <span className="relative min-h-0 flex-1 bg-(--pc-black)">
-        <Photo image={image} />
+        <Photo media={media} slides={format === 'carousel'} light />
         {format !== 'carousel' && (
           <>
             <span className="absolute bottom-[6px] left-[6px] rounded-[3px] bg-(--pc-scrim-bottom) px-[4px] py-[2px] text-[6.5px] leading-none font-semibold text-(--pc-white)">
@@ -802,12 +865,12 @@ function Reaction({
 
 /* ---------- Facebook ---------- */
 
-function FacebookReel({ image, text }: { image: Shot | undefined; text: string }) {
+function FacebookReel({ media, text }: { media: MockMedia; text: string }) {
   const { brand } = useBrand()
   const short = clip(text, 46)
   return (
     <span className="absolute inset-0 text-(--pc-white)">
-      <Photo image={image} />
+      <Photo media={media} />
       <Scrims />
       <span
         className="absolute top-[11px] left-[8px] flex items-center gap-[4px] text-[12px] leading-none font-bold"
@@ -868,7 +931,7 @@ function FacebookReel({ image, text }: { image: Shot | undefined; text: string }
 }
 
 /** Facebook's feed photo post, light mode. */
-function FacebookPost({ image, text }: { image: Shot | undefined; text: string }) {
+function FacebookPost({ media, text }: { media: MockMedia; text: string }) {
   const { brand } = useBrand()
   const short = clip(text, 80)
   const action = (label: string, icon: ReactNode) => (
@@ -893,8 +956,13 @@ function FacebookPost({ image, text }: { image: Shot | undefined; text: string }
         {short !== text && <span className="text-(--pc-fb-muted)">… See more</span>}
       </span>
       <span className="relative min-h-0 flex-1">
-        <Photo image={image} />
+        <Photo media={media} slides light />
       </span>
+      {media.slides.count > 1 && (
+        <span className="flex shrink-0 justify-center pt-[5px]">
+          <Dots slides={media.slides} on="bg-(--pc-fb-blue)" off="bg-(--pc-fb-line)" />
+        </span>
+      )}
       <span className="flex shrink-0 items-center px-[9px] pt-[6px] pb-[5px] text-[6.5px] leading-none text-(--pc-fb-muted)">
         <span className="flex size-[10px] items-center justify-center rounded-full bg-(--pc-fb-blue)">
           <Svg size={6.5} fill="var(--pc-white)">
@@ -936,11 +1004,11 @@ function FacebookPost({ image, text }: { image: Shot | undefined; text: string }
 
 /* ---------- Stories (Instagram and Facebook) ---------- */
 
-function Story({ channel, image }: { channel: 'ig' | 'fb'; image: Shot | undefined }) {
+function Story({ channel, media }: { channel: 'ig' | 'fb'; media: MockMedia }) {
   const { brand } = useBrand()
   return (
     <span className="absolute inset-0 text-(--pc-white)">
-      <Photo image={image} />
+      <Photo media={media} />
       <Scrims top={20} bottom={22} />
       <span className="absolute inset-x-[6px] top-[7px] flex gap-[2px]">
         {[0, 1, 2].map((i) => (

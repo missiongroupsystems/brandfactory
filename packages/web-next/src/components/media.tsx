@@ -3,7 +3,8 @@ import Image from 'next/image'
 /**
  * Media is a URL string everywhere in the demo. A file the user drops is a `blob:` URL, which
  * carries no extension, so the kind rides on the fragment: `blob:…#video`. Browsers ignore the
- * fragment when they load the file.
+ * fragment when they load the file. The demo's own videos carry the fragment too, so one rule
+ * tells the kind: `/demo/…/reel.mp4#video`.
  */
 export interface Dropped {
   src: string
@@ -34,13 +35,37 @@ export function isVideo(src: string): boolean {
 }
 
 /**
+ * A demo video's poster: the JPEG beside it, `reel.mp4` → `reel.jpg`. A dropped video has none;
+ * the browser shows its first frame instead.
+ */
+export function posterOf(src: string): string | undefined {
+  const path = src.replace(/#.*$/, '')
+  return isVideo(src) && path.endsWith('.mp4') ? path.replace(/\.mp4$/, '.jpg') : undefined
+}
+
+/**
  * Fills its positioned parent with a photo or a video. The demo's own photos go through
  * next/image; a dropped file is already in the browser, so it renders as it is. A video plays
- * muted and loops, as every feed previews one.
+ * muted and loops, as every feed previews one; `still` shows its poster frame instead, as a grid
+ * or a picker does.
  */
-export function Media({ src, sizes }: { src: string; sizes: string }) {
+export function Media({
+  src,
+  sizes,
+  still = false,
+}: {
+  src: string
+  sizes: string
+  still?: boolean
+}) {
   const fill = 'absolute inset-0 size-full object-cover'
-  if (isVideo(src)) return <video src={src} autoPlay muted loop playsInline className={fill} />
+  if (isVideo(src)) {
+    const poster = posterOf(src)
+    if (still && poster)
+      return <Image src={poster} alt="" fill sizes={sizes} className="object-cover" />
+    if (still) return <video src={src} muted playsInline preload="metadata" className={fill} />
+    return <video src={src} poster={poster} autoPlay muted loop playsInline className={fill} />
+  }
   // A blob: URL cannot go through the image optimiser.
   if (src.startsWith('blob:')) return <img src={src} alt="" className={fill} />
   return <Image src={src} alt="" fill sizes={sizes} className="object-cover" />

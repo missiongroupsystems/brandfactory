@@ -208,7 +208,10 @@ describe('the brand switcher', () => {
         w.days.flatMap((d) => (d.story.kind === 'posted' ? [d.story.image] : [])),
       ),
     ])
-    const missing = srcs.filter((src) => !existsSync(join(__dirname, '../../../public', src)))
+    // A video's `#video` fragment names its kind, not a file.
+    const missing = srcs.filter(
+      (src) => !existsSync(join(__dirname, '../../../public', src.replace(/#.*$/, ''))),
+    )
     expect(missing).toEqual([])
   })
 

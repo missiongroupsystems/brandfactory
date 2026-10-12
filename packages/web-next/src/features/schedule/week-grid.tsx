@@ -11,7 +11,7 @@ import { useCoverOfHook, useCoverOfPost } from '@/features/ideate/ideas-store'
 import { EventChip } from './event-chip'
 import { ideaLabel, useOpenIdea } from './open-idea'
 
-import { Media } from '@/components/media'
+import { isVideo, Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import { startTouchDrag, touchDragPending } from '@/components/touch-drag'
 
@@ -684,8 +684,8 @@ export function PostTile({
       className={`${tile} group/tile bb-tile @container bg-tile text-left ${movable ? 'bb-touch-drag cursor-grab active:cursor-grabbing' : ''} ${drag.landed === post.id ? 'bb-land' : ''} ${failed ? 'shadow-[0_0_0_2px_var(--page),0_0_0_3.5px_var(--fail-line)]' : ''}`}
       style={{ opacity: drag.postId === post.id ? 0.35 : 1 }}
     >
-      {image?.startsWith('blob:') ? (
-        // A file dropped in the composer, possibly a video: drawn as it is, not through next/image.
+      {image && (image.startsWith('blob:') || isVideo(image)) ? (
+        // A file dropped in the composer, or a video: drawn as it is, not through next/image.
         <Media src={image} sizes={TILE_SIZES} />
       ) : (
         image && (
