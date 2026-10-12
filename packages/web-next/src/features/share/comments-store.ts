@@ -47,6 +47,30 @@ export function addComment(kind: ShareKind, id: string, name: string, text: stri
   return true
 }
 
+/**
+ * Who a share link opens for, and what they may do there. Anyone with the link, or only the
+ * team; a guest may view, comment, or edit. A new link lets anyone comment.
+ */
+export type ShareAccess = { who: 'link' | 'team'; can: 'view' | 'comment' | 'edit' }
+
+const OPEN: ShareAccess = { who: 'link', can: 'comment' }
+let access: Record<string, ShareAccess> = {}
+
+export function useShareAccess(kind: ShareKind, id: string): ShareAccess {
+  const key = `${kind}:${id}`
+  return React.useSyncExternalStore(
+    subscribe,
+    () => access[key] ?? OPEN,
+    () => access[key] ?? OPEN,
+  )
+}
+
+export function setShareAccess(kind: ShareKind, id: string, next: Partial<ShareAccess>) {
+  const key = `${kind}:${id}`
+  access = { ...access, [key]: { ...(access[key] ?? OPEN), ...next } }
+  listeners.forEach((l) => l())
+}
+
 /** The public link for an idea or a shoot, on the origin the app runs on. */
 export function shareUrl(kind: ShareKind, id: string, origin: string): string {
   return `${origin}/share/${kind}/${id}`
@@ -55,5 +79,6 @@ export function shareUrl(kind: ShareKind, id: string, origin: string): string {
 /** For tests. */
 export function resetComments() {
   comments = { ...GUEST_COMMENTS }
+  access = {}
   listeners.forEach((l) => l())
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import * as React from 'react'
 
 import { Media } from '@/components/media'
@@ -14,6 +15,7 @@ import { shootOfIdea, useShootById, useShoots } from '@/features/shoot/shoots-st
 import { shotCount, ShotList } from '@/features/shoot/shot-list'
 
 import { Comments } from './comments'
+import { useShareAccess, type ShareKind } from './comments-store'
 
 const FORMAT_LABEL = { reel: 'Reel', carousel: 'Carousel', story: 'Story' } as const
 
@@ -22,7 +24,16 @@ const FORMAT_LABEL = { reel: 'Reel', carousel: 'Carousel', story: 'Story' } as c
  * or a shoot's call sheet, read-only, for a videographer or a chef outside the team. No app
  * header, no tab bar, no login: they read, then leave a comment with their name.
  */
-function Frame({ brandId, children }: { brandId: BrandId; children: React.ReactNode }) {
+function Frame({
+  brandId,
+  edit,
+  children,
+}: {
+  brandId: BrandId
+  /** The team's page for this brief, when the link lets a guest edit. */
+  edit?: string
+  children: React.ReactNode
+}) {
   const brand = contentFor(brandId).brand
   return (
     <div className="min-h-svh bg-page">
@@ -31,6 +42,14 @@ function Frame({ brandId, children }: { brandId: BrandId; children: React.ReactN
           <BrandLogo brandId={brandId} sizes="32px" className="object-cover" />
         </span>
         <span className="text-[14px] font-semibold tracking-[-0.01em]">{brand.name}</span>
+        {edit && (
+          <Link
+            href={edit}
+            className="bb-press ml-auto flex h-9 items-center rounded-full bg-ink px-4 text-[13px] font-medium text-page hover:opacity-85"
+          >
+            Edit
+          </Link>
+        )}
       </header>
       <main className="mx-auto flex w-full max-w-[760px] flex-col gap-12 px-6 pt-10 pb-24 max-md:gap-10 max-md:px-4 max-md:pt-6">
         {children}
@@ -49,10 +68,50 @@ function Missing() {
   )
 }
 
+/** A link set to "Only the team" opens for no guest. */
+function TeamOnly({ brandId }: { brandId: BrandId }) {
+  const brand = contentFor(brandId).brand
+  return (
+    <div className="flex min-h-svh items-center justify-center px-4 text-center">
+      <p className="max-w-[360px] text-[15px] text-ink-3">
+        This link is only for the {brand.name} team.
+      </p>
+    </div>
+  )
+}
+
+/** The guest's view of one shared brief, as the link's setting allows. */
+function Shared({
+  kind,
+  id,
+  brandId,
+  edit,
+  children,
+}: {
+  kind: ShareKind
+  id: string
+  brandId: BrandId
+  edit: string
+  children: React.ReactNode
+}) {
+  const { who, can } = useShareAccess(kind, id)
+  if (who === 'team') return <TeamOnly brandId={brandId} />
+  return (
+    <Frame brandId={brandId} edit={can === 'edit' ? edit : undefined}>
+      {children}
+      <Comments kind={kind} id={id} guest write={can !== 'view'} />
+    </Frame>
+  )
+}
+
 export function SharedIdea({ id }: { id: string }) {
   const found = useIdeasById().get(id)
   if (!found) return <Missing />
-  return <IdeaBrief brandId={found.brandId} card={found.card} />
+  return (
+    <Shared kind="idea" id={id} brandId={found.brandId} edit={`/ideate/${id}`}>
+      <IdeaBrief brandId={found.brandId} card={found.card} />
+    </Shared>
+  )
 }
 
 function IdeaBrief({ brandId, card }: { brandId: BrandId; card: IdeaCard }) {
@@ -64,7 +123,7 @@ function IdeaBrief({ brandId, card }: { brandId: BrandId; card: IdeaCard }) {
     return r?.image ? [{ key, src: r.image, note: r.account }] : []
   })
   return (
-    <Frame brandId={brandId}>
+    <>
       <header className="flex flex-col gap-4">
         <span className={`${EYEBROW} flex items-center gap-2`}>
           <FormatIcon format={card.format} size={11} />
@@ -112,15 +171,18 @@ function IdeaBrief({ brandId, card }: { brandId: BrandId; card: IdeaCard }) {
         </span>
         <ShotList brandId={brandId} ideas={[card]} headings={false} />
       </section>
-      <Comments kind="idea" id={card.id} guest />
-    </Frame>
+    </>
   )
 }
 
 export function SharedShoot({ id }: { id: string }) {
   const found = useShootById(id)
   if (!found) return <Missing />
-  return <CallSheet brandId={found.brandId} shoot={found.shoot} />
+  return (
+    <Shared kind="shoot" id={id} brandId={found.brandId} edit={`/shoot/${id}`}>
+      <CallSheet brandId={found.brandId} shoot={found.shoot} />
+    </Shared>
+  )
 }
 
 function CallSheet({ brandId, shoot }: { brandId: BrandId; shoot: Shoot }) {
@@ -129,7 +191,7 @@ function CallSheet({ brandId, shoot }: { brandId: BrandId; shoot: Shoot }) {
   const cards = shoot.ideaIds.flatMap((i) => byId.get(i)?.card ?? [])
   const shots = shotCount(cards)
   return (
-    <Frame brandId={brandId}>
+    <>
       <header className="flex flex-col gap-5">
         <span className={EYEBROW}>Call sheet · {shoot.title}</span>
         <h1 className="font-display text-[44px] leading-[1.05] tracking-[-0.035em] max-md:text-[30px]">
@@ -157,7 +219,6 @@ function CallSheet({ brandId, shoot }: { brandId: BrandId; shoot: Shoot }) {
         </span>
         <ShotList brandId={brandId} ideas={cards} />
       </section>
-      <Comments kind="shoot" id={shoot.id} guest />
-    </Frame>
+    </>
   )
 }

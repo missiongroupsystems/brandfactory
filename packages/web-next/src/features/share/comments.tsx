@@ -14,14 +14,17 @@ export function Comments({
   kind,
   id,
   guest = false,
+  write = guest,
 }: {
   kind: ShareKind
   id: string
   guest?: boolean
+  /** Whether this reader may add one; a view-only link shows the thread without the form. */
+  write?: boolean
 }) {
   const comments = useComments(kind, id)
-  // The team page says nothing until someone has written.
-  if (!guest && comments.length === 0) return null
+  // Nothing to say until someone has written, unless this reader can be the first.
+  if (!write && comments.length === 0) return null
   return (
     <section aria-label="Comments" className="flex max-w-[640px] flex-col gap-5">
       <span className={EYEBROW}>
@@ -51,7 +54,7 @@ export function Comments({
           ))}
         </ul>
       )}
-      {guest && <CommentForm kind={kind} id={id} />}
+      {write && <CommentForm kind={kind} id={id} />}
     </section>
   )
 }

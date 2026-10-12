@@ -7,6 +7,7 @@ import { ShootPage } from '@/features/shoot/shoot-page'
 import { resetShoots } from '@/features/shoot/shoots-store'
 
 import { addComment, resetComments } from './comments-store'
+import { ShareButton } from './share-button'
 import { SharedIdea, SharedShoot } from './share-page'
 
 vi.mock('next/navigation', () => ({
@@ -89,5 +90,38 @@ describe('a shared idea', () => {
       </BrandProvider>,
     )
     expect(screen.getByText(/nothing to show/)).toBeInTheDocument()
+  })
+})
+
+describe('who a link opens for', () => {
+  it('lets the team choose view, comment, edit or team only, and the guest page follows', () => {
+    render(
+      <BrandProvider>
+        <ShareButton kind="idea" id="cv-blindfold" />
+        <SharedIdea id="cv-blindfold" />
+      </BrandProvider>,
+    )
+    // A new link: anyone may comment, and nobody edits.
+    expect(screen.getByRole('button', { name: 'Comment' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }))
+    const can = screen.getByRole('combobox', { name: 'What they can do' })
+    fireEvent.change(can, { target: { value: 'view' } })
+    expect(screen.queryByRole('button', { name: 'Comment' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
+
+    fireEvent.change(can, { target: { value: 'edit' } })
+    expect(screen.getByRole('link', { name: 'Edit' })).toHaveAttribute(
+      'href',
+      '/ideate/cv-blindfold',
+    )
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Who can open the link' }), {
+      target: { value: 'team' },
+    })
+    expect(screen.getByText(/only for the Casa Vostra team/)).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'What they can do' })).not.toBeInTheDocument()
   })
 })

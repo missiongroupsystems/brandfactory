@@ -7,16 +7,24 @@ import { CheckIcon } from '@/components/icons'
 import { Sheet } from '@/components/sheet'
 import { usePhone } from '@/components/use-phone'
 
-import { shareUrl, type ShareKind } from './comments-store'
+import {
+  setShareAccess,
+  shareUrl,
+  useShareAccess,
+  type ShareAccess,
+  type ShareKind,
+} from './comments-store'
 
 /**
- * Share, for an idea or a shoot: one link anyone can open, to view the brief or the call sheet
- * and leave a comment with only a name. A popover on a computer, a sheet on a phone.
+ * Share, for an idea or a shoot: one link, and who it opens for. Anyone with the link may view,
+ * comment with only a name, or edit; or the link opens only for the team. A popover on a
+ * computer, a sheet on a phone.
  */
 export function ShareButton({ kind, id }: { kind: ShareKind; id: string }) {
   const phone = usePhone()
   const [open, setOpen] = React.useState(false)
   const [copied, setCopied] = React.useState(false)
+  const access = useShareAccess(kind, id)
   const field = React.useRef<HTMLButtonElement>(null)
   const pop = React.useRef<HTMLDivElement>(null)
   // The link is only drawn once the popover is open, which is in the browser.
@@ -64,6 +72,24 @@ export function ShareButton({ kind, id }: { kind: ShareKind; id: string }) {
           {copied ? 'Copied' : 'Copy link'}
         </button>
       </div>
+      <div className="flex items-center gap-1 text-[12.5px]">
+        <Choice
+          label="Who can open the link"
+          value={access.who}
+          options={WHO}
+          onChange={(who) => setShareAccess(kind, id, { who })}
+          className="text-ink-2"
+        />
+        {access.who === 'link' && (
+          <Choice
+            label="What they can do"
+            value={access.can}
+            options={CAN}
+            onChange={(can) => setShareAccess(kind, id, { can })}
+            className="ml-auto text-ink-3"
+          />
+        )}
+      </div>
       {/* The same tab, so the demo's memory comes along: what a guest writes shows back here. */}
       <Link
         href={`/share/${kind}/${id}`}
@@ -102,6 +128,58 @@ export function ShareButton({ kind, id }: { kind: ShareKind; id: string }) {
             {body}
           </div>
         ))}
+    </span>
+  )
+}
+
+const WHO: { value: ShareAccess['who']; label: string }[] = [
+  { value: 'link', label: 'Anyone with the link' },
+  { value: 'team', label: 'Only the team' },
+]
+
+const CAN: { value: ShareAccess['can']; label: string }[] = [
+  { value: 'view', label: 'Can view' },
+  { value: 'comment', label: 'Can comment' },
+  { value: 'edit', label: 'Can edit' },
+]
+
+/** A quiet select that reads as text with a chevron; the phone opens its own picker. */
+function Choice<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  className = '',
+}: {
+  label: string
+  value: T
+  options: { value: T; label: string }[]
+  onChange: (value: T) => void
+  className?: string
+}) {
+  return (
+    <span className={`relative flex items-center ${className}`}>
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+        className="h-8 cursor-pointer appearance-none rounded-full [field-sizing:content] bg-transparent pr-6 pl-2 font-medium outline-none hover:bg-surface hover:text-ink focus-visible:shadow-[0_0_0_1.5px_var(--ink)]"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <svg
+        width="8"
+        height="8"
+        viewBox="0 0 8 8"
+        aria-hidden="true"
+        className="pointer-events-none absolute right-2.5"
+      >
+        <path d="M1.5 3 4 5.5 6.5 3" stroke="currentColor" strokeWidth="1.2" fill="none" />
+      </svg>
     </span>
   )
 }
