@@ -45,21 +45,21 @@ export function ratioOf(src: string): Promise<number> {
 }
 
 /**
- * A shot as the post shows it: cropped if it was, otherwise filling its parent. `still` shows a
- * video's poster frame instead of playing it; a video is never cropped.
+ * A shot as the post shows it: cropped if it was, otherwise filling its parent. A video shows its
+ * poster frame unless `play` (the preview) asks it to run; a video is never cropped.
  */
 export function ShotView({
   shot,
   sizes,
-  still = false,
+  play = false,
 }: {
   shot: Shot
   sizes: string
-  still?: boolean
+  play?: boolean
 }) {
   return shot.crop ? (
     <Framed src={shot.src} crop={shot.crop} sizes={sizes} />
   ) : (
-    <Media src={shot.src} sizes={sizes} still={still} />
+    <Media src={shot.src} sizes={sizes} play={play} />
   )
 }

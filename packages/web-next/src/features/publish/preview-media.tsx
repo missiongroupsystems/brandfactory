@@ -333,7 +333,7 @@ export function Carousel({
             key={shot.src + i}
             className={`relative block size-full shrink-0 snap-center ${fresh(shot) ? 'bb-land' : ''}`}
           >
-            <ShotView shot={shot} sizes="480px" />
+            <ShotView shot={shot} sizes="480px" play />
           </span>
         ))}
       </span>

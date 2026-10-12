@@ -618,7 +618,7 @@ function Photo({ src, standIn }: { src?: string; standIn?: string }) {
       />
     )
   }
-  if (src.startsWith('blob:') || isVideo(src)) return <Media src={src} sizes="112px" still />
+  if (src.startsWith('blob:') || isVideo(src)) return <Media src={src} sizes="112px" />
   return <Image src={src} alt="" fill sizes="112px" draggable={false} className="object-cover" />
 }
 
@@ -665,7 +665,7 @@ function StoryRing({ stories, onOpen }: { stories: Story[]; onOpen: () => void }
     >
       <span className="block size-[84%] rounded-full p-[2.5px] shadow-[inset_0_0_0_1.5px_var(--ink)]">
         <span className="relative block size-full overflow-hidden rounded-full bg-tile">
-          {first?.image && <Media src={first.image} sizes="64px" still />}
+          {first?.image && <Media src={first.image} sizes="64px" />}
         </span>
       </span>
     </button>

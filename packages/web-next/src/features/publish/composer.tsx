@@ -1031,7 +1031,7 @@ function Content({
                 }}
                 className="relative block h-[72px] w-[58px] shrink-0 overflow-hidden rounded-[8px] bg-tile transition-transform hover:-translate-y-0.5"
               >
-                <Media src={src} sizes="140px" still />
+                <Media src={src} sizes="140px" />
                 {isVideo(src) && <TypeBadge format="reel" slides={1} />}
               </button>
             ))}
@@ -2631,7 +2631,7 @@ function Preview({
               key={i}
               className={`relative block aspect-[4/5] overflow-hidden bg-tile ${i === 0 ? 'shadow-[inset_0_0_0_2px_var(--ink)]' : 'opacity-80'}`}
             >
-              {t.shot && <ShotView shot={t.shot} sizes="120px" still />}
+              {t.shot && <ShotView shot={t.shot} sizes="120px" />}
               {t.shot && <TypeBadge format={t.format} slides={t.slides} />}
             </span>
           ))}

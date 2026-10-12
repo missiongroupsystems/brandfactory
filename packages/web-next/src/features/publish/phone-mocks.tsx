@@ -124,7 +124,7 @@ function Photo({
 }) {
   const { shots, player, fresh } = media
   const first = shots[0]
-  if (still) return first ? <ShotView shot={first} sizes="64px" still /> : null
+  if (still) return first ? <ShotView shot={first} sizes="64px" /> : null
   if (!first) {
     return (
       <span data-media="" className="absolute inset-0">
@@ -137,7 +137,7 @@ function Photo({
   if (player) return <ReelVideo shot={first} player={player} fresh={fresh(first)} />
   return (
     <span className={`absolute inset-0 ${fresh(first) ? 'bb-land' : ''}`}>
-      <ShotView shot={first} sizes="480px" />
+      <ShotView shot={first} sizes="480px" play />
     </span>
   )
 }
