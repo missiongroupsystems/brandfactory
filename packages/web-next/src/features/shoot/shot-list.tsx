@@ -28,18 +28,17 @@ export function shotImage(brandId: BrandId, card: IdeaCard, shot: Shot): string 
 
 /**
  * The line runs out to the page's edge: it undoes the page's side padding and puts it back
- * inside, so the first frame sits on the margin and the last scrolls past the edge. The app's
- * pages pad 40 px (16 on a phone); the public page passes its own.
+ * inside, so the track starts on the margin and runs past the edge. The app's pages pad 40 px
+ * (16 on a phone); the public page passes its own.
  */
 export const APP_BLEED = '-mx-10 px-10 max-md:-mx-4 max-md:px-4'
 
-/** Shown on hover of its row, on focus, and always where there is no hover. */
+/** Shown on hover of its label, on focus, and always where there is no hover. */
 const ON_HOVER =
   'opacity-0 transition-opacity group-hover/label:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100'
 
-/** Lifted while it is dragged; the others slide out of its way. */
+/** Lifted while it is dragged; the others ease aside. */
 const LIFTABLE = 'transition-[transform,opacity,box-shadow] duration-200'
-const LIFTED = 'scale-[1.03] opacity-60 shadow-pop'
 
 /** A drag this close to the line's edge scrolls it, this far a step. */
 const EDGE = 56
@@ -59,12 +58,12 @@ function startsOf(order: string[], ideas: IdeaCard[]): Map<string, number> {
 
 /**
  * The shot list as one line, like the clips on an editor's timeline: every shot of the shoot side
- * by side in order, numbered on across the ideas as a call sheet counts them, each idea a group
- * under its own label. The line scrolls sideways past the page's edge.
+ * by side in order on one track, numbered on across the ideas as a call sheet counts them, each
+ * idea a group under its own label. The track scrolls sideways past the page's edge.
  *
  * With `onReorderIdeas` a group drags by its label to another place among the ideas; with
- * `onReorder` a frame drags to another place inside its group, never out of it. A long press
- * drags on a phone; Option with an arrow key moves a focused group or frame. `ideaHref` links
+ * `onReorder` a clip drags to another place inside its group, never out of it. A long press
+ * drags on a phone; Option with an arrow key moves a focused group or clip. `ideaHref` links
  * each label to the idea's page; the public page leaves it out, and `onRemoveIdea` gives each
  * label Remove.
  */
@@ -90,18 +89,11 @@ export function ShotList({
   onRemoveIdea?: (ideaId: string) => void
 }) {
   const ids = ideas.map((i) => i.id)
-  const [groups, attachGroups] = useSortable(ids, 'x', (next) => onReorderIdeas?.(next))
-  const line = React.useRef<HTMLOListElement | null>(null)
-  const attach = React.useCallback(
-    (el: HTMLOListElement | null) => {
-      line.current = el
-      attachGroups(el)
-    },
-    [attachGroups],
-  )
+  const [groups, attach] = useSortable(ids, 'x', (next) => onReorderIdeas?.(next))
+  const line = React.useRef<HTMLDivElement>(null)
   const hint = React.useId()
   const starts = startsOf(groups.order, ideas)
-  // A finger or a pointer over a frame is over that frame's group.
+  // A finger or a pointer over a clip is over that clip's group.
   const groupOf = (key: string | null) =>
     key?.startsWith('group:')
       ? key.slice(6)
@@ -124,9 +116,9 @@ export function ShotList({
           Press Option with an arrow key to move it.
         </p>
       )}
-      <ol
-        ref={attach}
-        aria-label="Shots in order"
+      {/* The wrapper scrolls and takes a group dropped in its margins; the track inside holds the groups. */}
+      <div
+        ref={line}
         onDragEnter={(e) => accept(e, !!groups.dragging)}
         onDragOver={(e) => {
           scrollNear(e.clientX)
@@ -137,47 +129,53 @@ export function ShotList({
           e.preventDefault()
           groups.end(true)
         }}
-        className={`flex items-start overflow-x-auto pt-1 pb-2 [scrollbar-width:none] ${bleed}`}
+        className={`overflow-x-auto pt-1 pb-2 [scrollbar-width:none] ${bleed}`}
       >
-        {ideas.map((card) => (
-          <Group
-            key={card.id}
-            brandId={brandId}
-            card={card}
-            index={groups.order.indexOf(card.id)}
-            start={starts.get(card.id) ?? 0}
-            label={headings}
-            href={ideaHref?.(card.id)}
-            hint={hint}
-            scrollNear={scrollNear}
-            onReorder={onReorder ? (shotIds) => onReorder(card.id, shotIds) : undefined}
-            onRemove={onRemoveIdea ? () => onRemoveIdea(card.id) : undefined}
-            drag={
-              onReorderIdeas
-                ? {
-                    held: groups.dragging === card.id,
-                    any: !!groups.dragging,
-                    begin: () => groups.start(card.id),
-                    over: (key, p) => {
-                      const g = groupOf(key)
-                      if (g) groups.overAt(g, p)
-                    },
-                    finish: (commit) => groups.end(commit),
-                    nudge: (by) => groups.nudge(card.id, by),
-                    line: () => line.current,
-                  }
-                : undefined
-            }
-          />
-        ))}
-      </ol>
+        <ol
+          ref={attach}
+          aria-label="Shots in order"
+          className="flex w-max min-w-full items-start gap-5 rounded-[18px] bg-surface p-3 max-md:gap-4 max-md:rounded-[14px] max-md:p-2"
+        >
+          {ideas.map((card) => (
+            <Group
+              key={card.id}
+              brandId={brandId}
+              card={card}
+              index={groups.order.indexOf(card.id)}
+              start={starts.get(card.id) ?? 0}
+              label={headings}
+              href={ideaHref?.(card.id)}
+              hint={hint}
+              scrollNear={scrollNear}
+              onReorder={onReorder ? (shotIds) => onReorder(card.id, shotIds) : undefined}
+              onRemove={onRemoveIdea ? () => onRemoveIdea(card.id) : undefined}
+              drag={
+                onReorderIdeas
+                  ? {
+                      held: groups.dragging === card.id,
+                      any: !!groups.dragging,
+                      begin: () => groups.start(card.id),
+                      over: (key, p) => {
+                        const g = groupOf(key)
+                        if (g) groups.overAt(g, p)
+                      },
+                      finish: (commit) => groups.end(commit),
+                      nudge: (by) => groups.nudge(card.id, by),
+                      line: () => line.current,
+                    }
+                  : undefined
+              }
+            />
+          ))}
+        </ol>
+      </div>
     </>
   )
 }
 
 interface GroupDrag {
   held: boolean
-  /** Some group is held: the groups make way, the frames stand still. */
+  /** Some group is held: the groups make way, the clips stand still. */
   any: boolean
   begin: () => void
   over: (key: string | null, p: Point) => void
@@ -187,8 +185,8 @@ interface GroupDrag {
 }
 
 /**
- * One idea on the line: its label, then its frames in their own sortable row. The label is the
- * group's grip; the frames sort among themselves and refuse a frame from another group.
+ * One idea on the track: its label, then its clips in their own sortable row. The label is the
+ * group's grip; the clips sort among themselves and refuse a clip from another group.
  */
 function Group({
   brandId,
@@ -218,6 +216,29 @@ function Group({
   const shotIds = card.shots.map((s) => s.id)
   const [sort, attach] = useSortable(shotIds, 'x', (next) => onReorder?.(next))
   const key = `group:${card.id}`
+  const hook = href ? (
+    <Link href={href} draggable={false} className="truncate hover:underline">
+      {card.hook}
+    </Link>
+  ) : (
+    <h3 className="truncate">{card.hook}</h3>
+  )
+  const format = (
+    <span className="flex shrink-0 items-center gap-1 font-mono text-[10px] tracking-[0.06em] text-ink-4 uppercase">
+      <FormatIcon format={card.format} size={9} />
+      {FORMAT_LABEL[card.format]}
+    </span>
+  )
+  const remove = onRemove && (
+    <button
+      type="button"
+      aria-label={`Remove ${card.hook}`}
+      onClick={onRemove}
+      className={`ml-auto shrink-0 text-[11.5px] text-ink-4 hover:text-ink ${ON_HOVER}`}
+    >
+      Remove
+    </button>
+  )
   return (
     <li
       data-drop={key}
@@ -233,7 +254,7 @@ function Group({
         e.stopPropagation()
         drag.finish(true)
       }}
-      className={`flex shrink-0 flex-col gap-3 ${LIFTABLE} ${drag?.held ? 'opacity-60' : ''} ${index > 0 ? 'ml-6 border-l border-(--cal-line) pl-6' : ''}`}
+      className={`flex shrink-0 flex-col gap-2 ${LIFTABLE} ${drag?.held ? 'opacity-50' : ''}`}
     >
       {label && (
         <div
@@ -260,40 +281,16 @@ function Group({
             drag.begin()
           }}
           onDragEnd={() => drag?.finish(false)}
-          className={`group/label bb-touch-drag relative flex min-w-0 items-baseline gap-2.5 pr-1 ${drag ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          className={`group/label bb-touch-drag relative flex h-7 max-w-full min-w-0 items-center gap-2 self-start rounded-full bg-page pr-2.5 pl-3 text-[12.5px] font-medium shadow-[0_0_0_1px_var(--cal-line)] ${drag ? 'cursor-grab active:cursor-grabbing' : ''}`}
         >
           {drag && <Handle label={`Move group: ${card.hook}`} hint={hint} onNudge={drag.nudge} />}
-          {href ? (
-            <Link
-              href={href}
-              draggable={false}
-              className="truncate font-display text-[18px] leading-[1.2] tracking-[-0.015em] transition-opacity hover:opacity-70"
-            >
-              {card.hook}
-            </Link>
-          ) : (
-            <h3 className="truncate font-display text-[18px] leading-[1.2] tracking-[-0.015em]">
-              {card.hook}
-            </h3>
-          )}
-          <span className="flex shrink-0 items-center gap-1.5 font-mono text-[10px] tracking-[0.08em] text-ink-4 uppercase">
-            <FormatIcon format={card.format} size={10} />
-            {FORMAT_LABEL[card.format]}
-          </span>
-          {onRemove && (
-            <button
-              type="button"
-              aria-label={`Remove ${card.hook}`}
-              onClick={onRemove}
-              className={`ml-auto shrink-0 text-[12px] text-ink-4 hover:text-ink ${ON_HOVER}`}
-            >
-              Remove
-            </button>
-          )}
+          {hook}
+          {format}
+          {remove}
         </div>
       )}
       {card.shots.length === 0 ? (
-        <p className="text-[13px] text-ink-4">No storyboard yet.</p>
+        <p className="text-[12.5px] text-ink-4">No storyboard yet.</p>
       ) : (
         <ol
           ref={attach}
@@ -306,7 +303,7 @@ function Group({
             e.stopPropagation()
             sort.end(true)
           }}
-          className="flex gap-2"
+          className="flex gap-1.5"
         >
           {card.shots.map((shot) => (
             <Frame
@@ -339,10 +336,10 @@ function Group({
 }
 
 interface FrameDrag {
-  /** A frame of this group is held: the others make way. */
+  /** A clip of this group is held: the others make way. */
   any: boolean
   begin: () => void
-  /** The pointer is over the frame `id`, at `p`: the held one slides before or after it. */
+  /** The pointer is over the clip `id`, at `p`: the held one slides before or after it. */
   over: (id: string, p: Point) => void
   finish: (commit: boolean) => void
   nudge: (by: -1 | 1) => void
@@ -350,7 +347,7 @@ interface FrameDrag {
   scrollNear: (x: number) => void
 }
 
-/** One frame: the picture, its number in the corner and its line over the foot. */
+/** One clip: the picture, then its number and its line under it. */
 function Frame({
   shot,
   src,
@@ -411,19 +408,25 @@ function Frame({
         e.stopPropagation()
         drag.finish(true)
       }}
-      className={`bb-touch-drag relative w-[228px] shrink-0 max-md:w-[168px] ${drag ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      className={`group/clip bb-touch-drag relative flex w-[152px] shrink-0 flex-col gap-1.5 max-md:w-[120px] ${drag ? 'cursor-grab active:cursor-grabbing' : ''}`}
     >
       {drag && <Handle label={`Move shot ${n}: ${name}`} hint={drag.hint} onNudge={drag.nudge} />}
       <span
-        className={`relative block overflow-hidden rounded-[14px] bg-tile ${LIFTABLE} ${aspect} ${held ? LIFTED : ''}`}
+        className={`relative block overflow-hidden rounded-[10px] bg-tile ${LIFTABLE} ${aspect} after:pointer-events-none after:absolute after:inset-0 after:rounded-[10px] after:shadow-[inset_0_0_0_1px_rgba(18,18,18,0.07)] after:content-[''] group-focus-within/clip:shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--ink)] ${
+          held
+            ? 'scale-[1.04] opacity-50 shadow-pop'
+            : drag
+              ? 'group-hover/clip:-translate-y-0.5 group-hover/clip:shadow-soft'
+              : ''
+        }`}
       >
-        {src && <Media src={src} sizes="(max-width: 768px) 168px, 228px" />}
-        <span className="absolute top-2.5 left-2.5 rounded-full bg-black/35 px-2 py-0.5 font-mono text-[10px] text-white tabular-nums backdrop-blur-sm">
+        {src && <Media src={src} sizes="(max-width: 768px) 120px, 152px" />}
+      </span>
+      <span className="flex min-w-0 items-baseline gap-1.5 px-0.5">
+        <span className="font-mono text-[10px] text-ink-4 tabular-nums">
           {String(n).padStart(2, '0')}
         </span>
-        <span className="absolute inset-x-0 bottom-0 line-clamp-2 bg-gradient-to-t from-black/65 to-transparent px-3 pt-10 pb-3 text-[13px] leading-snug text-white">
-          {name}
-        </span>
+        <span className="truncate text-[12px] leading-snug text-ink-2">{name}</span>
       </span>
     </li>
   )

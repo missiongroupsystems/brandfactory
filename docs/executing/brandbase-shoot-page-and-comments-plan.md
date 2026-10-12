@@ -111,6 +111,21 @@ is within 56 px of either end of the line, the line scrolls that way 14 px a mov
 now reads only its container's own children, so the frames' FLIP and the groups' FLIP do not
 touch each other's items.
 
+## Round 4: the look of the track
+
+The owner found the timeline ugly. Same structure and behaviour, a new skin: one soft surface
+band (radius 18, 12 px padding) holds every clip, like an editor's track; each group is a small
+page-coloured pill over its own clips (the hook at 12.5 px medium, the format in mono, Remove on
+hover); the clips are 152 px wide (120 on a phone) with radius 10, a hairline inner ring so pale
+photos keep an edge, a half-pixel lift and soft shadow on hover, and a two-ring focus ring when a
+clip's handle has the focus. The number and the line sit under each clip, mono ink-4 and 12 px
+ink-2 on one line with an ellipsis. The thin rule between groups is gone; 20 px of track space and
+the next pill mark the next group. A held clip scales up with a shadow; a held group fades.
+
+Two looks were tried (`round4-concept-a|b-desktop.png`): A, the track band above (built); B, clips
+straight on the page with a thin lavender bar under each group's label (read as tabs; the clips
+floated).
+
 ## Tests
 
 - Custom role: pick Other, type a role, add a person; the row shows that role.
