@@ -1,4 +1,4 @@
-import { createEvent, fireEvent, render, renderHook, screen, within } from '@testing-library/react'
+import { fireEvent, render, renderHook, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { PAST_CREW } from '@/data/suggestions'
@@ -58,30 +58,32 @@ describe('who comes', () => {
   })
 })
 
+const MOUSE = { pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0 }
+
 /**
- * A drag as a mouse makes it: start on one, over another, drop there. jsdom lays nothing out, so
- * every box is at 0,0: a pointer at -1 is on the near side of the frame it is over, and the lifted
- * one goes before it.
+ * A drag as a mouse makes it: press on one, move past the slop onto another, release. jsdom lays
+ * nothing out and finds nothing under a point, so the move is fired on the item the pointer is
+ * over, and every box is at 0,0: a pointer at -1 is on its near side, and the lifted one goes
+ * before it.
  */
+function lift(from: HTMLElement, to: HTMLElement) {
+  fireEvent.pointerDown(from, { ...MOUSE, clientX: 20, clientY: 20 })
+  fireEvent.pointerMove(to, { ...MOUSE, clientX: -1, clientY: -1 })
+}
 function dragTo(from: HTMLElement, to: HTMLElement) {
-  const dataTransfer = { setData: vi.fn(), types: [] as string[], effectAllowed: 'move' }
-  fireEvent.dragStart(from, { dataTransfer })
-  const over = createEvent.dragOver(to, { dataTransfer })
-  Object.defineProperty(over, 'clientX', { value: -1 })
-  Object.defineProperty(over, 'clientY', { value: -1 })
-  fireEvent(to, over)
-  fireEvent.drop(to, { dataTransfer })
-  fireEvent.dragEnd(from, { dataTransfer })
+  lift(from, to)
+  fireEvent.pointerUp(to, { ...MOUSE, clientX: -1, clientY: -1 })
 }
 
 describe('the shot list', () => {
   const line = () => screen.getByRole('list', { name: 'Shots in order' })
+  // A lifted group's own clips are out of sight (its box is the slot), but still there.
   const frame = (title: string) =>
     within(line())
-      .getAllByRole('listitem')
+      .getAllByRole('listitem', { hidden: true })
       .find((li) => li.dataset.drop?.startsWith('shot:') && li.textContent?.includes(title))!
   const label = (hook: string) =>
-    within(line()).getByText(hook).closest<HTMLElement>('[draggable]')!
+    within(line()).getByText(hook).closest<HTMLElement>('[data-grip]')!
   const ideaOrder = () => shoots().find((s) => s.id === 'cv-shoot-raffles')!.ideaIds
   const ideaPageShots = () => {
     render(
@@ -124,6 +126,17 @@ describe('the shot list', () => {
     expect(ideaOrder()).toEqual(['cv-carb-up', 'cv-dough'])
     expect(frame('Bibs on the table')).toHaveTextContent(/^01/)
     expect(frame('Flour and eggs, overhead')).toHaveTextContent(/^04/)
+  })
+
+  it('puts a lifted group back on Escape, and the release after it changes nothing', () => {
+    open()
+    lift(label("Carb up before tomorrow's race."), label('Watch the dough become tagliatelle.'))
+    // Held over the first group, it already reads as first.
+    expect(frame('Bibs on the table')).toHaveTextContent(/^01/)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(frame('Bibs on the table')).toHaveTextContent(/^04/)
+    fireEvent.pointerUp(window, { ...MOUSE, clientX: -1, clientY: -1 })
+    expect(ideaOrder()).toEqual(['cv-dough', 'cv-carb-up'])
   })
 
   it('moves a frame or a group with Option and an arrow key on its handle', () => {

@@ -144,6 +144,22 @@ to two lines on a phone; clips are 108 px wide with 16 px between groups, so the
 three clips leave a sliver of the fourth clip in view at the right edge. Spacing between the
 page's blocks drops from 36 to 28 px on a phone, and the head and crew blocks tighten with it.
 
+## Round 7: the drag itself
+
+The browser's own drag image (the label text and its bar, floating alone) made a group drag look
+broken. The timeline leaves HTML5 drag and drop for one pointer path, `features/shoot/line-drag.ts`,
+for mouse and finger alike: a mouse lifts after 4 px, a finger after a 320 ms press (a drift first
+is a scroll). A copy of the whole item (a group with its label, bar and clips; or a clip) lifts in
+a fixed layer, scales a little (1.02 / 1.05) with the large soft shadow and a page-coloured halo,
+and follows the pointer along the x axis only; a clip is clamped to its row and the cursor says
+not-allowed outside it. The item's own box stays as a soft slot (`surface-2`) and moves with the
+live order as the others ease aside (the FLIP, 220 ms ease-out). On release the copy settles into
+the slot in 220 ms; Escape, or a finger that scrolls instead, puts the order and the copy back.
+The line scrolls while the pointer is held within 64 px of either end, each frame, faster the
+deeper. No text or picture is selected or dragged by the browser. Reduced motion: no scale, no
+settle, positions only. The keyboard move (Option + arrow) is unchanged. The share page passes no
+drag props and stays inert.
+
 ## Tests
 
 - Custom role: pick Other, type a role, add a person; the row shows that role.

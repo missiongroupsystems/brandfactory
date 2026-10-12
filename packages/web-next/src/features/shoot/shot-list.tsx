@@ -4,12 +4,13 @@ import Link from 'next/link'
 import * as React from 'react'
 
 import { Media } from '@/components/media'
-import { startTouchDrag, touchDragPending } from '@/components/touch-drag'
 import type { BrandId } from '@/data/brands'
 import { coverOf, isMediaRef, referenceById, type IdeaCard, type Shot } from '@/data/ideas'
-import { accept, at, Handle, inside } from '@/features/ideate/drag-parts'
+import { Handle } from '@/features/ideate/drag-parts'
 import { FormatIcon } from '@/features/ideate/idea-parts'
 import { useSortable } from '@/features/ideate/sortable'
+
+import { startLineDrag } from './line-drag'
 
 const FORMAT_LABEL = { reel: 'Reel', carousel: 'Carousel', story: 'Story' } as const
 
@@ -28,21 +29,14 @@ export function shotImage(brandId: BrandId, card: IdeaCard, shot: Shot): string 
 
 /**
  * The line runs out to the page's edge: it undoes the page's side padding and puts it back
- * inside, so the track starts on the margin and runs past the edge. The app's pages pad 40 px
- * (16 on a phone); the public page passes its own.
+ * inside, so the first clip sits on the margin and the line runs past the edge. The app's pages
+ * pad 40 px (16 on a phone); the public page passes its own.
  */
 export const APP_BLEED = '-mx-10 px-10 max-md:-mx-4 max-md:px-4'
 
 /** Shown on hover of its label, on focus, and always where there is no hover. */
 const ON_HOVER =
   'opacity-0 transition-opacity group-hover/label:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100'
-
-/** Lifted while it is dragged; the others ease aside. */
-const LIFTABLE = 'transition-[transform,opacity,box-shadow] duration-200'
-
-/** A drag this close to the line's edge scrolls it, this far a step. */
-const EDGE = 56
-const STEP = 14
 
 type Point = { x: number; y: number }
 
@@ -56,16 +50,20 @@ function startsOf(order: string[], ideas: IdeaCard[]): Map<string, number> {
   return starts
 }
 
+/** No drag starts on a control inside the item. */
+const onControl = (e: React.PointerEvent) =>
+  !!(e.target as HTMLElement).closest('a, button, .bb-menu')
+
 /**
  * The shot list as one line, like the clips on an editor's timeline: every shot of the shoot side
- * by side in order on one track, numbered on across the ideas as a call sheet counts them, each
- * idea a group under its own label. The track scrolls sideways past the page's edge.
+ * by side in order, numbered on across the ideas as a call sheet counts them, each idea a group
+ * under its own label. The line scrolls sideways past the page's edge.
  *
  * With `onReorderIdeas` a group drags by its label to another place among the ideas; with
- * `onReorder` a clip drags to another place inside its group, never out of it. A long press
- * drags on a phone; Option with an arrow key moves a focused group or clip. `ideaHref` links
- * each label to the idea's page; the public page leaves it out, and `onRemoveIdea` gives each
- * label Remove.
+ * `onReorder` a clip drags to another place inside its group, never out of it (`line-drag.ts`:
+ * a mouse, or a long press). Option with an arrow key moves a focused group or clip. `ideaHref`
+ * links each label to the idea's page; the public page leaves it out, and `onRemoveIdea` gives
+ * each label Remove.
  */
 export function ShotList({
   brandId,
@@ -93,21 +91,13 @@ export function ShotList({
   const line = React.useRef<HTMLDivElement>(null)
   const hint = React.useId()
   const starts = startsOf(groups.order, ideas)
-  // A finger or a pointer over a clip is over that clip's group.
+  // A pointer over a clip is over that clip's group.
   const groupOf = (key: string | null) =>
     key?.startsWith('group:')
       ? key.slice(6)
       : key?.startsWith('shot:')
         ? ideas.find((i) => i.shots.some((s) => s.id === key.slice(5)))?.id
         : undefined
-  /** A drag near either end of the line scrolls it that way. */
-  const scrollNear = (x: number) => {
-    const el = line.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    if (x < r.left + EDGE) el.scrollLeft -= STEP
-    else if (x > r.right - EDGE) el.scrollLeft += STEP
-  }
 
   return (
     <>
@@ -116,21 +106,7 @@ export function ShotList({
           Press Option with an arrow key to move it.
         </p>
       )}
-      {/* The wrapper scrolls and takes a group dropped in its margins; the track inside holds the groups. */}
-      <div
-        ref={line}
-        onDragEnter={(e) => accept(e, !!groups.dragging)}
-        onDragOver={(e) => {
-          scrollNear(e.clientX)
-          accept(e, !!groups.dragging)
-        }}
-        onDrop={(e) => {
-          if (!groups.dragging) return
-          e.preventDefault()
-          groups.end(true)
-        }}
-        className={`overflow-x-auto pt-1 pb-2 [scrollbar-width:none] ${bleed}`}
-      >
+      <div ref={line} className={`overflow-x-auto pt-1 pb-2 [scrollbar-width:none] ${bleed}`}>
         <ol
           ref={attach}
           aria-label="Shots in order"
@@ -146,14 +122,13 @@ export function ShotList({
               label={headings}
               href={ideaHref?.(card.id)}
               hint={hint}
-              scrollNear={scrollNear}
+              line={line}
               onReorder={onReorder ? (shotIds) => onReorder(card.id, shotIds) : undefined}
               onRemove={onRemoveIdea ? () => onRemoveIdea(card.id) : undefined}
               drag={
                 onReorderIdeas
                   ? {
                       held: groups.dragging === card.id,
-                      any: !!groups.dragging,
                       begin: () => groups.start(card.id),
                       over: (key, p) => {
                         const g = groupOf(key)
@@ -161,7 +136,6 @@ export function ShotList({
                       },
                       finish: (commit) => groups.end(commit),
                       nudge: (by) => groups.nudge(card.id, by),
-                      line: () => line.current,
                     }
                   : undefined
               }
@@ -175,17 +149,14 @@ export function ShotList({
 
 interface GroupDrag {
   held: boolean
-  /** Some group is held: the groups make way, the clips stand still. */
-  any: boolean
   begin: () => void
   over: (key: string | null, p: Point) => void
   finish: (commit: boolean) => void
   nudge: (by: -1 | 1) => void
-  line: () => HTMLElement | null
 }
 
 /**
- * One idea on the track: its label, then its clips in their own sortable row. The label is the
+ * One idea on the line: its label, then its clips in their own sortable row. The label is the
  * group's grip; the clips sort among themselves and refuse a clip from another group.
  */
 function Group({
@@ -196,7 +167,7 @@ function Group({
   label,
   href,
   hint,
-  scrollNear,
+  line,
   onReorder,
   onRemove,
   drag,
@@ -208,14 +179,13 @@ function Group({
   label: boolean
   href?: string
   hint: string
-  scrollNear: (x: number) => void
+  line: React.RefObject<HTMLDivElement | null>
   onReorder?: (shotIds: string[]) => void
   onRemove?: () => void
   drag?: GroupDrag
 }) {
   const shotIds = card.shots.map((s) => s.id)
   const [sort, attach] = useSortable(shotIds, 'x', (next) => onReorder?.(next))
-  const key = `group:${card.id}`
   const hook = href ? (
     <Link href={href} draggable={false} className="truncate hover:underline">
       {card.hook}
@@ -274,47 +244,27 @@ function Group({
   )
   return (
     <li
-      data-drop={key}
+      data-drop={`group:${card.id}`}
       data-flip={card.id}
       style={{ order: index }}
-      onDragOver={(e) => {
-        if (!drag || !accept(e, drag.any)) return
-        if (!drag.held) drag.over(key, at(e))
-      }}
-      onDrop={(e) => {
-        if (!drag?.any) return
-        e.preventDefault()
-        e.stopPropagation()
-        drag.finish(true)
-      }}
-      className={`flex shrink-0 flex-col gap-2 ${LIFTABLE} ${drag?.held ? 'opacity-50' : ''}`}
+      className="flex shrink-0 flex-col gap-2"
     >
       {label && (
         <div
-          draggable={!!drag}
+          data-grip={drag ? '' : undefined}
           onPointerDown={(e) => {
-            if (!drag || (e.target as HTMLElement).closest('a, button')) return
-            let last: Point | null = null
-            startTouchDrag(e, {
+            if (!drag || onControl(e)) return
+            startLineDrag(e, {
+              source: e.currentTarget.parentElement!,
+              scroller: line.current,
+              scale: 1.02,
               start: drag.begin,
-              move: (k, p) => {
-                last = p
-                scrollNear(p.x)
-                drag.over(k, p)
-              },
-              drop: () => drag.finish(inside(drag.line(), last)),
-              end: () => drag.finish(false),
+              over: drag.over,
+              end: drag.finish,
             })
           }}
-          onDragStart={(e) => {
-            if (!drag) return
-            if (touchDragPending()) return e.preventDefault()
-            e.dataTransfer.effectAllowed = 'move'
-            e.dataTransfer.setData('text/plain', key)
-            drag.begin()
-          }}
-          onDragEnd={() => drag?.finish(false)}
-          className={`group/label bb-touch-drag relative flex w-full min-w-0 flex-col gap-2 pb-1 text-[12.5px] font-medium ${drag ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          onDragStart={(e) => e.preventDefault()}
+          className={`group/label bb-touch-drag relative flex w-full min-w-0 flex-col gap-2 pb-1 text-[12.5px] font-medium select-none ${drag ? 'cursor-grab' : ''}`}
         >
           {drag && <Handle label={`Move group: ${card.hook}`} hint={hint} onNudge={drag.nudge} />}
           <span className="flex min-w-0 items-center gap-2 px-0.5">
@@ -331,19 +281,7 @@ function Group({
       {card.shots.length === 0 ? (
         <p className="text-[12.5px] text-ink-4">No storyboard yet.</p>
       ) : (
-        <ol
-          ref={attach}
-          aria-label={`Shots of ${card.hook}`}
-          onDragEnter={(e) => accept(e, !!sort.dragging)}
-          onDragOver={(e) => accept(e, !!sort.dragging)}
-          onDrop={(e) => {
-            if (!sort.dragging) return
-            e.preventDefault()
-            e.stopPropagation()
-            sort.end(true)
-          }}
-          className="flex gap-1.5"
-        >
+        <ol ref={attach} aria-label={`Shots of ${card.hook}`} className="flex gap-1.5">
           {card.shots.map((shot) => (
             <Frame
               key={shot.id}
@@ -352,17 +290,17 @@ function Group({
               aspect={ASPECT[card.format]}
               index={sort.order.indexOf(shot.id)}
               n={start + sort.order.indexOf(shot.id) + 1}
-              held={sort.dragging === shot.id}
               drag={
                 onReorder
                   ? {
-                      any: !!sort.dragging,
                       begin: () => sort.start(shot.id),
-                      over: (id, p) => sort.overAt(id, p),
+                      over: (key, p) => {
+                        if (key?.startsWith('shot:')) sort.overAt(key.slice(5), p)
+                      },
                       finish: (commit) => sort.end(commit),
                       nudge: (by) => sort.nudge(shot.id, by),
                       hint,
-                      scrollNear,
+                      line,
                     }
                   : undefined
               }
@@ -375,15 +313,12 @@ function Group({
 }
 
 interface FrameDrag {
-  /** A clip of this group is held: the others make way. */
-  any: boolean
   begin: () => void
-  /** The pointer is over the clip `id`, at `p`: the held one slides before or after it. */
-  over: (id: string, p: Point) => void
+  over: (key: string | null, p: Point) => void
   finish: (commit: boolean) => void
   nudge: (by: -1 | 1) => void
   hint: string
-  scrollNear: (x: number) => void
+  line: React.RefObject<HTMLDivElement | null>
 }
 
 /** One clip: the picture, then its number and its line under it. */
@@ -393,7 +328,6 @@ function Frame({
   aspect,
   index,
   n,
-  held,
   drag,
 }: {
   shot: Shot
@@ -401,63 +335,33 @@ function Frame({
   aspect: string
   index: number
   n: number
-  held: boolean
   drag?: FrameDrag
 }) {
-  const key = `shot:${shot.id}`
   const name = shot.title || 'Untitled shot'
   return (
     <li
-      data-drop={key}
+      data-drop={`shot:${shot.id}`}
       data-flip={shot.id}
-      draggable={!!drag}
       style={{ order: index }}
       onPointerDown={(e) => {
-        if (!drag || (e.target as HTMLElement).closest('button')) return
-        const list = e.currentTarget.parentElement
-        let last: Point | null = null
-        startTouchDrag(e, {
+        if (!drag || onControl(e)) return
+        const row = e.currentTarget.parentElement
+        startLineDrag(e, {
+          source: e.currentTarget,
+          scroller: drag.line.current,
+          bounds: () => row?.getBoundingClientRect() ?? null,
+          scale: 1.05,
           start: drag.begin,
-          move: (k, p) => {
-            last = p
-            drag.scrollNear(p.x)
-            if (k?.startsWith('shot:')) drag.over(k.slice(5), p)
-          },
-          // A lift inside the group keeps the order it drew; a lift elsewhere puts it back.
-          drop: () => drag.finish(inside(list, last)),
-          end: () => drag.finish(false),
+          over: drag.over,
+          end: drag.finish,
         })
       }}
-      onDragStart={(e) => {
-        if (!drag) return
-        if (touchDragPending()) return e.preventDefault()
-        e.dataTransfer.effectAllowed = 'move'
-        e.dataTransfer.setData('text/plain', key)
-        drag.begin()
-      }}
-      onDragEnd={() => drag?.finish(false)}
-      onDragEnter={(e) => accept(e, !!drag?.any)}
-      onDragOver={(e) => {
-        if (!drag || !accept(e, drag.any)) return
-        if (!held) drag.over(shot.id, at(e))
-      }}
-      onDrop={(e) => {
-        if (!drag?.any) return
-        e.preventDefault()
-        e.stopPropagation()
-        drag.finish(true)
-      }}
-      className={`group/clip bb-touch-drag relative flex w-[152px] shrink-0 flex-col gap-1.5 max-md:w-[108px] ${drag ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      onDragStart={(e) => e.preventDefault()}
+      className={`group/clip bb-touch-drag relative flex w-[152px] shrink-0 flex-col gap-1.5 select-none max-md:w-[108px] ${drag ? 'cursor-grab' : ''}`}
     >
       {drag && <Handle label={`Move shot ${n}: ${name}`} hint={drag.hint} onNudge={drag.nudge} />}
       <span
-        className={`relative block overflow-hidden rounded-[10px] bg-tile ${LIFTABLE} ${aspect} after:pointer-events-none after:absolute after:inset-0 after:rounded-[10px] after:shadow-[inset_0_0_0_1px_rgba(18,18,18,0.07)] after:content-[''] group-focus-within/clip:shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--ink)] ${
-          held
-            ? 'scale-[1.04] opacity-50 shadow-pop'
-            : drag
-              ? 'group-hover/clip:-translate-y-0.5 group-hover/clip:shadow-soft'
-              : ''
-        }`}
+        className={`relative block overflow-hidden rounded-[10px] bg-tile transition-[transform,box-shadow] duration-200 ${aspect} after:pointer-events-none after:absolute after:inset-0 after:rounded-[10px] after:shadow-[inset_0_0_0_1px_rgba(18,18,18,0.07)] after:content-[''] group-focus-within/clip:shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--ink)] ${drag ? 'group-hover/clip:-translate-y-0.5 group-hover/clip:shadow-soft' : ''}`}
       >
         {src && <Media src={src} sizes="(max-width: 768px) 108px, 152px" />}
       </span>
