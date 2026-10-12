@@ -44,9 +44,8 @@ export function liftAfter(values: number[], day: number, postDays: number[]): nu
 export interface OffSocialFinding {
   post: PostStat
   day: number
-  /** Bookings and Maps views in the two days after it, against the same weekdays as usual. */
+  /** Bookings in the two days after it, against the same weekdays as usual. */
   bookings: number
-  maps: number
 }
 
 /** The post that bookings rose most after: the one finding the Sources chart leads with. */
@@ -56,7 +55,6 @@ export function bestOffSocial(posts: PostStat[], hub: BrandHub): OffSocialFindin
     post,
     day: days[i]!,
     bookings: liftAfter(hub.daily.bookings, days[i]!, days),
-    maps: liftAfter(hub.daily.maps, days[i]!, days),
   }))
   return all.reduce((a, b) => (b.bookings > a.bookings ? b : a))
 }

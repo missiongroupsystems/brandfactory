@@ -492,7 +492,6 @@ function BestTime({
         </span>
         <span className="text-[14px] text-ink-3">{plain(story.label)}</span>
       </span>
-      <p className="mt-2 text-[13.5px] text-ink-3">{story.text}</p>
       <div className="mt-6 flex flex-col gap-2">
         <div className="relative" style={{ height: h }} onMouseLeave={() => setAt(null)}>
           <span className="absolute inset-x-0 bottom-0 border-t border-(--line)" />
@@ -1074,13 +1073,6 @@ function Lineup({ posts, hub }: { posts: PostStat[]; hub: BrandHub }) {
         </span>
         <span className="text-[14px] text-ink-3">bookings after one post</span>
       </span>
-      <p className="mt-2 text-[13.5px] leading-[1.55] text-ink-3">
-        In the two days after{' '}
-        <span className="font-medium text-ink">“{lead.post.hook.replace(/\.$/, '')}”</span> (
-        {plain(lead.post.date)}), bookings ran {pct(lead.bookings)}% above a usual{' '}
-        {DAYS_LONG[(lead.day + 1) % 7]} and {DAYS_LONG[(lead.day + 2) % 7]}, and Google Maps views{' '}
-        {pct(lead.maps)}% above.
-      </p>
 
       <div className="mt-7 grid grid-cols-[116px_minmax(0,1fr)] gap-x-4 gap-y-2 max-md:grid-cols-[100px_minmax(0,1fr)] max-md:gap-x-3">
         <div className="flex flex-col" style={{ paddingTop: strip, gap }}>
@@ -1128,7 +1120,7 @@ function Lineup({ posts, hub }: { posts: PostStat[]; hub: BrandHub }) {
                 />
                 <span
                   role="img"
-                  aria-label={`Posted ${plain(p.date)}: ${p.hook}`}
+                  aria-label={`Posted ${plain(p.date)}: ${p.hook}${on ? ', bookings rose most after it' : ''}`}
                   className={`absolute top-0 size-2 -translate-x-1/2 rounded-full shadow-[0_0_0_2px_var(--surface-2)] ${on ? 'bg-(--insight-5)' : 'bg-ink-4'}`}
                   style={{ left: `${x(d)}%` }}
                 />

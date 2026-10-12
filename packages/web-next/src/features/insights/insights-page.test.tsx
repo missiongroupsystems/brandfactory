@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { resetIdeas } from '@/features/ideate/ideas-store'
@@ -52,8 +52,11 @@ describe('the marketing hub', () => {
         <InsightsPage />
       </BrandProvider>,
     )
-    expect(screen.getByRole('region', { name: 'Beyond social' })).toHaveTextContent(
-      /two days after “Ravioli, filled by hand”/,
-    )
+    // The marker in green is the post bookings rose most after; its label says so, not only its colour.
+    expect(
+      within(screen.getByRole('region', { name: 'Beyond social' })).getByRole('img', {
+        name: /Ravioli, filled by hand\.?, bookings rose most after it$/,
+      }),
+    ).toBeInTheDocument()
   })
 })
