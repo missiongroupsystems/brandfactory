@@ -464,7 +464,7 @@ function Crew({ shoot, invite }: { shoot: Shoot; invite: () => void }) {
           aria-label="Role"
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          className={`${SELECT} max-md:max-w-[128px] max-md:truncate`}
+          className={`${SELECT} max-md:max-w-[128px] max-md:truncate max-md:font-normal max-md:text-ink-2`}
         >
           {ROLES.map((r) => (
             <option key={r}>{r}</option>
