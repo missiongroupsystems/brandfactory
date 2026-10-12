@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
@@ -24,7 +23,7 @@ import type { BrandId } from '@/data/brands'
 import type { Format, Post, Stage } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
-import { CAPTION_DRAFTS, DRIVE, folderAt, HASHTAGS, VENUE } from '@/data/publish'
+import { CAPTION_DRAFTS, HASHTAGS, VENUE } from '@/data/publish'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { composeChannels, sentChannels } from '@/features/schedule/calendar-items'
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
@@ -33,6 +32,7 @@ import { useConnections, useConnected } from '@/features/connections/connections
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { CropEditor } from './crop-editor'
+import { DriveGlyph, DrivePicker } from './drive-picker'
 import { DropZone } from './drop-zone'
 import {
   activeChannels,
@@ -1300,189 +1300,6 @@ function useRatios(media: Shot[]): Record<string, number> {
     }
   }, [media])
   return ratios
-}
-
-/** Drive's mark as a plain outline, in the text colour: the word says whose it is. */
-function DriveGlyph({ size = 11 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M8.2 3h7.6l6.2 10.8-3.8 6.7H5.8L2 13.8 8.2 3Zm0 0 7.6 13.2M15.8 3 8.4 16.2M2 13.8h20"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function FolderGlyph() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.6l2 2.2h8.4A1.5 1.5 0 0 1 21 8.7v9.8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5v-12Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-/**
- * The brand's Google Drive, opened on this month's final edits: the folder path to climb, its
- * folders, and its photos to tick. Add puts the ticked photos in the post, as an upload does.
- * The demo has no Drive behind it; the folders are `data/publish.ts`.
- */
-function DrivePicker({
-  phone,
-  room,
-  onClose,
-  onPick,
-}: {
-  phone: boolean
-  /** How many more the format takes. */
-  room: number
-  onClose: () => void
-  onPick: (srcs: string[]) => void
-}) {
-  const { brand } = useBrand()
-  const drive = DRIVE[brand.id]
-  const [path, setPath] = React.useState(drive.start)
-  const [picked, setPicked] = React.useState<string[]>([])
-  const folder = folderAt(drive.root, path)
-  const crumbs = [drive.root.name, ...path]
-
-  function toggle(src: string) {
-    setPicked((p) =>
-      p.includes(src)
-        ? p.filter((s) => s !== src)
-        : room === 1
-          ? [src]
-          : p.length < room
-            ? [...p, src]
-            : p,
-    )
-  }
-
-  const body = (
-    <div className="flex flex-col gap-4">
-      <nav aria-label="Folder" className="flex flex-wrap items-center gap-1 text-[13px]">
-        {crumbs.map((name, i) => {
-          const last = i === crumbs.length - 1
-          return (
-            <React.Fragment key={i}>
-              {i > 0 ? (
-                <span className="text-ink-5">›</span>
-              ) : (
-                <span className="text-ink-4">
-                  <DriveGlyph size={13} />
-                </span>
-              )}
-              <button
-                type="button"
-                aria-current={last ? 'location' : undefined}
-                onClick={() => setPath(path.slice(0, i))}
-                className={`rounded-md px-1 py-0.5 transition-colors ${last ? 'font-medium text-ink' : 'text-ink-3 hover:text-ink'}`}
-              >
-                {name}
-              </button>
-            </React.Fragment>
-          )
-        })}
-      </nav>
-      {folder.folders.length > 0 && (
-        <div className="flex flex-col">
-          {folder.folders.map((f) => (
-            <button
-              key={f.name}
-              type="button"
-              onClick={() => setPath([...path, f.name])}
-              className="flex h-11 items-center gap-3 border-b border-(--cal-line) text-left text-[13.5px] text-ink-2 transition-colors last:border-b-0 hover:text-ink max-md:h-12 max-md:text-[14.5px]"
-            >
-              <span className="text-ink-4">
-                <FolderGlyph />
-              </span>
-              <span className="flex-1">{f.name}</span>
-              <span className="text-[12px] text-ink-4">
-                {f.files.length > 0 ? `${f.files.length} photos` : ''}
-              </span>
-              <span className="-rotate-90 text-ink-4">
-                <ChevronIcon size={10} />
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-      {folder.files.length > 0 ? (
-        <div className="grid grid-cols-3 gap-2">
-          {folder.files.map((f) => {
-            const on = picked.includes(f.src)
-            return (
-              <button
-                key={f.src}
-                type="button"
-                role="checkbox"
-                aria-checked={on}
-                aria-label={f.name}
-                onClick={() => toggle(f.src)}
-                className="flex min-w-0 flex-col gap-1.5 text-left"
-              >
-                <span
-                  className={`relative block aspect-square w-full overflow-hidden rounded-[10px] bg-tile transition-shadow ${on ? 'shadow-[0_0_0_2px_var(--page),0_0_0_4px_var(--ink)]' : ''}`}
-                >
-                  <Image src={f.src} alt="" fill sizes="160px" className="object-cover" />
-                  <span
-                    className={`absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full ${on ? 'bg-ink text-page' : 'bg-black/25 shadow-[inset_0_0_0_1.5px_rgba(255,255,255,0.9)]'}`}
-                  >
-                    {on && <CheckIcon size={8} strokeWidth={2.4} />}
-                  </span>
-                </span>
-                <span className="truncate text-[11.5px] text-ink-3">{f.name}</span>
-              </button>
-            )
-          })}
-        </div>
-      ) : (
-        folder.folders.length === 0 && (
-          <p className="py-8 text-center text-[13px] text-ink-4">No photos in this folder.</p>
-        )
-      )}
-    </div>
-  )
-  const add = (
-    <button
-      type="button"
-      aria-disabled={picked.length === 0}
-      onClick={() => picked.length > 0 && onPick(picked)}
-      className={`h-10 rounded-full px-5 text-[13px] font-medium max-md:h-12 max-md:w-full max-md:text-[14px] ${picked.length > 0 ? 'bb-press bg-ink text-page' : 'cursor-not-allowed bg-surface text-ink-4'}`}
-    >
-      {picked.length > 0 ? `Add ${picked.length}` : room === 1 ? 'Pick a photo' : 'Pick photos'}
-    </button>
-  )
-  if (phone) {
-    return (
-      <Sheet
-        title="Google Drive"
-        onClose={onClose}
-        onDone={() => (picked.length > 0 ? onPick(picked) : onClose())}
-      >
-        {body}
-        <div className="pt-4">{add}</div>
-      </Sheet>
-    )
-  }
-  return (
-    <Dialog title="Google Drive" onClose={onClose} wide>
-      {body}
-      <div className="flex items-center justify-end gap-1 pt-4">
-        <button type="button" onClick={onClose} className={QUIET}>
-          Cancel
-        </button>
-        {add}
-      </div>
-    </Dialog>
-  )
 }
 
 // ── Details ──────────────────────────────────────────────────────────────────────────────────

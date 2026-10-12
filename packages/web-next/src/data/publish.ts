@@ -9,6 +9,7 @@
  */
 
 import type { BrandId } from './brands'
+import { VIDEO } from './demo'
 
 type ChannelKey = 'ig' | 'tt' | 'yt' | 'li' | 'fb'
 
@@ -58,6 +59,8 @@ export const HASHTAGS: Record<BrandId, string[]> = {
 export interface DriveFile {
   name: string
   src: string
+  /** m:ss, for a video. */
+  duration?: string
 }
 
 export interface DriveFolder {
@@ -78,14 +81,18 @@ function month(name: string, files: DriveFile[]): DriveFolder {
   return { name, folders: [], files }
 }
 
-function drive(brand: string, months: DriveFolder[]): Drive {
+function drive(brand: string, slug: BrandId, months: DriveFolder[]): Drive {
   return {
     root: {
       name: brand,
       folders: [
         { name: 'Final edits', folders: months, files: [] },
         { name: 'Raw footage', folders: [], files: [] },
-        { name: 'Brand assets', folders: [], files: [] },
+        {
+          name: 'Brand assets',
+          folders: [],
+          files: [{ name: 'logo.png', src: `/demo/${slug}/logo.png` }],
+        },
       ],
       files: [],
     },
@@ -94,8 +101,9 @@ function drive(brand: string, months: DriveFolder[]): Drive {
 }
 
 export const DRIVE: Record<BrandId, Drive> = {
-  'casa-vostra': drive('Casa Vostra', [
+  'casa-vostra': drive('Casa Vostra', 'casa-vostra', [
     month('October', [
+      { name: 'margherita-reel.mp4', src: VIDEO.margherita, duration: '0:14' },
       { name: 'wine-night.jpg', src: '/demo/casa-vostra/wine-night.jpg' },
       { name: 'tagliatelle.jpg', src: '/demo/casa-vostra/tagliatelle.jpg' },
       { name: 'margherita.jpg', src: pin('cv-p-4') },
@@ -110,7 +118,7 @@ export const DRIVE: Record<BrandId, Drive> = {
     ]),
     month('August', [{ name: 'dough.jpg', src: pin('cv-p-1') }]),
   ]),
-  temper: drive('Temper', [
+  temper: drive('Temper', 'temper', [
     month('October', [
       { name: 'pour.jpg', src: '/demo/temper/pour.jpg' },
       { name: 'glass.jpg', src: '/demo/temper/glass.jpg' },
@@ -125,7 +133,7 @@ export const DRIVE: Record<BrandId, Drive> = {
     ]),
     month('August', [{ name: 'merlot.jpg', src: pin('tp-p-4') }]),
   ]),
-  carlitos: drive('Carlitos', [
+  carlitos: drive('Carlitos', 'carlitos', [
     month('October', [
       { name: 'croquetas.jpg', src: '/demo/carlitos/croquetas.jpg' },
       { name: 'pintxos.jpg', src: '/demo/carlitos/pintxos.jpg' },
@@ -151,4 +159,24 @@ export function folderAt(root: DriveFolder, path: string[]): DriveFolder {
     at = next
   }
   return at
+}
+
+/** A file and the folder path it sits in, under the root. */
+export interface DriveHit {
+  file: DriveFile
+  path: string[]
+}
+
+/** Every file under `folder`, folder by folder, each with its path from the root. */
+export function filesUnder(folder: DriveFolder, path: string[] = []): DriveHit[] {
+  return [
+    ...folder.files.map((file) => ({ file, path })),
+    ...folder.folders.flatMap((f) => filesUnder(f, [...path, f.name])),
+  ]
+}
+
+/** The files anywhere under the root whose name contains `query`, in folder order. */
+export function searchDrive(root: DriveFolder, query: string): DriveHit[] {
+  const q = query.trim().toLowerCase()
+  return q ? filesUnder(root).filter((h) => h.file.name.toLowerCase().includes(q)) : []
 }
