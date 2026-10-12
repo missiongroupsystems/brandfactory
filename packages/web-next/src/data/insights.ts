@@ -82,8 +82,6 @@ export interface Creator {
 
 export interface BrandInsights {
   period: string
-  /** The month in two or three plain sentences: the summary at the top of the page. */
-  line: string
   kpis: Kpi[]
   stories: Story[]
   /** How busy each part of the day is, 0–1: morning, lunch, afternoon, evening, late. */
@@ -102,7 +100,6 @@ const sharper = (a: string, b: string, c: string) => [
 
 const CASA_VOSTRA: BrandInsights = {
   period: '7 SEP – 6 OCT',
-  line: 'A good month. Reach is up 12% and saves are up 18%. Hand-made reels did most of the work; TikTok did not move.',
   kpis: [
     {
       label: 'Reach',
@@ -386,7 +383,6 @@ const T = {
 
 const TEMPER: BrandInsights = {
   period: '7 SEP – 6 OCT',
-  line: 'A good month. Reach is up 9% and bookings from social are up 12%. Faces and the room at night did the work; TikTok is not growing.',
   kpis: [
     {
       label: 'Reach',
@@ -650,7 +646,6 @@ const K = {
 
 const CARLITOS: BrandInsights = {
   period: '7 SEP – 6 OCT',
-  line: 'A good month. Reach is up 8% and shares are up 23%. How-to carousels were saved most, value posts were shared most, and TikTok grew 5.8%.',
   kpis: [
     {
       label: 'Reach',

@@ -205,8 +205,6 @@ function Overview({ data, hub }: { data: BrandInsights; hub: BrandHub }) {
   const time = data.stories.find((s) => s.chart.kind === 'days')
   return (
     <div className="flex flex-col gap-11">
-      <p className="text-[15px] leading-[1.6] text-ink-2">{data.line}</p>
-
       <NumberCard kpis={data.kpis} />
 
       <section aria-label="Beyond social" className="flex flex-col gap-3">
