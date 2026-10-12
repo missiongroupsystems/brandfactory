@@ -73,6 +73,27 @@ in the shot list has `Remove` on hover, which takes the idea off the shoot (`lea
 Store: `addIdeaToShoot(brandId, shootId, ideaId)` takes the idea out of any other shoot and adds
 it to this one, with the existing `without` rule (a planned shoot left empty goes).
 
+## Round 2: the filmstrip, and drag to reorder
+
+The owner wanted to drag shots, and found the vertical list of thumbnails flat. Shots are a
+reel's frames, so each idea's shots become a filmstrip: 9:16 frames (4:5 for a carousel), 228 px
+wide on a computer and 168 px on a phone, the number in a small pill at the top left and the line
+over the bottom of the picture on a gradient. The strip scrolls sideways past the page's edge with
+snap points and no scrollbar. The shot list takes the page's whole width; Who comes keeps the 680
+px column with From the link in the margin beside it, so the reading order stays: when and where,
+who (and what the crew said), what we shoot.
+
+A frame drags into a new place inside its idea: the HTML drag with a pointer, a long press by
+touch (`components/touch-drag.ts`), the others sliding out of its way (`useSortable`, x axis,
+one per idea). The lifted frame scales up and fades while held. The keyboard keeps its way: each
+frame has a handle that shows on focus, and Option with an arrow key moves it. The up/down arrow
+buttons go. The small drag parts the idea page kept to itself (`accept`, `at`, `inside`,
+`nudgeKey`, `Handle`) move to `features/ideate/drag-parts.tsx` so both pages share them.
+
+Concepts tried (screenshots `concept-a|b|c-*.png`): A, a contact sheet with the line under each
+frame at 172 px (lines truncate); B, the cinema strip above (chosen); C, the same frames on a grey
+tray per idea (reads as a card, and smaller frames). B was built.
+
 ## Tests
 
 - Custom role: pick Other, type a role, add a person; the row shows that role.

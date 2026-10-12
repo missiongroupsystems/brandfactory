@@ -20,7 +20,6 @@ import { EYEBROW, FormatIcon } from '@/features/ideate/idea-parts'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnected } from '@/features/connections/connections-store'
 import { editIdea, useIdeas } from '@/features/ideate/ideas-store'
-import { move } from '@/features/ideate/sortable'
 import { useBrand } from '@/features/schedule/posts-store'
 import { Comments } from '@/features/share/comments'
 import { ShareButton } from '@/features/share/share-button'
@@ -117,14 +116,14 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
   // then go out. `then` is what runs once it is connected.
   const lark = useConnected(brand.id, 'lark')
   const [linking, setLinking] = React.useState<{ then?: () => void } | null>(null)
-  const moveShot = (ideaId: string, shotId: string, by: -1 | 1) =>
-    editIdea(brand.id, ideaId, (c) => {
-      const from = c.shots.findIndex((s) => s.id === shotId)
-      return { shots: move(c.shots, from, from + by) }
-    })
+  // A new order of an idea's shots, from a drag or the keyboard, kept on the idea itself.
+  const reorder = (ideaId: string, ids: string[]) =>
+    editIdea(brand.id, ideaId, (c) => ({
+      shots: ids.flatMap((id) => c.shots.filter((s) => s.id === id)),
+    }))
 
   return (
-    <article className="flex max-w-[1044px] flex-col gap-12 max-md:gap-9">
+    <article className="flex flex-col gap-12 max-md:gap-9">
       <div className="flex items-center justify-between gap-3">
         <BackLink />
         <ShareButton kind="shoot" id={shoot.id} />
@@ -183,40 +182,17 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
         />
       )}
 
-      <Crew
-        shoot={shoot}
-        invite={() => {
-          const send = () => sendInvites(brand.id, shoot.id)
-          if (lark) send()
-          else setLinking({ then: send })
-        }}
-      />
-
-      <div className="grid grid-cols-[minmax(0,680px)_300px] items-start gap-x-16 max-lg:grid-cols-1 max-lg:gap-y-10">
-        <section
-          id="shots"
-          aria-label="Shot list"
-          className="flex scroll-mt-6 flex-col gap-6 max-lg:order-2"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <span className={EYEBROW}>
-              Shot list · {shots} {shots === 1 ? 'shot' : 'shots'}
-            </span>
-            <AddIdea shoot={shoot} ideas={ideas} />
-          </div>
-          {cards.length === 0 ? (
-            <p className="text-[14px] text-ink-4">No ideas on this shoot yet.</p>
-          ) : (
-            <ShotList
-              brandId={brand.id}
-              ideas={cards}
-              ideaHref={(i) => `/ideate/${i}`}
-              onMove={moveShot}
-              onRemoveIdea={(ideaId) => removeIdeaFromShoot(brand.id, shoot.id, ideaId)}
-            />
-          )}
-        </section>
-        <aside className="max-lg:order-1 lg:sticky lg:top-6">
+      {/* Who comes, with what the crew said on the link as a note in the margin beside it. */}
+      <div className="grid max-w-[1044px] grid-cols-[minmax(0,680px)_300px] items-start gap-x-16 max-lg:grid-cols-1 max-lg:gap-y-10">
+        <Crew
+          shoot={shoot}
+          invite={() => {
+            const send = () => sendInvites(brand.id, shoot.id)
+            if (lark) send()
+            else setLinking({ then: send })
+          }}
+        />
+        <aside>
           <Comments
             kind="shoot"
             id={shoot.id}
@@ -225,6 +201,27 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
           />
         </aside>
       </div>
+
+      {/* The heart of the sheet takes the whole width: each idea's shots as a filmstrip. */}
+      <section id="shots" aria-label="Shot list" className="flex scroll-mt-6 flex-col gap-8">
+        <div className="flex items-center justify-between gap-3">
+          <span className={EYEBROW}>
+            Shot list · {shots} {shots === 1 ? 'shot' : 'shots'}
+          </span>
+          <AddIdea shoot={shoot} ideas={ideas} />
+        </div>
+        {cards.length === 0 ? (
+          <p className="text-[14px] text-ink-4">No ideas on this shoot yet.</p>
+        ) : (
+          <ShotList
+            brandId={brand.id}
+            ideas={cards}
+            ideaHref={(i) => `/ideate/${i}`}
+            onReorder={reorder}
+            onRemoveIdea={(ideaId) => removeIdeaFromShoot(brand.id, shoot.id, ideaId)}
+          />
+        )}
+      </section>
     </article>
   )
 }

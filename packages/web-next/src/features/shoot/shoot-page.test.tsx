@@ -1,4 +1,4 @@
-import { fireEvent, render, renderHook, screen, within } from '@testing-library/react'
+import { createEvent, fireEvent, render, renderHook, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { PAST_CREW } from '@/data/suggestions'
@@ -58,28 +58,67 @@ describe('who comes', () => {
   })
 })
 
+/**
+ * A drag as a mouse makes it: start on one, over another, drop there. jsdom lays nothing out, so
+ * every box is at 0,0: a pointer at -1 is on the near side of the frame it is over, and the lifted
+ * one goes before it.
+ */
+function dragTo(from: HTMLElement, to: HTMLElement) {
+  const dataTransfer = { setData: vi.fn(), types: [] as string[], effectAllowed: 'move' }
+  fireEvent.dragStart(from, { dataTransfer })
+  const over = createEvent.dragOver(to, { dataTransfer })
+  Object.defineProperty(over, 'clientX', { value: -1 })
+  Object.defineProperty(over, 'clientY', { value: -1 })
+  fireEvent(to, over)
+  fireEvent.drop(to, { dataTransfer })
+  fireEvent.dragEnd(from, { dataTransfer })
+}
+
 describe('the shot list', () => {
-  it('moves a shot inside its idea with the arrows', () => {
-    open()
-    const rows = () =>
-      within(shotList())
-        .getAllByRole('listitem')
-        .map((li) => li.textContent ?? '')
-    expect(rows()[0]).toContain('Flour and eggs, overhead')
-    fireEvent.click(
-      within(shotList()).getByRole('button', { name: 'Move Flour and eggs, overhead down' }),
+  const strip = () =>
+    screen.getByRole('list', { name: 'Shots of Watch the dough become tagliatelle.' })
+  const frame = (title: string) =>
+    within(strip())
+      .getAllByRole('listitem')
+      .find((li) => li.textContent?.includes(title))!
+  const ideaPageShots = () => {
+    render(
+      <BrandProvider>
+        <IdeaPage id="cv-dough" />
+      </BrandProvider>,
     )
-    expect(rows()[0]).toContain('The sheet through the roller, hands only')
-    expect(rows()[1]).toContain('Flour and eggs, overhead')
-    // The first shot of an idea has nowhere to go up; the last, nowhere down.
-    expect(
-      within(shotList()).getByRole('button', {
-        name: 'Move The sheet through the roller, hands only up',
-      }),
-    ).toBeDisabled()
-    expect(
-      within(shotList()).getByRole('button', { name: 'Move The route, out the window down' }),
-    ).toBeDisabled()
+    return ['Shot 1', 'Shot 2', 'Shot 3'].map(
+      (n) => (screen.getByLabelText(n) as HTMLTextAreaElement).value,
+    )
+  }
+
+  it('reorders the frames by a drag, and the idea page sees the new order', () => {
+    const { unmount } = open()
+    expect(frame('The cut, then the pass')).toHaveTextContent(/^03/)
+    // The last frame dragged onto the first lands first; the numbers follow.
+    dragTo(frame('The cut, then the pass'), frame('Flour and eggs, overhead'))
+    expect(frame('The cut, then the pass')).toHaveTextContent(/^01/)
+    expect(frame('Flour and eggs, overhead')).toHaveTextContent(/^02/)
+    unmount()
+    expect(ideaPageShots()).toEqual([
+      'The cut, then the pass',
+      'Flour and eggs, overhead',
+      'The sheet through the roller, hands only',
+    ])
+  })
+
+  it('moves a frame with Option and an arrow key on its handle, for the keyboard', () => {
+    const { unmount } = open()
+    const handle = within(strip()).getByRole('button', {
+      name: 'Move shot 1: Flour and eggs, overhead',
+    })
+    fireEvent.keyDown(handle, { key: 'ArrowRight', altKey: true })
+    expect(frame('Flour and eggs, overhead')).toHaveTextContent(/^02/)
+    // An arrow without Option is the page's, not a move.
+    fireEvent.keyDown(handle, { key: 'ArrowRight' })
+    expect(frame('Flour and eggs, overhead')).toHaveTextContent(/^02/)
+    unmount()
+    expect(ideaPageShots()[0]).toBe('The sheet through the roller, hands only')
   })
 })
 
