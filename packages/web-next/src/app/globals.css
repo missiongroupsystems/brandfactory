@@ -278,19 +278,10 @@
 
 /*
  * ── Composer preview (features/publish/preview-media.tsx) ────────────────────────────────────
- * bb-breathe: the empty state's glyph breathes. bb-glyph: the play or pause glyph a tap
+ * bb-glyph: the play or pause glyph a tap
  * flashes, in and out in one go. pm-empty: with no media yet, the app's chrome fades and only
  * the placeholder stays at full strength.
  */
-@keyframes bb-breathe {
-  50% {
-    opacity: 0.55;
-    transform: scale(0.94);
-  }
-}
-@utility bb-breathe {
-  animation: bb-breathe 3.6s ease-in-out infinite;
-}
 @keyframes bb-glyph {
   0% {
     opacity: 0;

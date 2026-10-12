@@ -204,7 +204,7 @@ describe('the preview before any media', () => {
   it('shows the placeholder on a tinted surface, not a black frame, and opens the picker', () => {
     inBrand(<Composer />)
     const empty = placeholder()!
-    expect(empty).toHaveTextContent('Drop a photo or video')
+    expect(empty).toHaveTextContent('Add a photo or video')
     expect(empty.style.background).toContain('gradient')
     expect(preview().querySelector('video')).toBeNull()
 

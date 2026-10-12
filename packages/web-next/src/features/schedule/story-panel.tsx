@@ -57,7 +57,7 @@ export function StoryDeck({
                 transform: `rotate(${(i - 1) * 4}deg)`,
               }}
             >
-              {s.image && <Media src={s.image} sizes="32px" />}
+              {s.image && <Media src={s.image} sizes="32px" still />}
             </span>
           ))
           .reverse()}
@@ -150,7 +150,7 @@ export function StoryPanel({
               const body = (
                 <>
                   <span className="relative block h-[64px] w-[36px] shrink-0 overflow-hidden rounded-[6px] bg-tile">
-                    {s.image && <Media src={s.image} sizes="36px" />}
+                    {s.image && <Media src={s.image} sizes="36px" still />}
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col gap-1">
                     <span className="font-mono text-[10.5px] text-ink-4 tabular-nums">

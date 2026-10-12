@@ -686,7 +686,7 @@ export function PostTile({
     >
       {image && (image.startsWith('blob:') || isVideo(image)) ? (
         // A file dropped in the composer, or a video: drawn as it is, not through next/image.
-        <Media src={image} sizes={TILE_SIZES} />
+        <Media src={image} sizes={TILE_SIZES} still />
       ) : (
         image && (
           <Image

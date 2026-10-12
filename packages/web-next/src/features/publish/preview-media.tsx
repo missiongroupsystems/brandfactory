@@ -383,27 +383,15 @@ export function Dots({
 
 // ── Empty ────────────────────────────────────────────────────────────────────────────────────
 
-const MEDIA_GLYPH = (
-  <svg
-    width="26"
-    height="26"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.4"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <rect x="3" y="4.5" width="18" height="15" rx="3.5" />
-    <circle cx="9" cy="10" r="1.6" fill="currentColor" stroke="none" />
-    <path d="M3.5 17.5 9.2 12.6a1 1 0 0 1 1.3 0l3 2.6 2.1-1.8a1 1 0 0 1 1.3 0l3.6 3.3" />
+const PLUS_GLYPH = (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+    <path d="M7 2.5v9M2.5 7h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 )
 
 /**
- * The media area before anything is added: a soft surface in the brand's tint, a glyph that
- * breathes, one line. In the composer it is a button that opens the picker. `light` is for the
+ * The media area before anything is added: a calm surface with the brand's tint glowing behind
+ * the middle, a frosted plus and one line, with a quieter hint under it. In the composer it is a button that opens the picker. `light` is for the
  * apps that show a photo on a white feed.
  */
 export function Placeholder({ light, onAdd }: { light: boolean; onAdd?: () => void }) {
@@ -411,14 +399,27 @@ export function Placeholder({ light, onAdd }: { light: boolean; onAdd?: () => vo
   const tint = `var(${brand.colour})`
   const background = light
     ? `linear-gradient(180deg, color-mix(in oklab, ${tint} 7%, #f5f3ef), #ebe8e3)`
-    : `radial-gradient(120% 70% at 50% 0%, color-mix(in oklab, ${tint} 30%, #171412), #0b0a09 78%)`
+    : `radial-gradient(70% 45% at 50% 46%, color-mix(in oklab, ${tint} 18%, #1c1a18), #0e0d0c 100%)`
   const inner = (
     <>
-      <span className="bb-breathe motion-reduce:animate-none">{MEDIA_GLYPH}</span>
-      <span className="text-[8px] leading-none font-medium">Drop a photo or video</span>
+      <span
+        className={`flex size-[34px] items-center justify-center rounded-full ${light ? 'bg-black/[0.05] text-black/55 shadow-[inset_0_0_0_0.5px_rgba(0,0,0,0.12)]' : 'bg-white/[0.08] text-white/80 shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.18)] backdrop-blur-sm'}`}
+      >
+        {PLUS_GLYPH}
+      </span>
+      <span className="flex flex-col items-center gap-[3px]">
+        <span
+          className={`text-[9px] leading-none font-medium ${light ? 'text-black/65' : 'text-white/75'}`}
+        >
+          Add a photo or video
+        </span>
+        <span className={`text-[7.5px] leading-none ${light ? 'text-black/35' : 'text-white/35'}`}>
+          or drop it here
+        </span>
+      </span>
     </>
   )
-  const cls = `absolute inset-0 flex flex-col items-center justify-center gap-[8px] ${light ? 'text-(--pc-li-muted)' : 'text-(--pc-dim)'}`
+  const cls = 'absolute inset-0 flex flex-col items-center justify-center gap-[10px]'
   return onAdd ? (
     <button
       type="button"
