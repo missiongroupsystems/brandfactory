@@ -149,7 +149,7 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-[360px_minmax(0,1fr)] items-start gap-12 max-lg:grid-cols-[320px_minmax(0,1fr)] max-lg:gap-8 max-md:grid-cols-1">
+        <div className="grid grid-cols-[360px_minmax(0,1fr)] gap-12 max-lg:grid-cols-[320px_minmax(0,1fr)] max-lg:gap-8 max-md:grid-cols-1">
           <div className="flex flex-col">
             {tabs}
             {/* Complaints first, marked by a dot: no headings to read. */}
@@ -171,17 +171,20 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
                 />
               </FullScreen>
             ) : (
-              // As tall as the thread needs, up to the screen: a short one leaves no empty well, a
-              // long one scrolls inside the panel and the reply stays in view.
-              <div className="sticky top-6 flex max-h-[max(440px,calc(100svh-280px))] min-h-[360px] flex-col rounded-[20px] border border-line bg-page">
-                <Thread
-                  key={current.id}
-                  m={current}
-                  brand={brand}
-                  data={data}
-                  sentTo={routed[current.id]}
-                  onSend={() => send(current.id)}
-                />
+              // As tall as the list beside it, never taller than the screen: the two columns end
+              // together on any size, and a long thread scrolls inside the panel. The column takes
+              // its height from the list only (`contain: size`), so a long thread cannot stretch it.
+              <div className="[contain:size]">
+                <div className="sticky top-6 flex h-full max-h-[max(440px,calc(100svh-280px))] min-h-[440px] flex-col rounded-[20px] border border-line bg-page">
+                  <Thread
+                    key={current.id}
+                    m={current}
+                    brand={brand}
+                    data={data}
+                    sentTo={routed[current.id]}
+                    onSend={() => send(current.id)}
+                  />
+                </div>
               </div>
             ))}
         </div>
