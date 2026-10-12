@@ -146,7 +146,7 @@ describe('the inbox', () => {
 
   it('shows only the DMs from a small tab, and clears the noise from inside its fold', () => {
     page()
-    fireEvent.click(screen.getByRole('tab', { name: 'DMs' }))
+    fireEvent.click(screen.getByRole('button', { name: 'DMs' }))
     expect(screen.queryByRole('button', { name: /Rachel Tan/ })).toBeNull()
     expect(screen.getByRole('button', { name: /Aisha Rahman/ })).toBeTruthy()
     // Clear is not a corner button: it waits inside the fold, after what it would clear.

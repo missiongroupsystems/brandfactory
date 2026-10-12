@@ -100,15 +100,14 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
 
   // Small text tabs at the top of the list: a way to see only the DMs, not a control of its own.
   const tabs = (
-    <div role="tablist" aria-label="Show" className="flex gap-4 px-3 pb-3">
+    <div role="group" aria-label="Show" className="flex gap-4 px-3 pb-3">
       {FILTERS.map((f) => {
         const on = f.value === filter
         return (
           <button
             key={f.value}
             type="button"
-            role="tab"
-            aria-selected={on}
+            aria-pressed={on}
             onClick={() => {
               setFilter(f.value)
               setSelected(null)
