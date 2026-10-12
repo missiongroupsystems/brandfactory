@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.11.0** — 2026-10-12 — David's "fewer elements" round: every page loses controls and helper text it did not need, and each screen keeps one main action; the inbox replies by picking one of three directions; share links choose who opens them and whether they view, comment or edit. The shoot page is one reading order with a draggable timeline of every shot (on dnd-kit), comments that can be answered and resolved, ideas added in place and custom crew roles. The composer's preview plays a reel, swipes a carousel, takes a dropped file and shows a brand-coloured empty state; the Drive picker is one surface with search. Recent handles are offered as you type, and avatars show profile pictures where a platform gives one. No migration. 299 tests.
 - **2.10.0** — 2026-10-11 — Changing the voice is a four-step flow that ends on what AI will write before and after, then a new version with a history to bring old ones back; the kit's colours get a picker with suggested shades; files show as quiet kind icons. The inbox thread holds whole conversations in a calmer panel, and a complaint can go to several people. Ideate's title settles in like the other pages; the brand kit fits a phone. No migration. 238 tests.
 - **2.9.0** — 2026-10-11 — The Brand kit is editable: voice, Say/Not pairs, sample lines, colours and the logo, one section at a time with Edit and Done; the composer, idea page and inbox read the edited voice, and a new logo shows everywhere. A connection that succeeds now shows a short animation before its sheet closes. Rachel's inbox complaint is about the food and goes to the head chef. No migration. 218 tests.
 - **2.8.0** — 2026-10-11 — A Connections page per brand, from the brand switcher: every source grouped by job with one action each, a pretend sign-in, and first-time connect steps for Google Drive in the composer and Lark on the call sheet; Insights' sources follow it. A feasibility study for the real Drive and Lark integrations. No migration. 208 tests.
@@ -28,6 +29,44 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.11.0 — 2026-10-12
+
+**Fewer elements, one main action per screen.** From David's review of the 2.10.0 demo ("get rid of
+as many UI elements as you possibly can without affecting functionality"), applied to every page.
+
+- **Inbox.** Each message offers three reply directions; a pick writes the reply in the brand's
+  voice into the box, and Send is the only dark button. Regenerate is gone; All / Comments / DMs
+  are small text toggles; "Send to Giulia" moved into a "…" menu; the no-reply fold is a stack of
+  faded faces and the word "Muted". The post a comment is on sits in the thread header as a
+  thumbnail that lifts on hover and opens to the post.
+- **Declutter.** Calendar, composer, shoot, Ideate, idea page, Insights, Brand kit, Connections and
+  share pages lose eyebrows, counters, duplicate buttons and helper sentences; rare actions moved
+  into "…" or "+" menus. The Insights summary sentence is gone. The calendar's filter and New shoot
+  share one "…" menu.
+- **Share.** A link opens for anyone with it or only the team, and a guest can view, comment or
+  edit; the guest page follows. The card is an access row, one Copy link button and an eye for the
+  guest preview.
+- **Shoot page** (`docs/completions/brandbase-shoot-page-and-comments-plan.md`). One reading order:
+  head, Who comes (with guest comments beside it), then the shot list as one horizontal timeline of
+  every shot, grouped by idea under a lavender bar. Groups drag by their label to reorder the ideas,
+  shots drag within their group, on `@dnd-kit/core` 6.3.1 and `@dnd-kit/sortable` 10.0.0 (mouse,
+  long-press touch, keyboard, autoscroll; two hand-written drag engines were tried and removed).
+  Comments can be replied to, jumped from to the shots, and marked done; ideas are added from the
+  page itself (asking first if one is on another shoot) and take the shoot's date; crew roles take
+  "Other…". The phone layout keeps each control on one line and hides remove behind Edit or "…".
+- **Composer preview.** A demo reel (a stand-in clip, see `public/demo/CREDITS.md`) plays muted and
+  looping in the preview only, with a tap to pause on a disc in the brand kit's colours; every
+  other thumbnail shows its poster. Carousels swipe with arrows, dots and a counter; Grid tiles mark
+  reels and carousels. With no media the frame shows the kit's colours and "Add a photo or video";
+  files can be dropped onto the phone. The Drive picker is one surface: folders at the left, a
+  search over all of them, numbered picks and "Add N".
+- **Earlier on main since 2.10.0.** A connected card settles away before its sheet closes; recent
+  handles, places, labels and tags are offered as you type; avatars show a profile picture where a
+  platform returns one (Instagram business and creator accounts, Facebook Pages, the brand's own
+  account) and initials otherwise.
+
+Gate: typecheck, lint, format, 299 tests in 39 files, `next build`.
 
 ## 2.10.0 — 2026-10-11
 
