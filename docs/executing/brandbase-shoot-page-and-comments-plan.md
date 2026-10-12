@@ -160,6 +160,24 @@ deeper. No text or picture is selected or dragged by the browser. Reduced motion
 settle, positions only. The keyboard move (Option + arrow) is unchanged. The share page passes no
 drag props and stays inert.
 
+## Round 8: the drag on dnd-kit
+
+The pointer engine of round 7 felt jittery and held the lifted group on the line's y, so it went.
+The timeline now runs on `@dnd-kit/core` 6.3.1 and `@dnd-kit/sortable` 10.0.0, in `shot-list.tsx`
+alone: one `DndContext`, an outer `SortableContext` of groups (`g:<ideaId>`) and one inner
+context per group for its clips (`c:<ideaId>:<shotId>`), both on `horizontalListSortingStrategy`.
+A `DragOverlay` copy follows the pointer in both axes, scaled 1.02 (group) or 1.04 (clip) on a
+page-coloured card with the large soft shadow; the item's own box stays as a faded ghost and
+slides to the slot it is held over while the others ease aside (200 ms ease-out), and the copy
+settles into it in 240 ms. A custom collision detection keeps a group among the groups and a clip
+among its own group's clips; a clip carried sideways out of its group is over nothing, the cursor
+says not-allowed, and a release puts it back. Sensors: the pointer for a mouse (5 px), a touch
+sensor for a finger (220 ms press, 6 px drift scrolls instead) and the keyboard from each item's
+hidden handle (Space lifts, left and right arrows move one place along the row, Space drops,
+Escape puts it back) with plain-word announcements. Droppables are measured on every change so
+a scrolled line still hits right, and dnd-kit's autoscroll moves the line near either end. Reduced
+motion: no scale, no slide, no settle. The share page passes no drag props and renders no handles.
+
 ## Tests
 
 - Custom role: pick Other, type a role, add a person; the row shows that role.
