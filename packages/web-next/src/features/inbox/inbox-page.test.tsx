@@ -150,10 +150,10 @@ describe('the inbox', () => {
     expect(screen.queryByRole('button', { name: /Rachel Tan/ })).toBeNull()
     expect(screen.getByRole('button', { name: /Aisha Rahman/ })).toBeTruthy()
     // Clear is not a corner button: it waits inside the fold, after what it would clear.
-    expect(screen.queryByRole('button', { name: 'Clear these' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /5 more, no reply needed/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Clear these' }))
-    expect(screen.queryByText(/more, no reply needed/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Muted, 5 need no reply/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(screen.queryByRole('button', { name: /Muted/ })).toBeNull()
   })
 
   it('shows a DM thread in order, ending with the message the reply answers', () => {

@@ -319,8 +319,8 @@ function ComplaintMark({ sentTo }: { sentTo?: string[] }) {
 }
 
 /**
- * What needs no reply (emoji, spam, a tagged friend), folded shut at the end of the list as one
- * quiet line. Open it to check, and clear it from inside: no action sits in the corner.
+ * What needs no reply (emoji, spam, a tagged friend), folded shut at the end of the list: their
+ * faces, faded and stacked, and one word. Open it to check, and clear it from inside.
  */
 function Noise({ brandId, noise }: { brandId: Brand['id']; noise: InboxMessage[] }) {
   const [open, setOpen] = React.useState(false)
@@ -329,10 +329,24 @@ function Noise({ brandId, noise }: { brandId: Brand['id']; noise: InboxMessage[]
       <button
         type="button"
         aria-expanded={open}
+        aria-label={`Muted, ${noise.length} need no reply`}
         onClick={() => setOpen((o) => !o)}
-        className="flex h-9 w-full items-center gap-2 px-3 text-left text-[13px] text-ink-4 transition-colors hover:text-ink"
+        className="group flex h-9 w-full items-center gap-2.5 px-3 text-left text-[13px] text-ink-4 transition-colors hover:text-ink"
       >
-        {noise.length} more, no reply needed
+        <span
+          aria-hidden="true"
+          className="flex opacity-60 grayscale transition-opacity group-hover:opacity-100"
+        >
+          {noise.slice(0, 5).map((m, i) => (
+            <span
+              key={m.id}
+              className={`flex size-5 items-center justify-center rounded-full bg-tile text-[8.5px] font-semibold text-ink-3 shadow-[0_0_0_1.5px_var(--page)] ${i > 0 ? '-ml-1.5' : ''}`}
+            >
+              {m.from.name.charAt(0).toUpperCase()}
+            </span>
+          ))}
+        </span>
+        Muted
         <ChevronIcon open={open} />
       </button>
       <Fold open={open}>
@@ -355,7 +369,7 @@ function Noise({ brandId, noise }: { brandId: Brand['id']; noise: InboxMessage[]
           }
           className="mt-1 flex h-9 items-center px-3 text-[13px] font-medium text-ink-2 transition-colors hover:text-ink"
         >
-          Clear these
+          Clear
         </button>
       </Fold>
     </div>
