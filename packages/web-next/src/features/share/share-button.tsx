@@ -51,12 +51,6 @@ export function ShareButton({ kind, id }: { kind: ShareKind; id: string }) {
 
   const body = (
     <div className="flex flex-col gap-3">
-      <span className="flex items-center gap-2.5 text-[13px] text-ink-2">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface text-ink-3">
-          <GlobeGlyph />
-        </span>
-        Anyone with the link can view and comment
-      </span>
       <div className="flex items-center gap-1.5 rounded-full bg-surface p-1 pl-3.5">
         <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink-3">
           {url.replace(/^https?:\/\//, '')}
@@ -120,19 +114,6 @@ function LinkGlyph() {
         stroke="currentColor"
         strokeWidth="1.3"
         strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-function GlobeGlyph() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-      <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.2" />
-      <path
-        d="M1.5 7h11M7 1.5c1.6 1.6 2.3 3.4 2.3 5.5S8.6 10.9 7 12.5C5.4 10.9 4.7 9.1 4.7 7S5.4 3.1 7 1.5Z"
-        stroke="currentColor"
-        strokeWidth="1.2"
       />
     </svg>
   )

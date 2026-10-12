@@ -32,7 +32,6 @@ import {
 } from '@/data/ideas'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { storyTaken } from '@/features/schedule/move-post'
-import { VoiceNote } from '@/features/brand/voice-note'
 import { useBrand } from '@/features/schedule/posts-store'
 import { Comments } from '@/features/share/comments'
 import { ShareButton } from '@/features/share/share-button'
@@ -80,8 +79,6 @@ const HOVER =
  */
 const CHIP =
   'bb-press flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-page px-2.5 text-[12px] text-ink-2 ring-1 ring-(--cal-ghost) select-none hover:text-ink hover:ring-(--line-strong) has-[:focus-visible]:ring-ink focus-visible:ring-ink focus-visible:outline-none'
-/** The line beside it that says a drop works too; a finger cannot drop a file, so not on touch. */
-const HINT = 'text-[12px] text-ink-4 [@media(hover:none)]:hidden'
 const SIZES = '(max-width: 768px) 50vw, 240px'
 /**
  * The lifted item: a touch lighter, a touch larger, with a shadow. It goes on a wrapper inside
@@ -173,8 +170,6 @@ interface Plan {
   infoOf: (day: Day) => DayInfo
   /** What the post carries, in order. */
   media: string[]
-  /** How many of those the shoot captured (the slides of a carousel, the frames of a story). */
-  fromShoot: number
   setStatus: (step: Step) => void
   setDate: (dayN: string) => void
   setTime: (time: string) => void
@@ -254,7 +249,6 @@ function usePlan(slot: Slot): Plan {
     time,
     infoOf,
     media,
-    fromShoot: handed && card.format !== 'reel' ? handed.length : 0,
     // "Idea" is where a card starts; once it is a post, the page does not take the post back.
     // Idea takes a post back to a plan on its day, unless the post already went out.
     setStatus: (step) => {
@@ -297,9 +291,7 @@ type StageKey = 'references' | 'shots' | 'shoot' | 'post'
 
 interface StageState {
   key: StageKey
-  n: string
   label: string
-  question: string
   done: boolean
   /** Where it stands, in a few words: "3 of 5 captured". */
   note: string
@@ -344,14 +336,12 @@ function stagesOf(
     {
       key: 'references' as const,
       label: 'References',
-      question: 'What should it look like?',
       done: refs.length > 0,
       note: refs.length ? plural(refs.length, 'reference') : 'None yet',
     },
     {
       key: 'shots' as const,
       label: 'Shots',
-      question: 'How do we shoot it?',
       done: shots.length > 0 && !!shootDay,
       note: shots.length
         ? `${plural(shots.length, 'shot')} · ${shootDay ?? 'no shoot day'}`
@@ -360,14 +350,12 @@ function stagesOf(
     {
       key: 'shoot' as const,
       label: 'Shoot',
-      question: 'On the day.',
       done: shots.length > 0 && captured === shots.length,
       note: shots.length ? `${captured} of ${shots.length} captured` : 'Nothing to shoot yet',
     },
     {
       key: 'post' as const,
       label: 'Post',
-      question: 'Draft, schedule, publish.',
       done: slot.status === 'posted',
       note: slot.dayN
         ? `${STATUS_LABEL[slot.status]} · ${dayLabel(weeks, slot.dayN)}${card.postId ? `, ${time}` : ''}`
@@ -376,7 +364,7 @@ function stagesOf(
   ]
   // The idea stands at its first unfinished stage; once everything is done, at the last.
   const current = stages.find((s) => !s.done)?.key ?? 'post'
-  return stages.map((s, i) => ({ ...s, n: `0${i + 1}`, current: s.key === current }))
+  return stages.map((s) => ({ ...s, current: s.key === current }))
 }
 
 /** What is being dragged across the page: a reference by its key, or a shot by its id. */
@@ -720,9 +708,7 @@ function Idea({ slot }: { slot: Slot }) {
 
         <StageSection stage={stage('post')}>
           {status === 'suggested' ? (
-            <p className="text-[14px] text-ink-4">
-              Keep it first: a kept idea takes a status, a date and a time.
-            </p>
+            <p className="text-[14px] text-ink-4">Keep the idea first.</p>
           ) : (
             <PlanSection slot={slot} plan={plan} board={board} edit={edit} />
           )}
@@ -756,7 +742,6 @@ function Rail({ stages }: { stages: StageState[] }) {
               >
                 {s.label}
               </span>
-              <span className="text-[12px] text-ink-5 max-md:hidden">{s.note}</span>
             </a>
           </li>
         ))}
@@ -789,7 +774,7 @@ function StageMark({ done, current }: { done: boolean; current: boolean }) {
   )
 }
 
-/** A stage down the page: its number, name, question and standing on the left, its work on the right. */
+/** A stage down the page: its name and standing on the left, its work on the right. */
 function StageSection({ stage, children }: { stage: StageState; children: React.ReactNode }) {
   return (
     <section
@@ -797,11 +782,9 @@ function StageSection({ stage, children }: { stage: StageState; children: React.
       aria-label={stage.label}
       className={`grid scroll-mt-14 grid-cols-[200px_minmax(0,1fr)] gap-x-16 gap-y-6 border-t ${HAIR} pt-9 first:border-t-0 first:pt-2 max-lg:grid-cols-1 max-md:pt-7`}
     >
-      <div className="flex flex-col gap-1.5">
-        <span className={EYEBROW}>{stage.n}</span>
+      <div className="flex flex-col gap-2">
         <h2 className="font-display text-[22px] leading-[1.1] tracking-[-0.02em]">{stage.label}</h2>
-        <p className="text-[14px] text-ink-3">{stage.question}</p>
-        <p className="mt-2 flex items-center gap-2 text-[12.5px] text-ink-4">
+        <p className="flex items-center gap-2 text-[12.5px] text-ink-4">
           <StageMark done={stage.done} current={stage.current} />
           {stage.note}
         </p>
@@ -905,9 +888,11 @@ function References({
           <PhotosIcon />
           {picking ? 'Done' : 'From the moodboard'}
         </button>
-        <span className={`pl-1.5 ${board.files ? 'text-[12px] text-ink' : HINT}`}>
-          {over ? 'Drop to add' : board.files ? 'Drop here to add' : 'or drop photos here'}
-        </span>
+        {board.files && (
+          <span className="pl-1.5 text-[12px] text-ink">
+            {over ? 'Drop to add' : 'Drop here to add'}
+          </span>
+        )}
       </div>
       {picking && (
         <ol
@@ -1061,7 +1046,6 @@ function Sharpen({ card }: { card: IdeaCard }) {
     <section aria-label="Sharpen the hook" className="flex max-w-[560px] flex-col gap-2">
       <span className="flex items-center justify-between">
         <span className={EYEBROW}>Sharpen the hook</span>
-        <VoiceNote className="mr-auto ml-3" />
         {picked >= 0 && (
           <button
             type="button"
@@ -1085,7 +1069,7 @@ function Sharpen({ card }: { card: IdeaCard }) {
               className={`flex items-center justify-between gap-3 rounded-[10px] px-3 py-2 text-left transition-colors ${on ? 'bg-surface shadow-[inset_0_0_0_1px_var(--ink)]' : 'hover:bg-surface-2'}`}
             >
               <span className="font-display text-[15.5px] leading-[1.2]">{s.text}</span>
-              <span className="font-mono text-[9px] tracking-[0.08em] text-ink-5">{s.tag}</span>
+              {on && <CheckIcon size={10} strokeWidth={2.2} />}
             </button>
           )
         })}
@@ -1391,19 +1375,15 @@ function ShotCard({
                 onFiles={(f) => void mediaFrom(f).then(([m]) => m && onMedia(m))}
               />
             </span>
-            <span
-              className={
-                over || coming ? 'text-[12px] text-ink transition-colors' : `${HINT} max-md:hidden`
-              }
-            >
-              {over
-                ? board.drag?.kind === 'ref'
-                  ? 'Shoot it like this'
-                  : 'Drop to add'
-                : coming
-                  ? 'Drop it here'
-                  : 'or drop a photo here'}
-            </span>
+            {(over || coming) && (
+              <span className="text-[12px] text-ink transition-colors">
+                {over
+                  ? board.drag?.kind === 'ref'
+                    ? 'Shoot it like this'
+                    : 'Drop to add'
+                  : 'Drop it here'}
+              </span>
+            )}
           </span>
         )}
         {choosing && (
@@ -1632,8 +1612,6 @@ function Capture({
   board: Board
   patchShot: (id: string, fields: Partial<Shot>) => void
 }) {
-  const { weeks } = useBrand()
-  const shootDay = card.shootDay ? dayLabel(weeks, card.shootDay) : null
   const unit = unitOf(card)
 
   if (card.shots.length === 0) {
@@ -1653,19 +1631,14 @@ function Capture({
           }))}
           tall
         />
-        <span className="flex min-w-0 flex-col gap-0.5">
-          {shootDay ? (
-            <span className="text-[13px] text-ink-2">{`Shooting ${shootDay}.`}</span>
-          ) : (
-            <span className="text-[13px] text-ink-4">
-              No shoot day yet.{' '}
-              <a href="#shots" className="text-ink underline-offset-2 hover:underline">
-                Pick one
-              </a>
-            </span>
-          )}
-          <span className={HINT}>Drop each photo or clip on its shot.</span>
-        </span>
+        {!card.shootDay && (
+          <span className="text-[13px] text-ink-4">
+            No shoot day yet.{' '}
+            <a href="#shots" className="text-ink underline-offset-2 hover:underline">
+              Pick one
+            </a>
+          </span>
+        )}
       </div>
       <ol className="flex flex-col gap-1">
         {card.shots.map((s, i) => {
@@ -1857,18 +1830,9 @@ function PlanSection({
   const { brand, weeks } = useBrand()
   const { card, status, dayN } = slot
   const step = stepOf(status)
-  const { media, fromShoot } = plan
+  const { media } = plan
   const reel = card.format === 'reel'
   const footage = capturedOf(card.shots)
-  const carries = reel
-    ? card.cut
-      ? 'The final cut.'
-      : `${card.postId && media.length ? "The post's media" : media.length ? 'Your photo' : 'Nothing yet'}, until the final cut lands.`
-    : fromShoot > 0
-      ? `${fromShoot} from the shoot, in shot order.`
-      : media.length > 0
-        ? `${card.postId ? "The post's media" : 'Your photo'}. What the shoot captures takes its place, in shot order.`
-        : 'Nothing yet. What the shoot captures lands here, in shot order.'
 
   return (
     <div className="flex flex-col gap-8">
@@ -1892,26 +1856,20 @@ function PlanSection({
             />
           </span>
         </div>
-        <span className="pl-[92px] text-[12px] text-ink-4">
-          {card.postId && dayN ? (
-            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <Link href="/" className="text-(--insight-6) hover:underline">
-                On the calendar · {dayLabel(weeks, dayN)}, {plan.time}
-                {card.format === 'story' ? ' · story row' : ''}
-              </Link>
-              <Link
-                href={`/post/${card.postId}`}
-                className="font-medium text-ink underline-offset-2 hover:underline"
-              >
-                Open in scheduler →
-              </Link>
-            </span>
-          ) : dayN ? (
-            'An idea tile on the calendar. A status makes it a post.'
-          ) : (
-            'Not on the calendar. Pick a date, or a status takes the first free day.'
-          )}
-        </span>
+        {card.postId && dayN && (
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[92px] text-[12px] text-ink-4">
+            <Link href="/" className="text-(--insight-6) hover:underline">
+              On the calendar · {dayLabel(weeks, dayN)}, {plan.time}
+              {card.format === 'story' ? ' · story row' : ''}
+            </Link>
+            <Link
+              href={`/post/${card.postId}`}
+              className="font-medium text-ink underline-offset-2 hover:underline"
+            >
+              Open in scheduler →
+            </Link>
+          </span>
+        )}
       </section>
       {reel && <FinalCut card={card} board={board} edit={edit} />}
       <section aria-label="Media" className="flex flex-col gap-2.5">
@@ -1926,7 +1884,6 @@ function PlanSection({
             tall={card.format !== 'carousel'}
           />
         )}
-        <span className="text-[12px] text-ink-4">{carries}</span>
       </section>
       {reel && footage.length > 0 && (
         <section aria-label="Footage" className="flex flex-col gap-2.5">
@@ -1939,10 +1896,6 @@ function PlanSection({
             frames={footage.map((m, i) => ({ key: m, src: m, title: `Clip ${i + 1}` }))}
             tall
           />
-          <span className="text-[12px] text-ink-4">
-            {footage.length === 1 ? 'One clip' : `${footage.length} clips`} from the shoot, in shot
-            order: what the final cut is made from.
-          </span>
         </section>
       )}
     </div>
@@ -1985,28 +1938,17 @@ function FinalCut({
       className={`-m-3 flex flex-col gap-2.5 rounded-[14px] p-3 transition-[box-shadow,background-color] ${over ? `bg-(--cal-drop) ${OVER}` : board.files ? CAN_TAKE : ''}`}
     >
       <span className={EYEBROW}>Final cut</span>
-      <span className="flex items-center gap-4">
-        <MediaSlot
-          media={card.cut}
-          label="Add the final cut"
-          removeLabel="Remove the final cut"
-          accept="video/*"
-          tall
-          over={over}
-          files={board.files}
-          onMedia={(cut) => edit({ cut })}
-          onClear={() => edit({ cut: undefined })}
-        />
-        <span className="flex flex-col gap-0.5">
-          <span className="text-[13px] text-ink-2">One video, as the reel goes out.</span>
-          {!card.cut && (
-            <span className="text-[12px] text-ink-4">
-              <span className="[@media(hover:none)]:hidden">Drop it here or upload it. </span>
-              Until then the post keeps its media.
-            </span>
-          )}
-        </span>
-      </span>
+      <MediaSlot
+        media={card.cut}
+        label="Add the final cut"
+        removeLabel="Remove the final cut"
+        accept="video/*"
+        tall
+        over={over}
+        files={board.files}
+        onMedia={(cut) => edit({ cut })}
+        onClear={() => edit({ cut: undefined })}
+      />
     </section>
   )
 }

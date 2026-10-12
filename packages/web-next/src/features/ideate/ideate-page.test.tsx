@@ -76,6 +76,23 @@ describe('the moodboard', () => {
     expect(screen.getByRole('tab', { name: /Shared/ })).toBeInTheDocument()
   })
 
+  it('offers the sources not yet on the board behind one chip, not one chip each', () => {
+    openMoodboard()
+    fireEvent.click(screen.getByRole('button', { name: 'Pinterest' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Casa Vostra’s board' }))
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(screen.queryByRole('button', { name: /^Add Instagram/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Add a source' }))
+    fireEvent.click(screen.getByRole('button', { name: 'TikTok' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Connect TikTok' }))
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(ideasOf('casa-vostra').sources).toEqual({ pinterest: true, dm: false, tt: true })
+  })
+
   it('makes the idea from the picked posts and opens its page, with no step between', () => {
     openMoodboard()
     fireEvent.click(screen.getByRole('button', { name: 'Pinterest' }))

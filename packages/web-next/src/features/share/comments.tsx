@@ -81,12 +81,11 @@ function CommentForm({ kind, id }: { kind: ShareKind; id: string }) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         aria-label="Comment"
-        placeholder="A thought on the hook, the shots, the order…"
+        placeholder="Add a comment"
         rows={3}
         className="resize-none rounded-[10px] bg-page px-3 py-2 text-[14px] leading-[1.5] [field-sizing:content] outline-none placeholder:text-ink-5 focus-visible:shadow-[0_0_0_1.5px_var(--ink)]"
       />
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-[12px] text-ink-4">No account needed.</span>
+      <div className="flex justify-end">
         <button
           type="submit"
           disabled={!ready}

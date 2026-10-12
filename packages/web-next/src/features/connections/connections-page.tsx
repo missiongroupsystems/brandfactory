@@ -29,9 +29,6 @@ export function ConnectionsPage() {
   const { brand } = useBrand()
   const status = useConnections(brand.id)
   const [connecting, setConnecting] = React.useState<SourceKey | null>(null)
-  const all = Object.values(status)
-  const on = all.filter((s) => s === 'connected').length
-  const attention = all.filter((s) => s === 'attention').length
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -40,16 +37,9 @@ export function ConnectionsPage() {
         key={brand.id}
         className="bb-swap mx-auto flex w-full max-w-[640px] flex-col gap-10 px-4 pb-24 max-md:gap-8"
       >
-        <div className="flex flex-col gap-3 pt-6 max-md:pt-2">
-          <span className={EYEBROW}>{brand.name}</span>
-          <h1 className="font-display text-[56px] leading-none tracking-[-0.035em] max-md:text-[34px]">
-            Connections
-          </h1>
-          <p className="text-[14px] text-ink-3">
-            {on} of {all.length} connected
-            {attention > 0 && <span className="text-fail-ink"> · {attention} needs attention</span>}
-          </p>
-        </div>
+        <h1 className="pt-6 font-display text-[56px] leading-none tracking-[-0.035em] max-md:pt-2 max-md:text-[34px]">
+          Connections
+        </h1>
 
         {GROUPS.map((g) => (
           <section key={g.label} aria-label={g.label} className="flex flex-col gap-3">
@@ -108,9 +98,6 @@ function Row({
           </span>
         </span>
       </span>
-      {status === 'connected' && (
-        <span className="text-[12.5px] text-ink-4 max-md:hidden">Connected</span>
-      )}
       {status === 'connected' ? (
         <RowMenu
           name={info.name}

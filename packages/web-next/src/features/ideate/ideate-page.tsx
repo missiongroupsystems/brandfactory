@@ -25,15 +25,7 @@ import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 import { planShoot } from '@/features/shoot/shoots-store'
 
-import {
-  EYEBROW,
-  FormatIcon,
-  STATUS_LABEL,
-  statusColour,
-  useRename,
-  useSlots,
-  type Slot,
-} from './idea-parts'
+import { EYEBROW, FormatIcon, STATUS_LABEL, statusColour, useSlots, type Slot } from './idea-parts'
 import { dayLabel, dayOfHook, landingDay } from './calendar-slot'
 import {
   addIdea,
@@ -95,12 +87,9 @@ export function IdeatePage({ view: initial }: { view?: View }) {
         key={brand.id}
         className="bb-swap mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-10 pt-6 pb-8 max-md:px-4 max-md:pt-2 max-md:pb-5"
       >
-        <div className="flex flex-col gap-3">
-          <span className={EYEBROW}>{brand.name} · October</span>
-          <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[34px]">
-            Ideas
-          </h1>
-        </div>
+        <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[34px]">
+          Ideas
+        </h1>
         <div className="w-[240px] max-md:w-full">
           <Segmented
             label="View"
@@ -251,10 +240,7 @@ function Ideas({
             </button>
           </div>
         ) : (
-          <div className="flex h-9 items-center justify-between">
-            <span className={EYEBROW}>
-              {own} of {target} this month
-            </span>
+          <div className="flex h-9 items-center justify-end">
             <span className="flex items-center gap-1">
               <button
                 type="button"
@@ -295,7 +281,6 @@ function Ideas({
             >
               <PlusIcon size={14} />
               <span className="text-[13px] font-medium">New idea</span>
-              <span className="text-[11.5px]">From the moodboard</span>
             </button>
           </li>
         </ul>
@@ -317,7 +302,7 @@ function Ideas({
   )
 }
 
-/** One idea in the overview: its collage, its hook, where it stands, and what to do next. */
+/** One idea in the overview: its collage, its hook and where it stands. The card opens its page. */
 function IdeaView({
   slot,
   onPlan,
@@ -334,7 +319,6 @@ function IdeaView({
   const { card, status, label, placed } = slot
   const suggested = status === 'suggested'
   const href = ideaHref(card.id)
-  const [sharpen, setSharpen] = React.useState(false)
   const photos = [card.image, ...inspirationOf(brand.id, card).map((p) => p.image)].filter(
     (src, i, a): src is string => Boolean(src) && a.indexOf(src) === i,
   )
@@ -389,41 +373,31 @@ function IdeaView({
           </span>
         </span>
       </Link>
-      <span className="flex items-center gap-4 px-0.5">
-        {suggested ? (
-          <>
-            <Link href={href} className={`${ACT} text-ink hover:opacity-70`}>
-              Review
-            </Link>
-            <button
-              type="button"
-              onClick={() => skipSuggestion(brand.id, card.id)}
-              className={`${ACT} text-ink-3 hover:text-ink`}
-            >
-              Skip
-            </button>
-          </>
-        ) : placed ? (
+      {/* The card opens the idea; under it, only what the card itself cannot do. */}
+      {suggested ? (
+        <span className="flex items-center gap-4 px-0.5">
           <Link href={href} className={`${ACT} text-ink hover:opacity-70`}>
-            Brief
+            Review
           </Link>
-        ) : (
-          <button type="button" onClick={onPlan} className={`${ACT} text-ink hover:opacity-70`}>
-            Plan it
-          </button>
-        )}
-        {card.sharper.length > 0 && (
           <button
             type="button"
-            aria-expanded={sharpen}
-            onClick={() => setSharpen((s) => !s)}
-            className={`${ACT} ${sharpen ? 'text-ink' : 'text-ink-3 hover:text-ink'}`}
+            onClick={() => skipSuggestion(brand.id, card.id)}
+            className={`${ACT} text-ink-3 hover:text-ink`}
           >
-            Sharpen
+            Skip
           </button>
-        )}
-      </span>
-      {sharpen && <Sharper card={card} />}
+        </span>
+      ) : (
+        !placed && (
+          <button
+            type="button"
+            onClick={onPlan}
+            className={`${ACT} self-start px-0.5 text-ink hover:opacity-70`}
+          >
+            Plan it
+          </button>
+        )
+      )}
     </article>
   )
 }
@@ -500,41 +474,6 @@ function Collage({
   )
 }
 
-/** Three stronger hooks under the idea; picking one swaps it in, picking it again puts back the team's. */
-function Sharper({ card }: { card: IdeaCard }) {
-  const use = useRename(card)
-  // The hook as it was when the list opened, so a second click has somewhere to go.
-  const [mine] = React.useState(card.hook)
-  return (
-    <div role="radiogroup" aria-label="Sharper hooks" className="bb-rise flex w-full flex-col">
-      {card.sharper.map((s) => {
-        const on = s.text === card.hook
-        return (
-          <button
-            key={s.text}
-            type="button"
-            role="radio"
-            aria-checked={on}
-            onClick={() => use(on ? mine : s.text)}
-            className="group/sharp flex items-baseline justify-between gap-3 border-b border-(--cal-line) py-2.5 text-left"
-          >
-            <span
-              className={`font-display text-[16px] leading-[1.2] transition-colors ${on ? 'text-ink' : 'text-ink-3 group-hover/sharp:text-ink'}`}
-            >
-              {s.text}
-            </span>
-            {on ? (
-              <CheckIcon size={10} strokeWidth={2.2} />
-            ) : (
-              <span className="font-mono text-[9.5px] tracking-[0.08em] text-ink-5">{s.tag}</span>
-            )}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
 /** A moment nearby, pitched like an idea: use it and it lands on the calendar's next open day. */
 function MomentView({ moment, onUse }: { moment: Moment; onUse: () => void }) {
   const [, day, month] = moment.when.split(' ')
@@ -606,8 +545,8 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   const [pasted, setPasted] = React.useState<Reference[]>(() => pastedReferences(brand.id))
   // The posts picked, in the order they were picked: the first lends the idea its words.
   const [selected, setSelected] = React.useState<string[]>([])
-  // The source being set up from its chip, shown under the chip row.
-  const [adding, setAdding] = React.useState<MoodSource | null>(null)
+  // Whether a source is being added from the one "+" chip, shown under the chip row.
+  const [adding, setAdding] = React.useState(false)
   const top = React.useRef<HTMLDivElement>(null)
   // Where the chip that opened the setup starts, so on a wide screen the setup opens under it.
   const [anchor, setAnchor] = React.useState(0)
@@ -616,9 +555,9 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   React.useEffect(() => {
     if (!adding) return
     const close = (e: PointerEvent) => {
-      if (!top.current?.contains(e.target as Node)) setAdding(null)
+      if (!top.current?.contains(e.target as Node)) setAdding(false)
     }
-    const escape = (e: KeyboardEvent) => e.key === 'Escape' && setAdding(null)
+    const escape = (e: KeyboardEvent) => e.key === 'Escape' && setAdding(false)
     document.addEventListener('pointerdown', close)
     document.addEventListener('keydown', escape)
     return () => {
@@ -667,8 +606,8 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   const shown = current ? current.pins : all
   const missing = (Object.keys(SOURCE_NAME) as MoodSource[]).filter((k) => !sources[k])
   const chips = [
-    { id: 'all', label: 'All', source: null, n: all.length },
-    ...folders.map((f) => ({ id: f.id, label: f.label, source: f.source, n: f.pins.length })),
+    { id: 'all', label: 'All', source: null },
+    ...folders.map((f) => ({ id: f.id, label: f.label, source: f.source })),
   ]
   const picked = selected.flatMap((id) => all.find((p) => p.id === id) ?? [])
 
@@ -732,69 +671,69 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
                 >
                   {c.source && <PlatformLogo platform={SOURCE_LOGO[c.source]} size={11} />}
                   {c.label}
-                  <span
-                    className={`font-mono text-[11px] tabular-nums ${on ? 'text-page/60' : 'text-ink-4'}`}
-                  >
-                    {c.n}
-                  </span>
                 </button>
               )
             })}
-            {missing.map((m) => (
+            {missing.length > 0 && (
               <button
-                key={m}
                 type="button"
-                aria-expanded={adding === m}
+                aria-label="Add a source"
+                aria-expanded={adding}
                 onClick={(e) => {
                   const row = top.current?.getBoundingClientRect()
                   const chip = e.currentTarget.getBoundingClientRect()
                   // Kept on screen: a chip near the right edge opens the setup leftwards.
                   if (row) setAnchor(Math.min(chip.left - row.left, row.width - 360 - 40))
-                  setAdding((a) => (a === m ? null : m))
+                  setAdding((a) => !a)
                 }}
-                className="flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink"
+                className="flex size-9 items-center justify-center rounded-full text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink"
               >
-                <PlatformLogo platform={SOURCE_LOGO[m]} size={11} />
-                Add {SOURCE_NAME[m]}
+                <PlusIcon size={12} />
               </button>
-            ))}
+            )}
           </div>
         )}
-        {adding && !sources[adding] && (
+        {adding && missing.length > 0 && (
           <div
-            key={adding}
             style={{ '--x': `${anchor}px` } as React.CSSProperties}
             className="bb-pop absolute top-full left-(--x) mt-1 w-[360px] rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line),0_16px_40px_-16px_rgba(0,0,0,0.22)] max-md:right-4 max-md:left-4 max-md:w-auto"
           >
-            <SourceSetup source={adding} />
+            <AddSource missing={missing} />
           </div>
         )}
       </div>
       {filter === 'dm' && (
-        <div className="flex max-w-[420px] flex-col gap-2">
-          <PasteLink
-            onPaste={(r) => {
-              pasteReference(brand.id, r)
-              setPasted(pastedReferences(brand.id))
-            }}
-          />
-          <DmHint />
-        </div>
+        <PasteLink
+          onPaste={(r) => {
+            pasteReference(brand.id, r)
+            setPasted(pastedReferences(brand.id))
+          }}
+        />
       )}
       <Masonry key={filter} pins={shown} selected={selected} onToggle={toggle} />
     </div>
   )
 }
 
-/** How a post reaches this brand's board by DM, in one line, with the tag to type. */
-function DmHint() {
-  const { brand } = useBrand()
+/** One more source for the board: the only one left sets up at once; otherwise, pick first. */
+function AddSource({ missing }: { missing: MoodSource[] }) {
+  const [picked, setPicked] = React.useState<MoodSource | null>(null)
+  const source = missing.length === 1 ? missing[0]! : picked
+  if (source) return <SourceSetup source={source} />
   return (
-    <p className="px-4 text-[12px] text-ink-4">
-      Or share any post or reel by DM to{' '}
-      <span className="font-medium text-ink-2">{MOODBOARD_ACCOUNT}</span> with{' '}
-      <span className="font-medium text-ink-2">{moodboardTag(brand)}</span>.
-    </p>
+    <div className="flex flex-col gap-1 text-left">
+      {missing.map((m) => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => setPicked(m)}
+          className="flex h-10 items-center gap-2.5 rounded-[10px] px-2.5 text-[13.5px] font-medium transition-colors hover:bg-surface"
+        >
+          <PlatformLogo platform={SOURCE_LOGO[m]} size={13} />
+          {SOURCE_NAME[m]}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -916,13 +855,7 @@ function ConnectSources() {
             </span>
           ))}
       </span>
-      <span className="flex flex-col gap-2">
-        <span className="font-display text-[32px] leading-none">Bring in your moodboard</span>
-        <span className="text-[14px] text-ink-3">
-          Everything the team saved for {brand.name}, in one place. Pick posts, then plan an idea
-          from them.
-        </span>
-      </span>
+      <span className="font-display text-[32px] leading-none">Bring in your moodboard</span>
       <div className="flex flex-wrap items-center justify-center gap-2.5">
         {(Object.keys(SOURCE_NAME) as MoodSource[]).map((source) => {
           const on = open === source

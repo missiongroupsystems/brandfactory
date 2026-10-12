@@ -21,7 +21,6 @@ import {
 import {
   DAYS as PERIOD_DAYS,
   HUB_BY_BRAND,
-  SOURCES,
   dayName,
   dayOf,
   type BrandHub,
@@ -30,7 +29,6 @@ import {
   type SourceId,
   type Split,
 } from '@/data/insights-hub'
-import { useConnections } from '@/features/connections/connections-store'
 import { addIdea, keepSuggestion, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
@@ -111,8 +109,6 @@ export function InsightsPage() {
   const data = INSIGHTS_BY_BRAND[brand.id]
   const hub = HUB_BY_BRAND[brand.id]
   const [tab, setTab] = React.useState<Tab>('overview')
-  const [sources, setSources] = React.useState(false)
-  const links = useConnections(brand.id)
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -123,67 +119,11 @@ export function InsightsPage() {
       >
         <div className="flex flex-col gap-5 pt-6 pb-8 max-md:pt-2">
           <div className="flex flex-col gap-3">
-            <span className={`${EYEBROW} flex flex-wrap items-center gap-x-1.5 gap-y-1`}>
-              {brand.name} · {data.period} ·
-              <button
-                type="button"
-                aria-expanded={sources}
-                onClick={() => setSources((o) => !o)}
-                className="flex items-center gap-1.5 uppercase transition-colors hover:text-ink"
-              >
-                <span className="flex">
-                  {SOURCES.map((s, i) => (
-                    <span
-                      key={s.id}
-                      className={`flex size-[18px] items-center justify-center rounded-full bg-surface text-ink-3 shadow-[0_0_0_1.5px_var(--page)] ${i > 0 ? '-ml-1' : ''}`}
-                    >
-                      <SourceGlyph id={s.id} size={9} />
-                    </span>
-                  ))}
-                </span>
-                {SOURCES.length} sources
-                <span
-                  className="transition-transform duration-200"
-                  style={{ transform: sources ? 'rotate(180deg)' : undefined }}
-                >
-                  <ChevronDown />
-                </span>
-              </button>
-            </span>
+            <span className={EYEBROW}>{data.period}</span>
             <h1 className="font-display tracking-[-0.035em] text-[56px] leading-none max-md:text-[34px]">
               Insights
             </h1>
           </div>
-          <Fold open={sources}>
-            <ul
-              aria-label="Sources"
-              className="grid grid-cols-2 gap-x-6 gap-y-3 pt-1 max-md:grid-cols-1"
-            >
-              {SOURCES.map((s) => (
-                <li key={s.id} className="flex items-center gap-3">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface text-ink-2">
-                    <SourceGlyph id={s.id} size={13} />
-                  </span>
-                  <span className="flex min-w-0 flex-col">
-                    <span className="flex items-center gap-1.5 text-[13.5px] font-medium">
-                      {s.name}
-                      {links[s.id] === 'connected' ? (
-                        <span
-                          aria-label="Connected"
-                          className="size-1.5 rounded-full bg-(--insight-5)"
-                        />
-                      ) : (
-                        <span className="text-[12px] font-normal text-fail-ink">
-                          {links[s.id] === 'attention' ? 'Sign in again' : 'Not connected'}
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-[12px] text-ink-4">{s.brings}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Fold>
           <div className="w-[440px] max-sm:w-full">
             <Segmented
               label="View"
@@ -202,9 +142,7 @@ export function InsightsPage() {
 
         <div key={tab} className="bb-swap">
           {tab === 'overview' && <Overview data={data} hub={hub} />}
-          {tab === 'posts' && (
-            <Posts posts={data.posts} period={data.period} splits={hub.sentiment.posts} />
-          )}
+          {tab === 'posts' && <Posts posts={data.posts} splits={hub.sentiment.posts} />}
           {tab === 'sentiment' && <SentimentView sentiment={hub.sentiment} />}
           {tab === 'creators' && <Creators creators={data.creators} />}
         </div>
@@ -267,25 +205,17 @@ function Overview({ data, hub }: { data: BrandInsights; hub: BrandHub }) {
   const time = data.stories.find((s) => s.chart.kind === 'days')
   return (
     <div className="flex flex-col gap-11">
-      <p className="text-[15px] leading-[1.6] text-ink-2">
-        <span className="mr-1.5 inline-flex items-center gap-1.5 font-medium text-ink">
-          <span className="text-(--insight-5)">
-            <SparkIcon size={10} />
-          </span>
-          Summary
-        </span>
-        {data.line}
-      </p>
+      <p className="text-[15px] leading-[1.6] text-ink-2">{data.line}</p>
 
       <NumberCard kpis={data.kpis} />
 
       <section aria-label="Beyond social" className="flex flex-col gap-3">
-        <Heading title="Beyond social" note="Each row is scaled to its own peak" />
+        <Heading title="Beyond social" />
         <Lineup posts={data.posts} hub={hub} />
       </section>
 
       <section aria-label="What worked" className="flex flex-col gap-3">
-        <Heading title="What worked" note="Open one to see why" />
+        <Heading title="What worked" />
         <div className={`${CARD} overflow-hidden`}>
           {stories.map((s, i) => (
             <Finding key={s.id} story={s} first={i === 0} />
@@ -303,13 +233,8 @@ function Overview({ data, hub }: { data: BrandInsights; hub: BrandHub }) {
   )
 }
 
-function Heading({ title, note }: { title: string; note?: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4">
-      <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em]">{title}</h2>
-      {note && <span className="text-[12.5px] text-ink-4">{note}</span>}
-    </div>
-  )
+function Heading({ title }: { title: string }) {
+  return <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em]">{title}</h2>
 }
 
 /** One headline number at a time, picked above it, with its last twelve weeks as bars. */
@@ -352,7 +277,7 @@ function NumberCard({ kpis }: { kpis: Kpi[] }) {
         <span className={`font-medium ${up ? 'text-(--insight-6)' : 'text-(--fail-ink)'}`}>
           {up ? 'Up' : 'Down'} {Math.abs(kpi.delta)}%
         </span>{' '}
-        on the 30 days before. Each bar is one week.
+        on the 30 days before.
       </p>
       <div className="mt-7">
         <WeekBars key={kpi.label} kpi={kpi} />
@@ -708,26 +633,15 @@ type PostSort = 'reach' | 'engagement'
  * Every post this month, ranked by reach or by engagement, with the average as a divider. Each
  * post carries what its comments said, as a small positive, neutral and negative bar.
  */
-function Posts({
-  posts,
-  period,
-  splits,
-}: {
-  posts: PostStat[]
-  period: string
-  splits: Record<string, Split>
-}) {
+function Posts({ posts, splits }: { posts: PostStat[]; splits: Record<string, Split> }) {
   const [sort, setSort] = React.useState<PostSort>('reach')
   const ranked = [...posts].sort((a, b) => b[sort] - a[sort])
   const avg = posts.reduce((n, p) => n + p[sort], 0) / posts.length
   const below = ranked.findIndex((p) => p[sort] < avg)
   return (
     <section aria-label="Posts" className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-[13px] text-ink-3">
-          {posts.length} posts · {plain(period)}
-        </span>
-        <div className="w-[260px]">
+      <div className="flex justify-end">
+        <div className="w-[260px] max-sm:w-full">
           <Segmented
             label="Rank by"
             pill
@@ -1167,7 +1081,7 @@ function Lineup({ posts, hub }: { posts: PostStat[]; hub: BrandHub }) {
         <span className="font-medium text-ink">“{lead.post.hook.replace(/\.$/, '')}”</span> (
         {plain(lead.post.date)}), bookings ran {pct(lead.bookings)}% above a usual{' '}
         {DAYS_LONG[(lead.day + 1) % 7]} and {DAYS_LONG[(lead.day + 2) % 7]}, and Google Maps views{' '}
-        {pct(lead.maps)}% above. Green marks those two days.
+        {pct(lead.maps)}% above.
       </p>
 
       <div className="mt-7 grid grid-cols-[116px_minmax(0,1fr)] gap-x-4 gap-y-2 max-md:grid-cols-[100px_minmax(0,1fr)] max-md:gap-x-3">
@@ -1313,16 +1227,11 @@ function Lineup({ posts, hub }: { posts: PostStat[]; hub: BrandHub }) {
         </span>
       </div>
 
-      <p className="mt-5 text-[12.5px] text-ink-4 tabular-nums">
-        Google Business Profile, all month: {k(total('searches'))} searches · {k(total('maps'))}{' '}
-        Maps views · {total('calls')} calls · {total('directions')} direction requests
-      </p>
-
       <button
         type="button"
         aria-expanded={byFormat}
         onClick={() => setByFormat((o) => !o)}
-        className="mt-4 flex w-fit items-center gap-1.5 text-[13px] text-ink-3 transition-colors hover:text-ink"
+        className="mt-5 flex w-fit items-center gap-1.5 text-[13px] text-ink-3 transition-colors hover:text-ink"
       >
         Bookings by kind of post
         <span
@@ -1515,7 +1424,7 @@ function SentimentView({ sentiment }: { sentiment: Sentiment }) {
       </div>
 
       <section aria-label="Week by week" className="flex flex-col gap-3">
-        <Heading title="Week by week" note="Each bar is one week" />
+        <Heading title="Week by week" />
         <div className={`${CARD} p-6 max-md:p-5`}>
           <WeekMood weeks={sentiment.weeks} />
         </div>

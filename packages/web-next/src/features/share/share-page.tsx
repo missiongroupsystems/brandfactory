@@ -26,14 +26,11 @@ function Frame({ brandId, children }: { brandId: BrandId; children: React.ReactN
   const brand = contentFor(brandId).brand
   return (
     <div className="min-h-svh bg-page">
-      <header className="mx-auto flex w-full max-w-[760px] items-center justify-between gap-4 px-6 pt-6 pb-2 max-md:px-4 max-md:pt-4">
-        <span className="flex items-center gap-2.5">
-          <span className="relative size-8 overflow-hidden rounded-full bg-surface">
-            <BrandLogo brandId={brandId} sizes="32px" className="object-cover" />
-          </span>
-          <span className="text-[14px] font-semibold tracking-[-0.01em]">{brand.name}</span>
+      <header className="mx-auto flex w-full max-w-[760px] items-center gap-2.5 px-6 pt-6 pb-2 max-md:px-4 max-md:pt-4">
+        <span className="relative size-8 overflow-hidden rounded-full bg-surface">
+          <BrandLogo brandId={brandId} sizes="32px" className="object-cover" />
         </span>
-        <span className="text-[12px] text-ink-4">Shared with you · view and comment</span>
+        <span className="text-[14px] font-semibold tracking-[-0.01em]">{brand.name}</span>
       </header>
       <main className="mx-auto flex w-full max-w-[760px] flex-col gap-12 px-6 pt-10 pb-24 max-md:gap-10 max-md:px-4 max-md:pt-6">
         {children}

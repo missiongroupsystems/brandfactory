@@ -87,6 +87,9 @@ function PostImages({ id }: { id: string }) {
   return <output data-testid="post-images">{post?.images.join(',')}</output>
 }
 
+/** The strip of what the post carries, or null while it carries nothing. */
+const carried = () => screen.queryByRole('list', { name: 'What the post carries' })!
+
 const openWithPost = (id: string) =>
   render(
     <BrandProvider>
@@ -260,7 +263,6 @@ describe('an idea page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Raffles City · Wed 7 Oct, 12:00' }))
     const rail = screen.getByRole('navigation', { name: 'Stages' })
     expect(within(rail).getByRole('link', { current: 'step' })).toHaveTextContent('Shoot')
-    expect(screen.getByText('Shooting Wed 7 Oct.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Shoot day' })).toHaveTextContent('Wed 7 Oct')
   })
 
@@ -277,11 +279,11 @@ describe('an idea page', () => {
     await waitFor(() =>
       expect(screen.getByTestId('post-images')).toHaveTextContent('blob:file-3#photo'),
     )
-    expect(screen.getByText('The final cut.')).toBeInTheDocument()
+    expect(carried().children).toHaveLength(1)
     // The cut taken off again: the post stops carrying it.
     fireEvent.click(screen.getByRole('button', { name: 'Remove the final cut' }))
     expect(screen.getByTestId('post-images')).toBeEmptyDOMElement()
-    expect(screen.getByText('Nothing yet, until the final cut lands.')).toBeInTheDocument()
+    expect(carried()).toBeNull()
   })
 
   it('hands a carousel its captured slides, in shot order', async () => {
@@ -292,7 +294,7 @@ describe('an idea page', () => {
     await waitFor(() =>
       expect(screen.getByTestId('post-images')).toHaveTextContent('blob:file-1#photo'),
     )
-    expect(screen.getByText('1 from the shoot, in shot order.')).toBeInTheDocument()
+    expect(carried().children).toHaveLength(1)
     // The slide cleared again: the post gets its three photos back.
     fireEvent.click(screen.getByRole('button', { name: 'Remove the clip for: Five cuts in a row' }))
     expect(screen.getByTestId('post-images')).toHaveTextContent(/tagliatelle.*ravioli.*pasta/)

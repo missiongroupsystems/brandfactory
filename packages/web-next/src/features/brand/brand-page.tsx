@@ -3,7 +3,6 @@
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
-import { SparkIcon } from '@/components/icons'
 import type { BrandFile, FileKind } from '@/data/brand-kit'
 import { useBrand } from '@/features/schedule/posts-store'
 
@@ -73,17 +72,10 @@ export function BrandPage() {
         className="bb-swap mx-auto flex w-full max-w-[760px] flex-col px-4 pb-24"
       >
         <div className="flex flex-col gap-4 pt-6 pb-10 max-md:pt-2 max-md:pb-8">
-          <span className="flex h-8 items-center justify-between">
-            <span className={EYEBROW}>Brand kit</span>
-          </span>
           <h1 className="font-display text-[56px] leading-none tracking-[-0.035em] max-md:text-[34px]">
             {brand.name}
           </h1>
           <p className="max-w-[560px] text-[15px] text-ink-3">{brand.line}</p>
-          <span className="flex items-center gap-2 text-[12.5px] text-ink-4">
-            <SparkIcon size={10} />
-            Used when AI drafts captions, hooks and replies.
-          </span>
         </div>
 
         <VoiceSection />
@@ -105,7 +97,10 @@ function LogoSection() {
     <Section
       label="Logo"
       action={
-        <>
+        <span className="flex items-center">
+          <a href={logo.src} download={logo.name ?? `${brand.id}-logo.png`} className={QUIET}>
+            Download
+          </a>
           <button type="button" onClick={() => input.current?.click()} className={`${QUIET} -mr-3`}>
             Replace
           </button>
@@ -128,7 +123,7 @@ function LogoSection() {
               e.target.value = ''
             }}
           />
-        </>
+        </span>
       }
     >
       <div className="flex items-center gap-5">
@@ -146,19 +141,9 @@ function LogoSection() {
             />
           </span>
         </span>
-        <span className="flex min-w-0 flex-col gap-1">
-          <span className="text-[14.5px] font-medium">Mark</span>
-          <span className="truncate text-[12.5px] text-ink-4">
-            {logo.name ? `Updated today · ${logo.name}` : 'PNG · 192 × 192'}
-          </span>
-          <a
-            href={logo.src}
-            download={logo.name ?? `${brand.id}-logo.png`}
-            className="mt-1 self-start text-[12.5px] text-ink-2 underline-offset-2 hover:text-ink hover:underline"
-          >
-            Download
-          </a>
-        </span>
+        {logo.name && (
+          <span className="truncate text-[12.5px] text-ink-4">Updated today · {logo.name}</span>
+        )}
       </div>
     </Section>
   )
@@ -195,11 +180,7 @@ function Files() {
     <section aria-label="Files" className="flex flex-col gap-4 border-t border-line py-9">
       <div className="flex items-center justify-between">
         <h2 className={EYEBROW}>Files</h2>
-        <button
-          type="button"
-          onClick={() => upload.current?.click()}
-          className="bb-press flex h-8 items-center rounded-full bg-ink px-3.5 text-[12.5px] font-medium text-page hover:opacity-85"
-        >
+        <button type="button" onClick={() => upload.current?.click()} className={`${QUIET} -mr-3`}>
           Upload
         </button>
         <input
@@ -224,9 +205,7 @@ function Files() {
         />
       </div>
       {files.length === 0 ? (
-        <p className="py-6 text-[13.5px] text-ink-4">
-          No files yet. Upload the brand book, a deck or the tone of voice.
-        </p>
+        <p className="py-6 text-[13.5px] text-ink-4">No files yet.</p>
       ) : (
         <ul className="flex flex-col">
           {files.map((f) => (
@@ -280,9 +259,7 @@ function FileRow({
           <span className="truncate text-[14.5px] font-medium">{file.title}</span>
         )}
         <span className="truncate text-[12px] text-ink-4">
-          {editing
-            ? 'A plain title tells AI what this file is.'
-            : `${file.updated === 'Today' ? 'Updated today' : `Updated ${file.updated}`} · ${file.name}`}
+          {file.updated === 'Today' ? 'Updated today' : `Updated ${file.updated}`} · {file.name}
         </span>
       </span>
       {!editing && (
