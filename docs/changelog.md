@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.11.2** — 2026-10-12 — The inbox thread panel takes the height of the list beside it, capped so the reply stays in view on a laptop and never under 440 px; a long thread scrolls inside it. No migration. 300 tests.
 - **2.11.1** — 2026-10-12 — Insights drops the sentences under the bookings and best-time figures (the lead post's marker now names it for screen readers) and opens the best time by hour by default; on the idea page a posted post can go back to an idea. No migration. 300 tests.
 - **2.11.0** — 2026-10-12 — David's "fewer elements" round: every page loses controls and helper text it did not need, and each screen keeps one main action; the inbox replies by picking one of three directions; share links choose who opens them and whether they view, comment or edit. The shoot page is one reading order with a draggable timeline of every shot (on dnd-kit), comments that can be answered and resolved, ideas added in place and custom crew roles. The composer's preview plays a reel, swipes a carousel, takes a dropped file and shows a brand-coloured empty state; the Drive picker is one surface with search. Recent handles are offered as you type, and avatars show profile pictures where a platform gives one. No migration. 299 tests.
 - **2.10.0** — 2026-10-11 — Changing the voice is a four-step flow that ends on what AI will write before and after, then a new version with a history to bring old ones back; the kit's colours get a picker with suggested shades; files show as quiet kind icons. The inbox thread holds whole conversations in a calmer panel, and a complaint can go to several people. Ideate's title settles in like the other pages; the brand kit fits a phone. No migration. 238 tests.
@@ -30,6 +31,16 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.11.2 — 2026-10-12
+
+- **Inbox.** The thread panel was a fixed `max(440px, 100svh − 280px)`, which left an empty well on a
+  large screen. It now stretches to the list column (the column takes its height from the list
+  only, through `contain: size`), capped at the same value so the reply is in view on a laptop, and
+  at least 440 px. A first try that sized the panel to the thread alone was too small and was
+  replaced.
+
+Gate: typecheck, lint, format, 300 tests in 39 files, `next build`.
 
 ## 2.11.1 — 2026-10-12
 
