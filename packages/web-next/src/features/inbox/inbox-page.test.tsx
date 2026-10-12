@@ -53,7 +53,10 @@ function pick(name: string | number) {
 describe('the inbox', () => {
   it('opens the first complaint with three ways to reply and nothing written yet', () => {
     page()
-    expect(screen.getByRole('article', { name: /Rachel Tan/ })).toBeTruthy()
+    const thread = screen.getByRole('article', { name: /Rachel Tan/ })
+    // The post it is about sits in the header, not in the conversation.
+    expect(within(thread).getByRole('img', { name: /^Your post: The final touch/ })).toBeTruthy()
+    expect(within(thread).queryByText('Your post')).toBeNull()
     expect(directions().map((b) => b.textContent)).toEqual([
       'Apologise and invite to DM',
       'Offer to make it right',

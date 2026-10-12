@@ -460,6 +460,17 @@ function Thread({
           <span className="truncate text-[15px] font-medium">{m.from.name}</span>
           <span className="truncate text-[12.5px] text-ink-4">{whereFrom(m)}</span>
         </div>
+        {/* The post it is about, as a thumbnail at the edge, the way Instagram shows it. */}
+        {m.post && (
+          <span
+            role="img"
+            aria-label={`${m.kind === 'mention' ? 'Their post' : 'Your post'}: ${m.post.caption}`}
+            title={m.post.caption}
+            className="relative h-10 w-8 shrink-0 overflow-hidden rounded-[7px] bg-tile"
+          >
+            <Image src={m.post.image} alt="" fill sizes="64px" className="object-cover" />
+          </span>
+        )}
         {m.tone === 'complaint' && (
           <SendTo brandId={brand.id} m={m} people={data.people} sentTo={routedTo} />
         )}
@@ -473,19 +484,6 @@ function Thread({
           aria-label="Conversation"
           className="mx-auto mt-auto flex w-full max-w-[600px] flex-col px-6 pt-6 pb-4 max-md:px-4"
         >
-          {m.post && (
-            <li className="mb-6 flex max-w-full items-center gap-3 self-start rounded-[12px] bg-surface-2 p-1.5 pr-4">
-              <span className="relative h-10 w-8 shrink-0 overflow-hidden rounded-[7px] bg-tile">
-                <Image src={m.post.image} alt="" fill sizes="64px" className="object-cover" />
-              </span>
-              <span className="flex min-w-0 flex-col">
-                <span className="text-[11.5px] text-ink-4">
-                  {m.kind === 'mention' ? 'Their post' : 'Your post'}
-                </span>
-                <span className="truncate text-[13px] text-ink-3">{m.post.caption}</span>
-              </span>
-            </li>
-          )}
           {items.map((e, i) => (
             <li
               key={i}
