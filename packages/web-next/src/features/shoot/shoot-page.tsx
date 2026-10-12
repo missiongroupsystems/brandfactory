@@ -32,6 +32,7 @@ import {
   removeIdeaFromShoot,
   removeCrew,
   sendInvites,
+  setIdeaOrder,
   shootOfIdea,
   useInvited,
   useReplies,
@@ -218,6 +219,7 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
             ideas={cards}
             ideaHref={(i) => `/ideate/${i}`}
             onReorder={reorder}
+            onReorderIdeas={(ids) => setIdeaOrder(brand.id, shoot.id, ids)}
             onRemoveIdea={(ideaId) => removeIdeaFromShoot(brand.id, shoot.id, ideaId)}
           />
         )}

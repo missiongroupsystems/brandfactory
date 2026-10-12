@@ -94,6 +94,23 @@ Concepts tried (screenshots `concept-a|b|c-*.png`): A, a contact sheet with the 
 frame at 172 px (lines truncate); B, the cinema strip above (chosen); C, the same frames on a grey
 tray per idea (reads as a card, and smaller frames). B was built.
 
+## Round 3: one timeline
+
+The owner wants the shots "like a video-editing scrubber": every shot of the shoot side by side on
+one scrollable line, rearranged by group or by shot. The per-idea strips become one line
+(`ShotList` draws it; `aria-label` "Shots in order"): each idea is a group with a quiet label
+over its frames (the hook in the display face, the format in mono, Remove on hover), the frames
+at the round-2 size with 8 px between them, and a thin rule with 24 px each side between groups.
+The numbers run across the shoot.
+
+Two levels of drag, each its own `useSortable` on the x axis: the groups on the outer list, moved
+by their label (pointer, long press, or Option + arrow on the label's handle), which writes the
+shoot's `ideaIds` through `setIdeaOrder`; the frames inside each group as before, which write the
+idea's shots. A frame dragged over another group is refused, so it stays in its own. While a drag
+is within 56 px of either end of the line, the line scrolls that way 14 px a move. `useSortable`
+now reads only its container's own children, so the frames' FLIP and the groups' FLIP do not
+touch each other's items.
+
 ## Tests
 
 - Custom role: pick Other, type a role, add a person; the row shows that role.

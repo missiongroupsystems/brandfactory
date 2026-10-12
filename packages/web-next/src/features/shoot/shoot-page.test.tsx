@@ -75,12 +75,14 @@ function dragTo(from: HTMLElement, to: HTMLElement) {
 }
 
 describe('the shot list', () => {
-  const strip = () =>
-    screen.getByRole('list', { name: 'Shots of Watch the dough become tagliatelle.' })
+  const line = () => screen.getByRole('list', { name: 'Shots in order' })
   const frame = (title: string) =>
-    within(strip())
+    within(line())
       .getAllByRole('listitem')
-      .find((li) => li.textContent?.includes(title))!
+      .find((li) => li.dataset.drop?.startsWith('shot:') && li.textContent?.includes(title))!
+  const label = (hook: string) =>
+    within(line()).getByText(hook).closest<HTMLElement>('[draggable]')!
+  const ideaOrder = () => shoots().find((s) => s.id === 'cv-shoot-raffles')!.ideaIds
   const ideaPageShots = () => {
     render(
       <BrandProvider>
@@ -107,16 +109,39 @@ describe('the shot list', () => {
     ])
   })
 
-  it('moves a frame with Option and an arrow key on its handle, for the keyboard', () => {
+  it('keeps a frame in its own group: a drag onto another idea changes nothing', () => {
+    open()
+    dragTo(frame('Bibs on the table'), frame('Flour and eggs, overhead'))
+    expect(frame('Bibs on the table')).toHaveTextContent(/^04/)
+    expect(frame('Flour and eggs, overhead')).toHaveTextContent(/^01/)
+    expect(ideaOrder()).toEqual(['cv-dough', 'cv-carb-up'])
+  })
+
+  it('moves a whole group by its label, and the shoot shoots the ideas in that order', () => {
+    open()
+    // The second idea dragged onto the first comes first; its shots become 01 to 03.
+    dragTo(label("Carb up before tomorrow's race."), label('Watch the dough become tagliatelle.'))
+    expect(ideaOrder()).toEqual(['cv-carb-up', 'cv-dough'])
+    expect(frame('Bibs on the table')).toHaveTextContent(/^01/)
+    expect(frame('Flour and eggs, overhead')).toHaveTextContent(/^04/)
+  })
+
+  it('moves a frame or a group with Option and an arrow key on its handle', () => {
     const { unmount } = open()
-    const handle = within(strip()).getByRole('button', {
+    const shot = within(line()).getByRole('button', {
       name: 'Move shot 1: Flour and eggs, overhead',
     })
-    fireEvent.keyDown(handle, { key: 'ArrowRight', altKey: true })
+    fireEvent.keyDown(shot, { key: 'ArrowRight', altKey: true })
     expect(frame('Flour and eggs, overhead')).toHaveTextContent(/^02/)
     // An arrow without Option is the page's, not a move.
-    fireEvent.keyDown(handle, { key: 'ArrowRight' })
+    fireEvent.keyDown(shot, { key: 'ArrowRight' })
     expect(frame('Flour and eggs, overhead')).toHaveTextContent(/^02/)
+    const group = within(line()).getByRole('button', {
+      name: 'Move group: Watch the dough become tagliatelle.',
+    })
+    fireEvent.keyDown(group, { key: 'ArrowRight', altKey: true })
+    expect(ideaOrder()).toEqual(['cv-carb-up', 'cv-dough'])
+    expect(frame('Flour and eggs, overhead')).toHaveTextContent(/^05/)
     unmount()
     expect(ideaPageShots()[0]).toBe('The sheet through the roller, hands only')
   })
@@ -167,11 +192,10 @@ describe('ideas on the shoot', () => {
 
   it('takes an idea off the shoot from its heading', () => {
     open()
-    const dough = within(shotList()).getByRole('region', {
-      name: 'Watch the dough become tagliatelle.',
-    })
     fireEvent.click(
-      within(dough).getByRole('button', { name: 'Remove Watch the dough become tagliatelle.' }),
+      within(shotList()).getByRole('button', {
+        name: 'Remove Watch the dough become tagliatelle.',
+      }),
     )
     expect(within(shotList()).queryByText(/Watch the dough/)).not.toBeInTheDocument()
     expect(shootOfIdea(shoots(), 'cv-dough')).toBeUndefined()

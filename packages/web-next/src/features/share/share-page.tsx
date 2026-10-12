@@ -20,7 +20,7 @@ import { useShareAccess, type ShareKind } from './comments-store'
 const FORMAT_LABEL = { reel: 'Reel', carousel: 'Carousel', story: 'Story' } as const
 
 /** The filmstrip runs out to this page's own gutter, 24 px (16 on a phone). */
-const BLEED = '-mx-6 px-6 scroll-pl-6 max-md:-mx-4 max-md:px-4 max-md:scroll-pl-4'
+const BLEED = '-mx-6 px-6 max-md:-mx-4 max-md:px-4'
 
 /**
  * The public pages a share link opens (`/share/idea/<id>`, `/share/shoot/<id>`): an idea's brief

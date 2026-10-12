@@ -5,7 +5,8 @@ import * as React from 'react'
 /**
  * A list that reorders as it is dragged: the lifted item slides into place under the pointer and
  * the others move out of its way, then a drop keeps the new order and anything else puts it back.
- * Items carry `data-flip="<key>"`; the hook slides each one from where it was to where it is now
+ * Items are the container's own children, carrying `data-flip="<key>"` (a list nested inside one
+ * item has a hook of its own); the hook slides each one from where it was to where it is now
  * whenever the order changes, so a reorder (or a revert) is never a jump.
  */
 
@@ -67,9 +68,9 @@ export function useSortable(
         const order = state.current.live ?? state.current.keys
         const from = order.indexOf(held)
         const target = order.indexOf(key)
-        const el = [...(ref.current?.querySelectorAll<HTMLElement>('[data-flip]') ?? [])].find(
-          (n) => n.dataset.flip === key,
-        )
+        const el = [
+          ...(ref.current?.querySelectorAll<HTMLElement>(':scope > [data-flip]') ?? []),
+        ].find((n) => n.dataset.flip === key)
         if (from < 0 || target < 0 || !el) return
         const r = el.getBoundingClientRect()
         const before = axis === 'y' ? at.y < r.top + r.height / 2 : at.x < r.left + r.width / 2
@@ -114,13 +115,18 @@ const reducedMotion = () =>
 function useFlip(ref: React.RefObject<HTMLElement | null>, held: string | null) {
   const last = React.useRef(new Map<string, { left: number; top: number }>())
   React.useLayoutEffect(() => {
+    // Against the container, and past its own scroll: a line scrolled sideways has not moved its items.
     const box = ref.current?.getBoundingClientRect()
-    const items = ref.current?.querySelectorAll<HTMLElement>('[data-flip]') ?? []
+    const scroll = { x: ref.current?.scrollLeft ?? 0, y: ref.current?.scrollTop ?? 0 }
+    const items = ref.current?.querySelectorAll<HTMLElement>(':scope > [data-flip]') ?? []
     const next = new Map<string, { left: number; top: number }>()
     for (const el of items) {
       const key = el.dataset.flip!
       const r = el.getBoundingClientRect()
-      const rect = { left: r.left - (box?.left ?? 0), top: r.top - (box?.top ?? 0) }
+      const rect = {
+        left: r.left - (box?.left ?? 0) + scroll.x,
+        top: r.top - (box?.top ?? 0) + scroll.y,
+      }
       const was = last.current.get(key)
       next.set(key, rect)
       if (!was || key === held || typeof el.animate !== 'function' || reducedMotion()) continue

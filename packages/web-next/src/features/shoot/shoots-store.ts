@@ -201,6 +201,26 @@ export function addIdeaToShoot(brandId: BrandId, shootId: string, ideaId: string
 }
 
 /**
+ * The order the ideas are shot in, from a drag of a group on the call sheet. An id the shoot does
+ * not hold is ignored; one the new order leaves out keeps its place at the end.
+ */
+export function setIdeaOrder(brandId: BrandId, shootId: string, ideaIds: string[]) {
+  update(brandId, (list) =>
+    list.map((s) =>
+      s.id === shootId
+        ? {
+            ...s,
+            ideaIds: [
+              ...ideaIds.filter((i) => s.ideaIds.includes(i)),
+              ...s.ideaIds.filter((i) => !ideaIds.includes(i)),
+            ],
+          }
+        : s,
+    ),
+  )
+}
+
+/**
  * An idea taken off a shoot on the shoot's own page. The shoot stays, with its crew and hours,
  * even with no idea left: the team is looking at it.
  */
