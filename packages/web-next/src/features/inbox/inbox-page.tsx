@@ -171,8 +171,9 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
                 />
               </FullScreen>
             ) : (
-              // A panel of its own height: the thread scrolls inside it, and the reply stays in view.
-              <div className="sticky top-6 flex h-[max(440px,calc(100svh-280px))] flex-col rounded-[20px] border border-line bg-page">
+              // As tall as the thread needs, up to the screen: a short one leaves no empty well, a
+              // long one scrolls inside the panel and the reply stays in view.
+              <div className="sticky top-6 flex max-h-[max(440px,calc(100svh-280px))] min-h-[360px] flex-col rounded-[20px] border border-line bg-page">
                 <Thread
                   key={current.id}
                   m={current}
@@ -454,7 +455,7 @@ function Thread({
   return (
     <article
       aria-label={`${m.from.name}, ${whereFrom(m)}`}
-      className="bb-swap flex min-h-0 flex-1 flex-col"
+      className="bb-swap flex min-h-0 flex-auto flex-col"
     >
       <header className="flex shrink-0 items-center gap-3 border-b border-line px-6 py-3.5 max-md:px-4 max-md:pt-1 max-md:pb-3">
         <Avatar m={m} size={36} />
@@ -471,7 +472,7 @@ function Thread({
 
       <div
         ref={scroller}
-        className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain"
+        className="flex min-h-0 flex-auto flex-col overflow-y-auto overscroll-contain"
       >
         <ol
           aria-label="Conversation"
