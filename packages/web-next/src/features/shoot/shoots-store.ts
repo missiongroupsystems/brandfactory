@@ -183,6 +183,35 @@ export function shootIdeaOn(
   return there.id
 }
 
+/**
+ * An idea picked on a shoot's own page joins it, and leaves the shoot it was on. Its shoot day
+ * and hours are this shoot's from then on: the idea page reads them from the shoot.
+ */
+export function addIdeaToShoot(brandId: BrandId, shootId: string, ideaId: string) {
+  // The idea lands first, then the shoot it left is pruned: the target may itself be a planned
+  // shoot with no idea left, which must not go.
+  update(brandId, (list) =>
+    list
+      .map((s) => {
+        const rest = s.ideaIds.filter((i) => i !== ideaId)
+        return s.id === shootId ? { ...s, ideaIds: [...rest, ideaId] } : { ...s, ideaIds: rest }
+      })
+      .filter((s) => s.ideaIds.length > 0 || !planned.has(s.id)),
+  )
+}
+
+/**
+ * An idea taken off a shoot on the shoot's own page. The shoot stays, with its crew and hours,
+ * even with no idea left: the team is looking at it.
+ */
+export function removeIdeaFromShoot(brandId: BrandId, shootId: string, ideaId: string) {
+  update(brandId, (list) =>
+    list.map((s) =>
+      s.id === shootId ? { ...s, ideaIds: s.ideaIds.filter((i) => i !== ideaId) } : s,
+    ),
+  )
+}
+
 /** The idea leaves its shoot; a shoot from Lark stays on the calendar for the others. */
 export function leaveShoot(brandId: BrandId, ideaId: string) {
   update(brandId, (list) => without(list, [ideaId]))

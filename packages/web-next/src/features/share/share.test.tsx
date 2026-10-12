@@ -68,6 +68,50 @@ describe('a shared shoot', () => {
   })
 })
 
+describe('acting on a comment', () => {
+  it('the team replies, jumps to the shot list and marks it done; the guest sees the reply and the mark', () => {
+    const { unmount } = render(
+      <BrandProvider>
+        <ShootPage id="cv-shoot-raffles" />
+      </BrandProvider>,
+    )
+    const thread = screen.getByRole('region', { name: 'Comments' })
+    expect(within(thread).getByRole('link', { name: 'Shot list' })).toHaveAttribute(
+      'href',
+      '#shots',
+    )
+    fireEvent.click(within(thread).getByRole('button', { name: 'Reply' }))
+    fireEvent.change(within(thread).getByLabelText('Reply to Jules (videographer)'), {
+      target: { value: 'Yes: dough at 12, ragù from 3.' },
+    })
+    fireEvent.click(within(thread).getByRole('button', { name: 'Send' }))
+    expect(within(thread).getByText('Yes: dough at 12, ragù from 3.')).toBeInTheDocument()
+    expect(within(thread).getByText('Casa Vostra')).toBeInTheDocument()
+
+    // Done takes it out of the way; it is one click from being read again, or reopened.
+    fireEvent.click(within(thread).getByRole('button', { name: 'Done' }))
+    expect(within(thread).queryByText(/dough first/)).not.toBeInTheDocument()
+    expect(thread).toHaveTextContent('From the link · 0')
+    fireEvent.click(within(thread).getByRole('button', { name: 'Done · 1' }))
+    expect(within(thread).getByText(/dough first/)).toBeInTheDocument()
+    fireEvent.click(within(thread).getByRole('button', { name: 'Reopen' }))
+    expect(within(thread).getByRole('button', { name: 'Reply' })).toBeInTheDocument()
+    fireEvent.click(within(thread).getByRole('button', { name: 'Done' }))
+    unmount()
+
+    render(
+      <BrandProvider>
+        <SharedShoot id="cv-shoot-raffles" />
+      </BrandProvider>,
+    )
+    const guest = screen.getByRole('region', { name: 'Comments' })
+    expect(within(guest).getByText(/dough first/)).toBeInTheDocument()
+    expect(within(guest).getByText('Yes: dough at 12, ragù from 3.')).toBeInTheDocument()
+    expect(within(guest).getByText('Done')).toBeInTheDocument()
+    expect(within(guest).queryByRole('button', { name: 'Reply' })).not.toBeInTheDocument()
+  })
+})
+
 describe('a shared idea', () => {
   it('shows the brief and its storyboard, and keeps comments to that idea', () => {
     addComment('idea', 'cv-dough', 'Jules', 'Overhead first.')

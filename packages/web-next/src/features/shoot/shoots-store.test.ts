@@ -5,9 +5,11 @@ import { WEEKS } from '@/data/demo'
 
 import {
   addCrew,
+  addIdeaToShoot,
   addShoot,
   leaveShoot,
   planShoot,
+  removeIdeaFromShoot,
   REPLY_DELAY,
   resetShoots,
   sendInvites,
@@ -64,6 +66,17 @@ describe('planning a shoot', () => {
     leaveShoot(BRAND, 'cv-carb-up')
     planShoot(BRAND, WEEKS, ['cv-dough'])
     expect(shoots().find((s) => s.id === 'cv-shoot-raffles')?.ideaIds).toEqual([])
+  })
+
+  it('keeps a planned shoot whose last idea is taken off on its own page', () => {
+    // The team is looking at the sheet: it must not vanish under them, crew and hours with it.
+    const id = planShoot(BRAND, WEEKS, ['cv-blindfold'])
+    removeIdeaFromShoot(BRAND, id, 'cv-blindfold')
+    expect(shoots().find((s) => s.id === id)).toMatchObject({ ideaIds: [] })
+    // An idea added from the page leaves the shoot it was on.
+    addIdeaToShoot(BRAND, id, 'cv-dough')
+    expect(shootOfIdea(shoots(), 'cv-dough')?.id).toBe(id)
+    expect(shoots().find((s) => s.id === 'cv-shoot-raffles')?.ideaIds).toEqual(['cv-carb-up'])
   })
 })
 

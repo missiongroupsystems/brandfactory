@@ -47,6 +47,42 @@ export function addComment(kind: ShareKind, id: string, name: string, text: stri
   return true
 }
 
+function patchComment(
+  kind: ShareKind,
+  id: string,
+  commentId: string,
+  fn: (c: GuestComment) => GuestComment,
+) {
+  const key = `${kind}:${id}`
+  comments = {
+    ...comments,
+    [key]: (comments[key] ?? []).map((c) => (c.id === commentId ? fn(c) : c)),
+  }
+  listeners.forEach((l) => l())
+}
+
+/** The team's answer under a comment, as `name`; nothing is added without words. */
+export function replyToComment(
+  kind: ShareKind,
+  id: string,
+  commentId: string,
+  name: string,
+  text: string,
+): boolean {
+  const t = text.trim()
+  if (!t) return false
+  patchComment(kind, id, commentId, (c) => ({
+    ...c,
+    replies: [...(c.replies ?? []), { name, text: t, when: 'Just now' }],
+  }))
+  return true
+}
+
+/** Handled, or back in the open list. */
+export function setCommentDone(kind: ShareKind, id: string, commentId: string, done: boolean) {
+  patchComment(kind, id, commentId, (c) => ({ ...c, done }))
+}
+
 /**
  * Who a share link opens for, and what they may do there. Anyone with the link, or only the
  * team; a guest may view, comment, or edit. A new link lets anyone comment.

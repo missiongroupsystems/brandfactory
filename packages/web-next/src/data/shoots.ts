@@ -37,6 +37,16 @@ export interface GuestComment {
   text: string
   /** As printed: "Yesterday", "Just now". */
   when: string
+  /** What the team answered, in order. */
+  replies?: CommentReply[]
+  /** Handled: the team folds it away, the guest sees it marked done. */
+  done?: boolean
+}
+
+export interface CommentReply {
+  name: string
+  text: string
+  when: string
 }
 
 /** A crew member's answer to the Lark invite. No answer yet is the absence of one. */

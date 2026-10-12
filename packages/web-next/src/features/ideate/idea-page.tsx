@@ -714,7 +714,12 @@ function Idea({ slot }: { slot: Slot }) {
           )}
         </StageSection>
       </div>
-      <Comments kind="idea" id={card.id} />
+      <Comments
+        kind="idea"
+        id={card.id}
+        replyAs={brand.name}
+        change={{ href: '#shots', label: 'Storyboard' }}
+      />
     </article>
   )
 }
