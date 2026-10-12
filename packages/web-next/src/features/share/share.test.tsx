@@ -106,6 +106,10 @@ describe('who a link opens for', () => {
     expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Share' }))
+    expect(screen.getByRole('link', { name: 'Preview as a guest' })).toHaveAttribute(
+      'href',
+      '/share/idea/cv-blindfold',
+    )
     const can = screen.getByRole('combobox', { name: 'What they can do' })
     fireEvent.change(can, { target: { value: 'view' } })
     expect(screen.queryByRole('button', { name: 'Comment' })).not.toBeInTheDocument()

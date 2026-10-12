@@ -52,33 +52,22 @@ export function ShareButton({ kind, id }: { kind: ShareKind; id: string }) {
   }, [copied])
 
   function copy() {
-    // A browser without clipboard access still shows the link to copy by hand.
     void navigator.clipboard?.writeText(url).catch(() => {})
     setCopied(true)
   }
 
   const body = (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-1.5 rounded-full bg-surface p-1 pl-3.5">
-        <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ink-3">
-          {url.replace(/^https?:\/\//, '')}
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2.5">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface text-ink-2">
+          {access.who === 'link' ? <GlobeGlyph /> : <LockGlyph />}
         </span>
-        <button
-          type="button"
-          onClick={copy}
-          className="bb-press flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-ink px-3.5 text-[12.5px] font-medium text-page hover:opacity-85"
-        >
-          {copied && <CheckIcon size={10} strokeWidth={2.2} />}
-          {copied ? 'Copied' : 'Copy link'}
-        </button>
-      </div>
-      <div className="flex items-center gap-1 text-[12.5px]">
         <Choice
           label="Who can open the link"
           value={access.who}
           options={WHO}
           onChange={(who) => setShareAccess(kind, id, { who })}
-          className="text-ink-2"
+          className="-ml-2 text-[13.5px] font-medium text-ink"
         />
         {access.who === 'link' && (
           <Choice
@@ -86,17 +75,29 @@ export function ShareButton({ kind, id }: { kind: ShareKind; id: string }) {
             value={access.can}
             options={CAN}
             onChange={(can) => setShareAccess(kind, id, { can })}
-            className="ml-auto text-ink-3"
+            className="ml-auto text-[13.5px] text-ink-3"
           />
         )}
       </div>
-      {/* The same tab, so the demo's memory comes along: what a guest writes shows back here. */}
-      <Link
-        href={`/share/${kind}/${id}`}
-        className="self-start text-[12px] text-ink-4 transition-colors hover:text-ink"
-      >
-        Preview what they see
-      </Link>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={copy}
+          className="bb-press flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-ink text-[13.5px] font-medium text-page hover:opacity-85"
+        >
+          {copied ? <CheckIcon size={11} strokeWidth={2.2} /> : <LinkGlyph />}
+          {copied ? 'Copied' : 'Copy link'}
+        </button>
+        {/* The same tab, so the demo's memory comes along: what a guest writes shows back here. */}
+        <Link
+          href={`/share/${kind}/${id}`}
+          aria-label="Preview as a guest"
+          title="Preview as a guest"
+          className="bb-press flex size-10 shrink-0 items-center justify-center rounded-full bg-surface text-ink-2 transition-colors hover:bg-paper hover:text-ink"
+        >
+          <EyeGlyph />
+        </Link>
+      </div>
     </div>
   )
 
@@ -123,7 +124,7 @@ export function ShareButton({ kind, id }: { kind: ShareKind; id: string }) {
             ref={pop}
             role="dialog"
             aria-label="Share"
-            className="bb-menu absolute top-full right-0 z-30 mt-2 w-[340px] rounded-[16px] bg-page p-4 shadow-sheet"
+            className="bb-menu absolute top-full right-0 z-30 mt-2 w-[344px] rounded-[18px] bg-page p-4 shadow-sheet"
           >
             {body}
           </div>
@@ -163,7 +164,7 @@ function Choice<T extends string>({
         aria-label={label}
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className="h-8 cursor-pointer appearance-none rounded-full [field-sizing:content] bg-transparent pr-6 pl-2 font-medium outline-none hover:bg-surface hover:text-ink focus-visible:shadow-[0_0_0_1.5px_var(--ink)]"
+        className="h-8 cursor-pointer appearance-none rounded-full [field-sizing:content] bg-transparent pr-6 pl-2 outline-none transition-colors hover:bg-surface focus-visible:bg-surface"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
@@ -181,6 +182,51 @@ function Choice<T extends string>({
         <path d="M1.5 3 4 5.5 6.5 3" stroke="currentColor" strokeWidth="1.2" fill="none" />
       </svg>
     </span>
+  )
+}
+
+function GlobeGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.2" />
+      <path
+        d="M1.5 7h11M7 1.5c1.6 1.6 2.3 3.4 2.3 5.5S8.6 10.9 7 12.5C5.4 10.9 4.7 9.1 4.7 7S5.4 3.1 7 1.5Z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function LockGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <rect
+        x="2.75"
+        y="6.25"
+        width="8.5"
+        height="6"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <path d="M4.75 6.25V4.5a2.25 2.25 0 0 1 4.5 0v1.75" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  )
+}
+
+function EyeGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M1.75 8S4 3.75 8 3.75 14.25 8 14.25 8 12 12.25 8 12.25 1.75 8 1.75 8Z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
   )
 }
 
