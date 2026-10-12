@@ -84,3 +84,11 @@ named by pin id. Every pin comes from Unsplash at its own aspect ratio, which
 `casa-vostra/logo.png`, `temper/logo.png` and `carlitos/logo.png` are each brand's own
 website icon (192 × 192 PNG), from casavostra.sg, temper.sg and carlitos.sg: Ebb & Flow
 Group's restaurants, shown in their own demo. They are not Unsplash photos.
+
+## Demo video
+
+`casa-vostra/margherita-reel.mp4` (720 × 1280, 13.6 s) and its poster frame
+`casa-vostra/margherita-reel.jpg` come from a third-party YouTube Short
+(https://www.youtube.com/shorts/YUNjyDbkZUE, "Margherita Pizza"), supplied by the owner as a
+stand-in reel for the demo. It is not Unsplash-licensed and is not Ebb & Flow Group's own
+footage: replace it with the brand's own reel before any public release.
