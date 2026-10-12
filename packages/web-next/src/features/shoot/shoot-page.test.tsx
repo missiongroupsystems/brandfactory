@@ -200,5 +200,11 @@ describe('ideas on the shoot', () => {
     expect(within(shotList()).queryByText(/Watch the dough/)).not.toBeInTheDocument()
     expect(shootOfIdea(shoots(), 'cv-dough')).toBeUndefined()
     expect(shoots().find((s) => s.id === 'cv-shoot-raffles')?.ideaIds).toEqual(['cv-carb-up'])
+    // A finger has no hover: the same comes from the small menu beside the label.
+    fireEvent.click(
+      within(shotList()).getByRole('button', { name: "More for Carb up before tomorrow's race." }),
+    )
+    fireEvent.click(within(shotList()).getByRole('button', { name: 'Remove from shoot' }))
+    expect(shoots().find((s) => s.id === 'cv-shoot-raffles')?.ideaIds).toEqual([])
   })
 })

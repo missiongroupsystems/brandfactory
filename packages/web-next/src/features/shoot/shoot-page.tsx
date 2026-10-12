@@ -124,13 +124,13 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
     }))
 
   return (
-    <article className="flex flex-col gap-12 max-md:gap-9">
+    <article className="flex flex-col gap-12 max-md:gap-7">
       <div className="flex items-center justify-between gap-3">
         <BackLink />
         <ShareButton kind="shoot" id={shoot.id} />
       </div>
 
-      <header className={`${COLUMN} flex flex-col gap-4`}>
+      <header className={`${COLUMN} flex flex-col gap-4 max-md:gap-3`}>
         <span className={EYEBROW}>Shoot · {dayLabel(weeks, shoot.dayN)}</span>
         <h1 className="font-display text-[44px] leading-[1.05] tracking-[-0.035em] max-md:text-[32px]">
           {shoot.title}
@@ -184,7 +184,7 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
       )}
 
       {/* Who comes, with what the crew said on the link as a note in the margin beside it. */}
-      <div className="grid max-w-[1044px] grid-cols-[minmax(0,680px)_300px] items-start gap-x-16 max-lg:grid-cols-1 max-lg:gap-y-10">
+      <div className="grid max-w-[1044px] grid-cols-[minmax(0,680px)_300px] items-start gap-x-16 max-lg:grid-cols-1 max-lg:gap-y-10 max-md:gap-y-7">
         <Crew
           shoot={shoot}
           invite={() => {
@@ -348,6 +348,7 @@ function Crew({ shoot, invite }: { shoot: Shoot; invite: () => void }) {
   const [name, setName] = React.useState('')
   const [role, setRole] = React.useState<string>(ROLES[0])
   const [typed, setTyped] = React.useState('')
+  const [editingCrew, setEditingCrew] = React.useState(false)
   const typedField = React.useRef<HTMLInputElement>(null)
   const chosen = role === OTHER ? typed.trim() : role
   React.useEffect(() => {
@@ -374,6 +375,15 @@ function Crew({ shoot, invite }: { shoot: Shoot; invite: () => void }) {
       <div className="flex items-center justify-between gap-3">
         <span className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
           <span className={EYEBROW}>Who comes · {shoot.crew.length}</span>
+          {/* A finger has no hover: Edit shows the remove marks, Done hides them again. */}
+          <button
+            type="button"
+            aria-pressed={editingCrew}
+            onClick={() => setEditingCrew((e) => !e)}
+            className="text-[12px] font-medium text-ink-3 transition-colors hover:text-ink [@media(hover:hover)]:hidden"
+          >
+            {editingCrew ? 'Done' : 'Edit'}
+          </button>
           {asked.length > 0 && (
             <span className="text-[12px] text-ink-3 tabular-nums">
               {replySummary(asked, replies)}
@@ -421,7 +431,7 @@ function Crew({ shoot, invite }: { shoot: Shoot; invite: () => void }) {
                   type="button"
                   aria-label={`Remove ${c.name}`}
                   onClick={() => removeCrew(brand.id, shoot.id, i)}
-                  className="flex size-6 items-center justify-center rounded-full text-ink-4 opacity-0 transition-opacity group-hover/crew:opacity-100 hover:text-ink focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+                  className={`flex size-6 items-center justify-center rounded-full text-ink-4 transition-opacity hover:text-ink ${editingCrew ? 'opacity-100' : 'pointer-events-none opacity-0 group-hover/crew:pointer-events-auto group-hover/crew:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100'}`}
                 >
                   <CloseIcon />
                 </button>
@@ -435,7 +445,8 @@ function Crew({ shoot, invite }: { shoot: Shoot; invite: () => void }) {
           e.preventDefault()
           add()
         }}
-        className="flex flex-wrap items-center gap-2"
+        /* One line: the name, the role, the button. On a phone a typed role takes a line of its own. */
+        className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 md:flex"
       >
         <Combobox
           value={name}
@@ -447,40 +458,37 @@ function Crew({ shoot, invite }: { shoot: Shoot; invite: () => void }) {
           }
           aria-label="Name of the person"
           placeholder="Add someone"
-          className={`${INPUT} min-w-[200px] flex-1`}
+          className={`${INPUT} min-w-0 md:min-w-[200px] md:flex-1`}
         />
-        {/* The role and the button stay together: on a phone they take the next line as one. */}
-        <span className="flex items-center gap-2">
-          <select
-            aria-label="Role"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className={SELECT}
-          >
-            {ROLES.map((r) => (
-              <option key={r}>{r}</option>
-            ))}
-            <option value={OTHER}>Other…</option>
-          </select>
-          {role === OTHER && (
-            <input
-              ref={typedField}
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              aria-label="Their role"
-              placeholder="Food stylist"
-              className="h-8 w-[136px] rounded-full bg-surface px-3.5 text-[13px] outline-none placeholder:text-ink-5 focus-visible:shadow-[0_0_0_2px_var(--ink)]"
-            />
-          )}
-          <button
-            type="submit"
-            aria-label="Add"
-            disabled={!name.trim() || !chosen}
-            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-page transition-opacity hover:opacity-85 disabled:opacity-25"
-          >
-            <PlusIcon size={11} />
-          </button>
-        </span>
+        <select
+          aria-label="Role"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className={`${SELECT} max-md:max-w-[128px] max-md:truncate`}
+        >
+          {ROLES.map((r) => (
+            <option key={r}>{r}</option>
+          ))}
+          <option value={OTHER}>Other…</option>
+        </select>
+        {role === OTHER && (
+          <input
+            ref={typedField}
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            aria-label="Their role"
+            placeholder="Food stylist"
+            className="h-8 rounded-full bg-surface px-3.5 text-[13px] outline-none placeholder:text-ink-5 focus-visible:shadow-[0_0_0_2px_var(--ink)] max-md:order-last max-md:col-span-3 md:w-[136px]"
+          />
+        )}
+        <button
+          type="submit"
+          aria-label="Add"
+          disabled={!name.trim() || !chosen}
+          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-page transition-opacity hover:opacity-85 disabled:opacity-25"
+        >
+          <PlusIcon size={11} />
+        </button>
       </form>
     </section>
   )

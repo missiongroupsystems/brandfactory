@@ -134,6 +134,16 @@ them a 3 px lavender bar (`--layer-shoot`) that spans the clips, like a clip's c
 editor. The bar deepens to `--layer-shoot-ink` under the pointer and while the group is held, so
 the grip reads before the drag starts. Everything else from round 4 stays.
 
+## Round 6: the phone
+
+A pass at 390 px. The add-crew row is one line (name, role, +); a typed role takes a line of its
+own under it. A finger has no hover, so the crew's remove marks hide behind Edit / Done in the
+Who comes header, and each group's Remove sits in a small "…" beside the format that opens one
+item, Remove from shoot; on a pointer both stay on hover as before. Captions under the clips run
+to two lines on a phone; clips are 108 px wide with 16 px between groups, so the first group's
+three clips leave a sliver of the fourth clip in view at the right edge. Spacing between the
+page's blocks drops from 36 to 28 px on a phone, and the head and crew blocks tighten with it.
+
 ## Tests
 
 - Custom role: pick Other, type a role, add a person; the row shows that role.

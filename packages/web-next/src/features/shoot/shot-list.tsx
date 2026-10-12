@@ -134,7 +134,7 @@ export function ShotList({
         <ol
           ref={attach}
           aria-label="Shots in order"
-          className="flex w-max min-w-full items-start gap-7 max-md:gap-5"
+          className="flex w-max min-w-full items-start gap-7 max-md:gap-4"
         >
           {ideas.map((card) => (
             <Group
@@ -229,15 +229,48 @@ function Group({
       {FORMAT_LABEL[card.format]}
     </span>
   )
+  // Remove shows on hover of the label; a finger gets it from a small "…" beside the format.
+  const [more, setMore] = React.useState(false)
   const remove = onRemove && (
-    <button
-      type="button"
-      aria-label={`Remove ${card.hook}`}
-      onClick={onRemove}
-      className={`ml-auto shrink-0 text-[11.5px] text-ink-4 hover:text-ink ${ON_HOVER}`}
-    >
-      Remove
-    </button>
+    <>
+      <button
+        type="button"
+        aria-label={`Remove ${card.hook}`}
+        onClick={onRemove}
+        className={`ml-auto shrink-0 text-[11.5px] text-ink-4 hover:text-ink [@media(hover:none)]:hidden ${ON_HOVER}`}
+      >
+        Remove
+      </button>
+      <span className="relative flex [@media(hover:hover)]:hidden">
+        <button
+          type="button"
+          aria-label={`More for ${card.hook}`}
+          aria-expanded={more}
+          onClick={() => setMore((m) => !m)}
+          className="flex h-6 w-7 items-center justify-center rounded-full text-ink-4 transition-colors hover:text-ink"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+            <circle cx="2" cy="6" r="1.1" />
+            <circle cx="6" cy="6" r="1.1" />
+            <circle cx="10" cy="6" r="1.1" />
+          </svg>
+        </button>
+        {more && (
+          <span className="bb-menu absolute top-full right-0 z-20 mt-1 rounded-[12px] bg-page p-1 shadow-pop">
+            <button
+              type="button"
+              onClick={() => {
+                setMore(false)
+                onRemove()
+              }}
+              className="flex h-9 items-center rounded-[9px] px-3 text-[13px] font-normal whitespace-nowrap text-fail-ink hover:bg-surface"
+            >
+              Remove from shoot
+            </button>
+          </span>
+        )}
+      </span>
+    </>
   )
   return (
     <li
@@ -414,7 +447,7 @@ function Frame({
         e.stopPropagation()
         drag.finish(true)
       }}
-      className={`group/clip bb-touch-drag relative flex w-[152px] shrink-0 flex-col gap-1.5 max-md:w-[120px] ${drag ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      className={`group/clip bb-touch-drag relative flex w-[152px] shrink-0 flex-col gap-1.5 max-md:w-[108px] ${drag ? 'cursor-grab active:cursor-grabbing' : ''}`}
     >
       {drag && <Handle label={`Move shot ${n}: ${name}`} hint={drag.hint} onNudge={drag.nudge} />}
       <span
@@ -426,13 +459,15 @@ function Frame({
               : ''
         }`}
       >
-        {src && <Media src={src} sizes="(max-width: 768px) 120px, 152px" />}
+        {src && <Media src={src} sizes="(max-width: 768px) 108px, 152px" />}
       </span>
       <span className="flex min-w-0 items-baseline gap-1.5 px-0.5">
         <span className="font-mono text-[10px] text-ink-4 tabular-nums">
           {String(n).padStart(2, '0')}
         </span>
-        <span className="truncate text-[12px] leading-snug text-ink-2">{name}</span>
+        <span className="min-w-0 text-[12px] leading-snug text-ink-2 max-md:line-clamp-2 md:truncate">
+          {name}
+        </span>
       </span>
     </li>
   )
