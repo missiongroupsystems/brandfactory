@@ -5,20 +5,19 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 
 import { AppHeader } from '@/components/app-header'
-import { Fold, Segmented } from '@/components/controls'
-import { CheckIcon, ChevronIcon, SparkIcon } from '@/components/icons'
+import { Fold } from '@/components/controls'
+import { CheckIcon, ChevronIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import { usePhone } from '@/components/use-phone'
 import type { Brand } from '@/data/brands'
 import { INBOX_BY_BRAND, type BrandInbox, type InboxEarlier, type InboxMessage } from '@/data/inbox'
-import { VoiceNote } from '@/features/brand/voice-note'
+import { useBrandKit } from '@/features/brand/brand-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { markDone, sendTo, useInbox } from './inbox-store'
 import {
   ago,
   conversation,
-  draftAt,
   firstName,
   firstNames,
   nextAfter,
@@ -31,15 +30,22 @@ import {
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 /** How long a replied row takes to tick, slide and fold away before it leaves the store. */
 const LEAVE_MS = 620
-/** How long Regenerate "thinks" before the next draft shows. */
-const THINK_MS = 700
+/** How long a picked direction takes to write its reply. */
+const WRITE_MS = 750
+
+const FILTERS: ReadonlyArray<{ value: InboxFilter; label: string }> = [
+  { value: 'all', label: 'All' },
+  { value: 'comments', label: 'Comments' },
+  { value: 'dms', label: 'DMs' },
+]
 
 /**
  * The inbox: every comment, mention and DM on the brand's Instagram, TikTok and Facebook that
- * needs a reply, in one list, complaints first. Opening one shows it in context with a reply the
- * AI drafted in the brand's voice; Send clears it with a tick and a fold, and the next one opens.
- * A complaint can go to a named person. Noise is folded away at the end. On a phone the list
- * comes first and a message opens full screen.
+ * needs a reply, in one list, complaints first. Opening one shows it in context with three
+ * directions a reply can take; picking one writes the reply in the brand's voice, and Send clears
+ * the message with a tick and a fold, so the next one opens. One action on the screen: reply.
+ * A complaint can still go to a named person, from the thread's menu. Noise is folded away at
+ * the end. On a phone the list comes first and a message opens full screen.
  */
 export function InboxPage() {
   const { brand } = useBrand()
@@ -92,48 +98,59 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
     />
   )
 
-  return (
-    <main className="bb-swap mx-auto flex w-full max-w-[1120px] flex-col px-10 pb-24 max-md:px-4">
-      <div className="flex items-end justify-between gap-6 pt-6 pb-8 max-md:flex-col max-md:items-stretch max-md:gap-5 max-md:pt-2 max-md:pb-6">
-        <div className="flex flex-col gap-3">
-          <span className={EYEBROW}>{brand.name}</span>
-          <h1 className="font-display text-[56px] leading-none tracking-[-0.035em] max-md:text-[34px]">
-            Inbox
-          </h1>
-          <p className="text-[15px] text-ink-3" aria-live="polite">
-            {waiting.length === 0 ? 'Nothing to reply to.' : `${waiting.length} to reply to`}
-          </p>
-        </div>
-        <div className="w-[260px] max-md:w-full">
-          <Segmented
-            label="Show"
-            pill
-            value={filter}
-            onChange={(f) => {
-              setFilter(f)
+  // Small text tabs at the top of the list: a way to see only the DMs, not a control of its own.
+  const tabs = (
+    <div role="tablist" aria-label="Show" className="flex gap-4 px-3 pb-3">
+      {FILTERS.map((f) => {
+        const on = f.value === filter
+        return (
+          <button
+            key={f.value}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => {
+              setFilter(f.value)
               setSelected(null)
             }}
-            options={[
-              { value: 'all', label: 'All' },
-              { value: 'comments', label: 'Comments' },
-              { value: 'dms', label: 'DMs' },
-            ]}
-          />
-        </div>
+            className={`h-7 text-[12.5px] transition-colors ${on ? 'font-medium text-ink' : 'text-ink-4 hover:text-ink'}`}
+          >
+            {f.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  return (
+    <main className="bb-swap mx-auto flex w-full max-w-[1120px] flex-col px-10 pb-24 max-md:px-4">
+      <div className="flex flex-col gap-3 pt-6 pb-8 max-md:pt-2 max-md:pb-6">
+        <span className={EYEBROW}>{brand.name}</span>
+        <h1 className="font-display text-[56px] leading-none tracking-[-0.035em] max-md:text-[34px]">
+          Inbox
+        </h1>
+        <p className="text-[15px] text-ink-3" aria-live="polite">
+          {waiting.length === 0 ? 'Nothing to reply to.' : `${waiting.length} to reply to`}
+        </p>
       </div>
 
       {caughtUp ? (
-        <div className="flex flex-col items-center">
-          <CaughtUp filter={filter} />
-          {noise.length > 0 && (
-            <div className="w-full max-w-[420px]">
-              <Noise brandId={brand.id} noise={noise} />
-            </div>
-          )}
+        <div className="flex flex-col">
+          {/* Only once something is left to see another way: the end of the inbox needs no tabs. */}
+          {(waiting.length > 0 || filter !== 'all') && tabs}
+          <div className="flex flex-col items-center">
+            <CaughtUp filter={filter} />
+            {noise.length > 0 && (
+              <div className="w-full max-w-[420px]">
+                <Noise brandId={brand.id} noise={noise} />
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-[360px_minmax(0,1fr)] items-start gap-12 max-lg:grid-cols-[320px_minmax(0,1fr)] max-lg:gap-8 max-md:grid-cols-1">
           <div className="flex flex-col">
+            {tabs}
             {/* Complaints first, marked by a dot: no headings to read. */}
             {complaints.map(row)}
             {rest.map(row)}
@@ -302,35 +319,23 @@ function ComplaintMark({ sentTo }: { sentTo?: string[] }) {
   )
 }
 
-/** What needs no reply, folded shut at the end of the list: open it to check, or clear it all. */
+/**
+ * What needs no reply (emoji, spam, a tagged friend), folded shut at the end of the list as one
+ * quiet line. Open it to check, and clear it from inside: no action sits in the corner.
+ */
 function Noise({ brandId, noise }: { brandId: Brand['id']; noise: InboxMessage[] }) {
   const [open, setOpen] = React.useState(false)
   return (
     <div className="mt-6 border-t border-(--cal-line) pt-3">
-      <div className="flex items-center gap-3 px-3">
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
-          className="flex h-9 flex-1 items-center gap-2 text-left text-[13px] text-ink-3 transition-colors hover:text-ink"
-        >
-          {noise.length} more, no reply needed
-          <span className="text-ink-5">· emoji, spam, tags</span>
-          <ChevronIcon open={open} />
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            markDone(
-              brandId,
-              noise.map((m) => m.id),
-            )
-          }
-          className="h-9 text-[13px] font-medium text-ink-2 transition-colors hover:text-ink"
-        >
-          Clear
-        </button>
-      </div>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-9 w-full items-center gap-2 px-3 text-left text-[13px] text-ink-4 transition-colors hover:text-ink"
+      >
+        {noise.length} more, no reply needed
+        <ChevronIcon open={open} />
+      </button>
       <Fold open={open}>
         <ul className="flex flex-col pt-1">
           {noise.map((m) => (
@@ -341,6 +346,18 @@ function Noise({ brandId, noise }: { brandId: Brand['id']; noise: InboxMessage[]
             </li>
           ))}
         </ul>
+        <button
+          type="button"
+          onClick={() =>
+            markDone(
+              brandId,
+              noise.map((m) => m.id),
+            )
+          }
+          className="mt-1 flex h-9 items-center px-3 text-[13px] font-medium text-ink-2 transition-colors hover:text-ink"
+        >
+          Clear these
+        </button>
       </Fold>
     </div>
   )
@@ -387,9 +404,12 @@ function Thread({
   sentTo?: string[]
   onSend: () => void
 }) {
-  const [n, setN] = React.useState(0)
-  const [text, setText] = React.useState(() => draftAt(m, 0))
-  const [thinking, setThinking] = React.useState(false)
+  const { summary: voice } = useBrandKit(brand.id).voice
+  const [picked, setPicked] = React.useState<number | null>(null)
+  const [text, setText] = React.useState('')
+  const [writing, setWriting] = React.useState(false)
+  // Which pick is being written: a second pick while the first writes makes the first stand down.
+  const job = React.useRef(0)
   const scroller = React.useRef<HTMLDivElement>(null)
   const items = conversation(m)
   const marks = stamps(items)
@@ -400,13 +420,16 @@ function Thread({
     if (el) el.scrollTop = el.scrollHeight
   }, [])
 
-  function regenerate() {
-    setThinking(true)
+  /** A direction is picked: the AI writes its reply (simulated) into the box, over any edit. */
+  function pick(i: number) {
+    const id = ++job.current
+    setPicked(i)
+    setWriting(true)
     window.setTimeout(() => {
-      setN(n + 1)
-      setText(draftAt(m, n + 1))
-      setThinking(false)
-    }, THINK_MS)
+      if (job.current !== id) return
+      setText(m.replies[i]!.text)
+      setWriting(false)
+    }, WRITE_MS)
   }
 
   // Messages from the same side with no time between them sit together as one group.
@@ -469,43 +492,64 @@ function Thread({
       </div>
 
       <div className="shrink-0 px-6 pt-1 pb-5 max-md:px-4 max-md:pb-[calc(12px+env(safe-area-inset-bottom))]">
-        <div className="mx-auto flex max-w-[552px] flex-col rounded-[18px] border border-line bg-page transition-colors focus-within:border-line-strong">
-          <label htmlFor={`reply-${m.id}`} className="sr-only">
-            Reply to {m.from.name}
-          </label>
-          <textarea
-            id={`reply-${m.id}`}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            disabled={thinking}
-            rows={2}
-            className={`field-sizing-content max-h-[214px] min-h-[64px] resize-none bg-transparent px-4 pt-3.5 pb-1 text-[14.5px] leading-[1.5] outline-none max-md:max-h-[162px] ${thinking ? 'bb-pulse' : ''}`}
-          />
-          <div className="flex items-center gap-1 py-2 pr-2 pl-4">
-            <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-[12px] text-ink-4">
-              <span className="shrink-0 text-(--insight)">
-                <SparkIcon size={10} />
+        <div className="mx-auto flex max-w-[552px] flex-col gap-2.5">
+          {/* Three ways to reply, as a dialogue gives them. The pick writes the reply below. */}
+          <div role="group" aria-label="Reply" className="flex flex-wrap gap-1.5">
+            {m.replies.map((r, i) => {
+              const on = picked === i
+              return (
+                <button
+                  key={r.direction}
+                  type="button"
+                  aria-pressed={on}
+                  title={`Written in ${brand.name}’s voice: ${voice}`}
+                  onClick={() => pick(i)}
+                  className={`bb-press h-8 rounded-full px-3 text-[13px] transition-colors ${on ? 'bg-page text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]' : 'bg-surface text-ink-2 hover:bg-tile hover:text-ink'}`}
+                >
+                  {r.direction}
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex flex-col rounded-[18px] border border-line bg-page transition-colors focus-within:border-line-strong">
+            <label htmlFor={`reply-${m.id}`} className="sr-only">
+              Reply to {m.from.name}
+            </label>
+            {writing ? (
+              <span
+                role="status"
+                aria-label="Writing"
+                className="flex min-h-[64px] items-center gap-1 px-4 pt-3.5 pb-1"
+              >
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="bb-pulse size-1.5 rounded-full bg-ink-4"
+                    style={{ animationDelay: `${i * 160}ms` }}
+                  />
+                ))}
               </span>
-              <span className="truncate">
-                <VoiceNote plain />
-              </span>
-            </span>
-            <button
-              type="button"
-              onClick={regenerate}
-              disabled={thinking}
-              className="bb-press h-8 shrink-0 rounded-full px-3 text-[13px] text-ink-3 transition-colors hover:bg-surface hover:text-ink disabled:opacity-50"
-            >
-              {thinking ? 'Writing…' : 'Regenerate'}
-            </button>
-            <button
-              type="button"
-              onClick={onSend}
-              disabled={thinking || !text.trim()}
-              className="bb-press h-8 shrink-0 rounded-full bg-ink px-3.5 text-[13px] font-medium text-page disabled:opacity-40"
-            >
-              Send reply
-            </button>
+            ) : (
+              <textarea
+                key={picked ?? 'own'}
+                id={`reply-${m.id}`}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Or write your own"
+                rows={2}
+                className={`field-sizing-content max-h-[214px] min-h-[64px] resize-none bg-transparent px-4 pt-3.5 pb-1 text-[14.5px] leading-[1.5] outline-none placeholder:text-ink-5 max-md:max-h-[162px] ${picked === null ? '' : 'bb-rise'}`}
+              />
+            )}
+            <div className="flex justify-end py-2 pr-2">
+              <button
+                type="button"
+                onClick={onSend}
+                disabled={writing || !text.trim()}
+                className="bb-press h-8 shrink-0 rounded-full bg-ink px-3.5 text-[13px] font-medium text-page disabled:opacity-40"
+              >
+                Send
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -540,9 +584,10 @@ function Bubble({ item, tail }: { item: InboxEarlier; tail: boolean }) {
 }
 
 /**
- * A complaint goes to the person who can fix it, in one tap: the suggested person. The menu
- * picks more than one (the chef and the venue manager), starting from that person. Each gets an
- * alert (simulated), and the message says who has it.
+ * A complaint can go to the person who can fix it, from the thread's menu: an edge case beside
+ * the reply, so it stays behind three dots. The menu starts from the suggested person and can
+ * pick more (the chef and the venue manager). Each gets an alert (simulated), and the message
+ * says who has it.
  */
 function SendTo({
   brandId,
@@ -597,73 +642,65 @@ function SendTo({
   const chosen = people.map((p) => p.name).filter((n) => picked.includes(n))
 
   return (
-    <div ref={root} className="shrink-0">
-      {/* The red dot says complaint, as it does in the list; the button says what to do. */}
-      <span className="sr-only">Complaint</span>
-      <div title="Complaint" className="relative flex items-center rounded-full bg-surface">
-        <button
-          type="button"
-          onClick={() => sendTo(brandId, m.id, [first.name])}
-          className="flex h-8 items-center gap-2 rounded-l-full pr-2 pl-3 text-[13px] font-medium transition-colors hover:bg-tile"
+    <div ref={root} className="relative -mr-1.5 shrink-0">
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={menu}
+        aria-label="More"
+        onClick={() => setMenu((o) => !o)}
+        className={`flex size-9 items-center justify-center rounded-full text-ink-4 transition-colors hover:bg-surface hover:text-ink ${menu ? 'bg-surface text-ink' : ''}`}
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="currentColor">
+          <circle cx="2.5" cy="7" r="1.3" />
+          <circle cx="7" cy="7" r="1.3" />
+          <circle cx="11.5" cy="7" r="1.3" />
+        </svg>
+      </button>
+      {menu && (
+        <div
+          role="group"
+          aria-label="Send to"
+          className="bb-menu absolute top-10 right-0 z-20 flex w-[268px] origin-top-right flex-col rounded-[14px] bg-page p-1.5 shadow-pop"
         >
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-fail" />
-          Send to {firstName(first.name)}
-        </button>
-        <button
-          type="button"
-          aria-label="Send to more people"
-          aria-expanded={menu}
-          onClick={() => setMenu((o) => !o)}
-          className="flex h-8 items-center rounded-r-full border-l border-line pr-3 pl-2 text-ink-3 transition-colors hover:bg-tile"
-        >
-          <ChevronIcon open={menu} />
-        </button>
-        {menu && (
-          <div
-            role="group"
-            aria-label="Send to"
-            className="bb-menu absolute top-full right-0 z-20 mt-2 flex w-[268px] flex-col rounded-[14px] bg-page p-1.5 shadow-pop"
-          >
-            {people.map((p) => {
-              const on = picked.includes(p.name)
-              return (
-                <button
-                  key={p.name}
-                  type="button"
-                  role="checkbox"
-                  aria-checked={on}
-                  onClick={() => toggle(p.name)}
-                  className="flex items-center gap-3 rounded-[10px] px-3 py-2 text-left transition-colors hover:bg-surface"
+          <span className="px-3 pt-1.5 pb-2 text-[12px] text-ink-4">Send this complaint to</span>
+          {people.map((p) => {
+            const on = picked.includes(p.name)
+            return (
+              <button
+                key={p.name}
+                type="button"
+                role="checkbox"
+                aria-checked={on}
+                onClick={() => toggle(p.name)}
+                className="flex items-center gap-3 rounded-[10px] px-3 py-2 text-left transition-colors hover:bg-surface"
+              >
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-[13px] font-medium">{p.name}</span>
+                  <span className="text-[12px] text-ink-4">{p.role}</span>
+                </span>
+                <span
+                  aria-hidden="true"
+                  className={`flex size-[18px] shrink-0 items-center justify-center rounded-full transition-colors ${on ? 'bg-ink text-page' : 'shadow-[inset_0_0_0_1.5px_var(--line-strong)]'}`}
                 >
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="text-[13px] font-medium">{p.name}</span>
-                    <span className="text-[12px] text-ink-4">{p.role}</span>
-                  </span>
-                  <span
-                    aria-hidden="true"
-                    className={`flex size-[18px] shrink-0 items-center justify-center rounded-full transition-colors ${on ? 'bg-ink text-page' : 'shadow-[inset_0_0_0_1.5px_var(--line-strong)]'}`}
-                  >
-                    {on && <CheckIcon size={9} strokeWidth={2.4} />}
-                  </span>
-                </button>
-              )
-            })}
-            <button
-              type="button"
-              disabled={chosen.length === 0}
-              onClick={() => {
-                setMenu(false)
-                sendTo(brandId, m.id, chosen)
-              }}
-              className="bb-press mt-1 h-9 rounded-[10px] bg-ink text-[13px] font-medium text-page transition-opacity disabled:opacity-30"
-            >
-              {chosen.length === 1
-                ? `Send to ${firstName(chosen[0]!)}`
-                : `Send to ${chosen.length}`}
-            </button>
-          </div>
-        )}
-      </div>
+                  {on && <CheckIcon size={9} strokeWidth={2.4} />}
+                </span>
+              </button>
+            )
+          })}
+          <button
+            type="button"
+            disabled={chosen.length === 0}
+            onClick={() => {
+              setMenu(false)
+              sendTo(brandId, m.id, chosen)
+            }}
+            className="bb-press mt-1 h-9 rounded-[10px] bg-ink text-[13px] font-medium text-page transition-opacity disabled:opacity-30"
+          >
+            {chosen.length === 1 ? `Send to ${firstName(chosen[0]!)}` : `Send to ${chosen.length}`}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,8 +1,8 @@
 /**
  * The inbox's data, one set per brand: the comments, mentions and DMs waiting on the brand's
  * Instagram, TikTok and Facebook, and the people a complaint can go to.
- * Invented, plausible for a Singapore restaurant. Each message carries the replies an AI would
- * draft in the brand's voice, in the order Regenerate shows them.
+ * Invented, plausible for a Singapore restaurant. Each message carries three directions a reply
+ * can take, each with the reply an AI would write for it in the brand's voice.
  */
 
 import type { BrandId } from './brands'
@@ -21,6 +21,14 @@ export type InboxTone = 'complaint' | 'question' | 'praise' | 'noise'
 export interface InboxPerson {
   name: string
   role: string
+}
+
+/** One way to answer a message, as a dialogue choice reads, and the reply written for it. */
+export interface InboxReply {
+  /** Two to five words: "Apologise and invite to DM", "Answer directly". */
+  direction: string
+  /** The reply in the brand's voice. */
+  text: string
 }
 
 export interface InboxEarlier {
@@ -50,8 +58,8 @@ export interface InboxMessage {
    * is always the latest, and the one the reply answers.
    */
   earlier?: InboxEarlier[]
-  /** Replies in the brand's voice, in the order Regenerate shows them. Empty for noise. */
-  drafts: string[]
+  /** Three directions the reply can take, each with its reply. Empty for noise. */
+  replies: InboxReply[]
   /** A complaint's first choice of person, by name from the brand's `people`. */
   sendTo?: string
 }
@@ -86,9 +94,19 @@ const CASA_VOSTRA: BrandInbox = {
         caption:
           'The final touch for a crispy crust and a smoky finish 🔥 Find us at Raffles City.',
       },
-      drafts: [
-        "Rachel, we're so sorry. A soggy, burnt base is not the diavola we want you to have. Giulia, our head chef, is looking at what happened in the kitchen on Saturday. Could you send us a DM? Your next pizza is on us.",
-        "Hi Rachel, thank you for telling us, and we're really sorry about Saturday. Every pizza should leave the oven crisp and generous. Send us a DM and we'll make the next one properly, on us.",
+      replies: [
+        {
+          direction: 'Apologise and invite to DM',
+          text: "Rachel, we're so sorry. A soggy, burnt base is not the diavola we want you to have. Could you send us a DM with the time you came in? We'd like to put this right.",
+        },
+        {
+          direction: 'Offer to make it right',
+          text: "Rachel, we're really sorry about Saturday. Every pizza should leave the oven crisp and generous. Your next diavola is on us: send us a DM and we'll have it ready whenever you like.",
+        },
+        {
+          direction: 'Explain what happened',
+          text: "Rachel, thank you for telling us, and we're sorry. Saturday was our busiest service in months and the oven at the back was running too hot. Giulia, our head chef, has already gone through it with the team. We'd love to make you a proper diavola, on us.",
+        },
       ],
       sendTo: 'Giulia Conti',
     },
@@ -117,9 +135,19 @@ const CASA_VOSTRA: BrandInbox = {
         },
       ],
       tone: 'complaint',
-      drafts: [
-        "Aisha, we're so sorry. Your mum's birthday deserved a table ready and waiting, not half an hour at the door, least of all after we confirmed it. Marco, our venue manager, is finding out where the booking under Rahman went. We'd love to host your family again, with dessert on us.",
-        "Hi Aisha, thank you for letting us know, and happy birthday to your mum. We confirmed that table and we let you down, and we're really sorry. Marco is finding out where it went wrong, and we'd love to make your next visit a proper celebration.",
+      replies: [
+        {
+          direction: 'Apologise and offer dessert',
+          text: "Aisha, we're so sorry. Your mum's birthday deserved a table ready and waiting, not half an hour at the door, least of all after we confirmed it. We'd love to host your family again, with dessert on us.",
+        },
+        {
+          direction: 'Explain what went wrong',
+          text: "Aisha, we're so sorry. We've found what happened: the booking was confirmed here but never reached Saturday's floor plan, which is on us, not you. Marco, our venue manager, is fixing how that can happen. Please let us host your mum's birthday again, properly this time.",
+        },
+        {
+          direction: 'Ask what would help',
+          text: "Aisha, we're sorry, and thank you for telling us rather than walking away. Half an hour at the door on your mum's birthday is not good enough. What would make this right for you? A table for the family, with dessert and a bottle on us, is where we'd like to start.",
+        },
       ],
       sendTo: 'Marco Bellini',
     },
@@ -150,9 +178,19 @@ const CASA_VOSTRA: BrandInbox = {
           minutes: 46,
         },
       ],
-      drafts: [
-        "There is! For groups we do a sharing set menu at $68 a head, and every course has a vegetarian dish, so nobody misses out. Could you send a name and a phone number? We'll hold the long table for you.",
-        'Yes, Jonathan: a sharing menu at $68 a head, with vegetarian pastas and antipasti on every course. Send us the booking name and a number and the table is yours.',
+      replies: [
+        {
+          direction: 'Answer directly',
+          text: 'Yes, Jonathan: a sharing set menu at $68 a head, and every course has a vegetarian dish, so nobody misses out.',
+        },
+        {
+          direction: 'Answer and hold the table',
+          text: "There is! For groups we do a sharing set menu at $68 a head, and every course has a vegetarian dish, so nobody misses out. Could you send a name and a phone number? We'll hold the long table for you.",
+        },
+        {
+          direction: 'Offer to tailor the menu',
+          text: 'There is, and we can shape it around your group: a sharing set menu at $68 a head, with vegetarian pastas and antipasti on every course. Tell us how many are vegetarian and Giulia will plan the courses so everyone eats the same way.',
+        },
       ],
     },
     {
@@ -164,9 +202,19 @@ const CASA_VOSTRA: BrandInbox = {
       minutes: 65,
       tone: 'praise',
       post: { image: PIN('cv-p-3'), caption: 'Lunch break done right 🍝' },
-      drafts: [
-        "Grazie mille, Mei Ling! 🤌 We're so happy you loved it. The pecorino and pepper send their regards.",
-        "This made our day, thank you! Come back soon, there's a new pasta on the board next week 🍝",
+      replies: [
+        {
+          direction: 'Say thank you',
+          text: "Grazie mille, Mei Ling! 🤌 We're so happy you loved it. The pecorino and pepper send their regards.",
+        },
+        {
+          direction: 'Invite them back',
+          text: "This made our day, thank you! Come back soon, there's a new pasta on the board next week 🍝",
+        },
+        {
+          direction: 'Ask to share their video',
+          text: "Grazie, Mei Ling! 🤌 This is exactly how we hope people feel after lunch. Could we share your video on our page? We'll credit you, of course.",
+        },
       ],
     },
     {
@@ -181,9 +229,19 @@ const CASA_VOSTRA: BrandInbox = {
         image: PHOTO.ravioli,
         caption: 'Ravioli, filled by hand this morning. Thursday lunch at Raffles City.',
       },
-      drafts: [
-        "Hi Sarah! Yes, it's filled with ricotta and spinach, finished with sage butter. Fully vegetarian 🌿",
-        "It is! Ricotta, spinach and a little lemon, made by hand every morning. Ask the team and they'll point out the other vegetarian pastas too.",
+      replies: [
+        {
+          direction: 'Answer directly',
+          text: "Hi Sarah! Yes, it's filled with ricotta and spinach, finished with sage butter. Fully vegetarian 🌿",
+        },
+        {
+          direction: 'Answer with other options',
+          text: 'It is! Ricotta, spinach and a little lemon, made by hand every morning. The cacio e pepe and the aubergine pasta are vegetarian too, and the team will point them out.',
+        },
+        {
+          direction: 'Answer and invite them in',
+          text: "Yes, Sarah: ricotta and spinach with sage butter, fully vegetarian. It's on the board every Thursday lunch at Raffles City. Come and try it this week 🌿",
+        },
       ],
     },
     {
@@ -198,9 +256,16 @@ const CASA_VOSTRA: BrandInbox = {
         image: PHOTO.pasta,
         caption: 'Pasta by hand, every morning, in the window at Raffles City.',
       },
-      drafts: [
-        "Lunch and dinner on the same day, that's the spirit, Daryl! We're so happy you came back 😄",
-        'The window does that to people! Thank you for coming back. Next time, say hi to the pasta team.',
+      replies: [
+        { direction: 'Say thank you', text: "Thank you, Daryl! We're so happy you came back 😄" },
+        {
+          direction: 'Share the joke',
+          text: "Lunch and dinner on the same day, that's the spirit, Daryl! The window does that to people 😄",
+        },
+        {
+          direction: 'Introduce the pasta team',
+          text: "The window does that to people! Thank you for coming back, Daryl. Next time, say hi to the pasta team: they'd love to show you how the ravioli is folded.",
+        },
       ],
     },
     {
@@ -215,9 +280,19 @@ const CASA_VOSTRA: BrandInbox = {
         image: PHOTO.tagliatelle,
         caption: 'Five pastas, one dough. Which one are you ordering?',
       },
-      drafts: [
-        "We do! Gluten-free penne, with any of our sauces. Just tell the team when you order and we'll cook it separately 💛",
-        "Yes, gluten-free penne is on the menu every day. Let us know when you book and we'll take good care of you.",
+      replies: [
+        {
+          direction: 'Answer directly',
+          text: 'We do! Gluten-free penne, with any of our sauces 💛',
+        },
+        {
+          direction: 'Answer and reassure',
+          text: "We do! Gluten-free penne, with any of our sauces. Just tell the team when you order and we'll cook it in its own pot and water, away from the other pasta 💛",
+        },
+        {
+          direction: 'Answer and invite to book',
+          text: "Yes, gluten-free penne is on the menu every day, with any sauce. Let us know when you book and we'll take good care of you.",
+        },
       ],
     },
     {
@@ -228,9 +303,19 @@ const CASA_VOSTRA: BrandInbox = {
       text: 'Just wanted to say Andrea who served us on Sunday was so lovely with our kids. Thank you!',
       minutes: 1380,
       tone: 'praise',
-      drafts: [
-        "Priya, thank you so much! We'll make sure Andrea hears this, it will make her week. We hope to see the whole family again soon 💛",
-        "This is so kind of you, thank you. We've passed it on to Andrea. Your little ones are welcome at our table any time.",
+      replies: [
+        {
+          direction: 'Say thank you',
+          text: 'Priya, thank you so much! Messages like this are why we do it 💛',
+        },
+        {
+          direction: 'Pass it on to Andrea',
+          text: "Priya, thank you so much! We'll make sure Andrea hears this, it will make her week.",
+        },
+        {
+          direction: 'Invite the family back',
+          text: "This is so kind of you, thank you. We've passed it on to Andrea. Your little ones are welcome at our table any time, and there's always a bowl of pasta for them 💛",
+        },
       ],
     },
     {
@@ -241,7 +326,7 @@ const CASA_VOSTRA: BrandInbox = {
       text: '😍😍😍',
       minutes: 12,
       tone: 'praise',
-      drafts: [],
+      replies: [],
     },
     {
       id: 'cv-n2',
@@ -251,7 +336,7 @@ const CASA_VOSTRA: BrandInbox = {
       text: 'Want 10k real followers? DM us now 💯🚀',
       minutes: 50,
       tone: 'noise',
-      drafts: [],
+      replies: [],
     },
     {
       id: 'cv-n3',
@@ -261,7 +346,7 @@ const CASA_VOSTRA: BrandInbox = {
       text: '@benlowyh we need to go',
       minutes: 95,
       tone: 'noise',
-      drafts: [],
+      replies: [],
     },
     {
       id: 'cv-n4',
@@ -271,7 +356,7 @@ const CASA_VOSTRA: BrandInbox = {
       text: '🔥🔥',
       minutes: 140,
       tone: 'praise',
-      drafts: [],
+      replies: [],
     },
     {
       id: 'cv-n5',
@@ -281,7 +366,7 @@ const CASA_VOSTRA: BrandInbox = {
       text: '👏👏',
       minutes: 400,
       tone: 'praise',
-      drafts: [],
+      replies: [],
     },
   ],
 }
@@ -307,9 +392,19 @@ const TEMPER: BrandInbox = {
         image: '/demo/temper/pour.jpg',
         caption: 'Not dinner yet, not quite a nightcap. The pour that starts the in-between.',
       },
-      drafts: [
-        "Marcus, that's not how a glass at Temper should go, and a shrug is not an answer. We're sorry. Could you DM us the night you came in? Sam, our venue manager, will look into it and pour the next one himself.",
-        "Thank you for telling us, Marcus. Every glass of the same wine should be the same pour, and you deserved a proper answer. Send us a DM and we'll put it right.",
+      replies: [
+        {
+          direction: 'Apologise and invite to DM',
+          text: "Marcus, that's not how a glass at Temper should go, and a shrug is not an answer. We're sorry. Could you DM us the night you came in? We'd like to understand what happened.",
+        },
+        {
+          direction: 'Offer to make it right',
+          text: "Marcus, we're sorry. Every glass of the same wine should be the same pour, and you deserved a proper answer. Come back and the next glass is on us: Sam, our venue manager, will pour it himself.",
+        },
+        {
+          direction: 'Explain the pour',
+          text: "Marcus, thank you for telling us, and we're sorry about the shrug. A few wines on the list are poured smaller by design (the fortified and the sweeter ones come as 75 ml), but that should be on the list and explained at the table. We'd like to pour you a proper glass next time, on us.",
+        },
       ],
       sendTo: 'Sam Lee',
     },
@@ -321,9 +416,19 @@ const TEMPER: BrandInbox = {
       text: "We had the 8pm table on Friday and the music was so loud we couldn't hear each other. Asked twice to turn it down.",
       minutes: 160,
       tone: 'complaint',
-      drafts: [
-        "Claire, we're sorry. Friday should have been good wine and good conversation, and you shouldn't have had to ask twice. We've shared this with Sam, our venue manager. Next time, ask for the corner banquette: it's the quiet side of the room, and the first glass is on us.",
-        "Thank you for the honest note, Claire. The room gets lively on Fridays, but never so loud you can't talk. Sam is looking at the volume after 8pm, and we'd love to have you back on a calmer night.",
+      replies: [
+        {
+          direction: 'Offer a quieter table',
+          text: "Claire, we're sorry. Friday should have been good wine and good conversation, and you shouldn't have had to ask twice. Next time, ask for the corner banquette: it's the quiet side of the room, and the first glass is on us.",
+        },
+        {
+          direction: 'Explain and apologise',
+          text: "Thank you for the honest note, Claire. The room gets lively on Fridays, but never so loud you can't talk, and asking twice is twice too many. Sam, our venue manager, is looking at the volume after 8pm. We'd love to have you back on a calmer night.",
+        },
+        {
+          direction: 'Ask for more detail',
+          text: "Claire, we're sorry, and thank you for telling us. Could you tell us which part of the room you were in? It helps us find out who was on the floor and why the music stayed up. Either way, the next glass is on us.",
+        },
       ],
       sendTo: 'Sam Lee',
     },
@@ -353,9 +458,19 @@ const TEMPER: BrandInbox = {
           minutes: 1475,
         },
       ],
-      drafts: [
-        '24 is fine, Natasha. The back room takes 24 around the long table, and the minimum spend stays at $2,500. Shall we hold the 24th under your name?',
-        "No problem at all. We'll set the room for 24, same minimum spend. Send us an email address and we'll send the menu and hold the date.",
+      replies: [
+        {
+          direction: 'Say yes',
+          text: '24 is fine, Natasha. The back room takes 24 around the long table, and the minimum spend stays at $2,500.',
+        },
+        {
+          direction: 'Say yes, hold the date',
+          text: '24 is fine, Natasha. The back room takes 24 around the long table, same minimum spend. Shall we hold the 24th under your name?',
+        },
+        {
+          direction: 'Say yes, send the menu',
+          text: "No problem at all. We'll set the room for 24, same minimum spend. Send us an email address and we'll send the menu and the wine pairings, and hold the date.",
+        },
       ],
     },
     {
@@ -367,9 +482,19 @@ const TEMPER: BrandInbox = {
       minutes: 90,
       tone: 'praise',
       post: { image: PIN('tp-p-2'), caption: 'Wednesdays are for this.' },
-      drafts: [
-        "That's the hour we built the room for. Elise says thank you, and that she has another one waiting for you 🍷",
-        'So glad you liked it, Joanne. Come back for the next bottle, Elise is already thinking about it.',
+      replies: [
+        {
+          direction: 'Say thank you',
+          text: "That's the hour we built the room for. Thank you, Joanne 🍷",
+        },
+        {
+          direction: 'Thank them from Elise',
+          text: 'Elise says thank you, and that she has another one waiting for you 🍷 So glad you liked it, Joanne.',
+        },
+        {
+          direction: 'Ask to share their post',
+          text: 'Thank you, Joanne 🍷 Could we share your post on our page? Elise would love people to see what she picked.',
+        },
       ],
     },
     {
@@ -384,9 +509,16 @@ const TEMPER: BrandInbox = {
         image: '/demo/temper/room.jpg',
         caption: 'Lights down, records on, second bottle open.',
       },
-      drafts: [
-        'No dress code, just come as you are. The lights are low anyway 😉',
-        'None at all. Smart, casual, straight from work: all welcome on Duxton.',
+      replies: [
+        { direction: 'Answer directly', text: 'No dress code. Come as you are.' },
+        {
+          direction: 'Answer with a wink',
+          text: 'No dress code, just come as you are. The lights are low anyway 😉',
+        },
+        {
+          direction: 'Answer and invite them in',
+          text: "None at all. Smart, casual, straight from work: all welcome on Duxton. Come by on a Wednesday, it's the quiet night.",
+        },
       ],
     },
     {
@@ -401,9 +533,16 @@ const TEMPER: BrandInbox = {
         image: '/demo/temper/glass.jpg',
         caption: "Six bottles we can't stop opening this month.",
       },
-      drafts: [
-        "No fight needed, Adrian. We'll pour you a glass instead 🍷",
-        'We may be biased, but we agree. Thank you! Come try the new arrivals this week.',
+      replies: [
+        { direction: 'Say thank you', text: 'Thank you, Adrian 🍷' },
+        {
+          direction: 'Play along',
+          text: "No fight needed, Adrian. We'll pour you a glass instead 🍷",
+        },
+        {
+          direction: 'Invite them to new arrivals',
+          text: 'We may be biased, but we agree. Thank you! Six new bottles landed this week: come and tell us if the list still holds up.',
+        },
       ],
     },
     {
@@ -418,9 +557,16 @@ const TEMPER: BrandInbox = {
         image: PHOTO.dish,
         caption: 'Fire first, then wine. Ask the floor what to open with this one.',
       },
-      drafts: [
-        'We do: $50 a bottle, waived for every bottle you buy from our list. Bring something special!',
-        "Yes, $50 a bottle, and we'll waive one for each bottle from our list. We'd love to see what you bring.",
+      replies: [
+        { direction: 'Answer directly', text: 'We do: $50 a bottle.' },
+        {
+          direction: 'Answer and explain the waiver',
+          text: 'We do: $50 a bottle, waived for every bottle you buy from our list. Bring something special!',
+        },
+        {
+          direction: "Ask what they'd bring",
+          text: "Yes, $50 a bottle, and we'll waive one for each bottle from our list. What are you thinking of bringing? Elise, our sommelier, can pick something to sit beside it.",
+        },
       ],
     },
     {
@@ -431,7 +577,7 @@ const TEMPER: BrandInbox = {
       text: '🍷🍷',
       minutes: 20,
       tone: 'praise',
-      drafts: [],
+      replies: [],
     },
     {
       id: 'tp-n2',
@@ -441,7 +587,7 @@ const TEMPER: BrandInbox = {
       text: 'Collab? Check our bio for cheap sponsored posts!!',
       minutes: 75,
       tone: 'noise',
-      drafts: [],
+      replies: [],
     },
     {
       id: 'tp-n3',
@@ -451,7 +597,7 @@ const TEMPER: BrandInbox = {
       text: '@joannelau this one',
       minutes: 110,
       tone: 'noise',
-      drafts: [],
+      replies: [],
     },
     {
       id: 'tp-n4',
@@ -461,7 +607,7 @@ const TEMPER: BrandInbox = {
       text: '😍',
       minutes: 260,
       tone: 'praise',
-      drafts: [],
+      replies: [],
     },
   ],
 }
@@ -483,9 +629,19 @@ const CARLITOS: BrandInbox = {
       text: "Found a hair in my patatas bravas last night. The server replaced it but didn't even say sorry.",
       minutes: 30,
       tone: 'complaint',
-      drafts: [
-        "Kevin, we're very sorry. That should never reach your table, and you deserved an apology on the spot. Lucía, our head chef, is going through it with the kitchen today. Could you tell us which table you were at? Your next round of bravas is on us.",
-        "Hi Kevin, thank you for telling us, and we're sorry, both for the dish and for how it was handled. We've passed it straight to the kitchen. Please send your booking name so we can invite you back properly.",
+      replies: [
+        {
+          direction: 'Apologise and ask which table',
+          text: "Kevin, we're very sorry. That should never reach your table, and you deserved an apology on the spot. Could you tell us which table you were at and roughly what time? We want to find out exactly what happened.",
+        },
+        {
+          direction: 'Offer to make it right',
+          text: "Kevin, we're very sorry, both for the dish and for how it was handled. Your next round of bravas, and the drinks that go with them, are on us. Send us your name and we'll have the table ready whenever you like.",
+        },
+        {
+          direction: 'Explain what happens next',
+          text: "Kevin, thank you for telling us, and we're sorry. Lucía, our head chef, is going through it with the kitchen today, and Javier is speaking to the server about the apology you didn't get. Please come back and let us do it properly.",
+        },
       ],
       sendTo: 'Lucía Romero',
     },
@@ -501,9 +657,19 @@ const CARLITOS: BrandInbox = {
         image: '/demo/carlitos/pintxos.jpg',
         caption: 'Friday is pintxos night. Pick from the counter, pay by the stick.',
       },
-      drafts: [
-        "Grace, we're sorry, we really do want you here! Saturday evenings get busy and we missed your calls. Send us a DM with the time and number of people, and Javier will confirm your table himself.",
-        "We're sorry, Grace, that's frustrating. Please DM us and we'll book you in for Saturday right away. Online booking is also open on our website, any time.",
+      replies: [
+        {
+          direction: 'Apologise and book them in',
+          text: "Grace, we're sorry, we really do want you here! Send us a DM with the time and number of people, and Javier will confirm your table himself.",
+        },
+        {
+          direction: 'Explain and apologise',
+          text: "Grace, we're sorry. On Saturday evenings the phone sits behind the bar and the team can't always hear it over the room, which is our problem to fix, not yours. Send us a DM and we'll book you in right away.",
+        },
+        {
+          direction: 'Point to online booking',
+          text: "We're sorry, Grace, that's frustrating. Online booking is open on our website any time, and it reaches the floor faster than the phone on a busy night. Or DM us the time and we'll do it for you.",
+        },
       ],
       sendTo: 'Javier Ortega',
     },
@@ -519,9 +685,16 @@ const CARLITOS: BrandInbox = {
         image: '/demo/carlitos/croquetas.jpg',
         caption: 'Crisp outside, molten inside. Our croquetas de jamón, made by hand.',
       },
-      drafts: [
-        "Hola Farah! These ones are jamón, so yes, pork. But our mushroom croquetas and the gambas al ajillo are pork-free. Just ask the team and they'll guide you.",
-        'Good question! The jamón croquetas have pork, the mushroom ones do not. We have plenty of pork-free tapas too: the team will show you.',
+      replies: [
+        { direction: 'Answer directly', text: 'Hola Farah! These ones are jamón, so yes, pork.' },
+        {
+          direction: 'Name the pork-free options',
+          text: "Hola Farah! These ones are jamón, so yes, pork. But our mushroom croquetas and the gambas al ajillo are pork-free. Just ask the team and they'll guide you.",
+        },
+        {
+          direction: 'Answer and invite them in',
+          text: 'Good question! The jamón croquetas have pork, the mushroom ones do not, and about half the menu is pork-free. Come by and the team will walk you through it.',
+        },
       ],
     },
     {
@@ -533,9 +706,16 @@ const CARLITOS: BrandInbox = {
       minutes: 70,
       tone: 'praise',
       post: { image: PIN('ca-p-4'), caption: 'Tapas Tuesday 🇪🇸' },
-      drafts: [
-        "¡Gracias, Nicole! Shh, don't tell everyone 🤫 See you at the bar soon.",
-        'You made our night! 🤤 Next time, try them with a glass of vermut. ¡Salud!',
+      replies: [
+        { direction: 'Say thank you', text: '¡Gracias, Nicole! 🤤 See you at the bar soon.' },
+        {
+          direction: 'Play along',
+          text: "¡Gracias, Nicole! Shh, don't tell everyone 🤫 Next time, try them with a glass of vermut.",
+        },
+        {
+          direction: 'Ask to share their video',
+          text: "You made our night, Nicole! Could we share your video on our page? We'll credit you. ¡Salud!",
+        },
       ],
     },
     {
@@ -546,9 +726,16 @@ const CARLITOS: BrandInbox = {
       text: 'Do you have flamenco this Friday? Want to bring my parents for their anniversary',
       minutes: 150,
       tone: 'question',
-      drafts: [
-        'Hola Ryan! Yes, flamenco starts at 8pm on Friday. How lovely, an anniversary! Send us the number of people and we will save a table close to the stage 💃',
-        "We do! The show starts at 8pm. Tell us how many of you are coming, and we'll make it special for your parents.",
+      replies: [
+        { direction: 'Answer directly', text: 'Hola Ryan! Yes, flamenco starts at 8pm on Friday.' },
+        {
+          direction: 'Answer and save a table',
+          text: 'Hola Ryan! Yes, flamenco starts at 8pm on Friday. Send us the number of people and we will save a table close to the stage 💃',
+        },
+        {
+          direction: 'Make it special',
+          text: "We do! The show starts at 8pm. An anniversary deserves the table by the stage and a glass of cava to start, on us. Tell us how many of you are coming and we'll make it special for your parents.",
+        },
       ],
     },
     {
@@ -563,9 +750,13 @@ const CARLITOS: BrandInbox = {
         image: '/demo/carlitos/bravas.jpg',
         caption: 'Crisp potatoes, smoky brava, cold alioli. The tapa every table orders twice.',
       },
-      drafts: [
-        'Twice is the rule here 😄 ¡Gracias, Zhi Hao!',
-        'That is exactly how bravas should be ordered. Thank you, see you soon!',
+      replies: [
+        { direction: 'Say thank you', text: '¡Gracias, Zhi Hao!' },
+        { direction: 'Play along', text: 'Twice is the rule here 😄 ¡Gracias, Zhi Hao!' },
+        {
+          direction: 'Invite them back',
+          text: 'That is exactly how bravas should be ordered. Thank you, Zhi Hao! Pintxos night is Friday, if you need a reason to come back.',
+        },
       ],
     },
     {
@@ -580,9 +771,16 @@ const CARLITOS: BrandInbox = {
         image: '/demo/carlitos/jamon.jpg',
         caption: 'Slicing jamón, one breath at a time.',
       },
-      drafts: [
-        'Of course! Weeknights are walk-in friendly. Come by, the bar seats are first come, first served 🍷',
-        'Always! Monday to Thursday, walk right in. Weekends, best to book.',
+      replies: [
+        { direction: 'Answer directly', text: 'Of course! Weeknights are walk-in friendly.' },
+        {
+          direction: 'Answer and mention weekends',
+          text: "Always! Monday to Thursday, walk right in. Weekends it's best to book, the bar fills up by 7.",
+        },
+        {
+          direction: 'Answer and invite them in',
+          text: 'Of course! Weeknights are walk-in friendly, and the bar seats are first come, first served. Come by on a Tuesday for tapas night 🍷',
+        },
       ],
     },
     {
@@ -593,7 +791,7 @@ const CARLITOS: BrandInbox = {
       text: '🤤🤤🤤',
       minutes: 15,
       tone: 'praise',
-      drafts: [],
+      replies: [],
     },
     {
       id: 'ca-n2',
@@ -603,7 +801,7 @@ const CARLITOS: BrandInbox = {
       text: 'Earn $500 a day from home, link in bio',
       minutes: 60,
       tone: 'noise',
-      drafts: [],
+      replies: [],
     },
     {
       id: 'ca-n3',
@@ -613,7 +811,7 @@ const CARLITOS: BrandInbox = {
       text: '@amandaxy friday??',
       minutes: 200,
       tone: 'noise',
-      drafts: [],
+      replies: [],
     },
     {
       id: 'ca-n4',
@@ -623,7 +821,7 @@ const CARLITOS: BrandInbox = {
       text: '👍',
       minutes: 500,
       tone: 'praise',
-      drafts: [],
+      replies: [],
     },
   ],
 }

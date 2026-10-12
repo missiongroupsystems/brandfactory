@@ -43,11 +43,6 @@ export function nextAfter(open: InboxMessage[], id: string): string | null {
   return open[i + 1]?.id ?? open[i - 1]?.id ?? null
 }
 
-/** The draft Regenerate shows on its nth press: round the brand's drafts, then again. */
-export function draftAt(m: InboxMessage, n: number): string {
-  return m.drafts.length ? m.drafts[n % m.drafts.length]! : ''
-}
-
 /** The whole thread, oldest first, ending with the message the reply answers. */
 export function conversation(m: InboxMessage): InboxEarlier[] {
   return [...(m.earlier ?? []), { from: 'them', text: m.text, minutes: m.minutes }]

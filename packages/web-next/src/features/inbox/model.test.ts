@@ -2,17 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { INBOX_BY_BRAND, type InboxMessage } from '@/data/inbox'
 
-import {
-  ago,
-  conversation,
-  draftAt,
-  firstNames,
-  isNoise,
-  nextAfter,
-  queue,
-  stamp,
-  stamps,
-} from './model'
+import { ago, conversation, firstNames, isNoise, nextAfter, queue, stamp, stamps } from './model'
 
 const msg = (fields: Partial<InboxMessage> & Pick<InboxMessage, 'id'>): InboxMessage => ({
   platform: 'ig',
@@ -21,7 +11,7 @@ const msg = (fields: Partial<InboxMessage> & Pick<InboxMessage, 'id'>): InboxMes
   text: 'Lovely dinner',
   minutes: 10,
   tone: 'praise',
-  drafts: ['Thank you!', 'So glad you came!'],
+  replies: [{ direction: 'Say thank you', text: 'Thank you!' }],
   ...fields,
 })
 
@@ -78,15 +68,6 @@ describe('clearing the inbox', () => {
     expect(nextAfter([open[0]!], 'a')).toBeNull()
   })
 
-  it('goes round the drafts on Regenerate', () => {
-    const m = msg({ id: 'a' })
-    expect([0, 1, 2].map((n) => draftAt(m, n))).toEqual([
-      'Thank you!',
-      'So glad you came!',
-      'Thank you!',
-    ])
-  })
-
   it('says how long ago a message came in, the way the apps do', () => {
     expect([25, 130, 1380].map(ago)).toEqual(['25m', '2h', '23h'])
     expect(ago(2 * 24 * 60)).toBe('2d')
@@ -95,10 +76,17 @@ describe('clearing the inbox', () => {
 
 describe('the demo data', () => {
   it.each(Object.entries(INBOX_BY_BRAND))(
-    '%s: every real message has a draft and every complaint names a real person',
+    '%s: every real message has three short directions to reply, and every complaint names a real person',
     (_, inbox) => {
       for (const m of inbox.messages) {
-        if (!isNoise(m)) expect(m.drafts.length).toBeGreaterThan(0)
+        if (isNoise(m)) continue
+        // Three choices, as a dialogue gives them: each a short label with its own reply.
+        expect(m.replies).toHaveLength(3)
+        expect(new Set(m.replies.map((r) => r.direction)).size).toBe(3)
+        for (const r of m.replies) {
+          expect(r.direction.split(' ').length).toBeLessThanOrEqual(5)
+          expect(r.text.length).toBeGreaterThan(10)
+        }
         if (m.tone === 'complaint') {
           expect(inbox.people.map((p) => p.name)).toContain(m.sendTo)
         }
