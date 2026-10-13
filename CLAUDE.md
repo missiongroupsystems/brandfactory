@@ -52,7 +52,7 @@ pnpm vitest run -t "puts a story in the story row"
 
 ## Architecture
 
-The repository is a pnpm workspaces monorepo with two packages:
+The repository is a pnpm workspaces monorepo with three packages:
 
 - `packages/web-next` (`@brandfactory/web-next`) is brand base: a UI-only Next.js 16 demo with
   static data and no server. It imports no other package. Its publish rules live in
@@ -60,6 +60,10 @@ The repository is a pnpm workspaces monorepo with two packages:
   `src/features/schedule/posts-store.tsx`. The folder keeps the name `web-next` because the
   Vercel project's Root Directory is `packages/web-next`; do not rename it without changing
   that setting.
+- `packages/server` (`@brandfactory/server`) is the BrandBase API: Hono and Drizzle, PGlite locally
+  and in tests, the archive's Supabase Postgres in a deployment (tables in the `brandbase`
+  schema). It imports no other package; its seed script reads `web-next`'s data files to load the
+  demo (see its README).
 - `packages/connect` (`@brandfactory/connect`) links each brand's social accounts (Meta,
   Pinterest, TikTok) by OAuth, with tokens encrypted per brand. It is separate from the demo and
   imports no other package (see its README).
