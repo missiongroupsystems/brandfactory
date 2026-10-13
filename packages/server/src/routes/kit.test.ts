@@ -76,3 +76,18 @@ describe('the brand kit', () => {
     expect(next.data).toMatchObject({ title: 'Brand book', name: 'book-v4.pdf', kind: 'pdf' })
   })
 })
+
+describe('the TikTok defaults', () => {
+  it('keeps the answers that start the next post', async () => {
+    const { call } = await kit()
+    const answers = {
+      privacy: 'Friends',
+      interactions: { comments: false, duet: false, stitch: false },
+      promo: { on: false, own: false, paid: false },
+      sound: 'library',
+    }
+    await call('PUT', '/brands/casa/tiktok-defaults', answers)
+    const state = await call('GET', '/brands/casa/state')
+    expect(state.data.brand.tiktokDefaults).toEqual(answers)
+  })
+})

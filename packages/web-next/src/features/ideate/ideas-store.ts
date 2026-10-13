@@ -3,6 +3,8 @@
 import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
+import { newId, onState, push, remote, request } from '@/lib/remote'
+import { dateOf, dayNOf } from '@/lib/remote-days'
 import {
   coverOf,
   IDEAS_BY_BRAND,
@@ -63,6 +65,71 @@ function subscribe(listener: () => void) {
 function update(brandId: BrandId, fn: (s: BrandIdeasState) => BrandIdeasState) {
   state = { ...state, [brandId]: fn(state[brandId]) }
   listeners.forEach((l) => l())
+}
+
+// ── The server ───────────────────────────────────────────────────────────────────────────────
+
+/** A card as the server keeps it. `dayN` is a suggestion's proposed day; a tile's day is the calendar's. */
+function cardRow(card: IdeaCard) {
+  return {
+    id: card.id,
+    format: card.format,
+    pillar: card.pillar,
+    hook: card.hook,
+    angle: card.angle,
+    feature: card.feature,
+    image: card.image ?? null,
+    source: card.source,
+    status: card.status === 'suggested' ? 'suggested' : 'idea',
+    inspiration: card.inspiration,
+    shots: card.shots,
+    cut: card.cut ?? null,
+    sharper: card.sharper,
+    builtOn: card.builtOn ?? null,
+    ...(card.status === 'suggested' && card.dayN ? { day: dateOf(card.dayN) } : {}),
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function cardOf(row: any): IdeaCard {
+  const dayN = row.status === 'suggested' ? dayNOf(row.day) : null
+  return {
+    id: row.id,
+    format: row.format,
+    pillar: row.pillar,
+    hook: row.hook,
+    angle: row.angle,
+    feature: row.feature,
+    ...(row.image && { image: row.image }),
+    source: row.source,
+    status: row.status,
+    ...(dayN && { dayN }),
+    ...(row.postId && { postId: row.postId }),
+    inspiration: row.inspiration,
+    shots: row.shots,
+    ...(row.cut && { cut: row.cut }),
+    sharper: row.sharper,
+    ...(row.builtOn && { builtOn: row.builtOn }),
+  }
+}
+
+if (remote) {
+  onState((brandId, s) =>
+    update(brandId as BrandId, (b) => ({ ...b, ideas: (s.ideas as unknown[]).map(cardOf) })),
+  )
+}
+
+const send = (brandId: BrandId, method: string, path: string, body?: unknown) =>
+  push(brandId, () => request(method, `/brands/${brandId}/ideas${path}`, body))
+
+/** The guest share page: the one brief the link opens, as the server shows it to a guest. */
+export function showIdeas(brandId: BrandId, cards: IdeaCard[]) {
+  update(brandId, (s) => ({ ...s, ideas: cards }))
+}
+
+/** The id of the brand's idea with these words: the calendar knows a tile by its hook. */
+export function ideaIdOfHook(brandId: BrandId, hook: string): string | undefined {
+  return state[brandId].ideas.find((i) => i.hook === hook)?.id
 }
 
 function patch(brandId: BrandId, id: string, fields: Partial<IdeaCard>) {
@@ -169,11 +236,14 @@ export function addIdea(
   card: Omit<IdeaCard, 'id' | 'source' | 'status'>,
   source: IdeaSource,
 ): string {
-  const id = `${brandId}-new-${++serial}`
-  update(brandId, (s) => ({
-    ...s,
-    ideas: [...s.ideas, { ...card, id, source, status: 'idea' }],
-  }))
+  const id = remote ? newId() : `${brandId}-new-${++serial}`
+  const made: IdeaCard = { ...card, id, source, status: 'idea' }
+  update(brandId, (s) => ({ ...s, ideas: [...s.ideas, made] }))
+  send(brandId, 'POST', '', {
+    ...cardRow(made),
+    // An idea made from a tile or a moment lands on its day.
+    ...(card.dayN ? { day: dateOf(card.dayN) } : {}),
+  })
   return id
 }
 
@@ -225,6 +295,7 @@ export function disconnectSource(brandId: BrandId, source: MoodSource) {
 /** A suggestion becomes one of the team's ideas. */
 export function keepSuggestion(brandId: BrandId, id: string) {
   patch(brandId, id, { status: 'idea' })
+  send(brandId, 'PATCH', `/${id}`, { status: 'idea' })
 }
 
 export function skipSuggestion(brandId: BrandId, id: string) {
@@ -232,10 +303,12 @@ export function skipSuggestion(brandId: BrandId, id: string) {
     const ideas = s.ideas.filter((i) => i.id !== id)
     return { ...s, ideas }
   })
+  send(brandId, 'DELETE', `/${id}`)
 }
 
 export function setHook(brandId: BrandId, id: string, hook: string) {
   patch(brandId, id, { hook })
+  send(brandId, 'PATCH', `/${id}`, { hook })
 }
 
 /** What an idea's page edits on a card: its words, its references, its shots, and the post it became. */
@@ -255,12 +328,23 @@ export function editIdea(
   id: string,
   fields: IdeaEdit | ((card: IdeaCard) => IdeaEdit),
 ) {
+  const before = state[brandId].ideas.find((i) => i.id === id)
   update(brandId, (s) => ({
     ...s,
     ideas: s.ideas.map((i) =>
       i.id === id ? { ...i, ...(typeof fields === 'function' ? fields(i) : fields) } : i,
     ),
   }))
+  const after = state[brandId].ideas.find((i) => i.id === id)
+  if (!before || !after) return
+  // Only the card's own words and lists go to the server; its post and shoot day are links the
+  // server keeps itself.
+  const changed = Object.fromEntries(
+    (['hook', 'angle', 'feature', 'inspiration', 'shots', 'cut'] as const)
+      .filter((k) => before[k] !== after[k])
+      .map((k) => [k, after[k] ?? null]),
+  )
+  if (Object.keys(changed).length > 0) send(brandId, 'PATCH', `/${id}`, changed)
 }
 
 /** The day a card was sent to on the calendar. */

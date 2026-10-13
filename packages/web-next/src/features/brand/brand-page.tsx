@@ -5,9 +5,18 @@ import * as React from 'react'
 import { AppHeader } from '@/components/app-header'
 import type { BrandFile, FileKind } from '@/data/brand-kit'
 import { useBrand } from '@/features/schedule/posts-store'
+import { remote, report, upload as uploadFile } from '@/lib/remote'
+import { mediaItem } from '@/lib/remote-days'
 
 import { BrandLogo } from './brand-logo'
-import { editFiles, editKit, newFileId, useBrandFiles, useBrandKit } from './brand-store'
+import {
+  attachFile,
+  editFiles,
+  editKit,
+  newFileId,
+  useBrandFiles,
+  useBrandKit,
+} from './brand-store'
 import { ColoursEditable } from './kit-colours'
 import { EYEBROW, QUIET, Section } from './kit-parts'
 import { removed, renamed, replaced, uploaded } from './model'
@@ -112,7 +121,13 @@ function LogoSection() {
             aria-label="Upload a new logo"
             onChange={(e) => {
               const file = e.target.files?.[0]
-              if (file) {
+              if (file && remote) {
+                // Kept on the server; the kit takes the stored file's address once it is up.
+                void uploadFile(brand.id, file).then(
+                  (src) => editKit(brand.id, (k) => ({ ...k, logo: { src, name: file.name } })),
+                  () => report('The logo did not upload.'),
+                )
+              } else if (file) {
                 const src = URL.createObjectURL(file)
                 editKit(brand.id, (k) => {
                   // The old upload has no other reader once it is replaced.
@@ -167,6 +182,7 @@ function Files() {
     const id = newFileId(brand.id)
     editFiles(brand.id, (f) => uploaded(f, file.name, id))
     setEditing(id)
+    if (remote) keepFile(id, file)
   }
 
   function onReplace(list: FileList | null) {
@@ -174,6 +190,18 @@ function Files() {
     const id = replacing.current
     if (!file || !id) return
     editFiles(brand.id, (f) => replaced(f, id, file.name))
+    if (remote) keepFile(id, file)
+  }
+
+  /** The file itself goes to storage, and its row then points at it. */
+  function keepFile(id: string, file: File) {
+    void uploadFile(brand.id, file).then(
+      (src) => {
+        const mediaId = mediaItem(src).mediaId
+        if (mediaId) attachFile(brand.id, id, file.name, mediaId)
+      },
+      () => report(`${file.name} did not upload.`),
+    )
   }
 
   return (

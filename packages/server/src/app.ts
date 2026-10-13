@@ -6,8 +6,9 @@ import { type AuthProvider } from './auth'
 import { brandsOf, requireBrand } from './authz'
 import { type AppEnv } from './context'
 import { type Db } from './db/client'
-import { type crew, type shoots, users } from './db/schema'
-import { ZodError } from 'zod'
+import { brands, type crew, type shoots, users } from './db/schema'
+import { z, ZodError } from 'zod'
+import { body } from './http'
 import { HttpError, deactivated, noAccount, notFound, unauthorized } from './errors'
 import { connectionRoutes } from './routes/connections'
 import { ideaRoutes } from './routes/ideas'
@@ -148,6 +149,24 @@ export function createApp(deps: Deps) {
     await next()
   })
   brand.route('/state', stateRoute(deps))
+  /** The TikTok answers that start the brand's next post (`saveTikTokDefault`). */
+  brand.put('/tiktok-defaults', async (c) => {
+    const defaults = await body(
+      c,
+      z.object({
+        privacy: z.enum(['Everyone', 'Friends', 'Only me']).nullable(),
+        interactions: z.object({ comments: z.boolean(), duet: z.boolean(), stitch: z.boolean() }),
+        promo: z.object({ on: z.boolean(), own: z.boolean(), paid: z.boolean() }),
+        sound: z.enum(['own', 'library']),
+      }),
+    )
+    const [next] = await deps.db
+      .update(brands)
+      .set({ tiktokDefaults: defaults })
+      .where(eq(brands.id, c.var.brand.id))
+      .returning()
+    return c.json(next!)
+  })
   brand.route('/posts', postRoutes(deps))
   brand.route('/ideas', ideaRoutes(deps))
   brand.route('/shoots', shootRoutes(deps))

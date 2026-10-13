@@ -15,8 +15,12 @@ import {
 import type { Format, Post, Stage, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 import { dayLabel, landingDay } from '@/features/ideate/calendar-slot'
+import { ideaIdOfHook } from '@/features/ideate/ideas-store'
+import { newId, onState, push, remote, request, setActiveBrand } from '@/lib/remote'
+import { dateOf, mediaItem } from '@/lib/remote-days'
 
 import { archiveFor } from './month'
+import { calendarOf, type Saved } from './remote-calendar'
 
 import { movePost as moveInWeeks, moveRefusal, placeStory, slotFor, storyTaken } from './move-post'
 
@@ -45,7 +49,7 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
    * idea tile where the slot was.
    */
   addIdeaToCalendar: (
-    idea: { format: Exclude<Format, 'story'>; hook: string; why: string },
+    idea: { format: Exclude<Format, 'story'>; hook: string; why: string; ideaId?: string },
     preferDayN?: string,
   ) => string | null
   /**
@@ -55,6 +59,8 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
    */
   planPost: (
     idea: {
+      /** The idea's own id, when the caller has it: the server knows an idea by id. */
+      ideaId?: string
       format: Format
       hook: string
       image?: string
@@ -67,6 +73,8 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
   ) => string
   /** Moves a post to a day and a time. False if the move is refused, as a drag would be. */
   reschedule: (id: string, dayN: string, time: string) => boolean
+  /** The caption and draft the composer saved with a post on the server, if any. */
+  saved: (id: string) => Saved[string] | undefined
   /** The composer picked the accounts a post goes to. */
   setChannels: (id: string, channels: NonNullable<Post['channels']>) => void
   /** The brief renamed the idea behind a post; the post says the same words. */
@@ -88,7 +96,13 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
    */
   unplanPost: (id: string, idea: { format: Format; hook: string; why: string }) => void
   placeIdea: (
-    idea: { format: Exclude<Format, 'story'>; hook: string; why: string; suggested?: boolean },
+    idea: {
+      format: Exclude<Format, 'story'>
+      hook: string
+      why: string
+      suggested?: boolean
+      ideaId?: string
+    },
     dayN: string,
   ) => void
 }
@@ -113,14 +127,60 @@ const INITIAL_WEEKS = Object.fromEntries(
   BRAND_CONTENT.map((c) => [c.brand.id, c.weeks]),
 ) as WeeksByBrand
 
+/** A change to one of a brand's posts, sent after every change before it. */
+const sendPost = (brandId: BrandId, method: string, path: string, body?: unknown) =>
+  push(brandId, () => request(method, `/brands/${brandId}/posts${path}`, body))
+
+const sendIdea = (
+  brandId: BrandId,
+  idea: { hook: string; ideaId?: string },
+  path: string,
+  body: unknown,
+) => {
+  const id = idea.ideaId ?? ideaIdOfHook(brandId, idea.hook)
+  if (id) push(brandId, () => request('POST', `/brands/${brandId}/ideas/${id}${path}`, body))
+}
+
 export function BrandProvider({ children }: { children: React.ReactNode }) {
   const [brandId, setBrandIdNow] = React.useState<BrandId>(DEFAULT_BRAND_ID)
   const [postsByBrand, setPostsByBrand] = React.useState<PostsByBrand>(INITIAL_POSTS)
   const [weeksByBrand, setWeeksByBrand] = React.useState<WeeksByBrand>(INITIAL_WEEKS)
+  // What the composer saved with each post, from the server; empty in the static demo.
+  const savedRef = React.useRef<Saved>({})
+  // The posts as they are now, for the callbacks that must not change identity.
+  const postsRef = React.useRef(postsByBrand)
+  React.useEffect(() => {
+    postsRef.current = postsByBrand
+  }, [postsByBrand])
+  const brandOf = (id: string) =>
+    (Object.entries(postsRef.current) as Array<[BrandId, Post[]]>).find(([, ps]) =>
+      ps.some((p) => p.id === id),
+    )
+
+  React.useEffect(() => {
+    setActiveBrand(brandId)
+  }, [brandId])
+
+  // The server's posts and calendar replace the static ones, brand by brand.
+  React.useEffect(() => {
+    if (!remote) return
+    return onState((id, state) => {
+      const { posts, weeks, saved } = calendarOf(id as BrandId, state)
+      savedRef.current = { ...savedRef.current, ...saved }
+      setPostsByBrand((all) => ({ ...all, [id]: posts }))
+      setWeeksByBrand((all) => ({ ...all, [id]: weeks }))
+    })
+  }, [])
 
   // Stable, and a no-op when the stage is already set: the composer calls it from an
   // effect, so a new identity per render, or a new object per call, would loop.
   const setStage = React.useCallback((id: string, stage: Stage) => {
+    const found = brandOf(id)
+    const post = found?.[1].find((p) => p.id === id)
+    // A stage set by hand (decision 3); failed only ever comes from a publish job.
+    if (found && post && post.stage !== stage && post.stage !== 'posted' && stage !== 'failed') {
+      sendPost(found[0], 'POST', `/${id}/mark`, { stage })
+    }
     setPostsByBrand((all) => {
       for (const [brand, posts] of Object.entries(all) as Array<[BrandId, Post[]]>) {
         // Posted is final: what went out is not taken back to a plan, a draft or a schedule.
@@ -156,6 +216,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         ...all,
         [brandId]: all[brandId].map((p) => (p.id === id ? moved : p)),
       }))
+      sendPost(brandId, 'POST', `/${id}/move`, { day: dateOf(toDayN) })
       return true
     },
     [brandId, weeksByBrand, postsByBrand],
@@ -187,6 +248,10 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
           }),
         })),
       }))
+      sendIdea(brandId, idea, '/calendar', {
+        ...(preferDayN && { preferDay: dateOf(preferDayN) }),
+        why: idea.why,
+      })
       return dayLabel(weeks, dayN)
     },
     [brandId, weeksByBrand],
@@ -194,8 +259,30 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
 
   const planPost = React.useCallback<BrandValue['planPost']>(
     (idea, dayN, time, stage) => {
-      const id = `${brandId}-planned-${++planned}`
+      const id = remote ? newId() : `${brandId}-planned-${++planned}`
       const weeks = weeksByBrand[brandId]
+      // On the server: the idea becomes the post, or a post is made when no idea has these words.
+      const ideaId = idea.ideaId ?? ideaIdOfHook(brandId, idea.hook)
+      const media = (idea.images ?? (idea.image ? [idea.image] : [])).map((src) => mediaItem(src))
+      const fields = {
+        day: dateOf(dayN),
+        time,
+        ...(idea.channels && { channels: idea.channels }),
+        ...(media.length > 0 && { media }),
+      }
+      const handStage = stage === 'failed' ? 'draft' : stage
+      if (ideaId) {
+        push(brandId, () =>
+          request('POST', `/brands/${brandId}/ideas/${ideaId}/plan`, {
+            postId: id,
+            stage: handStage,
+            ...fields,
+          }),
+        )
+      } else {
+        sendPost(brandId, 'POST', '', { id, format: idea.format, hook: idea.hook, ...fields })
+        if (handStage !== 'draft') sendPost(brandId, 'POST', `/${id}/mark`, { stage: handStage })
+      }
       // The tile the post replaces: its reason comes back if the post is taken back to an idea.
       const tile = weeks
         .flatMap((w) => w.days.flatMap(feedsOf))
@@ -248,6 +335,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       // Same day, same time: nothing to change. Publish calls this from an effect, so a new
       // array here on every call would loop, as setStage once did.
       if (refusal === 'same-day' && moved.slot === post.slot) return true
+      sendPost(brandId, 'POST', `/${id}/move`, { day: dateOf(dayN), time })
       const posts = postsByBrand[brandId].map((p) => (p.id === id ? moved : p))
       if (!refusal) {
         const next =
@@ -263,6 +351,11 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   )
 
   const setChannels = React.useCallback((id: string, channels: NonNullable<Post['channels']>) => {
+    const found = brandOf(id)
+    const post = found?.[1].find((p) => p.id === id)
+    if (found && post && (post.channels ?? []).join() !== channels.join()) {
+      sendPost(found[0], 'PATCH', `/${id}`, { channels })
+    }
     setPostsByBrand((all) => {
       for (const [brand, posts] of Object.entries(all) as Array<[BrandId, Post[]]>) {
         if (posts.some((p) => p.id === id)) {
@@ -275,6 +368,12 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
 
   // A no-op when the media is already the same: the idea's page calls it from an effect.
   const setImages = React.useCallback((id: string, images: string[]) => {
+    const found = brandOf(id)
+    const post = found?.[1].find((p) => p.id === id)
+    // Posted is final: what went out keeps its media on the server.
+    if (found && post && post.stage !== 'posted' && post.images.join('\n') !== images.join('\n')) {
+      sendPost(found[0], 'PATCH', `/${id}`, { media: images.map((src) => mediaItem(src)) })
+    }
     setPostsByBrand((all) => {
       for (const [brand, posts] of Object.entries(all) as Array<[BrandId, Post[]]>) {
         const post = posts.find((p) => p.id === id)
@@ -289,6 +388,11 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const renamePost = React.useCallback((id: string, hook: string) => {
+    const found = brandOf(id)
+    const post = found?.[1].find((p) => p.id === id)
+    if (found && post && post.hook !== hook && post.stage !== 'posted') {
+      sendPost(found[0], 'PATCH', `/${id}`, { hook })
+    }
     setPostsByBrand((all) => {
       for (const [brand, posts] of Object.entries(all) as Array<[BrandId, Post[]]>) {
         if (posts.some((p) => p.id === id)) {
@@ -328,6 +432,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         why: idea.why,
         ...(idea.suggested ? { suggested: true } : {}),
       }
+      sendIdea(brandId, idea, '/place', { day: dateOf(dayN), why: idea.why })
       setWeeksByBrand((all) => ({
         ...all,
         [brandId]: all[brandId].map((week) => ({
@@ -352,6 +457,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     (id, idea) => {
       const post = postsByBrand[brandId].find((p) => p.id === id)
       if (!post || post.stage === 'posted') return
+      sendPost(brandId, 'DELETE', `/${id}`)
       setWeeksByBrand((all) => ({
         ...all,
         [brandId]: all[brandId].map((week) => ({
@@ -408,6 +514,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       placeIdea,
       unplanPost,
       setChannels,
+      saved: (id) => savedRef.current[id],
       brands: BRANDS,
       setBrandId,
       setStage,

@@ -186,7 +186,10 @@ export async function seed(db: Db) {
         rows.get(card.id)!.day = null
       }
     }
-    if (rows.size > 0) await db.insert(t.ideas).values([...rows.values()])
+    // A millisecond apart, so the ideas read back in the demo's order.
+    const base = Date.parse('2026-10-01T00:00:00Z')
+    const ordered = [...rows.values()].map((r, i) => ({ ...r, createdAt: new Date(base + i) }))
+    if (ordered.length > 0) await db.insert(t.ideas).values(ordered)
 
     // Shoots and their crew. The seed's shoots stand for the team's own (in Lark).
     for (const s of SHOOTS_BY_BRAND[id]) {

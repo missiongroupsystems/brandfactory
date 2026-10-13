@@ -178,7 +178,8 @@ export function guestRoutes(deps: Deps) {
     new Hono()
       .get('/:token', async (c) => {
         const link = await open(c.req.param('token'))
-        const access = { can: link.can }
+        // The brand is no secret: the guest page shows its name and logo.
+        const access = { can: link.can, brandId: link.brandId }
         if (link.kind === 'idea') {
           const [idea] = await db.select().from(ideas).where(eq(ideas.id, link.targetId))
           if (!idea) throw notFound('this link has nothing to show')
@@ -214,7 +215,13 @@ export function guestRoutes(deps: Deps) {
           shoot.ideaIds.length === 0
             ? []
             : await db
-                .select({ id: ideas.id, hook: ideas.hook, shots: ideas.shots })
+                .select({
+                  id: ideas.id,
+                  format: ideas.format,
+                  hook: ideas.hook,
+                  inspiration: ideas.inspiration,
+                  shots: ideas.shots,
+                })
                 .from(ideas)
                 .where(inArray(ideas.id, shoot.ideaIds))
         return c.json({

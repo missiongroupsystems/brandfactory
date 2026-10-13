@@ -8,12 +8,15 @@ import { Sheet } from '@/components/sheet'
 import { usePhone } from '@/components/use-phone'
 
 import {
+  ensureLink,
   setShareAccess,
+  useShareToken,
   shareUrl,
   useShareAccess,
   type ShareAccess,
   type ShareKind,
 } from './comments-store'
+import { remote } from '@/lib/remote'
 
 /**
  * Share, for an idea or a shoot: one link, and who it opens for. Anyone with the link may view,
@@ -28,7 +31,11 @@ export function ShareButton({ kind, id }: { kind: ShareKind; id: string }) {
   const field = React.useRef<HTMLButtonElement>(null)
   const pop = React.useRef<HTMLDivElement>(null)
   // The link is only drawn once the popover is open, which is in the browser.
+  const token = useShareToken(kind, id)
   const url = open ? shareUrl(kind, id, window.location.origin) : ''
+  React.useEffect(() => {
+    if (open) ensureLink(kind, id)
+  }, [open, kind, id])
 
   React.useEffect(() => {
     if (!open || phone) return
@@ -73,7 +80,7 @@ export function ShareButton({ kind, id }: { kind: ShareKind; id: string }) {
           <Choice
             label="What they can do"
             value={access.can}
-            options={CAN}
+            options={remote ? CAN.filter((c) => c.value !== 'edit') : CAN}
             onChange={(can) => setShareAccess(kind, id, { can })}
             className="ml-auto text-[13.5px] text-ink-3"
           />
@@ -90,7 +97,9 @@ export function ShareButton({ kind, id }: { kind: ShareKind; id: string }) {
         </button>
         {/* The same tab, so the demo's memory comes along: what a guest writes shows back here. */}
         <Link
-          href={`/share/${kind}/${id}`}
+          href={`/share/${kind}/${remote ? (token ?? '') : id}`}
+          // With the server on, the guest's view opens apart, so it never mixes with the team's.
+          {...(remote && { target: '_blank', rel: 'noopener' })}
           aria-label="Preview as a guest"
           title="Preview as a guest"
           className="bb-press flex size-10 shrink-0 items-center justify-center rounded-full bg-surface text-ink-2 transition-colors hover:bg-paper hover:text-ink"
@@ -138,6 +147,10 @@ const WHO: { value: ShareAccess['who']; label: string }[] = [
   { value: 'team', label: 'Only the team' },
 ]
 
+/**
+ * With the server on, "Can edit" is left out: a guest's edit page is not built yet, and the
+ * team's page needs a sign-in (decision 6 says to drop the option until it is).
+ */
 const CAN: { value: ShareAccess['can']; label: string }[] = [
   { value: 'view', label: 'Can view' },
   { value: 'comment', label: 'Can comment' },

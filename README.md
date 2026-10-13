@@ -5,11 +5,12 @@ replacement for Brandwatch.
 
 ## What is here
 
-| Path                | What it is                                                                                                                                                     |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/web-next` | The brand base app (`@brandfactory/web-next`). Today a UI-only demo on static data: Schedule, Ideate, Insights. See its [README](packages/web-next/README.md). |
-| `packages/connect`  | The account-connection service: links each brand's Meta, Pinterest and TikTok accounts by OAuth. See its [README](packages/connect/README.md).                 |
-| `docs/`             | Plans, the changelog and reference notes.                                                                                                                      |
+| Path                | What it is                                                                                                                                                                                   |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/web-next` | The brand base app (`@brandfactory/web-next`). A demo on static data, or the real app on `packages/server` when `NEXT_PUBLIC_API_URL` is set. See its [README](packages/web-next/README.md). |
+| `packages/server`   | The BrandBase API: Hono and Drizzle on the archive's Supabase Postgres, PGlite locally. See its [README](packages/server/README.md).                                                         |
+| `packages/connect`  | The account-connection service: links each brand's Meta, Pinterest and TikTok accounts by OAuth. See its [README](packages/connect/README.md).                                               |
+| `docs/`             | Plans, the changelog and reference notes.                                                                                                                                                    |
 
 The demo folder is named `web-next` so the existing Vercel project, whose Root Directory is
 `packages/web-next`, deploys it with no settings change.

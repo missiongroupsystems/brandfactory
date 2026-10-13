@@ -1,0 +1,24 @@
+# The build context of `packages/server/Dockerfile` is the repo root. The Dockerfile copies only
+# what the API needs; this keeps host installs, secrets and noise out of the context.
+node_modules
+**/node_modules
+.env
+.env.*
+!.env.example
+**/.next
+**/.data
+coverage
+*.tsbuildinfo
+.git
+.github
+.husky
+.claude
+docs
+**/*.test.ts
+**/*.test.tsx
+# The other packages' sources are not part of the image; their manifests are, so the workspace
+# install resolves.
+packages/web-next/*
+!packages/web-next/package.json
+packages/connect/*
+!packages/connect/package.json

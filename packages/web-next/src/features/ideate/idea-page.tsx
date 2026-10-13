@@ -243,7 +243,12 @@ function usePlan(slot: Slot): Plan {
     }
     const d = day ?? firstDay()
     if (!d) return
-    const id = planPost({ format: card.format, hook: card.hook, images: media }, d, t, stage)
+    const id = planPost(
+      { ideaId: card.id, format: card.format, hook: card.hook, images: media },
+      d,
+      t,
+      stage,
+    )
     editIdea(brand.id, card.id, { postId: id })
   }
   return {
@@ -274,6 +279,7 @@ function usePlan(slot: Slot): Plan {
         .find((m) => m.kind === 'idea' && m.hook === card.hook)
       placeIdea(
         {
+          ideaId: card.id,
           format: card.format,
           hook: card.hook,
           why: tile?.kind === 'idea' ? tile.why : 'Team idea',
@@ -2001,7 +2007,12 @@ function Suggestion({ slot }: { slot: Slot }) {
     const dayN = landingDay(weeks, card.dayN)
     if (!dayN || card.format === 'story') return
     const where = addIdeaToCalendar(
-      { format: card.format, hook: card.hook, why: b ? `Built on “${b.idea.hook}”` : 'Suggested' },
+      {
+        ideaId: card.id,
+        format: card.format,
+        hook: card.hook,
+        why: b ? `Built on “${b.idea.hook}”` : 'Suggested',
+      },
       dayN,
     )
     if (where) setDay(brand.id, card.id, dayN)

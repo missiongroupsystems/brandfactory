@@ -193,7 +193,10 @@ function Ideas({
         : card.source.kind === 'moment'
           ? card.source.title
           : 'Team idea'
-    const where = addIdeaToCalendar({ format: card.format, hook: card.hook, why }, card.dayN)
+    const where = addIdeaToCalendar(
+      { ideaId: card.id, format: card.format, hook: card.hook, why },
+      card.dayN,
+    )
     if (!where) return router.push(ideaHref(card.id))
     onToast(`On the calendar · ${where}`)
   }

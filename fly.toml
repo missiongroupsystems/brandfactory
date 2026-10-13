@@ -1,0 +1,46 @@
+# The BrandBase API on the existing Fly app `brandfactory` (region sin), which the archived
+# BrandFactory server used. Deploying replaces that server; the owner decides when.
+#
+# Secrets, set with `fly secrets set` (never in this file):
+#   DATABASE_URL           Supabase transaction pooler, port 6543
+#   SUPABASE_JWKS_URL      https://<project>.supabase.co/auth/v1/.well-known/jwks.json
+#   SUPABASE_JWT_ISSUER    https://<project>.supabase.co/auth/v1
+#   SUPABASE_URL, SUPABASE_SERVICE_KEY   for Storage (bucket `brandbase`, private)
+#   MEDIA_SIGNING_SECRET   openssl rand -base64 32
+#   PUBLIC_URL             https://brandfactory.fly.dev
+#   CORS_ALLOWED_ORIGINS   the web app's origin(s), comma-separated
+
+app            = "brandfactory"
+primary_region = "sin"
+kill_signal    = "SIGTERM"
+
+[build]
+  dockerfile = "packages/server/Dockerfile"
+
+# Migrations run before new machines take traffic. Every table is in the `brandbase` schema and
+# the migration record in `brandbase_drizzle`, so the archive's tables are not touched.
+[deploy]
+  release_command = "node scripts/migrate.mjs"
+
+[http_service]
+  internal_port        = 3001
+  force_https          = true
+  auto_stop_machines   = false
+  auto_start_machines  = true
+  # One machine: the guest rate limit and the job runner live in the process.
+  min_machines_running = 1
+
+[[http_service.checks]]
+  method       = "GET"
+  path         = "/health"
+  interval     = "15s"
+  grace_period = "10s"
+
+[env]
+  AUTH_PROVIDER    = "supabase"
+  STORAGE_PROVIDER = "supabase"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus     = 1
+  memory   = "512mb"

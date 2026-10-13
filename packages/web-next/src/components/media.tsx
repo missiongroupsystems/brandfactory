@@ -1,5 +1,17 @@
 import Image from 'next/image'
 
+import { currentBrand, remote, report, upload as send } from '@/lib/remote'
+
+/** Uploads to the brand on screen; a failure says so before it rejects. */
+async function upload(file: File, meta: { durationS?: number } = {}) {
+  try {
+    return await send(currentBrand(), file, meta)
+  } catch (err) {
+    report(`${file.name} did not upload.`)
+    throw err
+  }
+}
+
 /**
  * Media is a URL string everywhere in the demo. A file the user drops is a `blob:` URL, which
  * carries no extension, so the kind rides on the fragment: `blob:…#video`. Browsers ignore the
@@ -12,10 +24,19 @@ export interface Dropped {
   duration?: string
 }
 
-/** Reads a dropped file into a media URL; a video also gives its length. */
+/**
+ * Reads a dropped file into a media URL; a video also gives its length. With the server on, the
+ * file is uploaded and the URL is its stable address, so it survives a reload.
+ */
 export async function fromFile(file: File): Promise<Dropped> {
   const url = URL.createObjectURL(file)
-  if (!file.type.startsWith('video/')) return { src: `${url}#photo` }
+  if (!file.type.startsWith('video/')) {
+    if (remote) {
+      URL.revokeObjectURL(url)
+      return { src: await upload(file) }
+    }
+    return { src: `${url}#photo` }
+  }
   const seconds = await new Promise<number>((resolve) => {
     const v = document.createElement('video')
     v.preload = 'metadata'
@@ -24,8 +45,9 @@ export async function fromFile(file: File): Promise<Dropped> {
     v.src = url
   })
   const s = Math.round(Number.isFinite(seconds) ? seconds : 0)
+  if (remote) URL.revokeObjectURL(url)
   return {
-    src: `${url}#video`,
+    src: remote ? await upload(file, { durationS: s }) : `${url}#video`,
     duration: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`,
   }
 }
@@ -66,7 +88,8 @@ export function Media({
     if (!play) return <video src={src} muted playsInline preload="metadata" className={fill} />
     return <video src={src} poster={poster} autoPlay muted loop playsInline className={fill} />
   }
-  // A blob: URL cannot go through the image optimiser.
-  if (src.startsWith('blob:')) return <img src={src} alt="" className={fill} />
+  // A blob: URL, or an upload on the API, does not go through the image optimiser.
+  if (src.startsWith('blob:') || /^https?:/.test(src))
+    return <img src={src} alt="" className={fill} />
   return <Image src={src} alt="" fill sizes={sizes} className="object-cover" />
 }

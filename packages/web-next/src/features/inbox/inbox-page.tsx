@@ -15,7 +15,7 @@ import { INBOX_BY_BRAND, type BrandInbox, type InboxEarlier, type InboxMessage }
 import { useBrandKit } from '@/features/brand/brand-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
-import { markDone, sendTo, useInbox } from './inbox-store'
+import { clearNoise, sendReply, sendTo, useInbox } from './inbox-store'
 import {
   ago,
   conversation,
@@ -75,12 +75,12 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
   const waiting = queue(data.messages, done).open.filter((m) => !leaving.has(m.id))
   const caughtUp = staying.length === 0
 
-  function send(id: string) {
+  function send(id: string, text: string) {
     setLeaving((s) => new Set(s).add(id))
     // On a phone the list comes back, so the reply is seen to leave it.
     setSelected(phone ? null : nextAfter(staying, id))
     window.setTimeout(() => {
-      markDone(brand.id, [id])
+      sendReply(brand.id, id, text)
       setLeaving((s) => {
         const next = new Set(s)
         next.delete(id)
@@ -167,7 +167,7 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
                   brand={brand}
                   data={data}
                   sentTo={routed[current.id]}
-                  onSend={() => send(current.id)}
+                  onSend={(text) => send(current.id, text)}
                 />
               </FullScreen>
             ) : (
@@ -182,7 +182,7 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
                     brand={brand}
                     data={data}
                     sentTo={routed[current.id]}
-                    onSend={() => send(current.id)}
+                    onSend={(text) => send(current.id, text)}
                   />
                 </div>
               </div>
@@ -368,7 +368,7 @@ function Noise({ brandId, noise }: { brandId: Brand['id']; noise: InboxMessage[]
         <button
           type="button"
           onClick={() =>
-            markDone(
+            clearNoise(
               brandId,
               noise.map((m) => m.id),
             )
@@ -421,7 +421,7 @@ function Thread({
   brand: Brand
   data: BrandInbox
   sentTo?: string[]
-  onSend: () => void
+  onSend: (text: string) => void
 }) {
   const { summary: voice } = useBrandKit(brand.id).voice
   const [picked, setPicked] = React.useState<number | null>(null)
@@ -551,7 +551,7 @@ function Thread({
             <div className="flex justify-end py-2 pr-2">
               <button
                 type="button"
-                onClick={onSend}
+                onClick={() => onSend(text)}
                 disabled={writing || !text.trim()}
                 className="bb-press h-8 shrink-0 rounded-full bg-ink px-3.5 text-[13px] font-medium text-page disabled:opacity-40"
               >

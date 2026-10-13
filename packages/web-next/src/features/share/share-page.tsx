@@ -15,6 +15,8 @@ import { shootOfIdea, useShootById, useShoots } from '@/features/shoot/shoots-st
 import { shotCount, ShotList } from '@/features/shoot/shot-list'
 
 import { Comments } from './comments'
+import { remote } from '@/lib/remote'
+
 import { useShareAccess, type ShareKind } from './comments-store'
 
 const FORMAT_LABEL = { reel: 'Reel', carousel: 'Carousel', story: 'Story' } as const
@@ -100,7 +102,7 @@ function Shared({
   const { who, can } = useShareAccess(kind, id)
   if (who === 'team') return <TeamOnly brandId={brandId} />
   return (
-    <Frame brandId={brandId} edit={can === 'edit' ? edit : undefined}>
+    <Frame brandId={brandId} edit={can === 'edit' && !remote ? edit : undefined}>
       {children}
       <Comments kind={kind} id={id} guest write={can !== 'view'} />
     </Frame>

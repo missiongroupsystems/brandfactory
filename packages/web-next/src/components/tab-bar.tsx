@@ -23,7 +23,8 @@ export function TabBar() {
   const { brand } = useBrand()
   const waiting = useWaiting(brand.id)
   // A shared link is for someone outside the team: no app navigation at all.
-  if (pathname.startsWith('/post') || pathname.startsWith('/share')) return null
+  if (pathname.startsWith('/post') || pathname.startsWith('/share') || pathname === '/sign-in')
+    return null
   const current = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href))
   const tab = (t: (typeof TABS)[number]) => (
     <Link

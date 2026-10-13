@@ -29,7 +29,10 @@ import { composeChannels, sentChannels } from '@/features/schedule/calendar-item
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
+import { ideaIdOfHook } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
+import { newId, push, quietly, remote, request } from '@/lib/remote'
+import { dateOf, mediaItem } from '@/lib/remote-days'
 
 import { CropEditor } from './crop-editor'
 import { DriveGlyph, DrivePicker } from './drive-picker'
@@ -120,6 +123,26 @@ const DETAIL_ON: Record<'comment' | 'location' | 'tags' | 'collab', ChannelKey[]
  * written once, and only what one platform truly needs is asked inside that account's row. The
  * publish rules live in `model.ts`; this page reads them. UI only: the send is simulated.
  */
+/** The composer's own fields, as it keeps them with a post on the server. */
+interface KeptDraft {
+  overrides?: Draft['overrides']
+  youtubeTitle?: string | null
+  madeForKids?: boolean
+  privacy?: Draft['privacy']
+  interactions?: Draft['interactions']
+  promo?: Draft['promo']
+  details?: { comment: string; location: string; collab: string[]; aiLabel: boolean }
+  labels?: string[]
+  extra?: {
+    ytVisibility: string
+    fbAudience: string
+    liVisibility: string
+    igShareToFeed: boolean
+    ttSound: Sound
+  }
+  shots?: Pick<Shot, 'crop' | 'tags'>[]
+}
+
 export function Composer({
   post,
   start,
@@ -140,7 +163,11 @@ export function Composer({
     reschedule,
     setStage,
     setChannels,
+    saved: savedOf,
   } = useBrand()
+  // What the composer kept with this post on the server: its caption and the rest of the draft.
+  const kept = post ? savedOf(post.id) : undefined
+  const keptDraft = (kept?.draft ?? {}) as KeptDraft
   // The accounts linked on the Connections page. One that needs signing in again still shows,
   // with Reconnect; one disconnected there is gone from the composer.
   const links = useConnections(brand.id)
@@ -148,11 +175,18 @@ export function Composer({
   const api = usePublishDraft({
     format: post?.format ?? start?.format ?? 'reel',
     hook: post?.hook ?? '',
-    caption: post ? (captions[post.id] ?? post.hook) : '',
+    caption: post ? kept?.caption || captions[post.id] || post.hook : '',
     selected: post ? composeChannels(post) : undefined,
     linked: publishing,
     connected: publishing.filter((k) => links[k] === 'connected'),
-    tiktok: tiktokDefault(brand.id),
+    tiktok:
+      keptDraft.privacy !== undefined && keptDraft.interactions && keptDraft.promo
+        ? {
+            privacy: keptDraft.privacy,
+            interactions: keptDraft.interactions,
+            promo: keptDraft.promo,
+          }
+        : tiktokDefault(brand.id),
   })
   const [reconnected, setReconnected] = React.useState(false)
   // The post as it opened: after a retry the live post is no longer failed, and a second send
@@ -162,7 +196,13 @@ export function Composer({
   const failedName = NAME[failedKey]
   const { draft, update, phase } = api
 
-  const [media, setMedia] = React.useState<Shot[]>(() => (post?.images ?? []).map(shotOf))
+  const [media, setMedia] = React.useState<Shot[]>(() =>
+    (post?.images ?? []).map((src, i) => {
+      const shot = shotOf(src)
+      const was = keptDraft.shots?.[i]
+      return was ? { ...shot, crop: was.crop, tags: was.tags } : shot
+    }),
+  )
   /**
    * Files from the picker or a drop, on the strip or on the preview: photos and videos only,
    * added in order, the format's limit kept from the end.
@@ -191,20 +231,40 @@ export function Composer({
   const [ideaHook, setIdeaHook] = React.useState<string | null>(null)
   // A post already out, or one from an earlier month, is shown, not changed.
   const readOnly = Boolean(post && (post.stage === 'posted' || !dayOf(weeks, post.id)))
-  const [details, setDetails] = React.useState({
-    comment: '',
-    location: VENUE[brand.id],
-    collab: [] as string[],
-    aiLabel: false,
-  })
-  const [labels, setLabels] = React.useState<string[]>([])
-  const [extra, setExtra] = React.useState({
-    ytVisibility: 'Public',
-    fbAudience: 'Everyone',
-    liVisibility: 'Anyone',
-    igShareToFeed: true,
-    ttSound: tiktokDefault(brand.id)?.sound ?? ('own' as Sound),
-  })
+  const [details, setDetails] = React.useState(
+    () =>
+      keptDraft.details ?? {
+        comment: '',
+        location: VENUE[brand.id],
+        collab: [] as string[],
+        aiLabel: false,
+      },
+  )
+  const [labels, setLabels] = React.useState<string[]>(() => keptDraft.labels ?? [])
+  const [extra, setExtra] = React.useState(
+    () =>
+      keptDraft.extra ?? {
+        ytVisibility: 'Public',
+        fbAudience: 'Everyone',
+        liVisibility: 'Anyone',
+        igShareToFeed: true,
+        ttSound: tiktokDefault(brand.id)?.sound ?? ('own' as Sound),
+      },
+  )
+  // The rest of the saved draft goes back into the model once, as it opens.
+  React.useEffect(() => {
+    if (keptDraft.overrides || keptDraft.youtubeTitle !== undefined) {
+      update({
+        overrides: keptDraft.overrides ?? {},
+        youtubeTitle: keptDraft.youtubeTitle ?? null,
+        madeForKids: keptDraft.madeForKids ?? false,
+      })
+    }
+    // Once, as the composer opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  // One key per press: a repeat of the same press returns its first answer, never a second send.
+  const sendKey = React.useRef('')
   // On a phone each card opens in a sheet from its row; one sheet at a time.
   const [sheet, setSheet] = React.useState<SheetKey | null>(null)
   const closeSheet = React.useCallback(() => setSheet(null), [])
@@ -242,6 +302,67 @@ export function Composer({
   // A send names its accounts by their logos, so the button shows exactly where the post goes.
   const logos = retry ? retryOn : active.map((c) => c.key)
 
+  /** The words a new post is known by on the calendar. */
+  const newHook = () => ideaHook ?? (draft.caption.split(/[.!?\n]/)[0]?.trim() || 'New post')
+
+  /**
+   * The server's side of a save or a send, in order: the post is made or moved, everything the
+   * composer holds is kept with it, then it is sent. The stage then comes from the send's jobs,
+   * never from a hand mark, so "Publish now" is posted once each account says so.
+   */
+  function toServer(id: string, isNew: boolean, send: 'now' | 'slot' | null) {
+    const b = brand.id
+    const day = dateOf(dayN)
+    const content = {
+      caption: draft.caption,
+      channels: (retry ? retryOn : active.map((c) => c.key)) as string[],
+      media: media.map((m) => mediaItem(m.src)),
+      draft: {
+        overrides: draft.overrides,
+        youtubeTitle: draft.youtubeTitle,
+        madeForKids: draft.madeForKids,
+        privacy: draft.privacy,
+        interactions: draft.interactions,
+        promo: draft.promo,
+        details,
+        labels,
+        extra,
+        shots: media.map((m) => ({ crop: m.crop, tags: m.tags })),
+      },
+    }
+    push(b, async () => {
+      if (isNew) {
+        const ideaId = ideaHook ? ideaIdOfHook(b, ideaHook) : undefined
+        if (ideaId) {
+          await request('POST', `/brands/${b}/ideas/${ideaId}/plan`, {
+            postId: id,
+            day,
+            time,
+            stage: 'draft',
+          })
+        } else {
+          await request('POST', `/brands/${b}/posts`, {
+            id,
+            format: draft.format,
+            hook: newHook(),
+            ...(send !== 'now' && { day, time }),
+          })
+        }
+      } else if (send !== 'now') {
+        await request('POST', `/brands/${b}/posts/${id}/move`, { day, time })
+      }
+      await request('PATCH', `/brands/${b}/posts/${id}`, content)
+      if (send) {
+        await request(
+          'POST',
+          `/brands/${b}/posts/${id}/send`,
+          { when: send, channels: content.channels },
+          { 'idempotency-key': sendKey.current },
+        )
+      }
+    })
+  }
+
   /** The post on the calendar: moved and restaged if it exists, placed if it is new. */
   function toCalendar(stage: Stage): string | null {
     const day = when === 'now' ? '6' : dayN
@@ -255,7 +376,7 @@ export function Composer({
       setChannels(targetId, channels)
       return targetId
     }
-    const hook = ideaHook ?? (draft.caption.split(/[.!?\n]/)[0]?.trim() || 'New post')
+    const hook = newHook()
     const id = planPost(
       { format: draft.format, hook, image: media[0]?.src, channels },
       day,
@@ -269,7 +390,14 @@ export function Composer({
   function primary() {
     if (stuck) return
     update({ when: when === 'now' ? 'now' : 'slot' })
-    toCalendar(when === 'now' ? 'posted' : 'scheduled')
+    if (remote) {
+      sendKey.current = newId()
+      const isNew = !targetId
+      const id = quietly(() => toCalendar(when === 'now' ? 'posted' : 'scheduled'))
+      if (id) toServer(id, isNew, when === 'now' ? 'now' : 'slot')
+    } else {
+      toCalendar(when === 'now' ? 'posted' : 'scheduled')
+    }
     api.send(when === 'now' ? 'now' : 'slot')
   }
 
@@ -278,7 +406,13 @@ export function Composer({
 
   function saveDraft() {
     if (readOnly) return
-    toCalendar(keeps ? post.stage : 'draft')
+    if (remote) {
+      const isNew = !targetId
+      const id = quietly(() => toCalendar(keeps ? post.stage : 'draft'))
+      if (id) toServer(id, isNew, null)
+    } else {
+      toCalendar(keeps ? post.stage : 'draft')
+    }
     setSaved(true)
   }
 

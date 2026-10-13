@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.12.0** — 2026-10-13 — The backend: `packages/server`, an API on the archive's Supabase Postgres (tables in a `brandbase` schema) with posts and per-account jobs, ideas, shoots, share links, inbox, brand kit, connections, uploads and sending; the app runs on it when `NEXT_PUBLIC_API_URL` is set and stays the static demo otherwise; a seed, a Dockerfile and `fly.toml` for the existing Fly app. Migration `0000` (not applied to production). 410 tests.
 - **2.11.3** — 2026-10-13 — Posted is final: marking a post Posted on the idea page asks first, and nothing takes a posted post back to another stage. A backend handoff (`docs/executing/brandbase-backend-handoff.md`) with the owner's eight decisions; finished plans move to the archive. No migration. 301 tests.
 - **2.11.2** — 2026-10-12 — The inbox thread panel takes the height of the list beside it, capped so the reply stays in view on a laptop and never under 440 px; a long thread scrolls inside it. No migration. 300 tests.
 - **2.11.1** — 2026-10-12 — Insights drops the sentences under the bookings and best-time figures (the lead post's marker now names it for screen readers) and opens the best time by hour by default; on the idea page a posted post can go back to an idea. No migration. 300 tests.
@@ -32,6 +33,27 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.12.0 — 2026-10-13
+
+- **API.** `packages/server`: Hono with `createApp(deps)`, Drizzle on PGlite locally and in tests
+  and on Postgres in a deployment. Every rule in the backend handoff is enforced on the server:
+  client-made ids, posted is final, hand-set stages apart from publishing, the stage from
+  per-account jobs, brand-local days. Share links by token, guest comments, inbox, brand kit and
+  voice versions, connections, uploads by signed URL, sending with the composer's blockers and an
+  idempotency key, and a job runner (off in a deployment until a real publisher exists).
+- **The app on the API.** With `NEXT_PUBLIC_API_URL` set: a sign-in page, every store loads from
+  the API and writes through one ordered queue, a refused change says why and reloads, files upload
+  to storage, the composer keeps its whole draft, the guest share page opens by token. Without it,
+  nothing changes.
+- **Seed and deploy.** A seed that loads the demo's data; a Dockerfile (Node 22) and `fly.toml` for
+  the existing app `brandfactory` in `sin`, with the migration as the release command. Not
+  deployed.
+- **Docs.** The plan and its completion notes in `docs/completions/`, with what is not built and
+  the owner's steps to go live.
+
+Migration `0000_futuristic_spencer_smythe` (schema `brandbase`), not applied to production.
+Gate: typecheck, lint, format, 410 tests in 53 files, `next build`.
 
 ## 2.11.3 — 2026-10-13
 

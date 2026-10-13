@@ -54,8 +54,9 @@ pnpm vitest run -t "puts a story in the story row"
 
 The repository is a pnpm workspaces monorepo with three packages:
 
-- `packages/web-next` (`@brandfactory/web-next`) is brand base: a UI-only Next.js 16 demo with
-  static data and no server. It imports no other package. Its publish rules live in
+- `packages/web-next` (`@brandfactory/web-next`) is brand base: a Next.js 16 app on static data,
+  or on the API when `NEXT_PUBLIC_API_URL` is set (`src/lib/remote.ts`; each store loads from it
+  and writes through it). It imports no other package. Its publish rules live in
   `src/features/publish/model.ts`, and its per-brand state in
   `src/features/schedule/posts-store.tsx`. The folder keeps the name `web-next` because the
   Vercel project's Root Directory is `packages/web-next`; do not rename it without changing
