@@ -7,6 +7,8 @@ import { newId, onState, push, remote, request } from '@/lib/remote'
 import {
   coverOf,
   IDEAS_BY_BRAND,
+  pasteReference,
+  showPasted,
   type IdeaCard,
   type IdeaFormat,
   type IdeaSource,
@@ -112,10 +114,23 @@ function cardOf(row: any): IdeaCard {
   }
 }
 
+/** The moodboard's sources other than Pinterest, as the server's connection keys name them. */
+const SOURCE_KEY = { dm: 'moodboard-dm', tt: 'moodboard-tt' } as const
+
 if (remote) {
-  onState((brandId, s) =>
-    update(brandId as BrandId, (b) => ({ ...b, ideas: (s.ideas as unknown[]).map(cardOf) })),
-  )
+  onState((brandId, s) => {
+    const on = (key: string) =>
+      (s.connections as { key: string; status: string }[]).some(
+        (c) => c.key === key && c.status === 'connected',
+      )
+    showPasted(brandId as BrandId, (s.pasted ?? []) as Reference[])
+    // Pinterest's status comes through the connections store, which owns that key.
+    update(brandId as BrandId, (b) => ({
+      ...b,
+      ideas: (s.ideas as unknown[]).map(cardOf),
+      sources: { ...b.sources, dm: on(SOURCE_KEY.dm), tt: on(SOURCE_KEY.tt) },
+    }))
+  })
 }
 
 const send = (brandId: BrandId, method: string, path: string, body?: unknown) =>
@@ -281,14 +296,40 @@ export function suggest(brandId: BrandId) {
   }))
 }
 
-/** Connects one source to this brand's moodboard. */
+/**
+ * Connects one source to this brand's moodboard. Pinterest is sent by the connections store, which
+ * owns that key; the other two are sent from here.
+ */
 export function connectSource(brandId: BrandId, source: MoodSource) {
+  if (source !== 'pinterest') {
+    push(brandId, () =>
+      request('PUT', `/brands/${brandId}/connections/${SOURCE_KEY[source]}`, {
+        status: 'connected',
+      }),
+    )
+  }
   update(brandId, (s) => ({ ...s, sources: { ...s.sources, [source]: true } }))
 }
 
 /** Unlinks a source on the Connections page: its posts leave the moodboard. */
 export function disconnectSource(brandId: BrandId, source: MoodSource) {
+  if (source !== 'pinterest') {
+    push(brandId, () =>
+      request('PUT', `/brands/${brandId}/connections/${SOURCE_KEY[source]}`, { status: 'off' }),
+    )
+  }
   update(brandId, (s) => ({ ...s, sources: { ...s.sources, [source]: false } }))
+}
+
+/** A link pasted onto the moodboard: it shows at once, and the server keeps it with the brand. */
+export function pasteLink(brandId: BrandId, ref: Reference) {
+  pasteReference(brandId, ref)
+  // The board reads the links on render: a new state tells it to.
+  update(brandId, (s) => ({ ...s }))
+  const { id, platform, account, image, borrow, seed } = ref
+  push(brandId, () =>
+    request('POST', `/brands/${brandId}/pasted`, { id, platform, account, image, borrow, seed }),
+  )
 }
 
 /** A suggestion becomes one of the team's ideas. */

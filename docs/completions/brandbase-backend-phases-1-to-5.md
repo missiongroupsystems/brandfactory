@@ -97,6 +97,7 @@ a posted post's media never sent; the guest preview opened apart from the team's
 - The composer shows its done screen before the server answers; a refused send shows a message and
   the calendar reloads, but the composer stays on its done screen.
 - Moodboard sources other than Pinterest, pasted references and story ideas in the story row live
+  (kept on the server since 2.14.0)
   in the browser only. Calendar dates outside the demo's month are kept but not drawn (fixed in
   2.13.0).
 - An uploaded SVG is served as a download from the local disk store (it could carry script), so an

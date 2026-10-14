@@ -1,7 +1,7 @@
 # BrandBase go-live gaps: implementation plan
 
-Status: phases 1 and 2 landed 14 Oct 2026 on `feat/brandbase-backend` (completion notes:
-`docs/completions/brandbase-go-live-gaps-phases-1-to-3.md`); phase 3 to come. Three gaps the backend left (see "Not
+Status: code landed 14 Oct 2026 on `feat/brandbase-backend`; awaiting production verification.
+Completion notes: `docs/completions/brandbase-go-live-gaps-phases-1-to-3.md`. Three gaps the backend left (see "Not
 built" in `docs/completions/brandbase-backend-phases-1-to-5.md`) that matter once real people use
 the app on the API. Nothing here deploys or touches production.
 
@@ -67,10 +67,12 @@ API: a schedule that lands, and one refused (a second story on a day taken in an
 or a reload: moodboard sources other than Pinterest (which accounts are linked as sources), pasted
 references, and story ideas in the story row.
 
-**The fix.** Each gets a home on the server, in the existing tables where one fits and a small
-table where not, with a route each, loaded in `GET /brands/:id/state` and written through the
-queue like everything else. The exact shape is settled after reading each feature's store; this
-plan is updated with it before the code.
+**The fix.** The two sources are connection keys of their own, `moodboard-dm` and
+`moodboard-tt`, in the existing `connections` table (Pinterest already is one). Pasted links get a
+small table, `pasted_links` (the client's id, the brand, the link as the moodboard shows it), with
+`POST /brands/:id/pasted` and a `pasted` list in the brand's state; migration `0001`. Story ideas
+in the story row need nothing: the demo's `{ kind: 'idea' }` story mark is never drawn and nothing
+in the app makes one.
 
 **Checks.** Server tests per route (brand scoping, a create sent twice makes one record);
 Playwright: add each, reload, and see it still there.

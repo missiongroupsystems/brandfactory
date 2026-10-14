@@ -13,7 +13,6 @@ import { MOODBOARD_ACCOUNT, moodboardTag, PINTEREST_ACCOUNT } from '@/data/brand
 import {
   IDEAS_BY_BRAND,
   inspirationOf,
-  pasteReference,
   pastedReferences,
   type IdeaCard,
   type IdeaFormat,
@@ -24,6 +23,7 @@ import { BrandLogo } from '@/features/brand/brand-logo'
 import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 import { planShoot } from '@/features/shoot/shoots-store'
+import { newId } from '@/lib/remote'
 
 import { EYEBROW, FormatIcon, STATUS_LABEL, statusColour, useSlots, type Slot } from './idea-parts'
 import { dayLabel, dayOfHook, landingDay } from './calendar-slot'
@@ -31,6 +31,7 @@ import {
   addIdea,
   addIdeaFromPosts,
   connectSource,
+  pasteLink,
   skipSuggestion,
   suggest,
   useIdeas,
@@ -545,7 +546,8 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   const { boards, references } = IDEAS_BY_BRAND[brand.id]
   const [filter, setFilter] = React.useState<string>('all')
   // Pasted links live in the data module, so an idea keeps them and they outlast a view switch.
-  const [pasted, setPasted] = React.useState<Reference[]>(() => pastedReferences(brand.id))
+  // Read on every render: a paste and a reload from the server both notify the ideas store.
+  const pasted = pastedReferences(brand.id)
   // The posts picked, in the order they were picked: the first lends the idea its words.
   const [selected, setSelected] = React.useState<string[]>([])
   // Whether a source is being added from the one "+" chip, shown under the chip row.
@@ -717,8 +719,7 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
         <div className="flex max-w-[420px] flex-col gap-2">
           <PasteLink
             onPaste={(r) => {
-              pasteReference(brand.id, r)
-              setPasted(pastedReferences(brand.id))
+              pasteLink(brand.id, r)
             }}
           />
           <DmHint />
@@ -1044,7 +1045,7 @@ function PasteLink({ onPaste }: { onPaste: (r: Reference) => void }) {
       /* keep the text as typed */
     }
     onPaste({
-      id: `pasted-${Date.now()}`,
+      id: `pasted-${newId()}`,
       platform: host.includes('tiktok') ? 'tt' : 'ig',
       account: host,
       image: '',
@@ -1073,6 +1074,7 @@ function PasteLink({ onPaste }: { onPaste: (r: Reference) => void }) {
       <input
         value={link}
         onChange={(e) => setLink(e.target.value)}
+        maxLength={500}
         placeholder="Paste an Instagram or TikTok link"
         aria-label="Paste an Instagram or TikTok link"
         className="h-10 w-full rounded-full bg-surface px-4 text-[13px] outline-none placeholder:text-ink-5 focus:bg-paper"

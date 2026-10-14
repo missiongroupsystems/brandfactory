@@ -1,7 +1,16 @@
-import { asc, eq, inArray } from 'drizzle-orm'
+import { asc, desc, eq, inArray } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { type Deps } from '../app'
-import { comments, connections, crew, ideas, posts, shareLinks, shoots } from '../db/schema'
+import {
+  comments,
+  connections,
+  crew,
+  ideas,
+  pastedLinks,
+  posts,
+  shareLinks,
+  shoots,
+} from '../db/schema'
 import { postViews } from '../domain/posts'
 import { todayIn } from '../time'
 import { inboxOf } from './inbox'
@@ -42,7 +51,7 @@ export function stateRoute(deps: Deps) {
               ),
             )
             .orderBy(asc(crew.position))
-    const [inbox, kit, links, notes, linked] = await Promise.all([
+    const [inbox, kit, links, notes, linked, pasted] = await Promise.all([
       inboxOf(db, brand.id),
       kitOf(db, brand.id),
       db.select().from(shareLinks).where(eq(shareLinks.brandId, brand.id)),
@@ -52,6 +61,11 @@ export function stateRoute(deps: Deps) {
         .where(eq(comments.brandId, brand.id))
         .orderBy(asc(comments.createdAt), asc(comments.id)),
       db.select().from(connections).where(eq(connections.brandId, brand.id)),
+      db
+        .select()
+        .from(pastedLinks)
+        .where(eq(pastedLinks.brandId, brand.id))
+        .orderBy(desc(pastedLinks.createdAt), desc(pastedLinks.id)),
     ])
     return c.json({
       brand,
@@ -64,6 +78,7 @@ export function stateRoute(deps: Deps) {
       shareLinks: links,
       comments: notes,
       connections: linked,
+      pasted: pasted.map((p) => ({ id: p.id, ...(p.reference as object) })),
     })
   })
 }

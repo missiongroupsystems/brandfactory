@@ -1,6 +1,6 @@
 # BrandBase go-live gaps: phases 1 to 3
 
-Built on `feat/brandbase-backend` from the plan in `docs/executing/brandbase-go-live-gaps-plan.md`.
+Built on `feat/brandbase-backend` from the plan beside this file (`brandbase-go-live-gaps-plan.md`).
 Nothing is deployed and no production database was touched.
 
 ## Phase 1: the calendar on real dates
@@ -72,4 +72,39 @@ browser on the API (clock on 3 November): with a post marked posted in another t
 showed "This post is posted and cannot change." and the composer stayed open; the pasta draft,
 on 13 October, said "Pick a day ahead."; moved to 20 November it showed the done screen, and the
 server held it scheduled with a job per account.
+
+## Phase 3: browser-only data kept on the server
+
+Landed 14 Oct 2026 (2.14.0).
+
+The moodboard's sources other than Pinterest are connection keys, `moodboard-dm` (posts DM'd to
+the moodboard account) and `moodboard-tt` (the brand's TikTok saves), in the existing
+`connections` table: `ideas-store.ts` sends them when a source is turned on or off and reads them
+from the state. Pinterest stays with the connections store, which already sent it.
+
+Pasted links have a table, `brandbase.pasted_links` (migration `0001_gray_tony_stark`): the
+client's id, the brand, and the link as the moodboard shows it. `POST /brands/:id/pasted` keeps a
+paste sent twice as one link and refuses an id another brand holds; the state lists the brand's
+links, newest first. The app's paste goes through `pasteLink` (shown at once, then sent), and a
+load puts the server's links in place of the session's, so an idea planned from a pasted link
+keeps it after a reload. A pasted link's id is now `pasted-<uuid>`, not the time.
+
+Story ideas in the story row needed nothing: the demo's `{ kind: 'idea' }` story mark is never
+drawn, and nothing in the app makes one. It is dead in the type, left as is.
+
+**Verified.** Server tests: brand scoping, a paste sent twice, a link the moodboard cannot show,
+the two sources on and off. A client test: the state's links and sources load, a paste and a
+source change are sent, Pinterest is not sent twice. In a browser on the API: Instagram DMs turned
+on, a TikTok link pasted under Shared; after a reload the board opens with the source on and the
+link still there, and the server holds both.
+
+**Review.** One Sonnet pass, no serious defect. Fixed: the moodboard read pasted links once, so
+a link the server refused (or a teammate's, after a reload) did not leave or arrive until a view
+switch; it now reads them on each render. The paste field is capped at what the server takes, and
+the server takes a link's picture from an https address only. Left as is: the Connections page
+lists only Pinterest under Moodboard, so the other two sources are turned off nowhere yet, as
+before.
+
+**Not applied.** Migration `0001` runs with the next `fly deploy` (the release command), after the
+owner's go-ahead.
 

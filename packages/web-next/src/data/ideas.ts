@@ -1803,7 +1803,10 @@ export const IDEAS_BY_BRAND: Record<BrandId, BrandIdeas> = {
   carlitos: CARLITOS,
 }
 
-/** Links the team pasted onto the moodboard this session, newest first, so an idea can keep them. */
+/**
+ * Links the team pasted onto the moodboard, newest first, so an idea can keep them: this session's
+ * in the demo, the server's on the API (`ideas-store.ts` loads and sends them).
+ */
 const pasted: Partial<Record<BrandId, Reference[]>> = {}
 
 export function pastedReferences(brandId: BrandId): Reference[] {
@@ -1812,6 +1815,11 @@ export function pastedReferences(brandId: BrandId): Reference[] {
 
 export function pasteReference(brandId: BrandId, ref: Reference) {
   pasted[brandId] = [ref, ...pastedReferences(brandId)]
+}
+
+/** The links the server holds for a brand, in place of this session's. */
+export function showPasted(brandId: BrandId, refs: Reference[]) {
+  pasted[brandId] = refs
 }
 
 /** Every reference a brand has: pasted in, on the shelf, or on a board. */

@@ -11,6 +11,7 @@ import { z, ZodError } from 'zod'
 import { body } from './http'
 import { HttpError, deactivated, noAccount, notFound, unauthorized } from './errors'
 import { connectionRoutes } from './routes/connections'
+import { pastedRoutes } from './routes/pasted'
 import { ideaRoutes } from './routes/ideas'
 import { inboxRoutes } from './routes/inbox'
 import { kitRoutes } from './routes/kit'
@@ -177,6 +178,7 @@ export function createApp(deps: Deps) {
   brand.route('/inbox', inboxRoutes(deps))
   brand.route('/kit', kitRoutes(deps))
   brand.route('/connections', connectionRoutes(deps))
+  brand.route('/pasted', pastedRoutes(deps))
   app.route('/brands/:brandId', brand)
 
   return app

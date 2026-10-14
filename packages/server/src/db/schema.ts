@@ -360,7 +360,11 @@ export const voiceVersions = bb.table(
   (t) => [primaryKey({ columns: [t.brandId, t.n] })],
 )
 
-/** The UI's connection keys (ig, tt, fb, drive, lark, web, gbp, res, pinterest). */
+/**
+ * The UI's connection keys (ig, tt, fb, drive, lark, web, gbp, res, pinterest), and the
+ * moodboard's two other sources: posts DM'd to the moodboard account (`moodboard-dm`) and the
+ * brand's TikTok saves (`moodboard-tt`).
+ */
 export const connections = bb.table(
   'connections',
   {
@@ -373,6 +377,19 @@ export const connections = bb.table(
   },
   (t) => [primaryKey({ columns: [t.brandId, t.key] })],
 )
+
+/**
+ * A link the team pasted onto its moodboard, as the moodboard shows it (`Reference` in the app's
+ * `data/ideas.ts`). An idea keeps it by id in its inspiration.
+ */
+export const pastedLinks = bb.table('pasted_links', {
+  id: text('id').primaryKey(),
+  brandId: text('brand_id')
+    .notNull()
+    .references(() => brands.id, { onDelete: 'cascade' }),
+  reference: jsonb('reference').notNull(),
+  createdAt: created(),
+})
 
 export const media = bb.table('media', {
   id: text('id').primaryKey(),

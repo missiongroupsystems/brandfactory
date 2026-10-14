@@ -6,7 +6,10 @@ import { connections } from '../db/schema'
 import { body } from '../http'
 import { type BrandEnv } from './shared'
 
-/** The UI's connection keys (`data/connections.ts`), plus Pinterest from the moodboard. */
+/**
+ * The UI's connection keys (`data/connections.ts`), plus the moodboard's sources: Pinterest, the
+ * posts DM'd to the moodboard account and the brand's TikTok saves.
+ */
 export const CONNECTION_KEYS = [
   'ig',
   'tt',
@@ -17,6 +20,8 @@ export const CONNECTION_KEYS = [
   'gbp',
   'res',
   'pinterest',
+  'moodboard-dm',
+  'moodboard-tt',
 ] as const
 
 /**
