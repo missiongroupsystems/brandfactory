@@ -61,6 +61,8 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
     idea: {
       /** The idea's own id, when the caller has it: the server knows an idea by id. */
       ideaId?: string
+      /** The post's id, when the caller made one: a retry makes the same post, never a second. */
+      postId?: string
       format: Format
       hook: string
       image?: string
@@ -259,7 +261,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
 
   const planPost = React.useCallback<BrandValue['planPost']>(
     (idea, date, time, stage) => {
-      const id = remote ? newId() : `${brandId}-planned-${++planned}`
+      const id = idea.postId ?? (remote ? newId() : `${brandId}-planned-${++planned}`)
       const weeks = weeksByBrand[brandId]
       // On the server: the idea becomes the post, or a post is made when no idea has these words.
       const ideaId = idea.ideaId ?? ideaIdOfHook(brandId, idea.hook)

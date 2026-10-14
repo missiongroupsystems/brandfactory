@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.13.1** — 2026-10-14 — On the API the composer waits for the server: "Sending…" while it answers, the done screen only once the post is stored, and a refusal keeps the composer open with everything in it. A draft on a day that has passed asks for a day ahead before it can be scheduled. No migration. 419 tests.
 - **2.13.0** — 2026-10-14 — The calendar runs on real dates: every day is its `YYYY-MM-DD` date, today comes from the server on the API, the API calendar reaches two months back and six ahead (and every dated post), and the day pickers turn a month at a time. The static demo draws what it drew before. No migration. 415 tests.
 - **2.12.0** — 2026-10-13 — The backend: `packages/server`, an API on the archive's Supabase Postgres (tables in a `brandbase` schema) with posts and per-account jobs, ideas, shoots, share links, inbox, brand kit, connections, uploads and sending; the app runs on it when `NEXT_PUBLIC_API_URL` is set and stays the static demo otherwise; a seed, a Dockerfile and `fly.toml` for the existing Fly app. Migration `0000` (not applied to production). 410 tests.
 - **2.11.3** — 2026-10-13 — Posted is final: marking a post Posted on the idea page asks first, and nothing takes a posted post back to another stage. A backend handoff (`docs/executing/brandbase-backend-handoff.md`) with the owner's eight decisions; finished plans move to the archive. No migration. 301 tests.
@@ -34,6 +35,18 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.13.1 — 2026-10-14
+
+- **The composer waits.** `lib/remote.ts` gains `sent`, `push` for a caller that waits: it answers
+  with the refusal in words or null once stored, in the same ordered queue. On the API, Schedule,
+  Post now and Save say "Sending…" or "Saving…" until the server answers, and only a stored post
+  shows the done screen. A refusal keeps the composer open; the message line says why and the
+  brand reloads. A retry after a refused first save makes the same post, under the same id.
+- **A day ahead.** With real dates a draft can sit on a day that has passed; the composer now
+  says "Pick a day ahead." instead of letting the server refuse it.
+
+No migration. Gate: typecheck, lint, format, 419 tests in 54 files, `next build`.
 
 ## 2.13.0 — 2026-10-14
 

@@ -44,3 +44,32 @@ today before the brands load (pages render only after every brand loads).
 one value for the app: the last brand loaded sets it, which is right while every brand is in
 Singapore's zone. The API calendar's run of weeks grows with the oldest dated post. The demo's "Our events" in October (a private dinner, a wine
 night) still show on the API in those weeks, as before.
+
+## Phase 2: the composer waits for the server
+
+Landed 14 Oct 2026 (2.13.1).
+
+`sent(brandId, send)` in `lib/remote.ts` is `push` for a caller that waits: the same ordered queue,
+the same message and reload on a refusal, and an answer (the refusal in words, or null once
+stored). `push` stays fire-and-forget for every other store. On the API the composer's Schedule,
+Post now and Save wait for it: the button says "Sending…" or "Saving…" and ignores a second
+press, a stored change moves to the done screen, and a refusal leaves the composer as it was. The
+refused change's reload drops a post whose first save failed, so the next press makes it again
+under the id it already had (`planPost` takes the caller's `postId`); a create is idempotent by
+id, so a save that half landed is not made twice. With real dates, a draft whose day has passed
+now says "Pick a day ahead." before it can be scheduled; the browser run below found it.
+
+**Review.** One Sonnet pass, no confirmed defect; two likely ones fixed. A retry got a fresh
+idempotency key, so a send whose answer was lost could go out twice; one key now covers a send
+until it is stored (the server keeps a key only for a stored send). Whether to make or move the
+post was read from the calendar, which the reload after a refusal may not have reached; it now
+comes from what the server stored. Left as is: today is one value for the app (see phase 1).
+
+**Verified.** Tests: the done screen waits for the answer, a second press sends nothing, a
+refusal keeps the composer open and a retry sends again, a refused first save is made again
+under the same id, a passed day blocks the send. In a
+browser on the API (clock on 3 November): with a post marked posted in another tab, Schedule
+showed "This post is posted and cannot change." and the composer stayed open; the pasta draft,
+on 13 October, said "Pick a day ahead."; moved to 20 November it showed the done screen, and the
+server held it scheduled with a job per account.
+

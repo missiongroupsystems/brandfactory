@@ -194,16 +194,28 @@ export function report(message: string) {
  * from the server so the screen matches what is stored.
  */
 export function push(brandId: string, send: () => Promise<unknown>) {
-  if (!remote || muted > 0) return
+  void sent(brandId, send)
+}
+
+/** `push`, for a caller that waits: the refusal in words, or null once the change is stored. */
+export function sent(brandId: string, send: () => Promise<unknown>): Promise<string | null> {
+  if (!remote || muted > 0) return Promise.resolve(null)
   pending++
-  chain = chain
+  const done = chain
     .then(send)
-    .catch((err: unknown) => {
-      problems.forEach((l) => l(sentence(err)))
-      // Outside the queue: the reload waits for the changes made after this one.
-      void loadBrand(brandId).catch(() => undefined)
-    })
+    .then(
+      () => null,
+      (err: unknown) => {
+        const words = sentence(err)
+        problems.forEach((l) => l(words))
+        // Outside the queue: the reload waits for the changes made after this one.
+        void loadBrand(brandId).catch(() => undefined)
+        return words
+      },
+    )
     .finally(() => pending--)
+  chain = done
+  return done
 }
 
 /** Runs local changes without sending them; the caller sends its own requests. */

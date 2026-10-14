@@ -1,7 +1,7 @@
 # BrandBase go-live gaps: implementation plan
 
-Status: phase 1 landed 14 Oct 2026 on `feat/brandbase-backend` (completion notes:
-`docs/completions/brandbase-go-live-gaps-phases-1-to-3.md`); phases 2 and 3 to come. Three gaps the backend left (see "Not
+Status: phases 1 and 2 landed 14 Oct 2026 on `feat/brandbase-backend` (completion notes:
+`docs/completions/brandbase-go-live-gaps-phases-1-to-3.md`); phase 3 to come. Three gaps the backend left (see "Not
 built" in `docs/completions/brandbase-backend-phases-1-to-5.md`) that matter once real people use
 the app on the API. Nothing here deploys or touches production.
 
@@ -51,11 +51,12 @@ month stays after a reload.
 refuses (a story already on that day, a post posted elsewhere, a lost connection), the person sees
 a message and the calendar reloads, but the composer still says done.
 
-**The fix.** `push` returns the change's own outcome to a caller that wants it (the queue order
-stays). With the API on, the composer's primary button waits: it shows that it is working, and
-only a stored change moves to the done screen. A refusal keeps the composer open with the
-server's reason in its hint line, so nothing typed is lost. Saving a draft does the same. The
-demo, with no server, is unchanged.
+**The fix.** `sent`, beside `push` in the same queue, answers the caller with the refusal or null.
+With the API on, the composer's primary button waits: it says "Sending…", and only a stored change
+moves to the done screen. A refusal keeps the composer open with everything in it; the app's
+message line says why, as for every refused change. Saving a draft does the same. A retry after a
+refused first save makes the same post (same id), never a second. The demo, with no server, is
+unchanged.
 
 **Checks.** A test that a refused send keeps the composer open with the reason; Playwright on the
 API: a schedule that lands, and one refused (a second story on a day taken in another tab).

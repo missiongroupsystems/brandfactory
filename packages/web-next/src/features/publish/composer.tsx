@@ -32,7 +32,7 @@ import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
 import { ideaIdOfHook } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
-import { newId, push, quietly, remote, request } from '@/lib/remote'
+import { newId, quietly, remote, request, sent } from '@/lib/remote'
 import { addDays, dayNumber, todayDate, weekdayOf } from '@/lib/dates'
 import { mediaItem } from '@/lib/remote-days'
 
@@ -265,12 +265,18 @@ export function Composer({
     // Once, as the composer opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  // One key per press: a repeat of the same press returns its first answer, never a second send.
+  // One key per send: a repeat of it, a double press or a retry after an answer that never
+  // arrived, returns its first answer, never a second send. The server keeps a key only once the
+  // send is stored, so a refused send can be tried again under the same key.
   const sendKey = React.useRef('')
+  // A new post the server has stored: from then on a save moves it instead of making it.
+  const created = React.useRef(false)
   // On a phone each card opens in a sheet from its row; one sheet at a time.
   const [sheet, setSheet] = React.useState<SheetKey | null>(null)
   const closeSheet = React.useCallback(() => setSheet(null), [])
   const [saved, setSaved] = React.useState(false)
+  // A save or a send on its way to the server.
+  const [waiting, setWaiting] = React.useState<'send' | 'save' | null>(null)
 
   const active = activeChannels(draft)
   const targetId = post?.id ?? madeId
@@ -287,6 +293,8 @@ export function Composer({
       : []),
     ...blockers(draft),
     ...(when === 'schedule' && !date ? ['Pick a day.'] : []),
+    // A draft can sit on a day that has since passed: a schedule needs a day ahead.
+    ...(when === 'schedule' && date && date < todayDate() ? ['Pick a day ahead.'] : []),
   ]
   // Nothing can go out: a read-only post, or a blocker (a draft may still be saved unfinished).
   const stuck = readOnly || blocked.length > 0
@@ -313,6 +321,7 @@ export function Composer({
    * never from a hand mark, so "Publish now" is posted once each account says so.
    */
   function toServer(id: string, isNew: boolean, send: 'now' | 'slot' | null) {
+    // Resolves to the server's refusal in words, or null once everything is stored.
     const b = brand.id
     const day = date
     const content = {
@@ -332,7 +341,7 @@ export function Composer({
         shots: media.map((m) => ({ crop: m.crop, tags: m.tags })),
       },
     }
-    push(b, async () => {
+    return sent(b, async () => {
       if (isNew) {
         const ideaId = ideaHook ? ideaIdOfHook(b, ideaHook) : undefined
         if (ideaId) {
@@ -365,6 +374,10 @@ export function Composer({
     })
   }
 
+  // The post as the calendar has it now. A refused first save reloads the brand without it, so
+  // the next press makes it again, under the same id.
+  const live = targetId && byId(targetId) ? targetId : null
+
   /** The post on the calendar: moved and restaged if it exists, placed if it is new. */
   function toCalendar(stage: Stage): string | null {
     const day = when === 'now' ? todayDate() : date
@@ -372,15 +385,21 @@ export function Composer({
       opened,
       active.map((c) => c.key),
     )
-    if (targetId) {
-      reschedule(targetId, day, time)
-      setStage(targetId, stage)
-      setChannels(targetId, channels)
-      return targetId
+    if (live) {
+      reschedule(live, day, time)
+      setStage(live, stage)
+      setChannels(live, channels)
+      return live
     }
     const hook = newHook()
     const id = planPost(
-      { format: draft.format, hook, image: media[0]?.src, channels },
+      {
+        format: draft.format,
+        hook,
+        image: media[0]?.src,
+        channels,
+        ...(madeId && { postId: madeId }),
+      },
       day,
       time,
       stage,
@@ -389,29 +408,45 @@ export function Composer({
     return id
   }
 
-  function primary() {
-    if (stuck) return
-    update({ when: when === 'now' ? 'now' : 'slot' })
+  /**
+   * On the API, a save or a send waits for the server: only a stored change moves on. A refusal
+   * keeps the composer open with everything in it, and the app's message line says why.
+   */
+  async function stored(stage: Stage, send: 'now' | 'slot' | null): Promise<boolean> {
+    // From what the server stored, not from the calendar, which a reload may not have reached yet.
+    // A create sent again is safe: the server returns the post its id already names.
+    const isNew = !post && !created.current
+    const id = quietly(() => toCalendar(stage))
+    if (!id) return false
+    setWaiting(send ? 'send' : 'save')
+    const refused = await toServer(id, isNew, send)
+    setWaiting(null)
+    if (refused !== null) return false
+    created.current = true
+    if (send) sendKey.current = ''
+    return true
+  }
+
+  async function primary() {
+    if (stuck || waiting) return
+    const how = when === 'now' ? 'now' : 'slot'
+    update({ when: how })
     if (remote) {
-      sendKey.current = newId()
-      const isNew = !targetId
-      const id = quietly(() => toCalendar(when === 'now' ? 'posted' : 'scheduled'))
-      if (id) toServer(id, isNew, when === 'now' ? 'now' : 'slot')
+      sendKey.current ||= newId()
+      if (!(await stored(when === 'now' ? 'posted' : 'scheduled', how))) return
     } else {
       toCalendar(when === 'now' ? 'posted' : 'scheduled')
     }
-    api.send(when === 'now' ? 'now' : 'slot')
+    api.send(how)
   }
 
   // A post already past draft keeps its stage when saved: saving a caption must not unschedule it.
   const keeps = post !== undefined && post.stage !== 'draft'
 
-  function saveDraft() {
-    if (readOnly) return
+  async function saveDraft() {
+    if (readOnly || waiting) return
     if (remote) {
-      const isNew = !targetId
-      const id = quietly(() => toCalendar(keeps ? post.stage : 'draft'))
-      if (id) toServer(id, isNew, null)
+      if (!(await stored(keeps ? post.stage : 'draft', null))) return
     } else {
       toCalendar(keeps ? post.stage : 'draft')
     }
@@ -457,10 +492,13 @@ export function Composer({
             ? `${label} ${namesOf(logos)}`
             : undefined
       }
+      aria-busy={waiting === 'send'}
       onClick={primary}
       className={`flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-full px-5 text-[13.5px] font-medium transition-[background-color,box-shadow] max-md:h-12 max-md:text-[14px] ${stuck ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
     >
-      {phone && stuck ? (
+      {waiting === 'send' ? (
+        'Sending…'
+      ) : phone && stuck ? (
         <span className="flex min-w-0 max-w-full text-ink-3">{hint}</span>
       ) : (
         <>
@@ -481,10 +519,11 @@ export function Composer({
     <button
       type="button"
       aria-disabled={readOnly}
+      aria-busy={waiting === 'save'}
       onClick={saveDraft}
       className={`flex h-10 shrink-0 items-center rounded-full px-4 text-[13px] font-medium transition-colors max-md:h-12 max-md:text-[14px] ${readOnly ? 'cursor-not-allowed text-ink-5' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
     >
-      {keeps ? 'Save' : 'Save draft'}
+      {waiting === 'save' ? 'Saving…' : keeps ? 'Save' : 'Save draft'}
     </button>
   )
   // What Instagram shows of the people: the collaborators in its name line, the first photo's tags.
