@@ -46,7 +46,7 @@ export const SHOOT_TIMES = Array.from({ length: 31 }, (_, i) => clock(7 * 60 + i
 export function withShoots(weeks: Week[], shoots: Shoot[]): Week[] {
   return weeks.map((week) => {
     const here = shoots.flatMap((s): CalendarEvent[] => {
-      const col = week.days.findIndex((d) => d.n === s.dayN && !d.outside)
+      const col = week.days.findIndex((d) => d.date === s.date && !d.outside)
       return col === -1
         ? []
         : [{ layer: 'shoot', text: eventText(s), col: col + 1, span: 1, shootId: s.id }]
@@ -58,8 +58,8 @@ export function withShoots(weeks: Week[], shoots: Shoot[]): Week[] {
 /** The day a new shoot takes: the first day ahead with no shoot on it, else the last day. */
 export function freeShootDay(weeks: Week[], shoots: Shoot[]): string {
   const ahead = weeks.flatMap((w) => w.days).filter((d) => !d.past && !d.today)
-  const taken = new Set(shoots.map((s) => s.dayN))
-  return (ahead.find((d) => !taken.has(d.n)) ?? ahead[ahead.length - 1]!).n
+  const taken = new Set(shoots.map((s) => s.date))
+  return (ahead.find((d) => !taken.has(d.date)) ?? ahead[ahead.length - 1]!).date
 }
 
 /**

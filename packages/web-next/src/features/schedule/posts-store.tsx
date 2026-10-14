@@ -17,7 +17,7 @@ import { feedsOf } from '@/data/demo'
 import { dayLabel, landingDay } from '@/features/ideate/calendar-slot'
 import { ideaIdOfHook } from '@/features/ideate/ideas-store'
 import { newId, onState, push, remote, request, setActiveBrand } from '@/lib/remote'
-import { dateOf, mediaItem } from '@/lib/remote-days'
+import { mediaItem } from '@/lib/remote-days'
 
 import { archiveFor } from './month'
 import { calendarOf, type Saved } from './remote-calendar'
@@ -37,7 +37,7 @@ interface PostsValue {
   byId: (id: string) => Post | undefined
   setStage: (id: string, stage: Stage) => void
   /** Moves a post to another day of the current brand's month; false if the move is refused. */
-  movePost: (id: string, toDayN: string) => boolean
+  movePost: (id: string, toDate: string) => boolean
 }
 
 export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
@@ -50,7 +50,7 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
    */
   addIdeaToCalendar: (
     idea: { format: Exclude<Format, 'story'>; hook: string; why: string; ideaId?: string },
-    preferDayN?: string,
+    prefer?: string,
   ) => string | null
   /**
    * Makes an idea a post on a day, at a time and a stage, and returns the post's id. The idea's
@@ -67,12 +67,12 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
       images?: string[]
       channels?: Post['channels']
     },
-    dayN: string,
+    date: string,
     time: string,
     stage: Stage,
   ) => string
   /** Moves a post to a day and a time. False if the move is refused, as a drag would be. */
-  reschedule: (id: string, dayN: string, time: string) => boolean
+  reschedule: (id: string, date: string, time: string) => boolean
   /** The caption and draft the composer saved with a post on the server, if any. */
   saved: (id: string) => Saved[string] | undefined
   /** The composer picked the accounts a post goes to. */
@@ -103,7 +103,7 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
       suggested?: boolean
       ideaId?: string
     },
-    dayN: string,
+    date: string,
   ) => void
 }
 
@@ -205,28 +205,28 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   // A dragged tile carries its post to the new day, and the post's slot follows, so the composer
   // opened afterwards shows the day the tile is on. The time of day stays.
   const movePost = React.useCallback(
-    (id: string, toDayN: string) => {
+    (id: string, toDate: string) => {
       const weeks = weeksByBrand[brandId]
       const posts = postsByBrand[brandId]
       const post = posts.find((p) => p.id === id)
-      if (!post || moveRefusal(weeks, post, toDayN)) return false
-      const moved = { ...post, ...slotFor(weeks, toDayN, post.slot) }
-      setWeeksByBrand((all) => ({ ...all, [brandId]: moveInWeeks(weeks, posts, id, toDayN) }))
+      if (!post || moveRefusal(weeks, post, toDate)) return false
+      const moved = { ...post, ...slotFor(toDate, post.slot) }
+      setWeeksByBrand((all) => ({ ...all, [brandId]: moveInWeeks(weeks, posts, id, toDate) }))
       setPostsByBrand((all) => ({
         ...all,
         [brandId]: all[brandId].map((p) => (p.id === id ? moved : p)),
       }))
-      sendPost(brandId, 'POST', `/${id}/move`, { day: dateOf(toDayN) })
+      sendPost(brandId, 'POST', `/${id}/move`, { day: toDate })
       return true
     },
     [brandId, weeksByBrand, postsByBrand],
   )
 
   const addIdeaToCalendar = React.useCallback<BrandValue['addIdeaToCalendar']>(
-    (idea, preferDayN) => {
+    (idea, prefer) => {
       const weeks = weeksByBrand[brandId]
-      const dayN = landingDay(weeks, preferDayN)
-      if (!dayN) return null
+      const date = landingDay(weeks, prefer)
+      if (!date) return null
       const mark = { kind: 'idea' as const, format: idea.format, hook: idea.hook, why: idea.why }
       setWeeksByBrand((all) => ({
         ...all,
@@ -236,7 +236,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
             // Everything on a day stays; only this idea's own tile moves, so it is never on two days.
             const marks = feedsOf(day)
             const others = marks.filter((m) => !(m.kind === 'idea' && m.hook === idea.hook))
-            if (day.n !== dayN) {
+            if (day.date !== date) {
               if (others.length === marks.length) return day
               const { feed: _drop, ...rest } = day
               return others.length === 0
@@ -249,23 +249,23 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         })),
       }))
       sendIdea(brandId, idea, '/calendar', {
-        ...(preferDayN && { preferDay: dateOf(preferDayN) }),
+        ...(prefer && { preferDay: prefer }),
         why: idea.why,
       })
-      return dayLabel(weeks, dayN)
+      return dayLabel(date)
     },
     [brandId, weeksByBrand],
   )
 
   const planPost = React.useCallback<BrandValue['planPost']>(
-    (idea, dayN, time, stage) => {
+    (idea, date, time, stage) => {
       const id = remote ? newId() : `${brandId}-planned-${++planned}`
       const weeks = weeksByBrand[brandId]
       // On the server: the idea becomes the post, or a post is made when no idea has these words.
       const ideaId = idea.ideaId ?? ideaIdOfHook(brandId, idea.hook)
       const media = (idea.images ?? (idea.image ? [idea.image] : [])).map((src) => mediaItem(src))
       const fields = {
-        day: dateOf(dayN),
+        day: date,
         time,
         ...(idea.channels && { channels: idea.channels }),
         ...(media.length > 0 && { media }),
@@ -297,11 +297,11 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
           ? { fromIdea: { why: tile.why, ...(tile.suggested ? { suggested: true } : {}) } }
           : {}),
         stage,
-        ...slotFor(weeks, dayN, `, ${time}`),
+        ...slotFor(date, `, ${time}`),
       }
       const posts = [...postsByBrand[brandId], post]
       if (idea.format === 'story') {
-        setWeeksByBrand((all) => ({ ...all, [brandId]: placeStory(weeks, id, dayN) }))
+        setWeeksByBrand((all) => ({ ...all, [brandId]: placeStory(weeks, id, date) }))
         setPostsByBrand((all) => ({ ...all, [brandId]: posts }))
         return id
       }
@@ -316,7 +316,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
           return next.length === 0 ? rest : { ...rest, feed: next.length === 1 ? next[0] : next }
         }),
       }))
-      setWeeksByBrand((all) => ({ ...all, [brandId]: moveInWeeks(cleared, posts, id, dayN) }))
+      setWeeksByBrand((all) => ({ ...all, [brandId]: moveInWeeks(cleared, posts, id, date) }))
       setPostsByBrand((all) => ({ ...all, [brandId]: posts }))
       return id
     },
@@ -324,24 +324,24 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   )
 
   const reschedule = React.useCallback<BrandValue['reschedule']>(
-    (id, dayN, time) => {
+    (id, date, time) => {
       const weeks = weeksByBrand[brandId]
       const post = postsByBrand[brandId].find((p) => p.id === id)
       if (!post) return false
-      const refusal = moveRefusal(weeks, post, dayN)
+      const refusal = moveRefusal(weeks, post, date)
       if (refusal && refusal !== 'same-day') return false
-      if (post.format === 'story' && storyTaken(weeks, dayN, id)) return false
-      const moved = { ...post, ...slotFor(weeks, dayN, `, ${time}`) }
+      if (post.format === 'story' && storyTaken(weeks, date, id)) return false
+      const moved = { ...post, ...slotFor(date, `, ${time}`) }
       // Same day, same time: nothing to change. Publish calls this from an effect, so a new
       // array here on every call would loop, as setStage once did.
       if (refusal === 'same-day' && moved.slot === post.slot) return true
-      sendPost(brandId, 'POST', `/${id}/move`, { day: dateOf(dayN), time })
+      sendPost(brandId, 'POST', `/${id}/move`, { day: date, time })
       const posts = postsByBrand[brandId].map((p) => (p.id === id ? moved : p))
       if (!refusal) {
         const next =
           post.format === 'story'
-            ? placeStory(weeks, id, dayN)
-            : moveInWeeks(weeks, posts, id, dayN)
+            ? placeStory(weeks, id, date)
+            : moveInWeeks(weeks, posts, id, date)
         setWeeksByBrand((all) => ({ ...all, [brandId]: next }))
       }
       setPostsByBrand((all) => ({ ...all, [brandId]: posts }))
@@ -424,7 +424,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   )
 
   const placeIdea = React.useCallback<BrandValue['placeIdea']>(
-    (idea, dayN) => {
+    (idea, date) => {
       const mark = {
         kind: 'idea' as const,
         format: idea.format,
@@ -432,7 +432,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         why: idea.why,
         ...(idea.suggested ? { suggested: true } : {}),
       }
-      sendIdea(brandId, idea, '/place', { day: dateOf(dayN), why: idea.why })
+      sendIdea(brandId, idea, '/place', { day: date, why: idea.why })
       setWeeksByBrand((all) => ({
         ...all,
         [brandId]: all[brandId].map((week) => ({
@@ -440,8 +440,8 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
           days: week.days.map((day) => {
             const before = feedsOf(day)
             const marks = before.filter((m) => !(m.kind === 'idea' && m.hook === idea.hook))
-            if (day.n !== dayN && marks.length === before.length) return day
-            const next = day.n === dayN ? [...marks, mark] : marks
+            if (day.date !== date && marks.length === before.length) return day
+            const next = day.date === date ? [...marks, mark] : marks
             return {
               ...day,
               feed: next.length === 0 ? undefined : next.length === 1 ? next[0] : next,

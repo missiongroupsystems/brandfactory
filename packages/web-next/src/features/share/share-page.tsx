@@ -120,7 +120,6 @@ export function SharedIdea({ id }: { id: string }) {
 }
 
 function IdeaBrief({ brandId, card }: { brandId: BrandId; card: IdeaCard }) {
-  const { weeks } = contentFor(brandId)
   const shoot = shootOfIdea(useShoots(brandId), card.id)
   const refs = card.inspiration.flatMap((key) => {
     if (isMediaRef(key)) return [{ key, src: key, note: '' }]
@@ -149,7 +148,7 @@ function IdeaBrief({ brandId, card }: { brandId: BrandId; card: IdeaCard }) {
             <>
               <dt className="text-ink-4">Shoot</dt>
               <dd>
-                {dayLabel(weeks, shoot.dayN)}, {shoot.start}–{shoot.end} · {shoot.place}
+                {dayLabel(shoot.date)}, {shoot.start}–{shoot.end} · {shoot.place}
               </dd>
             </>
           )}
@@ -191,7 +190,6 @@ export function SharedShoot({ id }: { id: string }) {
 }
 
 function CallSheet({ brandId, shoot }: { brandId: BrandId; shoot: Shoot }) {
-  const { weeks } = contentFor(brandId)
   const byId = useIdeasById()
   const cards = shoot.ideaIds.flatMap((i) => byId.get(i)?.card ?? [])
   const shots = shotCount(cards)
@@ -200,7 +198,7 @@ function CallSheet({ brandId, shoot }: { brandId: BrandId; shoot: Shoot }) {
       <header className="flex flex-col gap-5">
         <span className={EYEBROW}>Call sheet · {shoot.title}</span>
         <h1 className="font-display text-[44px] leading-[1.05] tracking-[-0.035em] max-md:text-[30px]">
-          {dayLabel(weeks, shoot.dayN)}
+          {dayLabel(shoot.date)}
           <span className="text-ink-4">
             , {shoot.start}–{shoot.end}
           </span>

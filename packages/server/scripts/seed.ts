@@ -39,11 +39,8 @@ const { INBOX_BY_BRAND } = await load<typeof InboxData>('inbox.ts')
 const { LINKED } = await load<typeof PublishData>('publish.ts')
 const { GUEST_COMMENTS, SHOOTS_BY_BRAND } = await load<typeof ShootsData>('shoots.ts')
 
-/** The demo's month runs Mon 5 Oct to Sun 1 Nov 2026; a day printed below 5 is November. */
-export function dateOf(dayN: string): string {
-  const n = Number(dayN)
-  return n < 5 ? `2026-11-0${n}` : `2026-10-${String(n).padStart(2, '0')}`
-}
+/** The number a day prints, which the seed's ids carry: "8" for 2026-10-08. */
+const dayNumber = (date: string) => String(Number(date.slice(8)))
 
 /** The inbox's fixed "now" (`inbox/model.ts`): ages count back from it. */
 const INBOX_NOW = new Date('2026-10-11T07:00:00Z')
@@ -109,7 +106,7 @@ export async function seed(db: Db) {
         brandId: id,
         format: p.format,
         hook: p.hook,
-        day: day ? dateOf(day.n) : null,
+        day: day ? day.date : null,
         time: p.slot.split(', ')[1] ?? null,
         caption: content.captions[p.id] ?? '',
         channels: p.channels ?? [],
@@ -125,11 +122,11 @@ export async function seed(db: Db) {
     const stories = days.flatMap((d) =>
       d.story.kind === 'posted'
         ? Array.from({ length: d.story.count }, (_, i) => ({
-            id: `${id}-story-${d.n}-${i + 1}`,
+            id: `${id}-story-${dayNumber(d.date)}-${i + 1}`,
             brandId: id,
             format: 'story' as const,
             hook: `Story ${i + 1}`,
-            day: dateOf(d.n),
+            day: d.date,
             time: `${String(10 + i * 2).padStart(2, '0')}:00`,
             channels: ['ig'],
             media: [mediaOf((d.story as { image: string }).image)],
@@ -144,14 +141,14 @@ export async function seed(db: Db) {
     const pack = IDEAS_BY_BRAND[id]
     const rows = new Map<string, ReturnType<typeof cardRow>>()
     for (const card of pack.ideas) {
-      rows.set(card.id, cardRow(id, card, card.dayN ? dateOf(card.dayN) : null, null))
+      rows.set(card.id, cardRow(id, card, card.date ?? null, null))
     }
     for (const day of days) {
       for (const mark of feedsOf(day)) {
         if (mark.kind !== 'idea') continue
         const found = [...rows.values()].find((r) => r.hook === mark.hook)
         if (found) {
-          found.day = dateOf(day.n)
+          found.day = day.date
           found.why = mark.why
           continue
         }
@@ -164,7 +161,7 @@ export async function seed(db: Db) {
               status: 'idea',
             }
           : {
-              id: `${id}-tile-${day.n}`,
+              id: `${id}-tile-${dayNumber(day.date)}`,
               format: mark.format,
               pillar: 'Occasion',
               hook: mark.hook,
@@ -176,7 +173,7 @@ export async function seed(db: Db) {
               source: { kind: mark.suggested ? 'suggested' : 'own' },
               status: mark.suggested ? 'suggested' : 'idea',
             }
-        rows.set(card.id, cardRow(id, card, dateOf(day.n), mark.why))
+        rows.set(card.id, cardRow(id, card, day.date, mark.why))
       }
     }
     // A card that names a post links to it, and leaves the calendar to the post.
@@ -197,7 +194,7 @@ export async function seed(db: Db) {
         id: s.id,
         brandId: id,
         title: s.title,
-        day: dateOf(s.dayN),
+        day: s.date,
         start: s.start,
         end: s.end,
         place: s.place,

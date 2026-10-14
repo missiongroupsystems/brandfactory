@@ -106,7 +106,7 @@ const initials = (name: string) =>
 const COLUMN = 'max-w-[680px]'
 
 function CallSheet({ shoot }: { shoot: Shoot }) {
-  const { brand, weeks } = useBrand()
+  const { brand } = useBrand()
   const { ideas } = useIdeas(brand.id)
   // A shoot just planned from Ideate opens with its details out: it still needs a name and a day.
   const [editing, setEditing] = React.useState(shoot.title === 'New shoot')
@@ -131,7 +131,7 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
       </div>
 
       <header className={`${COLUMN} flex flex-col gap-4 max-md:gap-3`}>
-        <span className={EYEBROW}>Shoot · {dayLabel(weeks, shoot.dayN)}</span>
+        <span className={EYEBROW}>Shoot · {dayLabel(shoot.date)}</span>
         <h1 className="font-display text-[44px] leading-[1.05] tracking-[-0.035em] max-md:text-[32px]">
           {shoot.title}
         </h1>
@@ -253,7 +253,7 @@ export function Details({
   }))
   const infoOf = React.useCallback(
     (d: Day): DayInfo => {
-      const here = others.filter((s) => s.dayN === d.n)
+      const here = others.filter((s) => s.date === d.date)
       return {
         disabled: !!d.past,
         dot: here.length > 0,
@@ -268,8 +268,8 @@ export function Details({
       <span className="flex">
         <DayPicker
           label="Shoot day"
-          value={shoot.dayN}
-          onChange={(dayN) => edit({ dayN })}
+          value={shoot.date}
+          onChange={(date) => edit({ date })}
           infoOf={infoOf}
         />
       </span>
@@ -502,7 +502,7 @@ const FORMAT_LABEL = { reel: 'Reel', carousel: 'Carousel', story: 'Story' } as c
  * shoot asks first.
  */
 function AddIdea({ shoot, ideas }: { shoot: Shoot; ideas: IdeaCard[] }) {
-  const { brand, weeks } = useBrand()
+  const { brand } = useBrand()
   const shoots = useShoots(brand.id)
   const phone = usePhone()
   const [open, setOpen] = React.useState(false)
@@ -545,8 +545,8 @@ function AddIdea({ shoot, ideas }: { shoot: Shoot; ideas: IdeaCard[] }) {
       <p className="flex flex-col gap-1 text-[14px] leading-[1.5]">
         <span className="font-medium">{moving.hook}</span>
         <span className="text-ink-3">
-          On {elsewhere(moving.id)!.title}, {dayLabel(weeks, elsewhere(moving.id)!.dayN)}. Move it
-          to this shoot?
+          On {elsewhere(moving.id)!.title}, {dayLabel(elsewhere(moving.id)!.date)}. Move it to this
+          shoot?
         </span>
       </p>
       <div className="flex justify-end gap-2">
@@ -590,7 +590,7 @@ function AddIdea({ shoot, ideas }: { shoot: Shoot; ideas: IdeaCard[] }) {
                   {FORMAT_LABEL[card.format]}
                   {other && (
                     <span className="truncate">
-                      · On {other.title}, {dayLabel(weeks, other.dayN)}
+                      · On {other.title}, {dayLabel(other.date)}
                     </span>
                   )}
                 </span>

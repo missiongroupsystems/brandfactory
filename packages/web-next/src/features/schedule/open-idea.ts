@@ -13,8 +13,8 @@ import { useBrand } from './posts-store'
 export function useOpenIdea() {
   const router = useRouter()
   const { brand } = useBrand()
-  return (tile: IdeaTileMark, dayN?: string) =>
-    router.push(`/ideate/${ideaOfTile(brand.id, tile, dayN)}`)
+  return (tile: IdeaTileMark, date?: string) =>
+    router.push(`/ideate/${ideaOfTile(brand.id, tile, date)}`)
 }
 
 /** A tile's name for screen readers, with one full stop after the hook whether or not it ends in one. */

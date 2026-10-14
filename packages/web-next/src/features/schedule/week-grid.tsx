@@ -14,6 +14,7 @@ import { ideaLabel, useOpenIdea } from './open-idea'
 import { isVideo, Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import { startTouchDrag, touchDragPending } from '@/components/touch-drag'
+import { dayNumber } from '@/lib/dates'
 
 import {
   channelsOf,
@@ -56,10 +57,10 @@ interface DragValue {
   start: (postId: string) => void
   end: () => void
   /** A touch drag names its post: it began before `postId` was set. */
-  drop: (dayN: string, postId?: string) => void
+  drop: (date: string, postId?: string) => void
   /** The day under a finger that drags a post. */
   touchOver: string | null
-  setTouchOver: (dayN: string | null) => void
+  setTouchOver: (date: string | null) => void
 }
 
 const DragContext = React.createContext<DragValue>({
@@ -123,10 +124,10 @@ export function WeekGrid({
   stages: StageFilter
   mode: 'month' | 'week'
   onOpenPost: (postId: string) => void
-  onNewPost: (dayN?: string, time?: string) => void
+  onNewPost: (date?: string, time?: string) => void
   onOpenDay: (week: number, day: number) => void
   /** Opens a day's stories in the side panel. */
-  onOpenStories: (dayN: string) => void
+  onOpenStories: (date: string) => void
 }) {
   const todayCol = weeks.flatMap((w) => w.days).findIndex((d) => d.today) % 7
   const { movePost } = useBrand()
@@ -143,8 +144,8 @@ export function WeekGrid({
         requestAnimationFrame(() => setPostId(id))
       },
       end: () => setPostId(null),
-      drop: (dayN, id = postId ?? undefined) => {
-        if (id && movePost(id, dayN)) setLanded(id)
+      drop: (date, id = postId ?? undefined) => {
+        if (id && movePost(id, date)) setLanded(id)
         setPostId(null)
       },
       touchOver,
@@ -210,9 +211,9 @@ function WeekRow({
   mode: 'month' | 'week'
   eager: boolean
   onOpenPost: (postId: string) => void
-  onNewPost: (dayN?: string, time?: string) => void
+  onNewPost: (date?: string, time?: string) => void
   onOpenDay: (day: number) => void
-  onOpenStories: (dayN: string) => void
+  onOpenStories: (date: string) => void
 }) {
   const lanes = packLanes(week.events.filter((e) => layers[e.layer]))
   const laneCount = lanes.reduce((n, l) => Math.max(n, l.lane + 1), 0)
@@ -221,12 +222,12 @@ function WeekRow({
     <div className={`${GRID} relative border-t border-(--cal-line)`}>
       {week.days.map((day, i) => (
         <DayCell
-          key={day.n}
+          key={day.date}
           day={day}
           stages={stages}
           mode={mode}
           onOpen={() => onOpenDay(i)}
-          onOpenStories={() => onOpenStories(day.n)}
+          onOpenStories={() => onOpenStories(day.date)}
           name={DAY_NAMES[i]}
           first={i === 0}
           laneSpace={laneSpace}
@@ -277,7 +278,7 @@ function DayCell({
   laneSpace: number
   eager: boolean
   onOpenPost: (postId: string) => void
-  onNewPost: (dayN?: string, time?: string) => void
+  onNewPost: (date?: string, time?: string) => void
 }) {
   // A busy day can hold several feed posts; most hold one or none.
   const feeds = feedsOf(day)
@@ -292,7 +293,7 @@ function DayCell({
         className={`px-2.5 pt-2.5 pb-5 ${first ? '' : 'border-l border-(--cal-line)'}`}
       >
         <span className="flex size-[22px] items-center justify-center text-[12px] font-medium text-ink-5 tabular-nums opacity-40">
-          {day.n}
+          {dayNumber(day.date)}
         </span>
       </div>
     )
@@ -305,9 +306,9 @@ function DayCell({
   return (
     <div
       className={`group relative flex min-w-0 flex-col px-2.5 pt-2.5 pb-5 transition-colors ${first ? '' : 'border-l border-(--cal-line)'} ${day.past ? '' : 'hover:bg-(--cal-hover)'}`}
-      aria-label={`${name} ${day.n}`}
+      aria-label={`${name} ${dayNumber(day.date)}`}
       role="group"
-      data-drop={day.n}
+      data-drop={day.date}
       onDragOver={(e) => {
         if (!canDrop) return
         e.preventDefault()
@@ -320,13 +321,13 @@ function DayCell({
       onDrop={(e) => {
         e.preventDefault()
         setOver(false)
-        if (canDrop) drag.drop(day.n)
+        if (canDrop) drag.drop(day.date)
       }}
     >
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-1.5 rounded-[10px] bg-(--cal-drop) shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-opacity duration-200"
-        style={{ opacity: (over || drag.touchOver === day.n) && canDrop ? 1 : 0 }}
+        style={{ opacity: (over || drag.touchOver === day.date) && canDrop ? 1 : 0 }}
       />
       <div
         className={`flex h-6 items-center justify-between gap-1 ${day.past ? 'opacity-40' : ''}`}
@@ -334,7 +335,7 @@ function DayCell({
         <span
           className={`flex size-[22px] items-center justify-center rounded-full text-[12px] font-medium tabular-nums ${day.today ? 'bg-ink text-page' : day.past ? 'text-ink-4' : 'text-ink-2'}`}
         >
-          {day.n}
+          {dayNumber(day.date)}
         </span>
       </div>
       <div
@@ -396,7 +397,7 @@ function DaySummary({
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`Open ${day.n} in the day view`}
+      aria-label={`Open ${dayNumber(day.date)} in the day view`}
       className="flex min-h-[64px] w-full flex-wrap content-start items-start gap-1 rounded-[8px] text-left"
     >
       {failed.map(({ channel, n }) => (
@@ -473,12 +474,12 @@ function WeekDay({
   stages: StageFilter
   eager: boolean
   onOpenPost: (postId: string) => void
-  onNewPost: (dayN?: string, time?: string) => void
+  onNewPost: (date?: string, time?: string) => void
   onOpenStories: () => void
 }) {
   const { brand, library, byId } = useBrand()
   const items = itemsOf(day, byId, stages)
-  const stories = storiesOf(day.n, items, brand.id, library, byId)
+  const stories = storiesOf(day.date, items, brand.id, library, byId)
   return (
     <div className="flex flex-col gap-3">
       {/* The story row keeps its height on an empty day, so every day's posts start level. */}
@@ -502,13 +503,13 @@ function WeekDay({
         </div>
       ))}
       {items.ideas.map((mark) => (
-        <IdeaTile key={mark.hook} mark={mark} dayN={day.n} />
+        <IdeaTile key={mark.hook} mark={mark} date={day.date} />
       ))}
       {!day.past && (
         <button
           type="button"
-          onClick={() => onNewPost(day.n)}
-          aria-label={`New post on ${day.n}`}
+          onClick={() => onNewPost(day.date)}
+          aria-label={`New post on ${dayNumber(day.date)}`}
           className="flex h-9 max-w-[200px] items-center justify-center rounded-[8px] border border-dashed border-(--cal-ghost) text-ink-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:text-ink focus-visible:opacity-100"
         >
           <PlusIcon size={12} />
@@ -539,12 +540,12 @@ const tintOf = (mark: Extract<FeedMark, { kind: 'idea' }>, brandColour: string) 
  */
 export function IdeaTile({
   mark,
-  dayN,
+  date,
   row = false,
 }: {
   mark: Extract<FeedMark, { kind: 'idea' }>
   /** The day it sits on: an idea made from the tile keeps it. */
-  dayN?: string
+  date?: string
   /** A compact pill, for the day view's band above the hours, where many can sit side by side. */
   row?: boolean
 }) {
@@ -559,7 +560,7 @@ export function IdeaTile({
     return (
       <button
         type="button"
-        onClick={() => open(mark, dayN)}
+        onClick={() => open(mark, date)}
         aria-label={ideaLabel(mark, mark.why)}
         title={mark.why}
         className={`group/idea flex h-8 max-w-[360px] min-w-0 items-center gap-2 rounded-full border border-dashed pr-3 pl-1.5 text-left transition-colors ${mark.suggested ? 'bg-(--insight-wash)' : 'bg-page hover:bg-surface'}`}
@@ -590,7 +591,7 @@ export function IdeaTile({
   return (
     <button
       type="button"
-      onClick={() => open(mark, dayN)}
+      onClick={() => open(mark, date)}
       aria-label={ideaLabel(mark, mark.why)}
       className={`group/idea flex w-full flex-col gap-1 rounded-[10px] border border-dashed p-2.5 text-left transition-[border-color,background-color] ${wide ? 'max-w-[200px]' : 'max-w-[124px]'} ${mark.suggested ? 'bg-(--insight-wash)' : 'bg-page hover:bg-surface'}`}
       style={{ borderColor: `color-mix(in oklab, ${tint} 55%, transparent)` }}
@@ -668,7 +669,7 @@ export function PostTile({
         startTouchDrag(e, {
           start: () => drag.start(post.id),
           over: drag.setTouchOver,
-          drop: (dayN) => (dayN ? drag.drop(dayN, post.id) : drag.end()),
+          drop: (date) => (date ? drag.drop(date, post.id) : drag.end()),
           end: drag.end,
         })
       }}

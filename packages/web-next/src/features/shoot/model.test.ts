@@ -24,7 +24,7 @@ describe('shoots on the calendar', () => {
   })
 
   it('shows a shoot where it is now, once the call sheet moves it', () => {
-    const moved: Shoot = { ...raffles, dayN: '30' }
+    const moved: Shoot = { ...raffles, date: '2026-10-30' }
     const weeks = withShoots(WEEKS, [moved])
     expect(weeks[0]!.events.some((e) => e.shootId)).toBe(false)
     expect(weeks[3]!.events.find((e) => e.shootId)).toMatchObject({ col: 5 })
@@ -52,8 +52,8 @@ describe('a shoot’s hours', () => {
 describe('the day a new shoot takes', () => {
   it('is the first day ahead with no shoot on it', () => {
     // Today is 6 Oct, and the 7th already has the Raffles City shoot.
-    expect(freeShootDay(WEEKS, [raffles])).toBe('8')
-    expect(freeShootDay(WEEKS, [])).toBe('7')
+    expect(freeShootDay(WEEKS, [raffles])).toBe('2026-10-08')
+    expect(freeShootDay(WEEKS, [])).toBe('2026-10-07')
   })
 })
 

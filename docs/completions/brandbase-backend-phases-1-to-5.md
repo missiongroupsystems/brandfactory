@@ -45,7 +45,8 @@ queue. A refused change shows its reason and that brand reloads, after the chang
 land. The composer keeps its whole draft with the post and sends through the server, so a post is
 posted only once each account's job says so. Dropped files, the logo and brand files upload to
 storage. The guest share page opens by token. The demo's `dayN` days convert to dates at this
-boundary (`src/lib/remote-days.ts`).
+boundary (`src/lib/remote-days.ts`); since 2.13.0 every day is its date (see
+`brandbase-go-live-gaps-phases-1-to-3.md`).
 
 ## Phase 5: deploy files
 
@@ -96,7 +97,8 @@ a posted post's media never sent; the guest preview opened apart from the team's
 - The composer shows its done screen before the server answers; a refused send shows a message and
   the calendar reloads, but the composer stays on its done screen.
 - Moodboard sources other than Pinterest, pasted references and story ideas in the story row live
-  in the browser only. Calendar dates outside the demo's month are kept but not drawn.
+  in the browser only. Calendar dates outside the demo's month are kept but not drawn (fixed in
+  2.13.0).
 - An uploaded SVG is served as a download from the local disk store (it could carry script), so an
   SVG logo shows only on Supabase Storage.
 - Server-made posters, video durations and crops (need ffmpeg). Live updates between two open

@@ -154,13 +154,13 @@ function daysAhead(weeks: Week[], card: IdeaCard) {
     if (d.past || d.today) continue
     // Other posts on the day; this idea's own post does not count.
     const posts = feedsOf(d).filter((m) => m.kind === 'post' && m.postId !== card.postId).length
-    const taken = card.format === 'story' && storyTaken(weeks, d.n, card.postId)
+    const taken = card.format === 'story' && storyTaken(weeks, d.date, card.postId)
     const note = taken
       ? 'story planned'
       : posts
         ? `${posts} post${posts > 1 ? 's' : ''}`
         : undefined
-    ahead.set(d.n, { taken, disabled: taken, dot: posts > 0 || taken, note })
+    ahead.set(d.date, { taken, disabled: taken, dot: posts > 0 || taken, note })
   }
   return ahead
 }
@@ -172,7 +172,7 @@ interface Plan {
   /** What the post carries, in order. */
   media: string[]
   setStatus: (step: Step) => void
-  setDate: (dayN: string) => void
+  setDate: (date: string) => void
   setTime: (time: string) => void
 }
 
@@ -204,12 +204,12 @@ function usePlan(slot: Slot): Plan {
     useBrand()
   // The time picked before the idea has a date; the post holds it from then on.
   const [picked, setPicked] = React.useState('18:00')
-  const { card, dayN } = slot
+  const { card, date } = slot
   const post = card.postId ? byId(card.postId) : undefined
   const time = post?.slot.split(', ')[1] ?? picked
   const ahead = React.useMemo(() => daysAhead(weeks, card), [weeks, card])
   const infoOf = React.useCallback(
-    (d: Day): DayInfo => ahead.get(d.n) ?? { disabled: true },
+    (d: Day): DayInfo => ahead.get(d.date) ?? { disabled: true },
     [ahead],
   )
   const handed = React.useMemo(() => handedBy(card), [card])
@@ -231,13 +231,13 @@ function usePlan(slot: Slot): Plan {
   }, [post, handed, card.image, setImages])
   const media = handed ?? post?.images ?? (card.image ? [card.image] : [])
   const firstDay = () => {
-    if (dayN && ahead.has(dayN) && !ahead.get(dayN)!.taken) return dayN
+    if (date && ahead.has(date) && !ahead.get(date)!.taken) return date
     if (card.format === 'story') return [...ahead].find(([, d]) => !d.taken)?.[0] ?? null
-    return landingDay(weeks, card.dayN)
+    return landingDay(weeks, card.date)
   }
   const plan = (stage: Stage, day: string | null, t: string) => {
     if (post) {
-      if (day && (day !== dayN || t !== time)) reschedule(post.id, day, t)
+      if (day && (day !== date || t !== time)) reschedule(post.id, day, t)
       if (stage !== post.stage) setStage(post.id, stage)
       return
     }
@@ -258,7 +258,7 @@ function usePlan(slot: Slot): Plan {
     // Idea takes a post back to a plan on its day. Posted is final: nothing changes it.
     setStatus: (step) => {
       if (post?.stage === 'posted') return
-      if (step !== 'idea') return plan(step, dayN, time)
+      if (step !== 'idea') return plan(step, date, time)
       if (!post) return
       const why =
         card.source.kind === 'moment'
@@ -288,7 +288,7 @@ function usePlan(slot: Slot): Plan {
         n,
       )
     },
-    setTime: (t) => (post && dayN ? reschedule(post.id, dayN, t) : setPicked(t)),
+    setTime: (t) => (post && date ? reschedule(post.id, date, t) : setPicked(t)),
   }
 }
 
@@ -337,7 +337,7 @@ function stagesOf(
 ): StageState[] {
   const shots = card.shots
   const captured = shots.filter((s) => s.captured).length
-  const shootDay = card.shootDay ? dayLabel(weeks, card.shootDay) : null
+  const shootDay = card.shootDay ? dayLabel(card.shootDay) : null
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
   const stages = [
     {
@@ -364,8 +364,8 @@ function stagesOf(
       key: 'post' as const,
       label: 'Post',
       done: slot.status === 'posted',
-      note: slot.dayN
-        ? `${STATUS_LABEL[slot.status]} · ${dayLabel(weeks, slot.dayN)}${card.postId ? `, ${time}` : ''}`
+      note: slot.date
+        ? `${STATUS_LABEL[slot.status]} · ${dayLabel(slot.date)}${card.postId ? `, ${time}` : ''}`
         : STATUS_LABEL[slot.status],
     },
   ]
@@ -502,7 +502,7 @@ function Idea({ slot }: { slot: Slot }) {
   // The idea's shoot day is its shoot's day, which the call sheet can move.
   const shoot = useShootOf(brand.id, slot.card.id)
   const card = React.useMemo(
-    () => (shoot ? { ...slot.card, shootDay: shoot.dayN } : slot.card),
+    () => (shoot ? { ...slot.card, shootDay: shoot.date } : slot.card),
     [slot.card, shoot],
   )
   const rename = useRename(card)
@@ -1452,18 +1452,18 @@ function ShotDetails({ card }: { card: IdeaCard }) {
   const [start, setStart] = React.useState('12:00')
   // The shoots ahead, as shortcuts; two can share a day.
   const shoots = React.useMemo(() => {
-    const ahead = new Set(weeks.flatMap((w) => w.days.filter((d) => !d.past).map((d) => d.n)))
+    const ahead = new Set(weeks.flatMap((w) => w.days.filter((d) => !d.past).map((d) => d.date)))
     return all
-      .filter((s) => ahead.has(s.dayN))
+      .filter((s) => ahead.has(s.date))
       .map((s) => ({
         key: s.id,
-        dayN: s.dayN,
-        label: `${s.title} · ${dayLabel(weeks, s.dayN)}, ${s.start}`,
+        date: s.date,
+        label: `${s.title} · ${dayLabel(s.date)}, ${s.start}`,
       }))
   }, [all, weeks])
   const infoOf = React.useCallback(
     (d: Day): DayInfo => {
-      const here = shoots.filter((s) => s.dayN === d.n)
+      const here = shoots.filter((s) => s.date === d.date)
       return { disabled: !!d.past, dot: here.length > 0, note: here.map((s) => s.label).join(', ') }
     },
     [shoots],
@@ -1482,9 +1482,9 @@ function ShotDetails({ card }: { card: IdeaCard }) {
       <span className="flex">
         <DayPicker
           label="Shoot day"
-          value={shoot?.dayN ?? null}
+          value={shoot?.date ?? null}
           placeholder="Pick a shoot day"
-          onChange={(dayN) => shootIdeaOn(brand.id, weeks, card.id, dayN, shoot?.start ?? start)}
+          onChange={(date) => shootIdeaOn(brand.id, weeks, card.id, date, shoot?.start ?? start)}
           onClear={() => leaveShoot(brand.id, card.id)}
           infoOf={infoOf}
           shortcuts={shoots}
@@ -1499,7 +1499,7 @@ function ShotDetails({ card }: { card: IdeaCard }) {
 
 /** The shoot this idea is in, when and where, with its call sheet a click away. */
 function ShootLine({ card }: { card: IdeaCard }) {
-  const { brand, weeks } = useBrand()
+  const { brand } = useBrand()
   const shoot = useShootOf(brand.id, card.id)
   if (!shoot) return null
   const others = shoot.ideaIds.length - 1
@@ -1510,7 +1510,7 @@ function ShootLine({ card }: { card: IdeaCard }) {
     >
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="text-[14px] font-medium">
-          {dayLabel(weeks, shoot.dayN)}, {timeRange(shoot)} · {shoot.title}
+          {dayLabel(shoot.date)}, {timeRange(shoot)} · {shoot.title}
         </span>
         <span className="truncate text-[12px] opacity-75">
           {shoot.crew.length} people
@@ -1773,8 +1773,8 @@ function PlanSection({
   board: Board
   edit: (fields: IdeaEdit | ((c: IdeaCard) => IdeaEdit)) => void
 }) {
-  const { brand, weeks } = useBrand()
-  const { card, status, dayN } = slot
+  const { brand } = useBrand()
+  const { card, status, date } = slot
   const step = stepOf(status)
   const { media } = plan
   const reel = card.format === 'reel'
@@ -1790,7 +1790,7 @@ function PlanSection({
           <span className="flex flex-wrap items-center gap-2">
             <DayPicker
               label="Post date"
-              value={dayN}
+              value={date}
               placeholder="Pick a day and a time"
               disabled={step === 'posted'}
               onChange={plan.setDate}
@@ -1802,10 +1802,10 @@ function PlanSection({
             />
           </span>
         </div>
-        {card.postId && dayN && (
+        {card.postId && date && (
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[92px] text-[12px] text-ink-4">
             <Link href="/" className="text-(--insight-6) hover:underline">
-              On the calendar · {dayLabel(weeks, dayN)}, {plan.time}
+              On the calendar · {dayLabel(date)}, {plan.time}
               {card.format === 'story' ? ' · story row' : ''}
             </Link>
             <Link
@@ -2004,8 +2004,8 @@ function Suggestion({ slot }: { slot: Slot }) {
 
   function keep() {
     keepSuggestion(brand.id, card.id)
-    const dayN = landingDay(weeks, card.dayN)
-    if (!dayN || card.format === 'story') return
+    const date = landingDay(weeks, card.date)
+    if (!date || card.format === 'story') return
     const where = addIdeaToCalendar(
       {
         ideaId: card.id,
@@ -2013,9 +2013,9 @@ function Suggestion({ slot }: { slot: Slot }) {
         hook: card.hook,
         why: b ? `Built on “${b.idea.hook}”` : 'Suggested',
       },
-      dayN,
+      date,
     )
-    if (where) setDay(brand.id, card.id, dayN)
+    if (where) setDay(brand.id, card.id, date)
   }
 
   return (

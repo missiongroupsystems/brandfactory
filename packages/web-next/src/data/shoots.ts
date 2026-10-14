@@ -18,8 +18,8 @@ export interface Shoot {
   id: string
   /** What the calendar and the call sheet call it: the place in short, "Raffles City". */
   title: string
-  /** The day of the demo's month, as the calendar prints it. */
-  dayN: string
+  /** The day, `YYYY-MM-DD`. */
+  date: string
   /** "12:00" and "17:00", on the 24-hour clock the calendar uses. */
   start: string
   end: string
@@ -99,7 +99,7 @@ export const SHOOTS_BY_BRAND: Record<BrandId, Shoot[]> = {
     {
       id: 'cv-shoot-raffles',
       title: 'Raffles City',
-      dayN: '7',
+      date: '2026-10-07',
       start: '12:00',
       end: '17:00',
       place: HOME['casa-vostra'],
@@ -109,7 +109,7 @@ export const SHOOTS_BY_BRAND: Record<BrandId, Shoot[]> = {
     {
       id: 'cv-shoot-pasta',
       title: 'Pasta day',
-      dayN: '21',
+      date: '2026-10-21',
       start: '10:00',
       end: '13:00',
       place: HOME['casa-vostra'],
@@ -124,7 +124,7 @@ export const SHOOTS_BY_BRAND: Record<BrandId, Shoot[]> = {
     {
       id: 'tp-shoot-duxton',
       title: 'Duxton',
-      dayN: '6',
+      date: '2026-10-06',
       start: '12:00',
       end: '17:00',
       place: HOME.temper,
@@ -134,7 +134,7 @@ export const SHOOTS_BY_BRAND: Record<BrandId, Shoot[]> = {
     {
       id: 'tp-shoot-wood-fire',
       title: 'Wood fire',
-      dayN: '13',
+      date: '2026-10-13',
       start: '14:00',
       end: '17:00',
       place: HOME.temper,
@@ -147,7 +147,7 @@ export const SHOOTS_BY_BRAND: Record<BrandId, Shoot[]> = {
     {
       id: 'tp-shoot-cellar',
       title: 'The cellar',
-      dayN: '26',
+      date: '2026-10-26',
       start: '15:00',
       end: '18:00',
       place: 'Temper cellar, 4 Duxton Hill (basement)',
@@ -159,7 +159,7 @@ export const SHOOTS_BY_BRAND: Record<BrandId, Shoot[]> = {
     {
       id: 'ca-shoot-joo-chiat',
       title: 'Joo Chiat',
-      dayN: '6',
+      date: '2026-10-06',
       start: '16:00',
       end: '19:00',
       place: HOME.carlitos,
@@ -169,7 +169,7 @@ export const SHOOTS_BY_BRAND: Record<BrandId, Shoot[]> = {
     {
       id: 'ca-shoot-bravas',
       title: 'Bravas',
-      dayN: '19',
+      date: '2026-10-19',
       start: '11:00',
       end: '14:00',
       place: HOME.carlitos,

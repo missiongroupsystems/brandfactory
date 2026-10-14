@@ -37,7 +37,7 @@ describe('taking a post back to an idea', () => {
     act(() => {
       id = result.current.planPost(
         { format: 'reel', hook: 'Back to a plan.' },
-        '27',
+        '2026-10-27',
         '18:00',
         'draft',
       )
@@ -46,7 +46,7 @@ describe('taking a post back to an idea', () => {
       result.current.unplanPost(id, { format: 'reel', hook: 'Back to a plan.', why: 'Team idea' }),
     )
     expect(result.current.byId(id)).toBeUndefined()
-    const day = result.current.weeks.flatMap((w) => w.days).find((d) => d.n === '27')!
+    const day = result.current.weeks.flatMap((w) => w.days).find((d) => d.date === '2026-10-27')!
     expect(feedsOf(day)).toContainEqual({
       kind: 'idea',
       format: 'reel',
@@ -62,19 +62,24 @@ describe('taking a post back to an idea', () => {
     const hook = 'Pizza before the lights go out.'
     let id = ''
     act(() => {
-      id = result.current.planPost({ format: 'reel', hook }, '9', '18:00', 'draft')
+      id = result.current.planPost({ format: 'reel', hook }, '2026-10-09', '18:00', 'draft')
     })
     act(() =>
       result.current.unplanPost(id, { format: 'reel', hook, why: 'F1 Singapore Grand Prix' }),
     )
-    const day = result.current.weeks.flatMap((w) => w.days).find((d) => d.n === '9')!
+    const day = result.current.weeks.flatMap((w) => w.days).find((d) => d.date === '2026-10-09')!
     expect(feedsOf(day)).toContainEqual({ kind: 'idea', format: 'reel', hook, why: 'F1 weekend' })
     const tagliatelle = 'Watch the dough become tagliatelle.'
     act(() => {
-      id = result.current.planPost({ format: 'reel', hook: tagliatelle }, '20', '18:00', 'draft')
+      id = result.current.planPost(
+        { format: 'reel', hook: tagliatelle },
+        '2026-10-20',
+        '18:00',
+        'draft',
+      )
     })
     act(() => result.current.unplanPost(id, { format: 'reel', hook: tagliatelle, why: 'x' }))
-    const tue = result.current.weeks.flatMap((w) => w.days).find((d) => d.n === '20')!
+    const tue = result.current.weeks.flatMap((w) => w.days).find((d) => d.date === '2026-10-20')!
     expect(feedsOf(tue).find((m) => m.kind === 'idea' && m.hook === tagliatelle)).toMatchObject({
       suggested: true,
     })
@@ -83,26 +88,31 @@ describe('taking a post back to an idea', () => {
   it("keeps a day's other ideas when a post lands there, or another idea is planned there", () => {
     const { result } = renderHook(() => useBrand(), { wrapper })
     const ideasOn = (n: string) =>
-      feedsOf(result.current.weeks.flatMap((w) => w.days).find((d) => d.n === n)!)
+      feedsOf(result.current.weeks.flatMap((w) => w.days).find((d) => d.date === n)!)
         .filter((m) => m.kind === 'idea')
         .map((m) => (m.kind === 'idea' ? m.hook : ''))
     // Fri 9 Oct holds the F1 idea. A second idea planned there, then a post, leave it in place.
     act(() => {
       result.current.addIdeaToCalendar(
         { format: 'reel', hook: 'A second idea.', why: 'Team idea' },
-        '9',
+        '2026-10-09',
       )
     })
     act(() => {
-      result.current.planPost({ format: 'reel', hook: 'A new post.' }, '9', '12:00', 'draft')
+      result.current.planPost(
+        { format: 'reel', hook: 'A new post.' },
+        '2026-10-09',
+        '12:00',
+        'draft',
+      )
     })
 
-    expect(ideasOn('9')).toEqual(['Pizza before the lights go out.', 'A second idea.'])
+    expect(ideasOn('2026-10-09')).toEqual(['Pizza before the lights go out.', 'A second idea.'])
     // A post moved onto a day with an idea leaves the idea there too.
     act(() => {
-      result.current.movePost('pasta', '9')
+      result.current.movePost('pasta', '2026-10-09')
     })
-    expect(ideasOn('9')).toEqual(['Pizza before the lights go out.', 'A second idea.'])
+    expect(ideasOn('2026-10-09')).toEqual(['Pizza before the lights go out.', 'A second idea.'])
   })
 
   it('keeps a suggestion a suggestion when its day changes, and an idea on one day only', () => {
@@ -110,14 +120,17 @@ describe('taking a post back to an idea', () => {
     const all = () => result.current.weeks.flatMap((w) => w.days.flatMap(feedsOf))
     const hook = 'Watch the dough become tagliatelle.'
     act(() =>
-      result.current.placeIdea({ format: 'reel', hook, why: 'Insight', suggested: true }, '27'),
+      result.current.placeIdea(
+        { format: 'reel', hook, why: 'Insight', suggested: true },
+        '2026-10-27',
+      ),
     )
     const moved = all().filter((m) => m.kind === 'idea' && m.hook === hook)
     expect(moved).toHaveLength(1)
     expect(moved[0]).toMatchObject({ suggested: true })
     // Planned again by Plan it, the idea leaves its old day rather than showing on two.
     act(() => {
-      result.current.addIdeaToCalendar({ format: 'reel', hook, why: 'Insight' }, '29')
+      result.current.addIdeaToCalendar({ format: 'reel', hook, why: 'Insight' }, '2026-10-29')
     })
     expect(all().filter((m) => m.kind === 'idea' && m.hook === hook)).toHaveLength(1)
   })
@@ -126,12 +139,17 @@ describe('taking a post back to an idea', () => {
     const { result } = renderHook(() => useBrand(), { wrapper })
     let id = ''
     act(() => {
-      id = result.current.planPost({ format: 'story', hook: 'A story.' }, '27', '18:00', 'draft')
+      id = result.current.planPost(
+        { format: 'story', hook: 'A story.' },
+        '2026-10-27',
+        '18:00',
+        'draft',
+      )
     })
     act(() =>
       result.current.unplanPost(id, { format: 'story', hook: 'A story.', why: 'Team idea' }),
     )
-    const day = result.current.weeks.flatMap((w) => w.days).find((d) => d.n === '27')!
+    const day = result.current.weeks.flatMap((w) => w.days).find((d) => d.date === '2026-10-27')!
     expect(day.story).toEqual({ kind: 'open', draftsReady: false })
     expect(feedsOf(day).some((m) => m.kind === 'idea' && m.hook === 'A story.')).toBe(false)
   })

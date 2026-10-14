@@ -8,7 +8,7 @@ import type { IdeaCard, IdeaFormat, IdeaStatus } from '@/data/ideas'
 import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 
-import { dayIndex, dayLabel, dayOfHook } from './calendar-slot'
+import { dayLabel, dayOfHook } from './calendar-slot'
 import { setHook, useIdeas } from './ideas-store'
 
 /**
@@ -45,11 +45,10 @@ export interface Slot {
   card: IdeaCard
   status: IdeaStatus
   /** The day it sits on, or the day a suggestion proposes. */
-  dayN: string | null
+  date: string | null
   label: string | null
   /** True once it is on the calendar. */
   placed: boolean
-  order: number
 }
 
 /** Every card as the calendar knows it. Suggestions are in once asked for, or when `all` is set. */
@@ -58,23 +57,28 @@ export function useSlots(all = false): Slot[] {
   const { ideas, suggesting } = useIdeas(brand.id)
   return React.useMemo(() => {
     const hookOf = (id: string) => byId(id)?.hook
-    return ideas
-      .filter((card) => all || suggesting || card.status !== 'suggested')
-      .map((card) => {
-        const stage: Stage | undefined = card.postId ? byId(card.postId)?.stage : undefined
-        const status: IdeaStatus = card.status === 'suggested' ? 'suggested' : (stage ?? 'idea')
-        // The calendar decides where a card is: a post sits where the post sits, an idea where its
-        // tile is. A day the card remembers only counts for a suggestion, which proposes one.
-        const onCalendar = card.postId
-          ? dayOf(weeks, card.postId)
-          : dayOfHook(weeks, card.hook, hookOf)
-        const placed = card.status !== 'suggested' && onCalendar !== null
-        const dayN = placed ? onCalendar : card.status === 'suggested' ? (card.dayN ?? null) : null
-        // Unsent ideas sort after the dated ones.
-        const order = dayN ? dayIndex(weeks, dayN) : 999
-        return { card, status, dayN, label: dayN ? dayLabel(weeks, dayN) : null, placed, order }
-      })
-      .sort((a, b) => a.order - b.order)
+    return (
+      ideas
+        .filter((card) => all || suggesting || card.status !== 'suggested')
+        .map((card) => {
+          const stage: Stage | undefined = card.postId ? byId(card.postId)?.stage : undefined
+          const status: IdeaStatus = card.status === 'suggested' ? 'suggested' : (stage ?? 'idea')
+          // The calendar decides where a card is: a post sits where the post sits, an idea where its
+          // tile is. A day the card remembers only counts for a suggestion, which proposes one.
+          const onCalendar = card.postId
+            ? dayOf(weeks, card.postId)
+            : dayOfHook(weeks, card.hook, hookOf)
+          const placed = card.status !== 'suggested' && onCalendar !== null
+          const date = placed
+            ? onCalendar
+            : card.status === 'suggested'
+              ? (card.date ?? null)
+              : null
+          return { card, status, date, label: date ? dayLabel(date) : null, placed }
+        })
+        // By day; unsent ideas sort after the dated ones.
+        .sort((a, b) => (a.date ?? '~').localeCompare(b.date ?? '~'))
+    )
   }, [ideas, suggesting, all, weeks, byId])
 }
 

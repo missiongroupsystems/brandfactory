@@ -15,7 +15,6 @@ import {
 } from '@/data/shoots'
 
 import { newId, onState, push, quietly, remote, request } from '@/lib/remote'
-import { dateOf, dayNOf } from '@/lib/remote-days'
 
 import { freeShootDay, moveStart } from './model'
 
@@ -163,14 +162,14 @@ export function planShoot(
   brandId: BrandId,
   weeks: Week[],
   ideaIds: string[],
-  when: { dayN?: string; start?: string } = {},
+  when: { date?: string; start?: string } = {},
 ): string {
   const id = remote ? newId() : `${brandId}-shoot-${++serial}`
   const shoots = state.shoots[brandId]
   const shoot: Shoot = {
     id,
     title: 'New shoot',
-    dayN: when.dayN ?? freeShootDay(weeks, shoots),
+    date: when.date ?? freeShootDay(weeks, shoots),
     ...moveStart({ start: '12:00', end: '17:00' }, when.start ?? '12:00'),
     place: HOME[brandId],
     crew: USUAL_CREW[brandId],
@@ -182,7 +181,7 @@ export function planShoot(
     id,
     title: shoot.title,
     origin: 'planned',
-    day: dateOf(shoot.dayN),
+    day: shoot.date,
     start: shoot.start,
     end: shoot.end,
     place: shoot.place,
@@ -199,7 +198,7 @@ export function planShoot(
  */
 export function addShoot(
   brandId: BrandId,
-  fields: Pick<Shoot, 'title' | 'place' | 'dayN' | 'start' | 'end'>,
+  fields: Pick<Shoot, 'title' | 'place' | 'date' | 'start' | 'end'>,
 ): string {
   const id = remote ? newId() : `${brandId}-shoot-${++serial}`
   update(brandId, (list) => [...list, { id, ...fields, crew: USUAL_CREW[brandId], ideaIds: [] }])
@@ -207,7 +206,7 @@ export function addShoot(
     id,
     title: fields.title,
     origin: 'manual',
-    day: dateOf(fields.dayN),
+    day: fields.date,
     start: fields.start,
     end: fields.end,
     place: fields.place,
@@ -224,17 +223,17 @@ export function shootIdeaOn(
   brandId: BrandId,
   weeks: Week[],
   ideaId: string,
-  dayN: string,
+  date: string,
   start: string,
 ) {
-  const there = state.shoots[brandId].find((s) => s.dayN === dayN)
+  const there = state.shoots[brandId].find((s) => s.date === date)
   if (!there) {
     // The server decides the same way: the shoot on that day, else a new one with this id.
-    const id = quietly(() => planShoot(brandId, weeks, [ideaId], { dayN, start }))
+    const id = quietly(() => planShoot(brandId, weeks, [ideaId], { date, start }))
     const made = state.shoots[brandId].find((s) => s.id === id)!
     send(brandId, 'POST', '/on-day', {
       ideaId,
-      day: dateOf(dayN),
+      day: date,
       start,
       newShootId: id,
       title: made.title,
@@ -246,7 +245,7 @@ export function shootIdeaOn(
   if (!there.ideaIds.includes(ideaId)) {
     send(brandId, 'POST', '/on-day', {
       ideaId,
-      day: dateOf(dayN),
+      day: date,
       start,
       newShootId: newId(),
     })
@@ -320,11 +319,11 @@ export function leaveShoot(brandId: BrandId, ideaId: string) {
   update(brandId, (list) => without(list, [ideaId]))
 }
 
-export type ShootEdit = Partial<Pick<Shoot, 'title' | 'dayN' | 'start' | 'end' | 'place'>>
+export type ShootEdit = Partial<Pick<Shoot, 'title' | 'date' | 'start' | 'end' | 'place'>>
 
 export function editShoot(brandId: BrandId, id: string, fields: ShootEdit) {
-  const { dayN, ...rest } = fields
-  send(brandId, 'PATCH', `/${id}`, { ...rest, ...(dayN && { day: dateOf(dayN) }) })
+  const { date, ...rest } = fields
+  send(brandId, 'PATCH', `/${id}`, { ...rest, ...(date && { day: date }) })
   update(brandId, (list) => list.map((s) => (s.id === id ? { ...s, ...fields } : s)))
 }
 
@@ -394,15 +393,15 @@ if (remote) {
     set({
       shoots: {
         ...state.shoots,
-        // A shoot outside the demo's month has no day it can draw; it waits off the calendar.
+        // A shoot with no day has nowhere to draw; it waits off the calendar.
         [brandId]: list.flatMap((sh) => {
-          const dayN = dayNOf(sh.day)
-          return dayN
+          const date: string | null = sh.day
+          return date
             ? [
                 {
                   id: sh.id,
                   title: sh.title,
-                  dayN,
+                  date,
                   start: sh.start,
                   end: sh.end,
                   place: sh.place,

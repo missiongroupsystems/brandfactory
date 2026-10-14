@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.13.0** — 2026-10-14 — The calendar runs on real dates: every day is its `YYYY-MM-DD` date, today comes from the server on the API, the API calendar reaches two months back and six ahead (and every dated post), and the day pickers turn a month at a time. The static demo draws what it drew before. No migration. 415 tests.
 - **2.12.0** — 2026-10-13 — The backend: `packages/server`, an API on the archive's Supabase Postgres (tables in a `brandbase` schema) with posts and per-account jobs, ideas, shoots, share links, inbox, brand kit, connections, uploads and sending; the app runs on it when `NEXT_PUBLIC_API_URL` is set and stays the static demo otherwise; a seed, a Dockerfile and `fly.toml` for the existing Fly app. Migration `0000` (not applied to production). 410 tests.
 - **2.11.3** — 2026-10-13 — Posted is final: marking a post Posted on the idea page asks first, and nothing takes a posted post back to another stage. A backend handoff (`docs/executing/brandbase-backend-handoff.md`) with the owner's eight decisions; finished plans move to the archive. No migration. 301 tests.
 - **2.11.2** — 2026-10-12 — The inbox thread panel takes the height of the list beside it, capped so the reply stays in view on a laptop and never under 440 px; a long thread scrolls inside it. No migration. 300 tests.
@@ -33,6 +34,27 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.13.0 — 2026-10-14
+
+- **A day is its date.** `Day.n` (the day of the demo's one month) becomes `Day.date`, a
+  `YYYY-MM-DD` string, and so does every day key: store calls, idea cards, moments, shoots, the
+  composer's `?day=`. `lib/dates.ts` holds the date helpers and today (6 Oct 2026 in the demo, the
+  server's `today` on the API); `remote-days.ts` no longer converts days. Labels read the month
+  from the date instead of guessing it from the number.
+- **The API calendar.** `calendarOf` builds a run of weeks from two months before today's month
+  to six months after it, stretched to every dated post, idea and shoot; the demo's October weeks
+  keep their city events, other weeks get the holidays. Today and the past come from the server,
+  so the calendar opens on this week. Months are cut from the brand's weeks; a month they do not
+  reach is open days.
+- **Pickers.** The day picker and the composer's day grid show one month at a time, with arrows
+  when the brand has more than one month; every week with a day of the month is on its page, and
+  a day that belongs to another month's page is dimmed. The month view's Today opens today's own
+  month, also in the days before its first Monday. Holidays that move each year (Deepavali,
+  Mid-Autumn, Black Friday) show only in 2026, the year their dates are known for.
+- **Seed.** Reads the dates straight from the data files.
+
+No migration. Gate: typecheck, lint, format, 415 tests in 53 files, `next build`.
 
 ## 2.12.0 — 2026-10-13
 

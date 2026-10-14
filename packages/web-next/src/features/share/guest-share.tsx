@@ -8,7 +8,6 @@ import type { Shoot } from '@/data/shoots'
 import { showIdeas } from '@/features/ideate/ideas-store'
 import { showShoots } from '@/features/shoot/shoots-store'
 import { guestRequest } from '@/lib/remote'
-import { dayNOf } from '@/lib/remote-days'
 
 import { showGuestLink, type ShareKind } from './comments-store'
 import { SharedIdea, SharedShoot } from './share-page'
@@ -49,14 +48,14 @@ export function GuestShare({ token }: { token: string }) {
           const card = { ...blank(view.idea.id), ...view.idea }
           showIdeas(brandId, [card])
           const s = view.shoot
-          const dayN = s && dayNOf(s.day)
+          const date = s && s.day
           const shoots: Shoot[] =
-            s && dayN
+            s && date
               ? [
                   {
                     id: 'shared',
                     title: '',
-                    dayN,
+                    date,
                     start: s.start,
                     end: s.end,
                     place: s.place,
@@ -83,7 +82,7 @@ export function GuestShare({ token }: { token: string }) {
             {
               id: s.id,
               title: s.title,
-              dayN: dayNOf(s.day) ?? '',
+              date: s.day ?? '',
               start: s.start,
               end: s.end,
               place: s.place,

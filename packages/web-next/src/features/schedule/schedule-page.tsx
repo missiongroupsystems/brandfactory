@@ -10,35 +10,31 @@ import { DEFAULT_LAYERS } from '@/data/demo'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { withShoots } from '@/features/shoot/model'
 import { useShoots } from '@/features/shoot/shoots-store'
+import { dayNumber, MONTH_SHORT, monthOf, weekdayOf } from '@/lib/dates'
 
 import { PhoneCalendar } from './phone-calendar'
-import { setCalendarPlace, TODAY_PLACE, useCalendarPlace, type CalendarMode } from './calendar-view'
+import { setCalendarPlace, useCalendarPlace, type CalendarMode } from './calendar-view'
 import { itemsOf } from './calendar-items'
 import { DayView } from './day-view'
 import { FailedPill } from './failed-menu'
 import { MoreMenu } from './filter-menu'
-import { DEMO_MONTH, dateOf, monthRows, monthView, weekCount } from './month'
+import {
+  dateOf,
+  monthAt,
+  monthRows,
+  monthTitle,
+  monthView,
+  todayPlace,
+  weekCount,
+  weeksOfMonth,
+} from './month'
 import { storyTaken } from './move-post'
 import { useBrand } from './posts-store'
 import { storiesOf } from './stories'
 import { StoryPanel } from './story-panel'
 import { WeekGrid } from './week-grid'
 
-const SHORT_MONTH = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-]
-const WEEKDAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const WEEKDAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 /**
  * The schedule: one page, three views. Month counts each day's posts by platform; Week and Day show
@@ -47,7 +43,7 @@ const WEEKDAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday
  */
 export function SchedulePage() {
   const router = useRouter()
-  const { brand, weeks: plain, month, posts, library, byId } = useBrand()
+  const { brand, weeks: plain, posts, library, byId } = useBrand()
   // This month's shoots are the ones the team planned, with their times; they open their sheet.
   const shoots = useShoots(brand.id)
   const weeks = React.useMemo(() => withShoots(plain, shoots), [plain, shoots])
@@ -58,18 +54,23 @@ export function SchedulePage() {
   const { view, offset, week, day, stages } = place
   const [layers, setLayers] = React.useState(DEFAULT_LAYERS)
 
-  const shown = React.useMemo(() => {
-    if (offset === 0) return { ...month, weeks }
-    const d = new Date(DEMO_MONTH.year, DEMO_MONTH.month + offset, 1)
-    return monthView(brand.id, d.getFullYear(), d.getMonth())
-  }, [offset, month, weeks, brand.id])
+  /** A month cut from the brand's weeks, or drawn on its own where the weeks do not reach. */
+  const monthOfOffset = React.useCallback(
+    (at: number) => {
+      const { year, month } = monthAt(at)
+      const own = weeksOfMonth(weeks, year, month)
+      return own.length > 0
+        ? { ...monthTitle(year, month), weeks: own }
+        : monthView(brand.id, year, month)
+    },
+    [weeks, brand.id],
+  )
+  const shown = React.useMemo(() => monthOfOffset(offset), [monthOfOffset, offset])
   // The month grid starts on the 1st: it borrows the last week of the month before as its first row.
-  const rows = React.useMemo(() => {
-    const d = new Date(DEMO_MONTH.year, DEMO_MONTH.month + offset - 1, 1)
-    const before =
-      offset - 1 === 0 ? weeks : monthView(brand.id, d.getFullYear(), d.getMonth()).weeks
-    return monthRows(offset, shown.weeks, before)
-  }, [offset, weeks, shown.weeks, brand.id])
+  const rows = React.useMemo(
+    () => monthRows(offset, shown.weeks, monthOfOffset(offset - 1).weeks),
+    [offset, shown.weeks, monthOfOffset],
+  )
   /** A day in the borrowed first row opens in the day view of its own month. */
   const openLead = (d: number) =>
     setCalendarPlace({ view: 'day', offset: offset - 1, week: weekCount(offset - 1) - 1, day: d })
@@ -100,24 +101,27 @@ export function SchedulePage() {
   const start = dateOf(offset, week, 0)
   const end = dateOf(offset, week, 6)
   const current = dateOf(offset, week, day)
+  const short = (date: string) => MONTH_SHORT[monthOf(date).month]
   const title =
     view === 'month'
       ? shown.title
       : view === 'week'
-        ? `${start.getDate()}${start.getMonth() === end.getMonth() ? '' : ` ${SHORT_MONTH[start.getMonth()]}`} – ${end.getDate()} ${SHORT_MONTH[end.getMonth()]}`
-        : `${WEEKDAY[current.getDay()]} ${current.getDate()} ${SHORT_MONTH[current.getMonth()]}`
+        ? `${dayNumber(start)}${short(start) === short(end) ? '' : ` ${short(start)}`} – ${dayNumber(end)} ${short(end)}`
+        : `${WEEKDAY[weekdayOf(current)]} ${dayNumber(current)} ${short(current)}`
+  const here = todayPlace(view)
   const atToday =
-    offset === TODAY_PLACE.offset &&
-    (view === 'month' || week === TODAY_PLACE.week) &&
-    (view !== 'day' || day === TODAY_PLACE.day)
+    offset === here.offset &&
+    (view === 'month' || week === here.week) &&
+    (view !== 'day' || day === here.day)
   const unit = view === 'month' ? 'month' : view === 'week' ? 'week' : 'day'
 
   const openPost = (id: string) => router.push(`/post/${id}`)
-  // A slot's day and hour carry into the composer; its day picker holds the demo's October only.
-  const newPost = (dayN?: string, time?: string, format?: 'story') => {
+  // A slot's day and hour carry into the composer, if its day picker holds that day.
+  const newPost = (date?: string, time?: string, format?: 'story') => {
     const q = new URLSearchParams()
-    if (dayN && offset === 0) q.set('day', dayN)
-    if (time && offset === 0) q.set('time', time)
+    const known = date !== undefined && weeks.some((w) => w.days.some((d) => d.date === date))
+    if (date && known) q.set('day', date)
+    if (time && known) q.set('time', time)
     if (format) q.set('format', format)
     router.push(q.size ? `/post/new?${q}` : '/post/new')
   }
@@ -125,27 +129,32 @@ export function SchedulePage() {
   /** A day can take one new story: the first from this one on whose story row is free. */
   const freeStoryDay = (from: string) => {
     const days = shown.weeks.flatMap((w) => w.days)
-    const start = days.findIndex((d) => d.n === from)
+    const start = days.findIndex((d) => d.date === from)
     return days
       .slice(Math.max(start, 0))
-      .find((d) => !d.past && !d.today && !storyTaken(shown.weeks, d.n))?.n
+      .find((d) => !d.past && !d.today && !storyTaken(shown.weeks, d.date))?.date
   }
   // The open story panel: the day's stories as the stage filter allows, from the weeks on screen.
   const openDay = storyDay
-    ? shown.weeks.flatMap((w) => w.days).find((d) => d.n === storyDay)
+    ? shown.weeks.flatMap((w) => w.days).find((d) => d.date === storyDay)
     : undefined
   const storyPanel = openDay ? (
     <StoryPanel
-      label={dayLabel(shown.weeks, openDay.n) ?? openDay.n}
-      stories={storiesOf(openDay.n, itemsOf(openDay, byId, stages), brand.id, library, byId)}
+      label={dayLabel(openDay.date)}
+      stories={storiesOf(openDay.date, itemsOf(openDay, byId, stages), brand.id, library, byId)}
       past={Boolean(openDay.past)}
       onClose={closeStories}
-      onAdd={() => newPost(freeStoryDay(openDay.n), undefined, 'story')}
+      onAdd={() => newPost(freeStoryDay(openDay.date), undefined, 'story')}
       onOpenPost={openPost}
     />
   ) : null
-  // A shoot added from the day view takes the day shown, if it is ahead in the demo's month.
-  const shootDay = offset === 0 && !shownDay.past && !shownDay.outside ? shownDay.n : undefined
+  // A shoot added from the day view takes the day shown, if it is ahead in the brand's weeks.
+  const shootDay =
+    !shownDay.past &&
+    !shownDay.outside &&
+    weeks.some((w) => w.days.some((d) => d.date === shownDay.date))
+      ? shownDay.date
+      : undefined
   const dayEvents = shownWeek.events.filter(
     (e) => e.col - 1 <= day && day < e.col - 1 + e.span && layers[e.layer],
   )
@@ -167,18 +176,18 @@ export function SchedulePage() {
             view === 'week'
               ? title.replace(' – ', '–')
               : view === 'day'
-                ? `${WEEKDAY[current.getDay()]!.slice(0, 3)} ${current.getDate()} ${SHORT_MONTH[current.getMonth()]}`
+                ? `${WEEKDAY[weekdayOf(current)]!.slice(0, 3)} ${dayNumber(current)} ${short(current)}`
                 : shown.title
           }
           layers={layers}
           stages={stages}
           failed={failed}
           // The phone picks a day in every view: away from today's day, Today shows.
-          atToday={atToday && day === TODAY_PLACE.day}
+          atToday={atToday && day === here.day}
           onView={(v) => setCalendarPlace({ view: v })}
           onSelect={(w, d) => setCalendarPlace({ week: w, day: d })}
           onStep={step}
-          onToday={() => setCalendarPlace(TODAY_PLACE)}
+          onToday={() => setCalendarPlace(todayPlace(view))}
           onOpenPost={openPost}
           onNewPost={newPost}
           shootDay={shootDay}
@@ -198,7 +207,7 @@ export function SchedulePage() {
           {!atToday && (
             <button
               type="button"
-              onClick={() => setCalendarPlace(TODAY_PLACE)}
+              onClick={() => setCalendarPlace(todayPlace(view))}
               className="bb-pop flex h-7 items-center rounded-full bg-surface px-3 text-[12px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink"
             >
               Today
@@ -258,7 +267,7 @@ export function SchedulePage() {
             stages={stages}
             onOpenPost={openPost}
             onNewPost={newPost}
-            onOpenStories={() => setStoryDay(shownDay.n)}
+            onOpenStories={() => setStoryDay(shownDay.date)}
           />
         ) : (
           <WeekGrid

@@ -4,7 +4,6 @@ import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
 import { newId, onState, push, remote, request } from '@/lib/remote'
-import { dateOf, dayNOf } from '@/lib/remote-days'
 import {
   coverOf,
   IDEAS_BY_BRAND,
@@ -69,7 +68,7 @@ function update(brandId: BrandId, fn: (s: BrandIdeasState) => BrandIdeasState) {
 
 // ── The server ───────────────────────────────────────────────────────────────────────────────
 
-/** A card as the server keeps it. `dayN` is a suggestion's proposed day; a tile's day is the calendar's. */
+/** A card as the server keeps it. `date` is a suggestion's proposed day; a tile's day is the calendar's. */
 function cardRow(card: IdeaCard) {
   return {
     id: card.id,
@@ -86,13 +85,13 @@ function cardRow(card: IdeaCard) {
     cut: card.cut ?? null,
     sharper: card.sharper,
     builtOn: card.builtOn ?? null,
-    ...(card.status === 'suggested' && card.dayN ? { day: dateOf(card.dayN) } : {}),
+    ...(card.status === 'suggested' && card.date ? { day: card.date } : {}),
   }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function cardOf(row: any): IdeaCard {
-  const dayN = row.status === 'suggested' ? dayNOf(row.day) : null
+  const date = row.status === 'suggested' ? row.day : null
   return {
     id: row.id,
     format: row.format,
@@ -103,7 +102,7 @@ function cardOf(row: any): IdeaCard {
     ...(row.image && { image: row.image }),
     source: row.source,
     status: row.status,
-    ...(dayN && { dayN }),
+    ...(date && { date }),
     ...(row.postId && { postId: row.postId }),
     inspiration: row.inspiration,
     shots: row.shots,
@@ -202,14 +201,14 @@ export interface IdeaTileMark {
  * one made now from the moment the tile came from; else one made from the tile's own words. Made
  * once: the next look finds it by the same hook.
  */
-export function ideaOfTile(brandId: BrandId, tile: IdeaTileMark, dayN?: string): string {
+export function ideaOfTile(brandId: BrandId, tile: IdeaTileMark, date?: string): string {
   const found = state[brandId].ideas.find((i) => i.hook === tile.hook)
   if (found) return found.id
   const moment = IDEAS_BY_BRAND[brandId].moments.find((m) => m.seed.hook === tile.hook)
   if (moment) {
     return addIdea(
       brandId,
-      { ...moment.seed, dayN: dayN ?? moment.dayN },
+      { ...moment.seed, date: date ?? moment.date },
       { kind: 'moment', title: moment.title },
     )
   }
@@ -224,7 +223,7 @@ export function ideaOfTile(brandId: BrandId, tile: IdeaTileMark, dayN?: string):
       inspiration: [],
       shots: [],
       sharper: [],
-      ...(dayN ? { dayN } : {}),
+      ...(date ? { date } : {}),
     },
     { kind: 'own' },
   )
@@ -242,7 +241,7 @@ export function addIdea(
   send(brandId, 'POST', '', {
     ...cardRow(made),
     // An idea made from a tile or a moment lands on its day.
-    ...(card.dayN ? { day: dateOf(card.dayN) } : {}),
+    ...(card.date ? { day: card.date } : {}),
   })
   return id
 }
@@ -348,8 +347,8 @@ export function editIdea(
 }
 
 /** The day a card was sent to on the calendar. */
-export function setDay(brandId: BrandId, id: string, dayN: string) {
-  patch(brandId, id, { dayN })
+export function setDay(brandId: BrandId, id: string, date: string) {
+  patch(brandId, id, { date })
 }
 
 /** For tests. */

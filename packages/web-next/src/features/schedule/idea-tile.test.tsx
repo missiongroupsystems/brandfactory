@@ -56,7 +56,7 @@ function Count() {
 const show = (mark: IdeaMark) =>
   render(
     <BrandProvider>
-      <IdeaTile mark={mark} dayN="9" />
+      <IdeaTile mark={mark} date="9" />
       <Count />
     </BrandProvider>,
   )
@@ -110,15 +110,15 @@ describe('an idea tile on the calendar', () => {
   it('makes a bare idea for a tile with neither a card nor a moment, once', () => {
     const stray = { format: 'reel' as const, hook: 'A tile from nowhere.', why: 'Someone typed it' }
     const n = IDEAS_BY_BRAND.carlitos.ideas.length
-    const a = ideaOfTile('carlitos', stray, '11')
-    const b = ideaOfTile('carlitos', stray, '11')
+    const a = ideaOfTile('carlitos', stray, '2026-10-11')
+    const b = ideaOfTile('carlitos', stray, '2026-10-11')
     expect(a).toBe(b)
     const { result } = renderHook(() => useIdeas('carlitos'))
     expect(result.current.ideas).toHaveLength(n + 1)
     expect(result.current.ideas.at(-1)).toMatchObject({
       hook: stray.hook,
       angle: stray.why,
-      dayN: '11',
+      date: '2026-10-11',
       shots: [],
       source: { kind: 'own' },
     })
@@ -159,7 +159,7 @@ describe('an idea tile on the calendar', () => {
     }))
     render(
       <BrandProvider>
-        <IdeaPills ideas={many} dayN="9" />
+        <IdeaPills ideas={many} date="9" />
       </BrandProvider>,
     )
     expect(screen.getAllByRole('button', { name: /^Idea: Idea number/ })).toHaveLength(6)

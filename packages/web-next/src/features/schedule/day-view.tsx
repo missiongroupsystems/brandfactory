@@ -54,7 +54,7 @@ export function DayView({
   events: CalendarEvent[]
   stages: StageFilter
   onOpenPost: (postId: string) => void
-  onNewPost: (dayN?: string, time?: string) => void
+  onNewPost: (date?: string, time?: string) => void
   onOpenStories: () => void
 }) {
   const { brand, library, byId } = useBrand()
@@ -72,7 +72,7 @@ export function DayView({
       .filter((p) => postTime(p).slice(0, 2) === postTime(post).slice(0, 2))
     return { post, lane: same.length }
   })
-  const stories = storiesOf(day.n, items, brand.id, library, byId)
+  const stories = storiesOf(day.date, items, brand.id, library, byId)
   // A shoot has its hours, so it sits on them; the other events have none and stay above.
   const shoots = useShoots(brand.id)
   const timed = events.flatMap((event) => {
@@ -110,7 +110,7 @@ export function DayView({
             {items.ideas.length > 0 && (
               <>
                 <span className={`${GUTTER} pt-2`}>Ideas</span>
-                <IdeaPills key={day.n} ideas={items.ideas} dayN={day.n} />
+                <IdeaPills key={day.date} ideas={items.ideas} date={day.date} />
               </>
             )}
           </div>
@@ -133,7 +133,9 @@ export function DayView({
                 tabIndex={-1}
                 aria-hidden="true"
                 onClick={
-                  day.past ? undefined : () => onNewPost(day.n, `${String(h).padStart(2, '0')}:00`)
+                  day.past
+                    ? undefined
+                    : () => onNewPost(day.date, `${String(h).padStart(2, '0')}:00`)
                 }
                 className="absolute right-0 left-16 border-t border-(--cal-line) transition-colors hover:bg-(--cal-hover)"
                 style={{ top: i * HOUR_H, height: HOUR_H }}
@@ -249,10 +251,10 @@ const PILLS_SHOWN = 6
 /** A day's ideas as pills that wrap side by side; past six, the rest wait behind one quiet button. */
 export function IdeaPills({
   ideas,
-  dayN,
+  date,
 }: {
   ideas: Array<Extract<FeedMark, { kind: 'idea' }>>
-  dayN: string
+  date: string
 }) {
   const [all, setAll] = React.useState(false)
   const shown = all ? ideas : ideas.slice(0, PILLS_SHOWN)
@@ -260,7 +262,7 @@ export function IdeaPills({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {shown.map((mark) => (
-        <IdeaTile key={mark.hook} mark={mark} dayN={dayN} row />
+        <IdeaTile key={mark.hook} mark={mark} date={date} row />
       ))}
       {more > 0 && (
         <button

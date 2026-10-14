@@ -86,7 +86,7 @@ export interface IdeaCard {
   source: IdeaSource
   status: IdeaStatus
   /** The day it sits on, or the day a suggestion proposes. Absent until it is sent. */
-  dayN?: string
+  date?: string
   /** The post it became, whose stage is the status. */
   postId?: string
   /**
@@ -117,8 +117,8 @@ export interface Moment {
   id: string
   /** As printed: "SAT 10 OCT". */
   when: string
-  /** The day number in the calendar month, if the moment falls inside it. */
-  dayN?: string
+  /** The day it falls on, `YYYY-MM-DD`, if the calendar holds it. */
+  date?: string
   title: string
   /** The nearest venue and how far. */
   near: string
@@ -316,7 +316,7 @@ const CASA_VOSTRA: BrandIdeas = {
       feature: 'Morning prep · Chef Marco',
       source: { kind: 'suggested' },
       status: 'suggested',
-      dayN: '14',
+      date: '2026-10-14',
       inspiration: ['cv-p-1', 'cv-p-9', 'cv-r-sfoglina'],
       shots: storyboard(
         'The shutter goes up, 6am, mall empty',
@@ -351,7 +351,7 @@ const CASA_VOSTRA: BrandIdeas = {
       feature: 'The floor team',
       source: { kind: 'suggested' },
       status: 'suggested',
-      dayN: '22',
+      date: '2026-10-22',
       inspiration: ['cv-r-dough', 'cv-p-11'],
       shots: storyboard('Four faces, four answers', 'Each shape, held up', 'The argument'),
       sharper: [
@@ -381,7 +381,7 @@ const CASA_VOSTRA: BrandIdeas = {
       feature: 'Family set · 8 Nov',
       source: { kind: 'suggested' },
       status: 'suggested',
-      dayN: '29',
+      date: '2026-10-29',
       inspiration: ['cv-p-2', 'cv-p-9', 'cv-r-cozy'],
       shots: storyboard('The full table, overhead', 'Hands reaching in', 'The last plate'),
       sharper: [
@@ -684,7 +684,7 @@ const CASA_VOSTRA: BrandIdeas = {
     {
       id: 'cv-m-f1',
       when: 'FRI 9 OCT',
-      dayN: '9',
+      date: '2026-10-09',
       title: 'F1 Singapore Grand Prix',
       near: '1.2 km',
       seed: {
@@ -705,7 +705,7 @@ const CASA_VOSTRA: BrandIdeas = {
     {
       id: 'cv-m-bigbang',
       when: 'FRI 16 OCT',
-      dayN: '16',
+      date: '2026-10-16',
       title: 'BIGBANG world tour',
       near: 'Stadium · 4.1 km',
       seed: {
@@ -726,7 +726,7 @@ const CASA_VOSTRA: BrandIdeas = {
     {
       id: 'cv-m-halloween',
       when: 'SAT 31 OCT',
-      dayN: '31',
+      date: '2026-10-31',
       title: 'Halloween',
       near: 'Raffles City',
       seed: {
@@ -860,7 +860,7 @@ const TEMPER: BrandIdeas = {
       feature: 'The floor team',
       source: { kind: 'suggested' },
       status: 'suggested',
-      dayN: '15',
+      date: '2026-10-15',
       inspiration: ['tp-r-wineroom', 'tp-p-2'],
       shots: storyboard('The guest points', 'The floor picks', 'The better glass'),
       sharper: [
@@ -890,7 +890,7 @@ const TEMPER: BrandIdeas = {
       feature: 'Winemaker dinner · Fri 16 Oct',
       source: { kind: 'suggested' },
       status: 'suggested',
-      dayN: '16',
+      date: '2026-10-16',
       inspiration: ['tp-p-5', 'tp-p-6', 'tp-p-12'],
       shots: storyboard('Three glasses in a row', 'Each pour', 'The winemaker, last frame'),
       sharper: [
@@ -915,7 +915,7 @@ const TEMPER: BrandIdeas = {
       feature: 'Vinyl & vino · Thu 22 Oct',
       source: { kind: 'suggested' },
       status: 'suggested',
-      dayN: '22',
+      date: '2026-10-22',
       inspiration: ['tp-p-1', 'tp-r-lowlight', 'tp-p-7'],
       shots: storyboard('The record flips', 'The new bottle opens', 'The room, one minute'),
       sharper: [
@@ -1212,7 +1212,7 @@ const TEMPER: BrandIdeas = {
     {
       id: 'tp-m-f1',
       when: 'SAT 10 OCT',
-      dayN: '10',
+      date: '2026-10-10',
       title: 'F1 Singapore Grand Prix',
       near: '2.4 km',
       seed: {
@@ -1233,7 +1233,7 @@ const TEMPER: BrandIdeas = {
     {
       id: 'tp-m-bigbang',
       when: 'FRI 16 OCT',
-      dayN: '16',
+      date: '2026-10-16',
       title: 'BIGBANG world tour',
       near: 'Stadium · 6.8 km',
       seed: {
@@ -1254,7 +1254,7 @@ const TEMPER: BrandIdeas = {
     {
       id: 'tp-m-halloween',
       when: 'SAT 31 OCT',
-      dayN: '31',
+      date: '2026-10-31',
       title: 'Halloween',
       near: 'Masquerade wine night',
       seed: {
@@ -1386,7 +1386,7 @@ const CARLITOS: BrandIdeas = {
       feature: 'Sherry tasting · Thu 15 Oct',
       source: { kind: 'suggested' },
       status: 'suggested',
-      dayN: '15',
+      date: '2026-10-15',
       inspiration: ['ca-r-counters', 'ca-p-7'],
       shots: storyboard('Fino, with its plate', 'Amontillado', 'Oloroso, then the end card'),
       sharper: [
@@ -1413,7 +1413,7 @@ const CARLITOS: BrandIdeas = {
       feature: 'Pintxos night · Fri 16 Oct',
       source: { kind: 'suggested' },
       status: 'suggested',
-      dayN: '17',
+      date: '2026-10-17',
       inspiration: ['ca-p-2', 'ca-p-11', 'ca-r-sevilla'],
       shots: storyboard('The counter at 6', 'Sticks counted', 'Out the door at 7:15'),
       sharper: [
@@ -1437,7 +1437,7 @@ const CARLITOS: BrandIdeas = {
       feature: 'A regular · the counter',
       source: { kind: 'suggested' },
       status: 'suggested',
-      dayN: '22',
+      date: '2026-10-22',
       inspiration: ['ca-p-6', 'ca-r-barrio'],
       shots: storyboard('The regular sits', 'The order, fast', 'The plates land'),
       sharper: [
@@ -1734,7 +1734,7 @@ const CARLITOS: BrandIdeas = {
     {
       id: 'ca-m-f1',
       when: 'SUN 11 OCT',
-      dayN: '11',
+      date: '2026-10-11',
       title: 'F1 Singapore Grand Prix',
       near: '5.6 km',
       seed: {
@@ -1755,7 +1755,7 @@ const CARLITOS: BrandIdeas = {
     {
       id: 'ca-m-bigbang',
       when: 'FRI 16 OCT',
-      dayN: '16',
+      date: '2026-10-16',
       title: 'BIGBANG world tour',
       near: 'Stadium · 3.1 km',
       seed: {
@@ -1776,7 +1776,7 @@ const CARLITOS: BrandIdeas = {
     {
       id: 'ca-m-halloween',
       when: 'SAT 31 OCT',
-      dayN: '31',
+      date: '2026-10-31',
       title: 'Halloween',
       near: 'Joo Chiat',
       seed: {

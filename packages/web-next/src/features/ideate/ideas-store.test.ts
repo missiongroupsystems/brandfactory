@@ -99,8 +99,11 @@ describe('the ideas store', () => {
     const card = result.current.ideas[0]!
     act(() => {
       setHook('casa-vostra', card.id, card.sharper[0]!.text)
-      setDay('casa-vostra', card.id, '14')
+      setDay('casa-vostra', card.id, '2026-10-14')
     })
-    expect(result.current.ideas[0]).toMatchObject({ hook: card.sharper[0]!.text, dayN: '14' })
+    expect(result.current.ideas[0]).toMatchObject({
+      hook: card.sharper[0]!.text,
+      date: '2026-10-14',
+    })
   })
 })

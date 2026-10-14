@@ -8,6 +8,8 @@
  * that brand from the server, which puts the screen back to what is stored.
  */
 
+import { setToday } from './dates'
+
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '')
 export const remote = API_URL !== ''
 
@@ -266,6 +268,8 @@ export async function loadBrand(brandId: string) {
     state = await request<BrandState>('GET', `/brands/${brandId}/state`)
   } while (pending > 0)
   states.set(brandId, state)
+  // The brand's today, before the stores build their weeks from it.
+  if (typeof state.today === 'string') setToday(state.today)
   quietly(() => hydrators.forEach((h) => h(brandId, state)))
   return state
 }

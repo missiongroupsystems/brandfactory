@@ -195,21 +195,21 @@ function Ideas({
           : 'Team idea'
     const where = addIdeaToCalendar(
       { ideaId: card.id, format: card.format, hook: card.hook, why },
-      card.dayN,
+      card.date,
     )
     if (!where) return router.push(ideaHref(card.id))
     onToast(`On the calendar · ${where}`)
   }
 
   function takeMoment(m: Moment) {
-    const dayN = landingDay(weeks, m.dayN)
-    if (!dayN || m.seed.format === 'story') return
+    const date = landingDay(weeks, m.date)
+    if (!date || m.seed.format === 'story') return
     const where = addIdeaToCalendar(
       { format: m.seed.format, hook: m.seed.hook, why: m.title },
-      dayN,
+      date,
     )
     if (!where) return
-    addIdea(brand.id, { ...m.seed, dayN }, { kind: 'moment', title: m.title })
+    addIdea(brand.id, { ...m.seed, date }, { kind: 'moment', title: m.title })
     onToast(`On the calendar · ${where}`)
   }
 
@@ -962,7 +962,7 @@ function Masonry({
     const n = card.postId
       ? dayOf(weeks, card.postId)
       : dayOfHook(weeks, card.hook, (id) => byId(id)?.hook)
-    const label = n ? dayLabel(weeks, n) : null
+    const label = n ? dayLabel(n) : null
     return label ? `In plan · ${label.slice(4)}` : 'In plan'
   }
 
