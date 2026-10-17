@@ -1,0 +1,7 @@
+{
+  "id": "shoot.crew_apart",
+  "sql": "select exists (select 1 from brandbase.shoots r where r.id = :id and r.brand_id = :brand) or (select count(distinct c ->> 'id') = count(*) from jsonb_array_elements(coalesce(:crew::jsonb, '[]')) c) as ok",
+  "status": 400,
+  "code": "VALIDATION",
+  "message": "two crew members share an id"
+}

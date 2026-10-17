@@ -54,7 +54,13 @@ export function paramsOf(
   caller: Caller,
   input: Record<string, unknown>,
 ) {
-  return { ...input, now: deps.now().toISOString(), actor: caller.person, agent: caller.agent }
+  return {
+    ...input,
+    now: deps.now().toISOString(),
+    actor: caller.person,
+    agent: caller.agent,
+    fields: input,
+  }
 }
 
 /** Who is calling: a person, or an agent and the person it acts for. */

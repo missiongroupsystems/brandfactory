@@ -1,0 +1,56 @@
+{
+  "name": "brand.tiktok_defaults",
+  "description": "The TikTok answers that start the brand's next post.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "privacy", "interactions", "promo", "sound"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "privacy": {
+        "enum": ["Everyone", "Friends", "Only me", null]
+      },
+      "interactions": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["comments", "duet", "stitch"],
+        "properties": {
+          "comments": {
+            "type": "boolean"
+          },
+          "duet": {
+            "type": "boolean"
+          },
+          "stitch": {
+            "type": "boolean"
+          }
+        }
+      },
+      "promo": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["on", "own", "paid"],
+        "properties": {
+          "on": {
+            "type": "boolean"
+          },
+          "own": {
+            "type": "boolean"
+          },
+          "paid": {
+            "type": "boolean"
+          }
+        }
+      },
+      "sound": {
+        "enum": ["own", "library"]
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "returns": "one",
+  "sql": "update brandbase.brands b set tiktok_defaults = jsonb_build_object('privacy', :privacy::text, 'interactions', :interactions::jsonb, 'promo', :promo::jsonb, 'sound', :sound::text) where b.id = :brand returning brandbase.camel(to_jsonb(b)) || jsonb_build_object('createdAt', brandbase.iso(b.created_at)) as result"
+}

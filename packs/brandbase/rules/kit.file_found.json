@@ -1,0 +1,7 @@
+{
+  "id": "kit.file_found",
+  "sql": "select exists (select 1 from brandbase.brand_files f where f.id = :id and f.brand_id = :brand) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "file not found"
+}

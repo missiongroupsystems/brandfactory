@@ -1,0 +1,22 @@
+{
+  "name": "kit.file_drop",
+  "description": "Deletes one brand file. A file already gone answers the same, so a retry changes nothing.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "returns": "one",
+  "sql": "with gone as (delete from brandbase.brand_files f where f.id = :id and f.brand_id = :brand returning f.id) select jsonb_build_object('deleted', :id::text) as result"
+}

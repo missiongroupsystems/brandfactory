@@ -1,0 +1,24 @@
+{
+  "name": "shoot.invite",
+  "description": "Sends the Lark invite to the crew not invited yet: someone added after the first invite gets one, and nobody gets a second. An effect: it sends only what a person approved. Lark must be linked first.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["brand.reachable", "shoot.found", "shoot.lark_linked"],
+  "connector": "lark",
+  "payload": "select jsonb_build_object('shoot', s.id, 'title', s.title, 'day', s.day, 'start', s.start, 'end', s.\"end\", 'place', s.place, 'people', jsonb_agg(jsonb_build_object('id', c.id, 'name', c.name, 'role', c.role) order by c.position)) as result from brandbase.shoots s join brandbase.crew c on c.shoot_id = s.id where s.id = :id and s.brand_id = :brand and c.invited_at is null group by s.id",
+  "returns": "one",
+  "sql": "with invited as (\n  update brandbase.crew c set invited_at = :now::timestamptz\n  where c.shoot_id = :id and c.invited_at is null\n    and c.id in (select p ->> 'id' from jsonb_array_elements(:payload::jsonb -> 'people') p)\n  returning c.*\n)\nselect brandbase.shoot_json(to_jsonb(s), coalesce((select jsonb_agg(z.c) from (\n  select to_jsonb(c) as c from brandbase.crew c where c.shoot_id = s.id and c.id not in (select id from invited)\n  union all select to_jsonb(i) from invited i) z), '[]'))\n  || jsonb_build_object('invited', (select coalesce(jsonb_agg(p ->> 'name'), '[]') from jsonb_array_elements(:payload::jsonb -> 'people') p)) as result\nfrom brandbase.shoots s where s.id = :id and s.brand_id = :brand"
+}

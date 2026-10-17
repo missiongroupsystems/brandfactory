@@ -1,0 +1,335 @@
+{
+  "name": "kit",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "member",
+  "cases": [
+    {
+      "name": "publishes a voice as a new version under the edit rules",
+      "steps": [
+        {
+          "sql": "insert into brandbase.brand_kits (brand_id, voice, colours, logo) values ('casa', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
+        },
+        {
+          "call": "kit.voice",
+          "input": {
+            "brand": "casa",
+            "voice": {
+              "summary": "  ",
+              "words": [
+                {
+                  "use": "sugo",
+                  "avoid": ""
+                }
+              ],
+              "examples": ["", "Sugo all day."]
+            },
+            "note": "Shorter lines"
+          },
+          "expect": {
+            "result": {
+              "version": {
+                "n": 1,
+                "note": "Shorter lines",
+                "by": "member@example.com"
+              },
+              "kit": {
+                "voice": {
+                  "summary": "Warm, Italian, never fussy.",
+                  "words": [],
+                  "examples": ["Sugo all day."]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "brings back an old version as a new one, not a rewind",
+      "steps": [
+        {
+          "sql": "insert into brandbase.brand_kits (brand_id, voice, colours, logo) values ('casa', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
+        },
+        {
+          "call": "kit.voice",
+          "input": {
+            "brand": "casa",
+            "voice": {
+              "summary": "Warm, Italian, never fussy.",
+              "words": [
+                {
+                  "use": "nonna",
+                  "avoid": "grandmother"
+                }
+              ],
+              "examples": ["Pasta, made this morning."]
+            }
+          }
+        },
+        {
+          "call": "kit.voice",
+          "input": {
+            "brand": "casa",
+            "voice": {
+              "summary": "Loud.",
+              "words": [
+                {
+                  "use": "nonna",
+                  "avoid": "grandmother"
+                }
+              ],
+              "examples": ["Pasta, made this morning."]
+            }
+          }
+        },
+        {
+          "call": "kit.voice_restore",
+          "input": {
+            "brand": "casa",
+            "n": 1
+          },
+          "expect": {
+            "result": {
+              "version": {
+                "n": 3,
+                "note": "Brought back v1"
+              },
+              "kit": {
+                "voice": {
+                  "summary": "Warm, Italian, never fussy."
+                }
+              }
+            }
+          }
+        },
+        {
+          "call": "kit.voice_restore",
+          "input": {
+            "brand": "casa",
+            "n": 9
+          },
+          "expect": {
+            "status": 404,
+            "message": "version not found"
+          }
+        }
+      ]
+    },
+    {
+      "name": "never saves a hex that is not one, and reads one the way people paste it",
+      "steps": [
+        {
+          "sql": "insert into brandbase.brand_kits (brand_id, voice, colours, logo) values ('casa', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
+        },
+        {
+          "call": "kit.colours",
+          "input": {
+            "brand": "casa",
+            "colours": [
+              {
+                "name": "X",
+                "hex": "#12"
+              }
+            ]
+          },
+          "expect": {
+            "code": "BAD_HEX",
+            "message": "#12 is not a colour"
+          }
+        },
+        {
+          "call": "kit.colours",
+          "input": {
+            "brand": "casa",
+            "colours": [
+              {
+                "name": " ",
+                "hex": "d52"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "colours": [
+                {
+                  "name": "Untitled",
+                  "hex": "#DD5522"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "call": "kit.colours",
+          "input": {
+            "brand": "casa",
+            "colours": [],
+            "ifVersion": 1
+          },
+          "expect": {
+            "code": "STALE"
+          }
+        }
+      ]
+    },
+    {
+      "name": "titles a new file from its name, keeps the title on a new version, and ignores a blank rename",
+      "steps": [
+        {
+          "sql": "insert into brandbase.brand_kits (brand_id, voice, colours, logo) values ('casa', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
+        },
+        {
+          "call": "kit.file_add",
+          "input": {
+            "brand": "casa",
+            "id": "f1",
+            "name": "CV_brand-deck_2025.pptx"
+          },
+          "expect": {
+            "result": {
+              "title": "CV brand deck 2025",
+              "kind": "deck"
+            }
+          }
+        },
+        {
+          "call": "kit.file_rename",
+          "input": {
+            "brand": "casa",
+            "id": "f1",
+            "title": "Brand book"
+          }
+        },
+        {
+          "call": "kit.file_rename",
+          "input": {
+            "brand": "casa",
+            "id": "f1",
+            "title": "  "
+          },
+          "expect": {
+            "result": {
+              "title": "Brand book"
+            }
+          }
+        },
+        {
+          "call": "kit.file_version",
+          "input": {
+            "brand": "casa",
+            "id": "f1",
+            "name": "book-v4.pdf"
+          },
+          "expect": {
+            "result": {
+              "title": "Brand book",
+              "name": "book-v4.pdf",
+              "kind": "pdf"
+            }
+          }
+        },
+        {
+          "call": "kit.file_version",
+          "input": {
+            "brand": "casa",
+            "id": "f1",
+            "name": "x.pdf",
+            "mediaId": "m-nope"
+          },
+          "expect": {
+            "code": "BAD_MEDIA"
+          }
+        },
+        {
+          "call": "kit.file_drop",
+          "input": {
+            "brand": "casa",
+            "id": "f1"
+          },
+          "expect": {
+            "result": {
+              "deleted": "f1"
+            }
+          }
+        },
+        {
+          "call": "kit.file_drop",
+          "input": {
+            "brand": "casa",
+            "id": "f1"
+          },
+          "expect": {
+            "result": {
+              "deleted": "f1"
+            }
+          }
+        },
+        {
+          "call": "kit.file_rename",
+          "input": {
+            "brand": "casa",
+            "id": "f1",
+            "title": "x"
+          },
+          "expect": {
+            "status": 404,
+            "message": "file not found"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps a logo that was uploaded, never a blob: URL",
+      "steps": [
+        {
+          "sql": "insert into brandbase.brand_kits (brand_id, voice, colours, logo) values ('casa', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
+        },
+        {
+          "call": "kit.logo",
+          "input": {
+            "brand": "casa",
+            "src": "blob:http://x/1",
+            "name": null
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "kit.logo",
+          "input": {
+            "brand": "casa",
+            "src": "/media/logo.png",
+            "name": "logo.png"
+          },
+          "expect": {
+            "result": {
+              "logo": {
+                "src": "/media/logo.png",
+                "name": "logo.png"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "says so for a brand with no kit yet",
+      "steps": [
+        {
+          "call": "kit.logo",
+          "input": {
+            "brand": "casa",
+            "src": "/x.png",
+            "name": null
+          },
+          "expect": {
+            "status": 404,
+            "message": "this brand has no kit yet"
+          }
+        }
+      ]
+    }
+  ]
+}

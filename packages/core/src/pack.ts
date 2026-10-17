@@ -134,8 +134,12 @@ export function hashOf(content: PackContent): string {
   return createHash('sha256').update(canonical(content)).digest('hex')
 }
 
-/** Parameters every statement may read beside the input; no input field may take these names. */
-export const RESERVED = ['now', 'actor', 'agent', 'outcome']
+/**
+ * Parameters every statement may read beside the input; no input field may take these names.
+ * `fields` is the whole input as JSON, so a statement can tell a field sent as null from one not
+ * sent (`:fields::jsonb ? 'why'`).
+ */
+export const RESERVED = ['now', 'actor', 'agent', 'outcome', 'payload', 'fields']
 
 // No `__` and no `_` at the end of a part: an MCP tool name writes the dots as `__`.
 const NAME = /^[a-z](_?[a-z0-9])*(\.[a-z](_?[a-z0-9])*)*$/

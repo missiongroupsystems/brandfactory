@@ -1,0 +1,7 @@
+{
+  "id": "shoot.new_id_free",
+  "sql": "select exists (select 1 from brandbase.shoots s where s.brand_id = :brand and s.day = :day::date) or not exists (select 1 from brandbase.shoots s where s.id = :newShootId) as ok",
+  "status": 409,
+  "code": "ID_TAKEN",
+  "message": "this id is taken"
+}

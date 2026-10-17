@@ -128,11 +128,14 @@ export async function request<T = unknown>(
   const auth: Record<string, string> = token ? { authorization: `Bearer ${token}` } : {}
   const core = CORE_URL ? coreCall(method, path, body) : null
   if (core) {
-    const result = await answer<T>(`${CORE_URL}/ops/${PACK}/${core.op}`, 'POST', core.input, {
+    if (core.approveFirst) {
+      await answer(`${CORE_URL}/approve/${PACK}/${core.op}`, 'POST', core.input, auth)
+    }
+    // Schedule carries the person's yes to each account's send itself (`post.schedule`).
+    return answer<T>(`${CORE_URL}/ops/${PACK}/${core.op}`, 'POST', core.input, {
       ...auth,
       ...headers,
     })
-    return result
   }
   if (!API_URL) {
     throw new RemoteError(501, 'NOT_PORTED', 'This is not on the new backend yet.')

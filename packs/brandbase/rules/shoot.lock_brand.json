@@ -1,0 +1,7 @@
+{
+  "id": "shoot.lock_brand",
+  "sql": "select exists (select 1 from brandbase.brands where id = :brand for no key update) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "brand not found"
+}

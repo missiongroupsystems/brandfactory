@@ -1,0 +1,7 @@
+{
+  "id": "shoot.current_version",
+  "sql": "select :ifVersion::int is null or s.version = :ifVersion::int as ok, brandbase.shoot_json(s) as details from brandbase.shoots s where s.id = :id",
+  "status": 409,
+  "code": "STALE",
+  "message": "this changed since you opened it"
+}

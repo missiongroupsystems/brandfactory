@@ -1,0 +1,36 @@
+{
+  "name": "idea.to_calendar",
+  "description": "Puts an idea on the calendar where it lands: the day asked for if it is ahead and holds no post, else the first empty day after this week, since a shoot needs lead time. Refused when the next four months are full.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "why"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "preferDay": {
+        "type": "string",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      },
+      "why": {
+        "type": "string",
+        "maxLength": 500
+      }
+    }
+  },
+  "before": [
+    "brand.reachable",
+    "idea.found",
+    "idea.calendar_unplanned",
+    "idea.prefer_is_date",
+    "idea.calendar_free"
+  ],
+  "returns": "one",
+  "sql": "update brandbase.ideas i set\n  day = brandbase.landing_day(:brand, brandbase.today(:brand, :now::timestamptz), :preferDay::date),\n  why = :why, version = i.version + 1, updated_at = now()\nwhere i.id = :id and i.brand_id = :brand\nreturning brandbase.camel(to_jsonb(i)) || jsonb_build_object('createdAt', brandbase.iso(i.created_at), 'updatedAt', brandbase.iso(i.updated_at)) as result"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "idea.plan_post_free",
+  "sql": "select exists (select 1 from brandbase.ideas r where r.id = :id and r.post_id = :postId) or not exists (select 1 from brandbase.posts p where p.id = :postId) as ok",
+  "status": 409,
+  "code": "ID_TAKEN",
+  "message": "this id is taken"
+}

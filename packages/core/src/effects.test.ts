@@ -129,6 +129,23 @@ describe('a person’s yes', () => {
     await expect(sent).rejects.toMatchObject({ code: 'NEEDS_APPROVAL' })
   })
 
+  it('is refused while a send of exactly the same thing is on its way', async () => {
+    let release: () => void = () => undefined
+    const slow: Connector = {
+      send: (input) =>
+        new Promise((resolve) => {
+          release = () => void simulatedConnector.send(input).then(resolve)
+        }),
+    }
+    const { call, approve } = await setup(slow)
+    await approve('note.share', { id: 'n1' })
+    const first = call('note.share', { id: 'n1' })
+    await new Promise((r) => setTimeout(r, 300))
+    expect((await approve('note.share', { id: 'n1' })).data.code).toBe('SENDING')
+    release()
+    expect((await first).status).toBe(200)
+  })
+
   it('keeps the connector’s answer the moment it comes back', async () => {
     const { db, call, approve } = await setup()
     await approve('note.share', { id: 'n1' })

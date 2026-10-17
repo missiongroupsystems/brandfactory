@@ -1,0 +1,30 @@
+{
+  "name": "shoot.order",
+  "description": "The shooting order from a drag: ids the shoot does not hold are ignored, and ids the order leaves out keep their place at the end.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "ideaIds"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "ideaIds": {
+        "type": "array",
+        "maxItems": 100,
+        "items": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,80}$"
+        }
+      }
+    }
+  },
+  "before": ["brand.reachable", "shoot.found"],
+  "returns": "one",
+  "sql": "update brandbase.shoots s set idea_ids =\n    array(select i from jsonb_array_elements_text(:ideaIds::jsonb) with ordinality t(i, n) where i = any (s.idea_ids) group by i order by min(n))\n    || array(select i from unnest(s.idea_ids) with ordinality u(i, n) where not (:ideaIds::jsonb ? i) order by n),\n  version = s.version + 1, updated_at = now()\nwhere s.id = :id and s.brand_id = :brand\nreturning brandbase.shoot_json(s) as result"
+}

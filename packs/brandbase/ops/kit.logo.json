@@ -1,0 +1,28 @@
+{
+  "name": "kit.logo",
+  "description": "The brand's logo: an uploaded file's address, never a blob: URL, which dies on reload.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "src", "name"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "src": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048,
+        "pattern": "^(?!blob:)"
+      },
+      "name": {
+        "type": ["string", "null"],
+        "maxLength": 300
+      }
+    }
+  },
+  "before": ["brand.reachable", "kit.found"],
+  "returns": "one",
+  "sql": "update brandbase.brand_kits k set logo = jsonb_build_object('src', :src::text, 'name', :name::text), version = k.version + 1, updated_at = now() where k.brand_id = :brand returning brandbase.camel(to_jsonb(k)) || jsonb_build_object('updatedAt', brandbase.iso(k.updated_at)) as result"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "kit.version_found",
+  "sql": "select exists (select 1 from brandbase.voice_versions v where v.brand_id = :brand and v.n = :n) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "version not found"
+}

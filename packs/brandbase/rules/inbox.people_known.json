@@ -1,0 +1,7 @@
+{
+  "id": "inbox.people_known",
+  "sql": "select (select count(distinct p) from jsonb_array_elements_text(:people::jsonb) p) = (select count(*) from brandbase.inbox_people x where x.brand_id = :brand and x.id in (select jsonb_array_elements_text(:people::jsonb))) as ok",
+  "status": 400,
+  "code": "BAD_PERSON",
+  "message": "a person is not in this brand"
+}

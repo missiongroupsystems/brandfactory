@@ -1,0 +1,7 @@
+{
+  "id": "shoot.crew_found",
+  "sql": "select exists (select 1 from brandbase.crew c where c.id = :crewId and c.shoot_id = :id) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "crew member not found"
+}

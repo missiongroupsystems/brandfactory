@@ -1,0 +1,32 @@
+{
+  "name": "kit.file_version",
+  "description": "A new version of a brand file: the team's title stays, the file and its date change.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "name"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 300,
+        "pattern": "\\S"
+      },
+      "mediaId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["brand.reachable", "kit.file_found", "kit.media_in_brand"],
+  "returns": "one",
+  "sql": "update brandbase.brand_files f set name = btrim(:name), kind = brandbase.file_kind(btrim(:name)), media_id = :mediaId, updated_at = :now::timestamptz where f.id = :id and f.brand_id = :brand returning brandbase.camel(to_jsonb(f)) || jsonb_build_object('updatedAt', brandbase.iso(f.updated_at)) as result"
+}

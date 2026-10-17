@@ -27,8 +27,9 @@ const deps = {
   auth: env.auth,
   environment: env.environment,
   now: env.now,
-  // Real connectors come with the platforms' reviews; until then nothing leaves the core.
-  connectors: { simulated: simulatedConnector },
+  // Real connectors come with the platforms' reviews (and a Lark provider); until then
+  // nothing leaves the core.
+  connectors: { simulated: simulatedConnector, lark: simulatedConnector },
 }
 const app = createCore(deps, { corsOrigins: env.corsOrigins })
 // One loop: the core runs as one instance. The claim still keeps a second from running a call

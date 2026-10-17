@@ -7,6 +7,21 @@
       "status": 409,
       "code": "STORY_TAKEN",
       "message": "the story row on that day is taken"
+    },
+    "crew_pkey": {
+      "status": 409,
+      "code": "ID_TAKEN",
+      "message": "this id is taken"
+    },
+    "posts_pkey": {
+      "status": 409,
+      "code": "ID_TAKEN",
+      "message": "this id is taken"
+    },
+    "shoots_pkey": {
+      "status": 409,
+      "code": "ID_TAKEN",
+      "message": "this id is taken"
     }
   },
   "scheduler": {

@@ -1,0 +1,7 @@
+{
+  "id": "shoot.ideas_in_brand",
+  "sql": "select exists (select 1 from brandbase.shoots r where r.id = :id and r.brand_id = :brand) or (select count(distinct i) from jsonb_array_elements_text(coalesce(:ideaIds::jsonb, '[]')) i) = (select count(*) from brandbase.ideas x where x.brand_id = :brand and x.id in (select jsonb_array_elements_text(coalesce(:ideaIds::jsonb, '[]')))) as ok",
+  "status": 400,
+  "code": "BAD_IDEA",
+  "message": "an idea is not in this brand"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "kit.current_version",
+  "sql": "select :ifVersion::int is null or k.version = :ifVersion::int as ok, brandbase.camel(to_jsonb(k)) || jsonb_build_object('updatedAt', brandbase.iso(k.updated_at)) as details from brandbase.brand_kits k where k.brand_id = :brand",
+  "status": 409,
+  "code": "STALE",
+  "message": "this changed since you opened it"
+}

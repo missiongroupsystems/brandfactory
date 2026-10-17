@@ -1,0 +1,22 @@
+{
+  "name": "kit.voice_restore",
+  "description": "Brings an old voice back as a new version, never a rewind.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "n"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "n": {
+        "type": "integer",
+        "minimum": 1
+      }
+    }
+  },
+  "before": ["brand.reachable", "kit.found", "kit.version_found"],
+  "returns": "one",
+  "sql": "with k as (select * from brandbase.brand_kits where brand_id = :brand),\nnext as (select brandbase.voice_edited(k.voice, (select voice from brandbase.voice_versions where brand_id = :brand and n = :n::int)) as voice from k),\nversion as (\n  insert into brandbase.voice_versions (brand_id, n, by, note, voice, created_at)\n  select :brand, coalesce((select max(n) from brandbase.voice_versions where brand_id = :brand), 0) + 1,\n    (select coalesce(nullif(u.name, ''), u.email) from brandbase.users u where u.id = :actor),\n    'Brought back v' || :n::int, next.voice, :now::timestamptz\n  from next\n  returning *\n),\nkit as (\n  update brandbase.brand_kits x set voice = next.voice, version = x.version + 1, updated_at = now()\n  from next where x.brand_id = :brand\n  returning x.*\n)\nselect jsonb_build_object('kit', brandbase.camel(to_jsonb(kit)) || jsonb_build_object('updatedAt', brandbase.iso(kit.updated_at)),\n  'version', brandbase.camel(to_jsonb(v)) || jsonb_build_object('createdAt', brandbase.iso(v.created_at))) as result\nfrom kit, version v"
+}

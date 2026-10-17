@@ -1,0 +1,7 @@
+{
+  "id": "kit.media_in_brand",
+  "sql": "select :mediaId::text is null or exists (select 1 from brandbase.media m where m.id = :mediaId and m.brand_id = :brand) as ok",
+  "status": 400,
+  "code": "BAD_MEDIA",
+  "message": "the file is not in this brand"
+}

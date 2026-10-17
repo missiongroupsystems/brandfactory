@@ -1,0 +1,123 @@
+{
+  "name": "idea.edit",
+  "description": "Edits an idea's brief. A new hook carries to its post unless the post is out, since posted is final. A write made from an older copy is refused with the idea as it is now.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "ifVersion": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "format": {
+        "enum": ["reel", "carousel", "story"]
+      },
+      "pillar": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "hook": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "angle": {
+        "type": "string",
+        "maxLength": 5000
+      },
+      "feature": {
+        "type": "string",
+        "maxLength": 2000
+      },
+      "image": {
+        "type": ["string", "null"],
+        "maxLength": 2048
+      },
+      "source": {
+        "type": "object"
+      },
+      "status": {
+        "enum": ["suggested", "idea"]
+      },
+      "why": {
+        "type": ["string", "null"],
+        "maxLength": 500
+      },
+      "inspiration": {
+        "type": "array",
+        "maxItems": 50,
+        "items": {
+          "type": "string",
+          "maxLength": 2048
+        }
+      },
+      "shots": {
+        "type": "array",
+        "maxItems": 100,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "title"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "title": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "ref": {
+              "type": "string",
+              "maxLength": 2048
+            },
+            "media": {
+              "type": "string",
+              "maxLength": 2048
+            },
+            "captured": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "cut": {
+        "type": ["string", "null"],
+        "maxLength": 2048
+      },
+      "sharper": {
+        "type": "array",
+        "maxItems": 20,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["text", "tag"],
+          "properties": {
+            "text": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "tag": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        }
+      },
+      "builtOn": {
+        "type": ["object", "null"]
+      }
+    }
+  },
+  "before": ["brand.reachable", "idea.found", "idea.current_version", "idea.format_kept"],
+  "returns": "one",
+  "sql": "with edited as (\n  update brandbase.ideas i set\n    format = case when :fields::jsonb ? 'format' then :format else i.format end, pillar = case when :fields::jsonb ? 'pillar' then :pillar else i.pillar end, hook = case when :fields::jsonb ? 'hook' then :hook else i.hook end, angle = case when :fields::jsonb ? 'angle' then :angle else i.angle end,\n    feature = case when :fields::jsonb ? 'feature' then :feature else i.feature end, image = case when :fields::jsonb ? 'image' then :image else i.image end, source = case when :fields::jsonb ? 'source' then :source::jsonb else i.source end,\n    status = case when :fields::jsonb ? 'status' then :status else i.status end, why = case when :fields::jsonb ? 'why' then :why else i.why end, inspiration = case when :fields::jsonb ? 'inspiration' then :inspiration::jsonb else i.inspiration end,\n    shots = case when :fields::jsonb ? 'shots' then :shots::jsonb else i.shots end, cut = case when :fields::jsonb ? 'cut' then :cut else i.cut end, sharper = case when :fields::jsonb ? 'sharper' then :sharper::jsonb else i.sharper end,\n    built_on = case when :fields::jsonb ? 'builtOn' then :builtOn::jsonb else i.built_on end,\n    version = i.version + 1, updated_at = now()\n  where i.id = :id and i.brand_id = :brand\n  returning i.*\n),\ncarried as (\n  update brandbase.posts p set hook = :hook, version = p.version + 1, updated_at = now()\n  from edited e\n  where :hook::text is not null and p.id = e.post_id and brandbase.post_stage(p.id) <> 'posted'\n  returning p.id\n)\nselect brandbase.camel(to_jsonb(e)) || jsonb_build_object('createdAt', brandbase.iso(e.created_at), 'updatedAt', brandbase.iso(e.updated_at)) as result from edited e"
+}

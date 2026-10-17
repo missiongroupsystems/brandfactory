@@ -34,6 +34,9 @@ interface CallStep {
   as?: string
   key?: string
   now?: string
+  /** The connector an effect move uses for this call, as in a tick step. */
+  connector?: TickStep['connector']
+  failOn?: string[]
   expect?: Expect
 }
 interface SqlStep {
@@ -263,9 +266,13 @@ async function runCase(
       auth: devAuth(),
       environment: 'test',
       now: () => now,
-      connectors: {
-        simulated: { send: (i: Parameters<Connector['send']>[0]) => connector.send(i) },
-      },
+      // Every connector a pack names goes to the one this pass uses.
+      connectors: Object.fromEntries(
+        ['simulated', 'lark'].map((name) => [
+          name,
+          { send: (i: Parameters<Connector['send']>[0]) => connector.send(i) },
+        ]),
+      ),
     }
     const callers = new Map<string, Promise<void>>()
     let previous: Answer | null = null
@@ -298,13 +305,16 @@ async function runCase(
           op,
           input: step.input ?? {},
         }
+        if ('call' in step && step.connector) connector = connectorFor(step)
         const result =
           'call' in step
             ? await call(deps, { ...request, key: step.key })
             : await approve(deps, request)
+        connector = simulatedConnector
         return { status: 200, body: JSON.parse(JSON.stringify(result ?? null)) }
       } catch (err) {
         if (!(err instanceof Refused)) throw err
+        connector = simulatedConnector
         if (err.rule) seen.refused.add(err.rule)
         if (err.code === 'NOT_FOUND') seen.notFound.add(op)
         if (err.code === 'NEEDS_APPROVAL') seen.needsApproval.add(op)
@@ -398,7 +408,7 @@ async function runCase(
   }
 }
 
-function connectorFor(step: TickStep): Connector {
+function connectorFor(step: Pick<TickStep, 'connector' | 'failOn'>): Connector {
   if (step.connector === 'hangs') return { send: () => new Promise(() => {}) }
   // Takes the send, then answers with something the app cannot store.
   if (step.connector === 'garbled') return { send: async () => ({ externalId: 1n }) }

@@ -1,0 +1,74 @@
+{
+  "name": "shoot.on_day",
+  "description": "The shoot day picked on an idea's page: the idea joins the shoot already on that day, or a new planned shoot starts there at the time picked, under the client's id.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "ideaId", "day", "start", "newShootId"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "ideaId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "day": {
+        "type": "string",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      },
+      "start": {
+        "type": "string",
+        "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+      },
+      "newShootId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "title": {
+        "type": "string",
+        "maxLength": 2000,
+        "pattern": "\\S"
+      },
+      "place": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "crew": {
+        "type": "array",
+        "maxItems": 50,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "name", "role"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,80}$"
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 2000,
+              "pattern": "\\S"
+            },
+            "role": {
+              "type": "string",
+              "maxLength": 2000,
+              "pattern": "\\S"
+            }
+          }
+        }
+      }
+    }
+  },
+  "before": [
+    "shoot.lock_brand",
+    "shoot.idea_in_brand",
+    "post.day_is_date",
+    "post.day_not_past",
+    "shoot.new_id_free"
+  ],
+  "returns": "one",
+  "sql": "with there as (\n  select * from brandbase.shoots where brand_id = :brand and day = :day::date order by start, id limit 1\n),\nalready as (select exists (select 1 from there where :ideaId = any (idea_ids)) as yes),\nkeep as (select coalesce((select id from there), :newShootId) as id),\nemptied as (\n  delete from brandbase.shoots s using keep, already\n  where not already.yes and s.brand_id = :brand and s.origin = 'planned' and s.id <> keep.id\n    and cardinality(array_remove(s.idea_ids, :ideaId)) = 0\n  returning s.id\n),\ntaken as (\n  update brandbase.shoots s set idea_ids = array_remove(s.idea_ids, :ideaId), version = s.version + 1, updated_at = now()\n  from keep, already\n  where not already.yes and s.brand_id = :brand and s.id <> keep.id and :ideaId = any (s.idea_ids)\n    and s.id not in (select id from emptied)\n  returning s.id\n),\njoined as (\n  update brandbase.shoots s set idea_ids = s.idea_ids || :ideaId, version = s.version + 1, updated_at = now()\n  from there t where s.id = t.id and not (:ideaId = any (t.idea_ids))\n  returning s.*\n),\nmade as (\n  insert into brandbase.shoots (id, brand_id, title, origin, day, start, \"end\", place, idea_ids)\n  select :newShootId, :brand, coalesce(btrim(:title), 'New shoot'), 'planned', :day::date,\n    (brandbase.hours_after('12:00', '17:00', :start, null))[1],\n    (brandbase.hours_after('12:00', '17:00', :start, null))[2], coalesce(:place, ''), array[:ideaId]\n  where not exists (select 1 from there)\n  returning *\n),\npeople as (\n  insert into brandbase.crew (id, shoot_id, brand_id, name, role, position)\n  select c ->> 'id', m.id, :brand, btrim(c ->> 'name'), btrim(c ->> 'role'), (n - 1)::int\n  from made m, jsonb_array_elements(coalesce(:crew::jsonb, '[]')) with ordinality t(c, n)\n  returning *\n)\nselect brandbase.shoot_json(to_jsonb(j), coalesce((select jsonb_agg(to_jsonb(c)) from brandbase.crew c where c.shoot_id = j.id), '[]')) as result from joined j\nunion all\nselect brandbase.shoot_json(t) from there t where not exists (select 1 from joined)\nunion all\nselect brandbase.shoot_json(to_jsonb(m), coalesce((select jsonb_agg(to_jsonb(p)) from people p), '[]')) from made m"
+}

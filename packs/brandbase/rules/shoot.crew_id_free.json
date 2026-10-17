@@ -1,0 +1,7 @@
+{
+  "id": "shoot.crew_id_free",
+  "sql": "select not exists (select 1 from brandbase.crew c where c.id = :crewId and c.shoot_id <> :id) as ok",
+  "status": 409,
+  "code": "ID_TAKEN",
+  "message": "this id is taken"
+}

@@ -1,0 +1,41 @@
+{
+  "name": "kit.colours",
+  "description": "The brand's colours. A colour that is not a hex is never saved; a hex is kept as #RRGGBB; a blank name is Untitled.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "colours"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "colours": {
+        "type": "array",
+        "maxItems": 30,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "hex"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "hex": {
+              "type": "string",
+              "maxLength": 20
+            }
+          }
+        }
+      },
+      "ifVersion": {
+        "type": "integer",
+        "minimum": 1
+      }
+    }
+  },
+  "before": ["brand.reachable", "kit.found", "kit.current_version", "kit.hexes"],
+  "returns": "one",
+  "sql": "update brandbase.brand_kits k set colours = coalesce((select jsonb_agg(jsonb_build_object('name', coalesce(nullif(btrim(c ->> 'name'), ''), 'Untitled'), 'hex', brandbase.hex_of(c ->> 'hex')) order by n) from jsonb_array_elements(:colours::jsonb) with ordinality t(c, n)), '[]'), version = k.version + 1, updated_at = now() where k.brand_id = :brand returning brandbase.camel(to_jsonb(k)) || jsonb_build_object('updatedAt', brandbase.iso(k.updated_at)) as result"
+}

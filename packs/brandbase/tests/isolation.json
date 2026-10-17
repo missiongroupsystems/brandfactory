@@ -210,6 +210,492 @@
           }
         },
         {
+          "call": "idea.create",
+          "as": "admin",
+          "input": {
+            "brand": "temper",
+            "id": "ti",
+            "format": "reel",
+            "hook": "Steak"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "temper",
+            "id": "x9",
+            "format": "reel",
+            "hook": "x"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "idea.edit",
+          "input": {
+            "brand": "temper",
+            "id": "ti",
+            "hook": "mine"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "idea.drop",
+          "input": {
+            "brand": "temper",
+            "id": "ti"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "temper",
+            "id": "ti",
+            "postId": "x8",
+            "day": "2026-10-20",
+            "time": "18:00",
+            "stage": "draft"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "idea.place",
+          "input": {
+            "brand": "temper",
+            "id": "ti",
+            "day": "2026-10-20"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "idea.to_calendar",
+          "input": {
+            "brand": "temper",
+            "id": "ti",
+            "why": "x"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "idea.edit",
+          "input": {
+            "brand": "casa",
+            "id": "ti",
+            "hook": "mine"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "as": "admin",
+          "input": {
+            "brand": "temper",
+            "id": "ts",
+            "title": "Steak shoot",
+            "origin": "manual",
+            "crew": [
+              {
+                "id": "tc1",
+                "name": "Chef",
+                "role": "Chef"
+              }
+            ]
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "temper",
+            "id": "x7",
+            "title": "x",
+            "origin": "manual"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "shoot.on_day",
+          "input": {
+            "brand": "temper",
+            "ideaId": "ti",
+            "day": "2026-10-20",
+            "start": "12:00",
+            "newShootId": "x6"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "shoot.edit",
+          "input": {
+            "brand": "temper",
+            "id": "ts",
+            "title": "mine"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "shoot.drop",
+          "input": {
+            "brand": "temper",
+            "id": "ts"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "shoot.add_idea",
+          "input": {
+            "brand": "temper",
+            "id": "ts",
+            "ideaId": "ti"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "shoot.remove_idea",
+          "input": {
+            "brand": "temper",
+            "id": "ts",
+            "ideaId": "ti"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "shoot.order",
+          "input": {
+            "brand": "temper",
+            "id": "ts",
+            "ideaIds": []
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "shoot.add_crew",
+          "input": {
+            "brand": "temper",
+            "id": "ts",
+            "crewId": "x5",
+            "name": "n",
+            "role": "r"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "shoot.remove_crew",
+          "input": {
+            "brand": "temper",
+            "id": "ts",
+            "crewId": "tc1"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "shoot.reply",
+          "input": {
+            "brand": "temper",
+            "id": "ts",
+            "crewId": "tc1",
+            "reply": "cant"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "shoot.invite",
+          "input": {
+            "brand": "temper",
+            "id": "ts"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "shoot.edit",
+          "input": {
+            "brand": "casa",
+            "id": "ts",
+            "title": "mine"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "sql": "insert into brandbase.brand_kits (brand_id, voice, colours, logo) values ('temper', '{\"summary\": \"Bold\", \"words\": [], \"examples\": []}', '[]', '{\"src\": \"/t.png\", \"name\": null}')"
+        },
+        {
+          "sql": "insert into brandbase.voice_versions (brand_id, n, by, voice) values ('temper', 1, 'x', '{\"summary\": \"Bold\", \"words\": [], \"examples\": []}')"
+        },
+        {
+          "sql": "insert into brandbase.brand_files (id, brand_id, title, kind, name) values ('tf', 'temper', 'Menu', 'pdf', 'menu.pdf')"
+        },
+        {
+          "call": "kit.voice",
+          "input": {
+            "brand": "temper",
+            "voice": {
+              "summary": "mine",
+              "words": [],
+              "examples": []
+            }
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "kit.voice_restore",
+          "input": {
+            "brand": "temper",
+            "n": 1
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "kit.colours",
+          "input": {
+            "brand": "temper",
+            "colours": []
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "kit.logo",
+          "input": {
+            "brand": "temper",
+            "src": "/x.png",
+            "name": null
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "kit.file_add",
+          "input": {
+            "brand": "temper",
+            "id": "x2",
+            "name": "a.pdf"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "kit.file_rename",
+          "input": {
+            "brand": "temper",
+            "id": "tf",
+            "title": "mine"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "kit.file_version",
+          "input": {
+            "brand": "temper",
+            "id": "tf",
+            "name": "b.pdf"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "kit.file_drop",
+          "input": {
+            "brand": "temper",
+            "id": "tf"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "kit.file_rename",
+          "input": {
+            "brand": "casa",
+            "id": "tf",
+            "title": "mine"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "sql": "insert into brandbase.inbox_messages (id, brand_id, platform, kind, from_name, from_handle, text, tone, received_at) values ('tm', 'temper', 'ig', 'comment', 't', '@t', 'Cold', 'complaint', now())"
+        },
+        {
+          "call": "inbox.reply",
+          "input": {
+            "brand": "temper",
+            "id": "tm",
+            "text": "mine"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "inbox.send_to",
+          "input": {
+            "brand": "temper",
+            "id": "tm",
+            "people": ["x"]
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "inbox.clear_noise",
+          "input": {
+            "brand": "temper"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "inbox.reply",
+          "input": {
+            "brand": "casa",
+            "id": "tm",
+            "text": "mine"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "connection.set",
+          "input": {
+            "brand": "temper",
+            "key": "ig",
+            "status": "off"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "brand.tiktok_defaults",
+          "input": {
+            "brand": "temper",
+            "privacy": "Everyone",
+            "interactions": {
+              "comments": true,
+              "duet": false,
+              "stitch": false
+            },
+            "promo": {
+              "on": false,
+              "own": false,
+              "paid": false
+            },
+            "sound": "own"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "pasted.add",
+          "input": {
+            "brand": "temper",
+            "id": "x3",
+            "platform": "ig",
+            "account": "a",
+            "image": "",
+            "borrow": "b",
+            "seed": {
+              "format": "reel",
+              "pillar": "",
+              "hook": "",
+              "angle": "",
+              "feature": "",
+              "shots": [],
+              "sharper": []
+            }
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
           "sql": "select caption, day::text as day, marked from brandbase.posts where id = 't1'",
           "expect": {
             "rows": [
@@ -217,6 +703,48 @@
                 "caption": "",
                 "day": "2026-10-08",
                 "marked": null
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select hook from brandbase.ideas where id = 'ti'",
+          "expect": {
+            "rows": [
+              {
+                "hook": "Steak"
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select title, (select count(*)::int from brandbase.crew where shoot_id = 'ts') as crew from brandbase.shoots where id = 'ts'",
+          "expect": {
+            "rows": [
+              {
+                "title": "Steak shoot",
+                "crew": 1
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select reply_text from brandbase.inbox_messages where id = 'tm'",
+          "expect": {
+            "rows": [
+              {
+                "reply_text": null
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select title, (select voice ->> 'summary' from brandbase.brand_kits where brand_id = 'temper') as summary from brandbase.brand_files where id = 'tf'",
+          "expect": {
+            "rows": [
+              {
+                "title": "Menu",
+                "summary": "Bold"
               }
             ]
           }

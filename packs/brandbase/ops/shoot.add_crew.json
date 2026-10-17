@@ -1,0 +1,36 @@
+{
+  "name": "shoot.add_crew",
+  "description": "Adds a person to a shoot's crew under the client's id, last in the list. The same person again changes nothing; an id held by any other crew member, in any brand, is refused (the database's key).",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "crewId", "name", "role"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "crewId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "name": {
+        "type": "string",
+        "maxLength": 2000,
+        "pattern": "\\S"
+      },
+      "role": {
+        "type": "string",
+        "maxLength": 2000,
+        "pattern": "\\S"
+      }
+    }
+  },
+  "before": ["brand.reachable", "shoot.found", "shoot.crew_id_free"],
+  "returns": "one",
+  "sql": "with added as (\n  insert into brandbase.crew (id, shoot_id, brand_id, name, role, position)\n  select :crewId, :id, :brand, btrim(:name), btrim(:role), coalesce((select max(position) + 1 from brandbase.crew where shoot_id = :id), 0)\n  where not exists (select 1 from brandbase.crew where id = :crewId and shoot_id = :id)\n  returning *\n)\nselect brandbase.shoot_json(to_jsonb(s), coalesce((select jsonb_agg(z.c) from (\n  select to_jsonb(c) as c from brandbase.crew c where c.shoot_id = s.id\n  union all select to_jsonb(a) from added a) z), '[]')) as result\nfrom brandbase.shoots s where s.id = :id and s.brand_id = :brand"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "kit.found",
+  "sql": "select exists (select 1 from brandbase.brand_kits where brand_id = :brand for update) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "this brand has no kit yet"
+}

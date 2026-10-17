@@ -1,0 +1,22 @@
+{
+  "name": "idea.drop",
+  "description": "Drops an idea: a skipped suggestion, or an idea let go. It leaves every shoot, and a planned shoot left with no idea goes too. One that is a post is refused: unplan it first.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["brand.reachable", "idea.found", "idea.drop_unplanned"],
+  "returns": "one",
+  "sql": "with pruned as (\n  delete from brandbase.shoots s\n  where s.brand_id = :brand and s.origin = 'planned' and cardinality(array_remove(s.idea_ids, :id)) = 0\n    and (:id = any (s.idea_ids) or cardinality(s.idea_ids) = 0)\n  returning s.id\n),\ntaken as (\n  update brandbase.shoots s set idea_ids = array_remove(s.idea_ids, :id), version = s.version + 1, updated_at = now()\n  where s.brand_id = :brand and :id = any (s.idea_ids) and s.id not in (select id from pruned)\n  returning s.id\n),\ngone as (delete from brandbase.ideas i where i.id = :id and i.brand_id = :brand returning i.id)\nselect jsonb_build_object('deleted', g.id) as result from gone g"
+}

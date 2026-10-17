@@ -1,0 +1,7 @@
+{
+  "id": "shoot.lark_linked",
+  "sql": "select exists (select 1 from brandbase.connections k where k.brand_id = :brand and k.key = 'lark' and k.status = 'connected') as ok",
+  "status": 409,
+  "code": "NOT_CONNECTED",
+  "message": "connect Lark first"
+}

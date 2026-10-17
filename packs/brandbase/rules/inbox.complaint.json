@@ -1,0 +1,7 @@
+{
+  "id": "inbox.complaint",
+  "sql": "select m.tone = 'complaint' as ok from brandbase.inbox_messages m where m.id = :id",
+  "status": 400,
+  "code": "NOT_COMPLAINT",
+  "message": "only a complaint goes to someone"
+}

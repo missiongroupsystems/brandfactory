@@ -538,3 +538,80 @@ and voice, connections and TikTok defaults, media uploads (signed upload URLs), 
 - A body could replace a path's ids in the route map; the path's come last now.
 - `/me` and the brand list answer timestamps as the server did (`…Z`).
 - The runner's abandoned pass logs any error other than its closed database.
+### Phase 6, second part: ideas and shoots
+
+- **Ideas** (6 moves, pack migration `0004_ideas`): `idea.create`, `idea.edit`, `idea.drop`,
+  `idea.plan`, `idea.place`, `idea.to_calendar`. `landing_day` and `week_end` port the calendar's
+  landing rule. A new reserved parameter, `:fields` (the whole input as JSON), lets an edit tell a
+  field sent as null (cleared) from one not sent (kept), as the server's partial edits did.
+- **Shoots** (11 moves, pack migration `0005_shoots`): create, on-day, edit, drop, add and remove
+  an idea, order, add and remove crew, reply, and `shoot.invite`, an effect on a `lark` connector
+  (simulated, as the server's was: no Lark provider exists) that sends only to the crew not yet
+  invited and records exactly those, from what went out (a new reserved parameter, `:payload`).
+  An idea is shot once; a planned shoot left empty goes; one added by hand or from Lark stays.
+- **Crew rows carry their brand.** A move that makes a shoot and its crew in one statement could
+  not pass the crew's row rule, which looked the shoot up and could not see it yet. `crew` gains
+  `brand_id`, set by the moves, kept equal to the shoot's by a composite key
+  (`shoots (id, brand_id)`); rows without it (the server's seed) fall back to the shoot's brand.
+  A crew id another brand holds is refused by the key (`crew_pkey` → `ID_TAKEN`).
+- **The invite is pressed, so it is approved then fired**: the route map marks it
+  `approveFirst`, and the client sends `POST /approve/…` then the move. No scheduler stands
+  between them.
+- **Differences from the server:** a second invite with nobody left to invite answers 404
+  "nothing to send" (the server answered the shoot unchanged; the button is disabled then); two
+  invite presses at once could each send, since each press is its own yes (the button is
+  disabled while it sends; the server claimed the crew first).
+
+Tests: 15 of the server's 16 idea cases (its shoot-pruning case set up the shoot with SQL), its 14
+shoot cases, and a case for every rule they did not refuse; every new move in the isolation case.
+Checked with Playwright on the local stack: Draft on the idea page plans the idea as a post on
+Fri 9 Oct at 18:00 (`idea.plan` 200); "Send Lark invites" on the Raffles City call sheet approves,
+sends and marks all four crew invited ("Invites sent").
+
+**Adversarial review** (one Sonnet reviewer, one pass). The crew key and policy held against
+every cross-brand insert and update it tried. Fixed:
+
+- A repeated `shoot.create` for a shoot that exists ran its clean-up anyway (data-modifying CTEs
+  always run): a retry after a network error could take an idea back and drop another shoot. The
+  clean-up now runs only for a new shoot. Case: "changes nothing when the same create comes again
+  after the idea moved on".
+- Two invite presses (or two tabs) while a send was in flight could each send. The core now
+  refuses a yes (409 `SENDING`) while a send of exactly the same thing has used its yes and not
+  answered, for up to two minutes; a send that fails marks its yes, so a retry is not held up.
+  Case in `effects.test.ts`.
+- Making shoots took no brand-wide lock (the server's `lockShoots`): two creates or on-day joins
+  at once could leave an idea in two shoots, or two shoots on one day. `shoot.lock_brand` locks
+  the brand's row first, in create, on-day and add-idea.
+- Another brand's post or shoot id was a generic `CONFLICT`; `posts_pkey` and `shoots_pkey` now
+  map to `ID_TAKEN`.
+- Cases added for behaviour mutations showed untested: a shoot's day edit, Lark switched off, the
+  landing why.
+
+Documented, not changed: a second invite with nobody left to invite is 404 (the button is
+disabled then); idempotent repeats of `idea.create` and `idea.plan` run the day rules again;
+field messages differ for `BAD_CHANNEL` and `BAD_DAY`; `btrim` trims spaces where zod trimmed all
+whitespace (a blank value is still refused).
+
+### Phase 6, third part: inbox, brand kit, connections and the moodboard's links
+
+- **Inbox** (3 moves): `inbox.reply` (kept with who sent it, queued; no platform sender exists, so
+  it stays a write; it becomes an effect with one), `inbox.send_to` (the brand's order of people),
+  `inbox.clear_noise` (noise, and emoji-only messages with no letter or digit, via
+  `textfn.has_word`).
+- **Brand kit** (8 moves, pack migration `0006_kit`): the voice published as a new version under
+  `voiceEdited`'s rules and numbered in the same statement (`UNIQUE(brand, n)`), brought back as
+  a new version, colours through `hexOf` (a bad hex is refused, naming it), the logo (never a
+  `blob:` URL), and brand files titled from their names, renamed, versioned and dropped.
+- **Connections and the moodboard** (3 moves): `connection.set`, `brand.tiktok_defaults`,
+  `pasted.add` (the client's id; a picture is https or none; stamped with the core's clock).
+- Tests: the server's 5 inbox, 5 kit, 4 pasted-and-sources cases, a case for each rule they did
+  not refuse, and every move in the isolation case.
+
+**Second review pass** (the same reviewer): the first part's fixes hold (a correct repro of the
+repeat create on the new snapshot steals nothing; `SENDING` lets a second send after a success
+or a failure through); the new groups have no integrity or cross-brand defect. Fixed: dropping a
+brand file twice answers `{deleted}` both times, as the server did (the store retries);
+`shoot.lock_brand` takes `FOR NO KEY UPDATE`, so it does not wait on inserts that reference the
+brand; `pasted.add` keeps a seed's own seven fields and ignores others, as zod did;
+`voice_edited` trims all whitespace. Known and left: two people each holding an open yes for the
+same payload could each send it once (two approvers, low risk).

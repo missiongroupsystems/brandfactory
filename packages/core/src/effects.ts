@@ -75,6 +75,15 @@ export async function approveIn(
   input: Record<string, unknown>,
 ) {
   const { payload, hash } = await payloadOf(tx, deps, content, op, caller, input)
+  // A send of exactly this that used its yes and has not answered yet is on its way: a second
+  // yes now would send it twice (two presses, two tabs).
+  const [sending] = await tx.query(
+    `select 1 from packs.approvals
+     where pack = $1 and op = $2 and payload_hash = $3 and used_at is not null
+       and outcome is null and used_at > now() - interval '2 minutes'`,
+    [content.manifest.name, op.name, hash],
+  )
+  if (sending) throw new Refused(409, 'SENDING', 'this is on its way already')
   const [row] = await tx.query<{ id: string }>(
     `with open as (
        select id from packs.approvals
@@ -187,6 +196,13 @@ export async function fire(
     ]).finally(() => clearTimeout(timer))
   } catch (err) {
     console.error('connector failed', op.name, hash, err)
+    // Marked, so the yes it used no longer reads as a send on its way.
+    await deps.db
+      .query('update packs.approvals set outcome = $2 where id = $1::bigint', [
+        approval,
+        JSON.stringify({ failed: String((err as Error)?.message ?? err) }),
+      ])
+      .catch((markErr: unknown) => console.error('could not mark a failed send', markErr))
     throw new Refused(502, 'SEND_FAILED', 'the send failed; a person checks before another try')
   }
   // From here the platform has it. Anything that goes wrong now leaves the outcome unknown to the
@@ -198,7 +214,7 @@ export async function fire(
       approval,
       JSON.stringify(outcome ?? null),
     ])
-    const params = { ...paramsOf(deps, caller, input), outcome }
+    const params = { ...paramsOf(deps, caller, input), outcome, payload }
     return await deps.db.transaction(async (tx) => {
       await setClaims(tx, deps, caller)
       await tx.exec('set local role pack_runtime')

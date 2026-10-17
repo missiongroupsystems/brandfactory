@@ -1,0 +1,7 @@
+{
+  "id": "shoot.crew_free",
+  "sql": "select exists (select 1 from brandbase.shoots r where r.id = :id and r.brand_id = :brand) or not exists (select 1 from brandbase.crew c where c.id in (select x ->> 'id' from jsonb_array_elements(coalesce(:crew::jsonb, '[]')) x)) as ok",
+  "status": 409,
+  "code": "ID_TAKEN",
+  "message": "this id is taken"
+}

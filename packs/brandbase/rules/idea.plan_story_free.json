@@ -1,0 +1,7 @@
+{
+  "id": "idea.plan_story_free",
+  "sql": "select exists (select 1 from brandbase.ideas r where r.id = :id and r.post_id = :postId) or i.format <> 'story' or not exists (select 1 from brandbase.posts o where o.brand_id = :brand and o.format = 'story' and o.day = :day::date) as ok from brandbase.ideas i where i.id = :id",
+  "status": 409,
+  "code": "STORY_TAKEN",
+  "message": "the story row on that day is taken"
+}

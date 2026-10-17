@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.21.0** — 2026-10-17 — `feat/packs-core`, phase 6, second part: ideas, shoots, the inbox, the brand kit, connections and pasted links on the core (31 moves), with the server's cases for each; the Lark invite is an approved effect, refused while the same send is on its way; crew rows carry their brand. Pack migrations `0004_ideas`, `0005_shoots`, `0006_kit` (not applied to production). 664 tests (122 more skipped without a Postgres server).
 - **2.20.0** — 2026-10-17 — `feat/packs-core`, phase 6, first part: with `NEXT_PUBLIC_CORE_URL` set the app signs in, loads each brand and writes its posts through the core's moves (Schedule carries the person's yes to each account's send), with the screens unchanged; a script starts the core with the demo's data on a local Postgres. Other routes still go to the BrandBase API. No migration. 603 tests (66 more skipped without a Postgres server).
 - **2.19.0** — 2026-10-17 — `feat/packs-core`, phase 5: timed moves. A move asks for later calls; the core claims one due call at a time, runs it as whoever asked, beats a heartbeat, and ends a cut-off call `unknown_outcome` with an alert, never running it again. BrandBase sends each account's job through an approved effect move on a simulated connector, and screens hear of every change within a second. Core migration `0006_scheduler` (not applied to production). 598 tests (63 more skipped without a Postgres server).
 - **2.18.0** — 2026-10-17 — `feat/packs-core`, phase 4: agents call a pack's moves as MCP tools through the same checks as a screen; effect moves (the only way out of the app) wait for a person's yes to exactly what they send, used once, and an agent can neither give one nor promote a version. Core migration `0005_approvals` (not applied to production). 586 tests (52 more skipped without a Postgres server).
@@ -42,6 +43,23 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.21.0 — 2026-10-17
+
+- **Ideas.** Create, edit (a null clears a field, a field left out stays), drop, plan as a post,
+  place on a day, and land on the calendar after this week.
+- **Shoots.** Plan from ideas or add by hand, join on a day, edit with the call sheet's hours,
+  order, crew by id, replies, and the Lark invite to those not invited yet, approved when
+  pressed.
+- **Inbox, kit, connections.** Replies kept with who sent them, complaints sent to people, noise
+  cleared; voice versions, colours, the logo and brand files; connections, TikTok defaults and
+  pasted links.
+- **Core.** Two reserved parameters: `:fields` (the whole input) and `:payload` (what an effect
+  sent); a yes is refused while a send of exactly the same thing is on its way.
+
+Pack migrations `0004_ideas`, `0005_shoots` and `0006_kit`, not applied to production. Gate: typecheck, lint,
+format, 664 tests in 69 files (122 skipped without `CORE_TEST_PG_URL`; the core's 356 pass with it),
+`next build`.
 
 ## 2.20.0 — 2026-10-17
 
