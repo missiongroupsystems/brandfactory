@@ -69,6 +69,12 @@ The repository is a pnpm workspaces monorepo with three packages:
   Pinterest, TikTok) by OAuth, with tokens encrypted per brand. It is separate from the demo and
   imports no other package (see its README).
 
+### This branch: packs on a core
+
+`feat/packs-core` builds BrandBase's backend as a pack on a generic core, in place of
+`packages/server`. Read `docs/executing/packs-core-proposal.md`, then `docs/executing/packs-core-plan.md`,
+before any work here. `packages/server` stays as the reference and is not edited.
+
 ### Backend work starts from the archive
 
 The old BrandFactory code is on the branch `archive/main-2026-10-07`: the Hono server
