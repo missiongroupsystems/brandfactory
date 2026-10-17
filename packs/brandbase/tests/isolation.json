@@ -1,0 +1,202 @@
+{
+  "name": "isolation",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "member",
+  "cases": [
+    {
+      "name": "answers not-found to a member calling every move with another brand's ids",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "as": "admin",
+          "input": {
+            "brand": "temper",
+            "id": "t1",
+            "format": "reel",
+            "hook": "Steak",
+            "day": "2026-10-08",
+            "time": "18:00"
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "temper"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "temper"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "temper",
+            "id": "x1",
+            "format": "reel",
+            "hook": "Steak"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "temper",
+            "id": "t1",
+            "caption": "mine now"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "temper",
+            "id": "t1",
+            "day": "2026-10-20"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "temper",
+            "id": "t1",
+            "stage": "posted"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.unplan",
+          "input": {
+            "brand": "temper",
+            "id": "t1"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "temper",
+            "id": "t1",
+            "when": "now"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "t1",
+            "caption": "mine now"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "casa",
+            "id": "t1",
+            "day": "2026-10-20"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "t1",
+            "stage": "posted"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.unplan",
+          "input": {
+            "brand": "casa",
+            "id": "t1"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "t1",
+            "when": "now"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "sql": "select caption, day::text as day, marked from brandbase.posts where id = 't1'",
+          "expect": {
+            "rows": [
+              {
+                "caption": "",
+                "day": "2026-10-08",
+                "marked": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "reaches nothing for a deactivated account",
+      "steps": [
+        {
+          "call": "post.list",
+          "as": "gone",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "status": 404
+          }
+        }
+      ]
+    }
+  ]
+}

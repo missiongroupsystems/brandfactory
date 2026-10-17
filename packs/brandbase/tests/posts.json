@@ -1,0 +1,1096 @@
+{
+  "name": "posts",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "member",
+  "cases": [
+    {
+      "name": "a post's stage comes from the jobs, and a hand mark only counts when no job exists",
+      "steps": [
+        {
+          "sql": "select brandbase.stage(null, '{}') as a, brandbase.stage('scheduled', '{}') as b, brandbase.stage(null, '{live,scheduled}') as c, brandbase.stage(null, '{live,failed}') as d, brandbase.stage('scheduled', '{live,live}') as e",
+          "expect": {
+            "rows": [
+              {
+                "a": "draft",
+                "b": "scheduled",
+                "c": "scheduled",
+                "d": "failed",
+                "e": "posted"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "makes one post for a repeated id, since a double click sends twice",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          },
+          "expect": {
+            "result": {
+              "hook": "Pasta night"
+            }
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Changed",
+            "day": "2026-10-08",
+            "time": "18:00"
+          },
+          "expect": {
+            "result": {
+              "hook": "Pasta night"
+            }
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "length": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses an id another brand holds, since posts are looked up by id alone",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          },
+          "as": "admin",
+          "expect": {
+            "status": 200
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "temper",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          },
+          "as": "admin",
+          "expect": {
+            "status": 409,
+            "code": "ID_TAKEN"
+          }
+        }
+      ]
+    },
+    {
+      "name": "starts on the format's usual accounts among the brand's own",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          },
+          "expect": {
+            "result": {
+              "channels": ["ig", "tt"],
+              "stage": "draft"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "never sends to a platform the brand is not on, nor a format where it cannot go",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "channels": ["yt"]
+          },
+          "expect": {
+            "code": "BAD_CHANNEL"
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "story",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "channels": ["tt"]
+          },
+          "expect": {
+            "code": "BAD_CHANNEL"
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a day that passed in the brand's zone and a time before 07:00",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-05",
+            "time": "18:00"
+          },
+          "expect": {
+            "code": "PAST_DAY"
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "06:30"
+          },
+          "expect": {
+            "code": "TOO_EARLY"
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-06",
+            "time": "18:00"
+          },
+          "expect": {
+            "status": 200
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a day that is not a date",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-02-30",
+            "time": "18:00"
+          },
+          "expect": {
+            "code": "BAD_DAY"
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a blob: URL, which dies on reload",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "media": [
+              {
+                "src": "blob:http://x/1",
+                "kind": "photo"
+              }
+            ]
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a file another brand uploaded",
+      "steps": [
+        {
+          "sql": "insert into brandbase.media (id, brand_id, storage_key, kind, mime) values ('m-temper', 'temper', 'k1', 'photo', 'image/jpeg')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "media": [
+              {
+                "src": "/x.jpg",
+                "kind": "photo",
+                "mediaId": "m-temper"
+              }
+            ]
+          },
+          "expect": {
+            "code": "BAD_MEDIA"
+          }
+        }
+      ]
+    },
+    {
+      "name": "moves the day and keeps the time",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          }
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "day": "2026-10-10"
+          },
+          "expect": {
+            "result": {
+              "day": "2026-10-10",
+              "time": "18:00",
+              "version": 2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "changes nothing, not even the version, when moved to the day and time it has",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          }
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "day": "2026-10-08",
+            "time": "18:00"
+          },
+          "expect": {
+            "result": {
+              "version": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "holds one planned story a day, and none once stories went out",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "format": "story",
+            "hook": "Story",
+            "day": "2026-10-08",
+            "time": "12:00"
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "s2",
+            "format": "story",
+            "hook": "Story",
+            "day": "2026-10-08",
+            "time": "12:00"
+          },
+          "expect": {
+            "code": "STORY_TAKEN"
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "s2",
+            "format": "story",
+            "hook": "Story",
+            "day": "2026-10-09",
+            "time": "12:00"
+          }
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "casa",
+            "id": "s2",
+            "day": "2026-10-08"
+          },
+          "expect": {
+            "code": "STORY_TAKEN"
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "stage": "posted"
+          }
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "casa",
+            "id": "s2",
+            "day": "2026-10-10"
+          }
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "casa",
+            "id": "s2",
+            "day": "2026-10-08"
+          },
+          "expect": {
+            "code": "STORY_TAKEN"
+          }
+        }
+      ]
+    },
+    {
+      "name": "lets one of two stories moved onto one day at once win",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "format": "story",
+            "hook": "Story",
+            "day": "2026-10-09",
+            "time": "12:00"
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "s2",
+            "format": "story",
+            "hook": "Story",
+            "day": "2026-10-10",
+            "time": "12:00"
+          }
+        },
+        {
+          "parallel": [
+            {
+              "call": "post.move",
+              "input": {
+                "brand": "casa",
+                "id": "s1",
+                "day": "2026-10-12"
+              }
+            },
+            {
+              "call": "post.move",
+              "input": {
+                "brand": "casa",
+                "id": "s2",
+                "day": "2026-10-12"
+              }
+            }
+          ],
+          "expect": {
+            "codes": [null, "STORY_TAKEN"]
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.posts where day = '2026-10-12'",
+          "expect": {
+            "rows": [
+              {
+                "n": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "moves the jobs not yet sent with the post",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          }
+        },
+        {
+          "sql": "insert into brandbase.post_jobs (id, post_id, brand_id, channel, status, run_at) values ('j1', 'p1', 'casa', 'ig', 'scheduled', '2026-10-08T10:00:00Z')"
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "day": "2026-10-09",
+            "time": "19:30"
+          },
+          "expect": {
+            "result": {
+              "jobs": [
+                {
+                  "runAt": "2026-10-09T11:30:00.000Z"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "sql": "select brandbase.iso(run_at) as at from brandbase.post_jobs",
+          "expect": {
+            "rows": [
+              {
+                "at": "2026-10-09T11:30:00.000Z"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses every change to a posted post, whatever client asks",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "stage": "posted"
+          },
+          "expect": {
+            "result": {
+              "stage": "posted"
+            }
+          }
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "day": "2026-10-10"
+          },
+          "expect": {
+            "code": "POST_POSTED"
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "caption": "new"
+          },
+          "expect": {
+            "code": "POST_POSTED"
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "stage": "draft"
+          },
+          "expect": {
+            "code": "POST_POSTED"
+          }
+        },
+        {
+          "call": "post.unplan",
+          "input": {
+            "brand": "casa",
+            "id": "p1"
+          },
+          "expect": {
+            "code": "POST_POSTED"
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now"
+          },
+          "expect": {
+            "code": "POST_POSTED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "treats a post every account published as posted too",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          }
+        },
+        {
+          "sql": "insert into brandbase.post_jobs (id, post_id, brand_id, channel, status, run_at) values ('j1', 'p1', 'casa', 'ig', 'live', now())"
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "day": "2026-10-10"
+          },
+          "expect": {
+            "code": "POST_POSTED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses Scheduled for a post with no account",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "channels": []
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "stage": "scheduled"
+          },
+          "expect": {
+            "code": "NO_CHANNELS"
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses Scheduled for a post with no day",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night"
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "stage": "scheduled"
+          },
+          "expect": {
+            "code": "NO_DAY"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps an account on a post marked Scheduled",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "stage": "scheduled"
+          },
+          "expect": {
+            "result": {
+              "stage": "scheduled"
+            }
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "channels": []
+          },
+          "expect": {
+            "code": "NO_CHANNELS"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps a hand mark apart from publishing, and a draft again cancels the jobs not sent",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          }
+        },
+        {
+          "sql": "insert into brandbase.post_jobs (id, post_id, brand_id, channel, status, run_at) values ('j1', 'p1', 'casa', 'ig', 'scheduled', now())"
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "stage": "draft"
+          },
+          "expect": {
+            "result": {
+              "stage": "draft",
+              "marked": null,
+              "jobs": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "cannot call back an account that went live",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          }
+        },
+        {
+          "sql": "insert into brandbase.post_jobs (id, post_id, brand_id, channel, status, run_at) values ('j1', 'p1', 'casa', 'ig', 'live', now())"
+        },
+        {
+          "sql": "insert into brandbase.post_jobs (id, post_id, brand_id, channel, status, run_at) values ('j2', 'p1', 'casa', 'tt', 'failed', now())"
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "stage": "draft"
+          },
+          "expect": {
+            "code": "PUBLISHING"
+          }
+        },
+        {
+          "call": "post.unplan",
+          "input": {
+            "brand": "casa",
+            "id": "p1"
+          },
+          "expect": {
+            "code": "PUBLISHING"
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "stage": "posted"
+          },
+          "expect": {
+            "result": {
+              "stage": "posted",
+              "jobs": [
+                {
+                  "channel": "ig"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a write made from an older copy and hands back the current one",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "caption": "first",
+            "ifVersion": 1
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "caption": "late",
+            "ifVersion": 1
+          },
+          "expect": {
+            "status": 409,
+            "code": "STALE",
+            "details": {
+              "caption": "first"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps the whole composer draft",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "draft": {
+              "overrides": {
+                "tt": "TikTok words"
+              },
+              "firstComment": "#pasta",
+              "tags": []
+            }
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "posts": [
+                {
+                  "draft": {
+                    "overrides": {
+                      "tt": "TikTok words"
+                    },
+                    "firstComment": "#pasta",
+                    "tags": []
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "takes a post off the calendar and puts its idea back on the day, a suggestion still a suggestion",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00"
+          }
+        },
+        {
+          "sql": "update brandbase.posts set from_idea = '{\"why\": \"Built on the pasta reel\", \"suggested\": true}' where id = 'p1'"
+        },
+        {
+          "sql": "insert into brandbase.ideas (id, brand_id, format, hook, status, post_id, why) values ('i1', 'casa', 'reel', 'Pasta night', 'idea', 'p1', 'old')"
+        },
+        {
+          "call": "post.unplan",
+          "input": {
+            "brand": "casa",
+            "id": "p1"
+          },
+          "expect": {
+            "result": {
+              "deleted": "p1",
+              "idea": {
+                "id": "i1",
+                "postId": null,
+                "day": "2026-10-08",
+                "why": "Built on the pasta reel",
+                "status": "suggested"
+              }
+            }
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "length": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "holds one planned story a day in the database, whatever a move does",
+      "steps": [
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day) values ('s1', 'casa', 'story', 'a', '2026-10-12')"
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day) values ('s2', 'casa', 'story', 'b', '2026-10-12')",
+          "expect": {
+            "error": "posts_story_day"
+          }
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, marked) values ('s3', 'casa', 'story', 'c', '2026-10-12', 'posted')"
+        }
+      ]
+    },
+    {
+      "name": "moves a story to the day and time it has, beside a story already out, as a change of nothing",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "format": "story",
+            "hook": "Story",
+            "day": "2026-10-08",
+            "time": "12:00"
+          }
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, time, marked) values ('s0', 'casa', 'story', 'Out', '2026-10-08', '10:00', 'posted')"
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "day": "2026-10-08",
+            "time": "12:00"
+          },
+          "expect": {
+            "result": {
+              "version": 1
+            }
+          }
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "day": "2026-10-08",
+            "time": "13:00"
+          },
+          "expect": {
+            "code": "STORY_TAKEN"
+          }
+        }
+      ]
+    },
+    {
+      "name": "makes one post when the same create arrives twice at once",
+      "steps": [
+        {
+          "parallel": [
+            {
+              "call": "post.create_draft",
+              "input": {
+                "brand": "casa",
+                "id": "p1",
+                "format": "reel",
+                "hook": "Pasta night"
+              }
+            },
+            {
+              "call": "post.create_draft",
+              "input": {
+                "brand": "casa",
+                "id": "p1",
+                "format": "reel",
+                "hook": "Pasta night"
+              }
+            }
+          ],
+          "expect": {
+            "codes": [null, null]
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "length": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers not-found for a brand that does not exist, even to an admin",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "as": "admin",
+          "input": {
+            "brand": "nowhere",
+            "id": "p9",
+            "format": "reel",
+            "hook": "x"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        }
+      ]
+    }
+  ]
+}

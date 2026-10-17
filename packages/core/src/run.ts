@@ -1,8 +1,9 @@
+import { createHash } from 'node:crypto'
 import { Ajv, type ValidateFunction } from 'ajv'
 import { type AuthProvider } from './auth'
 import { type Conn, type Db, type Row } from './db'
 import { Refused } from './errors'
-import { type Manifest, type Op, type PackContent, type Rule } from './pack'
+import { canonical, kindOf, type Manifest, type Op, type PackContent, type Rule } from './pack'
 import { liveVersion, pgError, type LiveVersion } from './registry'
 import { bind } from './sql'
 
@@ -115,14 +116,18 @@ export function refusalOf(err: unknown, manifest: Manifest): Refused | null {
 
 async function checkRule(tx: Conn, rule: Rule, params: Record<string, unknown>) {
   const { text, params: values } = bind(rule.sql, params)
-  const [row] = await tx.query<{ ok?: unknown; details?: unknown }>(text, values)
+  const [row] = await tx.query<{ ok?: unknown; details?: unknown; message?: unknown }>(text, values)
   if (row?.ok !== true) {
-    throw new Refused(rule.status, rule.code, rule.message, {
+    // A rule may word its refusal for the case at hand in a `message` column.
+    const message = typeof row?.message === 'string' ? row.message : rule.message
+    throw new Refused(rule.status, rule.code, message, {
       rule: rule.id,
       ...(row?.details != null && { details: row.details }),
     })
   }
 }
+
+const KEY = /^[A-Za-z0-9_-]{8,100}$/
 
 /** A row of one column named `result` answers with that value; any other row as it is. */
 const unwrap = (row: Row) => {
@@ -133,14 +138,25 @@ const unwrap = (row: Row) => {
 // 5–7. Do the before-rules pass, run the statement under row-level security, do the after-rules
 // pass. One transaction: a refusal at any step undoes the whole call. `done` runs last in the
 // same transaction, back as the login role, so a write and its log row commit together.
+//
+// With an idempotency `key`, the call first claims the key. A second call under the same key
+// waits for the first to commit, then gets its answer; under the same key with other input it is
+// refused. A first call that was refused leaves no claim, so the key can be used again.
 export async function execute(
   deps: Pick<CoreDeps, 'db' | 'now' | 'statementTimeoutMs'>,
   content: PackContent,
   op: Op,
   caller: Caller,
   input: Record<string, unknown>,
-  done?: (tx: Conn) => Promise<void>,
+  opts: { key?: string; done?: (tx: Conn) => Promise<void> } = {},
 ) {
+  const { key, done } = opts
+  if (key !== undefined && !KEY.test(key)) {
+    throw new Refused(400, 'VALIDATION', 'an idempotency key is 8-100 letters, digits, - or _')
+  }
+  // A read changes nothing, so it runs again rather than keep a copy of what it read.
+  const keyed = key !== undefined && kindOf(op) === 'write'
+  const claim = [caller.principal, content.manifest.name, op.name, key]
   const params = {
     ...input,
     now: deps.now().toISOString(),
@@ -151,14 +167,42 @@ export async function execute(
     return await deps.db.transaction(async (tx) => {
       // The claims are set as the login role, then the role drops to pack_runtime, which cannot
       // call set_config, reset the role or read the registry. Identity comes from the verified
-      // token alone; anything else a policy needs it looks up itself.
+      // token alone; anything else a policy needs it looks up itself. The time limit is set
+      // first, so it also bounds a wait on another call's key.
       await tx.query(
         `select set_config('app.user_id', $1, true), set_config('app.agent_id', $2, true),
-                set_config('statement_timeout', $3, true)`,
+                set_config('statement_timeout', $3, true), set_config('timezone', 'UTC', true)`,
         [caller.person, caller.agent ?? '', String(deps.statementTimeoutMs ?? 5000)],
       )
+      let replay: { result: unknown } | null = null
+      if (keyed) {
+        const hash = createHash('sha256').update(canonical(input)).digest('hex')
+        const [fresh] = await tx.query(
+          `insert into packs.idempotency (principal, pack, op, key, input_hash)
+           values ($1, $2, $3, $4, $5) on conflict do nothing returning key`,
+          [...claim, hash],
+        )
+        if (!fresh) {
+          const [seen] = await tx.query<{ input_hash: string; result: unknown }>(
+            `select input_hash, result from packs.idempotency
+             where principal = $1 and pack = $2 and op = $3 and key = $4`,
+            claim,
+          )
+          if (seen?.input_hash !== hash) {
+            throw new Refused(409, 'KEY_REUSED', 'this key was used for another call')
+          }
+          replay = { result: seen.result }
+        }
+      }
       await tx.exec('set local role pack_runtime')
+      // A replay passes the before-rules again, so a caller who lost access since the first call
+      // gets the refusal, not the stored answer.
       for (const id of op.before ?? []) await checkRule(tx, content.rules[id]!, params)
+      if (replay) {
+        await tx.exec('reset role')
+        await done?.(tx)
+        return replay.result
+      }
       const { text, params: values } = bind(op.sql, params)
       const rows = await tx.query(text, values)
       for (const id of op.after ?? []) await checkRule(tx, content.rules[id]!, params)
@@ -173,10 +217,15 @@ export async function execute(
       } else {
         result = unwrap(rows[0]!)
       }
-      if (done) {
-        await tx.exec('reset role')
-        await done(tx)
+      if (keyed || done) await tx.exec('reset role')
+      if (keyed) {
+        await tx.query(
+          `update packs.idempotency set result = $5
+           where principal = $1 and pack = $2 and op = $3 and key = $4`,
+          [...claim, JSON.stringify(result ?? null)],
+        )
       }
+      await done?.(tx)
       return result
     })
   } catch (err) {
@@ -243,7 +292,14 @@ export async function log(db: Conn, entry: LogEntry) {
 /** One call through the eight checks. Answers the result, or throws a `Refused`; logs both. */
 export async function call(
   deps: CoreDeps,
-  req: { authorization: string | undefined; pack: string; op: string; input: unknown },
+  req: {
+    authorization: string | undefined
+    pack: string
+    op: string
+    input: unknown
+    /** An idempotency key: the same call sent again under it runs once. */
+    key?: string
+  },
 ) {
   const entry: LogEntry = {
     principal: null,
@@ -263,7 +319,10 @@ export async function call(
     const { op, caller } = await authorise(deps.db, entry.principal, live, req.op)
     entry.agentOf = caller.agent ? caller.person : null
     const input = validate(live, op, req.input)
-    return await execute(deps, live.content, op, caller, input, (tx) => log(tx, entry))
+    return await execute(deps, live.content, op, caller, input, {
+      key: req.key,
+      done: (tx) => log(tx, entry),
+    })
   } catch (err) {
     entry.status = err instanceof Refused ? err.status : 500
     entry.code = err instanceof Refused ? err.code : 'INTERNAL'

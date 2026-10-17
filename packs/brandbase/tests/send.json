@@ -1,0 +1,826 @@
+{
+  "name": "send",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "member",
+  "cases": [
+    {
+      "name": "makes one job per account and is scheduled, not posted, until each account says so",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "expect": {
+            "result": {
+              "stage": "scheduled",
+              "jobs": [
+                {
+                  "channel": "ig",
+                  "runAt": "2026-10-08T10:00:00.000Z"
+                },
+                {
+                  "channel": "tt",
+                  "runAt": "2026-10-08T10:00:00.000Z"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "publishes now from today, at the time it is now in the brand zone",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now"
+          },
+          "expect": {
+            "result": {
+              "day": "2026-10-06",
+              "time": "12:00"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers a repeated send with its first answer, so a double click makes no second job",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "key": "send-abcdefgh"
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "expect": {
+            "same": true
+          },
+          "key": "send-abcdefgh"
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.post_jobs",
+          "expect": {
+            "rows": [
+              {
+                "n": 2
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a key used for another send",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "key": "send-abcdefgh"
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now"
+          },
+          "expect": {
+            "status": 409,
+            "code": "KEY_REUSED"
+          },
+          "key": "send-abcdefgh"
+        }
+      ]
+    },
+    {
+      "name": "never replays another brand's post through a key it learned",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "expect": {
+            "status": 200
+          },
+          "key": "send-abcdefgh"
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "temper",
+            "id": "p1",
+            "when": "slot"
+          },
+          "expect": {
+            "status": 404
+          },
+          "key": "send-abcdefgh",
+          "as": "admin"
+        }
+      ]
+    },
+    {
+      "name": "refuses to send a post that is out",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "stage": "posted"
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now"
+          },
+          "expect": {
+            "code": "POST_POSTED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps the accounts still due when one account is sent again",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot",
+            "channels": ["tt"]
+          },
+          "expect": {
+            "result": {
+              "channels": ["ig", "tt"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "lists every blocker in the composer's order",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "caption": "",
+            "media": [],
+            "draft": {
+              "privacy": null
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "expect": {
+            "code": "BLOCKED",
+            "message": "Add a photo or video.",
+            "details": [
+              "Add a photo or video.",
+              "Choose who can watch on TikTok.",
+              "Write a caption."
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "asks to reconnect an account that is not connected",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "channels": ["ig", "fb"]
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "expect": {
+            "details": ["Reconnect Facebook first."],
+            "code": "BLOCKED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "counts text in characters as people see them, per account",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "draft": {
+              "privacy": "Everyone",
+              "overrides": {
+                "tt": "🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝🍝"
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "expect": {
+            "details": ["Shorten the text for TikTok (2201/2200)."],
+            "code": "BLOCKED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "shapes the text each account gets: YouTube's title, LinkedIn without emoji",
+      "steps": [
+        {
+          "sql": "select brandbase.youtube_title('Fresh pasta tonight 🍝 come by. #pasta', 'Hook') as yt, brandbase.youtube_title('#only', 'The hook') as hook, char_length(brandbase.youtube_title(repeat('a', 150), 'h')) as cap, brandbase.linkedin_text('Fresh 🍝 pasta #pasta #night') as li",
+          "expect": {
+            "rows": [
+              {
+                "yt": "Fresh pasta tonight",
+                "hook": "The hook",
+                "cap": 100,
+                "li": "Fresh pasta #pasta"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a send while an account is still uploading",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "sql": "insert into brandbase.post_jobs (id, post_id, brand_id, channel, status, run_at) values ('j1', 'p1', 'casa', 'ig', 'uploading', now())"
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "expect": {
+            "code": "PUBLISHING"
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a slot on a day that has passed",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "now": "2026-10-09T04:00:00Z",
+          "expect": {
+            "code": "PAST_DAY"
+          }
+        }
+      ]
+    },
+    {
+      "name": "never sends to a platform the brand does not post on, even one the post names",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "sql": "update brandbase.posts set channels = '{ig,yt}' where id = 'p1'"
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "expect": {
+            "code": "BAD_CHANNEL"
+          }
+        }
+      ]
+    },
+    {
+      "name": "reads TikTok's promotion answers the way the composer does",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": "yes",
+                "own": 0
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "expect": {
+            "code": "BLOCKED",
+            "details": ["Say what it promotes on TikTok."]
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers a replay under a key only while the caller still reaches the brand",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "key": "send-abcdefgh"
+        },
+        {
+          "sql": "delete from brandbase.members where user_id = 'member'"
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "key": "send-abcdefgh",
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        }
+      ]
+    }
+  ]
+}

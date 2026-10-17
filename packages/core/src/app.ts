@@ -33,6 +33,7 @@ export function createCore(deps: CoreDeps) {
       pack: c.req.param('pack'),
       op: c.req.param('op'),
       input,
+      key: c.req.header('idempotency-key'),
     })
     return c.json(result ?? null)
   })

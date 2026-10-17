@@ -1,0 +1,7 @@
+{
+  "id": "post.mark_not_out",
+  "sql": "select brandbase.post_stage(:id) = :stage::text or not exists (select 1 from brandbase.post_jobs j where j.post_id = :id and (j.status = 'uploading' or (:stage::text <> 'posted' and j.status = 'live'))) as ok",
+  "status": 409,
+  "code": "PUBLISHING",
+  "message": "this post is on its way out"
+}

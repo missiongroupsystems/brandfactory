@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.16.0** — 2026-10-17 — `feat/packs-core`, phase 2: the BrandBase pack (`packs/brandbase`): the server's schema with row rules keyed by brand membership, eight moves (the brand's state; list, create, edit, move, mark, unplan and send a post) and 18 rules as SQL data, and the server's post and send cases run through the core's new test runner, on PGlite and on a real Postgres. Idempotency keys in the core. Pack migrations `0002`, `0003` and core migration `0003_idempotency` (not applied to production). 537 tests (52 more skipped without a Postgres server).
 - **2.15.0** — 2026-10-17 — `feat/packs-core`, phase 1: `packages/core`, a generic backend with one door (`POST /ops/{pack}/{op}`) that runs a pack's moves through eight checks under a limited database role; a registry of frozen pack versions whose live pointer the database moves only after a passing test run and a person's yes. Core migrations `0001_registry` and `0002_text` (not applied to production). 488 tests (6 more skipped without a Postgres server).
 - **2.14.0** — 2026-10-14 — On the API the moodboard keeps its Instagram and TikTok sources and the links pasted onto it on the server, so they survive a reload and another device. Migration `0001_gray_tony_stark` (`pasted_links`, not applied to production). 424 tests.
 - **2.13.1** — 2026-10-14 — On the API the composer waits for the server: "Sending…" while it answers, the done screen only once the post is stored, and a refusal keeps the composer open with everything in it. A draft on a day that has passed asks for a day ahead before it can be scheduled. No migration. 419 tests.
@@ -37,6 +38,24 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.16.0 — 2026-10-17
+
+- **The BrandBase pack.** `packs/brandbase`: `packages/server`'s two migrations as they are, then
+  forced row rules on every table keyed by brand membership (an admin reaches every brand, a
+  deactivated account none), the read helpers, the send blockers in the composer's order, and a
+  partial unique index that holds one planned story a day.
+- **Moves and rules as data.** `brand.state`, `post.list`, `post.create_draft`, `post.edit`,
+  `post.move`, `post.mark`, `post.unplan`, `post.schedule`; 18 rules, each one SQL statement.
+- **The test runner.** A version's cases run on fresh databases through the same call path as a
+  screen. 46 cases: the server's 19 post cases and 9 send cases, isolation across brands, the
+  story row held by the database, and the cases the review asked for. The 3 job-runner cases wait for phase 5.
+- **Idempotency keys.** `Idempotency-Key` on any move: the same call sent again runs once.
+
+Pack migrations `0002_packs_access` and `0003_send_rules`, core migration `0003_idempotency`, not
+applied to production. Gate: typecheck, lint, format, 537 tests in 62 files (52 skipped: the pack's
+cases and `postgres.test.ts` on a real Postgres, which pass with `CORE_TEST_PG_URL` set; run with
+`--maxWorkers=3 --testTimeout=90000` under load), `next build`.
 
 ## 2.15.0 — 2026-10-17
 

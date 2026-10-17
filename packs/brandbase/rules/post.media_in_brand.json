@@ -1,0 +1,7 @@
+{
+  "id": "post.media_in_brand",
+  "sql": "select not exists (select 1 from jsonb_array_elements(coalesce(:media::jsonb, '[]')) m where m ? 'mediaId' and not exists (select 1 from brandbase.media x where x.id = m ->> 'mediaId' and x.brand_id = :brand)) as ok",
+  "status": 400,
+  "code": "BAD_MEDIA",
+  "message": "a file is not in this brand"
+}

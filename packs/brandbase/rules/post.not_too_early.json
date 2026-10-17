@@ -1,0 +1,7 @@
+{
+  "id": "post.not_too_early",
+  "sql": "select :time::text is null or :time::text >= '07:00' as ok",
+  "status": 400,
+  "code": "TOO_EARLY",
+  "message": "a post goes out from 07:00"
+}

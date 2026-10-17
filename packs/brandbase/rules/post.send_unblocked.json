@@ -1,0 +1,7 @@
+{
+  "id": "post.send_unblocked",
+  "sql": "select cardinality(b) = 0 as ok, to_jsonb(b) as details, b[1] as message from (select brandbase.send_blockers(:brand, :id, :when, :channels::jsonb, :now::timestamptz) as b) x",
+  "status": 400,
+  "code": "BLOCKED",
+  "message": "this post cannot go out yet"
+}

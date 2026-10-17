@@ -1,0 +1,7 @@
+{
+  "id": "post.send_day_not_past",
+  "sql": "select :when::text <> 'slot' or p.day >= brandbase.today(:brand, :now::timestamptz) as ok from brandbase.posts p where p.id = :id",
+  "status": 400,
+  "code": "PAST_DAY",
+  "message": "the day has passed"
+}

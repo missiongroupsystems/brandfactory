@@ -1,0 +1,11 @@
+{
+  "brands": "A restaurant or venue whose social accounts the team runs. Each has one time zone; every 'today' rule reads it.",
+  "users": "A person who signs in. An admin reaches every brand; a member reaches the brands in members.",
+  "members": "Which brands a member may reach.",
+  "posts": "One piece of content for several accounts: a reel, a carousel or a story, on a day and time in the brand's zone. Its stage comes from its jobs, or from a stage a person set by hand (marked). Posted is final.",
+  "post_jobs": "One account's send of one post: scheduled, uploading, live or failed.",
+  "ideas": "A plan for a post, with its references and shots. It sits on one calendar day, or is linked to the post it became.",
+  "stage": "draft, scheduled, posted or failed. Failed means at least one account failed.",
+  "story row": "Each day holds one planned story, and none once stories went out that day.",
+  "channels": "The accounts a post goes to: ig (Instagram), tt (TikTok), yt (YouTube), li (LinkedIn), fb (Facebook)."
+}

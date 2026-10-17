@@ -1,0 +1,22 @@
+{
+  "name": "post.unplan",
+  "description": "Takes a post off the calendar and deletes it. The idea it came from goes back on the same day with its own words, and a suggestion stays a suggestion.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["brand.reachable", "post.found", "post.not_posted", "post.unplan_not_out"],
+  "returns": "one",
+  "sql": "with p as (select * from brandbase.posts where id = :id and brand_id = :brand),\nrestored as (\n  update brandbase.ideas i set post_id = null,\n    day = case when p.format = 'story' then null else p.day end,\n    why = coalesce(p.from_idea ->> 'why', i.why),\n    status = case when (p.from_idea ->> 'suggested')::boolean then 'suggested' else i.status end,\n    version = i.version + 1, updated_at = now()\n  from p where i.post_id = p.id\n  returning i.*\n),\ngone as (delete from brandbase.posts x using p where x.id = p.id returning x.id)\nselect jsonb_build_object('deleted', g.id, 'idea', (select brandbase.camel(to_jsonb(r)) from restored r)) as result\nfrom gone g"
+}

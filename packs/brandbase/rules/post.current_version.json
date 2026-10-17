@@ -1,0 +1,7 @@
+{
+  "id": "post.current_version",
+  "sql": "select :ifVersion::int is null or p.version = :ifVersion::int as ok, brandbase.post_json(p) as details from brandbase.posts p where p.id = :id",
+  "status": 409,
+  "code": "STALE",
+  "message": "this changed since you opened it"
+}

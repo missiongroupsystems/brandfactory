@@ -71,7 +71,8 @@ The repository is a pnpm workspaces monorepo with these packages:
 - `packages/core` (`@brandfactory/core`, this branch only) is the generic backend: one door,
   `POST /ops/{pack}/{op}`, that checks each call and runs a pack's move under row-level security.
   It holds no business words (`purity.test.ts`) and imports no other package. Packs are data in
-  `packs/<name>/`, not a workspace package.
+  `packs/<name>/`, not a workspace package: `packages/core/src/packs.test.ts` runs each pack's
+  `tests/*.json` through the core's test runner.
 
 ### This branch: packs on a core
 

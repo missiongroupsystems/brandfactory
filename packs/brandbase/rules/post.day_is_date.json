@@ -1,0 +1,7 @@
+{
+  "id": "post.day_is_date",
+  "sql": "select :day::text is null or pg_input_is_valid(:day::text, 'date') as ok",
+  "status": 400,
+  "code": "BAD_DAY",
+  "message": "the day is not a date"
+}

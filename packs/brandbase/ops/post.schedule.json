@@ -1,0 +1,39 @@
+{
+  "name": "post.schedule",
+  "description": "Sends a post: one job per account, at its slot or now. The post is scheduled, not posted, until each account says so. A retry names the accounts it retries; accounts already live are left alone.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "when"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "when": {
+        "enum": ["slot", "now"]
+      },
+      "channels": {
+        "type": "array",
+        "items": {
+          "enum": ["ig", "tt", "yt", "li", "fb"]
+        }
+      }
+    }
+  },
+  "before": [
+    "brand.reachable",
+    "post.found",
+    "post.not_posted",
+    "post.send_not_uploading",
+    "post.send_channels_fit",
+    "post.send_unblocked",
+    "post.send_day_not_past"
+  ],
+  "returns": "one",
+  "sql": "with p as (select * from brandbase.posts where id = :id and brand_id = :brand),\nb as (select * from brandbase.brands where id = :brand),\nw as (select brandbase.send_channels(:id, :channels::jsonb) as chans),\ns as (\n  select case when :when = 'now' then brandbase.today(:brand, :now::timestamptz) else p.day end as day,\n    case when :when = 'now' then to_char(:now::timestamptz at time zone b.timezone, 'HH24:MI') else p.time end as time,\n    case when :when = 'now' then :now::timestamptz else brandbase.instant(p.day, p.time, b.timezone) end as run_at\n  from p, b\n),\nkeep as (\n  select array(select j.channel from brandbase.post_jobs j where j.post_id = :id and j.status in ('live', 'scheduled') order by j.status = 'live' desc, j.created_at, j.channel) as chans\n),\njobs as (\n  insert into brandbase.post_jobs as pj (id, post_id, brand_id, channel, status, run_at)\n  select gen_random_uuid()::text, :id, :brand, c, 'scheduled', s.run_at from w, s, unnest(w.chans) c\n  on conflict (post_id, channel) do update\n    set status = 'scheduled', run_at = excluded.run_at, attempts = 0, error = null, updated_at = now()\n    where pj.status in ('scheduled', 'failed')\n  returning *\n),\nsent as (\n  update brandbase.posts x set\n    channels = array(select c from unnest(keep.chans || w.chans) with ordinality t(c, n) group by c order by min(n)),\n    day = s.day, time = s.time, marked = null, version = x.version + 1, updated_at = now()\n  from s, w, keep\n  where x.id = :id and x.brand_id = :brand\n  returning x.*\n)\nselect brandbase.post_json(to_jsonb(u), coalesce((\n  select jsonb_agg(z.j) from (\n    select to_jsonb(n) as j from jobs n\n    union all\n    select to_jsonb(o) from brandbase.post_jobs o\n    where o.post_id = u.id and not exists (select 1 from jobs n where n.id = o.id)\n  ) z), '[]')) as result\nfrom sent u"
+}
