@@ -23,6 +23,18 @@ pg.types.setTypeParser(DATE_OID, (v) => v)
 const pglites = new WeakMap<Db, PGlite>()
 
 function wrapPglite(client: PGlite): Db {
+  // PGlite's close does not wait for a query in flight, and that query's next protocol message
+  // then spins forever at full CPU (0.5.8). So close refuses new work and waits for the rest.
+  const inFlight = new Set<Promise<unknown>>()
+  let closing: Promise<void> | null = null
+  const guard = <T>(work: () => Promise<T>): Promise<T> => {
+    if (closing) return Promise.reject(new Error('the database is closed'))
+    const p = work()
+    const done = () => inFlight.delete(p)
+    inFlight.add(p)
+    p.then(done, done)
+    return p
+  }
   const on = (c: Pick<PGlite, 'query' | 'exec'>): Conn => ({
     async query<T>(text: string, params?: unknown[]) {
       return (await c.query<T>(text, params)).rows
@@ -31,10 +43,16 @@ function wrapPglite(client: PGlite): Db {
       await c.exec(text)
     },
   })
+  const top = on(client)
   const db: Db = {
-    ...on(client),
-    transaction: (fn) => client.transaction((tx) => fn(on(tx))),
-    close: () => client.close(),
+    query: (text, params) => guard(() => top.query(text, params)),
+    exec: (text) => guard(() => top.exec(text)),
+    transaction: (fn) => guard(() => client.transaction((tx) => fn(on(tx)))),
+    close: () =>
+      (closing ??= (async () => {
+        while (inFlight.size > 0) await Promise.allSettled(inFlight)
+        await client.close()
+      })()),
   }
   pglites.set(db, client)
   return db

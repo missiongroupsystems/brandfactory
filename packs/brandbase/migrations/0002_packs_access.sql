@@ -38,19 +38,75 @@ ALTER TABLE brandbase.brands FORCE ROW LEVEL SECURITY;
 CREATE POLICY reach ON brandbase.brands
   USING (brandbase.can_reach(id)) WITH CHECK (brandbase.can_reach(id));
 
-DO $$
-DECLARE t text;
-BEGIN
-  FOREACH t IN ARRAY ARRAY['brand_files', 'brand_kits', 'comments', 'connections', 'ideas',
-    'inbox_messages', 'inbox_people', 'media', 'post_jobs', 'posts', 'share_links', 'shoots',
-    'voice_versions', 'pasted_links']
-  LOOP
-    EXECUTE format('ALTER TABLE brandbase.%I ENABLE ROW LEVEL SECURITY', t);
-    EXECUTE format('ALTER TABLE brandbase.%I FORCE ROW LEVEL SECURITY', t);
-    EXECUTE format('CREATE POLICY reach ON brandbase.%I USING (brandbase.can_reach(brand_id))'
-      ' WITH CHECK (brandbase.can_reach(brand_id))', t);
-  END LOOP;
-END $$;
+ALTER TABLE brandbase.brand_files ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brandbase.brand_files FORCE ROW LEVEL SECURITY;
+CREATE POLICY reach ON brandbase.brand_files
+  USING (brandbase.can_reach(brand_id)) WITH CHECK (brandbase.can_reach(brand_id));
+
+ALTER TABLE brandbase.brand_kits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brandbase.brand_kits FORCE ROW LEVEL SECURITY;
+CREATE POLICY reach ON brandbase.brand_kits
+  USING (brandbase.can_reach(brand_id)) WITH CHECK (brandbase.can_reach(brand_id));
+
+ALTER TABLE brandbase.comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brandbase.comments FORCE ROW LEVEL SECURITY;
+CREATE POLICY reach ON brandbase.comments
+  USING (brandbase.can_reach(brand_id)) WITH CHECK (brandbase.can_reach(brand_id));
+
+ALTER TABLE brandbase.connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brandbase.connections FORCE ROW LEVEL SECURITY;
+CREATE POLICY reach ON brandbase.connections
+  USING (brandbase.can_reach(brand_id)) WITH CHECK (brandbase.can_reach(brand_id));
+
+ALTER TABLE brandbase.ideas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brandbase.ideas FORCE ROW LEVEL SECURITY;
+CREATE POLICY reach ON brandbase.ideas
+  USING (brandbase.can_reach(brand_id)) WITH CHECK (brandbase.can_reach(brand_id));
+
+ALTER TABLE brandbase.inbox_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brandbase.inbox_messages FORCE ROW LEVEL SECURITY;
+CREATE POLICY reach ON brandbase.inbox_messages
+  USING (brandbase.can_reach(brand_id)) WITH CHECK (brandbase.can_reach(brand_id));
+
+ALTER TABLE brandbase.inbox_people ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brandbase.inbox_people FORCE ROW LEVEL SECURITY;
+CREATE POLICY reach ON brandbase.inbox_people
+  USING (brandbase.can_reach(brand_id)) WITH CHECK (brandbase.can_reach(brand_id));
+
+ALTER TABLE brandbase.media ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brandbase.media FORCE ROW LEVEL SECURITY;
+CREATE POLICY reach ON brandbase.media
+  USING (brandbase.can_reach(brand_id)) WITH CHECK (brandbase.can_reach(brand_id));
+
+ALTER TABLE brandbase.post_jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brandbase.post_jobs FORCE ROW LEVEL SECURITY;
+CREATE POLICY reach ON brandbase.post_jobs
+  USING (brandbase.can_reach(brand_id)) WITH CHECK (brandbase.can_reach(brand_id));
+
+ALTER TABLE brandbase.posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brandbase.posts FORCE ROW LEVEL SECURITY;
+CREATE POLICY reach ON brandbase.posts
+  USING (brandbase.can_reach(brand_id)) WITH CHECK (brandbase.can_reach(brand_id));
+
+ALTER TABLE brandbase.share_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brandbase.share_links FORCE ROW LEVEL SECURITY;
+CREATE POLICY reach ON brandbase.share_links
+  USING (brandbase.can_reach(brand_id)) WITH CHECK (brandbase.can_reach(brand_id));
+
+ALTER TABLE brandbase.shoots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brandbase.shoots FORCE ROW LEVEL SECURITY;
+CREATE POLICY reach ON brandbase.shoots
+  USING (brandbase.can_reach(brand_id)) WITH CHECK (brandbase.can_reach(brand_id));
+
+ALTER TABLE brandbase.voice_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brandbase.voice_versions FORCE ROW LEVEL SECURITY;
+CREATE POLICY reach ON brandbase.voice_versions
+  USING (brandbase.can_reach(brand_id)) WITH CHECK (brandbase.can_reach(brand_id));
+
+ALTER TABLE brandbase.pasted_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brandbase.pasted_links FORCE ROW LEVEL SECURITY;
+CREATE POLICY reach ON brandbase.pasted_links
+  USING (brandbase.can_reach(brand_id)) WITH CHECK (brandbase.can_reach(brand_id));
 
 -- Crew and send records have no brand of their own: they follow their shoot or post.
 ALTER TABLE brandbase.crew ENABLE ROW LEVEL SECURITY;

@@ -6,7 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.16.0** — 2026-10-17 — `feat/packs-core`, phase 2: the BrandBase pack (`packs/brandbase`): the server's schema with row rules keyed by brand membership, eight moves (the brand's state; list, create, edit, move, mark, unplan and send a post) and 18 rules as SQL data, and the server's post and send cases run through the core's new test runner, on PGlite and on a real Postgres. Idempotency keys in the core. Pack migrations `0002`, `0003` and core migration `0003_idempotency` (not applied to production). 537 tests (52 more skipped without a Postgres server).
+- **2.17.0** — 2026-10-17 — `feat/packs-core`, phase 3: `core publish`, `core test` and `core promote` from the command line, a core server, and platform tests every version runs; the demo moves "no post before 07:00" to 08:00 and back on one running server, and a version with a failing case cannot go live; pack migrations run as a role that cannot reach the registry. Core migration `0004_migrator` (not applied to production). 573 tests (52 more skipped without a Postgres server).
+- **2.16.0** — 2026-10-17 — `feat/packs-core`, phase 2: the BrandBase pack (`packs/brandbase`): the server's schema with row rules keyed by brand membership, eight moves (the brand's state; list, create, edit, move, mark, unplan and send a post) and 19 rules as SQL data, and the server's post and send cases run through the core's new test runner, on PGlite and on a real Postgres. Idempotency keys in the core. Pack migrations `0002`, `0003` and core migration `0003_idempotency` (not applied to production). 537 tests (52 more skipped without a Postgres server).
 - **2.15.0** — 2026-10-17 — `feat/packs-core`, phase 1: `packages/core`, a generic backend with one door (`POST /ops/{pack}/{op}`) that runs a pack's moves through eight checks under a limited database role; a registry of frozen pack versions whose live pointer the database moves only after a passing test run and a person's yes. Core migrations `0001_registry` and `0002_text` (not applied to production). 488 tests (6 more skipped without a Postgres server).
 - **2.14.0** — 2026-10-14 — On the API the moodboard keeps its Instagram and TikTok sources and the links pasted onto it on the server, so they survive a reload and another device. Migration `0001_gray_tony_stark` (`pasted_links`, not applied to production). 424 tests.
 - **2.13.1** — 2026-10-14 — On the API the composer waits for the server: "Sending…" while it answers, the done screen only once the post is stored, and a refusal keeps the composer open with everything in it. A draft on a day that has passed asks for a day ahead before it can be scheduled. No migration. 419 tests.
@@ -39,6 +40,30 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
+## 2.17.0 — 2026-10-17
+
+- **Command line.** `pnpm -F @brandfactory/core core migrate | login | publish | test | promote |
+  principal | loadout`. Promotion acts for the person whose token the command verifies; a
+  Supabase service key is refused.
+- **Server.** `pnpm -F @brandfactory/core start`: the core on Postgres or PGlite; the dev sign-in
+  and a pinned clock are refused in production or on a database off this machine.
+- **Platform tests.** Every version's run also checks that the runtime role cannot bypass row
+  rules, that every table it reaches has forced row rules, that every rule has a refusal case and
+  that every move has a not-found case.
+- **The demo.** `packs/brandbase/demo/hour-rule.sh`: 1.1.0 refuses 07:30, 1.2.0 fails its own
+  case and cannot go live, and moving back to 1.0.0 takes 07:30 again, on one running server.
+- **Walls the review asked for.** Platform tests also fail a function that runs with its owner's
+  rights, a guard of the registry switched off, and a policy that lets every row through;
+  `core migrate` applies only a tested version's migrations, and runs them as `pack_migrator`,
+  which cannot reach the registry, one statement at a time; publish refuses migration text that
+  could leave that role; and a version fails when any function carries its own settings or any
+  trigger, rule or default runs pack code on a write.
+- **The test stall.** A PGlite closed under a running query spun forever; `close()` now waits.
+
+Core migration `0004_migrator`, not applied to production. Gate: typecheck, lint, format,
+573 tests in 66 files (52 skipped without `CORE_TEST_PG_URL`; the core's 201 pass with it), `next
+build`.
+
 ## 2.16.0 — 2026-10-17
 
 - **The BrandBase pack.** `packs/brandbase`: `packages/server`'s two migrations as they are, then
@@ -46,7 +71,7 @@ One line each — full write-ups are under the matching `##` heading further dow
   deactivated account none), the read helpers, the send blockers in the composer's order, and a
   partial unique index that holds one planned story a day.
 - **Moves and rules as data.** `brand.state`, `post.list`, `post.create_draft`, `post.edit`,
-  `post.move`, `post.mark`, `post.unplan`, `post.schedule`; 18 rules, each one SQL statement.
+  `post.move`, `post.mark`, `post.unplan`, `post.schedule`; 19 rules, each one SQL statement.
 - **The test runner.** A version's cases run on fresh databases through the same call path as a
   screen. 46 cases: the server's 19 post cases and 9 send cases, isolation across brands, the
   story row held by the database, and the cases the review asked for. The 3 job-runner cases wait for phase 5.

@@ -217,3 +217,95 @@ export function writes(sql: string): boolean {
       t.kind === 'word' && !t.quoted && ['insert', 'update', 'delete'].includes(t.text),
   )
 }
+
+/**
+ * Text a pack migration may not hold, read over the raw text, strings and function bodies
+ * included: a function body is a string until it runs. A migration runs as pack_migrator, and
+ * these are its ways out of that role or into the core's.
+ */
+const MIGRATION_TEXT: [RegExp, string][] = [
+  [/\breset\b/, 'RESET (it would leave pack_migrator, or a move’s role, for the login role)'],
+  [/\bset\s+(local\s+|session\s+)?(role|session\s+authorization)\b/, 'SET ROLE'],
+  [/\bsession(\s+|_)authorization\b/, 'SESSION AUTHORIZATION'],
+  [/\bset_config\b/, 'set_config'],
+  // EXECUTE as dynamic SQL; GRANT/REVOKE EXECUTE and a trigger's EXECUTE FUNCTION are fine.
+  [
+    /(?<!\b(grant|revoke) )\bexecute\b(?! (function|procedure)\b)/,
+    'EXECUTE (dynamic SQL hides what runs)',
+  ],
+  [/\bsecurity\s+definer\b/, 'SECURITY DEFINER'],
+  [/\b(alter|create|drop)\s+(role|user|group)\b/, 'a role change'],
+  [/\balter\s+(system|default\s+privileges|database)\b/, 'a server or database change'],
+  [/\bcreate\s+(extension|event\s+trigger|language)\b/, 'an extension, event trigger or language'],
+  [/\bpacks\s*"?\s*\./, 'the core’s schema packs'],
+  [/\bpack_(admin|migrator)\b/, 'a core role'],
+  [/\bu&/, 'U& escapes'],
+  [/\b(copy|dblink\w*|lo_\w+)\b/, 'COPY, dblink or large objects'],
+]
+
+/**
+ * The top-level statements of a script, split where the tokenizer sees a semicolon outside any
+ * string, quoted name or dollar-quoted body.
+ */
+export function statements(sql: string): string[] {
+  const out: string[] = []
+  let from = 0
+  for (const { token, end } of tokenize(sql)) {
+    if (token.kind !== 'semicolon') continue
+    out.push(sql.slice(from, end - 1))
+    from = end
+  }
+  out.push(sql.slice(from))
+  return out.filter((st) => tokenize(st).some((t) => t.token.kind !== 'comment'))
+}
+
+/**
+ * Statements a migration may not start: transaction control would end the transaction that
+ * holds pack_migrator's role, and the rest would run as the login role; SET and RESET change the
+ * role or the search path; the others reach past the pack's own objects.
+ */
+const MIGRATION_FIRST = new Set([
+  'begin',
+  'start',
+  'commit',
+  'end',
+  'rollback',
+  'abort',
+  'savepoint',
+  'release',
+  'prepare',
+  'set',
+  'reset',
+  'discard',
+  'call',
+  'copy',
+  'checkpoint',
+  'vacuum',
+  'load',
+  'listen',
+  'notify',
+  'security',
+  'import',
+])
+
+/** Why a pack migration may not be published, or null when it may. */
+export function migrationProblem(sql: string): string | null {
+  if (sql.includes('/*')) return 'block comments are not allowed in a migration'
+  for (const st of statements(sql)) {
+    const first = tokenize(st).find((t) => t.token.kind === 'word')?.token
+    if (first?.kind === 'word' && MIGRATION_FIRST.has(first.text)) {
+      return `a ${first.text.toUpperCase()} statement is not allowed in a migration`
+    }
+    if (first?.kind === 'word' && first.text === 'create' && /\bbegin\s+atomic\b/i.test(st)) {
+      return 'BEGIN ATOMIC bodies are not allowed in a migration (write RETURN or a string body)'
+    }
+  }
+  // Two readings of the raw text, strings and bodies included, so neither a line comment nor
+  // quote marks can split a word from the next: with line comments, and without.
+  const plain = (t: string) => t.toLowerCase().replaceAll('"', '').replace(/\s+/g, ' ')
+  const readings = [plain(sql), plain(sql.replace(/--[^\n]*/g, ' '))]
+  for (const [pattern, what] of MIGRATION_TEXT) {
+    if (readings.some((r) => pattern.test(r))) return `${what} is not allowed in a migration`
+  }
+  return null
+}

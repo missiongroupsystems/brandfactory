@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { Ajv } from 'ajv'
 import { readMigrations, type Migration } from './migrate'
-import { sqlProblem, writes } from './sql'
+import { migrationProblem, sqlProblem, writes } from './sql'
 
 /** A refusal a pack names: the HTTP status, a stable code for screens, and words for people. */
 export interface Refusal {
@@ -143,6 +143,10 @@ export function packProblems(content: PackContent): string[] {
   for (const [name, refusal] of Object.entries(manifest?.errors ?? {})) {
     const p = refusalProblem(`errors.${name}`, refusal)
     if (p) out.push(p)
+  }
+  for (const m of content.migrations ?? []) {
+    const p = migrationProblem(m.sql)
+    if (p) out.push(`migration ${m.name}: ${p}`)
   }
   const ajv = new Ajv({ strict: true })
   for (const [id, rule] of Object.entries(rules)) {

@@ -3,7 +3,16 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import { packProblems, readPack } from './pack'
-import { casesOf, postgres, type Seen } from './runner'
+import {
+  everyPolicyRestricts,
+  everyTableHasRowRules,
+  noCodeRunsOnWrite,
+  noFunctionCarriesSettings,
+  noFunctionRunsAsItsOwner,
+  registryIsIntact,
+  runtimeRoleIsLimited,
+} from './platform'
+import { casesOf, pglite, postgres, type Seen } from './runner'
 
 /** Every pack in the repository's `packs/` folder: its checks, then each of its test cases. */
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../packs')
@@ -14,6 +23,22 @@ for (const dir of dirs) {
   describe(`pack ${dir.name}`, () => {
     it('passes the checks a version must pass to be published', () => {
       expect(packProblems(content)).toEqual([])
+    })
+    it('gives every table the runtime role reaches forced row rules, and the role no way past them', async () => {
+      const { db, dispose } = await pglite.fresh(content)
+      try {
+        expect([
+          ...(await everyTableHasRowRules(db)),
+          ...(await runtimeRoleIsLimited(db)),
+          ...(await registryIsIntact(db)),
+          ...(await everyPolicyRestricts(db)),
+          ...(await noFunctionRunsAsItsOwner(db)),
+          ...(await noFunctionCarriesSettings(db)),
+          ...(await noCodeRunsOnWrite(db)),
+        ]).toEqual([])
+      } finally {
+        await dispose()
+      }
     })
     const seen: Seen = { refused: new Set(), notFound: new Set() }
     for (const c of casesOf(content)) {

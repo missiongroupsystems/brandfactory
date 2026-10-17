@@ -16,4 +16,16 @@ Without Docker, the `embedded-postgres` npm package runs the same server from an
 the repo. The runner leaves one template database per pack version on that server; use a
 throwaway one.
 
+The server and the command line:
+
+```bash
+pnpm -F @brandfactory/core start                      # PGlite in .data/core, or DATABASE_URL
+pnpm -F @brandfactory/core core migrate ../../packs/brandbase
+pnpm -F @brandfactory/core core publish ../../packs/brandbase
+pnpm -F @brandfactory/core core test brandbase 1.0.0
+pnpm -F @brandfactory/core core promote brandbase 1.0.0
+```
+
+`packs/brandbase/demo/hour-rule.sh` runs the whole cycle against one server.
+
 A pack's tests are `packs/<name>/tests/*.json`; the format is at the top of `src/runner.ts`.

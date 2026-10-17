@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { devAuth } from './auth'
 import { dumpPglite, openPglite, openPgliteFrom, openPostgres, type Db } from './db'
 import { Refused } from './errors'
-import { applyMigrations, migrateCore } from './migrate'
+import { applyPackMigrations, migrateCore } from './migrate'
 import { hashOf, type PackContent, type PackTest } from './pack'
 import { addPrincipal, promote, publish, recordTestRun, setLoadout } from './registry'
 import { call } from './run'
@@ -113,7 +113,7 @@ const RUNNER = 'core-test-runner'
 /** Makes the version live in a throwaway database, so its moves can be called there. */
 async function prepare(db: Db, content: PackContent) {
   await migrateCore(db)
-  await applyMigrations(db, content.manifest.name, content.migrations)
+  await applyPackMigrations(db, content.manifest.name, content.migrations)
   if (content.fixture) await db.exec(content.fixture)
   await addPrincipal(db, RUNNER)
   const { pack, version, hash } = await publish(db, content, RUNNER)
@@ -278,7 +278,12 @@ async function runCase(
           if (m) throw new Error(`${where} (sql): ${m}`)
         }
       } else if ('parallel' in step) {
-        const answers = await Promise.all(step.parallel.map(callOnce))
+        // Every call ends before the step does, so a fault in one never leaves another running
+        // on a database that is about to be closed.
+        const settled = await Promise.allSettled(step.parallel.map(callOnce))
+        const fault = settled.find((r) => r.status === 'rejected')
+        if (fault) throw fault.reason
+        const answers = settled.map((r) => (r as PromiseFulfilledResult<Answer>).value)
         const codes = answers.map((a) =>
           a.status === 200 ? null : (a.body as { code: string }).code,
         )

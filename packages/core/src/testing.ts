@@ -1,6 +1,6 @@
 import { devAuth } from './auth'
 import { dumpPglite, openPglite, openPgliteFrom, type Db } from './db'
-import { applyMigrations, migrateCore } from './migrate'
+import { applyPackMigrations, migrateCore } from './migrate'
 import { hashOf, type PackContent } from './pack'
 import { addPrincipal, promote, publish, recordTestRun, setLoadout } from './registry'
 import { type CoreDeps } from './run'
@@ -28,7 +28,7 @@ export const OWNER = 'owner'
  */
 export async function goLive(db: Db, content: PackContent, environment = 'local') {
   await addPrincipal(db, OWNER)
-  await applyMigrations(db, content.manifest.name, content.migrations)
+  await applyPackMigrations(db, content.manifest.name, content.migrations)
   const { pack, version } = await publish(db, content, OWNER)
   await recordTestRun(db, { pack, version, hash: hashOf(content), passed: true, results: [] })
   await promote(db, { actor: OWNER, environment, pack, version })

@@ -109,12 +109,22 @@ export async function liveVersion(
   return row ?? null
 }
 
-/** Adds a person, or an agent acting for one. */
+/**
+ * Adds a person, or an agent acting for one. Adding one that exists is a no-op; asking for it
+ * as the other kind is refused, so a person never quietly stays a person when an agent was meant.
+ */
 export async function addPrincipal(db: Conn, id: string, agentOf: string | null = null) {
   await db.query(
     `insert into packs.principals (id, agent_of) values ($1, $2) on conflict (id) do nothing`,
     [id, agentOf],
   )
+  const [row] = await db.query<{ agent_of: string | null }>(
+    'select agent_of from packs.principals where id = $1',
+    [id],
+  )
+  if ((row?.agent_of ?? null) !== agentOf) {
+    throw new Refused(409, 'PRINCIPAL_EXISTS', `${id} exists as another kind of principal`)
+  }
 }
 
 /** Sets the moves a principal may call in a pack; an empty list takes every move away. */

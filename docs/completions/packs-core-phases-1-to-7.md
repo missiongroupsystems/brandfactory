@@ -202,10 +202,145 @@ a user in both brands calling with one brand's id and the other's post got not-f
   the tables' owner: any other process on this schema (the old server, its seed script) must
   connect as a superuser or a role with BYPASSRLS. The idempotency table has no expiry yet.
 
-**Seen twice, not reproduced:** under a machine load average above 100, a Vitest run of the core
-used CPU for minutes and printed nothing. The same files then passed in under a minute (165 tests,
-PGlite and Postgres). If it recurs, run one file at a time with `--reporter=verbose` to find which.
+**The test stall** (seen in phases 1 to 3, found in phase 3; see there).
 
 Not verified: the pack on a local Supabase stack. Docker stopped during this phase, so the
 real-Postgres runs used `embedded-postgres` (Postgres 18) from the scratchpad. `pg_input_is_valid`
 needs Postgres 16 or later.
+
+## Phase 3: publish, promote, roll back
+
+- **The command line** (`pnpm -F @brandfactory/core core <command>`, `src/cli.ts`): `migrate`
+  (the core's migrations, then each pack's), `login` (`--dev <id>` locally; with Supabase, email
+  and `CORE_PASSWORD`), `publish <dir>`, `test <pack> <version>`, `promote <pack> <version>
+  [--env]`, `principal`, `loadout`. Every command that acts for someone verifies the session's
+  token as the server verifies a call (`authenticate` in `run.ts`), and the verified user id is
+  what `promote` passes as `app.actor`. A Supabase service key names a role, not a user (no `sub`),
+  so it is refused (`auth.test.ts`). The session is kept in `~/.config/brandbase-core/session.json`
+  (mode 600), or given as `CORE_TOKEN`.
+- **The server** (`src/main.ts`, `pnpm -F @brandfactory/core start`): Postgres (`DATABASE_URL`) or
+  PGlite (`PGLITE_DIR`, core migrations on start). `src/env.ts` refuses the dev sign-in and a
+  pinned clock when `NODE_ENV=production` or the database is not on this machine. CORS for the
+  screens with `CORS_ALLOWED_ORIGINS`.
+- **`core test`** runs the version's own cases, then the platform tests (`src/platform.ts`), on
+  throwaway PGlite databases, and records one run bound to the version's hash. Passed means every
+  case and every platform test passed. The platform tests:
+  1. the runtime role is not a superuser, has no BYPASSRLS, owns nothing and is a member of no role
+     (no move as the system role);
+  2. every table the runtime role can reach has row-level security enabled and forced (company
+     isolation in the database);
+  3. every rule a move uses has a case that sees it refuse a call;
+  4. every move has a case where it answers not-found (company isolation in the cases).
+  A pack cannot remove them: they are core code, not pack data. Effect moves needing approval
+  come with effect moves (phase 4); at-most-once sends with the scheduler (phase 5).
+- **What the platform tests cannot see.** Test 4 counts not-found answers; it does not know which
+  caller should have been refused. A pack could pass it with a case that asks for an id nobody
+  holds. The database checks (2, and 5 to 7 below) are the wall.
+
+**The demo** (`packs/brandbase/demo/hour-rule.sh`), run on 17 Oct against one core server on a
+local Postgres 18, with no restart between the steps:
+
+```
+1.0.0: published, 46/46 cases passed, live.        07:30 → made a1 at 07:30
+1.1.0 (no post before 08:00): 46/46 passed, live.  07:30 → refused: TOO_EARLY (a post goes out from 08:00)
+1.2.0 (a case expects 07:30): 46/47, failed.        promote → NO_PASSING_RUN
+promote 1.0.0 (roll back).                          07:30 → made a3 at 07:30
+the same server throughout: pid 26665, running
+```
+
+The plan's demo also has the calendar and an agent refuse 07:30. The calendar comes in phase 6
+(web-next on the core) and the agent in phase 4 (MCP); here the call is the one the calendar will
+make, sent with curl.
+
+**Adversarial review** (one Sonnet reviewer, then fixes). Promotion and the hash binding held: the
+actor comes from a verified token, a service key and an agent are refused, and a run's hash read
+back from the registry equals the stored one. It found holes in the platform tests, reproduced:
+
+- *Fixed, high:* a pack migration (it runs as the migrator, a superuser) could add a
+  `SECURITY DEFINER` function that reads past every row rule; a move calling it passed the SQL
+  check and the platform tests, and returned another user's rows. New platform test 5: no
+  function the runtime role can call runs with its owner's rights.
+- *Fixed, high:* a pack migration could switch off `channels_promotion` (or any guard) on the
+  real database. New platform test 6: every guard trigger of the registry is there and enabled,
+  and the runtime role has no right in schema `packs`. And `core migrate <pack> <version>` now
+  applies only a published version's migrations, and only with a passing run: a migration reaches
+  a real database after the platform tests have checked what it does, never from a folder.
+- *Fixed:* a policy `using (true)` passed. New platform test 7: every table with row-level
+  security has a policy, and none lets every row through.
+- *Fixed:* `DATABASE_URL=postgres://u@localhost/x?host=prod…` passed as local, but pg connects to
+  the `host` parameter. A `host` or `hostaddr` parameter now counts as remote; `[::1]` counts as
+  local. Under the dev sign-in the server listens on 127.0.0.1 only.
+- *Fixed:* `core principal bot --agent-of ana` on an existing person printed success and left a
+  person (now refused with `PRINCIPAL_EXISTS`); a flag with no value fell back silently (now
+  refused); `loadout all` granted the newest published version's moves, not the live version's
+  (now the live version's, and an error when none is live); `login --dev` saved before it checked;
+  the session file was briefly readable; shutdown could hang on keep-alive connections.
+- *Fixed, high, in a second pass:* checking the registry's end state was not enough. A migration
+  ran as the login role (a superuser), so it could replace `packs.check_promotion()`'s body, or
+  switch a guard off, write a row and switch it back on, and still pass. Pack migrations now run
+  as `pack_migrator` (core migration `0004_migrator`): not a superuser, no right in `packs`,
+  unable to call `set_config` (made after the function wall), with CREATE on the database so it
+  owns the schemas it makes. Its way back to the login role is `RESET ROLE` or `SET ROLE`, so
+  publish refuses a migration whose text holds them, anywhere, function bodies included (a body
+  is a string until it runs, and a plpgsql `RESET ROLE` run by `pack_runtime` would land on the
+  login role too). It also refuses dynamic `EXECUTE`, `set_config`, `SECURITY DEFINER`, role and
+  server changes, extensions, and any mention of `packs.` or the core's roles
+  (`migrationProblem` in `sql.ts`). BrandBase's `0002` lost its dynamic policy loop for plain
+  statements. The registry check now covers `pack_migrator` too.
+- *Fixed, third pass:* the reviewer got back to the login role with `COMMIT;` (it ends the
+  transaction that holds `SET LOCAL ROLE`, and the rest of the text ran as the login role), and
+  past the text rules with `set /**/ role`, `set --x` and a newline, and `set "role"`. A word
+  filter cannot refuse `COMMIT` or `END`, which PL/pgSQL bodies hold. Now the core splits a
+  migration into top-level statements with the same tokenizer as the move check (strings,
+  quoted names and dollar-quoted bodies kept whole), refuses any that starts with transaction
+  control, `SET`, `RESET`, `CALL`, `COPY` and the like, and runs them one at a time through the
+  protocol that runs one statement only. Block comments are refused; the text rules read the
+  raw text twice, with and without line comments, with quote marks removed. The pack migration
+  step refuses what publish refuses, so a test database runs no unchecked migration either.
+  Two more registry checks: the `packs` functions are the core's (compared with a database that
+  holds only the core's migrations), and no schema has a role's name (it would come first in
+  that role's `search_path`). Tests: a migration as `pack_migrator` cannot switch off, rewrite
+  or write the registry, or grant into it; publish refuses each escape the reviewer found;
+  a replaced guard body and a role-named schema fail the registry check.
+- *Fixed, fourth pass:* a function can carry its own setting: `create function … set
+  session_authorization = 'postgres'` passed the text rules (the setting's name has an
+  underscore), and a move calling it read another user's rows as the login role. The reviewer's
+  point stands: text rules keep missing. So the walls are now in the database. Platform test 8:
+  no function the runtime role can call carries a setting (`pg_proc.proconfig`), whichever
+  setting and however it got there (`create function … set`, `alter function … set`). Platform
+  test 9: no trigger, rule or column default calling code outside `pg_catalog` on a table the
+  runtime role can reach, since such code runs as whoever writes the row, and a fixture, a seed
+  or a core write is the login role. The text rule also catches `session_authorization`.
+- *Stopped here, after four passes; what is left:*
+  1. **The login role must not be a superuser in a deployment.** Every escape the review found
+     ends at the session user: `RESET ROLE`, `SET ROLE`, a function's `SET`. On a superuser
+     login role that is everything. A deployment should log in as a role that is a member of
+     `pack_runtime`, `pack_admin` and `pack_migrator`, owns the `packs` schema, and has nothing
+     else; core migrations then run as a superuser once, by hand. Not built: there is no
+     deployment yet.
+  2. The text rules are a first line only; the database checks are the wall, and they check
+     what a version does on the test database. A migration that behaves differently on another
+     database (gated on `current_database()`) could pass them; reading migrations before
+     promotion stays a person's job, as the proposal says.
+  3. On Postgres 14 or older, PUBLIC may create in schema `public`, so `pack_migrator` could put
+     an object there that shadows an unqualified name. The core's queries name `pg_catalog`
+     objects or qualify them; not tested on 14.
+- *Documented:* the policy check is a lint, not a wall: `using (true)` fails it, `using (1 = 1)`
+  passes. The `SECURITY DEFINER` check stays as a second line behind the migration text check.
+  A schema made earlier by another role (the old server's `brandbase` on the archive database)
+  is not `pack_migrator`'s, so its migrations would fail there; that database needs its own plan.
+- *Documented:* whoever holds `DATABASE_URL` can add principals and loadouts: the database
+  credential is the root of trust. `core test` runs the platform tests on PGlite only.
+
+**The test stall, found.** Since phase 1, a Vitest run sometimes never ended, with a worker at
+100% CPU. A separate investigation found the cause: under load a test runs past Vitest's 5 s
+limit; Vitest then runs `afterEach`, which closes the test's PGlite while its query is between two
+protocol messages. PGlite 0.5.8's `close()` does not wait for the query, and removes the callbacks
+the query's next message needs; that message traps, and PGlite's `execProtocolRawSync` retries it
+forever, so the event loop never frees and no timeout fires. Evidence: a stuck worker paused over
+the inspector showed a Bind message at read position 0 trapping on every pass; ten traced workers
+all showed query, close, trap; `db.query(…)` then `db.close()` on plain PGlite hangs every time.
+Fix in `db.ts`: `close()` waits for work in flight and refuses new work (`db.test.ts` hangs
+without it); the runner's moves-at-once step waits for every call before the case's database is
+closed; the core's `testTimeout` is 30 s. Before: 4 of 4 runs stalled; after: 0 of 8 for the
+investigation and 3 of 3 since. Not yet reported upstream to electric-sql/pglite.

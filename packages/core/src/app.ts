@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import { Refused } from './errors'
 import { call, type CoreDeps } from './run'
 
@@ -6,8 +7,13 @@ import { call, type CoreDeps } from './run'
 const MAX_BODY = 1_000_000
 
 /** The core's HTTP door: one route for every pack's moves. */
-export function createCore(deps: CoreDeps) {
+export function createCore(deps: CoreDeps, opts: { corsOrigins?: string[] } = {}) {
   const app = new Hono()
+
+  // Browser origins allowed to call (the screens); none means same origin only.
+  if (opts.corsOrigins?.length) {
+    app.use('*', cors({ origin: opts.corsOrigins, credentials: false, maxAge: 600 }))
+  }
 
   app.onError((err, c) => {
     if (err instanceof Refused) return c.json(err.toJSON(), err.status as 400)

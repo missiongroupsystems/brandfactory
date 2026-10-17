@@ -5,5 +5,7 @@ export default defineProject({
     name: '@brandfactory/core',
     include: ['src/**/*.test.ts'],
     environment: 'node',
+    // A test that makes or loads a PGlite database takes 5-11 s under heavy machine load.
+    testTimeout: 30_000,
   },
 })
