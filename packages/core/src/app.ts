@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { Refused } from './errors'
 import { approve } from './effects'
+import { events } from './events'
 import { mcp } from './mcp'
 import { call, type CoreDeps } from './run'
 
@@ -47,6 +48,15 @@ export function createCore(deps: CoreDeps, opts: { corsOrigins?: string[] } = {}
       input,
     })
     return c.json(result)
+  })
+
+  // "Something changed" for open screens (`events.ts`). A browser's EventSource sends no
+  // header, so the token may come as `?token=`.
+  app.get('/events/:pack', (c) => {
+    const token = c.req.query('token')
+    if (token && !c.req.header('authorization'))
+      c.req.raw.headers.set('authorization', `Bearer ${token}`)
+    return events(deps, c)
   })
 
   // The live version's moves as MCP tools, for agents (`mcp.ts`).

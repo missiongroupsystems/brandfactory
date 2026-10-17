@@ -56,6 +56,11 @@ export interface Manifest {
   description?: string
   /** A constraint or trigger name mapped to the refusal a caller reads. */
   errors?: Record<string, Refusal>
+  /**
+   * Moves the scheduler calls when a scheduled call ends badly, as the principal who asked, with
+   * `{ call, input, code?, message? }`: refused (no person's yes, say), or cut off mid-run.
+   */
+  scheduler?: { onRefused?: string; onUnknown?: string }
 }
 
 /** Everything a version holds. Frozen once published; its hash names it. */
@@ -150,6 +155,10 @@ export function packProblems(content: PackContent): string[] {
   const { manifest, ops, rules } = content
   if (!manifest?.name || !NAME.test(manifest.name)) out.push('manifest: name is lower_snake')
   if (!manifest?.version) out.push('manifest: version is required')
+  for (const which of ['onRefused', 'onUnknown'] as const) {
+    const op = manifest?.scheduler?.[which]
+    if (op !== undefined && !ops[op]) out.push(`manifest: scheduler.${which} names no move ${op}`)
+  }
   for (const [name, refusal] of Object.entries(manifest?.errors ?? {})) {
     const p = refusalProblem(`errors.${name}`, refusal)
     if (p) out.push(p)

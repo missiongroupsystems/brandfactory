@@ -404,3 +404,76 @@ their row rules hide. Fixed, each with a test:
 
 Not re-reviewed after these fixes (small, each tested; the review cadence asks for re-review
 only of risky fixes).
+## Phase 5: timed moves
+
+- **Scheduled calls** (core migration `0006_scheduler`, `src/scheduler.ts`). The core owns the
+  schedule: `packs.scheduled_calls` (move, input, run at, the principal who asked, a pack's key)
+  and `packs.alerts`. A move asks for later calls in its result: a `schedule` column beside
+  `result`, a list of `{ op, input, at, key }`, which the core checks (a move of this version, a
+  time, an object) and stores in the move's transaction. Asking again under a key moves the call
+  and arms it again, unless it is running. A call runs as the principal who asked, through
+  `call()`'s checks (loadout read at run time), with no token: `call({ as })` is the scheduler's
+  alone and no route sets it.
+- **The loop** (`tick`, every 5 s in `main.ts`, one instance): calls whose heartbeat stopped
+  first, then due calls one at a time. The claim is the server's `jobs.ts` claim made generic:
+  one `UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED)` to `running`. New: one call per
+  claim, a heartbeat every 30 s while it runs, and on a heartbeat older than 15 minutes the call
+  ends `unknown_outcome`, never run again by the loop, with an alert row for its principal. The
+  claim is the only place the core works across companies, and it runs no pack SQL.
+- **How a call ends:** `done`, `refused` (a refusal: no person's yes, a send that failed, a job no
+  longer waiting), `failed` (a fault), or `unknown_outcome`. A pack may name moves for the bad
+  ends in its manifest (`scheduler.onRefused`, `scheduler.onUnknown`); the core calls them as the
+  principal with `{ call, input, code?, message? }`.
+- **BrandBase.** `post.schedule` asks for one `post.publish_job` per job at its time, and
+  `post.move` asks again under the same keys when jobs move. Job ids are `post:channel`, so a
+  screen knows them to approve each send. `post.publish_job` is an effect on the simulated
+  connector: its payload is the job's account, format, the text that account gets (`text_for`)
+  and the media; a job that no longer waits sends nothing. `post.job_refused` fails the job with
+  the reason ("Waiting for a person to approve this send." when nobody said yes);
+  `post.job_unknown` fails it with "Interrupted. Check the account before you retry."
+- **Results reach the calendar** through `GET /events/:pack` (server-sent events; `?token=` for a
+  browser's EventSource): "something in this pack changed", after every committed write or
+  effect and every end of a scheduled call, with no data. A screen reads its state again through
+  its moves, under its own row rules. Within a second in `events.test.ts`. Supabase Realtime was
+  the other option; it would need the pack's tables published to it and its own row rules, and
+  the core already knows when something changed.
+
+Acceptance (`packs/brandbase/tests/jobs.json`, on PGlite and Postgres):
+- a job cut off right after the claim sends nothing (its approval stays unused) and ends
+  `unknown_outcome`, with an alert and the job failed;
+- a job cut off after the connector took it ends `unknown_outcome`, is not run again by the loop,
+  and an agent's retry is refused without a new yes (`NEEDS_APPROVAL`), as is an agent's
+  attempt to give one (`NOT_A_PERSON`);
+- the server's three job cases: due jobs go out and the post is posted; one account fails alone
+  and only it is retried; and the cut-off case above.
+
+Not done: the alert reaches nobody yet (it is a row; a screen or a message would read it), and
+`post.publish_job` is not refused for a direct call before its time (it sends only with a
+person's yes for exactly that, so an early send is a person's choice).
+
+**Adversarial review** (one Sonnet reviewer, one pass). It found no way for a call to run twice
+and no send after `unknown_outcome`: one-statement claim with `SKIP LOCKED`, a re-arm skipped
+while running, `end()` a no-op after `unknown_outcome`, the approval used before the send. Fixed,
+each with a case:
+
+- A fault after the connector took the send (the answer unstorable, the database gone) ended the
+  call `failed` and left the job waiting with its yes used up, so a drag and a new yes could send
+  it twice. Every error after the send point is now `OUTCOME_UNKNOWN`: the call ends
+  `unknown_outcome`, with an alert and the pack's `onUnknown`.
+- Moving a post made the mover the owner of every waiting call, which could then fail as
+  FORBIDDEN. A waiting call keeps who asked for it; an ended one goes to who asks again.
+- A follow-up the principal could not call failed silently. Asking for a call now needs the
+  asked-for move and the pack's follow-up moves in the asker's loadout (and an agent's
+  person's), refused at once otherwise; a follow-up that still fails raises an alert.
+- Job ids from the server's data are UUIDs: `post.publish_job` takes them too.
+- `/events/:pack`: the name must be a pack name and the caller an account; the emitter's topics
+  are prefixed, so `newListener` and `error` are not packs.
+- A move may ask for at most 100 calls, with keys up to 200 characters and inputs up to 16,000.
+- The claim's `SKIP LOCKED` had no test that could fail: `postgres.test.ts` now holds one claim
+  open while a second runs, and fails without it.
+
+Accepted and documented: the token in `/events?token=` can reach proxy logs (a short-lived
+ticket would fix it); `post.mark` and `post.unplan` leave calls that end `refused` when they
+run; a re-arm asked for while a send is running is skipped; a deploy cuts running sends, which
+end `unknown_outcome` 15 minutes later; a crash between a call's end and its follow-up loses the
+follow-up; any member who holds `post.job_refused` can fail a waiting job of their brand.

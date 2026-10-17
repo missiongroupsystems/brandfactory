@@ -1,12 +1,16 @@
 {
   "name": "brandbase",
   "version": "1.0.0",
-  "description": "Brand Base: a brand's posts on a calendar, sent to its social accounts. Phase 2 slice: posts and the brand's state.",
+  "description": "Brand Base: a brand's posts on a calendar, sent to its social accounts. Posts and the brand's state, and timed sends.",
   "errors": {
     "posts_story_day": {
       "status": 409,
       "code": "STORY_TAKEN",
       "message": "the story row on that day is taken"
     }
+  },
+  "scheduler": {
+    "onRefused": "post.job_refused",
+    "onUnknown": "post.job_unknown"
   }
 }

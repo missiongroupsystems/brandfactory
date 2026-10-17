@@ -1,0 +1,7 @@
+{
+  "id": "job.reachable",
+  "sql": "select exists (select 1 from brandbase.brands where id = :input::jsonb ->> 'brand') as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "brand not found"
+}

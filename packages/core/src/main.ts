@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs'
 import { serve } from '@hono/node-server'
 import { createCore } from './app'
 import { simulatedConnector } from './effects'
+import { startScheduler } from './scheduler'
 import { openPglite, openPostgres } from './db'
 import { loadEnv } from './env'
 import { migrateCore } from './migrate'
@@ -21,23 +22,26 @@ if (env.databaseUrl) {
   await migrateCore(db)
 }
 
-const app = createCore(
-  {
-    db,
-    auth: env.auth,
-    environment: env.environment,
-    now: env.now,
-    // Real connectors come with the platforms' reviews; until then nothing leaves the core.
-    connectors: { simulated: simulatedConnector },
-  },
-  { corsOrigins: env.corsOrigins },
-)
+const deps = {
+  db,
+  auth: env.auth,
+  environment: env.environment,
+  now: env.now,
+  // Real connectors come with the platforms' reviews; until then nothing leaves the core.
+  connectors: { simulated: simulatedConnector },
+}
+const app = createCore(deps, { corsOrigins: env.corsOrigins })
+// One loop: the core runs as one instance. The claim still keeps a second from running a call
+// twice.
+const stopScheduler = startScheduler(deps)
+
 const server = serve({ fetch: app.fetch, port: env.port, hostname: env.host }, (info) =>
   console.info(`core on :${info.port}, environment ${env.environment}`),
 )
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
+    stopScheduler()
     server.close(() => void db.close().then(() => process.exit(0)))
     // Open keep-alive connections would hold the close; stop waiting after a few seconds.
     setTimeout(() => process.exit(0), 5000).unref()

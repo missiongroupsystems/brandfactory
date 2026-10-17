@@ -4,6 +4,7 @@ import { openPostgres, type Db } from './db'
 import { Refused } from './errors'
 import { migrateCore } from './migrate'
 import { execute } from './run'
+import { claim } from './scheduler'
 import { goLive } from './testing'
 import { toyPack } from './toy-pack'
 
@@ -79,5 +80,25 @@ describe.skipIf(!url)('on a real Postgres', () => {
       {},
     )
     await expect(run).rejects.toThrow(/multiple commands/)
+  })
+
+  it('gives a due call to one of two loops claiming at once', async () => {
+    await db.query(`insert into packs.principals (id) values ('ana') on conflict do nothing`)
+    await db.query(
+      `insert into packs.scheduled_calls (pack, op, key, input, principal, run_at)
+       values ('toy', 'note.list', 'k1', '{}', 'ana', now() - interval '1 minute')`,
+    )
+    const now = () => new Date()
+    // Loop A claims inside a transaction that has not committed; loop B claims meanwhile.
+    let second: Promise<unknown> = Promise.resolve(null)
+    const first = await db.transaction(async (tx) => {
+      const mine = await claim({ db: tx as unknown as Db, now })
+      second = claim({ db, now })
+      await new Promise((r) => setTimeout(r, 300))
+      return mine
+    })
+    expect(first).not.toBeNull()
+    // B skipped the row A held; without SKIP LOCKED it would wait, then claim it again.
+    expect(await second).toBeNull()
   })
 })

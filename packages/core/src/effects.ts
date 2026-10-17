@@ -166,16 +166,17 @@ export async function fire(
     console.error('connector failed', op.name, hash, err)
     throw new Refused(502, 'SEND_FAILED', 'the send failed; a person checks before another try')
   }
-  // The answer is kept on the approval at once: if recording it with the move fails, the
-  // platform's id is not lost.
-  await deps.db.query('update packs.approvals set outcome = $2 where id = $1::bigint', [
-    approval,
-    JSON.stringify(outcome ?? null),
-  ])
-
-  const params = { ...paramsOf(deps, caller, input), outcome }
-  return deps.db
-    .transaction(async (tx) => {
+  // From here the platform has it. Anything that goes wrong now leaves the outcome unknown to the
+  // app, never a plain failure: a job left waiting could be sent again under a new yes.
+  try {
+    // The answer is kept on the approval at once: if recording it with the move fails, the
+    // platform's id is not lost.
+    await deps.db.query('update packs.approvals set outcome = $2 where id = $1::bigint', [
+      approval,
+      JSON.stringify(outcome ?? null),
+    ])
+    const params = { ...paramsOf(deps, caller, input), outcome }
+    return await deps.db.transaction(async (tx) => {
       await setClaims(tx, deps, caller)
       await tx.exec('set local role pack_runtime')
       const { text, params: values } = bind(op.sql, params)
@@ -184,7 +185,10 @@ export async function fire(
       await done(tx)
       return op.returns === 'many' ? rows.map(unwrap) : rows[0] ? unwrap(rows[0]) : null
     })
-    .catch((err: unknown) => {
-      throw err instanceof Refused ? err : (refusalOf(err, content.manifest) ?? err)
+  } catch (err) {
+    console.error('sent, then failed to record', op.name, hash, err)
+    throw new Refused(500, 'OUTCOME_UNKNOWN', 'it was sent, but the app could not record it', {
+      details: { approval },
     })
+  }
 }

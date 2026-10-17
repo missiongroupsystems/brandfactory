@@ -1,0 +1,37 @@
+{
+  "name": "post.job_unknown",
+  "description": "The scheduler's word that a job's send was cut off: it may or may not have gone out. The job fails and a person checks the account before anyone retries; a retry needs a new yes.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["call", "input"],
+    "properties": {
+      "call": {
+        "type": "string"
+      },
+      "input": {
+        "type": "object",
+        "required": ["brand", "job"],
+        "properties": {
+          "brand": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,80}$"
+          },
+          "job": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_:-]{1,120}$"
+          }
+        }
+      },
+      "code": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string"
+      }
+    }
+  },
+  "returns": "many",
+  "sql": "update brandbase.post_jobs j set status = 'failed', error = 'Interrupted. Check the account before you retry.', updated_at = now() where j.id = :input::jsonb ->> 'job' and j.brand_id = :input::jsonb ->> 'brand' and j.status = 'scheduled' returning j.id, j.status, j.error",
+  "before": ["job.reachable"]
+}

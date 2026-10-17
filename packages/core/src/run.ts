@@ -6,6 +6,8 @@ import { Refused } from './errors'
 import { canonical, kindOf, type Manifest, type Op, type PackContent, type Rule } from './pack'
 import { liveVersion, pgError, type LiveVersion } from './registry'
 import { fire } from './effects'
+import { changed } from './events'
+import { plannedCalls, schedule, type PlannedCall } from './scheduler'
 import { bind } from './sql'
 
 export interface CoreDeps {
@@ -19,6 +21,8 @@ export interface CoreDeps {
   statementTimeoutMs?: number
   /** Where effect moves send what they send, by the name a move gives. */
   connectors?: Record<string, Connector>
+  /** How often a running scheduled call beats (`scheduler.ts`); 30 s unless set. */
+  heartbeatMs?: number
 }
 
 /** The way out of the app for effect moves: a platform, a message, a payment. */
@@ -229,6 +233,7 @@ export async function execute(
       const { text, params: values } = bind(op.sql, params)
       const rows = await tx.query(text, values)
       for (const id of op.after ?? []) await checkRule(tx, content.rules[id]!, params)
+      let later: PlannedCall[] = []
       let result: unknown
       if (op.returns === 'many') {
         result = rows.map(unwrap)
@@ -238,9 +243,16 @@ export async function execute(
       } else if (rows.length > 1) {
         throw new Error(`${op.name} returned ${rows.length} rows, not one`)
       } else {
-        result = unwrap(rows[0]!)
+        const row = rows[0]!
+        // A `schedule` column beside `result` asks for later calls (`scheduler.ts`).
+        if ('schedule' in row) {
+          later = plannedCalls(row.schedule, content, op)
+          delete row.schedule
+        }
+        result = unwrap(row)
       }
-      if (keyed || done) await tx.exec('reset role')
+      if (keyed || done || later.length > 0) await tx.exec('reset role')
+      await schedule(tx, content, caller.principal, later)
       if (keyed) {
         await tx.query(
           `update packs.idempotency set result = $5
@@ -323,6 +335,11 @@ export async function call(
     input: unknown
     /** An idempotency key: the same call sent again under it runs once. */
     key?: string
+    /**
+     * The scheduler's own calls only: who asked for this call, already checked when it was
+     * asked for. Never set from a request.
+     */
+    as?: string
   },
 ) {
   const entry: LogEntry = {
@@ -337,15 +354,20 @@ export async function call(
     code: null,
   }
   try {
-    entry.principal = await authenticate(deps.auth, req.authorization)
+    entry.principal = req.as ?? (await authenticate(deps.auth, req.authorization))
     const live = await resolve(deps.db, deps.environment, req.pack)
     entry.version = live.version
     const { op, caller } = await authorise(deps.db, entry.principal, live, req.op)
     entry.agentOf = caller.agent ? caller.person : null
     const input = validate(live, op, req.input)
     const done = (tx: Conn) => log(tx, entry)
-    if (kindOf(op) === 'effect') return await fire(deps, live.content, op, caller, input, done)
-    return await execute(deps, live.content, op, caller, input, { key: req.key, done })
+    const kind = kindOf(op)
+    const result =
+      kind === 'effect'
+        ? await fire(deps, live.content, op, caller, input, done)
+        : await execute(deps, live.content, op, caller, input, { key: req.key, done })
+    if (kind !== 'read') changed(req.pack)
+    return result
   } catch (err) {
     entry.status = err instanceof Refused ? err.status : 500
     entry.code = err instanceof Refused ? err.code : 'INTERNAL'

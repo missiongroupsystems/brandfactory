@@ -7,7 +7,8 @@ import { applyPackMigrations, migrateCore } from './migrate'
 import { hashOf, type PackContent, type PackTest } from './pack'
 import { addPrincipal, promote, publish, recordTestRun, setLoadout } from './registry'
 import { approve, simulatedConnector } from './effects'
-import { call } from './run'
+import { call, type Connector } from './run'
+import { claim, tick } from './scheduler'
 
 /**
  * Runs a pack version's own tests, each case on a throwaway database: the core's migrations, the
@@ -22,7 +23,9 @@ import { call } from './run'
  *   `expect.error` for a statement the database must refuse;
  * - `{ parallel: [calls], expect: { codes } }`: moves at once; the codes (null for success) in
  *   any order;
- * - `{ approve, input, as?, expect? }`: a person's yes to what an effect move would send now.
+ * - `{ approve, input, as?, expect? }`: a person's yes to what an effect move would send now;
+ * - `{ tick: 'run' | 'abandon', now?, connector?, failOn? }` and `{ claim: true, now? }`: the
+ *   scheduler, as above.
  */
 
 interface CallStep {
@@ -45,11 +48,27 @@ interface ApproveStep {
   now?: string
   expect?: Expect
 }
+/**
+ * The scheduler, as the test's clock says: `run` waits for one pass; `abandon` starts a pass and
+ * leaves it, as a process killed mid-send would. `connector` makes the sends of this pass fail
+ * for `failOn` channels, hang, or answer with something the app cannot store (`garbled`).
+ */
+interface TickStep {
+  tick: 'run' | 'abandon'
+  now?: string
+  connector?: 'ok' | 'fails' | 'hangs' | 'garbled'
+  failOn?: string[]
+}
+/** Claims one due call and drops it, as a process killed right after the claim would. */
+interface ClaimStep {
+  claim: true
+  now?: string
+}
 interface ParallelStep {
   parallel: CallStep[]
   expect: { codes: (string | null)[] }
 }
-type Step = CallStep | SqlStep | ParallelStep | ApproveStep
+type Step = CallStep | SqlStep | ParallelStep | ApproveStep | TickStep | ClaimStep
 
 interface Expect {
   status?: number
@@ -64,6 +83,8 @@ interface Expect {
 interface TestFile extends PackTest {
   now?: string
   as?: string
+  /** Callers that are agents, by name, with the person each acts for. */
+  agents?: Record<string, string>
   cases: { name: string; steps: Step[] }[]
 }
 
@@ -235,12 +256,16 @@ async function runCase(
   const { db, dispose } = await target.fresh(content)
   try {
     let now = new Date(file.now ?? '2026-01-01T00:00:00Z')
+    // The connector this pass uses; a tick step may swap it.
+    let connector: Connector = simulatedConnector
     const deps = {
       db,
       auth: devAuth(),
       environment: 'test',
       now: () => now,
-      connectors: { simulated: simulatedConnector },
+      connectors: {
+        simulated: { send: (i: Parameters<Connector['send']>[0]) => connector.send(i) },
+      },
     }
     const callers = new Map<string, Promise<void>>()
     let previous: Answer | null = null
@@ -250,11 +275,18 @@ async function runCase(
       const who = step.as ?? file.as ?? 'member'
       // One promise per caller, so moves sent at once wait for the same setup.
       if (!callers.has(who)) {
+        const person = file.agents?.[who]
+        const ops = Object.keys(content.ops)
         callers.set(
           who,
-          addPrincipal(db, who).then(() =>
-            setLoadout(db, who, content.manifest.name, Object.keys(content.ops)),
-          ),
+          (async () => {
+            if (person) {
+              await addPrincipal(db, person)
+              await setLoadout(db, person, content.manifest.name, ops)
+            }
+            await addPrincipal(db, who, person ?? null)
+            await setLoadout(db, who, content.manifest.name, ops)
+          })(),
         )
       }
       await callers.get(who)
@@ -282,6 +314,24 @@ async function runCase(
 
     for (const [i, step] of steps.entries()) {
       const where = `step ${i + 1}`
+      if ('tick' in step || 'claim' in step) {
+        if (step.now) now = new Date(step.now)
+        if ('claim' in step) {
+          await claim(deps)
+          continue
+        }
+        connector = connectorFor(step)
+        if (step.tick === 'run') {
+          await tick(deps)
+        } else {
+          // A killed process beats no more: this pass never beats again.
+          void tick({ ...deps, heartbeatMs: 2 ** 30 })
+          // Long enough for the pass to claim a call and reach the connector.
+          await new Promise((r) => setTimeout(r, 300))
+        }
+        connector = simulatedConnector
+        continue
+      }
       if ('sql' in step) {
         if (step.expect?.error !== undefined) {
           const err = await db.query(step.sql).then(
@@ -342,6 +392,24 @@ async function runCase(
   } finally {
     await dispose()
   }
+}
+
+function connectorFor(step: TickStep): Connector {
+  if (step.connector === 'hangs') return { send: () => new Promise(() => {}) }
+  // Takes the send, then answers with something the app cannot store.
+  if (step.connector === 'garbled') return { send: async () => ({ externalId: 1n }) }
+  if (step.connector === 'fails') {
+    return {
+      async send(input) {
+        const channel = (input.payload as { channel?: string } | null)?.channel ?? ''
+        if (step.failOn === undefined || step.failOn.includes(channel)) {
+          throw new Error(`${channel} refused it`)
+        }
+        return simulatedConnector.send(input)
+      },
+    }
+  }
+  return simulatedConnector
 }
 
 /** The cases of a version, by file, for a caller that runs them one at a time (Vitest). */

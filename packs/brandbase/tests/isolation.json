@@ -170,6 +170,46 @@
           }
         },
         {
+          "call": "post.publish_job",
+          "input": {
+            "brand": "temper",
+            "job": "t1:ig"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.job_refused",
+          "input": {
+            "call": "post.publish_job",
+            "input": {
+              "brand": "temper",
+              "job": "t1:ig"
+            },
+            "code": "NEEDS_APPROVAL"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.job_unknown",
+          "input": {
+            "call": "post.publish_job",
+            "input": {
+              "brand": "temper",
+              "job": "t1:ig"
+            }
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
           "sql": "select caption, day::text as day, marked from brandbase.posts where id = 't1'",
           "expect": {
             "rows": [
