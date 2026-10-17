@@ -1,0 +1,31 @@
+{
+  "name": "guest.comment",
+  "description": "A guest's comment on the page a link opens: a name and words, both trimmed. Refused on a view-only link.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["token", "name", "text"],
+    "properties": {
+      "token": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,200}$"
+      },
+      "name": {
+        "type": "string",
+        "maxLength": 100,
+        "pattern": "\\S"
+      },
+      "text": {
+        "type": "string",
+        "maxLength": 2000,
+        "pattern": "\\S"
+      }
+    }
+  },
+  "guest": {
+    "capability": "token"
+  },
+  "before": ["guest.link_found", "guest.link_open", "guest.can_comment"],
+  "returns": "one",
+  "sql": "insert into brandbase.comments as c (id, brand_id, kind, target_id, name, text, created_at)\nselect gen_random_uuid()::text, l.brand_id, l.kind, l.target_id, btrim(:name), btrim(:text), :now::timestamptz\nfrom brandbase.share_links l where l.token = :token\nreturning brandbase.camel(to_jsonb(c)) || jsonb_build_object('createdAt', brandbase.iso(c.created_at)) as result"
+}

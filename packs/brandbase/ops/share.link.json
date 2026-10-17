@@ -1,0 +1,25 @@
+{
+  "name": "share.link",
+  "description": "The share link for an idea or a shoot, made the first time someone shares it, with an unguessable token; and the comments on it.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "kind", "id"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "kind": {
+        "enum": ["idea", "shoot"]
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["brand.reachable", "share.target_found"],
+  "returns": "one",
+  "sql": "with l as (\n  insert into brandbase.share_links (token, brand_id, kind, target_id) values (brandbase.new_token(), :brand, :kind, :id)\n  on conflict (kind, target_id) do update set token = share_links.token returning *\n)\nselect jsonb_build_object('link', brandbase.camel(to_jsonb(l)) || jsonb_build_object('createdAt', brandbase.iso(l.created_at)), 'comments', brandbase.thread(:kind, :id)) as result from l"
+}

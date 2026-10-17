@@ -1,0 +1,7 @@
+{
+  "id": "share.target_found",
+  "sql": "select case :kind::text when 'idea' then exists (select 1 from brandbase.ideas where id = :id and brand_id = :brand) else exists (select 1 from brandbase.shoots where id = :id and brand_id = :brand) end as ok, :kind::text || ' not found' as message",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "not found"
+}

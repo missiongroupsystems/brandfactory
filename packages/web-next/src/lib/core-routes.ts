@@ -220,6 +220,26 @@ const ROUTES: Route[] = [
     /^\/brands\/([^/]+)\/pasted$/,
     ([b], body) => ({ op: 'pasted.add', input: { ...body, brand: b } }),
   ],
+  [
+    'GET',
+    /^\/brands\/([^/]+)\/share\/(idea|shoot)\/([^/]+)$/,
+    ([b, kind, id]) => ({ op: 'share.link', input: { brand: b, kind, id } }),
+  ],
+  [
+    'PUT',
+    /^\/brands\/([^/]+)\/share\/(idea|shoot)\/([^/]+)$/,
+    ([b, kind, id], body) => ({ op: 'share.set', input: { ...body, brand: b, kind, id } }),
+  ],
+  [
+    'POST',
+    /^\/brands\/([^/]+)\/comments\/([^/]+)\/replies$/,
+    ([b, id], body) => ({ op: 'comment.reply', input: { ...body, brand: b, id } }),
+  ],
+  [
+    'PUT',
+    /^\/brands\/([^/]+)\/comments\/([^/]+)\/done$/,
+    ([b, id], body) => ({ op: 'comment.done', input: { ...body, brand: b, id } }),
+  ],
 ]
 
 /** The move a route becomes on the core, or null when the route is not ported yet. */
@@ -230,6 +250,36 @@ export function coreCall(method: string, path: string, body: unknown): CoreCall 
     if (match) {
       const parts = match.slice(1).map((p) => decodeURIComponent(p))
       return make(parts, (body ?? {}) as object, new URLSearchParams(search))
+    }
+  }
+  return null
+}
+
+/**
+ * The guest's routes (no sign-in), as guest moves: `POST /guest/brandbase/<move>` with the
+ * link's token in the input. The token is the right; the core runs the move with no person.
+ */
+const GUEST_ROUTES: Route[] = [
+  ['GET', /^\/share\/([^/]+)$/, ([token]) => ({ op: 'guest.view', input: { token } })],
+  [
+    'POST',
+    /^\/share\/([^/]+)\/comments$/,
+    ([token], body) => ({ op: 'guest.comment', input: { ...body, token } }),
+  ],
+  [
+    'PATCH',
+    /^\/share\/([^/]+)\/brief$/,
+    ([token], body) => ({ op: 'guest.edit', input: { ...body, token } }),
+  ],
+]
+
+/** The guest move a share route becomes on the core, or null when there is none. */
+export function guestCall(method: string, path: string, body: unknown): CoreCall | null {
+  for (const [m, pattern, make] of GUEST_ROUTES) {
+    const match = m === method ? pattern.exec(path) : null
+    if (match) {
+      const parts = match.slice(1).map((p) => decodeURIComponent(p))
+      return make(parts, (body ?? {}) as object, new URLSearchParams())
     }
   }
   return null

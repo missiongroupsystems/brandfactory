@@ -1,0 +1,26 @@
+{
+  "name": "guest.view",
+  "description": "The page a share link opens to a guest with no sign-in: an idea's brief (and the shoot it is on), or a shoot's call sheet; only what it says, not how the team planned it; and the comments.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["token"],
+    "properties": {
+      "token": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,200}$"
+      }
+    }
+  },
+  "guest": {
+    "capability": "token"
+  },
+  "before": ["guest.link_found", "guest.link_open"],
+  "returns": "one",
+  "sql": "select case l.kind\n  when 'idea' then (\n    select jsonb_build_object('kind', 'idea', 'access', jsonb_build_object('can', l.can, 'brandId', l.brand_id),\n      'idea', jsonb_build_object('id', i.id, 'format', i.format, 'hook', i.hook, 'angle', i.angle,\n        'feature', i.feature, 'inspiration', i.inspiration, 'shots', i.shots),\n      'shoot', (select jsonb_build_object('day', s.day, 'start', s.start, 'end', s.\"end\", 'place', s.place)\n        from brandbase.shoots s where i.id = any (s.idea_ids) order by s.day, s.id limit 1),\n      'comments', brandbase.thread('idea', i.id))\n    from brandbase.ideas i where i.id = l.target_id)\n  else (\n    select jsonb_build_object('kind', 'shoot', 'access', jsonb_build_object('can', l.can, 'brandId', l.brand_id),\n      'shoot', jsonb_build_object('id', s.id, 'title', s.title, 'day', s.day, 'start', s.start, 'end', s.\"end\",\n        'place', s.place,\n        'crew', coalesce((select jsonb_agg(jsonb_build_object('name', c.name, 'role', c.role) order by c.position)\n          from brandbase.crew c where c.shoot_id = s.id), '[]'),\n        'ideas', coalesce((select jsonb_agg(jsonb_build_object('id', i.id, 'format', i.format, 'hook', i.hook,\n          'inspiration', i.inspiration, 'shots', i.shots) order by array_position(s.idea_ids, i.id))\n          from brandbase.ideas i where i.id = any (s.idea_ids)), '[]')),\n      'comments', brandbase.thread('shoot', s.id))\n    from brandbase.shoots s where s.id = l.target_id)\n  end as result\nfrom brandbase.share_links l where l.token = :token",
+  "empty": {
+    "status": 404,
+    "code": "NOT_FOUND",
+    "message": "this link has nothing to show"
+  }
+}

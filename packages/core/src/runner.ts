@@ -7,6 +7,7 @@ import { applyPackMigrations, migrateCore } from './migrate'
 import { hashOf, type PackContent, type PackTest } from './pack'
 import { addPrincipal, promote, publish, recordTestRun, setLoadout } from './registry'
 import { approve, simulatedConnector } from './effects'
+import { callGuest, MIN_CAPABILITY } from './guest'
 import { call, type Connector } from './run'
 import { claim, tick } from './scheduler'
 
@@ -25,7 +26,8 @@ import { claim, tick } from './scheduler'
  *   any order;
  * - `{ approve, input, as?, expect? }`: a person's yes to what an effect move would send now;
  * - `{ tick: 'run' | 'abandon', now?, connector?, failOn? }` and `{ claim: true, now? }`: the
- *   scheduler, as above.
+ *   scheduler, as above;
+ * - `{ guest, input, expect? }`: a guest's move, with no sign-in.
  */
 
 interface CallStep {
@@ -62,6 +64,12 @@ interface TickStep {
   connector?: 'ok' | 'fails' | 'hangs' | 'garbled'
   failOn?: string[]
 }
+/** A guest's move, with no sign-in: the capability is in its input. */
+interface GuestStep {
+  guest: string
+  input?: unknown
+  expect?: Expect
+}
 /** Claims one due call and drops it, as a process killed right after the claim would. */
 interface ClaimStep {
   claim: true
@@ -71,7 +79,7 @@ interface ParallelStep {
   parallel: CallStep[]
   expect: { codes: (string | null)[] }
 }
-type Step = CallStep | SqlStep | ParallelStep | ApproveStep | TickStep | ClaimStep
+type Step = CallStep | SqlStep | ParallelStep | ApproveStep | TickStep | ClaimStep | GuestStep
 
 interface Expect {
   status?: number
@@ -107,6 +115,8 @@ export interface RunResult {
   notFound: string[]
   /** Every effect move some case saw refused for want of a person's yes. */
   needsApproval: string[]
+  /** Every guest move some case saw answer not-found to a capability that opens nothing. */
+  guestRefused: string[]
 }
 
 /** What the cases saw, gathered across them. */
@@ -114,6 +124,7 @@ export interface Seen {
   refused: Set<string>
   notFound: Set<string>
   needsApproval: Set<string>
+  guestRefused: Set<string>
 }
 
 /** Where a value differs from what was expected, or null. Objects match on the keys expected. */
@@ -277,6 +288,28 @@ async function runCase(
     const callers = new Map<string, Promise<void>>()
     let previous: Answer | null = null
 
+    // Each case its own address, so cases never share a guest's rate limit.
+    const address = `case-${randomUUID()}`
+    const guestOnce = async (step: GuestStep): Promise<Answer> => {
+      try {
+        const result = await callGuest(deps, {
+          address,
+          pack: content.manifest.name,
+          op: step.guest,
+          input: step.input ?? {},
+        })
+        return { status: 200, body: JSON.parse(JSON.stringify(result ?? null)) }
+      } catch (err) {
+        if (!(err instanceof Refused)) throw err
+        if (err.rule) seen.refused.add(err.rule)
+        // Only a token long enough to reach the pack's rules: a short one the core refuses itself.
+        const field = content.ops[step.guest]?.guest?.capability
+        const token = field ? (step.input as Record<string, unknown> | undefined)?.[field] : null
+        const reaches = typeof token === 'string' && token.length >= MIN_CAPABILITY
+        if (err.code === 'NOT_FOUND' && reaches) seen.guestRefused.add(step.guest)
+        return { status: err.status, body: JSON.parse(JSON.stringify(err.toJSON())) }
+      }
+    }
     const callOnce = async (step: CallStep | ApproveStep): Promise<Answer> => {
       const op = 'call' in step ? step.call : step.approve
       const who = step.as ?? file.as ?? 'member'
@@ -379,7 +412,7 @@ async function runCase(
         const m = mismatch(sort(codes), sort(step.expect.codes))
         if (m) throw new Error(`${where} (parallel): ${m}`)
       } else {
-        const answer = await callOnce(step)
+        const answer = 'guest' in step ? await guestOnce(step) : await callOnce(step)
         const e = step.expect ?? {}
         const body = answer.body as Record<string, unknown> | null
         const wanted = e.status ?? (e.code ? undefined : 200)
@@ -398,7 +431,12 @@ async function runCase(
             ? `not the previous answer: ${JSON.stringify(previous)}`
             : null,
         ].filter(Boolean)
-        const name = 'call' in step ? step.call : `approve ${step.approve}`
+        const name =
+          'call' in step
+            ? step.call
+            : 'guest' in step
+              ? `guest ${step.guest}`
+              : `approve ${step.approve}`
         if (problems.length > 0) throw new Error(`${where} (${name}): ${problems[0]}`)
         previous = answer
       }
@@ -442,7 +480,12 @@ export async function runPackTests(
   content: PackContent,
   target: Target = pglite,
 ): Promise<RunResult> {
-  const seen: Seen = { refused: new Set(), notFound: new Set(), needsApproval: new Set() }
+  const seen: Seen = {
+    refused: new Set(),
+    notFound: new Set(),
+    needsApproval: new Set(),
+    guestRefused: new Set(),
+  }
   const results: CaseResult[] = []
   for (const c of casesOf(content, target)) {
     try {
@@ -458,5 +501,6 @@ export async function runPackTests(
     refused: [...seen.refused].sort(),
     notFound: [...seen.notFound].sort(),
     needsApproval: [...seen.needsApproval].sort(),
+    guestRefused: [...seen.guestRefused].sort(),
   }
 }

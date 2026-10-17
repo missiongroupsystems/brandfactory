@@ -1,0 +1,7 @@
+{
+  "id": "guest.shots_known",
+  "sql": "select not exists (select 1 from jsonb_array_elements(coalesce(:shots::jsonb, '[]')) s where not exists (select 1 from brandbase.share_links l join brandbase.ideas i on i.id = l.target_id, jsonb_array_elements(i.shots) x where l.token = :token and x ->> 'id' = s ->> 'id')) as ok",
+  "status": 409,
+  "code": "STALE",
+  "message": "a shot is no longer on the storyboard"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "guest.link_open",
+  "sql": "select who = 'link' as ok from brandbase.share_links where token = :token",
+  "status": 403,
+  "code": "FORBIDDEN",
+  "message": "this link is only for the team"
+}

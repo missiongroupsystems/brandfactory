@@ -615,3 +615,47 @@ brand file twice answers `{deleted}` both times, as the server did (the store re
 brand; `pasted.add` keeps a seed's own seven fields and ignores others, as zod did;
 `voice_edited` trims all whitespace. Known and left: two people each holding an open yes for the
 same payload could each send it once (two approvers, low risk).
+
+### Phase 6, fourth part: share links and comments
+
+- **Core: guest moves.** A move marked `"guest": {"capability": "<field>"}` runs at
+  `POST /guest/{pack}/{op}` with no sign-in. The named input field is the capability: shorter
+  than 32 characters, or on a move that is not a guest move, answers 404. The move runs through
+  the same checks as any other, with no person and `app.capability` set, so only row rules that
+  read `capability()` let it reach anything. A guest move cannot name a connector. Calls are
+  limited per address and pack (30 a minute, 10 writes) and logged; the log keeps only the first 4 characters of the
+  capability, as it is a right like a password. A new platform test asks
+  every guest move for a case that sees a wrong token refused.
+- **Pack** (pack migration `0007_share`): tokens of 43 base64url characters from two random
+  UUIDs; guest row rules on links, ideas, shoots, crew, comments and posts, each keyed by the
+  token of a link open to guests. Team moves `share.link`, `share.set`, `comment.reply` (signed
+  with the brand's name), `comment.done`; guest moves `guest.view` (only what the brief or call
+  sheet says), `guest.comment` (view-only links refused), `guest.edit` (the brief's words and
+  shot titles, a new hook carried to the idea's post unless it is out).
+- **web-next.** `guestRequest` sends the share page's three routes to the guest moves with the
+  token; the team's four routes join `core-routes.ts`.
+- Tests: the server's share cases, and a case where a member names their own brand with another
+  brand's comment id. Checked with Playwright on the local stack: a guest opens a brief with no
+  sign-in and comments, the team sees it, replies and marks it done from the idea page, the guest
+  sees the reply, a made-up token shows "This link has nothing to show", and the brief fits a
+  phone.
+
+
+**Review** (one Sonnet reviewer; the change touches authorization, where the review skill would
+use two). Fixed:
+
+- A guest who could edit could carry a new hook to a post already out. `post_stage` reads
+  `post_jobs`, where a guest had no row rule, so every post looked unsent to it. The guest now
+  reads the jobs of the one post its link may carry a hook to; a test with a live job fails
+  without that rule.
+- The rate limit was counted per address and pack name, so made-up pack names in the path each
+  had a new allowance. It is now per address.
+- A guest's comment or edit did not reach the team's open screens; it now does, as any write
+  does (checked by hand on the events stream).
+- A wrong-token case counted for the platform test even when the core refused a short token
+  itself; now only a token long enough to reach the pack's rules counts.
+- Two first shares of one idea at the same moment could answer 404; `share.link` now takes the
+  existing link on a conflict.
+
+Left: a malformed token answers 400 where the server answered 404; the guest page shows "nothing
+to show" for both.

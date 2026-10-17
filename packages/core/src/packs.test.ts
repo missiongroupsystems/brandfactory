@@ -40,7 +40,12 @@ for (const dir of dirs) {
         await dispose()
       }
     })
-    const seen: Seen = { refused: new Set(), notFound: new Set(), needsApproval: new Set() }
+    const seen: Seen = {
+      refused: new Set(),
+      notFound: new Set(),
+      needsApproval: new Set(),
+      guestRefused: new Set(),
+    }
     for (const c of casesOf(content)) {
       it(`${c.file}: ${c.name}`, () => c.run(seen), 30_000)
     }
@@ -53,7 +58,11 @@ for (const dir of dirs) {
       expect([...new Set(used)].filter((id) => !seen.refused.has(id))).toEqual([])
     })
     it('has a case where each move answers not-found', () => {
-      expect(Object.keys(content.ops).filter((op) => !seen.notFound.has(op))).toEqual([])
+      // A guest move's not-found is a token that opens nothing.
+      const missing = Object.values(content.ops)
+        .filter((op) => !seen.notFound.has(op.name) && !seen.guestRefused.has(op.name))
+        .map((op) => op.name)
+      expect(missing).toEqual([])
     })
   })
 
@@ -61,7 +70,12 @@ for (const dir of dirs) {
   const url = process.env.CORE_TEST_PG_URL
   describe.skipIf(!url)(`pack ${dir.name} on Postgres`, () => {
     const target = url ? postgres(url) : undefined
-    const seen: Seen = { refused: new Set(), notFound: new Set(), needsApproval: new Set() }
+    const seen: Seen = {
+      refused: new Set(),
+      notFound: new Set(),
+      needsApproval: new Set(),
+      guestRefused: new Set(),
+    }
     for (const c of casesOf(content, target)) {
       it(`${c.file}: ${c.name}`, () => c.run(seen), 60_000)
     }

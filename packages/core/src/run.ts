@@ -43,8 +43,14 @@ export async function setClaims(
 ) {
   await tx.query(
     `select set_config('app.user_id', $1, true), set_config('app.agent_id', $2, true),
-            set_config('statement_timeout', $3, true), set_config('timezone', 'UTC', true)`,
-    [caller.person, caller.agent ?? '', String(deps.statementTimeoutMs ?? 5000)],
+            set_config('statement_timeout', $3, true), set_config('timezone', 'UTC', true),
+            set_config('app.capability', $4, true)`,
+    [
+      caller.person,
+      caller.agent ?? '',
+      String(deps.statementTimeoutMs ?? 5000),
+      caller.capability ?? '',
+    ],
   )
 }
 
@@ -69,6 +75,11 @@ export interface Caller {
   /** The person whose data the call reaches: the principal, or the agent's person. */
   person: string
   agent: string | null
+  /**
+   * A guest's capability (a link's token): what a guest move's row rules key on. Set for guest
+   * calls only (`guest.ts`), which have no person.
+   */
+  capability?: string
 }
 
 // 1. Who are you.

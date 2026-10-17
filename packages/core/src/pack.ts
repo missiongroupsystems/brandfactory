@@ -43,6 +43,12 @@ export interface Op {
    */
   connector?: string
   payload?: string
+  /**
+   * A move a guest calls with no sign-in (`POST /guest/:pack/:op`), authorised by the capability
+   * in the named input field (a link's token): the core sets it as `app.capability`, with no
+   * person, and the pack's row rules decide what it opens. Never an effect.
+   */
+  guest?: { capability: string }
 }
 
 export interface PackTest {
@@ -190,6 +196,15 @@ export function packProblems(content: PackContent): string[] {
       const p = op.payload === undefined ? 'an effect needs a payload' : sqlProblem(op.payload)
       if (p) out.push(`op ${name}: payload: ${p}`)
       else if (writes(op.payload!)) out.push(`op ${name}: payload: it reads, it never writes`)
+    }
+    if (op.guest !== undefined) {
+      const field = op.guest.capability
+      const props = (op.input?.properties ?? {}) as Record<string, { type?: unknown }>
+      const required = (op.input?.required ?? []) as string[]
+      if (!field || props[field]?.type !== 'string' || !required.includes(field)) {
+        out.push(`op ${name}: a guest move's capability is a required string input`)
+      }
+      if (op.connector !== undefined) out.push(`op ${name}: a guest move never reaches outside`)
     }
     if (op.empty) {
       const e = refusalProblem(`op ${name}.empty`, op.empty)

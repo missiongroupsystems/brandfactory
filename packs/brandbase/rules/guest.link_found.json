@@ -1,0 +1,7 @@
+{
+  "id": "guest.link_found",
+  "sql": "select exists (select 1 from brandbase.share_links where token = :token) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "this link has nothing to show"
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { coreCall } from './core-routes'
+import { coreCall, guestCall } from './core-routes'
 
 describe('the routes on the core', () => {
   it('turns each ported route into its move, with the path and the body as the input', () => {
@@ -82,6 +82,26 @@ describe('the routes on the core', () => {
       status: 'off',
     })
     expect(coreCall('POST', '/brands/casa/pasted', { id: 'p1' })?.op).toBe('pasted.add')
+  })
+
+  it('sends the share routes to their moves, and a guest page to guest moves with its token', () => {
+    expect(coreCall('GET', '/brands/casa/share/idea/i1', undefined)).toEqual({
+      op: 'share.link',
+      input: { brand: 'casa', kind: 'idea', id: 'i1' },
+    })
+    expect(coreCall('PUT', '/brands/casa/comments/c1/done', { done: true })?.op).toBe(
+      'comment.done',
+    )
+    expect(guestCall('GET', '/share/tok', undefined)).toEqual({
+      op: 'guest.view',
+      input: { token: 'tok' },
+    })
+    expect(
+      guestCall('POST', '/share/tok/comments', { name: 'Ana', text: 'Hi', token: 'x' }),
+    ).toEqual({
+      op: 'guest.comment',
+      input: { name: 'Ana', text: 'Hi', token: 'tok' },
+    })
   })
 
   it('leaves a route not ported yet to the BrandBase API', () => {

@@ -31,4 +31,10 @@ pnpm -F @brandfactory/core core promote brandbase 1.0.0
 Agents use `POST /mcp/{pack}` (MCP tools, one per move in their loadout). Effect moves send only
 what a person approved with `POST /approve/{pack}/{op}`.
 
+A move marked `"guest": {"capability": "<field>"}` is open with no sign-in at
+`POST /guest/{pack}/{op}`. The input field it names (at least 32 characters) is the right: the move
+runs with no person and with `app.capability` set to it, so the pack's row rules decide what it
+reaches. Guest calls are rate-limited per address and logged (the log keeps only the first 4 characters of the capability), and every guest move needs a case
+with a wrong token.
+
 A pack's tests are `packs/<name>/tests/*.json`; the format is at the top of `src/runner.ts`.

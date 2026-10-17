@@ -8,7 +8,7 @@
  * that brand from the server, which puts the screen back to what is stored.
  */
 
-import { coreCall, PACK } from './core-routes'
+import { coreCall, guestCall, PACK } from './core-routes'
 import { setToday } from './dates'
 
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '')
@@ -179,6 +179,8 @@ async function answer<T>(
 
 /** A request with no session, for the guest share page. */
 export async function guestRequest<T = unknown>(method: string, path: string, body?: unknown) {
+  const guest = CORE_URL ? guestCall(method, path, body) : null
+  if (guest) return answer<T>(`${CORE_URL}/guest/${PACK}/${guest.op}`, 'POST', guest.input, {})
   const res = await fetch(`${API_URL}${path}`, {
     method,
     headers: body === undefined ? {} : { 'content-type': 'application/json' },

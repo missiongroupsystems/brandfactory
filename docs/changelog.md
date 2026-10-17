@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.22.0** — 2026-10-17 — `feat/packs-core`, phase 6, fourth part: share links and comments on the core. Guest moves open at `POST /guest/{pack}/{op}` with no sign-in, the link's token as the right and the pack's row rules deciding what it reaches, rate-limited per address with the token masked in the log; the share page, guest comments and edits, team replies and done on the core. Pack migration `0007_share` (not applied to production). 813 tests (135 more skipped without a Postgres server).
 - **2.21.0** — 2026-10-17 — `feat/packs-core`, phase 6, second part: ideas, shoots, the inbox, the brand kit, connections and pasted links on the core (31 moves), with the server's cases for each; the Lark invite is an approved effect, refused while the same send is on its way; crew rows carry their brand. Pack migrations `0004_ideas`, `0005_shoots`, `0006_kit` (not applied to production). 664 tests (122 more skipped without a Postgres server).
 - **2.20.0** — 2026-10-17 — `feat/packs-core`, phase 6, first part: with `NEXT_PUBLIC_CORE_URL` set the app signs in, loads each brand and writes its posts through the core's moves (Schedule carries the person's yes to each account's send), with the screens unchanged; a script starts the core with the demo's data on a local Postgres. Other routes still go to the BrandBase API. No migration. 603 tests (66 more skipped without a Postgres server).
 - **2.19.0** — 2026-10-17 — `feat/packs-core`, phase 5: timed moves. A move asks for later calls; the core claims one due call at a time, runs it as whoever asked, beats a heartbeat, and ends a cut-off call `unknown_outcome` with an alert, never running it again. BrandBase sends each account's job through an approved effect move on a simulated connector, and screens hear of every change within a second. Core migration `0006_scheduler` (not applied to production). 598 tests (63 more skipped without a Postgres server).
@@ -43,6 +44,22 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.22.0 — 2026-10-17
+
+- **Guest moves (core).** A move marked `"guest": {"capability": "<field>"}` runs at
+  `POST /guest/{pack}/{op}` with no person; the field (32 characters or more) is set as
+  `app.capability`, and only row rules that read it let the move reach rows. 30 calls and 10
+  writes a minute per address; the log keeps the token's first 4 characters; a guest write
+  tells open screens. A platform test asks every guest move for a wrong-token case.
+- **Share links (pack).** `share.link`, `share.set`, `comment.reply`, `comment.done` for the
+  team; `guest.view`, `guest.comment`, `guest.edit` for guests. A guest's new hook is never
+  carried to a post that is out.
+- **web-next.** The share page's routes go to the guest moves, the team's to their moves.
+  Checked with Playwright: guest view and comment, team reply and done, a made-up token, phone.
+
+Pack migration `0007_share`, not applied to production. Gate: typecheck, lint, format, 813 tests
+in 70 files with `CORE_TEST_PG_URL` (678 pass and 135 skip without it), `next build`.
 
 ## 2.21.0 — 2026-10-17
 

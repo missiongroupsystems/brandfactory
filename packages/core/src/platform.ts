@@ -238,8 +238,9 @@ export function everyRuleHasARefusalTest(content: PackContent, run: RunResult): 
 
 /** Isolation in the tests: every move has a case where it answers not-found. */
 export function everyMoveHasANotFoundTest(content: PackContent, run: RunResult): string[] {
+  // A guest move's not-found is a token that opens nothing.
   return Object.keys(content.ops)
-    .filter((op) => !run.notFound.includes(op))
+    .filter((op) => !run.notFound.includes(op) && !run.guestRefused.includes(op))
     .map((op) => `move ${op} has no not-found test`)
 }
 
@@ -248,6 +249,13 @@ export function everyEffectHasAnApprovalTest(content: PackContent, run: RunResul
   return Object.values(content.ops)
     .filter((op) => kindOf(op) === 'effect' && !run.needsApproval.includes(op.name))
     .map((op) => `effect ${op.name} has no case that sees it wait for a person's yes`)
+}
+
+/** Every guest move has a case where a capability that opens nothing is refused (not-found). */
+export function everyGuestMoveHasAWrongTokenTest(content: PackContent, run: RunResult): string[] {
+  return Object.values(content.ops)
+    .filter((op) => op.guest && !run.guestRefused.includes(op.name))
+    .map((op) => `guest move ${op.name} has no case with a token that opens nothing`)
 }
 
 /** A version's own tests, then the platform's; the result `core test` records. */
@@ -267,6 +275,7 @@ export async function testVersion(content: PackContent, target: Target = pglite)
       ...everyRuleHasARefusalTest(content, run),
       ...everyMoveHasANotFoundTest(content, run),
       ...everyEffectHasAnApprovalTest(content, run),
+      ...everyGuestMoveHasAWrongTokenTest(content, run),
     ]
   } finally {
     await dispose()

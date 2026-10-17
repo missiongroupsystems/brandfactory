@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 import { Refused } from './errors'
 import { approve } from './effects'
 import { events } from './events'
+import { callGuest } from './guest'
 import { mcp } from './mcp'
 import { call, type CoreDeps } from './run'
 
@@ -48,6 +49,19 @@ export function createCore(deps: CoreDeps, opts: { corsOrigins?: string[] } = {}
       input,
     })
     return c.json(result)
+  })
+
+  // A guest's move, with no sign-in: the capability in its input is the right (`guest.ts`). The
+  // address is Fly's, which a client cannot set; off Fly every guest shares one count.
+  app.on('POST', '/guest/:pack/:op', async (c) => {
+    const input = await readInput(c.req.text())
+    const result = await callGuest(deps, {
+      address: c.req.header('fly-client-ip') ?? 'direct',
+      pack: c.req.param('pack'),
+      op: c.req.param('op'),
+      input,
+    })
+    return c.json(result ?? null)
   })
 
   // "Something changed" for open screens (`events.ts`). A browser's EventSource sends no
