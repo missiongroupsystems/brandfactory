@@ -1,0 +1,64 @@
+import { describe, expect, it } from 'vitest'
+import { bind, sqlProblem, writes } from './sql'
+
+describe('binding', () => {
+  it('numbers each name once and leaves casts and strings alone', () => {
+    const out = bind('select :a::text, \':b\' as s, :a, "x:y", $$ :c $$ from t where c = :c', {
+      a: 1,
+      c: { k: 2 },
+    })
+    expect(out.text).toBe('select $1::text, \':b\' as s, $1, "x:y", $$ :c $$ from t where c = $2')
+    expect(out.params).toEqual([1, '{"k":2}'])
+  })
+
+  it('binds a missing value as null', () => {
+    expect(bind('select :gone', {}).params).toEqual([null])
+  })
+})
+
+describe('the SQL check', () => {
+  it.each([
+    'select 1',
+    'with x as (update t set a = 1 returning a) select * from x',
+    'insert into t (a) values (:a) on conflict (a) do nothing returning a',
+    'delete from t where id = :id returning id',
+    'select role, "set" from t for update',
+    "select 'reset role; set_config' as words",
+  ])('passes %s', (sql) => {
+    expect(sqlProblem(sql)).toBeNull()
+  })
+
+  it.each([
+    ['two statements', 'select 1; select 2'],
+    ['a role change', 'reset role'],
+    ['a SET', 'set role postgres'],
+    ['set_config', "select set_config('app.user_id', 'x', true)"],
+    ['set_config, quoted', `select "set_config"('app.user_id', 'x', true)`],
+    ['set_config, qualified', "select pg_catalog.set_config('a', 'b', false)"],
+    ['an escaped identifier', `select U&"\\0073et_config"('a', 'b', true)`],
+    ['pg_sleep', 'select pg_sleep(10)'],
+    ['query_to_xml', "select query_to_xml('select * from packs.loadouts', true, true, '')"],
+    ['dblink', "select * from dblink('x', 'y')"],
+    ['a large object', 'select lo_import(1)'],
+    ['an advisory lock', 'select pg_advisory_lock(1)'],
+    ['COPY', 'copy t to stdout'],
+    ['DO', 'do $$ begin end $$'],
+    ['SELECT INTO', 'select * into newtable from t'],
+    ['a comment', 'select 1 -- hidden'],
+    ['positional parameters', 'select $1'],
+    ['DDL', 'select 1 from t where exists (select 1) and drop'],
+    // Postgres reads é$$ as an identifier; a check that reads $$ there would see a string.
+    ['SQL hidden behind a non-ASCII identifier', 'select 1 as é$$; reset role; select 1 as x$$'],
+    ['a function hidden the same way', "select 1 as é$$, set_config('a', 'b', true) as x$$"],
+  ])('refuses %s', (_why, sql) => {
+    expect(sqlProblem(sql)).not.toBeNull()
+  })
+})
+
+describe('the kind of a move', () => {
+  it('is a write when the statement can change rows, wherever the change sits', () => {
+    expect(writes('select * from t')).toBe(false)
+    expect(writes("select 'update' from t")).toBe(false)
+    expect(writes('with x as (delete from t returning *) select * from x')).toBe(true)
+  })
+})

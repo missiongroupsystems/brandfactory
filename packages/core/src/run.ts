@@ -1,0 +1,274 @@
+import { Ajv, type ValidateFunction } from 'ajv'
+import { type AuthProvider } from './auth'
+import { type Conn, type Db, type Row } from './db'
+import { Refused } from './errors'
+import { type Manifest, type Op, type PackContent, type Rule } from './pack'
+import { liveVersion, pgError, type LiveVersion } from './registry'
+import { bind } from './sql'
+
+export interface CoreDeps {
+  db: Db
+  auth: AuthProvider
+  /** Which pointer this core reads: 'local', 'staging', 'production'. */
+  environment: string
+  /** The clock every move reads as `:now`; tests pin it. */
+  now: () => Date
+  /** Longest a move's statement may run. Not enforced by PGlite. */
+  statementTimeoutMs?: number
+}
+
+/** Who is calling: a person, or an agent and the person it acts for. */
+export interface Caller {
+  principal: string
+  /** The person whose data the call reaches: the principal, or the agent's person. */
+  person: string
+  agent: string | null
+}
+
+// 1. Who are you.
+export async function authenticate(auth: AuthProvider, header: string | undefined) {
+  const match = header ? /^Bearer\s+(.+)$/i.exec(header) : null
+  if (!match) throw new Refused(401, 'UNAUTHORIZED', 'missing bearer token')
+  try {
+    return (await auth.verifyToken(match[1]!.trim())).userId
+  } catch {
+    throw new Refused(401, 'UNAUTHORIZED', 'invalid token')
+  }
+}
+
+// 2. Which version is live.
+export async function resolve(db: Conn, environment: string, pack: string) {
+  const live = await liveVersion(db, environment, pack)
+  if (!live) throw new Refused(404, 'PACK_NOT_LIVE', `${pack} has no live version`)
+  return live
+}
+
+// 3. May you call this move. An agent needs the move in its own loadout and in its person's, read
+// on every call, so a right taken from the person is gone from the agent at once.
+export async function authorise(
+  db: Conn,
+  principal: string,
+  live: LiveVersion,
+  opName: string,
+): Promise<{ op: Op; caller: Caller }> {
+  const [who] = await db.query<{ agent_of: string | null }>(
+    'select agent_of from packs.principals where id = $1',
+    [principal],
+  )
+  if (!who) throw new Refused(403, 'NO_ACCOUNT', 'this account has no access')
+  const op = live.content.ops[opName]
+  if (!op) throw new Refused(404, 'OP_NOT_FOUND', `no move ${opName}`)
+  const holders = who.agent_of ? [principal, who.agent_of] : [principal]
+  const rows = await db.query<{ principal: string }>(
+    `select principal from packs.loadouts
+     where pack = $1 and principal = any($2) and $3 = any(ops)`,
+    [live.content.manifest.name, holders, opName],
+  )
+  if (rows.length !== holders.length) {
+    throw new Refused(403, 'FORBIDDEN', `${opName} is not in the loadout`)
+  }
+  return {
+    op,
+    caller: {
+      principal,
+      person: who.agent_of ?? principal,
+      agent: who.agent_of ? principal : null,
+    },
+  }
+}
+
+// 4. Is the input valid.
+const ajv = new Ajv({ allErrors: true, strict: true })
+const validators = new Map<string, ValidateFunction>()
+
+export function validate(live: LiveVersion, op: Op, input: unknown) {
+  const key = `${live.hash}:${op.name}`
+  let check = validators.get(key)
+  if (!check) {
+    check = ajv.compile(op.input)
+    validators.set(key, check)
+  }
+  if (!check(input)) {
+    throw new Refused(400, 'VALIDATION', 'validation failed', { details: check.errors })
+  }
+  return input as Record<string, unknown>
+}
+
+/**
+ * Turns a database error into the refusal the pack named for its constraint or trigger, or a
+ * generic one. Anything else is a fault and is thrown on.
+ */
+export function refusalOf(err: unknown, manifest: Manifest): Refused | null {
+  const e = pgError(err)
+  const named = e.constraint ? manifest.errors?.[e.constraint] : undefined
+  if (named) return new Refused(named.status, named.code, named.message)
+  // A row the caller's row rules do not let them write: the same answer as a row that is not
+  // there, so a guess learns nothing.
+  if (e.code === '42501' && /row-level security/.test(e.message)) {
+    return new Refused(404, 'NOT_FOUND', 'not found')
+  }
+  if (e.code === '23505') return new Refused(409, 'CONFLICT', 'this conflicts with another row')
+  if (e.code === '57014') return new Refused(503, 'TIMEOUT', 'the move took too long')
+  if (e.code?.startsWith('22')) return new Refused(400, 'BAD_INPUT', e.message)
+  return null
+}
+
+async function checkRule(tx: Conn, rule: Rule, params: Record<string, unknown>) {
+  const { text, params: values } = bind(rule.sql, params)
+  const [row] = await tx.query<{ ok?: unknown; details?: unknown }>(text, values)
+  if (row?.ok !== true) {
+    throw new Refused(rule.status, rule.code, rule.message, {
+      rule: rule.id,
+      ...(row?.details != null && { details: row.details }),
+    })
+  }
+}
+
+/** A row of one column named `result` answers with that value; any other row as it is. */
+const unwrap = (row: Row) => {
+  const keys = Object.keys(row)
+  return keys.length === 1 && keys[0] === 'result' ? row.result : row
+}
+
+// 5–7. Do the before-rules pass, run the statement under row-level security, do the after-rules
+// pass. One transaction: a refusal at any step undoes the whole call. `done` runs last in the
+// same transaction, back as the login role, so a write and its log row commit together.
+export async function execute(
+  deps: Pick<CoreDeps, 'db' | 'now' | 'statementTimeoutMs'>,
+  content: PackContent,
+  op: Op,
+  caller: Caller,
+  input: Record<string, unknown>,
+  done?: (tx: Conn) => Promise<void>,
+) {
+  const params = {
+    ...input,
+    now: deps.now().toISOString(),
+    actor: caller.person,
+    agent: caller.agent,
+  }
+  try {
+    return await deps.db.transaction(async (tx) => {
+      // The claims are set as the login role, then the role drops to pack_runtime, which cannot
+      // call set_config, reset the role or read the registry. Identity comes from the verified
+      // token alone; anything else a policy needs it looks up itself.
+      await tx.query(
+        `select set_config('app.user_id', $1, true), set_config('app.agent_id', $2, true),
+                set_config('statement_timeout', $3, true)`,
+        [caller.person, caller.agent ?? '', String(deps.statementTimeoutMs ?? 5000)],
+      )
+      await tx.exec('set local role pack_runtime')
+      for (const id of op.before ?? []) await checkRule(tx, content.rules[id]!, params)
+      const { text, params: values } = bind(op.sql, params)
+      const rows = await tx.query(text, values)
+      for (const id of op.after ?? []) await checkRule(tx, content.rules[id]!, params)
+      let result: unknown
+      if (op.returns === 'many') {
+        result = rows.map(unwrap)
+      } else if (rows.length === 0) {
+        const e = op.empty ?? { status: 404, code: 'NOT_FOUND', message: 'not found' }
+        throw new Refused(e.status, e.code, e.message)
+      } else if (rows.length > 1) {
+        throw new Error(`${op.name} returned ${rows.length} rows, not one`)
+      } else {
+        result = unwrap(rows[0]!)
+      }
+      if (done) {
+        await tx.exec('reset role')
+        await done(tx)
+      }
+      return result
+    })
+  } catch (err) {
+    if (err instanceof Refused) throw err
+    throw refusalOf(err, content.manifest) ?? err
+  }
+}
+
+// 8. Write it to the log: every call, refused or not.
+export interface LogEntry {
+  principal: string | null
+  agentOf: string | null
+  pack: string
+  version: string | null
+  op: string
+  input: unknown
+  status: number
+  code: string | null
+}
+
+/** The most input text a log row keeps; past it the row says how long the input was. */
+const LOG_INPUT_MAX = 16_000
+
+const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g
+
+/** Text jsonb can hold: no NUL, and no half of a surrogate pair. */
+const clean = (text: string) => text.replaceAll('\u0000', '').replace(LONE_SURROGATE, '\ufffd')
+
+function cleaned(value: unknown): unknown {
+  if (typeof value === 'string') return clean(value)
+  if (Array.isArray(value)) return value.map(cleaned)
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [clean(k), cleaned(v)]))
+  }
+  return value
+}
+
+/** Input as the log keeps it: every string cleaned before it is serialized, and capped. */
+function loggedInput(input: unknown): string | null {
+  const text = JSON.stringify(cleaned(input))
+  if (text === undefined) return null
+  return text.length > LOG_INPUT_MAX ? JSON.stringify({ truncated: text.length }) : text
+}
+
+const PATH_PART = /^[a-z][a-z0-9_.]{0,99}$/
+
+export async function log(db: Conn, entry: LogEntry) {
+  await db.query(
+    `insert into packs.op_calls (principal, agent_of, pack, version, op, input, status, code)
+     values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [
+      entry.principal === null ? null : clean(entry.principal).slice(0, 200),
+      entry.agentOf,
+      entry.pack,
+      entry.version,
+      entry.op,
+      loggedInput(entry.input),
+      entry.status,
+      entry.code,
+    ],
+  )
+}
+
+/** One call through the eight checks. Answers the result, or throws a `Refused`; logs both. */
+export async function call(
+  deps: CoreDeps,
+  req: { authorization: string | undefined; pack: string; op: string; input: unknown },
+) {
+  const entry: LogEntry = {
+    principal: null,
+    agentOf: null,
+    // A path part that is not a name is logged as one, never as what was sent.
+    pack: PATH_PART.test(req.pack) ? req.pack : '?',
+    version: null,
+    op: PATH_PART.test(req.op) ? req.op : '?',
+    input: req.input,
+    status: 200,
+    code: null,
+  }
+  try {
+    entry.principal = await authenticate(deps.auth, req.authorization)
+    const live = await resolve(deps.db, deps.environment, req.pack)
+    entry.version = live.version
+    const { op, caller } = await authorise(deps.db, entry.principal, live, req.op)
+    entry.agentOf = caller.agent ? caller.person : null
+    const input = validate(live, op, req.input)
+    return await execute(deps, live.content, op, caller, input, (tx) => log(tx, entry))
+  } catch (err) {
+    entry.status = err instanceof Refused ? err.status : 500
+    entry.code = err instanceof Refused ? err.code : 'INTERNAL'
+    // The refusal is the answer; a log row that cannot be written must not replace it.
+    await log(deps.db, entry).catch((logErr: unknown) => console.error('op log failed', logErr))
+    throw err
+  }
+}

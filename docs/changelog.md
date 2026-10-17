@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.15.0** — 2026-10-17 — `feat/packs-core`, phase 1: `packages/core`, a generic backend with one door (`POST /ops/{pack}/{op}`) that runs a pack's moves through eight checks under a limited database role; a registry of frozen pack versions whose live pointer the database moves only after a passing test run and a person's yes. Core migrations `0001_registry` and `0002_text` (not applied to production). 488 tests (6 more skipped without a Postgres server).
 - **2.14.0** — 2026-10-14 — On the API the moodboard keeps its Instagram and TikTok sources and the links pasted onto it on the server, so they survive a reload and another device. Migration `0001_gray_tony_stark` (`pasted_links`, not applied to production). 424 tests.
 - **2.13.1** — 2026-10-14 — On the API the composer waits for the server: "Sending…" while it answers, the done screen only once the post is stored, and a refusal keeps the composer open with everything in it. A draft on a day that has passed asks for a day ahead before it can be scheduled. No migration. 419 tests.
 - **2.13.0** — 2026-10-14 — The calendar runs on real dates: every day is its `YYYY-MM-DD` date, today comes from the server on the API, the API calendar reaches two months back and six ahead (and every dated post), and the day pickers turn a month at a time. The static demo draws what it drew before. No migration. 415 tests.
@@ -36,6 +37,30 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.15.0 — 2026-10-17
+
+- **The core.** `packages/core`: `POST /ops/:pack/:op` authenticates, resolves the live version,
+  checks the loadout (an agent's and its person's), validates the input, runs the before-rules,
+  the move's one statement and the after-rules in one transaction as `pack_runtime`, and logs every
+  call, refused or not. No business words in it; a test enforces that.
+- **The registry.** Schema `packs`: principals, frozen pack versions named by a content hash, test
+  runs, the live pointer, loadouts, the call log. A trigger moves the pointer only to a version
+  with a passing run for its exact hash, and only for a person.
+- **The walls.** The SQL check refuses a version whose moves are more than one plain statement or
+  name a listed function; the runtime role cannot call `set_config`, sleep, take advisory locks or
+  read the registry.
+- **Rule language.** SQL `EXISTS` checks, not CEL: the spike is in the completion document.
+- **Text functions.** Core migration `0002_text` (schema `textfn`): strip emoji and hashtags, list
+  hashtags, the first sentence, has a letter or digit. Postgres regex has no `\p{…}` classes, so
+  `scripts/text-functions.ts` writes them out from Node's Unicode tables, and a test checks the
+  functions agree with JavaScript.
+
+Core migrations `0001_registry` (schema `packs`) and `0002_text`, not applied to production. Gate: typecheck,
+lint, format, 488 tests in 61 files (6 skipped: `postgres.test.ts`, which passes with
+`CORE_TEST_PG_URL` set), `next build`. Under a machine load of 100+, the tests ran with
+`--maxWorkers=3 --testTimeout=90000`; at the default settings `connect` and `web-next` tests
+timed out.
 
 ## 2.14.0 — 2026-10-14
 

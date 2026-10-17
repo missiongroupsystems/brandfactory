@@ -52,7 +52,7 @@ pnpm vitest run -t "puts a story in the story row"
 
 ## Architecture
 
-The repository is a pnpm workspaces monorepo with three packages:
+The repository is a pnpm workspaces monorepo with these packages:
 
 - `packages/web-next` (`@brandfactory/web-next`) is brand base: a Next.js 16 app on static data,
   or on the API when `NEXT_PUBLIC_API_URL` is set (`src/lib/remote.ts`; each store loads from it
@@ -68,6 +68,10 @@ The repository is a pnpm workspaces monorepo with three packages:
 - `packages/connect` (`@brandfactory/connect`) links each brand's social accounts (Meta,
   Pinterest, TikTok) by OAuth, with tokens encrypted per brand. It is separate from the demo and
   imports no other package (see its README).
+- `packages/core` (`@brandfactory/core`, this branch only) is the generic backend: one door,
+  `POST /ops/{pack}/{op}`, that checks each call and runs a pack's move under row-level security.
+  It holds no business words (`purity.test.ts`) and imports no other package. Packs are data in
+  `packs/<name>/`, not a workspace package.
 
 ### This branch: packs on a core
 
@@ -98,7 +102,10 @@ stays empty on purpose: `test.projects` in the root config dropped the
 per-package `environment` and `alias`, and the workspace form keeps them.
 
 - `web-next` uses `jsdom`, globals, `src/test-setup.ts` and the `@` alias.
-- `connect` uses `node`.
+- `connect`, `server` and `core` use `node`.
+- `core`'s `postgres.test.ts` runs only when `CORE_TEST_PG_URL` names a throwaway Postgres
+  (see `packages/core/README.md`); PGlite ignores `statement_timeout` and runs one statement at a
+  time.
 
 ## Conventions
 
