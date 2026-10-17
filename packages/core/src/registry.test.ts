@@ -112,6 +112,15 @@ describe('a published version', () => {
     )
   })
 
+  it('is refused when a name would not survive as an MCP tool name', async () => {
+    const d = await db()
+    const bad = toyPack()
+    bad.ops['note.list'] = { ...bad.ops['note.list']!, name: 'note__list' }
+    bad.ops = { note__list: bad.ops['note.list']!, ...bad.ops }
+    delete bad.ops['note.list']
+    expect(await code(publish(d, bad, OWNER))).toBe('INVALID_PACK')
+  })
+
   it('is refused when a move fails the SQL check', async () => {
     const d = await db()
     const bad = toyPack()

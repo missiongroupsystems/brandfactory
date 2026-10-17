@@ -6,6 +6,7 @@ import { Refused } from './errors'
 import { applyPackMigrations, migrateCore } from './migrate'
 import { hashOf, type PackContent, type PackTest } from './pack'
 import { addPrincipal, promote, publish, recordTestRun, setLoadout } from './registry'
+import { approve, simulatedConnector } from './effects'
 import { call } from './run'
 
 /**
@@ -20,7 +21,8 @@ import { call } from './run'
  * - `{ sql, expect? }`: a statement as the login role, to set up or look; `expect.rows`, or
  *   `expect.error` for a statement the database must refuse;
  * - `{ parallel: [calls], expect: { codes } }`: moves at once; the codes (null for success) in
- *   any order.
+ *   any order;
+ * - `{ approve, input, as?, expect? }`: a person's yes to what an effect move would send now.
  */
 
 interface CallStep {
@@ -36,11 +38,18 @@ interface SqlStep {
   /** `rows` the statement returns, or `error`: text its error message must contain. */
   expect?: { rows?: unknown[]; error?: string }
 }
+interface ApproveStep {
+  approve: string
+  input?: unknown
+  as?: string
+  now?: string
+  expect?: Expect
+}
 interface ParallelStep {
   parallel: CallStep[]
   expect: { codes: (string | null)[] }
 }
-type Step = CallStep | SqlStep | ParallelStep
+type Step = CallStep | SqlStep | ParallelStep | ApproveStep
 
 interface Expect {
   status?: number
@@ -72,12 +81,15 @@ export interface RunResult {
   refused: string[]
   /** Every move some case saw answer not-found. */
   notFound: string[]
+  /** Every effect move some case saw refused for want of a person's yes. */
+  needsApproval: string[]
 }
 
 /** What the cases saw, gathered across them. */
 export interface Seen {
   refused: Set<string>
   notFound: Set<string>
+  needsApproval: Set<string>
 }
 
 /** Where a value differs from what was expected, or null. Objects match on the keys expected. */
@@ -223,11 +235,18 @@ async function runCase(
   const { db, dispose } = await target.fresh(content)
   try {
     let now = new Date(file.now ?? '2026-01-01T00:00:00Z')
-    const deps = { db, auth: devAuth(), environment: 'test', now: () => now }
+    const deps = {
+      db,
+      auth: devAuth(),
+      environment: 'test',
+      now: () => now,
+      connectors: { simulated: simulatedConnector },
+    }
     const callers = new Map<string, Promise<void>>()
     let previous: Answer | null = null
 
-    const callOnce = async (step: CallStep): Promise<Answer> => {
+    const callOnce = async (step: CallStep | ApproveStep): Promise<Answer> => {
+      const op = 'call' in step ? step.call : step.approve
       const who = step.as ?? file.as ?? 'member'
       // One promise per caller, so moves sent at once wait for the same setup.
       if (!callers.has(who)) {
@@ -241,18 +260,22 @@ async function runCase(
       await callers.get(who)
       if (step.now) now = new Date(step.now)
       try {
-        const result = await call(deps, {
+        const request = {
           authorization: `Bearer ${who}`,
           pack: content.manifest.name,
-          op: step.call,
+          op,
           input: step.input ?? {},
-          key: step.key,
-        })
+        }
+        const result =
+          'call' in step
+            ? await call(deps, { ...request, key: step.key })
+            : await approve(deps, request)
         return { status: 200, body: JSON.parse(JSON.stringify(result ?? null)) }
       } catch (err) {
         if (!(err instanceof Refused)) throw err
         if (err.rule) seen.refused.add(err.rule)
-        if (err.code === 'NOT_FOUND') seen.notFound.add(step.call)
+        if (err.code === 'NOT_FOUND') seen.notFound.add(op)
+        if (err.code === 'NEEDS_APPROVAL') seen.needsApproval.add(op)
         return { status: err.status, body: JSON.parse(JSON.stringify(err.toJSON())) }
       }
     }
@@ -311,7 +334,8 @@ async function runCase(
             ? `not the previous answer: ${JSON.stringify(previous)}`
             : null,
         ].filter(Boolean)
-        if (problems.length > 0) throw new Error(`${where} (${step.call}): ${problems[0]}`)
+        const name = 'call' in step ? step.call : `approve ${step.approve}`
+        if (problems.length > 0) throw new Error(`${where} (${name}): ${problems[0]}`)
         previous = answer
       }
     }
@@ -336,7 +360,7 @@ export async function runPackTests(
   content: PackContent,
   target: Target = pglite,
 ): Promise<RunResult> {
-  const seen: Seen = { refused: new Set(), notFound: new Set() }
+  const seen: Seen = { refused: new Set(), notFound: new Set(), needsApproval: new Set() }
   const results: CaseResult[] = []
   for (const c of casesOf(content, target)) {
     try {
@@ -351,5 +375,6 @@ export async function runPackTests(
     results,
     refused: [...seen.refused].sort(),
     notFound: [...seen.notFound].sort(),
+    needsApproval: [...seen.needsApproval].sort(),
   }
 }

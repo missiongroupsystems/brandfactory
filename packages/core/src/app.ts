@@ -1,10 +1,24 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { Refused } from './errors'
+import { approve } from './effects'
+import { mcp } from './mcp'
 import { call, type CoreDeps } from './run'
 
 /** The largest input a move takes, in characters. */
 const MAX_BODY = 1_000_000
+
+/** A move's input: the JSON body, or `{}` when there is none. */
+async function readInput(body: Promise<string>): Promise<unknown> {
+  const text = await body
+  if (text.length > MAX_BODY) throw new Refused(413, 'TOO_LARGE', 'the body is too large')
+  if (text.trim() === '') return {}
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    throw new Refused(400, 'VALIDATION', 'the body is not JSON')
+  }
+}
 
 /** The core's HTTP door: one route for every pack's moves. */
 export function createCore(deps: CoreDeps, opts: { corsOrigins?: string[] } = {}) {
@@ -23,17 +37,23 @@ export function createCore(deps: CoreDeps, opts: { corsOrigins?: string[] } = {}
 
   app.get('/health', (c) => c.json({ ok: true }))
 
+  // A person's yes to what an effect move would send now (`effects.ts`).
+  app.on('POST', '/approve/:pack/:op', async (c) => {
+    const input = await readInput(c.req.text())
+    const result = await approve(deps, {
+      authorization: c.req.header('authorization'),
+      pack: c.req.param('pack'),
+      op: c.req.param('op'),
+      input,
+    })
+    return c.json(result)
+  })
+
+  // The live version's moves as MCP tools, for agents (`mcp.ts`).
+  app.on('POST', '/mcp/:pack', (c) => mcp(deps, c))
+
   app.on('POST', '/ops/:pack/:op', async (c) => {
-    const text = await c.req.text()
-    if (text.length > MAX_BODY) throw new Refused(413, 'TOO_LARGE', 'the body is too large')
-    let input: unknown = {}
-    if (text.trim() !== '') {
-      try {
-        input = JSON.parse(text)
-      } catch {
-        throw new Refused(400, 'VALIDATION', 'the body is not JSON')
-      }
-    }
+    const input = await readInput(c.req.text())
     const result = await call(deps, {
       authorization: c.req.header('authorization'),
       pack: c.req.param('pack'),

@@ -19,7 +19,8 @@ export function toyPack(version = '1.0.0', over: Partial<PackContent> = {}): Pac
           create table toy.notes (
             id text primary key,
             owner text not null,
-            body text not null
+            body text not null,
+            shared text
           );
           alter table toy.notes enable row level security;
           alter table toy.notes force row level security;
@@ -66,6 +67,21 @@ export function toyPack(version = '1.0.0', over: Partial<PackContent> = {}): Pac
           properties: { id: { type: 'string' }, to: { type: 'string' } },
         },
         sql: `insert into toy.notes (id, owner, body) values (:id, :to, 'hi') returning id`,
+        returns: 'one',
+      },
+      'note.share': {
+        name: 'note.share',
+        description: 'Sends a note out of the app; a person approves the exact text first.',
+        input: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id'],
+          properties: { id: { type: 'string' } },
+        },
+        connector: 'simulated',
+        payload: 'select id, body from toy.notes where id = :id',
+        sql: `update toy.notes set shared = :outcome::jsonb ->> 'externalId'
+              where id = :id returning id, shared`,
         returns: 'one',
       },
       'note.drop': {

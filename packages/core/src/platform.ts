@@ -1,6 +1,6 @@
 import { openPglite, type Db } from './db'
 import { migrateCore } from './migrate'
-import { hashOf, type PackContent } from './pack'
+import { hashOf, kindOf, type PackContent } from './pack'
 import { pglite, runPackTests, type RunResult, type Target } from './runner'
 
 /**
@@ -243,6 +243,13 @@ export function everyMoveHasANotFoundTest(content: PackContent, run: RunResult):
     .map((op) => `move ${op} has no not-found test`)
 }
 
+/** Every effect move has a case that sees it refused for want of a person's yes. */
+export function everyEffectHasAnApprovalTest(content: PackContent, run: RunResult): string[] {
+  return Object.values(content.ops)
+    .filter((op) => kindOf(op) === 'effect' && !run.needsApproval.includes(op.name))
+    .map((op) => `effect ${op.name} has no case that sees it wait for a person's yes`)
+}
+
 /** A version's own tests, then the platform's; the result `core test` records. */
 export async function testVersion(content: PackContent, target: Target = pglite) {
   const run = await runPackTests(content, target)
@@ -259,6 +266,7 @@ export async function testVersion(content: PackContent, target: Target = pglite)
       ...(await noCodeRunsOnWrite(db)),
       ...everyRuleHasARefusalTest(content, run),
       ...everyMoveHasANotFoundTest(content, run),
+      ...everyEffectHasAnApprovalTest(content, run),
     ]
   } finally {
     await dispose()

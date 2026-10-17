@@ -40,7 +40,7 @@ for (const dir of dirs) {
         await dispose()
       }
     })
-    const seen: Seen = { refused: new Set(), notFound: new Set() }
+    const seen: Seen = { refused: new Set(), notFound: new Set(), needsApproval: new Set() }
     for (const c of casesOf(content)) {
       it(`${c.file}: ${c.name}`, () => c.run(seen), 30_000)
     }
@@ -61,7 +61,7 @@ for (const dir of dirs) {
   const url = process.env.CORE_TEST_PG_URL
   describe.skipIf(!url)(`pack ${dir.name} on Postgres`, () => {
     const target = url ? postgres(url) : undefined
-    const seen: Seen = { refused: new Set(), notFound: new Set() }
+    const seen: Seen = { refused: new Set(), notFound: new Set(), needsApproval: new Set() }
     for (const c of casesOf(content, target)) {
       it(`${c.file}: ${c.name}`, () => c.run(seen), 60_000)
     }

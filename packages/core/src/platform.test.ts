@@ -51,12 +51,15 @@ const tested = toyPack('1.0.0', {
 
 describe('the platform tests', () => {
   it('pass the row rules and the refusal cases, and name each move with no not-found case', async () => {
-    // The toy pack has no isolation case for adding or listing notes: the platform says so.
+    // The toy pack's case covers neither isolation for adding, listing or sharing notes, nor a
+    // share waiting for a person's yes: the platform names each.
     const run = await testVersion(tested)
     expect(run.results.every((r) => r.ok)).toBe(true)
     expect(run.platform).toEqual([
       'move note.list has no not-found test',
       'move note.add has no not-found test',
+      'move note.share has no not-found test',
+      "effect note.share has no case that sees it wait for a person's yes",
     ])
   })
 

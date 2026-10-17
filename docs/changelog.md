@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.18.0** — 2026-10-17 — `feat/packs-core`, phase 4: agents call a pack's moves as MCP tools through the same checks as a screen; effect moves (the only way out of the app) wait for a person's yes to exactly what they send, used once, and an agent can neither give one nor promote a version. Core migration `0005_approvals` (not applied to production). 586 tests (52 more skipped without a Postgres server).
 - **2.17.0** — 2026-10-17 — `feat/packs-core`, phase 3: `core publish`, `core test` and `core promote` from the command line, a core server, and platform tests every version runs; the demo moves "no post before 07:00" to 08:00 and back on one running server, and a version with a failing case cannot go live; pack migrations run as a role that cannot reach the registry. Core migration `0004_migrator` (not applied to production). 573 tests (52 more skipped without a Postgres server).
 - **2.16.0** — 2026-10-17 — `feat/packs-core`, phase 2: the BrandBase pack (`packs/brandbase`): the server's schema with row rules keyed by brand membership, eight moves (the brand's state; list, create, edit, move, mark, unplan and send a post) and 19 rules as SQL data, and the server's post and send cases run through the core's new test runner, on PGlite and on a real Postgres. Idempotency keys in the core. Pack migrations `0002`, `0003` and core migration `0003_idempotency` (not applied to production). 537 tests (52 more skipped without a Postgres server).
 - **2.15.0** — 2026-10-17 — `feat/packs-core`, phase 1: `packages/core`, a generic backend with one door (`POST /ops/{pack}/{op}`) that runs a pack's moves through eight checks under a limited database role; a registry of frozen pack versions whose live pointer the database moves only after a passing test run and a person's yes. Core migrations `0001_registry` and `0002_text` (not applied to production). 488 tests (6 more skipped without a Postgres server).
@@ -39,6 +40,20 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.18.0 — 2026-10-17
+
+- **MCP.** `POST /mcp/:pack`: the live version's moves as tools, listed per the caller's loadout
+  (an agent's and its person's), each call through the eight checks.
+- **Effect moves and approvals.** A move that names a connector is an effect. It sends only
+  what a person approved, by the hash of what goes out: an edit voids the yes, a yes is used
+  once, and a failed send needs a new one. `POST /approve/:pack/:op`; agents are refused there
+  and by the database.
+- **Platform test.** Every effect move has a case that sees it wait for a person's yes.
+
+Core migration `0005_approvals`, not applied to production. Gate: typecheck, lint, format,
+586 tests in 67 files (52 skipped without `CORE_TEST_PG_URL`; the core's 214 pass with it), `next
+build`.
 
 ## 2.17.0 — 2026-10-17
 

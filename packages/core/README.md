@@ -28,4 +28,7 @@ pnpm -F @brandfactory/core core promote brandbase 1.0.0
 
 `packs/brandbase/demo/hour-rule.sh` runs the whole cycle against one server.
 
+Agents use `POST /mcp/{pack}` (MCP tools, one per move in their loadout). Effect moves send only
+what a person approved with `POST /approve/{pack}/{op}`.
+
 A pack's tests are `packs/<name>/tests/*.json`; the format is at the top of `src/runner.ts`.

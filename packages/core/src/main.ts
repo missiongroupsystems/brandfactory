@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { serve } from '@hono/node-server'
 import { createCore } from './app'
+import { simulatedConnector } from './effects'
 import { openPglite, openPostgres } from './db'
 import { loadEnv } from './env'
 import { migrateCore } from './migrate'
@@ -21,7 +22,14 @@ if (env.databaseUrl) {
 }
 
 const app = createCore(
-  { db, auth: env.auth, environment: env.environment, now: env.now },
+  {
+    db,
+    auth: env.auth,
+    environment: env.environment,
+    now: env.now,
+    // Real connectors come with the platforms' reviews; until then nothing leaves the core.
+    connectors: { simulated: simulatedConnector },
+  },
   { corsOrigins: env.corsOrigins },
 )
 const server = serve({ fetch: app.fetch, port: env.port, hostname: env.host }, (info) =>

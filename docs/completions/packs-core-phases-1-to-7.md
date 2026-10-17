@@ -344,3 +344,63 @@ Fix in `db.ts`: `close()` waits for work in flight and refuses new work (`db.tes
 without it); the runner's moves-at-once step waits for every call before the case's database is
 closed; the core's `testTimeout` is 30 s. Before: 4 of 4 runs stalled; after: 0 of 8 for the
 investigation and 3 of 3 since. Not yet reported upstream to electric-sql/pglite.
+
+## Phase 4: agents
+
+- **MCP** (`src/mcp.ts`, `POST /mcp/:pack`): JSON-RPC over HTTP with JSON answers, MCP's
+  streamable HTTP transport without streaming. `initialize`, `ping`, `tools/list` and
+  `tools/call`; a notification gets 202 and no body. The tools are the live version's moves,
+  read on every request, named with `__` for the dots (`post__move`), sorted by name, with each
+  move's description and input schema. The list is the caller's loadout (and, for an agent, its
+  person's); a move outside it is left out, and a token with no account is refused. A tool call
+  is `call()`, the same eight checks as a screen; a refusal is the tool's answer
+  (`isError: true` and the refusal as JSON), so the agent reads why.
+- **Agents** are principals with `agent_of` (phase 1). An agent's calls reach its person's rows
+  (`app.user_id` is the person, `app.agent_id` the agent) and need the move in both loadouts,
+  read on every call. An agent may publish a version; it can never promote one (the database
+  refuses) or approve an effect.
+- **Effect moves.** A move that names a `connector` is an effect: the core sets the kind from
+  that, and a move that names none cannot reach a connector. It carries a read-only `payload`
+  statement, what goes out, besides its `sql`, which records the connector's answer (bound as
+  `:outcome`). Firing one (`src/effects.ts`): work out the payload now, under the caller's row
+  rules and the move's before-rules; use up an approval for exactly that payload's hash
+  (`FOR UPDATE SKIP LOCKED`, in the same transaction); send through the connector; record the
+  answer. With no unused approval for that hash the call is refused, `NEEDS_APPROVAL`, with the
+  payload in the details so a screen can show what needs a yes.
+- **Approvals** (core migration `0005_approvals`, `POST /approve/:pack/:op`): a person whose
+  loadout holds the move says yes to what it would send now; the core stores the payload's hash.
+  An agent is refused by the route (`NOT_A_PERSON`) and by a trigger on the table. An edit to
+  what goes out changes the hash and so voids the yes; a yes is used once; it is used before the
+  send, so a send that failed or whose outcome is unknown needs a new yes (`SEND_FAILED`).
+- **Connectors.** `CoreDeps.connectors` by name. Only `simulated` exists: it sends nothing and
+  answers an id made from the payload. Real ones come with the platforms' reviews.
+- **Platform test 10:** every effect move has a case that sees it wait for a person's yes.
+
+Acceptance: an agent can draft a version but not promote it; an agent cannot create an approval;
+revoking a person's move takes effect on their agent's next call (`core.test.ts`,
+`effects.test.ts`). BrandBase has no effect move yet; `post.publish_job` comes with phase 5.
+
+**Adversarial review** (one Sonnet reviewer, one pass). No bypass of the acceptance points; its
+probes confirmed that three fires at once on one yes send once (`FOR UPDATE SKIP LOCKED`), that
+every approve and fire is logged once, refusals included, and that a person cannot approve what
+their row rules hide. Fixed, each with a test:
+
+- A yes outlived its person's right: it now counts only while its person is a person who still
+  holds the move. No expiry: phase 5 sends what a person approved days ahead.
+- The hash bound the payload only; it now binds `{connector, payload}`, so a version that sends
+  the same thing somewhere else needs a new yes. A yes is not bound to a version, so it survives
+  a promotion or a rollback that leaves what goes out unchanged.
+- A send whose recording failed lost the platform's answer: the answer is now kept on the
+  approval (`outcome`) the moment it comes back. A connector that does not answer in 30 s fails.
+- MCP: a missing or bad token is HTTP 401 for every method; a refusal inside a request is that
+  request's JSON-RPC error and the batch goes on; an empty batch, more than 50 requests, or a
+  body over 1 MB is refused. Move names may no longer hold `__` or end a part in `_`, so a tool
+  name maps back to exactly one move.
+- `/approve` logs path parts as `/ops` does and records an agent's person; a connector name
+  that is an inherited key (`constructor`) no longer resolves.
+- *Accepted:* a yes is for what goes out, not for who sends it: another caller whose row rules
+  produce the byte-identical payload may use it (only a payload that names nothing private can
+  be identical across people).
+
+Not re-reviewed after these fixes (small, each tested; the review cadence asks for re-review
+only of risky fixes).

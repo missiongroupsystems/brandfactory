@@ -5,6 +5,7 @@ import { type Conn, type Db, type Row } from './db'
 import { Refused } from './errors'
 import { canonical, kindOf, type Manifest, type Op, type PackContent, type Rule } from './pack'
 import { liveVersion, pgError, type LiveVersion } from './registry'
+import { fire } from './effects'
 import { bind } from './sql'
 
 export interface CoreDeps {
@@ -16,6 +17,40 @@ export interface CoreDeps {
   now: () => Date
   /** Longest a move's statement may run. Not enforced by PGlite. */
   statementTimeoutMs?: number
+  /** Where effect moves send what they send, by the name a move gives. */
+  connectors?: Record<string, Connector>
+}
+
+/** The way out of the app for effect moves: a platform, a message, a payment. */
+export interface Connector {
+  /** Sends one payload; answers what came back (an id on the platform, say). */
+  send(input: { pack: string; op: string; payload: unknown }): Promise<unknown>
+}
+
+/**
+ * Sets the caller's claims and the time limit, as the login role, before a call drops to
+ * pack_runtime (which cannot call set_config, reset the role or read the registry). Identity
+ * comes from the verified token alone; anything else a policy needs it looks up itself.
+ */
+export async function setClaims(
+  tx: Conn,
+  deps: Pick<CoreDeps, 'statementTimeoutMs'>,
+  caller: Caller,
+) {
+  await tx.query(
+    `select set_config('app.user_id', $1, true), set_config('app.agent_id', $2, true),
+            set_config('statement_timeout', $3, true), set_config('timezone', 'UTC', true)`,
+    [caller.person, caller.agent ?? '', String(deps.statementTimeoutMs ?? 5000)],
+  )
+}
+
+/** The parameters every statement of a call may read: the input and the core's own. */
+export function paramsOf(
+  deps: Pick<CoreDeps, 'now'>,
+  caller: Caller,
+  input: Record<string, unknown>,
+) {
+  return { ...input, now: deps.now().toISOString(), actor: caller.person, agent: caller.agent }
 }
 
 /** Who is calling: a person, or an agent and the person it acts for. */
@@ -114,7 +149,7 @@ export function refusalOf(err: unknown, manifest: Manifest): Refused | null {
   return null
 }
 
-async function checkRule(tx: Conn, rule: Rule, params: Record<string, unknown>) {
+export async function checkRule(tx: Conn, rule: Rule, params: Record<string, unknown>) {
   const { text, params: values } = bind(rule.sql, params)
   const [row] = await tx.query<{ ok?: unknown; details?: unknown; message?: unknown }>(text, values)
   if (row?.ok !== true) {
@@ -130,7 +165,7 @@ async function checkRule(tx: Conn, rule: Rule, params: Record<string, unknown>) 
 const KEY = /^[A-Za-z0-9_-]{8,100}$/
 
 /** A row of one column named `result` answers with that value; any other row as it is. */
-const unwrap = (row: Row) => {
+export const unwrap = (row: Row) => {
   const keys = Object.keys(row)
   return keys.length === 1 && keys[0] === 'result' ? row.result : row
 }
@@ -157,23 +192,11 @@ export async function execute(
   // A read changes nothing, so it runs again rather than keep a copy of what it read.
   const keyed = key !== undefined && kindOf(op) === 'write'
   const claim = [caller.principal, content.manifest.name, op.name, key]
-  const params = {
-    ...input,
-    now: deps.now().toISOString(),
-    actor: caller.person,
-    agent: caller.agent,
-  }
+  const params = paramsOf(deps, caller, input)
   try {
     return await deps.db.transaction(async (tx) => {
-      // The claims are set as the login role, then the role drops to pack_runtime, which cannot
-      // call set_config, reset the role or read the registry. Identity comes from the verified
-      // token alone; anything else a policy needs it looks up itself. The time limit is set
-      // first, so it also bounds a wait on another call's key.
-      await tx.query(
-        `select set_config('app.user_id', $1, true), set_config('app.agent_id', $2, true),
-                set_config('statement_timeout', $3, true), set_config('timezone', 'UTC', true)`,
-        [caller.person, caller.agent ?? '', String(deps.statementTimeoutMs ?? 5000)],
-      )
+      // The time limit is set first, so it also bounds a wait on another call's key.
+      await setClaims(tx, deps, caller)
       let replay: { result: unknown } | null = null
       if (keyed) {
         const hash = createHash('sha256').update(canonical(input)).digest('hex')
@@ -270,7 +293,8 @@ function loggedInput(input: unknown): string | null {
   return text.length > LOG_INPUT_MAX ? JSON.stringify({ truncated: text.length }) : text
 }
 
-const PATH_PART = /^[a-z][a-z0-9_.]{0,99}$/
+/** A pack or move name as the log keeps it; anything else is logged as `?`. */
+export const PATH_PART = /^[a-z][a-z0-9_.]{0,99}$/
 
 export async function log(db: Conn, entry: LogEntry) {
   await db.query(
@@ -319,10 +343,9 @@ export async function call(
     const { op, caller } = await authorise(deps.db, entry.principal, live, req.op)
     entry.agentOf = caller.agent ? caller.person : null
     const input = validate(live, op, req.input)
-    return await execute(deps, live.content, op, caller, input, {
-      key: req.key,
-      done: (tx) => log(tx, entry),
-    })
+    const done = (tx: Conn) => log(tx, entry)
+    if (kindOf(op) === 'effect') return await fire(deps, live.content, op, caller, input, done)
+    return await execute(deps, live.content, op, caller, input, { key: req.key, done })
   } catch (err) {
     entry.status = err instanceof Refused ? err.status : 500
     entry.code = err instanceof Refused ? err.code : 'INTERNAL'

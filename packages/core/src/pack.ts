@@ -36,6 +36,13 @@ export interface Op {
   before?: string[]
   /** Rule ids checked after it ran, in the same transaction. */
   after?: string[]
+  /**
+   * An effect move reaches outside the app through a connector the core holds. `payload` is one
+   * read-only statement that says exactly what goes out; a person approves that, and `sql` then
+   * records the connector's answer, bound as `:outcome`.
+   */
+  connector?: string
+  payload?: string
 }
 
 export interface PackTest {
@@ -62,13 +69,15 @@ export interface PackContent {
   tests: PackTest[]
 }
 
-export type OpKind = 'read' | 'write'
+export type OpKind = 'read' | 'write' | 'effect'
 
 /**
- * Set by the core from what a move is, never from a field the pack can edit: a statement that
- * can change rows is a write.
+ * Set by the core from what a move is, never from a field the pack can edit: a move that names a
+ * connector is an effect (the only way out of the app, and it always needs a person's yes); a
+ * statement that can change rows is a write.
  */
 export function kindOf(op: Op): OpKind {
+  if (op.connector !== undefined) return 'effect'
   return writes(op.sql) ? 'write' : 'read'
 }
 
@@ -121,9 +130,10 @@ export function hashOf(content: PackContent): string {
 }
 
 /** Parameters every statement may read beside the input; no input field may take these names. */
-export const RESERVED = ['now', 'actor', 'agent']
+export const RESERVED = ['now', 'actor', 'agent', 'outcome']
 
-const NAME = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/
+// No `__` and no `_` at the end of a part: an MCP tool name writes the dots as `__`.
+const NAME = /^[a-z](_?[a-z0-9])*(\.[a-z](_?[a-z0-9])*)*$/
 const STATUSES = new Set([400, 403, 404, 409, 422])
 
 function refusalProblem(where: string, r: Partial<Refusal>): string | null {
@@ -160,6 +170,14 @@ export function packProblems(content: PackContent): string[] {
     if (op.returns !== 'one' && op.returns !== 'many') out.push(`op ${name}: returns one or many`)
     const p = sqlProblem(op.sql ?? '')
     if (p) out.push(`op ${name}: ${p}`)
+    if (op.connector !== undefined || op.payload !== undefined) {
+      if (!op.connector || !/^[a-z][a-z0-9_]*$/.test(op.connector)) {
+        out.push(`op ${name}: an effect names its connector in lower_snake`)
+      }
+      const p = op.payload === undefined ? 'an effect needs a payload' : sqlProblem(op.payload)
+      if (p) out.push(`op ${name}: payload: ${p}`)
+      else if (writes(op.payload!)) out.push(`op ${name}: payload: it reads, it never writes`)
+    }
     if (op.empty) {
       const e = refusalProblem(`op ${name}.empty`, op.empty)
       if (e) out.push(e)
