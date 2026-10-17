@@ -325,7 +325,11 @@ async function runCase(
           await tick(deps)
         } else {
           // A killed process beats no more: this pass never beats again.
-          void tick({ ...deps, heartbeatMs: 2 ** 30 })
+          // Its later steps fail once the case's database is closed, as a killed process's would
+          // never run: those errors are the point, not a fault.
+          tick({ ...deps, heartbeatMs: 2 ** 30 }).catch((err: unknown) => {
+            if (!/the database is closed/.test(String(err))) console.error('abandoned pass', err)
+          })
           // Long enough for the pass to claim a call and reach the connector.
           await new Promise((r) => setTimeout(r, 300))
         }

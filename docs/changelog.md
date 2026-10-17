@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.20.0** — 2026-10-17 — `feat/packs-core`, phase 6, first part: with `NEXT_PUBLIC_CORE_URL` set the app signs in, loads each brand and writes its posts through the core's moves (Schedule carries the person's yes to each account's send), with the screens unchanged; a script starts the core with the demo's data on a local Postgres. Other routes still go to the BrandBase API. No migration. 603 tests (66 more skipped without a Postgres server).
 - **2.19.0** — 2026-10-17 — `feat/packs-core`, phase 5: timed moves. A move asks for later calls; the core claims one due call at a time, runs it as whoever asked, beats a heartbeat, and ends a cut-off call `unknown_outcome` with an alert, never running it again. BrandBase sends each account's job through an approved effect move on a simulated connector, and screens hear of every change within a second. Core migration `0006_scheduler` (not applied to production). 598 tests (63 more skipped without a Postgres server).
 - **2.18.0** — 2026-10-17 — `feat/packs-core`, phase 4: agents call a pack's moves as MCP tools through the same checks as a screen; effect moves (the only way out of the app) wait for a person's yes to exactly what they send, used once, and an agent can neither give one nor promote a version. Core migration `0005_approvals` (not applied to production). 586 tests (52 more skipped without a Postgres server).
 - **2.17.0** — 2026-10-17 — `feat/packs-core`, phase 3: `core publish`, `core test` and `core promote` from the command line, a core server, and platform tests every version runs; the demo moves "no post before 07:00" to 08:00 and back on one running server, and a version with a failing case cannot go live; pack migrations run as a role that cannot reach the registry. Core migration `0004_migrator` (not applied to production). 573 tests (52 more skipped without a Postgres server).
@@ -41,6 +42,19 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.20.0 — 2026-10-17
+
+- **Routes on the core.** `lib/core-routes.ts` maps sign-in, the brand load and the post routes
+  to the brandbase pack's moves; `lib/remote.ts` sends them to `NEXT_PUBLIC_CORE_URL` and every
+  other route to `NEXT_PUBLIC_API_URL`. Schedule carries the person's yes to each account's
+  send, stored with the jobs in one transaction.
+- **Pack.** `account.me`, `brand.list`; a post's jobs carry their ids.
+- **Local stack.** `packs/brandbase/demo/web.sh`. Checked with Playwright: load, drag, a refusal
+  from the core, and Schedule from the composer.
+
+No migration. Gate: typecheck, lint, format, 603 tests in 69 files (66 skipped without
+`CORE_TEST_PG_URL`), `next build`.
 
 ## 2.19.0 — 2026-10-17
 

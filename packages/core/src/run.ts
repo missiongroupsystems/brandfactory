@@ -5,7 +5,7 @@ import { type Conn, type Db, type Row } from './db'
 import { Refused } from './errors'
 import { canonical, kindOf, type Manifest, type Op, type PackContent, type Rule } from './pack'
 import { liveVersion, pgError, type LiveVersion } from './registry'
-import { fire } from './effects'
+import { approveIn, fire } from './effects'
 import { changed } from './events'
 import { plannedCalls, schedule, type PlannedCall } from './scheduler'
 import { bind } from './sql'
@@ -253,6 +253,12 @@ export async function execute(
       }
       if (keyed || done || later.length > 0) await tx.exec('reset role')
       await schedule(tx, content, caller.principal, later)
+      // A person's yes, given with the asking (`PlannedCall.approve`).
+      if (!caller.agent) {
+        for (const c of later.filter((c) => c.approve)) {
+          await approveIn(tx, deps, content, content.ops[c.op]!, caller, c.input)
+        }
+      }
       if (keyed) {
         await tx.query(
           `update packs.idempotency set result = $5

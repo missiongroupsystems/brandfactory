@@ -72,7 +72,9 @@ The repository is a pnpm workspaces monorepo with these packages:
   `POST /ops/{pack}/{op}`, that checks each call and runs a pack's move under row-level security.
   It holds no business words (`purity.test.ts`) and imports no other package. Packs are data in
   `packs/<name>/`, not a workspace package: `packages/core/src/packs.test.ts` runs each pack's
-  `tests/*.json` through the core's test runner.
+  `tests/*.json` through the core's test runner. web-next uses the core when `NEXT_PUBLIC_CORE_URL` is set
+  (`src/lib/core-routes.ts` lists the routes ported so far); `packs/brandbase/demo/web.sh` starts
+  the core with the demo's data on a local Postgres.
 
 ### This branch: packs on a core
 

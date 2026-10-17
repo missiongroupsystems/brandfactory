@@ -201,7 +201,7 @@ CREATE FUNCTION brandbase.post_json(p jsonb, jobs jsonb) RETURNS jsonb
       array(SELECT j ->> 'status' FROM jsonb_array_elements(jobs) j)),
     'jobs', coalesce((
       SELECT jsonb_agg(jsonb_build_object(
-        'channel', j ->> 'channel', 'status', j ->> 'status', 'error', j -> 'error',
+        'id', j ->> 'id', 'channel', j ->> 'channel', 'status', j ->> 'status', 'error', j -> 'error',
         'runAt', brandbase.iso((j ->> 'run_at')::timestamptz)) ORDER BY j ->> 'channel')
       FROM jsonb_array_elements(jobs) j), '[]'));
 

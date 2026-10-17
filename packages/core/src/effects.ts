@@ -63,6 +63,34 @@ async function payloadOf(
 }
 
 /**
+ * Stores a person's yes to what an effect move would send now, in the caller's transaction, as
+ * the login role. A yes already waiting for the same thing is not stored twice.
+ */
+export async function approveIn(
+  tx: Conn,
+  deps: Pick<CoreDeps, 'now' | 'statementTimeoutMs'>,
+  content: PackContent,
+  op: Op,
+  caller: Caller,
+  input: Record<string, unknown>,
+) {
+  const { payload, hash } = await payloadOf(tx, deps, content, op, caller, input)
+  const [row] = await tx.query<{ id: string }>(
+    `with open as (
+       select id from packs.approvals
+       where pack = $1 and op = $2 and payload_hash = $3 and approved_by = $4 and used_at is null
+       limit 1)
+     , made as (
+       insert into packs.approvals (pack, op, payload_hash, approved_by)
+       select $1, $2, $3, $4 where not exists (select 1 from open)
+       returning id)
+     select id::text from made union all select id::text from open`,
+    [content.manifest.name, op.name, hash, caller.principal],
+  )
+  return { approval: row!.id, payload }
+}
+
+/**
  * `POST /approve/:pack/:op`: a person says yes to what this move would send now. The person
  * must hold the move in their loadout; an agent is refused here and by the database.
  */
@@ -90,14 +118,9 @@ export async function approve(
     if (kindOf(op) !== 'effect') throw new Refused(400, 'NOT_AN_EFFECT', `${op.name} sends nothing`)
     const input = validate(live, op, req.input)
     return await deps.db.transaction(async (tx) => {
-      const { payload, hash } = await payloadOf(tx, deps, live.content, op, caller, input)
-      const [row] = await tx.query<{ id: string }>(
-        `insert into packs.approvals (pack, op, payload_hash, approved_by)
-         values ($1, $2, $3, $4) returning id::text`,
-        [req.pack, op.name, hash, caller.principal],
-      )
+      const made = await approveIn(tx, deps, live.content, op, caller, input)
       await log(tx, entry)
-      return { approval: row!.id, payload }
+      return made
     })
   } catch (err) {
     const refused =

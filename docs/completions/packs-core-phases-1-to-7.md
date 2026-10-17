@@ -477,3 +477,64 @@ ticket would fix it); `post.mark` and `post.unplan` leave calls that end `refuse
 run; a re-arm asked for while a send is running is skipped; a deploy cuts running sends, which
 end `unknown_outcome` 15 minutes later; a crash between a call's end and its follow-up loses the
 follow-up; any member who holds `post.job_refused` can fail a waiting job of their brand.
+## Phase 6: web-next on the core (first part: the brand load and the posts)
+
+- **The route map** (`packages/web-next/src/lib/core-routes.ts`). With `NEXT_PUBLIC_CORE_URL`
+  set, `request()` in `lib/remote.ts` sends the ported routes to the core as moves
+  (`POST /ops/brandbase/<move>`, the path's ids and the body as the input): `GET /me`
+  (`account.me`), `GET /brands` (`brand.list`), `GET /brands/:id/state` (`brand.state`), and the
+  post routes (create, edit, move, mark, unplan, send). Every other route still goes to
+  `NEXT_PUBLIC_API_URL` (`packages/server`), or, with only the core set, is refused with "This is
+  not on the new backend yet." and the brand reloads. The stores, the optimistic moves, the write
+  queue, "Sending…" and the refusal handling are unchanged: the core answers in the server's
+  shape (`{ code, message }` refusals with the same codes and words, posts in camelCase).
+- **Schedule is the person's yes**, given with the sending. A scheduled call may say
+  `approve: true` (an effect call only); when the caller is a person, the core works out what the
+  call would send, under their row rules, and stores their yes in the same transaction as the
+  call (`approveIn` in `effects.ts`; a yes already waiting for the same thing is not stored
+  twice). An agent's sending stores none: its jobs wait for a person. `post.schedule` asks for
+  it; `post.move` does not (a move changes the time, not what goes out, so the yes still
+  matches).
+- **Two moves for signing in**: `account.me` and `brand.list`, both refused (not-found) for a
+  token with no account or a deactivated one.
+- **A local stack** (`packs/brandbase/demo/web.sh`): a throwaway local Postgres gets the core,
+  the pack (published, tested, migrated from the tested version, live), the demo's data (the
+  server's seed script, run as a tool: with `DATABASE_URL` it runs no migrations of its own) and
+  `admin@local` with every move; then the core on :3013. Run web-next with
+  `NEXT_PUBLIC_CORE_URL=http://localhost:3013`.
+
+Verified with Playwright on that stack (screenshots, 1440 × 900), against Postgres 18:
+1. Sign-in reads `account.me` and `brand.list`, and the week of 5 Oct draws from `brand.state`.
+2. A drag of Thursday's 18:00 reel to Saturday: `post.move` 200, the post on the core on
+   10 Oct at 18:00, version 2.
+3. The ravioli post marked Posted behind the screen's back, then dragged: `post.move` 409, the
+   screen shows "This post is posted and cannot change." and puts it back on Thursday as posted.
+4. The composer on the moved reel, "Schedule on" Instagram and TikTok: `post.move` (no change),
+   `post.edit`, `post.schedule`, then the done screen ("Sat 10 Oct, 18:00, on 2 accounts"); the
+   core holds two waiting jobs, two calls for Sat 18:00 SGT and the two yeses by `admin@local`,
+   stored with the sending.
+   "Sending…" passed in under 150 ms, too quick for the screenshot.
+No request went to `packages/server` in these runs.
+
+**Why not the hybrid the plan describes** (the core for ported routes, `packages/server` for the
+rest, on one database): the server refuses its dev sign-in whenever `DATABASE_URL` is set, so on a
+shared local Postgres it needs Supabase auth, which needs the local Supabase stack, which needs
+Docker (off during this session). `remote.ts` supports the hybrid; it is not run yet.
+
+Left in phase 6: the other route groups, one at a time with their tests: ideas (plan, place,
+edit, suggestions), shoots and crew, share links and comments (the guest page), inbox, brand kit
+and voice, connections and TikTok defaults, media uploads (signed upload URLs), pasted links.
+
+**Adversarial review** (one Sonnet reviewer, one pass). Fixed:
+
+- The first version approved each job in separate requests after `post.schedule` answered. A
+  "now" send was due at once, so the scheduler could fire it before the yes arrived (refused,
+  the job failed); a retry approved again and left spare yeses. The yes now comes with the
+  sending, in its transaction (above), and a replay under the same key stores nothing again.
+  Case: "takes the yes with the sending, so a send now is never due without it".
+- A deactivated account got "no access"; it gets the server's 403 `ACCOUNT_DEACTIVATED` again
+  (rule `account.active`). A token with no account is not-found (the server said 403
+  `NO_ACCOUNT`; no screen reads the code).
+- A body could replace a path's ids in the route map; the path's come last now.
+- `/me` and the brand list answer timestamps as the server did (`…Z`).
+- The runner's abandoned pass logs any error other than its closed database.

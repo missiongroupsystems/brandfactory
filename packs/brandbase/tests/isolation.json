@@ -237,6 +237,110 @@
           }
         }
       ]
+    },
+    {
+      "name": "shows a member only their brands, and an admin every brand in the switcher's order",
+      "steps": [
+        {
+          "call": "brand.list",
+          "input": {},
+          "expect": {
+            "result": [
+              {
+                "id": "casa",
+                "name": "Casa Vostra"
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.list",
+          "as": "admin",
+          "input": {},
+          "expect": {
+            "result": [
+              {
+                "id": "casa"
+              },
+              {
+                "id": "temper"
+              }
+            ]
+          }
+        },
+        {
+          "call": "account.me",
+          "input": {},
+          "expect": {
+            "result": {
+              "user": {
+                "id": "member",
+                "role": "member"
+              },
+              "brands": [
+                {
+                  "id": "casa"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "call": "account.me",
+          "as": "admin",
+          "input": {},
+          "expect": {
+            "result": {
+              "user": {
+                "id": "admin",
+                "role": "admin",
+                "deactivatedAt": null
+              },
+              "brands": [
+                {
+                  "id": "casa"
+                },
+                {
+                  "id": "temper"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers not-found to a token with no account, and a deactivated one as the server did",
+      "steps": [
+        {
+          "call": "brand.list",
+          "as": "stranger",
+          "input": {},
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "account.me",
+          "as": "stranger",
+          "input": {},
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "account.me",
+          "as": "gone",
+          "input": {},
+          "expect": {
+            "status": 403,
+            "code": "ACCOUNT_DEACTIVATED",
+            "message": "this account has been deactivated"
+          }
+        }
+      ]
     }
   ]
 }

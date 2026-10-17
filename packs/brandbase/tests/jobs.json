@@ -252,7 +252,7 @@
       ]
     },
     {
-      "name": "waits for a person's yes, and says so on the job",
+      "name": "waits for a person's yes when an agent sends, and says so on the job",
       "steps": [
         {
           "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
@@ -287,7 +287,8 @@
             "brand": "casa",
             "id": "p1",
             "when": "now"
-          }
+          },
+          "as": "member-agent"
         },
         {
           "call": "post.publish_job",
@@ -298,7 +299,8 @@
           "expect": {
             "status": 403,
             "code": "NEEDS_APPROVAL"
-          }
+          },
+          "as": "member-agent"
         },
         {
           "tick": "run"
@@ -1010,6 +1012,93 @@
             "rows": [
               {
                 "principal": "member"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "takes the yes with the sending, so a send now is never due without it",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from packs.approvals where used_at is null",
+          "expect": {
+            "rows": [
+              {
+                "n": 2
+              }
+            ]
+          }
+        },
+        {
+          "tick": "run"
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "stage": "posted"
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now"
+          },
+          "expect": {
+            "code": "POST_POSTED"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from packs.approvals",
+          "expect": {
+            "rows": [
+              {
+                "n": 2
               }
             ]
           }

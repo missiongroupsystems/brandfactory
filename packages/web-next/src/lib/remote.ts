@@ -8,10 +8,16 @@
  * that brand from the server, which puts the screen back to what is stored.
  */
 
+import { coreCall, PACK } from './core-routes'
 import { setToday } from './dates'
 
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '')
-export const remote = API_URL !== ''
+/**
+ * The core (`packages/core`), when set: the routes in `core-routes.ts` run there as the
+ * `brandbase` pack's moves, and every other route still goes to `API_URL`.
+ */
+export const CORE_URL = (process.env.NEXT_PUBLIC_CORE_URL ?? '').replace(/\/$/, '')
+export const remote = API_URL !== '' || CORE_URL !== ''
 
 const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '')
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
@@ -119,10 +125,31 @@ export async function request<T = unknown>(
   headers: Record<string, string> = {},
 ): Promise<T> {
   const token = await freshToken()
-  const res = await fetch(`${API_URL}${path}`, {
+  const auth: Record<string, string> = token ? { authorization: `Bearer ${token}` } : {}
+  const core = CORE_URL ? coreCall(method, path, body) : null
+  if (core) {
+    const result = await answer<T>(`${CORE_URL}/ops/${PACK}/${core.op}`, 'POST', core.input, {
+      ...auth,
+      ...headers,
+    })
+    return result
+  }
+  if (!API_URL) {
+    throw new RemoteError(501, 'NOT_PORTED', 'This is not on the new backend yet.')
+  }
+  return answer<T>(`${API_URL}${path}`, method, body, { ...auth, ...headers })
+}
+
+/** One request and its answer, or the refusal as a `RemoteError`. */
+async function answer<T>(
+  url: string,
+  method: string,
+  body: unknown,
+  headers: Record<string, string>,
+): Promise<T> {
+  const res = await fetch(url, {
     method,
     headers: {
-      ...(token && { authorization: `Bearer ${token}` }),
       ...(body !== undefined && { 'content-type': 'application/json' }),
       ...headers,
     },

@@ -1,7 +1,7 @@
 import { type Conn } from './db'
 import { Refused } from './errors'
 import { changed } from './events'
-import { type Op, type PackContent } from './pack'
+import { kindOf, type Op, type PackContent } from './pack'
 import { call, type CoreDeps } from './run'
 
 /**
@@ -17,6 +17,12 @@ export interface PlannedCall {
   input: Record<string, unknown>
   at: string
   key: string
+  /**
+   * The asker's yes to what this effect call sends, given with the asking: stored in the same
+   * transaction, so the call is never due without it. Only a person's counts; an agent's asking
+   * leaves the call waiting for one.
+   */
+  approve?: boolean
 }
 
 /** A move's requested calls, checked: each names a move of this version and a real time. */
@@ -46,7 +52,13 @@ export function plannedCalls(value: unknown, content: PackContent, from: Op): Pl
     if (typeof item.at !== 'string' || Number.isNaN(new Date(item.at).getTime())) {
       throw new Error(`${from.name}: a scheduled call's time is not a time`)
     }
-    return { op: item.op, input: item.input, at: item.at, key: item.key }
+    if (item.approve !== undefined && typeof item.approve !== 'boolean') {
+      throw new Error(`${from.name}: approve is true or false`)
+    }
+    if (item.approve && kindOf(content.ops[item.op]!) !== 'effect') {
+      throw new Error(`${from.name}: only an effect call takes a yes`)
+    }
+    return { op: item.op, input: item.input, at: item.at, key: item.key, approve: item.approve }
   })
 }
 
@@ -140,6 +152,8 @@ export async function runClaimed(deps: CoreDeps, job: Claimed) {
       )
       .catch((err: unknown) => console.error('heartbeat failed', job.id, err))
   }, deps.heartbeatMs ?? HEARTBEAT_MS)
+  // A heartbeat never keeps a process alive on its own.
+  beat.unref()
   const end = (status: string, result: unknown, error: string | null) =>
     deps.db.query(
       `update packs.scheduled_calls set status = $2, result = $3, error = $4, updated_at = $5

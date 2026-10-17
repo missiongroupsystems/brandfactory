@@ -1,0 +1,12 @@
+{
+  "name": "brand.list",
+  "description": "The brands the caller reaches, in the switcher's order: every brand for an admin, a member's own brands otherwise.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "before": ["account.exists", "account.active"],
+  "returns": "many",
+  "sql": "select (brandbase.camel(to_jsonb(b)) || jsonb_build_object('createdAt', brandbase.iso(b.created_at))) as result from brandbase.brands b order by b.position, b.id"
+}
