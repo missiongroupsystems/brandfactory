@@ -225,7 +225,7 @@ function FullScreen({ onBack, children }: { onBack: () => void; children: React.
 
 // ── The list ─────────────────────────────────────────────────────────────────────────────────
 
-function Avatar({ m, size = 36 }: { m: InboxMessage; size?: number }) {
+export function Avatar({ m, size = 36 }: { m: InboxMessage; size?: number }) {
   const initials = m.from.name
     .split(' ')
     .map((w) => w[0])

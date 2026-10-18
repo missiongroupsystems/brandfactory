@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 
-import { newId, remote } from '@/lib/remote'
+import { loadBrand, newId, remote, settled } from '@/lib/remote'
 
 import {
   approveMove,
@@ -14,6 +14,7 @@ import {
   type Turn,
   type TurnEvent,
 } from './client'
+import { brandOf, changes, inputOf } from './cards/model'
 
 /**
  * The chat, in memory and outside React, so a turn keeps streaming while the person looks at
@@ -109,8 +110,50 @@ export function useChat(): Chat {
 }
 
 /** Applies an event to its turn; a turn that left the transcript (New chat) takes nothing. */
-const apply = (id: string, event: TurnEvent) =>
+function apply(id: string, event: TurnEvent) {
+  if (event.name === 'tool_result' && event.data.ok) {
+    const call = chat.turns.find((t) => t.id === id)?.tools.find((t) => t.id === event.data.id)
+    const brand = call && brandOf(inputOf(call))
+    if (call && brand && changes(call.tool)) refresh(brand)
+  }
   update((c) => ({ ...c, turns: c.turns.map((t) => (t.id === id ? reduce(t, event) : t)) }))
+}
+
+/** Brands loading again, and whether a change landed meanwhile that wants one more load. */
+const refreshing = new Map<string, boolean>()
+
+/**
+ * A move changed something on the core: the brand loads again, so the stores (and the cards
+ * drawn from them) show the thing as it is stored. One load at a time per brand.
+ */
+function refresh(brand: string) {
+  if (!remote) return
+  if (refreshing.has(brand)) {
+    refreshing.set(brand, true)
+    return
+  }
+  refreshing.set(brand, false)
+  void settled()
+    .then(() => loadBrand(brand))
+    .catch(() => undefined)
+    .finally(() => {
+      const again = refreshing.get(brand)
+      refreshing.delete(brand)
+      if (again) refresh(brand)
+    })
+}
+
+/** Keeps the thing a move is about to change, as the app holds it now, with its call. */
+export function keep(turnId: string, callId: string, snapshot: unknown): void {
+  update((c) => ({
+    ...c,
+    turns: c.turns.map((t) =>
+      t.id === turnId
+        ? { ...t, tools: t.tools.map((x) => (x.id === callId ? { ...x, snapshot } : x)) }
+        : t,
+    ),
+  }))
+}
 
 /**
  * What Bubbles is told of the chat so far: each question and the answer it got. A move that

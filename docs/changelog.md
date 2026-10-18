@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.26.0** — 2026-10-19 — `feat/packs-core`: Bubbles shows what it changed as cards. Each idea, post, shoot, reply, comment, kit change, link, connection, moodboard link and setting a move touched is drawn as the app draws it, live from the stores, with a verb, a quiet rise, a day that slides on a move and a stage that fades on a mark; a removed thing stays drawn from a snapshot, faded; the brand reloads after each change. No migration. 800 tests.
 - **2.25.1** — 2026-10-19 — `feat/packs-core`: Bubbles after its first live run through OpenRouter. A stopped question is no longer answered with the next one, and a move waiting for a yes stays in the history; answers stay short (under 90 words, 1200 tokens a request) and name things by title, not id; the header stays in view on a long chat. No migration. 782 tests.
 - **2.25.0** — 2026-10-18 — `feat/packs-core`: Bubbles, the agent people talk to. A fifth tab chats with Bubbles, which runs DeepSeek's harness runtime with the model through OpenRouter and acts only through the core's moves as the person's agent (`POST /agents/session`); a send still waits for the person's yes on the page. Not deployed; no live model call yet. No migration. 780 tests.
 - **2.24.0** — 2026-10-18 — `feat/packs-core`, phase 7: `packages/server` retired on this branch. The demo seed moves into the pack (`packs/brandbase/demo/seed.ts`, the same rows), the Dockerfile and `fly.toml` target the core (not deployed), and web-next talks only to the core. No migration. 728 tests.
@@ -48,6 +49,31 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.26.0 — 2026-10-19
+
+- **Cards for what Bubbles did (web-next).** Between "what Bubbles is doing now" and the answer, one card per thing a
+  successful move changed, in move order: an idea (cover, hook, format, day), a post (thumbnail, hook, day and time,
+  stage pill, account logos), a shoot (date block, title, hours, place, idea thumbnails, crew initials), an inbox reply
+  under its message, a message sent on with the people, the noise cleared with its count, a guest comment answered or
+  done, the voice with its version, the colours as swatches, the logo, a file with its kind icon, a share link with
+  Copy, a connection with its live dot, a moodboard link, the TikTok defaults; any other changing move is one line
+  with a tick. Reads make no card. Three edits to one thing make one card, with the last verb. A card opens the
+  thing's page. On a phone the cards sit in one row that scrolls sideways. Plan and as built:
+  `docs/executing/bubbles-cards-plan.md`.
+- **Live, not a copy.** A card reads the thing from the app's stores by the id in the move's input, and the chat store
+  loads the brand again after each change (one load at a time per brand), so the cards and every other page show what
+  is stored. A removed thing is drawn from a snapshot the page takes when the `tool_call` arrives, kept with the call
+  in the chat, faded, "Removed".
+- **Quiet motion.** Cards rise in, 70 ms apart; thumbnails fade in as they load; a moved day shows the old day for a
+  beat, then the new one slides in; a mark fades the stage pill; colours land one swatch after another. None of it
+  with `prefers-reduced-motion`.
+- **The persona** tells Bubbles the person sees a card for each change, so its words need not repeat the details.
+- Checked with a scripted Bubbles in Playwright at 1440, 1024, 768 and 390 px, and with reduced motion. Not yet run
+  against the live model.
+
+No migration. Gate: typecheck, lint, format, 800 tests in 69 files with `CORE_TEST_PG_URL`,
+`next build`.
 
 ## 2.25.1 — 2026-10-19
 

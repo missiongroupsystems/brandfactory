@@ -3,11 +3,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { approveMove, sendTurn, type BubblesEvent } from './client'
 import type * as Client from './client'
-import { ask, resetChat, retry, send, stop, useChat } from './chat-store'
+import { loadBrand } from '@/lib/remote'
+import type * as Remote from '@/lib/remote'
+
+import { ask, keep, resetChat, retry, send, stop, useChat } from './chat-store'
 
 vi.hoisted(() => {
   // A yes is recorded on the core, so the store needs one to send to.
   process.env.NEXT_PUBLIC_CORE_URL = 'http://core.test'
+})
+
+vi.mock('@/lib/remote', async (importOriginal) => {
+  const real = await importOriginal<typeof Remote>()
+  return { ...real, loadBrand: vi.fn(async () => ({})), settled: vi.fn(async () => {}) }
 })
 
 vi.mock('./client', async (importOriginal) => {
@@ -32,6 +40,7 @@ beforeEach(() => {
   open.length = 0
   vi.mocked(sendTurn).mockReset()
   vi.mocked(approveMove).mockClear()
+  vi.mocked(loadBrand).mockClear()
   // By default a turn stays open until the test finishes it.
   vi.mocked(sendTurn).mockImplementation(
     (args) => new Promise<void>((finish) => open.push({ args, finish })),
@@ -144,6 +153,46 @@ describe('the chat store', () => {
     await act(() => retry(second!.id))
     expect(vi.mocked(sendTurn)).toHaveBeenCalledTimes(3)
     expect(result.current.turns.map((t) => t.question)).toEqual(['first', 'second'])
+  })
+})
+
+describe('what a move changed', () => {
+  it('loads the brand again after a move that changed something, not after a read', async () => {
+    void ask('Move it')
+    await act(async () => {})
+    const turn = open[0]!
+    const call = (id: string, tool: string): BubblesEvent => ({
+      name: 'tool_call',
+      data: { id, tool, input: { brand: 'casa-vostra', id: 'p1' } },
+    })
+    const result = (id: string, tool: string, ok: boolean): BubblesEvent => ({
+      name: 'tool_result',
+      data: { id, tool, ok },
+    })
+    emit(turn, call('a', 'post.list'))
+    emit(turn, result('a', 'post.list', true))
+    emit(turn, call('b', 'post.move'))
+    emit(turn, result('b', 'post.move', false))
+    expect(loadBrand).not.toHaveBeenCalled()
+    emit(turn, result('b', 'post.move', true))
+    await act(async () => {})
+    expect(loadBrand).toHaveBeenCalledWith('casa-vostra')
+  })
+
+  it('keeps a snapshot with its call, so a removed thing can still be drawn', async () => {
+    const { result } = renderHook(() => useChat())
+    void ask('Drop it')
+    await act(async () => {})
+    emit(open[0]!, {
+      name: 'tool_call',
+      data: { id: 'a', tool: 'idea.drop', input: { brand: 'casa-vostra', id: 'i1' } },
+    })
+    const turn = result.current.turns[0]!
+    act(() => keep(turn.id, 'a', { card: { id: 'i1' } }))
+    expect(result.current.turns[0]!.tools[0]).toMatchObject({
+      input: { id: 'i1' },
+      snapshot: { card: { id: 'i1' } },
+    })
   })
 })
 

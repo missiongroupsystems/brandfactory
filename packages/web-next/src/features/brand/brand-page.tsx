@@ -42,7 +42,7 @@ const KIND_PATH: Record<FileKind, string> = {
 }
 
 /** The file's kind in a quiet tile, the size of the Connections page's source marks. */
-function FileIcon({ file }: { file: BrandFile }) {
+export function FileIcon({ file }: { file: Pick<BrandFile, 'kind'> }) {
   return (
     <span
       role="img"

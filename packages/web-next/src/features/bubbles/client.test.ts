@@ -69,7 +69,7 @@ describe('a turn', () => {
     // The person sees "Looking at posts", not `post.list`; a move with no words still shows.
     const t = reduce(turn, { name: 'tool_call', data: { id: 'a', tool: 'post.list', input: {} } })
     expect(t.status).toBe('thinking')
-    expect(t.tools).toEqual([{ id: 'a', tool: 'post.list', ok: null }])
+    expect(t.tools).toEqual([{ id: 'a', tool: 'post.list', input: {}, ok: null }])
     expect(doing('post.list')).toBe('Looking at posts')
     expect(doing('brand.list')).toBe('Looking at your brands')
     expect(doing('brand.state')).toBe('Reading the brand')

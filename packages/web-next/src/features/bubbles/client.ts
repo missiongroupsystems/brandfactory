@@ -44,9 +44,16 @@ export interface HistoryItem {
 export interface ToolCall {
   id: string
   tool: string
+  /** What the move was called with: the cards find the thing it changed by the id in it. */
+  input?: unknown
   /** Null until its result arrives. */
   ok: boolean | null
   refusal?: Refusal
+  /**
+   * The thing as the app held it when the move was called (cards/turn-cards.tsx keeps it): a
+   * removed thing is still drawn, and a move slides from the old day to the new.
+   */
+  snapshot?: unknown
 }
 
 export type TurnStatus = 'starting' | 'thinking' | 'done' | 'failed' | 'stopped'
@@ -86,7 +93,10 @@ export function reduce(turn: Turn, event: TurnEvent): Turn {
       return {
         ...turn,
         status: 'thinking',
-        tools: [...turn.tools, { id: event.data.id, tool: event.data.tool, ok: null }],
+        tools: [
+          ...turn.tools,
+          { id: event.data.id, tool: event.data.tool, input: event.data.input, ok: null },
+        ],
       }
     case 'tool_result':
       return {

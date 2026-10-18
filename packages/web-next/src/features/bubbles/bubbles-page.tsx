@@ -6,6 +6,7 @@ import { AppHeader } from '@/components/app-header'
 
 import { useBrand } from '@/features/schedule/posts-store'
 
+import { TurnCards } from './cards/turn-cards'
 import { ask, decide, resetChat, retry, send, setBrand, stop, useChat } from './chat-store'
 import { BUBBLES_URL, doing, moveName, running, summarise, type Turn } from './client'
 import { Markdown } from './markdown'
@@ -150,12 +151,13 @@ function TurnRow({
         </p>
       </div>
       <div className="flex flex-col gap-3 text-[15px] leading-[1.6]">
-        {turn.texts.length > 0 && <Markdown text={turn.texts.join('\n\n')} />}
         {live && (
           <p role="status" className="bb-pulse text-[13px] text-ink-4">
             {line}…{elapsed >= 5 && ` · ${elapsed}s`}
           </p>
         )}
+        <TurnCards turn={turn} />
+        {turn.texts.length > 0 && <Markdown text={turn.texts.join('\n\n')} />}
         {turn.approval && <ApprovalCard id={turn.id} approval={turn.approval} wait={anyLive} />}
         {turn.error && <p className="text-[13.5px] text-fail-ink">{turn.error.message}</p>}
         {turn.status === 'stopped' && <p className="text-[13px] text-ink-4">Stopped.</p>}

@@ -43,6 +43,25 @@ export function useComments(kind: ShareKind, id: string): GuestComment[] {
   )
 }
 
+/** Any shared thing's comment by id, with what it is on, for a card that has only the id. */
+export function useCommentById(
+  id: string,
+): { kind: ShareKind; targetId: string; comment: GuestComment } | undefined {
+  const all = React.useSyncExternalStore(
+    subscribe,
+    () => comments,
+    () => comments,
+  )
+  for (const [key, list] of Object.entries(all)) {
+    const comment = list.find((c) => c.id === id)
+    if (comment) {
+      const [kind, targetId] = key.split(':') as [ShareKind, string]
+      return { kind, targetId, comment }
+    }
+  }
+  return undefined
+}
+
 // ── The server ───────────────────────────────────────────────────────────────────────────────
 
 /** Each shared link's token, by `kind:id`: the public address carries the token, never the id. */

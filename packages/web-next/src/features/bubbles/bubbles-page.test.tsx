@@ -71,6 +71,8 @@ beforeEach(() => {
         })
       }
       if (url.includes('/approve/')) return new Response('{}', { status: 200 })
+      // The brand's reload after a change: this core has no brands to give.
+      if (url.includes('/ops/')) return new Response('{"code":"NO"}', { status: 404 })
       return new Response(null, { status: 204 })
     }),
   )
@@ -127,6 +129,56 @@ describe('the Bubbles page', () => {
     const steps = screen.getByText('How Bubbles did this ›').closest('details')!
     expect(steps).toHaveTextContent('post.list')
     expect(steps).toHaveTextContent('brand.state')
+  })
+
+  it('draws a card for each thing a move changed, and none for a read or a refused move', async () => {
+    page()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Draft 3 post ideas for Friday' }))
+    })
+    const s = streams[0]!
+    await s.frame('tool_call', { id: 't1', tool: 'brand.state', input: { brand: 'casa-vostra' } })
+    await s.frame('tool_result', { id: 't1', tool: 'brand.state', ok: true })
+    // An idea the store does not have yet draws from the move's own words.
+    await s.frame('tool_call', {
+      id: 't2',
+      tool: 'idea.create',
+      input: { brand: 'casa-vostra', id: 'cv-new', format: 'reel', hook: 'The 6am dough shift.' },
+    })
+    expect(screen.queryByRole('list', { name: 'What changed' })).toBeNull()
+    await s.frame('tool_result', { id: 't2', tool: 'idea.create', ok: true })
+    const row = screen.getByRole('list', { name: 'What changed' })
+    const card = within(row).getByRole('link', { name: 'Idea: The 6am dough shift.' })
+    expect(card).toHaveAttribute('href', '/ideate/cv-new')
+    expect(card).toHaveTextContent('Added')
+    expect(card).toHaveTextContent('Reel')
+    // A move the core refused changed nothing: no card.
+    await s.frame('tool_call', {
+      id: 't3',
+      tool: 'post.create_draft',
+      input: { brand: 'casa-vostra', id: 'p-new', format: 'reel', hook: 'Nope' },
+    })
+    await s.frame('tool_result', {
+      id: 't3',
+      tool: 'post.create_draft',
+      ok: false,
+      refusal: { code: 'NO', message: 'No.' },
+    })
+    // An idea the store has, removed: the card keeps it from before the move, faded.
+    await s.frame('tool_call', {
+      id: 't4',
+      tool: 'idea.drop',
+      input: { brand: 'casa-vostra', id: 'cv-dough' },
+    })
+    await s.frame('tool_result', { id: 't4', tool: 'idea.drop', ok: true })
+    await s.frame('text', { text: 'Done.' })
+    await s.frame('done', {})
+    await s.close()
+    expect(within(row).getAllByRole('listitem')).toHaveLength(2)
+    expect(within(row).queryByRole('link', { name: /Post:/ })).toBeNull()
+    const gone = within(row).getByRole('group', { name: /^Idea: Watch the dough/ })
+    expect(gone).toHaveTextContent('Removed')
+    expect(gone.closest('li')!.className).toContain('opacity-50')
   })
 
   it('asks for the yes before a send, then tells Bubbles to go ahead', async () => {
