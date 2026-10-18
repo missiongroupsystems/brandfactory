@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { Ajv, type ValidateFunction } from 'ajv'
+import { type AgentTokens } from './agents'
 import { type AuthProvider } from './auth'
 import { type Conn, type Db, type Row } from './db'
 import { Refused } from './errors'
@@ -26,6 +27,8 @@ export interface CoreDeps {
   heartbeatMs?: number
   /** Where uploaded files live (`files.ts`); a core without it refuses upload moves. */
   files?: Files
+  /** Signs agents' tokens (`agents.ts`); a core without it starts no agent sessions. */
+  agents?: AgentTokens
 }
 
 /** The way out of the app for effect moves: a platform, a message, a payment. */

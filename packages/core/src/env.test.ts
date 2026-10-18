@@ -51,6 +51,23 @@ describe('the environment', () => {
     expect(loadEnv({}).disk).toBeDefined()
   })
 
+  it('signs agents’ tokens with a long secret of its own outside this machine', () => {
+    const prod = {
+      NODE_ENV: 'production',
+      AUTH_PROVIDER: 'supabase',
+      SUPABASE_JWKS_URL: 'https://x.supabase.co/auth/v1/.well-known/jwks.json',
+      FILES_SECRET: 's'.repeat(32),
+      FILES_PROVIDER: 'supabase',
+      SUPABASE_URL: 'https://x.supabase.co',
+      SUPABASE_SERVICE_KEY: 'k',
+      FILES_BUCKET: 'b',
+    }
+    expect(() => loadEnv(prod)).toThrow(/AGENT_SECRET/)
+    expect(() => loadEnv({ ...prod, AGENT_SECRET: 'short' })).toThrow(/AGENT_SECRET/)
+    expect(loadEnv({ ...prod, AGENT_SECRET: 'a'.repeat(32) }).agentSecret).toBe('a'.repeat(32))
+    expect(loadEnv({}).agentSecret.length).toBeGreaterThanOrEqual(32)
+  })
+
   it('needs the key set to check Supabase tokens against', () => {
     expect(() => loadEnv({ AUTH_PROVIDER: 'supabase' })).toThrow(/SUPABASE_JWKS_URL/)
   })

@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs'
 import { serve } from '@hono/node-server'
+import { agentTokens, withAgentTokens } from './agents'
 import { createCore } from './app'
 import { simulatedConnector } from './effects'
 import { startScheduler } from './scheduler'
@@ -22,9 +23,11 @@ if (env.databaseUrl) {
   await migrateCore(db)
 }
 
+const agents = agentTokens(env.agentSecret)
 const deps = {
   db,
-  auth: env.auth,
+  auth: withAgentTokens(env.auth, agents, env.now),
+  agents,
   environment: env.environment,
   now: env.now,
   // Real connectors come with the platforms' reviews (and a Lark provider); until then

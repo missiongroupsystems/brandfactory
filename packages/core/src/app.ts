@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { agentSession } from './agents'
 import { Refused } from './errors'
 import { approve } from './effects'
 import { events } from './events'
@@ -124,6 +125,12 @@ export function createCore(
     if (token && !c.req.header('authorization'))
       c.req.raw.headers.set('authorization', `Bearer ${token}`)
     return events(deps, c)
+  })
+
+  // A person's agent and a short-lived token for it (`agents.ts`).
+  app.on('POST', '/agents/session', async (c) => {
+    const input = await readInput(c.req.text())
+    return c.json(await agentSession(deps, { authorization: c.req.header('authorization'), input }))
   })
 
   // The live version's moves as MCP tools, for agents (`mcp.ts`).

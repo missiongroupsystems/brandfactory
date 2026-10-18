@@ -8,4 +8,5 @@ export default [
   'packages/web-next/vitest.config.ts',
   'packages/connect/vitest.config.ts',
   'packages/core/vitest.config.ts',
+  'packages/bubbles/vitest.config.ts',
 ]

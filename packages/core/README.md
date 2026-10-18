@@ -46,3 +46,10 @@ sends the browser on to a short-lived storage URL. Storage never overwrites a ke
 `FILES_SECRET` (32 characters or more; a fixed one locally), `PUBLIC_URL` (the core's address in
 those links), `FILES_PROVIDER` (`disk`, under `FILES_DIR`, served by the core and refused in
 production; or `supabase`, with `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` and `FILES_BUCKET`).
+
+**Agent sessions.** `POST /agents/session` with `{ name }` and a person's token answers a token
+for the person's agent, `<person>/<name>` (made on first use, `agent_of` the person), valid for an
+hour. Each session copies the person's loadouts to the agent; the core still checks both on every
+call, and an agent can neither approve nor start an agent of its own. The token is signed with
+`AGENT_SECRET` (32 characters or more; a fixed one locally) and is this core's only, never the
+sign-in's. Bubbles (`packages/bubbles`) is the agent service that uses it.

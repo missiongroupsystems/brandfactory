@@ -73,6 +73,12 @@ The repository is a pnpm workspaces monorepo with these packages:
   `tests/*.json` through the core's test runner. It is a workspace package only for its demo
   scripts: `demo/seed.ts` loads web-next's data files into a migrated database, and
   `demo/web.sh` starts the core with that data on a local Postgres.
+- `packages/bubbles` (`@brandfactory/bubbles`) is Bubbles, the agent people talk to: DeepSeek's
+  harness runtime (the binary from the `deepseek-harness-runtime-bin` wheel, path in `DSH_BIN`)
+  driven over stdio, with the model through a local gateway to OpenRouter and the tools from the
+  core's `POST /mcp/{pack}`, as the person's agent (`POST /agents/session` on the core). It knows
+  a pack by name only; `packs/brandbase/bubbles.md` is the pack's brief. Its tests use a fake
+  runtime (`scripts/fake-runtime.mjs`). Plan: `docs/executing/bubbles-plan.md`.
 
 ### This branch: packs on a core
 

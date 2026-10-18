@@ -17,6 +17,8 @@ export interface CoreEnv {
   /** Where uploaded files live, and, for files on this machine, the store the core serves. */
   files: Files
   disk?: DiskFiles
+  /** Signs agents' tokens (`agents.ts`). */
+  agentSecret: string
 }
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
@@ -71,6 +73,9 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): CoreEnv {
       'FILES_PROVIDER=supabase needs SUPABASE_URL, SUPABASE_SERVICE_KEY, FILES_BUCKET',
     )
   }
+  // Agents' tokens follow the files' rule: the fixed secret only with the dev sign-in here.
+  const agentSecret = env.AGENT_SECRET ?? (local ? 'dev-agent-secret-only-on-this-machine' : '')
+  if (agentSecret.length < 32) throw new Error('AGENT_SECRET is at least 32 characters')
   const disk =
     filesProvider === 'disk'
       ? diskFiles({ root: env.FILES_DIR ?? '.data/files', secret, baseUrl: publicUrl })
@@ -109,5 +114,6 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): CoreEnv {
       publicUrl,
     },
     disk,
+    agentSecret,
   }
 }
