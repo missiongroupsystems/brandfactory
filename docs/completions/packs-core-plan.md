@@ -101,7 +101,7 @@ Only when every route group runs on the core and the owner agrees.
 
 1. Rule language, CEL or SQL checks (phase 2): spike decides; recommendation is CEL if a maintained library passes the four rules.
 2. Where the registry lives: a `packs` schema in the same database (recommended for now).
-3. Where the core runs in production: undecided. Options are the existing `brandfactory` Fly app for now, or inside `launchpad-backend` (the long-term plan). Ask the owner before any deploy.
+3. Where the core runs in production: decided by the owner on 18 Oct 2026: the existing `brandfactory` Fly app for now; `launchpad-backend` stays the long-term option. Ask the owner before any deploy.
 4. Who approves pack changes: a person for now; agent approval only once the tests and the learning loop are trusted (the owner leans towards agent approval later).
 
 ## Not in this plan

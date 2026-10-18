@@ -1,6 +1,7 @@
 # The core (packages/core) on the existing Fly app `brandfactory` (region sin), which the archived
-# BrandFactory server used. Deploying replaces that server; the owner decides when and whether the
-# core runs here or in launchpad-backend (docs/completions/packs-core-plan.md, open decision 3).
+# BrandFactory server used. The owner chose this app for the core on 18 Oct 2026
+# (docs/completions/packs-core-plan.md, open decision 3); deploying replaces that server, and the
+# owner decides when.
 #
 # Secrets, set with `fly secrets set` (never in this file):
 #   DATABASE_URL           Supabase transaction pooler, port 6543; a login role that is not a

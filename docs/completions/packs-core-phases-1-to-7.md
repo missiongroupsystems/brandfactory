@@ -719,3 +719,8 @@ The owner agreed on 18 Oct, once every route web-next calls ran on the core.
   plan and the proposal moved here from `docs/executing/`. The pack's migration comments still
   name the server's files they came from; those are on `feat/brandbase-backend`.
 
+**After phase 7.** The branch is pushed and open as pull request #3 against `main`. The owner chose
+the existing `brandfactory` Fly app for the core (open decision 3, 18 Oct). Before a deploy:
+check that Supabase's `postgres` role can run the core's migrations, and run the Supabase file
+store. The as-built board is `docs/refs/packs-core/as-built.excalidraw`.
+
