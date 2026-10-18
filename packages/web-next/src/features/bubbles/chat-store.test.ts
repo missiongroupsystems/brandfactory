@@ -63,6 +63,33 @@ describe('the chat store', () => {
     expect(history[49]).toEqual({ role: 'bubbles', text: 'ok' })
   })
 
+  it('leaves a stopped question out of the history, so Bubbles does not answer it later', async () => {
+    void ask('Write a 2000-word essay')
+    await act(async () => {})
+    act(() => stop())
+    await finish(open[0]!)
+    void ask('How many ideas?')
+    await act(async () => {})
+    expect(open[1]!.args.history).toEqual([])
+  })
+
+  it('keeps a move that waits for a yes in the history, so "go ahead" still names it', async () => {
+    void ask('Schedule it')
+    await act(async () => {})
+    emit(open[0]!, {
+      name: 'approval',
+      data: { id: 'a', tool: 'post.schedule', input: { id: 'p1' }, payload: {} },
+    })
+    emit(open[0]!, DONE)
+    await finish(open[0]!)
+    void ask('Yes, go ahead.')
+    await act(async () => {})
+    expect(open[1]!.args.history).toEqual([
+      { role: 'user', text: 'Schedule it' },
+      { role: 'bubbles', text: '(post.schedule {"id":"p1"} waits for a yes.)' },
+    ])
+  })
+
   it('keeps a stale turn away from the new chat, and Stop on the turn that runs now', async () => {
     const { result } = renderHook(() => useChat())
     void ask('old question')

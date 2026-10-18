@@ -50,6 +50,12 @@ const KEPT = [
   'stop',
 ]
 
+/**
+ * Most tokens one model request may write: room for a long caption in a tool call, while the
+ * persona keeps answers short. The runtime is told the same (`patch`).
+ */
+export const MAX_TOKENS = 1200
+
 export class Gateway {
   private passes = new Map<string, { requests: number }>()
   private server: Server
@@ -105,7 +111,7 @@ export class Gateway {
       return refuse(res, 400, 'the body is not JSON')
     }
     const cap = Number(body.max_completion_tokens ?? body.max_tokens)
-    const maxTokens = this.opts.maxTokens ?? 2048
+    const maxTokens = this.opts.maxTokens ?? MAX_TOKENS
     if (body.stream !== true) return refuse(res, 400, 'requests must stream')
     if (!Number.isFinite(cap) || cap <= 0) return refuse(res, 400, 'requests need a token cap')
     const tools = (body.tools ?? []) as { function?: { name?: string } }[]

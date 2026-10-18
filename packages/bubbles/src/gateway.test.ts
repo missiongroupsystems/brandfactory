@@ -93,7 +93,7 @@ describe('the model gateway', () => {
     expect(up.seen[0]!.body.plugins).toBeUndefined()
     expect(up.seen[0]!.body).toMatchObject({
       model: 'deepseek/deepseek-v4.1-flash',
-      max_tokens: 2048,
+      max_tokens: 1200,
       reasoning: { enabled: false },
       stream_options: { include_usage: true },
       provider: { only: ['together', 'novita'], data_collection: 'deny' },

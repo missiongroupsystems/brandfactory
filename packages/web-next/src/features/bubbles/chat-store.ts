@@ -112,12 +112,24 @@ export function useChat(): Chat {
 const apply = (id: string, event: TurnEvent) =>
   update((c) => ({ ...c, turns: c.turns.map((t) => (t.id === id ? reduce(t, event) : t)) }))
 
-/** What Bubbles is told of the chat so far: each question and the answer it got. */
+/**
+ * What Bubbles is told of the chat so far: each question and the answer it got. A move that
+ * waited for the person's yes counts as an answer, so "Yes, go ahead." keeps its move. A question
+ * with no answer (stopped or failed) is left out, or a fresh runtime answers it with the next one.
+ */
 function history(turns: Turn[]): HistoryItem[] {
-  return turns.flatMap((t) => {
-    const items: HistoryItem[] = [{ role: 'user', text: t.question }]
-    if (t.texts.length) items.push({ role: 'bubbles', text: t.texts.join('\n\n') })
-    return items
+  return turns.flatMap((t): HistoryItem[] => {
+    const said = [...t.texts]
+    if (t.approval)
+      said.push(
+        `(${t.approval.tool} ${JSON.stringify(t.approval.input).slice(0, 500)} waits for a yes.)`,
+      )
+    return said.length
+      ? [
+          { role: 'user', text: t.question },
+          { role: 'bubbles', text: said.join('\n\n') },
+        ]
+      : []
   })
 }
 

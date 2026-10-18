@@ -26,7 +26,10 @@ const COLUMN = 'mx-auto w-full max-w-[720px] px-10 max-md:px-4'
 export function BubblesPage() {
   return (
     <div className="flex min-h-svh flex-col">
-      <AppHeader />
+      {/* A long chat scrolls; the header, with the brand Bubbles works on, stays in view. */}
+      <div className="sticky top-0 z-20 bg-page">
+        <AppHeader />
+      </div>
       {BUBBLES_URL ? <Chat /> : <NotConnected />}
     </div>
   )
