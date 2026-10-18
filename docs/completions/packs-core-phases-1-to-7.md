@@ -1,8 +1,8 @@
 # Packs on a core: phases 1 to 7
 
-Built from `docs/executing/packs-core-plan.md` and `packs-core-proposal.md`, on `feat/packs-core`.
-Nothing is deployed; no migration has run on the Supabase database. `packages/server` is untouched
-and stays the reference.
+Built from `docs/completions/packs-core-plan.md` and `packs-core-proposal.md`, on `feat/packs-core`.
+Nothing is deployed; no migration has run on the Supabase database. `packages/server` was the
+reference until phase 7 removed it from this branch; `feat/brandbase-backend` still has it.
 
 ## Phase 1: the core skeleton
 
@@ -698,3 +698,24 @@ cross-verb signature, no traversal, no overwrite, brand isolation). Fixed:
 
 Noted: a record made by the old server, with a key not of the core's shape, could not be signed
 again; nothing imports such rows.
+
+## Phase 7: `packages/server` retired on this branch
+
+The owner agreed on 18 Oct, once every route web-next calls ran on the core.
+
+- **The seed** moved to `packs/brandbase/demo/seed.ts`: the same row building, plain SQL in place
+  of Drizzle (each key is its column in snake case, inserted through `jsonb_populate_recordset`
+  so a column left out keeps its default), in one transaction. Checked against the old seed:
+  two fresh databases, migrated by the core and seeded one each way, hold the same rows in every
+  `brandbase` table, apart from the times the rows were written; the new seed also fills
+  `crew.brand_id`. `packs/brandbase` is a workspace package for this alone (`pg`, `tsx`, a
+  typecheck); the core still reads only its data.
+- **Deploy files.** `packages/core/Dockerfile` (the server's, for the core) and `fly.toml` on it:
+  the release step runs the core's own migrations; settings `FILES_*`, `CORE_ENVIRONMENT`. Not
+  deployed. The core's migrations need a superuser, unchecked on Supabase (phase 1).
+- **web-next** has no path to the old API: `NEXT_PUBLIC_CORE_URL` alone turns the backend on, and
+  a route with no move is refused as `NO_MOVE`.
+- `packages/server` deleted; the workspace, the lockfile, `CLAUDE.md` and the READMEs follow. The
+  plan and the proposal moved here from `docs/executing/`. The pack's migration comments still
+  name the server's files they came from; those are on `feat/brandbase-backend`.
+

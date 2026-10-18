@@ -1,12 +1,15 @@
-# The BrandBase API on the existing Fly app `brandfactory` (region sin), which the archived
-# BrandFactory server used. Deploying replaces that server; the owner decides when.
+# The core (packages/core) on the existing Fly app `brandfactory` (region sin), which the archived
+# BrandFactory server used. Deploying replaces that server; the owner decides when and whether the
+# core runs here or in launchpad-backend (docs/completions/packs-core-plan.md, open decision 3).
 #
 # Secrets, set with `fly secrets set` (never in this file):
-#   DATABASE_URL           Supabase transaction pooler, port 6543
+#   DATABASE_URL           Supabase transaction pooler, port 6543; a login role that is not a
+#                          superuser (the core drops to pack_runtime for every move)
 #   SUPABASE_JWKS_URL      https://<project>.supabase.co/auth/v1/.well-known/jwks.json
 #   SUPABASE_JWT_ISSUER    https://<project>.supabase.co/auth/v1
-#   SUPABASE_URL, SUPABASE_SERVICE_KEY   for Storage (bucket `brandbase`, private)
-#   MEDIA_SIGNING_SECRET   openssl rand -base64 32
+#   SUPABASE_URL, SUPABASE_SERVICE_KEY   for Storage
+#   FILES_BUCKET           a private bucket
+#   FILES_SECRET           openssl rand -base64 32
 #   PUBLIC_URL             https://brandfactory.fly.dev
 #   CORS_ALLOWED_ORIGINS   the web app's origin(s), comma-separated
 
@@ -15,19 +18,21 @@ primary_region = "sin"
 kill_signal    = "SIGTERM"
 
 [build]
-  dockerfile = "packages/server/Dockerfile"
+  dockerfile = "packages/core/Dockerfile"
 
-# Migrations run before new machines take traffic. Every table is in the `brandbase` schema and
-# the migration record in `brandbase_drizzle`, so the archive's tables are not touched.
+# The core's own migrations (the registry, the roles and the wall) run before new machines take
+# traffic. They need a superuser; whether Supabase's `postgres` role is enough is not checked yet
+# (docs/completions/packs-core-phases-1-to-7.md, phase 1). A pack's migrations run with
+# `core migrate <pack> <version>` once a version has passed its tests.
 [deploy]
-  release_command = "node scripts/migrate.mjs"
+  release_command = "node_modules/.bin/tsx src/cli.ts migrate"
 
 [http_service]
   internal_port        = 3001
   force_https          = true
   auto_stop_machines   = false
   auto_start_machines  = true
-  # One machine: the guest rate limit and the job runner live in the process.
+  # One machine: the guest rate limit, the events stream and the scheduler live in the process.
   min_machines_running = 1
 
 [[http_service.checks]]
@@ -38,7 +43,8 @@ kill_signal    = "SIGTERM"
 
 [env]
   AUTH_PROVIDER    = "supabase"
-  STORAGE_PROVIDER = "supabase"
+  FILES_PROVIDER   = "supabase"
+  CORE_ENVIRONMENT = "production"
 
 [[vm]]
   cpu_kind = "shared"

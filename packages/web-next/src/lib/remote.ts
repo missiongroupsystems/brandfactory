@@ -1,6 +1,6 @@
 /**
- * The link to the BrandBase API. Off unless `NEXT_PUBLIC_API_URL` is set: the demo then runs on
- * its static data exactly as before, and every function here does nothing.
+ * The link to the core. Off unless `NEXT_PUBLIC_CORE_URL` is set: the demo then runs on its static
+ * data exactly as before, and every function here does nothing.
  *
  * With it on, the stores stay synchronous and optimistic, as they always were: a change shows at
  * once, and its request joins one queue, so the server sees changes in the order the person made
@@ -11,13 +11,9 @@
 import { coreCall, guestCall, PACK } from './core-routes'
 import { setToday } from './dates'
 
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '')
-/**
- * The core (`packages/core`), when set: the routes in `core-routes.ts` run there as the
- * `brandbase` pack's moves, and every other route still goes to `API_URL`.
- */
+/** The core (`packages/core`): the routes in `core-routes.ts` run there as the pack's moves. */
 export const CORE_URL = (process.env.NEXT_PUBLIC_CORE_URL ?? '').replace(/\/$/, '')
-export const remote = API_URL !== '' || CORE_URL !== ''
+export const remote = CORE_URL !== ''
 
 const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '')
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
@@ -53,7 +49,7 @@ function writeSession(session: Session | null) {
 
 export const signedIn = () => readSession() !== null
 
-/** True when sign-in goes through Supabase; otherwise the API runs dev sign-in (an id). */
+/** True when sign-in goes through Supabase; otherwise the core runs dev sign-in (an id). */
 export const passwordSignIn = SUPABASE_URL !== ''
 
 async function supabaseToken(grant: 'password' | 'refresh_token', body: object) {
@@ -126,7 +122,7 @@ export async function request<T = unknown>(
 ): Promise<T> {
   const token = await freshToken()
   const auth: Record<string, string> = token ? { authorization: `Bearer ${token}` } : {}
-  const core = CORE_URL ? coreCall(method, path, body) : null
+  const core = coreCall(method, path, body)
   if (core) {
     if (core.approveFirst) {
       await answer(`${CORE_URL}/approve/${PACK}/${core.op}`, 'POST', core.input, auth)
@@ -137,10 +133,7 @@ export async function request<T = unknown>(
       ...headers,
     })
   }
-  if (!API_URL) {
-    throw new RemoteError(501, 'NOT_PORTED', 'This is not on the new backend yet.')
-  }
-  return answer<T>(`${API_URL}${path}`, method, body, { ...auth, ...headers })
+  throw new RemoteError(501, 'NO_MOVE', `No move on the core for ${method} ${path}.`)
 }
 
 /** One request and its answer, or the refusal as a `RemoteError`. */
@@ -179,18 +172,9 @@ async function answer<T>(
 
 /** A request with no session, for the guest share page. */
 export async function guestRequest<T = unknown>(method: string, path: string, body?: unknown) {
-  const guest = CORE_URL ? guestCall(method, path, body) : null
-  if (guest) return answer<T>(`${CORE_URL}/guest/${PACK}/${guest.op}`, 'POST', guest.input, {})
-  const res = await fetch(`${API_URL}${path}`, {
-    method,
-    headers: body === undefined ? {} : { 'content-type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
-  const data = await res.json().catch(() => null)
-  if (!res.ok) {
-    throw new RemoteError(res.status, data?.code ?? 'ERROR', data?.message ?? res.statusText)
-  }
-  return data as T
+  const guest = guestCall(method, path, body)
+  if (!guest) throw new RemoteError(501, 'NO_MOVE', `No guest move on the core for ${path}.`)
+  return answer<T>(`${CORE_URL}/guest/${PACK}/${guest.op}`, 'POST', guest.input, {})
 }
 
 // ── The write queue ─────────────────────────────────────────────────────────────────────────

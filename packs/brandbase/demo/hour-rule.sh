@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The phase 3 demo (docs/executing/packs-core-plan.md): change "no post before 07:00" to 08:00 in a
+# The phase 3 demo (docs/completions/packs-core-plan.md): change "no post before 07:00" to 08:00 in a
 # new version, test it, promote it, and see a call refuse 07:30; see a version with a failing test
 # refused; move the pointer back and see 07:30 work again. One core server runs throughout.
 #

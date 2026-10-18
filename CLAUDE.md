@@ -55,32 +55,31 @@ pnpm vitest run -t "puts a story in the story row"
 The repository is a pnpm workspaces monorepo with these packages:
 
 - `packages/web-next` (`@brandfactory/web-next`) is brand base: a Next.js 16 app on static data,
-  or on the API when `NEXT_PUBLIC_API_URL` is set (`src/lib/remote.ts`; each store loads from it
-  and writes through it). It imports no other package. Its publish rules live in
+  or on the core when `NEXT_PUBLIC_CORE_URL` is set (`src/lib/remote.ts`; each store loads from
+  it and writes through it, and `src/lib/core-routes.ts` maps each route to a move). It imports no other package. Its publish rules live in
   `src/features/publish/model.ts`, and its per-brand state in
   `src/features/schedule/posts-store.tsx`. The folder keeps the name `web-next` because the
   Vercel project's Root Directory is `packages/web-next`; do not rename it without changing
   that setting.
-- `packages/server` (`@brandfactory/server`) is the BrandBase API: Hono and Drizzle, PGlite locally
-  and in tests, the archive's Supabase Postgres in a deployment (tables in the `brandbase`
-  schema). It imports no other package; its seed script reads `web-next`'s data files to load the
-  demo (see its README).
 - `packages/connect` (`@brandfactory/connect`) links each brand's social accounts (Meta,
   Pinterest, TikTok) by OAuth, with tokens encrypted per brand. It is separate from the demo and
   imports no other package (see its README).
-- `packages/core` (`@brandfactory/core`, this branch only) is the generic backend: one door,
-  `POST /ops/{pack}/{op}`, that checks each call and runs a pack's move under row-level security.
-  It holds no business words (`purity.test.ts`) and imports no other package. Packs are data in
-  `packs/<name>/`, not a workspace package: `packages/core/src/packs.test.ts` runs each pack's
-  `tests/*.json` through the core's test runner. web-next uses the core when `NEXT_PUBLIC_CORE_URL` is set
-  (`src/lib/core-routes.ts` lists the routes ported so far); `packs/brandbase/demo/web.sh` starts
-  the core with the demo's data on a local Postgres.
+- `packages/core` (`@brandfactory/core`, this branch only) is BrandBase's backend: a generic
+  core with one door, `POST /ops/{pack}/{op}`, that checks each call and runs a pack's move under
+  row-level security. It holds no business words (`purity.test.ts`) and imports no other package.
+  Its `Dockerfile` and the root `fly.toml` target the existing Fly app `brandfactory`.
+- `packs/brandbase` (`@brandfactory/pack-brandbase`) is the BrandBase pack: data the core reads
+  (manifest, migrations, moves, rules, tests); `packages/core/src/packs.test.ts` runs its
+  `tests/*.json` through the core's test runner. It is a workspace package only for its demo
+  scripts: `demo/seed.ts` loads web-next's data files into a migrated database, and
+  `demo/web.sh` starts the core with that data on a local Postgres.
 
 ### This branch: packs on a core
 
-`feat/packs-core` builds BrandBase's backend as a pack on a generic core, in place of
-`packages/server`. Read `docs/executing/packs-core-proposal.md`, then `docs/executing/packs-core-plan.md`,
-before any work here. `packages/server` stays as the reference and is not edited.
+`feat/packs-core` builds BrandBase's backend as a pack on a generic core, in place of the
+`packages/server` that `feat/brandbase-backend` keeps. Read
+`docs/completions/packs-core-proposal.md`, `docs/completions/packs-core-plan.md` and
+`docs/completions/packs-core-phases-1-to-7.md` before any work here.
 
 ### Backend work starts from the archive
 

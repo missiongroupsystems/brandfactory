@@ -2,7 +2,7 @@
 
 The generic backend: one door, `POST /ops/{pack}/{op}`, for every pack's moves. It knows no
 business words; everything app-specific is pack data in `packs/<name>/`. The design is in
-`docs/executing/packs-core-proposal.md`; what was built, phase by phase, is in
+`docs/completions/packs-core-proposal.md`; what was built, phase by phase, is in
 `docs/completions/packs-core-phases-1-to-7.md`.
 
 ```bash

@@ -113,7 +113,7 @@ describe('the routes on the core', () => {
     })
   })
 
-  it('leaves a route not ported yet to the BrandBase API', () => {
+  it('has no move for a route the app does not call', () => {
     expect(coreCall('GET', '/brands/casa/posts/p1', undefined)).toBeNull()
   })
 })

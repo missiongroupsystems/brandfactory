@@ -1,8 +1,7 @@
 /**
- * The BrandBase API's routes that run on the core (`packages/core`, the `brandbase` pack): each
- * becomes one move, `POST /ops/brandbase/<move>` with the input the route's path and body held.
- * A route not listed here still goes to the BrandBase API (`packages/server`), on the same
- * database, until its group is ported (docs/executing/packs-core-plan.md, phase 6).
+ * The app's routes as the core's moves (`packages/core`, the `brandbase` pack): each becomes one
+ * move, `POST /ops/brandbase/<move>` with the input the route's path and body held. The stores
+ * keep the route paths the old BrandBase API had; this table is the only place they meet the core.
  */
 
 export const PACK = 'brandbase'

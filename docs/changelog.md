@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.24.0** — 2026-10-18 — `feat/packs-core`, phase 7: `packages/server` retired on this branch. The demo seed moves into the pack (`packs/brandbase/demo/seed.ts`, the same rows), the Dockerfile and `fly.toml` target the core (not deployed), and web-next talks only to the core. No migration. 728 tests.
 - **2.23.0** — 2026-10-18 — `feat/packs-core`, phase 6, fifth part: uploads on the core. A move marked `upload` gets a key the core makes (never the client), a signed write URL and a stable address that redirects to storage; storage never overwrites a file; files on disk locally, Supabase Storage in a deployment. With it every route web-next calls runs on the core. No migration. 834 tests.
 - **2.22.0** — 2026-10-17 — `feat/packs-core`, phase 6, fourth part: share links and comments on the core. Guest moves open at `POST /guest/{pack}/{op}` with no sign-in, the link's token as the right and the pack's row rules deciding what it reaches, rate-limited per address with the token masked in the log; the share page, guest comments and edits, team replies and done on the core. Pack migration `0007_share` (not applied to production). 813 tests (135 more skipped without a Postgres server).
 - **2.21.0** — 2026-10-17 — `feat/packs-core`, phase 6, second part: ideas, shoots, the inbox, the brand kit, connections and pasted links on the core (31 moves), with the server's cases for each; the Lark invite is an approved effect, refused while the same send is on its way; crew rows carry their brand. Pack migrations `0004_ideas`, `0005_shoots`, `0006_kit` (not applied to production). 664 tests (122 more skipped without a Postgres server).
@@ -45,6 +46,21 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.24.0 — 2026-10-18
+
+- **Seed.** `packs/brandbase/demo/seed.ts` in plain SQL; on two fresh databases it loads the same
+  rows as the old seed, and fills `crew.brand_id`. `packs/brandbase` is a workspace package for
+  its demo scripts only.
+- **Deploy files.** `packages/core/Dockerfile`; `fly.toml` builds it and runs the core's
+  migrations on release. Built and run here against an empty Postgres: migrations applied,
+  `/health` answers. Not deployed.
+- **web-next.** `NEXT_PUBLIC_API_URL` is gone; `NEXT_PUBLIC_CORE_URL` turns the backend on.
+- **Removed.** `packages/server` and its 106 tests (it stays on `feat/brandbase-backend`). The plan
+  and the proposal move to `docs/completions/`.
+
+No migration. Gate: typecheck, lint, format, 728 tests in 58 files with `CORE_TEST_PG_URL`,
+`next build`.
 
 ## 2.23.0 — 2026-10-18
 

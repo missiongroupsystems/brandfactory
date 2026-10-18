@@ -1,33 +1,30 @@
 /**
- * Loads the demo's static data into an empty database, so a fresh server shows what the demo
- * shows. Reads the data files of `packages/web-next` directly: they import nothing but each
- * other. Development only; it refuses a database that already holds a brand.
+ * Loads the demo's static data into a database the brandbase pack has migrated, so a fresh core
+ * shows what the demo shows. Reads the data files of `packages/web-next` directly: they import
+ * nothing but each other. Development only; it refuses a database that already holds a brand.
+ * Ported from the old server's seed (`scripts/seed.ts` on `feat/brandbase-backend`).
  *
- *   pnpm -F @brandfactory/server db:seed            # PGlite in PGLITE_DIR
- *   DATABASE_URL=… pnpm -F @brandfactory/server db:seed
+ *   DATABASE_URL=… SEED_ADMIN=admin@local pnpm -F @brandfactory/pack-brandbase seed
  *
- * It also makes one admin account per `SEED_ADMIN` (an email; the id is the email under dev
- * auth). On Supabase, make the account in Supabase first and insert its `sub` by hand.
+ * `SEED_ADMIN` makes one admin account (an email; the id is the email under the dev sign-in).
+ * It writes as the login role, past the row rules, as a migration does.
  */
-import { mkdirSync } from 'node:fs'
-import { eq } from 'drizzle-orm'
-import type * as KitData from '../../web-next/src/data/brand-kit'
-import type * as BrandsData from '../../web-next/src/data/brands'
-import type * as ConnectionsData from '../../web-next/src/data/connections'
-import type * as DemoData from '../../web-next/src/data/demo'
-import { type Post } from '../../web-next/src/data/demo'
-import type * as IdeasData from '../../web-next/src/data/ideas'
-import { type IdeaCard } from '../../web-next/src/data/ideas'
-import type * as InboxData from '../../web-next/src/data/inbox'
-import type * as PublishData from '../../web-next/src/data/publish'
-import type * as ShootsData from '../../web-next/src/data/shoots'
-import { openPglite, openPostgres, type Db } from '../src/db/client'
-import * as t from '../src/db/schema'
+import pg from 'pg'
+import type * as KitData from '../../../packages/web-next/src/data/brand-kit'
+import type * as BrandsData from '../../../packages/web-next/src/data/brands'
+import type * as ConnectionsData from '../../../packages/web-next/src/data/connections'
+import type * as DemoData from '../../../packages/web-next/src/data/demo'
+import { type Post } from '../../../packages/web-next/src/data/demo'
+import type * as IdeasData from '../../../packages/web-next/src/data/ideas'
+import { type IdeaCard } from '../../../packages/web-next/src/data/ideas'
+import type * as InboxData from '../../../packages/web-next/src/data/inbox'
+import type * as PublishData from '../../../packages/web-next/src/data/publish'
+import type * as ShootsData from '../../../packages/web-next/src/data/shoots'
 
 // `web-next` is not an ES module package, so its files load as CommonJS: the exports arrive on
 // the default export.
 const load = async <T>(name: string): Promise<T> => {
-  const mod = await import(`../../web-next/src/data/${name}`)
+  const mod = await import(`../../../packages/web-next/src/data/${name}`)
   return (mod.default ?? mod) as T
 }
 const { BRAND_KIT } = await load<typeof KitData>('brand-kit.ts')
@@ -38,6 +35,29 @@ const { IDEAS_BY_BRAND } = await load<typeof IdeasData>('ideas.ts')
 const { INBOX_BY_BRAND } = await load<typeof InboxData>('inbox.ts')
 const { LINKED } = await load<typeof PublishData>('publish.ts')
 const { GUEST_COMMENTS, SHOOTS_BY_BRAND } = await load<typeof ShootsData>('shoots.ts')
+
+const snake = (key: string) => key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)
+
+/**
+ * Inserts rows into a `brandbase` table: each key is its column in snake case, and a column a
+ * row leaves out keeps its default. Postgres reads each value as its column's type.
+ */
+async function into(db: pg.Client, table: string, rows: object | object[]) {
+  const list = (Array.isArray(rows) ? rows : [rows]).map((r) =>
+    Object.fromEntries(
+      Object.entries(r)
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => [snake(k), v]),
+    ),
+  )
+  if (list.length === 0) return
+  const cols = [...new Set(list.flatMap((r) => Object.keys(r)))].map((c) => `"${c}"`).join(', ')
+  await db.query(
+    `insert into brandbase.${table} (${cols})
+     select ${cols} from jsonb_populate_recordset(null::brandbase.${table}, $1::jsonb)`,
+    [JSON.stringify(list)],
+  )
+}
 
 /** The number a day prints, which the seed's ids carry: "8" for 2026-10-08. */
 const dayNumber = (date: string) => String(Number(date.slice(8)))
@@ -74,14 +94,16 @@ function cardRow(brandId: string, card: IdeaCard, day: string | null, why: strin
   }
 }
 
-export async function seed(db: Db) {
-  const [any] = await db.select().from(t.brands).limit(1)
+async function seed(db: pg.Client) {
+  const [any] = (await db.query('select 1 from brandbase.brands limit 1')).rows
   if (any) throw new Error('the database already holds brands; seed only an empty one')
+  const insert = (table: string, rows: object | object[]) => into(db, table, rows)
+  const ownerOf = new Map<string, string>()
 
   for (const [position, content] of BRAND_CONTENT.entries()) {
     const brand = content.brand
     const id = brand.id
-    await db.insert(t.brands).values({
+    await insert('brands', {
       id,
       name: brand.name,
       handle: brand.handle,
@@ -116,7 +138,7 @@ export async function seed(db: Db) {
           p.stage === 'posted' || p.stage === 'scheduled' ? p.stage : (null as null | 'posted'),
       }
     }
-    if (content.posts.length > 0) await db.insert(t.posts).values(content.posts.map(postRow))
+    if (content.posts.length > 0) await insert('posts', content.posts.map(postRow))
 
     // Stories already out are a count in the demo; here each is a post of its own.
     const stories = days.flatMap((d) =>
@@ -134,7 +156,7 @@ export async function seed(db: Db) {
           }))
         : [],
     )
-    if (stories.length > 0) await db.insert(t.posts).values(stories)
+    if (stories.length > 0) await insert('posts', stories)
 
     // Ideas. A calendar tile becomes its idea's day; a tile with no idea gets one, as the demo's
     // `ideaOfTile` makes on first open: from its moment, else from the tile's own words.
@@ -186,11 +208,13 @@ export async function seed(db: Db) {
     // A millisecond apart, so the ideas read back in the demo's order.
     const base = Date.parse('2026-10-01T00:00:00Z')
     const ordered = [...rows.values()].map((r, i) => ({ ...r, createdAt: new Date(base + i) }))
-    if (ordered.length > 0) await db.insert(t.ideas).values(ordered)
+    if (ordered.length > 0) await insert('ideas', ordered)
+    for (const r of ordered) ownerOf.set(`idea:${r.id}`, id)
 
     // Shoots and their crew. The seed's shoots stand for the team's own (in Lark).
     for (const s of SHOOTS_BY_BRAND[id]) {
-      await db.insert(t.shoots).values({
+      ownerOf.set(`shoot:${s.id}`, id)
+      await insert('shoots', {
         id: s.id,
         brandId: id,
         title: s.title,
@@ -202,10 +226,12 @@ export async function seed(db: Db) {
         ideaIds: s.ideaIds.filter((i) => rows.has(i)),
       })
       if (s.crew.length > 0) {
-        await db.insert(t.crew).values(
+        await insert(
+          'crew',
           s.crew.map((c, i) => ({
             id: `${s.id}-crew-${i + 1}`,
             shootId: s.id,
+            brandId: id,
             ...c,
             position: i,
           })),
@@ -217,13 +243,13 @@ export async function seed(db: Db) {
     const inbox = INBOX_BY_BRAND[id]
     const personId = (name: string) =>
       `${id}-person-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
-    await db
-      .insert(t.inboxPeople)
-      .values(
-        inbox.people.map((p, i) => ({ id: personId(p.name), brandId: id, ...p, position: i })),
-      )
+    await insert(
+      'inbox_people',
+      inbox.people.map((p, i) => ({ id: personId(p.name), brandId: id, ...p, position: i })),
+    )
     const ago = (minutes: number) => new Date(INBOX_NOW.getTime() - minutes * 60_000)
-    await db.insert(t.inboxMessages).values(
+    await insert(
+      'inbox_messages',
       inbox.messages.map((m) => ({
         id: m.id,
         brandId: id,
@@ -246,14 +272,15 @@ export async function seed(db: Db) {
 
     // Brand kit, its files and two voice versions (as `voice/versions.ts` seeds them).
     const kit = BRAND_KIT[id]
-    await db.insert(t.brandKits).values({
+    await insert('brand_kits', {
       brandId: id,
       voice: kit.voice,
       colours: kit.colours,
       logo: { src: brand.logo, name: null },
     })
     if (kit.files.length > 0) {
-      await db.insert(t.brandFiles).values(
+      await insert(
+        'brand_files',
         kit.files.map(({ updated: _printed, ...f }) => ({
           ...f,
           id: `${id}-${f.id}`,
@@ -267,7 +294,7 @@ export async function seed(db: Db) {
       carlitos: ['Lucía', 'Javier'],
     }
     const [newer, older] = authors[id] ?? ['Team', 'Team']
-    await db.insert(t.voiceVersions).values([
+    await insert('voice_versions', [
       {
         brandId: id,
         n: 3,
@@ -291,31 +318,21 @@ export async function seed(db: Db) {
     ])
 
     // Connections.
-    await db
-      .insert(t.connections)
-      .values(
-        Object.entries(CONNECTIONS[id]).map(([key, status]) => ({ brandId: id, key, status })),
-      )
+    await insert(
+      'connections',
+      Object.entries(CONNECTIONS[id]).map(([key, status]) => ({ brandId: id, key, status })),
+    )
   }
 
   // Guest comments, on their shoot or idea.
   for (const [target, list] of Object.entries(GUEST_COMMENTS)) {
     const [kind, targetId] = target.split(':') as ['idea' | 'shoot', string]
-    const [owner] =
-      kind === 'idea'
-        ? await db
-            .select({ brandId: t.ideas.brandId })
-            .from(t.ideas)
-            .where(eq(t.ideas.id, targetId))
-        : await db
-            .select({ brandId: t.shoots.brandId })
-            .from(t.shoots)
-            .where(eq(t.shoots.id, targetId))
+    const owner = ownerOf.get(target)
     if (!owner) continue
     for (const c of list) {
-      await db.insert(t.comments).values({
-        id: `${owner.brandId}-${c.id}`,
-        brandId: owner.brandId,
+      await insert('comments', {
+        id: `${owner}-${c.id}`,
+        brandId: owner,
         kind,
         targetId,
         name: c.name,
@@ -328,22 +345,19 @@ export async function seed(db: Db) {
 
 async function main() {
   const url = process.env.DATABASE_URL
-  let handle
-  if (url) {
-    handle = openPostgres(url, 1)
-  } else {
-    const dir = process.env.PGLITE_DIR ?? '.data/pglite'
-    mkdirSync(dir, { recursive: true })
-    handle = await openPglite(dir)
-  }
+  if (!url) throw new Error('set DATABASE_URL to the database the pack migrated')
+  const db = new pg.Client({ connectionString: url })
+  await db.connect()
   try {
-    await seed(handle.db)
+    await db.query('begin')
+    await seed(db)
     const admin = process.env.SEED_ADMIN
-    if (admin) await handle.db.insert(t.users).values({ id: admin, email: admin, role: 'admin' })
+    if (admin) await into(db, 'users', { id: admin, email: admin, role: 'admin' })
+    await db.query('commit')
     console.info('seeded', BRAND_CONTENT.length, 'brands')
   } finally {
-    await handle.close()
+    await db.end()
   }
 }
 
-if (process.argv[1]?.endsWith('seed.ts')) await main()
+await main()
