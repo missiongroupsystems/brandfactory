@@ -156,6 +156,26 @@ describe('the platform tests', () => {
     expect(packProblems(pack).some((p) => p.startsWith('migration 0002_more.sql'))).toBe(true)
   })
 
+  it('refuse at publish an upload move that is a read, a guest’s, or has no type field', () => {
+    const add = toyPack().ops['note.add']!
+    const list = toyPack().ops['note.list']!
+    const problems = (op: object) =>
+      packProblems(toyPack('1.0.7', { ops: { ...toyPack().ops, 'note.add': { ...add, ...op } } }))
+    expect(problems({ upload: { type: 'body' } }).filter((p) => p.includes('upload'))).toEqual([])
+    expect(problems({ upload: { type: 'kind' } })).toContain(
+      "op note.add: an upload move's type is a required string input",
+    )
+    expect(problems({ upload: { type: 'body' }, guest: { capability: 'body' } })).toContain(
+      'op note.add: an upload move is a write for a signed-in caller',
+    )
+    const read = packProblems(
+      toyPack('1.0.7', {
+        ops: { ...toyPack().ops, 'note.list': { ...list, upload: { type: 'x' } } },
+      }),
+    )
+    expect(read).toContain('op note.list: an upload move is a write for a signed-in caller')
+  })
+
   it('fail a function the runtime role can call that runs with its owner’s rights', async () => {
     const db = await migrated(
       `create function toy.leak() returns setof toy.notes language sql security definer

@@ -1,0 +1,244 @@
+{
+  "name": "media",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "member",
+  "cases": [
+    {
+      "name": "makes a file's record with a key the core makes, and a signed write URL",
+      "steps": [
+        {
+          "call": "media.create",
+          "input": {
+            "brand": "casa",
+            "id": "m1",
+            "mime": "video/mp4",
+            "name": "pasta.mp4",
+            "bytes": 1000,
+            "durationS": 32
+          },
+          "expect": {
+            "result": {
+              "media": {
+                "id": "m1",
+                "kind": "video",
+                "durationS": 32,
+                "name": "pasta.mp4"
+              },
+              "upload": {
+                "headers": {
+                  "content-type": "video/mp4"
+                }
+              }
+            }
+          }
+        },
+        {
+          "sql": "select storage_key ~ '^brandbase/[0-9a-f-]{36}\\.mp4$' as made, brand_id from brandbase.media where id = 'm1'",
+          "expect": {
+            "rows": [
+              {
+                "made": true,
+                "brand_id": "casa"
+              }
+            ]
+          }
+        },
+        {
+          "call": "media.create",
+          "input": {
+            "brand": "casa",
+            "id": "m2",
+            "mime": "application/x-unknown",
+            "bytes": 5
+          },
+          "expect": {
+            "result": {
+              "media": {
+                "kind": "file",
+                "name": ""
+              }
+            }
+          }
+        },
+        {
+          "sql": "select storage_key ~ '^brandbase/[0-9a-f-]{36}\\.bin$' as made from brandbase.media where id = 'm2'",
+          "expect": {
+            "rows": [
+              {
+                "made": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers the same record and key for the same id again, and refuses an id another brand holds",
+      "steps": [
+        {
+          "call": "media.create",
+          "input": {
+            "brand": "casa",
+            "id": "m1",
+            "mime": "image/jpeg",
+            "bytes": 10
+          }
+        },
+        {
+          "sql": "create temporary table first_key as select storage_key from brandbase.media where id = 'm1'"
+        },
+        {
+          "call": "media.create",
+          "input": {
+            "brand": "casa",
+            "id": "m1",
+            "mime": "image/jpeg",
+            "bytes": 10
+          },
+          "expect": {
+            "result": {
+              "media": {
+                "id": "m1",
+                "kind": "photo"
+              }
+            }
+          }
+        },
+        {
+          "sql": "select count(*)::int as n, bool_and(m.storage_key = f.storage_key) as same from brandbase.media m, first_key f where m.id = 'm1'",
+          "expect": {
+            "rows": [
+              {
+                "n": 1,
+                "same": true
+              }
+            ]
+          }
+        },
+        {
+          "call": "media.create",
+          "as": "admin",
+          "input": {
+            "brand": "temper",
+            "id": "m1",
+            "mime": "image/jpeg",
+            "bytes": 10
+          },
+          "expect": {
+            "status": 409,
+            "code": "ID_TAKEN"
+          }
+        }
+      ]
+    },
+    {
+      "name": "takes no key, path or file from the client",
+      "steps": [
+        {
+          "call": "media.create",
+          "input": {
+            "brand": "casa",
+            "id": "m1",
+            "mime": "image/jpeg",
+            "bytes": 10,
+            "storageKey": "temper/x.jpg"
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "media.create",
+          "input": {
+            "brand": "casa",
+            "id": "m1",
+            "mime": "image/jpeg",
+            "bytes": 10,
+            "file": "temper/x.jpg"
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "media.create",
+          "input": {
+            "brand": "casa",
+            "id": "m1",
+            "mime": "image/jpeg",
+            "bytes": 524288001
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.media",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses another brand's file in a post",
+      "steps": [
+        {
+          "call": "media.create",
+          "as": "admin",
+          "input": {
+            "brand": "temper",
+            "id": "m9",
+            "mime": "image/jpeg",
+            "bytes": 10
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "x",
+            "media": [
+              {
+                "src": "https://core.test/files/x/y",
+                "kind": "photo",
+                "mediaId": "m9"
+              }
+            ]
+          },
+          "expect": {
+            "status": 400,
+            "code": "BAD_MEDIA"
+          }
+        }
+      ]
+    },
+    {
+      "name": "makes no record in a brand the member is not in",
+      "steps": [
+        {
+          "call": "media.create",
+          "input": {
+            "brand": "temper",
+            "id": "m1",
+            "mime": "image/jpeg",
+            "bytes": 10
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        }
+      ]
+    }
+  ]
+}

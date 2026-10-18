@@ -38,3 +38,11 @@ reaches. Guest calls are rate-limited per address and logged (the log keeps only
 with a wrong token.
 
 A pack's tests are `packs/<name>/tests/*.json`; the format is at the top of `src/runner.ts`.
+
+Files: a move marked `"upload": {"type": "<field>"}` gets a new key from the core as `:file`
+(`<pack>/<uuid>.<ext>`; the client never names one) and answers `upload: {key, type}`; the core
+turns that into a signed write URL and a stable address, `GET /files/<signature>/<key>`, which
+sends the browser on to a short-lived storage URL. Storage never overwrites a key. Settings:
+`FILES_SECRET` (32 characters or more; a fixed one locally), `PUBLIC_URL` (the core's address in
+those links), `FILES_PROVIDER` (`disk`, under `FILES_DIR`, served by the core and refused in
+production; or `supabase`, with `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` and `FILES_BUCKET`).

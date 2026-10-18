@@ -240,6 +240,11 @@ const ROUTES: Route[] = [
     /^\/brands\/([^/]+)\/comments\/([^/]+)\/done$/,
     ([b, id], body) => ({ op: 'comment.done', input: { ...body, brand: b, id } }),
   ],
+  [
+    'POST',
+    /^\/brands\/([^/]+)\/media$/,
+    ([b], body) => ({ op: 'media.create', input: { ...body, brand: b } }),
+  ],
 ]
 
 /** The move a route becomes on the core, or null when the route is not ported yet. */

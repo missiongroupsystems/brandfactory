@@ -6,6 +6,7 @@ import { Refused } from './errors'
 import { canonical, kindOf, type Manifest, type Op, type PackContent, type Rule } from './pack'
 import { liveVersion, pgError, type LiveVersion } from './registry'
 import { approveIn, fire } from './effects'
+import { type Files, newKey, withUpload } from './files'
 import { changed } from './events'
 import { plannedCalls, schedule, type PlannedCall } from './scheduler'
 import { bind } from './sql'
@@ -23,6 +24,8 @@ export interface CoreDeps {
   connectors?: Record<string, Connector>
   /** How often a running scheduled call beats (`scheduler.ts`); 30 s unless set. */
   heartbeatMs?: number
+  /** Where uploaded files live (`files.ts`); a core without it refuses upload moves. */
+  files?: Files
 }
 
 /** The way out of the app for effect moves: a platform, a message, a payment. */
@@ -213,7 +216,9 @@ export async function execute(
   // A read changes nothing, so it runs again rather than keep a copy of what it read.
   const keyed = key !== undefined && kindOf(op) === 'write'
   const claim = [caller.principal, content.manifest.name, op.name, key]
-  const params = paramsOf(deps, caller, input)
+  const params: Record<string, unknown> = paramsOf(deps, caller, input)
+  // An upload move's new file gets a key the core makes, never one the client sends.
+  if (op.upload) params.file = newKey(content.manifest.name, input[op.upload.type])
   try {
     return await deps.db.transaction(async (tx) => {
       // The time limit is set first, so it also bounds a wait on another call's key.
@@ -383,6 +388,8 @@ export async function call(
     const { op, caller } = await authorise(deps.db, entry.principal, live, req.op)
     entry.agentOf = caller.agent ? caller.person : null
     const input = validate(live, op, req.input)
+    // Before the move runs: a record whose file has nowhere to go is not made.
+    if (op.upload && !deps.files) throw new Refused(501, 'NO_FILES', 'this core keeps no files')
     const done = (tx: Conn) => log(tx, entry)
     const kind = kindOf(op)
     const result =
@@ -390,7 +397,7 @@ export async function call(
         ? await fire(deps, live.content, op, caller, input, done)
         : await execute(deps, live.content, op, caller, input, { key: req.key, done })
     if (kind !== 'read') changed(req.pack)
-    return result
+    return op.upload ? await withUpload(deps.files, req.pack, result) : result
   } catch (err) {
     entry.status = err instanceof Refused ? err.status : 500
     entry.code = err instanceof Refused ? err.code : 'INTERNAL'

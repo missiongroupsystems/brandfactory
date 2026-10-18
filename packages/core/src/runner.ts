@@ -7,6 +7,7 @@ import { applyPackMigrations, migrateCore } from './migrate'
 import { hashOf, type PackContent, type PackTest } from './pack'
 import { addPrincipal, promote, publish, recordTestRun, setLoadout } from './registry'
 import { approve, simulatedConnector } from './effects'
+import { type Files } from './files'
 import { callGuest, MIN_CAPABILITY } from './guest'
 import { call, type Connector } from './run'
 import { claim, tick } from './scheduler'
@@ -260,6 +261,19 @@ export function postgres(url: string): Target {
 
 type Answer = { status: number; body: unknown }
 
+/** Files for a test pass: signed addresses that name the key, and no storage behind them. */
+const testFiles: Files = {
+  store: {
+    signedWriteUrl: async (key, type) => ({
+      url: `https://files.test/put/${key}`,
+      headers: { 'content-type': type },
+    }),
+    signedReadUrl: async (key) => `https://files.test/get/${key}`,
+  },
+  secret: 'test-files-secret-for-pack-tests-only',
+  publicUrl: 'https://core.test',
+}
+
 async function runCase(
   target: Target,
   content: PackContent,
@@ -284,6 +298,7 @@ async function runCase(
           { send: (i: Parameters<Connector['send']>[0]) => connector.send(i) },
         ]),
       ),
+      files: testFiles,
     }
     const callers = new Map<string, Promise<void>>()
     let previous: Answer | null = null

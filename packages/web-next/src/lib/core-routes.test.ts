@@ -104,8 +104,16 @@ describe('the routes on the core', () => {
     })
   })
 
+  it('sends an upload to the move that makes its record, with the brand from the path', () => {
+    expect(
+      coreCall('POST', '/brands/casa/media', { id: 'm1', mime: 'image/png', bytes: 3, brand: 'x' }),
+    ).toEqual({
+      op: 'media.create',
+      input: { id: 'm1', mime: 'image/png', bytes: 3, brand: 'casa' },
+    })
+  })
+
   it('leaves a route not ported yet to the BrandBase API', () => {
-    expect(coreCall('POST', '/brands/casa/media', {})).toBeNull()
     expect(coreCall('GET', '/brands/casa/posts/p1', undefined)).toBeNull()
   })
 })

@@ -659,3 +659,42 @@ use two). Fixed:
 
 Left: a malformed token answers 400 where the server answered 404; the guest page shows "nothing
 to show" for both.
+
+### Phase 6, fifth part: uploads
+
+- **Core: files** (`files.ts`). A move marked `"upload"` makes a file's record; the core passes a
+  new key `<pack>/<uuid>.<ext>` as `:file` (the architecture notes' rule: the core makes the key,
+  never the client), and turns the move's `upload: {key, type}` into a signed write URL and a
+  stable address. It signs only a key of that pack's shape. `GET /files/<signature>/<key>` checks
+  the signature and redirects to a storage URL good for an hour. Two stores, as the server had:
+  files on disk for development (served by the core at `/blobs/*` with a named type and
+  `nosniff`, refused in production) and Supabase Storage. Neither overwrites a key: the disk
+  writes with `wx`, Supabase signs uploads with `upsert: false`.
+- **Pack.** `media.create` (kind by type, the same id again keeps its record and key, another
+  brand's id is refused with `ID_TAKEN`). Tests: the server's media cases, plus a key, path or
+  `file` from the client refused and a member's other brand refused.
+- **web-next.** Uploads go to `media.create` on the core. `next.config.ts` turns off the image
+  optimiser when only the core is set, as it did for the API, or uploaded pictures would not
+  show. Checked with Playwright: a picture added to an idea's references uploads to the core's
+  disk store, the idea keeps its stable address, and it shows after a reload; a forged
+  signature answers 404.
+- With uploads, every route web-next calls has a move on the core.
+- Not done: the notes' finalize step (read the stored file once, record its hash, size and type,
+  freeze the record). A record's key can be signed again for a write, but storage refuses the
+  second write. A stable address has no expiry and stays good while the file is stored, as the
+  server's did; the Supabase store is ported unchanged and not run here (no local Supabase).
+
+
+**Review** (one Sonnet reviewer): the acceptance points held (no client key, no cross-pack or
+cross-verb signature, no traversal, no overwrite, brand isolation). Fixed:
+
+- The fixed local `FILES_SECRET` applied whenever the core was not in production, also with a
+  real sign-in; it now applies only with the dev sign-in on this machine.
+- A disk write with no length (or a chunked one) was read whole before its size was checked; it
+  is now refused with 411 before it is read.
+- A core with no file store made the record and then answered 501; it now refuses first.
+- New core tests run an upload move through the door end to end (the core's key, the signed
+  write, the stable address, and a replay under the same idempotency key re-signed).
+
+Noted: a record made by the old server, with a key not of the core's shape, could not be signed
+again; nothing imports such rows.

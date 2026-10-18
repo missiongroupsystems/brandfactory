@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.23.0** — 2026-10-18 — `feat/packs-core`, phase 6, fifth part: uploads on the core. A move marked `upload` gets a key the core makes (never the client), a signed write URL and a stable address that redirects to storage; storage never overwrites a file; files on disk locally, Supabase Storage in a deployment. With it every route web-next calls runs on the core. No migration. 834 tests.
 - **2.22.0** — 2026-10-17 — `feat/packs-core`, phase 6, fourth part: share links and comments on the core. Guest moves open at `POST /guest/{pack}/{op}` with no sign-in, the link's token as the right and the pack's row rules deciding what it reaches, rate-limited per address with the token masked in the log; the share page, guest comments and edits, team replies and done on the core. Pack migration `0007_share` (not applied to production). 813 tests (135 more skipped without a Postgres server).
 - **2.21.0** — 2026-10-17 — `feat/packs-core`, phase 6, second part: ideas, shoots, the inbox, the brand kit, connections and pasted links on the core (31 moves), with the server's cases for each; the Lark invite is an approved effect, refused while the same send is on its way; crew rows carry their brand. Pack migrations `0004_ideas`, `0005_shoots`, `0006_kit` (not applied to production). 664 tests (122 more skipped without a Postgres server).
 - **2.20.0** — 2026-10-17 — `feat/packs-core`, phase 6, first part: with `NEXT_PUBLIC_CORE_URL` set the app signs in, loads each brand and writes its posts through the core's moves (Schedule carries the person's yes to each account's send), with the screens unchanged; a script starts the core with the demo's data on a local Postgres. Other routes still go to the BrandBase API. No migration. 603 tests (66 more skipped without a Postgres server).
@@ -44,6 +45,21 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.23.0 — 2026-10-18
+
+- **Files (core).** `files.ts`: keys `<pack>/<uuid>.<ext>` made by the core, signed write URLs,
+  stable addresses at `GET /files/<signature>/<key>`, a disk store for development (refused in
+  production, a write needs its length, never over a stored file) and Supabase Storage
+  (`upsert: false`, not run here). Settings `FILES_SECRET`, `FILES_PROVIDER`, `FILES_DIR`,
+  `FILES_BUCKET`, `PUBLIC_URL`; the fixed local secret only with the dev sign-in.
+- **Pack.** `media.create`, with the server's media cases.
+- **web-next.** Uploads go to the core; the image optimiser is off when only the core is set.
+  Checked with Playwright: a picture added to an idea uploads, keeps its address and shows after
+  a reload.
+
+No migration. Gate: typecheck, lint, format, 834 tests in 71 files with `CORE_TEST_PG_URL`,
+`next build`.
 
 ## 2.22.0 — 2026-10-17
 

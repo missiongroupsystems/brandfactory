@@ -30,8 +30,9 @@ const deps = {
   // Real connectors come with the platforms' reviews (and a Lark provider); until then
   // nothing leaves the core.
   connectors: { simulated: simulatedConnector, lark: simulatedConnector },
+  files: env.files,
 }
-const app = createCore(deps, { corsOrigins: env.corsOrigins })
+const app = createCore(deps, { corsOrigins: env.corsOrigins, disk: env.disk })
 // One loop: the core runs as one instance. The claim still keeps a second from running a call
 // twice.
 const stopScheduler = startScheduler(deps)

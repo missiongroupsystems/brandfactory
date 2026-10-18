@@ -32,6 +32,25 @@ describe('the environment', () => {
     ).toThrow(/pinned clock/)
   })
 
+  it('keeps files on disk only on this machine, and needs a long secret to sign them', () => {
+    const prod = {
+      NODE_ENV: 'production',
+      AUTH_PROVIDER: 'supabase',
+      SUPABASE_JWKS_URL: 'https://x.supabase.co/auth/v1/.well-known/jwks.json',
+    }
+    expect(() => loadEnv(prod)).toThrow(/FILES_SECRET/)
+    expect(() => loadEnv({ ...prod, FILES_SECRET: 's'.repeat(32) })).toThrow(/on disk/)
+    expect(() =>
+      loadEnv({ ...prod, FILES_SECRET: 's'.repeat(32), FILES_PROVIDER: 'supabase' }),
+    ).toThrow(/SUPABASE_SERVICE_KEY/)
+    expect(() => loadEnv({ FILES_SECRET: 'short' })).toThrow(/FILES_SECRET/)
+    // Real sign-in outside production still needs its own secret, never the one in the source.
+    expect(() =>
+      loadEnv({ AUTH_PROVIDER: 'supabase', SUPABASE_JWKS_URL: prod.SUPABASE_JWKS_URL }),
+    ).toThrow(/FILES_SECRET/)
+    expect(loadEnv({}).disk).toBeDefined()
+  })
+
   it('needs the key set to check Supabase tokens against', () => {
     expect(() => loadEnv({ AUTH_PROVIDER: 'supabase' })).toThrow(/SUPABASE_JWKS_URL/)
   })

@@ -49,6 +49,12 @@ export interface Op {
    * person, and the pack's row rules decide what it opens. Never an effect.
    */
   guest?: { capability: string }
+  /**
+   * A move that makes a file's record: the core passes a new key as `:file`, the move answers
+   * `upload: {key, type}` (the row's key, new or kept), and the core turns that into a signed
+   * write URL and the file's stable address `src`. `type` names the input field with its type.
+   */
+  upload?: { type: string }
 }
 
 export interface PackTest {
@@ -145,7 +151,7 @@ export function hashOf(content: PackContent): string {
  * `fields` is the whole input as JSON, so a statement can tell a field sent as null from one not
  * sent (`:fields::jsonb ? 'why'`).
  */
-export const RESERVED = ['now', 'actor', 'agent', 'outcome', 'payload', 'fields']
+export const RESERVED = ['now', 'actor', 'agent', 'outcome', 'payload', 'fields', 'file']
 
 // No `__` and no `_` at the end of a part: an MCP tool name writes the dots as `__`.
 const NAME = /^[a-z](_?[a-z0-9])*(\.[a-z](_?[a-z0-9])*)*$/
@@ -205,6 +211,17 @@ export function packProblems(content: PackContent): string[] {
         out.push(`op ${name}: a guest move's capability is a required string input`)
       }
       if (op.connector !== undefined) out.push(`op ${name}: a guest move never reaches outside`)
+    }
+    if (op.upload !== undefined) {
+      const field = op.upload.type
+      const props = (op.input?.properties ?? {}) as Record<string, { type?: unknown }>
+      const required = (op.input?.required ?? []) as string[]
+      if (!field || props[field]?.type !== 'string' || !required.includes(field)) {
+        out.push(`op ${name}: an upload move's type is a required string input`)
+      }
+      if (op.guest !== undefined || kindOf(op) !== 'write') {
+        out.push(`op ${name}: an upload move is a write for a signed-in caller`)
+      }
     }
     if (op.empty) {
       const e = refusalProblem(`op ${name}.empty`, op.empty)
