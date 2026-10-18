@@ -102,6 +102,26 @@ async function freshToken(): Promise<string | null> {
   return session.access
 }
 
+const MOVE_NAME = /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/
+
+/** The person's token, for a request the page makes to another service (Bubbles). */
+export const token = freshToken
+
+/** The person's yes to what a move sends, recorded on the core before the move runs. */
+export async function approve(tool: string, input: unknown): Promise<void> {
+  // The name came from the model: only the shape of a move name (`post.create_draft`) may go
+  // into the path.
+  if (!MOVE_NAME.test(tool))
+    throw new RemoteError(400, 'BAD_MOVE', 'That is not a move Brand base knows.')
+  const bearer = await freshToken()
+  await answer(
+    `${CORE_URL}/approve/${PACK}/${encodeURIComponent(tool)}`,
+    'POST',
+    input,
+    bearer ? { authorization: `Bearer ${bearer}` } : {},
+  )
+}
+
 // ── Requests ────────────────────────────────────────────────────────────────────────────────
 
 export class RemoteError extends Error {

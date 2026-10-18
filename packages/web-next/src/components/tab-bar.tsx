@@ -11,10 +11,11 @@ const TABS = [
   { href: '/ideate', label: 'Ideate', icon: <IdeaGlyph /> },
   { href: '/insights', label: 'Insights', icon: <ChartGlyph /> },
   { href: '/inbox', label: 'Inbox', icon: <InboxGlyph /> },
+  { href: '/bubbles', label: 'Bubbles', icon: <BubblesGlyph /> },
 ] as const
 
 /**
- * A phone's navigation, at the bottom where a thumb reaches it: the four pages. The header keeps
+ * A phone's navigation, at the bottom where a thumb reaches it: the five pages. The header keeps
  * the brand; Schedule has its own new-post button. A post's own page is a task, so it hides the bar and
  * keeps its own back link and send buttons.
  */
@@ -122,6 +123,25 @@ function InboxGlyph() {
         strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function BubblesGlyph() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+      <path
+        d="M3.5 6.5a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H9.6l-4.1 3.2v-3.2H6.5a3 3 0 0 1-3-3z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7.5 8.5h7M7.5 11.5h4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
       />
     </svg>
   )

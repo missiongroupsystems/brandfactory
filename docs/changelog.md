@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.25.0** — 2026-10-18 — `feat/packs-core`: Bubbles, the agent people talk to. A fifth tab chats with Bubbles, which runs DeepSeek's harness runtime with the model through OpenRouter and acts only through the core's moves as the person's agent (`POST /agents/session`); a send still waits for the person's yes on the page. Not deployed; no live model call yet. No migration. 780 tests.
 - **2.24.0** — 2026-10-18 — `feat/packs-core`, phase 7: `packages/server` retired on this branch. The demo seed moves into the pack (`packs/brandbase/demo/seed.ts`, the same rows), the Dockerfile and `fly.toml` target the core (not deployed), and web-next talks only to the core. No migration. 728 tests.
 - **2.23.0** — 2026-10-18 — `feat/packs-core`, phase 6, fifth part: uploads on the core. A move marked `upload` gets a key the core makes (never the client), a signed write URL and a stable address that redirects to storage; storage never overwrites a file; files on disk locally, Supabase Storage in a deployment. With it every route web-next calls runs on the core. No migration. 834 tests.
 - **2.22.0** — 2026-10-17 — `feat/packs-core`, phase 6, fourth part: share links and comments on the core. Guest moves open at `POST /guest/{pack}/{op}` with no sign-in, the link's token as the right and the pack's row rules deciding what it reaches, rate-limited per address with the token masked in the log; the share page, guest comments and edits, team replies and done on the core. Pack migration `0007_share` (not applied to production). 813 tests (135 more skipped without a Postgres server).
@@ -46,6 +47,24 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.25.0 — 2026-10-18
+
+- **Agent sessions (core).** `POST /agents/session` gives a person's agent, `<person>/<name>`, a
+  one-hour token signed with `AGENT_SECRET`. Each session copies the person's loadouts; the core
+  checks the agent's and the person's on every call; an agent cannot approve or start an agent.
+- **Bubbles (`packages/bubbles`).** DeepSeek's harness runtime per conversation, driven over
+  stdio as openworld does; the model through a local gateway to OpenRouter (the key kept from the
+  runtime, capped and streamed requests, the core's tools only, no data collection, reasoning
+  off, 12 requests a turn); the tools are the core's `POST /mcp/brandbase`. Run end to end here
+  with the real runtime and core and a fake model. Plan: `docs/executing/bubbles-plan.md`.
+- **The Bubbles tab (web-next).** One input, answers in light Markdown, what Bubbles is doing now,
+  Stop, Try again, and an approval card for sends; the brand on screen goes with each question.
+  Checked in a browser against the real Bubbles and core.
+- **Board.** `docs/refs/packs-core/architecture.excalidraw` and `.png`.
+
+No migration. Gate: typecheck, lint, format, 780 tests in 66 files with `CORE_TEST_PG_URL`,
+`next build`.
 
 ## 2.24.0 — 2026-10-18
 

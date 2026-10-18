@@ -15,6 +15,7 @@ const NAV = [
   { href: '/ideate', label: 'Ideate' },
   { href: '/insights', label: 'Insights' },
   { href: '/inbox', label: 'Inbox' },
+  { href: '/bubbles', label: 'Bubbles' },
 ] as const
 
 export function AppHeader() {
