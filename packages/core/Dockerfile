@@ -4,8 +4,9 @@
 # No build step: the source runs under tsx (a production dependency). Packs are not in the image;
 # a person publishes, tests and promotes a version with the command line (`src/cli.ts`).
 
-# Node 22: supabase-js needs its native WebSocket, which Node 20 lacks.
-ARG NODE_VERSION=22.12.0
+# Node 24, as .nvmrc and CI: the text migration is generated from this Node's Unicode tables,
+# and supabase-js needs the native WebSocket that Node 20 lacks.
+ARG NODE_VERSION=24.13.0
 
 FROM node:${NODE_VERSION}-alpine AS builder
 # The pnpm the repo pins (package.json); corepack in this Node has an outdated signing key.
