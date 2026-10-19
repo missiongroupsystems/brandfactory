@@ -56,7 +56,11 @@ export function IdeaTile({ model, index }: { model: Model; index: number }) {
       label={`Idea: ${hook}`}
     >
       <span className="flex items-start gap-3">
-        <Thumb src={cover || undefined} className="h-[75px] w-[60px]" />
+        <Thumb
+          src={cover || undefined}
+          className="h-[75px] w-[60px]"
+          fallback={format ? <FormatIcon format={format} size={18} /> : undefined}
+        />
         <span className="flex min-w-0 flex-1 flex-col gap-1.5 py-0.5">
           <span className={`${TITLE} line-clamp-2`}>{hook || 'An idea'}</span>
           <span className={META}>

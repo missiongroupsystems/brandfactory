@@ -82,12 +82,13 @@ export function Card({
 
 /**
  * A photo or a video's poster in a rounded box, drawn in once it has loaded. With no source, the
- * box stays as the tile's grey, which is how the app shows a thing with no picture yet.
+ * box is the tile's grey with the `fallback` icon in its middle: what kind of thing it is.
  */
 export function Thumb({
   src,
   className = 'size-[60px]',
   faded = false,
+  fallback,
   children,
 }: {
   src?: string
@@ -95,13 +96,18 @@ export function Thumb({
   className?: string
   /** The picture stands in for one not made yet: faded, as the calendar draws it. */
   faded?: boolean
+  /** Drawn in the middle while there is no picture: the thing's kind, as a small icon. */
+  fallback?: React.ReactNode
   children?: React.ReactNode
 }) {
   const [loaded, setLoaded] = React.useState(false)
   const still = useReducedMotion()
   const show = loaded || still || !src || isVideo(src)
   return (
-    <span className={`relative shrink-0 overflow-hidden rounded-[10px] bg-tile ${className}`}>
+    <span
+      className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-tile text-ink-5 ${className}`}
+    >
+      {!src && fallback}
       {src && (
         <span
           className={`absolute inset-0 transition-opacity duration-300 ease-out ${show ? 'opacity-100' : 'opacity-0'} ${faded ? 'opacity-40 grayscale-[0.4]' : ''}`}

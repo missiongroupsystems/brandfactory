@@ -109,7 +109,11 @@ export function PastedCard({ model, index }: { model: Model; index: number }) {
       label={`Moodboard: ${str(model.input.account)}`}
     >
       <span className="flex items-start gap-3">
-        <Thumb src={str(model.input.image) || undefined} className="h-[75px] w-[60px]" />
+        <Thumb
+          src={str(model.input.image) || undefined}
+          className="h-[75px] w-[60px]"
+          fallback={platform ? <PlatformLogo platform={platform} size={18} /> : undefined}
+        />
         <span className="flex min-w-0 flex-1 flex-col gap-1.5 py-0.5">
           <span className="line-clamp-2 text-[13px] leading-[1.3] text-ink">
             {str(model.input.borrow) || 'A post to borrow from'}

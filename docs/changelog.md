@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.26.3** — 2026-10-19 — `feat/packs-core`: a Bubbles card for a thing with no picture shows its kind's icon (Reel, Carousel, Story, or the platform for a moodboard link) in the middle of the grey tile, not an empty square. No migration. 803 tests.
 - **2.26.2** — 2026-10-19 — `feat/packs-core`: one Node version, 24.13.0, for CI (`.nvmrc`), the core's image and local work. CI on Node 20 failed the text migration check, which compares the migration with what this Node's Unicode tables give. No migration. 803 tests.
 - **2.26.1** — 2026-10-19 — `feat/packs-core`: Bubbles after the live card check. The answer is only what Bubbles wrote after its last move; its earlier lines ("I'll look at the brand first.") move into "How Bubbles did this". The persona tells it not to announce steps or name moves. A long reply no longer shows a fourth line under its bubble. No migration. 803 tests.
 - **2.26.0** — 2026-10-19 — `feat/packs-core`: Bubbles shows what it changed as cards. Each idea, post, shoot, reply, comment, kit change, link, connection, moodboard link and setting a move touched is drawn as the app draws it, live from the stores, with a verb, a quiet rise, a day that slides on a move and a stage that fades on a mark; a removed thing stays drawn from a snapshot, faded; the brand reloads after each change. No migration. 800 tests.
@@ -51,6 +52,13 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.26.3 — 2026-10-19
+
+- **Empty thumbnails (web-next).** On a Bubbles card, an idea, a post or a moodboard link with no picture showed an
+  empty grey square. `Thumb` now takes a `fallback` icon and draws it in the tile's middle: the format's icon for an
+  idea or a post, the platform's mark for a moodboard link. Checked with Playwright at 1440 and 390 px.
+- **Gate:** typecheck, lint, format, build; web-next tests pass (803 in all, as in 2.26.1).
 
 ## 2.26.2 — 2026-10-19
 
