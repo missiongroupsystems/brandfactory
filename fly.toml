@@ -24,7 +24,7 @@ kill_signal    = "SIGTERM"
 
 # The core's own migrations (the registry, the roles and the wall) run before new machines take
 # traffic. They need a superuser; whether Supabase's `postgres` role is enough is not checked yet
-# (docs/completions/packs-core-phases-1-to-7.md, phase 1). A pack's migrations run with
+# (docs/completions/packs-core-phases-1-to-8.md, phase 1). A pack's migrations run with
 # `core migrate <pack> <version>` once a version has passed its tests.
 [deploy]
   release_command = "node_modules/.bin/tsx src/cli.ts migrate"

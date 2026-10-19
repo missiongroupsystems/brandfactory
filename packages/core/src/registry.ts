@@ -1,3 +1,4 @@
+import { writeClaims } from './claims'
 import { type Conn, type Db } from './db'
 import { Refused } from './errors'
 import { hashOf, packProblems, type PackContent } from './pack'
@@ -11,7 +12,7 @@ export function pgError(err: unknown): { code?: string; constraint?: string; mes
 /** Runs `fn` as `pack_admin`, the only role that writes versions, test runs and the pointer. */
 function asAdmin<T>(db: Db, fn: (tx: Conn) => Promise<T>, actor?: string): Promise<T> {
   return db.transaction(async (tx) => {
-    if (actor !== undefined) await tx.query(`select set_config('app.actor', $1, true)`, [actor])
+    if (actor !== undefined) await writeClaims(tx, { actor })
     await tx.exec('set local role pack_admin')
     return fn(tx)
   })

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { writeClaims } from './claims'
 import { type Db } from './db'
 import { Refused } from './errors'
 import { hashOf } from './pack'
@@ -152,6 +153,42 @@ describe('the runtime role', () => {
     ['run XML queries', `select query_to_xml('select 1', true, true, '') as x`],
   ])('cannot %s', async (_what, sql) => {
     await expect(raw(sql)).rejects.toThrow(/permission denied/)
+  })
+
+  it('keeps its caller where it may call set_config, as on Supabase', async () => {
+    // Supabase's login role cannot take set_config from PUBLIC. The caller must still hold:
+    // the row rules read the core's claims table, which the runtime role cannot write.
+    const d = await db()
+    await goLive(d, toyPack())
+    await d.exec(`
+      grant execute on function pg_catalog.set_config(text, text, boolean) to pack_runtime;
+      insert into toy.notes (id, owner, body) values ('a1', 'ana', 'mine'), ('b1', 'ben', 'his');
+    `)
+    const seen = await d.transaction(async (tx) => {
+      await writeClaims(tx, { user_id: 'ana' })
+      await tx.exec('set local role pack_runtime')
+      await tx.query(`select set_config('app.user_id', 'ben', true)`)
+      const writes: string[] = []
+      for (const sql of [
+        `insert into claims.calls (user_id) values ('ben')`,
+        `update claims.calls set user_id = 'ben'`,
+        `delete from claims.calls`,
+      ]) {
+        await tx.exec('savepoint s')
+        writes.push(await code(tx.query(sql)))
+        await tx.exec('rollback to savepoint s')
+      }
+      return {
+        writes,
+        who: await tx.query(`select claims.user_id() as who`),
+        notes: await tx.query(`select id from toy.notes`),
+      }
+    })
+    expect(seen.who).toEqual([{ who: 'ana' }])
+    expect(seen.notes).toEqual([{ id: 'a1' }])
+    expect(seen.writes.every((w) => /permission denied/.test(w))).toBe(true)
+    // The row goes with the transaction.
+    expect(await d.query(`select count(*)::int as n from claims.calls`)).toEqual([{ n: 0 }])
   })
 
   it('cannot call any function the SQL check forbids', async () => {

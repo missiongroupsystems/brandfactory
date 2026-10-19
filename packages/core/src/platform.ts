@@ -83,7 +83,8 @@ export async function noFunctionCarriesSettings(db: Db): Promise<string[]> {
 /**
  * Nothing a pack made runs on a write: no trigger, rule or column default that calls code
  * outside pg_catalog on a table the runtime role can reach. Such code runs as whoever writes the
- * row, which for a fixture, a seed or a core write is the login role.
+ * row, which for a fixture, a seed or a core write is the login role. One trigger is the core's
+ * and left out: `forget` on `claims.calls` (migration 0007), calling `claims.forget()`.
  */
 export async function noCodeRunsOnWrite(db: Db): Promise<string[]> {
   const reachable = `c.relnamespace not in ('pg_catalog'::regnamespace,
@@ -91,7 +92,9 @@ export async function noCodeRunsOnWrite(db: Db): Promise<string[]> {
     'select, insert, update, delete, truncate, references, trigger')`
   const triggers = await db.query<{ name: string }>(
     `select c.oid::regclass::text || ': trigger ' || t.tgname as name from pg_trigger t
-     join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and ${reachable}`,
+     join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and ${reachable}
+       and not (c.oid = 'claims.calls'::regclass and t.tgname = 'forget'
+                and t.tgfoid = 'claims.forget()'::regprocedure)`,
   )
   const rules = await db.query<{ name: string }>(
     `select c.oid::regclass::text || ': rule ' || r.rulename as name from pg_rewrite r

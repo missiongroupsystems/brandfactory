@@ -3,6 +3,7 @@ import { Ajv, type ValidateFunction } from 'ajv'
 import { type AgentTokens } from './agents'
 import { type AuthProvider } from './auth'
 import { type Conn, type Db, type Row } from './db'
+import { writeClaims } from './claims'
 import { Refused } from './errors'
 import { canonical, kindOf, type Manifest, type Op, type PackContent, type Rule } from './pack'
 import { liveVersion, pgError, type LiveVersion } from './registry'
@@ -39,24 +40,24 @@ export interface Connector {
 
 /**
  * Sets the caller's claims and the time limit, as the login role, before a call drops to
- * pack_runtime (which cannot call set_config, reset the role or read the registry). Identity
- * comes from the verified token alone; anything else a policy needs it looks up itself.
+ * pack_runtime. The claims go in `claims.calls`, which the pack roles can read for their own
+ * transaction but not write, so no statement can name another caller even where the runtime role
+ * can call set_config (Supabase). Identity comes from the verified token alone; anything else a
+ * policy needs it looks up itself.
  */
 export async function setClaims(
   tx: Conn,
   deps: Pick<CoreDeps, 'statementTimeoutMs'>,
   caller: Caller,
 ) {
+  await writeClaims(tx, {
+    user_id: caller.person,
+    agent_id: caller.agent ?? '',
+    capability: caller.capability ?? '',
+  })
   await tx.query(
-    `select set_config('app.user_id', $1, true), set_config('app.agent_id', $2, true),
-            set_config('statement_timeout', $3, true), set_config('timezone', 'UTC', true),
-            set_config('app.capability', $4, true)`,
-    [
-      caller.person,
-      caller.agent ?? '',
-      String(deps.statementTimeoutMs ?? 5000),
-      caller.capability ?? '',
-    ],
+    `select set_config('statement_timeout', $1, true), set_config('timezone', 'UTC', true)`,
+    [String(deps.statementTimeoutMs ?? 5000)],
   )
 }
 

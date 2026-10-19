@@ -85,7 +85,7 @@ The repository is a pnpm workspaces monorepo with these packages:
 `feat/packs-core` builds BrandBase's backend as a pack on a generic core, in place of the
 `packages/server` that `feat/brandbase-backend` keeps. Read
 `docs/completions/packs-core-proposal.md`, `docs/completions/packs-core-plan.md` and
-`docs/completions/packs-core-phases-1-to-7.md` before any work here.
+`docs/completions/packs-core-phases-1-to-8.md` before any work here.
 
 ### Backend work starts from the archive
 

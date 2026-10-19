@@ -25,8 +25,8 @@ export function toyPack(version = '1.0.0', over: Partial<PackContent> = {}): Pac
           alter table toy.notes enable row level security;
           alter table toy.notes force row level security;
           create policy own on toy.notes
-            using (owner = current_setting('app.user_id', true))
-            with check (owner = current_setting('app.user_id', true));
+            using (owner = claims.user_id())
+            with check (owner = claims.user_id());
           grant usage on schema toy to pack_runtime;
           grant select, insert, update, delete on toy.notes to pack_runtime;
         `,

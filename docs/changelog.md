@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.27.0** — 2026-10-19 — `feat/packs-core`: the caller in a table, for Supabase. Row rules read who is calling from `claims.calls`, which only the core writes, one row per transaction, gone at commit; no longer from settings that `set_config` can change where the database lets the runtime role call it. Core migration 0007, brandbase 1.1.0 with migration 0008. 804 tests.
 - **2.26.3** — 2026-10-19 — `feat/packs-core`: a Bubbles card for a thing with no picture shows its kind's icon (Reel, Carousel, Story, or the platform for a moodboard link) in the middle of the grey tile, not an empty square. No migration. 803 tests.
 - **2.26.2** — 2026-10-19 — `feat/packs-core`: one Node version, 24.13.0, for CI (`.nvmrc`), the core's image and local work. CI on Node 20 failed the text migration check, which compares the migration with what this Node's Unicode tables give. No migration. 803 tests.
 - **2.26.1** — 2026-10-19 — `feat/packs-core`: Bubbles after the live card check. The answer is only what Bubbles wrote after its last move; its earlier lines ("I'll look at the brand first.") move into "How Bubbles did this". The persona tells it not to announce steps or name moves. A long reply no longer shows a fourth line under its bubble. No migration. 803 tests.
@@ -52,6 +53,30 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.27.0 — 2026-10-19
+
+- **The caller in a table (core).** The row rules and the promotion check read the caller from settings that
+  `set_config` writes. On Supabase the login role cannot take `set_config` from the runtime role, so a statement past
+  the SQL check could name another caller. Now the core writes the caller, the agent, a guest's capability and the
+  actor into `claims.calls` (migration `0007_claims.sql`), keyed by the transaction, before it drops to a pack role.
+  The pack roles may read only their own transaction's row and write none, and a deferred trigger deletes the row at
+  commit. Rules read `claims.user_id()`, `claims.capability()` and `claims.actor()`.
+- **The pack (brandbase 1.1.0).** Migration `0008_claims.sql` points `brandbase.caller()` and
+  `brandbase.capability()` at the claims. The version goes to 1.1.0, since a published version is frozen.
+- **The platform check** for code that runs on a write leaves out one trigger by name, the core's `forget` on
+  `claims.calls`. The `claims.*` readers also filter by the transaction, so a role that bypasses row rules reads
+  only its own claims.
+- **Deploy order:** core migration 0007 and brandbase 1.1.0 with 0008 go out together; between them every call sees
+  no caller and is refused. The hour-rule demo sets its first version to 1.0.0 itself.
+- **Left as it was:** `statement_timeout` and `timezone` are still settings. Plan and as built:
+  `docs/completions/packs-core-phases-1-to-8.md`, phase 8 (the file was `…-1-to-7.md`).
+- **Checked** with a test that gives the runtime role `set_config` back, as on Supabase, forges the caller and
+  expects nothing to change (it fails with the old setting-based rule), and live on the local Postgres: core
+  migrated, brandbase 1.1.0 published, tested (133 of 133 cases), promoted and migrated, and Bubbles read and wrote
+  through the restarted core.
+- **Gate:** typecheck, lint, format, build; 804 tests in 69 files (core 410, web-next 347, connect 27, bubbles 20),
+  each package run alone.
 
 ## 2.26.3 — 2026-10-19
 

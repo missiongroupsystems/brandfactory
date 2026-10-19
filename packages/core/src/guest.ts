@@ -5,8 +5,8 @@ import { execute, log, type CoreDeps, type LogEntry, PATH_PART, resolve, validat
 
 /**
  * Guests: people with no account, holding a capability (a share link's token). A pack marks the
- * moves a guest may call (`Op.guest`); each runs with no person, the capability as
- * `app.capability`, as pack_runtime under the same row rules as any call, so the pack's policies
+ * moves a guest may call (`Op.guest`); each runs with no person, the capability as the call's
+ * `claims.capability()`, as pack_runtime under the same row rules as any call, so the pack's policies
  * decide what a token opens. No loadout applies: the capability is the right.
  */
 

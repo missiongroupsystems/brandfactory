@@ -3,7 +3,7 @@
 The generic backend: one door, `POST /ops/{pack}/{op}`, for every pack's moves. It knows no
 business words; everything app-specific is pack data in `packs/<name>/`. The design is in
 `docs/completions/packs-core-proposal.md`; what was built, phase by phase, is in
-`docs/completions/packs-core-phases-1-to-7.md`.
+`docs/completions/packs-core-phases-1-to-8.md`.
 
 ```bash
 pnpm vitest run --project @brandfactory/core
@@ -33,7 +33,7 @@ what a person approved with `POST /approve/{pack}/{op}`.
 
 A move marked `"guest": {"capability": "<field>"}` is open with no sign-in at
 `POST /guest/{pack}/{op}`. The input field it names (at least 32 characters) is the right: the move
-runs with no person and with `app.capability` set to it, so the pack's row rules decide what it
+runs with no person and with it as the call's capability (`claims.capability()`), so the pack's row rules decide what it
 reaches. Guest calls are rate-limited per address and logged (the log keeps only the first 4 characters of the capability), and every guest move needs a case
 with a wrong token.
 

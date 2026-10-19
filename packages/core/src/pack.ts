@@ -45,7 +45,7 @@ export interface Op {
   payload?: string
   /**
    * A move a guest calls with no sign-in (`POST /guest/:pack/:op`), authorised by the capability
-   * in the named input field (a link's token): the core sets it as `app.capability`, with no
+   * in the named input field (a link's token): the core sets it as `claims.capability()`, with no
    * person, and the pack's row rules decide what it opens. Never an effect.
    */
   guest?: { capability: string }

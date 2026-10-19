@@ -19,6 +19,8 @@ cp -R "$ROOT/packs/brandbase" "$WORK/v120"
 node -e '
 const fs = require("fs"), [, work] = process.argv
 const edit = (f, fn) => fs.writeFileSync(f, JSON.stringify(fn(JSON.parse(fs.readFileSync(f, "utf8"))), null, 2))
+// The demo keeps its own versions, whatever version the pack in the repo has.
+edit(`${work}/v100/manifest.json`, (m) => ({ ...m, version: "1.0.0" }))
 for (const [dir, version] of [["v110", "1.1.0"], ["v120", "1.2.0"]]) {
   edit(`${work}/${dir}/manifest.json`, (m) => ({ ...m, version }))
   edit(`${work}/${dir}/rules/post.not_too_early.json`, (r) => ({

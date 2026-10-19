@@ -724,3 +724,44 @@ the existing `brandfactory` Fly app for the core (open decision 3, 18 Oct). Befo
 check that Supabase's `postgres` role can run the core's migrations, and run the Supabase file
 store. The as-built board is `docs/refs/packs-core/as-built.excalidraw`.
 
+
+## Phase 8: the caller in a table, for Supabase
+
+**Why.** Every row rule read the caller from settings (`app.user_id`, `app.capability`, and
+`app.actor` for promotion), which the core set with `set_config`. That holds only while the
+runtime role cannot call `set_config`. On Supabase the `postgres` role is not a superuser and
+cannot take `set_config` from PUBLIC, so a statement that slipped past the SQL check could name
+another caller. The owner chose option A (19 Oct): the claims move into a table only the core
+writes. Option B, a Postgres server of our own, was not needed.
+
+- **`claims.calls`** (core migration `0007_claims.sql`): one row per transaction, keyed by
+  `pg_current_xact_id()`, with the user, the agent, a guest's capability and the actor. The
+  login role writes it (`writeClaims` in `src/claims.ts`, from `setClaims` and the registry's
+  `asAdmin`) before the call drops to a pack role. Forced row rules let every role, the login
+  role included, see and write only its own transaction's row; the pack roles have `SELECT` and
+  nothing else. A deferred trigger deletes the row at commit, so the table holds only calls in
+  flight. `claims.user_id()`, `claims.agent_id()`, `claims.capability()` and `claims.actor()` are
+  what rules read; `packs.check_promotion()` now reads `claims.actor()`.
+- **The pack** (`packs/brandbase` 1.1.0, migration `0008_claims.sql`): `brandbase.caller()` and
+  `brandbase.capability()` read the claims functions. The toy pack's policy does too.
+- **The platform check** `noCodeRunsOnWrite` leaves out one trigger by name: `forget` on `claims.calls`, calling
+  `claims.forget()`. Any other trigger there would still fail the check.
+- **Readers filter too.** Each `claims.*` reader also asks for the current transaction's row, so a role that
+  bypasses row rules still reads only its own claims.
+- **Settings left.** `statement_timeout` and `timezone` are still set with `set_config`. Where
+  the runtime role can call it, a statement past the SQL check could raise its own time limit;
+  the SQL check is then the only wall, as it is for the other functions `sql.ts` forbids.
+- **Checked.** `registry.test.ts` gives the runtime role `set_config` back (as on Supabase),
+  forges `app.user_id`, and expects the caller and the notes the role sees to stay the caller's,
+  every write to `claims.calls` to be refused, and no row left after commit. With the toy
+  policy on the old setting, the same test sees the other person's note. Locally, on the
+  embedded Postgres: `core migrate` applied 0007; brandbase 1.1.0 was published, passed 133 of
+  133 cases, was promoted (through `claims.actor()`) and migrated; Bubbles then read the ideas
+  and added one through the restarted core, and `claims.calls` held no rows afterwards.
+- **Deploy order.** Core migration 0007 and brandbase 1.1.0 (with its 0008) go out together: after 0007 the core
+  writes no `app.*` settings, so a live 1.0.0 sees no caller (every call is refused) until 1.1.0 is promoted and
+  migrated. Nothing is deployed yet.
+- **The hour-rule demo** (`packs/brandbase/demo/hour-rule.sh`) sets its first copy to 1.0.0 itself, since the
+  pack in the repo is now 1.1.0. Run again on a fresh database: all steps as before.
+- **Still open for Supabase.** The core's 0001 migration revokes functions from PUBLIC, which
+  needs a superuser; on Supabase those revokes do not take. Identity no longer depends on them.
