@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { doing, newTurn, reduce, sseParser, summarise, type BubblesEvent } from './client'
+import {
+  doing,
+  newTurn,
+  reduce,
+  said,
+  sseParser,
+  summarise,
+  type BubblesEvent,
+  type Turn,
+} from './client'
 
 describe('the event stream parser', () => {
   it('reads a frame that arrives in pieces, and two frames that arrive together', () => {
@@ -100,6 +109,32 @@ describe('a turn', () => {
     })
     expect(t.approval).toMatchObject({ tool: 'post.schedule', decision: 'waiting' })
     expect(t.texts).toEqual(['Shall I send it?'])
+  })
+
+  it('keeps only the words after the last move as the answer', () => {
+    // "I'll look first." is Bubbles narrating a step; the cards already show what it did.
+    const said = (t: Turn, text: string) => reduce(t, { name: 'text', data: { text } })
+    const call = (t: Turn, id: string) =>
+      reduce(t, { name: 'tool_call', data: { id, tool: 'idea.create', input: {} } })
+    const t = said(
+      call(said(call(said(turn, "I'll look first."), 'a'), 'Adding it.'), 'b'),
+      'Done.',
+    )
+    expect(t.texts).toEqual(['Done.'])
+    expect(t.notes).toEqual(["I'll look first.", 'Adding it.'])
+  })
+
+  it('shows the last note as the answer when a finished turn wrote nothing after its last move', () => {
+    const t = reduce(
+      reduce(reduce(turn, { name: 'text', data: { text: 'Adding it.' } }), {
+        name: 'tool_call',
+        data: { id: 'a', tool: 'idea.create', input: {} },
+      }),
+      { name: 'done', data: {} },
+    )
+    expect(said(t)).toEqual({ answer: ['Adding it.'], notes: [] })
+    // While it runs, the note is not yet the answer: more words may come.
+    expect(said({ ...t, status: 'thinking' }).answer).toEqual([])
   })
 
   it('fails with the message in words, so Try again can show', () => {

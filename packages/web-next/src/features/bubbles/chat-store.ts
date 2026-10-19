@@ -158,11 +158,13 @@ export function keep(turnId: string, callId: string, snapshot: unknown): void {
 /**
  * What Bubbles is told of the chat so far: each question and the answer it got. A move that
  * waited for the person's yes counts as an answer, so "Yes, go ahead." keeps its move. A question
- * with no answer (stopped or failed) is left out, or a fresh runtime answers it with the next one.
+ * Bubbles wrote nothing for (stopped or failed) is left out, or a fresh runtime answers it with
+ * the next one.
  */
 function history(turns: Turn[]): HistoryItem[] {
   return turns.flatMap((t): HistoryItem[] => {
-    const said = [...t.texts]
+    // All Bubbles wrote, notes too: a turn that ended on a move still records what it did.
+    const said = [...(t.notes ?? []), ...t.texts]
     if (t.approval)
       said.push(
         `(${t.approval.tool} ${JSON.stringify(t.approval.input).slice(0, 500)} waits for a yes.)`,

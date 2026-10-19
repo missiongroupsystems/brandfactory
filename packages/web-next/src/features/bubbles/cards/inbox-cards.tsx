@@ -32,8 +32,9 @@ function Message({ m }: { m: InboxMessage }) {
 /** Words the brand sent, as the thread draws its own side. */
 function Ours({ text }: { text: string }) {
   return (
-    <span className="line-clamp-3 self-end rounded-[14px] rounded-br-[5px] bg-ink px-3 py-1.5 text-[13px] leading-[1.4] text-page">
-      {text}
+    <span className="self-end rounded-[14px] rounded-br-[5px] bg-ink px-3 py-1.5 text-[13px] leading-[1.4] text-page">
+      {/* The clamp sits inside the padding, or the fourth line shows through it. */}
+      <span className="line-clamp-3">{text}</span>
     </span>
   )
 }

@@ -64,13 +64,29 @@ export interface Turn {
   question: string
   status: TurnStatus
   tools: ToolCall[]
+  /** The answer: what Bubbles wrote after its last move. */
   texts: string[]
+  /**
+   * What Bubbles wrote before a move ("I'll look at the brand first."): kept for "How Bubbles
+   * did this", not shown as the answer. Absent on a turn stored before it existed.
+   */
+  notes?: string[]
   approval: (Approval & { decision: 'waiting' | 'sent' | 'declined' }) | null
   error: Refusal | null
   startedAt: number
 }
 
 export const running = (turn: Turn) => turn.status === 'starting' || turn.status === 'thinking'
+
+/**
+ * The answer on screen and the notes under "How Bubbles did this". A finished turn that wrote
+ * nothing after its last move (it ended on a move, or was stopped) shows its last note as the answer.
+ */
+export function said(turn: Turn): { answer: string[]; notes: string[] } {
+  const notes = turn.notes ?? []
+  if (turn.texts.length || running(turn) || !notes.length) return { answer: turn.texts, notes }
+  return { answer: notes.slice(-1), notes: notes.slice(0, -1) }
+}
 
 export function newTurn(question: string, startedAt = Date.now(), id = newId()): Turn {
   return {
@@ -90,9 +106,12 @@ export function reduce(turn: Turn, event: TurnEvent): Turn {
     case 'status':
       return { ...turn, status: event.data.phase }
     case 'tool_call':
+      // Words before a move were Bubbles saying what it does next, not the answer.
       return {
         ...turn,
         status: 'thinking',
+        notes: [...(turn.notes ?? []), ...turn.texts],
+        texts: [],
         tools: [
           ...turn.tools,
           { id: event.data.id, tool: event.data.tool, input: event.data.input, ok: null },

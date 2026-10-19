@@ -8,7 +8,7 @@ import { useBrand } from '@/features/schedule/posts-store'
 
 import { TurnCards } from './cards/turn-cards'
 import { ask, decide, resetChat, retry, send, setBrand, stop, useChat } from './chat-store'
-import { BUBBLES_URL, doing, moveName, running, summarise, type Turn } from './client'
+import { BUBBLES_URL, doing, moveName, running, said, summarise, type Turn } from './client'
 import { Markdown } from './markdown'
 
 const SUGGESTIONS = [
@@ -132,6 +132,7 @@ function TurnRow({
   anyLive: boolean
 }) {
   const live = running(turn)
+  const { answer, notes } = said(turn)
   const elapsed = useElapsed(live, turn.startedAt)
   const pending = [...turn.tools].reverse().find((t) => t.ok === null)
   const line =
@@ -157,7 +158,7 @@ function TurnRow({
           </p>
         )}
         <TurnCards turn={turn} />
-        {turn.texts.length > 0 && <Markdown text={turn.texts.join('\n\n')} />}
+        {answer.length > 0 && <Markdown text={answer.join('\n\n')} />}
         {turn.approval && <ApprovalCard id={turn.id} approval={turn.approval} wait={anyLive} />}
         {turn.error && <p className="text-[13.5px] text-fail-ink">{turn.error.message}</p>}
         {turn.status === 'stopped' && <p className="text-[13px] text-ink-4">Stopped.</p>}
@@ -170,7 +171,7 @@ function TurnRow({
             Try again
           </button>
         )}
-        {!live && turn.tools.length > 0 && <Steps tools={turn.tools} />}
+        {!live && turn.tools.length > 0 && <Steps tools={turn.tools} notes={notes} />}
       </div>
     </li>
   )
@@ -187,12 +188,19 @@ function useElapsed(live: boolean, startedAt: number): number {
   return live ? Math.max(0, Math.floor((now - startedAt) / 1000)) : 0
 }
 
-function Steps({ tools }: { tools: Turn['tools'] }) {
+function Steps({ tools, notes }: { tools: Turn['tools']; notes: string[] }) {
   return (
     <details className="text-[12.5px] text-ink-4">
       <summary className="w-fit cursor-pointer list-none transition-colors select-none hover:text-ink [&::-webkit-details-marker]:hidden">
         How Bubbles did this ›
       </summary>
+      {notes.length > 0 && (
+        <div className="mt-2 flex flex-col gap-1">
+          {notes.map((n, i) => (
+            <p key={i}>{n}</p>
+          ))}
+        </div>
+      )}
       <ol className="mt-2 flex flex-col gap-1">
         {tools.map((t) => (
           <li key={t.id} className="flex flex-wrap gap-x-2">

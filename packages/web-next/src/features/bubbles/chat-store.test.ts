@@ -99,6 +99,25 @@ describe('the chat store', () => {
     ])
   })
 
+  it('remembers a turn that ended on a move, by what Bubbles said before it', async () => {
+    // The words before the move are notes, not the answer; Bubbles must still hear them back.
+    void ask('Add the idea')
+    await act(async () => {})
+    emit(open[0]!, text("I'll add it."))
+    emit(open[0]!, {
+      name: 'tool_call',
+      data: { id: 'c', tool: 'idea.create', input: {} },
+    })
+    emit(open[0]!, DONE)
+    await finish(open[0]!)
+    void ask('Now edit it')
+    await act(async () => {})
+    expect(open[1]!.args.history).toEqual([
+      { role: 'user', text: 'Add the idea' },
+      { role: 'bubbles', text: "I'll add it." },
+    ])
+  })
+
   it('keeps a stale turn away from the new chat, and Stop on the turn that runs now', async () => {
     const { result } = renderHook(() => useChat())
     void ask('old question')

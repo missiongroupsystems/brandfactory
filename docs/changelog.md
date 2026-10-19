@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.26.1** — 2026-10-19 — `feat/packs-core`: Bubbles after the live card check. The answer is only what Bubbles wrote after its last move; its earlier lines ("I'll look at the brand first.") move into "How Bubbles did this". The persona tells it not to announce steps or name moves. A long reply no longer shows a fourth line under its bubble. No migration. 803 tests.
 - **2.26.0** — 2026-10-19 — `feat/packs-core`: Bubbles shows what it changed as cards. Each idea, post, shoot, reply, comment, kit change, link, connection, moodboard link and setting a move touched is drawn as the app draws it, live from the stores, with a verb, a quiet rise, a day that slides on a move and a stage that fades on a mark; a removed thing stays drawn from a snapshot, faded; the brand reloads after each change. No migration. 800 tests.
 - **2.25.1** — 2026-10-19 — `feat/packs-core`: Bubbles after its first live run through OpenRouter. A stopped question is no longer answered with the next one, and a move waiting for a yes stays in the history; answers stay short (under 90 words, 1200 tokens a request) and name things by title, not id; the header stays in view on a long chat. No migration. 782 tests.
 - **2.25.0** — 2026-10-18 — `feat/packs-core`: Bubbles, the agent people talk to. A fifth tab chats with Bubbles, which runs DeepSeek's harness runtime with the model through OpenRouter and acts only through the core's moves as the person's agent (`POST /agents/session`); a send still waits for the person's yes on the page. Not deployed; no live model call yet. No migration. 780 tests.
@@ -49,6 +50,23 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.26.1 — 2026-10-19
+
+- **The answer, not the narration (web-next).** In the live check with the real model, Bubbles wrote a line before
+  each move ("I'll look at the brand first.", "Let me check the inbox order…") and the page showed every line as the
+  answer, under cards that already said the same. Now a turn's answer is only what Bubbles wrote after its last move;
+  the lines before a move are kept as the turn's notes and show in "How Bubbles did this", above the moves. A turn
+  stored before this has no notes and shows as before. A finished turn that wrote nothing after its last move shows
+  its last note as the answer, and the history sent back to Bubbles keeps the notes, so it remembers what such a turn
+  did.
+- **The persona (bubbles).** One more line: do not announce what you are about to do, and never name a tool or a
+  move. In the same check, one answer named a message's id and the move `inbox.reply`.
+- **The reply card (web-next).** The brand's reply bubble clamped its text on the padded bubble, so half of a fourth
+  line showed under the "…". The clamp now sits on the text inside the padding.
+- **Checked live** in Chrome with OpenRouter: an idea, a move, a post draft, a shoot, a colour and an inbox reply each
+  drew their card; after this change the answer is three lines and a list, with no id or move name.
+- **Gate:** typecheck, lint, format, 803 tests in 69 files (each package run alone; the full run timed out core and connect database tests under a load average of 43), build.
 
 ## 2.26.0 — 2026-10-19
 
