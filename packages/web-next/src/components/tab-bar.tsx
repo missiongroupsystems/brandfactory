@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
+import { BUBBLES_URL } from '@/features/bubbles/client'
 import { useWaiting } from '@/features/inbox/inbox-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
@@ -13,9 +14,11 @@ const TABS = [
   { href: '/inbox', label: 'Inbox', icon: <InboxGlyph /> },
   { href: '/bubbles', label: 'Bubbles', icon: <BubblesGlyph /> },
 ] as const
+// Bubbles has a tab only where it is connected.
+const SHOWN = TABS.filter((t) => t.href !== '/bubbles' || BUBBLES_URL)
 
 /**
- * A phone's navigation, at the bottom where a thumb reaches it: the five pages. The header keeps
+ * A phone's navigation, at the bottom where a thumb reaches it: the pages. The header keeps
  * the brand; Schedule has its own new-post button. A post's own page is a task, so it hides the bar and
  * keeps its own back link and send buttons.
  */
@@ -53,7 +56,7 @@ export function TabBar() {
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-30 flex items-start border-t border-line bg-page/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden print:hidden"
       >
-        <div className="flex h-[60px] w-full items-start">{TABS.map(tab)}</div>
+        <div className="flex h-[60px] w-full items-start">{SHOWN.map(tab)}</div>
       </nav>
     </>
   )

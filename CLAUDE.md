@@ -64,7 +64,7 @@ The repository is a pnpm workspaces monorepo with these packages:
 - `packages/connect` (`@brandfactory/connect`) links each brand's social accounts (Meta,
   Pinterest, TikTok) by OAuth, with tokens encrypted per brand. It is separate from the demo and
   imports no other package (see its README).
-- `packages/core` (`@brandfactory/core`, this branch only) is BrandBase's backend: a generic
+- `packages/core` (`@brandfactory/core`) is BrandBase's backend: a generic
   core with one door, `POST /ops/{pack}/{op}`, that checks each call and runs a pack's move under
   row-level security. It holds no business words (`purity.test.ts`) and imports no other package.
   Its `Dockerfile` and the root `fly.toml` target the existing Fly app `brandfactory`.
@@ -80,10 +80,9 @@ The repository is a pnpm workspaces monorepo with these packages:
   a pack by name only; `packs/brandbase/bubbles.md` is the pack's brief. Its tests use a fake
   runtime (`scripts/fake-runtime.mjs`). Plan: `docs/executing/bubbles-plan.md`.
 
-### This branch: packs on a core
+### Packs on a core
 
-`feat/packs-core` builds BrandBase's backend as a pack on a generic core, in place of the
-`packages/server` that `feat/brandbase-backend` keeps. Read
+BrandBase's backend is a pack on a generic core. Read
 `docs/completions/packs-core-proposal.md`, `docs/completions/packs-core-plan.md` and
 `docs/completions/packs-core-phases-1-to-8.md` before any work here.
 
@@ -110,7 +109,7 @@ stays empty on purpose: `test.projects` in the root config dropped the
 per-package `environment` and `alias`, and the workspace form keeps them.
 
 - `web-next` uses `jsdom`, globals, `src/test-setup.ts` and the `@` alias.
-- `connect`, `server` and `core` use `node`.
+- `connect`, `core` and `bubbles` use `node`.
 - `core`'s `postgres.test.ts` runs only when `CORE_TEST_PG_URL` names a throwaway Postgres
   (see `packages/core/README.md`); PGlite ignores `statement_timeout` and runs one statement at a
   time.

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.27.1** — 2026-10-19 — `feat/packs-core`: ready for main. The Bubbles link shows in the header and the tab bar only where Bubbles is connected, so the static demo has no dead tab; CLAUDE.md no longer calls the core "this branch only". No migration. 806 tests.
 - **2.27.0** — 2026-10-19 — `feat/packs-core`: the caller in a table, for Supabase. Row rules read who is calling from `claims.calls`, which only the core writes, one row per transaction, gone at commit; no longer from settings that `set_config` can change where the database lets the runtime role call it. Core migration 0007, brandbase 1.1.0 with migration 0008. 804 tests.
 - **2.26.3** — 2026-10-19 — `feat/packs-core`: a Bubbles card for a thing with no picture shows its kind's icon (Reel, Carousel, Story, or the platform for a moodboard link) in the middle of the grey tile, not an empty square. No migration. 803 tests.
 - **2.26.2** — 2026-10-19 — `feat/packs-core`: one Node version, 24.13.0, for CI (`.nvmrc`), the core's image and local work. CI on Node 20 failed the text migration check, which compares the migration with what this Node's Unicode tables give. No migration. 803 tests.
@@ -53,6 +54,16 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.27.1 — 2026-10-19
+
+- **No dead tab (web-next).** A merge-readiness review of PR #3 (Opus and Sonnet) found that the production demo,
+  built with no `NEXT_PUBLIC_BUBBLES_URL`, would show a fifth tab, Bubbles, that only says "not connected". The header
+  and the phone tab bar now show the Bubbles link only when that address is set. `nav.test.tsx` checks both cases.
+  Checked with Playwright at 1440 and 390 px.
+- **CLAUDE.md.** The core and its pack are the repo's backend once on main: the "this branch only" words and the
+  "This branch" heading go, and the Testing list names `connect`, `core` and `bubbles` (there is no `server`).
+- **Gate:** typecheck, lint, format, build; tests 806.
 
 ## 2.27.0 — 2026-10-19
 
