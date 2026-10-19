@@ -14,6 +14,8 @@ import {
   type Shoot,
 } from '@/data/shoots'
 
+import { newId, onState, push, quietly, remote, request } from '@/lib/remote'
+
 import { freeShootDay, moveStart } from './model'
 
 /**
@@ -57,6 +59,38 @@ function set(next: State) {
 
 function update(brandId: BrandId, fn: (shoots: Shoot[]) => Shoot[]) {
   set({ ...state, shoots: { ...state.shoots, [brandId]: fn(state.shoots[brandId]) } })
+}
+
+// ── The server ───────────────────────────────────────────────────────────────────────────────
+
+/** Crew ids by shoot, in crew order: the call sheet removes a person by place in the list. */
+const crewIds: Record<string, string[]> = {}
+
+const send = (brandId: BrandId, method: string, path: string, body?: unknown) =>
+  push(brandId, () => request(method, `/brands/${brandId}/shoots${path}`, body))
+
+/** A crew list with ids for the server, remembered for removal by place. */
+function withIds(shootId: string, crew: CrewMember[]) {
+  const ids = crew.map(() => newId())
+  crewIds[shootId] = ids
+  return crew.map((c, i) => ({ id: ids[i]!, name: c.name, role: c.role }))
+}
+
+interface ServerShoot {
+  id: string
+  title: string
+  day: string
+  start: string
+  end: string
+  place: string
+  origin: 'planned' | 'manual' | 'lark'
+  ideaIds: string[]
+  crew: { id: string; name: string; role: string; invitedAt: string | null; reply: Reply | null }[]
+}
+
+/** The guest share page: the shoots the link shows, as the server shows them to a guest. */
+export function showShoots(brandId: BrandId, shoots: Shoot[]) {
+  set({ ...state, shoots: { ...state.shoots, [brandId]: shoots } })
 }
 
 const useState = () =>
@@ -128,14 +162,14 @@ export function planShoot(
   brandId: BrandId,
   weeks: Week[],
   ideaIds: string[],
-  when: { dayN?: string; start?: string } = {},
+  when: { date?: string; start?: string } = {},
 ): string {
-  const id = `${brandId}-shoot-${++serial}`
+  const id = remote ? newId() : `${brandId}-shoot-${++serial}`
   const shoots = state.shoots[brandId]
   const shoot: Shoot = {
     id,
     title: 'New shoot',
-    dayN: when.dayN ?? freeShootDay(weeks, shoots),
+    date: when.date ?? freeShootDay(weeks, shoots),
     ...moveStart({ start: '12:00', end: '17:00' }, when.start ?? '12:00'),
     place: HOME[brandId],
     crew: USUAL_CREW[brandId],
@@ -143,6 +177,17 @@ export function planShoot(
   }
   planned.add(id)
   update(brandId, (list) => [...without(list, ideaIds), shoot])
+  send(brandId, 'POST', '', {
+    id,
+    title: shoot.title,
+    origin: 'planned',
+    day: shoot.date,
+    start: shoot.start,
+    end: shoot.end,
+    place: shoot.place,
+    ideaIds,
+    crew: withIds(id, shoot.crew),
+  })
   return id
 }
 
@@ -153,10 +198,20 @@ export function planShoot(
  */
 export function addShoot(
   brandId: BrandId,
-  fields: Pick<Shoot, 'title' | 'place' | 'dayN' | 'start' | 'end'>,
+  fields: Pick<Shoot, 'title' | 'place' | 'date' | 'start' | 'end'>,
 ): string {
-  const id = `${brandId}-shoot-${++serial}`
+  const id = remote ? newId() : `${brandId}-shoot-${++serial}`
   update(brandId, (list) => [...list, { id, ...fields, crew: USUAL_CREW[brandId], ideaIds: [] }])
+  send(brandId, 'POST', '', {
+    id,
+    title: fields.title,
+    origin: 'manual',
+    day: fields.date,
+    start: fields.start,
+    end: fields.end,
+    place: fields.place,
+    crew: withIds(id, USUAL_CREW[brandId]),
+  })
   return id
 }
 
@@ -168,11 +223,33 @@ export function shootIdeaOn(
   brandId: BrandId,
   weeks: Week[],
   ideaId: string,
-  dayN: string,
+  date: string,
   start: string,
 ) {
-  const there = state.shoots[brandId].find((s) => s.dayN === dayN)
-  if (!there) return planShoot(brandId, weeks, [ideaId], { dayN, start })
+  const there = state.shoots[brandId].find((s) => s.date === date)
+  if (!there) {
+    // The server decides the same way: the shoot on that day, else a new one with this id.
+    const id = quietly(() => planShoot(brandId, weeks, [ideaId], { date, start }))
+    const made = state.shoots[brandId].find((s) => s.id === id)!
+    send(brandId, 'POST', '/on-day', {
+      ideaId,
+      day: date,
+      start,
+      newShootId: id,
+      title: made.title,
+      place: made.place,
+      crew: made.crew.map((c, i) => ({ id: crewIds[id]?.[i] ?? newId(), ...c })),
+    })
+    return id
+  }
+  if (!there.ideaIds.includes(ideaId)) {
+    send(brandId, 'POST', '/on-day', {
+      ideaId,
+      day: date,
+      start,
+      newShootId: newId(),
+    })
+  }
   if (!there.ideaIds.includes(ideaId)) {
     update(brandId, (list) =>
       without(list, [ideaId]).map((s) =>
@@ -188,6 +265,7 @@ export function shootIdeaOn(
  * and hours are this shoot's from then on: the idea page reads them from the shoot.
  */
 export function addIdeaToShoot(brandId: BrandId, shootId: string, ideaId: string) {
+  send(brandId, 'POST', `/${shootId}/ideas`, { ideaId })
   // The idea lands first, then the shoot it left is pruned: the target may itself be a planned
   // shoot with no idea left, which must not go.
   update(brandId, (list) =>
@@ -205,6 +283,7 @@ export function addIdeaToShoot(brandId: BrandId, shootId: string, ideaId: string
  * not hold is ignored; one the new order leaves out keeps its place at the end.
  */
 export function setIdeaOrder(brandId: BrandId, shootId: string, ideaIds: string[]) {
+  send(brandId, 'PUT', `/${shootId}/order`, { ideaIds })
   update(brandId, (list) =>
     list.map((s) =>
       s.id === shootId
@@ -225,6 +304,7 @@ export function setIdeaOrder(brandId: BrandId, shootId: string, ideaIds: string[
  * even with no idea left: the team is looking at it.
  */
 export function removeIdeaFromShoot(brandId: BrandId, shootId: string, ideaId: string) {
+  send(brandId, 'DELETE', `/${shootId}/ideas/${ideaId}`)
   update(brandId, (list) =>
     list.map((s) =>
       s.id === shootId ? { ...s, ideaIds: s.ideaIds.filter((i) => i !== ideaId) } : s,
@@ -234,22 +314,32 @@ export function removeIdeaFromShoot(brandId: BrandId, shootId: string, ideaId: s
 
 /** The idea leaves its shoot; a shoot from Lark stays on the calendar for the others. */
 export function leaveShoot(brandId: BrandId, ideaId: string) {
+  const from = shootOfIdea(state.shoots[brandId], ideaId)
+  if (from) send(brandId, 'DELETE', `/${from.id}/ideas/${ideaId}?leave=1`)
   update(brandId, (list) => without(list, [ideaId]))
 }
 
-export type ShootEdit = Partial<Pick<Shoot, 'title' | 'dayN' | 'start' | 'end' | 'place'>>
+export type ShootEdit = Partial<Pick<Shoot, 'title' | 'date' | 'start' | 'end' | 'place'>>
 
 export function editShoot(brandId: BrandId, id: string, fields: ShootEdit) {
+  const { date, ...rest } = fields
+  send(brandId, 'PATCH', `/${id}`, { ...rest, ...(date && { day: date }) })
   update(brandId, (list) => list.map((s) => (s.id === id ? { ...s, ...fields } : s)))
 }
 
 export function addCrew(brandId: BrandId, id: string, person: CrewMember) {
+  const crewId = newId()
+  crewIds[id] = [...(crewIds[id] ?? []), crewId]
+  send(brandId, 'POST', `/${id}/crew`, { id: crewId, ...person })
   update(brandId, (list) =>
     list.map((s) => (s.id === id ? { ...s, crew: [...s.crew, person] } : s)),
   )
 }
 
 export function removeCrew(brandId: BrandId, id: string, index: number) {
+  const crewId = crewIds[id]?.[index]
+  if (crewIds[id]) crewIds[id] = crewIds[id].filter((_, i) => i !== index)
+  if (crewId) send(brandId, 'DELETE', `/${id}/crew/${crewId}`)
   update(brandId, (list) =>
     list.map((s) => (s.id === id ? { ...s, crew: s.crew.filter((_, i) => i !== index) } : s)),
   )
@@ -267,6 +357,11 @@ export function sendInvites(brandId: BrandId, id: string) {
   if (!shoot) return
   const names = shoot.crew.map((c) => c.name)
   set({ ...state, invited: { ...state.invited, [id]: names } })
+  if (remote) {
+    // The answers come from Lark, read on the next load; nothing is invented here.
+    send(brandId, 'POST', `/${id}/invites`)
+    return
+  }
   setTimeout(() => {
     // A reset in between (a test) un-invites everyone: no answer arrives then.
     const asked = names.filter((n) => state.invited[id]?.includes(n) && REPLY_OF[n])
@@ -279,4 +374,46 @@ export function sendInvites(brandId: BrandId, id: string) {
 /** For tests. */
 export function resetShoots() {
   set(initial())
+}
+
+// Registered last: the loader writes to state declared above.
+if (remote) {
+  onState((brandId, s) => {
+    const list = s.shoots as ServerShoot[]
+    const invited: Invited = { ...state.invited }
+    const replies: Replies = { ...state.replies }
+    for (const shoot of list) {
+      crewIds[shoot.id] = shoot.crew.map((c) => c.id)
+      if (shoot.origin === 'planned') planned.add(shoot.id)
+      invited[shoot.id] = shoot.crew.filter((c) => c.invitedAt).map((c) => c.name)
+      replies[shoot.id] = Object.fromEntries(
+        shoot.crew.flatMap((c) => (c.reply ? [[c.name, c.reply]] : [])),
+      )
+    }
+    set({
+      shoots: {
+        ...state.shoots,
+        // A shoot with no day has nowhere to draw; it waits off the calendar.
+        [brandId]: list.flatMap((sh) => {
+          const date: string | null = sh.day
+          return date
+            ? [
+                {
+                  id: sh.id,
+                  title: sh.title,
+                  date,
+                  start: sh.start,
+                  end: sh.end,
+                  place: sh.place,
+                  crew: sh.crew.map((c) => ({ name: c.name, role: c.role })),
+                  ideaIds: sh.ideaIds,
+                },
+              ]
+            : []
+        }),
+      },
+      invited,
+      replies,
+    })
+  })
 }

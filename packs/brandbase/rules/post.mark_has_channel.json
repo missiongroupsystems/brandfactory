@@ -1,0 +1,7 @@
+{
+  "id": "post.mark_has_channel",
+  "sql": "select :stage::text <> 'scheduled' or brandbase.post_stage(p.id) = 'scheduled' or cardinality(p.channels) > 0 as ok from brandbase.posts p where p.id = :id",
+  "status": 400,
+  "code": "NO_CHANNELS",
+  "message": "pick an account first"
+}

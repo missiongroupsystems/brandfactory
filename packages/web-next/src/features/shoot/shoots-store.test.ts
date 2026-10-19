@@ -34,7 +34,7 @@ describe('planning a shoot', () => {
     expect(now.find((s) => s.id === 'cv-shoot-raffles')?.ideaIds).toEqual(['cv-carb-up'])
     // The new shoot is at the brand's own room, with its usual crew, on a free day ahead.
     expect(now.find((s) => s.id === id)).toMatchObject({
-      dayN: '8',
+      date: '2026-10-08',
       start: '12:00',
       end: '17:00',
       place: 'Casa Vostra, Raffles City #01-23',
@@ -42,12 +42,14 @@ describe('planning a shoot', () => {
   })
 
   it('joins the shoot already on a day picked on an idea page, else starts one there', () => {
-    expect(shootIdeaOn(BRAND, WEEKS, 'cv-blindfold', '7', '16:00')).toBe('cv-shoot-raffles')
+    expect(shootIdeaOn(BRAND, WEEKS, 'cv-blindfold', '2026-10-07', '16:00')).toBe(
+      'cv-shoot-raffles',
+    )
     // Joining does not retime a shoot others are in.
     expect(shoots().find((s) => s.id === 'cv-shoot-raffles')).toMatchObject({ start: '12:00' })
-    const fresh = shootIdeaOn(BRAND, WEEKS, 'cv-blindfold', '15', '16:00')
+    const fresh = shootIdeaOn(BRAND, WEEKS, 'cv-blindfold', '2026-10-15', '16:00')
     expect(shoots().find((s) => s.id === fresh)).toMatchObject({
-      dayN: '15',
+      date: '2026-10-15',
       start: '16:00',
       end: '21:00',
       ideaIds: ['cv-blindfold'],
@@ -59,8 +61,8 @@ describe('planning a shoot', () => {
 
   it('drops a planned shoot its last idea leaves, but keeps a shoot from Lark', () => {
     // Moving the idea to another day must not leave an empty shoot on the old one.
-    const first = shootIdeaOn(BRAND, WEEKS, 'cv-blindfold', '15', '16:00')
-    shootIdeaOn(BRAND, WEEKS, 'cv-blindfold', '16', '16:00')
+    const first = shootIdeaOn(BRAND, WEEKS, 'cv-blindfold', '2026-10-15', '16:00')
+    shootIdeaOn(BRAND, WEEKS, 'cv-blindfold', '2026-10-16', '16:00')
     expect(shoots().some((s) => s.id === first)).toBe(false)
     // A shoot booked in Lark is on the team's calendar whatever ideas it has.
     leaveShoot(BRAND, 'cv-carb-up')
@@ -96,12 +98,12 @@ describe('a shoot added by hand', () => {
     const id = addShoot(BRAND, {
       title: 'Terrace',
       place: 'Casa Vostra terrace',
-      dayN: '15',
+      date: '2026-10-15',
       start: '14:00',
       end: '15:00',
     })
-    expect(shoots().find((s) => s.id === id)).toMatchObject({ ideaIds: [], dayN: '15' })
-    expect(shootIdeaOn(BRAND, WEEKS, 'cv-blindfold', '15', '12:00')).toBe(id)
+    expect(shoots().find((s) => s.id === id)).toMatchObject({ ideaIds: [], date: '2026-10-15' })
+    expect(shootIdeaOn(BRAND, WEEKS, 'cv-blindfold', '2026-10-15', '12:00')).toBe(id)
     // Its hours are the ones typed in, not the idea's.
     expect(shoots().find((s) => s.id === id)).toMatchObject({
       start: '14:00',

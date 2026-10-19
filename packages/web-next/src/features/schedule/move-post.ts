@@ -1,12 +1,11 @@
 import type { FeedMark, Post, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
+import { slotOf } from '@/lib/dates'
 
-const WEEKDAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-
-/** Where a day sits in the month: its week, its column (0 = Monday) and its printed number. */
-function locate(weeks: Week[], dayN: string): { w: number; d: number } | null {
+/** Where a day sits in the weeks: its week and its column (0 = Monday). */
+function locate(weeks: Week[], date: string): { w: number; d: number } | null {
   for (let w = 0; w < weeks.length; w++) {
-    const d = weeks[w]!.days.findIndex((day) => day.n === dayN)
+    const d = weeks[w]!.days.findIndex((day) => day.date === date)
     if (d !== -1) return { w, d }
   }
   return null
@@ -20,8 +19,8 @@ function holds(marks: FeedMark[], postId: string): boolean {
 export function dayOf(weeks: Week[], postId: string): string | null {
   for (const week of weeks) {
     for (const day of week.days) {
-      if (holds(feedsOf(day), postId)) return day.n
-      if (day.story.kind === 'post' && day.story.postId === postId) return day.n
+      if (holds(feedsOf(day), postId)) return day.date
+      if (day.story.kind === 'post' && day.story.postId === postId) return day.date
     }
   }
   return null
@@ -31,8 +30,8 @@ export function dayOf(weeks: Week[], postId: string): string | null {
  * True when a day's story row is taken: by a planned story other than this one, or by stories
  * already out that day.
  */
-export function storyTaken(weeks: Week[], dayN: string, postId?: string): boolean {
-  const day = weeks.flatMap((w) => w.days).find((d) => d.n === dayN)
+export function storyTaken(weeks: Week[], date: string, postId?: string): boolean {
+  const day = weeks.flatMap((w) => w.days).find((d) => d.date === date)
   if (day?.story.kind === 'posted') return true
   return day?.story.kind === 'post' && day.story.postId !== postId
 }
@@ -41,11 +40,11 @@ export function storyTaken(weeks: Week[], dayN: string, postId?: string): boolea
  * Moves a story post to a day's story row. The day it leaves shows an open story slot again; a
  * day can hold one planned story, so the caller checks `storyTaken` first.
  */
-export function placeStory(weeks: Week[], postId: string, toN: string): Week[] {
+export function placeStory(weeks: Week[], postId: string, to: string): Week[] {
   return weeks.map((week) => ({
     ...week,
     days: week.days.map((day) => {
-      if (day.n === toN) return { ...day, story: { kind: 'post', postId } }
+      if (day.date === to) return { ...day, story: { kind: 'post', postId } }
       if (day.story.kind === 'post' && day.story.postId === postId) {
         return { ...day, story: { kind: 'open', draftsReady: false } }
       }
@@ -58,30 +57,19 @@ export function placeStory(weeks: Week[], postId: string, toN: string): Week[] {
 export function moveRefusal(
   weeks: Week[],
   post: Post,
-  toN: string,
+  to: string,
 ): 'posted' | 'past' | 'same-day' | 'no-day' | null {
   if (post.stage === 'posted') return 'posted'
-  const to = locate(weeks, toN)
-  if (!to) return 'no-day'
-  if (weeks[to.w]!.days[to.d]!.past) return 'past'
-  if (dayOf(weeks, post.id) === toN) return 'same-day'
+  const at = locate(weeks, to)
+  if (!at) return 'no-day'
+  if (weeks[at.w]!.days[at.d]!.past) return 'past'
+  if (dayOf(weeks, post.id) === to) return 'same-day'
   return null
 }
 
-/**
- * The slot in words for a post moved to a day, keeping its time. The month runs 5 Oct – 1 Nov,
- * so a day printed below 5 is in November.
- */
-export function slotFor(
-  weeks: Week[],
-  toN: string,
-  slot: string,
-): { slot: string; slotShort: string } {
-  const to = locate(weeks, toN)!
-  const time = slot.split(', ')[1] ?? '12:00'
-  const weekday = WEEKDAY[to.d]!
-  const month = Number(toN) < 5 ? 'Nov' : 'Oct'
-  return { slot: `${weekday} ${toN} ${month}, ${time}`, slotShort: `${weekday}, ${time}` }
+/** The slot in words for a post moved to a day, keeping its time. */
+export function slotFor(to: string, slot: string): { slot: string; slotShort: string } {
+  return slotOf(to, slot.split(', ')[1] ?? '12:00')
 }
 
 /**
@@ -89,7 +77,7 @@ export function slotFor(
  * after them: a day holds many plans now, so none gives way to a post. The day it leaves keeps
  * everything else.
  */
-export function movePost(weeks: Week[], posts: Post[], postId: string, toN: string): Week[] {
+export function movePost(weeks: Week[], posts: Post[], postId: string, to: string): Week[] {
   const byTime = (marks: FeedMark[]) =>
     [...marks].sort((a, b) => timeOf(a, posts).localeCompare(timeOf(b, posts)))
   return weeks.map((week) => ({
@@ -97,7 +85,7 @@ export function movePost(weeks: Week[], posts: Post[], postId: string, toN: stri
     days: week.days.map((day) => {
       const marks = feedsOf(day)
       let next: FeedMark[] | null = null
-      if (day.n === toN) {
+      if (day.date === to) {
         const others = marks.filter((m) => !(m.kind === 'post' && m.postId === postId))
         next = [
           ...byTime([...others.filter((m) => m.kind === 'post'), { kind: 'post', postId }]),

@@ -1,0 +1,19 @@
+{
+  "name": "@brandfactory/pack-brandbase",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The brandbase pack's data, and the scripts that load its demo. The core reads the data; nothing imports this package.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "seed": "tsx demo/seed.ts"
+  },
+  "dependencies": {
+    "pg": "^8.13.1",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/pg": "^8.11.10"
+  }
+}

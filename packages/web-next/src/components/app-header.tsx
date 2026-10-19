@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import { BRAND } from '@/data/demo'
+import { BUBBLES_URL } from '@/features/bubbles/client'
 import { useWaiting } from '@/features/inbox/inbox-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
@@ -15,7 +16,10 @@ const NAV = [
   { href: '/ideate', label: 'Ideate' },
   { href: '/insights', label: 'Insights' },
   { href: '/inbox', label: 'Inbox' },
+  { href: '/bubbles', label: 'Bubbles' },
 ] as const
+// Bubbles has a link only where it is connected.
+const SHOWN = NAV.filter((n) => n.href !== '/bubbles' || BUBBLES_URL)
 
 export function AppHeader() {
   const pathname = usePathname()
@@ -35,7 +39,7 @@ export function AppHeader() {
       </Link>
       {/* A phone has the tab bar at the bottom instead. */}
       <nav aria-label="Main" className="flex gap-7 max-md:hidden">
-        {NAV.map((n) => {
+        {SHOWN.map((n) => {
           // A post's own page belongs to Schedule.
           const current =
             n.href === '/'

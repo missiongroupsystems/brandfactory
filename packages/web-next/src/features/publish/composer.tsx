@@ -25,11 +25,16 @@ import { feedsOf } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { CAPTION_DRAFTS, HASHTAGS, VENUE } from '@/data/publish'
 import { dayLabel } from '@/features/ideate/calendar-slot'
+import { MonthArrows, useMonthPages } from '@/features/ideate/day-picker'
 import { composeChannels, sentChannels } from '@/features/schedule/calendar-items'
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
+import { ideaIdOfHook } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
+import { newId, quietly, remote, request, sent } from '@/lib/remote'
+import { addDays, dayNumber, todayDate, weekdayOf } from '@/lib/dates'
+import { mediaItem } from '@/lib/remote-days'
 
 import { CropEditor } from './crop-editor'
 import { DriveGlyph, DrivePicker } from './drive-picker'
@@ -120,6 +125,26 @@ const DETAIL_ON: Record<'comment' | 'location' | 'tags' | 'collab', ChannelKey[]
  * written once, and only what one platform truly needs is asked inside that account's row. The
  * publish rules live in `model.ts`; this page reads them. UI only: the send is simulated.
  */
+/** The composer's own fields, as it keeps them with a post on the server. */
+interface KeptDraft {
+  overrides?: Draft['overrides']
+  youtubeTitle?: string | null
+  madeForKids?: boolean
+  privacy?: Draft['privacy']
+  interactions?: Draft['interactions']
+  promo?: Draft['promo']
+  details?: { comment: string; location: string; collab: string[]; aiLabel: boolean }
+  labels?: string[]
+  extra?: {
+    ytVisibility: string
+    fbAudience: string
+    liVisibility: string
+    igShareToFeed: boolean
+    ttSound: Sound
+  }
+  shots?: Pick<Shot, 'crop' | 'tags'>[]
+}
+
 export function Composer({
   post,
   start,
@@ -140,7 +165,11 @@ export function Composer({
     reschedule,
     setStage,
     setChannels,
+    saved: savedOf,
   } = useBrand()
+  // What the composer kept with this post on the server: its caption and the rest of the draft.
+  const kept = post ? savedOf(post.id) : undefined
+  const keptDraft = (kept?.draft ?? {}) as KeptDraft
   // The accounts linked on the Connections page. One that needs signing in again still shows,
   // with Reconnect; one disconnected there is gone from the composer.
   const links = useConnections(brand.id)
@@ -148,11 +177,18 @@ export function Composer({
   const api = usePublishDraft({
     format: post?.format ?? start?.format ?? 'reel',
     hook: post?.hook ?? '',
-    caption: post ? (captions[post.id] ?? post.hook) : '',
+    caption: post ? kept?.caption || captions[post.id] || post.hook : '',
     selected: post ? composeChannels(post) : undefined,
     linked: publishing,
     connected: publishing.filter((k) => links[k] === 'connected'),
-    tiktok: tiktokDefault(brand.id),
+    tiktok:
+      keptDraft.privacy !== undefined && keptDraft.interactions && keptDraft.promo
+        ? {
+            privacy: keptDraft.privacy,
+            interactions: keptDraft.interactions,
+            promo: keptDraft.promo,
+          }
+        : tiktokDefault(brand.id),
   })
   const [reconnected, setReconnected] = React.useState(false)
   // The post as it opened: after a retry the live post is no longer failed, and a second send
@@ -162,7 +198,13 @@ export function Composer({
   const failedName = NAME[failedKey]
   const { draft, update, phase } = api
 
-  const [media, setMedia] = React.useState<Shot[]>(() => (post?.images ?? []).map(shotOf))
+  const [media, setMedia] = React.useState<Shot[]>(() =>
+    (post?.images ?? []).map((src, i) => {
+      const shot = shotOf(src)
+      const was = keptDraft.shots?.[i]
+      return was ? { ...shot, crop: was.crop, tags: was.tags } : shot
+    }),
+  )
   /**
    * Files from the picker or a drop, on the strip or on the preview: photos and videos only,
    * added in order, the format's limit kept from the end.
@@ -179,8 +221,8 @@ export function Composer({
   )
   // A failed post was due already: the fix is to send it now.
   const [when, setWhen] = React.useState<WhenChoice>(post?.stage === 'failed' ? 'now' : 'schedule')
-  const [dayN, setDayN] = React.useState<string>(
-    () => (post && dayOf(weeks, post.id)) || start?.day || '13',
+  const [date, setDate] = React.useState<string>(
+    () => (post && dayOf(weeks, post.id)) || start?.day || addDays(todayDate(), 7),
   )
   const [time, setTime] = React.useState(
     () => post?.slot.split(', ')[1] ?? start?.time ?? INSIGHTS_BY_BRAND[brand.id].best,
@@ -191,28 +233,54 @@ export function Composer({
   const [ideaHook, setIdeaHook] = React.useState<string | null>(null)
   // A post already out, or one from an earlier month, is shown, not changed.
   const readOnly = Boolean(post && (post.stage === 'posted' || !dayOf(weeks, post.id)))
-  const [details, setDetails] = React.useState({
-    comment: '',
-    location: VENUE[brand.id],
-    collab: [] as string[],
-    aiLabel: false,
-  })
-  const [labels, setLabels] = React.useState<string[]>([])
-  const [extra, setExtra] = React.useState({
-    ytVisibility: 'Public',
-    fbAudience: 'Everyone',
-    liVisibility: 'Anyone',
-    igShareToFeed: true,
-    ttSound: tiktokDefault(brand.id)?.sound ?? ('own' as Sound),
-  })
+  const [details, setDetails] = React.useState(
+    () =>
+      keptDraft.details ?? {
+        comment: '',
+        location: VENUE[brand.id],
+        collab: [] as string[],
+        aiLabel: false,
+      },
+  )
+  const [labels, setLabels] = React.useState<string[]>(() => keptDraft.labels ?? [])
+  const [extra, setExtra] = React.useState(
+    () =>
+      keptDraft.extra ?? {
+        ytVisibility: 'Public',
+        fbAudience: 'Everyone',
+        liVisibility: 'Anyone',
+        igShareToFeed: true,
+        ttSound: tiktokDefault(brand.id)?.sound ?? ('own' as Sound),
+      },
+  )
+  // The rest of the saved draft goes back into the model once, as it opens.
+  React.useEffect(() => {
+    if (keptDraft.overrides || keptDraft.youtubeTitle !== undefined) {
+      update({
+        overrides: keptDraft.overrides ?? {},
+        youtubeTitle: keptDraft.youtubeTitle ?? null,
+        madeForKids: keptDraft.madeForKids ?? false,
+      })
+    }
+    // Once, as the composer opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  // One key per send: a repeat of it, a double press or a retry after an answer that never
+  // arrived, returns its first answer, never a second send. The server keeps a key only once the
+  // send is stored, so a refused send can be tried again under the same key.
+  const sendKey = React.useRef('')
+  // A new post the server has stored: from then on a save moves it instead of making it.
+  const created = React.useRef(false)
   // On a phone each card opens in a sheet from its row; one sheet at a time.
   const [sheet, setSheet] = React.useState<SheetKey | null>(null)
   const closeSheet = React.useCallback(() => setSheet(null), [])
   const [saved, setSaved] = React.useState(false)
+  // A save or a send on its way to the server.
+  const [waiting, setWaiting] = React.useState<'send' | 'save' | null>(null)
 
   const active = activeChannels(draft)
   const targetId = post?.id ?? madeId
-  const storyDay = when === 'now' ? '6' : dayN
+  const storyDay = when === 'now' ? todayDate() : date
   const blocked = [
     ...(readOnly ? ['Already posted: it can be viewed, not changed.'] : []),
     ...(post?.stage === 'failed' && !reconnected ? [`Reconnect ${failedName} first.`] : []),
@@ -224,7 +292,9 @@ export function Composer({
       ? ['A story is already on that day: pick another.']
       : []),
     ...blockers(draft),
-    ...(when === 'schedule' && !dayN ? ['Pick a day.'] : []),
+    ...(when === 'schedule' && !date ? ['Pick a day.'] : []),
+    // A draft can sit on a day that has since passed: a schedule needs a day ahead.
+    ...(when === 'schedule' && date && date < todayDate() ? ['Pick a day ahead.'] : []),
   ]
   // Nothing can go out: a read-only post, or a blocker (a draft may still be saved unfinished).
   const stuck = readOnly || blocked.length > 0
@@ -242,22 +312,94 @@ export function Composer({
   // A send names its accounts by their logos, so the button shows exactly where the post goes.
   const logos = retry ? retryOn : active.map((c) => c.key)
 
+  /** The words a new post is known by on the calendar. */
+  const newHook = () => ideaHook ?? (draft.caption.split(/[.!?\n]/)[0]?.trim() || 'New post')
+
+  /**
+   * The server's side of a save or a send, in order: the post is made or moved, everything the
+   * composer holds is kept with it, then it is sent. The stage then comes from the send's jobs,
+   * never from a hand mark, so "Publish now" is posted once each account says so.
+   */
+  function toServer(id: string, isNew: boolean, send: 'now' | 'slot' | null) {
+    // Resolves to the server's refusal in words, or null once everything is stored.
+    const b = brand.id
+    const day = date
+    const content = {
+      caption: draft.caption,
+      channels: (retry ? retryOn : active.map((c) => c.key)) as string[],
+      media: media.map((m) => mediaItem(m.src)),
+      draft: {
+        overrides: draft.overrides,
+        youtubeTitle: draft.youtubeTitle,
+        madeForKids: draft.madeForKids,
+        privacy: draft.privacy,
+        interactions: draft.interactions,
+        promo: draft.promo,
+        details,
+        labels,
+        extra,
+        shots: media.map((m) => ({ crop: m.crop, tags: m.tags })),
+      },
+    }
+    return sent(b, async () => {
+      if (isNew) {
+        const ideaId = ideaHook ? ideaIdOfHook(b, ideaHook) : undefined
+        if (ideaId) {
+          await request('POST', `/brands/${b}/ideas/${ideaId}/plan`, {
+            postId: id,
+            day,
+            time,
+            stage: 'draft',
+          })
+        } else {
+          await request('POST', `/brands/${b}/posts`, {
+            id,
+            format: draft.format,
+            hook: newHook(),
+            ...(send !== 'now' && { day, time }),
+          })
+        }
+      } else if (send !== 'now') {
+        await request('POST', `/brands/${b}/posts/${id}/move`, { day, time })
+      }
+      await request('PATCH', `/brands/${b}/posts/${id}`, content)
+      if (send) {
+        await request(
+          'POST',
+          `/brands/${b}/posts/${id}/send`,
+          { when: send, channels: content.channels },
+          { 'idempotency-key': sendKey.current },
+        )
+      }
+    })
+  }
+
+  // The post as the calendar has it now. A refused first save reloads the brand without it, so
+  // the next press makes it again, under the same id.
+  const live = targetId && byId(targetId) ? targetId : null
+
   /** The post on the calendar: moved and restaged if it exists, placed if it is new. */
   function toCalendar(stage: Stage): string | null {
-    const day = when === 'now' ? '6' : dayN
+    const day = when === 'now' ? todayDate() : date
     const channels = sentChannels(
       opened,
       active.map((c) => c.key),
     )
-    if (targetId) {
-      reschedule(targetId, day, time)
-      setStage(targetId, stage)
-      setChannels(targetId, channels)
-      return targetId
+    if (live) {
+      reschedule(live, day, time)
+      setStage(live, stage)
+      setChannels(live, channels)
+      return live
     }
-    const hook = ideaHook ?? (draft.caption.split(/[.!?\n]/)[0]?.trim() || 'New post')
+    const hook = newHook()
     const id = planPost(
-      { format: draft.format, hook, image: media[0]?.src, channels },
+      {
+        format: draft.format,
+        hook,
+        image: media[0]?.src,
+        channels,
+        ...(madeId && { postId: madeId }),
+      },
       day,
       time,
       stage,
@@ -266,19 +408,48 @@ export function Composer({
     return id
   }
 
-  function primary() {
-    if (stuck) return
-    update({ when: when === 'now' ? 'now' : 'slot' })
-    toCalendar(when === 'now' ? 'posted' : 'scheduled')
-    api.send(when === 'now' ? 'now' : 'slot')
+  /**
+   * On the API, a save or a send waits for the server: only a stored change moves on. A refusal
+   * keeps the composer open with everything in it, and the app's message line says why.
+   */
+  async function stored(stage: Stage, send: 'now' | 'slot' | null): Promise<boolean> {
+    // From what the server stored, not from the calendar, which a reload may not have reached yet.
+    // A create sent again is safe: the server returns the post its id already names.
+    const isNew = !post && !created.current
+    const id = quietly(() => toCalendar(stage))
+    if (!id) return false
+    setWaiting(send ? 'send' : 'save')
+    const refused = await toServer(id, isNew, send)
+    setWaiting(null)
+    if (refused !== null) return false
+    created.current = true
+    if (send) sendKey.current = ''
+    return true
+  }
+
+  async function primary() {
+    if (stuck || waiting) return
+    const how = when === 'now' ? 'now' : 'slot'
+    update({ when: how })
+    if (remote) {
+      sendKey.current ||= newId()
+      if (!(await stored(when === 'now' ? 'posted' : 'scheduled', how))) return
+    } else {
+      toCalendar(when === 'now' ? 'posted' : 'scheduled')
+    }
+    api.send(how)
   }
 
   // A post already past draft keeps its stage when saved: saving a caption must not unschedule it.
   const keeps = post !== undefined && post.stage !== 'draft'
 
-  function saveDraft() {
-    if (readOnly) return
-    toCalendar(keeps ? post.stage : 'draft')
+  async function saveDraft() {
+    if (readOnly || waiting) return
+    if (remote) {
+      if (!(await stored(keeps ? post.stage : 'draft', null))) return
+    } else {
+      toCalendar(keeps ? post.stage : 'draft')
+    }
     setSaved(true)
   }
 
@@ -295,7 +466,7 @@ export function Composer({
         api={api}
         media={media}
         people={{ collabs: details.collab, tags: media[0]?.tags ?? [] }}
-        slot={`${dayLabel(weeks, dayN) ?? ''}, ${time}`}
+        slot={`${dayLabel(date)}, ${time}`}
         onBack={() => router.push('/')}
       />
     )
@@ -321,10 +492,13 @@ export function Composer({
             ? `${label} ${namesOf(logos)}`
             : undefined
       }
+      aria-busy={waiting === 'send'}
       onClick={primary}
       className={`flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-full px-5 text-[13.5px] font-medium transition-[background-color,box-shadow] max-md:h-12 max-md:text-[14px] ${stuck ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
     >
-      {phone && stuck ? (
+      {waiting === 'send' ? (
+        'Sending…'
+      ) : phone && stuck ? (
         <span className="flex min-w-0 max-w-full text-ink-3">{hint}</span>
       ) : (
         <>
@@ -345,10 +519,11 @@ export function Composer({
     <button
       type="button"
       aria-disabled={readOnly}
+      aria-busy={waiting === 'save'}
       onClick={saveDraft}
       className={`flex h-10 shrink-0 items-center rounded-full px-4 text-[13px] font-medium transition-colors max-md:h-12 max-md:text-[14px] ${readOnly ? 'cursor-not-allowed text-ink-5' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
     >
-      {keeps ? 'Save' : 'Save draft'}
+      {waiting === 'save' ? 'Saving…' : keeps ? 'Save' : 'Save draft'}
     </button>
   )
   // What Instagram shows of the people: the collaborators in its name line, the first photo's tags.
@@ -379,8 +554,8 @@ export function Composer({
         <WhenCard
           when={when}
           setWhen={setWhen}
-          dayN={dayN}
-          setDayN={setDayN}
+          date={date}
+          setDate={setDate}
           time={time}
           setTime={setTime}
         />
@@ -400,7 +575,7 @@ export function Composer({
       ]),
     ),
   }
-  const whenText = when === 'now' ? 'Now' : `${dayLabel(weeks, dayN) ?? dayN}, ${time}`
+  const whenText = when === 'now' ? 'Now' : `${dayLabel(date)}, ${time}`
   const onIg = active.some((c) => c.key === 'ig') && draft.format !== 'story'
   const tagCount = onIg ? taggedIn(media).length : 0
   const detailText =
@@ -539,8 +714,8 @@ export function Composer({
             <WhenCard
               when={when}
               setWhen={setWhen}
-              dayN={dayN}
-              setDayN={setDayN}
+              date={date}
+              setDate={setDate}
               time={time}
               setTime={setTime}
             />
@@ -2095,28 +2270,37 @@ function TikTokRows({
 
 /**
  * Now, or a day and a time. The answer leads, in one line, with the brand's best time beside it
- * to take in one click; under it the demo's month picks the day, and the day's hours, scored
+ * to take in one click; under it a month of the calendar picks the day, and the day's hours, scored
  * from Insights as bars like Brandwatch's, pick the hour. Any time at all is typed over the time
  * in the answer line.
  */
 function WhenCard({
   when,
   setWhen,
-  dayN,
-  setDayN,
+  date,
+  setDate,
   time,
   setTime,
 }: {
   when: WhenChoice
   setWhen: (w: WhenChoice) => void
-  dayN: string
-  setDayN: (d: string) => void
+  date: string
+  setDate: (d: string) => void
   time: string
   setTime: (t: string) => void
 }) {
   const { brand, weeks } = useBrand()
   const best = bestTimes(brand.id, weeks)[0]
-  const onBest = best !== undefined && best.dayN === dayN && best.time === time
+  const onBest = best !== undefined && best.date === date && best.time === time
+  const pages = useMonthPages(weeks, date)
+  const { setPage, reveal } = pages
+  // A day picked elsewhere (the best time) turns to its month; only a new day does, so a page
+  // turned by hand stays put when the calendar reloads.
+  const [shownDate, setShownDate] = React.useState(date)
+  if (shownDate !== date) {
+    setShownDate(date)
+    reveal(date)
+  }
   return (
     <section aria-label="When" className={CARD}>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2138,7 +2322,7 @@ function WhenCard({
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-1 pb-4">
           <span className="flex items-baseline gap-2.5">
             <span className="font-display text-[22px] leading-none tracking-[-0.02em] max-md:text-[20px]">
-              {dayLabel(weeks, dayN)}, <TimeField time={time} setTime={setTime} />
+              {dayLabel(date)}, <TimeField time={time} setTime={setTime} />
             </span>
             {onBest && <span className="text-[12.5px] text-(--insight-6)">Best time</span>}
           </span>
@@ -2146,7 +2330,7 @@ function WhenCard({
             <button
               type="button"
               onClick={() => {
-                setDayN(best.dayN)
+                setDate(best.date)
                 setTime(best.time)
               }}
               className="flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[12.5px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-10"
@@ -2158,37 +2342,41 @@ function WhenCard({
         </div>
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6 max-md:grid-cols-1">
           <div className="flex flex-col gap-2">
+            {pages.count > 1 && (
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] font-medium">{pages.title}</span>
+                <MonthArrows count={pages.count} page={pages.page} setPage={setPage} />
+              </div>
+            )}
             <div className="grid grid-cols-7 gap-1 text-center">
               {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
                 <span key={i} className="font-mono text-[9.5px] text-ink-5">
                   {d}
                 </span>
               ))}
-              {weeks
-                .flatMap((w) => w.days)
-                .map((d) => {
-                  const disabled = d.past || d.today
-                  const on = d.n === dayN
-                  const busy = feedsOf(d).some((m) => m.kind === 'post')
-                  return (
-                    <button
-                      key={d.n}
-                      type="button"
-                      disabled={disabled}
-                      aria-pressed={on}
-                      onClick={() => setDayN(d.n)}
-                      className={`relative flex h-9 items-center justify-center rounded-[9px] text-[12.5px] tabular-nums transition-colors max-md:h-10 max-md:text-[14px] ${on ? 'bg-ink text-page' : disabled ? 'text-ink-5' : 'text-ink hover:bg-surface'}`}
-                    >
-                      {d.n}
-                      {busy && !on && (
-                        <span className="absolute bottom-1 size-1 rounded-full bg-ink-4" />
-                      )}
-                    </button>
-                  )
-                })}
+              {pages.days.map((d) => {
+                const disabled = d.past || d.today
+                const on = d.date === date
+                const busy = feedsOf(d).some((m) => m.kind === 'post')
+                return (
+                  <button
+                    key={d.date}
+                    type="button"
+                    disabled={disabled}
+                    aria-pressed={on}
+                    onClick={() => setDate(d.date)}
+                    className={`relative flex h-9 items-center justify-center rounded-[9px] text-[12.5px] tabular-nums transition-colors max-md:h-10 max-md:text-[14px] ${on ? 'bg-ink text-page' : disabled ? 'text-ink-5' : d.outside ? 'text-ink-4 hover:bg-surface' : 'text-ink hover:bg-surface'}`}
+                  >
+                    {dayNumber(d.date)}
+                    {busy && !on && (
+                      <span className="absolute bottom-1 size-1 rounded-full bg-ink-4" />
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
-          <DayChart dayN={dayN} time={time} setTime={setTime} />
+          <DayChart date={date} time={time} setTime={setTime} />
         </div>
       </Fold>
     </section>
@@ -2262,20 +2450,17 @@ function dayWeights(brandId: BrandId): number[] {
  * a bar sets the hour. The bars share one scale across the week, so a quiet day looks quiet.
  */
 function DayChart({
-  dayN,
+  date,
   time,
   setTime,
 }: {
-  dayN: string
+  date: string
   time: string
   setTime: (t: string) => void
 }) {
-  const { brand, weeks } = useBrand()
+  const { brand } = useBrand()
   const [hover, setHover] = React.useState<number | null>(null)
-  const weekday = Math.max(
-    0,
-    weeks.map((w) => w.days.findIndex((d) => d.n === dayN)).find((i) => i >= 0) ?? 0,
-  )
+  const weekday = weekdayOf(date)
   const weights = dayWeights(brand.id)
   const curve = hourly(INSIGHTS_BY_BRAND[brand.id].hours)
   const top = Math.max(...weights) * Math.max(...curve)
@@ -2348,14 +2533,14 @@ function DayChart({
 function bestTimes(brandId: BrandId, weeks: ReturnType<typeof useBrand>['weeks']) {
   const data = INSIGHTS_BY_BRAND[brandId]
   const weights = dayWeights(brandId)
-  const out: Array<{ dayN: string; label: string; time: string; score: number }> = []
+  const out: Array<{ date: string; label: string; time: string; score: number }> = []
   for (const w of weeks) {
     w.days.forEach((d, i) => {
       if (d.past || d.today) return
       data.hours.forEach((h, part) => {
         out.push({
-          dayN: d.n,
-          label: dayLabel(weeks, d.n) ?? d.n,
+          date: d.date,
+          label: dayLabel(d.date),
           time: DAYPART_TIME[part]!,
           score: (weights[i] ?? 0) * h,
         })

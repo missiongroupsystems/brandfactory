@@ -6,6 +6,28 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.27.1** — 2026-10-19 — `feat/packs-core`: ready for main. The Bubbles link shows in the header and the tab bar only where Bubbles is connected, so the static demo has no dead tab; CLAUDE.md no longer calls the core "this branch only". No migration. 806 tests.
+- **2.27.0** — 2026-10-19 — `feat/packs-core`: the caller in a table, for Supabase. Row rules read who is calling from `claims.calls`, which only the core writes, one row per transaction, gone at commit; no longer from settings that `set_config` can change where the database lets the runtime role call it. Core migration 0007, brandbase 1.1.0 with migration 0008. 804 tests.
+- **2.26.3** — 2026-10-19 — `feat/packs-core`: a Bubbles card for a thing with no picture shows its kind's icon (Reel, Carousel, Story, or the platform for a moodboard link) in the middle of the grey tile, not an empty square. No migration. 803 tests.
+- **2.26.2** — 2026-10-19 — `feat/packs-core`: one Node version, 24.13.0, for CI (`.nvmrc`), the core's image and local work. CI on Node 20 failed the text migration check, which compares the migration with what this Node's Unicode tables give. No migration. 803 tests.
+- **2.26.1** — 2026-10-19 — `feat/packs-core`: Bubbles after the live card check. The answer is only what Bubbles wrote after its last move; its earlier lines ("I'll look at the brand first.") move into "How Bubbles did this". The persona tells it not to announce steps or name moves. A long reply no longer shows a fourth line under its bubble. No migration. 803 tests.
+- **2.26.0** — 2026-10-19 — `feat/packs-core`: Bubbles shows what it changed as cards. Each idea, post, shoot, reply, comment, kit change, link, connection, moodboard link and setting a move touched is drawn as the app draws it, live from the stores, with a verb, a quiet rise, a day that slides on a move and a stage that fades on a mark; a removed thing stays drawn from a snapshot, faded; the brand reloads after each change. No migration. 800 tests.
+- **2.25.1** — 2026-10-19 — `feat/packs-core`: Bubbles after its first live run through OpenRouter. A stopped question is no longer answered with the next one, and a move waiting for a yes stays in the history; answers stay short (under 90 words, 1200 tokens a request) and name things by title, not id; the header stays in view on a long chat. No migration. 782 tests.
+- **2.25.0** — 2026-10-18 — `feat/packs-core`: Bubbles, the agent people talk to. A fifth tab chats with Bubbles, which runs DeepSeek's harness runtime with the model through OpenRouter and acts only through the core's moves as the person's agent (`POST /agents/session`); a send still waits for the person's yes on the page. Not deployed; no live model call yet. No migration. 780 tests.
+- **2.24.0** — 2026-10-18 — `feat/packs-core`, phase 7: `packages/server` retired on this branch. The demo seed moves into the pack (`packs/brandbase/demo/seed.ts`, the same rows), the Dockerfile and `fly.toml` target the core (not deployed), and web-next talks only to the core. No migration. 728 tests.
+- **2.23.0** — 2026-10-18 — `feat/packs-core`, phase 6, fifth part: uploads on the core. A move marked `upload` gets a key the core makes (never the client), a signed write URL and a stable address that redirects to storage; storage never overwrites a file; files on disk locally, Supabase Storage in a deployment. With it every route web-next calls runs on the core. No migration. 834 tests.
+- **2.22.0** — 2026-10-17 — `feat/packs-core`, phase 6, fourth part: share links and comments on the core. Guest moves open at `POST /guest/{pack}/{op}` with no sign-in, the link's token as the right and the pack's row rules deciding what it reaches, rate-limited per address with the token masked in the log; the share page, guest comments and edits, team replies and done on the core. Pack migration `0007_share` (not applied to production). 813 tests (135 more skipped without a Postgres server).
+- **2.21.0** — 2026-10-17 — `feat/packs-core`, phase 6, second part: ideas, shoots, the inbox, the brand kit, connections and pasted links on the core (31 moves), with the server's cases for each; the Lark invite is an approved effect, refused while the same send is on its way; crew rows carry their brand. Pack migrations `0004_ideas`, `0005_shoots`, `0006_kit` (not applied to production). 664 tests (122 more skipped without a Postgres server).
+- **2.20.0** — 2026-10-17 — `feat/packs-core`, phase 6, first part: with `NEXT_PUBLIC_CORE_URL` set the app signs in, loads each brand and writes its posts through the core's moves (Schedule carries the person's yes to each account's send), with the screens unchanged; a script starts the core with the demo's data on a local Postgres. Other routes still go to the BrandBase API. No migration. 603 tests (66 more skipped without a Postgres server).
+- **2.19.0** — 2026-10-17 — `feat/packs-core`, phase 5: timed moves. A move asks for later calls; the core claims one due call at a time, runs it as whoever asked, beats a heartbeat, and ends a cut-off call `unknown_outcome` with an alert, never running it again. BrandBase sends each account's job through an approved effect move on a simulated connector, and screens hear of every change within a second. Core migration `0006_scheduler` (not applied to production). 598 tests (63 more skipped without a Postgres server).
+- **2.18.0** — 2026-10-17 — `feat/packs-core`, phase 4: agents call a pack's moves as MCP tools through the same checks as a screen; effect moves (the only way out of the app) wait for a person's yes to exactly what they send, used once, and an agent can neither give one nor promote a version. Core migration `0005_approvals` (not applied to production). 586 tests (52 more skipped without a Postgres server).
+- **2.17.0** — 2026-10-17 — `feat/packs-core`, phase 3: `core publish`, `core test` and `core promote` from the command line, a core server, and platform tests every version runs; the demo moves "no post before 07:00" to 08:00 and back on one running server, and a version with a failing case cannot go live; pack migrations run as a role that cannot reach the registry. Core migration `0004_migrator` (not applied to production). 573 tests (52 more skipped without a Postgres server).
+- **2.16.0** — 2026-10-17 — `feat/packs-core`, phase 2: the BrandBase pack (`packs/brandbase`): the server's schema with row rules keyed by brand membership, eight moves (the brand's state; list, create, edit, move, mark, unplan and send a post) and 19 rules as SQL data, and the server's post and send cases run through the core's new test runner, on PGlite and on a real Postgres. Idempotency keys in the core. Pack migrations `0002`, `0003` and core migration `0003_idempotency` (not applied to production). 537 tests (52 more skipped without a Postgres server).
+- **2.15.0** — 2026-10-17 — `feat/packs-core`, phase 1: `packages/core`, a generic backend with one door (`POST /ops/{pack}/{op}`) that runs a pack's moves through eight checks under a limited database role; a registry of frozen pack versions whose live pointer the database moves only after a passing test run and a person's yes. Core migrations `0001_registry` and `0002_text` (not applied to production). 488 tests (6 more skipped without a Postgres server).
+- **2.14.0** — 2026-10-14 — On the API the moodboard keeps its Instagram and TikTok sources and the links pasted onto it on the server, so they survive a reload and another device. Migration `0001_gray_tony_stark` (`pasted_links`, not applied to production). 424 tests.
+- **2.13.1** — 2026-10-14 — On the API the composer waits for the server: "Sending…" while it answers, the done screen only once the post is stored, and a refusal keeps the composer open with everything in it. A draft on a day that has passed asks for a day ahead before it can be scheduled. No migration. 419 tests.
+- **2.13.0** — 2026-10-14 — The calendar runs on real dates: every day is its `YYYY-MM-DD` date, today comes from the server on the API, the API calendar reaches two months back and six ahead (and every dated post), and the day pickers turn a month at a time. The static demo draws what it drew before. No migration. 415 tests.
+- **2.12.0** — 2026-10-13 — The backend: `packages/server`, an API on the archive's Supabase Postgres (tables in a `brandbase` schema) with posts and per-account jobs, ideas, shoots, share links, inbox, brand kit, connections, uploads and sending; the app runs on it when `NEXT_PUBLIC_API_URL` is set and stays the static demo otherwise; a seed, a Dockerfile and `fly.toml` for the existing Fly app. Migration `0000` (not applied to production). 410 tests.
 - **2.11.3** — 2026-10-13 — Posted is final: marking a post Posted on the idea page asks first, and nothing takes a posted post back to another stage. A backend handoff (`docs/executing/brandbase-backend-handoff.md`) with the owner's eight decisions; finished plans move to the archive. No migration. 301 tests.
 - **2.11.2** — 2026-10-12 — The inbox thread panel takes the height of the list beside it, capped so the reply stays in view on a laptop and never under 440 px; a long thread scrolls inside it. No migration. 300 tests.
 - **2.11.1** — 2026-10-12 — Insights drops the sentences under the bookings and best-time figures (the lead post's marker now names it for screen readers) and opens the best time by hour by default; on the idea page a posted post can go back to an idea. No migration. 300 tests.
@@ -32,6 +54,363 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.27.1 — 2026-10-19
+
+- **No dead tab (web-next).** A merge-readiness review of PR #3 (Opus and Sonnet) found that the production demo,
+  built with no `NEXT_PUBLIC_BUBBLES_URL`, would show a fifth tab, Bubbles, that only says "not connected". The header
+  and the phone tab bar now show the Bubbles link only when that address is set. `nav.test.tsx` checks both cases.
+  Checked with Playwright at 1440 and 390 px.
+- **CLAUDE.md.** The core and its pack are the repo's backend once on main: the "this branch only" words and the
+  "This branch" heading go, and the Testing list names `connect`, `core` and `bubbles` (there is no `server`).
+- **Gate:** typecheck, lint, format, build; tests 806.
+
+## 2.27.0 — 2026-10-19
+
+- **The caller in a table (core).** The row rules and the promotion check read the caller from settings that
+  `set_config` writes. On Supabase the login role cannot take `set_config` from the runtime role, so a statement past
+  the SQL check could name another caller. Now the core writes the caller, the agent, a guest's capability and the
+  actor into `claims.calls` (migration `0007_claims.sql`), keyed by the transaction, before it drops to a pack role.
+  The pack roles may read only their own transaction's row and write none, and a deferred trigger deletes the row at
+  commit. Rules read `claims.user_id()`, `claims.capability()` and `claims.actor()`.
+- **The pack (brandbase 1.1.0).** Migration `0008_claims.sql` points `brandbase.caller()` and
+  `brandbase.capability()` at the claims. The version goes to 1.1.0, since a published version is frozen.
+- **The platform check** for code that runs on a write leaves out one trigger by name, the core's `forget` on
+  `claims.calls`. The `claims.*` readers also filter by the transaction, so a role that bypasses row rules reads
+  only its own claims.
+- **Deploy order:** core migration 0007 and brandbase 1.1.0 with 0008 go out together; between them every call sees
+  no caller and is refused. The hour-rule demo sets its first version to 1.0.0 itself.
+- **Left as it was:** `statement_timeout` and `timezone` are still settings. Plan and as built:
+  `docs/completions/packs-core-phases-1-to-8.md`, phase 8 (the file was `…-1-to-7.md`).
+- **Checked** with a test that gives the runtime role `set_config` back, as on Supabase, forges the caller and
+  expects nothing to change (it fails with the old setting-based rule), and live on the local Postgres: core
+  migrated, brandbase 1.1.0 published, tested (133 of 133 cases), promoted and migrated, and Bubbles read and wrote
+  through the restarted core.
+- **Gate:** typecheck, lint, format, build; 804 tests in 69 files (core 410, web-next 347, connect 27, bubbles 20),
+  each package run alone.
+
+## 2.26.3 — 2026-10-19
+
+- **Empty thumbnails (web-next).** On a Bubbles card, an idea, a post or a moodboard link with no picture showed an
+  empty grey square. `Thumb` now takes a `fallback` icon and draws it in the tile's middle: the format's icon for an
+  idea or a post, the platform's mark for a moodboard link. Checked with Playwright at 1440 and 390 px.
+- **Gate:** typecheck, lint, format, build; web-next tests pass (803 in all, as in 2.26.1).
+
+## 2.26.2 — 2026-10-19
+
+- **One Node version.** `.nvmrc` (which CI reads) goes from 20 to exactly 24.13.0, and the core's Dockerfile from
+  22.12.0 to 24.13.0. `migrations/0002_text.sql` is generated from Node's Unicode tables (Unicode 16.0 in Node
+  24.13.0), and `text.test.ts` compares it with what the running Node gives. On CI's Node 20 the tables differ, so PR
+  #3 failed; a first fix that said only `24` got Node 24.21.0, whose tables differ too, so the version is exact.
+- **Gate:** typecheck, lint, format, build; tests 803 in 69 files on Node 24 (no code changed since 2.26.1).
+
+## 2.26.1 — 2026-10-19
+
+- **The answer, not the narration (web-next).** In the live check with the real model, Bubbles wrote a line before
+  each move ("I'll look at the brand first.", "Let me check the inbox order…") and the page showed every line as the
+  answer, under cards that already said the same. Now a turn's answer is only what Bubbles wrote after its last move;
+  the lines before a move are kept as the turn's notes and show in "How Bubbles did this", above the moves. A turn
+  stored before this has no notes and shows as before. A finished turn that wrote nothing after its last move shows
+  its last note as the answer, and the history sent back to Bubbles keeps the notes, so it remembers what such a turn
+  did.
+- **The persona (bubbles).** One more line: do not announce what you are about to do, and never name a tool or a
+  move. In the same check, one answer named a message's id and the move `inbox.reply`.
+- **The reply card (web-next).** The brand's reply bubble clamped its text on the padded bubble, so half of a fourth
+  line showed under the "…". The clamp now sits on the text inside the padding.
+- **Checked live** in Chrome with OpenRouter: an idea, a move, a post draft, a shoot, a colour and an inbox reply each
+  drew their card; after this change the answer is three lines and a list, with no id or move name.
+- **Gate:** typecheck, lint, format, 803 tests in 69 files (each package run alone; the full run timed out core and connect database tests under a load average of 43), build.
+
+## 2.26.0 — 2026-10-19
+
+- **Cards for what Bubbles did (web-next).** Between "what Bubbles is doing now" and the answer, one card per thing a
+  successful move changed, in move order: an idea (cover, hook, format, day), a post (thumbnail, hook, day and time,
+  stage pill, account logos), a shoot (date block, title, hours, place, idea thumbnails, crew initials), an inbox reply
+  under its message, a message sent on with the people, the noise cleared with its count, a guest comment answered or
+  done, the voice with its version, the colours as swatches, the logo, a file with its kind icon, a share link with
+  Copy, a connection with its live dot, a moodboard link, the TikTok defaults; any other changing move is one line
+  with a tick. Reads make no card. Three edits to one thing make one card, with the last verb. A card opens the
+  thing's page. On a phone the cards sit in one row that scrolls sideways. Plan and as built:
+  `docs/executing/bubbles-cards-plan.md`.
+- **Live, not a copy.** A card reads the thing from the app's stores by the id in the move's input, and the chat store
+  loads the brand again after each change (one load at a time per brand), so the cards and every other page show what
+  is stored. A removed thing is drawn from a snapshot the page takes when the `tool_call` arrives, kept with the call
+  in the chat, faded, "Removed".
+- **Quiet motion.** Cards rise in, 70 ms apart; thumbnails fade in as they load; a moved day shows the old day for a
+  beat, then the new one slides in; a mark fades the stage pill; colours land one swatch after another. None of it
+  with `prefers-reduced-motion`.
+- **The persona** tells Bubbles the person sees a card for each change, so its words need not repeat the details.
+- Checked with a scripted Bubbles in Playwright at 1440, 1024, 768 and 390 px, and with reduced motion. Not yet run
+  against the live model.
+
+No migration. Gate: typecheck, lint, format, 800 tests in 69 files with `CORE_TEST_PG_URL`,
+`next build`.
+
+## 2.25.1 — 2026-10-19
+
+- **Live run.** One real turn after another through OpenRouter (`deepseek/deepseek-v4.1-flash`):
+  questions about the week, a new idea that showed up in Ideate, Stop, a brand switch, New chat.
+  Answers took 3 to 8 s.
+- **A stopped question stays stopped.** The page sent a question with no answer in the history;
+  a fresh runtime replayed it and answered it with the next question. Questions with no answer
+  are now left out; a move that waits for a yes counts as an answer.
+- **Short answers.** The persona holds every answer under 90 words and names things by title or
+  day, never by id; the gateway caps a request at 1200 tokens (was 2048), room for a long caption in a tool call.
+- **The header stays in view** on the Bubbles tab, so the brand switcher does too.
+
+## 2.25.0 — 2026-10-18
+
+- **Agent sessions (core).** `POST /agents/session` gives a person's agent, `<person>/<name>`, a
+  one-hour token signed with `AGENT_SECRET`. Each session copies the person's loadouts; the core
+  checks the agent's and the person's on every call; an agent cannot approve or start an agent.
+- **Bubbles (`packages/bubbles`).** DeepSeek's harness runtime per conversation, driven over
+  stdio as openworld does; the model through a local gateway to OpenRouter (the key kept from the
+  runtime, capped and streamed requests, the core's tools only, no data collection, reasoning
+  off, 12 requests a turn); the tools are the core's `POST /mcp/brandbase`. Run end to end here
+  with the real runtime and core and a fake model. Plan: `docs/executing/bubbles-plan.md`.
+- **The Bubbles tab (web-next).** One input, answers in light Markdown, what Bubbles is doing now,
+  Stop, Try again, and an approval card for sends; the brand on screen goes with each question.
+  Checked in a browser against the real Bubbles and core.
+- **Board.** `docs/refs/packs-core/architecture.excalidraw` and `.png`.
+
+No migration. Gate: typecheck, lint, format, 780 tests in 66 files with `CORE_TEST_PG_URL`,
+`next build`.
+
+## 2.24.0 — 2026-10-18
+
+- **Seed.** `packs/brandbase/demo/seed.ts` in plain SQL; on two fresh databases it loads the same
+  rows as the old seed, and fills `crew.brand_id`. `packs/brandbase` is a workspace package for
+  its demo scripts only.
+- **Deploy files.** `packages/core/Dockerfile`; `fly.toml` builds it and runs the core's
+  migrations on release. Built and run here against an empty Postgres: migrations applied,
+  `/health` answers. Not deployed.
+- **web-next.** `NEXT_PUBLIC_API_URL` is gone; `NEXT_PUBLIC_CORE_URL` turns the backend on.
+- **Removed.** `packages/server` and its 106 tests (it stays on `feat/brandbase-backend`). The plan
+  and the proposal move to `docs/completions/`.
+
+No migration. Gate: typecheck, lint, format, 728 tests in 58 files with `CORE_TEST_PG_URL`,
+`next build`.
+
+## 2.23.0 — 2026-10-18
+
+- **Files (core).** `files.ts`: keys `<pack>/<uuid>.<ext>` made by the core, signed write URLs,
+  stable addresses at `GET /files/<signature>/<key>`, a disk store for development (refused in
+  production, a write needs its length, never over a stored file) and Supabase Storage
+  (`upsert: false`, not run here). Settings `FILES_SECRET`, `FILES_PROVIDER`, `FILES_DIR`,
+  `FILES_BUCKET`, `PUBLIC_URL`; the fixed local secret only with the dev sign-in.
+- **Pack.** `media.create`, with the server's media cases.
+- **web-next.** Uploads go to the core; the image optimiser is off when only the core is set.
+  Checked with Playwright: a picture added to an idea uploads, keeps its address and shows after
+  a reload.
+
+No migration. Gate: typecheck, lint, format, 834 tests in 71 files with `CORE_TEST_PG_URL`,
+`next build`.
+
+## 2.22.0 — 2026-10-17
+
+- **Guest moves (core).** A move marked `"guest": {"capability": "<field>"}` runs at
+  `POST /guest/{pack}/{op}` with no person; the field (32 characters or more) is set as
+  `app.capability`, and only row rules that read it let the move reach rows. 30 calls and 10
+  writes a minute per address; the log keeps the token's first 4 characters; a guest write
+  tells open screens. A platform test asks every guest move for a wrong-token case.
+- **Share links (pack).** `share.link`, `share.set`, `comment.reply`, `comment.done` for the
+  team; `guest.view`, `guest.comment`, `guest.edit` for guests. A guest's new hook is never
+  carried to a post that is out.
+- **web-next.** The share page's routes go to the guest moves, the team's to their moves.
+  Checked with Playwright: guest view and comment, team reply and done, a made-up token, phone.
+
+Pack migration `0007_share`, not applied to production. Gate: typecheck, lint, format, 813 tests
+in 70 files with `CORE_TEST_PG_URL` (678 pass and 135 skip without it), `next build`.
+
+## 2.21.0 — 2026-10-17
+
+- **Ideas.** Create, edit (a null clears a field, a field left out stays), drop, plan as a post,
+  place on a day, and land on the calendar after this week.
+- **Shoots.** Plan from ideas or add by hand, join on a day, edit with the call sheet's hours,
+  order, crew by id, replies, and the Lark invite to those not invited yet, approved when
+  pressed.
+- **Inbox, kit, connections.** Replies kept with who sent them, complaints sent to people, noise
+  cleared; voice versions, colours, the logo and brand files; connections, TikTok defaults and
+  pasted links.
+- **Core.** Two reserved parameters: `:fields` (the whole input) and `:payload` (what an effect
+  sent); a yes is refused while a send of exactly the same thing is on its way.
+
+Pack migrations `0004_ideas`, `0005_shoots` and `0006_kit`, not applied to production. Gate: typecheck, lint,
+format, 664 tests in 69 files (122 skipped without `CORE_TEST_PG_URL`; the core's 356 pass with it),
+`next build`.
+
+## 2.20.0 — 2026-10-17
+
+- **Routes on the core.** `lib/core-routes.ts` maps sign-in, the brand load and the post routes
+  to the brandbase pack's moves; `lib/remote.ts` sends them to `NEXT_PUBLIC_CORE_URL` and every
+  other route to `NEXT_PUBLIC_API_URL`. Schedule carries the person's yes to each account's
+  send, stored with the jobs in one transaction.
+- **Pack.** `account.me`, `brand.list`; a post's jobs carry their ids.
+- **Local stack.** `packs/brandbase/demo/web.sh`. Checked with Playwright: load, drag, a refusal
+  from the core, and Schedule from the composer.
+
+No migration. Gate: typecheck, lint, format, 603 tests in 69 files (66 skipped without
+`CORE_TEST_PG_URL`), `next build`.
+
+## 2.19.0 — 2026-10-17
+
+- **Scheduler.** `packs.scheduled_calls` and `packs.alerts`; a move's `schedule` column asks for
+  later calls; one claim per call with `SKIP LOCKED`, a heartbeat, `unknown_outcome` after 15
+  minutes without one; a pack's `onRefused` and `onUnknown` moves record the bad ends.
+- **Sending.** `post.publish_job`, an effect per account, sends what a person approved; failed,
+  refused and cut-off sends show on the job. The server's three job cases pass, with the plan's
+  two cut-off cases.
+- **Events.** `GET /events/:pack` tells open screens that something changed.
+
+Core migration `0006_scheduler`, not applied to production. Gate: typecheck, lint, format,
+598 tests in 68 files (63 skipped without `CORE_TEST_PG_URL`; the core's 237 pass with it), `next
+build`.
+
+## 2.18.0 — 2026-10-17
+
+- **MCP.** `POST /mcp/:pack`: the live version's moves as tools, listed per the caller's loadout
+  (an agent's and its person's), each call through the eight checks.
+- **Effect moves and approvals.** A move that names a connector is an effect. It sends only
+  what a person approved, by the hash of what goes out: an edit voids the yes, a yes is used
+  once, and a failed send needs a new one. `POST /approve/:pack/:op`; agents are refused there
+  and by the database.
+- **Platform test.** Every effect move has a case that sees it wait for a person's yes.
+
+Core migration `0005_approvals`, not applied to production. Gate: typecheck, lint, format,
+586 tests in 67 files (52 skipped without `CORE_TEST_PG_URL`; the core's 214 pass with it), `next
+build`.
+
+## 2.17.0 — 2026-10-17
+
+- **Command line.** `pnpm -F @brandfactory/core core migrate | login | publish | test | promote |
+  principal | loadout`. Promotion acts for the person whose token the command verifies; a
+  Supabase service key is refused.
+- **Server.** `pnpm -F @brandfactory/core start`: the core on Postgres or PGlite; the dev sign-in
+  and a pinned clock are refused in production or on a database off this machine.
+- **Platform tests.** Every version's run also checks that the runtime role cannot bypass row
+  rules, that every table it reaches has forced row rules, that every rule has a refusal case and
+  that every move has a not-found case.
+- **The demo.** `packs/brandbase/demo/hour-rule.sh`: 1.1.0 refuses 07:30, 1.2.0 fails its own
+  case and cannot go live, and moving back to 1.0.0 takes 07:30 again, on one running server.
+- **Walls the review asked for.** Platform tests also fail a function that runs with its owner's
+  rights, a guard of the registry switched off, and a policy that lets every row through;
+  `core migrate` applies only a tested version's migrations, and runs them as `pack_migrator`,
+  which cannot reach the registry, one statement at a time; publish refuses migration text that
+  could leave that role; and a version fails when any function carries its own settings or any
+  trigger, rule or default runs pack code on a write.
+- **The test stall.** A PGlite closed under a running query spun forever; `close()` now waits.
+
+Core migration `0004_migrator`, not applied to production. Gate: typecheck, lint, format,
+573 tests in 66 files (52 skipped without `CORE_TEST_PG_URL`; the core's 201 pass with it), `next
+build`.
+
+## 2.16.0 — 2026-10-17
+
+- **The BrandBase pack.** `packs/brandbase`: `packages/server`'s two migrations as they are, then
+  forced row rules on every table keyed by brand membership (an admin reaches every brand, a
+  deactivated account none), the read helpers, the send blockers in the composer's order, and a
+  partial unique index that holds one planned story a day.
+- **Moves and rules as data.** `brand.state`, `post.list`, `post.create_draft`, `post.edit`,
+  `post.move`, `post.mark`, `post.unplan`, `post.schedule`; 19 rules, each one SQL statement.
+- **The test runner.** A version's cases run on fresh databases through the same call path as a
+  screen. 46 cases: the server's 19 post cases and 9 send cases, isolation across brands, the
+  story row held by the database, and the cases the review asked for. The 3 job-runner cases wait for phase 5.
+- **Idempotency keys.** `Idempotency-Key` on any move: the same call sent again runs once.
+
+Pack migrations `0002_packs_access` and `0003_send_rules`, core migration `0003_idempotency`, not
+applied to production. Gate: typecheck, lint, format, 537 tests in 62 files (52 skipped: the pack's
+cases and `postgres.test.ts` on a real Postgres, which pass with `CORE_TEST_PG_URL` set; run with
+`--maxWorkers=3 --testTimeout=90000` under load), `next build`.
+
+## 2.15.0 — 2026-10-17
+
+- **The core.** `packages/core`: `POST /ops/:pack/:op` authenticates, resolves the live version,
+  checks the loadout (an agent's and its person's), validates the input, runs the before-rules,
+  the move's one statement and the after-rules in one transaction as `pack_runtime`, and logs every
+  call, refused or not. No business words in it; a test enforces that.
+- **The registry.** Schema `packs`: principals, frozen pack versions named by a content hash, test
+  runs, the live pointer, loadouts, the call log. A trigger moves the pointer only to a version
+  with a passing run for its exact hash, and only for a person.
+- **The walls.** The SQL check refuses a version whose moves are more than one plain statement or
+  name a listed function; the runtime role cannot call `set_config`, sleep, take advisory locks or
+  read the registry.
+- **Rule language.** SQL `EXISTS` checks, not CEL: the spike is in the completion document.
+- **Text functions.** Core migration `0002_text` (schema `textfn`): strip emoji and hashtags, list
+  hashtags, the first sentence, has a letter or digit. Postgres regex has no `\p{…}` classes, so
+  `scripts/text-functions.ts` writes them out from Node's Unicode tables, and a test checks the
+  functions agree with JavaScript.
+
+Core migrations `0001_registry` (schema `packs`) and `0002_text`, not applied to production. Gate: typecheck,
+lint, format, 488 tests in 61 files (6 skipped: `postgres.test.ts`, which passes with
+`CORE_TEST_PG_URL` set), `next build`. Under a machine load of 100+, the tests ran with
+`--maxWorkers=3 --testTimeout=90000`; at the default settings `connect` and `web-next` tests
+timed out.
+
+## 2.14.0 — 2026-10-14
+
+- **Moodboard sources.** Instagram DMs and TikTok saves are connection keys of their own
+  (`moodboard-dm`, `moodboard-tt`) beside Pinterest; the moodboard sends them and loads them.
+- **Pasted links.** A table `pasted_links` and `POST /brands/:id/pasted`, idempotent by the
+  client's id and scoped to the brand; the state lists them newest first, so an idea planned from
+  a pasted link keeps it after a reload.
+- **Docs.** The go-live gaps plan moves to `docs/completions/` beside its completion notes.
+
+Migration `0001_gray_tony_stark` (schema `brandbase`), not applied to production. Gate:
+typecheck, lint, format, 424 tests in 56 files, `next build`.
+
+## 2.13.1 — 2026-10-14
+
+- **The composer waits.** `lib/remote.ts` gains `sent`, `push` for a caller that waits: it answers
+  with the refusal in words or null once stored, in the same ordered queue. On the API, Schedule,
+  Post now and Save say "Sending…" or "Saving…" until the server answers, and only a stored post
+  shows the done screen. A refusal keeps the composer open; the message line says why and the
+  brand reloads. A retry after a refused first save makes the same post, under the same id.
+- **A day ahead.** With real dates a draft can sit on a day that has passed; the composer now
+  says "Pick a day ahead." instead of letting the server refuse it.
+
+No migration. Gate: typecheck, lint, format, 419 tests in 54 files, `next build`.
+
+## 2.13.0 — 2026-10-14
+
+- **A day is its date.** `Day.n` (the day of the demo's one month) becomes `Day.date`, a
+  `YYYY-MM-DD` string, and so does every day key: store calls, idea cards, moments, shoots, the
+  composer's `?day=`. `lib/dates.ts` holds the date helpers and today (6 Oct 2026 in the demo, the
+  server's `today` on the API); `remote-days.ts` no longer converts days. Labels read the month
+  from the date instead of guessing it from the number.
+- **The API calendar.** `calendarOf` builds a run of weeks from two months before today's month
+  to six months after it, stretched to every dated post, idea and shoot; the demo's October weeks
+  keep their city events, other weeks get the holidays. Today and the past come from the server,
+  so the calendar opens on this week. Months are cut from the brand's weeks; a month they do not
+  reach is open days.
+- **Pickers.** The day picker and the composer's day grid show one month at a time, with arrows
+  when the brand has more than one month; every week with a day of the month is on its page, and
+  a day that belongs to another month's page is dimmed. The month view's Today opens today's own
+  month, also in the days before its first Monday. Holidays that move each year (Deepavali,
+  Mid-Autumn, Black Friday) show only in 2026, the year their dates are known for.
+- **Seed.** Reads the dates straight from the data files.
+
+No migration. Gate: typecheck, lint, format, 415 tests in 53 files, `next build`.
+
+## 2.12.0 — 2026-10-13
+
+- **API.** `packages/server`: Hono with `createApp(deps)`, Drizzle on PGlite locally and in tests
+  and on Postgres in a deployment. Every rule in the backend handoff is enforced on the server:
+  client-made ids, posted is final, hand-set stages apart from publishing, the stage from
+  per-account jobs, brand-local days. Share links by token, guest comments, inbox, brand kit and
+  voice versions, connections, uploads by signed URL, sending with the composer's blockers and an
+  idempotency key, and a job runner (off in a deployment until a real publisher exists).
+- **The app on the API.** With `NEXT_PUBLIC_API_URL` set: a sign-in page, every store loads from
+  the API and writes through one ordered queue, a refused change says why and reloads, files upload
+  to storage, the composer keeps its whole draft, the guest share page opens by token. Without it,
+  nothing changes.
+- **Seed and deploy.** A seed that loads the demo's data; a Dockerfile (Node 22) and `fly.toml` for
+  the existing app `brandfactory` in `sin`, with the migration as the release command. Not
+  deployed.
+- **Docs.** The plan and its completion notes in `docs/completions/`, with what is not built and
+  the owner's steps to go live.
+
+Migration `0000_futuristic_spencer_smythe` (schema `brandbase`), not applied to production.
+Gate: typecheck, lint, format, 410 tests in 53 files, `next build`.
 
 ## 2.11.3 — 2026-10-13
 

@@ -1,0 +1,29 @@
+{
+  "name": "shoot.reply",
+  "description": "A crew member's answer to the invite, as Lark reports it: going, can't, or none.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "crewId", "reply"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "crewId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "reply": {
+        "enum": ["going", "cant", null]
+      }
+    }
+  },
+  "before": ["brand.reachable", "shoot.found", "shoot.crew_found"],
+  "returns": "one",
+  "sql": "with answered as (update brandbase.crew c set reply = :reply where c.id = :crewId and c.shoot_id = :id returning c.*)\nselect brandbase.shoot_json(to_jsonb(s), coalesce((select jsonb_agg(z.c) from (\n  select to_jsonb(c) as c from brandbase.crew c where c.shoot_id = s.id and c.id not in (select id from answered)\n  union all select to_jsonb(a) from answered a) z), '[]')) as result\nfrom brandbase.shoots s where s.id = :id and s.brand_id = :brand"
+}

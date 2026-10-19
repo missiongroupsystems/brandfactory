@@ -1,0 +1,7 @@
+{
+  "id": "idea.plan_unplanned",
+  "sql": "select exists (select 1 from brandbase.ideas r where r.id = :id and r.post_id = :postId) or i.post_id is null as ok from brandbase.ideas i where i.id = :id",
+  "status": 409,
+  "code": "IDEA_PLANNED",
+  "message": "this idea is a post already"
+}

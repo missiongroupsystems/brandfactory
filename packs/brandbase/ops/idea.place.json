@@ -1,0 +1,36 @@
+{
+  "name": "idea.place",
+  "description": "Moves an idea's tile to a day, or off the calendar with null. An idea is on one day only; other plans on the day stay. An idea that is a post moves with its post.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "day"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "day": {
+        "type": ["string", "null"],
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      },
+      "why": {
+        "type": "string",
+        "maxLength": 500
+      }
+    }
+  },
+  "before": [
+    "brand.reachable",
+    "idea.found",
+    "idea.place_unplanned",
+    "post.day_is_date",
+    "post.day_not_past"
+  ],
+  "returns": "one",
+  "sql": "update brandbase.ideas i set day = :day::date,\n  why = case when :fields::jsonb ? 'why' then :why else i.why end, version = i.version + 1, updated_at = now()\nwhere i.id = :id and i.brand_id = :brand\nreturning brandbase.camel(to_jsonb(i)) || jsonb_build_object('createdAt', brandbase.iso(i.created_at), 'updatedAt', brandbase.iso(i.updated_at)) as result"
+}

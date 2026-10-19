@@ -5,11 +5,13 @@ replacement for Brandwatch.
 
 ## What is here
 
-| Path                | What it is                                                                                                                                                     |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/web-next` | The brand base app (`@brandfactory/web-next`). Today a UI-only demo on static data: Schedule, Ideate, Insights. See its [README](packages/web-next/README.md). |
-| `packages/connect`  | The account-connection service: links each brand's Meta, Pinterest and TikTok accounts by OAuth. See its [README](packages/connect/README.md).                 |
-| `docs/`             | Plans, the changelog and reference notes.                                                                                                                      |
+| Path                | What it is                                                                                                                                                                           |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `packages/web-next` | The brand base app (`@brandfactory/web-next`). A demo on static data, or the real app on the core when `NEXT_PUBLIC_CORE_URL` is set. See its [README](packages/web-next/README.md). |
+| `packages/core`     | The backend: a generic core that runs packs' moves under row-level security. See its [README](packages/core/README.md).                                                              |
+| `packs/brandbase`   | The BrandBase pack: schema, moves, rules and tests the core runs, and the demo's seed.                                                                                               |
+| `packages/connect`  | The account-connection service: links each brand's Meta, Pinterest and TikTok accounts by OAuth. See its [README](packages/connect/README.md).                                       |
+| `docs/`             | Plans, the changelog and reference notes.                                                                                                                                            |
 
 The demo folder is named `web-next` so the existing Vercel project, whose Root Directory is
 `packages/web-next`, deploys it with no settings change.

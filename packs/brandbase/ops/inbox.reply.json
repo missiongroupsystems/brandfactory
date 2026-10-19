@@ -1,0 +1,27 @@
+{
+  "name": "inbox.reply",
+  "description": "The reply to a message, kept with who sent it; it waits as queued, since no platform sender exists yet, and the message leaves the queue. A message already answered or cleared is refused, so two replies at once keep the first.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "text"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "text": {
+        "type": "string",
+        "maxLength": 8000,
+        "pattern": "\\S"
+      }
+    }
+  },
+  "before": ["brand.reachable", "inbox.found", "inbox.open"],
+  "returns": "one",
+  "sql": "update brandbase.inbox_messages m set reply_text = btrim(:text), reply_status = 'queued', replied_by = :actor, done_at = :now::timestamptz where m.id = :id and m.brand_id = :brand and m.done_at is null returning brandbase.camel(to_jsonb(m)) || jsonb_build_object('receivedAt', brandbase.iso(m.received_at), 'doneAt', brandbase.iso(m.done_at)) as result"
+}

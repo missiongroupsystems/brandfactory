@@ -1,0 +1,26 @@
+{
+  "name": "shoot.add_idea",
+  "description": "An idea joins this shoot, last in the order, and leaves the one it was on. It lands first, then a planned shoot left empty goes, so an empty planned shoot it joins is not lost.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "ideaId"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "ideaId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["shoot.lock_brand", "shoot.found", "shoot.idea_in_brand"],
+  "returns": "one",
+  "sql": "with emptied as (\n  delete from brandbase.shoots s\n  where s.brand_id = :brand and s.origin = 'planned' and s.id <> :id\n    and cardinality(array(select i from unnest(s.idea_ids) i where i <> all (array[:ideaId]))) = 0\n  returning s.id\n),\ntaken as (\n  update brandbase.shoots s set idea_ids = array(select i from unnest(s.idea_ids) i where i <> all (array[:ideaId])),\n    version = s.version + 1, updated_at = now()\n  where s.brand_id = :brand and s.id <> :id and s.idea_ids && array[:ideaId]\n    and s.id not in (select id from emptied)\n  returning s.id\n),\njoined as (\n  update brandbase.shoots s set idea_ids = array_remove(s.idea_ids, :ideaId) || :ideaId, version = s.version + 1, updated_at = now()\n  where s.id = :id and s.brand_id = :brand\n  returning s.*\n)\nselect brandbase.shoot_json(to_jsonb(j), coalesce((select jsonb_agg(to_jsonb(c)) from brandbase.crew c where c.shoot_id = j.id), '[]')) as result from joined j"
+}

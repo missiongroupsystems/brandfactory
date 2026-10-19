@@ -28,7 +28,7 @@ export function BrandLogo({
       alt={alt}
       fill
       sizes={sizes}
-      unoptimized={src.startsWith('blob:')}
+      unoptimized={src.startsWith('blob:') || /^https?:/.test(src)}
       className={className}
     />
   )

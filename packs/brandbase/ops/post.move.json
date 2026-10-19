@@ -1,0 +1,38 @@
+{
+  "name": "post.move",
+  "description": "Moves a post to a day, keeping its time unless one is given, as a drag on the calendar does. The jobs not yet sent move with it. The same day and time changes nothing.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "day"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "day": {
+        "type": "string",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      },
+      "time": {
+        "type": "string",
+        "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+      }
+    }
+  },
+  "before": [
+    "brand.reachable",
+    "post.found",
+    "post.not_posted",
+    "post.day_is_date",
+    "post.day_not_past",
+    "post.not_too_early",
+    "post.story_free"
+  ],
+  "returns": "one",
+  "sql": "with p as (select * from brandbase.posts where id = :id and brand_id = :brand),\ntarget as (select :day::date as day, coalesce(:time, p.time, '12:00') as time from p),\nmoved as (\n  update brandbase.posts x set day = t.day, time = t.time, version = x.version + 1, updated_at = now()\n  from p, target t\n  where x.id = p.id and (p.day is distinct from t.day or p.time is distinct from t.time)\n  returning x.*\n),\njobs as (\n  update brandbase.post_jobs j set run_at = brandbase.instant(t.day, t.time, b.timezone), updated_at = now()\n  from moved m, target t, brandbase.brands b\n  where j.post_id = m.id and j.status = 'scheduled' and b.id = m.brand_id\n  returning j.*\n)\nselect brandbase.post_json(to_jsonb(m), coalesce((\n  select jsonb_agg(coalesce(to_jsonb(n), to_jsonb(o)))\n  from brandbase.post_jobs o left join jobs n on n.id = o.id where o.post_id = m.id), '[]')) as result\n  , (select coalesce(jsonb_agg(jsonb_build_object(\n       'op', 'post.publish_job', 'key', n.id, 'at', brandbase.iso(n.run_at),\n       'input', jsonb_build_object('brand', n.brand_id, 'job', n.id))), '[]')\n     from jobs n) as schedule\nfrom moved m\nunion all\nselect brandbase.post_json(x), '[]'::jsonb from brandbase.posts x, p where x.id = p.id and not exists (select 1 from moved)"
+}

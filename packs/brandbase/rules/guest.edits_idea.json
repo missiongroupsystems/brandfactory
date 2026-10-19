@@ -1,0 +1,7 @@
+{
+  "id": "guest.edits_idea",
+  "sql": "select kind = 'idea' as ok from brandbase.share_links where token = :token",
+  "status": 400,
+  "code": "VALIDATION",
+  "message": "only an idea brief can be edited here"
+}

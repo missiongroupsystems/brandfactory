@@ -1,0 +1,7 @@
+{
+  "id": "post.not_posted",
+  "sql": "select coalesce(brandbase.post_stage(:id), '') <> 'posted' as ok",
+  "status": 409,
+  "code": "POST_POSTED",
+  "message": "this post is posted and cannot change"
+}

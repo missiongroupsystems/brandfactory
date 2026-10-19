@@ -151,7 +151,7 @@ export function MoreMenu({
           className={`${POP} w-[400px] gap-3 rounded-[16px] p-4`}
         >
           <span className="text-[14px] font-medium">New shoot</span>
-          <NewShootForm dayN={shootDay} />
+          <NewShootForm date={shootDay} />
         </div>
       )}
     </div>

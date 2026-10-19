@@ -2,12 +2,15 @@
 
 import * as React from 'react'
 
+import { onToday } from '@/lib/dates'
+
 import { ALL_STAGES, type StageFilter } from './calendar-items'
+import { todayPlace } from './month'
 
 /**
- * Where the calendar is: its view, the month (0 is the demo's October), the week inside that month
- * and the day inside that week, and the stage filter. Outside React, so opening a post on its own
- * page and coming back lands on the same view. A reload starts on this week, as the demo does.
+ * Where the calendar is: its view, the month (0 is the month of this week's Monday), the week
+ * inside that month and the day inside that week, and the stage filter. Outside React, so opening
+ * a post on its own page and coming back lands on the same view. A reload starts on this week.
  */
 export type CalendarMode = 'month' | 'week' | 'day'
 
@@ -19,10 +22,7 @@ export interface CalendarPlace {
   stages: StageFilter
 }
 
-/** Today is Tuesday 6 October: the first week of the demo's month, its second day. */
-export const TODAY_PLACE = { offset: 0, week: 0, day: 1 }
-
-let place: CalendarPlace = { view: 'week', ...TODAY_PLACE, stages: ALL_STAGES }
+let place: CalendarPlace = { view: 'week', ...todayPlace(), stages: ALL_STAGES }
 const listeners = new Set<() => void>()
 
 function subscribe(listener: () => void) {
@@ -44,3 +44,6 @@ export function setCalendarPlace(next: Partial<CalendarPlace>) {
   place = { ...place, ...next }
   listeners.forEach((l) => l())
 }
+
+// The server's today replaces the demo's: the calendar opens on its week.
+onToday(() => setCalendarPlace(todayPlace(place.view)))

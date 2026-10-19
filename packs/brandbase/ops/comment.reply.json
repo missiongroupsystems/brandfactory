@@ -1,0 +1,27 @@
+{
+  "name": "comment.reply",
+  "description": "The team answers a guest's comment, signed as the brand.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "text"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "text": {
+        "type": "string",
+        "maxLength": 2000,
+        "pattern": "\\S"
+      }
+    }
+  },
+  "before": ["brand.reachable", "comment.found"],
+  "returns": "one",
+  "sql": "insert into brandbase.comments as r (id, brand_id, kind, target_id, parent_id, name, from_team, text, created_at)\nselect gen_random_uuid()::text, c.brand_id, c.kind, c.target_id, c.id, b.name, true, btrim(:text), :now::timestamptz\nfrom brandbase.comments c join brandbase.brands b on b.id = c.brand_id where c.id = :id and c.brand_id = :brand\nreturning brandbase.camel(to_jsonb(r)) || jsonb_build_object('createdAt', brandbase.iso(r.created_at)) as result"
+}

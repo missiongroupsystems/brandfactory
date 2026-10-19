@@ -1,0 +1,7 @@
+{
+  "id": "comment.found",
+  "sql": "select exists (select 1 from brandbase.comments where id = :id and brand_id = :brand and parent_id is null) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "comment not found"
+}

@@ -1,0 +1,36 @@
+{
+  "name": "connection.set",
+  "description": "Turns one of a brand's connections on or off, as the connect sheet does. The real sign-in for Meta, Pinterest and TikTok lives in packages/connect, not wired to this yet.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "key", "status"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "key": {
+        "enum": [
+          "ig",
+          "tt",
+          "fb",
+          "drive",
+          "lark",
+          "web",
+          "gbp",
+          "res",
+          "pinterest",
+          "moodboard-dm",
+          "moodboard-tt"
+        ]
+      },
+      "status": {
+        "enum": ["connected", "off"]
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "returns": "one",
+  "sql": "insert into brandbase.connections as k (brand_id, key, status) values (:brand, :key, :status) on conflict (brand_id, key) do update set status = excluded.status, updated_at = now() returning brandbase.camel(to_jsonb(k)) as result"
+}

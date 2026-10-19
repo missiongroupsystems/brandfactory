@@ -1,18 +1,26 @@
 import type { BrandId } from '@/data/brands'
 import type { CalendarEvent, Day, FeedMark, LayerKey, Post, Week } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
+import {
+  addDays,
+  dayNumber,
+  firstOf,
+  mondayOf,
+  monthOf,
+  slotOf,
+  todayDate,
+  weekdayOf,
+} from '@/lib/dates'
+import { remote } from '@/lib/remote'
 
 /**
- * Months other than the demo's October, built from real dates. A month shows the weeks whose
- * Monday falls in it, which is how the October data already runs (5 Oct – 1 Nov), so months
- * never overlap. Today is Tuesday 6 October 2026. The past shows what each brand really posted
- * (the posts on the insights page); the future is open days and the public holidays a
- * Singapore restaurant plans around.
+ * Months on real dates. A month shows the weeks whose Monday falls in it, which is how the demo's
+ * October already runs (5 Oct – 1 Nov), so months never overlap. Month offsets count from the
+ * month of this week's Monday. In the demo, today is Tuesday 6 October 2026 and the past shows
+ * what each brand really posted (the posts on the insights page); the future is open days and the
+ * public holidays a Singapore restaurant plans around. On the API the brand's weeks come from the
+ * server (`remote-calendar.ts`) and a month they do not reach is open days.
  */
-
-export const TODAY = new Date(2026, 9, 6)
-/** The month the demo's own data covers. */
-export const DEMO_MONTH = { year: 2026, month: 9 }
 
 const MONTHS = [
   'January',
@@ -29,69 +37,146 @@ const MONTHS = [
   'December',
 ]
 const SHORT = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-const WEEKDAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-/** Dates the month view marks, by month (0-based) and day. */
-const HOLIDAYS: Array<{ m: number; d: number; text: string; layer: LayerKey; span?: number }> = [
+/**
+ * Dates the month view marks, by month (0-based) and day. A holiday that moves each year carries
+ * the one year its date is known for.
+ */
+const HOLIDAYS: Array<{
+  m: number
+  d: number
+  text: string
+  layer: LayerKey
+  span?: number
+  year?: number
+}> = [
   { m: 7, d: 9, text: 'National Day', layer: 'holiday' },
-  { m: 8, d: 25, text: 'Mid-Autumn Festival', layer: 'holiday' },
-  { m: 10, d: 8, text: 'Deepavali', layer: 'holiday' },
+  { m: 8, d: 25, text: 'Mid-Autumn Festival', layer: 'holiday', year: 2026 },
+  { m: 10, d: 8, text: 'Deepavali', layer: 'holiday', year: 2026 },
   { m: 10, d: 11, text: '11.11 sales', layer: 'city' },
-  { m: 10, d: 27, text: 'Black Friday', layer: 'city', span: 3 },
+  { m: 10, d: 27, text: 'Black Friday', layer: 'city', span: 3, year: 2026 },
   { m: 11, d: 24, text: 'Christmas Eve', layer: 'holiday', span: 2 },
   { m: 11, d: 31, text: "New Year's Eve", layer: 'holiday' },
 ]
 
-const sameDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate()
-
 /** The ISO week number, as the October data prints it ("WK 41"). */
-function isoWeek(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  const day = d.getUTCDay() || 7
-  d.setUTCDate(d.getUTCDate() + 4 - day)
-  const start = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  return Math.ceil(((d.getTime() - start.getTime()) / 86400000 + 1) / 7)
+function isoWeek(monday: string): number {
+  const thursday = addDays(monday, 3)
+  const jan1 = firstOf(monthOf(thursday).year, 0)
+  const days = (Date.parse(thursday) - Date.parse(jan1)) / 86400000
+  return Math.floor(days / 7) + 1
 }
 
 /** The Mondays that fall in a month. */
-function mondays(year: number, month: number): Date[] {
-  const out: Date[] = []
-  const d = new Date(year, month, 1)
-  while (d.getDay() !== 1) d.setDate(d.getDate() + 1)
-  while (d.getMonth() === month) {
-    out.push(new Date(d))
-    d.setDate(d.getDate() + 7)
+function mondays(year: number, month: number): string[] {
+  const first = firstOf(year, month)
+  const out: string[] = []
+  for (let d = addDays(first, (7 - weekdayOf(first)) % 7); monthOf(d).month === month; ) {
+    out.push(d)
+    d = addDays(d, 7)
   }
   return out
 }
 
+/** The month `offset` months from the month of this week's Monday. */
+export function monthAt(offset: number, today = todayDate()): { year: number; month: number } {
+  const home = monthOf(mondayOf(today))
+  return monthOf(firstOf(home.year, home.month + offset))
+}
+
+/** A month's title and range, as the demo prints October's: "5 OCT – 1 NOV · WK 41–44". */
+export function monthTitle(year: number, month: number): { title: string; range: string } {
+  const starts = mondays(year, month)
+  const first = starts[0]!
+  const last = starts.at(-1)!
+  const fmt = (d: string) => `${dayNumber(d)} ${SHORT[monthOf(d).month]}`
+  return {
+    title: MONTHS[month]!,
+    range: `${fmt(first)} – ${fmt(addDays(last, 6))} · WK ${isoWeek(first)}–${isoWeek(last)}`,
+  }
+}
+
+/** The holidays in the week that starts on `monday`. */
+function holidayEvents(monday: string): CalendarEvent[] {
+  const years = new Set([monthOf(monday).year, monthOf(addDays(monday, 6)).year])
+  return [...years].flatMap((year) =>
+    HOLIDAYS.flatMap((h) => {
+      if (h.year !== undefined && h.year !== year) return []
+      const date = addDays(firstOf(year, h.m), h.d - 1)
+      const col = (Date.parse(date) - Date.parse(monday)) / 86400000
+      if (col < 0 || col > 6) return []
+      return [{ layer: h.layer, text: h.text, col: col + 1, span: Math.min(h.span ?? 1, 7 - col) }]
+    }),
+  )
+}
+
+/** An empty week from a Monday: open days, today and the past marked, and its holidays. */
+export function blankWeek(monday: string, today = todayDate()): Week {
+  return {
+    label: `WK ${isoWeek(monday)}`,
+    events: holidayEvents(monday),
+    days: Array.from({ length: 7 }, (_, i): Day => {
+      const date = addDays(monday, i)
+      return {
+        date,
+        ...(date < today ? { past: true } : {}),
+        ...(date === today ? { today: true } : {}),
+        story: { kind: 'open', draftsReady: false },
+      }
+    }),
+  }
+}
+
+/** The Mondays from one to another, both in. */
+export function mondaysBetween(from: string, to: string): string[] {
+  const out: string[] = []
+  for (let d = mondayOf(from); d <= to; d = addDays(d, 7)) out.push(d)
+  return out
+}
+
+/** The weeks of a month, cut from a run of weeks: the ones whose Monday is in it. */
+export function weeksOfMonth(weeks: Week[], year: number, month: number): Week[] {
+  return weeks.filter((w) => {
+    const m = monthOf(w.days[0]!.date)
+    return m.year === year && m.month === month
+  })
+}
+
+/** The first and last Mondays of the months from `before` months back to `after` ahead. */
+export function monthSpan(
+  before: number,
+  after: number,
+  today = todayDate(),
+): { from: string; to: string } {
+  const a = monthAt(-before, today)
+  const b = monthAt(after, today)
+  return { from: mondays(a.year, a.month)[0]!, to: mondays(b.year, b.month).at(-1)! }
+}
+
 /** "16 SEP" → a date in 2026. */
-function parseShort(date: string): Date | null {
+function parseShort(date: string): string | null {
   const [d, m] = date.split(' ')
   const month = SHORT.indexOf(m ?? '')
-  return month < 0 ? null : new Date(2026, month, Number(d))
+  return month < 0 ? null : addDays(firstOf(2026, month), Number(d) - 1)
 }
 
 /**
  * What each brand posted before today, as posts the calendar can draw: the month's posts from the
  * insights page, posted at 18:00, with the date each went out. Posted, so nothing can drag them.
+ * The demo's only: on the API the server holds what went out.
  */
-function archive(brandId: BrandId): Array<{ post: Post; date: Date }> {
+function archive(brandId: BrandId): Array<{ post: Post; date: string }> {
+  if (remote) return []
   return INSIGHTS_BY_BRAND[brandId].posts.flatMap((p, i) => {
     const date = parseShort(p.date)
     if (!date) return []
-    const weekday = WEEKDAY[(date.getDay() + 6) % 7]!
     const post: Post = {
       id: `${brandId}-archive-${i}`,
       format: p.format === 'photo' ? 'carousel' : p.format,
       hook: p.hook,
       images: [p.image],
       stage: 'posted',
-      slot: `${weekday} ${date.getDate()} ${MONTHS[date.getMonth()]!.slice(0, 3)}, 18:00`,
-      slotShort: `${weekday}, 18:00`,
+      ...slotOf(date, '18:00'),
     }
     return [{ post, date }]
   })
@@ -102,61 +187,58 @@ export function archiveFor(brandId: BrandId): Post[] {
   return archive(brandId).map((a) => a.post)
 }
 
-/** A month's title and weeks, for any month but the demo's own. */
+/** A month's title and weeks, for a month the brand's own weeks do not reach. */
 export function monthView(
   brandId: BrandId,
   year: number,
   month: number,
 ): { title: string; range: string; weeks: Week[] } {
   const posted = archive(brandId)
-  const starts = mondays(year, month)
-  const weeks: Week[] = starts.map((monday) => {
-    const days: Day[] = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(monday)
-      date.setDate(monday.getDate() + i)
-      const feed: FeedMark[] = posted
-        .filter((a) => sameDay(a.date, date))
-        .map((a) => ({ kind: 'post', postId: a.post.id }))
-      return {
-        n: String(date.getDate()),
-        past: date < TODAY && !sameDay(date, TODAY),
-        today: sameDay(date, TODAY),
-        story: { kind: 'open', draftsReady: false },
-        ...(feed.length ? { feed: feed.length === 1 ? feed[0] : feed } : {}),
-      }
-    })
-    const events: CalendarEvent[] = HOLIDAYS.flatMap((h) => {
-      const date = new Date(year, h.m, h.d)
-      const col = Math.round((date.getTime() - monday.getTime()) / 86400000)
-      if (col < 0 || col > 6) return []
-      return [{ layer: h.layer, text: h.text, col: col + 1, span: Math.min(h.span ?? 1, 7 - col) }]
-    })
-    return { label: `WK ${isoWeek(monday)}`, days, events }
+  const weeks = mondays(year, month).map((monday) => {
+    const week = blankWeek(monday)
+    return {
+      ...week,
+      days: week.days.map((day) => {
+        const feed: FeedMark[] = posted
+          .filter((a) => a.date === day.date)
+          .map((a) => ({ kind: 'post', postId: a.post.id }))
+        return feed.length ? { ...day, feed: feed.length === 1 ? feed[0] : feed } : day
+      }),
+    }
   })
-  const first = starts[0]!
-  const last = new Date(starts.at(-1)!)
-  last.setDate(last.getDate() + 6)
-  const fmt = (d: Date) => `${d.getDate()} ${SHORT[d.getMonth()]}`
-  return {
-    title: MONTHS[month]!,
-    range: `${fmt(first)} – ${fmt(last)} · WK ${isoWeek(first)}–${isoWeek(starts.at(-1)!)}`,
-    weeks,
-  }
+  return { ...monthTitle(year, month), weeks }
 }
 
-/** The real date of a place on the calendar: the month's first Monday, then weeks and days. */
-export function dateOf(offset: number, week: number, day: number): Date {
-  const m = new Date(DEMO_MONTH.year, DEMO_MONTH.month + offset, 1)
-  const first = mondays(m.getFullYear(), m.getMonth())[0]!
-  const d = new Date(first)
-  d.setDate(first.getDate() + week * 7 + day)
-  return d
+/** The date of a place on the calendar: the month's first Monday, then weeks and days. */
+export function dateOf(offset: number, week: number, day: number): string {
+  const { year, month } = monthAt(offset)
+  return addDays(mondays(year, month)[0]!, week * 7 + day)
 }
 
 /** How many weeks a month shows. */
 export function weekCount(offset: number): number {
-  const m = new Date(DEMO_MONTH.year, DEMO_MONTH.month + offset, 1)
-  return mondays(m.getFullYear(), m.getMonth()).length
+  const { year, month } = monthAt(offset)
+  return mondays(year, month).length
+}
+
+/**
+ * Where today is: the home month, the week of today's Monday in it, and today's column. The month
+ * view shows today's own month instead, which is the next one in the days before a month's first
+ * Monday (Thu 1 Oct sits in a week that belongs to September).
+ */
+export function todayPlace(view?: 'month' | 'week' | 'day'): {
+  offset: number
+  week: number
+  day: number
+} {
+  const today = todayDate()
+  const { year, month } = monthAt(0)
+  const day = weekdayOf(today)
+  const own = monthOf(today)
+  if (view === 'month' && (own.year !== year || own.month !== month)) {
+    return { offset: (own.year - year) * 12 + own.month - month, week: 0, day }
+  }
+  return { offset: 0, week: mondays(year, month).indexOf(mondayOf(today)), day }
 }
 
 /**
@@ -169,9 +251,9 @@ export function monthRows(
   weeks: Week[],
   before: Week[],
 ): { lead?: Week; weeks: Week[] } {
-  const m = new Date(DEMO_MONTH.year, DEMO_MONTH.month + offset, 1).getMonth()
-  const mark = (week: Week, w: number): Week => {
-    const inside = week.days.map((_, i) => dateOf(offset, w, i).getMonth() === m)
+  const m = monthAt(offset).month
+  const mark = (week: Week): Week => {
+    const inside = week.days.map((d) => monthOf(d.date).month === m)
     const from = inside.indexOf(true) + 1
     const to = inside.lastIndexOf(true) + 1
     return {
@@ -187,7 +269,7 @@ export function monthRows(
   }
   const last = before.at(-1)
   return {
-    lead: dateOf(offset, 0, 0).getDate() === 1 || !last ? undefined : mark(last, -1),
+    lead: dateOf(offset, 0, 0).endsWith('-01') || !last ? undefined : mark(last),
     weeks: weeks.map(mark),
   }
 }

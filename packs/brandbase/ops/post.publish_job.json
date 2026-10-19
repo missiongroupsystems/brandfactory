@@ -1,0 +1,24 @@
+{
+  "name": "post.publish_job",
+  "description": "Sends one account's job of a post: the text that account gets, the media and the format. An effect: it sends only what a person approved, and the scheduler calls it at the job's time. A job that no longer waits (cancelled, sent, moved off) sends nothing.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "job"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "job": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_:-]{1,120}$"
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "connector": "simulated",
+  "payload": "select jsonb_build_object('job', j.id, 'channel', j.channel, 'format', p.format, 'text', brandbase.text_for(p.caption, p.hook, p.draft, j.channel), 'media', p.media) as result from brandbase.post_jobs j join brandbase.posts p on p.id = j.post_id where j.id = :job and j.brand_id = :brand and j.status = 'scheduled'",
+  "sql": "update brandbase.post_jobs j set status = 'live', external_id = :outcome::jsonb ->> 'externalId', error = null, attempts = j.attempts + 1, updated_at = now() where j.id = :job and j.brand_id = :brand and j.status = 'scheduled' returning j.id, j.status, j.external_id as \"externalId\"",
+  "returns": "one"
+}

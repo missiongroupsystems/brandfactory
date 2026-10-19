@@ -1,0 +1,7 @@
+{
+  "id": "post.found",
+  "sql": "select exists (select 1 from brandbase.posts where id = :id and brand_id = :brand for update) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "post not found"
+}

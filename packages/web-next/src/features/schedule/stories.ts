@@ -1,5 +1,6 @@
 import type { BrandId } from '@/data/brands'
 import type { Post, Stage } from '@/data/demo'
+import { dayNumber } from '@/lib/dates'
 
 import type { DayItems } from './calendar-items'
 
@@ -55,16 +56,16 @@ const TITLES: Record<BrandId, string[]> = {
 }
 
 export function storiesOf(
-  dayN: string,
+  date: string,
   items: DayItems,
   brandId: BrandId,
   library: string[],
   byId: (id: string) => Post | undefined,
 ): Story[] {
   const titles = TITLES[brandId]
-  const seed = Number(dayN)
+  const seed = Number(dayNumber(date))
   const posted: Story[] = Array.from({ length: items.storiesPosted }, (_, i) => ({
-    id: `${dayN}-story-${i}`,
+    id: `${date}-story-${i}`,
     time: TIMES[i % TIMES.length]!,
     title: titles[(seed + i) % titles.length]!,
     image: (i === 0 ? items.storyImage : undefined) ?? library[(seed + i) % library.length],

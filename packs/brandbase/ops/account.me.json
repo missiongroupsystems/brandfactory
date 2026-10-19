@@ -1,0 +1,12 @@
+{
+  "name": "account.me",
+  "description": "The caller's account and the brands they reach, read when they sign in.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "before": ["account.exists", "account.active"],
+  "returns": "one",
+  "sql": "select jsonb_build_object('user', brandbase.camel(to_jsonb(u)) || jsonb_build_object('createdAt', brandbase.iso(u.created_at), 'deactivatedAt', brandbase.iso(u.deactivated_at)), 'brands', coalesce((select jsonb_agg((brandbase.camel(to_jsonb(b)) || jsonb_build_object('createdAt', brandbase.iso(b.created_at))) order by b.position, b.id) from brandbase.brands b), '[]')) as result from brandbase.users u where u.id = brandbase.caller()"
+}

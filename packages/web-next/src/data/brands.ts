@@ -13,7 +13,6 @@
 import {
   IDEAS,
   LIBRARY,
-  MONTH,
   PHOTO,
   POSTS,
   WEEKS,
@@ -52,7 +51,6 @@ export interface BrandContent {
   weeks: Week[]
   ideas: Idea[]
   library: string[]
-  month: { title: string; range: string }
   captions: Record<string, string>
 }
 
@@ -68,11 +66,14 @@ const SHARED_EVENTS: CalendarEvent[][] = WEEKS.map((w) =>
 const open: StoryMark = { kind: 'open', draftsReady: false }
 const openReady: StoryMark = { kind: 'open', draftsReady: true }
 const idea: StoryMark = { kind: 'idea' }
+/** The number a day prints: "8" for 2026-10-08. */
+const dayNumber = (date: string) => String(Number(date.slice(8)))
 const posted = (image: string, count: number): StoryMark => ({ kind: 'posted', image, count })
 
 /**
  * One brand's month on Casa Vostra's skeleton. `stories` and `feed` are keyed by the day number
- * as the calendar prints it; a day with no story entry is an open slot. `ours` holds the brand's
+ * as the calendar prints it (the month runs 5 Oct to 1 Nov, so each number is one day); a day
+ * with no story entry is an open slot. `ours` holds the brand's
  * own events and shoots, one list per week.
  */
 function month(
@@ -84,12 +85,12 @@ function month(
     label: w.label,
     events: [...SHARED_EVENTS[i]!, ...(ours[i] ?? [])],
     days: w.days.map((d) => ({
-      n: d.n,
+      date: d.date,
       ...(d.past ? { past: true } : {}),
       ...(d.today ? { today: true } : {}),
       // From week 43 on, the team has drafts waiting, as on Casa Vostra's calendar.
-      story: stories[d.n] ?? (i === 2 ? openReady : open),
-      ...(feed[d.n] ? { feed: feed[d.n] } : {}),
+      story: stories[dayNumber(d.date)] ?? (i === 2 ? openReady : open),
+      ...(feed[dayNumber(d.date)] ? { feed: feed[dayNumber(d.date)] } : {}),
     })),
   }))
 }
@@ -125,7 +126,6 @@ const CASA_VOSTRA: BrandContent = {
   weeks: WEEKS,
   ideas: IDEAS,
   library: LIBRARY,
-  month: MONTH,
   captions: {
     crust:
       'The final touch for a crispy crust and a smoky finish 🔥 Find us at Raffles City. #casavostra #pizzasg #rafflescity',
@@ -285,7 +285,6 @@ const TEMPER: BrandContent = {
     { hook: 'Vinyl & vino, side B.', format: 'reel', meta: 'Idea · event recap' },
   ],
   library: [T.dish, T.pour, T.glass, T.room],
-  month: MONTH,
   captions: {
     'temper-pour':
       'Not dinner yet, not quite a nightcap. The pour that starts the in-between. Duxton, from 5pm. #temper #winebarsg #duxton',
@@ -432,7 +431,6 @@ const CARLITOS: BrandContent = {
     { hook: 'Sherry, three ways.', format: 'carousel', meta: 'Idea · tasting' },
   ],
   library: [K.croquetas, K.pintxos, K.bravas, K.bombas, K.jamon],
-  month: MONTH,
   captions: {
     'carlitos-croquetas':
       'Crisp outside, molten inside. Our croquetas de jamón, made by hand every afternoon. ¡Vamos! #carlitossg #tapas #joochiat',

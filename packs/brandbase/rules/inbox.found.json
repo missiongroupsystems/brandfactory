@@ -1,0 +1,7 @@
+{
+  "id": "inbox.found",
+  "sql": "select exists (select 1 from brandbase.inbox_messages where id = :id and brand_id = :brand for update) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "message not found"
+}

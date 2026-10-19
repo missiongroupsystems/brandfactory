@@ -1,0 +1,7 @@
+{
+  "id": "inbox.open",
+  "sql": "select m.done_at is null as ok from brandbase.inbox_messages m where m.id = :id",
+  "status": 409,
+  "code": "ALREADY_DONE",
+  "message": "this message was answered or cleared"
+}

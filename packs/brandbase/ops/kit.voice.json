@@ -1,0 +1,60 @@
+{
+  "name": "kit.voice",
+  "description": "Makes a voice the brand's, as a new version numbered in the same statement, on top of the kit as it is now: a blank summary keeps the old one, a pair needs both words, a blank line goes. Two publishes at once cannot share a number.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "voice"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "voice": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["summary", "words", "examples"],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "words": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["use", "avoid"],
+              "properties": {
+                "use": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "avoid": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "examples": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "type": "string",
+              "maxLength": 1000
+            }
+          }
+        }
+      },
+      "note": {
+        "type": "string",
+        "maxLength": 500
+      }
+    }
+  },
+  "before": ["brand.reachable", "kit.found"],
+  "returns": "one",
+  "sql": "with k as (select * from brandbase.brand_kits where brand_id = :brand),\nnext as (select brandbase.voice_edited(k.voice, :voice::jsonb) as voice from k),\nversion as (\n  insert into brandbase.voice_versions (brand_id, n, by, note, voice, created_at)\n  select :brand, coalesce((select max(n) from brandbase.voice_versions where brand_id = :brand), 0) + 1,\n    (select coalesce(nullif(u.name, ''), u.email) from brandbase.users u where u.id = :actor),\n    btrim(coalesce(:note, '')), next.voice, :now::timestamptz\n  from next\n  returning *\n),\nkit as (\n  update brandbase.brand_kits x set voice = next.voice, version = x.version + 1, updated_at = now()\n  from next where x.brand_id = :brand\n  returning x.*\n)\nselect jsonb_build_object('kit', brandbase.camel(to_jsonb(kit)) || jsonb_build_object('updatedAt', brandbase.iso(kit.updated_at)),\n  'version', brandbase.camel(to_jsonb(v)) || jsonb_build_object('createdAt', brandbase.iso(v.created_at))) as result\nfrom kit, version v"
+}

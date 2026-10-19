@@ -1,0 +1,951 @@
+{
+  "name": "ideas",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "member",
+  "cases": [
+    {
+      "name": "makes one idea for a repeated id, so a second click on a tile makes no twin",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Other",
+            "image": "/photos/pasta.jpg"
+          },
+          "expect": {
+            "result": {
+              "hook": "Nonna rolls the pasta"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses an idea id another brand holds",
+      "steps": [
+        {
+          "call": "idea.create",
+          "as": "admin",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.create",
+          "as": "admin",
+          "input": {
+            "brand": "temper",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          },
+          "expect": {
+            "status": 409,
+            "code": "ID_TAKEN"
+          }
+        }
+      ]
+    },
+    {
+      "name": "turns the idea into a post at its stage, and the tile leaves the calendar",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg",
+            "day": "2026-10-09",
+            "why": "Built on Pasta week"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "postId": "p1",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "stage": "scheduled"
+          },
+          "expect": {
+            "result": {
+              "post": {
+                "id": "p1",
+                "hook": "Nonna rolls the pasta",
+                "stage": "scheduled",
+                "day": "2026-10-09",
+                "media": [
+                  {
+                    "src": "/photos/pasta.jpg",
+                    "kind": "photo"
+                  }
+                ]
+              },
+              "idea": {
+                "postId": "p1",
+                "day": null
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers a repeat with the post it made",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "postId": "p1",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "stage": "draft"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "postId": "p1",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "stage": "draft"
+          },
+          "expect": {
+            "status": 200,
+            "result": {
+              "post": {
+                "id": "p1"
+              }
+            }
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "length": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "lifts the post off its day and puts the idea back there in its own words",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg",
+            "day": "2026-10-09",
+            "why": "Built on Pasta week"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "postId": "p1",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "stage": "draft"
+          }
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "day": "2026-10-14"
+          }
+        },
+        {
+          "call": "post.unplan",
+          "input": {
+            "brand": "casa",
+            "id": "p1"
+          },
+          "expect": {
+            "result": {
+              "idea": {
+                "postId": null,
+                "day": "2026-10-14",
+                "why": "Built on Pasta week"
+              }
+            }
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "length": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps a suggestion a suggestion when its post is taken back",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg",
+            "status": "suggested",
+            "day": "2026-10-09"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "postId": "p1",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "stage": "draft"
+          }
+        },
+        {
+          "call": "post.unplan",
+          "input": {
+            "brand": "casa",
+            "id": "p1"
+          },
+          "expect": {
+            "result": {
+              "idea": {
+                "status": "suggested"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "lands on the day asked for when it is ahead and holds no post",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.to_calendar",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "preferDay": "2026-10-09",
+            "why": "Built on Pasta week"
+          },
+          "expect": {
+            "result": {
+              "day": "2026-10-09",
+              "why": "Built on Pasta week"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "leaves this week alone when the day asked for holds a post, since a shoot needs lead time",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Busy",
+            "day": "2026-10-09",
+            "time": "18:00"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg",
+            "day": "2026-10-12"
+          }
+        },
+        {
+          "call": "idea.to_calendar",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "preferDay": "2026-10-09",
+            "why": "x"
+          },
+          "expect": {
+            "result": {
+              "day": "2026-10-13"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "never takes today as the day asked for",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.to_calendar",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "preferDay": "2026-10-06",
+            "why": "x"
+          },
+          "expect": {
+            "result": {
+              "day": "2026-10-12"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a day that is not a date",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.to_calendar",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "preferDay": "zzz",
+            "why": "x"
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "idea.to_calendar",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "preferDay": "2026-02-30",
+            "why": "x"
+          },
+          "expect": {
+            "status": 400,
+            "code": "BAD_DAY"
+          }
+        }
+      ]
+    },
+    {
+      "name": "says so when the next four months are full",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "sql": "insert into brandbase.ideas (id, brand_id, format, hook, day) select 'f' || n, 'casa', 'reel', 'filler', date '2026-10-12' + n from generate_series(0, 119) n"
+        },
+        {
+          "call": "idea.to_calendar",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "why": "x"
+          },
+          "expect": {
+            "status": 409,
+            "code": "CALENDAR_FULL"
+          }
+        }
+      ]
+    },
+    {
+      "name": "moves an idea that is a post only by its post",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "postId": "p1",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "stage": "draft"
+          }
+        },
+        {
+          "call": "idea.place",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "day": "2026-10-10"
+          },
+          "expect": {
+            "code": "IDEA_PLANNED",
+            "message": "this idea is a post; move the post"
+          }
+        },
+        {
+          "call": "idea.to_calendar",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "why": "x"
+          },
+          "expect": {
+            "code": "IDEA_PLANNED",
+            "message": "this idea is a post already"
+          }
+        },
+        {
+          "call": "idea.drop",
+          "input": {
+            "brand": "casa",
+            "id": "i1"
+          },
+          "expect": {
+            "code": "IDEA_PLANNED",
+            "message": "this idea is a post; unplan it first"
+          }
+        }
+      ]
+    },
+    {
+      "name": "puts a tile on a day, and takes it off with null",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.place",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "day": "2026-10-15",
+            "why": "Midweek"
+          },
+          "expect": {
+            "result": {
+              "day": "2026-10-15",
+              "why": "Midweek"
+            }
+          }
+        },
+        {
+          "call": "idea.place",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "day": null
+          },
+          "expect": {
+            "result": {
+              "day": null,
+              "why": "Midweek"
+            }
+          }
+        },
+        {
+          "call": "idea.place",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "day": "2026-10-05"
+          },
+          "expect": {
+            "code": "PAST_DAY"
+          }
+        }
+      ]
+    },
+    {
+      "name": "carries a new hook to its post, so the calendar shows what the brief says",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "postId": "p1",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "stage": "draft"
+          }
+        },
+        {
+          "call": "idea.edit",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "hook": "Sharper hook"
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "posts": [
+                {
+                  "hook": "Sharper hook"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps an idea's format the same as its post's",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "postId": "p1",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "stage": "draft"
+          }
+        },
+        {
+          "call": "idea.edit",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "carousel"
+          },
+          "expect": {
+            "code": "IDEA_PLANNED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "leaves a posted post as it went out",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "postId": "p1",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "stage": "posted"
+          }
+        },
+        {
+          "call": "idea.edit",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "hook": "Sharper hook"
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "posts": [
+                {
+                  "hook": "Nonna rolls the pasta"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a write from a stale copy, such as one made before a video length loaded",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.edit",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "angle": "new",
+            "ifVersion": 1
+          }
+        },
+        {
+          "call": "idea.edit",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "angle": "old",
+            "ifVersion": 1
+          },
+          "expect": {
+            "code": "STALE",
+            "details": {
+              "angle": "new"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "clears a field sent as null and leaves a field not sent",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg",
+            "why": "Because"
+          }
+        },
+        {
+          "call": "idea.edit",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "image": null
+          },
+          "expect": {
+            "result": {
+              "image": null,
+              "why": "Because"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "drops a skipped suggestion, and its shoot if that shoot was only for it",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg",
+            "status": "suggested"
+          }
+        },
+        {
+          "sql": "insert into brandbase.shoots (id, brand_id, title, day, start, \"end\", origin, idea_ids) values ('s1', 'casa', 'New shoot', '2026-10-20', '12:00', '17:00', 'planned', '{i1}'), ('s2', 'casa', 'Lark shoot', '2026-10-21', '12:00', '17:00', 'lark', '{i1}')"
+        },
+        {
+          "call": "idea.drop",
+          "input": {
+            "brand": "casa",
+            "id": "i1"
+          },
+          "expect": {
+            "result": {
+              "deleted": "i1"
+            }
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "ideas": [],
+              "shoots": [
+                {
+                  "id": "s2",
+                  "ideaIds": []
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a plan an idea already has, a post id in use, a taken story day and accounts that do not fit",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "postId": "p1",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "stage": "draft"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "postId": "p2",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "stage": "draft"
+          },
+          "expect": {
+            "code": "IDEA_PLANNED"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "postId": "p1",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "stage": "draft"
+          },
+          "expect": {
+            "code": "ID_TAKEN"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "postId": "p3",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "stage": "draft",
+            "channels": ["yt", "li"]
+          },
+          "expect": {
+            "code": "BAD_CHANNEL"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "postId": "p3",
+            "day": "2026-10-09",
+            "time": "18:00",
+            "stage": "scheduled",
+            "channels": []
+          },
+          "expect": {
+            "code": "NO_CHANNELS"
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "format": "story",
+            "hook": "Story",
+            "day": "2026-10-12",
+            "time": "12:00"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "story",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg"
+          }
+        },
+        {
+          "call": "idea.plan",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "postId": "p4",
+            "day": "2026-10-12",
+            "time": "18:00",
+            "stage": "draft"
+          },
+          "expect": {
+            "code": "STORY_TAKEN"
+          }
+        }
+      ]
+    }
+  ]
+}

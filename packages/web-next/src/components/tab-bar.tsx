@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
+import { BUBBLES_URL } from '@/features/bubbles/client'
 import { useWaiting } from '@/features/inbox/inbox-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
@@ -11,10 +12,13 @@ const TABS = [
   { href: '/ideate', label: 'Ideate', icon: <IdeaGlyph /> },
   { href: '/insights', label: 'Insights', icon: <ChartGlyph /> },
   { href: '/inbox', label: 'Inbox', icon: <InboxGlyph /> },
+  { href: '/bubbles', label: 'Bubbles', icon: <BubblesGlyph /> },
 ] as const
+// Bubbles has a tab only where it is connected.
+const SHOWN = TABS.filter((t) => t.href !== '/bubbles' || BUBBLES_URL)
 
 /**
- * A phone's navigation, at the bottom where a thumb reaches it: the four pages. The header keeps
+ * A phone's navigation, at the bottom where a thumb reaches it: the pages. The header keeps
  * the brand; Schedule has its own new-post button. A post's own page is a task, so it hides the bar and
  * keeps its own back link and send buttons.
  */
@@ -23,7 +27,8 @@ export function TabBar() {
   const { brand } = useBrand()
   const waiting = useWaiting(brand.id)
   // A shared link is for someone outside the team: no app navigation at all.
-  if (pathname.startsWith('/post') || pathname.startsWith('/share')) return null
+  if (pathname.startsWith('/post') || pathname.startsWith('/share') || pathname === '/sign-in')
+    return null
   const current = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href))
   const tab = (t: (typeof TABS)[number]) => (
     <Link
@@ -51,7 +56,7 @@ export function TabBar() {
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-30 flex items-start border-t border-line bg-page/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden print:hidden"
       >
-        <div className="flex h-[60px] w-full items-start">{TABS.map(tab)}</div>
+        <div className="flex h-[60px] w-full items-start">{SHOWN.map(tab)}</div>
       </nav>
     </>
   )
@@ -121,6 +126,25 @@ function InboxGlyph() {
         strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function BubblesGlyph() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+      <path
+        d="M3.5 6.5a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H9.6l-4.1 3.2v-3.2H6.5a3 3 0 0 1-3-3z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7.5 8.5h7M7.5 11.5h4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
       />
     </svg>
   )

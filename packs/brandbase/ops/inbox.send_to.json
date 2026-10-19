@@ -1,0 +1,37 @@
+{
+  "name": "inbox.send_to",
+  "description": "Sends a complaint to the people it is about, kept in the brand's order of people.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "people"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "people": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 20,
+        "items": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,80}$"
+        }
+      }
+    }
+  },
+  "before": [
+    "brand.reachable",
+    "inbox.found",
+    "inbox.complaint",
+    "inbox.people_known",
+    "inbox.open"
+  ],
+  "returns": "one",
+  "sql": "update brandbase.inbox_messages m set sent_to = array(select x.id from brandbase.inbox_people x where x.brand_id = :brand and x.id in (select jsonb_array_elements_text(:people::jsonb)) order by x.position) where m.id = :id and m.brand_id = :brand and m.done_at is null returning brandbase.camel(to_jsonb(m)) || jsonb_build_object('receivedAt', brandbase.iso(m.received_at), 'doneAt', brandbase.iso(m.done_at)) as result"
+}

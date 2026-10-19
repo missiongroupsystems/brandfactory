@@ -1,0 +1,7 @@
+{
+  "id": "idea.plan_channels_fit",
+  "sql": "select exists (select 1 from brandbase.ideas r where r.id = :id and r.post_id = :postId) or not exists (select 1 from jsonb_array_elements_text(coalesce(:channels::jsonb, '[]')) c, brandbase.brands b where b.id = :brand and (not c = any (b.linked) or not c = any (brandbase.allowed_channels(i.format)))) as ok from brandbase.ideas i where i.id = :id",
+  "status": 400,
+  "code": "BAD_CHANNEL",
+  "message": "an account is not linked to this brand, or the format cannot go there"
+}

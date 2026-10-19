@@ -5,6 +5,9 @@ import * as React from 'react'
 import { BRAND_KIT } from '@/data/brand-kit'
 import type { BrandId } from '@/data/brands'
 
+import { onState, push, remote, request } from '@/lib/remote'
+import { printed } from '@/lib/remote-days'
+
 import { editKit } from '../brand-store'
 import type { Voice } from '../kit-parts'
 import { voiceEdited } from '../model'
@@ -59,6 +62,18 @@ function subscribe(listener: () => void) {
   }
 }
 
+if (remote) {
+  onState((brandId, s) => {
+    const rows = s.versions as (Omit<VoiceVersion, 'when'> & { createdAt: string })[]
+    if (rows.length === 0) return
+    state = {
+      ...state,
+      [brandId]: rows.map(({ createdAt, ...v }) => ({ ...v, when: printed(createdAt) })),
+    }
+    listeners.forEach((l) => l())
+  })
+}
+
 export function useVoiceVersions(brandId: BrandId): VoiceVersion[] {
   return React.useSyncExternalStore(
     subscribe,
@@ -77,6 +92,10 @@ export function publishVoice(brandId: BrandId, draft: Voice, note = ''): VoiceVe
     voice = voiceEdited(k.voice, draft)
     return { ...k, voice }
   })
+  // The server numbers the version and applies the same rules; the next load shows its number.
+  push(brandId, () =>
+    request('PUT', `/brands/${brandId}/kit/voice`, { voice: draft, note: note.trim() }),
+  )
   const version: VoiceVersion = {
     n: state[brandId][0].n + 1,
     by: 'You',

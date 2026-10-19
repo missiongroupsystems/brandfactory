@@ -1,0 +1,7 @@
+{
+  "id": "post.scheduled_keeps_channel",
+  "sql": "select :channels::jsonb is null or jsonb_array_length(:channels::jsonb) > 0 or brandbase.post_stage(:id) <> 'scheduled' as ok",
+  "status": 400,
+  "code": "NO_CHANNELS",
+  "message": "a scheduled post needs an account"
+}

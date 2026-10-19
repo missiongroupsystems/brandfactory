@@ -1,0 +1,26 @@
+{
+  "name": "shoot.remove_crew",
+  "description": "Takes a person off a shoot's crew, by id, so two people with one name stay apart.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "crewId"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "crewId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["brand.reachable", "shoot.found"],
+  "returns": "one",
+  "sql": "with gone as (delete from brandbase.crew c where c.id = :crewId and c.shoot_id = :id returning c.id)\nselect brandbase.shoot_json(to_jsonb(s), coalesce((select jsonb_agg(to_jsonb(c)) from brandbase.crew c\n  where c.shoot_id = s.id and c.id not in (select id from gone)), '[]')) as result\nfrom brandbase.shoots s where s.id = :id and s.brand_id = :brand"
+}

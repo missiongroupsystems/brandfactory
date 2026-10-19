@@ -1,0 +1,7 @@
+{
+  "id": "idea.plan_has_channel",
+  "sql": "select exists (select 1 from brandbase.ideas r where r.id = :id and r.post_id = :postId) or :stage::text <> 'scheduled' or case when :channels::jsonb is null then cardinality(brandbase.default_channels(i.format, b.linked)) > 0 else jsonb_array_length(:channels::jsonb) > 0 end as ok from brandbase.ideas i, brandbase.brands b where i.id = :id and b.id = :brand",
+  "status": 400,
+  "code": "NO_CHANNELS",
+  "message": "pick an account first"
+}

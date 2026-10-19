@@ -1,0 +1,83 @@
+{
+  "name": "idea.plan",
+  "description": "Turns an idea into a post on a day at a stage, under the client's post id. The tile leaves the calendar; the post keeps what the tile said, so unplanning gives it back. The same plan again answers with the post it made.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "postId", "day", "time", "stage"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "postId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "day": {
+        "type": "string",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      },
+      "time": {
+        "type": "string",
+        "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+      },
+      "stage": {
+        "enum": ["draft", "scheduled", "posted"]
+      },
+      "channels": {
+        "type": "array",
+        "items": {
+          "enum": ["ig", "tt", "yt", "li", "fb"]
+        }
+      },
+      "media": {
+        "type": "array",
+        "maxItems": 10,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["src", "kind"],
+          "properties": {
+            "src": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "pattern": "^(?!blob:)"
+            },
+            "kind": {
+              "enum": ["photo", "video"]
+            },
+            "mediaId": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "duration": {
+              "type": "string",
+              "maxLength": 10
+            }
+          }
+        }
+      }
+    }
+  },
+  "before": [
+    "brand.reachable",
+    "idea.found",
+    "idea.plan_unplanned",
+    "idea.plan_post_free",
+    "post.day_is_date",
+    "post.day_not_past",
+    "post.not_too_early",
+    "idea.plan_story_free",
+    "idea.plan_channels_fit",
+    "idea.plan_has_channel",
+    "post.media_in_brand"
+  ],
+  "returns": "one",
+  "sql": "with i as (select * from brandbase.ideas where id = :id and brand_id = :brand),\nb as (select linked from brandbase.brands where id = :brand),\nmade as (\n  insert into brandbase.posts (id, brand_id, format, hook, day, time, channels, media, from_idea, marked)\n  select :postId, :brand, i.format, i.hook, :day::date, :time,\n    case when :channels::jsonb is null then brandbase.default_channels(i.format, b.linked)\n    else array(select c from jsonb_array_elements_text(:channels::jsonb) with ordinality t(c, n) group by c order by min(n)) end,\n    coalesce(:media::jsonb, case when i.image is null then '[]'::jsonb\n      else jsonb_build_array(jsonb_build_object('src', i.image, 'kind', 'photo')) end),\n    jsonb_build_object('why', i.why, 'suggested', i.status = 'suggested'),\n    case when :stage = 'draft' then null else :stage end\n  from i, b where i.post_id is null\n  returning *\n),\nlinked as (\n  update brandbase.ideas x set post_id = m.id, day = null, version = x.version + 1, updated_at = now()\n  from made m where x.id = :id\n  returning x.*\n)\nselect jsonb_build_object('idea', brandbase.camel(to_jsonb(l)) || jsonb_build_object('createdAt', brandbase.iso(l.created_at), 'updatedAt', brandbase.iso(l.updated_at)), 'post', brandbase.post_json(to_jsonb(m), '[]')) as result\nfrom linked l, made m\nunion all\nselect jsonb_build_object('idea', brandbase.camel(to_jsonb(i)) || jsonb_build_object('createdAt', brandbase.iso(i.created_at), 'updatedAt', brandbase.iso(i.updated_at)), 'post', brandbase.post_json(p))\nfrom i join brandbase.posts p on p.id = i.post_id\nwhere i.post_id = :postId and not exists (select 1 from made)"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "kit.hexes",
+  "sql": "select bad is null as ok, bad || ' is not a colour' as message from (select (select c ->> 'hex' from jsonb_array_elements(:colours::jsonb) c where brandbase.hex_of(c ->> 'hex') is null limit 1) as bad) x",
+  "status": 400,
+  "code": "BAD_HEX",
+  "message": "a colour is not a hex"
+}

@@ -1,0 +1,1517 @@
+{
+  "name": "shoots",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "member",
+  "cases": [
+    {
+      "name": "takes the picked ideas out of the shoot they were in: an idea is shot once",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1", "i2"]
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s2",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i2"]
+          },
+          "expect": {
+            "status": 200
+          }
+        },
+        {
+          "sql": "select id, idea_ids from brandbase.shoots order by id",
+          "expect": {
+            "rows": [
+              {
+                "id": "s1",
+                "idea_ids": ["i1"]
+              },
+              {
+                "id": "s2",
+                "idea_ids": ["i2"]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "drops a planned shoot its last idea leaves, but keeps one added by hand",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"]
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "m1",
+            "title": "New shoot",
+            "origin": "manual",
+            "ideaIds": ["i2"]
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s2",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1", "i2"]
+          }
+        },
+        {
+          "sql": "select id from brandbase.shoots order by id",
+          "expect": {
+            "rows": [
+              {
+                "id": "m1"
+              },
+              {
+                "id": "s2"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "takes the first day ahead with no shoot, from 12:00 to 17:00",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"]
+          },
+          "expect": {
+            "result": {
+              "day": "2026-10-07",
+              "start": "12:00",
+              "end": "17:00"
+            }
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s2",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i2"]
+          },
+          "expect": {
+            "result": {
+              "day": "2026-10-08"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps its length when the start moves, and never ends before it starts",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"]
+          }
+        },
+        {
+          "call": "shoot.edit",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "start": "14:00"
+          },
+          "expect": {
+            "result": {
+              "start": "14:00",
+              "end": "19:00"
+            }
+          }
+        },
+        {
+          "call": "shoot.edit",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "end": "11:00"
+          },
+          "expect": {
+            "result": {
+              "start": "14:00",
+              "end": "15:00"
+            }
+          }
+        },
+        {
+          "call": "shoot.edit",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "Late",
+            "ifVersion": 1
+          },
+          "expect": {
+            "code": "STALE"
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses an idea of another brand",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "idea.create",
+          "as": "admin",
+          "input": {
+            "brand": "temper",
+            "id": "t1",
+            "format": "reel",
+            "hook": "t"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["t1"]
+          },
+          "expect": {
+            "code": "BAD_IDEA"
+          }
+        },
+        {
+          "call": "shoot.on_day",
+          "input": {
+            "brand": "casa",
+            "ideaId": "t1",
+            "day": "2026-10-09",
+            "start": "15:00",
+            "newShootId": "s9"
+          },
+          "expect": {
+            "code": "BAD_IDEA"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps a planned shoot whose last idea is taken off on its own page",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"]
+          }
+        },
+        {
+          "call": "shoot.remove_idea",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "ideaId": "i1"
+          },
+          "expect": {
+            "result": {
+              "ideaIds": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "drops it when the idea leaves from its own page",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"]
+          }
+        },
+        {
+          "call": "shoot.remove_idea",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "ideaId": "i1",
+            "leave": true
+          },
+          "expect": {
+            "result": {
+              "deleted": "s1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "adds an idea to an empty planned shoot without losing that shoot",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"]
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s2",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i2"]
+          }
+        },
+        {
+          "call": "shoot.remove_idea",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "ideaId": "i1"
+          }
+        },
+        {
+          "call": "shoot.add_idea",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "ideaId": "i2"
+          },
+          "expect": {
+            "result": {
+              "ideaIds": ["i2"]
+            }
+          }
+        },
+        {
+          "sql": "select id from brandbase.shoots",
+          "expect": {
+            "rows": [
+              {
+                "id": "s1"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "shoots in the order dragged; unknown ids are ignored and left-out ones go last",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1", "i2", "i3"]
+          }
+        },
+        {
+          "call": "shoot.order",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "ideaIds": ["i3", "zz", "i1"]
+          },
+          "expect": {
+            "result": {
+              "ideaIds": ["i3", "i1", "i2"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "joins the shoot already on the day picked on an idea page, else starts one there",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"],
+            "day": "2026-10-09"
+          }
+        },
+        {
+          "call": "shoot.on_day",
+          "input": {
+            "brand": "casa",
+            "ideaId": "i2",
+            "day": "2026-10-09",
+            "start": "15:00",
+            "newShootId": "unused"
+          },
+          "expect": {
+            "result": {
+              "id": "s1",
+              "ideaIds": ["i1", "i2"]
+            }
+          }
+        },
+        {
+          "call": "shoot.on_day",
+          "input": {
+            "brand": "casa",
+            "ideaId": "i3",
+            "day": "2026-10-10",
+            "start": "14:00",
+            "newShootId": "s2"
+          },
+          "expect": {
+            "result": {
+              "id": "s2",
+              "start": "14:00",
+              "end": "19:00",
+              "origin": "planned"
+            }
+          }
+        },
+        {
+          "call": "shoot.on_day",
+          "input": {
+            "brand": "casa",
+            "ideaId": "i3",
+            "day": "2026-10-11",
+            "start": "14:00",
+            "newShootId": "s1"
+          },
+          "expect": {
+            "code": "ID_TAKEN"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps two people with one name apart, and removes the one asked for",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"]
+          }
+        },
+        {
+          "call": "shoot.add_crew",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "crewId": "c1",
+            "name": "Marco",
+            "role": "Chef"
+          }
+        },
+        {
+          "call": "shoot.add_crew",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "crewId": "c2",
+            "name": "Marco",
+            "role": "Talent"
+          }
+        },
+        {
+          "call": "shoot.remove_crew",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "crewId": "c1"
+          },
+          "expect": {
+            "result": {
+              "crew": [
+                {
+                  "role": "Talent"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses crew ids that clash, within a shoot or with another",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"],
+            "crew": [
+              {
+                "id": "c1",
+                "name": "A",
+                "role": "Chef"
+              },
+              {
+                "id": "c1",
+                "name": "B",
+                "role": "Chef"
+              }
+            ]
+          },
+          "expect": {
+            "status": 400,
+            "message": "two crew members share an id"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"],
+            "crew": [
+              {
+                "id": "c1",
+                "name": "A",
+                "role": "Chef"
+              }
+            ]
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s2",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i2"],
+            "crew": [
+              {
+                "id": "c1",
+                "name": "B",
+                "role": "Chef"
+              }
+            ]
+          },
+          "expect": {
+            "code": "ID_TAKEN"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s3",
+            "title": "Other",
+            "origin": "manual"
+          }
+        },
+        {
+          "call": "shoot.add_crew",
+          "input": {
+            "brand": "casa",
+            "id": "s3",
+            "crewId": "c1",
+            "name": "A",
+            "role": "Chef"
+          },
+          "expect": {
+            "code": "ID_TAKEN"
+          }
+        },
+        {
+          "call": "shoot.reply",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "crewId": "zz",
+            "reply": "going"
+          },
+          "expect": {
+            "status": 404,
+            "message": "crew member not found"
+          }
+        },
+        {
+          "call": "shoot.reply",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "crewId": "c1",
+            "reply": "going"
+          },
+          "expect": {
+            "result": {
+              "crew": [
+                {
+                  "id": "c1",
+                  "reply": "going"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "invites only the people not invited yet, each once a person approves",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"],
+            "crew": [
+              {
+                "id": "c1",
+                "name": "Giulia",
+                "role": "Videographer"
+              },
+              {
+                "id": "c2",
+                "name": "Marco",
+                "role": "Chef"
+              }
+            ]
+          }
+        },
+        {
+          "call": "shoot.invite",
+          "input": {
+            "brand": "casa",
+            "id": "s1"
+          },
+          "expect": {
+            "status": 403,
+            "code": "NEEDS_APPROVAL"
+          }
+        },
+        {
+          "approve": "shoot.invite",
+          "input": {
+            "brand": "casa",
+            "id": "s1"
+          }
+        },
+        {
+          "call": "shoot.invite",
+          "input": {
+            "brand": "casa",
+            "id": "s1"
+          },
+          "expect": {
+            "result": {
+              "invited": ["Giulia", "Marco"]
+            }
+          }
+        },
+        {
+          "call": "shoot.add_crew",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "crewId": "c3",
+            "name": "Ana",
+            "role": "Talent"
+          }
+        },
+        {
+          "approve": "shoot.invite",
+          "input": {
+            "brand": "casa",
+            "id": "s1"
+          }
+        },
+        {
+          "call": "shoot.invite",
+          "input": {
+            "brand": "casa",
+            "id": "s1"
+          },
+          "expect": {
+            "result": {
+              "invited": ["Ana"]
+            }
+          }
+        },
+        {
+          "approve": "shoot.invite",
+          "input": {
+            "brand": "casa",
+            "id": "s1"
+          },
+          "expect": {
+            "status": 404
+          }
+        }
+      ]
+    },
+    {
+      "name": "tries the same people again when Lark fails, under a new yes",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"],
+            "crew": [
+              {
+                "id": "c1",
+                "name": "Giulia",
+                "role": "Videographer"
+              }
+            ]
+          }
+        },
+        {
+          "approve": "shoot.invite",
+          "input": {
+            "brand": "casa",
+            "id": "s1"
+          }
+        },
+        {
+          "call": "shoot.invite",
+          "connector": "fails",
+          "input": {
+            "brand": "casa",
+            "id": "s1"
+          },
+          "expect": {
+            "status": 502,
+            "code": "SEND_FAILED"
+          }
+        },
+        {
+          "call": "shoot.invite",
+          "input": {
+            "brand": "casa",
+            "id": "s1"
+          },
+          "expect": {
+            "code": "NEEDS_APPROVAL"
+          }
+        },
+        {
+          "approve": "shoot.invite",
+          "input": {
+            "brand": "casa",
+            "id": "s1"
+          }
+        },
+        {
+          "call": "shoot.invite",
+          "input": {
+            "brand": "casa",
+            "id": "s1"
+          },
+          "expect": {
+            "result": {
+              "invited": ["Giulia"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "asks for Lark before any invite goes out",
+      "steps": [
+        {
+          "call": "idea.create",
+          "as": "admin",
+          "input": {
+            "brand": "temper",
+            "id": "t1",
+            "format": "reel",
+            "hook": "t"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "as": "admin",
+          "input": {
+            "brand": "temper",
+            "id": "t-s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["t1"],
+            "crew": [
+              {
+                "id": "tc",
+                "name": "X",
+                "role": "Chef"
+              }
+            ]
+          }
+        },
+        {
+          "approve": "shoot.invite",
+          "as": "admin",
+          "input": {
+            "brand": "temper",
+            "id": "t-s1"
+          },
+          "expect": {
+            "code": "NOT_CONNECTED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "makes one shoot for a repeated id",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"],
+            "crew": [
+              {
+                "id": "c1",
+                "name": "A",
+                "role": "Chef"
+              }
+            ]
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"],
+            "crew": [
+              {
+                "id": "c1",
+                "name": "A",
+                "role": "Chef"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "id": "s1",
+              "crew": [
+                {
+                  "id": "c1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.shoots",
+          "expect": {
+            "rows": [
+              {
+                "n": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "deletes a shoot and its crew",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"],
+            "crew": [
+              {
+                "id": "c1",
+                "name": "A",
+                "role": "Chef"
+              }
+            ]
+          }
+        },
+        {
+          "call": "shoot.drop",
+          "input": {
+            "brand": "casa",
+            "id": "s1"
+          },
+          "expect": {
+            "result": {
+              "deleted": "s1"
+            }
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.crew",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "changes nothing when the same create comes again after the idea moved on",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "manual",
+            "ideaIds": ["i1"]
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s2",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"]
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "manual",
+            "ideaIds": ["i1"]
+          },
+          "expect": {
+            "result": {
+              "id": "s1",
+              "ideaIds": []
+            }
+          }
+        },
+        {
+          "sql": "select id, idea_ids from brandbase.shoots order by id",
+          "expect": {
+            "rows": [
+              {
+                "id": "s1",
+                "idea_ids": []
+              },
+              {
+                "id": "s2",
+                "idea_ids": ["i1"]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "moves a shoot to another day, and asks for Lark switched on before an invite",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "i1"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i2",
+            "format": "reel",
+            "hook": "i2"
+          }
+        },
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i3",
+            "format": "reel",
+            "hook": "i3"
+          }
+        },
+        {
+          "call": "shoot.create",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "title": "New shoot",
+            "origin": "planned",
+            "ideaIds": ["i1"],
+            "crew": [
+              {
+                "id": "c1",
+                "name": "A",
+                "role": "Chef"
+              }
+            ]
+          }
+        },
+        {
+          "call": "shoot.edit",
+          "input": {
+            "brand": "casa",
+            "id": "s1",
+            "day": "2026-10-20"
+          },
+          "expect": {
+            "result": {
+              "day": "2026-10-20"
+            }
+          }
+        },
+        {
+          "call": "connection.set",
+          "input": {
+            "brand": "casa",
+            "key": "lark",
+            "status": "off"
+          }
+        },
+        {
+          "approve": "shoot.invite",
+          "input": {
+            "brand": "casa",
+            "id": "s1"
+          },
+          "expect": {
+            "code": "NOT_CONNECTED"
+          }
+        }
+      ]
+    }
+  ]
+}

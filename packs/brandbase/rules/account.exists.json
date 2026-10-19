@@ -1,0 +1,7 @@
+{
+  "id": "account.exists",
+  "sql": "select exists (select 1 from brandbase.users u where u.id = brandbase.caller()) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "this account has no access to Brand Base"
+}

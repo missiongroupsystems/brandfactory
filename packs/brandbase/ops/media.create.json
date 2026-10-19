@@ -1,0 +1,56 @@
+{
+  "name": "media.create",
+  "description": "A file's record before its upload: kind by type, under the client's id, with a key the core makes. Answers the record, a signed write URL and the file's stable address. The same id again answers with the record it made; an id another brand holds is refused.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "mime", "bytes"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "mime": {
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 100
+      },
+      "name": {
+        "type": "string",
+        "maxLength": 300
+      },
+      "bytes": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 524288000
+      },
+      "width": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "height": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "durationS": {
+        "type": "integer",
+        "minimum": 0
+      }
+    }
+  },
+  "upload": {
+    "type": "mime"
+  },
+  "before": ["brand.reachable"],
+  "returns": "one",
+  "sql": "with made as (\n  insert into brandbase.media as m (id, brand_id, storage_key, kind, mime, name, bytes, width, height, duration_s)\n  values (:id, :brand, :file,\n    case when :mime like 'image/%' then 'photo' when :mime like 'video/%' then 'video' else 'file' end,\n    :mime, coalesce(:name, ''), :bytes, :width, :height, :durationS)\n  on conflict (id) do update set id = excluded.id where m.brand_id = excluded.brand_id\n  returning m.*\n)\nselect jsonb_build_object('media', brandbase.camel(to_jsonb(made)) || jsonb_build_object('createdAt', brandbase.iso(made.created_at)),\n  'upload', jsonb_build_object('key', made.storage_key, 'type', made.mime)) as result\nfrom made",
+  "empty": {
+    "status": 409,
+    "code": "ID_TAKEN",
+    "message": "this id is taken"
+  }
+}

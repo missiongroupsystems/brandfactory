@@ -14,6 +14,7 @@ import {
   type TikTokSettings,
   type When,
 } from './model'
+import { onState, push, remote, request } from '@/lib/remote'
 
 export type Phase = 'compose' | 'scheduled' | 'publishing' | 'done'
 
@@ -32,12 +33,19 @@ export type TikTokDefault = TikTokSettings & { sound: Sound }
  */
 const tiktokDefaults = new Map<string, TikTokDefault>()
 
+if (remote) {
+  onState((brandId, s) => {
+    if (s.brand.tiktokDefaults) tiktokDefaults.set(brandId, s.brand.tiktokDefaults)
+  })
+}
+
 export function tiktokDefault(brand: string): TikTokDefault | undefined {
   return tiktokDefaults.get(brand)
 }
 
 export function saveTikTokDefault(brand: string, settings: TikTokDefault) {
   tiktokDefaults.set(brand, settings)
+  push(brand, () => request('PUT', `/brands/${brand}/tiktok-defaults`, settings))
 }
 
 /**

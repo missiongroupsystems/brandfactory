@@ -1,0 +1,353 @@
+{
+  "name": "sources",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "member",
+  "cases": [
+    {
+      "name": "keeps a pasted link with its brand, newest first, and one link for a paste sent twice",
+      "steps": [
+        {
+          "call": "pasted.add",
+          "input": {
+            "brand": "casa",
+            "id": "p-1",
+            "platform": "tt",
+            "account": "tiktok.com",
+            "image": "",
+            "borrow": "Say what to borrow.",
+            "seed": {
+              "format": "reel",
+              "pillar": "Craft",
+              "hook": "New idea from a reference.",
+              "angle": "What to borrow, in your words.",
+              "feature": "Casa Vostra",
+              "shots": [],
+              "sharper": []
+            }
+          }
+        },
+        {
+          "call": "pasted.add",
+          "input": {
+            "brand": "casa",
+            "id": "p-2",
+            "platform": "tt",
+            "account": "instagram.com",
+            "image": "",
+            "borrow": "Say what to borrow.",
+            "seed": {
+              "format": "reel",
+              "pillar": "Craft",
+              "hook": "New idea from a reference.",
+              "angle": "What to borrow, in your words.",
+              "feature": "Casa Vostra",
+              "shots": [],
+              "sharper": []
+            }
+          },
+          "now": "2026-10-06T05:00:00Z"
+        },
+        {
+          "call": "pasted.add",
+          "input": {
+            "brand": "casa",
+            "id": "p-1",
+            "platform": "tt",
+            "account": "changed.com",
+            "image": "",
+            "borrow": "Say what to borrow.",
+            "seed": {
+              "format": "reel",
+              "pillar": "Craft",
+              "hook": "New idea from a reference.",
+              "angle": "What to borrow, in your words.",
+              "feature": "Casa Vostra",
+              "shots": [],
+              "sharper": []
+            }
+          },
+          "expect": {
+            "result": {
+              "reference": {
+                "account": "tiktok.com"
+              }
+            }
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "pasted": [
+                {
+                  "id": "p-2"
+                },
+                {
+                  "id": "p-1",
+                  "platform": "tt",
+                  "account": "tiktok.com"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "never shows one brand's link to another, nor lets it take the id",
+      "steps": [
+        {
+          "call": "pasted.add",
+          "input": {
+            "brand": "casa",
+            "id": "p-1",
+            "platform": "tt",
+            "account": "tiktok.com",
+            "image": "",
+            "borrow": "Say what to borrow.",
+            "seed": {
+              "format": "reel",
+              "pillar": "Craft",
+              "hook": "New idea from a reference.",
+              "angle": "What to borrow, in your words.",
+              "feature": "Casa Vostra",
+              "shots": [],
+              "sharper": []
+            }
+          }
+        },
+        {
+          "call": "pasted.add",
+          "as": "admin",
+          "input": {
+            "brand": "temper",
+            "id": "p-1",
+            "platform": "tt",
+            "account": "tiktok.com",
+            "image": "",
+            "borrow": "Say what to borrow.",
+            "seed": {
+              "format": "reel",
+              "pillar": "Craft",
+              "hook": "New idea from a reference.",
+              "angle": "What to borrow, in your words.",
+              "feature": "Casa Vostra",
+              "shots": [],
+              "sharper": []
+            }
+          },
+          "expect": {
+            "status": 409,
+            "code": "ID_TAKEN"
+          }
+        },
+        {
+          "call": "brand.state",
+          "as": "admin",
+          "input": {
+            "brand": "temper"
+          },
+          "expect": {
+            "result": {
+              "pasted": []
+            }
+          }
+        },
+        {
+          "call": "pasted.add",
+          "input": {
+            "brand": "temper",
+            "id": "p-9",
+            "platform": "tt",
+            "account": "tiktok.com",
+            "image": "",
+            "borrow": "Say what to borrow.",
+            "seed": {
+              "format": "reel",
+              "pillar": "Craft",
+              "hook": "New idea from a reference.",
+              "angle": "What to borrow, in your words.",
+              "feature": "Casa Vostra",
+              "shots": [],
+              "sharper": []
+            }
+          },
+          "expect": {
+            "status": 404
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a link that is not one the moodboard can show",
+      "steps": [
+        {
+          "call": "pasted.add",
+          "input": {
+            "brand": "casa",
+            "id": "p-1",
+            "platform": "web",
+            "account": "tiktok.com",
+            "image": "",
+            "borrow": "Say what to borrow.",
+            "seed": {
+              "format": "reel",
+              "pillar": "Craft",
+              "hook": "New idea from a reference.",
+              "angle": "What to borrow, in your words.",
+              "feature": "Casa Vostra",
+              "shots": [],
+              "sharper": []
+            }
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "call": "pasted.add",
+          "input": {
+            "brand": "casa",
+            "id": "p-2",
+            "platform": "tt",
+            "account": "tiktok.com",
+            "image": "javascript:alert(1)",
+            "borrow": "Say what to borrow.",
+            "seed": {
+              "format": "reel",
+              "pillar": "Craft",
+              "hook": "New idea from a reference.",
+              "angle": "What to borrow, in your words.",
+              "feature": "Casa Vostra",
+              "shots": [],
+              "sharper": []
+            }
+          },
+          "expect": {
+            "status": 400
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps the DM and TikTok sources on and off like any connection",
+      "steps": [
+        {
+          "call": "connection.set",
+          "input": {
+            "brand": "casa",
+            "key": "moodboard-dm",
+            "status": "connected"
+          }
+        },
+        {
+          "call": "connection.set",
+          "input": {
+            "brand": "casa",
+            "key": "moodboard-tt",
+            "status": "connected"
+          }
+        },
+        {
+          "call": "connection.set",
+          "input": {
+            "brand": "casa",
+            "key": "moodboard-tt",
+            "status": "off"
+          },
+          "expect": {
+            "result": {
+              "key": "moodboard-tt",
+              "status": "off"
+            }
+          }
+        },
+        {
+          "sql": "select key, status from brandbase.connections where key like 'moodboard%' order by key",
+          "expect": {
+            "rows": [
+              {
+                "key": "moodboard-dm",
+                "status": "connected"
+              },
+              {
+                "key": "moodboard-tt",
+                "status": "off"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps the TikTok answers that start the brand's next post",
+      "steps": [
+        {
+          "call": "brand.tiktok_defaults",
+          "input": {
+            "brand": "casa",
+            "privacy": null,
+            "interactions": {
+              "comments": true,
+              "duet": false,
+              "stitch": false
+            },
+            "promo": {
+              "on": false,
+              "own": false,
+              "paid": false
+            },
+            "sound": "library"
+          },
+          "expect": {
+            "result": {
+              "tiktokDefaults": {
+                "privacy": null,
+                "sound": "library"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps only the seed's own fields from a paste",
+      "steps": [
+        {
+          "call": "pasted.add",
+          "input": {
+            "brand": "casa",
+            "id": "p-1",
+            "platform": "ig",
+            "account": "a",
+            "image": "",
+            "borrow": "b",
+            "seed": {
+              "format": "reel",
+              "pillar": "",
+              "hook": "h",
+              "angle": "",
+              "feature": "",
+              "shots": [],
+              "sharper": [],
+              "image": "/x.jpg"
+            }
+          }
+        },
+        {
+          "sql": "select reference -> 'seed' ? 'image' as extra from brandbase.pasted_links",
+          "expect": {
+            "rows": [
+              {
+                "extra": false
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

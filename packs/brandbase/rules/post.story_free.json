@@ -1,0 +1,7 @@
+{
+  "id": "post.story_free",
+  "sql": "select :day::text is null or coalesce(:format::text, (select p.format from brandbase.posts p where p.id = :id)) <> 'story' or exists (select 1 from brandbase.posts p where p.id = :id and p.brand_id = :brand and p.day = :day::date and p.time is not distinct from coalesce(:time::text, p.time)) or not exists (select 1 from brandbase.posts o where o.brand_id = :brand and o.format = 'story' and o.day = :day::date and o.id <> :id) as ok",
+  "status": 409,
+  "code": "STORY_TAKEN",
+  "message": "the story row on that day is taken"
+}

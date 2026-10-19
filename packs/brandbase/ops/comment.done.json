@@ -1,0 +1,25 @@
+{
+  "name": "comment.done",
+  "description": "Marks a guest's comment done, or not; the guest sees the mark.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "done"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "done": {
+        "type": "boolean"
+      }
+    }
+  },
+  "before": ["brand.reachable", "comment.found"],
+  "returns": "one",
+  "sql": "update brandbase.comments c set done = :done where c.id = :id and c.brand_id = :brand returning brandbase.camel(to_jsonb(c)) || jsonb_build_object('createdAt', brandbase.iso(c.created_at)) as result"
+}

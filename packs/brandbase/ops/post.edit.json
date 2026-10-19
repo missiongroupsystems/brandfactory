@@ -1,0 +1,79 @@
+{
+  "name": "post.edit",
+  "description": "Changes a post's hook, caption, accounts, media or whole composer draft. A write made from an older copy is refused with the post as it is now.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "hook": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "caption": {
+        "type": "string",
+        "maxLength": 70000
+      },
+      "channels": {
+        "type": "array",
+        "items": {
+          "enum": ["ig", "tt", "yt", "li", "fb"]
+        }
+      },
+      "media": {
+        "type": "array",
+        "maxItems": 10,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["src", "kind"],
+          "properties": {
+            "src": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "pattern": "^(?!blob:)"
+            },
+            "kind": {
+              "enum": ["photo", "video"]
+            },
+            "mediaId": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "duration": {
+              "type": "string",
+              "maxLength": 10
+            }
+          }
+        }
+      },
+      "draft": {
+        "type": "object"
+      },
+      "ifVersion": {
+        "type": "integer",
+        "minimum": 1
+      }
+    }
+  },
+  "before": [
+    "brand.reachable",
+    "post.found",
+    "post.not_posted",
+    "post.current_version",
+    "post.media_in_brand",
+    "post.channels_fit",
+    "post.scheduled_keeps_channel"
+  ],
+  "returns": "one",
+  "sql": "update brandbase.posts p set\n  hook = coalesce(:hook, p.hook),\n  caption = coalesce(:caption, p.caption),\n  channels = case when :channels::jsonb is null then p.channels\n    else array(select c from jsonb_array_elements_text(:channels::jsonb) with ordinality t(c, n) group by c order by min(n)) end,\n  media = coalesce(:media::jsonb, p.media),\n  draft = coalesce(:draft::jsonb, p.draft),\n  version = p.version + 1,\n  updated_at = now()\nwhere p.id = :id and p.brand_id = :brand\nreturning brandbase.post_json(p) as result"
+}

@@ -52,10 +52,11 @@ pnpm vitest run -t "puts a story in the story row"
 
 ## Architecture
 
-The repository is a pnpm workspaces monorepo with two packages:
+The repository is a pnpm workspaces monorepo with these packages:
 
-- `packages/web-next` (`@brandfactory/web-next`) is brand base: a UI-only Next.js 16 demo with
-  static data and no server. It imports no other package. Its publish rules live in
+- `packages/web-next` (`@brandfactory/web-next`) is brand base: a Next.js 16 app on static data,
+  or on the core when `NEXT_PUBLIC_CORE_URL` is set (`src/lib/remote.ts`; each store loads from
+  it and writes through it, and `src/lib/core-routes.ts` maps each route to a move). It imports no other package. Its publish rules live in
   `src/features/publish/model.ts`, and its per-brand state in
   `src/features/schedule/posts-store.tsx`. The folder keeps the name `web-next` because the
   Vercel project's Root Directory is `packages/web-next`; do not rename it without changing
@@ -63,6 +64,27 @@ The repository is a pnpm workspaces monorepo with two packages:
 - `packages/connect` (`@brandfactory/connect`) links each brand's social accounts (Meta,
   Pinterest, TikTok) by OAuth, with tokens encrypted per brand. It is separate from the demo and
   imports no other package (see its README).
+- `packages/core` (`@brandfactory/core`) is BrandBase's backend: a generic
+  core with one door, `POST /ops/{pack}/{op}`, that checks each call and runs a pack's move under
+  row-level security. It holds no business words (`purity.test.ts`) and imports no other package.
+  Its `Dockerfile` and the root `fly.toml` target the existing Fly app `brandfactory`.
+- `packs/brandbase` (`@brandfactory/pack-brandbase`) is the BrandBase pack: data the core reads
+  (manifest, migrations, moves, rules, tests); `packages/core/src/packs.test.ts` runs its
+  `tests/*.json` through the core's test runner. It is a workspace package only for its demo
+  scripts: `demo/seed.ts` loads web-next's data files into a migrated database, and
+  `demo/web.sh` starts the core with that data on a local Postgres.
+- `packages/bubbles` (`@brandfactory/bubbles`) is Bubbles, the agent people talk to: DeepSeek's
+  harness runtime (the binary from the `deepseek-harness-runtime-bin` wheel, path in `DSH_BIN`)
+  driven over stdio, with the model through a local gateway to OpenRouter and the tools from the
+  core's `POST /mcp/{pack}`, as the person's agent (`POST /agents/session` on the core). It knows
+  a pack by name only; `packs/brandbase/bubbles.md` is the pack's brief. Its tests use a fake
+  runtime (`scripts/fake-runtime.mjs`). Plan: `docs/executing/bubbles-plan.md`.
+
+### Packs on a core
+
+BrandBase's backend is a pack on a generic core. Read
+`docs/completions/packs-core-proposal.md`, `docs/completions/packs-core-plan.md` and
+`docs/completions/packs-core-phases-1-to-8.md` before any work here.
 
 ### Backend work starts from the archive
 
@@ -87,7 +109,10 @@ stays empty on purpose: `test.projects` in the root config dropped the
 per-package `environment` and `alias`, and the workspace form keeps them.
 
 - `web-next` uses `jsdom`, globals, `src/test-setup.ts` and the `@` alias.
-- `connect` uses `node`.
+- `connect`, `core` and `bubbles` use `node`.
+- `core`'s `postgres.test.ts` runs only when `CORE_TEST_PG_URL` names a throwaway Postgres
+  (see `packages/core/README.md`); PGlite ignores `statement_timeout` and runs one statement at a
+  time.
 
 ## Conventions
 

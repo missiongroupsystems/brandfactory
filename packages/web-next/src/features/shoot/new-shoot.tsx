@@ -15,7 +15,7 @@ import { addShoot, useShoots } from './shoots-store'
  * call sheet's own details, then Add opens the new sheet. Ideas join it later from an idea's page.
  * A wide screen opens it from the calendar's "…" menu, a phone from its plus.
  */
-export function NewShootForm({ dayN }: { dayN?: string }) {
+export function NewShootForm({ date }: { date?: string }) {
   const router = useRouter()
   const { brand, weeks } = useBrand()
   const shoots = useShoots(brand.id)
@@ -23,7 +23,7 @@ export function NewShootForm({ dayN }: { dayN?: string }) {
     id: '',
     title: '',
     // The day picked, unless a shoot is on it already: two would sit on the same hours.
-    dayN: dayN && !shoots.some((s) => s.dayN === dayN) ? dayN : freeShootDay(weeks, shoots),
+    date: date && !shoots.some((s) => s.date === date) ? date : freeShootDay(weeks, shoots),
     start: '12:00',
     end: '17:00',
     place: HOME[brand.id],
@@ -36,8 +36,8 @@ export function NewShootForm({ dayN }: { dayN?: string }) {
       onSubmit={(e) => {
         e.preventDefault()
         if (!ready) return
-        const { title, place, dayN, start, end } = draft
-        const id = addShoot(brand.id, { title: title.trim(), place, dayN, start, end })
+        const { title, place, date, start, end } = draft
+        const id = addShoot(brand.id, { title: title.trim(), place, date, start, end })
         router.push(`/shoot/${id}`)
       }}
       className="flex flex-col gap-4"

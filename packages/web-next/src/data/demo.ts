@@ -140,7 +140,8 @@ export type FeedMark =
     }
 
 export interface Day {
-  n: string
+  /** The day, `YYYY-MM-DD`: its key everywhere, and the number it prints. */
+  date: string
   /**
    * A day of the month before or after, in the month grid only to fill out a week. It shows its
    * number, dimmed, and nothing else.
@@ -178,8 +179,6 @@ const open: StoryMark = { kind: 'open', draftsReady: false }
 const openReady: StoryMark = { kind: 'open', draftsReady: true }
 const idea: StoryMark = { kind: 'idea' }
 
-export const MONTH = { title: 'October', range: '5 OCT – 1 NOV · WK 41–44' }
-
 export const WEEKS: Week[] = [
   {
     label: 'WK 41',
@@ -190,20 +189,20 @@ export const WEEKS: Week[] = [
     ],
     days: [
       {
-        n: '5',
+        date: '2026-10-05',
         past: true,
         story: { kind: 'posted', image: PHOTO.ravioli, count: 4 },
         feed: { kind: 'post', postId: 'wine-night' },
       },
       {
-        n: '6',
+        date: '2026-10-06',
         today: true,
         story: { kind: 'posted', image: PHOTO.pasta, count: 2 },
         feed: { kind: 'post', postId: 'margherita' },
       },
-      { n: '7', story: idea },
+      { date: '2026-10-07', story: idea },
       {
-        n: '8',
+        date: '2026-10-08',
         story: { kind: 'posted', image: PHOTO.crust, count: 3 },
         // The rare busy day: two posts, so the calendar shows its stack.
         feed: [
@@ -212,7 +211,7 @@ export const WEEKS: Week[] = [
         ],
       },
       {
-        n: '9',
+        date: '2026-10-09',
         story: idea,
         feed: {
           kind: 'idea',
@@ -221,8 +220,8 @@ export const WEEKS: Week[] = [
           why: 'F1 weekend',
         },
       },
-      { n: '10', story: idea },
-      { n: '11', story: open },
+      { date: '2026-10-10', story: idea },
+      { date: '2026-10-11', story: open },
     ],
   },
   {
@@ -232,16 +231,16 @@ export const WEEKS: Week[] = [
       { layer: 'city', text: 'BIGBANG world tour', col: 5, span: 3 },
     ],
     days: [
-      { n: '12', story: open },
+      { date: '2026-10-12', story: open },
       {
-        n: '13',
+        date: '2026-10-13',
         story: { kind: 'posted', image: PHOTO.pasta, count: 2 },
         feed: { kind: 'post', postId: 'pasta' },
       },
-      { n: '14', story: idea },
-      { n: '15', story: open },
+      { date: '2026-10-14', story: idea },
+      { date: '2026-10-15', story: open },
       {
-        n: '16',
+        date: '2026-10-16',
         story: idea,
         feed: {
           kind: 'idea',
@@ -250,8 +249,8 @@ export const WEEKS: Week[] = [
           why: 'BIGBANG at the Stadium',
         },
       },
-      { n: '17', story: open },
-      { n: '18', story: open },
+      { date: '2026-10-17', story: open },
+      { date: '2026-10-18', story: open },
     ],
   },
   {
@@ -262,9 +261,9 @@ export const WEEKS: Week[] = [
       { layer: 'city', text: 'Half Marathon', col: 7, span: 1 },
     ],
     days: [
-      { n: '19', story: openReady },
+      { date: '2026-10-19', story: openReady },
       {
-        n: '20',
+        date: '2026-10-20',
         story: openReady,
         feed: {
           kind: 'idea',
@@ -274,10 +273,10 @@ export const WEEKS: Week[] = [
           suggested: true,
         },
       },
-      { n: '21', story: openReady },
-      { n: '22', story: openReady },
+      { date: '2026-10-21', story: openReady },
+      { date: '2026-10-22', story: openReady },
       {
-        n: '23',
+        date: '2026-10-23',
         story: openReady,
         feed: {
           kind: 'idea',
@@ -287,7 +286,7 @@ export const WEEKS: Week[] = [
         },
       },
       {
-        n: '24',
+        date: '2026-10-24',
         story: openReady,
         feed: {
           kind: 'idea',
@@ -296,17 +295,17 @@ export const WEEKS: Week[] = [
           why: 'Half Marathon, Sunday',
         },
       },
-      { n: '25', story: openReady },
+      { date: '2026-10-25', story: openReady },
     ],
   },
   {
     label: 'WK 44',
     events: [{ layer: 'holiday', text: 'Halloween', col: 6, span: 1 }],
     days: [
-      { n: '26', story: open },
-      { n: '27', story: open },
+      { date: '2026-10-26', story: open },
+      { date: '2026-10-27', story: open },
       {
-        n: '28',
+        date: '2026-10-28',
         story: open,
         feed: {
           kind: 'idea',
@@ -315,10 +314,10 @@ export const WEEKS: Week[] = [
           why: 'Halloween, Saturday',
         },
       },
-      { n: '29', story: open },
-      { n: '30', story: idea, feed: { kind: 'post', postId: 'five-pastas' } },
-      { n: '31', story: idea },
-      { n: '1', story: open },
+      { date: '2026-10-29', story: open },
+      { date: '2026-10-30', story: idea, feed: { kind: 'post', postId: 'five-pastas' } },
+      { date: '2026-10-31', story: idea },
+      { date: '2026-11-01', story: open },
     ],
   },
 ]

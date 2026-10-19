@@ -1,0 +1,7 @@
+{
+  "id": "post.send_channels_fit",
+  "sql": "select not exists (select 1 from brandbase.posts p, brandbase.brands b, jsonb_array_elements_text(coalesce(:channels::jsonb, to_jsonb(p.channels))) c where p.id = :id and b.id = p.brand_id and (not c = any (b.linked) or not c = any (brandbase.allowed_channels(p.format)))) as ok",
+  "status": 400,
+  "code": "BAD_CHANNEL",
+  "message": "an account is not linked to this brand, or the format cannot go there"
+}

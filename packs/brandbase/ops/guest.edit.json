@@ -1,0 +1,55 @@
+{
+  "name": "guest.edit",
+  "description": "\"Can edit\" (decision 6): a guest changes the brief's hook, angle and storyboard titles, and nothing else; never adds or removes a shot. A new hook carries to the idea's post unless it is out.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["token"],
+    "properties": {
+      "token": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,200}$"
+      },
+      "hook": {
+        "type": "string",
+        "maxLength": 500,
+        "pattern": "\\S"
+      },
+      "angle": {
+        "type": "string",
+        "maxLength": 5000
+      },
+      "shots": {
+        "type": "array",
+        "maxItems": 100,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "title"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "title": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        }
+      }
+    }
+  },
+  "guest": {
+    "capability": "token"
+  },
+  "before": [
+    "guest.link_found",
+    "guest.link_open",
+    "guest.can_edit",
+    "guest.edits_idea",
+    "guest.shots_known"
+  ],
+  "returns": "one",
+  "sql": "with l as (select * from brandbase.share_links where token = :token),\nedited as (\n  update brandbase.ideas i set\n    hook = coalesce(btrim(:hook), i.hook),\n    angle = coalesce(:angle, i.angle),\n    shots = case when :shots::jsonb is null then i.shots else coalesce((\n      select jsonb_agg(case when n.title is null then x else x || jsonb_build_object('title', n.title) end order by o)\n      from jsonb_array_elements(i.shots) with ordinality t(x, o)\n      left join lateral (select s ->> 'title' as title from jsonb_array_elements(:shots::jsonb) s where s ->> 'id' = x ->> 'id' limit 1) n on true), '[]') end,\n    version = i.version + 1, updated_at = now()\n  from l where i.id = l.target_id\n  returning i.*\n),\ncarried as (\n  update brandbase.posts p set hook = btrim(:hook), version = p.version + 1, updated_at = now()\n  from edited e where :hook::text is not null and p.id = e.post_id and brandbase.post_stage(p.id) <> 'posted'\n  returning p.id\n)\nselect jsonb_build_object('hook', e.hook, 'angle', e.angle, 'shots', e.shots) as result from edited e"
+}

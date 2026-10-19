@@ -1,0 +1,7 @@
+{
+  "id": "post.day_not_past",
+  "sql": "select :day::text is null or :day::date >= brandbase.today(:brand, :now::timestamptz) as ok",
+  "status": 400,
+  "code": "PAST_DAY",
+  "message": "the day has passed"
+}

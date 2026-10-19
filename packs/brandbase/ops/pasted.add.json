@@ -1,0 +1,76 @@
+{
+  "name": "pasted.add",
+  "description": "A link pasted onto the moodboard, under the client's id: where it is from, and the idea it would seed. The same paste again keeps one link; an id another brand holds is refused. A picture is an https address or none.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "platform", "account", "image", "borrow", "seed"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "platform": {
+        "enum": ["ig", "tt"]
+      },
+      "account": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "image": {
+        "type": "string",
+        "maxLength": 2048,
+        "pattern": "^(https://\\S+)?$"
+      },
+      "borrow": {
+        "type": "string",
+        "maxLength": 2000
+      },
+      "seed": {
+        "type": "object",
+        "required": ["format", "pillar", "hook", "angle", "feature", "shots", "sharper"],
+        "properties": {
+          "format": {
+            "enum": ["reel", "carousel", "story"]
+          },
+          "pillar": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "hook": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "angle": {
+            "type": "string",
+            "maxLength": 5000
+          },
+          "feature": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "shots": {
+            "type": "array",
+            "maxItems": 100
+          },
+          "sharper": {
+            "type": "array",
+            "maxItems": 20
+          }
+        }
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "returns": "one",
+  "empty": {
+    "status": 409,
+    "code": "ID_TAKEN",
+    "message": "this id is taken"
+  },
+  "sql": "with made as (insert into brandbase.pasted_links as x (id, brand_id, created_at, reference) values (:id, :brand, :now::timestamptz, jsonb_build_object('platform', :platform::text, 'account', :account::text, 'image', :image::text, 'borrow', :borrow::text, 'seed', (select jsonb_object_agg(k, v) from jsonb_each(:seed::jsonb) e(k, v) where k in ('format', 'pillar', 'hook', 'angle', 'feature', 'shots', 'sharper')))) on conflict (id) do update set id = excluded.id where x.brand_id = excluded.brand_id returning x.*) select brandbase.camel(to_jsonb(m)) || jsonb_build_object('createdAt', brandbase.iso(m.created_at)) as result from made m"
+}

@@ -1,0 +1,31 @@
+{
+  "name": "share.set",
+  "description": "Who a share link opens for (anyone with it, or the team only) and what a guest may do (view, comment or edit).",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "kind", "id"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "kind": {
+        "enum": ["idea", "shoot"]
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "who": {
+        "enum": ["link", "team"]
+      },
+      "can": {
+        "enum": ["view", "comment", "edit"]
+      }
+    }
+  },
+  "before": ["brand.reachable", "share.target_found"],
+  "returns": "one",
+  "sql": "insert into brandbase.share_links as l (token, brand_id, kind, target_id, who, can)\nvalues (brandbase.new_token(), :brand, :kind, :id, coalesce(:who, 'link'), coalesce(:can, 'comment'))\non conflict (kind, target_id) do update set who = coalesce(:who, l.who), can = coalesce(:can, l.can)\nreturning brandbase.camel(to_jsonb(l)) || jsonb_build_object('createdAt', brandbase.iso(l.created_at)) as result"
+}

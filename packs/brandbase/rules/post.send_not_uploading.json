@@ -1,0 +1,7 @@
+{
+  "id": "post.send_not_uploading",
+  "sql": "select not exists (select 1 from brandbase.post_jobs j where j.post_id = :id and j.status = 'uploading') as ok",
+  "status": 409,
+  "code": "PUBLISHING",
+  "message": "this post is on its way out"
+}

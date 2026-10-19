@@ -1,0 +1,1109 @@
+{
+  "name": "jobs",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "member",
+  "agents": {
+    "member-agent": "member"
+  },
+  "cases": [
+    {
+      "name": "go out when due, and the post is posted once every account is live",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "expect": {
+            "result": {
+              "jobs": [
+                {
+                  "channel": "ig",
+                  "status": "scheduled"
+                },
+                {
+                  "channel": "tt",
+                  "status": "scheduled"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:tt"
+          }
+        },
+        {
+          "tick": "run"
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "stage": "scheduled"
+              }
+            ]
+          }
+        },
+        {
+          "tick": "run",
+          "now": "2026-10-08T10:00:00Z"
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "stage": "posted",
+                "jobs": [
+                  {
+                    "status": "live"
+                  },
+                  {
+                    "status": "live"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select key, status from packs.scheduled_calls order by key",
+          "expect": {
+            "rows": [
+              {
+                "key": "p1:ig",
+                "status": "done"
+              },
+              {
+                "key": "p1:tt",
+                "status": "done"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "fail one account alone, retry only that account, and keep the one that went out",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now"
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:tt"
+          }
+        },
+        {
+          "tick": "run",
+          "connector": "fails",
+          "failOn": ["tt"]
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "stage": "failed",
+                "jobs": [
+                  {
+                    "channel": "ig",
+                    "status": "live"
+                  },
+                  {
+                    "channel": "tt",
+                    "status": "failed",
+                    "error": "the send failed; a person checks before another try"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now",
+            "channels": ["tt"]
+          },
+          "expect": {
+            "result": {
+              "stage": "scheduled"
+            }
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:tt"
+          }
+        },
+        {
+          "tick": "run"
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "stage": "posted",
+                "channels": ["ig", "tt"]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "waits for a person's yes when an agent sends, and says so on the job",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now"
+          },
+          "as": "member-agent"
+        },
+        {
+          "call": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          },
+          "expect": {
+            "status": 403,
+            "code": "NEEDS_APPROVAL"
+          },
+          "as": "member-agent"
+        },
+        {
+          "tick": "run"
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "stage": "failed",
+                "jobs": [
+                  {
+                    "status": "failed",
+                    "error": "Waiting for a person to approve this send."
+                  },
+                  {
+                    "status": "failed"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select key, status from packs.scheduled_calls order by key",
+          "expect": {
+            "rows": [
+              {
+                "key": "p1:ig",
+                "status": "refused"
+              },
+              {
+                "key": "p1:tt",
+                "status": "refused"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sends nothing when cut off right after the claim, and ends unknown_outcome",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now"
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:tt"
+          }
+        },
+        {
+          "claim": true
+        },
+        {
+          "tick": "run",
+          "now": "2026-10-06T04:16:00Z"
+        },
+        {
+          "sql": "select key, status from packs.scheduled_calls order by key",
+          "expect": {
+            "rows": [
+              {
+                "key": "p1:ig",
+                "status": "unknown_outcome"
+              },
+              {
+                "key": "p1:tt",
+                "status": "done"
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select count(*)::int as unused from packs.approvals where used_at is null",
+          "expect": {
+            "rows": [
+              {
+                "unused": 1
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from packs.alerts",
+          "expect": {
+            "rows": [
+              {
+                "n": 1
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "stage": "failed",
+                "jobs": [
+                  {
+                    "channel": "ig",
+                    "status": "failed",
+                    "error": "Interrupted. Check the account before you retry."
+                  },
+                  {
+                    "channel": "tt",
+                    "status": "live"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "never sends twice a job cut off after the platform took it, and a retry needs a new yes",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now"
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:tt"
+          }
+        },
+        {
+          "tick": "abandon",
+          "connector": "hangs"
+        },
+        {
+          "tick": "run",
+          "now": "2026-10-06T04:16:00Z"
+        },
+        {
+          "sql": "select key, status from packs.scheduled_calls order by key",
+          "expect": {
+            "rows": [
+              {
+                "key": "p1:ig",
+                "status": "unknown_outcome"
+              },
+              {
+                "key": "p1:tt",
+                "status": "done"
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "stage": "failed",
+                "jobs": [
+                  {
+                    "channel": "ig",
+                    "status": "failed"
+                  },
+                  {
+                    "channel": "tt",
+                    "status": "live"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now",
+            "channels": ["ig"]
+          },
+          "as": "member-agent"
+        },
+        {
+          "call": "post.publish_job",
+          "as": "member-agent",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          },
+          "expect": {
+            "status": 403,
+            "code": "NEEDS_APPROVAL"
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          },
+          "as": "member-agent",
+          "expect": {
+            "status": 403,
+            "code": "NOT_A_PERSON"
+          }
+        },
+        {
+          "tick": "run"
+        },
+        {
+          "sql": "select key, status from packs.scheduled_calls order by key",
+          "expect": {
+            "rows": [
+              {
+                "key": "p1:ig",
+                "status": "refused"
+              },
+              {
+                "key": "p1:tt",
+                "status": "done"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "moves a scheduled send with its post",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          }
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "day": "2026-10-09",
+            "time": "19:30"
+          }
+        },
+        {
+          "sql": "select key, brandbase.iso(run_at) as at, status from packs.scheduled_calls order by key",
+          "expect": {
+            "rows": [
+              {
+                "key": "p1:ig",
+                "at": "2026-10-09T11:30:00.000Z",
+                "status": "scheduled"
+              },
+              {
+                "key": "p1:tt",
+                "at": "2026-10-09T11:30:00.000Z",
+                "status": "scheduled"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sends nothing for a job taken back before its time",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:tt"
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "stage": "draft"
+          }
+        },
+        {
+          "tick": "run",
+          "now": "2026-10-08T10:00:00Z"
+        },
+        {
+          "sql": "select key, status from packs.scheduled_calls order by key",
+          "expect": {
+            "rows": [
+              {
+                "key": "p1:ig",
+                "status": "refused"
+              },
+              {
+                "key": "p1:tt",
+                "status": "refused"
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select count(*)::int as unused from packs.approvals where used_at is null",
+          "expect": {
+            "rows": [
+              {
+                "unused": 2
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "stage": "draft",
+                "jobs": []
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "treats a send that went out but could not be recorded as cut off, never as waiting",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now"
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:ig"
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:tt"
+          }
+        },
+        {
+          "tick": "run",
+          "connector": "garbled"
+        },
+        {
+          "sql": "select key, status from packs.scheduled_calls order by key",
+          "expect": {
+            "rows": [
+              {
+                "key": "p1:ig",
+                "status": "unknown_outcome"
+              },
+              {
+                "key": "p1:tt",
+                "status": "unknown_outcome"
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from packs.alerts",
+          "expect": {
+            "rows": [
+              {
+                "n": 2
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "stage": "failed",
+                "jobs": [
+                  {
+                    "status": "failed",
+                    "error": "Interrupted. Check the account before you retry."
+                  },
+                  {
+                    "status": "failed"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses to schedule a send for someone who could not make it",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "sql": "update packs.loadouts set ops = array_remove(ops, 'post.publish_job') where principal = 'member'"
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          },
+          "expect": {
+            "status": 403,
+            "code": "FORBIDDEN"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from packs.scheduled_calls",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.post_jobs",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps a waiting send with the person who asked for it when someone else moves the post",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot"
+          }
+        },
+        {
+          "call": "post.move",
+          "as": "admin",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "day": "2026-10-09"
+          }
+        },
+        {
+          "sql": "select distinct principal from packs.scheduled_calls",
+          "expect": {
+            "rows": [
+              {
+                "principal": "member"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "takes the yes with the sending, so a send now is never due without it",
+      "steps": [
+        {
+          "sql": "insert into brandbase.connections (brand_id, key, status) values ('casa', 'ig', 'connected'), ('casa', 'tt', 'connected')"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "reel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "/videos/pasta.mp4",
+                "kind": "video"
+              }
+            ],
+            "draft": {
+              "privacy": "Everyone",
+              "promo": {
+                "on": false
+              }
+            }
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from packs.approvals where used_at is null",
+          "expect": {
+            "rows": [
+              {
+                "n": 2
+              }
+            ]
+          }
+        },
+        {
+          "tick": "run"
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "stage": "posted"
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "now"
+          },
+          "expect": {
+            "code": "POST_POSTED"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from packs.approvals",
+          "expect": {
+            "rows": [
+              {
+                "n": 2
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

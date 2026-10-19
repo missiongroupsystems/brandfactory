@@ -1,0 +1,7 @@
+{
+  "id": "idea.current_version",
+  "sql": "select :ifVersion::int is null or i.version = :ifVersion::int as ok, brandbase.camel(to_jsonb(i)) || jsonb_build_object('createdAt', brandbase.iso(i.created_at), 'updatedAt', brandbase.iso(i.updated_at)) as details from brandbase.ideas i where i.id = :id",
+  "status": 409,
+  "code": "STALE",
+  "message": "this changed since you opened it"
+}

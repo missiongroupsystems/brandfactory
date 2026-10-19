@@ -1,0 +1,7 @@
+{
+  "id": "idea.calendar_free",
+  "sql": "select brandbase.landing_day(:brand, brandbase.today(:brand, :now::timestamptz), :preferDay::date) is not null as ok",
+  "status": 409,
+  "code": "CALENDAR_FULL",
+  "message": "no day ahead is free"
+}

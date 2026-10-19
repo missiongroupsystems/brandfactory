@@ -1,0 +1,22 @@
+{
+  "name": "shoot.drop",
+  "description": "Deletes a shoot and its crew.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["brand.reachable", "shoot.found"],
+  "returns": "one",
+  "sql": "delete from brandbase.shoots s where s.id = :id and s.brand_id = :brand returning jsonb_build_object('deleted', s.id) as result"
+}

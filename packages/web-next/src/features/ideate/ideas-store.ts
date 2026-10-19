@@ -3,9 +3,12 @@
 import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
+import { newId, onState, push, remote, request } from '@/lib/remote'
 import {
   coverOf,
   IDEAS_BY_BRAND,
+  pasteReference,
+  showPasted,
   type IdeaCard,
   type IdeaFormat,
   type IdeaSource,
@@ -63,6 +66,84 @@ function subscribe(listener: () => void) {
 function update(brandId: BrandId, fn: (s: BrandIdeasState) => BrandIdeasState) {
   state = { ...state, [brandId]: fn(state[brandId]) }
   listeners.forEach((l) => l())
+}
+
+// ── The server ───────────────────────────────────────────────────────────────────────────────
+
+/** A card as the server keeps it. `date` is a suggestion's proposed day; a tile's day is the calendar's. */
+function cardRow(card: IdeaCard) {
+  return {
+    id: card.id,
+    format: card.format,
+    pillar: card.pillar,
+    hook: card.hook,
+    angle: card.angle,
+    feature: card.feature,
+    image: card.image ?? null,
+    source: card.source,
+    status: card.status === 'suggested' ? 'suggested' : 'idea',
+    inspiration: card.inspiration,
+    shots: card.shots,
+    cut: card.cut ?? null,
+    sharper: card.sharper,
+    builtOn: card.builtOn ?? null,
+    ...(card.status === 'suggested' && card.date ? { day: card.date } : {}),
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function cardOf(row: any): IdeaCard {
+  const date = row.status === 'suggested' ? row.day : null
+  return {
+    id: row.id,
+    format: row.format,
+    pillar: row.pillar,
+    hook: row.hook,
+    angle: row.angle,
+    feature: row.feature,
+    ...(row.image && { image: row.image }),
+    source: row.source,
+    status: row.status,
+    ...(date && { date }),
+    ...(row.postId && { postId: row.postId }),
+    inspiration: row.inspiration,
+    shots: row.shots,
+    ...(row.cut && { cut: row.cut }),
+    sharper: row.sharper,
+    ...(row.builtOn && { builtOn: row.builtOn }),
+  }
+}
+
+/** The moodboard's sources other than Pinterest, as the server's connection keys name them. */
+const SOURCE_KEY = { dm: 'moodboard-dm', tt: 'moodboard-tt' } as const
+
+if (remote) {
+  onState((brandId, s) => {
+    const on = (key: string) =>
+      (s.connections as { key: string; status: string }[]).some(
+        (c) => c.key === key && c.status === 'connected',
+      )
+    showPasted(brandId as BrandId, (s.pasted ?? []) as Reference[])
+    // Pinterest's status comes through the connections store, which owns that key.
+    update(brandId as BrandId, (b) => ({
+      ...b,
+      ideas: (s.ideas as unknown[]).map(cardOf),
+      sources: { ...b.sources, dm: on(SOURCE_KEY.dm), tt: on(SOURCE_KEY.tt) },
+    }))
+  })
+}
+
+const send = (brandId: BrandId, method: string, path: string, body?: unknown) =>
+  push(brandId, () => request(method, `/brands/${brandId}/ideas${path}`, body))
+
+/** The guest share page: the one brief the link opens, as the server shows it to a guest. */
+export function showIdeas(brandId: BrandId, cards: IdeaCard[]) {
+  update(brandId, (s) => ({ ...s, ideas: cards }))
+}
+
+/** The id of the brand's idea with these words: the calendar knows a tile by its hook. */
+export function ideaIdOfHook(brandId: BrandId, hook: string): string | undefined {
+  return state[brandId].ideas.find((i) => i.hook === hook)?.id
 }
 
 function patch(brandId: BrandId, id: string, fields: Partial<IdeaCard>) {
@@ -135,14 +216,14 @@ export interface IdeaTileMark {
  * one made now from the moment the tile came from; else one made from the tile's own words. Made
  * once: the next look finds it by the same hook.
  */
-export function ideaOfTile(brandId: BrandId, tile: IdeaTileMark, dayN?: string): string {
+export function ideaOfTile(brandId: BrandId, tile: IdeaTileMark, date?: string): string {
   const found = state[brandId].ideas.find((i) => i.hook === tile.hook)
   if (found) return found.id
   const moment = IDEAS_BY_BRAND[brandId].moments.find((m) => m.seed.hook === tile.hook)
   if (moment) {
     return addIdea(
       brandId,
-      { ...moment.seed, dayN: dayN ?? moment.dayN },
+      { ...moment.seed, date: date ?? moment.date },
       { kind: 'moment', title: moment.title },
     )
   }
@@ -157,7 +238,7 @@ export function ideaOfTile(brandId: BrandId, tile: IdeaTileMark, dayN?: string):
       inspiration: [],
       shots: [],
       sharper: [],
-      ...(dayN ? { dayN } : {}),
+      ...(date ? { date } : {}),
     },
     { kind: 'own' },
   )
@@ -169,11 +250,14 @@ export function addIdea(
   card: Omit<IdeaCard, 'id' | 'source' | 'status'>,
   source: IdeaSource,
 ): string {
-  const id = `${brandId}-new-${++serial}`
-  update(brandId, (s) => ({
-    ...s,
-    ideas: [...s.ideas, { ...card, id, source, status: 'idea' }],
-  }))
+  const id = remote ? newId() : `${brandId}-new-${++serial}`
+  const made: IdeaCard = { ...card, id, source, status: 'idea' }
+  update(brandId, (s) => ({ ...s, ideas: [...s.ideas, made] }))
+  send(brandId, 'POST', '', {
+    ...cardRow(made),
+    // An idea made from a tile or a moment lands on its day.
+    ...(card.date ? { day: card.date } : {}),
+  })
   return id
 }
 
@@ -212,19 +296,46 @@ export function suggest(brandId: BrandId) {
   }))
 }
 
-/** Connects one source to this brand's moodboard. */
+/**
+ * Connects one source to this brand's moodboard. Pinterest is sent by the connections store, which
+ * owns that key; the other two are sent from here.
+ */
 export function connectSource(brandId: BrandId, source: MoodSource) {
+  if (source !== 'pinterest') {
+    push(brandId, () =>
+      request('PUT', `/brands/${brandId}/connections/${SOURCE_KEY[source]}`, {
+        status: 'connected',
+      }),
+    )
+  }
   update(brandId, (s) => ({ ...s, sources: { ...s.sources, [source]: true } }))
 }
 
 /** Unlinks a source on the Connections page: its posts leave the moodboard. */
 export function disconnectSource(brandId: BrandId, source: MoodSource) {
+  if (source !== 'pinterest') {
+    push(brandId, () =>
+      request('PUT', `/brands/${brandId}/connections/${SOURCE_KEY[source]}`, { status: 'off' }),
+    )
+  }
   update(brandId, (s) => ({ ...s, sources: { ...s.sources, [source]: false } }))
+}
+
+/** A link pasted onto the moodboard: it shows at once, and the server keeps it with the brand. */
+export function pasteLink(brandId: BrandId, ref: Reference) {
+  pasteReference(brandId, ref)
+  // The board reads the links on render: a new state tells it to.
+  update(brandId, (s) => ({ ...s }))
+  const { id, platform, account, image, borrow, seed } = ref
+  push(brandId, () =>
+    request('POST', `/brands/${brandId}/pasted`, { id, platform, account, image, borrow, seed }),
+  )
 }
 
 /** A suggestion becomes one of the team's ideas. */
 export function keepSuggestion(brandId: BrandId, id: string) {
   patch(brandId, id, { status: 'idea' })
+  send(brandId, 'PATCH', `/${id}`, { status: 'idea' })
 }
 
 export function skipSuggestion(brandId: BrandId, id: string) {
@@ -232,10 +343,12 @@ export function skipSuggestion(brandId: BrandId, id: string) {
     const ideas = s.ideas.filter((i) => i.id !== id)
     return { ...s, ideas }
   })
+  send(brandId, 'DELETE', `/${id}`)
 }
 
 export function setHook(brandId: BrandId, id: string, hook: string) {
   patch(brandId, id, { hook })
+  send(brandId, 'PATCH', `/${id}`, { hook })
 }
 
 /** What an idea's page edits on a card: its words, its references, its shots, and the post it became. */
@@ -255,17 +368,28 @@ export function editIdea(
   id: string,
   fields: IdeaEdit | ((card: IdeaCard) => IdeaEdit),
 ) {
+  const before = state[brandId].ideas.find((i) => i.id === id)
   update(brandId, (s) => ({
     ...s,
     ideas: s.ideas.map((i) =>
       i.id === id ? { ...i, ...(typeof fields === 'function' ? fields(i) : fields) } : i,
     ),
   }))
+  const after = state[brandId].ideas.find((i) => i.id === id)
+  if (!before || !after) return
+  // Only the card's own words and lists go to the server; its post and shoot day are links the
+  // server keeps itself.
+  const changed = Object.fromEntries(
+    (['hook', 'angle', 'feature', 'inspiration', 'shots', 'cut'] as const)
+      .filter((k) => before[k] !== after[k])
+      .map((k) => [k, after[k] ?? null]),
+  )
+  if (Object.keys(changed).length > 0) send(brandId, 'PATCH', `/${id}`, changed)
 }
 
 /** The day a card was sent to on the calendar. */
-export function setDay(brandId: BrandId, id: string, dayN: string) {
-  patch(brandId, id, { dayN })
+export function setDay(brandId: BrandId, id: string, date: string) {
+  patch(brandId, id, { date })
 }
 
 /** For tests. */

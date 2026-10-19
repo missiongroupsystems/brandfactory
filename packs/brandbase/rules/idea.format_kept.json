@@ -1,0 +1,7 @@
+{
+  "id": "idea.format_kept",
+  "sql": "select :format::text is null or i.post_id is null or i.format = :format::text as ok from brandbase.ideas i where i.id = :id",
+  "status": 409,
+  "code": "IDEA_PLANNED",
+  "message": "this idea is a post; its format is the post's"
+}

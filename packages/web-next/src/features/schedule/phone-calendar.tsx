@@ -12,6 +12,7 @@ import type { Day, FeedMark, LayerKey, Post, Week } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { useCoverOfHook, useCoverOfPost } from '@/features/ideate/ideas-store'
 import { NewShootForm } from '@/features/shoot/new-shoot'
+import { dayNumber } from '@/lib/dates'
 
 import { EventChip } from './event-chip'
 import { ideaLabel, useOpenIdea } from './open-idea'
@@ -107,10 +108,10 @@ export function PhoneCalendar({
   onStep: (by: -1 | 1) => void
   onToday: () => void
   onOpenPost: (postId: string) => void
-  onNewPost: (dayN?: string, time?: string) => void
-  /** The day a new shoot takes: the day picked, if it is ahead in the demo's month. */
+  onNewPost: (date?: string, time?: string) => void
+  /** The day a new shoot takes: the day picked, if it is ahead on the brand's calendar. */
   shootDay?: string
-  onOpenStories: (dayN: string) => void
+  onOpenStories: (date: string) => void
   onStages: (next: StageFilter) => void
   onLayers: (next: Record<LayerKey, boolean>) => void
 }) {
@@ -124,19 +125,19 @@ export function PhoneCalendar({
   const shownDay = shownWeek.days[day]!
   const best = INSIGHTS_BY_BRAND[brand.id].best
   const items = (d: Day) => itemsOf(d, byId, stages)
-  const stories = (d: Day, it: DayItems) => storiesOf(d.n, it, brand.id, library, byId)
+  const stories = (d: Day, it: DayItems) => storiesOf(d.date, it, brand.id, library, byId)
   const movingFrom = moving
-    ? weeks.flatMap((w) => w.days).find((d) => items(d).posts.some((p) => p.id === moving))?.n
+    ? weeks.flatMap((w) => w.days).find((d) => items(d).posts.some((p) => p.id === moving))?.date
     : undefined
-  const canTake = (d: Day) => moving !== null && !d.past && d.n !== movingFrom
-  const select = (dayN: string) =>
-    weeks.forEach((w, wi) => w.days.forEach((d, di) => d.n === dayN && onSelect(wi, di)))
+  const canTake = (d: Day) => moving !== null && !d.past && d.date !== movingFrom
+  const select = (date: string) =>
+    weeks.forEach((w, wi) => w.days.forEach((d, di) => d.date === date && onSelect(wi, di)))
 
-  function drop(postId: string, dayN: string | null) {
-    if (!dayN || !movePost(postId, dayN)) return
+  function drop(postId: string, date: string | null) {
+    if (!date || !movePost(postId, date)) return
     setLanded(postId)
     // The list follows the post to its new day.
-    select(dayN)
+    select(date)
   }
 
   /** The long press that lifts a post's photo; `selector` names the photo inside the pressed item. */
@@ -149,7 +150,7 @@ export function PhoneCalendar({
         setMoving(post.id)
       },
       over: setOver,
-      drop: (dayN) => drop(post.id, dayN),
+      drop: (date) => drop(post.id, date),
       end: () => setMoving(null),
     })
   }
@@ -171,33 +172,33 @@ export function PhoneCalendar({
     if (d.outside) {
       return (
         <span
-          key={d.n}
+          key={d.date}
           aria-hidden="true"
           className="flex h-10 items-center justify-center text-[15px] font-medium text-ink-5 tabular-nums opacity-50"
         >
-          {d.n}
+          {dayNumber(d.date)}
         </span>
       )
     }
     const picked = wi === week && di === day
     const n = items(d).posts.length
     // In Day the number is the only place to drop, so it lights up under the finger.
-    const target = over === d.n && canTake(d)
+    const target = over === d.date && canTake(d)
     return (
       <button
-        key={d.n}
+        key={d.date}
         type="button"
         // The borrowed row's days belong to another month: nothing drops there.
-        data-drop={wi < 0 ? undefined : d.n}
+        data-drop={wi < 0 ? undefined : d.date}
         onClick={() => pick(wi, di)}
-        aria-label={`${WEEKDAY[di]} ${d.n}${d.today ? ', today' : ''}${n ? `, ${n} post${n > 1 ? 's' : ''}` : ''}`}
+        aria-label={`${WEEKDAY[di]} ${dayNumber(d.date)}${d.today ? ', today' : ''}${n ? `, ${n} post${n > 1 ? 's' : ''}` : ''}`}
         aria-pressed={picked}
         className="flex h-10 items-center justify-center"
       >
         <span
           className={`flex size-[30px] items-center justify-center rounded-full text-[15px] font-medium tabular-nums transition-colors ${picked ? 'bg-ink text-page' : target ? 'bg-(--cal-drop) text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]' : d.today ? 'text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]' : d.past ? 'text-ink-5' : 'text-ink-2'}`}
         >
-          {d.n}
+          {dayNumber(d.date)}
         </span>
       </button>
     )
@@ -226,15 +227,15 @@ export function PhoneCalendar({
   }
 
   const column = (d: Day, wi: number, di: number, limit: number) => {
-    if (d.outside) return <div key={d.n} aria-hidden="true" />
+    if (d.outside) return <div key={d.date} aria-hidden="true" />
     const tiles = tilesOf(d)
     const more = tiles.length - limit
     const target = canTake(d)
     return (
       <div
-        key={d.n}
-        data-drop={wi < 0 ? undefined : d.n}
-        className={`flex flex-col gap-[3px] rounded-[9px] transition-[background-color,box-shadow] ${over === d.n && target ? 'bg-(--cal-drop) shadow-[inset_0_0_0_1.5px_var(--ink)]' : ''} ${d.past && !tiles.some((t) => t.kind === 'post' && t.post.stage === 'failed') ? 'opacity-60' : ''}`}
+        key={d.date}
+        data-drop={wi < 0 ? undefined : d.date}
+        className={`flex flex-col gap-[3px] rounded-[9px] transition-[background-color,box-shadow] ${over === d.date && target ? 'bg-(--cal-drop) shadow-[inset_0_0_0_1.5px_var(--ink)]' : ''} ${d.past && !tiles.some((t) => t.kind === 'post' && t.post.stage === 'failed') ? 'opacity-60' : ''}`}
       >
         {tiles.slice(0, limit).map((t) =>
           t.kind === 'post' ? (
@@ -248,9 +249,9 @@ export function PhoneCalendar({
               onPointerDown={wi < 0 ? undefined : lift(t.post)}
             />
           ) : t.kind === 'idea' ? (
-            <IdeaSquare key={t.mark.hook} mark={t.mark} dayN={d.n} />
+            <IdeaSquare key={t.mark.hook} mark={t.mark} date={d.date} />
           ) : (
-            <StoryRing key="stories" stories={t.stories} onOpen={() => onOpenStories(d.n)} />
+            <StoryRing key="stories" stories={t.stories} onOpen={() => onOpenStories(d.date)} />
           ),
         )}
         {more > 0 && (
@@ -304,7 +305,7 @@ export function PhoneCalendar({
             onLayers={onLayers}
           />
           <NewMenu
-            onPost={() => onNewPost(shownDay.past ? undefined : shownDay.n)}
+            onPost={() => onNewPost(shownDay.past ? undefined : shownDay.date)}
             shootDay={shootDay}
           />
         </span>
@@ -370,8 +371,8 @@ export function PhoneCalendar({
 
       <div className="mx-4 border-t border-(--cal-line)" />
       <section
-        key={`${view}-${shownDay.n}`}
-        aria-label={`${WEEKDAY[day]} ${shownDay.n}`}
+        key={`${view}-${shownDay.date}`}
+        aria-label={`${WEEKDAY[day]} ${dayNumber(shownDay.date)}`}
         className="bb-swap flex flex-col px-4 pt-4 pb-6"
       >
         <DayHead
@@ -381,7 +382,7 @@ export function PhoneCalendar({
             (e) => layers[e.layer] && e.col - 1 <= day && day < e.col - 1 + e.span,
           )}
           stories={stories(shownDay, items(shownDay))}
-          onOpenStories={() => onOpenStories(shownDay.n)}
+          onOpenStories={() => onOpenStories(shownDay.date)}
         />
         {view === 'day' ? (
           <Hours
@@ -561,7 +562,7 @@ function NewMenu({ onPost, shootDay }: { onPost: () => void; shootDay?: string }
       )}
       {shoot && (
         <Sheet title="New shoot" onClose={() => setShoot(false)}>
-          <NewShootForm dayN={shootDay} />
+          <NewShootForm date={shootDay} />
         </Sheet>
       )}
     </div>
@@ -636,14 +637,14 @@ const tintOf = (mark: Extract<FeedMark, { kind: 'idea' }>, brandColour: string) 
  * A plan in the month's grid: half a photo's height, a dashed outline in its colour and a spark,
  * where a post is a filled square. It opens the idea's page.
  */
-function IdeaSquare({ mark, dayN }: { mark: Extract<FeedMark, { kind: 'idea' }>; dayN: string }) {
+function IdeaSquare({ mark, date }: { mark: Extract<FeedMark, { kind: 'idea' }>; date: string }) {
   const { brand } = useBrand()
   const open = useOpenIdea()
   const tint = tintOf(mark, brand.colour)
   return (
     <button
       type="button"
-      onClick={() => open(mark, dayN)}
+      onClick={() => open(mark, date)}
       aria-label={ideaLabel(mark)}
       className={`flex aspect-[2/1] w-full items-center justify-center rounded-[8px] border border-dashed ${mark.suggested ? 'bg-(--insight-wash)' : 'bg-page'}`}
       style={{ borderColor: `color-mix(in oklab, ${tint} 55%, transparent)`, color: tint }}
@@ -691,7 +692,7 @@ function DayHead({
       <h2
         className={`text-[17px] font-semibold tracking-[-0.01em] ${day.past ? 'text-ink-3' : ''}`}
       >
-        {WEEKDAY[di]!.slice(0, 3)} {day.n}
+        {WEEKDAY[di]!.slice(0, 3)} {dayNumber(day.date)}
         {day.today && <span className="ml-2 text-[13px] font-medium text-ink-4">Today</span>}
       </h2>
       {(events.length > 0 || stories.length > 0) && (
@@ -728,7 +729,7 @@ function DayPosts({
   landed: string | null
   lift: (post: Post, selector?: string) => (e: React.PointerEvent<HTMLElement>) => void
   onOpenPost: (postId: string) => void
-  onNewPost: (dayN?: string, time?: string) => void
+  onNewPost: (date?: string, time?: string) => void
 }) {
   const empty = items.posts.length === 0 && items.ideas.length === 0
   return (
@@ -744,7 +745,7 @@ function DayPosts({
         />
       ))}
       {items.ideas.map((mark) => (
-        <IdeaRow key={mark.hook} mark={mark} dayN={day.n} />
+        <IdeaRow key={mark.hook} mark={mark} date={day.date} />
       ))}
       {empty &&
         (day.past ? (
@@ -752,7 +753,7 @@ function DayPosts({
         ) : (
           <button
             type="button"
-            onClick={() => onNewPost(day.n)}
+            onClick={() => onNewPost(day.date)}
             className="flex items-center gap-1.5 self-start py-3 text-[14px] text-ink-4"
           >
             Nothing planned.
@@ -784,7 +785,7 @@ function Hours({
   landed: string | null
   lift: (post: Post, selector?: string) => (e: React.PointerEvent<HTMLElement>) => void
   onOpenPost: (postId: string) => void
-  onNewPost: (dayN?: string, time?: string) => void
+  onNewPost: (date?: string, time?: string) => void
 }) {
   const hours = Array.from({ length: LAST_HOUR - FIRST_HOUR + 1 }, (_, i) => FIRST_HOUR + i)
   // A post before the first hour or after the last sits in the nearest one shown.
@@ -793,7 +794,7 @@ function Hours({
   return (
     <div className="mt-3 flex flex-col">
       {items.ideas.map((mark) => (
-        <IdeaRow key={mark.hook} mark={mark} dayN={day.n} />
+        <IdeaRow key={mark.hook} mark={mark} date={day.date} />
       ))}
       {hours.map((h) => {
         const posts = items.posts.filter((p) => hourOf(p) === h)
@@ -830,7 +831,7 @@ function Hours({
               <button
                 type="button"
                 aria-label={`New post at ${time}`}
-                onClick={() => onNewPost(day.n, time)}
+                onClick={() => onNewPost(day.date, time)}
                 className="absolute inset-0"
               />
             )}
@@ -905,7 +906,7 @@ function PostRow({
  * A plan in the day's list: a dashed square with a spark where a post shows its photo, then the
  * hook and "Idea · why it sits here". It opens the idea's page.
  */
-function IdeaRow({ mark, dayN }: { mark: Extract<FeedMark, { kind: 'idea' }>; dayN: string }) {
+function IdeaRow({ mark, date }: { mark: Extract<FeedMark, { kind: 'idea' }>; date: string }) {
   const { brand } = useBrand()
   const open = useOpenIdea()
   const tint = tintOf(mark, brand.colour)
@@ -913,7 +914,7 @@ function IdeaRow({ mark, dayN }: { mark: Extract<FeedMark, { kind: 'idea' }>; da
   return (
     <button
       type="button"
-      onClick={() => open(mark, dayN)}
+      onClick={() => open(mark, date)}
       className="flex w-full items-center gap-3 border-b border-(--cal-line) py-2.5 text-left"
     >
       <span

@@ -1,0 +1,37 @@
+{
+  "name": "kit.file_add",
+  "description": "A new brand file, under the client's id, titled from its name; it goes first. The same id again answers with the file it made; an id another brand holds is refused.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "name"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 300,
+        "pattern": "\\S"
+      },
+      "mediaId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["brand.reachable", "kit.media_in_brand"],
+  "returns": "one",
+  "empty": {
+    "status": 409,
+    "code": "ID_TAKEN",
+    "message": "this id is taken"
+  },
+  "sql": "with made as (insert into brandbase.brand_files as f (id, brand_id, title, kind, name, media_id, updated_at) values (:id, :brand, brandbase.plain_title(btrim(:name)), brandbase.file_kind(btrim(:name)), btrim(:name), :mediaId, :now::timestamptz) on conflict (id) do update set id = excluded.id where f.brand_id = excluded.brand_id returning f.*) select brandbase.camel(to_jsonb(m)) || jsonb_build_object('updatedAt', brandbase.iso(m.updated_at)) as result from made m"
+}

@@ -1,0 +1,128 @@
+{
+  "name": "idea.create",
+  "description": "Makes an idea under the client's id, on a day or none. The same id again answers with the idea it made, so a second click on a tile makes no twin; an id another brand holds is refused.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "format", "hook"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "day": {
+        "type": ["string", "null"],
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      },
+      "format": {
+        "enum": ["reel", "carousel", "story"]
+      },
+      "pillar": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "hook": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "angle": {
+        "type": "string",
+        "maxLength": 5000
+      },
+      "feature": {
+        "type": "string",
+        "maxLength": 2000
+      },
+      "image": {
+        "type": ["string", "null"],
+        "maxLength": 2048
+      },
+      "source": {
+        "type": "object"
+      },
+      "status": {
+        "enum": ["suggested", "idea"]
+      },
+      "why": {
+        "type": ["string", "null"],
+        "maxLength": 500
+      },
+      "inspiration": {
+        "type": "array",
+        "maxItems": 50,
+        "items": {
+          "type": "string",
+          "maxLength": 2048
+        }
+      },
+      "shots": {
+        "type": "array",
+        "maxItems": 100,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "title"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "title": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "ref": {
+              "type": "string",
+              "maxLength": 2048
+            },
+            "media": {
+              "type": "string",
+              "maxLength": 2048
+            },
+            "captured": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "cut": {
+        "type": ["string", "null"],
+        "maxLength": 2048
+      },
+      "sharper": {
+        "type": "array",
+        "maxItems": 20,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["text", "tag"],
+          "properties": {
+            "text": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "tag": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        }
+      },
+      "builtOn": {
+        "type": ["object", "null"]
+      }
+    }
+  },
+  "before": ["brand.reachable", "post.day_is_date", "post.day_not_past"],
+  "returns": "one",
+  "empty": {
+    "status": 409,
+    "code": "ID_TAKEN",
+    "message": "this id is taken"
+  },
+  "sql": "with made as (\n  insert into brandbase.ideas as x (id, brand_id, format, pillar, hook, angle, feature, image, source, status,\n    day, why, inspiration, shots, cut, sharper, built_on)\n  values (:id, :brand, :format, coalesce(:pillar, ''), :hook, coalesce(:angle, ''), coalesce(:feature, ''), :image,\n    coalesce(:source::jsonb, '{\"own\":true}'), coalesce(:status, 'idea'), :day::date, :why,\n    coalesce(:inspiration::jsonb, '[]'), coalesce(:shots::jsonb, '[]'), :cut, coalesce(:sharper::jsonb, '[]'), :builtOn::jsonb)\n  on conflict (id) do update set id = excluded.id where x.brand_id = excluded.brand_id\n  returning x.*\n)\nselect brandbase.camel(to_jsonb(m)) || jsonb_build_object('createdAt', brandbase.iso(m.created_at), 'updatedAt', brandbase.iso(m.updated_at)) as result from made m"
+}

@@ -1,0 +1,31 @@
+{
+  "name": "brandbase",
+  "version": "1.1.0",
+  "description": "Brand Base: a brand's posts on a calendar, sent to its social accounts. Posts and the brand's state, and timed sends.",
+  "errors": {
+    "posts_story_day": {
+      "status": 409,
+      "code": "STORY_TAKEN",
+      "message": "the story row on that day is taken"
+    },
+    "crew_pkey": {
+      "status": 409,
+      "code": "ID_TAKEN",
+      "message": "this id is taken"
+    },
+    "posts_pkey": {
+      "status": 409,
+      "code": "ID_TAKEN",
+      "message": "this id is taken"
+    },
+    "shoots_pkey": {
+      "status": 409,
+      "code": "ID_TAKEN",
+      "message": "this id is taken"
+    }
+  },
+  "scheduler": {
+    "onRefused": "post.job_refused",
+    "onUnknown": "post.job_unknown"
+  }
+}
