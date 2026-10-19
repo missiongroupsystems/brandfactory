@@ -1,0 +1,7 @@
+{
+  "id": "pasted.id_free",
+  "sql": "select not exists (select 1 from brandbase.moodboard_posts where id = :id and brand_id = :brand) as ok",
+  "status": 409,
+  "code": "ID_TAKEN",
+  "message": "this id is taken"
+}

@@ -27,7 +27,7 @@ Four phases, one commit each, each passing the full gate. Nothing goes into `pac
 
 ## Phase 1: moodboard in the pack
 
-Migration `0009_moodboard.sql`, modelled on 0004 and 0002:
+Migration `0010_moodboard.sql`, modelled on 0004 and 0002:
 
 ```
 brandbase.moodboard_boards  id text pk, brand_id text fk brands cascade, name text,

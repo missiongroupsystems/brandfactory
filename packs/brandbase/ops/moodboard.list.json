@@ -1,0 +1,25 @@
+{
+  "name": "moodboard.list",
+  "description": "A brand's moodboard posts, each by key: pasted links newest first, then the shelf, then each board's pins. `from` is pasted, shelf or board. An idea's inspiration names these keys. Filter by a board id or a platform.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "board": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "platform": {
+        "enum": ["ig", "tt", "pinterest"]
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "returns": "many",
+  "sql": "select m.result from (\n  select 0 as part, 0 as board_position, row_number() over (order by x.created_at desc, x.id desc) as position, x.id, null::text as board_id, x.reference ->> 'platform' as platform,\n    jsonb_build_object('key', x.id, 'from', 'pasted', 'board', null, 'platform', x.reference ->> 'platform', 'account', x.reference ->> 'account', 'image', x.reference ->> 'image', 'borrow', x.reference ->> 'borrow', 'hook', x.reference -> 'seed' ->> 'hook', 'format', x.reference -> 'seed' ->> 'format') as result\n  from brandbase.pasted_links x where x.brand_id = :brand\n  union all\n  select case when p.board_id is null then 1 else 2 end, coalesce(b.position, 0), p.position, p.id, p.board_id, p.platform,\n    jsonb_build_object('key', p.id, 'from', case when p.board_id is null then 'shelf' else 'board' end, 'board', p.board_id, 'platform', p.platform, 'account', p.account, 'image', p.image, 'borrow', p.borrow, 'hook', p.seed ->> 'hook', 'format', p.seed ->> 'format')\n  from brandbase.moodboard_posts p left join brandbase.moodboard_boards b on b.id = p.board_id\n  where p.brand_id = :brand\n) m\nwhere (:board::text is null or m.board_id = :board) and (:platform::text is null or m.platform = :platform)\norder by m.part, m.board_position, m.position, m.id"
+}

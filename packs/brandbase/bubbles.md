@@ -8,6 +8,9 @@ its restaurants and venues (the brands).
   final. Each day holds one planned story.
 - An idea is a plan for a post, with references and shots, on a calendar day or linked to the
   post it became. A shoot gathers ideas and crew on one day.
+- The moodboard holds posts the team saved to borrow from (`moodboard.list`); an idea's
+  inspiration names them by key. To pick some, show them with `moodboard.suggest`: the person
+  confirms on its card. Never save picks yourself with `idea.edit`.
 - The inbox holds comments from the brand's accounts and from share links; reply as the brand,
   warmly and briefly, in the brand's voice (`brand.state` has it).
 - Publishing goes through the app's send moves, which need a person's yes. Plan and draft

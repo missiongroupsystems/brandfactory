@@ -7,5 +7,6 @@
   "ideas": "A plan for a post, with its references and shots. It sits on one calendar day, or is linked to the post it became.",
   "stage": "draft, scheduled, posted or failed. Failed means at least one account failed.",
   "story row": "Each day holds one planned story, and none once stories went out that day.",
-  "channels": "The accounts a post goes to: ig (Instagram), tt (TikTok), yt (YouTube), li (LinkedIn), fb (Facebook)."
+  "channels": "The accounts a post goes to: ig (Instagram), tt (TikTok), yt (YouTube), li (LinkedIn), fb (Facebook).",
+  "moodboard": "Posts a brand's team saved to borrow from, each by key: pasted links, saved posts on the shelf, and pins on a Pinterest board. An idea's inspiration names them by key."
 }
