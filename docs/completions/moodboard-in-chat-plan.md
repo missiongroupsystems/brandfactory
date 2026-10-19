@@ -1,6 +1,6 @@
 # Moodboard in the core, and moodboard picks in Bubbles
 
-Branch: `feat/moodboard-in-chat`. Status: plan, not built.
+Branch: `feat/moodboard-in-chat`. Built in 2.29.0; `moodboard-in-chat-phases-1-to-4.md` records what changed from this plan.
 
 The owner wants to pick moodboard posts ("inspos") inside the Bubbles chat, visually, and wants Bubbles to suggest
 them. Decided with the owner:

@@ -1,7 +1,9 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { BrandProvider } from '@/features/schedule/posts-store'
+import { IDEAS_BY_BRAND, showMoodboard } from '@/data/ideas'
+import { editIdea, resetIdeas, useIdeasById } from '@/features/ideate/ideas-store'
+import { BrandProvider, useBrand } from '@/features/schedule/posts-store'
 
 import { BubblesPage } from './bubbles-page'
 import { resetChat } from './chat-store'
@@ -281,6 +283,230 @@ describe('the Bubbles page', () => {
     expect(screen.getByText('Three comments wait.')).toBeTruthy()
     expect(screen.getByText('Stopped.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Send' })).toBeTruthy()
+  })
+})
+
+describe('the moodboard in the chat', () => {
+  const opener = () => screen.getByRole('button', { name: 'Moodboard' })
+  const tray = () => screen.getByRole('dialog', { name: 'Moodboard' })
+  // The posts only: the filter row's buttons are pressed too.
+  const tiles = () =>
+    within(within(tray()).getByRole('list', { name: 'Moodboard posts' })).getAllByRole('button', {
+      pressed: false,
+    })
+
+  it("shows the server's moodboard, not the demo's, so every post ticked can be sent", () => {
+    const demo = IDEAS_BY_BRAND['casa-vostra']
+    const post = {
+      ...demo.references[0]!,
+      id: 'srv-1',
+      account: 'server.only',
+      borrow: 'From the core',
+    }
+    showMoodboard('casa-vostra', {
+      references: [post],
+      boards: [
+        {
+          id: 'srv-b',
+          name: 'Server board',
+          pinCount: 1,
+          covers: [],
+          pins: [{ ...post, id: 'srv-2', account: 'server.pin', borrow: 'A pin' }],
+        },
+      ],
+    })
+    try {
+      page()
+      fireEvent.click(opener())
+      expect(tiles().map((t) => t.getAttribute('aria-label'))).toEqual([
+        'server.only: From the core',
+        'server.pin: A pin',
+      ])
+      expect(within(tray()).getByRole('button', { name: 'Server board' })).toBeTruthy()
+      expect(within(tray()).queryByRole('button', { name: 'Pasta shots' })).toBeNull()
+    } finally {
+      showMoodboard('casa-vostra', demo)
+    }
+  })
+
+  it('opens a tray; two ticks make two chips; Send with no words asks with them attached', async () => {
+    page()
+    expect(opener()).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('dialog', { name: 'Moodboard' })).toBeNull()
+    fireEvent.click(opener())
+    expect(opener()).toHaveAttribute('aria-expanded', 'true')
+    // One row to narrow the grid: all, each board, what was shared.
+    expect(within(tray()).getByRole('button', { name: 'All' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(within(tray()).getByRole('button', { name: 'Pasta shots' })).toBeTruthy()
+    expect(within(tray()).getByRole('button', { name: 'Shared' })).toBeTruthy()
+    const [a, b] = tiles()
+    fireEvent.click(a!)
+    fireEvent.click(b!)
+    const chips = within(screen.getByRole('list', { name: 'Attached' })).getAllByRole('listitem')
+    expect(chips).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    })
+    expect(turns()).toHaveLength(1)
+    expect(turns()[0]!.body).toMatchObject({ question: 'Look at these moodboard posts.' })
+    // Bubbles gets the two posts by kind and id; the page's own labels stay on the page.
+    const sent = (turns()[0]!.body as { attach: Record<string, string>[] }).attach
+    expect(sent).toHaveLength(2)
+    for (const x of sent) expect(Object.keys(x).sort()).toEqual(['id', 'kind'])
+    expect(sent.every((x) => x.kind === 'moodboard post')).toBe(true)
+    // The question's bubble shows both posts; the composer is empty again and the tray is shut.
+    const bubble = screen.getByRole('list', { name: 'Attached' })
+    expect(
+      within(bubble)
+        .getAllByRole('listitem')
+        .map((li) => li.getAttribute('aria-label')),
+    ).toEqual([a!.getAttribute('aria-label'), b!.getAttribute('aria-label')])
+    expect(screen.queryByRole('dialog', { name: 'Moodboard' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeTruthy()
+  })
+
+  it('closes on Escape, drops a post from its chip, and refuses a 13th tick', () => {
+    page()
+    fireEvent.click(opener())
+    // Focus goes in with the tray and comes back to the button that opened it.
+    expect(document.activeElement).toBe(within(tray()).getByRole('button', { name: 'All' }))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Moodboard' })).toBeNull()
+    expect(document.activeElement).toBe(opener())
+    fireEvent.click(opener())
+    const first = tiles()[0]!
+    fireEvent.click(first)
+    const label = first.getAttribute('aria-label')!
+    fireEvent.click(screen.getByRole('button', { name: `Remove ${label}` }))
+    expect(screen.queryByRole('list', { name: 'Attached' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+    // Twelve go in; the thirteenth stays unticked and the tray says why.
+    const all = tiles()
+    expect(all.length).toBeGreaterThan(12)
+    for (const t of all.slice(0, 12)) fireEvent.click(t)
+    fireEvent.click(all[12]!)
+    expect(all[12]).toHaveAttribute('aria-pressed', 'false')
+    expect(within(tray()).getByRole('status')).toHaveTextContent('Up to 12')
+    expect(
+      within(screen.getByRole('list', { name: 'Attached' })).getAllByRole('listitem'),
+    ).toHaveLength(12)
+  })
+
+  it('draws the picks card for moodboard.suggest; Save writes the idea and locks the card', async () => {
+    page()
+    // A shot shot like a post the card will untick: it must come loose with the post.
+    editIdea('casa-vostra', 'cv-dough', (c) => ({
+      shots: c.shots.map((s, i) => (i === 0 ? { ...s, ref: 'cv-p-3' } : s)),
+    }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Any comments waiting?' }))
+    })
+    const s = streams[0]!
+    await s.frame('tool_call', {
+      id: 't1',
+      tool: 'moodboard.suggest',
+      input: {
+        brand: 'casa-vostra',
+        idea: 'cv-dough',
+        picks: ['cv-p-1', 'cv-p-2'],
+        why: 'Both sit in the morning light.',
+      },
+    })
+    await s.frame('tool_result', { id: 't1', tool: 'moodboard.suggest', ok: true })
+    await s.frame('text', { text: 'Two posts that fit.' })
+    await s.frame('done', {})
+    await s.close()
+    const card = screen.getByRole('group', {
+      name: 'Moodboard picks for Watch the dough become tagliatelle.',
+    })
+    expect(card).toHaveTextContent('Both sit in the morning light.')
+    expect(within(card).getAllByRole('button', { pressed: true })).toHaveLength(6)
+    const p3 = within(card).getAllByRole('button', { pressed: true })[5]!
+    fireEvent.click(p3)
+    await act(async () => {
+      fireEvent.click(within(card).getByRole('button', { name: 'Save to idea' }))
+    })
+    expect(card).toHaveTextContent('Saved to idea')
+    expect(within(card).queryByRole('button', { name: 'Save to idea' })).toBeNull()
+    // The idea itself changed: the picks joined, the unticked post left, and its shot came loose.
+    const dough = renderHook(() => useIdeasById()).result.current.get('cv-dough')!.card
+    expect(dough.inspiration).toEqual(['cv-r-sfoglina', 'cv-p-7', 'cv-p-10', 'cv-p-1', 'cv-p-2'])
+    expect(dough.shots[0]!.ref).toBeUndefined()
+    resetIdeas()
+  })
+
+  it('shows a stored card as decided', async () => {
+    sessionStorage.setItem(
+      'bubbles.chat',
+      JSON.stringify({
+        conversation: 'c-1',
+        turns: [
+          {
+            id: 't',
+            question: 'Pick some',
+            status: 'done',
+            tools: [
+              {
+                id: 'c1',
+                tool: 'moodboard.suggest',
+                input: { brand: 'casa-vostra', idea: 'cv-dough', picks: ['cv-p-1'] },
+                ok: true,
+                picked: 'saved',
+              },
+            ],
+            texts: ['Done.'],
+            approval: null,
+            error: null,
+            startedAt: 1,
+          },
+        ],
+      }),
+    )
+    vi.resetModules()
+    const { BubblesPage: Page } = await import('./bubbles-page')
+    const { BrandProvider: Provider } = await import('@/features/schedule/posts-store')
+    render(
+      <Provider>
+        <Page />
+      </Provider>,
+    )
+    const card = screen.getByRole('group', { name: /^Moodboard picks for/ })
+    expect(card).toHaveTextContent('Saved to idea')
+    expect(within(card).queryByRole('button', { name: 'Save to idea' })).toBeNull()
+    expect(within(card).getAllByRole('button', { pressed: true })[0]).toBeDisabled()
+  })
+
+  it('starts the ticks over when the brand changes, even back to the same brand', () => {
+    function Switch() {
+      const { setBrandId } = useBrand()
+      return (
+        <>
+          <button type="button" onClick={() => setBrandId('temper')}>
+            To Temper
+          </button>
+          <button type="button" onClick={() => setBrandId('casa-vostra')}>
+            To Casa Vostra
+          </button>
+        </>
+      )
+    }
+    render(
+      <BrandProvider>
+        <Switch />
+        <BubblesPage />
+      </BrandProvider>,
+    )
+    fireEvent.click(opener())
+    fireEvent.click(tiles()[0]!)
+    expect(screen.getByRole('list', { name: 'Attached' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'To Temper' }))
+    expect(screen.queryByRole('list', { name: 'Attached' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'To Casa Vostra' }))
+    expect(screen.queryByRole('list', { name: 'Attached' })).toBeNull()
   })
 })
 

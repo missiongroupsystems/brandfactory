@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { ToolCall } from '../client'
-import { cardsFor, changes, keeps } from './model'
+import { cardsFor, changes, keeps, reloads } from './model'
 
 let n = 0
 const call = (tool: string, input: unknown, ok: boolean | null = true, extra = {}): ToolCall => ({
@@ -107,6 +107,18 @@ describe('changes and keeps', () => {
     expect(changes('post.list')).toBe(false)
     expect(changes('brand.state')).toBe(false)
     expect(changes('post.move')).toBe(true)
+  })
+  it('draw a pick card without loading the brand again, and no card for reading the moodboard', () => {
+    expect(reloads('moodboard.suggest')).toBe(false)
+    expect(reloads('idea.edit')).toBe(true)
+    expect(reloads('moodboard.list')).toBe(false)
+    const turn = {
+      tools: [
+        call('moodboard.list', { brand: 'casa-vostra' }),
+        call('moodboard.suggest', { brand: 'casa-vostra', picks: ['a'] }),
+      ],
+    }
+    expect(cardsFor(turn).map((c) => c.tool)).toEqual(['moodboard.suggest'])
   })
   it('keep the thing before a removal or a move, not before an edit', () => {
     expect(keeps('idea.drop')).toBe(true)

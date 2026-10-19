@@ -8,7 +8,10 @@ import {
   coverOf,
   IDEAS_BY_BRAND,
   pasteReference,
+  showMoodboard,
   showPasted,
+  type Board,
+  type BrandIdeas,
   type IdeaCard,
   type IdeaFormat,
   type IdeaSource,
@@ -114,6 +117,40 @@ function cardOf(row: any): IdeaCard {
   }
 }
 
+interface MoodboardRow extends Reference {
+  boardId: string | null
+}
+
+/** The server's moodboard as the demo's shape: shelf posts, and boards holding their pins. */
+export function moodboardFromState(s: {
+  moodboard?: {
+    boards: Omit<Board, 'pins'>[]
+    posts: MoodboardRow[]
+  }
+}): Pick<BrandIdeas, 'references' | 'boards'> | undefined {
+  if (!s.moodboard) return undefined
+  const { boards, posts } = s.moodboard
+  const ref = ({ id, platform, account, image, borrow, ratio, seed }: MoodboardRow): Reference => ({
+    id,
+    platform,
+    account,
+    image,
+    borrow,
+    ...(ratio != null && { ratio }),
+    seed,
+  })
+  return {
+    references: posts.filter((p) => !p.boardId).map(ref),
+    boards: boards.map((b) => ({
+      id: b.id,
+      name: b.name,
+      pinCount: b.pinCount,
+      covers: b.covers,
+      pins: posts.filter((p) => p.boardId === b.id).map(ref),
+    })),
+  }
+}
+
 /** The moodboard's sources other than Pinterest, as the server's connection keys name them. */
 const SOURCE_KEY = { dm: 'moodboard-dm', tt: 'moodboard-tt' } as const
 
@@ -124,6 +161,8 @@ if (remote) {
         (c) => c.key === key && c.status === 'connected',
       )
     showPasted(brandId as BrandId, (s.pasted ?? []) as Reference[])
+    const board = moodboardFromState(s as Parameters<typeof moodboardFromState>[0])
+    if (board) showMoodboard(brandId as BrandId, board)
     // Pinterest's status comes through the connections store, which owns that key.
     update(brandId as BrandId, (b) => ({
       ...b,

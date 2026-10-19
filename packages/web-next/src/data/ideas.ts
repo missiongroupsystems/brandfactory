@@ -1821,9 +1821,21 @@ export function showPasted(brandId: BrandId, refs: Reference[]) {
   pasted[brandId] = refs
 }
 
+/** The moodboard the server holds for a brand, in place of the demo's. */
+const moodboards: Partial<Record<BrandId, Pick<BrandIdeas, 'references' | 'boards'>>> = {}
+
+export function showMoodboard(brandId: BrandId, board: Pick<BrandIdeas, 'references' | 'boards'>) {
+  moodboards[brandId] = board
+}
+
+/** A brand's shelf and boards: the server's on the API, the demo's otherwise. */
+export function moodboardOf(brandId: BrandId): Pick<BrandIdeas, 'references' | 'boards'> {
+  return moodboards[brandId] ?? IDEAS_BY_BRAND[brandId]
+}
+
 /** Every reference a brand has: pasted in, on the shelf, or on a board. */
 export function referencesOf(brandId: BrandId): Reference[] {
-  const b = IDEAS_BY_BRAND[brandId]
+  const b = moodboardOf(brandId)
   return [...pastedReferences(brandId), ...b.references, ...b.boards.flatMap((board) => board.pins)]
 }
 

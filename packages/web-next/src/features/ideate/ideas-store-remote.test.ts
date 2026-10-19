@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { pastedReferences, type Reference } from '@/data/ideas'
+import { moodboardOf, pastedReferences, referencesOf, type Reference } from '@/data/ideas'
 import type { BrandState } from '@/lib/remote'
 import type * as Remote from '@/lib/remote'
 
@@ -76,5 +76,28 @@ describe('the moodboard on the API', () => {
     const before = sends.length
     connectSource('temper', 'pinterest')
     expect(sends.length).toBe(before)
+  })
+})
+
+describe("the moodboard's boards and shelf on the API", () => {
+  it("shows the server's moodboard, so a post saved on another device is there, and its idea's cover too", () => {
+    const shelf = { ...link('srv-shelf'), boardId: null }
+    const pin = { ...link('srv-pin'), platform: 'pinterest' as const, ratio: 1.4, boardId: 'srv-b' }
+    hydrate.fn('carlitos', {
+      brand: { id: 'carlitos' },
+      ideas: [],
+      pasted: [],
+      connections: [],
+      moodboard: {
+        boards: [{ id: 'srv-b', name: 'From the server', pinCount: 1, covers: [] }],
+        posts: [shelf, pin],
+      },
+    })
+    expect(moodboardOf('carlitos').references.map((r) => r.id)).toEqual(['srv-shelf'])
+    expect(moodboardOf('carlitos').boards).toMatchObject([
+      { id: 'srv-b', name: 'From the server', pins: [{ id: 'srv-pin', ratio: 1.4 }] },
+    ])
+    // The demo's own posts are gone: the server's moodboard replaces them, it does not add to them.
+    expect(referencesOf('carlitos').map((r) => r.id)).toEqual(['srv-shelf', 'srv-pin'])
   })
 })
