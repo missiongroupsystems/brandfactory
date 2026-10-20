@@ -12,7 +12,7 @@ import { Combobox } from '@/components/suggest'
 import { usePhone } from '@/components/use-phone'
 import type { Day } from '@/data/demo'
 import { coverOf, type IdeaCard } from '@/data/ideas'
-import { HOME, ROLES, type Reply, type Shoot } from '@/data/shoots'
+import { OUTLETS, ROLES, type Reply, type Shoot } from '@/data/shoots'
 import { PAST_CREW, PAST_PLACES } from '@/data/suggestions'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { DayPicker, type DayInfo } from '@/features/ideate/day-picker'
@@ -43,7 +43,7 @@ import { shotCount, ShotList } from './shot-list'
 /**
  * A shoot's own page (`/shoot/<id>`): the call sheet, one column in the order someone on the day
  * asks for it. The head says when and where; Who comes lists the crew and sends the Lark
- * invites; the shot list says what to shoot, built from each idea's storyboard, and what the
+ * invites; the storyboard says what to shoot, built from each idea's shots, and what the
  * crew said on the share link sits beside it. Share gives the crew a link to the same sheet
  * without a login.
  *
@@ -198,16 +198,16 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
             kind="shoot"
             id={shoot.id}
             replyAs={brand.name}
-            change={{ href: '#shots', label: 'Shot list' }}
+            change={{ href: '#shots', label: 'Storyboard' }}
           />
         </aside>
       </div>
 
       {/* The heart of the sheet takes the whole width: each idea's shots as a filmstrip. */}
-      <section id="shots" aria-label="Shot list" className="flex scroll-mt-6 flex-col gap-8">
+      <section id="shots" aria-label="Storyboard" className="flex scroll-mt-6 flex-col gap-8">
         <div className="flex items-center justify-between gap-3">
           <span className={EYEBROW}>
-            Shot list · {shots} {shots === 1 ? 'shot' : 'shots'}
+            Storyboard · {shots} {shots === 1 ? 'shot' : 'shots'}
           </span>
           <AddIdea shoot={shoot} ideas={ideas} />
         </div>
@@ -247,9 +247,12 @@ export function Details({
   const { brand } = useBrand()
   const shoots = useShoots(brand.id)
   const others = shoots.filter((s) => s.id !== shoot.id)
-  const places = pastPlaces(HOME[brand.id], shoots, PAST_PLACES[brand.id]).map((p) => ({
+  const places = pastPlaces(OUTLETS[brand.id], shoots, PAST_PLACES[brand.id]).map((p) => ({
     value: p.place,
-    meta: p.place === HOME[brand.id] ? 'Home' : p.shoots ? shootsMeta(p.shoots) : 'Past shoot',
+    // An outlet's row leads with where it is, without the brand's name that most of them start with.
+    ...(p.outlet &&
+      p.place.startsWith(`${brand.name}, `) && { name: p.place.slice(brand.name.length + 2) }),
+    meta: p.outlet ? 'Outlet' : p.shoots ? shootsMeta(p.shoots) : 'Past shoot',
   }))
   const infoOf = React.useCallback(
     (d: Day): DayInfo => {

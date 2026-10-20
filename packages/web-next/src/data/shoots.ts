@@ -68,11 +68,22 @@ export const REPLY_OF: Record<string, Reply> = {
 /** The roles a person on a shoot can have, in the order the call sheet offers them. */
 export const ROLES = ['Videographer', 'Photographer', 'Chef', 'Producer', 'Talent'] as const
 
-/** Where a new shoot happens until someone changes it: the brand's own room. */
-export const HOME: Record<BrandId, string> = {
-  'casa-vostra': 'Casa Vostra, Raffles City #01-23',
-  temper: 'Temper, 4 Duxton Hill',
-  carlitos: 'Carlitos, 212 Joo Chiat Road',
+/**
+ * The brand's outlets, as the address field offers them: the first is where a new shoot happens
+ * until someone changes it.
+ */
+export const OUTLETS: Record<BrandId, string[]> = {
+  'casa-vostra': [
+    'Casa Vostra, Raffles City #01-23',
+    'Casa Vostra, 26 Lorong Mambong',
+    'Casa Vostra, Jewel Changi #02-215',
+  ],
+  temper: ['Temper, 4 Duxton Hill', 'Temper Cellar, 8 Craig Road'],
+  carlitos: [
+    'Carlitos, 212 Joo Chiat Road',
+    'Carlitos, 56 Eng Hoon Street',
+    'Carlitos, Dempsey Hill Blk 7',
+  ],
 }
 
 /** Who a new shoot invites until someone changes it: the brand's usual crew. */
@@ -102,7 +113,7 @@ export const SHOOTS_BY_BRAND: Record<BrandId, Shoot[]> = {
       date: '2026-10-07',
       start: '12:00',
       end: '17:00',
-      place: HOME['casa-vostra'],
+      place: OUTLETS['casa-vostra'][0]!,
       crew: [...USUAL_CREW['casa-vostra'], { name: 'Chef Dani', role: 'Chef' }],
       ideaIds: ['cv-dough', 'cv-carb-up'],
     },
@@ -112,7 +123,7 @@ export const SHOOTS_BY_BRAND: Record<BrandId, Shoot[]> = {
       date: '2026-10-21',
       start: '10:00',
       end: '13:00',
-      place: HOME['casa-vostra'],
+      place: OUTLETS['casa-vostra'][0]!,
       crew: [
         { name: 'Jules Tan', role: 'Videographer' },
         { name: 'Chef Marco', role: 'Chef' },
@@ -127,7 +138,7 @@ export const SHOOTS_BY_BRAND: Record<BrandId, Shoot[]> = {
       date: '2026-10-06',
       start: '12:00',
       end: '17:00',
-      place: HOME.temper,
+      place: OUTLETS.temper[0]!,
       crew: USUAL_CREW.temper,
       ideaIds: ['tp-sommelier', 'tp-st-pour'],
     },
@@ -137,7 +148,7 @@ export const SHOOTS_BY_BRAND: Record<BrandId, Shoot[]> = {
       date: '2026-10-13',
       start: '14:00',
       end: '17:00',
-      place: HOME.temper,
+      place: OUTLETS.temper[0]!,
       crew: [
         { name: 'Jules Tan', role: 'Videographer' },
         { name: 'Lena Koh', role: 'Talent' },
@@ -162,7 +173,7 @@ export const SHOOTS_BY_BRAND: Record<BrandId, Shoot[]> = {
       date: '2026-10-06',
       start: '16:00',
       end: '19:00',
-      place: HOME.carlitos,
+      place: OUTLETS.carlitos[0]!,
       crew: USUAL_CREW.carlitos,
       ideaIds: ['ca-vermut', 'ca-st-street'],
     },
@@ -172,7 +183,7 @@ export const SHOOTS_BY_BRAND: Record<BrandId, Shoot[]> = {
       date: '2026-10-19',
       start: '11:00',
       end: '14:00',
-      place: HOME.carlitos,
+      place: OUTLETS.carlitos[0]!,
       crew: [
         { name: 'Jules Tan', role: 'Videographer' },
         { name: 'Carlos Ruiz', role: 'Chef' },

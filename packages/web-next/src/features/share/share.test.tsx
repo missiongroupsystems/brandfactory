@@ -37,10 +37,10 @@ describe('a shared shoot', () => {
         <SharedShoot id="cv-shoot-raffles" />
       </BrandProvider>,
     )
-    // Read-only: when, where, who, and the shot list from both ideas' storyboards.
+    // Read-only: when, where, who, and the storyboard from both ideas' shots.
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Wed 7 Oct, 12:00–17:00')
     expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument()
-    const list = screen.getByRole('region', { name: 'Shot list' })
+    const list = screen.getByRole('region', { name: 'Storyboard' })
     expect(within(list).getByText('Flour and eggs, overhead')).toBeInTheDocument()
     expect(within(list).getByText('Bibs on the table')).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'Name' })).not.toBeInTheDocument()
@@ -69,14 +69,14 @@ describe('a shared shoot', () => {
 })
 
 describe('acting on a comment', () => {
-  it('the team replies, jumps to the shot list and marks it done; the guest sees the reply and the mark', () => {
+  it('the team replies, jumps to the storyboard and marks it done; the guest sees the reply and the mark', () => {
     const { unmount } = render(
       <BrandProvider>
         <ShootPage id="cv-shoot-raffles" />
       </BrandProvider>,
     )
     const thread = screen.getByRole('region', { name: 'Comments' })
-    expect(within(thread).getByRole('link', { name: 'Shot list' })).toHaveAttribute(
+    expect(within(thread).getByRole('link', { name: 'Storyboard' })).toHaveAttribute(
       'href',
       '#shots',
     )

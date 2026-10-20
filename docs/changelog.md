@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.28.0** — 2026-10-20 — `feat/client-feedback-ui`: Nat's first round. The address field lists the brand's outlets first; the sharpened hook sits in a field the team edits from; "Shots" is "Storyboard" on the idea page and the call sheet; the Shoot capture stage goes and every format takes one final edit in the Post stage, then its date, and brandbase 1.2.0 keeps the final edit as a list (migration 0009); a collab post in Insights names the creators it is shared with. 815 tests.
 - **2.27.1** — 2026-10-19 — `feat/packs-core`: ready for main. The Bubbles link shows in the header and the tab bar only where Bubbles is connected, so the static demo has no dead tab; CLAUDE.md no longer calls the core "this branch only". No migration. 806 tests.
 - **2.27.0** — 2026-10-19 — `feat/packs-core`: the caller in a table, for Supabase. Row rules read who is calling from `claims.calls`, which only the core writes, one row per transaction, gone at commit; no longer from settings that `set_config` can change where the database lets the runtime role call it. Core migration 0007, brandbase 1.1.0 with migration 0008. 804 tests.
 - **2.26.3** — 2026-10-19 — `feat/packs-core`: a Bubbles card for a thing with no picture shows its kind's icon (Reel, Carousel, Story, or the platform for a moodboard link) in the middle of the grey tile, not an empty square. No migration. 803 tests.
@@ -54,6 +55,39 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.28.0 — 2026-10-20
+
+Nat's first round of feedback on the demo (Slack), on `feat/client-feedback-ui`. Plan and as built:
+`docs/completions/client-feedback-ui-plan.md`, `docs/completions/client-feedback-ui-phases-1-to-1.md`.
+
+- **Outlets (web-next).** "Addresses: intention is that these will be auto-populated with all outlets." Each demo
+  brand has two or three outlets (`OUTLETS` in `data/shoots.ts`, the first the old home address); the Address field on
+  the call sheet and in the New shoot dialog lists them first, each marked "Outlet", then this month's other places
+  and earlier ones. A new shoot starts at the first outlet; typed text still works.
+- **Sharpen the hook.** "I don't seem to be able to edit it." The Sharpen block shows the hook in a field the team
+  types in, the same hook as the title; a sharper hook fills it, typing goes on from there, and "Back to mine" shows
+  whenever the words differ from the team's own. Still seed data, no live AI call.
+- **Storyboard.** "Instead of 'shots' can we call it 'storyboard'." The idea page's second stage, the call sheet's
+  section and the shared call sheet say "Storyboard"; a card is still "Shot 1" and the row ends in "Add a shot".
+- **The final edit.** "The actual shots will be managed by our videographer… a place for us to upload it would be
+  good, and then it can be scheduled from there." The Shoot stage (a tick and a clip per shot, "Footage", the Upload
+  pill on a storyboard card) is gone, with `Shot.media` and `Shot.captured`; the shoot line and its call sheet link sit
+  in the Storyboard stage. The Post stage leads with "Final edit": one video for a reel, one file for a story, up to ten slides in
+  order for a carousel (`IdeaCard.cut` is a list), then Status and the post date. The post carries the final edit;
+  the "The post carries" strip went.
+- **The pack (brandbase 1.2.0).** Migration `0009_idea_cut.sql` turns `ideas.cut` from one text value into a JSON
+  list (an old value becomes a list of one, an empty one null), and `idea.create` and `idea.edit` take a list of up to
+  ten files, so a carousel keeps every slide on the core. A carousel or a story with no final edit gets the media
+  captured on its shots, in order, up to ten, so the idea page still shows it; the update runs with
+  the table's row rules unforced for that one statement, forced again in the same transaction. Checked on a local
+  database migrated from 1.1.0. `tests/ideas.json` checks the order survives an edit.
+- **Release order:** migrate brandbase 1.2.0 before the web build goes out. An older web build sends `cut` as one text
+  value, which 1.2.0 refuses, and the new build reads a text `cut` as a list; until the new build is out, an
+  open page of the old one reads a list `cut` wrongly.
+- **Collab posts (Insights).** "See which posts were collaboration posts with other creators." `PostStat.collab`
+  names the other creators; four demo posts carry it, and their Posts rows end in "Collab · @handle".
+- **Gate:** typecheck, lint, format, build; tests 815, none skipped. Checked with Playwright at 1440 and 390 px.
 
 ## 2.27.1 — 2026-10-19
 

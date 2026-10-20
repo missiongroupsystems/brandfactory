@@ -99,11 +99,11 @@ function stepOf(status: IdeaStatus): Step {
 
 /**
  * One idea's own page (`/ideate/<id>`): the production document for one reel, carousel or
- * story, from "we saw something we liked" to "it is live". The work runs in four stages, and the
- * page is built in that order: References (what it should look like), Shots (the storyboard and
- * the shoot day), Shoot (what was captured on the day) and Post (status, date and time, which
- * make it a post on the calendar). A rail at the top shows where the idea stands; every stage
- * is open at any time. Back returns to Current ideas.
+ * story, from "we saw something we liked" to "it is live". The work runs in three stages, and the
+ * page is built in that order: References (what it should look like), Storyboard (the shots and
+ * the shoot day) and Post (the final edit, then status, date and time, which make it a post on
+ * the calendar). A rail at the top shows where the idea stands; every stage is open at any time.
+ * Back returns to Current ideas.
  *
  * The page belongs to the brand in the header. An idea of another brand, or one a reload lost,
  * is not shown.
@@ -176,28 +176,17 @@ interface Plan {
   setTime: (time: string) => void
 }
 
-/** What the shoot captured, in shot order. */
-const capturedOf = (shots: Shot[]) => shots.flatMap((s) => (s.media ? [s.media] : []))
-
 const sameMedia = (a: string[], b: string[]) =>
   a.length === b.length && a.every((m, i) => m === b[i])
 
-/**
- * What the shoot hands the post, or null while it has nothing to hand: a reel's final cut (its
- * clips are footage, not the post), a carousel's captured slides, a story's captured frames.
- */
-function handedBy(card: IdeaCard): string[] | null {
-  if (card.format === 'reel') return card.cut ? [card.cut] : null
-  const captured = capturedOf(card.shots)
-  const media = card.format === 'carousel' ? captured.slice(0, SLIDES_MAX) : captured
-  return media.length > 0 ? media : null
-}
+/** What the final edit hands the post, or null while nothing has landed. */
+const handedBy = (card: IdeaCard): string[] | null => (card.cut?.length ? card.cut : null)
 
 /**
  * The card's plan. A date puts the idea's tile on that day; a status makes it a post there (or on
  * the first free day), and a new date or time moves the post.
  * The post carries the idea's own media only: a reference photo is somebody else's picture.
- * Once the shoot has something to hand it, the post carries that, and keeps up as more lands.
+ * Once the final edit lands, the post carries that, and keeps up as it changes.
  */
 function usePlan(slot: Slot): Plan {
   const { brand, weeks, byId, planPost, reschedule, setStage, setImages, placeIdea, unplanPost } =
@@ -213,8 +202,8 @@ function usePlan(slot: Slot): Plan {
     [ahead],
   )
   const handed = React.useMemo(() => handedBy(card), [card])
-  // What the post carried before the shoot took over, to give back if the shoot lets go again
-  // (the cut removed, the last slide cleared); the idea's photo when that is not known.
+  // What the post carried before the final edit took over, to give back if it is cleared again;
+  // the idea's photo when that is not known.
   const before = React.useRef<string[] | null>(null)
   React.useEffect(() => {
     if (!post) return
@@ -225,7 +214,7 @@ function usePlan(slot: Slot): Plan {
       setImages(post.id, before.current)
       before.current = null
     } else if (post.images.some((m) => m.startsWith('blob:'))) {
-      // A clip the shoot handed earlier, on a page that has since been reopened.
+      // A final edit handed earlier, on a page that has since been reopened.
       setImages(post.id, card.image ? [card.image] : [])
     }
   }, [post, handed, card.image, setImages])
@@ -266,7 +255,7 @@ function usePlan(slot: Slot): Plan {
           : card.source.kind === 'insight'
             ? card.source.line
             : 'Team idea'
-      // What the old post carried before the shoot belongs to that post, not to the next one.
+      // What the old post carried before the final edit belongs to that post, not to the next one.
       before.current = null
       unplanPost(post.id, { format: card.format, hook: card.hook, why })
       editIdea(brand.id, card.id, { postId: undefined })
@@ -294,13 +283,13 @@ function usePlan(slot: Slot): Plan {
 
 // ── The stages ───────────────────────────────────────────────────────────────────────────────
 
-type StageKey = 'references' | 'shots' | 'shoot' | 'post'
+type StageKey = 'references' | 'shots' | 'post'
 
 interface StageState {
   key: StageKey
   label: string
   done: boolean
-  /** Where it stands, in a few words: "3 of 5 captured". */
+  /** Where it stands, in a few words: "3 shots · Wed 7 Oct". */
   note: string
   current: boolean
 }
@@ -336,7 +325,6 @@ function stagesOf(
   time: string,
 ): StageState[] {
   const shots = card.shots
-  const captured = shots.filter((s) => s.captured).length
   const shootDay = card.shootDay ? dayLabel(card.shootDay) : null
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
   const stages = [
@@ -348,17 +336,11 @@ function stagesOf(
     },
     {
       key: 'shots' as const,
-      label: 'Shots',
+      label: 'Storyboard',
       done: shots.length > 0 && !!shootDay,
       note: shots.length
         ? `${plural(shots.length, 'shot')} · ${shootDay ?? 'no shoot day'}`
         : 'None yet',
-    },
-    {
-      key: 'shoot' as const,
-      label: 'Shoot',
-      done: shots.length > 0 && captured === shots.length,
-      note: shots.length ? `${captured} of ${shots.length} captured` : 'Nothing to shoot yet',
     },
     {
       key: 'post' as const,
@@ -447,8 +429,10 @@ function hasFiles(e: { dataTransfer: DataTransfer | null }): boolean {
 }
 
 /** The photos and videos among dropped or picked files, as media URLs. */
-async function mediaFrom(files: FileList | null): Promise<string[]> {
-  const media = [...(files ?? [])].filter((f) => /^(image|video)\//.test(f.type))
+async function mediaFrom(files: FileList | null, kinds = 'image/*,video/*'): Promise<string[]> {
+  // The kinds a slot takes, as its `accept` names them: a drop or "All files" gets past the picker.
+  const fits = (f: File) => kinds.split(',').some((k) => f.type.startsWith(k.replace('*', '')))
+  const media = [...(files ?? [])].filter(fits)
   return (await Promise.all(media.map(fromFile))).map((d) => d.src)
 }
 
@@ -489,7 +473,7 @@ function UploadChip({
 // ── The page ─────────────────────────────────────────────────────────────────────────────────
 
 /**
- * The idea: its words across the top, then the rail, then the four stages down the page, each
+ * The idea: its words across the top, then the rail, then the three stages down the page, each
  * with its name and question in a column on the left and its work on the right. One drag state
  * serves the whole page, since a reference can be dragged from its stage onto a shot.
  */
@@ -640,11 +624,7 @@ function Idea({ slot }: { slot: Slot }) {
             }}
           />
           <ShotDetails card={card} />
-        </StageSection>
-
-        <StageSection stage={stage('shoot')}>
           <ShootLine card={card} />
-          <Capture card={card} refs={refs} board={board} patchShot={patchShot} />
         </StageSection>
 
         <StageSection stage={stage('post')}>
@@ -665,7 +645,7 @@ function Idea({ slot }: { slot: Slot }) {
   )
 }
 
-/** The four stages in a row that stays at the top: a mark for each, the current one in ink. */
+/** The three stages in a row that stays at the top: a mark for each, the current one in ink. */
 function Rail({ stages }: { stages: StageState[] }) {
   return (
     <nav
@@ -980,7 +960,11 @@ function RefTile({
   )
 }
 
-/** Three stronger hooks; picking one swaps it in, and "Back to mine" restores the team's words. */
+/**
+ * The hook in a field the team can edit, with three stronger hooks under it: picking one fills
+ * the field (it is the title above, in the same words), typing changes it from there, and "Back
+ * to mine" restores the team's words.
+ */
 function Sharpen({ card }: { card: IdeaCard }) {
   const use = useRename(card)
   // The hook as it was when the page opened, so "Back to mine" has somewhere to go.
@@ -992,7 +976,7 @@ function Sharpen({ card }: { card: IdeaCard }) {
     <section aria-label="Sharpen the hook" className="flex max-w-[560px] flex-col gap-2">
       <span className="flex items-center justify-between">
         <span className={EYEBROW}>Sharpen the hook</span>
-        {picked >= 0 && (
+        {card.hook !== mine && (
           <button
             type="button"
             onClick={() => use(mine)}
@@ -1002,6 +986,13 @@ function Sharpen({ card }: { card: IdeaCard }) {
           </button>
         )}
       </span>
+      <textarea
+        value={card.hook}
+        rows={1}
+        onChange={(e) => use(e.target.value)}
+        aria-label="Edit the hook"
+        className="w-full resize-none rounded-[12px] bg-surface px-3.5 py-2.5 font-display text-[17px] leading-[1.25] [field-sizing:content] outline-none focus-visible:shadow-[0_0_0_2px_var(--ink)]"
+      />
       <div role="radiogroup" aria-label="Sharper hooks" className="flex flex-col gap-1 md:-mx-3">
         {card.sharper.map((s, i) => {
           const on = i === picked
@@ -1024,7 +1015,7 @@ function Sharpen({ card }: { card: IdeaCard }) {
   )
 }
 
-// ── 02 Shots ─────────────────────────────────────────────────────────────────────────────────
+// ── 02 Storyboard ────────────────────────────────────────────────────────────────────────────
 
 /** What one shot is called: a carousel's shots are its slides. */
 const unitOf = (card: IdeaCard) => (card.format === 'carousel' ? 'Slide' : 'Shot')
@@ -1032,8 +1023,7 @@ const unitOf = (card: IdeaCard) => (card.format === 'carousel' ? 'Slide' : 'Shot
 /**
  * The storyboard: the shots in order, each a card with the reference to shoot it like and its
  * line. Drag a card to reorder (the others make way), drag a reference onto a card to shoot it
- * like that (or pick one on the card), drop a file on a card or upload one to hand the shot what
- * was captured. The last place in the row adds a shot.
+ * like that (or pick one on the card). The last place in the row adds a shot.
  */
 function Storyboard({
   card,
@@ -1095,7 +1085,6 @@ function Storyboard({
           onTitle={(title) => patchShot(s.id, { title })}
           onLink={(key) => linkRef(s.id, key)}
           onAdopt={(key) => adoptRef(s.id, key)}
-          onMedia={(media) => patchShot(s.id, { media, captured: true })}
           onNudge={(by) => onNudge(s.id, by)}
           onRemove={() => setShots(card.shots.filter((o) => o.id !== s.id))}
         />
@@ -1133,7 +1122,6 @@ function ShotCard({
   onTitle,
   onLink,
   onAdopt,
-  onMedia,
   onNudge,
   onRemove,
 }: {
@@ -1151,19 +1139,16 @@ function ShotCard({
   onTitle: (title: string) => void
   onLink: (key: string | undefined) => void
   onAdopt: (key: string) => void
-  onMedia: (media: string) => void
   onNudge: (by: -1 | 1) => void
   onRemove: () => void
 }) {
   const key = `shot:${shot.id}`
   const [choosing, setChoosing] = React.useState(false)
   const held = sort.dragging === shot.id
-  // A reference or a file held over this card, and whether one is on its way anywhere.
+  // A reference held over this card, and whether one is on its way anywhere.
   const over = board.over === key && !held
-  const coming = board.files || board.drag?.kind === 'ref'
+  const coming = board.drag?.kind === 'ref'
   const like = shot.ref ? refs.find((r) => r.key === shot.ref) : undefined
-  // What fills the frame: the reference to shoot it like, else what the shoot captured.
-  const shown = like?.src ?? shot.media
   const n = `${unit} ${index + 1}`
   const line = React.useRef<HTMLTextAreaElement>(null)
   React.useEffect(() => {
@@ -1242,11 +1227,11 @@ function ShotCard({
         begin()
       }}
       onDragEnd={() => finish(false)}
-      onDragEnter={(e) => accept(e, !!board.drag || hasFiles(e))}
+      onDragEnter={(e) => accept(e, !!board.drag)}
       onDragOver={(e) => {
-        // Another shot slides past; a reference or a file lands here; nothing else.
+        // Another shot slides past; a reference lands here; nothing else.
         const { drag } = board
-        if (!accept(e, !!drag || hasFiles(e))) return
+        if (!accept(e, !!drag)) return
         if (drag?.kind === 'shot') {
           if (!held) sort.overAt(shot.id, at(e))
           return
@@ -1260,8 +1245,7 @@ function ShotCard({
         e.preventDefault()
         e.stopPropagation()
         const { drag } = board
-        if (hasFiles(e)) void mediaFrom(e.dataTransfer.files).then(([m]) => m && onMedia(m))
-        else if (drag?.kind === 'ref') onLink(drag.key)
+        if (drag?.kind === 'ref') onLink(drag.key)
         if (drag?.kind === 'shot') finish(true)
         else board.end()
       }}
@@ -1279,55 +1263,37 @@ function ShotCard({
         className={`bb-rise relative grid h-full grid-rows-[auto_1fr] gap-2.5 rounded-[14px] bg-surface p-2.5 [grid-template-areas:'frame'_'text'] max-md:grid-cols-[88px_minmax(0,1fr)] max-md:gap-x-3 max-md:[grid-template-areas:'frame_text'_'frame_fill'] ${LIFTABLE} ${held ? LIFTED : ''} ${over ? `bg-(--cal-drop) ${OVER}` : coming ? CAN_TAKE : ''}`}
       >
         <span className="relative block aspect-[4/3] overflow-hidden rounded-[10px] bg-surface-2 [grid-area:frame] max-md:aspect-[4/5]">
-          {shown ? (
+          {like ? (
             <button
               ref={frame}
               type="button"
-              aria-label={`${like ? 'Change the' : 'Pick a'} reference for ${n.toLowerCase()}`}
+              aria-label={`Change the reference for ${n.toLowerCase()}`}
               onClick={() => setChoosing(true)}
               className="absolute inset-0 block bg-tile"
             >
-              <span key={shown} className="bb-land absolute inset-0">
-                <Media src={shown} sizes="(max-width: 768px) 88px, 220px" />
+              <span key={like.src} className="bb-land absolute inset-0">
+                <Media src={like.src} sizes="(max-width: 768px) 88px, 220px" />
               </span>
             </button>
           ) : null}
-          {like && shot.media && !choosing && (
-            <span
-              key={shot.media}
-              className="bb-land absolute right-1.5 bottom-1.5 size-7 overflow-hidden rounded-[6px] shadow-soft ring-2 ring-(--surface)"
-            >
-              <Media src={shot.media} sizes="28px" />
-            </span>
-          )}
         </span>
-        {!shown && !choosing && (
-          // An empty frame says how to fill it, at rest and under a finger: pick a reference,
-          // upload, or drop. On a phone the pills sit under the line, where a thumb reaches.
+        {!like && !choosing && (
+          // An empty frame says how to fill it, at rest and under a finger: pick a reference, or
+          // drop one. On a phone the pill sits under the line, where a thumb reaches.
           <span className="z-[1] flex flex-col items-center gap-2 self-center justify-self-center [grid-area:frame] max-md:items-start max-md:self-end max-md:justify-self-start max-md:[grid-area:fill]">
-            <span className="flex flex-wrap items-center justify-center gap-1.5">
-              <button
-                ref={frame}
-                type="button"
-                aria-label={`Pick a reference for ${n.toLowerCase()}`}
-                onClick={() => setChoosing(true)}
-                className={CHIP}
-              >
-                <PhotosIcon />
-                Reference
-              </button>
-              <UploadChip
-                label={`Upload a photo or clip for ${n.toLowerCase()}`}
-                onFiles={(f) => void mediaFrom(f).then(([m]) => m && onMedia(m))}
-              />
-            </span>
+            <button
+              ref={frame}
+              type="button"
+              aria-label={`Pick a reference for ${n.toLowerCase()}`}
+              onClick={() => setChoosing(true)}
+              className={CHIP}
+            >
+              <PhotosIcon />
+              Reference
+            </button>
             {(over || coming) && (
               <span className="text-[12px] text-ink transition-colors">
-                {over
-                  ? board.drag?.kind === 'ref'
-                    ? 'Shoot it like this'
-                    : 'Drop to add'
-                  : 'Drop it here'}
+                {over ? 'Shoot it like this' : 'Drop it here'}
               </span>
             )}
           </span>
@@ -1540,122 +1506,8 @@ function ShootLine({ card }: { card: IdeaCard }) {
   )
 }
 
-// ── 03 Shoot ─────────────────────────────────────────────────────────────────────────────────
-
 /**
- * On the day: the storyboard as a strip that fills in as frames are captured, beside the shoot
- * day, then the shots as a list to tick, each ending in the slot for the photo or clip it became.
- * Drop a file on a line, or tap its slot.
- */
-function Capture({
-  card,
-  refs,
-  board,
-  patchShot,
-}: {
-  card: IdeaCard
-  refs: Ref[]
-  board: Board
-  patchShot: (id: string, fields: Partial<Shot>) => void
-}) {
-  const unit = unitOf(card)
-
-  if (card.shots.length === 0) {
-    return <p className="text-[14px] text-ink-4">Add shots to the storyboard first.</p>
-  }
-
-  return (
-    <div className="flex max-w-[560px] flex-col gap-4">
-      <div className="flex items-center gap-4">
-        <Strip
-          label="The storyboard, as captured"
-          frames={card.shots.map((s) => ({
-            key: s.id,
-            src: s.media,
-            done: !!s.captured,
-            title: s.title || unit,
-          }))}
-          tall
-        />
-        {!card.shootDay && (
-          <span className="text-[13px] text-ink-4">
-            No shoot day yet.{' '}
-            <a href="#shots" className="text-ink underline-offset-2 hover:underline">
-              Pick one
-            </a>
-          </span>
-        )}
-      </div>
-      <ol className="flex flex-col gap-1">
-        {card.shots.map((s, i) => {
-          const key = `files:capture:${s.id}`
-          const over = board.over === key
-          const like = s.ref ? refs.find((r) => r.key === s.ref) : undefined
-          const title = s.title || `${unit} ${i + 1}`
-          return (
-            <li
-              key={s.id}
-              onDragEnter={(e) => accept(e, hasFiles(e))}
-              onDragOver={(e) => {
-                if (!accept(e, hasFiles(e))) return
-                if (board.over !== key) board.setOver(key)
-              }}
-              onDragLeave={(e) => {
-                if (over && !e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                  board.setOver(null)
-                }
-              }}
-              onDrop={(e) => {
-                if (!hasFiles(e)) return
-                e.preventDefault()
-                board.end()
-                void mediaFrom(e.dataTransfer.files).then(
-                  ([m]) => m && patchShot(s.id, { media: m, captured: true }),
-                )
-              }}
-              className={`group/row -mx-3 grid grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-x-4 rounded-[12px] px-3 py-2.5 transition-[box-shadow,background-color] ${over ? `bg-(--cal-drop) ${OVER}` : board.files ? CAN_TAKE : ''}`}
-            >
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked={!!s.captured}
-                aria-label={`Captured: ${title}`}
-                onClick={() => patchShot(s.id, { captured: !s.captured })}
-                className={`flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors ${s.captured ? 'border-(--insight-5) bg-(--insight-5) text-page' : 'border-(--line-strong) hover:border-ink-3'}`}
-              >
-                {s.captured && (
-                  <span key="on" className="bb-pop flex">
-                    <CheckIcon size={9} strokeWidth={2.4} />
-                  </span>
-                )}
-              </button>
-              <span className="flex min-w-0 flex-col">
-                <span
-                  className={`truncate text-[15px] transition-colors ${s.captured ? 'text-ink-4' : 'text-ink'}`}
-                >
-                  {title}
-                </span>
-                {like && <span className="text-[12px] text-ink-4">like {like.owner}</span>}
-              </span>
-              <MediaSlot
-                media={s.media}
-                label={`Add the clip for: ${title}`}
-                removeLabel={`Remove the clip for: ${title}`}
-                over={over}
-                files={board.files}
-                onMedia={(media) => patchShot(s.id, { media, captured: true })}
-                onClear={() => patchShot(s.id, { media: undefined })}
-              />
-            </li>
-          )
-        })}
-      </ol>
-    </div>
-  )
-}
-
-/**
- * A slot that takes one photo or clip: the upload mark while empty, the thumbnail once it is
+ * A slot that takes a photo or a clip: the upload mark while empty, the thumbnail once it is
  * here, and a tap on either picks a file. Like the Upload pill, it is a label around the input.
  */
 function MediaSlot({
@@ -1663,6 +1515,7 @@ function MediaSlot({
   label,
   removeLabel,
   accept = 'image/*,video/*',
+  multiple,
   tall = false,
   over,
   files,
@@ -1670,15 +1523,17 @@ function MediaSlot({
   onClear,
 }: {
   media: string | undefined
-  /** The input's name: "Add the clip for: The onions". */
+  /** The input's name: "Add the final edit". */
   label: string
   removeLabel: string
   accept?: string
-  /** A reel's final cut stands as the reel does. */
+  /** Several files at once: a carousel's slides. */
+  multiple?: boolean
+  /** A reel's final edit stands as the reel does. */
   tall?: boolean
   over: boolean
   files: boolean
-  onMedia: (media: string) => void
+  onMedia: (media: string[]) => void
   onClear: () => void
 }) {
   const size = tall ? 'h-24 w-[54px]' : 'size-12'
@@ -1697,10 +1552,11 @@ function MediaSlot({
         <input
           type="file"
           accept={accept}
+          multiple={multiple}
           aria-label={label}
           className="sr-only"
           onChange={(e) => {
-            void mediaFrom(e.target.files).then(([m]) => m && onMedia(m))
+            void mediaFrom(e.target.files, accept).then((m) => m.length && onMedia(m))
             e.target.value = ''
           }}
         />
@@ -1719,49 +1575,12 @@ function MediaSlot({
   )
 }
 
+// ── 03 Post ──────────────────────────────────────────────────────────────────────────────────
+
 /**
- * Frames in a row: the storyboard filling in as the shoot captures it, or the media a post
- * carries, in order. A reel's or a story's frames stand tall, a carousel's square.
+ * The final edit, then status, date and time, which put the post on the calendar: what the
+ * videographer sends back lands first, and the controls that schedule it come right after.
  */
-function Strip({
-  label,
-  frames,
-  tall,
-}: {
-  label: string
-  frames: Array<{ key: string; src?: string; done?: boolean; title: string }>
-  tall: boolean
-}) {
-  return (
-    <ol aria-label={label} className="flex flex-wrap gap-1.5">
-      {frames.map((f, i) => (
-        <li
-          key={f.key}
-          title={f.title}
-          className={`relative overflow-hidden rounded-[6px] bg-surface-2 ring-1 ring-(--cal-line) transition-colors ${tall ? 'h-14 w-9' : 'size-12'}`}
-        >
-          {f.src ? (
-            <span key={f.src} className="bb-land absolute inset-0">
-              <Media src={f.src} sizes="56px" />
-            </span>
-          ) : f.done ? (
-            <span className="absolute inset-0 flex items-center justify-center text-(--insight-5)">
-              <CheckIcon size={10} strokeWidth={2.2} />
-            </span>
-          ) : (
-            <span className="absolute inset-0 flex items-center justify-center font-mono text-[9px] text-ink-5">
-              {i + 1}
-            </span>
-          )}
-        </li>
-      ))}
-    </ol>
-  )
-}
-
-// ── 04 Post ──────────────────────────────────────────────────────────────────────────────────
-
-/** Status, date and time, where the idea stands on the calendar, and what the post carries. */
 function PlanSection({
   slot,
   plan,
@@ -1776,12 +1595,10 @@ function PlanSection({
   const { brand } = useBrand()
   const { card, status, date } = slot
   const step = stepOf(status)
-  const { media } = plan
-  const reel = card.format === 'reel'
-  const footage = capturedOf(card.shots)
 
   return (
     <div className="flex flex-col gap-8">
+      <FinalEdit card={card} board={board} edit={edit} />
       <section aria-label="Plan" className="flex flex-col gap-3">
         <div className="grid grid-cols-[80px_minmax(0,1fr)] items-start gap-x-3 gap-y-3 text-[13px]">
           <span className="pt-1.5 text-ink-4">Status</span>
@@ -1817,56 +1634,42 @@ function PlanSection({
           </span>
         )}
       </section>
-      {reel && <FinalCut card={card} board={board} edit={edit} />}
-      <section aria-label="Media" className="flex flex-col gap-2.5">
-        <span className={`${EYEBROW} flex items-center gap-2`}>
-          The post carries
-          <span className="text-ink-5 tabular-nums">{media.length}</span>
-        </span>
-        {media.length > 0 && (
-          <Strip
-            label="What the post carries"
-            frames={media.map((m, i) => ({ key: m, src: m, title: `${i + 1}` }))}
-            tall={card.format !== 'carousel'}
-          />
-        )}
-      </section>
-      {reel && footage.length > 0 && (
-        <section aria-label="Footage" className="flex flex-col gap-2.5">
-          <span className={`${EYEBROW} flex items-center gap-2`}>
-            Footage
-            <span className="text-ink-5 tabular-nums">{footage.length}</span>
-          </span>
-          <Strip
-            label="The shoot's clips"
-            frames={footage.map((m, i) => ({ key: m, src: m, title: `Clip ${i + 1}` }))}
-            tall
-          />
-        </section>
-      )}
     </div>
   )
 }
 
 /**
- * A reel's final cut: the one video that goes out. Drop it here or tap its slot; the post carries
- * it from then on, and the shoot's clips stay as footage.
+ * The final edit: what goes out, as the videographer sent it back. A reel is one video, a story
+ * one photo or video; a carousel is its slides in order, several files at once. Drop files here or tap a
+ * slot; the post carries the final edit from then on.
  */
-function FinalCut({
+function FinalEdit({
   card,
   board,
   edit,
 }: {
   card: IdeaCard
   board: Board
-  edit: (fields: IdeaEdit) => void
+  edit: (fields: IdeaEdit | ((c: IdeaCard) => IdeaEdit)) => void
 }) {
   const key = 'files:cut'
   const over = board.over === key
+  const slides = card.format === 'carousel'
+  // A reel is a video; a story or a carousel slide may be a photo or a video.
+  const kinds = card.format === 'reel' ? 'video/*' : 'image/*,video/*'
+  const cut = card.cut ?? []
+  // A video replaces the one before it; slides join the ones there, up to the carousel's ten.
+  const add = (media: string[]) =>
+    slides
+      ? edit((c) => ({ cut: [...(c.cut ?? []), ...media].slice(0, SLIDES_MAX) }))
+      : edit({ cut: media.slice(0, 1) })
+  const set = (i: number, media: string) =>
+    edit((c) => ({ cut: (c.cut ?? []).map((m, j) => (j === i ? media : m)) }))
+  const drop = (i: number) => edit((c) => ({ cut: (c.cut ?? []).filter((_, j) => j !== i) }))
 
   return (
     <section
-      aria-label="Final cut"
+      aria-label="Final edit"
       onDragEnter={(e) => accept(e, hasFiles(e))}
       onDragOver={(e) => {
         if (!accept(e, hasFiles(e))) return
@@ -1879,22 +1682,44 @@ function FinalCut({
         if (!hasFiles(e)) return
         e.preventDefault()
         board.end()
-        void mediaFrom(e.dataTransfer.files).then(([m]) => m && edit({ cut: m }))
+        void mediaFrom(e.dataTransfer.files, kinds).then((m) => m.length && add(m))
       }}
       className={`-m-3 flex flex-col gap-2.5 rounded-[14px] p-3 transition-[box-shadow,background-color] ${over ? `bg-(--cal-drop) ${OVER}` : board.files ? CAN_TAKE : ''}`}
     >
-      <span className={EYEBROW}>Final cut</span>
-      <MediaSlot
-        media={card.cut}
-        label="Add the final cut"
-        removeLabel="Remove the final cut"
-        accept="video/*"
-        tall
-        over={over}
-        files={board.files}
-        onMedia={(cut) => edit({ cut })}
-        onClear={() => edit({ cut: undefined })}
-      />
+      <span className={`${EYEBROW} flex items-center gap-2`}>
+        Final edit
+        {slides && cut.length > 0 && <span className="text-ink-5 tabular-nums">{cut.length}</span>}
+      </span>
+      <span className="flex flex-wrap gap-2.5">
+        {slides &&
+          cut.map((m, i) => (
+            <MediaSlot
+              key={`${i}:${m}`}
+              media={m}
+              label={`Replace slide ${i + 1} of the final edit`}
+              removeLabel={`Remove slide ${i + 1} of the final edit`}
+              accept={kinds}
+              over={false}
+              files={board.files}
+              onMedia={([first]) => first && set(i, first)}
+              onClear={() => drop(i)}
+            />
+          ))}
+        {(slides ? cut.length < SLIDES_MAX : true) && (
+          <MediaSlot
+            media={slides ? undefined : cut[0]}
+            label="Add the final edit"
+            removeLabel="Remove the final edit"
+            accept={kinds}
+            multiple={slides}
+            tall={!slides}
+            over={over}
+            files={board.files}
+            onMedia={add}
+            onClear={() => edit({ cut: undefined })}
+          />
+        )}
+      </span>
     </section>
   )
 }

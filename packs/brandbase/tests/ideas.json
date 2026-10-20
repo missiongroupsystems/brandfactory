@@ -771,6 +771,40 @@
       ]
     },
     {
+      "name": "keeps every slide of a carousel's final edit, in order",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "carousel",
+            "hook": "Five pastas, one dough",
+            "image": "/photos/pasta.jpg",
+            "cut": ["/photos/one.jpg"]
+          },
+          "expect": {
+            "result": {
+              "cut": ["/photos/one.jpg"]
+            }
+          }
+        },
+        {
+          "call": "idea.edit",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "cut": ["/photos/two.jpg", "/photos/one.jpg", "/photos/three.jpg"]
+          },
+          "expect": {
+            "result": {
+              "cut": ["/photos/two.jpg", "/photos/one.jpg", "/photos/three.jpg"]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "drops a skipped suggestion, and its shoot if that shoot was only for it",
       "steps": [
         {

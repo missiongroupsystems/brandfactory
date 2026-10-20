@@ -93,10 +93,11 @@ export function pastCrew(shoots: Shoot[], earlier: CrewMember[]) {
   return [...seen.values()].sort((a, b) => b.shoots - a.shoots)
 }
 
-/** The addresses shoots went to: the brand's own room, this month's places, then earlier ones. */
-export function pastPlaces(home: string, shoots: Shoot[], earlier: string[]) {
-  return [...new Set([home, ...shoots.map((s) => s.place), ...earlier])].map((place) => ({
+/** The addresses on offer: the brand's outlets, then this month's other places, then earlier ones. */
+export function pastPlaces(outlets: string[], shoots: Shoot[], earlier: string[]) {
+  return [...new Set([...outlets, ...shoots.map((s) => s.place), ...earlier])].map((place) => ({
     place,
+    outlet: outlets.includes(place),
     shoots: shoots.filter((s) => s.place === place).length,
   }))
 }

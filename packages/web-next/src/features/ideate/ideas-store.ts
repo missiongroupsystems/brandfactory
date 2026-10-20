@@ -108,7 +108,7 @@ function cardOf(row: any): IdeaCard {
     ...(row.postId && { postId: row.postId }),
     inspiration: row.inspiration,
     shots: row.shots,
-    ...(row.cut && { cut: row.cut }),
+    ...(row.cut?.length && { cut: row.cut }),
     sharper: row.sharper,
     ...(row.builtOn && { builtOn: row.builtOn }),
   }

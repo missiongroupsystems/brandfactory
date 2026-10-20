@@ -629,7 +629,8 @@ type PostSort = 'reach' | 'engagement'
 
 /**
  * Every post this month, ranked by reach or by engagement, with the average as a divider. Each
- * post carries what its comments said, as a small positive, neutral and negative bar.
+ * post carries what its comments said, as a small positive, neutral and negative bar, and a
+ * collaboration post names the creators it is shared with.
  */
 function Posts({ posts, splits }: { posts: PostStat[]; splits: Record<string, Split> }) {
   const [sort, setSort] = React.useState<PostSort>('reach')
@@ -678,6 +679,19 @@ function Posts({ posts, splits }: { posts: PostStat[]; splits: Record<string, Sp
                 </span>
                 <span className="text-[12px] text-ink-4">
                   {plain(p.format)} · {p.pillar} · {plain(p.date)}
+                  {/* A shared post says whose it is with, so it reads apart from the brand's own. */}
+                  {p.collab && (
+                    <span className="text-ink-2">
+                      {' · '}
+                      Collab ·{' '}
+                      {p.collab.map((h, i) => (
+                        <span key={h} className="whitespace-nowrap">
+                          {i > 0 && ', '}
+                          {h}
+                        </span>
+                      ))}
+                    </span>
+                  )}
                 </span>
                 {/* On a phone the second figures move under the name, so the name has room. */}
                 <span className="text-[12px] text-ink-4 tabular-nums md:hidden">

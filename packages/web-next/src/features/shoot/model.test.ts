@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
 import { WEEKS } from '@/data/demo'
-import { SHOOTS_BY_BRAND, type Shoot } from '@/data/shoots'
+import { OUTLETS, SHOOTS_BY_BRAND, type Shoot } from '@/data/shoots'
 
-import { eventText, freeShootDay, moveStart, replySummary, setEnd, withShoots } from './model'
+import {
+  eventText,
+  freeShootDay,
+  moveStart,
+  pastPlaces,
+  replySummary,
+  setEnd,
+  withShoots,
+} from './model'
 
 const raffles = SHOOTS_BY_BRAND['casa-vostra'][0]!
 
@@ -54,6 +62,21 @@ describe('the day a new shoot takes', () => {
     // Today is 6 Oct, and the 7th already has the Raffles City shoot.
     expect(freeShootDay(WEEKS, [raffles])).toBe('2026-10-08')
     expect(freeShootDay(WEEKS, [])).toBe('2026-10-07')
+  })
+})
+
+describe('the addresses on offer', () => {
+  it('lists every outlet first, then the places this month went to, then earlier ones', () => {
+    const shoots = SHOOTS_BY_BRAND['casa-vostra']
+    const places = pastPlaces(OUTLETS['casa-vostra'], shoots, ['Raffles City, atrium (level 1)'])
+    expect(places.map((p) => p.place)).toEqual([
+      ...OUTLETS['casa-vostra'],
+      'Raffles City, atrium (level 1)',
+    ])
+    // An outlet is one whether or not a shoot went there; an earlier place counts no shoot.
+    expect(places.map((p) => p.outlet)).toEqual([true, true, true, false])
+    expect(places[0]!.shoots).toBe(shoots.length)
+    expect(places[1]!.shoots).toBe(0)
   })
 })
 

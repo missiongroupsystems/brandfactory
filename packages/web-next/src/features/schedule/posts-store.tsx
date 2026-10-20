@@ -55,7 +55,7 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
   /**
    * Makes an idea a post on a day, at a time and a stage, and returns the post's id. The idea's
    * tile, wherever it sat, gives way to the post. The idea's page calls it once a date is picked,
-   * with the media its shoot captured, in shot order; `image` is the one photo the composer has.
+   * with its final edit; `image` is the one photo the composer has.
    */
   planPost: (
     idea: {
@@ -81,7 +81,7 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
   setChannels: (id: string, channels: NonNullable<Post['channels']>) => void
   /** The brief renamed the idea behind a post; the post says the same words. */
   renamePost: (id: string, hook: string) => void
-  /** The idea's shoot captured media; the post carries it, in shot order. */
+  /** The idea's final edit landed; the post carries it. */
   setImages: (id: string, images: string[]) => void
   /**
    * The brief renamed an idea that is still a tile on the current brand's calendar. A tile is

@@ -42,12 +42,8 @@ const FORMAT_LABEL = { reel: 'Reel', carousel: 'Carousel', story: 'Story' } as c
 /** A reel's and a story's frames stand; a carousel's slides are the post's 4:5. */
 const ASPECT = { reel: 'aspect-[9/16]', story: 'aspect-[9/16]', carousel: 'aspect-[4/5]' } as const
 
-/**
- * What a shot looks like on the sheet: what was captured, else the reference it is shot like,
- * else the idea's cover.
- */
+/** What a shot looks like on the sheet: the reference it is shot like, else the idea's cover. */
 export function shotImage(brandId: BrandId, card: IdeaCard, shot: Shot): string | undefined {
-  if (shot.media) return shot.media
   if (shot.ref) return isMediaRef(shot.ref) ? shot.ref : referenceById(brandId, shot.ref)?.image
   return coverOf(brandId, card)
 }

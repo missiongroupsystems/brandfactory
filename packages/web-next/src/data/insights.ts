@@ -53,6 +53,8 @@ export interface PostStat {
   saves: number
   /** Likes, comments, shares and saves over reach, in percent. */
   engagement: number
+  /** A collaboration post: the other creators' handles. Absent for the brand's own post. */
+  collab?: string[]
 }
 
 /** A headline number at the top of the page, with the last 12 weeks behind it. */
@@ -256,6 +258,7 @@ const CASA_VOSTRA: BrandInsights = {
       reach: 2800,
       saves: 31,
       engagement: 4.2,
+      collab: ['@danielfooddiary'],
     },
     {
       image: PHOTO.ravioli,
@@ -306,6 +309,7 @@ const CASA_VOSTRA: BrandInsights = {
       reach: 6100,
       saves: 170,
       engagement: 7.4,
+      collab: ['@eatwithmeilin'],
     },
   ],
   creators: [
@@ -540,6 +544,7 @@ const TEMPER: BrandInsights = {
       reach: 8400,
       saves: 260,
       engagement: 8.0,
+      collab: ['@winewithclara'],
     },
     {
       image: PIN('tp-p-5'),
@@ -823,6 +828,7 @@ const CARLITOS: BrandInsights = {
       reach: 7400,
       saves: 210,
       engagement: 7.5,
+      collab: ['@rachelwee.eats', '@faridfeeds'],
     },
     {
       image: K.bravas,

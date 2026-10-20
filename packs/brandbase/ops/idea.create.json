@@ -90,8 +90,12 @@
         }
       },
       "cut": {
-        "type": ["string", "null"],
-        "maxLength": 2048
+        "type": ["array", "null"],
+        "maxItems": 10,
+        "items": {
+          "type": "string",
+          "maxLength": 2048
+        }
       },
       "sharper": {
         "type": "array",
@@ -124,5 +128,5 @@
     "code": "ID_TAKEN",
     "message": "this id is taken"
   },
-  "sql": "with made as (\n  insert into brandbase.ideas as x (id, brand_id, format, pillar, hook, angle, feature, image, source, status,\n    day, why, inspiration, shots, cut, sharper, built_on)\n  values (:id, :brand, :format, coalesce(:pillar, ''), :hook, coalesce(:angle, ''), coalesce(:feature, ''), :image,\n    coalesce(:source::jsonb, '{\"own\":true}'), coalesce(:status, 'idea'), :day::date, :why,\n    coalesce(:inspiration::jsonb, '[]'), coalesce(:shots::jsonb, '[]'), :cut, coalesce(:sharper::jsonb, '[]'), :builtOn::jsonb)\n  on conflict (id) do update set id = excluded.id where x.brand_id = excluded.brand_id\n  returning x.*\n)\nselect brandbase.camel(to_jsonb(m)) || jsonb_build_object('createdAt', brandbase.iso(m.created_at), 'updatedAt', brandbase.iso(m.updated_at)) as result from made m"
+  "sql": "with made as (\n  insert into brandbase.ideas as x (id, brand_id, format, pillar, hook, angle, feature, image, source, status,\n    day, why, inspiration, shots, cut, sharper, built_on)\n  values (:id, :brand, :format, coalesce(:pillar, ''), :hook, coalesce(:angle, ''), coalesce(:feature, ''), :image,\n    coalesce(:source::jsonb, '{\"own\":true}'), coalesce(:status, 'idea'), :day::date, :why,\n    coalesce(:inspiration::jsonb, '[]'), coalesce(:shots::jsonb, '[]'), :cut::jsonb, coalesce(:sharper::jsonb, '[]'), :builtOn::jsonb)\n  on conflict (id) do update set id = excluded.id where x.brand_id = excluded.brand_id\n  returning x.*\n)\nselect brandbase.camel(to_jsonb(m)) || jsonb_build_object('createdAt', brandbase.iso(m.created_at), 'updatedAt', brandbase.iso(m.updated_at)) as result from made m"
 }

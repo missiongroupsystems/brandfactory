@@ -5,7 +5,7 @@ import * as React from 'react'
 import type { BrandId } from '@/data/brands'
 import type { Week } from '@/data/demo'
 import {
-  HOME,
+  OUTLETS,
   REPLY_OF,
   SHOOTS_BY_BRAND,
   USUAL_CREW,
@@ -171,7 +171,7 @@ export function planShoot(
     title: 'New shoot',
     date: when.date ?? freeShootDay(weeks, shoots),
     ...moveStart({ start: '12:00', end: '17:00' }, when.start ?? '12:00'),
-    place: HOME[brandId],
+    place: OUTLETS[brandId][0]!,
     crew: USUAL_CREW[brandId],
     ideaIds,
   }

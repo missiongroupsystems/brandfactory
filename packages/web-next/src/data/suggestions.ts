@@ -184,7 +184,7 @@ export const PAST_CREW: Record<BrandId, CrewMember[]> = {
   ],
 }
 
-/** Shoot addresses from before this month, offered after the brand's own room and this month's. */
+/** Shoot addresses from before this month, offered after the brand's outlets and this month's. */
 export const PAST_PLACES: Record<BrandId, string[]> = {
   'casa-vostra': ['Raffles City, atrium (level 1)'],
   temper: ['Duxton Hill, the street outside'],
