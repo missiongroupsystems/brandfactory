@@ -593,7 +593,7 @@ function PhotoTile({
       className={`bb-touch-drag relative block aspect-square w-full overflow-hidden rounded-[8px] bg-tile transition-opacity ${landed ? 'bb-land' : ''}`}
       style={{ opacity: dim ? 0.3 : 1 }}
     >
-      <Photo src={post.images[0]} standIn={standIn} />
+      <Photo src={post.images[0]} standIn={standIn} words={post.hook} />
       {post.stage === 'draft' && (
         <span className="pointer-events-none absolute inset-[3px] rounded-[6px] border border-dashed border-(--tile-dash)" />
       )}
@@ -604,10 +604,18 @@ function PhotoTile({
   )
 }
 
-function Photo({ src, standIn }: { src?: string; standIn?: string }) {
+function Photo({ src, standIn, words }: { src?: string; standIn?: string; words?: string }) {
   if (!src) {
-    // A post with no media yet shows its idea's cover, faded, as the desktop tile does.
-    if (!standIn) return null
+    // A post with no media yet shows its idea's cover, faded, as the desktop tile does; with no
+    // cover either, its words, where nothing beside the tile says them.
+    if (!standIn)
+      return words ? (
+        <span className="absolute inset-0 overflow-hidden px-1 py-1.5 text-left">
+          <span className="line-clamp-4 font-display text-[9px] leading-[1.15] [overflow-wrap:anywhere] text-ink-2">
+            {words}
+          </span>
+        </span>
+      ) : null
     return (
       <Image
         src={standIn}

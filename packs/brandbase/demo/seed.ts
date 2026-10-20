@@ -211,6 +211,44 @@ async function seed(db: pg.Client) {
     if (ordered.length > 0) await insert('ideas', ordered)
     for (const r of ordered) ownerOf.set(`idea:${r.id}`, id)
 
+    // The moodboard, ids unchanged: the ideas' inspiration names them. Ids are global, so one
+    // that two brands share would let a pick cross brands.
+    const posts = [
+      ...pack.references.map((r) => ({ r, boardId: null as string | null })),
+      ...pack.boards.flatMap((b) => b.pins.map((r) => ({ r, boardId: b.id }))),
+    ]
+    for (const key of [...pack.boards.map((b) => `board:${b.id}`), ...posts.map((p) => p.r.id)]) {
+      const other = ownerOf.get(`moodboard:${key}`)
+      if (other) throw new Error(`moodboard id ${key} appears twice, in ${other} and ${id}`)
+      ownerOf.set(`moodboard:${key}`, id)
+    }
+    await insert(
+      'moodboard_boards',
+      pack.boards.map((b, position) => ({
+        id: b.id,
+        brandId: id,
+        name: b.name,
+        pinCount: b.pinCount,
+        covers: b.covers,
+        position,
+      })),
+    )
+    await insert(
+      'moodboard_posts',
+      posts.map(({ r, boardId }, position) => ({
+        id: r.id,
+        brandId: id,
+        boardId,
+        platform: r.platform,
+        account: r.account,
+        image: r.image,
+        borrow: r.borrow,
+        ratio: r.ratio ?? null,
+        seed: r.seed,
+        position,
+      })),
+    )
+
     // Shoots and their crew. The seed's shoots stand for the team's own (in Lark).
     for (const s of SHOOTS_BY_BRAND[id]) {
       ownerOf.set(`shoot:${s.id}`, id)

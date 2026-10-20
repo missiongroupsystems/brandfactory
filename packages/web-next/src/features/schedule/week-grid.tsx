@@ -716,6 +716,17 @@ export function PostTile({
           </span>
         </>
       )}
+      {/* An idea typed on the calendar has no cover to lend: its words stand in. */}
+      {!image && !standIn && (
+        <span className="absolute inset-0 flex flex-col justify-center gap-1.5 px-3 pt-6 pb-8">
+          <span className="line-clamp-4 font-display text-[13px] leading-[1.2] text-ink-2 @max-[100px]:line-clamp-3 @max-[100px]:text-[11px]">
+            {post.hook}
+          </span>
+          <span className="font-mono text-[9px] tracking-[0.08em] text-ink-4 uppercase @max-[100px]:hidden">
+            No media yet
+          </span>
+        </span>
+      )}
       {isDraft && (
         <span className="pointer-events-none absolute inset-[3px] rounded-[6px] border border-dashed border-(--tile-dash)" />
       )}

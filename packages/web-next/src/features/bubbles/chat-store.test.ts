@@ -6,7 +6,7 @@ import type * as Client from './client'
 import { loadBrand } from '@/lib/remote'
 import type * as Remote from '@/lib/remote'
 
-import { ask, keep, resetChat, retry, send, stop, useChat } from './chat-store'
+import { ask, keep, pick, resetChat, retry, send, stop, useChat } from './chat-store'
 
 vi.hoisted(() => {
   // A yes is recorded on the core, so the store needs one to send to.
@@ -215,6 +215,42 @@ describe('what a move changed', () => {
   })
 })
 
+describe('moodboard posts in the chat', () => {
+  it('sends attached posts by kind and id and names them in the history, so Bubbles still knows them', async () => {
+    void ask('Look at these.', [
+      { kind: 'moodboard post', id: 'cv-p-1', label: 'Pasta · Flour dust' },
+    ])
+    await act(async () => {})
+    expect(open[0]!.args.attach).toEqual([{ kind: 'moodboard post', id: 'cv-p-1' }])
+    emit(open[0]!, text('Both are morning light.'))
+    emit(open[0]!, DONE)
+    await finish(open[0]!)
+    void ask('More like it')
+    await act(async () => {})
+    expect(open[1]!.args.history[0]).toEqual({
+      role: 'user',
+      text: 'Look at these. (attached: moodboard post cv-p-1)',
+    })
+  })
+
+  it('keeps what the person did on a pick card, and stores it, so a reload shows it decided', async () => {
+    const { result } = renderHook(() => useChat())
+    void ask('Pick some')
+    await act(async () => {})
+    emit(open[0]!, {
+      name: 'tool_call',
+      data: { id: 'p', tool: 'moodboard.suggest', input: { brand: 'casa-vostra', picks: ['a'] } },
+    })
+    act(() => pick('p', 'saved'))
+    expect(result.current.turns[0]!.tools[0]).toMatchObject({ id: 'p', picked: 'saved' })
+    expect(sessionStorage.getItem('bubbles.chat')).toContain('"picked":"saved"')
+    // A pick changes nothing stored: the brand does not load again for it.
+    emit(open[0]!, { name: 'tool_result', data: { id: 'p', tool: 'moodboard.suggest', ok: true } })
+    await act(async () => {})
+    expect(loadBrand).not.toHaveBeenCalled()
+  })
+})
+
 describe('a stored chat', () => {
   it('starts over when what is stored is not a chat this page can show', async () => {
     // An older page, or a broken write, must not leave the tab with a chat that cannot render.
@@ -224,5 +260,31 @@ describe('a stored chat', () => {
     const { result } = renderHook(() => store.useChat())
     expect(result.current.turns).toEqual([])
     expect(result.current.conversation).not.toBe('c-old')
+  })
+
+  it('starts over on a turn whose attachments or pick are not what the page draws', async () => {
+    const turn = (extra: string) =>
+      `{"id":"t","question":"Q","status":"done","tools":[],"texts":[],"approval":null,"error":null,"startedAt":1,${extra}}`
+    for (const extra of [
+      '"attached":[{"kind":1}]',
+      '"attached":[{"kind":"moodboard post","id":"p","label":"x","image":3}]',
+      '"attached":{}',
+      '"tools":[{"id":"c","tool":"moodboard.suggest","ok":true,"picked":"maybe"}]',
+    ]) {
+      sessionStorage.setItem('bubbles.chat', `{"conversation":"c-old","turns":[${turn(extra)}]}`)
+      vi.resetModules()
+      const store = await import('./chat-store')
+      const { result } = renderHook(() => store.useChat())
+      expect(result.current.turns).toEqual([])
+    }
+    // The shape the page writes loads as it is.
+    sessionStorage.setItem(
+      'bubbles.chat',
+      `{"conversation":"c-ok","turns":[${turn('"attached":[{"kind":"moodboard post","id":"p","label":"x"}]')}]}`,
+    )
+    vi.resetModules()
+    const store = await import('./chat-store')
+    const { result } = renderHook(() => store.useChat())
+    expect(result.current.turns).toHaveLength(1)
   })
 })

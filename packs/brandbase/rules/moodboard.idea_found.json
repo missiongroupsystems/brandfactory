@@ -1,0 +1,7 @@
+{
+  "id": "moodboard.idea_found",
+  "sql": "select :idea::text is null or exists (select 1 from brandbase.ideas where id = :idea and brand_id = :brand) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "idea not found"
+}

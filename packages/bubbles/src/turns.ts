@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { type Gateway, type Pass } from './gateway'
-import { type Said, turnText } from './prompt'
+import { type Attached, type Said, turnText } from './prompt'
 import { type Runtime, type RuntimeEvent, type RuntimeOptions } from './runtime'
 
 /**
@@ -46,6 +46,8 @@ export interface Turn {
   history: Said[]
   /** What the person is looking at, as the page names it (a kind and an id). */
   on?: string
+  /** What the person attached to the question, by kind and id. */
+  attach?: Attached[]
   agent: AgentSession
 }
 
@@ -169,7 +171,7 @@ export class Turns {
     try {
       await live.runtime.prompt(
         live.session,
-        turnText(req.question, this.now(), fresh ? req.history : [], req.on),
+        turnText(req.question, this.now(), fresh ? req.history : [], req.on, req.attach),
         (e) => {
           const out = this.translate(e, calls)
           for (const o of out) emit(o)

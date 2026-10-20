@@ -1,0 +1,36 @@
+{
+  "name": "moodboard.suggest",
+  "description": "Shows the person moodboard posts you pick, by key from moodboard.list, on a card, for an idea or for a new one. It saves nothing: the person changes the picks and confirms on the card. Never call idea.edit for the same picks.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "picks"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "idea": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "picks": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 8,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,80}$"
+        }
+      },
+      "why": {
+        "type": "string",
+        "maxLength": 500
+      }
+    }
+  },
+  "before": ["brand.reachable", "moodboard.idea_found", "moodboard.posts_found"],
+  "returns": "one",
+  "sql": "select jsonb_build_object('idea', (select jsonb_build_object('id', i.id, 'hook', i.hook, 'inspiration', i.inspiration) from brandbase.ideas i where i.id = :idea and i.brand_id = :brand), 'picks', :picks::jsonb) as result"
+}

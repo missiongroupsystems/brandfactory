@@ -88,10 +88,16 @@ const MOVES: Record<string, Move> = {
 }
 
 /** Moves that look and change nothing: no card, and no reload of the brand. */
-const READS = new Set(['account.me', 'brand.list', 'brand.state', 'post.list'])
+const READS = new Set(['account.me', 'brand.list', 'brand.state', 'post.list', 'moodboard.list'])
 
 /** True for a move that changes something in the app. */
 export const changes = (tool: string) => !READS.has(tool)
+
+/** Moves that draw a card but change nothing stored, so the brand need not load again. */
+const SHOWS = new Set(['moodboard.suggest'])
+
+/** True for a move after which the brand loads again. */
+export const reloads = (tool: string) => changes(tool) && !SHOWS.has(tool)
 
 /** True for a move whose card wants the thing as it was before the move ran. */
 export const keeps = (tool: string) => MOVES[tool]?.keep === true

@@ -1,0 +1,7 @@
+{
+  "id": "moodboard.posts_found",
+  "sql": "with picks as (select k, n from jsonb_array_elements_text(:picks::jsonb) with ordinality as e(k, n)), unknown as (select k, n from picks where not exists (select 1 from brandbase.moodboard_posts p where p.id = picks.k and p.brand_id = :brand) and not exists (select 1 from brandbase.pasted_links x where x.id = picks.k and x.brand_id = :brand)) select not exists (select 1 from unknown) as ok, (select jsonb_agg(k order by n) from unknown) as details",
+  "status": 400,
+  "code": "BAD_POST",
+  "message": "a pick is not on this brand's moodboard"
+}

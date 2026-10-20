@@ -3,13 +3,29 @@
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
-
+import { PhotosIcon } from '@/components/icons'
+import { Media } from '@/components/media'
+import type { BrandId } from '@/data/brands'
+import { referenceById } from '@/data/ideas'
+import { useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
+import { labelOf, toAttached } from './cards/moodboard-tile'
+import { Thumb } from './cards/shell'
 import { TurnCards } from './cards/turn-cards'
 import { ask, decide, resetChat, retry, send, setBrand, stop, useChat } from './chat-store'
-import { BUBBLES_URL, doing, moveName, running, said, summarise, type Turn } from './client'
+import {
+  BUBBLES_URL,
+  doing,
+  moveName,
+  running,
+  said,
+  summarise,
+  type Attached,
+  type Turn,
+} from './client'
 import { Markdown } from './markdown'
+import { moodboardPosts, MoodboardTray } from './moodboard-tray'
 
 const SUGGESTIONS = [
   "What's going out this week?",
@@ -72,7 +88,13 @@ function Chat() {
           <h1 className="font-display text-[34px] leading-none tracking-[-0.03em] max-md:text-[28px]">
             Hi, I&rsquo;m Bubbles.
           </h1>
-          <Composer live={false} onSend={(q) => void ask(q)} onStop={stop} />
+          <Composer
+            key={brandId}
+            brandId={brandId}
+            live={false}
+            onSend={(q, attached) => void ask(q, attached)}
+            onStop={stop}
+          />
           <ul className="flex flex-wrap justify-center gap-2">
             {SUGGESTIONS.map((s) => (
               <li key={s}>
@@ -113,7 +135,13 @@ function Chat() {
       </div>
       <div className="sticky bottom-0 mt-auto bg-page pt-4 pb-6 max-md:bottom-[calc(64px+env(safe-area-inset-bottom))] max-md:pb-3">
         <div className={COLUMN}>
-          <Composer live={live} onSend={(q) => void ask(q)} onStop={stop} />
+          <Composer
+            key={brandId}
+            brandId={brandId}
+            live={live}
+            onSend={(q, attached) => void ask(q, attached)}
+            onStop={stop}
+          />
         </div>
       </div>
     </main>
@@ -147,9 +175,10 @@ function TurnRow({
   return (
     <li className="bb-rise flex flex-col gap-5">
       <div className="flex justify-end">
-        <p className="max-w-[85%] rounded-[18px] rounded-br-[6px] bg-surface px-4 py-2.5 text-[15px] leading-[1.5] whitespace-pre-wrap">
-          {turn.question}
-        </p>
+        <div className="flex max-w-[85%] flex-col items-end gap-2 rounded-[18px] rounded-br-[6px] bg-surface px-4 py-2.5">
+          {turn.attached && turn.attached.length > 0 && <AttachedRow attached={turn.attached} />}
+          <p className="text-[15px] leading-[1.5] whitespace-pre-wrap">{turn.question}</p>
+        </div>
       </div>
       <div className="flex flex-col gap-3 text-[15px] leading-[1.6]">
         {live && (
@@ -174,6 +203,22 @@ function TurnRow({
         {!live && turn.tools.length > 0 && <Steps tools={turn.tools} notes={notes} />}
       </div>
     </li>
+  )
+}
+
+/** The moodboard posts a question went with, small, in its bubble. */
+function AttachedRow({ attached }: { attached: Attached[] }) {
+  const brandId = useBrand().brand.id as BrandId
+  // A turn stored before the picture rode along looks it up; the store's load redraws it.
+  useIdeas(brandId)
+  return (
+    <ul aria-label="Attached" className="flex flex-wrap justify-end gap-1.5 pt-1">
+      {attached.map((a) => (
+        <li key={a.id} aria-label={a.label} title={a.label}>
+          <Thumb src={a.image ?? referenceById(brandId, a.id)?.image} className="size-14" />
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -282,17 +327,35 @@ function ApprovalCard({
   )
 }
 
-/** One box: Enter asks, Shift+Enter makes a new line, and the box grows to a few lines. */
+/** What a question says when it is only its attachments. */
+const LOOK = 'Look at these moodboard posts.'
+
+/**
+ * One box: Enter asks, Shift+Enter makes a new line, and the box grows to a few lines. The
+ * moodboard button opens a tray of posts to attach; the ticked ones sit above the words as small
+ * thumbnails, and a question may be only them.
+ */
 function Composer({
+  brandId,
   live,
   onSend,
   onStop,
 }: {
+  brandId: BrandId
   live: boolean
-  onSend: (question: string) => void
+  onSend: (question: string, attached: Attached[]) => void
   onStop: () => void
 }) {
   const [text, setText] = React.useState('')
+  const [open, setOpen] = React.useState(false)
+  // The composer is keyed by brand: a switch starts it over, ticks and all.
+  const [ids, setIds] = React.useState<string[]>([])
+  // The moodboard comes with the brand's state: the button and the tray follow its load.
+  useIdeas(brandId)
+  const posts = moodboardPosts(brandId)
+  const attached = ids.flatMap((id) => posts.find((p) => p.id === id) ?? [])
+  const root = React.useRef<HTMLDivElement>(null)
+  const opener = React.useRef<HTMLButtonElement>(null)
   const box = React.useRef<HTMLTextAreaElement>(null)
   React.useLayoutEffect(() => {
     const el = box.current
@@ -300,64 +363,126 @@ function Composer({
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, 168)}px`
   }, [text])
+  React.useEffect(() => {
+    if (!open) return
+    const onPointer = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setOpen(false)
+      opener.current?.focus({ preventScroll: true })
+    }
+    window.addEventListener('pointerdown', onPointer)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('pointerdown', onPointer)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+  const question = text.trim() || (attached.length ? LOOK : '')
   const submit = () => {
-    const question = text.trim()
     if (!question || live) return
     setText('')
-    onSend(question)
+    setIds([])
+    setOpen(false)
+    onSend(question, attached.map(toAttached))
   }
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        submit()
-      }}
-      className="flex w-full items-end gap-2 rounded-[24px] border border-line bg-page py-2 pr-2 pl-4 shadow-soft transition-colors focus-within:border-line-strong"
-    >
-      <textarea
-        ref={box}
-        aria-label="Ask Bubbles"
-        placeholder="Ask Bubbles"
-        rows={1}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-            e.preventDefault()
-            submit()
-          }
+    <div ref={root} className="relative w-full">
+      {open && <MoodboardTray brandId={brandId} ticked={ids} onChange={setIds} />}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          submit()
         }}
-        className="max-h-[168px] min-h-[24px] flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-[1.5] outline-none placeholder:text-ink-5"
-      />
-      {live ? (
-        <button
-          type="button"
-          aria-label="Stop"
-          onClick={onStop}
-          className="bb-press flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-page"
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-            <rect x="1.5" y="1.5" width="9" height="9" rx="2" fill="currentColor" />
-          </svg>
-        </button>
-      ) : (
-        <button
-          type="submit"
-          aria-label="Send"
-          disabled={!text.trim()}
-          className="bb-press flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-page transition-opacity disabled:opacity-30"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path
-              d="M7 11.5v-9M3.5 6L7 2.5 10.5 6"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-      )}
-    </form>
+        className="flex w-full flex-col rounded-[24px] border border-line bg-page shadow-soft transition-colors focus-within:border-line-strong"
+      >
+        {attached.length > 0 && (
+          <ul aria-label="Attached" className="flex flex-wrap gap-2.5 px-3 pt-3 pb-1">
+            {attached.map((p) => (
+              <li key={p.id} className="bb-pop relative">
+                <span className="block size-11 overflow-hidden rounded-[10px] bg-tile">
+                  <Media src={p.image} sizes="88px" />
+                </span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${labelOf(p)}`}
+                  onClick={() => setIds(ids.filter((k) => k !== p.id))}
+                  className="bb-press absolute -top-1.5 -right-1.5 flex size-[18px] items-center justify-center rounded-full bg-ink text-page shadow-[0_0_0_2px_var(--page)]"
+                >
+                  <svg width="8" height="8" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <path
+                      d="M2 2L10 10M10 2L2 10"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className={`flex items-end gap-1.5 py-2 pr-2 ${posts.length ? 'pl-2' : 'pl-4'}`}>
+          {posts.length > 0 && (
+            <button
+              ref={opener}
+              type="button"
+              aria-label="Moodboard"
+              aria-expanded={open}
+              onClick={() => setOpen((o) => !o)}
+              className={`bb-press flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-surface hover:text-ink ${open ? 'bg-surface text-ink' : 'text-ink-3'}`}
+            >
+              <PhotosIcon size={15} />
+            </button>
+          )}
+          <textarea
+            ref={box}
+            aria-label="Ask Bubbles"
+            placeholder="Ask Bubbles"
+            rows={1}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault()
+                submit()
+              }
+            }}
+            className="max-h-[168px] min-h-[24px] flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-[1.5] outline-none placeholder:text-ink-5"
+          />
+          {live ? (
+            <button
+              type="button"
+              aria-label="Stop"
+              onClick={onStop}
+              className="bb-press flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-page"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                <rect x="1.5" y="1.5" width="9" height="9" rx="2" fill="currentColor" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              type="submit"
+              aria-label="Send"
+              disabled={!question}
+              className="bb-press flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-page transition-opacity disabled:opacity-30"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path
+                  d="M7 11.5v-9M3.5 6L7 2.5 10.5 6"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
   )
 }

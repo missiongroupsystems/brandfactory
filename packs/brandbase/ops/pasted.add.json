@@ -65,7 +65,7 @@
       }
     }
   },
-  "before": ["brand.reachable"],
+  "before": ["brand.reachable", "pasted.id_free"],
   "returns": "one",
   "empty": {
     "status": 409,

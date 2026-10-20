@@ -10,11 +10,12 @@ import {
   reduce,
   running,
   sendTurn,
+  type Attached,
   type HistoryItem,
   type Turn,
   type TurnEvent,
 } from './client'
-import { brandOf, changes, inputOf } from './cards/model'
+import { brandOf, inputOf, reloads } from './cards/model'
 
 /**
  * The chat, in memory and outside React, so a turn keeps streaming while the person looks at
@@ -36,16 +37,30 @@ function fresh(): Chat {
   return { conversation: newId(), turns: [] }
 }
 
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
+
+const isAttached = (a: unknown) =>
+  isRecord(a) &&
+  typeof a.kind === 'string' &&
+  typeof a.id === 'string' &&
+  typeof a.label === 'string' &&
+  (a.image === undefined || typeof a.image === 'string')
+
+const isCall = (c: unknown) =>
+  isRecord(c) && (c.picked === undefined || c.picked === 'saved' || c.picked === 'sent')
+
 const isTurn = (t: unknown): t is Turn => {
-  if (typeof t !== 'object' || t === null) return false
-  const x = t as Record<string, unknown>
+  if (!isRecord(t)) return false
+  const x = t
   return (
     typeof x.id === 'string' &&
     typeof x.question === 'string' &&
     typeof x.status === 'string' &&
     Array.isArray(x.tools) &&
+    x.tools.every(isCall) &&
     Array.isArray(x.texts) &&
-    typeof x.startedAt === 'number'
+    typeof x.startedAt === 'number' &&
+    (x.attached === undefined || (Array.isArray(x.attached) && x.attached.every(isAttached)))
   )
 }
 
@@ -114,7 +129,7 @@ function apply(id: string, event: TurnEvent) {
   if (event.name === 'tool_result' && event.data.ok) {
     const call = chat.turns.find((t) => t.id === id)?.tools.find((t) => t.id === event.data.id)
     const brand = call && brandOf(inputOf(call))
-    if (call && brand && changes(call.tool)) refresh(brand)
+    if (call && brand && reloads(call.tool)) refresh(brand)
   }
   update((c) => ({ ...c, turns: c.turns.map((t) => (t.id === id ? reduce(t, event) : t)) }))
 }
@@ -155,6 +170,18 @@ export function keep(turnId: string, callId: string, snapshot: unknown): void {
   }))
 }
 
+/** Records what the person did on a pick card, so a reloaded chat shows it decided. */
+export function pick(callId: string, picked: 'saved' | 'sent'): void {
+  update((c) => ({
+    ...c,
+    turns: c.turns.map((t) =>
+      t.tools.some((x) => x.id === callId)
+        ? { ...t, tools: t.tools.map((x) => (x.id === callId ? { ...x, picked } : x)) }
+        : t,
+    ),
+  }))
+}
+
 /**
  * What Bubbles is told of the chat so far: each question and the answer it got. A move that
  * waited for the person's yes counts as an answer, so "Yes, go ahead." keeps its move. A question
@@ -171,18 +198,26 @@ function history(turns: Turn[]): HistoryItem[] {
       )
     return said.length
       ? [
-          { role: 'user', text: t.question },
+          {
+            role: 'user',
+            text: t.attached?.length
+              ? `${t.question} (attached: ${t.attached.map((a) => `${a.kind} ${a.id}`).join(', ')})`
+              : t.question,
+          },
           { role: 'bubbles', text: said.join('\n\n') },
         ]
       : []
   })
 }
 
-/** Asks Bubbles one question: a new turn in the transcript, filled as the stream comes in. */
-export async function ask(question: string): Promise<void> {
+/**
+ * Asks Bubbles one question: a new turn in the transcript, filled as the stream comes in. What
+ * the person attached goes by kind and id; its label stays on the page.
+ */
+export async function ask(question: string, attached?: Attached[]): Promise<void> {
   if (chat.turns.some(running)) return
   const past = history(chat.turns).slice(-HISTORY_MAX)
-  const turn = newTurn(question)
+  const turn = { ...newTurn(question), ...(attached?.length ? { attached } : {}) }
   update((c) => ({ ...c, turns: [...c.turns, turn] }))
   const mine = { id: turn.id, controller: new AbortController() }
   current = mine
@@ -192,6 +227,7 @@ export async function ask(question: string): Promise<void> {
       question,
       history: past,
       on: brand && `brand ${brand}`,
+      attach: attached?.map(({ kind, id }) => ({ kind, id })),
       signal: mine.controller.signal,
       onEvent: (e) => apply(turn.id, e),
     })
@@ -222,7 +258,7 @@ export function retry(id: string): Promise<void> {
   const last = chat.turns[chat.turns.length - 1]
   if (!last || last.id !== id || running(last)) return Promise.resolve()
   update((c) => ({ ...c, turns: c.turns.slice(0, -1) }))
-  return ask(last.question)
+  return ask(last.question, last.attached)
 }
 
 /**

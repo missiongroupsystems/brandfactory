@@ -54,14 +54,29 @@ export interface ToolCall {
    * removed thing is still drawn, and a move slides from the old day to the new.
    */
   snapshot?: unknown
+  /** What the person did on the card a pick move drew: saved the picks to the idea, or sent them. */
+  picked?: 'saved' | 'sent'
 }
 
 export type TurnStatus = 'starting' | 'thinking' | 'done' | 'failed' | 'stopped'
+
+/**
+ * A moodboard post the person attached to a question. The label and the picture are the page's
+ * own, so the bubble still draws them after a brand switch; only the kind and id are sent.
+ */
+export interface Attached {
+  kind: 'moodboard post'
+  id: string
+  label: string
+  image?: string
+}
 
 export interface Turn {
   /** The stream's events find their turn by it, however the transcript moves meanwhile. */
   id: string
   question: string
+  /** What the person attached to the question: drawn in its bubble. Absent on a bare question. */
+  attached?: Attached[]
   status: TurnStatus
   tools: ToolCall[]
   /** The answer: what Bubbles wrote after its last move. */
@@ -333,6 +348,7 @@ export async function sendTurn({
   question,
   history,
   on,
+  attach,
   signal,
   onEvent,
 }: {
@@ -341,6 +357,8 @@ export async function sendTurn({
   history: HistoryItem[]
   /** What is on screen, such as `brand casa-vostra`, so "this week" means this brand's week. */
   on?: string
+  /** What the person attached, by kind and id only: no words of the page's reach Bubbles. */
+  attach?: { kind: string; id: string }[]
   signal: AbortSignal
   onEvent: (event: BubblesEvent) => void
 }): Promise<void> {
@@ -349,7 +367,13 @@ export async function sendTurn({
     res = await fetch(`${BUBBLES_URL}/turns`, {
       method: 'POST',
       headers: await headers(),
-      body: JSON.stringify({ conversation, question, history, on }),
+      body: JSON.stringify({
+        conversation,
+        question,
+        history,
+        on,
+        ...(attach?.length && { attach }),
+      }),
       signal,
     })
   } catch (err) {

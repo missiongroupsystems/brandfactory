@@ -1,0 +1,420 @@
+{
+  "name": "moodboard",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "member",
+  "cases": [
+    {
+      "name": "lists pasted links newest first, then the shelf, then each board's pins in board order",
+      "steps": [
+        {
+          "call": "pasted.add",
+          "now": "2026-10-05T04:00:00Z",
+          "input": {
+            "brand": "casa",
+            "id": "l-old",
+            "platform": "ig",
+            "account": "@pasted",
+            "image": "",
+            "borrow": "b",
+            "seed": {
+              "format": "reel",
+              "pillar": "",
+              "hook": "Pasted l-old",
+              "angle": "",
+              "feature": "",
+              "shots": [],
+              "sharper": []
+            }
+          }
+        },
+        {
+          "call": "pasted.add",
+          "now": "2026-10-06T04:00:00Z",
+          "input": {
+            "brand": "casa",
+            "id": "l-new",
+            "platform": "ig",
+            "account": "@pasted",
+            "image": "",
+            "borrow": "b",
+            "seed": {
+              "format": "reel",
+              "pillar": "",
+              "hook": "Pasted l-new",
+              "angle": "",
+              "feature": "",
+              "shots": [],
+              "sharper": []
+            }
+          }
+        },
+        {
+          "call": "moodboard.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "key": "l-new",
+                "from": "pasted",
+                "board": null,
+                "platform": "ig",
+                "hook": "Pasted l-new",
+                "format": "reel"
+              },
+              {
+                "key": "l-old",
+                "from": "pasted"
+              },
+              {
+                "key": "casa-s1",
+                "from": "shelf",
+                "board": null,
+                "platform": "ig",
+                "account": "@one",
+                "image": "/s1.jpg",
+                "borrow": "The steam",
+                "hook": "Steam rising",
+                "format": "carousel"
+              },
+              {
+                "key": "casa-s2",
+                "from": "shelf"
+              },
+              {
+                "key": "casa-p-late",
+                "from": "board",
+                "board": "casa-b-late",
+                "platform": "pinterest"
+              },
+              {
+                "key": "casa-p-early",
+                "from": "board",
+                "board": "casa-b-early"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "filters the list by board and by platform",
+      "steps": [
+        {
+          "call": "pasted.add",
+          "now": "2026-10-06T04:00:00Z",
+          "input": {
+            "brand": "casa",
+            "id": "l-new",
+            "platform": "ig",
+            "account": "@pasted",
+            "image": "",
+            "borrow": "b",
+            "seed": {
+              "format": "reel",
+              "pillar": "",
+              "hook": "Pasted l-new",
+              "angle": "",
+              "feature": "",
+              "shots": [],
+              "sharper": []
+            }
+          }
+        },
+        {
+          "call": "moodboard.list",
+          "input": {
+            "brand": "casa",
+            "board": "casa-b-early"
+          },
+          "expect": {
+            "result": [
+              {
+                "key": "casa-p-early"
+              }
+            ]
+          }
+        },
+        {
+          "call": "moodboard.list",
+          "input": {
+            "brand": "casa",
+            "platform": "ig"
+          },
+          "expect": {
+            "result": [
+              {
+                "key": "l-new"
+              },
+              {
+                "key": "casa-s1"
+              }
+            ]
+          }
+        },
+        {
+          "call": "moodboard.list",
+          "input": {
+            "brand": "casa",
+            "board": "temper-b"
+          },
+          "expect": {
+            "length": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "holds the moodboard in the brand's state, boards in order and posts shelf first",
+      "steps": [
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "moodboard": {
+                "boards": [
+                  {
+                    "id": "casa-b-late",
+                    "name": "Late",
+                    "pinCount": 9,
+                    "covers": ["/pins/l.jpg"]
+                  },
+                  {
+                    "id": "casa-b-early"
+                  }
+                ],
+                "posts": [
+                  {
+                    "id": "casa-s1",
+                    "boardId": null,
+                    "seed": {
+                      "hook": "Steam rising"
+                    }
+                  },
+                  {
+                    "id": "casa-s2"
+                  },
+                  {
+                    "id": "casa-p-late",
+                    "boardId": "casa-b-late",
+                    "ratio": 1.5
+                  },
+                  {
+                    "id": "casa-p-early"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "answers a suggestion with the picks in the order given and saves nothing to the idea",
+      "steps": [
+        {
+          "call": "idea.create",
+          "input": {
+            "brand": "casa",
+            "id": "i1",
+            "format": "reel",
+            "hook": "Nonna rolls the pasta",
+            "image": "/photos/pasta.jpg",
+            "inspiration": ["casa-s1"]
+          }
+        },
+        {
+          "call": "moodboard.suggest",
+          "input": {
+            "brand": "casa",
+            "idea": "i1",
+            "picks": ["casa-p-late", "casa-s1"],
+            "why": "Candlelight suits it"
+          },
+          "expect": {
+            "result": {
+              "idea": {
+                "id": "i1",
+                "hook": "Nonna rolls the pasta",
+                "inspiration": ["casa-s1"]
+              },
+              "picks": ["casa-p-late", "casa-s1"]
+            }
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "ideas": [
+                {
+                  "id": "i1",
+                  "version": 1,
+                  "inspiration": ["casa-s1"]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "takes a pasted link as a pick, with no idea",
+      "steps": [
+        {
+          "call": "pasted.add",
+          "now": "2026-10-06T04:00:00Z",
+          "input": {
+            "brand": "casa",
+            "id": "l-new",
+            "platform": "ig",
+            "account": "@pasted",
+            "image": "",
+            "borrow": "b",
+            "seed": {
+              "format": "reel",
+              "pillar": "",
+              "hook": "Pasted l-new",
+              "angle": "",
+              "feature": "",
+              "shots": [],
+              "sharper": []
+            }
+          }
+        },
+        {
+          "call": "moodboard.suggest",
+          "input": {
+            "brand": "casa",
+            "picks": ["l-new"]
+          },
+          "expect": {
+            "result": {
+              "idea": null,
+              "picks": ["l-new"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses an unknown key and another brand's post, naming them",
+      "steps": [
+        {
+          "call": "moodboard.suggest",
+          "input": {
+            "brand": "casa",
+            "picks": ["temper-s1", "casa-s1", "nope"]
+          },
+          "expect": {
+            "status": 400,
+            "code": "BAD_POST",
+            "details": ["temper-s1", "nope"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses another brand's idea as not found",
+      "steps": [
+        {
+          "call": "idea.create",
+          "as": "admin",
+          "input": {
+            "brand": "temper",
+            "id": "t-idea",
+            "format": "reel",
+            "hook": "Steak",
+            "image": "/s.jpg"
+          }
+        },
+        {
+          "call": "moodboard.suggest",
+          "input": {
+            "brand": "casa",
+            "idea": "t-idea",
+            "picks": ["casa-s1"]
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "moodboard.suggest",
+          "input": {
+            "brand": "casa",
+            "idea": "no-idea",
+            "picks": ["casa-s1"]
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        }
+      ]
+    },
+    {
+      "name": "lets the runtime role read the moodboard tables and write neither",
+      "steps": [
+        {
+          "sql": "select has_table_privilege('pack_runtime', 'brandbase.moodboard_boards', 'select') as boards, has_table_privilege('pack_runtime', 'brandbase.moodboard_posts', 'select') as posts, has_table_privilege('pack_runtime', 'brandbase.moodboard_posts', 'insert, update, delete') as writes",
+          "expect": {
+            "rows": [
+              {
+                "boards": true,
+                "posts": true,
+                "writes": false
+              }
+            ]
+          }
+        },
+        {
+          "call": "moodboard.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "length": 4
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a pasted link under the id of a post already on the moodboard",
+      "steps": [
+        {
+          "call": "pasted.add",
+          "input": {
+            "brand": "casa",
+            "id": "casa-s1",
+            "platform": "ig",
+            "account": "@pasted",
+            "image": "",
+            "borrow": "b",
+            "seed": {
+              "format": "reel",
+              "pillar": "",
+              "hook": "",
+              "angle": "",
+              "feature": "",
+              "shots": [],
+              "sharper": []
+            }
+          },
+          "expect": {
+            "status": 409,
+            "code": "ID_TAKEN"
+          }
+        }
+      ]
+    }
+  ]
+}

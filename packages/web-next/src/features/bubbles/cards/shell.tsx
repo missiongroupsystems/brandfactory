@@ -44,6 +44,7 @@ export function Card({
   removed = false,
   index,
   label,
+  wide = false,
   children,
 }: {
   verb: string
@@ -53,6 +54,8 @@ export function Card({
   index: number
   /** What the card is, for a screen reader: "Idea: Watch the dough." */
   label: string
+  /** The card takes the whole row: a grid of moodboard tiles needs the width. */
+  wide?: boolean
   children: React.ReactNode
 }) {
   const frame = `flex w-full flex-col gap-2.5 rounded-[16px] border border-line bg-page p-3 text-left ${href && !removed ? 'bb-press transition-colors hover:bg-surface-2' : ''}`
@@ -64,7 +67,7 @@ export function Card({
   )
   return (
     <li
-      className={`bb-rise flex w-[calc(50%-6px)] shrink-0 snap-start max-md:w-[calc(100vw-64px)] ${removed ? 'opacity-50' : ''}`}
+      className={`bb-rise flex shrink-0 snap-start ${wide ? 'w-full' : 'w-[calc(50%-6px)] max-md:w-[calc(100vw-64px)]'} ${removed ? 'opacity-50' : ''}`}
       style={{ animationDelay: `${Math.min(index, 6) * 70}ms` }}
     >
       {href && !removed ? (

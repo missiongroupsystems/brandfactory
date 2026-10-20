@@ -869,6 +869,93 @@
           }
         }
       ]
+    },
+    {
+      "name": "answers not-found to a member reading another brand's moodboard, and the row rules alone hide it",
+      "steps": [
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('member'); set local role pack_runtime; raise exception 'as % for %: % posts, % boards, % of another brand', current_user, brandbase.caller(), (select count(*) from brandbase.moodboard_posts), (select count(*) from brandbase.moodboard_boards), (select count(*) from brandbase.moodboard_posts where brand_id <> 'casa') + (select count(*) from brandbase.moodboard_boards where brand_id <> 'casa'); end $$",
+          "expect": {
+            "error": "as pack_runtime for member: 4 posts, 2 boards, 0 of another brand"
+          }
+        },
+        {
+          "call": "moodboard.list",
+          "input": {
+            "brand": "temper"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "moodboard.suggest",
+          "input": {
+            "brand": "temper",
+            "picks": ["temper-s1"]
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "moodboard.list",
+          "input": {
+            "brand": "casa",
+            "board": "temper-b"
+          },
+          "expect": {
+            "length": 0
+          }
+        },
+        {
+          "call": "moodboard.suggest",
+          "input": {
+            "brand": "casa",
+            "picks": ["temper-p1"]
+          },
+          "expect": {
+            "status": 400,
+            "code": "BAD_POST"
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "moodboard": {
+                "boards": [
+                  {
+                    "id": "casa-b-late"
+                  },
+                  {
+                    "id": "casa-b-early"
+                  }
+                ],
+                "posts": [
+                  {
+                    "id": "casa-s1"
+                  },
+                  {
+                    "id": "casa-s2"
+                  },
+                  {
+                    "id": "casa-p-late"
+                  },
+                  {
+                    "id": "casa-p-early"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.29.0** — 2026-10-20 — `feat/moodboard-in-chat`: moodboard picks in Bubbles. The moodboard moves into the core (brandbase 1.3.0, migrations 0010 and 0011, not applied to production); Bubbles suggests posts on a card the person ticks and saves to the idea, and a tray beside the chat box attaches posts to a question. A post with nothing to show on the calendar shows its words. 859 tests.
 - **2.28.0** — 2026-10-20 — `feat/client-feedback-ui`: Nat's first round. The address field lists the brand's outlets first; the sharpened hook sits in a field the team edits from; "Shots" is "Storyboard" on the idea page and the call sheet; the Shoot capture stage goes and every format takes one final edit in the Post stage, then its date, and brandbase 1.2.0 keeps the final edit as a list (migration 0009); a collab post in Insights names the creators it is shared with. 815 tests.
 - **2.27.1** — 2026-10-19 — `feat/packs-core`: ready for main. The Bubbles link shows in the header and the tab bar only where Bubbles is connected, so the static demo has no dead tab; CLAUDE.md no longer calls the core "this branch only". No migration. 806 tests.
 - **2.27.0** — 2026-10-19 — `feat/packs-core`: the caller in a table, for Supabase. Row rules read who is calling from `claims.calls`, which only the core writes, one row per transaction, gone at commit; no longer from settings that `set_config` can change where the database lets the runtime role call it. Core migration 0007, brandbase 1.1.0 with migration 0008. 804 tests.
@@ -55,6 +56,23 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.29.0 — 2026-10-20
+
+- **The moodboard in the core (brandbase 1.3.0).** Boards, pins and shelf posts move from web-next's demo data into
+  `moodboard_boards` and `moodboard_posts` (migrations `0010_moodboard.sql`, `0011_moodboard_brand.sql`), under the
+  brand row rules and readable only. `moodboard.list` reads them; `moodboard.suggest` saves nothing and draws a card.
+  A pasted link can no longer take a moodboard post's id. The demo seed keeps every id.
+- **web-next** reads the moodboard from `brand.state` when the core is connected, and the demo's otherwise.
+- **Bubbles.** A picks card shows Bubbles' choices ticked with one "+N" tile for the rest; Save to idea merges them
+  into the idea, Use these asks again with them attached, and the decision survives a reload. A moodboard button
+  beside the chat box opens a tray to attach up to 12 posts. Only kinds and ids reach the model.
+- **Calendar.** A post planned from an idea typed on the calendar showed an empty grey tile; the desktop tile and the
+  phone month grid now show its words.
+- **Reviews:** Opus and Sonnet on each part (no blockers; the fixes include a Save that could drop an idea's posts
+  and a tray that read the demo boards), then a verification pass on the fixes. Plan and as built:
+  `docs/completions/moodboard-in-chat-phases-1-to-4.md`. No live model check yet.
+- **Gate:** typecheck, lint, format, build; tests 859, none skipped.
 
 ## 2.28.0 — 2026-10-20
 

@@ -19,6 +19,7 @@ import { IdeaTile } from './idea-card'
 import { ClearedCard, CommentCard, ReplyCard, SentToCard } from './inbox-cards'
 import { ColoursCard, FileCard, LogoCard, VoiceCard } from './kit-cards'
 import { cardsFor, inputOf, keeps, kindOf, type Card, type CardKind } from './model'
+import { PicksCard } from './moodboard-card'
 import { ConnectionCard, LinkCard, PastedCard, PlainRow, TikTokCard } from './other-cards'
 import { PostCard } from './post-card'
 import { Row } from './shell'
@@ -53,6 +54,9 @@ export function TurnCards({ turn }: { turn: Turn }) {
   return (
     <Row>
       {cards.map((card, i) => {
+        // A pick changes nothing stored, so it has no MOVES entry: it is drawn by the move's name.
+        if (card.tool === 'moodboard.suggest')
+          return <PicksCard key={card.key} model={card} index={i} />
         const Draw = DRAW[card.kind]
         return <Draw key={card.key} model={card} index={i} />
       })}

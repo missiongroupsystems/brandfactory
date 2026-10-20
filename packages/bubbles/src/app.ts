@@ -14,6 +14,10 @@ const CONVERSATION = /^[A-Za-z0-9-]{8,64}$/
 const ON = /^[\w .:-]{1,120}$/
 const MAX_QUESTION = 4000
 const MAX_HISTORY = 50
+const MAX_ATTACH = 12
+/** An attached thing goes by kind and id only, so no free words from the page reach the prompt. */
+const KIND = /^[a-z][a-z ]{0,30}$/
+const ID = /^[\w.:-]{1,80}$/
 
 export interface BubblesDeps {
   turns: Turns
@@ -24,7 +28,7 @@ export interface BubblesDeps {
 
 function readTurn(body: unknown) {
   const b = (body ?? {}) as Record<string, unknown>
-  const { conversation, question, history = [], on } = b
+  const { conversation, question, history = [], on, attach = [] } = b
   if (typeof conversation !== 'string' || !CONVERSATION.test(conversation)) {
     throw new TurnRefused(400, 'VALIDATION', 'conversation is 8 to 64 letters, digits or -')
   }
@@ -44,7 +48,22 @@ function readTurn(body: unknown) {
   if (on !== undefined && (typeof on !== 'string' || !ON.test(on))) {
     throw new TurnRefused(400, 'VALIDATION', 'on is a short name, such as a kind and an id')
   }
-  return { conversation, question: question.trim(), history: said, on }
+  if (!Array.isArray(attach) || attach.length > MAX_ATTACH) {
+    throw new TurnRefused(400, 'VALIDATION', `attach is a list of at most ${MAX_ATTACH}`)
+  }
+  const attached = attach.map((a: unknown) => {
+    const x = (a ?? {}) as Record<string, unknown>
+    if (
+      typeof x.kind !== 'string' ||
+      !KIND.test(x.kind) ||
+      typeof x.id !== 'string' ||
+      !ID.test(x.id)
+    ) {
+      throw new TurnRefused(400, 'VALIDATION', 'attach holds { kind, id }: a short kind and an id')
+    }
+    return { kind: x.kind, id: x.id }
+  })
+  return { conversation, question: question.trim(), history: said, on, attach: attached }
 }
 
 export function createBubbles(deps: BubblesDeps) {

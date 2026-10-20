@@ -12,6 +12,7 @@ import { PlatformLogo } from '@/components/platform-logos'
 import { MOODBOARD_ACCOUNT, moodboardTag, PINTEREST_ACCOUNT } from '@/data/brand-kit'
 import {
   IDEAS_BY_BRAND,
+  moodboardOf,
   inspirationOf,
   pastedReferences,
   type IdeaCard,
@@ -543,7 +544,7 @@ const SOURCE_LOGO: Record<MoodSource, 'pinterest' | 'ig' | 'tt'> = {
 function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   const { brand } = useBrand()
   const { sources } = useIdeas(brand.id)
-  const { boards, references } = IDEAS_BY_BRAND[brand.id]
+  const { boards, references } = moodboardOf(brand.id)
   const [filter, setFilter] = React.useState<string>('all')
   // Pasted links live in the data module, so an idea keeps them and they outlast a view switch.
   // Read on every render: a paste and a reload from the server both notify the ideas store.
@@ -827,7 +828,7 @@ function SourceSetup({ source }: { source: MoodSource }) {
       <div role="radiogroup" aria-label="Boards" className="flex flex-col">
         {brands.map((b) => {
           const own = b.id === brand.id
-          const pins = IDEAS_BY_BRAND[b.id].boards.reduce((n, s) => n + s.pinCount, 0)
+          const pins = moodboardOf(b.id).boards.reduce((n, s) => n + s.pinCount, 0)
           return (
             <span
               key={b.id}
@@ -858,7 +859,7 @@ function SourceSetup({ source }: { source: MoodSource }) {
 
 function ConnectSources() {
   const { brand } = useBrand()
-  const { boards } = IDEAS_BY_BRAND[brand.id]
+  const { boards } = moodboardOf(brand.id)
   const [open, setOpen] = React.useState<MoodSource | null>(null)
 
   return (
