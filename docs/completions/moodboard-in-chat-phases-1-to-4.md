@@ -57,6 +57,9 @@ month grid; both now show the post's words.
 
 ## Left open
 
+- A database that ran the branch's pre-rebase 1.2.1 has `0009_moodboard.sql` and `0010_moodboard_brand.sql`
+  recorded and the tables made, so 1.3.0's `0010_moodboard.sql` fails there. Rebuild such a local database; main (1.2.0)
+  and production (1.1.0) migrate cleanly (checked on scratch databases).
 - The live check with a real model is not done: each question costs OpenRouter credit, and the owner has not yet
   approved one. The thing to watch is whether Bubbles calls `idea.edit` with picks instead of `moodboard.suggest`.
 - A loadout lists op names, so the two new moves reach nobody whose loadout is not `all` until it is set again.

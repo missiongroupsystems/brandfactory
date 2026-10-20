@@ -57,7 +57,7 @@ Rules: `moodboard.idea_found` (404 when the idea is not this brand's) and `moodb
 when a pick is not one of this brand's moodboard posts or pasted links).
 
 The demo seed loads each brand's boards, pins and references with their ids unchanged, since seeded ideas refer to
-them. The seed fails on an id that two brands share. Manifest 1.1.0 → 1.2.0.
+them. The seed fails on an id that two brands share. Manifest 1.2.0 → 1.3.0.
 
 Tests (`tests/moodboard.json`, `tests/isolation.json`): the list order and `from`; filters; `brand.state` holds the
 moodboard; a suggestion answers the picks in Bubbles' order and leaves the idea unchanged; a pasted link is a valid
