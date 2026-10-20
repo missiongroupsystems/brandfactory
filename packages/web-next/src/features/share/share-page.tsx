@@ -216,9 +216,9 @@ function CallSheet({ brandId, shoot }: { brandId: BrandId; shoot: Shoot }) {
           ))}
         </ul>
       </header>
-      <section aria-label="Shot list" className="flex flex-col gap-6">
+      <section aria-label="Storyboard" className="flex flex-col gap-6">
         <span className={EYEBROW}>
-          Shot list · {shots} {shots === 1 ? 'shot' : 'shots'}
+          Storyboard · {shots} {shots === 1 ? 'shot' : 'shots'}
         </span>
         <ShotList brandId={brandId} ideas={cards} bleed={BLEED} />
       </section>

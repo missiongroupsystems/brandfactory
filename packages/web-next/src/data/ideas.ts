@@ -57,10 +57,6 @@ export interface Shot {
   title: string
   /** The reference to shoot it like: an entry of the idea's `inspiration`. */
   ref?: string
-  /** The photo or clip captured on the day, as a media URL (`components/media.tsx`). */
-  media?: string
-  /** Ticked on the day, with or without media. */
-  captured?: boolean
 }
 
 let shotSerial = 0
@@ -98,8 +94,11 @@ export interface IdeaCard {
   shots: Shot[]
   /** The day the team shoots it, on the calendar. */
   shootDay?: string
-  /** A reel's final cut: the one video that goes out, as a media URL. The clips are its footage. */
-  cut?: string
+  /**
+   * The final edit, as the videographer sent it back, as media URLs (`components/media.tsx`): a
+   * reel's or a story's one video, a carousel's slides in order. The post carries it.
+   */
+  cut?: string[]
   sharper: Sharper[]
   builtOn?: BuiltOn
 }

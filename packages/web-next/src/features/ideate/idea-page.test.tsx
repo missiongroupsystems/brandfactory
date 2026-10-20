@@ -7,7 +7,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BrandProvider, useBrand } from '@/features/schedule/posts-store'
 import { resetShoots } from '@/features/shoot/shoots-store'
@@ -43,6 +43,20 @@ beforeEach(() => {
   url.createObjectURL = () => `blob:file-${++blobs}`
 })
 
+// jsdom loads no media, so a video never says how long it is: here it fails at once and reads 0:00.
+beforeAll(() => {
+  Object.defineProperty(HTMLMediaElement.prototype, 'src', {
+    configurable: true,
+    get(this: HTMLMediaElement) {
+      return this.getAttribute('src') ?? ''
+    },
+    set(this: HTMLMediaElement, v: string) {
+      this.setAttribute('src', v)
+      queueMicrotask(() => this.onerror?.(new Event('error')))
+    },
+  })
+})
+
 const open = (id: string) =>
   render(
     <BrandProvider>
@@ -74,11 +88,6 @@ function dragTo(from: HTMLElement, to: HTMLElement, side: 'before' | 'after' = '
   fireEvent.dragEnd(from, { dataTransfer })
 }
 
-const upload = (label: string | RegExp, name = 'clip.png') =>
-  fireEvent.change(screen.getByLabelText(label), {
-    target: { files: [new File(['x'], name, { type: 'image/png' })] },
-  })
-
 /** What the post behind an idea carries, read from the posts store rather than from the page. */
 function PostImages({ id }: { id: string }) {
   const { byId } = useBrand()
@@ -86,9 +95,6 @@ function PostImages({ id }: { id: string }) {
   const post = card?.postId ? byId(card.postId) : undefined
   return <output data-testid="post-images">{post?.images.join(',')}</output>
 }
-
-/** The strip of what the post carries, or null while it carries nothing. */
-const carried = () => screen.queryByRole('list', { name: 'What the post carries' })!
 
 const openWithPost = (id: string) =>
   render(
@@ -99,7 +105,7 @@ const openWithPost = (id: string) =>
   )
 
 describe('an idea page', () => {
-  it('shows the idea in four stages, with a rail, and a way back to Current ideas', () => {
+  it('shows the idea in three stages, with a rail, and a way back to Current ideas', () => {
     open('cv-blindfold')
     expect(screen.getByLabelText('Hook')).toHaveValue('Blindfold pizza: the rematch.')
     expect(screen.getByRole('link', { name: 'Current ideas' })).toHaveAttribute(
@@ -111,10 +117,10 @@ describe('an idea page', () => {
       within(rail)
         .getAllByRole('link')
         .map((l) => l.getAttribute('href')),
-    ).toEqual(['#references', '#shots', '#shoot', '#post'])
-    // References are there, so the idea stands at Shots, which has no shoot day yet.
-    expect(within(rail).getByRole('link', { current: 'step' })).toHaveTextContent('Shots')
-    for (const name of ['References', 'Shots', 'Shoot', 'Post']) {
+    ).toEqual(['#references', '#shots', '#post'])
+    // References are there, so the idea stands at Storyboard, which has no shoot day yet.
+    expect(within(rail).getByRole('link', { current: 'step' })).toHaveTextContent('Storyboard')
+    for (const name of ['References', 'Storyboard', 'Post']) {
       expect(screen.getByRole('region', { name })).toBeInTheDocument()
     }
     // A plan with no post is an idea, not a draft: "Draft" is a post's word.
@@ -211,40 +217,41 @@ describe('an idea page', () => {
     open('cv-blindfold')
     fireEvent.click(screen.getByRole('button', { name: 'Pick a reference for shot 2' }))
     fireEvent.click(screen.getByRole('button', { name: 'Like @dough.diaries' }))
-    const shots = screen.getByRole('region', { name: 'Shots' })
+    const shots = screen.getByRole('region', { name: 'Storyboard' })
     expect(within(shots).getByText('like @dough.diaries')).toBeInTheDocument()
     // The second reference (a pin) dragged onto the third shot.
     dragTo(items('ref:')[1]!, items('shot:')[2]!)
     expect(within(shots).getByText('like Pizza close-ups')).toBeInTheDocument()
-    // On the day, the list says which reference each shot follows.
-    const shoot = screen.getByRole('region', { name: 'Shoot' })
-    expect(within(shoot).getByText('like @dough.diaries')).toBeInTheDocument()
   })
 
-  it('says on every empty shot and every Shoot row how media gets there, without a hover', async () => {
-    // The owner could not tell that a shot takes a reference or a file: both are named controls
-    // on the card at rest, and dragging stays a shortcut, never the only way in.
+  it('says on every empty shot how a reference gets there, and takes no file on a shot', () => {
+    // The owner could not tell that a shot takes a reference: it is a named control on the card
+    // at rest, and dragging stays a shortcut. The videographer's files go to the final edit, so a
+    // shot has no upload of its own.
     open('cv-blindfold')
-    const shots = screen.getByRole('region', { name: 'Shots' })
-    const shoot = screen.getByRole('region', { name: 'Shoot' })
+    const shots = screen.getByRole('region', { name: 'Storyboard' })
     expect(within(shots).getByRole('button', { name: 'Pick a reference for shot 1' })).toBeVisible()
-    expect(within(shots).getByLabelText('Upload a photo or clip for shot 1')).toHaveAttribute(
-      'type',
-      'file',
-    )
-    expect(within(shoot).getByLabelText('Add the clip for: Blindfold on')).toHaveAttribute(
-      'type',
-      'file',
-    )
-    // An upload on the card fills its frame and is the clip the Shoot row shows.
-    upload('Upload a photo or clip for shot 1')
-    await waitFor(() =>
-      expect(
-        within(shoot).getByRole('button', { name: 'Remove the clip for: Blindfold on' }),
-      ).toBeInTheDocument(),
-    )
-    expect(screen.queryByLabelText('Upload a photo or clip for shot 1')).not.toBeInTheDocument()
-    expect(screen.getAllByText('1 of 3 captured')).not.toHaveLength(0)
+    expect(within(shots).queryByLabelText(/^Upload/)).not.toBeInTheDocument()
+  })
+
+  it("sharpens the hook in a field that stays editable, and goes back to the team's words", () => {
+    open('cv-blindfold')
+    const field = screen.getByLabelText('Edit the hook')
+    expect(field).toHaveValue('Blindfold pizza: the rematch.')
+    expect(screen.queryByRole('button', { name: 'Back to mine' })).not.toBeInTheDocument()
+    // A sharper hook fills the field and the title above: they are one hook.
+    fireEvent.click(screen.getByRole('radio', { name: 'Blindfolded. One bite. Name the topping.' }))
+    expect(field).toHaveValue('Blindfolded. One bite. Name the topping.')
+    expect(screen.getByLabelText('Hook')).toHaveValue('Blindfolded. One bite. Name the topping.')
+    // Typing from there keeps the typed words, and the way back stays.
+    fireEvent.change(field, { target: { value: 'Blindfolded. One bite. Name it.' } })
+    expect(screen.getByLabelText('Hook')).toHaveValue('Blindfolded. One bite. Name it.')
+    expect(
+      screen.getByRole('radio', { name: 'Blindfolded. One bite. Name the topping.' }),
+    ).not.toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to mine' }))
+    expect(field).toHaveValue('Blindfold pizza: the rematch.')
+    expect(screen.queryByRole('button', { name: 'Back to mine' })).not.toBeInTheDocument()
   })
 
   it('adds a moodboard post picked on a shot to the references, and shoots the shot like it', () => {
@@ -255,7 +262,7 @@ describe('an idea page', () => {
     const account = option.getAttribute('aria-label')!.replace('From the moodboard: ', '')
     fireEvent.click(option)
     expect(items('ref:')).toHaveLength(before + 1)
-    const shots = screen.getByRole('region', { name: 'Shots' })
+    const shots = screen.getByRole('region', { name: 'Storyboard' })
     expect(within(shots).getByText(`like ${account.split(',')[0]}`)).toBeInTheDocument()
   })
 
@@ -271,52 +278,119 @@ describe('an idea page', () => {
     expect(after[1]).toHaveTextContent('@dough.diaries')
   })
 
-  it('counts a captured shot toward the shoot, and a shoot day finishes the Shots stage', () => {
+  it('finishes the Storyboard stage with a shoot day, and links the call sheet from there', () => {
     open('cv-blindfold')
-    expect(screen.getAllByText('0 of 3 captured')).not.toHaveLength(0)
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Captured: Blindfold on' }))
-    expect(screen.getAllByText('1 of 3 captured')).not.toHaveLength(0)
-    // The shoot on Wed 7 Oct is on offer, with its start; picking it moves the idea on to Shoot.
+    const storyboard = screen.getByRole('region', { name: 'Storyboard' })
+    expect(within(storyboard).queryByRole('link', { name: /Call sheet/ })).not.toBeInTheDocument()
+    // The shoot on Wed 7 Oct is on offer, with its start; picking it moves the idea on to Post.
     fireEvent.click(screen.getByRole('button', { name: 'Shoot day' }))
     fireEvent.click(screen.getByRole('button', { name: 'Raffles City · Wed 7 Oct, 12:00' }))
     const rail = screen.getByRole('navigation', { name: 'Stages' })
-    expect(within(rail).getByRole('link', { current: 'step' })).toHaveTextContent('Shoot')
+    expect(within(rail).getByRole('link', { current: 'step' })).toHaveTextContent('Post')
     expect(screen.getByRole('button', { name: 'Shoot day' })).toHaveTextContent('Wed 7 Oct')
+    expect(within(storyboard).getByRole('link', { name: /Call sheet/ })).toHaveAttribute(
+      'href',
+      '/shoot/cv-shoot-raffles',
+    )
   })
 
-  it('hands a reel only its final cut: the clips are footage, and nothing new goes before a cut', async () => {
+  it('hands a reel its final edit, one video, and takes it back when the edit is removed', async () => {
     openWithPost('cv-blindfold')
     fireEvent.click(screen.getByRole('radio', { name: 'Scheduled' }))
     expect(screen.getByTestId('post-images')).toBeEmptyDOMElement()
-    upload('Add the clip for: Blindfold on')
-    upload('Add the clip for: One bite, one guess')
-    await waitFor(() => expect(screen.getAllByText('2 of 3 captured')).not.toHaveLength(0))
-    expect(screen.getByRole('list', { name: "The shoot's clips" }).children).toHaveLength(2)
-    expect(screen.getByTestId('post-images')).toBeEmptyDOMElement()
-    upload('Add the final cut', 'cut.png')
+    // The final edit comes before the status, so a file that lands is scheduled right after.
+    const post = screen.getByRole('region', { name: 'Post' })
+    const final = within(post).getByRole('region', { name: 'Final edit' })
+    expect(
+      final.compareDocumentPosition(within(post).getByRole('radiogroup', { name: 'Status' })),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(screen.getByLabelText('Add the final edit')).toHaveAttribute('accept', 'video/*')
+    // A photo is no reel, even past the picker: of a photo and a video, the video goes in.
+    fireEvent.change(screen.getByLabelText('Add the final edit'), {
+      target: {
+        files: [
+          new File(['x'], 'still.png', { type: 'image/png' }),
+          new File(['x'], 'cut.mp4', { type: 'video/mp4' }),
+        ],
+      },
+    })
     await waitFor(() =>
-      expect(screen.getByTestId('post-images')).toHaveTextContent('blob:file-3#photo'),
+      expect(screen.getByTestId('post-images')).toHaveTextContent(/^blob:file-\d#video$/),
     )
-    expect(carried().children).toHaveLength(1)
-    // The cut taken off again: the post stops carrying it.
-    fireEvent.click(screen.getByRole('button', { name: 'Remove the final cut' }))
+    // The edit taken off again: the post stops carrying it.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the final edit' }))
     expect(screen.getByTestId('post-images')).toBeEmptyDOMElement()
-    expect(carried()).toBeNull()
   })
 
-  it('hands a carousel its captured slides, in shot order', async () => {
-    // Five pastas already is a post with three photos; the first captured slide takes their place.
+  it('hands a carousel its final edit, several slides in order', async () => {
+    // Five pastas already is a post with three photos; the final edit takes their place.
     openWithPost('cv-five-pastas')
     expect(screen.getByTestId('post-images')).toHaveTextContent(/tagliatelle.*ravioli.*pasta/)
-    upload('Add the clip for: Five cuts in a row')
+    const input = screen.getByLabelText('Add the final edit')
+    expect(input).toHaveAttribute('multiple')
+    expect(input).toHaveAttribute('accept', 'image/*,video/*')
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(['x'], 'a.png', { type: 'image/png' }),
+          new File(['x'], 'b.png', { type: 'image/png' }),
+        ],
+      },
+    })
     await waitFor(() =>
-      expect(screen.getByTestId('post-images')).toHaveTextContent('blob:file-1#photo'),
+      expect(screen.getByTestId('post-images')).toHaveTextContent(
+        'blob:file-1#photo,blob:file-2#photo',
+      ),
     )
-    expect(carried().children).toHaveLength(1)
-    // The slide cleared again: the post gets its three photos back.
-    fireEvent.click(screen.getByRole('button', { name: 'Remove the clip for: Five cuts in a row' }))
+    // One slide removed: the other stays; the last removed gives the post its three photos back.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove slide 1 of the final edit' }))
+    expect(screen.getByTestId('post-images')).toHaveTextContent('blob:file-2#photo')
+    expect(screen.getByTestId('post-images')).not.toHaveTextContent('blob:file-1')
+    fireEvent.click(screen.getByRole('button', { name: 'Remove slide 1 of the final edit' }))
     expect(screen.getByTestId('post-images')).toHaveTextContent(/tagliatelle.*ravioli.*pasta/)
     expect(screen.getByTestId('post-images')).not.toHaveTextContent('blob:')
+  })
+
+  it('hands a story one file, a photo or a video, and a second file takes its place', async () => {
+    openWithPost('cv-st-poll')
+    fireEvent.click(screen.getByRole('radio', { name: 'Scheduled' }))
+    const input = screen.getByLabelText('Add the final edit')
+    expect(input).toHaveAttribute('accept', 'image/*,video/*')
+    expect(input).not.toHaveAttribute('multiple')
+    // Two files at once past the picker: the story takes the first.
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(['x'], 'one.png', { type: 'image/png' }),
+          new File(['x'], 'extra.mp4', { type: 'video/mp4' }),
+        ],
+      },
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('post-images')).toHaveTextContent(/^blob:file-1#photo$/),
+    )
+    fireEvent.change(screen.getByLabelText('Add the final edit'), {
+      target: { files: [new File(['x'], 'two.mp4', { type: 'video/mp4' })] },
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('post-images')).toHaveTextContent(/^blob:file-3#video$/),
+    )
+  })
+
+  it('stops a carousel at ten slides, as Instagram does', async () => {
+    openWithPost('cv-five-pastas')
+    const files = Array.from(
+      { length: 11 },
+      (_, i) => new File(['x'], `${i}.png`, { type: 'image/png' }),
+    )
+    fireEvent.change(screen.getByLabelText('Add the final edit'), { target: { files } })
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Remove slide 10 of the final edit' }),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.queryByRole('button', { name: 'Remove slide 11 of the final edit' })).toBeNull()
+    expect(screen.queryByLabelText('Add the final edit')).toBeNull()
   })
 
   it('closes the reference picker on Escape and hands the focus back to the frame', async () => {

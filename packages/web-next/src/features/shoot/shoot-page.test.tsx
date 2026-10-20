@@ -1,12 +1,14 @@
 import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { OUTLETS } from '@/data/shoots'
 import { PAST_CREW } from '@/data/suggestions'
 import { IdeaPage } from '@/features/ideate/idea-page'
 import { resetIdeas } from '@/features/ideate/ideas-store'
 import { BrandProvider } from '@/features/schedule/posts-store'
 
 import { pastCrew } from './model'
+import { NewShootForm } from './new-shoot'
 import { ShootPage } from './shoot-page'
 import { resetShoots, shootOfIdea, useShoots } from './shoots-store'
 
@@ -38,7 +40,38 @@ const open = () =>
     </BrandProvider>,
   )
 const shoots = () => renderHook(() => useShoots('casa-vostra')).result.current
-const shotList = () => screen.getByRole('region', { name: 'Shot list' })
+const shotList = () => screen.getByRole('region', { name: 'Storyboard' })
+
+describe('the address', () => {
+  it('offers every outlet first, so the team picks where it shoots', () => {
+    open()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit details' }))
+    const address = screen.getByRole('combobox', { name: 'Address' })
+    expect(address).toHaveValue(OUTLETS['casa-vostra'][0])
+    fireEvent.focus(address)
+    // Each outlet row leads with where it is, not with the brand's name, so it reads at a glance.
+    const options = within(screen.getByRole('listbox')).getAllByRole('option')
+    expect(options.slice(0, 3).map((o) => o.textContent)).toEqual([
+      'Raffles City #01-23Outlet',
+      '26 Lorong MambongOutlet',
+      'Jewel Changi #02-215Outlet',
+    ])
+    fireEvent.click(options[1]!)
+    expect(address).toHaveValue(OUTLETS['casa-vostra'][1])
+    // Free text still works.
+    fireEvent.change(address, { target: { value: 'The client’s kitchen' } })
+    expect(address).toHaveValue('The client’s kitchen')
+  })
+
+  it('starts a new shoot at the first outlet', () => {
+    render(
+      <BrandProvider>
+        <NewShootForm />
+      </BrandProvider>,
+    )
+    expect(screen.getByRole('combobox', { name: 'Address' })).toHaveValue(OUTLETS['casa-vostra'][0])
+  })
+})
 
 describe('who comes', () => {
   it('takes a role the team types, and offers that person in it next time', () => {
