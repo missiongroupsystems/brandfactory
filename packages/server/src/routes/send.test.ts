@@ -31,6 +31,19 @@ describe('sending a post', () => {
     expect(res.data.jobs[0].runAt).toBe('2026-10-08T10:00:00.000Z')
   })
 
+  it('refuses a time today that passed over an hour ago, instead of failing it as missed', async () => {
+    const { call } = await ready()
+    // Today is Tue 6 Oct, 12:00 in Singapore.
+    expect(
+      (await call('POST', '/brands/casa/posts/p1/move', { day: '2026-10-06', time: '09:00' }))
+        .status,
+    ).toBe(200)
+    const res = await call('POST', '/brands/casa/posts/p1/send', { when: 'slot' })
+    expect(res).toMatchObject({ status: 400, data: { code: 'PAST_TIME' } })
+    await call('POST', '/brands/casa/posts/p1/move', { day: '2026-10-06', time: '11:30' })
+    expect((await call('POST', '/brands/casa/posts/p1/send', { when: 'slot' })).status).toBe(200)
+  })
+
   it('publishes now from today, at the time it is now in the brand zone', async () => {
     const { call } = await ready()
     const res = await call('POST', '/brands/casa/posts/p1/send', { when: 'now' })

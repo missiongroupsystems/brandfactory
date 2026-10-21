@@ -70,10 +70,12 @@ export function metaApp(config: MetaConfig) {
     method: 'GET' | 'POST' = 'GET',
   ): Promise<T> {
     const query = new URLSearchParams(params)
+    // A minute at most: a job's whole time on the platform is bounded (`JOB_BUDGET_MS`).
+    const signal = AbortSignal.timeout(60_000)
     const res =
       method === 'GET'
-        ? await doFetch(`${GRAPH}${path}?${query}`)
-        : await doFetch(`${GRAPH}${path}`, { method: 'POST', body: query })
+        ? await doFetch(`${GRAPH}${path}?${query}`, { signal })
+        : await doFetch(`${GRAPH}${path}`, { method: 'POST', body: query, signal })
     const body = (await res.json().catch(() => ({}))) as T & GraphError
     if (body.error) {
       // 190 is "invalid OAuth access token": expired, revoked, or the password changed.

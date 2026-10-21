@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.17.0** — 2026-10-22 — Posts go out for real: each job posts with the brand's own account to Instagram (photo, reel, carousel, story, with collaborators and a first comment), a Facebook Page (photo, several photos, video) and TikTok (one video, Direct Post or inbox), and a refusal shows in the platform's words. The runner sends jobs side by side and runs on a real database once Meta or TikTok is set up. No migration. 477 tests.
 - **2.16.0** — 2026-10-22 — Each brand links its own Facebook Page (with its Instagram account) and TikTok account by a real sign-in on the API, picked on a Page list for Meta; Connections names the accounts, and Instagram, Facebook and TikTok are read from the linked accounts instead of a switch. Migration `0003_minor_miss_america` (not applied to production). 451 tests.
 - **2.15.1** — 2026-10-21 — From the first real Pinterest sign-in: an account with no boards says so (Check again, or use another account), the app also reads secret boards, and Connections shows Pinterest connected with its handle as soon as the account is linked, with Disconnect stepping the row out. No migration. 439 tests.
 - **2.15.0** — 2026-10-21 — On the API the moodboard's Pinterest source is real: each brand links its own Pinterest account (an account belongs to one brand), picks a board, and the moodboard reads its pins live. Tokens are sealed per brand. Migration `0002_true_king_bedlam` (`brand_accounts`, `connections.external_id`; not applied to production). 438 tests.
@@ -39,6 +40,27 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.17.0 — 2026-10-22
+
+- **Publishers.** `packages/server/src/publish/`: `platformPublisher` replaces the simulated one
+  once Meta or TikTok is set up. Instagram: containers, a wait for `FINISHED`, `media_publish`,
+  collaborators, first comment; JPEG photos only. Facebook Page: photo, several photos as one
+  post, or a video; first comment. TikTok: one video streamed from storage in 10 MB chunks (two
+  uploads at most), Direct Post with the composer's answers after `creator_info`, or the inbox.
+- **Honest failures.** A stated refusal is the job's error in the platform's words, links taken
+  out; past the point where a post may exist, a lost answer says "may have posted it. Check the
+  account before you retry."; a story names the frames already out.
+- **Runner.** `claimDueJobs` and `sendJob`: up to ten jobs on their way, topped up each tick; one
+  twenty-minute budget per job inside a thirty-minute stuck limit; a job an hour past its time is
+  not posted (it says to pick a new time), and scheduling a time over an hour gone is refused
+  (`PAST_TIME`); a posted job is never marked
+  failed; writes touch only a job still `uploading`; a stop waits for a claim under way and the
+  jobs on their way (`kill_timeout = 300`). Every platform call stops after a minute. TikTok tokens
+  refresh once per brand at a time.
+- **Docs.** Phase 2 notes in `docs/completions/brandbase-publishing-phases-1-to-3.md`.
+
+No migration. Gate: typecheck, lint, format, 477 tests in 59 files, `next build`.
 
 ## 2.16.0 — 2026-10-22
 

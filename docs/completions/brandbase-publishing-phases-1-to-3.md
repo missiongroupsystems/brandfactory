@@ -46,3 +46,72 @@ TikTok with another account does not revoke the old grant; two token refreshes a
 live sign-in.
 
 **Not verified.** Nothing has run against Meta or TikTok: their apps do not exist yet.
+
+## Phase 2: the publishers
+
+Landed 22 Oct 2026 (2.17.0).
+
+**Server.** `publish/` posts each job with the brand's own account: `index.ts` (`platformPublisher`)
+picks the platform, `media.ts` turns the post's media into signed storage URLs (two hours) and
+holds the waiting, `meta.ts` posts to Instagram and Facebook, `tiktok.ts` to TikTok.
+
+- Instagram: a container per item (`REELS` for a single video, `STORIES` per story frame,
+  `is_carousel_item` children under a `CAROUSEL`), a wait until each says `FINISHED`, then
+  `media_publish`; collaborators (up to 3, the composer's "@" taken off) and the first comment.
+  Photos must be JPEG.
+- Facebook: one photo with its caption, several photos uploaded unpublished then one feed post with
+  `attached_media`, or a video by `file_url`; then the first comment. Page stories and a carousel
+  with a video are refused in words.
+- TikTok: one video (MP4, MOV or WebM). `creator_info` first: a privacy the account does not offer
+  is refused, naming what it offers (before the audit, "Only me"). Direct Post with the composer's
+  answers (the creator's own disabled features stay off), or the inbox when the sound is picked in
+  TikTok. The file streams from storage to TikTok as `FILE_UPLOAD` in 10 MB chunks (whole under
+  10 MB), holding about two chunks at most, two uploads at once (a finishing upload hands its place
+  to the next); then a wait for
+  `PUBLISH_COMPLETE` (or `SEND_TO_USER_INBOX` for the inbox).
+- **Honest failures.** A refusal the platform states becomes the job's error in its words, with any
+  link taken out ("Instagram: …"); a dead or unreadable token says "Reconnect <platform> first.".
+  Past the point where the post may exist (the publish call, the last TikTok chunk, TikTok's status
+  checks), a lost answer, an answer with no id, or Meta's "unknown" or "unavailable" error says "<platform> may have
+  posted it. Check the account before you retry."; a story names how many frames went out.
+- **Time.** One budget per job, twenty minutes, covering every wait, the wait for an upload place
+  and the upload itself (a TikTok job out of time before its upload starts says nothing was
+  posted); every Meta and TikTok call stops after a minute; a status check every ten seconds
+  (TikTok allows thirty a minute).
+- **Runner.** `claimDueJobs` and `sendJob`: each tick tops up to ten jobs on their way, so a slow
+  job never holds up the ones due after it. The stuck limit is thirty minutes, above a job's
+  budget. A job an hour past its time is not posted ("missed its time. Nothing was posted; pick a
+  new time"), so turning the runner on never sends old posts late; scheduling a time that passed
+  over an hour ago is refused at once (`PAST_TIME`). Once a platform has the post,
+  the job is never marked failed: a write that fails then is
+  logged ("POSTED but not recorded") and the sweep later says to check the account; both writes
+  touch only a job still `uploading`, and a post recorded after the sweep is logged ("POSTED after
+  the sweep"). A stop waits for a claim under way, then up to four minutes for jobs on their way
+  (`kill_timeout = 300` in `fly.toml`, Fly's maximum). The runner runs on a real database once Meta or TikTok is
+  set up; with neither, the simulated publisher stays, locally only.
+- A TikTok token is refreshed once per brand at a time, and the row is read inside the lock.
+
+**Verified.** Gate (see the changelog). Twenty tests against stand-ins that record each request:
+the exact Instagram, Facebook and TikTok calls for a photo, a reel, a carousel and a story;
+collaborators sent without "@"; the wait before publishing; TikTok's answers, a 25 MB video
+streamed in odd pieces and sent as two chunks with their ranges and exactly the stored bytes, at
+most two uploads at once (fails with the limit raised), the inbox; each refusal; each "may have posted" path and a story that
+stops part way; links kept out of the words; a swept job not overwritten; and a due job through the
+runner, live on Instagram with its id and failed on TikTok with the reason. The tests for the
+wait, the "may have posted" wrapper, the "@" and the guarded write each fail without their fix.
+
+**Review.** Two Opus and Sonnet panels before the commit found no blocker. Fixed from them: the whole video in
+memory on a 512 MB machine; failures after a post may exist worded as if nothing went out; "@" in
+collaborators; one slow job holding up the rest; per-wait limits instead of one per job; a stop
+cutting jobs off; the TikTok token row read outside the lock; inbox posts published at once; video
+types; status checks above TikTok's rate; then, from the second panel, a job budget that left out
+the upload, a claim under way at a stop, a third upload slipping past the limit, and two wordings;
+then, from the check of those fixes, overdue jobs posting late when the runner first turns on, an
+answer with no id taken for success, container calls past the budget, and a missing full stop.
+Left: the first comment failing is only logged (failing the job would invite a second post); a
+TikTok token read that outlasts a whole refresh could still use a rotated token (a reconnect
+message, no post lost).
+
+**Not verified.** Nothing has run against Meta or TikTok. TikTok's privacy default stays
+"Everyone" (decision 7), so TikTok jobs fail with the reason until the audit passes or the post is
+set to "Only me".

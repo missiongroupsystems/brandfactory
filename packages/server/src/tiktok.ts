@@ -95,6 +95,8 @@ export function tiktokApp(config: TikTokConfig) {
         'Content-Type': 'application/json; charset=UTF-8',
       },
       body: JSON.stringify(body ?? {}),
+      // A minute at most: a job's whole time on the platform is bounded (`JOB_BUDGET_MS`).
+      signal: AbortSignal.timeout(60_000),
     })
     const json = (await res.json().catch(() => ({}))) as { data?: T } & ErrorBody
     const error = errorOf(json)

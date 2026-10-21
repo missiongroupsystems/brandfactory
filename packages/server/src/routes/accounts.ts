@@ -214,7 +214,7 @@ export function accountBrandRoutes(deps: Deps) {
         // only copy is gone, nothing uses the grant. The access token is refreshed first, since
         // it lasts only a day.
         try {
-          await tiktok.revoke(await tiktokAccess(deps, tiktok, account))
+          await tiktok.revoke(await tiktokAccess(deps, tiktok, brandId))
           revoked = true
         } catch (err) {
           console.error('tiktok revoke failed', brandId, err)
@@ -236,34 +236,56 @@ export function accountBrandRoutes(deps: Deps) {
     })
 }
 
-/** The brand's TikTok access token, refreshed and stored first when less than an hour is left. */
+/** One refresh at a time per brand: TikTok may rotate the refresh token on each use. */
+const refreshing = new Map<string, Promise<unknown>>()
+
+/**
+ * The brand's TikTok access token, refreshed and stored first when less than an hour is left.
+ * Jobs run side by side, so the row is read inside the lock: a caller waits for any refresh on its
+ * way, then reads what it stored (the server runs as one instance).
+ */
 export async function tiktokAccess(
-  deps: Deps,
+  deps: Pick<Deps, 'db' | 'now'>,
   tiktok: TikTokApp,
-  account: typeof brandAccounts.$inferSelect,
+  brandId: string,
 ): Promise<string> {
-  const seal = bound('tiktok', account.brandId, account.accountId)
+  for (let running = refreshing.get(brandId); running; running = refreshing.get(brandId)) {
+    await running.catch(() => undefined)
+  }
+  const account = await accountOf(deps.db, brandId, 'tiktok')
+  if (!account) throw new TikTokReconnect('no account')
+  const key = bound('tiktok', brandId, account.accountId)
   let current: TikTokTokens
   try {
-    current = tiktok.openTokens(account.tokens, seal)
+    current = tiktok.openTokens(account.tokens, key)
   } catch (err) {
-    console.error('tiktok tokens did not open', account.brandId, err)
+    console.error('tiktok tokens did not open', brandId, err)
     throw new TikTokReconnect('stored tokens do not open')
   }
   const now = deps.now().getTime()
   if (current.expiresAt - now > 60 * 60 * 1000) return current.access
-  const next = await tiktok.refresh(current, now)
-  await deps.db
-    .update(brandAccounts)
-    .set({ tokens: tiktok.sealTokens(next, seal), updatedAt: new Date() })
-    .where(
-      and(
-        eq(brandAccounts.brandId, account.brandId),
-        eq(brandAccounts.platform, 'tiktok'),
-        eq(brandAccounts.accountId, account.accountId),
-      ),
-    )
-  return next.access
+  // Another caller may have started a refresh while this one read the row.
+  if (refreshing.has(brandId)) return tiktokAccess(deps, tiktok, brandId)
+  const refresh = (async () => {
+    const next = await tiktok.refresh(current, now)
+    await deps.db
+      .update(brandAccounts)
+      .set({ tokens: tiktok.sealTokens(next, key), updatedAt: new Date() })
+      .where(
+        and(
+          eq(brandAccounts.brandId, brandId),
+          eq(brandAccounts.platform, 'tiktok'),
+          eq(brandAccounts.accountId, account.accountId),
+        ),
+      )
+    return next.access
+  })()
+  refreshing.set(brandId, refresh)
+  try {
+    return await refresh
+  } finally {
+    refreshing.delete(brandId)
+  }
 }
 
 /** The brand's linked Meta and TikTok accounts as the state shows them: names only. */

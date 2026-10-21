@@ -3,6 +3,7 @@ import { brandAccounts } from '../db/schema'
 import { metaApp } from '../meta'
 import { tiktokApp } from '../tiktok'
 import { NOW, testApp } from '../test-helpers'
+import { tiktokAccess } from './accounts'
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } })
@@ -57,7 +58,18 @@ function fakeTikTok() {
     const url = String(input).replace('https://open.tiktokapis.com/v2', '')
     calls.push(url)
     if (url === '/oauth/token/') {
-      const code = new URLSearchParams(String(init?.body)).get('code')!
+      const form = new URLSearchParams(String(init?.body))
+      if (form.get('grant_type') === 'refresh_token') {
+        // Slow on purpose, so a second caller arrives while the first refresh is on its way.
+        await new Promise((r) => setTimeout(r, 20))
+        return json({
+          open_id: 'cv',
+          access_token: `access:cv:refreshed`,
+          expires_in: 86400,
+          refresh_token: `refresh:cv:2`,
+        })
+      }
+      const code = form.get('code')!
       return json({
         open_id: code.slice(5),
         access_token: `access:${code.slice(5)}`,
@@ -295,5 +307,24 @@ describe('the publishing connections', () => {
     const off = await t.call('POST', '/brands/casa/meta/connect', {})
     expect(off).toMatchObject({ status: 503, data: { code: 'PLATFORM_OFF' } })
     expect((await t.call('POST', '/brands/casa/tiktok/connect', {})).status).toBe(503)
+  })
+})
+
+describe("TikTok's token", () => {
+  it('is refreshed once when two jobs need it at the same moment, and both get the new one', async () => {
+    const t = await setUp()
+    const { state } = await start(t, 'tiktok', 'casa')
+    await t.call('POST', '/tiktok/callback', { code: 'code-cv', state })
+    // 23.5 hours on: half an hour left on the 24-hour token.
+    const later = { db: t.db, now: () => new Date(NOW.getTime() + 23.5 * 3600_000) }
+    const both = await Promise.all([
+      tiktokAccess(later, t.tiktok.app, 'casa'),
+      tiktokAccess(later, t.tiktok.app, 'casa'),
+      tiktokAccess(later, t.tiktok.app, 'casa'),
+    ])
+    expect(both).toEqual(['access:cv:refreshed', 'access:cv:refreshed', 'access:cv:refreshed'])
+    expect(t.tiktok.calls.filter((c) => c === '/oauth/token/')).toHaveLength(2) // sign-in + one refresh
+    const [after] = await t.db.select().from(brandAccounts)
+    expect(t.tiktok.app.openTokens(after!.tokens, 'tiktok:casa:cv').refresh).toBe('refresh:cv:2')
   })
 })

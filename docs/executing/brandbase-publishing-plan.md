@@ -7,11 +7,11 @@ the live docs while building.
 
 ## What posts where
 
-| Format | Instagram | Facebook Page | TikTok |
-| --- | --- | --- | --- |
-| Reel (one video) | Reel | Page video | Video: Direct Post, or an inbox draft when the sound is picked in the app |
-| Carousel (up to 10) | Carousel; one item posts as a single photo or video | Photos as one post; a video goes as its own Page video | Refused: photo posts need a verified URL prefix (later) |
-| Story | Story, per frame | Refused: Page stories later | Not offered (the composer already never sends a story there) |
+| Format              | Instagram                                           | Facebook Page                                                         | TikTok                                                                    |
+| ------------------- | --------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Reel (one video)    | Reel                                                | Page video                                                            | Video: Direct Post, or an inbox draft when the sound is picked in the app |
+| Carousel (up to 10) | Carousel; one item posts as a single photo or video | Photos as one post; with a video, refused (post the video on its own) | Refused: photo posts need a verified URL prefix (later)                   |
+| Story               | Story, per frame                                    | Refused: Page stories later                                           | Not offered (the composer already never sends a story there)              |
 
 With the post: the caption for that account (`textFor`), Instagram collaborators (up to 3, feed
 and reels) and the first comment on Instagram and Facebook. Not yet: photo tags with positions,
@@ -58,10 +58,11 @@ brand (`UNIQUE(platform, account_id)`); the OAuth state names the user who start
   unaudited app allows only "Only me"), or the job fails with that reason. Then `FILE_UPLOAD` in
   chunks from storage, and poll the status until `PUBLISH_COMPLETE`, or `SEND_TO_USER_INBOX` for an
   inbox draft.
-- **Runner.** The claimed jobs run side by side (one per post and account). Waiting on a platform
-  stops after ten minutes, inside the runner's fifteen-minute stuck limit. A platform's refusal
-  becomes the job's error in plain words; a dead token says "Reconnect <platform>". The job keeps
-  the platform's post id.
+- **Runner.** Up to ten jobs on their way, topped up each tick, so a slow job never holds up the
+  rest. One twenty-minute budget per job inside a thirty-minute stuck limit; a job an hour past
+  its time is not posted. A platform's refusal becomes the job's error in plain words; a dead token
+  says "Reconnect <platform>"; past the point where the post may exist, an error says to check the
+  account before a retry. The job keeps the platform's post id.
 - **On.** The runner runs on a real database once the publisher is real.
 
 ### Phase 3: the TikTok rules for Direct Post (needed for the audit)

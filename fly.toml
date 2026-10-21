@@ -13,6 +13,8 @@
 app            = "brandfactory"
 primary_region = "sin"
 kill_signal    = "SIGTERM"
+# Room for posts on their way to finish before a stop (the server waits up to four minutes).
+kill_timeout   = 300
 
 [build]
   dockerfile = "packages/server/Dockerfile"

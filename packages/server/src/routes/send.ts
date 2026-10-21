@@ -17,6 +17,7 @@ import { conflict, invalid } from '../errors'
 import { body } from '../http'
 import { todayIn } from '../time'
 import { publishingOf } from './accounts'
+import { MISSED_MS } from '../jobs'
 import { bump, Channel, type BrandEnv } from './shared'
 
 const Send = z.object({
@@ -111,6 +112,10 @@ export function sendRoute(deps: Deps) {
       }
 
       const runAt = input.when === 'now' ? now : deps.instantOf(day!, time!, brand.timezone)
+      // The runner would only fail it as missed: say so now.
+      if (input.when === 'slot' && runAt.getTime() < now.getTime() - MISSED_MS) {
+        throw invalid('the time has passed', 'PAST_TIME')
+      }
       for (const channel of channels) {
         await tx
           .insert(postJobs)
