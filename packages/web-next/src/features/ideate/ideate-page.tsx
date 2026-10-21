@@ -875,17 +875,22 @@ function PinterestSetup() {
   const [error, setError] = React.useState<string | null>(null)
   const [picked, setPicked] = React.useState<string | null>(null)
   const [busy, setBusy] = React.useState(false)
+  // Bumped by "Check again", which reads the boards once more; `checking` until it answers.
+  const [reads, setReads] = React.useState(0)
+  const [checking, setChecking] = React.useState(false)
 
   React.useEffect(() => {
     let live = true
     pinterestSetup(brand.id).then(
       (s) => {
         if (!live) return
+        setChecking(false)
         setSetup(s)
         setPicked(s.boards.find((b) => b.picked)?.id ?? null)
       },
       (err: unknown) => {
         if (!live) return
+        setChecking(false)
         // A dead sign-in: offer Connect again, with the reason.
         if (err instanceof RemoteError && err.code === 'PINTEREST_RECONNECT') {
           setSetup({ account: null, boards: [] })
@@ -896,7 +901,7 @@ function PinterestSetup() {
     return () => {
       live = false
     }
-  }, [brand.id])
+  }, [brand.id, reads])
 
   async function run(act: () => Promise<unknown>) {
     if (busy) return
@@ -945,9 +950,55 @@ function PinterestSetup() {
     )
   }
 
+  const handle = `Pinterest · @${setup.account.username}`
+  // Pinterest signs in whoever is signed in on pinterest.com, so another account starts there.
+  const another = (
+    <button
+      type="button"
+      onClick={() => void run(() => startPinterest(brand.id))}
+      className="self-start text-[12.5px] text-ink-4 underline-offset-2 hover:text-ink hover:underline"
+    >
+      Use another Pinterest account
+    </button>
+  )
+
+  if (setup.boards.length === 0) {
+    return (
+      <div className="flex flex-col gap-4 text-left">
+        <span className={EYEBROW}>{handle}</span>
+        <p className="text-[13.5px] text-ink-2">
+          No boards on this account yet. Make one on{' '}
+          <a
+            href="https://www.pinterest.com/"
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-ink underline underline-offset-2"
+          >
+            Pinterest
+          </a>
+          , then check again.
+        </p>
+        <button
+          type="button"
+          disabled={checking}
+          onClick={() => {
+            setError(null)
+            setChecking(true)
+            setReads((n) => n + 1)
+          }}
+          className="bb-press flex h-10 items-center self-start rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85 disabled:opacity-40"
+        >
+          {checking ? 'Checking…' : 'Check again'}
+        </button>
+        {another}
+        {problem}
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4 text-left">
-      <span className={EYEBROW}>Pinterest · {setup.account.username}</span>
+      <span className={EYEBROW}>{handle}</span>
       <div
         role="radiogroup"
         aria-label="Boards"
@@ -983,6 +1034,7 @@ function PinterestSetup() {
         () => void run(() => pickBoard(brand.id, picked!)),
         !picked,
       )}
+      {another}
       {problem}
     </div>
   )

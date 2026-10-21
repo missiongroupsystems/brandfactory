@@ -15,8 +15,9 @@ import { onState, push, remote, request } from '@/lib/remote'
  * after the navigation. A reload starts over at `data/connections.ts`.
  *
  * Pinterest stays where the moodboard already keeps it, in the ideas store; this store only
- * passes it through, so the two can never disagree. On the API the ideas store reads it from the
- * state, and a brand's board is set and dropped through `ideate/pinterest.ts`.
+ * passes it through, so the two can never disagree. On the API, Pinterest is connected once the
+ * brand's own account is linked, board or not: this store keeps the account's handle from the
+ * state, and the board is set and dropped through `ideate/pinterest.ts`.
  */
 
 export type SourceKey = ConnectionKey | 'pinterest'
@@ -26,6 +27,8 @@ type State = Record<BrandId, Record<ConnectionKey, ConnectionStatus>>
 const initial = (): State => ({ ...CONNECTIONS })
 
 let state: State = initial()
+/** On the API: each brand's linked Pinterest handle, or null. */
+let handles: Partial<Record<BrandId, string | null>> = {}
 const listeners = new Set<() => void>()
 
 function subscribe(listener: () => void) {
@@ -44,6 +47,7 @@ if (remote) {
     ) as Record<ConnectionKey, ConnectionStatus>
     for (const r of rows) if (r.key !== 'pinterest') own[r.key] = r.status
     state = { ...state, [brandId]: own }
+    handles = { ...handles, [brandId]: (s.pinterest?.username as string | undefined) ?? null }
     listeners.forEach((l) => l())
   })
 }
@@ -63,10 +67,21 @@ export function useConnections(brandId: BrandId): Record<SourceKey, ConnectionSt
     () => state[brandId],
     () => state[brandId],
   )
-  const pinterest = useIdeas(brandId).sources.pinterest
+  const handle = usePinterestHandle(brandId)
+  const source = useIdeas(brandId).sources.pinterest
+  const pinterest = remote ? handle !== null : source
   return React.useMemo(
     () => ({ ...own, pinterest: pinterest ? 'connected' : 'off' }),
     [own, pinterest],
+  )
+}
+
+/** The brand's linked Pinterest account on the API, as its handle; null in the demo. */
+export function usePinterestHandle(brandId: BrandId): string | null {
+  return React.useSyncExternalStore(
+    subscribe,
+    () => handles[brandId] ?? null,
+    () => handles[brandId] ?? null,
   )
 }
 
@@ -87,7 +102,9 @@ export function disconnect(brandId: BrandId, key: SourceKey) {
   if (key === 'pinterest') {
     disconnectSource(brandId, 'pinterest')
     if (remote) {
-      // Its pins leave at once: an idea no longer finds them.
+      // The account and its pins leave at once: an idea no longer finds them.
+      handles = { ...handles, [brandId]: null }
+      listeners.forEach((l) => l())
       showBoards(brandId, [])
       push(brandId, () => dropBoard(brandId))
     }
@@ -100,5 +117,6 @@ export function disconnect(brandId: BrandId, key: SourceKey) {
 /** For tests. */
 export function resetConnections() {
   state = initial()
+  handles = {}
   listeners.forEach((l) => l())
 }

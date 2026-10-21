@@ -94,6 +94,11 @@ describe('the Connections page', () => {
     const page = show(<ConnectionsPage />)
     fireEvent.click(screen.getByRole('button', { name: 'More for Instagram' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Disconnect' }))
+    // The line steps out first, then the source turns off.
+    expect(screen.queryByRole('button', { name: 'Connect Instagram' })).toBeNull()
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
     expect(screen.getByRole('button', { name: 'Connect Instagram' })).toBeInTheDocument()
     page.unmount()
 

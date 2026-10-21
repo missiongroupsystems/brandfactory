@@ -9,9 +9,11 @@ import { useBrand } from '@/features/schedule/posts-store'
 import { remote } from '@/lib/remote'
 
 import { ConnectSheet, SOURCES, SourceMark } from './connect-sheet'
-import { disconnect, useConnections, type SourceKey } from './connections-store'
+import { disconnect, useConnections, usePinterestHandle, type SourceKey } from './connections-store'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
+/** How long a disconnected row's line takes to step out before the new one steps in. */
+const LEAVE_MS = 180
 
 /** The sources by the job they do, in the order a week uses them. */
 const GROUPS: Array<{ label: string; keys: SourceKey[] }> = [
@@ -77,16 +79,39 @@ function Row({
 }) {
   const { brand } = useBrand()
   const info = SOURCES[source]
+  const handle = usePinterestHandle(brand.id)
+  // A change made on this page plays: the old line steps out, the new one steps in. The first
+  // draw and a brand switch stay still.
+  const [shown, setShown] = React.useState(status)
+  const [changed, setChanged] = React.useState(false)
+  const [leaving, setLeaving] = React.useState(false)
+  if (shown !== status) {
+    setShown(status)
+    setChanged(true)
+  }
+
+  function leave() {
+    setLeaving(true)
+    window.setTimeout(() => {
+      setLeaving(false)
+      disconnect(brand.id, source)
+    }, LEAVE_MS)
+  }
+
   return (
     <li className="flex items-center gap-3.5 border-t border-line px-4 py-3.5 first:border-t-0 max-md:gap-3 max-md:px-3.5">
       <span
-        className={`flex size-10 shrink-0 items-center justify-center rounded-[11px] bg-surface ${status === 'off' ? 'text-ink-4' : 'text-ink'}`}
+        className={`flex size-10 shrink-0 items-center justify-center rounded-[11px] bg-surface transition-colors duration-300 ${status === 'off' || leaving ? 'text-ink-4' : 'text-ink'}`}
       >
         <SourceMark source={source} size={16} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[14.5px] font-medium">{info.name}</span>
-        <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] text-ink-4">
+        <span
+          key={status}
+          style={{ '--y': leaving ? '-4px' : '4px' } as React.CSSProperties}
+          className={`flex min-w-0 items-center gap-1.5 text-[12.5px] text-ink-4 ${leaving ? 'bb-step-out' : changed ? 'bb-step' : ''}`}
+        >
           {status !== 'off' && (
             <span
               aria-hidden="true"
@@ -98,22 +123,21 @@ function Row({
               ? info.brings
               : status === 'attention'
                 ? 'Signed out · sign in again'
-                : info.account(brand)}
+                : source === 'pinterest' && handle
+                  ? `@${handle}`
+                  : info.account(brand)}
           </span>
         </span>
       </span>
       {status === 'connected' ? (
-        <RowMenu
-          name={info.name}
-          onReconnect={onConnect}
-          onDisconnect={() => disconnect(brand.id, source)}
-        />
+        <RowMenu name={info.name} onReconnect={onConnect} onDisconnect={leave} />
       ) : (
         <button
+          key={status}
           type="button"
           aria-label={`${status === 'off' ? 'Connect' : 'Reconnect'} ${info.name}`}
           onClick={onConnect}
-          className={`bb-press h-8 shrink-0 rounded-full px-3.5 text-[12.5px] font-medium transition-colors ${status === 'off' ? 'bg-surface text-ink hover:bg-paper' : 'bg-ink text-page hover:opacity-85'}`}
+          className={`bb-press h-8 shrink-0 rounded-full px-3.5 text-[12.5px] font-medium transition-colors ${status === 'off' ? 'bg-surface text-ink hover:bg-paper' : 'bg-ink text-page hover:opacity-85'} ${changed ? 'bb-fade' : ''}`}
         >
           {status === 'off' ? 'Connect' : 'Reconnect'}
         </button>

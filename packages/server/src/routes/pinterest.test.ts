@@ -106,7 +106,9 @@ describe('Pinterest', () => {
     const url = new URL(started.data.url)
     expect(url.origin + url.pathname).toBe('https://www.pinterest.com/oauth/')
     expect(url.searchParams.get('redirect_uri')).toBe('https://brandbase.test/connect/pinterest')
-    expect(url.searchParams.get('scope')).toBe('boards:read,pins:read,user_accounts:read')
+    expect(url.searchParams.get('scope')).toBe(
+      'boards:read,boards:read_secret,pins:read,pins:read_secret,user_accounts:read',
+    )
     expect(done).toMatchObject({ status: 200, data: { brandId: 'casa', username: 'casa' } })
 
     const [row] = await t.db.select().from(brandAccounts)
@@ -115,6 +117,14 @@ describe('Pinterest', () => {
 
     const setup = await t.call('GET', '/brands/casa/pinterest')
     expect(setup.data.account).toEqual({ username: 'casa' })
+    // The state names the account, so Connections shows it before a board is picked; never the
+    // tokens.
+    const state = await t.call('GET', '/brands/casa/state')
+    expect(state.data.pinterest).toEqual({ username: 'casa' })
+    expect(JSON.stringify(state.data)).not.toContain(row!.tokens)
+    expect(
+      (await t.call('GET', '/brands/temper/state', undefined, 'admin')).data.pinterest,
+    ).toBeNull()
     expect(setup.data.boards.map((b: { id: string }) => b.id)).toEqual(['111', '112'])
     // The other brand has no account of its own yet.
     const other = await t.call('GET', '/brands/temper/pinterest', undefined, 'admin')

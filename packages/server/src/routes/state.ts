@@ -1,7 +1,8 @@
-import { asc, desc, eq, inArray } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { type Deps } from '../app'
 import {
+  brandAccounts,
   comments,
   connections,
   crew,
@@ -51,7 +52,7 @@ export function stateRoute(deps: Deps) {
               ),
             )
             .orderBy(asc(crew.position))
-    const [inbox, kit, links, notes, linked, pasted] = await Promise.all([
+    const [inbox, kit, links, notes, linked, pasted, [pinterest]] = await Promise.all([
       inboxOf(db, brand.id),
       kitOf(db, brand.id),
       db.select().from(shareLinks).where(eq(shareLinks.brandId, brand.id)),
@@ -66,6 +67,11 @@ export function stateRoute(deps: Deps) {
         .from(pastedLinks)
         .where(eq(pastedLinks.brandId, brand.id))
         .orderBy(desc(pastedLinks.createdAt), desc(pastedLinks.id)),
+      // The account's name only: the tokens never leave the server.
+      db
+        .select({ username: brandAccounts.username })
+        .from(brandAccounts)
+        .where(and(eq(brandAccounts.brandId, brand.id), eq(brandAccounts.platform, 'pinterest'))),
     ])
     return c.json({
       brand,
@@ -78,6 +84,8 @@ export function stateRoute(deps: Deps) {
       shareLinks: links,
       comments: notes,
       connections: linked,
+      /** The brand's linked Pinterest account, with or without a board picked. */
+      pinterest: pinterest ?? null,
       pasted: pasted.map((p) => ({ id: p.id, ...(p.reference as object) })),
     })
   })

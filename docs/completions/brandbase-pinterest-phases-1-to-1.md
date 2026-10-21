@@ -21,7 +21,8 @@ routes: `POST /brands/:id/pinterest/connect`, `POST /pinterest/callback`, `GET`,
 state names the signed-in user and that the user still reaches the brand; an account another
 brand holds answers `409 ACCOUNT_TAKEN`. Signing in with another account clears the old board.
 `pinterest` left the generic connection keys, so the source is never "connected" without a board.
-The scopes are `boards:read`, `pins:read` and `user_accounts:read`; the app asks for no write.
+The scopes are `boards:read`, `boards:read_secret`, `pins:read`, `pins:read_secret` and
+`user_accounts:read`: a brand's moodboard is often a secret board. The app asks for no write.
 
 **Web.** On the API the moodboard's Pinterest setup asks for the brand's account, sends the
 browser to Pinterest, and lists the account's boards once it is linked. `/connect/pinterest` is
@@ -41,8 +42,10 @@ is refused with a message; with the API's answers stood in for Pinterest's, the 
 lists the brand's boards and the moodboard shows the picked board's pins on a desktop and on a
 phone.
 
-**Not verified.** Nothing has run against the real Pinterest API: that needs the Pinterest app's
-keys, which are not set anywhere yet.
+**Verified against Pinterest, 21 Oct 2026.** On a local API with the real app (id 1627547, Trial
+access): the sign-in, the code exchange, an empty board list, a board made afterwards, and its
+two pins on Casa Vostra's moodboard, read live. The production deploy has not happened: the four
+variables are staged on the Fly app `brandfactory`, which still runs the archived server.
 
 **Review.** Opus and Sonnet reviewed the change before the commit. Fixed from it: a dead sign-in
 left no way back in the UI; the client trusted the status without the board; the token refresh

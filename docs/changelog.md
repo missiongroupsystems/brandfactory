@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.15.1** — 2026-10-21 — From the first real Pinterest sign-in: an account with no boards says so (Check again, or use another account), the app also reads secret boards, and Connections shows Pinterest connected with its handle as soon as the account is linked, with Disconnect stepping the row out. No migration. 439 tests.
 - **2.15.0** — 2026-10-21 — On the API the moodboard's Pinterest source is real: each brand links its own Pinterest account (an account belongs to one brand), picks a board, and the moodboard reads its pins live. Tokens are sealed per brand. Migration `0002_true_king_bedlam` (`brand_accounts`, `connections.external_id`; not applied to production). 438 tests.
 - **2.14.0** — 2026-10-14 — On the API the moodboard keeps its Instagram and TikTok sources and the links pasted onto it on the server, so they survive a reload and another device. Migration `0001_gray_tony_stark` (`pasted_links`, not applied to production). 424 tests.
 - **2.13.1** — 2026-10-14 — On the API the composer waits for the server: "Sending…" while it answers, the done screen only once the post is stored, and a refusal keeps the composer open with everything in it. A draft on a day that has passed asks for a day ahead before it can be scheduled. No migration. 419 tests.
@@ -37,6 +38,23 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.15.1 — 2026-10-21
+
+From the first sign-in with the real Pinterest app, on a local API. After these fixes the whole
+flow ran against Pinterest: sign-in, a board, and its pins live on the moodboard.
+
+- **No boards.** The account linked, but Pinterest listed no boards, and the setup showed an
+  empty list with a disabled button. It now says the account has no boards yet, links to
+  Pinterest, and offers Check again and "Use another Pinterest account". The handle reads
+  `@username`.
+- **Secret boards.** The scopes add `boards:read_secret` and `pins:read_secret`: a moodboard is
+  often a secret board. An account linked before needs one more sign-in for them.
+- **Connections.** On the API the Pinterest row follows the linked account, board or not, and
+  shows its handle; the state carries the account's name (never its tokens). Disconnect steps the
+  row's line out and the new one in (`bb-step-out`, `bb-step`), on every row.
+
+No migration. Gate: typecheck, lint, format, 439 tests in 57 files, `next build`.
 
 ## 2.15.0 — 2026-10-21
 

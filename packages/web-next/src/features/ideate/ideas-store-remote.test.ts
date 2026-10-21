@@ -6,7 +6,11 @@ import type { BrandState } from '@/lib/remote'
 import { RemoteError } from '@/lib/remote'
 import type * as Remote from '@/lib/remote'
 
-import { disconnect } from '@/features/connections/connections-store'
+import {
+  disconnect,
+  useConnections,
+  usePinterestHandle,
+} from '@/features/connections/connections-store'
 
 import { connectSource, disconnectSource, pasteLink, useIdeas } from './ideas-store'
 
@@ -180,6 +184,26 @@ describe('the moodboard on the API', () => {
     expect(referencesOf('carlitos').some((r) => r.id === 'pin-p1')).toBe(false)
     await waitFor(() =>
       expect(sends.at(-1)).toEqual(['DELETE', '/brands/carlitos/pinterest', undefined]),
+    )
+  })
+
+  it('shows Pinterest connected on Connections once the account is linked, before any board', async () => {
+    hydrate.fn('temper', {
+      brand: { id: 'temper' },
+      ideas: [],
+      connections: [],
+      pinterest: { username: 'tech2450' },
+    })
+    const fresh = () =>
+      renderHook(() => [useConnections('temper').pinterest, usePinterestHandle('temper')])
+    expect(fresh().result.current).toEqual(['connected', 'tech2450'])
+    // The moodboard still has no board to show.
+    expect(renderHook(() => useIdeas('temper')).result.current.sources.pinterest).toBe(false)
+
+    disconnect('temper', 'pinterest')
+    expect(fresh().result.current).toEqual(['off', null])
+    await waitFor(() =>
+      expect(sends.at(-1)).toEqual(['DELETE', '/brands/temper/pinterest', undefined]),
     )
   })
 })

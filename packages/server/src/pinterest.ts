@@ -2,7 +2,14 @@ import { deriveKey, openExpiring, seal, sealExpiring, unseal } from './crypto'
 
 const AUTHORIZE = 'https://www.pinterest.com/oauth/'
 const API = 'https://api.pinterest.com/v5'
-const SCOPES = ['boards:read', 'pins:read', 'user_accounts:read']
+// The secret scopes too: a brand's moodboard is often a secret board.
+const SCOPES = [
+  'boards:read',
+  'boards:read_secret',
+  'pins:read',
+  'pins:read_secret',
+  'user_accounts:read',
+]
 /** How long a connect link stays good. */
 const STATE_TTL_MS = 10 * 60 * 1000
 
