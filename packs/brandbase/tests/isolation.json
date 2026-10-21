@@ -838,6 +838,107 @@
       ]
     },
     {
+      "name": "shows a member every brand they hold and no other, and an admin every brand",
+      "steps": [
+        {
+          "sql": "insert into brandbase.brands (id, name, handle, linked, position) values ('third', 'Third', '@third', '{ig}', 2)"
+        },
+        {
+          "sql": "insert into brandbase.members (user_id, brand_id) values ('member', 'third')"
+        },
+        {
+          "call": "brand.list",
+          "input": {},
+          "expect": {
+            "length": 2,
+            "result": [
+              {
+                "id": "casa"
+              },
+              {
+                "id": "third"
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "temper"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "brand.list",
+          "as": "admin",
+          "input": {},
+          "expect": {
+            "length": 3,
+            "result": [
+              {
+                "id": "casa"
+              },
+              {
+                "id": "temper"
+              },
+              {
+                "id": "third"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "reaches nothing for a deactivated admin: the brand wall alone guards post.list",
+      "steps": [
+        {
+          "sql": "update brandbase.users set deactivated_at = now() where id = 'admin'"
+        },
+        {
+          "call": "post.list",
+          "as": "admin",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "brand.state",
+          "as": "admin",
+          "input": {
+            "brand": "temper"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        }
+      ]
+    },
+    {
+      "name": "asks the brand wall once per statement: no row rule calls can_reach for each row",
+      "steps": [
+        {
+          "sql": "select count(*) filter (where qual like '%can_reach%' or with_check like '%can_reach%')::int as per_row, count(*) filter (where qual like '%SELECT brandbase.reaches_all()%SELECT brandbase.reached()%' and with_check like '%SELECT brandbase.reaches_all()%SELECT brandbase.reached()%')::int as once from pg_policies where schemaname = 'brandbase' and policyname = 'reach'",
+          "expect": {
+            "rows": [
+              {
+                "per_row": 0,
+                "once": 18
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "answers not-found to a token with no account, and a deactivated one as the server did",
       "steps": [
         {
