@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { type Conn } from './db'
+import { type Conn, type Tx } from './db'
 import { Refused } from './errors'
 import { canonical, kindOf, type Op, type PackContent } from './pack'
 import {
@@ -55,7 +55,7 @@ async function payloadOf(
   await tx.exec('set local role pack_runtime')
   for (const id of op.before ?? []) await checkRule(tx, content.rules[id]!, params)
   const { text, params: values } = bind(op.payload!, params)
-  const rows = await tx.query(text, values)
+  const rows = await tx.query(text, values, { prepare: true })
   await tx.exec('reset role')
   if (rows.length !== 1) throw new Refused(404, 'NOT_FOUND', 'nothing to send')
   const payload = JSON.parse(JSON.stringify(unwrap(rows[0]!))) as unknown
@@ -152,7 +152,7 @@ export async function fire(
   op: Op,
   caller: Caller,
   input: Record<string, unknown>,
-  done: (tx: Conn) => Promise<void>,
+  done: (tx: Tx) => Promise<void>,
 ) {
   const connectors = deps.connectors ?? {}
   const connector = Object.hasOwn(connectors, op.connector!) ? connectors[op.connector!] : null
@@ -219,7 +219,7 @@ export async function fire(
       await setClaims(tx, deps, caller)
       await tx.exec('set local role pack_runtime')
       const { text, params: values } = bind(op.sql, params)
-      const rows = await tx.query(text, values)
+      const rows = await tx.query(text, values, { prepare: true })
       await tx.exec('reset role')
       await done(tx)
       return op.returns === 'many' ? rows.map(unwrap) : rows[0] ? unwrap(rows[0]) : null

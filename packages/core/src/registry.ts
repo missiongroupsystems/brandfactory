@@ -94,20 +94,52 @@ export interface LiveVersion {
   content: PackContent
 }
 
-/** The version live for a pack in an environment, or null. Read on every call. */
+/**
+ * Versions' content by hash. A published version never changes (`pack_versions_frozen`) and its
+ * hash is unique, so a hash always names the same content: nothing here can go stale.
+ */
+const contents = new Map<string, PackContent>()
+const CONTENTS_MAX = 32
+
+function frozen<T>(value: T): T {
+  if (value !== null && typeof value === 'object') {
+    for (const v of Object.values(value)) frozen(v)
+    Object.freeze(value)
+  }
+  return value
+}
+
+/**
+ * The version live for a pack in an environment, or null. The pointer is read on every call, so
+ * a promotion or a rollback is seen by the next call on every instance; only the content, which
+ * the hash names, is kept in memory.
+ */
 export async function liveVersion(
   db: Conn,
   environment: string,
   pack: string,
 ): Promise<LiveVersion | null> {
-  const [row] = await db.query<{ version: string; hash: string; content: PackContent }>(
-    `select v.version, v.content_hash as hash, v.content
+  const [row] = await db.query<{ version: string; hash: string }>(
+    `select v.version, v.content_hash as hash
      from packs.channels c
      join packs.pack_versions v on v.pack = c.pack and v.version = c.version
      where c.environment = $1 and c.pack = $2`,
     [environment, pack],
   )
-  return row ?? null
+  if (!row) return null
+  let content = contents.get(row.hash)
+  if (!content) {
+    const [v] = await db.query<{ content: PackContent }>(
+      'select content from packs.pack_versions where content_hash = $1',
+      [row.hash],
+    )
+    if (!v) throw new Error(`no content for ${pack} ${row.version}`)
+    if (contents.size >= CONTENTS_MAX) contents.clear()
+    // Shared by every call that reads this version, so no call can change it for the next.
+    content = frozen(v.content)
+    contents.set(row.hash, content)
+  }
+  return { version: row.version, hash: row.hash, content }
 }
 
 /**

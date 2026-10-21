@@ -1,7 +1,16 @@
 import { Refused } from './errors'
 import { changed } from './events'
 import { kindOf } from './pack'
-import { execute, log, type CoreDeps, type LogEntry, PATH_PART, resolve, validate } from './run'
+import {
+  execute,
+  log,
+  logSql,
+  type CoreDeps,
+  type LogEntry,
+  PATH_PART,
+  resolve,
+  validate,
+} from './run'
 
 /**
  * Guests: people with no account, holding a capability (a share link's token). A pack marks the
@@ -81,7 +90,7 @@ export async function callGuest(
       op,
       { principal: '', person: '', agent: null, capability },
       input,
-      { done: (tx) => log(tx, entry) },
+      { done: async (tx) => tx.atCommit(logSql(entry)) },
     )
     // A guest's comment or edit reaches the team's open screens, as any write does.
     if (kindOf(op) !== 'read') changed(req.pack)

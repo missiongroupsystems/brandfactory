@@ -241,7 +241,8 @@ export function postgres(url: string): Target {
       const name = `packcase_${randomUUID().replaceAll('-', '')}`
       const from = await template
       await admin((a) => a.exec(`create database ${name} template ${from}`))
-      const db = openPostgres(dbUrl(name))
+      // Named statements, as a core with DATABASE_PREPARE=on runs them.
+      const db = openPostgres(dbUrl(name), 5, { prepare: true })
       return {
         db,
         async dispose() {

@@ -81,6 +81,44 @@ export async function noFunctionCarriesSettings(db: Db): Promise<string[]> {
 }
 
 /**
+ * No IMMUTABLE function the runtime role can call can read who is calling. Postgres may fold an
+ * immutable call into a constant when it plans a statement, and a kept plan (a named statement
+ * with `DATABASE_PREPARE=on`, or a plpgsql function's own) then answers every later caller as the
+ * first. So an immutable function must show the catalog everything it reads: a SQL-standard body
+ * (`RETURN` or `BEGIN ATOMIC`, never a string), no table or view, no function or operator that is
+ * not immutable, and none of the caller's names in its text. Postgres records no dependency on a
+ * built-in, so a call to `now()` passes; but the caller lives only in `claims.calls`, a table.
+ */
+export async function noImmutableFunctionReadsTheCaller(db: Db): Promise<string[]> {
+  const rows = await db.query<{ name: string }>(
+    `select p.oid::regprocedure::text as name from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+     where p.provolatile = 'i' and p.prokind = 'f'
+       and n.nspname not in ('pg_catalog', 'information_schema')
+       and has_function_privilege('pack_runtime', p.oid, 'execute')
+       and (
+         (p.prosqlbody is null
+           and p.prolang not in (select oid from pg_language where lanname in ('c', 'internal')))
+         or lower(pg_get_functiondef(p.oid))
+              ~ '(claims\\s*"?\\s*\\.|current_setting|current_user|session_user|current_role)'
+         or exists (
+           select 1 from pg_depend d
+           where d.classid = 'pg_proc'::regclass and d.objid = p.oid
+             and (d.refclassid = 'pg_class'::regclass
+               or (d.refclassid = 'pg_proc'::regclass
+                   and (select q.provolatile from pg_proc q where q.oid = d.refobjid) <> 'i')
+               or (d.refclassid = 'pg_operator'::regclass
+                   and (select q.provolatile from pg_operator o
+                        join pg_proc q on q.oid = o.oprcode where o.oid = d.refobjid) <> 'i'))))
+     order by 1`,
+  )
+  return rows.map(
+    (r) =>
+      `${r.name} is immutable but may read the caller (a string body, a table or a call that is not immutable)`,
+  )
+}
+
+/**
  * Nothing a pack made runs on a write: no trigger, rule or column default that calls code
  * outside pg_catalog on a table the runtime role can reach. Such code runs as whoever writes the
  * row, which for a fixture, a seed or a core write is the login role. One trigger is the core's
@@ -274,6 +312,7 @@ export async function testVersion(content: PackContent, target: Target = pglite)
       ...(await everyPolicyRestricts(db)),
       ...(await noFunctionRunsAsItsOwner(db)),
       ...(await noFunctionCarriesSettings(db)),
+      ...(await noImmutableFunctionReadsTheCaller(db)),
       ...(await noCodeRunsOnWrite(db)),
       ...everyRuleHasARefusalTest(content, run),
       ...everyMoveHasANotFoundTest(content, run),
