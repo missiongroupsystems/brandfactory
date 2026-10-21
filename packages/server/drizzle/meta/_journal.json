@@ -22,6 +22,13 @@
       "when": 1792566066156,
       "tag": "0002_true_king_bedlam",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792603065163,
+      "tag": "0003_minor_miss_america",
+      "breakpoints": true
     }
   ]
 }

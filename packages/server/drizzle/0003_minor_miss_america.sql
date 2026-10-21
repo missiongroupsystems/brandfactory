@@ -1,0 +1,1 @@
+ALTER TABLE "brandbase"."brand_accounts" ADD COLUMN "details" jsonb DEFAULT '{}'::jsonb NOT NULL;

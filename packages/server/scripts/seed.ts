@@ -290,12 +290,13 @@ export async function seed(db: Db) {
       },
     ])
 
-    // Connections.
-    await db
-      .insert(t.connections)
-      .values(
-        Object.entries(CONNECTIONS[id]).map(([key, status]) => ({ brandId: id, key, status })),
-      )
+    // Connections. Instagram, Facebook and TikTok are left out: on the API they follow the
+    // accounts a brand links, and a seeded "connected" would have no tokens behind it.
+    await db.insert(t.connections).values(
+      Object.entries(CONNECTIONS[id])
+        .filter(([key]) => !['ig', 'fb', 'tt'].includes(key))
+        .map(([key, status]) => ({ brandId: id, key, status })),
+    )
   }
 
   // Guest comments, on their shoot or idea.

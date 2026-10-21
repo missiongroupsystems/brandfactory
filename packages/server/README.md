@@ -34,3 +34,12 @@ Each brand links its own Pinterest account and picks the board its moodboard rea
 `PINTEREST_APP_SECRET`, `PINTEREST_REDIRECT_URL` (the web app's `/connect/pinterest`, also
 registered on the Pinterest app) and `TOKEN_ENCRYPTION_KEY`, or none of them: the Pinterest routes
 then answer 503. The design is in `docs/completions/brandbase-pinterest-plan.md`.
+
+## Meta and TikTok (posting)
+
+Each brand links one Facebook Page, with the Page's Instagram business account, and one TikTok
+account (`routes/accounts.ts`). An account belongs to one brand. The `ig`, `fb` and `tt`
+connections follow the linked accounts and cannot be set by hand. Set `META_APP_ID`,
+`META_APP_SECRET`, `META_CONFIG_ID`, `META_REDIRECT_URL` and `TIKTOK_CLIENT_KEY`,
+`TIKTOK_CLIENT_SECRET`, `TIKTOK_REDIRECT_URL` (the web app's `/connect/meta` and `/connect/tiktok`),
+each set with `TOKEN_ENCRYPTION_KEY`. The plan is `docs/executing/brandbase-publishing-plan.md`.

@@ -11,6 +11,7 @@ import { z, ZodError } from 'zod'
 import { body } from './http'
 import { HttpError, deactivated, noAccount, notFound, unauthorized } from './errors'
 import { connectionRoutes } from './routes/connections'
+import { accountBrandRoutes, accountCallbackRoutes } from './routes/accounts'
 import { pastedRoutes } from './routes/pasted'
 import { pinterestBrandRoutes, pinterestCallbackRoute } from './routes/pinterest'
 import { ideaRoutes } from './routes/ideas'
@@ -23,7 +24,9 @@ import { guestRoutes, teamCommentRoutes, teamShareRoutes } from './routes/share'
 import { type BrandEnv } from './routes/shared'
 import { shootRoutes } from './routes/shoots'
 import { stateRoute } from './routes/state'
+import { type MetaApp } from './meta'
 import { type PinterestApp } from './pinterest'
+import { type TikTokApp } from './tiktok'
 import { type BlobStore, type diskStore } from './storage'
 import { type instantOf } from './time'
 
@@ -52,8 +55,10 @@ export interface Deps {
   publicUrl: string
   /** Signs media links; changing it breaks every link handed out. */
   mediaSecret: string
-  /** The team's Pinterest app; absent until its variables are set. */
+  /** The platform apps; each is absent until its variables are set. */
   pinterest?: PinterestApp
+  meta?: MetaApp
+  tiktok?: TikTokApp
 }
 
 function bearer(header: string | undefined) {
@@ -142,6 +147,8 @@ export function createApp(deps: Deps) {
   app.use('/brands/*', signedIn)
   app.use('/brands', signedIn)
   app.use('/pinterest/*', signedIn)
+  app.use('/meta/*', signedIn)
+  app.use('/tiktok/*', signedIn)
 
   app.get('/me', async (c) => {
     const user = c.var.user
@@ -149,6 +156,7 @@ export function createApp(deps: Deps) {
   })
   app.get('/brands', async (c) => c.json(await brandsOf(deps.db, c.var.user)))
   app.route('/pinterest', pinterestCallbackRoute(deps))
+  app.route('/', accountCallbackRoutes(deps))
 
   const brand = new Hono<BrandEnv>()
   brand.use('*', async (c, next) => {
@@ -186,6 +194,7 @@ export function createApp(deps: Deps) {
   brand.route('/connections', connectionRoutes(deps))
   brand.route('/pasted', pastedRoutes(deps))
   brand.route('/pinterest', pinterestBrandRoutes(deps))
+  brand.route('/', accountBrandRoutes(deps))
   app.route('/brands/:brandId', brand)
 
   return app

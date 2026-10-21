@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.16.0** — 2026-10-22 — Each brand links its own Facebook Page (with its Instagram account) and TikTok account by a real sign-in on the API, picked on a Page list for Meta; Connections names the accounts, and Instagram, Facebook and TikTok are read from the linked accounts instead of a switch. Migration `0003_minor_miss_america` (not applied to production). 451 tests.
 - **2.15.1** — 2026-10-21 — From the first real Pinterest sign-in: an account with no boards says so (Check again, or use another account), the app also reads secret boards, and Connections shows Pinterest connected with its handle as soon as the account is linked, with Disconnect stepping the row out. No migration. 439 tests.
 - **2.15.0** — 2026-10-21 — On the API the moodboard's Pinterest source is real: each brand links its own Pinterest account (an account belongs to one brand), picks a board, and the moodboard reads its pins live. Tokens are sealed per brand. Migration `0002_true_king_bedlam` (`brand_accounts`, `connections.external_id`; not applied to production). 438 tests.
 - **2.14.0** — 2026-10-14 — On the API the moodboard keeps its Instagram and TikTok sources and the links pasted onto it on the server, so they survive a reload and another device. Migration `0001_gray_tony_stark` (`pasted_links`, not applied to production). 424 tests.
@@ -38,6 +39,24 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.16.0 — 2026-10-22
+
+- **Accounts.** `brand_accounts` takes `meta` (a Facebook Page, with its Instagram business
+  account in `details`) and `tiktok`, sealed per brand and account like Pinterest. Routes in
+  `routes/accounts.ts`: connect, the two callbacks, the Page pick, disconnect (TikTok revokes
+  first). One account per brand, refused with 409 otherwise.
+- **Connections.** `ig`, `fb` and `tt` are read from the linked accounts (`publishingOf`) by the
+  state and the send route, so an older "connected" row cannot stand for missing tokens; the
+  generic route and the seed no longer set them. The state names the accounts, never their tokens.
+- **Web.** Connect and Reconnect start the real sign-in on the API (Connections and the composer);
+  `/connect/meta` picks the Page, `/connect/tiktok` finishes TikTok, and both go back to the page
+  the sign-in left. Rows show the account names.
+- **Docs.** `docs/executing/brandbase-publishing-plan.md` (three phases) and the completion notes
+  for phase 1.
+
+Migration `0003_minor_miss_america` (schema `brandbase`), not applied to production. Gate:
+typecheck, lint, format, 451 tests in 58 files, `next build`.
 
 ## 2.15.1 — 2026-10-21
 

@@ -41,3 +41,25 @@ export function openExpiring<T>(key: Buffer, purpose: string, sealed: string, no
 export function sealExpiring(key: Buffer, purpose: string, value: object, expiresAt: number) {
   return seal(key, JSON.stringify({ value, expiresAt }), purpose)
 }
+
+/** Seals values of one kind for a short time, under a key of their own. */
+export function expiringSealer<T extends object>(
+  masterKey: Buffer,
+  purpose: string,
+  ttlMs: number,
+) {
+  const key = deriveKey(masterKey, purpose)
+  return {
+    seal: (value: T, now: number) => sealExpiring(key, purpose, value, now + ttlMs),
+    open: (sealed: string, now: number) => openExpiring<T>(key, purpose, sealed, now),
+  }
+}
+
+/** Seals a platform's tokens; `bound` names the row (brand and account) they open in. */
+export function tokenSealer<T>(masterKey: Buffer, purpose: string) {
+  const key = deriveKey(masterKey, purpose)
+  return {
+    seal: (tokens: T, bound: string) => seal(key, JSON.stringify(tokens), bound),
+    open: (sealed: string, bound: string) => JSON.parse(unseal(key, sealed, bound)) as T,
+  }
+}

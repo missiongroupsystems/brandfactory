@@ -2,8 +2,10 @@ import { afterEach, beforeAll } from 'vitest'
 import { createApp } from './app'
 import { devAuth } from './auth'
 import { migrateTestDb, openTestDb, type Db } from './db/client'
-import { brands, connections, members, users } from './db/schema'
+import { brandAccounts, brands, connections, members, users } from './db/schema'
+import { type MetaApp } from './meta'
 import { type PinterestApp } from './pinterest'
+import { type TikTokApp } from './tiktok'
 import { instantOf } from './time'
 
 /** Tue 6 Oct 2026, 12:00 in Singapore: the demo's "today". */
@@ -21,7 +23,10 @@ afterEach(async () => {
  * `temper`. `member` reaches `casa` only, `admin` reaches both, `stranger` has a token and no
  * account.
  */
-export async function testApp(now: Date = NOW, extra: { pinterest?: PinterestApp } = {}) {
+export async function testApp(
+  now: Date = NOW,
+  extra: { pinterest?: PinterestApp; meta?: MetaApp; tiktok?: TikTokApp } = {},
+) {
   const handle = await openTestDb()
   open.push(handle.close)
   const db: Db = handle.db
@@ -94,4 +99,37 @@ export async function testApp(now: Date = NOW, extra: { pinterest?: PinterestApp
   }
 
   return { app, db, call, sent, failNextInvite: () => (failInvite = true) }
+}
+
+/**
+ * Links a brand's publishing accounts as the sign-ins would: a Facebook Page (with an Instagram
+ * account unless `ig` is false) and a TikTok account. The tokens are placeholders; no route here
+ * opens them.
+ */
+export async function linkAccounts(
+  db: Db,
+  brandId: string,
+  link: { meta?: boolean; ig?: boolean; tiktok?: boolean } = { meta: true, tiktok: true },
+) {
+  const rows: (typeof brandAccounts.$inferInsert)[] = []
+  if (link.meta) {
+    rows.push({
+      brandId,
+      platform: 'meta',
+      accountId: `page-${brandId}`,
+      username: `${brandId} Page`,
+      tokens: 'sealed',
+      details: link.ig === false ? {} : { igUserId: `ig-${brandId}`, igUsername: brandId },
+    })
+  }
+  if (link.tiktok) {
+    rows.push({
+      brandId,
+      platform: 'tiktok',
+      accountId: `tt-${brandId}`,
+      username: brandId,
+      tokens: 'sealed',
+    })
+  }
+  if (rows.length > 0) await db.insert(brandAccounts).values(rows)
 }

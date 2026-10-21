@@ -5,7 +5,9 @@ import { devAuth, supabaseAuth } from './auth'
 import { openPglite, openPostgres } from './db/client'
 import { loadEnv } from './env'
 import { runDueJobs, simulatedPublisher } from './jobs'
+import { metaApp } from './meta'
 import { pinterestApp } from './pinterest'
+import { tiktokApp } from './tiktok'
 import { diskStore, supabaseStore } from './storage'
 import { instantOf } from './time'
 
@@ -63,6 +65,23 @@ const app = createApp({
         appId: env.PINTEREST_APP_ID,
         appSecret: env.PINTEREST_APP_SECRET!,
         redirectUrl: env.PINTEREST_REDIRECT_URL!,
+        masterKey: Buffer.from(env.TOKEN_ENCRYPTION_KEY!, 'base64'),
+      })
+    : undefined,
+  meta: env.META_APP_ID
+    ? metaApp({
+        appId: env.META_APP_ID,
+        appSecret: env.META_APP_SECRET!,
+        configId: env.META_CONFIG_ID!,
+        redirectUrl: env.META_REDIRECT_URL!,
+        masterKey: Buffer.from(env.TOKEN_ENCRYPTION_KEY!, 'base64'),
+      })
+    : undefined,
+  tiktok: env.TIKTOK_CLIENT_KEY
+    ? tiktokApp({
+        clientKey: env.TIKTOK_CLIENT_KEY,
+        clientSecret: env.TIKTOK_CLIENT_SECRET!,
+        redirectUrl: env.TIKTOK_REDIRECT_URL!,
         masterKey: Buffer.from(env.TOKEN_ENCRYPTION_KEY!, 'base64'),
       })
     : undefined,

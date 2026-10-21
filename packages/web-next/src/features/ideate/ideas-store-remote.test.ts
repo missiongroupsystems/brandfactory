@@ -9,7 +9,7 @@ import type * as Remote from '@/lib/remote'
 import {
   disconnect,
   useConnections,
-  usePinterestHandle,
+  useAccountName,
 } from '@/features/connections/connections-store'
 
 import { connectSource, disconnectSource, pasteLink, useIdeas } from './ideas-store'
@@ -195,8 +195,8 @@ describe('the moodboard on the API', () => {
       pinterest: { username: 'tech2450' },
     })
     const fresh = () =>
-      renderHook(() => [useConnections('temper').pinterest, usePinterestHandle('temper')])
-    expect(fresh().result.current).toEqual(['connected', 'tech2450'])
+      renderHook(() => [useConnections('temper').pinterest, useAccountName('temper', 'pinterest')])
+    expect(fresh().result.current).toEqual(['connected', '@tech2450'])
     // The moodboard still has no board to show.
     expect(renderHook(() => useIdeas('temper')).result.current.sources.pinterest).toBe(false)
 
@@ -205,5 +205,45 @@ describe('the moodboard on the API', () => {
     await waitFor(() =>
       expect(sends.at(-1)).toEqual(['DELETE', '/brands/temper/pinterest', undefined]),
     )
+  })
+
+  it('names the Page, the Instagram and TikTok accounts, and forgets Instagram with its Page', async () => {
+    hydrate.fn('casa-vostra', {
+      brand: { id: 'casa-vostra' },
+      ideas: [],
+      connections: [
+        { key: 'ig', status: 'connected' },
+        { key: 'fb', status: 'connected' },
+        { key: 'tt', status: 'connected' },
+      ],
+      meta: { page: 'Casa Vostra', igUsername: 'casavostra' },
+      tiktok: { username: 'Casa Vostra TT' },
+    })
+    const read = () =>
+      renderHook(() => {
+        const status = useConnections('casa-vostra')
+        return {
+          ig: [status.ig, useAccountName('casa-vostra', 'ig')],
+          fb: [status.fb, useAccountName('casa-vostra', 'fb')],
+          tt: [status.tt, useAccountName('casa-vostra', 'tt')],
+        }
+      }).result.current
+    expect(read()).toEqual({
+      ig: ['connected', '@casavostra'],
+      fb: ['connected', 'Casa Vostra'],
+      tt: ['connected', 'Casa Vostra TT'],
+    })
+
+    // Instagram and Facebook are one Page on Meta: both go, with one request.
+    disconnect('casa-vostra', 'ig')
+    expect(read()).toEqual({
+      ig: ['off', null],
+      fb: ['off', null],
+      tt: ['connected', 'Casa Vostra TT'],
+    })
+    await waitFor(() =>
+      expect(sends.at(-1)).toEqual(['DELETE', '/brands/casa-vostra/meta', undefined]),
+    )
+    expect(sends.some(([m, path]) => m === 'PUT' && path.includes('/connections/ig'))).toBe(false)
   })
 })

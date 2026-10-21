@@ -64,4 +64,24 @@ describe('the environment', () => {
       }),
     ).toThrow(/TOKEN_ENCRYPTION_KEY/)
   })
+
+  it('takes the Meta and TikTok apps the same way, each with the key that seals their tokens', () => {
+    let message = ''
+    try {
+      loadEnv({ META_APP_ID: 'app', TIKTOK_CLIENT_KEY: 'key' })
+    } catch (err) {
+      message = String(err)
+    }
+    for (const missing of [
+      'META_APP_SECRET',
+      'META_CONFIG_ID',
+      'META_REDIRECT_URL',
+      'TIKTOK_CLIENT_SECRET',
+      'TIKTOK_REDIRECT_URL',
+      'TOKEN_ENCRYPTION_KEY',
+    ]) {
+      expect(message).toContain(missing)
+    }
+    expect(message).not.toContain('PINTEREST')
+  })
 })

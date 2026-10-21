@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, eq, notInArray } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { type Deps } from '../app'
@@ -8,13 +8,11 @@ import { type BrandEnv } from './shared'
 
 /**
  * The UI's connection keys (`data/connections.ts`), plus the moodboard's sources: the posts DM'd
- * to the moodboard account and the brand's TikTok saves. Pinterest is not here: a brand's board
- * is set by `routes/pinterest.ts`, so it is never connected without a board.
+ * to the moodboard account and the brand's TikTok saves. The accounts with tokens are not here:
+ * `ig`, `fb` and `tt` follow the linked accounts (`routes/accounts.ts`), and a brand's Pinterest
+ * board is set by `routes/pinterest.ts`, so none is connected without its tokens.
  */
 export const CONNECTION_KEYS = [
-  'ig',
-  'tt',
-  'fb',
   'drive',
   'lark',
   'web',
@@ -25,27 +23,40 @@ export const CONNECTION_KEYS = [
 ] as const
 
 /**
- * A brand's connections. The status is set here by the connect sheet; the real OAuth for Meta and
- * TikTok lives in `packages/connect`, which is not wired to this table yet (see the plan).
+ * A brand's connections. The status of the tools without a sign-in yet (Drive, Lark, the website,
+ * Google Business Profile, bookings) is set here by the connect sheet.
  */
 export function connectionRoutes(deps: Deps) {
   const { db } = deps
-  return new Hono<BrandEnv>()
-    .get('/', async (c) =>
-      c.json(await db.select().from(connections).where(eq(connections.brandId, c.var.brand.id))),
-    )
-    .put('/:key', async (c) => {
-      const brand = c.var.brand
-      const key = z.enum(CONNECTION_KEYS).parse(c.req.param('key'))
-      const { status } = await body(c, z.object({ status: z.enum(['connected', 'off']) }))
-      const [row] = await db
-        .insert(connections)
-        .values({ brandId: brand.id, key, status })
-        .onConflictDoUpdate({
-          target: [connections.brandId, connections.key],
-          set: { status, updatedAt: new Date() },
-        })
-        .returning()
-      return c.json(row!)
-    })
+  return (
+    new Hono<BrandEnv>()
+      // Without Instagram, Facebook and TikTok: the state reads those from the linked accounts.
+      .get('/', async (c) =>
+        c.json(
+          await db
+            .select()
+            .from(connections)
+            .where(
+              and(
+                eq(connections.brandId, c.var.brand.id),
+                notInArray(connections.key, ['ig', 'fb', 'tt']),
+              ),
+            ),
+        ),
+      )
+      .put('/:key', async (c) => {
+        const brand = c.var.brand
+        const key = z.enum(CONNECTION_KEYS).parse(c.req.param('key'))
+        const { status } = await body(c, z.object({ status: z.enum(['connected', 'off']) }))
+        const [row] = await db
+          .insert(connections)
+          .values({ brandId: brand.id, key, status })
+          .onConflictDoUpdate({
+            target: [connections.brandId, connections.key],
+            set: { status, updatedAt: new Date() },
+          })
+          .returning()
+        return c.json(row!)
+      })
+  )
 }

@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { connections } from '../db/schema'
+import { and, eq } from 'drizzle-orm'
+import { brandAccounts, connections } from '../db/schema'
 import { runDueJobs, PublishError, simulatedPublisher, type Publisher } from '../jobs'
-import { NOW, testApp } from '../test-helpers'
+import { linkAccounts, NOW, testApp } from '../test-helpers'
 
 async function ready() {
   const t = await testApp()
-  await t.db.insert(connections).values([
-    { brandId: 'casa', key: 'ig', status: 'connected' },
-    { brandId: 'casa', key: 'tt', status: 'connected' },
-  ])
+  await linkAccounts(t.db, 'casa')
   await t.call('POST', '/brands/casa/posts', {
     id: 'p1',
     format: 'reel',
@@ -103,11 +101,21 @@ describe('sending a post', () => {
     ])
   })
 
-  it('asks to reconnect an account that is not connected', async () => {
-    const { call } = await ready()
+  it('asks to reconnect an account with no tokens behind it, whatever an older row says', async () => {
+    const { call, db } = await ready()
+    await db
+      .delete(brandAccounts)
+      .where(and(eq(brandAccounts.brandId, 'casa'), eq(brandAccounts.platform, 'meta')))
+    // A row from before the accounts were real: it says connected, and nothing can post.
+    await db.insert(connections).values({ brandId: 'casa', key: 'ig', status: 'connected' })
     await call('PATCH', '/brands/casa/posts/p1', { channels: ['ig', 'fb'] })
     const res = await call('POST', '/brands/casa/posts/p1/send', { when: 'slot' })
-    expect(res.data.details).toEqual(['Reconnect Facebook first.'])
+    expect(res.data.details).toEqual(['Reconnect Instagram first.', 'Reconnect Facebook first.'])
+    // The state agrees: Instagram is off.
+    const state = await call('GET', '/brands/casa/state')
+    expect(state.data.connections).toContainEqual(
+      expect.objectContaining({ key: 'ig', status: 'off' }),
+    )
   })
 
   it('counts text in characters as people see them, per account', async () => {

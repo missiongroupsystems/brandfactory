@@ -14,6 +14,7 @@ import {
 } from '../db/schema'
 import { postViews } from '../domain/posts'
 import { todayIn } from '../time'
+import { accountNames, publishingOf } from './accounts'
 import { inboxOf } from './inbox'
 import { kitOf } from './kit'
 import { type BrandEnv } from './shared'
@@ -52,27 +53,30 @@ export function stateRoute(deps: Deps) {
               ),
             )
             .orderBy(asc(crew.position))
-    const [inbox, kit, links, notes, linked, pasted, [pinterest]] = await Promise.all([
-      inboxOf(db, brand.id),
-      kitOf(db, brand.id),
-      db.select().from(shareLinks).where(eq(shareLinks.brandId, brand.id)),
-      db
-        .select()
-        .from(comments)
-        .where(eq(comments.brandId, brand.id))
-        .orderBy(asc(comments.createdAt), asc(comments.id)),
-      db.select().from(connections).where(eq(connections.brandId, brand.id)),
-      db
-        .select()
-        .from(pastedLinks)
-        .where(eq(pastedLinks.brandId, brand.id))
-        .orderBy(desc(pastedLinks.createdAt), desc(pastedLinks.id)),
-      // The account's name only: the tokens never leave the server.
-      db
-        .select({ username: brandAccounts.username })
-        .from(brandAccounts)
-        .where(and(eq(brandAccounts.brandId, brand.id), eq(brandAccounts.platform, 'pinterest'))),
-    ])
+    const [inbox, kit, links, notes, linked, pasted, [pinterest], accounts, publishing] =
+      await Promise.all([
+        inboxOf(db, brand.id),
+        kitOf(db, brand.id),
+        db.select().from(shareLinks).where(eq(shareLinks.brandId, brand.id)),
+        db
+          .select()
+          .from(comments)
+          .where(eq(comments.brandId, brand.id))
+          .orderBy(asc(comments.createdAt), asc(comments.id)),
+        db.select().from(connections).where(eq(connections.brandId, brand.id)),
+        db
+          .select()
+          .from(pastedLinks)
+          .where(eq(pastedLinks.brandId, brand.id))
+          .orderBy(desc(pastedLinks.createdAt), desc(pastedLinks.id)),
+        // The account's name only: the tokens never leave the server.
+        db
+          .select({ username: brandAccounts.username })
+          .from(brandAccounts)
+          .where(and(eq(brandAccounts.brandId, brand.id), eq(brandAccounts.platform, 'pinterest'))),
+        accountNames(db, brand.id),
+        publishingOf(db, brand.id),
+      ])
     return c.json({
       brand,
       today: todayIn(brand.timezone, deps.now()),
@@ -83,9 +87,15 @@ export function stateRoute(deps: Deps) {
       ...kit,
       shareLinks: links,
       comments: notes,
-      connections: linked,
+      // Instagram, Facebook and TikTok as their linked accounts say, whatever an older row says.
+      connections: [
+        ...linked.filter((r) => !['ig', 'fb', 'tt'].includes(r.key)),
+        ...Object.entries(publishing).map(([key, status]) => ({ brandId: brand.id, key, status })),
+      ],
       /** The brand's linked Pinterest account, with or without a board picked. */
       pinterest: pinterest ?? null,
+      /** The Facebook Page (with its Instagram account) and the TikTok account it posts to. */
+      ...accounts,
       pasted: pasted.map((p) => ({ id: p.id, ...(p.reference as object) })),
     })
   })

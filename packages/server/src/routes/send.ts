@@ -3,7 +3,7 @@ import { and, eq, inArray, ne } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { type Deps } from '../app'
-import { connections, postJobs, postSends, posts } from '../db/schema'
+import { postJobs, postSends, posts } from '../db/schema'
 import { sendBlockers, type DraftRules } from '../domain/publish'
 import {
   assertChannels,
@@ -16,6 +16,7 @@ import {
 import { conflict, invalid } from '../errors'
 import { body } from '../http'
 import { todayIn } from '../time'
+import { publishingOf } from './accounts'
 import { bump, Channel, type BrandEnv } from './shared'
 
 const Send = z.object({
@@ -76,12 +77,10 @@ export function sendRoute(deps: Deps) {
       const now = deps.now()
       const day = input.when === 'now' ? todayIn(brand.timezone, now) : post.day
       const time = input.when === 'now' ? localTime(brand.timezone, now) : post.time
-      const linked = await tx
-        .select()
-        .from(connections)
-        .where(and(eq(connections.brandId, brand.id), inArray(connections.key, PUBLISHING)))
+      // Linked means tokens to post with: the brand's accounts, not a status someone set.
+      const linked = await publishingOf(tx, brand.id)
       const disconnected = channels.filter(
-        (ch) => PUBLISHING.includes(ch) && linked.find((l) => l.key === ch)?.status !== 'connected',
+        (ch) => PUBLISHING.includes(ch) && linked[ch as keyof typeof linked] !== 'connected',
       )
       let storyTaken = false
       if (post.format === 'story' && day) {

@@ -381,7 +381,8 @@ export const connections = bb.table(
 )
 
 /**
- * A brand's own account on a platform: the Pinterest account its moodboard reads. The tokens are
+ * A brand's own account on a platform: the Pinterest account its moodboard reads, the Facebook Page
+ * (with its Instagram account) and the TikTok account it posts to. The tokens are
  * sealed (`crypto.ts`) and bound to the brand, the platform and the account, so a ciphertext
  * copied to another row does not open. An account belongs to one brand: the unique index refuses
  * a second, whatever code path writes.
@@ -392,10 +393,16 @@ export const brandAccounts = bb.table(
     brandId: text('brand_id')
       .notNull()
       .references(() => brands.id, { onDelete: 'cascade' }),
-    platform: text('platform', { enum: ['pinterest'] }).notNull(),
+    platform: text('platform', { enum: ['pinterest', 'meta', 'tiktok'] }).notNull(),
+    /** Pinterest: the user; Meta: the Facebook Page; TikTok: the `open_id`. */
     accountId: text('account_id').notNull(),
+    /** What a person reads: the handle, the Page's name or the display name. */
     username: text('username').notNull(),
     tokens: text('tokens').notNull(),
+    /** Meta: the Page's Instagram business account, `{ igUserId, igUsername }`, when it has one. */
+    details: jsonb('details')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     connectedBy: text('connected_by').references(() => users.id, { onDelete: 'set null' }),
     updatedAt: updated(),
   },

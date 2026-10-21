@@ -9,7 +9,13 @@ import { useBrand } from '@/features/schedule/posts-store'
 import { remote } from '@/lib/remote'
 
 import { ConnectSheet, SOURCES, SourceMark } from './connect-sheet'
-import { disconnect, useConnections, usePinterestHandle, type SourceKey } from './connections-store'
+import {
+  connect,
+  disconnect,
+  useAccountName,
+  useConnections,
+  type SourceKey,
+} from './connections-store'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 /** How long a disconnected row's line takes to step out before the new one steps in. */
@@ -35,9 +41,11 @@ export function ConnectionsPage() {
   const [connecting, setConnecting] = React.useState<SourceKey | null>(null)
   const router = useRouter()
 
-  // On the API, Pinterest is a board to pick, which the moodboard does.
+  // On the API, Pinterest is a board to pick, which the moodboard does, and Instagram, Facebook
+  // and TikTok are real sign-ins that leave for the platform.
   function open(key: SourceKey) {
     if (remote && key === 'pinterest') router.push('/ideate')
+    else if (remote && (key === 'ig' || key === 'fb' || key === 'tt')) connect(brand.id, key)
     else setConnecting(key)
   }
 
@@ -79,7 +87,7 @@ function Row({
 }) {
   const { brand } = useBrand()
   const info = SOURCES[source]
-  const handle = usePinterestHandle(brand.id)
+  const name = useAccountName(brand.id, source)
   // A change made on this page plays: the old line steps out, the new one steps in. The first
   // draw and a brand switch stay still.
   const [shown, setShown] = React.useState(status)
@@ -123,14 +131,22 @@ function Row({
               ? info.brings
               : status === 'attention'
                 ? 'Signed out · sign in again'
-                : source === 'pinterest' && handle
-                  ? `@${handle}`
-                  : info.account(brand)}
+                : (name ?? info.account(brand))}
           </span>
         </span>
       </span>
       {status === 'connected' ? (
-        <RowMenu name={info.name} onReconnect={onConnect} onDisconnect={leave} />
+        <RowMenu
+          name={info.name}
+          onReconnect={onConnect}
+          onDisconnect={leave}
+          // On the API, Instagram and Facebook are one Page on Meta.
+          disconnectLabel={
+            remote && (source === 'ig' || source === 'fb')
+              ? 'Disconnect Instagram and Facebook'
+              : undefined
+          }
+        />
       ) : (
         <button
           key={status}
@@ -151,10 +167,13 @@ function RowMenu({
   name,
   onReconnect,
   onDisconnect,
+  disconnectLabel = 'Disconnect',
 }: {
   name: string
   onReconnect: () => void
   onDisconnect: () => void
+  /** Says when Disconnect takes more than this row with it. */
+  disconnectLabel?: string
 }) {
   const [open, setOpen] = React.useState(false)
   const root = React.useRef<HTMLDivElement>(null)
@@ -209,10 +228,10 @@ function RowMenu({
         <div
           role="menu"
           aria-label={`${name} actions`}
-          className="bb-menu absolute top-10 right-0 z-30 flex w-[160px] origin-top-right flex-col rounded-[12px] bg-page p-1.5 shadow-pop"
+          className="bb-menu absolute top-10 right-0 z-30 flex w-max min-w-[160px] origin-top-right flex-col rounded-[12px] bg-page p-1.5 shadow-pop"
         >
           {item('Reconnect', onReconnect)}
-          {item('Disconnect', onDisconnect, true)}
+          {item(disconnectLabel, onDisconnect, true)}
         </div>
       )}
     </div>

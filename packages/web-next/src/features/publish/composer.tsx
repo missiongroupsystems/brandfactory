@@ -29,7 +29,12 @@ import { MonthArrows, useMonthPages } from '@/features/ideate/day-picker'
 import { composeChannels, sentChannels } from '@/features/schedule/calendar-items'
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
-import { useConnections, useConnected } from '@/features/connections/connections-store'
+import { isPublishing } from '@/features/connections/accounts'
+import {
+  connect as linkAccount,
+  useConnections,
+  useConnected,
+} from '@/features/connections/connections-store'
 import { ideaIdOfHook } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import { newId, quietly, remote, request, sent } from '@/lib/remote'
@@ -632,6 +637,8 @@ export function Composer({
             <button
               type="button"
               onClick={() => {
+                // On the API, a real sign-in: the browser leaves for the platform.
+                if (remote && isPublishing(failedKey)) return linkAccount(brand.id, failedKey)
                 setReconnected(true)
                 // The account that failed is connected again, and the post goes to it.
                 if (!draft.connected.includes(failedKey)) api.connect(failedKey)
@@ -857,7 +864,9 @@ function Accounts({ api }: { api: PublishDraftApi }) {
                 <button
                   key={c.key}
                   type="button"
-                  onClick={() => connect(c.key)}
+                  onClick={() =>
+                    remote && isPublishing(c.key) ? linkAccount(brand.id, c.key) : connect(c.key)
+                  }
                   className="flex h-10 items-center gap-2.5 rounded-full px-4 text-[13px] text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink max-md:h-14 max-md:rounded-none max-md:border-b max-md:border-(--cal-line) max-md:px-0 max-md:text-[15px] max-md:shadow-none"
                 >
                   <PlatformLogo platform={c.key} size={14} />

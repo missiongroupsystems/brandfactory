@@ -38,6 +38,15 @@ const Env = z
     PINTEREST_APP_SECRET: z.string().min(1).optional(),
     /** The web app's `/connect/pinterest`, as registered on the Pinterest app. */
     PINTEREST_REDIRECT_URL: z.string().url().optional(),
+    /** The Meta app (Facebook Pages and Instagram): all four, or none. */
+    META_APP_ID: z.string().min(1).optional(),
+    META_APP_SECRET: z.string().min(1).optional(),
+    META_CONFIG_ID: z.string().min(1).optional(),
+    META_REDIRECT_URL: z.string().url().optional(),
+    /** The TikTok app: all three, or none. */
+    TIKTOK_CLIENT_KEY: z.string().min(1).optional(),
+    TIKTOK_CLIENT_SECRET: z.string().min(1).optional(),
+    TIKTOK_REDIRECT_URL: z.string().url().optional(),
     /** 32 bytes, base64. Seals the stored tokens; changing it means connecting again. */
     TOKEN_ENCRYPTION_KEY: z
       .string()
@@ -82,15 +91,17 @@ const Env = z
         message: 'required for supabase storage',
       })
     }
-    const pinterest = [
-      'PINTEREST_APP_ID',
-      'PINTEREST_APP_SECRET',
-      'PINTEREST_REDIRECT_URL',
-      'TOKEN_ENCRYPTION_KEY',
-    ] as const
-    if (pinterest.some((k) => env[k]) && !pinterest.every((k) => env[k])) {
-      for (const k of pinterest.filter((k) => !env[k])) {
-        ctx.addIssue({ code: 'custom', path: [k], message: 'Pinterest needs all four variables' })
+    // Each platform's variables come all together or not at all, with the key that seals them.
+    const platforms = {
+      Pinterest: ['PINTEREST_APP_ID', 'PINTEREST_APP_SECRET', 'PINTEREST_REDIRECT_URL'],
+      Meta: ['META_APP_ID', 'META_APP_SECRET', 'META_CONFIG_ID', 'META_REDIRECT_URL'],
+      TikTok: ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET', 'TIKTOK_REDIRECT_URL'],
+    } as const
+    for (const [name, keys] of Object.entries(platforms)) {
+      if (!keys.some((k) => env[k])) continue
+      const needed = [...keys, 'TOKEN_ENCRYPTION_KEY'] as const
+      for (const k of needed.filter((k) => !env[k])) {
+        ctx.addIssue({ code: 'custom', path: [k], message: `${name} needs all its variables` })
       }
     }
     if (env.AUTH_PROVIDER === 'supabase' && !env.SUPABASE_JWKS_URL) {
