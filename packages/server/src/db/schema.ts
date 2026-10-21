@@ -361,8 +361,8 @@ export const voiceVersions = bb.table(
 )
 
 /**
- * The UI's connection keys (ig, tt, fb, drive, lark, web, gbp, res, pinterest), and the
- * moodboard's two other sources: posts DM'd to the moodboard account (`moodboard-dm`) and the
+ * The UI's connection keys (ig, tt, fb, drive, lark, web, gbp, res), the brand's Pinterest
+ * board (`pinterest`, set by `routes/pinterest.ts`), and the moodboard's two other sources: posts DM'd to the moodboard account (`moodboard-dm`) and the
  * brand's TikTok saves (`moodboard-tt`).
  */
 export const connections = bb.table(
@@ -373,9 +373,36 @@ export const connections = bb.table(
       .references(() => brands.id, { onDelete: 'cascade' }),
     key: text('key').notNull(),
     status: text('status', { enum: ['connected', 'off', 'attention'] }).notNull(),
+    /** What the brand reads on its account: the Pinterest board's id. */
+    externalId: text('external_id'),
     updatedAt: updated(),
   },
   (t) => [primaryKey({ columns: [t.brandId, t.key] })],
+)
+
+/**
+ * A brand's own account on a platform: the Pinterest account its moodboard reads. The tokens are
+ * sealed (`crypto.ts`) and bound to the brand, the platform and the account, so a ciphertext
+ * copied to another row does not open. An account belongs to one brand: the unique index refuses
+ * a second, whatever code path writes.
+ */
+export const brandAccounts = bb.table(
+  'brand_accounts',
+  {
+    brandId: text('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    platform: text('platform', { enum: ['pinterest'] }).notNull(),
+    accountId: text('account_id').notNull(),
+    username: text('username').notNull(),
+    tokens: text('tokens').notNull(),
+    connectedBy: text('connected_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedAt: updated(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.brandId, t.platform] }),
+    uniqueIndex('brand_accounts_platform_account').on(t.platform, t.accountId),
+  ],
 )
 
 /**

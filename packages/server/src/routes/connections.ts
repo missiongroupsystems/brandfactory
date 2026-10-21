@@ -7,8 +7,9 @@ import { body } from '../http'
 import { type BrandEnv } from './shared'
 
 /**
- * The UI's connection keys (`data/connections.ts`), plus the moodboard's sources: Pinterest, the
- * posts DM'd to the moodboard account and the brand's TikTok saves.
+ * The UI's connection keys (`data/connections.ts`), plus the moodboard's sources: the posts DM'd
+ * to the moodboard account and the brand's TikTok saves. Pinterest is not here: a brand's board
+ * is set by `routes/pinterest.ts`, so it is never connected without a board.
  */
 export const CONNECTION_KEYS = [
   'ig',
@@ -19,15 +20,13 @@ export const CONNECTION_KEYS = [
   'web',
   'gbp',
   'res',
-  'pinterest',
   'moodboard-dm',
   'moodboard-tt',
 ] as const
 
 /**
- * A brand's connections. The status is set here by the connect sheet; the real OAuth for Meta,
- * Pinterest and TikTok lives in `packages/connect`, which is not wired to this table yet (see
- * the plan).
+ * A brand's connections. The status is set here by the connect sheet; the real OAuth for Meta and
+ * TikTok lives in `packages/connect`, which is not wired to this table yet (see the plan).
  */
 export function connectionRoutes(deps: Deps) {
   const { db } = deps

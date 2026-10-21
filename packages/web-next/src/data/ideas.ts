@@ -1822,10 +1822,29 @@ export function showPasted(brandId: BrandId, refs: Reference[]) {
   pasted[brandId] = refs
 }
 
+/**
+ * The brand's Pinterest boards: the sample boards in the demo, the board it reads live on the API
+ * (`ideas-store.ts` loads it). Pins are never stored, so on the API they are read on each load.
+ */
+const liveBoards: Partial<Record<BrandId, Board[]>> = {}
+
+export function boardsOf(brandId: BrandId): Board[] {
+  return liveBoards[brandId] ?? IDEAS_BY_BRAND[brandId].boards
+}
+
+/** The boards the server reads for a brand, in place of the samples. */
+export function showBoards(brandId: BrandId, boards: Board[]) {
+  liveBoards[brandId] = boards
+}
+
 /** Every reference a brand has: pasted in, on the shelf, or on a board. */
 export function referencesOf(brandId: BrandId): Reference[] {
   const b = IDEAS_BY_BRAND[brandId]
-  return [...pastedReferences(brandId), ...b.references, ...b.boards.flatMap((board) => board.pins)]
+  return [
+    ...pastedReferences(brandId),
+    ...b.references,
+    ...boardsOf(brandId).flatMap((board) => board.pins),
+  ]
 }
 
 export function referenceById(brandId: BrandId, id: string): Reference | undefined {

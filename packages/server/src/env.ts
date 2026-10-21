@@ -33,6 +33,16 @@ const Env = z
      * is Tue 6 Oct 2026). Refused in production.
      */
     PIN_NOW: z.string().datetime().optional(),
+    /** The team's Pinterest app: all four, or none and the Pinterest routes answer 503. */
+    PINTEREST_APP_ID: z.string().min(1).optional(),
+    PINTEREST_APP_SECRET: z.string().min(1).optional(),
+    /** The web app's `/connect/pinterest`, as registered on the Pinterest app. */
+    PINTEREST_REDIRECT_URL: z.string().url().optional(),
+    /** 32 bytes, base64. Seals the stored tokens; changing it means connecting again. */
+    TOKEN_ENCRYPTION_KEY: z
+      .string()
+      .refine((k) => Buffer.from(k, 'base64').length === 32, '32 bytes, base64')
+      .optional(),
   })
   .superRefine((env, ctx) => {
     // A real database means a deployment, whatever NODE_ENV says.
@@ -71,6 +81,17 @@ const Env = z
         path: ['SUPABASE_SERVICE_KEY'],
         message: 'required for supabase storage',
       })
+    }
+    const pinterest = [
+      'PINTEREST_APP_ID',
+      'PINTEREST_APP_SECRET',
+      'PINTEREST_REDIRECT_URL',
+      'TOKEN_ENCRYPTION_KEY',
+    ] as const
+    if (pinterest.some((k) => env[k]) && !pinterest.every((k) => env[k])) {
+      for (const k of pinterest.filter((k) => !env[k])) {
+        ctx.addIssue({ code: 'custom', path: [k], message: 'Pinterest needs all four variables' })
+      }
     }
     if (env.AUTH_PROVIDER === 'supabase' && !env.SUPABASE_JWKS_URL) {
       ctx.addIssue({

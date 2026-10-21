@@ -4,7 +4,9 @@ import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
 import { CONNECTIONS, type ConnectionKey, type ConnectionStatus } from '@/data/connections'
+import { showBoards } from '@/data/ideas'
 import { connectSource, disconnectSource, useIdeas } from '@/features/ideate/ideas-store'
+import { dropBoard } from '@/features/ideate/pinterest'
 import { onState, push, remote, request } from '@/lib/remote'
 
 /**
@@ -13,7 +15,8 @@ import { onState, push, remote, request } from '@/lib/remote'
  * after the navigation. A reload starts over at `data/connections.ts`.
  *
  * Pinterest stays where the moodboard already keeps it, in the ideas store; this store only
- * passes it through, so the two can never disagree.
+ * passes it through, so the two can never disagree. On the API the ideas store reads it from the
+ * state, and a brand's board is set and dropped through `ideate/pinterest.ts`.
  */
 
 export type SourceKey = ConnectionKey | 'pinterest'
@@ -39,12 +42,7 @@ if (remote) {
     const own = Object.fromEntries(
       Object.keys(state[brandId as BrandId]).map((k) => [k, 'off']),
     ) as Record<ConnectionKey, ConnectionStatus>
-    for (const r of rows) {
-      if (r.key === 'pinterest') {
-        if (r.status === 'connected') connectSource(brandId as BrandId, 'pinterest')
-        else disconnectSource(brandId as BrandId, 'pinterest')
-      } else own[r.key] = r.status
-    }
+    for (const r of rows) if (r.key !== 'pinterest') own[r.key] = r.status
     state = { ...state, [brandId]: own }
     listeners.forEach((l) => l())
   })
@@ -78,15 +76,25 @@ export function useConnected(brandId: BrandId, key: SourceKey): boolean {
 }
 
 export function connect(brandId: BrandId, key: SourceKey) {
-  send(brandId, key, 'connected')
   if (key === 'pinterest') connectSource(brandId, 'pinterest')
-  else set(brandId, key, 'connected')
+  else {
+    send(brandId, key, 'connected')
+    set(brandId, key, 'connected')
+  }
 }
 
 export function disconnect(brandId: BrandId, key: SourceKey) {
-  send(brandId, key, 'off')
-  if (key === 'pinterest') disconnectSource(brandId, 'pinterest')
-  else set(brandId, key, 'off')
+  if (key === 'pinterest') {
+    disconnectSource(brandId, 'pinterest')
+    if (remote) {
+      // Its pins leave at once: an idea no longer finds them.
+      showBoards(brandId, [])
+      push(brandId, () => dropBoard(brandId))
+    }
+  } else {
+    send(brandId, key, 'off')
+    set(brandId, key, 'off')
+  }
 }
 
 /** For tests. */

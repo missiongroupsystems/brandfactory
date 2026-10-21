@@ -12,6 +12,7 @@ import { body } from './http'
 import { HttpError, deactivated, noAccount, notFound, unauthorized } from './errors'
 import { connectionRoutes } from './routes/connections'
 import { pastedRoutes } from './routes/pasted'
+import { pinterestBrandRoutes, pinterestCallbackRoute } from './routes/pinterest'
 import { ideaRoutes } from './routes/ideas'
 import { inboxRoutes } from './routes/inbox'
 import { kitRoutes } from './routes/kit'
@@ -22,6 +23,7 @@ import { guestRoutes, teamCommentRoutes, teamShareRoutes } from './routes/share'
 import { type BrandEnv } from './routes/shared'
 import { shootRoutes } from './routes/shoots'
 import { stateRoute } from './routes/state'
+import { type PinterestApp } from './pinterest'
 import { type BlobStore, type diskStore } from './storage'
 import { type instantOf } from './time'
 
@@ -50,6 +52,8 @@ export interface Deps {
   publicUrl: string
   /** Signs media links; changing it breaks every link handed out. */
   mediaSecret: string
+  /** The team's Pinterest app; absent until its variables are set. */
+  pinterest?: PinterestApp
 }
 
 function bearer(header: string | undefined) {
@@ -137,12 +141,14 @@ export function createApp(deps: Deps) {
   app.use('/me', signedIn)
   app.use('/brands/*', signedIn)
   app.use('/brands', signedIn)
+  app.use('/pinterest/*', signedIn)
 
   app.get('/me', async (c) => {
     const user = c.var.user
     return c.json({ user, brands: await brandsOf(deps.db, user) })
   })
   app.get('/brands', async (c) => c.json(await brandsOf(deps.db, c.var.user)))
+  app.route('/pinterest', pinterestCallbackRoute(deps))
 
   const brand = new Hono<BrandEnv>()
   brand.use('*', async (c, next) => {
@@ -179,6 +185,7 @@ export function createApp(deps: Deps) {
   brand.route('/kit', kitRoutes(deps))
   brand.route('/connections', connectionRoutes(deps))
   brand.route('/pasted', pastedRoutes(deps))
+  brand.route('/pinterest', pinterestBrandRoutes(deps))
   app.route('/brands/:brandId', brand)
 
   return app

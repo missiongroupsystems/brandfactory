@@ -3,6 +3,7 @@ import { createApp } from './app'
 import { devAuth } from './auth'
 import { migrateTestDb, openTestDb, type Db } from './db/client'
 import { brands, connections, members, users } from './db/schema'
+import { type PinterestApp } from './pinterest'
 import { instantOf } from './time'
 
 /** Tue 6 Oct 2026, 12:00 in Singapore: the demo's "today". */
@@ -20,7 +21,7 @@ afterEach(async () => {
  * `temper`. `member` reaches `casa` only, `admin` reaches both, `stranger` has a token and no
  * account.
  */
-export async function testApp(now: Date = NOW) {
+export async function testApp(now: Date = NOW, extra: { pinterest?: PinterestApp } = {}) {
   const handle = await openTestDb()
   open.push(handle.close)
   const db: Db = handle.db
@@ -74,6 +75,7 @@ export async function testApp(now: Date = NOW) {
     },
     publicUrl: 'https://api.test',
     mediaSecret: 'test-secret',
+    ...extra,
   })
 
   async function call(method: string, path: string, json?: unknown, token = 'member') {

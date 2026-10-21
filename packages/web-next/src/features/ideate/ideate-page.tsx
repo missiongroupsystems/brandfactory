@@ -11,6 +11,7 @@ import { CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import { MOODBOARD_ACCOUNT, moodboardTag, PINTEREST_ACCOUNT } from '@/data/brand-kit'
 import {
+  boardsOf,
   IDEAS_BY_BRAND,
   inspirationOf,
   pastedReferences,
@@ -23,7 +24,7 @@ import { BrandLogo } from '@/features/brand/brand-logo'
 import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 import { planShoot } from '@/features/shoot/shoots-store'
-import { newId } from '@/lib/remote'
+import { newId, remote, RemoteError } from '@/lib/remote'
 
 import { EYEBROW, FormatIcon, STATUS_LABEL, statusColour, useSlots, type Slot } from './idea-parts'
 import { dayLabel, dayOfHook, landingDay } from './calendar-slot'
@@ -38,6 +39,7 @@ import {
   type MoodSource,
 } from './ideas-store'
 import { IDEAS_HREF } from './idea-page'
+import { pickBoard, pinterestSetup, startPinterest, type PinterestSetup } from './pinterest'
 
 const FORMAT_LABEL: Record<IdeaFormat, string> = {
   reel: 'Reel',
@@ -543,7 +545,8 @@ const SOURCE_LOGO: Record<MoodSource, 'pinterest' | 'ig' | 'tt'> = {
 function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   const { brand } = useBrand()
   const { sources } = useIdeas(brand.id)
-  const { boards, references } = IDEAS_BY_BRAND[brand.id]
+  const { references } = IDEAS_BY_BRAND[brand.id]
+  const boards = boardsOf(brand.id)
   const [filter, setFilter] = React.useState<string>('all')
   // Pasted links live in the data module, so an idea keeps them and they outlast a view switch.
   // Read on every render: a paste and a reload from the server both notify the ideas store.
@@ -770,6 +773,12 @@ function DmHint() {
  * steps to DM a post to the moodboard account, then a button to turn the source on.
  */
 function SourceSetup({ source }: { source: MoodSource }) {
+  if (remote && source === 'pinterest') return <PinterestSetup />
+  return <DemoSetup source={source} />
+}
+
+/** The demo's setup: a short pretend step, with the sample boards. */
+function DemoSetup({ source }: { source: MoodSource }) {
   const { brand, brands } = useBrand()
   const [busy, setBusy] = React.useState(false)
 
@@ -854,6 +863,134 @@ function SourceSetup({ source }: { source: MoodSource }) {
       {action(`Connect ${brand.name}’s board`)}
     </div>
   )
+}
+
+/**
+ * Pinterest on the API: the brand signs in with its own Pinterest account, then picks the board
+ * its moodboard reads.
+ */
+function PinterestSetup() {
+  const { brand } = useBrand()
+  const [setup, setSetup] = React.useState<PinterestSetup | null>(null)
+  const [error, setError] = React.useState<string | null>(null)
+  const [picked, setPicked] = React.useState<string | null>(null)
+  const [busy, setBusy] = React.useState(false)
+
+  React.useEffect(() => {
+    let live = true
+    pinterestSetup(brand.id).then(
+      (s) => {
+        if (!live) return
+        setSetup(s)
+        setPicked(s.boards.find((b) => b.picked)?.id ?? null)
+      },
+      (err: unknown) => {
+        if (!live) return
+        // A dead sign-in: offer Connect again, with the reason.
+        if (err instanceof RemoteError && err.code === 'PINTEREST_RECONNECT') {
+          setSetup({ account: null, boards: [] })
+        }
+        setError(message(err))
+      },
+    )
+    return () => {
+      live = false
+    }
+  }, [brand.id])
+
+  async function run(act: () => Promise<unknown>) {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      await act()
+    } catch (err) {
+      setError(message(err))
+      setBusy(false)
+    }
+  }
+
+  const button = (label: string, onClick: () => void, disabled = false) => (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || busy}
+      className="bb-press flex h-10 items-center justify-center gap-2 self-start rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85 disabled:opacity-40"
+    >
+      {busy && (
+        <span className="size-3 animate-spin rounded-full border-[1.5px] border-white/30 border-t-white" />
+      )}
+      {busy ? 'Connecting…' : label}
+    </button>
+  )
+  const problem = error && <p className="text-[12.5px] text-fail-ink">{error}</p>
+
+  if (!setup) {
+    return (
+      <div className="flex flex-col gap-4 text-left">
+        <span className={EYEBROW}>Pinterest</span>
+        {problem ?? <p className="text-[13.5px] text-ink-4">Loading…</p>}
+      </div>
+    )
+  }
+
+  if (!setup.account) {
+    return (
+      <div className="flex flex-col gap-4 text-left">
+        <span className={EYEBROW}>Pinterest</span>
+        <p className="text-[13.5px] text-ink-2">Link {brand.name}’s Pinterest account.</p>
+        {button('Connect Pinterest', () => void run(() => startPinterest(brand.id)))}
+        {problem}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-4 text-left">
+      <span className={EYEBROW}>Pinterest · {setup.account.username}</span>
+      <div
+        role="radiogroup"
+        aria-label="Boards"
+        className="flex max-h-[320px] flex-col overflow-y-auto"
+      >
+        {setup.boards.map((b) => {
+          const on = picked === b.id
+          return (
+            <button
+              key={b.id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => setPicked(b.id)}
+              className="flex items-center gap-3 border-t border-line py-2.5 text-left first:border-t-0"
+            >
+              <span className="relative size-7 shrink-0 overflow-hidden rounded-[8px] bg-tile">
+                {b.cover && (
+                  <Image src={b.cover} alt="" fill sizes="56px" className="object-cover" />
+                )}
+              </span>
+              <span className="flex flex-1 flex-col">
+                <span className="text-[13.5px] font-medium">{b.name}</span>
+                <span className="text-[12px] text-ink-4">{b.pinCount} pins</span>
+              </span>
+              {on && <CheckIcon size={13} />}
+            </button>
+          )
+        })}
+      </div>
+      {button(
+        `Connect ${brand.name}’s board`,
+        () => void run(() => pickBoard(brand.id, picked!)),
+        !picked,
+      )}
+      {problem}
+    </div>
+  )
+}
+
+const message = (err: unknown) => {
+  const text = err instanceof Error && err.message ? err.message : 'That did not work'
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`
 }
 
 function ConnectSources() {

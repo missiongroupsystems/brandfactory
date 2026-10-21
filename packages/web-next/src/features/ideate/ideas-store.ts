@@ -3,17 +3,20 @@
 import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
-import { newId, onState, push, remote, request } from '@/lib/remote'
+import { newId, onState, push, remote, RemoteError, report, request } from '@/lib/remote'
 import {
   coverOf,
   IDEAS_BY_BRAND,
   pasteReference,
+  showBoards,
   showPasted,
   type IdeaCard,
   type IdeaFormat,
   type IdeaSource,
   type Reference,
 } from '@/data/ideas'
+
+import { loadBoard } from './pinterest'
 
 /**
  * The ideas, in memory and outside React, so the insights page can add one and the ideas page
@@ -119,17 +122,39 @@ const SOURCE_KEY = { dm: 'moodboard-dm', tt: 'moodboard-tt' } as const
 
 if (remote) {
   onState((brandId, s) => {
-    const on = (key: string) =>
-      (s.connections as { key: string; status: string }[]).some(
-        (c) => c.key === key && c.status === 'connected',
-      )
+    const rows = s.connections as { key: string; status: string; externalId?: string | null }[]
+    const on = (key: string) => rows.some((c) => c.key === key && c.status === 'connected')
     showPasted(brandId as BrandId, (s.pasted ?? []) as Reference[])
-    // Pinterest's status comes through the connections store, which owns that key.
+    // Pinterest is on once the brand reads a board, as the server decides; its pins come from
+    // Pinterest, after the state.
+    const pinterest = rows.some(
+      (c) => c.key === 'pinterest' && c.status === 'connected' && c.externalId,
+    )
+    if (!pinterest) showBoards(brandId as BrandId, [])
     update(brandId as BrandId, (b) => ({
       ...b,
       ideas: (s.ideas as unknown[]).map(cardOf),
-      sources: { ...b.sources, dm: on(SOURCE_KEY.dm), tt: on(SOURCE_KEY.tt) },
+      sources: { pinterest, dm: on(SOURCE_KEY.dm), tt: on(SOURCE_KEY.tt) },
     }))
+    if (pinterest) {
+      loadBoard(brandId as BrandId).then(
+        (board) => {
+          showBoards(brandId as BrandId, [board])
+          update(brandId as BrandId, (b) => ({ ...b }))
+        },
+        (err: unknown) => {
+          showBoards(brandId as BrandId, [])
+          report(err instanceof Error ? err.message : 'Pinterest did not load.')
+          // A dead sign-in: the source shows as off, so its setup offers Connect again.
+          if (err instanceof RemoteError && err.code === 'PINTEREST_RECONNECT') {
+            update(brandId as BrandId, (b) => ({
+              ...b,
+              sources: { ...b.sources, pinterest: false },
+            }))
+          }
+        },
+      )
+    }
   })
 }
 
@@ -297,8 +322,8 @@ export function suggest(brandId: BrandId) {
 }
 
 /**
- * Connects one source to this brand's moodboard. Pinterest is sent by the connections store, which
- * owns that key; the other two are sent from here.
+ * Connects one source to this brand's moodboard. On the API, Pinterest is set by picking a board
+ * (`pinterest.ts`), so only the other two are sent from here.
  */
 export function connectSource(brandId: BrandId, source: MoodSource) {
   if (source !== 'pinterest') {

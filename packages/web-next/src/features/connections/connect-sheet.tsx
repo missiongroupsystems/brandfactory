@@ -5,7 +5,6 @@ import { createPortal } from 'react-dom'
 
 import { CheckIcon, LogoMark } from '@/components/icons'
 import { PlatformLogo, type PlatformLogoKey } from '@/components/platform-logos'
-import { PINTEREST_ACCOUNT } from '@/data/brand-kit'
 import type { Brand } from '@/data/brands'
 import { LARK_CALENDAR } from '@/data/connections'
 import { VENUE } from '@/data/publish'
@@ -44,7 +43,7 @@ export const SOURCES: Record<SourceKey, SourceInfo> = {
   },
   pinterest: {
     name: 'Pinterest',
-    account: (b) => `${b.name} board · ${PINTEREST_ACCOUNT}`,
+    account: (b) => `${b.name}’s board`,
     brings: 'Pins for the moodboard',
     asks: (b) => [`Read the pins on ${b.name}’s board`],
   },

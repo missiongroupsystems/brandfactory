@@ -5,6 +5,7 @@ import { devAuth, supabaseAuth } from './auth'
 import { openPglite, openPostgres } from './db/client'
 import { loadEnv } from './env'
 import { runDueJobs, simulatedPublisher } from './jobs'
+import { pinterestApp } from './pinterest'
 import { diskStore, supabaseStore } from './storage'
 import { instantOf } from './time'
 
@@ -57,6 +58,14 @@ const app = createApp({
   disk,
   publicUrl: env.PUBLIC_URL,
   mediaSecret: env.MEDIA_SIGNING_SECRET,
+  pinterest: env.PINTEREST_APP_ID
+    ? pinterestApp({
+        appId: env.PINTEREST_APP_ID,
+        appSecret: env.PINTEREST_APP_SECRET!,
+        redirectUrl: env.PINTEREST_REDIRECT_URL!,
+        masterKey: Buffer.from(env.TOKEN_ENCRYPTION_KEY!, 'base64'),
+      })
+    : undefined,
 })
 
 // One runner: the server runs as one instance, as the archive's did. The claim in `runDueJobs`

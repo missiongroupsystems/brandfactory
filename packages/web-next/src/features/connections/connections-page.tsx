@@ -1,10 +1,12 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
 import type { ConnectionStatus } from '@/data/connections'
 import { useBrand } from '@/features/schedule/posts-store'
+import { remote } from '@/lib/remote'
 
 import { ConnectSheet, SOURCES, SourceMark } from './connect-sheet'
 import { disconnect, useConnections, type SourceKey } from './connections-store'
@@ -29,6 +31,13 @@ export function ConnectionsPage() {
   const { brand } = useBrand()
   const status = useConnections(brand.id)
   const [connecting, setConnecting] = React.useState<SourceKey | null>(null)
+  const router = useRouter()
+
+  // On the API, Pinterest is a board to pick, which the moodboard does.
+  function open(key: SourceKey) {
+    if (remote && key === 'pinterest') router.push('/ideate')
+    else setConnecting(key)
+  }
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -46,12 +55,7 @@ export function ConnectionsPage() {
             <h2 className={`${EYEBROW} px-1`}>{g.label}</h2>
             <ul className="flex flex-col rounded-[18px] bg-page shadow-[0_0_0_1px_var(--line)]">
               {g.keys.map((key) => (
-                <Row
-                  key={key}
-                  source={key}
-                  status={status[key]}
-                  onConnect={() => setConnecting(key)}
-                />
+                <Row key={key} source={key} status={status[key]} onConnect={() => open(key)} />
               ))}
             </ul>
           </section>

@@ -42,4 +42,26 @@ describe('the environment', () => {
   it('runs locally on PGlite with dev auth and nothing set', () => {
     expect(loadEnv({}).AUTH_PROVIDER).toBe('dev')
   })
+
+  it('takes the Pinterest app as all four variables or none, naming each one missing', () => {
+    expect(loadEnv({}).PINTEREST_APP_ID).toBeUndefined()
+    let message = ''
+    try {
+      loadEnv({ PINTEREST_APP_ID: 'app', PINTEREST_APP_SECRET: 'secret' })
+    } catch (err) {
+      message = String(err)
+    }
+    expect(message).toMatch(/PINTEREST_REDIRECT_URL/)
+    expect(message).toMatch(/TOKEN_ENCRYPTION_KEY/)
+    expect(message).not.toMatch(/PINTEREST_APP_SECRET/)
+    // A key that is not 32 bytes would seal nothing.
+    expect(() =>
+      loadEnv({
+        PINTEREST_APP_ID: 'app',
+        PINTEREST_APP_SECRET: 'secret',
+        PINTEREST_REDIRECT_URL: 'http://localhost:3002/connect/pinterest',
+        TOKEN_ENCRYPTION_KEY: Buffer.alloc(16).toString('base64'),
+      }),
+    ).toThrow(/TOKEN_ENCRYPTION_KEY/)
+  })
 })

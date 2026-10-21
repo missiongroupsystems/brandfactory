@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.15.0** — 2026-10-21 — On the API the moodboard's Pinterest source is real: each brand links its own Pinterest account (an account belongs to one brand), picks a board, and the moodboard reads its pins live. Tokens are sealed per brand. Migration `0002_true_king_bedlam` (`brand_accounts`, `connections.external_id`; not applied to production). 438 tests.
 - **2.14.0** — 2026-10-14 — On the API the moodboard keeps its Instagram and TikTok sources and the links pasted onto it on the server, so they survive a reload and another device. Migration `0001_gray_tony_stark` (`pasted_links`, not applied to production). 424 tests.
 - **2.13.1** — 2026-10-14 — On the API the composer waits for the server: "Sending…" while it answers, the done screen only once the post is stored, and a refusal keeps the composer open with everything in it. A draft on a day that has passed asks for a day ahead before it can be scheduled. No migration. 419 tests.
 - **2.13.0** — 2026-10-14 — The calendar runs on real dates: every day is its `YYYY-MM-DD` date, today comes from the server on the API, the API calendar reaches two months back and six ahead (and every dated post), and the day pickers turn a month at a time. The static demo draws what it drew before. No migration. 415 tests.
@@ -36,6 +37,26 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.15.0 — 2026-10-21
+
+- **Pinterest per brand.** `brand_accounts` keeps each brand's Pinterest account, one brand per
+  account (`UNIQUE(platform, account_id)`), with its tokens sealed by `TOKEN_ENCRYPTION_KEY` and
+  bound to the brand and the account. `connections.external_id` keeps the board the brand reads.
+- **Routes.** `POST /brands/:id/pinterest/connect` and `POST /pinterest/callback` link the
+  account (the state names the user who started; an account another brand holds answers 409);
+  `GET`, `PUT` and `DELETE /brands/:id/pinterest` list the boards, pick one and forget the
+  account; `GET /brands/:id/pinterest/pins` reads the board's pins live. Tokens refresh on use.
+  `pinterest` is no longer a generic connection key.
+- **Web.** On the API the moodboard's Pinterest setup signs the brand in and lists its boards;
+  `/connect/pinterest` takes the browser back from Pinterest; the board's pins load with the
+  brand. The Connections page sends Pinterest to the moodboard, and its row reads "<brand>'s
+  board", not the old team account. The static demo is unchanged.
+- **Docs.** The plan and its completion notes are in `docs/completions/`; the server README names
+  the four variables.
+
+Migration `0002_true_king_bedlam` (schema `brandbase`), not applied to production. Gate:
+typecheck, lint, format, 438 tests in 57 files, `next build`.
 
 ## 2.14.0 — 2026-10-14
 

@@ -25,3 +25,12 @@ curl localhost:3001/brands -H 'authorization: Bearer admin@local'
   clock and the development signing secret are refused, and the job runner stays off until a
   real publisher exists.
 - Migrations are generated (`pnpm -F @brandfactory/server db:generate`), never written by hand.
+
+## Pinterest (the moodboard)
+
+Each brand links its own Pinterest account and picks the board its moodboard reads
+(`routes/pinterest.ts`). An account belongs to one brand. The tokens are sealed with
+`TOKEN_ENCRYPTION_KEY`; the pins are read live and never stored. Set `PINTEREST_APP_ID`,
+`PINTEREST_APP_SECRET`, `PINTEREST_REDIRECT_URL` (the web app's `/connect/pinterest`, also
+registered on the Pinterest app) and `TOKEN_ENCRYPTION_KEY`, or none of them: the Pinterest routes
+then answer 503. The design is in `docs/completions/brandbase-pinterest-plan.md`.
