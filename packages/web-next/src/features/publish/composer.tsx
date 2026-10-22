@@ -72,6 +72,7 @@ import {
   type Shot,
 } from './model'
 import { PhoneMock, type People } from './phone-mocks'
+import { PostedOption, useDesignSwitch } from './posted-options'
 import { TypeBadge } from './preview-media'
 import { ratioOf, ShotView } from './shot'
 import { hashtagsOf, labelsOf, peopleOf, placesOf } from './suggestions'
@@ -175,6 +176,8 @@ export function Composer({
   // The accounts linked on the Connections page. One that needs signing in again still shows,
   // with Reconnect; one disconnected there is gone from the composer.
   const links = useConnections(brand.id)
+  // Design options for the posted page, switched by `?design=`; see posted-options.tsx.
+  const design = useDesignSwitch()
   // On the core no account can connect yet: a post is planned on the brand's own platforms, and
   // Schedule dates it on the calendar without sending anything (`post.mark`, no job).
   const planOnly = PUBLISHERS.every((k) => notAvailable(k))
@@ -587,6 +590,30 @@ export function Composer({
     const on = day
       ? `${dayLabel(day)}${year !== monthOf(todayDate()).year ? ` ${year}` : ''}`
       : post.slot.split(', ')[0]!
+    if (design > 0)
+      return (
+        <PostedOption
+          design={design}
+          v={{
+            post,
+            media,
+            went,
+            on,
+            at: post.slot.split(', ')[1] ?? '',
+            caption: kept?.caption || captions[post.id] || '',
+            collabs: keptDraft.details?.collab ?? [],
+            tagged: taggedIn(media),
+            location: keptDraft.details?.location ?? '',
+            labels: keptDraft.labels ?? [],
+            video:
+              remote &&
+              post.format === 'reel' &&
+              media.length > 0 &&
+              !media.some((m) => isVideo(m.src)),
+            permalink: post.permalink,
+          }}
+        />
+      )
     return (
       <PostedPost
         post={post}
