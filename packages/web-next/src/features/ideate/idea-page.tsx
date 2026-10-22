@@ -60,7 +60,7 @@ import { editIdea, keepSuggestion, setDay, skipSuggestion, type IdeaEdit } from 
 import { useSortable, type Sortable } from './sortable'
 
 const HAIR = 'border-(--cal-line)'
-const TIMES = ['08:00', '12:00', '15:00', '18:00', '19:30', '21:00']
+const TIMES = ['08:00', '09:00', '12:00', '15:00', '18:00', '19:30', '21:00']
 const FORMAT_LABEL = { reel: 'Reel', carousel: 'Carousel', story: 'Story' } as const
 /** A carousel takes ten slides at most, as the composer says. */
 const SLIDES_MAX = 10

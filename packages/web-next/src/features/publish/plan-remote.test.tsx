@@ -180,9 +180,7 @@ describe('planning a post on the core, with no account connected', () => {
     expect(calls.some((c) => c.endsWith('/send'))).toBe(false)
     // The result says plainly that it is planned and that nothing goes out yet.
     expect(screen.getByRole('heading', { name: 'Planned' })).toBeInTheDocument()
-    expect(
-      screen.getByText(/^Planned for .+\. Posts go out once accounts are connected\.$/),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/^Planned for .+\. Nothing is sent yet\.$/)).toBeInTheDocument()
     expect(screen.getAllByText('Planned only', { selector: 'span' }).length).toBeGreaterThan(0)
     expect(screen.queryByText(/It is on the calendar/)).toBeNull()
     expect(screen.queryByText('Scheduled')).toBeNull()

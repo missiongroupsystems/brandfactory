@@ -599,6 +599,7 @@ export function Composer({
         details={keptDraft.details}
         labels={keptDraft.labels ?? []}
         extra={keptDraft.extra}
+        caption={kept?.caption || captions[post.id] || ''}
         onFiles={addFiles}
       />
     )
@@ -850,6 +851,7 @@ function PostedPost({
   details,
   labels,
   extra,
+  caption,
   onFiles,
 }: {
   post: Post
@@ -864,6 +866,8 @@ function PostedPost({
   labels: string[]
   /** Its accounts' own settings, kept only when it went out from brand base. */
   extra: Extra | undefined
+  /** Its own caption: the title never stands in for one it did not have. */
+  caption: string
   onFiles: (files: FileList | null) => Promise<void>
 }) {
   const { draft } = api
@@ -875,7 +879,10 @@ function PostedPost({
     { label: 'Collaborators', value: details?.collab.join(', ') },
     { label: 'AI-generated label', value: details?.aiLabel ? 'On' : '' },
     ...(extra
-      ? accounts.map((c) => ({ label: c.name, value: summaryOf(draft, extra)[c.key].text }))
+      ? accounts.map((c) => {
+          const s = summaryOf(draft, extra)[c.key]
+          return { label: c.name, value: s.needs ? '' : s.text }
+        })
       : []),
   ].filter((r): r is { label: string; value: string } => Boolean(r.value?.trim()))
   // On the core only the cover came across: a video shows it, and says why it does not play.
@@ -914,7 +921,7 @@ function PostedPost({
               </div>
             </section>
           )}
-          {(media.length > 0 || draft.caption.trim() !== '') && (
+          {(media.length > 0 || caption.trim() !== '') && (
             <section aria-label="Content" className={card}>
               {media.length > 0 && (
                 <div className={`flex flex-wrap gap-2 ${STRIP}`}>
@@ -933,11 +940,11 @@ function PostedPost({
                   ))}
                 </div>
               )}
-              {draft.caption.trim() !== '' && (
+              {caption.trim() !== '' && (
                 <div className="flex flex-col gap-2">
                   <span className={EYEBROW}>Caption</span>
                   <p className="text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap">
-                    {draft.caption}
+                    {caption}
                   </p>
                 </div>
               )}
@@ -3023,7 +3030,7 @@ function Outcomes({
             : 'Live everywhere'
   const sub =
     phase === 'scheduled' && planned
-      ? `Planned for ${slot}. Posts go out once accounts are connected.`
+      ? `Planned for ${slot}. Nothing is sent yet.`
       : phase === 'scheduled'
         ? `${slot}, on ${accounts}. It is on the calendar.`
         : phase === 'publishing'

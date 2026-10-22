@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.35.7** — 2026-10-22 — `fix/onboarding-polish`: on the core, the best time to post comes from the brand's own posts that went out with numbers (the imported Instagram and TikTok posts), once there are twenty: the Day view's band, the phone Day view, New post's default time, hour chart, "best hour" and best time, and the idea page's day picker. Fewer than twenty: no best time, as before. The static demo is unchanged. No pack change, no migration. 1085 tests (196 skipped without a Postgres server).
+- **2.35.7** — 2026-10-22 — `feat/best-time`: on the core, the best time to post comes from the brand's own posts that went out with numbers (the imported Instagram and TikTok posts), once there are twenty: the Day view's band, the phone Day view, New post's default time, hour chart, "best hour" and best time, and the idea page's day picker. Fewer than twenty: no best time, as before. The static demo is unchanged. No pack change, no migration. Also from the 2.35.6 merge review: a posted post with no caption shows none (the title no longer stands in), a TikTok row that still needs an answer is left off the read-only page, and a planned post says "Nothing is sent yet." A post after midnight counts toward the evening, and the idea page can mark 09:00. 1087 tests (196 skipped without a Postgres server).
 - **2.35.6** — 2026-10-22 — `fix/onboarding-polish`: a posted post (brought in or sent from Brand base) opens on the post page's own cards, every field as plain text and no empty field: Posted to with its platforms and format, the media and caption, Details, and the preview. On the core a posted reel or TikTok video shows its cover with an amber "Cover only" and why. Every amber notice is shorter and names what is missing: "Not connected", "Won't publish", "Planned only", each with one short line. No migration. 1076 tests (196 skipped without a Postgres server).
 - **2.35.5** — 2026-10-22 — `fix/onboarding-polish`: public Terms of Service (`/terms`) and Privacy Policy (`/privacy`) pages for TikTok's app form, open with no sign-in on the core, linked quietly from the sign-in page; and TikTok's site-verification file. No migration. 1073 tests (196 skipped without a Postgres server).
 - **2.35.4** — 2026-10-22 — `fix/onboarding-polish`: review fixes. On the core the result after Schedule says "Planned for <day>, <time>. Nothing is sent until the accounts are set up." with "Planned" pills; a failed post is planned again instead of asking for a reconnect; a scheduled post cannot lose its last platform; a post's YouTube or LinkedIn stay on every save. The static demo's earlier-month posts preview again. A publishing hand-off note: planned posts have no job. No migration. 1071 tests (196 skipped without a Postgres server).
@@ -95,8 +95,15 @@ One line each — full write-ups are under the matching `##` heading further dow
   daypart, no best for a daypart under three posts however well it did, and views break a tie.
   `day-view-remote.test.tsx`: on the core the band is absent with five posts and sits on noon with
   twenty-two. Each fails without the change.
-- **Gate.** typecheck, lint, format:check, 1085 tests (196 skipped without a Postgres server), and
+- **Gate.** typecheck, lint, format:check, 1087 tests (196 skipped without a Postgres server), and
   the web-next build.
+- **From the 2.35.6 merge review.** `PostedPost` takes the post's own caption (`kept.caption`
+  or the server's), so a post that went out with none shows no caption instead of its title; a
+  TikTok settings row whose answer is still missing is left off the read-only page; the planned
+  result reads "Planned for <slot>. Nothing is sent yet.", as a planned post does not go out by
+  itself once an account connects. A test in `posted-remote.test.tsx` fails without the caption
+  fix.
+
 
 ## 2.35.6 — 2026-10-22
 

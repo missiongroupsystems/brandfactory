@@ -174,6 +174,13 @@ const ENOUGH_IN_BUCKET = 3
 const DAYPARTS = ['09:00', '12:00', '15:00', '18:00', '21:00']
 
 /**
+ * The nearest of the five dayparts (09, 12, 15, 18, 21). The small hours after midnight are the
+ * night before's evening, nearest 21:00, not the next morning.
+ */
+const daypart = (hour: number) =>
+  hour < 6 ? 4 : Math.min(4, Math.max(0, Math.round((hour - 9) / 3)))
+
+/**
  * When to post, from the brand's posts that went out with numbers (the imported Instagram and
  * TikTok posts): each post's likes, comments, shares and saves, grouped by the daypart nearest its
  * hour and by its weekday. A daypart or weekday with fewer than three posts keeps the average; the
@@ -185,7 +192,7 @@ export function postingTimes(serverPosts: unknown[]): PostingTimes | undefined {
     p.stage === 'posted' && p.metrics && p.day && p.time
       ? [
           {
-            part: Math.min(4, Math.max(0, Math.round((Number(p.time.slice(0, 2)) - 9) / 3))),
+            part: daypart(Number(p.time.slice(0, 2))),
             weekday: weekdayOf(p.day),
             engagement:
               (p.metrics.likes ?? 0) +

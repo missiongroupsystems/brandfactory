@@ -223,6 +223,15 @@ describe('the best time to post, from the brand posts that went out', () => {
     expect(times.best).toBe('12:00')
   })
 
+  it("counts a post after midnight as the evening's, not the next morning's", () => {
+    const at = (n: number, time: string, likes: number) =>
+      Array.from({ length: n }, (_, i) =>
+        post({ id: `${time}-${i}`, stage: 'posted', day: '2026-10-06', time, metrics: { likes } }),
+      )
+    const times = postingTimes([...at(12, '00:30', 50), ...at(10, '12:00', 5)])!
+    expect(times.best).toBe('21:00')
+  })
+
   it('never names an hour with fewer than three posts, however well they did', () => {
     const times = postingTimes([
       ...out(18, '2026-10-06', '12:00', 10),

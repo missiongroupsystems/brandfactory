@@ -329,6 +329,39 @@ describe('a posted post from an earlier year, on the calendar', () => {
     )
     expect(screen.getByText('Posted on Fri 14 Mar 2025')).toBeInTheDocument()
   })
+
+  it('shows no caption when it went out with none: the title does not stand in for one', () => {
+    render(
+      <BrandProvider>
+        <Opened id="casa-vostra-ig-bare" />
+      </BrandProvider>,
+    )
+    act(() =>
+      loads.at(-1)!('casa-vostra', {
+        brand: { id: 'casa-vostra' },
+        posts: [
+          {
+            id: 'casa-vostra-ig-bare',
+            format: 'carousel',
+            hook: 'A title with no caption',
+            day: '2026-10-16',
+            time: '19:00',
+            channels: ['ig'],
+            media: [{ src: '/demo/crust.jpg', kind: 'photo' }],
+            fromIdea: null,
+            stage: 'posted',
+            jobs: [],
+            caption: '',
+            draft: {},
+            metrics: { likes: 3 },
+          },
+        ],
+        ideas: [],
+      }),
+    )
+    const content = screen.getByRole('region', { name: 'Content' })
+    expect(within(content).queryByText('A title with no caption')).toBeNull()
+  })
 })
 
 describe('Google Drive on the core', () => {
