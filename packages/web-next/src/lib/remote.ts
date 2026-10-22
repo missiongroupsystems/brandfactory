@@ -458,7 +458,15 @@ export async function loadAll() {
     request<CoreBrand[]>('GET', '/brands'),
     request<{ companies?: Company[] }>('GET', '/me'),
   ])
-  await Promise.all(brands.map((b) => loadBrand(b.id)))
+  // One brand refused (gone meanwhile, or walled off) is not the account refused: it must not
+  // read as "Not in a company yet" (`noAccess`).
+  await Promise.all(
+    brands.map((b) =>
+      loadBrand(b.id).catch((err: unknown) => {
+        throw new Error(`brand ${b.id} did not load`, { cause: err })
+      }),
+    ),
+  )
   // After the states: a store asked for a brand's kit finds it loaded.
   // A core still on brandbase 1.4.0 answers no companies: the caller then manages none.
   account = { brands, companies: me.companies ?? [] }

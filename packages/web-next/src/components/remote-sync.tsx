@@ -85,10 +85,10 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
   // The password is set: now the account loads.
   const load = React.useCallback(() => setState('loading'), [])
 
+  // A full page load: nothing of this account's brands or posts stays in memory for the next.
   function leave() {
     signOut()
-    setState('loading')
-    router.replace('/sign-in')
+    window.location.assign('/sign-in')
   }
 
   return (

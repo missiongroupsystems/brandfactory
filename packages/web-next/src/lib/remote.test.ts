@@ -5,6 +5,7 @@ import {
   approve,
   loadAll,
   needsPassword,
+  noAccess,
   onAccount,
   sessionEmail,
   setPassword,
@@ -73,6 +74,20 @@ describe('loadAll', () => {
     expect(companies).toEqual([])
     // No brand and no company: the app shows the waiting page, not the demo's brand.
     expect(accountEmpty()).toBe(true)
+  })
+
+  it('does not read one brand refused as the account refused: no "Not in a company yet"', async () => {
+    // The brand went (or is walled off) between the list and its state.
+    vi.mocked(fetch).mockImplementation(async (url) =>
+      String(url).endsWith('/account.me')
+        ? json({ user: { id: 'u' }, companies: [{ id: 'c' }], brands: [] })
+        : String(url).endsWith('/brand.list')
+          ? json([{ id: 'gone' }])
+          : json({ code: 'NOT_FOUND', message: 'no such brand' }, 404),
+    )
+    const err: unknown = await loadAll().catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(Error)
+    expect(noAccess(err)).toBe(false)
   })
 })
 
