@@ -6,10 +6,8 @@ import { SparkIcon } from '@/components/icons'
 import { Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import type { CalendarEvent, Day, FeedMark } from '@/data/demo'
-import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { timeRange } from '@/features/shoot/model'
 import { useShoots } from '@/features/shoot/shoots-store'
-import { demoOf } from '@/lib/remote'
 
 import { channelsOf, itemsOf, postTime, type StageFilter } from './calendar-items'
 import { EventChip } from './event-chip'
@@ -58,10 +56,10 @@ export function DayView({
   onNewPost: (date?: string, time?: string) => void
   onOpenStories: () => void
 }) {
-  const { brand, library, byId } = useBrand()
+  const { brand, library, byId, times } = useBrand()
   const items = itemsOf(day, byId, stages)
-  // On the core no brand has insights yet (the demo's are invented): no best time until it does.
-  const bestTime = demoOf(INSIGHTS_BY_BRAND, brand.id)?.best
+  // On the core, from the brand's own posts once enough have numbers; none before.
+  const bestTime = times?.best
   const best = bestTime ? Number(bestTime.split(':')[0]) : null
   const hours = Array.from({ length: LAST_HOUR - FIRST_HOUR }, (_, i) => FIRST_HOUR + i)
   const top = (time: string) => {

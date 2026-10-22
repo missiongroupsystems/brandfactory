@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { feedsOf } from '@/data/demo'
 
-import { calendarOf } from './remote-calendar'
+import { calendarOf, postingTimes } from './remote-calendar'
 
 const post = (over: object) => ({
   format: 'reel',
@@ -169,5 +169,75 @@ describe('the calendar from the server', () => {
     expect(texts).toContain('F1 Singapore Grand Prix')
     const layers = new Set(weeks.flatMap((w) => w.events.map((e) => e.layer)))
     expect([...layers].every((l) => l === 'city' || l === 'holiday')).toBe(true)
+  })
+})
+
+describe('the best time to post, from the brand posts that went out', () => {
+  // 5 Oct 2026 is a Monday, 8 Oct a Thursday.
+  const out = (n: number, day: string, time: string, likes: number, views = 0) =>
+    Array.from({ length: n }, (_, i) =>
+      post({ id: `${day}-${time}-${i}`, stage: 'posted', day, time, metrics: { likes, views } }),
+    )
+
+  it('says nothing under twenty posts with numbers: a guess is worse than no mark', () => {
+    const few = [...out(10, '2026-10-08', '18:00', 90), ...out(9, '2026-10-05', '09:00', 10)]
+    expect(postingTimes(few)).toBeUndefined()
+    // Posts without numbers, or not posted, do not make up the count.
+    const padded = [
+      ...few,
+      post({ id: 'bare', stage: 'posted', day: '2026-10-05', time: '09:00' }),
+      post({
+        id: 'plan',
+        stage: 'planned',
+        day: '2026-10-05',
+        time: '09:00',
+        metrics: { likes: 5 },
+      }),
+    ]
+    expect(postingTimes(padded)).toBeUndefined()
+    expect(postingTimes([...few, ...out(1, '2026-10-05', '09:00', 10)])).toBeDefined()
+  })
+
+  it('finds the hour and the weekday that did best', () => {
+    const times = postingTimes([
+      ...out(12, '2026-10-08', '18:00', 90),
+      ...out(8, '2026-10-05', '09:00', 10),
+    ])!
+    expect(times.best).toBe('18:00')
+    expect(times.hours[3]).toBe(1)
+    expect(times.hours[0]).toBeLessThan(0.5)
+    expect(times.days[3]).toBe(1)
+    expect(times.days[0]).toBeLessThan(0.5)
+    expect(times.days).toHaveLength(7)
+  })
+
+  it('counts likes, comments, shares and saves; an hour between dayparts goes to the nearest', () => {
+    const mixed = (n: number, time: string, metrics: object) =>
+      Array.from({ length: n }, (_, i) =>
+        post({ id: `${time}-${i}`, stage: 'posted', day: '2026-10-06', time, metrics }),
+      )
+    const times = postingTimes([
+      ...mixed(10, '12:40', { likes: 5, comments: 10, shares: 10, saves: 10, views: 1 }),
+      ...mixed(10, '19:10', { likes: 20, views: 9000 }),
+    ])!
+    expect(times.best).toBe('12:00')
+  })
+
+  it('never names an hour with fewer than three posts, however well they did', () => {
+    const times = postingTimes([
+      ...out(18, '2026-10-06', '12:00', 10),
+      ...out(2, '2026-10-06', '21:00', 5000),
+    ])!
+    expect(times.best).toBe('12:00')
+    // The thin hour keeps the average: no taller than the best.
+    expect(times.hours[4]).toBeLessThanOrEqual(times.hours[1]!)
+  })
+
+  it('breaks a tie on engagement with views', () => {
+    const times = postingTimes([
+      ...out(10, '2026-10-06', '09:00', 40, 100),
+      ...out(10, '2026-10-06', '15:00', 40, 900),
+    ])!
+    expect(times.best).toBe('15:00')
   })
 })

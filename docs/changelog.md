@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.35.7** — 2026-10-22 — `fix/onboarding-polish`: on the core, the best time to post comes from the brand's own posts that went out with numbers (the imported Instagram and TikTok posts), once there are twenty: the Day view's band, the phone Day view, New post's default time, hour chart, "best hour" and best time, and the idea page's day picker. Fewer than twenty: no best time, as before. The static demo is unchanged. No pack change, no migration. 1085 tests (196 skipped without a Postgres server).
 - **2.35.6** — 2026-10-22 — `fix/onboarding-polish`: a posted post (brought in or sent from Brand base) opens on the post page's own cards, every field as plain text and no empty field: Posted to with its platforms and format, the media and caption, Details, and the preview. On the core a posted reel or TikTok video shows its cover with an amber "Cover only" and why. Every amber notice is shorter and names what is missing: "Not connected", "Won't publish", "Planned only", each with one short line. No migration. 1076 tests (196 skipped without a Postgres server).
 - **2.35.5** — 2026-10-22 — `fix/onboarding-polish`: public Terms of Service (`/terms`) and Privacy Policy (`/privacy`) pages for TikTok's app form, open with no sign-in on the core, linked quietly from the sign-in page; and TikTok's site-verification file. No migration. 1073 tests (196 skipped without a Postgres server).
 - **2.35.4** — 2026-10-22 — `fix/onboarding-polish`: review fixes. On the core the result after Schedule says "Planned for <day>, <time>. Nothing is sent until the accounts are set up." with "Planned" pills; a failed post is planned again instead of asking for a reconnect; a scheduled post cannot lose its last platform; a post's YouTube or LinkedIn stay on every save. The static demo's earlier-month posts preview again. A publishing hand-off note: planned posts have no job. No migration. 1071 tests (196 skipped without a Postgres server).
@@ -71,6 +72,31 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.35.7 — 2026-10-22
+
+- **Why.** 2.33.1 took the demo's invented best hour off the core, so no brand had one. The
+  brands' own posts are now on the core with their counts (2.34.0), which is enough to find it.
+- **`postingTimes(posts)`** (`remote-calendar.ts`) reads a brand's posts that are posted and carry
+  `metrics`. A post's engagement is its likes, comments, shares and saves; views only break a tie
+  for the best time. Each post counts toward the daypart nearest its hour (09:00, 12:00, 15:00,
+  18:00, 21:00) and toward its weekday. A daypart or weekday with fewer than three posts keeps the
+  average of the others; the rest move from that average toward their own mean, more so the more
+  posts they hold (three posts' worth of the average is added to each). Only a daypart with three
+  posts or more can be the best. It answers `{ best, hours, days }` in the demo's Insights shapes
+  (weights scaled so the top is 1), or nothing under twenty such posts.
+- **One source for every screen.** `useBrand().times` is that answer on the core and the demo's
+  Insights in the static demo. The Day view, the phone Day view, New post (default time, hour chart,
+  "best hour", "Best time") and the idea page's day picker read it, labelled as before. The hour
+  chart marks `best` itself in green, not its tallest bar, so two near-equal dayparts never show
+  a different best hour from the Day view's band.
+- **Tests.** `remote-calendar.test.ts`: none under twenty posts with numbers (posts without numbers
+  or not posted do not count), the best daypart and weekday, all four counts and the nearest
+  daypart, no best for a daypart under three posts however well it did, and views break a tie.
+  `day-view-remote.test.tsx`: on the core the band is absent with five posts and sits on noon with
+  twenty-two. Each fails without the change.
+- **Gate.** typecheck, lint, format:check, 1085 tests (196 skipped without a Postgres server), and
+  the web-next build.
 
 ## 2.35.6 — 2026-10-22
 

@@ -1,6 +1,6 @@
 import { contentFor, type BrandId } from '@/data/brands'
 import type { Day, FeedMark, Post, StoryMark, Week } from '@/data/demo'
-import { mondayOf, slotOf, todayDate } from '@/lib/dates'
+import { mondayOf, slotOf, todayDate, weekdayOf } from '@/lib/dates'
 import { srcOf } from '@/lib/remote-days'
 import { type BrandState } from '@/lib/remote'
 
@@ -155,6 +155,87 @@ export function calendarOf(
     all.map((p) => [p.id, { caption: p.caption, draft: p.draft }]),
   )
   return { posts, weeks, saved }
+}
+
+/** When the brand's posts did best, as Insights draws it: the best time, five dayparts, seven days. */
+export interface PostingTimes {
+  /** The best daypart's time, "HH:MM". */
+  best: string
+  /** A weight for 09:00, 12:00, 15:00, 18:00 and 21:00; the best is 1. */
+  hours: number[]
+  /** A weight for each weekday, Monday first; the best is 1. */
+  days: number[]
+}
+
+/** Fewer posts with numbers than this say nothing about when to post. */
+const ENOUGH_POSTS = 20
+/** A daypart or a weekday with fewer posts than this keeps the average. */
+const ENOUGH_IN_BUCKET = 3
+const DAYPARTS = ['09:00', '12:00', '15:00', '18:00', '21:00']
+
+/**
+ * When to post, from the brand's posts that went out with numbers (the imported Instagram and
+ * TikTok posts): each post's likes, comments, shares and saves, grouped by the daypart nearest its
+ * hour and by its weekday. A daypart or weekday with fewer than three posts keeps the average; the
+ * others move from the average toward their own, more so the more posts they have. Views only
+ * break a tie for the best daypart. Undefined with fewer than twenty such posts.
+ */
+export function postingTimes(serverPosts: unknown[]): PostingTimes | undefined {
+  const scored = (serverPosts as ServerPost[]).flatMap((p) =>
+    p.stage === 'posted' && p.metrics && p.day && p.time
+      ? [
+          {
+            part: Math.min(4, Math.max(0, Math.round((Number(p.time.slice(0, 2)) - 9) / 3))),
+            weekday: weekdayOf(p.day),
+            engagement:
+              (p.metrics.likes ?? 0) +
+              (p.metrics.comments ?? 0) +
+              (p.metrics.shares ?? 0) +
+              (p.metrics.saves ?? 0),
+            views: p.metrics.views ?? 0,
+          },
+        ]
+      : [],
+  )
+  if (scored.length < ENOUGH_POSTS) return undefined
+  const hours = weights(scored, (s) => s.part, DAYPARTS.length)
+  const days = weights(scored, (s) => s.weekday, 7)
+  const best = hours.reduce((b, h, i) => {
+    if (!h.counted) return b
+    if (b < 0 || h.value > hours[b]!.value) return i
+    return h.value === hours[b]!.value && h.views > hours[b]!.views ? i : b
+  }, -1)
+  return {
+    best: DAYPARTS[best]!,
+    hours: scaled(hours.map((h) => h.value)),
+    days: scaled(days.map((d) => d.value)),
+  }
+}
+
+function weights<T extends { engagement: number; views: number }>(
+  scored: T[],
+  bucketOf: (s: T) => number,
+  size: number,
+) {
+  const buckets = Array.from({ length: size }, (_, i) => scored.filter((s) => bucketOf(s) === i))
+  const enough = (b: T[]) => b.length >= ENOUGH_IN_BUCKET
+  const sum = (b: T[], key: 'engagement' | 'views') => b.reduce((n, s) => n + s[key], 0)
+  // The average of the counted posts only, so a sparse bucket never outscores the best counted one.
+  const counted = buckets.filter(enough).flat()
+  const average = sum(counted, 'engagement') / counted.length
+  return buckets.map((b) => ({
+    counted: enough(b),
+    value: enough(b)
+      ? (sum(b, 'engagement') + ENOUGH_IN_BUCKET * average) / (b.length + ENOUGH_IN_BUCKET)
+      : average,
+    views: enough(b) ? sum(b, 'views') / b.length : 0,
+  }))
+}
+
+/** Each weight over the largest, so the best is 1; all 1 when nothing was engaged with. */
+function scaled(values: number[]) {
+  const top = Math.max(...values)
+  return values.map((v) => (top > 0 ? Math.round((v / top) * 100) / 100 : 1))
 }
 
 function groupBy<T>(items: T[], key: (item: T) => string | null): Map<string, T[]> {
