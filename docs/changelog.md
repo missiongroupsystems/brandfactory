@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.35.3** — 2026-10-22 — `fix/onboarding-polish`: on the core a post is planned without a connected account. New post picks the brand's own platforms, previews the post on the one picked, and Schedule puts it on the calendar as Scheduled (`post.mark`), with the amber note that it will not publish until the account is set up. Nothing is sent: no job, so nothing turns Failed at its time. No pack change, no migration. 1067 tests (196 skipped without a Postgres server).
 - **2.35.2** — 2026-10-22 — `fix/onboarding-polish`: review fixes. New shoot and Plan shoot no longer throw for a brand outside the demo, and on the core no brand gets the demo's outlets, crew, past places, Drive, voice samples, story titles, moodboard, venue or inbox people. A posted post prints only its own counts on every app's screen, asks for no photo, opens on its own first account and draws itself once in the grid. No false "connected" on the core: Instagram, TikTok, Facebook, Pinterest, Google Drive, Lark and the Insights sources show a calm amber "Not available yet" with the reason on hover or tap, and the pretend sign-in does not run for them. No migration. 1062 tests (196 skipped without a Postgres server).
 - **2.35.1** — 2026-10-22 — `fix/onboarding-polish`: the QA pass before the marketing team's first day on production. A posted post (brought in or sent from Brand base) is shown as it went out: its own account's preview with its real counts, a "Posted on" line, and nothing to edit. On the core: no best-time band, no demo voice history, events, ideas, library or caption drafts for a brand that shares a demo id; Insights and the inbox say what is missing; a link to Connections where no account is linked. The calendar title names the year outside this one. Smaller: one cover is not numbered, Ideate is "Ideas", Select hides with no ideas, the kit's "Saved" waits for a save, Add brand waits for a name. No migration. 1037 tests (196 skipped without a Postgres server).
 - **2.35.0** — 2026-10-22 — `feat/first-sign-in`: the first sign-in. An admin makes each account in the Supabase dashboard; the person's first sign-in asks for a password of their own, draws one check mark, then opens the dashboard; later sign-ins go straight in. A person the core has no place for yet sees "Not in a company yet" with their email and Sign out instead of a refusal on the sign-in page. No public sign-up, no email. No move or migration; adding a member is still by hand (steps in `docs/completions/first-sign-in-plan.md`). Sign-in and sign-out load the page afresh, so nothing of one account stays for the next, and one brand refused no longer reads as "Not in a company yet". 1025 tests (196 skipped without a Postgres server).
@@ -67,6 +68,40 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.35.3 — 2026-10-22
+
+- **Why.** The owner chose to let the team schedule on production before any account can connect,
+  so the calendar is a plan they can trust.
+- **Where the rule was.** In web-next only: the composer offered only connected accounts
+  (`activeChannels`), and Schedule sent the post (`post.schedule`), which makes one job per account
+  that `post.publish_job` runs at its time. The pack does not ask for a connection: `post.edit`
+  takes any of the brand's own platforms (`brand.linked`), and `post.mark` sets a post Scheduled
+  with a day, a time and a platform, and makes no job. So no pack change and no migration.
+- **On the core, with no account connected.** New post lists the brand's own platforms (from
+  `brand.list`'s `linked`) to pick, with the amber "Not available yet" beside them. The preview
+  draws the post on the one picked, as in the static demo. "Publish now" is not offered. The
+  button reads "Schedule": it makes or moves the post, saves it, then marks it Scheduled. Nothing
+  is sent, so no job exists for the scheduler to pick up, nothing turns Failed at its time, and no
+  platform is called. Opening it, editing it, moving it on the calendar and taking it back to a
+  draft work as before (`post.edit`, `post.move`, `post.mark`).
+- **Once an account connects.** Such a post stays Scheduled with no job: it does not go out by
+  itself. Opening it and pressing "Schedule on" sends it (`post.schedule`), which makes its jobs at
+  its day and time, as a post marked Scheduled from the idea page does today. The static demo is
+  unchanged.
+- **Limits.** A planned post whose time passes stays Scheduled; nothing marks it Posted. A save
+  keeps a post's other platforms (YouTube, LinkedIn) that the composer does not offer. A brand
+  with none of Instagram, TikTok or Facebook says so and plans nothing. A post already Failed
+  from an old job still asks to reconnect first. "Nothing is sent" holds for the app: Bubbles
+  can still call `post.schedule` through the core, which makes jobs that the simulated connector
+  refuses (they show Failed); no platform is called.
+- **Tests.** `plan-remote.test.tsx`: the platforms pick and preview with nothing connected, no
+  "Publish now", Schedule moves, saves and then marks the post in that order and sends nothing,
+  only the brand's own platforms are offered and a post's others are kept, and a brand with none
+  says so; it fails without the change.
+- **Gate:** typecheck, lint, format, build; tests 1067 (871 run, 196 skipped: no Postgres server).
+  Screenshots on a stub core: a draft with its day and preview (desktop and phone), the post on the
+  week calendar, and the scheduled post opened.
 
 ## 2.35.2 — 2026-10-22
 

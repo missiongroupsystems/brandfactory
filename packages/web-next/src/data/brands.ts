@@ -35,6 +35,8 @@ export interface Brand {
    */
   logo?: string
   handle: string
+  /** The platforms the brand posts on, as the core lists them (`brand.linked`); the core's only. */
+  platforms?: string[]
   /**
    * A CSS custom property from `styles/tokens.css`; use it as `var(${brand.colour})`. A brand
    * made on the core gets `--brand-other`.

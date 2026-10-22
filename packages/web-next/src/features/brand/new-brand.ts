@@ -85,6 +85,7 @@ export function asBrand(core: CoreBrand): Brand {
     id: core.id as BrandId,
     name: core.name,
     handle: core.handle,
+    platforms: core.linked,
     line: core.line,
     colour: demo?.colour ?? '--brand-other',
     ...(demo?.logo && { logo: demo.logo }),

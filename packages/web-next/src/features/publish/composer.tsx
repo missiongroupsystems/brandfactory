@@ -30,7 +30,7 @@ import { composeChannels, sentChannels } from '@/features/schedule/calendar-item
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
-import { NotAvailable } from '@/features/connections/not-available'
+import { NotAvailable, notAvailable } from '@/features/connections/not-available'
 import { ideaIdOfHook } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import { demoOf, newId, quietly, remote, request, sent } from '@/lib/remote'
@@ -175,14 +175,19 @@ export function Composer({
   // The accounts linked on the Connections page. One that needs signing in again still shows,
   // with Reconnect; one disconnected there is gone from the composer.
   const links = useConnections(brand.id)
-  const publishing = (['ig', 'tt', 'fb'] as const).filter((k) => links[k] !== 'off')
+  // On the core no account can connect yet: a post is planned on the brand's own platforms, and
+  // Schedule dates it on the calendar without sending anything (`post.mark`, no job).
+  const planOnly = PUBLISHERS.every((k) => notAvailable(k))
+  const publishing = planOnly
+    ? PUBLISHERS.filter((k) => (brand.platforms ?? PUBLISHERS).includes(k))
+    : PUBLISHERS.filter((k) => links[k] !== 'off')
   const api = usePublishDraft({
     format: post?.format ?? start?.format ?? 'reel',
     hook: post?.hook ?? '',
     caption: post ? kept?.caption || captions[post.id] || post.hook : '',
     selected: post ? composeChannels(post) : undefined,
     linked: publishing,
-    connected: publishing.filter((k) => links[k] === 'connected'),
+    connected: planOnly ? publishing : publishing.filter((k) => links[k] === 'connected'),
     tiktok:
       keptDraft.privacy !== undefined && keptDraft.interactions && keptDraft.promo
         ? {
@@ -222,7 +227,9 @@ export function Composer({
     [draft.format],
   )
   // A failed post was due already: the fix is to send it now.
-  const [when, setWhen] = React.useState<WhenChoice>(post?.stage === 'failed' ? 'now' : 'schedule')
+  const [when, setWhen] = React.useState<WhenChoice>(
+    post?.stage === 'failed' && !planOnly ? 'now' : 'schedule',
+  )
   const [date, setDate] = React.useState<string>(
     () => (post && dayOf(weeks, post.id)) || start?.day || addDays(todayDate(), 7),
   )
@@ -315,9 +322,11 @@ export function Composer({
         remote && draft.linked.length === 0
         ? 'Not available yet'
         : 'Pick an account'
-      : when === 'now'
-        ? 'Post on'
-        : 'Schedule on'
+      : planOnly
+        ? 'Schedule'
+        : when === 'now'
+          ? 'Post on'
+          : 'Schedule on'
   // A send names its accounts by their logos, so the button shows exactly where the post goes.
   const logos = retry ? retryOn : active.map((c) => c.key)
 
@@ -335,7 +344,14 @@ export function Composer({
     const day = date
     const content = {
       caption: draft.caption,
-      channels: (retry ? retryOn : active.map((c) => c.key)) as string[],
+      channels: [
+        ...(retry ? retryOn : active.map((c) => c.key)),
+        // Planned only on the platforms the composer offers: a post's others (YouTube, LinkedIn)
+        // are kept, not dropped by a save.
+        ...(planOnly
+          ? (opened?.channels ?? []).filter((k) => !(PUBLISHERS as readonly string[]).includes(k))
+          : []),
+      ] as string[],
       media: media.map((m) => mediaItem(m.src)),
       draft: {
         overrides: draft.overrides,
@@ -372,7 +388,10 @@ export function Composer({
         await request('POST', `/brands/${b}/posts/${id}/move`, { day, time })
       }
       await request('PATCH', `/brands/${b}/posts/${id}`, content)
-      if (send) {
+      if (send && planOnly) {
+        // Planned, not sent: the post is scheduled on the calendar and no job will publish it.
+        await request('POST', `/brands/${b}/posts/${id}/mark`, { stage: 'scheduled' })
+      } else if (send) {
         await request(
           'POST',
           `/brands/${b}/posts/${id}/send`,
@@ -806,8 +825,8 @@ export function Composer({
 
 type SheetKey = 'accounts' | 'details' | 'when' | 'preview' | ChannelKey
 
-/** The publishing platforms, none of which can connect on the core yet. */
-const UNSET: ChannelKey[] = ['ig', 'tt', 'fb']
+/** The accounts a post is published to. */
+const PUBLISHERS = ['ig', 'tt', 'fb'] as const satisfies readonly ChannelKey[]
 
 const FORMAT_LABEL: Record<Format, string> = { carousel: 'Post', reel: 'Reel', story: 'Story' }
 
@@ -958,25 +977,29 @@ function Accounts({ api }: { api: PublishDraftApi }) {
               </button>
             )
           })}
-          {linkedChannels(draft).length === 0 &&
-            (remote ? (
-              // On the core no publishing account can connect yet: say so, calmly, in place.
-              <span className="flex h-10 items-center gap-3 max-md:h-14">
-                <span className="flex items-center gap-2 text-ink-4">
-                  {UNSET.map((k) => (
-                    <PlatformLogo key={k} platform={k} size={14} />
-                  ))}
-                </span>
-                <NotAvailable name={namesOf(UNSET)} align="left" />
+          {PUBLISHERS.every((k) => notAvailable(k)) ? (
+            // On the core no account can connect yet: the post is planned on them, and the note
+            // says it will not publish until they are set up.
+            linkedChannels(draft).length > 0 ? (
+              <span className="flex h-10 items-center max-md:h-14">
+                <NotAvailable name={namesOf(draft.linked)} align="left" />
               </span>
             ) : (
+              // A brand that posts on none of them has nothing to plan a post on.
+              <span className="flex h-10 items-center text-[13px] text-ink-3 max-md:h-14 max-md:text-[15px]">
+                This brand has no Instagram, TikTok or Facebook.
+              </span>
+            )
+          ) : (
+            linkedChannels(draft).length === 0 && (
               <Link
                 href="/brand/connections"
                 className="flex h-10 items-center text-[13px] text-ink-3 underline decoration-ink-5 underline-offset-4 transition-colors hover:text-ink max-md:h-14 max-md:text-[15px]"
               >
                 Connect an account
               </Link>
-            ))}
+            )
+          )}
         </div>
         <div className={`w-[240px] max-md:w-full ${TAP}`}>
           <Segmented<Format>
@@ -2399,8 +2422,11 @@ function WhenCard({
             pill
             value={when}
             onChange={setWhen}
+            // On the core nothing publishes yet: a post is planned for a day, never sent now.
             options={[
-              { value: 'now', label: 'Publish now' },
+              ...(PUBLISHERS.every((k) => notAvailable(k))
+                ? []
+                : [{ value: 'now' as const, label: 'Publish now' }]),
               { value: 'schedule', label: 'Schedule' },
             ]}
           />
@@ -2505,7 +2531,7 @@ function TimeField({ time, setTime }: { time: string; setTime: (t: string) => vo
 }
 
 /** "Instagram, TikTok and YouTube". */
-function namesOf(keys: ChannelKey[]): string {
+function namesOf(keys: readonly ChannelKey[]): string {
   const names = keys.map((k) => NAME[k])
   return names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
 }
