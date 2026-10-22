@@ -10,8 +10,10 @@ import type { Brand } from '@/data/brands'
 import { LARK_CALENDAR } from '@/data/connections'
 import { VENUE } from '@/data/publish'
 import { useBrand } from '@/features/schedule/posts-store'
+import { demoOf } from '@/lib/remote'
 
 import { connect, type SourceKey } from './connections-store'
+import { notAvailable } from './not-available'
 
 interface SourceInfo {
   name: string
@@ -68,7 +70,7 @@ export const SOURCES: Record<SourceKey, SourceInfo> = {
   },
   gbp: {
     name: 'Google Business Profile',
-    account: (b) => VENUE[b.id] ?? b.name,
+    account: (b) => demoOf(VENUE, b.id) ?? b.name,
     brings: 'Searches, Maps views, calls',
     asks: () => ['Read searches, Maps views, calls and directions'],
   },
@@ -139,10 +141,13 @@ export function ConnectSheet({
 }) {
   const { brand } = useBrand()
   const info = SOURCES[source]
+  // On the core it cannot connect yet: the sheet says so, and offers no pretend Allow.
+  const unset = notAvailable(source)
   const [step, setStep] = React.useState<'ask' | 'busy' | 'done'>('ask')
   const busy = step === 'busy'
   const [leaving, setLeaving] = React.useState(false)
   const allowRef = React.useRef<HTMLButtonElement>(null)
+  const closeRef = React.useRef<HTMLButtonElement>(null)
   const timer = React.useRef(0)
   // Once it has linked, closing the sheet early still carries on (the picker, the invites).
   const dismiss = () => (step === 'done' ? onConnected() : onClose())
@@ -153,7 +158,8 @@ export function ConnectSheet({
     document.body.style.overflow = 'hidden'
     // Focus goes to Allow, and back to the control that opened the sheet when it closes.
     const opener = document.activeElement as HTMLElement | null
-    allowRef.current?.focus()
+    // On the core Allow is hidden: Close takes the focus, so it stays inside the dialog.
+    ;(allowRef.current?.hidden ? closeRef : allowRef).current?.focus()
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
     window.addEventListener('keydown', onKey)
     return () => {
@@ -166,7 +172,7 @@ export function ConnectSheet({
   }, [])
 
   function allow() {
-    if (step !== 'ask') return
+    if (step !== 'ask' || unset) return
     setStep('busy')
     timer.current = window.setTimeout(() => {
       connect(brand.id, source)
@@ -190,7 +196,13 @@ export function ConnectSheet({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={step === 'done' ? `${info.name} connected` : `Connect ${info.name}`}
+        aria-label={
+          unset
+            ? `${info.name} isn’t connected`
+            : step === 'done'
+              ? `${info.name} connected`
+              : `Connect ${info.name}`
+        }
         className={`${leaving ? 'bb-leave max-md:bb-sheet-down' : 'bb-rise max-md:bb-sheet-up'} relative flex w-[380px] flex-col gap-6 rounded-[22px] bg-page p-7 shadow-sheet max-md:w-full max-md:rounded-b-none max-md:px-5 max-md:pt-6 max-md:pb-[calc(20px+env(safe-area-inset-bottom))]`}
       >
         <span aria-hidden="true" className="flex items-center gap-2.5 text-ink">
@@ -240,39 +252,50 @@ export function ConnectSheet({
         </span>
         <div className="flex flex-col gap-1.5">
           <h2 className="text-[19px] font-medium tracking-[-0.02em]">
-            {step === 'done' ? `${info.name} connected` : `Connect ${info.name}`}
+            {unset
+              ? `${info.name} isn’t connected`
+              : step === 'done'
+                ? `${info.name} connected`
+                : `Connect ${info.name}`}
           </h2>
-          <p className="text-[13.5px] text-ink-3">
-            {step === 'done'
-              ? `${brand.name} is linked as ${info.account(brand)}.`
-              : `For ${brand.name}, brand base wants to:`}
-          </p>
+          {!unset && (
+            <p className="text-[13.5px] text-ink-3">
+              {step === 'done'
+                ? `${brand.name} is linked as ${info.account(brand)}.`
+                : `For ${brand.name}, brand base wants to:`}
+            </p>
+          )}
         </div>
-        <ul className="flex flex-col gap-2.5">
-          {info.asks(brand).map((line) => (
-            <li key={line} className="flex items-start gap-2.5 text-[14px] text-ink-2">
-              <span className="mt-[3px] flex size-4 shrink-0 items-center justify-center rounded-full bg-surface text-ink">
-                <CheckIcon size={8} strokeWidth={2.2} />
-              </span>
-              {line}
-            </li>
-          ))}
-        </ul>
+        {/* On the core it asks for nothing: it cannot connect. */}
+        {!unset && (
+          <ul className="flex flex-col gap-2.5">
+            {info.asks(brand).map((line) => (
+              <li key={line} className="flex items-start gap-2.5 text-[14px] text-ink-2">
+                <span className="mt-[3px] flex size-4 shrink-0 items-center justify-center rounded-full bg-surface text-ink">
+                  <CheckIcon size={8} strokeWidth={2.2} />
+                </span>
+                {line}
+              </li>
+            ))}
+          </ul>
+        )}
         <div
           className={`flex items-center justify-end gap-1 transition-opacity duration-300 max-md:flex-col-reverse max-md:items-stretch max-md:gap-2 ${step === 'done' ? 'opacity-0' : ''}`}
           inert={step === 'done'}
         >
           <button
+            ref={closeRef}
             type="button"
             onClick={onClose}
             className="h-10 rounded-full px-4 text-[13px] font-medium text-ink-2 transition-colors hover:text-ink max-md:h-12 max-md:text-[14px]"
           >
-            Cancel
+            {unset ? 'Close' : 'Cancel'}
           </button>
           <button
             ref={allowRef}
             type="button"
             onClick={allow}
+            hidden={unset}
             className="bb-press flex h-10 items-center justify-center gap-2 rounded-full bg-ink px-5 text-[13px] font-medium text-page hover:opacity-85 max-md:h-12 max-md:text-[14px]"
           >
             {busy && (

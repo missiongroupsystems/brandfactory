@@ -66,11 +66,12 @@ describe('the form as the move takes it', () => {
 })
 
 describe('a brand from the core', () => {
-  it('takes the neutral colour and no logo; a demo brand keeps its own', () => {
+  it('takes the neutral colour, no logo and its own platforms; a demo brand keeps its own look', () => {
     expect(asBrand(core)).toEqual({
       id: 'lucali',
       name: 'Lucali',
       handle: '@lucali',
+      platforms: core.linked,
       line: '',
       colour: '--brand-other',
     })

@@ -48,6 +48,8 @@ export function SavedWhisper({ at }: { at: number }) {
     const t = setTimeout(() => setVisible(false), 1600)
     return () => clearTimeout(t)
   }, [visible, seen])
+  // Nothing saved yet: no word on the page, not even a faded one a screen reader or search finds.
+  if (at === 0) return null
   return (
     <span
       aria-hidden={!visible}

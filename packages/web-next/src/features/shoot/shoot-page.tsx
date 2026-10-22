@@ -22,6 +22,7 @@ import { useConnected } from '@/features/connections/connections-store'
 import { editIdea, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import { Comments } from '@/features/share/comments'
+import { demoOf } from '@/lib/remote'
 import { ShareButton } from '@/features/share/share-button'
 
 import { moveStart, pastCrew, pastPlaces, replySummary, setEnd, SHOOT_TIMES } from './model'
@@ -138,8 +139,9 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
         <p className="text-[16px] leading-[1.5] text-ink-2">
           <span className="tabular-nums">
             {shoot.start}–{shoot.end}
-          </span>{' '}
-          · {shoot.place}
+          </span>
+          {/* A shoot with no place yet says only its hours. */}
+          {shoot.place && ` · ${shoot.place}`}
         </p>
         {/* One quiet line under the facts: edit them, and where the Lark calendar stands. */}
         <div className="flex items-center gap-4 pt-1 text-[13px]">
@@ -247,7 +249,11 @@ export function Details({
   const { brand } = useBrand()
   const shoots = useShoots(brand.id)
   const others = shoots.filter((s) => s.id !== shoot.id)
-  const places = pastPlaces(OUTLETS[brand.id], shoots, PAST_PLACES[brand.id]).map((p) => ({
+  const places = pastPlaces(
+    demoOf(OUTLETS, brand.id) ?? [],
+    shoots,
+    demoOf(PAST_PLACES, brand.id) ?? [],
+  ).map((p) => ({
     value: p.place,
     // An outlet's row leads with where it is, without the brand's name that most of them start with.
     ...(p.outlet &&
@@ -358,7 +364,7 @@ function Crew({ shoot, invite }: { shoot: Shoot; invite: () => void }) {
     if (role === OTHER) typedField.current?.focus()
   }, [role])
   // Someone from an earlier shoot comes back in the role they had there.
-  const known = pastCrew(useShoots(brand.id), PAST_CREW[brand.id]).filter(
+  const known = pastCrew(useShoots(brand.id), demoOf(PAST_CREW, brand.id) ?? []).filter(
     (c) => !shoot.crew.some((on) => on.name === c.name),
   )
   const options = known.map((c) => ({
@@ -393,19 +399,22 @@ function Crew({ shoot, invite }: { shoot: Shoot; invite: () => void }) {
             </span>
           )}
         </span>
-        <button
-          type="button"
-          disabled={waiting === 0}
-          onClick={invite}
-          className="bb-press flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-ink px-4 text-[13px] font-medium text-page transition-opacity hover:opacity-85 disabled:bg-surface disabled:text-ink-3 disabled:hover:opacity-100"
-        >
-          {waiting === 0 && <CheckIcon size={10} strokeWidth={2.2} />}
-          {waiting === 0
-            ? 'Invites sent'
-            : asked.length > 0
-              ? `Invite ${waiting} more`
-              : 'Send Lark invites'}
-        </button>
+        {/* Nobody on the sheet: nobody to invite, and no "Invites sent" either. */}
+        {shoot.crew.length > 0 && (
+          <button
+            type="button"
+            disabled={waiting === 0}
+            onClick={invite}
+            className="bb-press flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-ink px-4 text-[13px] font-medium text-page transition-opacity hover:opacity-85 disabled:bg-surface disabled:text-ink-3 disabled:hover:opacity-100"
+          >
+            {waiting === 0 && <CheckIcon size={10} strokeWidth={2.2} />}
+            {waiting === 0
+              ? 'Invites sent'
+              : asked.length > 0
+                ? `Invite ${waiting} more`
+                : 'Send Lark invites'}
+          </button>
+        )}
       </div>
       <ul className="flex flex-col">
         {shoot.crew.map((c, i) => {

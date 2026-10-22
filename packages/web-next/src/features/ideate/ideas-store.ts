@@ -3,7 +3,8 @@
 import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
-import { newId, onState, push, remote, request } from '@/lib/remote'
+import { notAvailable } from '@/features/connections/not-available'
+import { demoOf, newId, onState, push, remote, request } from '@/lib/remote'
 import {
   coverOf,
   IDEAS_BY_BRAND,
@@ -161,6 +162,8 @@ export function moodboardFromState(s: {
 
 /** The moodboard's sources other than Pinterest, as the server's connection keys name them. */
 const SOURCE_KEY = { dm: 'moodboard-dm', tt: 'moodboard-tt' } as const
+/** The platform each moodboard source reads from. */
+const PLATFORM_OF: Record<MoodSource, string> = { pinterest: 'pinterest', dm: 'ig', tt: 'tt' }
 
 if (remote) {
   onState((brandId, s) => {
@@ -175,7 +178,12 @@ if (remote) {
     update(brandId as BrandId, (b) => ({
       ...b,
       ideas: (s.ideas as unknown[]).map(cardOf),
-      sources: { ...b.sources, dm: on(SOURCE_KEY.dm), tt: on(SOURCE_KEY.tt) },
+      // Instagram and TikTok are not set up on our side yet: a stored "connected" is not trusted.
+      sources: {
+        ...b.sources,
+        dm: on(SOURCE_KEY.dm) && !notAvailable('ig'),
+        tt: on(SOURCE_KEY.tt) && !notAvailable('tt'),
+      },
     }))
   })
 }
@@ -206,7 +214,7 @@ export function useIdeas(brandId: BrandId): BrandIdeasState & { target: number }
     () => state[brandId] ?? EMPTY,
     () => state[brandId] ?? EMPTY,
   )
-  return { ...s, target: IDEAS_BY_BRAND[brandId]?.target ?? 0 }
+  return { ...s, target: demoOf(IDEAS_BY_BRAND, brandId)?.target ?? 0 }
 }
 
 /** Any brand's ideas by id, for a page that a link opens with only the id (a shared brief). */
@@ -236,7 +244,7 @@ export function useCoverOfHook(brandId: BrandId, hook: string): string | undefin
   const { ideas } = useIdeas(brandId)
   const card =
     ideas.find((i) => i.hook === hook) ??
-    IDEAS_BY_BRAND[brandId]?.moments.find((m) => m.seed.hook === hook)?.seed
+    demoOf(IDEAS_BY_BRAND, brandId)?.moments.find((m) => m.seed.hook === hook)?.seed
   return card ? coverOf(brandId, card) : undefined
 }
 
@@ -266,7 +274,7 @@ export interface IdeaTileMark {
 export function ideaOfTile(brandId: BrandId, tile: IdeaTileMark, date?: string): string {
   const found = state[brandId]?.ideas.find((i) => i.hook === tile.hook)
   if (found) return found.id
-  const moment = IDEAS_BY_BRAND[brandId]?.moments.find((m) => m.seed.hook === tile.hook)
+  const moment = demoOf(IDEAS_BY_BRAND, brandId)?.moments.find((m) => m.seed.hook === tile.hook)
   if (moment) {
     return addIdea(
       brandId,
@@ -348,6 +356,7 @@ export function suggest(brandId: BrandId) {
  * owns that key; the other two are sent from here.
  */
 export function connectSource(brandId: BrandId, source: MoodSource) {
+  if (notAvailable(PLATFORM_OF[source])) return
   if (source !== 'pinterest') {
     push(brandId, () =>
       request('PUT', `/brands/${brandId}/connections/${SOURCE_KEY[source]}`, {

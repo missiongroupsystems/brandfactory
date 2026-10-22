@@ -26,14 +26,15 @@ import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { CAPTION_DRAFTS, HASHTAGS, VENUE } from '@/data/publish'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { MonthArrows, useMonthPages } from '@/features/ideate/day-picker'
-import { composeChannels, sentChannels } from '@/features/schedule/calendar-items'
+import { channelsOf, composeChannels, sentChannels } from '@/features/schedule/calendar-items'
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
+import { NotAvailable, notAvailable } from '@/features/connections/not-available'
 import { ideaIdOfHook } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import { demoOf, newId, quietly, remote, request, sent } from '@/lib/remote'
-import { addDays, dayNumber, todayDate, weekdayOf } from '@/lib/dates'
+import { addDays, dayNumber, monthOf, todayDate, weekdayOf } from '@/lib/dates'
 import { mediaItem } from '@/lib/remote-days'
 
 import { CropEditor } from './crop-editor'
@@ -42,6 +43,7 @@ import { DropZone } from './drop-zone'
 import {
   activeChannels,
   blockers,
+  CHANNELS,
   COLLAB_MAX,
   defaultCrop,
   frameRatio,
@@ -173,14 +175,21 @@ export function Composer({
   // The accounts linked on the Connections page. One that needs signing in again still shows,
   // with Reconnect; one disconnected there is gone from the composer.
   const links = useConnections(brand.id)
-  const publishing = (['ig', 'tt', 'fb'] as const).filter((k) => links[k] !== 'off')
+  // On the core no account can connect yet: a post is planned on the brand's own platforms, and
+  // Schedule dates it on the calendar without sending anything (`post.mark`, no job).
+  const planOnly = PUBLISHERS.every((k) => notAvailable(k))
+  const publishing = planOnly
+    ? PUBLISHERS.filter((k) => (brand.platforms ?? PUBLISHERS).includes(k))
+    : PUBLISHERS.filter((k) => links[k] !== 'off')
   const api = usePublishDraft({
     format: post?.format ?? start?.format ?? 'reel',
     hook: post?.hook ?? '',
     caption: post ? kept?.caption || captions[post.id] || post.hook : '',
-    selected: post ? composeChannels(post) : undefined,
+    // A failed post is retried on the account it failed on; on the core it is planned again on
+    // all of its own, not narrowed to that one.
+    selected: post ? (planOnly ? channelsOf(post) : composeChannels(post)) : undefined,
     linked: publishing,
-    connected: publishing.filter((k) => links[k] === 'connected'),
+    connected: planOnly ? publishing : publishing.filter((k) => links[k] === 'connected'),
     tiktok:
       keptDraft.privacy !== undefined && keptDraft.interactions && keptDraft.promo
         ? {
@@ -220,7 +229,9 @@ export function Composer({
     [draft.format],
   )
   // A failed post was due already: the fix is to send it now.
-  const [when, setWhen] = React.useState<WhenChoice>(post?.stage === 'failed' ? 'now' : 'schedule')
+  const [when, setWhen] = React.useState<WhenChoice>(
+    post?.stage === 'failed' && !planOnly ? 'now' : 'schedule',
+  )
   const [date, setDate] = React.useState<string>(
     () => (post && dayOf(weeks, post.id)) || start?.day || addDays(todayDate(), 7),
   )
@@ -235,8 +246,8 @@ export function Composer({
   const [madeId, setMadeId] = React.useState<string | null>(null)
   // The idea a new post started from, so the calendar swaps that idea's tile for the post.
   const [ideaHook, setIdeaHook] = React.useState<string | null>(null)
-  // A post already out, or one from an earlier month, is shown, not changed.
-  const readOnly = Boolean(post && (post.stage === 'posted' || !dayOf(weeks, post.id)))
+  // A post off the calendar's weeks is shown, not changed. A posted one has its own view below.
+  const readOnly = Boolean(post && !dayOf(weeks, post.id))
   const [details, setDetails] = React.useState(
     () =>
       keptDraft.details ?? {
@@ -283,11 +294,24 @@ export function Composer({
   const [waiting, setWaiting] = React.useState<'send' | 'save' | null>(null)
 
   const active = activeChannels(draft)
+  // Planned only on the platforms the composer offers: a post's others (YouTube, LinkedIn) are
+  // kept on every save, here and on the calendar, not dropped. One the brand no longer uses goes:
+  // the core refuses a save that names it.
+  const others = planOnly
+    ? (opened?.channels ?? []).filter(
+        (k) =>
+          !(PUBLISHERS as readonly string[]).includes(k) && (brand.platforms ?? [k]).includes(k),
+      )
+    : []
   const targetId = post?.id ?? madeId
   const storyDay = when === 'now' ? todayDate() : date
   const blocked = [
-    ...(readOnly ? ['Already posted: it can be viewed, not changed.'] : []),
-    ...(post?.stage === 'failed' && !reconnected ? [`Reconnect ${failedName} first.`] : []),
+    ...(readOnly ? ['Not on the calendar: it can be viewed, not changed.'] : []),
+    ...(post?.stage === 'failed' && !reconnected && !planOnly
+      ? [`Reconnect ${failedName} first.`]
+      : []),
+    // 6. A planned post needs a platform: the core refuses a scheduled post with none.
+    ...(planOnly && active.length === 0 ? ['Pick an account.'] : []),
     ...(media.length === 0 && draft.format !== 'story' ? ['Add a photo or video.'] : []),
     ...(media.length > MEDIA_MAX[draft.format]
       ? [`A ${draft.format} takes ${MEDIA_MAX[draft.format]}: remove the extra media.`]
@@ -309,10 +333,15 @@ export function Composer({
   const label = retry
     ? 'Retry on'
     : active.length === 0
-      ? 'Pick an account'
-      : when === 'now'
-        ? 'Post on'
-        : 'Schedule on'
+      ? // On the core no account can be picked yet: nothing to ask for.
+        remote && draft.linked.length === 0
+        ? 'No platform listed'
+        : 'Pick an account'
+      : planOnly
+        ? 'Schedule'
+        : when === 'now'
+          ? 'Post on'
+          : 'Schedule on'
   // A send names its accounts by their logos, so the button shows exactly where the post goes.
   const logos = retry ? retryOn : active.map((c) => c.key)
 
@@ -330,7 +359,12 @@ export function Composer({
     const day = date
     const content = {
       caption: draft.caption,
-      channels: (retry ? retryOn : active.map((c) => c.key)) as string[],
+      channels: [
+        ...(retry ? retryOn : active.map((c) => c.key)),
+        // Planned only on the platforms the composer offers: a post's others (YouTube, LinkedIn)
+        // are kept, not dropped by a save.
+        ...others,
+      ] as string[],
       media: media.map((m) => mediaItem(m.src)),
       draft: {
         overrides: draft.overrides,
@@ -367,7 +401,10 @@ export function Composer({
         await request('POST', `/brands/${b}/posts/${id}/move`, { day, time })
       }
       await request('PATCH', `/brands/${b}/posts/${id}`, content)
-      if (send) {
+      if (send && planOnly) {
+        // Planned, not sent: the post is scheduled on the calendar and no job will publish it.
+        await request('POST', `/brands/${b}/posts/${id}/mark`, { stage: 'scheduled' })
+      } else if (send) {
         await request(
           'POST',
           `/brands/${b}/posts/${id}/send`,
@@ -385,10 +422,13 @@ export function Composer({
   /** The post on the calendar: moved and restaged if it exists, placed if it is new. */
   function toCalendar(stage: Stage): string | null {
     const day = when === 'now' ? todayDate() : date
-    const channels = sentChannels(
-      opened,
-      active.map((c) => c.key),
-    )
+    // On the core the calendar holds exactly what the save sends.
+    const channels = planOnly
+      ? [...active.map((c) => c.key), ...others]
+      : sentChannels(
+          opened,
+          active.map((c) => c.key),
+        )
     if (live) {
       reschedule(live, day, time)
       setStage(live, stage)
@@ -447,8 +487,11 @@ export function Composer({
   // A post already past draft keeps its stage when saved: saving a caption must not unschedule it.
   const keeps = post !== undefined && post.stage !== 'draft'
 
+  // A scheduled post with no platform cannot be kept scheduled: the core refuses it.
+  const unsaveable = readOnly || (planOnly && post?.stage === 'scheduled' && active.length === 0)
+
   async function saveDraft() {
-    if (readOnly || waiting) return
+    if (unsaveable || waiting) return
     if (remote) {
       if (!(await stored(keeps ? post.stage : 'draft', null))) return
     } else {
@@ -471,6 +514,7 @@ export function Composer({
         media={media}
         people={{ collabs: details.collab, tags: media[0]?.tags ?? [] }}
         slot={`${dayLabel(date)}, ${time}`}
+        planned={planOnly}
         onBack={() => router.push('/')}
       />
     )
@@ -522,10 +566,10 @@ export function Composer({
   const draftButton = (
     <button
       type="button"
-      aria-disabled={readOnly}
+      aria-disabled={unsaveable}
       aria-busy={waiting === 'save'}
       onClick={saveDraft}
-      className={`flex h-10 shrink-0 items-center rounded-full px-4 text-[13px] font-medium transition-colors max-md:h-12 max-md:text-[14px] ${readOnly ? 'cursor-not-allowed text-ink-5' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
+      className={`flex h-10 shrink-0 items-center rounded-full px-4 text-[13px] font-medium transition-colors max-md:h-12 max-md:text-[14px] ${unsaveable ? 'cursor-not-allowed text-ink-5' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
     >
       {waiting === 'save' ? 'Saving…' : keeps ? 'Save' : 'Save draft'}
     </button>
@@ -534,6 +578,34 @@ export function Composer({
   const people = {
     collabs: draft.format === 'story' ? [] : details.collab,
     tags: draft.format === 'story' ? [] : (media[0]?.tags ?? []),
+  }
+  const counts = post?.metrics && { on: post.channels?.[0], metrics: post.metrics }
+  // Posted is final: the same page as any post, every field filled in as text, nothing to change.
+  if (post?.stage === 'posted') {
+    // Only the accounts it went out on, its first one open; none recorded, no preview.
+    // On the core a post with no account recorded shows none; the demo's archive posts carry
+    // none and preview on the format's usual ones, as before.
+    const went = post.channels ?? (remote ? [] : channelsOf(post))
+    const day = dayOf(weeks, post.id)
+    const year = day ? monthOf(day).year : 0
+    const on = day
+      ? `${dayLabel(day)}${year !== monthOf(todayDate()).year ? ` ${year}` : ''}`
+      : post.slot.split(', ')[0]!
+    return (
+      <PostedPost
+        post={post}
+        api={api}
+        media={media}
+        people={people}
+        went={went}
+        on={on}
+        // Only what was kept with the post: no demo venue stands in for a location it never had.
+        details={keptDraft.details}
+        labels={keptDraft.labels ?? []}
+        extra={keptDraft.extra}
+        onFiles={addFiles}
+      />
+    )
   }
   // The sheet a phone row opened, over the same cards the desktop shows in place.
   const inSheet: Partial<Record<SheetKey, { title: string; body: React.ReactNode }>> = {
@@ -573,7 +645,8 @@ export function Composer({
           media={media}
           people={people}
           onFiles={addFiles}
-          counts={post?.metrics && { on: post.channels?.[0], metrics: post.metrics }}
+          counts={counts}
+          self={post?.id}
         />
       ),
     },
@@ -637,10 +710,14 @@ export function Composer({
                 : `This post did not go out at ${post.slot}.`}
             </span>
             <span className="text-ink-3">
-              {reconnected ? 'Press Retry to post it now.' : post.error}
+              {reconnected
+                ? 'Press Retry to post it now.'
+                : planOnly
+                  ? 'Pick a day and press Schedule to plan it again.'
+                  : post.error}
             </span>
           </span>
-          {!reconnected && (
+          {!reconnected && !planOnly && (
             <button
               type="button"
               onClick={() => {
@@ -684,6 +761,8 @@ export function Composer({
                     </span>
                     · {FORMAT_LABEL[draft.format]}
                   </span>
+                ) : remote ? (
+                  'No platform listed'
                 ) : (
                   'No account'
                 )
@@ -740,7 +819,8 @@ export function Composer({
             media={media}
             people={people}
             onFiles={addFiles}
-            counts={post?.metrics && { on: post.channels?.[0], metrics: post.metrics }}
+            counts={counts}
+            self={post?.id}
           />
           <div className="flex items-center gap-2 px-1">
             {draftButton}
@@ -760,7 +840,179 @@ export function Composer({
   )
 }
 
+/**
+ * A posted post: the post page's own cards, every field it went out with as plain text, and
+ * nothing to change. An empty field is left out, not shown empty.
+ */
+function PostedPost({
+  post,
+  api,
+  media,
+  people,
+  went,
+  on,
+  details,
+  labels,
+  extra,
+  onFiles,
+}: {
+  post: Post
+  api: PublishDraftApi
+  media: Shot[]
+  people: People
+  /** The accounts it went out on, in its own order. */
+  went: ChannelKey[]
+  /** The day it went out, in words. */
+  on: string
+  details: DetailState | undefined
+  labels: string[]
+  /** Its accounts' own settings, kept only when it went out from brand base. */
+  extra: Extra | undefined
+  onFiles: (files: FileList | null) => Promise<void>
+}) {
+  const { draft } = api
+  const accounts = went.flatMap((k) => CHANNELS.filter((c) => c.key === k))
+  const rows = [
+    { label: 'Location', value: details?.location },
+    { label: 'First comment', value: details?.comment },
+    { label: 'Tagged', value: taggedIn(media).join(', ') },
+    { label: 'Collaborators', value: details?.collab.join(', ') },
+    { label: 'AI-generated label', value: details?.aiLabel ? 'On' : '' },
+    ...(extra
+      ? accounts.map((c) => ({ label: c.name, value: summaryOf(draft, extra)[c.key].text }))
+      : []),
+  ].filter((r): r is { label: string; value: string } => Boolean(r.value?.trim()))
+  // On the core only the cover came across: a video shows it, and says why it does not play.
+  const video =
+    remote && post.format === 'reel' && media.length > 0 && !media.some((m) => isVideo(m.src))
+  const first = went[0]
+  const card = `${CARD} max-md:border-t max-md:border-(--cal-line) max-md:pt-6`
+  return (
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-2">
+        <span className="self-start rounded-full bg-surface px-2 py-[2px] text-[11px] font-medium text-ink-2">
+          Posted on {on}
+        </span>
+        <h1 className="font-display text-[38px] leading-none tracking-[-0.035em] max-md:text-[28px] max-md:leading-[1.05]">
+          {post.hook}
+        </h1>
+      </header>
+      <div className="grid grid-cols-[minmax(0,1fr)_400px] items-start gap-6 max-lg:grid-cols-1">
+        <div className="flex min-w-0 flex-col gap-4 max-md:gap-6">
+          {accounts.length > 0 && (
+            <section aria-label="Accounts" className={card}>
+              <span className={EYEBROW}>Posted to</span>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-2">
+                  {accounts.map((c) => (
+                    <span
+                      key={c.key}
+                      className="flex h-9 items-center gap-2 rounded-full bg-surface pr-4 pl-3 text-[13px] font-medium text-ink-2"
+                    >
+                      <PlatformLogo platform={c.key} size={14} />
+                      {c.name}
+                    </span>
+                  ))}
+                </div>
+                <span className="text-[13px] text-ink-3">{FORMAT_LABEL[post.format]}</span>
+              </div>
+            </section>
+          )}
+          {(media.length > 0 || draft.caption.trim() !== '') && (
+            <section aria-label="Content" className={card}>
+              {media.length > 0 && (
+                <div className={`flex flex-wrap gap-2 ${STRIP}`}>
+                  {media.map((shot, i) => (
+                    <span
+                      key={shot.src + i}
+                      className="relative block h-[132px] w-[106px] shrink-0 overflow-hidden rounded-[12px] bg-tile"
+                    >
+                      <ShotView shot={shot} sizes="260px" />
+                      {media.length > 1 && (
+                        <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/50 px-1.5 font-mono text-[10px] text-page">
+                          {i + 1}
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {draft.caption.trim() !== '' && (
+                <div className="flex flex-col gap-2">
+                  <span className={EYEBROW}>Caption</span>
+                  <p className="text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap">
+                    {draft.caption}
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
+          {(rows.length > 0 || labels.length > 0) && (
+            <section aria-label="Details" className={card}>
+              <span className={EYEBROW}>Details</span>
+              <dl className="flex flex-col">
+                {rows.map((r) => (
+                  <div
+                    key={r.label}
+                    className="grid grid-cols-[132px_minmax(0,1fr)] gap-3 border-b border-(--cal-line) py-3 first:pt-0 last:border-b-0 max-md:grid-cols-1 max-md:gap-1"
+                  >
+                    <dt className="text-[13px] text-ink-3">{r.label}</dt>
+                    <dd className="min-w-0 text-[13.5px] break-words whitespace-pre-wrap">
+                      {r.value}
+                    </dd>
+                  </div>
+                ))}
+                {labels.length > 0 && (
+                  <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 border-t border-(--cal-line) pt-3 first:border-t-0 first:pt-0 max-md:grid-cols-1 max-md:gap-1.5">
+                    <dt className="text-[13px] text-ink-3">Labels</dt>
+                    <dd className="flex flex-wrap gap-1.5">
+                      {labels.map((l) => (
+                        <span
+                          key={l}
+                          className="flex h-7 items-center rounded-full bg-surface px-2.5 text-[12.5px] text-ink-2"
+                        >
+                          {l}
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </section>
+          )}
+        </div>
+        {first && (
+          <div className="sticky top-6 flex flex-col gap-3 max-lg:static max-md:border-t max-md:border-(--cal-line) max-md:pt-6">
+            <Preview
+              api={api}
+              media={media}
+              people={people}
+              onFiles={onFiles}
+              // Its own counts or none: never the preview's invented ones.
+              counts={{ on: first, metrics: post.metrics ?? {} }}
+              on={went}
+              self={post.id}
+            />
+            {video && (
+              <span className="flex px-1">
+                <NotAvailable
+                  label="Cover only"
+                  reason={`Video plays once ${NAME[first]} is connected.`}
+                  align="left"
+                />
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 type SheetKey = 'accounts' | 'details' | 'when' | 'preview' | ChannelKey
+
+/** The accounts a post is published to. */
+const PUBLISHERS = ['ig', 'tt', 'fb'] as const satisfies readonly ChannelKey[]
 
 const FORMAT_LABEL: Record<Format, string> = { carousel: 'Post', reel: 'Reel', story: 'Story' }
 
@@ -911,6 +1163,33 @@ function Accounts({ api }: { api: PublishDraftApi }) {
               </button>
             )
           })}
+          {PUBLISHERS.every((k) => notAvailable(k)) ? (
+            // On the core no account can connect yet: the post is planned on them, and the note
+            // says it will not publish until they are set up.
+            linkedChannels(draft).length > 0 ? (
+              <span className="flex h-10 items-center max-md:h-14">
+                <NotAvailable
+                  label="Won’t publish"
+                  reason="Posts go out once accounts are connected."
+                  align="left"
+                />
+              </span>
+            ) : (
+              // A brand that posts on none of them has nothing to plan a post on.
+              <span className="flex h-10 items-center text-[13px] text-ink-3 max-md:h-14 max-md:text-[15px]">
+                This brand has no Instagram, TikTok or Facebook.
+              </span>
+            )
+          ) : (
+            linkedChannels(draft).length === 0 && (
+              <Link
+                href="/brand/connections"
+                className="flex h-10 items-center text-[13px] text-ink-3 underline decoration-ink-5 underline-offset-4 transition-colors hover:text-ink max-md:h-14 max-md:text-[15px]"
+              >
+                Connect an account
+              </Link>
+            )
+          )}
         </div>
         <div className={`w-[240px] max-md:w-full ${TAP}`}>
           <Segmented<Format>
@@ -1126,9 +1405,12 @@ function Content({
                 className="group/m relative block h-[132px] w-[106px] shrink-0 overflow-hidden rounded-[12px] bg-tile"
               >
                 <ShotView shot={shot} sizes="260px" />
-                <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/50 px-1.5 font-mono text-[10px] text-page">
-                  {i + 1}
-                </span>
+                {/* A number orders slides: one tile has no order to show. */}
+                {media.length > 1 && (
+                  <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/50 px-1.5 font-mono text-[10px] text-page">
+                    {i + 1}
+                  </span>
+                )}
                 {/* The wrong shape for this format: said quietly, fixed in one tap. */}
                 {fix ? (
                   <button
@@ -1660,7 +1942,7 @@ function Details({
           <Chips
             values={labels}
             onChange={setLabels}
-            placeholder="e.g. TMP_Wine, F1 weekend"
+            placeholder={remote ? '' : 'e.g. TMP_Wine, F1 weekend'}
             options={labelsOf(brand.id)}
           />
         </div>
@@ -2330,8 +2612,11 @@ function WhenCard({
             pill
             value={when}
             onChange={setWhen}
+            // On the core nothing publishes yet: a post is planned for a day, never sent now.
             options={[
-              { value: 'now', label: 'Publish now' },
+              ...(PUBLISHERS.every((k) => notAvailable(k))
+                ? []
+                : [{ value: 'now' as const, label: 'Publish now' }]),
               { value: 'schedule', label: 'Schedule' },
             ]}
           />
@@ -2436,7 +2721,7 @@ function TimeField({ time, setTime }: { time: string; setTime: (t: string) => vo
 }
 
 /** "Instagram, TikTok and YouTube". */
-function namesOf(keys: ChannelKey[]): string {
+function namesOf(keys: readonly ChannelKey[]): string {
   const names = keys.map((k) => NAME[k])
   return names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
 }
@@ -2589,6 +2874,8 @@ function Preview({
   people,
   onFiles,
   counts,
+  on,
+  self,
 }: {
   api: PublishDraftApi
   media: Shot[]
@@ -2599,20 +2886,43 @@ function Preview({
    * accounts show none, so another account's counts never pass for that one's.
    */
   counts?: { on: ChannelKey | undefined; metrics: NonNullable<Post['metrics']> }
+  /** A posted post: the accounts it went out on, shown as they are, with nothing to add. */
+  on?: ChannelKey[]
+  /** The post's own id: Instagram's grid draws it first, and not again among the feed. */
+  self?: string
 }) {
   const { draft } = api
   const { posts } = useBrand()
-  const active = activeChannels(draft)
+  // A posted post's accounts in the order it has them, so its first one opens.
+  const active = on ? on.flatMap((k) => CHANNELS.filter((c) => c.key === k)) : activeChannels(draft)
   const [picked, setPicked] = React.useState<ChannelKey | null>(null)
   const [grid, setGrid] = React.useState(false)
   const input = React.useRef<HTMLInputElement>(null)
   const channel = active.find((c) => c.key === picked)?.key ?? active[0]?.key
   const showGrid = grid && channel === 'ig' && draft.format !== 'story'
+  const phone = channel && (
+    <Phone channel={channel} scale={1.25}>
+      <PhoneMock
+        channel={channel}
+        format={draft.format}
+        shots={media}
+        people={people}
+        text={
+          channel === 'yt'
+            ? (draft.youtubeTitle ?? youtubeTitle(draft))
+            : textFor(draft, channel).text
+        }
+        live
+        onAdd={on ? undefined : () => input.current?.click()}
+        counts={counts && (channel === counts.on ? counts.metrics : {})}
+      />
+    </Phone>
+  )
   // Instagram's grid: this post first, then the brand's feed posts. Stories never show in it.
   const tiles = [
     { shot: media[0], format: draft.format, slides: media.length },
     ...posts
-      .filter((p) => p.images.length > 0 && p.format !== 'story')
+      .filter((p) => p.id !== self && p.images.length > 0 && p.format !== 'story')
       .map((p) => ({ shot: shotOf(p.images[0]!), format: p.format, slides: p.images.length })),
   ].slice(0, 9)
   return (
@@ -2651,7 +2961,11 @@ function Preview({
         )}
       </div>
       {!channel ? (
-        <p className="py-16 text-center text-[13px] text-ink-4">Tick an account to preview it.</p>
+        <p className="py-16 text-center text-[13px] text-ink-4">
+          {remote && draft.linked.length === 0
+            ? 'The preview shows once an account is set up.'
+            : 'Tick an account to preview it.'}
+        </p>
       ) : showGrid ? (
         <div
           key="grid"
@@ -2669,25 +2983,16 @@ function Preview({
         </div>
       ) : (
         <div key={channel} className="bb-swap flex justify-center">
-          <DropZone onFiles={onFiles} radius={22 * 1.25}>
-            <Phone channel={channel} scale={1.25}>
-              <PhoneMock
-                channel={channel}
-                format={draft.format}
-                shots={media}
-                people={people}
-                text={
-                  channel === 'yt'
-                    ? (draft.youtubeTitle ?? youtubeTitle(draft))
-                    : textFor(draft, channel).text
-                }
-                live
-                onAdd={() => input.current?.click()}
-                counts={counts && (channel === counts.on ? counts.metrics : {})}
-              />
-            </Phone>
-          </DropZone>
-          <MediaInput ref={input} format={draft.format} onFiles={onFiles} />
+          {on ? (
+            phone
+          ) : (
+            <>
+              <DropZone onFiles={onFiles} radius={22 * 1.25}>
+                {phone}
+              </DropZone>
+              <MediaInput ref={input} format={draft.format} onFiles={onFiles} />
+            </>
+          )}
         </div>
       )}
     </section>
@@ -2702,12 +3007,15 @@ function Outcomes({
   media,
   people,
   slot,
+  planned = false,
   onBack,
 }: {
   api: PublishDraftApi
   media: Shot[]
   people: People
   slot: string
+  /** On the core: dated on the calendar, sent nowhere until the accounts are set up. */
+  planned?: boolean
   onBack: () => void
 }) {
   const { phase, outcomes, draft } = api
@@ -2715,21 +3023,25 @@ function Outcomes({
   const failed = keys.filter((k) => outcomes[k]?.state === 'failed').length
   const accounts = keys.length === 1 ? '1 account' : `${keys.length} accounts`
   const title =
-    phase === 'scheduled'
-      ? 'Scheduled'
-      : phase === 'publishing'
-        ? 'Publishing'
-        : failed
-          ? `Live on ${keys.length - failed} of ${keys.length}`
-          : 'Live everywhere'
+    phase === 'scheduled' && planned
+      ? 'Planned'
+      : phase === 'scheduled'
+        ? 'Scheduled'
+        : phase === 'publishing'
+          ? 'Publishing'
+          : failed
+            ? `Live on ${keys.length - failed} of ${keys.length}`
+            : 'Live everywhere'
   const sub =
-    phase === 'scheduled'
-      ? `${slot}, on ${accounts}. It is on the calendar.`
-      : phase === 'publishing'
-        ? `Sending to ${accounts}. You can leave this page.`
-        : failed
-          ? 'One account needs you.'
-          : `Posted to ${accounts}.`
+    phase === 'scheduled' && planned
+      ? `Planned for ${slot}. Posts go out once accounts are connected.`
+      : phase === 'scheduled'
+        ? `${slot}, on ${accounts}. It is on the calendar.`
+        : phase === 'publishing'
+          ? `Sending to ${accounts}. You can leave this page.`
+          : failed
+            ? 'One account needs you.'
+            : `Posted to ${accounts}.`
   // Collaborators are Instagram's: their invite leaves once the Instagram post is live.
   const ig = outcomes.ig
   const invite =
@@ -2773,7 +3085,7 @@ function Outcomes({
                       : textFor(draft, k).text
                   }
                 />
-                <OutcomePill outcome={o} />
+                <OutcomePill outcome={o} planned={planned} />
               </Phone>
               <span className="flex items-center gap-1.5 text-[13px]">
                 <PlatformLogo platform={k} size={12} />
@@ -2848,10 +3160,12 @@ function Phone({
   )
 }
 
-function OutcomePill({ outcome }: { outcome: Outcome }) {
+function OutcomePill({ outcome, planned }: { outcome: Outcome; planned: boolean }) {
   const label =
     outcome.state === 'scheduled'
-      ? 'Scheduled'
+      ? planned
+        ? 'Planned only'
+        : 'Scheduled'
       : outcome.state === 'uploading'
         ? `${outcome.progress}%`
         : outcome.state === 'live'

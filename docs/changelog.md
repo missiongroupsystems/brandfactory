@@ -6,6 +6,12 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.35.6** — 2026-10-22 — `fix/onboarding-polish`: a posted post (brought in or sent from Brand base) opens on the post page's own cards, every field as plain text and no empty field: Posted to with its platforms and format, the media and caption, Details, and the preview. On the core a posted reel or TikTok video shows its cover with an amber "Cover only" and why. Every amber notice is shorter and names what is missing: "Not connected", "Won't publish", "Planned only", each with one short line. No migration. 1076 tests (196 skipped without a Postgres server).
+- **2.35.5** — 2026-10-22 — `fix/onboarding-polish`: public Terms of Service (`/terms`) and Privacy Policy (`/privacy`) pages for TikTok's app form, open with no sign-in on the core, linked quietly from the sign-in page; and TikTok's site-verification file. No migration. 1073 tests (196 skipped without a Postgres server).
+- **2.35.4** — 2026-10-22 — `fix/onboarding-polish`: review fixes. On the core the result after Schedule says "Planned for <day>, <time>. Nothing is sent until the accounts are set up." with "Planned" pills; a failed post is planned again instead of asking for a reconnect; a scheduled post cannot lose its last platform; a post's YouTube or LinkedIn stay on every save. The static demo's earlier-month posts preview again. A publishing hand-off note: planned posts have no job. No migration. 1071 tests (196 skipped without a Postgres server).
+- **2.35.3** — 2026-10-22 — `fix/onboarding-polish`: on the core a post is planned without a connected account. New post picks the brand's own platforms, previews the post on the one picked, and Schedule puts it on the calendar as Scheduled (`post.mark`), with the amber note that it will not publish until the account is set up. Nothing is sent: no job, so nothing turns Failed at its time. No pack change, no migration. 1067 tests (196 skipped without a Postgres server).
+- **2.35.2** — 2026-10-22 — `fix/onboarding-polish`: review fixes. New shoot and Plan shoot no longer throw for a brand outside the demo, and on the core no brand gets the demo's outlets, crew, past places, Drive, voice samples, story titles, moodboard, venue or inbox people. A posted post prints only its own counts on every app's screen, asks for no photo, opens on its own first account and draws itself once in the grid. No false "connected" on the core: Instagram, TikTok, Facebook, Pinterest, Google Drive, Lark and the Insights sources show a calm amber "Not available yet" with the reason on hover or tap, and the pretend sign-in does not run for them. No migration. 1062 tests (196 skipped without a Postgres server).
+- **2.35.1** — 2026-10-22 — `fix/onboarding-polish`: the QA pass before the marketing team's first day on production. A posted post (brought in or sent from Brand base) is shown as it went out: its own account's preview with its real counts, a "Posted on" line, and nothing to edit. On the core: no best-time band, no demo voice history, events, ideas, library or caption drafts for a brand that shares a demo id; Insights and the inbox say what is missing; a link to Connections where no account is linked. The calendar title names the year outside this one. Smaller: one cover is not numbered, Ideate is "Ideas", Select hides with no ideas, the kit's "Saved" waits for a save, Add brand waits for a name. No migration. 1037 tests (196 skipped without a Postgres server).
 - **2.35.0** — 2026-10-22 — `feat/first-sign-in`: the first sign-in. An admin makes each account in the Supabase dashboard; the person's first sign-in asks for a password of their own, draws one check mark, then opens the dashboard; later sign-ins go straight in. A person the core has no place for yet sees "Not in a company yet" with their email and Sign out instead of a refusal on the sign-in page. No public sign-up, no email. No move or migration; adding a member is still by hand (steps in `docs/completions/first-sign-in-plan.md`). Sign-in and sign-out load the page afresh, so nothing of one account stays for the next, and one brand refused no longer reads as "Not in a company yet". 1025 tests (196 skipped without a Postgres server).
 - **2.34.2** — 2026-10-22 — `feat/real-brand-posts`: on the core, the post and idea pages offer none of the demo's data for a brand that shares a demo id: no demo best hour or hour chart, no demo creators, tags, places, labels, hashtags, venue or caption drafts. One helper, `demoOf`, reads a static demo table in the static demo only. 1004 tests.
 - **2.34.1** — 2026-10-22 — `feat/real-brand-posts`: a test scrape of the six brands, checked against the live accounts. The import keeps only the brand's own posts (not creators' collabs), hooks read styled letters as plain ones, the post preview prints a real post's own counts, a second Instagram cover host, and the scrape prints its cost and its caps (the most Apify can charge) and refuses caps over a budget. 999 tests.
@@ -65,6 +71,231 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.35.6 — 2026-10-22
+
+- **Why.** The owner rejected 2.35.1's posted view (a title, "Posted on" and the preview only): it
+  read as a new, unfinished page. A post brought in must look like a post sent from Brand base.
+  The owner also found the amber notices too long and too vague about what is missing.
+- **A posted post opens on the post page.** The same header, the same grid and the same cards: the
+  stage pill reads "Posted on <day>" (with the year outside this one); "Posted to" shows its
+  platforms as static chips and its format; Content shows its media tiles and its caption as text;
+  Details shows only what it went out with (location, first comment, tagged accounts,
+  collaborators, the AI label when on, each account's own settings when it went out from Brand
+  base, labels as chips); the preview on its own accounts with its own counts sits on the right.
+  Nothing is an input: no upload, Drive or Library tiles, no caption box, no format switch, no
+  When card, no send bar, no "Pick a channel." An empty field is left out, and a demo venue no
+  longer stands in for a location the post never had. A carousel brought in shows its one cover
+  with no slide number.
+- **A video that cannot play says so.** Only the cover was imported. On the core a posted reel or
+  TikTok video with no video file shows the cover and, under the preview, an amber "Cover only";
+  its card reads "Video plays once TikTok is connected." (the post's own platform). A photo or a
+  carousel shows no notice. The static demo shows none.
+- **Shorter amber notices.** The pill names the thing; the card is one short sentence. Connections
+  and the moodboard's sources: "Not connected" / "<Platform> isn't connected yet."; the connect
+  sheet's title reads "<Platform> isn't connected" and drops its second line. New post's "Post to": "Won't publish" /
+  "Posts go out once accounts are connected." The inbox: "No comments or DMs yet." with "Not
+  connected" / "Comments and DMs arrive once accounts are connected." A Bubbles connection card: "Not
+  connected". The planned result: pills "Planned only", and "Planned for <day, time>. Posts go
+  out once accounts are connected." A brand with none of Instagram, TikTok or Facebook reads "No
+  platform listed" where the button and the phone row said "Not available yet".
+- **Kept.** Real counts only, the preview on the post's own first account, the grid draws the
+  post once, and the static demo's archive posts preview on the format's usual accounts.
+- **Tests.** `posted-remote.test.tsx`: a posted post opens the full page with its caption,
+  location, AI label and labels and no input, and leaves out an empty first comment and
+  collaborators; a posted TikTok video shows "Cover only" with its reason; a photo, a reel with
+  its video and a reel with no picture show none; no Details card for a post with none, no
+  Accounts card for a post with no account recorded.
+  Each fails on the 2.35.5 composer. Changed on purpose for the new text:
+  `connections-remote.test.tsx`, `inbox-remote.test.tsx`, `plan-remote.test.tsx`.
+- **Gate:** typecheck, lint, format, build; tests 1076 (880 run, 196 skipped: no Postgres server).
+  Screenshots on a stub core, desktop and phone: a posted TikTok video (with its card open), a
+  posted Instagram reel and photo, Connections and New post's "Post to" with the card open.
+
+## 2.35.5 — 2026-10-22
+
+- **Why.** TikTok's developer app form asks for a terms page, a privacy page and a verified site.
+- **Terms and privacy.** `/terms` and `/privacy`, in the sign-in page's type: brand base as an
+  internal tool Mission Group runs for its own staff to plan and publish its brands' posts. The
+  privacy page says what is kept (staff email and name; brand content, posts and media; for a
+  connected account its id, display name, picture and encrypted tokens), why, where (Supabase in
+  Singapore for sign-in and files, a database on Fly.io in Singapore), that nothing is sold or used
+  for advertising, that disconnecting an account deletes its tokens, how long data is kept, and the
+  contact address (tech@ebbflowgroup.com). Both say "Last updated 22 October 2026" and claim no
+  certification. On the core `RemoteSync` lets them through with no session, as it does the
+  sign-in page (`PUBLIC_PATHS` in `components/legal.tsx`); the tab bar hides on them. The sign-in
+  page has a quiet "Terms · Privacy" footer, in the flow under the form. The account data and the
+  reads are described "once it is connected": today the core holds no token, id or picture.
+- **TikTok site verification.** `public/tiktoke5Z5ZKXOh1F9O5jWBKDCwRT3WJRjnpN1.txt`, in its own
+  commit; a production build serves it at `/tiktoke5Z5ZKXOh1F9O5jWBKDCwRT3WJRjnpN1.txt` as
+  `text/plain`, byte for byte, with no redirect.
+- **Tests.** `remote-sync.test.tsx`: the two pages open with no sign-in and load nothing; it fails
+  without the change.
+- **Gate:** typecheck, lint, format, build; tests 1073 (877 run, 196 skipped: no Postgres server).
+  A remote-mode production build with no session serves both pages (200, no redirect); screenshots
+  on desktop and phone.
+
+## 2.35.4 — 2026-10-22
+
+- **Why.** An Opus review of the branch at 2.35.3 found no blocker and listed these.
+- **Say it is planned.** On the core the screen after Schedule read "Scheduled … on 2 accounts. It
+  is on the calendar." with "Scheduled" pills, and only the hover card said nothing would go out.
+  It now reads "Planned" and "Planned for Fri 30 Oct, 18:00. Nothing is sent until the accounts
+  are set up.", and the pills read "Planned". The calendar tile is unchanged: it shows the
+  Scheduled stage, as the server holds it; a second marker was not added.
+- **The static demo previews its earlier months again.** 2.35.2 showed no preview for a posted
+  post with no account recorded; the demo's archive posts record none. That rule is the core's
+  only now; in the demo they preview on the format's usual accounts, as before.
+- **Kept on every save.** A post's YouTube or LinkedIn, which the composer does not offer on the
+  core, stayed on the server but left the calendar's copy, so a second save in the same session
+  could drop them. The calendar keeps them now. A platform the brand no longer lists is not kept:
+  the core refuses a save that names one (`post.channels_fit`), so keeping it would make every
+  save fail.
+- **No scheduled post without a platform.** On the core Save and Schedule wait for a ticked
+  platform, which the core asks of a scheduled post (`post.scheduled_keeps_channel`).
+- **A failed post on the core** no longer asks to reconnect an account that cannot connect. It
+  says "Pick a day and press Schedule to plan it again.", and Schedule plans it (`post.mark`, which
+  also clears its failed jobs). It is planned on all of its own accounts, not only the one it
+  failed on, and the calendar holds exactly the platforms the save sends.
+- **The "Not available yet" card** stays open while the pointer moves onto it (it no longer lets
+  the pointer through, and a thin bridge covers the gap); a tap elsewhere still closes it.
+- **Publishing hand-off.** A planned post is `marked = 'scheduled'` with no job and cannot be told
+  apart from a post marked Scheduled by hand. When real posting arrives, each needs "Schedule on"
+  or a one-off migration that makes its jobs: written up in
+  `docs/executing/brandbase-accounts-integration.md` ("Publishing hand-off"). No pack change.
+- **Tests.** New cases in `plan-remote.test.tsx` (the planned result, Save and Schedule waiting for
+  a platform, a failed post planned again, the calendar keeping YouTube), `preview.test.tsx` (a
+  demo archive post previews) and `connections-remote.test.tsx` (the card takes the pointer); each
+  fails without its change.
+- **Gate:** typecheck, lint, format, build; tests 1071 (875 run, 196 skipped: no Postgres server).
+  Screenshots on a stub core: the planned result with its pills, desktop and phone.
+
+## 2.35.3 — 2026-10-22
+
+- **Why.** The owner chose to let the team schedule on production before any account can connect,
+  so the calendar is a plan they can trust.
+- **Where the rule was.** In web-next only: the composer offered only connected accounts
+  (`activeChannels`), and Schedule sent the post (`post.schedule`), which makes one job per account
+  that `post.publish_job` runs at its time. The pack does not ask for a connection: `post.edit`
+  takes any of the brand's own platforms (`brand.linked`), and `post.mark` sets a post Scheduled
+  with a day, a time and a platform, and makes no job. So no pack change and no migration.
+- **On the core, with no account connected.** New post lists the brand's own platforms (from
+  `brand.list`'s `linked`) to pick, with the amber "Not available yet" beside them. The preview
+  draws the post on the one picked, as in the static demo. "Publish now" is not offered. The
+  button reads "Schedule": it makes or moves the post, saves it, then marks it Scheduled. Nothing
+  is sent, so no job exists for the scheduler to pick up, nothing turns Failed at its time, and no
+  platform is called. Opening it, editing it, moving it on the calendar and taking it back to a
+  draft work as before (`post.edit`, `post.move`, `post.mark`).
+- **Once an account connects.** Such a post stays Scheduled with no job: it does not go out by
+  itself. Opening it and pressing "Schedule on" sends it (`post.schedule`), which makes its jobs at
+  its day and time, as a post marked Scheduled from the idea page does today. The static demo is
+  unchanged.
+- **Limits.** A planned post whose time passes stays Scheduled; nothing marks it Posted. A save
+  keeps a post's other platforms (YouTube, LinkedIn) that the composer does not offer. A brand
+  with none of Instagram, TikTok or Facebook says so and plans nothing. A post already Failed
+  from an old job still asks to reconnect first. "Nothing is sent" holds for the app: Bubbles
+  can still call `post.schedule` through the core, which makes jobs that the simulated connector
+  refuses (they show Failed); no platform is called.
+- **Tests.** `plan-remote.test.tsx`: the platforms pick and preview with nothing connected, no
+  "Publish now", Schedule moves, saves and then marks the post in that order and sends nothing,
+  only the brand's own platforms are offered and a post's others are kept, and a brand with none
+  says so; it fails without the change.
+- **Gate:** typecheck, lint, format, build; tests 1067 (871 run, 196 skipped: no Postgres server).
+  Screenshots on a stub core: a draft with its day and preview (desktop and phone), the post on the
+  week calendar, and the scheduled post opened.
+
+## 2.35.2 — 2026-10-22
+
+- **Why.** An Opus review of 2.35.1 found no blocker and listed these.
+- **The shoot flow on the core.** New shoot and Plan shoot read the demo's outlets and usual crew
+  by brand id with no guard (`new-shoot.tsx`, `shoots-store.ts`, `shoot-page.tsx`): they threw for
+  chin-mee-chin, petra, firebird and willow, and gave casa-vostra and temper the demo's outlets
+  and people. They read through `demoOf` now: a shoot on the core starts with no place and nobody,
+  and the call sheet then shows only its hours and no "Invites sent".
+- **Every other static table read by brand id**, found by a search of web-next, reads through
+  `demoOf`: the Drive picker, the voice samples, the stories' titles, the Google Business Profile
+  account name in the connect sheet, and the inbox's people. The moodboard reads the same core
+  flag from the environment (the pack's seed loads that file outside the browser) and is empty
+  until the server sends one. Left as they are: the Insights figures and the archive in `month.ts`, already
+  behind `remote`; `INBOX_BY_BRAND` in `inbox-store.ts`, which shows only the messages the server
+  holds; the kit seed in `brand-store.ts`, which the server's kit replaces.
+- **A posted post.** It prints its own counts or none, never the preview's invented ones, on
+  Facebook, LinkedIn and YouTube screens too. With no picture it shows a quiet frame, not "Add a
+  photo or video". It opens on the first account it went out on, and one with no account
+  recorded shows no preview instead of the default accounts. Instagram's grid draws it once.
+- **The static demo too.** A posted demo post now shows no invented counts and, with no picture,
+  a bare frame; every existing post (posted, scheduled or a draft) draws itself once in
+  Instagram's grid.
+- **No false "connected" on the core.** Meta, TikTok and Pinterest have not given the app access,
+  and Google Drive, Lark, the website, Google Business Profile and bookings are not wired either:
+  each connected through the same pretend sign-in. On the core every one of them shows a calm
+  amber "Not available yet" in Connections; its reason opens in a small card on hover, keyboard
+  focus or a tap ("Instagram isn't connected on our side yet. You can plan posts here; they won't
+  publish until it's set up."; Drive, Lark and the Insights sources say what works meanwhile). A
+  connection stored as connected is not trusted, `connect` and the moodboard's `connectSource`
+  send nothing for them, and the connect sheet (opened from the composer's Drive tile or the call
+  sheet's Lark) says it is not available and offers no Allow. New post shows the same amber state
+  under "Post to" in place of a Connections link; the inbox says "Comments and DMs show here once
+  the accounts are set up." with it; the moodboard's sources show it in place of Connect; a
+  Bubbles card for a connection the agent sets says "Not available yet", not "Connected". The
+  card closes on a tap elsewhere and hides on Escape; the sheet puts the focus on Close. The
+  static demo keeps its pretend sign-in. Scheduling still needs a connected account, so on the
+  core a post can be planned and saved as a draft, not scheduled, until access is set up.
+- **Inbox.** In the static demo, with no account connected: "Connect your accounts to see comments
+  and DMs.", or "Reconnect your accounts" when one needs signing in again. On the core the inbox's
+  people for "send to" are empty (the demo's are not read); the server's own people are not wired
+  to that menu yet, which matters only once messages arrive.
+- **Tests.** New: `shoot-remote.test.tsx`, `demo-tables-remote.test.ts`,
+  `schedule-title.test.tsx` (the desktop and phone titles in month, week and day),
+  `connections-remote.test.tsx`; new cases in `posted-remote.test.tsx` and
+  `inbox-remote.test.tsx`. Each fails with the file it guards put back as in 2.35.1 (the title
+  test, as on `main`). Changed on purpose: `preview.test.tsx` (the grid draws a post once),
+  `bubbles-page.test.tsx` and `ideas-store-remote.test.ts` (the moodboard and its sources on the
+  core come from the server and are not trusted as connected), and `composer-remote.test.tsx` and
+  `real-brand.test.tsx` run as if access were set up, so they still cover a send on the core.
+  Not covered by a test: the voice samples, the connect sheet's account name, the inbox's people.
+- **Gate:** typecheck, lint, format, build; tests 1062 (866 run, 196 skipped: no Postgres server).
+  Screenshots on a stub core: the shoot flow on casa-vostra and chin-mee-chin, a posted post with
+  no counts and with no picture, Connections with its amber state and its card open, New post's
+  "Post to", the inbox.
+
+## 2.35.1 — 2026-10-22
+
+- **Why.** A QA pass on production before the marketing team's first day there: six real brands,
+  770 imported posts (posted, with address and counts, cover only), no account connected, no
+  real posting. Production's `casa-vostra` and `temper` share ids with demo brands.
+- **A posted post is shown, not edited.** Every posted post, brought in or sent from Brand base,
+  opens on one path: its title, "Posted on <day>" (with the year outside this one), and the
+  preview on the accounts it went out on (`channelsOf`), with its real counts on its own account.
+  No connected account is needed. The caption box, format, crop, labels, the When card and the
+  send bar are gone for it, and so are "Pick a channel." and "Pick a day ahead.". No import-only
+  badge or link. Only the cover was imported, so a carousel brought in shows one picture; a
+  single tile in the editor no longer carries the number 1.
+- **No demo data on the core** (`demoOf` or `!remote`): the day view (desktop and phone) shows no
+  best-time band, as Insights has no figures yet; the kit shows no demo voice history (Giulia,
+  Marco, Elise, Sam); the calendar keeps only the city's events and the holidays, never a demo
+  brand's "Our events"; Ideas shows no demo moments and no demo target ("Suggest 8"); the composer offers no demo ideas, library
+  or caption drafts; Labels has no demo placeholder.
+- **Empty states that say what is missing.** Insights: "Insights arrive once the brand's accounts
+  are connected." The inbox, with no Instagram, TikTok or Facebook connected: "Connect Instagram
+  to see comments and DMs.", linked to Connections. New post with no account linked: "Connect an
+  account", linked to Connections.
+- **Smaller.** The calendar title names the year when the period is not in this year
+  ("December 2025", "28 Dec – 3 Jan 2027"). The nav says "Ideas", as the page does. Select hides
+  while there are no ideas. The kit's "Saved" is not on the page until a save. Add brand is
+  disabled until the name is filled.
+- **Not changed, listed.** The brand switcher: no lost first click on a full page load in 106 tries
+  (desktop, touch, production build); a click right after a nav link is lost, because each page
+  mounts its own header and the click lands on the one being replaced. The fix is one header in a
+  shared layout, which touches every page. Avatars: on the core `next.config.ts` turns the image
+  optimiser off for every image, so a 1080 px logo loads into a 24 px circle; sizing them needs
+  the core's and storage's hosts allowed and the optimiser on.
+- **Tests.** `posted-remote.test.tsx`, `day-view-remote.test.tsx`, `versions-remote.test.ts`, a
+  casa-vostra events case in `remote-calendar.test.ts`, a "Connect Instagram" case in
+  `inbox-remote.test.tsx`, the year in `month.test.ts`, and the disabled Add brand; each fails
+  with the file it guards put back as on `main`.
+- **Gate:** typecheck, lint, format, build; tests 1037 (841 run, 196 skipped: no Postgres server).
+  Screenshots on a stub core, desktop and phone.
 
 ## 2.35.0 — 2026-10-22
 

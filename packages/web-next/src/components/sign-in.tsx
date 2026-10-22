@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import * as React from 'react'
 
 import { passwordSignIn, signIn } from '@/lib/remote'
@@ -28,8 +29,8 @@ export function SignIn() {
   const field =
     'h-11 w-full rounded-[10px] border border-line bg-page px-3 text-[16px] outline-none focus:border-ink-3'
   return (
-    <main className="flex min-h-svh items-center justify-center px-4">
-      <form onSubmit={submit} className="flex w-full max-w-[320px] flex-col gap-3">
+    <main className="flex min-h-svh flex-col items-center px-4">
+      <form onSubmit={submit} className="my-auto flex w-full max-w-[320px] flex-col gap-3 py-10">
         <h1 className="mb-3 text-[22px] font-semibold tracking-[-0.02em]">brand base</h1>
         <label className="sr-only" htmlFor="email">
           Email
@@ -70,6 +71,15 @@ export function SignIn() {
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
+      {/* In the flow under the form, so a short screen scrolls instead of overlapping. */}
+      <footer className="flex justify-center gap-4 pb-[calc(20px+env(safe-area-inset-bottom))] text-[12.5px] text-ink-3">
+        <Link href="/terms" className="hover:text-ink">
+          Terms
+        </Link>
+        <Link href="/privacy" className="hover:text-ink">
+          Privacy
+        </Link>
+      </footer>
     </main>
   )
 }

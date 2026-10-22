@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { connect } from '@/features/connections/connections-store'
 import { BrandProvider, useBrand } from '@/features/schedule/posts-store'
+import type * as NotAvailable from '@/features/connections/not-available'
 import type * as Remote from '@/lib/remote'
 
 import { Composer } from './composer'
@@ -34,6 +35,11 @@ vi.mock('@/lib/remote', async (original) => ({
     })
     return () => undefined
   },
+}))
+// The day the platforms are set up on our side: their accounts connect, and posts can go out.
+vi.mock('@/features/connections/not-available', async (original) => ({
+  ...(await original<typeof NotAvailable>()),
+  notAvailable: () => false,
 }))
 vi.mock('next/navigation', () => ({
   usePathname: () => '/post/new',

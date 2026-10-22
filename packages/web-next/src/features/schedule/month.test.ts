@@ -5,7 +5,15 @@ import { feedsOf } from '@/data/demo'
 
 import { DEMO_TODAY, setToday } from '@/lib/dates'
 
-import { archiveFor, monthAt, monthRows, monthTitle, monthView, todayPlace } from './month'
+import {
+  archiveFor,
+  monthAt,
+  monthRows,
+  monthTitle,
+  monthView,
+  todayPlace,
+  withYear,
+} from './month'
 
 const day = (weeks: ReturnType<typeof monthView>['weeks'], date: string) =>
   weeks.flatMap((w) => w.days).find((d) => d.date === date)!
@@ -133,5 +141,15 @@ describe('today', () => {
   it('titles a month across a year end with its ISO weeks', () => {
     expect(monthTitle(2026, 11)).toEqual({ title: 'December', range: '7 DEC – 3 JAN · WK 50–53' })
     expect(monthTitle(2027, 0).range).toBe('4 JAN – 31 JAN · WK 1–4')
+  })
+})
+
+describe('the calendar title', () => {
+  // Imported posts reach back years: a bare "October" or "27 Apr – 3 May" could be any year.
+  it('names the year only when the period is not in this year', () => {
+    expect(withYear('October', '2026-10-05', '2026-10-22')).toBe('October')
+    expect(withYear('27 Apr – 3 May', '2026-05-03', '2026-10-22')).toBe('27 Apr – 3 May')
+    expect(withYear('27 Apr – 3 May', '2025-05-03', '2026-10-22')).toBe('27 Apr – 3 May 2025')
+    expect(withYear('28 Dec – 3 Jan', '2027-01-03', '2026-10-22')).toBe('28 Dec – 3 Jan 2027')
   })
 })

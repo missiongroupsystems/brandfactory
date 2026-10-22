@@ -7,6 +7,8 @@ import { CONNECTIONS, type ConnectionKey, type ConnectionStatus } from '@/data/c
 import { connectSource, disconnectSource, useIdeas } from '@/features/ideate/ideas-store'
 import { onState, push, remote, request } from '@/lib/remote'
 
+import { NOT_SET_UP, notAvailable } from './not-available'
+
 /**
  * Each brand's linked accounts, in memory and outside React, like `ideas-store.ts`: the
  * Connections page changes them, and the composer, the Drive picker and the call sheet read them
@@ -55,6 +57,8 @@ if (remote) {
     // A key with no row on the server is off: the demo's seed never stands in for the server.
     const own = { ...OFF }
     for (const r of rows) {
+      // Stored as connected or not, a platform not set up on our side is not trusted: it is off.
+      if (notAvailable(r.key)) continue
       if (r.key === 'pinterest') {
         if (r.status === 'connected') connectSource(brandId as BrandId, 'pinterest')
         else disconnectSource(brandId as BrandId, 'pinterest')
@@ -81,10 +85,15 @@ export function useConnections(brandId: BrandId): Record<SourceKey, ConnectionSt
     () => state[brandId] ?? OFF,
   )
   const pinterest = useIdeas(brandId).sources.pinterest
-  return React.useMemo(
-    () => ({ ...own, pinterest: pinterest ? 'connected' : 'off' }),
-    [own, pinterest],
-  )
+  return React.useMemo(() => {
+    const all: Record<SourceKey, ConnectionStatus> = {
+      ...own,
+      pinterest: pinterest ? 'connected' : 'off',
+    }
+    // On the core these are never connected, whatever was stored or seeded for them.
+    for (const k of NOT_SET_UP) if (notAvailable(k)) all[k] = 'off'
+    return all
+  }, [own, pinterest])
 }
 
 /** True when the source works now. One that needs attention does not, until it reconnects. */
@@ -93,6 +102,8 @@ export function useConnected(brandId: BrandId, key: SourceKey): boolean {
 }
 
 export function connect(brandId: BrandId, key: SourceKey) {
+  // No pretend sign-in for a platform that cannot connect yet.
+  if (notAvailable(key)) return
   send(brandId, key, 'connected')
   if (key === 'pinterest') connectSource(brandId, 'pinterest')
   else set(brandId, key, 'connected')

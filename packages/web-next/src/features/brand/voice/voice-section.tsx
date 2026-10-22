@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 
 import { ChevronIcon, CloseIcon } from '@/components/icons'
 import { useBrand } from '@/features/schedule/posts-store'
+import { demoOf } from '@/lib/remote'
 
 import { useBrandKit } from '../brand-store'
 import { EYEBROW, QUIET, Section, type Voice, VoiceView } from '../kit-parts'
@@ -392,7 +393,7 @@ function Flow({
                   >
                     <span className={EYEBROW}>{k}</span>
                     <SampleDiff
-                      draft={SAMPLES[brand.id]?.[k] ?? ''}
+                      draft={demoOf(SAMPLES, brand.id)?.[k] ?? ''}
                       before={voice}
                       after={result}
                       labels={[`v${next - 1}`, `v${next}`]}

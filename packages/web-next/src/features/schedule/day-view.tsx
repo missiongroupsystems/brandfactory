@@ -9,7 +9,7 @@ import type { CalendarEvent, Day, FeedMark } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { timeRange } from '@/features/shoot/model'
 import { useShoots } from '@/features/shoot/shoots-store'
-import { remote } from '@/lib/remote'
+import { demoOf } from '@/lib/remote'
 
 import { channelsOf, itemsOf, postTime, type StageFilter } from './calendar-items'
 import { EventChip } from './event-chip'
@@ -60,10 +60,9 @@ export function DayView({
 }) {
   const { brand, library, byId } = useBrand()
   const items = itemsOf(day, byId, stages)
-  // On the core no brand has insights yet (the demo's are invented): an evening hour until it does.
-  const best = Number(
-    ((remote ? undefined : INSIGHTS_BY_BRAND[brand.id]?.best) ?? '18:00').split(':')[0],
-  )
+  // On the core no brand has insights yet (the demo's are invented): no best time until it does.
+  const bestTime = demoOf(INSIGHTS_BY_BRAND, brand.id)?.best
+  const best = bestTime ? Number(bestTime.split(':')[0]) : null
   const hours = Array.from({ length: LAST_HOUR - FIRST_HOUR }, (_, i) => FIRST_HOUR + i)
   const top = (time: string) => {
     const [h, m] = time.split(':').map(Number)
@@ -146,15 +145,17 @@ export function DayView({
               />
             </React.Fragment>
           ))}
-          <div
-            className="pointer-events-none absolute right-0 left-16 rounded-[10px] bg-(--insight-wash) shadow-[inset_2px_0_0_var(--insight-4)]"
-            style={{ top: (best - FIRST_HOUR) * HOUR_H, height: 2 * HOUR_H }}
-          >
-            <span className="absolute top-2 right-3 flex items-center gap-1 text-[11px] font-medium text-(--insight-6)">
-              <SparkIcon size={8} />
-              Best time to post
-            </span>
-          </div>
+          {best !== null && (
+            <div
+              className="pointer-events-none absolute right-0 left-16 rounded-[10px] bg-(--insight-wash) shadow-[inset_2px_0_0_var(--insight-4)]"
+              style={{ top: (best - FIRST_HOUR) * HOUR_H, height: 2 * HOUR_H }}
+            >
+              <span className="absolute top-2 right-3 flex items-center gap-1 text-[11px] font-medium text-(--insight-6)">
+                <SparkIcon size={8} />
+                Best time to post
+              </span>
+            </div>
+          )}
           {/*
             A shoot, over its hours, in the room right of the first post card and left of the best
             time's label and the stories: under a post that shares its hour, never over one.

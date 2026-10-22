@@ -27,6 +27,7 @@ import {
   todayPlace,
   weekCount,
   weeksOfMonth,
+  withYear,
 } from './month'
 import { storyTaken } from './move-post'
 import { useBrand } from './posts-store'
@@ -102,12 +103,17 @@ export function SchedulePage() {
   const end = dateOf(offset, week, 6)
   const current = dateOf(offset, week, day)
   const short = (date: string) => MONTH_SHORT[monthOf(date).month]
-  const title =
+  // A month's year is its own (its first Monday's); a week's is its last day's, so a week from
+  // December into January is next year's.
+  const last = view === 'month' ? dateOf(offset, 0, 0) : end
+  const title = withYear(
     view === 'month'
       ? shown.title
       : view === 'week'
         ? `${dayNumber(start)}${short(start) === short(end) ? '' : ` ${short(start)}`} – ${dayNumber(end)} ${short(end)}`
-        : `${WEEKDAY[weekdayOf(current)]} ${dayNumber(current)} ${short(current)}`
+        : `${WEEKDAY[weekdayOf(current)]} ${dayNumber(current)} ${short(current)}`,
+    view === 'day' ? current : last,
+  )
   const here = todayPlace(view)
   const atToday =
     offset === here.offset &&
@@ -176,8 +182,11 @@ export function SchedulePage() {
             view === 'week'
               ? title.replace(' – ', '–')
               : view === 'day'
-                ? `${WEEKDAY[weekdayOf(current)]!.slice(0, 3)} ${dayNumber(current)} ${short(current)}`
-                : shown.title
+                ? withYear(
+                    `${WEEKDAY[weekdayOf(current)]!.slice(0, 3)} ${dayNumber(current)} ${short(current)}`,
+                    current,
+                  )
+                : title
           }
           layers={layers}
           stages={stages}

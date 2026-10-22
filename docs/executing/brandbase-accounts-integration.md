@@ -102,6 +102,23 @@ Posts per creator a day; 5 pending drafts a day.
 - Hosting: Next.js route handlers with a Postgres-backed queue (pg-boss) and a worker, or Vercel
   Cron + Queues (per-minute cron needs Vercel Pro).
 
+## Publishing hand-off (22 Oct 2026)
+
+Until an account connects, production plans posts without sending them (2.35.3): Schedule on the
+core sets a post Scheduled by hand with `post.mark` and makes no job. Such a post looks exactly like
+a real scheduled post (`marked = 'scheduled'`, no row in `brandbase.post_jobs`), and nothing in the
+pack tells the two apart.
+
+When real posting arrives, these posts do not go out by themselves. Before switching it on, either:
+
+- open each one and press "Schedule on", which sends it through `post.schedule` and makes its jobs;
+  or
+- run a one-off migration that makes the jobs for every scheduled post whose day is still ahead and
+  which has no job. Decide too what happens to those whose time has passed: they stay Scheduled and
+  never become Posted.
+
+Then lift `NOT_SET_UP` in `features/connections/not-available.tsx` for the platform that connects.
+
 ## Not confirmed
 
 Meta App Review time (community reports up to 20 days); Pinterest Standard review time and whether

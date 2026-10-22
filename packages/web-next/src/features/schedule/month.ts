@@ -84,6 +84,12 @@ export function monthAt(offset: number, today = todayDate()): { year: number; mo
   return monthOf(firstOf(home.year, home.month + offset))
 }
 
+/** A title for the period that ends on `date`, with the year when it is not this year's. */
+export function withYear(title: string, date: string, today = todayDate()): string {
+  const { year } = monthOf(date)
+  return year === monthOf(today).year ? title : `${title} ${year}`
+}
+
 /** A month's title and range, as the demo prints October's: "5 OCT – 1 NOV · WK 41–44". */
 export function monthTitle(year: number, month: number): { title: string; range: string } {
   const starts = mondays(year, month)

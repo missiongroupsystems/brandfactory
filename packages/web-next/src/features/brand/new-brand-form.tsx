@@ -451,7 +451,7 @@ export function NewBrandForm({
                 </button>
               </>
             ) : (
-              <button type="submit" disabled={busy} className={PRIMARY}>
+              <button type="submit" disabled={busy || shownName === ''} className={PRIMARY}>
                 {phase === 'adding'
                   ? 'Adding…'
                   : phase === 'logo'

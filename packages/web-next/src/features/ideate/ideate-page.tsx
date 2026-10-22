@@ -24,7 +24,8 @@ import { BrandLogo } from '@/features/brand/brand-logo'
 import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 import { planShoot } from '@/features/shoot/shoots-store'
-import { newId } from '@/lib/remote'
+import { NotAvailable, notAvailable, reasonOf } from '@/features/connections/not-available'
+import { demoOf, newId } from '@/lib/remote'
 
 import { EYEBROW, FormatIcon, STATUS_LABEL, statusColour, useSlots, type Slot } from './idea-parts'
 import { dayLabel, dayOfHook, landingDay } from './calendar-slot'
@@ -177,7 +178,7 @@ function Ideas({
 
   // A moment already used is one of the ideas now, so it leaves the list. Its idea is found by
   // the moment's title, which a sharper hook does not change, or else by its hook on the calendar.
-  const moments = (IDEAS_BY_BRAND[brand.id]?.moments ?? []).filter(
+  const moments = (demoOf(IDEAS_BY_BRAND, brand.id)?.moments ?? []).filter(
     (m) =>
       !ideas.some((i) => i.source.kind === 'moment' && i.source.title === m.title) &&
       !dayOfHook(weeks, m.seed.hook, (id) => byId(id)?.hook),
@@ -247,13 +248,16 @@ function Ideas({
         ) : (
           <div className="flex h-9 items-center justify-end">
             <span className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setPicking([])}
-                className="flex h-9 items-center rounded-full px-3 text-[13px] font-medium text-ink-3 transition-colors hover:bg-surface hover:text-ink"
-              >
-                Select
-              </button>
+              {/* Nothing to pick from: no way to start picking. */}
+              {slots.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPicking([])}
+                  className="flex h-9 items-center rounded-full px-3 text-[13px] font-medium text-ink-3 transition-colors hover:bg-surface hover:text-ink"
+                >
+                  Select
+                </button>
+              )}
               {!suggesting && open > 0 && (
                 <button
                   type="button"
@@ -770,6 +774,10 @@ function DmHint() {
  * brand's board is the one that connects; the others belong to their own brands. Instagram: the
  * steps to DM a post to the moodboard account, then a button to turn the source on.
  */
+/** The platform each moodboard source reads from, and its name. */
+const PLATFORM: Record<MoodSource, string> = { pinterest: 'pinterest', dm: 'ig', tt: 'tt' }
+const NAME: Record<MoodSource, string> = { pinterest: 'Pinterest', dm: 'Instagram', tt: 'TikTok' }
+
 function SourceSetup({ source }: { source: MoodSource }) {
   const { brand, brands } = useBrand()
   const [busy, setBusy] = React.useState(false)
@@ -780,18 +788,22 @@ function SourceSetup({ source }: { source: MoodSource }) {
     window.setTimeout(() => connectSource(brand.id, source), 900)
   }
 
-  const action = (label: string) => (
-    <button
-      type="button"
-      onClick={connect}
-      className="bb-press flex h-10 items-center justify-center gap-2 self-start rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85"
-    >
-      {busy && (
-        <span className="size-3 animate-spin rounded-full border-[1.5px] border-white/30 border-t-white" />
-      )}
-      {busy ? 'Connecting…' : label}
-    </button>
-  )
+  // On the core none of these can connect yet: the amber state in place of a pretend Connect.
+  const action = (label: string) =>
+    notAvailable(PLATFORM[source]) ? (
+      <NotAvailable reason={reasonOf(NAME[source])} align="left" />
+    ) : (
+      <button
+        type="button"
+        onClick={connect}
+        className="bb-press flex h-10 items-center justify-center gap-2 self-start rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85"
+      >
+        {busy && (
+          <span className="size-3 animate-spin rounded-full border-[1.5px] border-white/30 border-t-white" />
+        )}
+        {busy ? 'Connecting…' : label}
+      </button>
+    )
 
   if (source === 'tt') {
     return (

@@ -543,8 +543,9 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   )
 
   const value = React.useMemo<BrandValue>(() => {
-    // A brand made on the core has no demo content: it starts with nothing, on the demo's weeks.
-    const demo = BRANDS.some((b) => b.id === brandId)
+    // No brand on the core has demo content, even one whose id a demo brand shares: it starts
+    // with nothing, on the demo's weeks.
+    const demo = !remote && BRANDS.some((b) => b.id === brandId)
     const content = demo
       ? contentFor(brandId)
       : { ...contentFor(brandId), ideas: [], library: [], captions: {} }

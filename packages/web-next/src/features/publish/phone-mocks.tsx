@@ -68,19 +68,21 @@ export function PhoneMock({
   const media: MockMedia = { shots, player, slides, fresh, onAdd: live ? onAdd : undefined }
   let screen: ReactNode
   if (channel === 'li')
-    screen = <LinkedIn format={format} media={media} text={text} duration={duration} />
+    screen = (
+      <LinkedIn format={format} media={media} text={text} duration={duration} counts={counts} />
+    )
   else if (format === 'story' && (channel === 'ig' || channel === 'fb'))
     screen = <Story channel={channel} media={media} />
   else if (format === 'carousel' && channel === 'ig')
     screen = <InstagramPost media={media} text={text} people={people} counts={counts} />
   else if (format === 'carousel' && channel === 'fb')
-    screen = <FacebookPost media={media} text={text} />
+    screen = <FacebookPost media={media} text={text} counts={counts} />
   else if (channel === 'ig')
     screen = <InstagramReel media={media} text={text} people={people} counts={counts} />
   else if (channel === 'tt')
     screen = <TikTok media={media} text={text} photos={format === 'carousel'} counts={counts} />
-  else if (channel === 'yt') screen = <Shorts media={media} text={text} />
-  else screen = <FacebookReel media={media} text={text} />
+  else if (channel === 'yt') screen = <Shorts media={media} text={text} counts={counts} />
+  else screen = <FacebookReel media={media} text={text} counts={counts} />
   return (
     <span
       className={`group/phone absolute inset-0 font-device antialiased ${shots.length === 0 ? 'pm-empty' : ''}`}
@@ -122,6 +124,19 @@ function countOf(counts: Counts | undefined, key: keyof Counts, made: string, co
   return compact
     ? new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
     : n.toLocaleString('en-US')
+}
+
+/**
+ * "12 comments · 4 reposts": the post's own comments and shares when it has counts (a missing one
+ * left out), else the mock's invented line.
+ */
+function tally(counts: Counts | undefined, made: [string, string]) {
+  if (!counts) return made.join(' · ')
+  const comments = countOf(counts, 'comments', '', true)
+  const shares = countOf(counts, 'shares', '', true)
+  return [comments && `${comments} comments`, shares && `${shares} shares`]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 /* ---------- Shared pieces ---------- */
@@ -700,7 +715,7 @@ function TikTokNav() {
 
 /* ---------- YouTube Shorts ---------- */
 
-function Shorts({ media, text }: { media: MockMedia; text: string }) {
+function Shorts({ media, text, counts }: { media: MockMedia; text: string; counts?: Counts }) {
   const { brand } = useBrand()
   return (
     <span className="absolute inset-0 text-(--pc-white)">
@@ -714,7 +729,7 @@ function Shorts({ media, text }: { media: MockMedia; text: string }) {
               <path d={THUMB} />
             </Svg>
           }
-          label="3.1K"
+          label={countOf(counts, 'likes', '3.1K', true)}
         />
         <RailItem
           icon={
@@ -732,7 +747,7 @@ function Shorts({ media, text }: { media: MockMedia; text: string }) {
               <path d="M4.5 3h15A2.5 2.5 0 0 1 22 5.5v10a2.5 2.5 0 0 1-2.5 2.5H9l-4.6 3.8a.6.6 0 0 1-1-.5V18A2.5 2.5 0 0 1 2 15.5v-10A2.5 2.5 0 0 1 4.5 3Z" />
             </Svg>
           }
-          label="48"
+          label={countOf(counts, 'comments', '48', true)}
         />
         <RailItem
           icon={
@@ -783,11 +798,13 @@ function LinkedIn({
   media,
   text,
   duration = '0:24',
+  counts,
 }: {
   format: Format
   media: MockMedia
   text: string
   duration?: string
+  counts?: Counts
 }) {
   const { brand } = useBrand()
   const action = (label: string, icon: ReactNode) => (
@@ -854,8 +871,8 @@ function LinkedIn({
             <path d="M12 20s-8-4.7-8-10.2A4.3 4.3 0 0 1 12 7.4a4.3 4.3 0 0 1 8 2.4C20 15.3 12 20 12 20Z" />
           </Reaction>
         </span>
-        <span className="pl-[3px]">86</span>
-        <span className="ml-auto">12 comments · 4 reposts</span>
+        <span className="pl-[3px]">{countOf(counts, 'likes', '86', true)}</span>
+        <span className="ml-auto">{tally(counts, ['12 comments', '4 reposts'])}</span>
       </span>
 
       <span className="mx-[9px] h-px shrink-0 bg-(--pc-li-line)" />
@@ -907,7 +924,15 @@ function Reaction({
 
 /* ---------- Facebook ---------- */
 
-function FacebookReel({ media, text }: { media: MockMedia; text: string }) {
+function FacebookReel({
+  media,
+  text,
+  counts,
+}: {
+  media: MockMedia
+  text: string
+  counts?: Counts
+}) {
   const { brand } = useBrand()
   const short = clip(text, 46)
   return (
@@ -931,7 +956,7 @@ function FacebookReel({ media, text }: { media: MockMedia; text: string }) {
               <path d={THUMB} />
             </Svg>
           }
-          label="1.2K"
+          label={countOf(counts, 'likes', '1.2K', true)}
         />
         <RailItem
           icon={
@@ -939,7 +964,7 @@ function FacebookReel({ media, text }: { media: MockMedia; text: string }) {
               <path d="M12 2.5c5.5 0 10 4.1 10 9.2s-4.5 9.2-10 9.2c-1.1 0-2.2-.2-3.2-.5L4 22l1.2-4.1A8.8 8.8 0 0 1 2 11.7c0-5.1 4.5-9.2 10-9.2Z" />
             </Svg>
           }
-          label="64"
+          label={countOf(counts, 'comments', '64', true)}
         />
         <RailItem
           icon={
@@ -947,7 +972,7 @@ function FacebookReel({ media, text }: { media: MockMedia; text: string }) {
               <path d="M13 3.6a.8.8 0 0 1 1.4-.6l8.2 8.3a1 1 0 0 1 0 1.4L14.4 21a.8.8 0 0 1-1.4-.6v-4.2c-5.5 0-9 1.7-11.2 5.1-.2.3-.7.2-.7-.2.5-6.5 4.6-11 11.9-11.6V3.6Z" />
             </Svg>
           }
-          label="27"
+          label={countOf(counts, 'shares', '27', true)}
         />
         <RailItem icon={DOTS_H(13)} />
       </span>
@@ -973,7 +998,15 @@ function FacebookReel({ media, text }: { media: MockMedia; text: string }) {
 }
 
 /** Facebook's feed photo post, light mode. */
-function FacebookPost({ media, text }: { media: MockMedia; text: string }) {
+function FacebookPost({
+  media,
+  text,
+  counts,
+}: {
+  media: MockMedia
+  text: string
+  counts?: Counts
+}) {
   const { brand } = useBrand()
   const short = clip(text, 80)
   const action = (label: string, icon: ReactNode) => (
@@ -1016,8 +1049,8 @@ function FacebookPost({ media, text }: { media: MockMedia; text: string }) {
             <path d="M12 20s-8-4.7-8-10.2A4.3 4.3 0 0 1 12 7.4a4.3 4.3 0 0 1 8 2.4C20 15.3 12 20 12 20Z" />
           </Svg>
         </span>
-        <span className="pl-[3px]">1.2K</span>
-        <span className="ml-auto">64 comments · 27 shares</span>
+        <span className="pl-[3px]">{countOf(counts, 'likes', '1.2K', true)}</span>
+        <span className="ml-auto">{tally(counts, ['64 comments', '27 shares'])}</span>
       </span>
       <span className="mx-[9px] h-px shrink-0 bg-(--pc-fb-line)" />
       <span className="flex shrink-0 justify-around pt-[7px] pb-[10px] text-(--pc-fb-muted)">

@@ -6,6 +6,7 @@ import { INBOX_BY_BRAND, type InboxMessage } from '@/data/inbox'
 import { Avatar } from '@/features/inbox/inbox-page'
 import { useInbox } from '@/features/inbox/inbox-store'
 import { useCommentById } from '@/features/share/comments-store'
+import { demoOf } from '@/lib/remote'
 
 import type { Card as Model } from './model'
 import { Card, Initials, META, Stack } from './shell'
@@ -60,7 +61,7 @@ export function ReplyCard({ model, index }: { model: Model; index: number }) {
 export function SentToCard({ model, index }: { model: Model; index: number }) {
   const m = messageOf(model.brand, model.id)
   const { sentTo } = useInbox(model.brand as BrandId)
-  const people = INBOX_BY_BRAND[model.brand as BrandId]?.people ?? []
+  const people = demoOf(INBOX_BY_BRAND, model.brand as BrandId)?.people ?? []
   const asked = Array.isArray(model.input.people) ? (model.input.people as string[]) : []
   // The store speaks names; the move spoke ids, which may be names in the static demo.
   const names = sentTo[model.id] ?? asked.map((p) => people.find((x) => x.name === p)?.name ?? p)
