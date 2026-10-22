@@ -11,7 +11,7 @@ Fly `sin` to a Supabase test project in Singapore (one trip 2.2 ms), median of 3
 member who holds one brand, with brandbase 1.4.0 (`perf/pack-walls-once`): `main`'s core 54.8 /
 69.3 / 99.4 ms for list brands / list posts / load brand; this phase with saved plans 18.4 / 26.0 /
 51.9 ms; a traditional single query 4.1 / 12.9 / 30.1 ms. Method and table:
-`docs/completions/pack-walls-once-phases-1-to-1.md` on that branch.
+`docs/completions/pack-walls-once-phases-1-to-1.md`.
 
 Reviews: three passes (Opus and Sonnet on the first two, Opus on the third). Fixed from them: the
 transaction pooler with named statements (now refused), statements never freed (connections live

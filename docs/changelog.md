@@ -7,6 +7,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 One line each — full write-ups are under the matching `##` heading further down.
 
 - **2.31.0** — 2026-10-21 — `perf/core-plan-once`: fewer trips per call. The core no longer reads the whole pack version on each call and folds its first steps into one trip; with `DATABASE_PREPARE` on it keeps each move's plan per connection; a read sends its check, rules and move in one trip and the log with the commit in a second (core migration 0008, not applied to production). Every check is kept, the database judges each call before its move runs, and a pack statement that leaves a quote open is refused. Fly to Supabase Singapore, a read went from 55–99 ms on `main` to 10–47 ms with saved plans, 10–60 ms without (a traditional single query: 4–30 ms). 916 tests with a local Postgres.
+- **2.30.0** — 2026-10-21 — `perf/pack-walls-once`: the brand walls ask who the caller is once per statement, not once per row, and the post lists read their jobs in one join (brandbase 1.4.0, migration 0012, not applied to production). The same answers for every caller; list posts and load brand about a third faster on `main`'s core, and with saved plans list posts 3 times and load brand about 2 times faster. 865 tests.
 - **2.29.0** — 2026-10-20 — `feat/moodboard-in-chat`: moodboard picks in Bubbles. The moodboard moves into the core (brandbase 1.3.0, migrations 0010 and 0011, not applied to production); Bubbles suggests posts on a card the person ticks and saves to the idea, and a tray beside the chat box attaches posts to a question. A post with nothing to show on the calendar shows its words. 859 tests.
 - **2.28.0** — 2026-10-20 — `feat/client-feedback-ui`: Nat's first round. The address field lists the brand's outlets first; the sharpened hook sits in a field the team edits from; "Shots" is "Storyboard" on the idea page and the call sheet; the Shoot capture stage goes and every format takes one final edit in the Post stage, then its date, and brandbase 1.2.0 keeps the final edit as a list (migration 0009); a collab post in Insights names the creators it is shared with. 815 tests.
 - **2.27.1** — 2026-10-19 — `feat/packs-core`: ready for main. The Bubbles link shows in the header and the tab bar only where Bubbles is connected, so the static demo has no dead tab; CLAUDE.md no longer calls the core "this branch only". No migration. 806 tests.
@@ -92,6 +93,24 @@ One line each — full write-ups are under the matching `##` heading further dow
   and tested end to end.
 - **Gate:** typecheck, lint, format, build; tests 916, none skipped, with a local Postgres (CI skips the
   176 Postgres tests).
+
+## 2.30.0 — 2026-10-21
+
+- **The brand walls once per statement (brandbase 1.4.0).** Migration `0012_walls_once.sql` adds
+  `reaches_all()` and `reached()` and rewrites the 18 `reach` policies so the caller's access is
+  read once per statement; `can_reach` stays. `post.list` and `brand.state` read each post's jobs
+  in a `left join lateral` instead of a function call per post. Skipping the checks for reads was
+  measured and rejected first: `brand.list` has no WHERE, so a member saw every brand, and a
+  traditional query with its access check costs within 0.1 ms of no check.
+- **Measured** (local Postgres, 46 posts and 92 jobs, median of 300): list posts 23.8 → 16.0 ms on
+  `main`'s core, 15.8 → 5.3 ms with saved plans; load brand 38.5 → 26.9 ms and 27.0 → 12.3 ms. List
+  brands is unchanged. Not measured on Fly and Supabase. Table and method:
+  `docs/completions/pack-walls-once-phases-1-to-1.md`.
+- **Tests:** a member of two brands, a deactivated admin (the wall alone guards `post.list`), and a
+  guard that fails if a `reach` policy calls `can_reach` per row again.
+- **Reviews:** Opus and Sonnet ran 1.3.0 and 1.4.0 side by side for up to 18 kinds of caller,
+  reads and writes, under saved plans: identical. Two minor fixes to the tests.
+- **Gate:** typecheck, lint, format, build; tests 865, none skipped; 922 after the merge with 2.31.0.
 
 ## 2.29.0 — 2026-10-20
 

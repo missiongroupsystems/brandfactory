@@ -14,5 +14,5 @@
   },
   "before": ["brand.reachable"],
   "returns": "many",
-  "sql": "select brandbase.post_json(p) as result from brandbase.posts p where p.brand_id = :brand order by p.day, p.time, p.id"
+  "sql": "select brandbase.post_json(to_jsonb(p), coalesce(j.jobs, '[]')) as result from brandbase.posts p left join lateral (select jsonb_agg(to_jsonb(x)) as jobs from brandbase.post_jobs x where x.post_id = p.id) j on true where p.brand_id = :brand order by p.day, p.time, p.id"
 }
