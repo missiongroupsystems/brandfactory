@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.35.4** — 2026-10-22 — `fix/onboarding-polish`: review fixes. On the core the result after Schedule says "Planned for <day>, <time>. Nothing is sent until the accounts are set up." with "Planned" pills; a failed post is planned again instead of asking for a reconnect; a scheduled post cannot lose its last platform; a post's YouTube or LinkedIn stay on every save. The static demo's earlier-month posts preview again. A publishing hand-off note: planned posts have no job. No migration. 1071 tests (196 skipped without a Postgres server).
 - **2.35.3** — 2026-10-22 — `fix/onboarding-polish`: on the core a post is planned without a connected account. New post picks the brand's own platforms, previews the post on the one picked, and Schedule puts it on the calendar as Scheduled (`post.mark`), with the amber note that it will not publish until the account is set up. Nothing is sent: no job, so nothing turns Failed at its time. No pack change, no migration. 1067 tests (196 skipped without a Postgres server).
 - **2.35.2** — 2026-10-22 — `fix/onboarding-polish`: review fixes. New shoot and Plan shoot no longer throw for a brand outside the demo, and on the core no brand gets the demo's outlets, crew, past places, Drive, voice samples, story titles, moodboard, venue or inbox people. A posted post prints only its own counts on every app's screen, asks for no photo, opens on its own first account and draws itself once in the grid. No false "connected" on the core: Instagram, TikTok, Facebook, Pinterest, Google Drive, Lark and the Insights sources show a calm amber "Not available yet" with the reason on hover or tap, and the pretend sign-in does not run for them. No migration. 1062 tests (196 skipped without a Postgres server).
 - **2.35.1** — 2026-10-22 — `fix/onboarding-polish`: the QA pass before the marketing team's first day on production. A posted post (brought in or sent from Brand base) is shown as it went out: its own account's preview with its real counts, a "Posted on" line, and nothing to edit. On the core: no best-time band, no demo voice history, events, ideas, library or caption drafts for a brand that shares a demo id; Insights and the inbox say what is missing; a link to Connections where no account is linked. The calendar title names the year outside this one. Smaller: one cover is not numbered, Ideate is "Ideas", Select hides with no ideas, the kit's "Saved" waits for a save, Add brand waits for a name. No migration. 1037 tests (196 skipped without a Postgres server).
@@ -68,6 +69,41 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.35.4 — 2026-10-22
+
+- **Why.** An Opus review of the branch at 2.35.3 found no blocker and listed these.
+- **Say it is planned.** On the core the screen after Schedule read "Scheduled … on 2 accounts. It
+  is on the calendar." with "Scheduled" pills, and only the hover card said nothing would go out.
+  It now reads "Planned" and "Planned for Fri 30 Oct, 18:00. Nothing is sent until the accounts
+  are set up.", and the pills read "Planned". The calendar tile is unchanged: it shows the
+  Scheduled stage, as the server holds it; a second marker was not added.
+- **The static demo previews its earlier months again.** 2.35.2 showed no preview for a posted
+  post with no account recorded; the demo's archive posts record none. That rule is the core's
+  only now; in the demo they preview on the format's usual accounts, as before.
+- **Kept on every save.** A post's YouTube or LinkedIn, which the composer does not offer on the
+  core, stayed on the server but left the calendar's copy, so a second save in the same session
+  could drop them. The calendar keeps them now. A platform the brand no longer lists is not kept:
+  the core refuses a save that names one (`post.channels_fit`), so keeping it would make every
+  save fail.
+- **No scheduled post without a platform.** On the core Save and Schedule wait for a ticked
+  platform, which the core asks of a scheduled post (`post.scheduled_keeps_channel`).
+- **A failed post on the core** no longer asks to reconnect an account that cannot connect. It
+  says "Pick a day and press Schedule to plan it again.", and Schedule plans it (`post.mark`, which
+  also clears its failed jobs). It is planned on all of its own accounts, not only the one it
+  failed on, and the calendar holds exactly the platforms the save sends.
+- **The "Not available yet" card** stays open while the pointer moves onto it (it no longer lets
+  the pointer through, and a thin bridge covers the gap); a tap elsewhere still closes it.
+- **Publishing hand-off.** A planned post is `marked = 'scheduled'` with no job and cannot be told
+  apart from a post marked Scheduled by hand. When real posting arrives, each needs "Schedule on"
+  or a one-off migration that makes its jobs: written up in
+  `docs/executing/brandbase-accounts-integration.md` ("Publishing hand-off"). No pack change.
+- **Tests.** New cases in `plan-remote.test.tsx` (the planned result, Save and Schedule waiting for
+  a platform, a failed post planned again, the calendar keeping YouTube), `preview.test.tsx` (a
+  demo archive post previews) and `connections-remote.test.tsx` (the card takes the pointer); each
+  fails without its change.
+- **Gate:** typecheck, lint, format, build; tests 1071 (875 run, 196 skipped: no Postgres server).
+  Screenshots on a stub core: the planned result with its pills, desktop and phone.
 
 ## 2.35.3 — 2026-10-22
 

@@ -7,6 +7,8 @@ import { resetConnections } from '@/features/connections/connections-store'
 import { resetIdeas } from '@/features/ideate/ideas-store'
 import { BrandProvider } from '@/features/schedule/posts-store'
 
+import { archiveFor } from '@/features/schedule/month'
+
 import { Composer } from './composer'
 import { shotOf } from './model'
 import { PhoneMock } from './phone-mocks'
@@ -248,6 +250,17 @@ describe('the grid preview', () => {
     expect(within(preview()).getAllByRole('img', { name: 'Carousel' })).toHaveLength(carousels + 1)
     const first = preview().querySelector('.grid-cols-3 > span')!
     expect(within(first as HTMLElement).getByRole('img', { name: 'Carousel' })).toBeInTheDocument()
+  })
+})
+
+describe('a post from an earlier month in the demo', () => {
+  it('previews on its usual accounts, though it records none', () => {
+    const old = archiveFor('casa-vostra')[0]!
+    expect(old.channels).toBeUndefined()
+    inBrand(<Composer post={old} />)
+    expect(
+      within(preview()).getAllByRole('button', { name: /^Preview on/ }).length,
+    ).toBeGreaterThan(0)
   })
 })
 

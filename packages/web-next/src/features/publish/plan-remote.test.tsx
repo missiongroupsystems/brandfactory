@@ -82,8 +82,14 @@ const draft: Post = {
 
 /** The composer once the brand is listed, as the app opens it only after the account loads. */
 function Listed({ children }: { children: React.ReactNode }) {
-  const { brand } = useBrand()
-  return account.platforms && !brand.platforms ? null : <>{children}</>
+  const { brand, byId } = useBrand()
+  if (account.platforms && !brand.platforms) return null
+  return (
+    <>
+      {children}
+      <span data-testid="channels">{byId('crust')?.channels?.join(' ')}</span>
+    </>
+  )
 }
 
 const open = (post?: Post) =>
@@ -110,6 +116,8 @@ describe('planning a post on the core, with no account connected', () => {
     })
     const patch = requests.find((r) => r.call === 'PATCH /brands/casa-vostra/posts/crust')
     expect((patch!.body as { channels: string[] }).channels).toEqual(['tt', 'yt'])
+    // The calendar keeps them too, so a second opening in this session saves them again.
+    expect(screen.getByTestId('channels').textContent).toBe('tt yt')
   })
 
   it('says a brand with none of the platforms has nothing to plan on', () => {
@@ -160,6 +168,49 @@ describe('planning a post on the core, with no account connected', () => {
     expect(requests[mark]!.body).toEqual({ stage: 'scheduled' })
     // No send: no job, so nothing at its time turns it into "Failed" or calls a platform.
     expect(calls.some((c) => c.endsWith('/send'))).toBe(false)
-    expect(screen.getByText(/It is on the calendar/)).toBeInTheDocument()
+    // The result says plainly that it is planned and that nothing goes out yet.
+    expect(screen.getByRole('heading', { name: 'Planned' })).toBeInTheDocument()
+    expect(
+      screen.getByText(/^Planned for .+\. Nothing is sent until the accounts are set up\.$/),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText('Planned', { selector: 'span' }).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/It is on the calendar/)).toBeNull()
+    expect(screen.queryByText('Scheduled')).toBeNull()
+  })
+
+  it('keeps a scheduled post from losing its last platform: Save and Schedule wait for one', () => {
+    open({ ...draft, stage: 'scheduled' })
+    const accounts = screen.getByRole('region', { name: 'Accounts' })
+    fireEvent.click(within(accounts).getByRole('checkbox', { name: /Instagram/ }))
+    expect(screen.getAllByRole('button', { name: 'Save' })[0]).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]!)
+    expect(requests).toEqual([])
+    expect(screen.getAllByText('Pick an account.').length).toBeGreaterThan(0)
+  })
+
+  it('plans a failed post again instead of asking for a reconnect that cannot happen', async () => {
+    account.platforms = ['ig', 'tt', 'yt']
+    open({
+      ...draft,
+      stage: 'failed',
+      channels: ['ig', 'tt', 'yt'],
+      failedOn: 'ig',
+      error: 'Instagram signed out.',
+    })
+    expect(screen.queryByRole('button', { name: /^Reconnect/ })).toBeNull()
+    expect(screen.getByText('Pick a day and press Schedule to plan it again.')).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: /^Schedule/ })[0]!)
+    })
+    expect(requests.find((r) => r.call.endsWith('/mark'))?.body).toEqual({ stage: 'scheduled' })
+    expect(requests.some((r) => r.call.endsWith('/send'))).toBe(false)
+    // Planned again on all of its accounts, not narrowed to the one it failed on, and the calendar
+    // holds the same, once each.
+    const patch = requests.find((r) => r.call === 'PATCH /brands/casa-vostra/posts/crust')
+    expect((patch!.body as { channels: string[] }).channels).toEqual(['ig', 'tt', 'yt'])
+    expect(screen.getByTestId('channels').textContent).toBe('ig tt yt')
   })
 })

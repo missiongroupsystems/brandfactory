@@ -108,7 +108,7 @@ export function NotAvailable({
       <span
         id={id}
         role="tooltip"
-        className={`pointer-events-none absolute top-[calc(100%+8px)] z-30 w-[248px] rounded-[12px] bg-page p-3 text-left text-[12.5px] leading-[1.45] text-ink-2 shadow-pop transition-opacity duration-150 ${hushed ? '' : 'group-hover/na:visible group-hover/na:opacity-100 group-focus-within/na:visible group-focus-within/na:opacity-100'} ${align === 'right' ? 'right-0' : align === 'left' ? 'left-0' : 'left-1/2 -translate-x-1/2'} ${open ? 'visible opacity-100' : 'invisible opacity-0'}`}
+        className={`absolute top-[calc(100%+8px)] z-30 before:absolute before:inset-x-0 before:-top-2 before:h-2 before:content-[""] w-[248px] rounded-[12px] bg-page p-3 text-left text-[12.5px] leading-[1.45] text-ink-2 shadow-pop transition-opacity duration-150 ${hushed ? '' : 'group-hover/na:visible group-hover/na:opacity-100 group-focus-within/na:visible group-focus-within/na:opacity-100'} ${align === 'right' ? 'right-0' : align === 'left' ? 'left-0' : 'left-1/2 -translate-x-1/2'} ${open ? 'visible opacity-100' : 'invisible opacity-0'}`}
       >
         {reasonOf(name, source)}
       </span>

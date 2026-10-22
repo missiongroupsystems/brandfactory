@@ -71,6 +71,14 @@ describe('Connections on the core', () => {
     expect(within(drive).queryByRole('button', { name: /Connect/ })).toBeNull()
   })
 
+  it('keeps its reason open while the pointer moves onto it', () => {
+    page()
+    const card = within(row('Instagram')).getByRole('tooltip')
+    expect(card.className).not.toContain('pointer-events-none')
+    // A strip over the 8 px gap above it, so the pointer crosses to it without leaving the group.
+    expect(card.className).toContain('before:-top-2')
+  })
+
   it('opens its reason on a tap', () => {
     page()
     const pill = within(row('Instagram')).getByRole('button', { name: 'Not available yet' })

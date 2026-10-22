@@ -26,7 +26,7 @@ import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { CAPTION_DRAFTS, HASHTAGS, VENUE } from '@/data/publish'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { MonthArrows, useMonthPages } from '@/features/ideate/day-picker'
-import { composeChannels, sentChannels } from '@/features/schedule/calendar-items'
+import { channelsOf, composeChannels, sentChannels } from '@/features/schedule/calendar-items'
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
@@ -185,7 +185,9 @@ export function Composer({
     format: post?.format ?? start?.format ?? 'reel',
     hook: post?.hook ?? '',
     caption: post ? kept?.caption || captions[post.id] || post.hook : '',
-    selected: post ? composeChannels(post) : undefined,
+    // A failed post is retried on the account it failed on; on the core it is planned again on
+    // all of its own, not narrowed to that one.
+    selected: post ? (planOnly ? channelsOf(post) : composeChannels(post)) : undefined,
     linked: publishing,
     connected: planOnly ? publishing : publishing.filter((k) => links[k] === 'connected'),
     tiktok:
@@ -292,11 +294,20 @@ export function Composer({
   const [waiting, setWaiting] = React.useState<'send' | 'save' | null>(null)
 
   const active = activeChannels(draft)
+  // Planned only on the platforms the composer offers: a post's others (YouTube, LinkedIn) are
+  // kept on every save, here and on the calendar, not dropped.
+  const others = planOnly
+    ? (opened?.channels ?? []).filter((k) => !(PUBLISHERS as readonly string[]).includes(k))
+    : []
   const targetId = post?.id ?? madeId
   const storyDay = when === 'now' ? todayDate() : date
   const blocked = [
     ...(readOnly ? ['Not on the calendar: it can be viewed, not changed.'] : []),
-    ...(post?.stage === 'failed' && !reconnected ? [`Reconnect ${failedName} first.`] : []),
+    ...(post?.stage === 'failed' && !reconnected && !planOnly
+      ? [`Reconnect ${failedName} first.`]
+      : []),
+    // 6. A planned post needs a platform: the core refuses a scheduled post with none.
+    ...(planOnly && active.length === 0 ? ['Pick an account.'] : []),
     ...(media.length === 0 && draft.format !== 'story' ? ['Add a photo or video.'] : []),
     ...(media.length > MEDIA_MAX[draft.format]
       ? [`A ${draft.format} takes ${MEDIA_MAX[draft.format]}: remove the extra media.`]
@@ -348,9 +359,7 @@ export function Composer({
         ...(retry ? retryOn : active.map((c) => c.key)),
         // Planned only on the platforms the composer offers: a post's others (YouTube, LinkedIn)
         // are kept, not dropped by a save.
-        ...(planOnly
-          ? (opened?.channels ?? []).filter((k) => !(PUBLISHERS as readonly string[]).includes(k))
-          : []),
+        ...others,
       ] as string[],
       media: media.map((m) => mediaItem(m.src)),
       draft: {
@@ -409,10 +418,13 @@ export function Composer({
   /** The post on the calendar: moved and restaged if it exists, placed if it is new. */
   function toCalendar(stage: Stage): string | null {
     const day = when === 'now' ? todayDate() : date
-    const channels = sentChannels(
-      opened,
-      active.map((c) => c.key),
-    )
+    // On the core the calendar holds exactly what the save sends.
+    const channels = planOnly
+      ? [...active.map((c) => c.key), ...others]
+      : sentChannels(
+          opened,
+          active.map((c) => c.key),
+        )
     if (live) {
       reschedule(live, day, time)
       setStage(live, stage)
@@ -471,8 +483,11 @@ export function Composer({
   // A post already past draft keeps its stage when saved: saving a caption must not unschedule it.
   const keeps = post !== undefined && post.stage !== 'draft'
 
+  // A scheduled post with no platform cannot be kept scheduled: the core refuses it.
+  const unsaveable = readOnly || (planOnly && post?.stage === 'scheduled' && active.length === 0)
+
   async function saveDraft() {
-    if (readOnly || waiting) return
+    if (unsaveable || waiting) return
     if (remote) {
       if (!(await stored(keeps ? post.stage : 'draft', null))) return
     } else {
@@ -495,6 +510,7 @@ export function Composer({
         media={media}
         people={{ collabs: details.collab, tags: media[0]?.tags ?? [] }}
         slot={`${dayLabel(date)}, ${time}`}
+        planned={planOnly}
         onBack={() => router.push('/')}
       />
     )
@@ -546,10 +562,10 @@ export function Composer({
   const draftButton = (
     <button
       type="button"
-      aria-disabled={readOnly}
+      aria-disabled={unsaveable}
       aria-busy={waiting === 'save'}
       onClick={saveDraft}
-      className={`flex h-10 shrink-0 items-center rounded-full px-4 text-[13px] font-medium transition-colors max-md:h-12 max-md:text-[14px] ${readOnly ? 'cursor-not-allowed text-ink-5' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
+      className={`flex h-10 shrink-0 items-center rounded-full px-4 text-[13px] font-medium transition-colors max-md:h-12 max-md:text-[14px] ${unsaveable ? 'cursor-not-allowed text-ink-5' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
     >
       {waiting === 'save' ? 'Saving…' : keeps ? 'Save' : 'Save draft'}
     </button>
@@ -563,7 +579,9 @@ export function Composer({
   // Posted is final: the post as it went out, on the accounts it went to, and nothing to change.
   if (post?.stage === 'posted') {
     // Only the accounts it went out on, its first one open; none recorded, no preview.
-    const went = post.channels ?? []
+    // On the core a post with no account recorded shows none; the demo's archive posts carry
+    // none and preview on the format's usual ones, as before.
+    const went = post.channels ?? (remote ? [] : channelsOf(post))
     const day = dayOf(weeks, post.id)
     const year = day ? monthOf(day).year : 0
     const posted = day
@@ -697,10 +715,14 @@ export function Composer({
                 : `This post did not go out at ${post.slot}.`}
             </span>
             <span className="text-ink-3">
-              {reconnected ? 'Press Retry to post it now.' : post.error}
+              {reconnected
+                ? 'Press Retry to post it now.'
+                : planOnly
+                  ? 'Pick a day and press Schedule to plan it again.'
+                  : post.error}
             </span>
           </span>
-          {!reconnected && (
+          {!reconnected && !planOnly && (
             <button
               type="button"
               onClick={() => {
@@ -2817,12 +2839,15 @@ function Outcomes({
   media,
   people,
   slot,
+  planned = false,
   onBack,
 }: {
   api: PublishDraftApi
   media: Shot[]
   people: People
   slot: string
+  /** On the core: dated on the calendar, sent nowhere until the accounts are set up. */
+  planned?: boolean
   onBack: () => void
 }) {
   const { phase, outcomes, draft } = api
@@ -2830,21 +2855,25 @@ function Outcomes({
   const failed = keys.filter((k) => outcomes[k]?.state === 'failed').length
   const accounts = keys.length === 1 ? '1 account' : `${keys.length} accounts`
   const title =
-    phase === 'scheduled'
-      ? 'Scheduled'
-      : phase === 'publishing'
-        ? 'Publishing'
-        : failed
-          ? `Live on ${keys.length - failed} of ${keys.length}`
-          : 'Live everywhere'
+    phase === 'scheduled' && planned
+      ? 'Planned'
+      : phase === 'scheduled'
+        ? 'Scheduled'
+        : phase === 'publishing'
+          ? 'Publishing'
+          : failed
+            ? `Live on ${keys.length - failed} of ${keys.length}`
+            : 'Live everywhere'
   const sub =
-    phase === 'scheduled'
-      ? `${slot}, on ${accounts}. It is on the calendar.`
-      : phase === 'publishing'
-        ? `Sending to ${accounts}. You can leave this page.`
-        : failed
-          ? 'One account needs you.'
-          : `Posted to ${accounts}.`
+    phase === 'scheduled' && planned
+      ? `Planned for ${slot}. Nothing is sent until the accounts are set up.`
+      : phase === 'scheduled'
+        ? `${slot}, on ${accounts}. It is on the calendar.`
+        : phase === 'publishing'
+          ? `Sending to ${accounts}. You can leave this page.`
+          : failed
+            ? 'One account needs you.'
+            : `Posted to ${accounts}.`
   // Collaborators are Instagram's: their invite leaves once the Instagram post is live.
   const ig = outcomes.ig
   const invite =
@@ -2888,7 +2917,7 @@ function Outcomes({
                       : textFor(draft, k).text
                   }
                 />
-                <OutcomePill outcome={o} />
+                <OutcomePill outcome={o} planned={planned} />
               </Phone>
               <span className="flex items-center gap-1.5 text-[13px]">
                 <PlatformLogo platform={k} size={12} />
@@ -2963,10 +2992,12 @@ function Phone({
   )
 }
 
-function OutcomePill({ outcome }: { outcome: Outcome }) {
+function OutcomePill({ outcome, planned }: { outcome: Outcome; planned: boolean }) {
   const label =
     outcome.state === 'scheduled'
-      ? 'Scheduled'
+      ? planned
+        ? 'Planned'
+        : 'Scheduled'
       : outcome.state === 'uploading'
         ? `${outcome.progress}%`
         : outcome.state === 'live'
