@@ -41,9 +41,24 @@ who holds `casa-vostra` only, and two scheduled jobs on each of the 46 posts (92
   change: `main` reads the whole pack version on each call, and that dominates.
 - With saved plans, 1.4.0 cuts list posts by about 3 times and load brand by about half. What is
   left over the traditional query is about 2 ms of trips and set-up, and the walls themselves.
-- Not measured: Fly to Supabase. The core runs in `sin` and the Supabase project in
-  `ap-northeast-2`, so each trip there costs tens of ms and the number of trips per call matters
-  more than any figure above.
+- "Main" here is `main` on 21 Oct 2026, before the saved-plans core (2.31.0) merged; "plans" is
+  that core, now on `main`.
+
+Fly `sin` to a Supabase test project in Singapore (`ap-southeast-1`; one trip 2.2 ms), 21 Oct 2026,
+the same five ways, median of 300, as the member (ms):
+
+| Move        | Traditional | Main 1.3.0 | Main 1.4.0 | Plans 1.3.0 | Plans 1.4.0 |
+| ----------- | ----------- | ---------- | ---------- | ----------- | ----------- |
+| List brands | 4.1         | 52.7       | 54.8       | 18.9        | 18.4        |
+| List posts  | 12.9        | 84.4       | 69.3       | 48.0        | 26.0        |
+| Load brand  | 30.1        | 125.5      | 99.4       | 80.9        | 51.9        |
+
+On Supabase's Micro database the walls cost more than locally, so 1.4.0 helps more there: with
+saved plans list posts 46% less and load brand 36%. BrandFactory's old Supabase project is in
+`ap-northeast-2` (Seoul), where each trip from `sin` would cost tens of ms.
+
+Not covered by the pack's tests: 1.4.0 through saved plans with the one-trip read's rule wrapper
+(`packs.test.ts` runs unprepared). The reviews' generic-plan checks and the Fly run above cover it.
 
 ### Reviews
 

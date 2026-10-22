@@ -110,7 +110,7 @@ One line each — full write-ups are under the matching `##` heading further dow
   guard that fails if a `reach` policy calls `can_reach` per row again.
 - **Reviews:** Opus and Sonnet ran 1.3.0 and 1.4.0 side by side for up to 18 kinds of caller,
   reads and writes, under saved plans: identical. Two minor fixes to the tests.
-- **Gate:** typecheck, lint, format, build; tests 865, none skipped.
+- **Gate:** typecheck, lint, format, build; tests 865, none skipped; 922 after the merge with 2.31.0.
 
 ## 2.29.0 — 2026-10-20
 
