@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { resetIdeas } from '@/features/ideate/ideas-store'
 import { BrandProvider } from '@/features/schedule/posts-store'
 
@@ -15,6 +16,22 @@ vi.mock('next/navigation', () => ({
 beforeEach(() => {
   resetIdeas()
   push.mockClear()
+})
+
+describe('the static demo', () => {
+  it("shows casa-vostra's demo figures", () => {
+    render(
+      <BrandProvider>
+        <InsightsPage />
+      </BrandProvider>,
+    )
+    const demo = INSIGHTS_BY_BRAND['casa-vostra']
+    expect(screen.getByText(demo.period)).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'The month in numbers' })).toHaveTextContent(
+      demo.kpis[0]!.value,
+    )
+    expect(screen.queryByText(/^Nothing yet\./)).toBeNull()
+  })
 })
 
 describe('planning an idea from a finding', () => {

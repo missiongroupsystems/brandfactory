@@ -9,6 +9,7 @@ import type { CalendarEvent, Day, FeedMark } from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { timeRange } from '@/features/shoot/model'
 import { useShoots } from '@/features/shoot/shoots-store'
+import { remote } from '@/lib/remote'
 
 import { channelsOf, itemsOf, postTime, type StageFilter } from './calendar-items'
 import { EventChip } from './event-chip'
@@ -59,8 +60,10 @@ export function DayView({
 }) {
   const { brand, library, byId } = useBrand()
   const items = itemsOf(day, byId, stages)
-  // A brand made on the core has no insights yet: an evening hour until it does.
-  const best = Number((INSIGHTS_BY_BRAND[brand.id]?.best ?? '18:00').split(':')[0])
+  // On the core no brand has insights yet (the demo's are invented): an evening hour until it does.
+  const best = Number(
+    ((remote ? undefined : INSIGHTS_BY_BRAND[brand.id]?.best) ?? '18:00').split(':')[0],
+  )
   const hours = Array.from({ length: LAST_HOUR - FIRST_HOUR }, (_, i) => FIRST_HOUR + i)
   const top = (time: string) => {
     const [h, m] = time.split(':').map(Number)

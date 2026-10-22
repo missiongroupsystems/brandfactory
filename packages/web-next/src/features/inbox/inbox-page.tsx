@@ -15,7 +15,7 @@ import { INBOX_BY_BRAND, type BrandInbox, type InboxEarlier, type InboxMessage }
 import { useBrandKit } from '@/features/brand/brand-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
-import { clearNoise, sendReply, sendTo, useInbox } from './inbox-store'
+import { clearNoise, messagesOf, sendReply, sendTo, useInbox } from './inbox-store'
 import {
   ago,
   conversation,
@@ -66,16 +66,17 @@ export function InboxPage() {
 function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
   const phone = usePhone()
   const { done, sentTo: routed } = useInbox(brand.id)
+  const messages = messagesOf(brand.id)
   const [filter, setFilter] = React.useState<InboxFilter>('all')
   const [selected, setSelected] = React.useState<string | null>(null)
   const [leaving, setLeaving] = React.useState<ReadonlySet<string>>(new Set())
-  const { open, noise } = queue(data.messages, done, filter)
+  const { open, noise } = queue(messages, done, filter)
   const staying = open.filter((m) => !leaving.has(m.id))
   // A desktop always shows a message beside the list; a phone shows one only when it is tapped.
   const current = staying.find((m) => m.id === selected) ?? (phone ? null : (staying[0] ?? null))
   const complaints = open.filter((m) => m.tone === 'complaint')
   const rest = open.filter((m) => m.tone !== 'complaint')
-  const waiting = queue(data.messages, done).open.filter((m) => !leaving.has(m.id))
+  const waiting = queue(messages, done).open.filter((m) => !leaving.has(m.id))
   const caughtUp = staying.length === 0
 
   function send(id: string, text: string) {
