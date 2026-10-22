@@ -20,11 +20,13 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 
 // ── Session ─────────────────────────────────────────────────────────────────────────────────
 
-export interface Session {
+interface Session {
   access: string
   refresh?: string
   /** Epoch seconds. */
   expires?: number
+  /** A first sign-in: the account still has the password an admin gave it. */
+  needsPassword?: boolean
 }
 
 const SESSION_KEY = 'brandbase.session'
@@ -69,91 +71,45 @@ export function sessionEmail(): string {
 /** True when sign-in goes through Supabase; otherwise the core runs dev sign-in (an id). */
 export const passwordSignIn = SUPABASE_URL !== ''
 
-/** The address the confirm link comes back to, with the session in its hash. */
-const SIGN_UP_DONE = '/sign-up/done'
+/** True on a first sign-in: the person sets a password of their own before anything else. */
+export const needsPassword = () => readSession()?.needsPassword === true
 
 /**
- * Makes an account. Answers `'mail'` when Supabase sent a confirm link (the person reads their
- * email), `'in'` when the project does not ask for one and the session is already kept. A refusal
- * is a `RemoteError` whose code is Supabase's own (`user_already_exists`, `weak_password`, …).
+ * Sets the person's own password on their first sign-in, and marks the account so it is not
+ * asked again (`user_metadata.password_set`). A refusal is a `RemoteError` whose code is
+ * Supabase's own (`weak_password`, `same_password`, `reauthentication_needed`, …).
  */
-export async function signUp(
-  name: string,
-  email: string,
-  password: string,
-): Promise<'mail' | 'in'> {
-  const back = encodeURIComponent(`${window.location.origin}${SIGN_UP_DONE}`)
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/signup?redirect_to=${back}`, {
-    method: 'POST',
-    headers: { apikey: SUPABASE_ANON_KEY, 'content-type': 'application/json' },
-    body: JSON.stringify({ email, password, data: { name } }),
+export async function setPassword(password: string): Promise<void> {
+  const bearer = await freshToken()
+  // The session ended while the screen was up (a refresh refused): nothing to set it as.
+  if (!bearer) throw new RemoteError(401, 'SIGN_IN', 'Sign in again, then set your password.')
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    method: 'PUT',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      'content-type': 'application/json',
+      authorization: `Bearer ${bearer}`,
+    },
+    body: JSON.stringify({ password, data: { password_set: true } }),
   })
-  const data = (await res.json().catch(() => null)) as {
-    error_code?: string
-    error?: string
-    msg?: string
-    error_description?: string
-    identities?: unknown[]
-    access_token?: string
-    refresh_token?: string
-    expires_at?: number
-    expires_in?: number
-  } | null
   if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as {
+      error_code?: string
+      error?: string
+      msg?: string
+      error_description?: string
+    } | null
     throw new RemoteError(
       res.status,
-      data?.error_code ?? data?.error ?? 'SIGN_UP',
-      data?.msg ?? data?.error_description ?? 'The account was not made.',
+      data?.error_code ?? data?.error ?? 'PASSWORD',
+      data?.msg ?? data?.error_description ?? 'The password was not set.',
     )
   }
-  // An email that has an account: Supabase answers a user with no identities, not a refusal.
-  if (Array.isArray(data?.identities) && data.identities.length === 0) {
-    throw new RemoteError(422, 'user_already_exists', 'this email has an account')
-  }
-  if (data?.access_token) {
-    writeSession({
-      access: data.access_token,
-      refresh: data.refresh_token,
-      expires: expiresOf(data.expires_at, data.expires_in),
-    })
-    return 'in'
-  }
-  return 'mail'
+  const session = readSession()
+  if (session) writeSession({ ...session, needsPassword: false })
 }
 
-/**
- * What a confirm link carries in its hash: a session (`#access_token=…&refresh_token=…`) for
- * `keepSession`, or the trouble in words when Supabase sent an error instead.
- */
-export function readLink(hash: string): { session: Session } | { trouble: string } {
-  const p = new URLSearchParams(hash.replace(/^#/, ''))
-  const access = p.get('access_token')
-  if (access) {
-    return {
-      session: {
-        access,
-        refresh: p.get('refresh_token') ?? undefined,
-        expires: expiresOf(Number(p.get('expires_at')), Number(p.get('expires_in'))),
-      },
-    }
-  }
-  return {
-    trouble:
-      p.get('error_code') === 'otp_expired' ? 'This link has expired.' : 'This link did not work.',
-  }
-}
-
-/** When a token ends, in epoch seconds: Supabase gives the instant, or only how long it lasts. */
-function expiresOf(at: number | undefined, inS: number | undefined): number | undefined {
-  return at || (inS ? Math.floor(Date.now() / 1000) + inS : undefined)
-}
-
-/** Signs in with the session a confirm link carried. */
-export function keepSession(session: Session) {
-  writeSession(session)
-}
-
-async function supabaseToken(grant: 'password' | 'refresh_token', body: object) {
+async function supabaseToken(grant: 'password' | 'refresh_token', body: object): Promise<Session> {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=${grant}`, {
     method: 'POST',
     headers: { apikey: SUPABASE_ANON_KEY, 'content-type': 'application/json' },
@@ -164,8 +120,15 @@ async function supabaseToken(grant: 'password' | 'refresh_token', body: object) 
     access_token: string
     refresh_token: string
     expires_at: number
+    user?: { user_metadata?: { password_set?: unknown } }
   }
-  return { access: data.access_token, refresh: data.refresh_token, expires: data.expires_at }
+  return {
+    access: data.access_token,
+    refresh: data.refresh_token,
+    expires: data.expires_at,
+    // An account an admin made in the dashboard carries no mark until the person sets a password.
+    needsPassword: data.user ? data.user.user_metadata?.password_set !== true : false,
+  }
 }
 
 /**

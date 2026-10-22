@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.34.0** — 2026-10-22 — `feat/sign-up`: a sign-up page. Name, work email and password make an account on Supabase; the confirm link lands signed in; a person the core has no place for yet sees "Not in a company yet" with their email and Sign out instead of a refusal on the sign-in page. No move or migration; adding a member is still by hand (plan in `docs/completions/sign-up-plan.md`). 982 tests (191 skipped without a Postgres server).
+- **2.34.0** — 2026-10-22 — `feat/first-sign-in`: the first sign-in. An admin makes each account in the Supabase dashboard; the person's first sign-in asks for a password of their own, draws one check mark, then opens the dashboard; later sign-ins go straight in. A person the core has no place for yet sees "Not in a company yet" with their email and Sign out instead of a refusal on the sign-in page. No public sign-up, no email. No move or migration; adding a member is still by hand (steps in `docs/completions/first-sign-in-plan.md`). 989 tests (191 skipped without a Postgres server).
 - **2.33.0** — 2026-10-22 — `feat/company-access`: access by company (brandbase 1.5.0, migration 0013, not applied to production). Every active member of a company reaches all its brands; owners and admins add brands with `brand.create`; brands already in the database go to one company, Mission Group. web-next gets an Add brand page. 966 tests.
 - **2.32.0** — 2026-10-22 — `fix/core-migrations-supabase`: the core refuses to install as a login that is not a superuser, before it changes anything, and fails any database whose runtime role can call a function migration 0001 takes away. On Supabase (and Fly Managed Postgres) migration 0001 cannot take `set_config` and the other risky functions from the runtime role, and a pack's SQL could then reach `set_config('role', …)` through `ts_stat` or `query_to_xml` and leave the runtime role. A new `core setup-login` makes the login a deployed core runs as (no superuser, the pack roles, the core's schemas, `set_config` only), core migrations 0009 and 0010 take back what 0001 gave to roles that existed before the install (its functions from every pack role; the superuser's own server file and reload functions from every other role), and a new core migration waits for the superuser. The database moves to a self-managed Postgres on Fly; sign-in stays on Supabase (Passport). 925 tests.
 - **2.31.0** — 2026-10-21 — `perf/core-plan-once`: fewer trips per call. The core no longer reads the whole pack version on each call and folds its first steps into one trip; with `DATABASE_PREPARE` on it keeps each move's plan per connection; a read sends its check, rules and move in one trip and the log with the commit in a second (core migration 0008, not applied to production). Every check is kept, the database judges each call before its move runs, and a pack statement that leaves a quote open is refused. Fly to Supabase Singapore, a read went from 55–99 ms on `main` to 10–47 ms with saved plans, 10–60 ms without (a traditional single query: 4–30 ms). 916 tests with a local Postgres.
@@ -64,32 +64,39 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ## 2.34.0 — 2026-10-22
 
-Plan and as built: `docs/completions/sign-up-plan.md`,
-`docs/completions/sign-up-phases-1-to-1.md`.
+Plan and as built: `docs/completions/first-sign-in-plan.md`,
+`docs/completions/first-sign-in-phases-1-to-1.md`. The branch's first commit built a public
+sign-up page with a confirmation email; the owner dropped it the same day for this flow.
 
-- **Sign-up.** `/sign-up`, linked from sign-in where sign-in goes through Supabase: name, work
-  email, password, one button. The form checks a name, an email that looks like one and eight
-  characters before it sends; Supabase's refusals (an email with an account, a weak password, the
-  sent-email limit, the built-in mailer's members-only rule, sign-up closed) show in the form's
-  words. Then "Check your email".
-- **The confirm link** lands on `/sign-up/done` with the session in the hash; the page keeps it
-  and opens the app. An expired link says so and offers sign-up again, which sends a fresh one.
+- **The first sign-in.** An admin makes the account in the Supabase dashboard (Add user → Create
+  new user, Auto Confirm) with a password they hand over. The token answer's
+  `user_metadata.password_set` says whether the person has set their own; the dashboard sets
+  none, so the first sign-in gets "Set your password" before anything loads: a new password, the
+  same again, one button, eight characters. `PUT /auth/v1/user` sets it with the mark;
+  Supabase's refusals (`weak_password`, `same_password`, `reauthentication_needed`) show in the
+  form's words. "Secure password change" asks for a nonce only after 24 hours, so this screen,
+  right after sign-in, never needs one.
+- **One check mark.** The ring rises, the tick draws, the whole fades, 1.3 s; then the account
+  loads and the dashboard opens. With reduced motion the check shows at once and the app opens at
+  0.7 s. A later sign-in goes straight to the dashboard; the owner's account has no mark today
+  and is asked once.
 - **Not in a company yet.** A signed-in person the core refuses (no principal, no loadout, no
   account in the pack) or knows in no company sees one calm page with their email and Sign out,
   on any route; sign-in no longer drops their session and shows the core's words. When the tab
-  comes back into view the account loads again, so a person added meanwhile comes through.
-- **Adding a member is still by hand:** `core principal`, `core loadout`, and SQL into
-  `brandbase.users` and `brandbase.org_members`. The plan lists the smallest build (a principal
-  on first sign-in, invites by email, an Invite row in the switcher) and recommends it next.
-- **Supabase before go-live:** add `https://branding.missionsystems.ai/sign-up/done` to the
-  redirect URL list, set custom SMTP (the built-in mailer sends 2 emails an hour, to the Supabase
-  organisation's own members only), set the password minimum to 8.
-- **Review:** Sonnet, one pass; no blocker. Fixed: the waiting page showed on any 403 or 404
-  (a proxy's too), now only on the core's own codes; a person removed from their company kept a
-  stale app; sign-out kept the loaded account; a sign-up answer's `expires_in` was dropped; a
-  fixed date in two tests.
-- **Gate:** typecheck, lint, format, build; tests 982 (791 run, 191 skipped: no Postgres server
-  was started on this machine). Screenshots on desktop and phone.
+  comes back into view the account loads again, so a person added meanwhile comes through, and
+  one removed goes to the waiting page.
+- **Adding a member is still by hand:** the dashboard step, then `core principal`, `core
+  loadout`, and SQL into `brandbase.users` and `brandbase.org_members`; the plan writes each
+  out, lists the smallest build (a principal on first sign-in, `company.add_member`, a People
+  row in the switcher) and recommends it next. No Supabase setting needs to change for this
+  flow; the password minimum may be set to 8 to match the form.
+- **Review:** Sonnet, one pass on each cut; no blocker. Fixed on this cut: the check mark was
+  hidden at once under reduced motion (the global 1 ms rule beat the fade's delay); a visit to
+  sign-in did not reset the sync state for the next account; the password screen had no way
+  out and could send with no token. Noted: the mark is user-writable, so the screen is a
+  prompt, not a wall (see the completion document).
+- **Gate:** typecheck, lint, format, build; tests 989 (798 run, 191 skipped: no Postgres server
+  was started on this machine). Screenshots and a recording on desktop, screenshots on phone.
 
 ## 2.33.0 — 2026-10-22
 

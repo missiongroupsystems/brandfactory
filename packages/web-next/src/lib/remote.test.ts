@@ -4,14 +4,13 @@ import {
   accountEmpty,
   approve,
   loadAll,
+  needsPassword,
   onAccount,
-  keepSession,
-  readLink,
   sessionEmail,
+  setPassword,
   signIn,
   signedIn,
   signOut,
-  signUp,
 } from './remote'
 
 vi.hoisted(() => {
@@ -37,6 +36,15 @@ const claims = Buffer.from(JSON.stringify({ sub: 'u1', email: 'nat@missiongroup.
   'base64url',
 )
 const TOKEN = `h.${claims}.s`
+// A token with an hour left, so no refresh runs in the test; `user` as Supabase answers it.
+const token = (user_metadata: object = {}) =>
+  json({
+    access_token: TOKEN,
+    refresh_token: 'r',
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
+    user: { id: 'u1', user_metadata },
+  })
+const me = () => json({ user: { id: 'u1' }, companies: [], brands: [] })
 
 describe('approve', () => {
   it('puts only a move name in the path: the name came from the model', async () => {
@@ -68,67 +76,40 @@ describe('loadAll', () => {
   })
 })
 
-describe('signUp', () => {
-  it('asks Supabase for an account with the name, and a confirm link back to /sign-up/done', async () => {
-    vi.mocked(fetch).mockResolvedValue(json({ id: 'u1', identities: [{ id: 'i1' }] }))
-    await expect(signUp('Nat', 'nat@missiongroup.com', 'eight-ch')).resolves.toBe('mail')
-    const [url, init] = vi.mocked(fetch).mock.calls[0]!
-    expect(String(url)).toBe(
-      `http://auth.test/auth/v1/signup?redirect_to=${encodeURIComponent('http://localhost:3000/sign-up/done')}`,
-    )
-    expect(JSON.parse(String(init?.body))).toEqual({
-      email: 'nat@missiongroup.com',
-      password: 'eight-ch',
-      data: { name: 'Nat' },
-    })
-    expect(signedIn()).toBe(false)
-  })
-
-  it("reads Supabase's user with no identities as an email that has an account", async () => {
-    // Supabase answers 200 for an email that exists, so an outsider cannot list accounts.
-    vi.mocked(fetch).mockResolvedValue(json({ id: 'u1', identities: [] }))
-    await expect(signUp('Nat', 'nat@missiongroup.com', 'eight-ch')).rejects.toMatchObject({
-      code: 'user_already_exists',
-    })
-  })
-
-  it("carries Supabase's own error code, so the form can answer it", async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      json({ code: 422, error_code: 'weak_password', msg: 'Password should be…' }, 422),
-    )
-    await expect(signUp('Nat', 'nat@missiongroup.com', 'eight-ch')).rejects.toMatchObject({
-      status: 422,
-      code: 'weak_password',
-    })
-  })
-
-  it('keeps the session a project with no confirm step answers with', async () => {
-    vi.mocked(fetch).mockResolvedValue(json({ access_token: TOKEN, refresh_token: 'r' }))
-    await expect(signUp('Nat', 'nat@missiongroup.com', 'eight-ch')).resolves.toBe('in')
-    expect(sessionEmail()).toBe('nat@missiongroup.com')
-  })
-})
-
-describe('readLink', () => {
-  it('reads the session the confirm link carries; kept, it names the email', () => {
-    const link = readLink(`#access_token=${TOKEN}&refresh_token=r&expires_at=1800000000`)
-    expect(link).toEqual({ session: { access: TOKEN, refresh: 'r', expires: 1800000000 } })
-    expect(signedIn()).toBe(false)
-    if ('session' in link) keepSession(link.session)
-    expect(signedIn()).toBe(true)
-    expect(sessionEmail()).toBe('nat@missiongroup.com')
-  })
-
-  it('says a link has expired', () => {
-    expect(readLink('#error=access_denied&error_code=otp_expired')).toEqual({
-      trouble: 'This link has expired.',
-    })
-  })
-})
-
 describe('signIn', () => {
-  // A token with an hour left, so no refresh runs in the test.
-  const token = () => json({ access_token: TOKEN, refresh_token: 'r', expires_in: 3600 })
+  it('reads an account an admin made in the dashboard as one that must set its password', async () => {
+    // The dashboard sets no metadata; the mark comes only from the person's own password.
+    vi.mocked(fetch).mockResolvedValueOnce(token()).mockResolvedValueOnce(me())
+    await signIn('nat@missiongroup.com', 'pw')
+    expect(needsPassword()).toBe(true)
+    expect(sessionEmail()).toBe('nat@missiongroup.com')
+  })
+
+  it('does not ask again once the mark is on the account', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(token({ password_set: true }))
+      .mockResolvedValueOnce(me())
+    await signIn('nat@missiongroup.com', 'pw')
+    expect(needsPassword()).toBe(false)
+  })
+
+  it('reads the mark again from a refreshed token, so a session cannot outlive the question', async () => {
+    // The first token has the mark but is over; the refresh answers a user without it.
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        json({
+          access_token: TOKEN,
+          refresh_token: 'r',
+          expires_at: Math.floor(Date.now() / 1000) - 10,
+          user: { id: 'u1', user_metadata: { password_set: true } },
+        }),
+      )
+      .mockResolvedValueOnce(token())
+      .mockResolvedValueOnce(me())
+    await signIn('nat@missiongroup.com', 'pw')
+    expect(String(vi.mocked(fetch).mock.calls[1]![0])).toContain('grant_type=refresh_token')
+    expect(needsPassword()).toBe(true)
+  })
 
   it('keeps the session when the core has no place for the account yet: an admin adds them', async () => {
     vi.mocked(fetch)
@@ -154,5 +135,42 @@ describe('signIn', () => {
       .mockResolvedValueOnce(json({ code: 'DOWN', message: 'no database' }, 500))
     await expect(signIn('nat@missiongroup.com', 'pw')).rejects.toMatchObject({ status: 500 })
     expect(signedIn()).toBe(false)
+  })
+})
+
+describe('setPassword', () => {
+  beforeEach(async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(token()).mockResolvedValueOnce(me())
+    await signIn('nat@missiongroup.com', 'pw')
+    vi.mocked(fetch).mockClear()
+  })
+
+  it('sets the password with the mark, as the signed-in person, and is not asked again', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(json({ id: 'u1' }))
+    await setPassword('eight-ch')
+    const [url, init] = vi.mocked(fetch).mock.calls[0]!
+    expect(String(url)).toBe('http://auth.test/auth/v1/user')
+    expect(init?.method).toBe('PUT')
+    expect((init?.headers as Record<string, string>).authorization).toBe(`Bearer ${TOKEN}`)
+    expect(JSON.parse(String(init?.body))).toEqual({
+      password: 'eight-ch',
+      data: { password_set: true },
+    })
+    expect(needsPassword()).toBe(false)
+    expect(signedIn()).toBe(true)
+  })
+
+  it('asks for a fresh sign-in when the session is gone, instead of sending with no bearer', async () => {
+    signOut()
+    await expect(setPassword('eight-ch')).rejects.toMatchObject({ code: 'SIGN_IN' })
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it("carries Supabase's own error code, so the form can answer it, and still asks", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      json({ code: 422, error_code: 'same_password', msg: 'New password should differ.' }, 422),
+    )
+    await expect(setPassword('pw')).rejects.toMatchObject({ status: 422, code: 'same_password' })
+    expect(needsPassword()).toBe(true)
   })
 })
