@@ -1,0 +1,7 @@
+{
+  "id": "post.import_past",
+  "sql": "select :at::timestamptz <= :now::timestamptz as ok",
+  "status": 400,
+  "code": "NOT_OUT_YET",
+  "message": "a post brought in went out already; its time has not come"
+}

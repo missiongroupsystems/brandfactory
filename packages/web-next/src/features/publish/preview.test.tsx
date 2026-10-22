@@ -62,6 +62,54 @@ describe('the demo reel', () => {
   })
 })
 
+describe('the counts on a preview', () => {
+  it('are a post’s own when it was brought in from its account, and invented only for the rest', () => {
+    const { unmount } = inBrand(
+      <PhoneMock
+        channel="ig"
+        format="carousel"
+        shots={photos}
+        text=""
+        counts={{ likes: 37, comments: 1 }}
+      />,
+    )
+    expect(screen.getByText('37 likes')).toBeInTheDocument()
+    expect(screen.getByText('View 1 comment')).toBeInTheDocument()
+    expect(screen.queryByText('2,418 likes')).toBeNull()
+    unmount()
+
+    const single = inBrand(
+      <PhoneMock channel="ig" format="carousel" shots={photos} text="" counts={{ likes: 1 }} />,
+    )
+    expect(screen.getByText('1 like')).toBeInTheDocument()
+    single.unmount()
+
+    // Hidden likes stay hidden; a mock with no counts keeps its fixed ones.
+    const hidden = inBrand(
+      <PhoneMock channel="ig" format="carousel" shots={photos} text="" counts={{ comments: 4 }} />,
+    )
+    expect(screen.queryByText(/likes$/)).toBeNull()
+    hidden.unmount()
+    inBrand(<PhoneMock channel="ig" format="carousel" shots={photos} text="" />)
+    expect(screen.getByText('2,418 likes')).toBeInTheDocument()
+  })
+
+  it('reads as TikTok prints them on a TikTok post', () => {
+    inBrand(
+      <PhoneMock
+        channel="tt"
+        format="reel"
+        shots={photos}
+        text=""
+        counts={{ likes: 24812, comments: 6, views: 5900, shares: 14, saves: 1500 }}
+      />,
+    )
+    expect(screen.getByText('24.8K')).toBeInTheDocument()
+    expect(screen.getByText('1.5K')).toBeInTheDocument()
+    expect(screen.queryByText('312')).toBeNull()
+  })
+})
+
 describe('a reel preview', () => {
   it('plays the video muted from its poster, and a tap pauses and plays it', () => {
     const { container } = inBrand(

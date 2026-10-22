@@ -3,7 +3,7 @@
 import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
-import { INBOX_BY_BRAND } from '@/data/inbox'
+import { INBOX_BY_BRAND, type InboxMessage } from '@/data/inbox'
 
 import { onState, push, remote, request } from '@/lib/remote'
 
@@ -18,6 +18,8 @@ interface BrandInboxState {
   done: ReadonlySet<string>
   /** A complaint sent on to people: message id → their names. */
   sentTo: Readonly<Record<string, string[]>>
+  /** On the core: the ids of the messages the server holds. */
+  held?: ReadonlySet<string>
 }
 
 type State = Record<BrandId, BrandInboxState>
@@ -56,6 +58,7 @@ if (remote) {
     const rows = s.inbox.messages as { id: string; doneAt: string | null; sentTo: string[] }[]
     personIds[brandId] = Object.fromEntries(people.map((p) => [p.name, p.id]))
     update(brandId as BrandId, () => ({
+      held: new Set(rows.map((m) => m.id)),
       done: new Set(rows.filter((m) => m.doneAt).map((m) => m.id)),
       sentTo: Object.fromEntries(
         rows
@@ -74,10 +77,21 @@ export function useInbox(brandId: BrandId): BrandInboxState {
   )
 }
 
+/**
+ * The brand's messages. The text is the demo's; on the core only the ones the server holds show,
+ * so a real brand does not get the demo's invented messages. A caller reads it under `useInbox`,
+ * so it renders again when the server's state arrives.
+ */
+export function messagesOf(brandId: BrandId): InboxMessage[] {
+  const messages = INBOX_BY_BRAND[brandId]?.messages ?? []
+  const held = state[brandId]?.held
+  return remote ? messages.filter((m) => held?.has(m.id)) : messages
+}
+
 /** How many real messages still need a reply: the nav's count. Noise does not count. */
 export function useWaiting(brandId: BrandId): number {
   const { done } = useInbox(brandId)
-  return queue(INBOX_BY_BRAND[brandId]?.messages ?? [], done).open.length
+  return queue(messagesOf(brandId), done).open.length
 }
 
 /** The reply went out (simulated), or the noise was cleared: the messages leave the inbox. */

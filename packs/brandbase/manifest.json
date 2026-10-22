@@ -1,6 +1,6 @@
 {
   "name": "brandbase",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Brand Base: a brand's posts on a calendar, sent to its social accounts. Posts and the brand's state, and timed sends.",
   "errors": {
     "posts_story_day": {

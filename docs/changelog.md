@@ -6,6 +6,10 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.34.2** — 2026-10-22 — `feat/real-brand-posts`: on the core, the post and idea pages offer none of the demo's data for a brand that shares a demo id: no demo best hour or hour chart, no demo creators, tags, places, labels, hashtags, venue or caption drafts. One helper, `demoOf`, reads a static demo table in the static demo only. 1004 tests.
+- **2.34.1** — 2026-10-22 — `feat/real-brand-posts`: a test scrape of the six brands, checked against the live accounts. The import keeps only the brand's own posts (not creators' collabs), hooks read styled letters as plain ones, the post preview prints a real post's own counts, a second Instagram cover host, and the scrape prints its cost and its caps (the most Apify can charge) and refuses caps over a budget. 999 tests.
+- **2.34.0** — 2026-10-22 — `feat/real-brand-posts`: the brands' own posts (brandbase 1.6.0, migration 0014, not applied to production). `post.import` brings in a post already out on the brand's Instagram or TikTok as posted, with its address and counts; a second import refreshes the counts. A script runs Apify's scrapers (cost first, capped) and loads a scrape through the core as the signed-in person. The post page no longer throws for a brand outside the demo's data. 991 tests.
+- **2.33.1** — 2026-10-22 — `fix/real-brand-insights`: on the core, no brand shows the demo's invented figures. Production's casa-vostra and temper share ids with demo brands, so Insights showed the demo's reach, followers, posts and creators for them, the calendar shaded the demo's best hour, and the inbox showed the demo's messages and count. Insights now shows its empty state, the calendar shades the evening hour, and the inbox shows only the messages the server holds. The static demo is unchanged. No migration. 782 tests (191 more skipped without a Postgres server).
 - **2.33.0** — 2026-10-22 — `feat/company-access`: access by company (brandbase 1.5.0, migration 0013, not applied to production). Every active member of a company reaches all its brands; owners and admins add brands with `brand.create`; brands already in the database go to one company, Mission Group. web-next gets an Add brand page. 966 tests.
 - **2.32.0** — 2026-10-22 — `fix/core-migrations-supabase`: the core refuses to install as a login that is not a superuser, before it changes anything, and fails any database whose runtime role can call a function migration 0001 takes away. On Supabase (and Fly Managed Postgres) migration 0001 cannot take `set_config` and the other risky functions from the runtime role, and a pack's SQL could then reach `set_config('role', …)` through `ts_stat` or `query_to_xml` and leave the runtime role. A new `core setup-login` makes the login a deployed core runs as (no superuser, the pack roles, the core's schemas, `set_config` only), core migrations 0009 and 0010 take back what 0001 gave to roles that existed before the install (its functions from every pack role; the superuser's own server file and reload functions from every other role), and a new core migration waits for the superuser. The database moves to a self-managed Postgres on Fly; sign-in stays on Supabase (Passport). 925 tests.
 - **2.31.0** — 2026-10-21 — `perf/core-plan-once`: fewer trips per call. The core no longer reads the whole pack version on each call and folds its first steps into one trip; with `DATABASE_PREPARE` on it keeps each move's plan per connection; a read sends its check, rules and move in one trip and the log with the commit in a second (core migration 0008, not applied to production). Every check is kept, the database judges each call before its move runs, and a pack statement that leaves a quote open is refused. Fly to Supabase Singapore, a read went from 55–99 ms on `main` to 10–47 ms with saved plans, 10–60 ms without (a traditional single query: 4–30 ms). 916 tests with a local Postgres.
@@ -60,6 +64,84 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.34.2 — 2026-10-22
+
+- **Why.** The merge review of 2.33.1 with 2.34.x found that the post page and the idea page still
+  read the demo's static tables by brand id on the core, so production's `casa-vostra` and
+  `temper` got the demo's best hour, hour chart, creators ("Posted about you"), tagged accounts,
+  places, labels, hashtags, venue and caption drafts.
+- **Fix.** `demoOf(table, brandId)` in `lib/remote.ts` answers a demo table's row in the static
+  demo only. `composer.tsx`, `idea-page.tsx` and `suggestions.ts` read through it. The static
+  demo is unchanged. Not changed: the shoot page's outlets and past places.
+- **Test.** `suggestions-remote.test.ts` loads the suggestions with a core URL set and expects no
+  demo suggestion for casa-vostra; it fails without the fix.
+
+## 2.34.1 — 2026-10-22
+
+As built: `docs/completions/real-brand-posts-phases-1-to-2.md`, phase 2.
+
+- **Test scrape.** The 12 latest posts of each brand's Instagram and of three TikTok accounts
+  ($0.28 spent), loaded into a local core and compared with the live accounts by a reviewer who
+  had not written the code.
+- **Only the brand's own posts.** Creators' collab posts that name the brand as a coauthor are no
+  longer imported: they are in the creator's voice and carry the creator's reach.
+- **Hooks.** Styled Unicode letters read as plain ones, dashes and stops at the ends go, a line
+  with no words is skipped, a cut ends in one "…"; the caption is unchanged.
+- **Real counts in the preview.** A post brought in carries its `metrics` into web-next, and the
+  Instagram and TikTok previews print them in place of the fixed ones.
+- **Loader.** A cover is tried on `scontent.cdninstagram.com` when its regional host fails;
+  `scrape` prints what the posts cost and the caps, the most Apify can charge, and `--budget`
+  refuses caps that add to more.
+- **Gate.** typecheck, lint, format, 999 tests (803 passed, 196 skipped without a
+  Postgres server), web-next build.
+
+## 2.34.0 — 2026-10-22
+
+Plan and as built: `docs/completions/real-brand-posts-plan.md`,
+`docs/completions/real-brand-posts-phases-1-to-2.md`.
+
+- **Posts already out (brandbase 1.6.0).** Migration `0014_imported_posts.sql` adds
+  `posts.permalink`, `posts.metrics` and `posts.measured_at`; `post_json` adds `measuredAt`.
+  `post.import` makes a post `<brand>-<ig|tt>-<id there>`, posted, on the day and time it went out in the
+  brand's zone. The same post again refreshes its hook, caption and counts and keeps its media; an
+  id a BrandBase post or another brand holds is 409. Only a person (403 `PERSON_ONLY` for an
+  agent), only a time that has passed (400 `NOT_OUT_YET`), only an id of at most 71 characters
+  (400 `ID_TOO_LONG`), only the brand's own files.
+- **The import.** `packs/brandbase/import/`: `scrape` runs `apify/instagram-post-scraper` and
+  `clockworks/tiktok-scraper` for the handles in `accounts.json`, prints the most each run costs
+  and runs nothing without `--yes`; `load` copies each new post's cover into storage through
+  `media.create` and calls `post.import`. Nothing was scraped or loaded into production.
+- **Brands outside the demo.** The composer, the idea page and the suggestion lists gave a throw
+  for a brand with no static demo data (four of the six in production); they now give no drafts
+  and no suggestions.
+- **Gate.** typecheck, lint, format, 991 tests (795 passed, 196 skipped without a Postgres
+  server; the pack's 161 cases also passed on Postgres 16 through `core test`), web-next build.
+
+## 2.33.1 — 2026-10-22
+
+No plan document: a small web-next fix.
+
+- **Why.** In production the company has six real brands. Two of them, `casa-vostra` and
+  `temper`, have the same ids as two demo brands. Every screen that looked up the demo's static
+  tables by brand id alone found the demo's invented data for those two brands.
+- **Insights** (`insights-page.tsx`) reads `INSIGHTS_BY_BRAND` and `HUB_BY_BRAND` only in the
+  static demo. On the core every brand shows "Nothing yet. The first post out starts them."
+- **Calendar** (`day-view.tsx`, `phone-calendar.tsx`) shades the demo's best hour only in the
+  static demo. On the core it shades the evening hour (18:00), as for any other brand.
+- **Inbox** (`inbox-store.ts`, `inbox-page.tsx`): on the core the page and the nav count show only
+  the demo messages whose ids the server holds (`brand.state`'s `inbox.messages`). A real brand
+  has none, so it shows "All caught up" and no count. A local core seeded with the demo data
+  shows the same messages as before.
+  Bubbles' "cleared" card counts from the same messages (`turn-cards.tsx`).
+- **Not changed, still demo data on the core for `casa-vostra` and `temper`:** the composer's best
+  times and its suggestions (creators, tagged accounts, places, labels, hashtags, venue, caption
+  drafts), and the idea page's best time. `feat/real-brand-posts` changes those lines to stop a
+  crash for brands outside the demo; gate them on `remote` after it merges.
+- **Tests.** `insights-remote.test.tsx` and `inbox-remote.test.tsx` run the pages with `remote`
+  on; each failed before the fix. A static test checks that casa-vostra keeps its demo figures.
+- **Gate:** typecheck, lint, format, build; 782 tests pass, 191 skipped without a Postgres
+  server (`CORE_TEST_PG_URL` not set).
 
 ## 2.33.0 — 2026-10-22
 

@@ -1,0 +1,7 @@
+{
+  "id": "post.import_by_a_person",
+  "sql": "select :agent::text is null as ok",
+  "status": 403,
+  "code": "PERSON_ONLY",
+  "message": "only a person brings in posts and their counts, not an agent"
+}
