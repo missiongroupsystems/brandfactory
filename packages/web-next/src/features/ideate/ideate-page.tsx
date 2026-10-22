@@ -24,7 +24,7 @@ import { BrandLogo } from '@/features/brand/brand-logo'
 import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 import { planShoot } from '@/features/shoot/shoots-store'
-import { newId } from '@/lib/remote'
+import { demoOf, newId } from '@/lib/remote'
 
 import { EYEBROW, FormatIcon, STATUS_LABEL, statusColour, useSlots, type Slot } from './idea-parts'
 import { dayLabel, dayOfHook, landingDay } from './calendar-slot'
@@ -177,7 +177,7 @@ function Ideas({
 
   // A moment already used is one of the ideas now, so it leaves the list. Its idea is found by
   // the moment's title, which a sharper hook does not change, or else by its hook on the calendar.
-  const moments = (IDEAS_BY_BRAND[brand.id]?.moments ?? []).filter(
+  const moments = (demoOf(IDEAS_BY_BRAND, brand.id)?.moments ?? []).filter(
     (m) =>
       !ideas.some((i) => i.source.kind === 'moment' && i.source.title === m.title) &&
       !dayOfHook(weeks, m.seed.hook, (id) => byId(id)?.hook),
@@ -247,13 +247,16 @@ function Ideas({
         ) : (
           <div className="flex h-9 items-center justify-end">
             <span className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setPicking([])}
-                className="flex h-9 items-center rounded-full px-3 text-[13px] font-medium text-ink-3 transition-colors hover:bg-surface hover:text-ink"
-              >
-                Select
-              </button>
+              {/* Nothing to pick from: no way to start picking. */}
+              {slots.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPicking([])}
+                  className="flex h-9 items-center rounded-full px-3 text-[13px] font-medium text-ink-3 transition-colors hover:bg-surface hover:text-ink"
+                >
+                  Select
+                </button>
+              )}
               {!suggesting && open > 0 && (
                 <button
                   type="button"

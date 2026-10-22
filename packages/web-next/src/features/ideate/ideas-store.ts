@@ -3,7 +3,7 @@
 import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
-import { newId, onState, push, remote, request } from '@/lib/remote'
+import { demoOf, newId, onState, push, remote, request } from '@/lib/remote'
 import {
   coverOf,
   IDEAS_BY_BRAND,
@@ -206,7 +206,7 @@ export function useIdeas(brandId: BrandId): BrandIdeasState & { target: number }
     () => state[brandId] ?? EMPTY,
     () => state[brandId] ?? EMPTY,
   )
-  return { ...s, target: IDEAS_BY_BRAND[brandId]?.target ?? 0 }
+  return { ...s, target: demoOf(IDEAS_BY_BRAND, brandId)?.target ?? 0 }
 }
 
 /** Any brand's ideas by id, for a page that a link opens with only the id (a shared brief). */
@@ -236,7 +236,7 @@ export function useCoverOfHook(brandId: BrandId, hook: string): string | undefin
   const { ideas } = useIdeas(brandId)
   const card =
     ideas.find((i) => i.hook === hook) ??
-    IDEAS_BY_BRAND[brandId]?.moments.find((m) => m.seed.hook === hook)?.seed
+    demoOf(IDEAS_BY_BRAND, brandId)?.moments.find((m) => m.seed.hook === hook)?.seed
   return card ? coverOf(brandId, card) : undefined
 }
 
@@ -266,7 +266,7 @@ export interface IdeaTileMark {
 export function ideaOfTile(brandId: BrandId, tile: IdeaTileMark, date?: string): string {
   const found = state[brandId]?.ideas.find((i) => i.hook === tile.hook)
   if (found) return found.id
-  const moment = IDEAS_BY_BRAND[brandId]?.moments.find((m) => m.seed.hook === tile.hook)
+  const moment = demoOf(IDEAS_BY_BRAND, brandId)?.moments.find((m) => m.seed.hook === tile.hook)
   if (moment) {
     return addIdea(
       brandId,

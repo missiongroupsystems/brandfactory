@@ -121,7 +121,9 @@ export function InsightsPage() {
             <h1 className="font-display text-[56px] leading-none tracking-[-0.035em] max-md:text-[34px]">
               Insights
             </h1>
-            <p className="text-[15px] text-ink-3">Nothing yet. The first post out starts them.</p>
+            <p className="text-[15px] text-ink-3">
+              Insights arrive once the brand&apos;s accounts are connected.
+            </p>
           </div>
         </main>
       </div>

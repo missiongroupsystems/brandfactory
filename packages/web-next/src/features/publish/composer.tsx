@@ -26,14 +26,14 @@ import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { CAPTION_DRAFTS, HASHTAGS, VENUE } from '@/data/publish'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { MonthArrows, useMonthPages } from '@/features/ideate/day-picker'
-import { composeChannels, sentChannels } from '@/features/schedule/calendar-items'
+import { channelsOf, composeChannels, sentChannels } from '@/features/schedule/calendar-items'
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
 import { ideaIdOfHook } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import { demoOf, newId, quietly, remote, request, sent } from '@/lib/remote'
-import { addDays, dayNumber, todayDate, weekdayOf } from '@/lib/dates'
+import { addDays, dayNumber, monthOf, todayDate, weekdayOf } from '@/lib/dates'
 import { mediaItem } from '@/lib/remote-days'
 
 import { CropEditor } from './crop-editor'
@@ -42,6 +42,7 @@ import { DropZone } from './drop-zone'
 import {
   activeChannels,
   blockers,
+  CHANNELS,
   COLLAB_MAX,
   defaultCrop,
   frameRatio,
@@ -235,8 +236,8 @@ export function Composer({
   const [madeId, setMadeId] = React.useState<string | null>(null)
   // The idea a new post started from, so the calendar swaps that idea's tile for the post.
   const [ideaHook, setIdeaHook] = React.useState<string | null>(null)
-  // A post already out, or one from an earlier month, is shown, not changed.
-  const readOnly = Boolean(post && (post.stage === 'posted' || !dayOf(weeks, post.id)))
+  // A post off the calendar's weeks is shown, not changed. A posted one has its own view below.
+  const readOnly = Boolean(post && !dayOf(weeks, post.id))
   const [details, setDetails] = React.useState(
     () =>
       keptDraft.details ?? {
@@ -286,7 +287,7 @@ export function Composer({
   const targetId = post?.id ?? madeId
   const storyDay = when === 'now' ? todayDate() : date
   const blocked = [
-    ...(readOnly ? ['Already posted: it can be viewed, not changed.'] : []),
+    ...(readOnly ? ['Not on the calendar: it can be viewed, not changed.'] : []),
     ...(post?.stage === 'failed' && !reconnected ? [`Reconnect ${failedName} first.`] : []),
     ...(media.length === 0 && draft.format !== 'story' ? ['Add a photo or video.'] : []),
     ...(media.length > MEDIA_MAX[draft.format]
@@ -535,6 +536,35 @@ export function Composer({
     collabs: draft.format === 'story' ? [] : details.collab,
     tags: draft.format === 'story' ? [] : (media[0]?.tags ?? []),
   }
+  const counts = post?.metrics && { on: post.channels?.[0], metrics: post.metrics }
+  // Posted is final: the post as it went out, on the accounts it went to, and nothing to change.
+  if (post?.stage === 'posted') {
+    const day = dayOf(weeks, post.id)
+    const year = day ? monthOf(day).year : 0
+    const posted = day
+      ? `${dayLabel(day)}${year !== monthOf(todayDate()).year ? ` ${year}` : ''}`
+      : post.slot.split(', ')[0]
+    return (
+      <div className="flex flex-col gap-6">
+        <header className="flex flex-col gap-2">
+          <h1 className="font-display text-[38px] leading-none tracking-[-0.035em] max-md:text-[28px] max-md:leading-[1.05]">
+            {post.hook}
+          </h1>
+          <p className="text-[13px] text-ink-3">Posted on {posted}</p>
+        </header>
+        <div className="w-full max-w-[400px]">
+          <Preview
+            api={api}
+            media={media}
+            people={people}
+            onFiles={addFiles}
+            counts={counts}
+            on={channelsOf(post)}
+          />
+        </div>
+      </div>
+    )
+  }
   // The sheet a phone row opened, over the same cards the desktop shows in place.
   const inSheet: Partial<Record<SheetKey, { title: string; body: React.ReactNode }>> = {
     accounts: { title: 'Post to', body: <Accounts api={api} /> },
@@ -567,15 +597,7 @@ export function Composer({
     },
     preview: {
       title: 'Preview',
-      body: (
-        <Preview
-          api={api}
-          media={media}
-          people={people}
-          onFiles={addFiles}
-          counts={post?.metrics && { on: post.channels?.[0], metrics: post.metrics }}
-        />
-      ),
+      body: <Preview api={api} media={media} people={people} onFiles={addFiles} counts={counts} />,
     },
     ...Object.fromEntries(
       active.map((c) => [
@@ -735,13 +757,7 @@ export function Composer({
         </div>
         {/* The button sits under the preview and scrolls with it, so what goes out is in view. */}
         <div className="sticky top-6 flex flex-col gap-3 max-lg:static max-md:hidden">
-          <Preview
-            api={api}
-            media={media}
-            people={people}
-            onFiles={addFiles}
-            counts={post?.metrics && { on: post.channels?.[0], metrics: post.metrics }}
-          />
+          <Preview api={api} media={media} people={people} onFiles={addFiles} counts={counts} />
           <div className="flex items-center gap-2 px-1">
             {draftButton}
             {send(false)}
@@ -911,6 +927,14 @@ function Accounts({ api }: { api: PublishDraftApi }) {
               </button>
             )
           })}
+          {linkedChannels(draft).length === 0 && (
+            <Link
+              href="/brand/connections"
+              className="flex h-10 items-center text-[13px] text-ink-3 underline decoration-ink-5 underline-offset-4 transition-colors hover:text-ink max-md:h-14 max-md:text-[15px]"
+            >
+              Connect an account
+            </Link>
+          )}
         </div>
         <div className={`w-[240px] max-md:w-full ${TAP}`}>
           <Segmented<Format>
@@ -1126,9 +1150,12 @@ function Content({
                 className="group/m relative block h-[132px] w-[106px] shrink-0 overflow-hidden rounded-[12px] bg-tile"
               >
                 <ShotView shot={shot} sizes="260px" />
-                <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/50 px-1.5 font-mono text-[10px] text-page">
-                  {i + 1}
-                </span>
+                {/* A number orders slides: one tile has no order to show. */}
+                {media.length > 1 && (
+                  <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/50 px-1.5 font-mono text-[10px] text-page">
+                    {i + 1}
+                  </span>
+                )}
                 {/* The wrong shape for this format: said quietly, fixed in one tap. */}
                 {fix ? (
                   <button
@@ -1660,7 +1687,7 @@ function Details({
           <Chips
             values={labels}
             onChange={setLabels}
-            placeholder="e.g. TMP_Wine, F1 weekend"
+            placeholder={remote ? '' : 'e.g. TMP_Wine, F1 weekend'}
             options={labelsOf(brand.id)}
           />
         </div>
@@ -2589,6 +2616,7 @@ function Preview({
   people,
   onFiles,
   counts,
+  on,
 }: {
   api: PublishDraftApi
   media: Shot[]
@@ -2599,15 +2627,35 @@ function Preview({
    * accounts show none, so another account's counts never pass for that one's.
    */
   counts?: { on: ChannelKey | undefined; metrics: NonNullable<Post['metrics']> }
+  /** A posted post: the accounts it went out on, shown as they are, with nothing to add. */
+  on?: ChannelKey[]
 }) {
   const { draft } = api
   const { posts } = useBrand()
-  const active = activeChannels(draft)
+  const active = on ? CHANNELS.filter((c) => on.includes(c.key)) : activeChannels(draft)
   const [picked, setPicked] = React.useState<ChannelKey | null>(null)
   const [grid, setGrid] = React.useState(false)
   const input = React.useRef<HTMLInputElement>(null)
   const channel = active.find((c) => c.key === picked)?.key ?? active[0]?.key
   const showGrid = grid && channel === 'ig' && draft.format !== 'story'
+  const phone = channel && (
+    <Phone channel={channel} scale={1.25}>
+      <PhoneMock
+        channel={channel}
+        format={draft.format}
+        shots={media}
+        people={people}
+        text={
+          channel === 'yt'
+            ? (draft.youtubeTitle ?? youtubeTitle(draft))
+            : textFor(draft, channel).text
+        }
+        live
+        onAdd={on ? undefined : () => input.current?.click()}
+        counts={counts && (channel === counts.on ? counts.metrics : {})}
+      />
+    </Phone>
+  )
   // Instagram's grid: this post first, then the brand's feed posts. Stories never show in it.
   const tiles = [
     { shot: media[0], format: draft.format, slides: media.length },
@@ -2669,25 +2717,16 @@ function Preview({
         </div>
       ) : (
         <div key={channel} className="bb-swap flex justify-center">
-          <DropZone onFiles={onFiles} radius={22 * 1.25}>
-            <Phone channel={channel} scale={1.25}>
-              <PhoneMock
-                channel={channel}
-                format={draft.format}
-                shots={media}
-                people={people}
-                text={
-                  channel === 'yt'
-                    ? (draft.youtubeTitle ?? youtubeTitle(draft))
-                    : textFor(draft, channel).text
-                }
-                live
-                onAdd={() => input.current?.click()}
-                counts={counts && (channel === counts.on ? counts.metrics : {})}
-              />
-            </Phone>
-          </DropZone>
-          <MediaInput ref={input} format={draft.format} onFiles={onFiles} />
+          {on ? (
+            phone
+          ) : (
+            <>
+              <DropZone onFiles={onFiles} radius={22 * 1.25}>
+                {phone}
+              </DropZone>
+              <MediaInput ref={input} format={draft.format} onFiles={onFiles} />
+            </>
+          )}
         </div>
       )}
     </section>

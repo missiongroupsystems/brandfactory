@@ -13,7 +13,7 @@ import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { useCoverOfHook, useCoverOfPost } from '@/features/ideate/ideas-store'
 import { NewShootForm } from '@/features/shoot/new-shoot'
 import { dayNumber } from '@/lib/dates'
-import { remote } from '@/lib/remote'
+import { demoOf } from '@/lib/remote'
 
 import { EventChip } from './event-chip'
 import { ideaLabel, useOpenIdea } from './open-idea'
@@ -124,8 +124,8 @@ export function PhoneCalendar({
 
   const shownWeek = weeks[Math.min(week, weeks.length - 1)]!
   const shownDay = shownWeek.days[day]!
-  // On the core no brand has insights yet (the demo's are invented): an evening hour until it does.
-  const best = (remote ? undefined : INSIGHTS_BY_BRAND[brand.id]?.best) ?? '18:00'
+  // On the core no brand has insights yet (the demo's are invented): no best time until it does.
+  const best = demoOf(INSIGHTS_BY_BRAND, brand.id)?.best
   const items = (d: Day) => itemsOf(d, byId, stages)
   const stories = (d: Day, it: DayItems) => storiesOf(d.date, it, brand.id, library, byId)
   const movingFrom = moving
@@ -390,7 +390,7 @@ export function PhoneCalendar({
           <Hours
             day={shownDay}
             items={items(shownDay)}
-            best={Number(best.split(':')[0])}
+            best={best ? Number(best.split(':')[0]) : null}
             moving={moving}
             landed={landed}
             lift={lift}
@@ -790,7 +790,8 @@ function Hours({
 }: {
   day: Day
   items: DayItems
-  best: number
+  /** The best hour, from Insights; none on the core yet. */
+  best: number | null
   moving: string | null
   landed: string | null
   lift: (post: Post, selector?: string) => (e: React.PointerEvent<HTMLElement>) => void
@@ -809,7 +810,7 @@ function Hours({
       {hours.map((h) => {
         const posts = items.posts.filter((p) => hourOf(p) === h)
         const time = `${String(h).padStart(2, '0')}:00`
-        const shaded = h === best || h === best + 1
+        const shaded = best !== null && (h === best || h === best + 1)
         return (
           <div
             key={h}

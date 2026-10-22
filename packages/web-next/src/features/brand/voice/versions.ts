@@ -29,7 +29,7 @@ export interface VoiceVersion {
   voice: Voice
 }
 
-type State = Record<BrandId, VoiceVersion[]>
+type State = Partial<Record<BrandId, VoiceVersion[]>>
 
 /** v4 is the kit as it ships; v3 had one pair fewer and its first line only. */
 function seed(id: BrandId, by: [string, string]): VoiceVersion[] {
@@ -46,11 +46,15 @@ function seed(id: BrandId, by: [string, string]): VoiceVersion[] {
   ]
 }
 
-const initial = (): State => ({
-  'casa-vostra': seed('casa-vostra', ['Giulia', 'Marco']),
-  temper: seed('temper', ['Elise', 'Sam']),
-  carlitos: seed('carlitos', ['Lucía', 'Javier']),
-})
+// On the core a brand's history is its own: a real brand that shares a demo id gets none of these.
+const initial = (): State =>
+  remote
+    ? {}
+    : {
+        'casa-vostra': seed('casa-vostra', ['Giulia', 'Marco']),
+        temper: seed('temper', ['Elise', 'Sam']),
+        carlitos: seed('carlitos', ['Lucía', 'Javier']),
+      }
 
 /** A brand made on the core has no versions until its voice is first set. */
 const NONE: VoiceVersion[] = []

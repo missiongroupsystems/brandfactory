@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 
@@ -13,6 +14,7 @@ import { usePhone } from '@/components/use-phone'
 import type { Brand } from '@/data/brands'
 import { INBOX_BY_BRAND, type BrandInbox, type InboxEarlier, type InboxMessage } from '@/data/inbox'
 import { useBrandKit } from '@/features/brand/brand-store'
+import { useConnections } from '@/features/connections/connections-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { clearNoise, messagesOf, sendReply, sendTo, useInbox } from './inbox-store'
@@ -78,6 +80,9 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
   const rest = open.filter((m) => m.tone !== 'complaint')
   const waiting = queue(messages, done).open.filter((m) => !leaving.has(m.id))
   const caughtUp = staying.length === 0
+  // No account connected: nothing can arrive, so "caught up" would say something untrue.
+  const links = useConnections(brand.id)
+  const unlinked = !(['ig', 'tt', 'fb'] as const).some((k) => links[k] === 'connected')
 
   function send(id: string, text: string) {
     setLeaving((s) => new Set(s).add(id))
@@ -144,7 +149,19 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
           {/* Only once something is left to see another way: the end of the inbox needs no tabs. */}
           {(waiting.length > 0 || filter !== 'all') && tabs}
           <div className="flex flex-col items-center">
-            <CaughtUp filter={filter} />
+            {unlinked && waiting.length === 0 ? (
+              <p className="py-16 text-center text-[14px] text-ink-3">
+                <Link
+                  href="/brand/connections"
+                  className="text-ink underline decoration-ink-5 underline-offset-4 hover:decoration-ink"
+                >
+                  Connect Instagram
+                </Link>{' '}
+                to see comments and DMs.
+              </p>
+            ) : (
+              <CaughtUp filter={filter} />
+            )}
             {noise.length > 0 && (
               <div className="w-full max-w-[420px]">
                 <Noise brandId={brand.id} noise={noise} />

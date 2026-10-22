@@ -128,12 +128,15 @@ describe('the new brand form', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('says what is missing before it sends anything', async () => {
+  it('cannot be sent until the brand has a name', async () => {
     const { onAdd } = open()
     type('Handle', '@lucali')
+    type('Name', '  ')
+    expect(screen.getByRole('button', { name: 'Add brand' })).toBeDisabled()
     await act(async () => add())
-    expect(screen.getByRole('alert')).toHaveTextContent('Give the brand a name.')
     expect(onAdd).not.toHaveBeenCalled()
+    type('Name', 'Lucali')
+    expect(screen.getByRole('button', { name: 'Add brand' })).toBeEnabled()
   })
 
   it('shows the refusal and stays open, so the person can change the name', async () => {

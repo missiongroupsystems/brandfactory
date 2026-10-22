@@ -1,4 +1,4 @@
-import { BRANDS, contentFor, type BrandId } from '@/data/brands'
+import { contentFor, type BrandId } from '@/data/brands'
 import type { Day, FeedMark, Post, StoryMark, Week } from '@/data/demo'
 import { mondayOf, slotOf, todayDate } from '@/lib/dates'
 import { srcOf } from '@/lib/remote-days'
@@ -139,12 +139,12 @@ export function calendarOf(
     }
   }
 
-  // A brand made on the core shares the city's events and holidays, not a demo brand's own.
-  const own = BRANDS.some((b) => b.id === brandId)
+  // Every brand on the core shares the city's events and holidays, never a demo brand's own, even
+  // one whose id a demo brand shares.
   const weeks = mondaysBetween(from, to).map((monday): Week => {
     const blank = blankWeek(monday, today)
     const demo = skeleton.find((w) => w.days[0]!.date === monday)
-    const events = demo?.events.filter((e) => own || e.layer === 'city' || e.layer === 'holiday')
+    const events = demo?.events.filter((e) => e.layer === 'city' || e.layer === 'holiday')
     return {
       ...blank,
       ...(demo && events && { label: demo.label, events }),

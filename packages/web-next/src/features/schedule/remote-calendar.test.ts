@@ -159,4 +159,15 @@ describe('the calendar from the server', () => {
     const layers = new Set(weeks.flatMap((w) => w.events.map((e) => e.layer)))
     expect([...layers].every((l) => l === 'city' || l === 'holiday')).toBe(true)
   })
+
+  it("gives casa-vostra on the core none of the demo brand's own events", () => {
+    // Production's casa-vostra shares the demo brand's id: its "Our events" are invented.
+    const { weeks } = calendarOf('casa-vostra', state([], [], '2026-10-22'))
+    const texts = weeks.flatMap((w) => w.events.map((e) => e.text))
+    expect(texts).not.toContain('Wine pairing night')
+    expect(texts).not.toContain('Private dinner · 40')
+    expect(texts).toContain('F1 Singapore Grand Prix')
+    const layers = new Set(weeks.flatMap((w) => w.events.map((e) => e.layer)))
+    expect([...layers].every((l) => l === 'city' || l === 'holiday')).toBe(true)
+  })
 })

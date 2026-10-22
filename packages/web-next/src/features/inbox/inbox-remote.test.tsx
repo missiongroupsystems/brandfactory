@@ -9,11 +9,14 @@ import { InboxPage } from './inbox-page'
 // On the core. The inbox store asks for each brand's state when it loads; the test hands that
 // state to it, and only to it (the other stores read other parts).
 const hydrators = vi.hoisted(() => [] as Array<(brandId: string, state: Remote.BrandState) => void>)
+const linkers = vi.hoisted(() => [] as Array<(brandId: string, state: Remote.BrandState) => void>)
 vi.mock('@/lib/remote', async (original) => ({
   ...(await original<typeof Remote>()),
   remote: true,
   onState: (h: (brandId: string, state: Remote.BrandState) => void) => {
-    if (new Error().stack?.includes('inbox-store')) hydrators.push(h)
+    const stack = new Error().stack ?? ''
+    if (stack.includes('inbox-store')) hydrators.push(h)
+    if (stack.includes('connections-store')) linkers.push(h)
     return () => undefined
   },
   onAccount: () => () => undefined,
@@ -60,5 +63,17 @@ describe('the inbox on the core', () => {
     load(['cv-soggy-pizza'])
     expect(screen.getByRole('button', { name: /Rachel Tan/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Inbox/ }).textContent).toBe('Inbox1')
+  })
+
+  it('asks for Instagram, not "All caught up", while no account is connected', () => {
+    page()
+    load([])
+    // Production's brands have no account connected yet: nothing can arrive to be caught up on.
+    act(() => linkers[0]!('casa-vostra', { brand: { id: 'casa-vostra' }, connections: [] }))
+    expect(screen.queryByText('All caught up')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Connect Instagram' })).toHaveAttribute(
+      'href',
+      '/brand/connections',
+    )
   })
 })

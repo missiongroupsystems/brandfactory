@@ -9,7 +9,7 @@ import { useBrand } from '@/features/schedule/posts-store'
 
 const TABS = [
   { href: '/', label: 'Schedule', icon: <CalendarGlyph /> },
-  { href: '/ideate', label: 'Ideate', icon: <IdeaGlyph /> },
+  { href: '/ideate', label: 'Ideas', icon: <IdeaGlyph /> },
   { href: '/insights', label: 'Insights', icon: <ChartGlyph /> },
   { href: '/inbox', label: 'Inbox', icon: <InboxGlyph /> },
   { href: '/bubbles', label: 'Bubbles', icon: <BubblesGlyph /> },

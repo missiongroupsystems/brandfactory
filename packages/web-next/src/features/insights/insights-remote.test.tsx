@@ -28,7 +28,7 @@ describe('Insights on the core', () => {
       </BrandProvider>,
     )
     const demo = INSIGHTS_BY_BRAND['casa-vostra']
-    expect(screen.getByText(/^Nothing yet\./)).toBeInTheDocument()
+    expect(screen.getByText(/^Insights arrive once/)).toBeInTheDocument()
     expect(screen.queryByText(demo.period)).toBeNull()
     expect(screen.queryByText(demo.kpis[0]!.value)).toBeNull()
     expect(screen.queryByRole('region', { name: 'The month in numbers' })).toBeNull()

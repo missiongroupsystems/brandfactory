@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.35.1** — 2026-10-22 — `fix/onboarding-polish`: the QA pass before the marketing team's first day on production. A posted post (brought in or sent from Brand base) is shown as it went out: its own account's preview with its real counts, a "Posted on" line, and nothing to edit. On the core: no best-time band, no demo voice history, events, ideas, library or caption drafts for a brand that shares a demo id; Insights and the inbox say what is missing; a link to Connections where no account is linked. The calendar title names the year outside this one. Smaller: one cover is not numbered, Ideate is "Ideas", Select hides with no ideas, the kit's "Saved" waits for a save, Add brand waits for a name. No migration. 1037 tests (196 skipped without a Postgres server).
 - **2.35.0** — 2026-10-22 — `feat/first-sign-in`: the first sign-in. An admin makes each account in the Supabase dashboard; the person's first sign-in asks for a password of their own, draws one check mark, then opens the dashboard; later sign-ins go straight in. A person the core has no place for yet sees "Not in a company yet" with their email and Sign out instead of a refusal on the sign-in page. No public sign-up, no email. No move or migration; adding a member is still by hand (steps in `docs/completions/first-sign-in-plan.md`). Sign-in and sign-out load the page afresh, so nothing of one account stays for the next, and one brand refused no longer reads as "Not in a company yet". 1025 tests (196 skipped without a Postgres server).
 - **2.34.2** — 2026-10-22 — `feat/real-brand-posts`: on the core, the post and idea pages offer none of the demo's data for a brand that shares a demo id: no demo best hour or hour chart, no demo creators, tags, places, labels, hashtags, venue or caption drafts. One helper, `demoOf`, reads a static demo table in the static demo only. 1004 tests.
 - **2.34.1** — 2026-10-22 — `feat/real-brand-posts`: a test scrape of the six brands, checked against the live accounts. The import keeps only the brand's own posts (not creators' collabs), hooks read styled letters as plain ones, the post preview prints a real post's own counts, a second Instagram cover host, and the scrape prints its cost and its caps (the most Apify can charge) and refuses caps over a budget. 999 tests.
@@ -65,6 +66,44 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.35.1 — 2026-10-22
+
+- **Why.** A QA pass on production before the marketing team's first day there: six real brands,
+  770 imported posts (posted, with address and counts, cover only), no account connected, no
+  real posting. Production's `casa-vostra` and `temper` share ids with demo brands.
+- **A posted post is shown, not edited.** Every posted post, brought in or sent from Brand base,
+  opens on one path: its title, "Posted on <day>" (with the year outside this one), and the
+  preview on the accounts it went out on (`channelsOf`), with its real counts on its own account.
+  No connected account is needed. The caption box, format, crop, labels, the When card and the
+  send bar are gone for it, and so are "Pick a channel." and "Pick a day ahead.". No import-only
+  badge or link. Only the cover was imported, so a carousel brought in shows one picture; a
+  single tile in the editor no longer carries the number 1.
+- **No demo data on the core** (`demoOf` or `!remote`): the day view (desktop and phone) shows no
+  best-time band, as Insights has no figures yet; the kit shows no demo voice history (Giulia,
+  Marco, Elise, Sam); the calendar keeps only the city's events and the holidays, never a demo
+  brand's "Our events"; Ideas shows no demo moments and no demo target ("Suggest 8"); the composer offers no demo ideas, library
+  or caption drafts; Labels has no demo placeholder.
+- **Empty states that say what is missing.** Insights: "Insights arrive once the brand's accounts
+  are connected." The inbox, with no Instagram, TikTok or Facebook connected: "Connect Instagram
+  to see comments and DMs.", linked to Connections. New post with no account linked: "Connect an
+  account", linked to Connections.
+- **Smaller.** The calendar title names the year when the period is not in this year
+  ("December 2025", "28 Dec – 3 Jan 2027"). The nav says "Ideas", as the page does. Select hides
+  while there are no ideas. The kit's "Saved" is not on the page until a save. Add brand is
+  disabled until the name is filled.
+- **Not changed, listed.** The brand switcher: no lost first click on a full page load in 106 tries
+  (desktop, touch, production build); a click right after a nav link is lost, because each page
+  mounts its own header and the click lands on the one being replaced. The fix is one header in a
+  shared layout, which touches every page. Avatars: on the core `next.config.ts` turns the image
+  optimiser off for every image, so a 1080 px logo loads into a 24 px circle; sizing them needs
+  the core's and storage's hosts allowed and the optimiser on.
+- **Tests.** `posted-remote.test.tsx`, `day-view-remote.test.tsx`, `versions-remote.test.ts`, a
+  casa-vostra events case in `remote-calendar.test.ts`, a "Connect Instagram" case in
+  `inbox-remote.test.tsx`, the year in `month.test.ts`, and the disabled Add brand; each fails
+  with the file it guards put back as on `main`.
+- **Gate:** typecheck, lint, format, build; tests 1037 (841 run, 196 skipped: no Postgres server).
+  Screenshots on a stub core, desktop and phone.
 
 ## 2.35.0 — 2026-10-22
 
