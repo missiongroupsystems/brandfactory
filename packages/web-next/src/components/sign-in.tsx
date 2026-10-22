@@ -1,13 +1,11 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import * as React from 'react'
 
 import { passwordSignIn, signIn } from '@/lib/remote'
 
 /** One screen, one action: an email and a password, then the app. */
 export function SignIn() {
-  const router = useRouter()
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
@@ -19,7 +17,8 @@ export function SignIn() {
     setError(null)
     try {
       await signIn(email, password)
-      router.replace('/')
+      // A full page load: nothing of an earlier account stays in memory.
+      window.location.assign('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'That did not work.')
       setBusy(false)

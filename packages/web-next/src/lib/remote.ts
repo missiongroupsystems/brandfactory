@@ -32,6 +32,8 @@ interface Session {
   refresh?: string
   /** Epoch seconds. */
   expires?: number
+  /** A first sign-in: the account still has the password an admin gave it. */
+  needsPassword?: boolean
 }
 
 const SESSION_KEY = 'brandbase.session'
@@ -56,10 +58,65 @@ function writeSession(session: Session | null) {
 
 export const signedIn = () => readSession() !== null
 
+/** The signed-in person's email, from the token's claims; the dev sign-in's token is the id. */
+export function sessionEmail(): string {
+  const session = readSession()
+  if (!session) return ''
+  const parts = session.access.split('.')
+  if (parts.length !== 3) return session.access
+  try {
+    const claims = parts[1]!
+    const json = JSON.parse(atob(claims.replace(/-/g, '+').replace(/_/g, '/'))) as {
+      email?: unknown
+    }
+    return typeof json.email === 'string' ? json.email : ''
+  } catch {
+    return ''
+  }
+}
+
 /** True when sign-in goes through Supabase; otherwise the core runs dev sign-in (an id). */
 export const passwordSignIn = SUPABASE_URL !== ''
 
-async function supabaseToken(grant: 'password' | 'refresh_token', body: object) {
+/** True on a first sign-in: the person sets a password of their own before anything else. */
+export const needsPassword = () => readSession()?.needsPassword === true
+
+/**
+ * Sets the person's own password on their first sign-in, and marks the account so it is not
+ * asked again (`user_metadata.password_set`). A refusal is a `RemoteError` whose code is
+ * Supabase's own (`weak_password`, `same_password`, `reauthentication_needed`, …).
+ */
+export async function setPassword(password: string): Promise<void> {
+  const bearer = await freshToken()
+  // The session ended while the screen was up (a refresh refused): nothing to set it as.
+  if (!bearer) throw new RemoteError(401, 'SIGN_IN', 'Sign in again, then set your password.')
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    method: 'PUT',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      'content-type': 'application/json',
+      authorization: `Bearer ${bearer}`,
+    },
+    body: JSON.stringify({ password, data: { password_set: true } }),
+  })
+  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as {
+      error_code?: string
+      error?: string
+      msg?: string
+      error_description?: string
+    } | null
+    throw new RemoteError(
+      res.status,
+      data?.error_code ?? data?.error ?? 'PASSWORD',
+      data?.msg ?? data?.error_description ?? 'The password was not set.',
+    )
+  }
+  const session = readSession()
+  if (session) writeSession({ ...session, needsPassword: false })
+}
+
+async function supabaseToken(grant: 'password' | 'refresh_token', body: object): Promise<Session> {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=${grant}`, {
     method: 'POST',
     headers: { apikey: SUPABASE_ANON_KEY, 'content-type': 'application/json' },
@@ -70,11 +127,21 @@ async function supabaseToken(grant: 'password' | 'refresh_token', body: object) 
     access_token: string
     refresh_token: string
     expires_at: number
+    user?: { user_metadata?: { password_set?: unknown } }
   }
-  return { access: data.access_token, refresh: data.refresh_token, expires: data.expires_at }
+  return {
+    access: data.access_token,
+    refresh: data.refresh_token,
+    expires: data.expires_at,
+    // An account an admin made in the dashboard carries no mark until the person sets a password.
+    needsPassword: data.user ? data.user.user_metadata?.password_set !== true : false,
+  }
 }
 
-/** Signs in and checks the account can reach Brand Base before keeping the session. */
+/**
+ * Signs in and checks the core answers the account before keeping the session. A person the core
+ * knows in no company is signed in all the same: the app shows them that state (`RemoteSync`).
+ */
 export async function signIn(email: string, password: string) {
   const session = passwordSignIn
     ? await supabaseToken('password', { email, password })
@@ -83,13 +150,34 @@ export async function signIn(email: string, password: string) {
   try {
     await request('GET', '/me')
   } catch (err) {
+    if (noAccess(err)) return
     writeSession(null)
     throw err
   }
 }
 
+/**
+ * The core's answer to a signed-in person it has no place for yet: no principal (403
+ * `NO_ACCOUNT`), no loadout (403 `FORBIDDEN`), no account in the pack (404 `NOT_FOUND`), or a
+ * deactivated one. An admin adds them; the app waits.
+ */
+export function noAccess(err: unknown): boolean {
+  return (
+    err instanceof RemoteError &&
+    (err.status === 403 || err.status === 404) &&
+    NO_ACCESS.includes(err.code)
+  )
+}
+const NO_ACCESS = ['NO_ACCOUNT', 'FORBIDDEN', 'NOT_FOUND', 'ACCOUNT_DEACTIVATED']
+
+/** True once the account is loaded and reaches no brand and no company: nothing to show yet. */
+export const accountEmpty = () =>
+  account !== null && account.brands.length === 0 && account.companies.length === 0
+
 export function signOut() {
   writeSession(null)
+  // The next person's account loads afresh; nothing of this one's stays.
+  account = null
 }
 
 async function freshToken(): Promise<string | null> {
@@ -370,7 +458,15 @@ export async function loadAll() {
     request<CoreBrand[]>('GET', '/brands'),
     request<{ companies?: Company[] }>('GET', '/me'),
   ])
-  await Promise.all(brands.map((b) => loadBrand(b.id)))
+  // One brand refused (gone meanwhile, or walled off) is not the account refused: it must not
+  // read as "Not in a company yet" (`noAccess`).
+  await Promise.all(
+    brands.map((b) =>
+      loadBrand(b.id).catch((err: unknown) => {
+        throw new Error(`brand ${b.id} did not load`, { cause: err })
+      }),
+    ),
+  )
   // After the states: a store asked for a brand's kit finds it loaded.
   // A core still on brandbase 1.4.0 answers no companies: the caller then manages none.
   account = { brands, companies: me.companies ?? [] }

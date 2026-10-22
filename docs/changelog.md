@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.35.0** — 2026-10-22 — `feat/first-sign-in`: the first sign-in. An admin makes each account in the Supabase dashboard; the person's first sign-in asks for a password of their own, draws one check mark, then opens the dashboard; later sign-ins go straight in. A person the core has no place for yet sees "Not in a company yet" with their email and Sign out instead of a refusal on the sign-in page. No public sign-up, no email. No move or migration; adding a member is still by hand (steps in `docs/completions/first-sign-in-plan.md`). Sign-in and sign-out load the page afresh, so nothing of one account stays for the next, and one brand refused no longer reads as "Not in a company yet". 1025 tests (196 skipped without a Postgres server).
 - **2.34.2** — 2026-10-22 — `feat/real-brand-posts`: on the core, the post and idea pages offer none of the demo's data for a brand that shares a demo id: no demo best hour or hour chart, no demo creators, tags, places, labels, hashtags, venue or caption drafts. One helper, `demoOf`, reads a static demo table in the static demo only. 1004 tests.
 - **2.34.1** — 2026-10-22 — `feat/real-brand-posts`: a test scrape of the six brands, checked against the live accounts. The import keeps only the brand's own posts (not creators' collabs), hooks read styled letters as plain ones, the post preview prints a real post's own counts, a second Instagram cover host, and the scrape prints its cost and its caps (the most Apify can charge) and refuses caps over a budget. 999 tests.
 - **2.34.0** — 2026-10-22 — `feat/real-brand-posts`: the brands' own posts (brandbase 1.6.0, migration 0014, not applied to production). `post.import` brings in a post already out on the brand's Instagram or TikTok as posted, with its address and counts; a second import refreshes the counts. A script runs Apify's scrapers (cost first, capped) and loads a scrape through the core as the signed-in person. The post page no longer throws for a brand outside the demo's data. 991 tests.
@@ -64,6 +65,47 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.35.0 — 2026-10-22
+
+Plan and as built: `docs/completions/first-sign-in-plan.md`,
+`docs/completions/first-sign-in-phases-1-to-1.md`. The branch's first commit built a public
+sign-up page with a confirmation email; the owner dropped it the same day for this flow.
+
+- **The first sign-in.** An admin makes the account in the Supabase dashboard (Add user → Create
+  new user, Auto Confirm) with a password they hand over. The token answer's
+  `user_metadata.password_set` says whether the person has set their own; the dashboard sets
+  none, so the first sign-in gets "Set your password" before anything loads: a new password, the
+  same again, one button, eight characters. `PUT /auth/v1/user` sets it with the mark;
+  Supabase's refusals (`weak_password`, `same_password`, `reauthentication_needed`) show in the
+  form's words. "Secure password change" asks for a nonce only after 24 hours, so this screen,
+  right after sign-in, never needs one.
+- **One check mark.** The ring rises, the tick draws, the whole fades, 1.3 s; then the account
+  loads and the dashboard opens. With reduced motion the check shows at once and the app opens at
+  0.7 s. A later sign-in goes straight to the dashboard; the owner's account has no mark today
+  and is asked once.
+- **Not in a company yet.** A signed-in person the core refuses (no principal, no loadout, no
+  account in the pack) or knows in no company sees one calm page with their email and Sign out,
+  on any route; sign-in no longer drops their session and shows the core's words. When the tab
+  comes back into view the account loads again, so a person added meanwhile comes through, and
+  one removed goes to the waiting page.
+- **Adding a member is still by hand:** the dashboard step, then `core principal`, `core
+  loadout`, and SQL into `brandbase.users` and `brandbase.org_members`; the plan writes each
+  out, lists the smallest build (a principal on first sign-in, `company.add_member`, a People
+  row in the switcher) and recommends it next. No Supabase setting needs to change for this
+  flow; the password minimum may be set to 8 to match the form.
+- **Review:** Sonnet, one pass on each cut; no blocker. Fixed on this cut: the check mark was
+  hidden at once under reduced motion (the global 1 ms rule beat the fade's delay); a visit to
+  sign-in did not reset the sync state for the next account; the password screen had no way
+  out and could send with no token. Noted: the mark is user-writable, so the screen is a
+  prompt, not a wall (see the completion document).
+- **Merge review** (Opus, on this branch merged with 2.34.2): no blocker. Fixed: one brand's
+  state refused while the account loads (gone meanwhile, or walled off) read as the account
+  refused and showed "Not in a company yet"; `loadAll` now wraps a brand's refusal, with a test.
+  Sign-in and sign-out now load the page afresh (`window.location.assign`), so the brands and
+  posts of one account do not stay in memory for the next in the same tab.
+- **Gate:** typecheck, lint, format, build; tests 1025 (829 run, 196 skipped: no Postgres server
+  was started on this machine). Screenshots and a recording on desktop, screenshots on phone.
 
 ## 2.34.2 — 2026-10-22
 
