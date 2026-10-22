@@ -47,6 +47,19 @@ sends the browser on to a short-lived storage URL. Storage never overwrites a ke
 those links), `FILES_PROVIDER` (`disk`, under `FILES_DIR`, served by the core and refused in
 production; or `supabase`, with `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` and `FILES_BUCKET`).
 
+**Deploying.** A superuser installs the core once (`core migrate`; the core refuses any other
+login, and refuses a database where a pack role can call a function migration 0001 takes away),
+then makes the login the deployed core runs as: generate a password (`openssl rand -hex 24`),
+keep it in the password manager, copy it, and run `CORE_LOGIN_PASSWORD=$(pbpaste) core
+setup-login core_login; pbcopy </dev/null` (not typed into the command, where shell history keeps
+it). That login is not a superuser, and `DATABASE_URL` names it. A new core migration waits for the
+superuser: run as the login (Fly's `release_command`), `core migrate` stops and names it; run it as
+the superuser, then `setup-login` again, with the same password (the one in `DATABASE_URL`), so
+the login owns what it made. One database per server:
+roles, the pack roles among them, belong to the server, and `setup-login` resets a login of that
+name wherever it is a member of `pack_runtime`. Managed Postgres that gives no superuser
+(Supabase, Fly Managed Postgres) cannot hold the core.
+
 **Saved plans.** `DATABASE_PREPARE=on` sends each move's and rule's SQL as a named statement, so
 each connection plans it once; off (the default) sends it unnamed. The core refuses `on` with
 Supabase's transaction pooler (port 6543), which keeps no statement between transactions: use the

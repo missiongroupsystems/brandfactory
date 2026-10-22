@@ -44,7 +44,8 @@ export async function everyTableHasRowRules(db: Db): Promise<string[]> {
        and (has_table_privilege('pack_runtime', c.oid, 'select')
          or has_table_privilege('pack_runtime', c.oid, 'insert')
          or has_table_privilege('pack_runtime', c.oid, 'update')
-         or has_table_privilege('pack_runtime', c.oid, 'delete'))`,
+         or has_table_privilege('pack_runtime', c.oid, 'delete'))
+     order by 1`,
   )
   return rows
     .filter((r) => !r.enabled || !r.forced)
@@ -60,7 +61,8 @@ export async function noFunctionRunsAsItsOwner(db: Db): Promise<string[]> {
     `select p.oid::regprocedure::text as name from pg_proc p
      join pg_namespace n on n.oid = p.pronamespace
      where p.prosecdef and n.nspname not in ('pg_catalog', 'information_schema')
-       and has_function_privilege('pack_runtime', p.oid, 'execute')`,
+       and has_function_privilege('pack_runtime', p.oid, 'execute')
+     order by 1`,
   )
   return rows.map((r) => `${r.name} runs with its owner's rights and pack_runtime can call it`)
 }
@@ -75,7 +77,8 @@ export async function noFunctionCarriesSettings(db: Db): Promise<string[]> {
     `select p.oid::regprocedure::text as name, p.proconfig as config from pg_proc p
      join pg_namespace n on n.oid = p.pronamespace
      where p.proconfig is not null and n.nspname not in ('pg_catalog', 'information_schema')
-       and has_function_privilege('pack_runtime', p.oid, 'execute')`,
+       and has_function_privilege('pack_runtime', p.oid, 'execute')
+     order by 1`,
   )
   return rows.map((r) => `${r.name} sets ${r.config.join(', ')} while it runs`)
 }
@@ -132,12 +135,14 @@ export async function noCodeRunsOnWrite(db: Db): Promise<string[]> {
     `select c.oid::regclass::text || ': trigger ' || t.tgname as name from pg_trigger t
      join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and ${reachable}
        and not (c.oid = 'claims.calls'::regclass and t.tgname = 'forget'
-                and t.tgfoid = 'claims.forget()'::regprocedure)`,
+                and t.tgfoid = 'claims.forget()'::regprocedure)
+     order by 1`,
   )
   const rules = await db.query<{ name: string }>(
     `select c.oid::regclass::text || ': rule ' || r.rulename as name from pg_rewrite r
      join pg_class c on c.oid = r.ev_class
-     where r.rulename <> '_RETURN' and ${reachable}`,
+     where r.rulename <> '_RETURN' and ${reachable}
+     order by 1`,
   )
   const defaults = await db.query<{ name: string }>(
     `select distinct c.oid::regclass::text || '.' || a.attname || ': default calls '
@@ -149,7 +154,8 @@ export async function noCodeRunsOnWrite(db: Db): Promise<string[]> {
        and dep.refclassid = 'pg_proc'::regclass
      join pg_proc p on p.oid = dep.refobjid
      join pg_namespace pn on pn.oid = p.pronamespace
-     where pn.nspname <> 'pg_catalog' and ${reachable}`,
+     where pn.nspname <> 'pg_catalog' and ${reachable}
+     order by 1`,
   )
   return [...triggers, ...rules, ...defaults].map((r) => `${r.name} runs as the writer`)
 }
@@ -163,14 +169,16 @@ export async function everyPolicyRestricts(db: Db): Promise<string[]> {
     `select c.oid::regclass::text as name from pg_class c
      join pg_namespace n on n.oid = c.relnamespace
      where c.relrowsecurity and n.nspname not in ('pg_catalog', 'information_schema')
-       and not exists (select 1 from pg_policy p where p.polrelid = c.oid)`,
+       and not exists (select 1 from pg_policy p where p.polrelid = c.oid)
+     order by 1`,
   )
   const open = await db.query<{ name: string; policy: string }>(
     `select schemaname || '.' || tablename as name, policyname as policy from pg_policies
      where permissive = 'PERMISSIVE'
        and (qual is null or btrim(qual, '() ') = 'true')
        and (with_check is null or btrim(with_check, '() ') = 'true')
-       and (qual is not null or with_check is not null)`,
+       and (qual is not null or with_check is not null)
+     order by 1, 2`,
   )
   return [
     ...bare.map((t) => `${t.name} has row-level security and no policy`),
