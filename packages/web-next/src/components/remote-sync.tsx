@@ -15,6 +15,7 @@ import {
   signOut,
 } from '@/lib/remote'
 
+import { PUBLIC_PATHS } from './legal'
 import { NoCompany } from './no-company'
 import { SetPassword } from './set-password'
 
@@ -30,7 +31,8 @@ type State = 'loading' | 'password' | 'ready' | 'waiting'
 export function RemoteSync({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const open = !remote || pathname.startsWith('/share') || pathname === '/sign-in'
+  // The sign-in page, the terms and the privacy policy open with no sign-in, as do share links.
+  const open = !remote || pathname.startsWith('/share') || PUBLIC_PATHS.includes(pathname)
   const [state, setState] = React.useState<State>('loading')
   const [problem, setProblem] = React.useState<string | null>(null)
 

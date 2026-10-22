@@ -7,6 +7,8 @@ import { BUBBLES_URL } from '@/features/bubbles/client'
 import { useWaiting } from '@/features/inbox/inbox-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
+import { PUBLIC_PATHS } from './legal'
+
 const TABS = [
   { href: '/', label: 'Schedule', icon: <CalendarGlyph /> },
   { href: '/ideate', label: 'Ideas', icon: <IdeaGlyph /> },
@@ -27,7 +29,11 @@ export function TabBar() {
   const { brand } = useBrand()
   const waiting = useWaiting(brand.id)
   // A shared link is for someone outside the team: no app navigation at all.
-  if (pathname.startsWith('/post') || pathname.startsWith('/share') || pathname === '/sign-in')
+  if (
+    pathname.startsWith('/post') ||
+    pathname.startsWith('/share') ||
+    PUBLIC_PATHS.includes(pathname)
+  )
     return null
   const current = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href))
   const tab = (t: (typeof TABS)[number]) => (

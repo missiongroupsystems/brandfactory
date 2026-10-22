@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.35.5** — 2026-10-22 — `fix/onboarding-polish`: public Terms of Service (`/terms`) and Privacy Policy (`/privacy`) pages for TikTok's app form, open with no sign-in on the core, linked quietly from the sign-in page; and TikTok's site-verification file. No migration. 1072 tests (196 skipped without a Postgres server).
 - **2.35.4** — 2026-10-22 — `fix/onboarding-polish`: review fixes. On the core the result after Schedule says "Planned for <day>, <time>. Nothing is sent until the accounts are set up." with "Planned" pills; a failed post is planned again instead of asking for a reconnect; a scheduled post cannot lose its last platform; a post's YouTube or LinkedIn stay on every save. The static demo's earlier-month posts preview again. A publishing hand-off note: planned posts have no job. No migration. 1071 tests (196 skipped without a Postgres server).
 - **2.35.3** — 2026-10-22 — `fix/onboarding-polish`: on the core a post is planned without a connected account. New post picks the brand's own platforms, previews the post on the one picked, and Schedule puts it on the calendar as Scheduled (`post.mark`), with the amber note that it will not publish until the account is set up. Nothing is sent: no job, so nothing turns Failed at its time. No pack change, no migration. 1067 tests (196 skipped without a Postgres server).
 - **2.35.2** — 2026-10-22 — `fix/onboarding-polish`: review fixes. New shoot and Plan shoot no longer throw for a brand outside the demo, and on the core no brand gets the demo's outlets, crew, past places, Drive, voice samples, story titles, moodboard, venue or inbox people. A posted post prints only its own counts on every app's screen, asks for no photo, opens on its own first account and draws itself once in the grid. No false "connected" on the core: Instagram, TikTok, Facebook, Pinterest, Google Drive, Lark and the Insights sources show a calm amber "Not available yet" with the reason on hover or tap, and the pretend sign-in does not run for them. No migration. 1062 tests (196 skipped without a Postgres server).
@@ -69,6 +70,29 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.35.5 — 2026-10-22
+
+- **Why.** TikTok's developer app form asks for a terms page, a privacy page and a verified site.
+- **Terms and privacy.** `/terms` and `/privacy`, in the sign-in page's type: brand base as an
+  internal tool Mission Group runs for its own staff to plan and publish its brands' posts. The
+  privacy page says what is kept (staff email and name; brand content, posts and media; for a
+  connected account its id, display name, picture and encrypted tokens), why, where (Supabase in
+  Singapore for sign-in and files, a database on Fly.io in Singapore), that nothing is sold or used
+  for advertising, that disconnecting an account deletes its tokens, how long data is kept, and the
+  contact address (tech@ebbflowgroup.com). Both say "Last updated 22 October 2026" and claim no
+  certification. On the core `RemoteSync` lets them through with no session, as it does the
+  sign-in page (`PUBLIC_PATHS` in `components/legal.tsx`); the tab bar hides on them. The sign-in
+  page has a quiet "Terms · Privacy" footer, in the flow under the form. The account data and the
+  reads are described "once it is connected": today the core holds no token, id or picture.
+- **TikTok site verification.** `public/tiktoke5Z5ZKXOh1F9O5jWBKDCwRT3WJRjnpN1.txt`, in its own
+  commit; a production build serves it at `/tiktoke5Z5ZKXOh1F9O5jWBKDCwRT3WJRjnpN1.txt` as
+  `text/plain`, byte for byte, with no redirect.
+- **Tests.** `remote-sync.test.tsx`: the two pages open with no sign-in and load nothing; it fails
+  without the change.
+- **Gate:** typecheck, lint, format, build; tests 1072 (876 run, 196 skipped: no Postgres server).
+  A remote-mode production build with no session serves both pages (200, no redirect); screenshots
+  on desktop and phone.
 
 ## 2.35.4 — 2026-10-22
 

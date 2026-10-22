@@ -25,6 +25,7 @@ import { RemoteSync } from './remote-sync'
 
 beforeEach(() => {
   nav.path = '/'
+  remote.signedIn.mockReturnValue(true)
   remote.needsPassword.mockReturnValue(false)
   remote.accountEmpty.mockReturnValue(false)
 })
@@ -39,6 +40,17 @@ const tree = () => (
 const passwordScreen = () => screen.queryByRole('heading', { name: 'Set your password' })
 
 describe('RemoteSync', () => {
+  it('opens the terms and the privacy policy with no sign-in, for TikTok and anyone else', () => {
+    remote.signedIn.mockReturnValue(false)
+    for (const path of ['/terms', '/privacy']) {
+      nav.path = path
+      const { unmount } = render(tree())
+      expect(screen.getByText('the app')).toBeInTheDocument()
+      unmount()
+    }
+    expect(remote.loadAll).not.toHaveBeenCalled()
+  })
+
   it('asks a first sign-in for a password before anything loads', async () => {
     remote.needsPassword.mockReturnValue(true)
     render(tree())
