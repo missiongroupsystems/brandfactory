@@ -19,6 +19,10 @@
 #   AGENT_SECRET           openssl rand -base64 32 (signs agents' tokens)
 #   PUBLIC_URL             https://brandfactory.fly.dev
 #   CORS_ALLOWED_ORIGINS   the web app's origin(s), comma-separated
+#   TOKEN_ENCRYPTION_KEY   openssl rand -base64 32 (seals the brands' account tokens)
+#   PINTEREST_APP_ID, PINTEREST_APP_SECRET, PINTEREST_REDIRECT_URL: all three or none
+#                          (packages/connect/src/brandbase/env.ts). The redirect is the web app's
+#                          /connect/pinterest page, as registered on the Pinterest app.
 
 app            = "brandfactory"
 primary_region = "sin"
@@ -34,7 +38,7 @@ kill_signal    = "SIGTERM"
 # and the other risky functions from the runtime role. A pack's migrations run with
 # `core migrate <pack> <version>` once a version has passed its tests.
 [deploy]
-  release_command = "node_modules/.bin/tsx src/cli.ts migrate"
+  release_command = "node_modules/.bin/tsx node_modules/@brandfactory/core/src/cli.ts migrate"
 
 [http_service]
   internal_port        = 3001

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.36.0** — 2026-10-22 — `feat/pinterest-connect`: the real Pinterest connection (brandbase 1.7.0, migration 0015, not applied to production). A brand links its own Pinterest account and picks one board; the moodboard reads its pins live. The server is the core with `packages/connect`'s account routes beside it (`host.ts`, the image's entry), and `GET /platforms` tells the web app Pinterest is set up, so only Pinterest leaves the amber "Not available yet"; Instagram, TikTok and Facebook keep it. Core: internal moves and secret input fields. Ported from `feat/real-publishing` without Meta, TikTok or posting. 1113 tests, all run on a local Postgres.
 - **2.35.5** — 2026-10-22 — `fix/onboarding-polish`: public Terms of Service (`/terms`) and Privacy Policy (`/privacy`) pages for TikTok's app form, open with no sign-in on the core, linked quietly from the sign-in page; and TikTok's site-verification file. No migration. 1073 tests (196 skipped without a Postgres server).
 - **2.35.4** — 2026-10-22 — `fix/onboarding-polish`: review fixes. On the core the result after Schedule says "Planned for <day>, <time>. Nothing is sent until the accounts are set up." with "Planned" pills; a failed post is planned again instead of asking for a reconnect; a scheduled post cannot lose its last platform; a post's YouTube or LinkedIn stay on every save. The static demo's earlier-month posts preview again. A publishing hand-off note: planned posts have no job. No migration. 1071 tests (196 skipped without a Postgres server).
 - **2.35.3** — 2026-10-22 — `fix/onboarding-polish`: on the core a post is planned without a connected account. New post picks the brand's own platforms, previews the post on the one picked, and Schedule puts it on the calendar as Scheduled (`post.mark`), with the amber note that it will not publish until the account is set up. Nothing is sent: no job, so nothing turns Failed at its time. No pack change, no migration. 1067 tests (196 skipped without a Postgres server).
@@ -70,6 +71,39 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.36.0 — 2026-10-22
+
+- **Why.** The team starts on production on 23 Oct; the Pinterest app and its Fly secrets exist,
+  so the moodboard's Pinterest source can be real while Meta and TikTok wait for review.
+- **Core.** A move marked `internal` is called only by code beside the core (`call(…, {internal:
+  true})`): a screen gets 404 `OP_NOT_FOUND`, an agent 403 `NOT_A_PERSON`, MCP lists none. A move's
+  `secret` input fields stay out of the call log. `serveCore(extend)` lets a host add routes;
+  `main.ts` runs it bare.
+- **brandbase 1.7.0.** `brandbase.accounts` (migration 0015, walled like 0013): one account per
+  platform per brand, an account to one brand only (409 `ACCOUNT_TAKEN`). Internal moves
+  `account.link`, `account.read`, `account.retoken`, `account.board`, `account.forget`, Pinterest
+  only. The `pinterest` connection follows the account: on once a board is picked; `connection.set`
+  no longer takes it, and 0015 turns off one the pretend sign-in stored. `brand.state` names the
+  linked account, never its tokens.
+- **Server.** `packages/connect/src/brandbase/host.ts` is the image's entry: the core plus
+  Pinterest's sign-in (sealed state, sealed tokens bound to brand and account, refresh a day
+  early), boards and pins read live, and `GET /platforms`. Scopes `boards:read`, `pins:read`,
+  `user_accounts:read`. `.dockerignore` now lets connect's source into the image; the release
+  command takes the core's CLI from `node_modules`.
+- **web-next.** `/connect/pinterest` takes Pinterest's return; the moodboard opens on the board
+  picker; the board's pins show on the moodboard, read once per page load for a brand on screen,
+  one read at a time (Trial allows 1,000 reads a day for the app). Connections shows `@handle` and a real Connect for Pinterest only when
+  the server says it is set up.
+- **Review.** Opus and Sonnet panel: the server must deploy before pack 1.7.0 (the running core
+  would treat the account moves as ordinary ones); `/platforms` failing no longer stops the app's
+  load; one token refresh at a time; a late board read after a disconnect is dropped.
+- **Tests.** Pack: `accounts.json` (7), five more isolation steps, an upgrade test for 0015. Core:
+  internal moves and secret fields. connect: `pinterest.test.ts` (13). web-next:
+  `pinterest-remote.test.tsx`, `/platforms` in `remote.test.ts`, the account routes.
+- **Gate:** typecheck, lint, format, build; tests 1113, all run (a local Postgres for the core's
+  Postgres tests). A browser check at desktop and phone width with a stand-in Pinterest. Not
+  deployed; production steps in `docs/completions/pinterest-connect-phases-1-to-2.md`.
 
 ## 2.35.5 — 2026-10-22
 

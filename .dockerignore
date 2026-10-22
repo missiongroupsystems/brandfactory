@@ -17,10 +17,13 @@ docs
 **/*.test.ts
 **/*.test.tsx
 # The other packages' sources are not part of the image; their manifests are, so the workspace
-# install resolves.
+# install resolves. The connect package's source is: its host (src/brandbase/host.ts) is the
+# server the image runs.
 packages/web-next/*
 !packages/web-next/package.json
 packages/connect/*
 !packages/connect/package.json
+!packages/connect/src
+!packages/connect/tsconfig.json
 packs/brandbase/*
 !packs/brandbase/package.json

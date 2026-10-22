@@ -5,9 +5,16 @@ import * as React from 'react'
 import { AppHeader } from '@/components/app-header'
 import type { ConnectionStatus } from '@/data/connections'
 import { useBrand } from '@/features/schedule/posts-store'
+import { remote } from '@/lib/remote'
 
 import { ConnectSheet, SOURCES, SourceMark } from './connect-sheet'
-import { disconnect, useConnections, type SourceKey } from './connections-store'
+import {
+  connect,
+  disconnect,
+  useAccountName,
+  useConnections,
+  type SourceKey,
+} from './connections-store'
 import { NotAvailable, notAvailable } from './not-available'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
@@ -24,12 +31,18 @@ const GROUPS: Array<{ label: string; keys: SourceKey[] }> = [
  * The Connections page (`/brand/connections`): every account and tool the brand in the header
  * has linked, in one list. Each row says what it is linked as and whether it works; one action
  * fixes it. What changes here, the composer, the Drive picker, the call sheet and the moodboard
- * read. Simulated: a Connect is a pretend sign-in (`ConnectSheet`).
+ * read. Simulated: a Connect is a pretend sign-in (`ConnectSheet`), except Pinterest on the core,
+ * which leaves for Pinterest's own sign-in and comes back to the moodboard to pick the board.
  */
 export function ConnectionsPage() {
   const { brand } = useBrand()
   const status = useConnections(brand.id)
   const [connecting, setConnecting] = React.useState<SourceKey | null>(null)
+
+  function open(key: SourceKey) {
+    if (remote && key === 'pinterest') connect(brand.id, key)
+    else setConnecting(key)
+  }
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -47,12 +60,7 @@ export function ConnectionsPage() {
             <h2 className={`${EYEBROW} px-1`}>{g.label}</h2>
             <ul className="flex flex-col rounded-[18px] bg-page shadow-[0_0_0_1px_var(--line)]">
               {g.keys.map((key) => (
-                <Row
-                  key={key}
-                  source={key}
-                  status={status[key]}
-                  onConnect={() => setConnecting(key)}
-                />
+                <Row key={key} source={key} status={status[key]} onConnect={() => open(key)} />
               ))}
             </ul>
           </section>
@@ -74,6 +82,7 @@ function Row({
 }) {
   const { brand } = useBrand()
   const info = SOURCES[source]
+  const name = useAccountName(brand.id, source)
   return (
     <li className="flex items-center gap-3.5 border-t border-line px-4 py-3.5 first:border-t-0 max-md:gap-3 max-md:px-3.5">
       <span
@@ -95,7 +104,7 @@ function Row({
               ? info.brings
               : status === 'attention'
                 ? 'Signed out · sign in again'
-                : info.account(brand)}
+                : (name ?? info.account(brand))}
           </span>
         </span>
       </span>

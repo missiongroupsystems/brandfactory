@@ -1,0 +1,27 @@
+{
+  "name": "account.forget",
+  "description": "Forgets a brand's account on one platform, and its tokens: only the account named, so one linked since is kept. Internal: packages/connect.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "platform", "accountId"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "platform": {
+        "enum": ["pinterest"]
+      },
+      "accountId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "internal": true,
+  "returns": "many",
+  "sql": "with a as (delete from brandbase.accounts a where a.brand_id = :brand and a.platform = :platform and a.account_id = :accountId returning a.*), k as (insert into brandbase.connections as c (brand_id, key, status) select a.brand_id, x.key, 'off' from a, brandbase.account_keys(a.platform, a.details) x on conflict (brand_id, key) do update set status = excluded.status, updated_at = now()) select jsonb_build_object('platform', a.platform, 'accountId', a.account_id) as result from a"
+}

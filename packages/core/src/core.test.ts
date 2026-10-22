@@ -3,6 +3,7 @@ import { createCore } from './app'
 import { type Db } from './db'
 import { hashOf } from './pack'
 import { addPrincipal, promote, publish, recordTestRun, setLoadout } from './registry'
+import { call } from './run'
 import { deps, freshDb, goLive, OWNER, person } from './testing'
 import { toyPack } from './toy-pack'
 
@@ -240,5 +241,107 @@ describe('an agent', () => {
     const { db } = await setup()
     await addPrincipal(db, 'ana-agent', 'ana')
     await expect(addPrincipal(db, 'agent-of-agent', 'ana-agent')).rejects.toThrow(/agent/)
+  })
+})
+
+describe('an internal move', () => {
+  async function internalSetup() {
+    const db = await freshDb()
+    open.push(db)
+    const base = toyPack()
+    const pack = toyPack('1.0.0', {
+      ops: {
+        ...base.ops,
+        'note.seal': {
+          name: 'note.seal',
+          description: 'Writes a note only the host’s own code may write.',
+          input: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['id'],
+            properties: { id: { type: 'string' }, key: { type: 'string' } },
+          },
+          sql: `insert into toy.notes (id, owner, body) values (:id, :actor, 'sealed') returning id`,
+          returns: 'one',
+          internal: true,
+          secret: ['key'],
+        },
+      },
+    })
+    await goLive(db, pack)
+    await person(db, 'ana', pack)
+    await addPrincipal(db, 'ana-agent', 'ana')
+    await setLoadout(db, 'ana-agent', 'toy', Object.keys(pack.ops))
+    const core = deps(db)
+    const app = createCore(core)
+    return { db, core, app }
+  }
+
+  it('answers a screen and an agent as a move that is not there, and runs for the host', async () => {
+    const { core, app } = await internalSetup()
+    const res = await app.request('/ops/toy/note.seal', {
+      method: 'POST',
+      headers: { authorization: 'Bearer ana' },
+      body: JSON.stringify({ id: 's1' }),
+    })
+    expect(res.status).toBe(404)
+    const host = (who: string, extra = {}) =>
+      call(core, {
+        authorization: `Bearer ${who}`,
+        pack: 'toy',
+        op: 'note.seal',
+        input: { id: `s-${who}` },
+        internal: true,
+        ...extra,
+      })
+    await expect(host('ana-agent')).rejects.toMatchObject({ code: 'NOT_A_PERSON' })
+    expect(await host('ana')).toEqual({ id: 's-ana' })
+  })
+
+  it('keeps the fields it marks secret out of the log, refusals too', async () => {
+    const { db, core } = await internalSetup()
+    // Refused before this process has read any version: nothing of the input is kept.
+    await call(core, {
+      authorization: undefined,
+      pack: 'toy',
+      op: 'note.seal',
+      input: { id: 's0', key: 'SEALED-VALUE' },
+      internal: true,
+    }).catch(() => undefined)
+    await call(core, {
+      authorization: 'Bearer ana',
+      pack: 'toy',
+      op: 'note.seal',
+      input: { id: 's1', key: 'SEALED-VALUE' },
+      internal: true,
+    })
+    // Refused at the first check, before the version is read: no sign-in at all.
+    await call(core, {
+      authorization: undefined,
+      pack: 'toy',
+      op: 'note.seal',
+      input: { id: 's2', key: 'SEALED-VALUE' },
+      internal: true,
+    }).catch(() => undefined)
+    const rows = await db.query<{ input: unknown }>(
+      `select input from packs.op_calls where op = 'note.seal' order by id`,
+    )
+    expect(rows.map((r) => r.input)).toEqual([
+      null,
+      { id: 's1', key: '(secret)' },
+      { id: 's2', key: '(secret)' },
+    ])
+  })
+
+  it('is never an agent’s tool', async () => {
+    const { app } = await internalSetup()
+    const res = await app.request('/mcp/toy', {
+      method: 'POST',
+      headers: { authorization: 'Bearer ana-agent', 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+    })
+    const names = ((await res.json()) as { result: { tools: { name: string }[] } }).result.tools
+    expect(names.map((t) => t.name)).not.toContain('note__seal')
+    expect(names.length).toBeGreaterThan(0)
   })
 })

@@ -357,7 +357,8 @@ async function runCase(
         if ('call' in step && step.connector) connector = connectorFor(step)
         const result =
           'call' in step
-            ? await call(deps, { ...request, key: step.key })
+            ? // The runner calls as code beside the core does, so a pack tests its internal moves.
+              await call(deps, { ...request, key: step.key, internal: true })
             : await approve(deps, request)
         connector = simulatedConnector
         return { status: 200, body: JSON.parse(JSON.stringify(result ?? null)) }

@@ -50,6 +50,14 @@ export interface Op {
    */
   guest?: { capability: string }
   /**
+   * A move only code beside the core calls (a host's route, a connector), as a signed-in person
+   * or as the principal a send runs for: never a screen's `/ops` call, an agent's tool or a
+   * guest. For rows a screen must not write itself, such as an account's sealed tokens.
+   */
+  internal?: true
+  /** Input fields the log leaves out, such as sealed tokens: never kept beside the move's rows. */
+  secret?: string[]
+  /**
    * A move that makes a file's record: the core passes a new key as `:file`, the move answers
    * `upload: {key, type}` (the row's key, new or kept), and the core turns that into a signed
    * write URL and the file's stable address `src`. `type` names the input field with its type.
@@ -211,6 +219,18 @@ export function packProblems(content: PackContent): string[] {
         out.push(`op ${name}: a guest move's capability is a required string input`)
       }
       if (op.connector !== undefined) out.push(`op ${name}: a guest move never reaches outside`)
+    }
+    if (op.internal !== undefined) {
+      if (op.internal !== true) out.push(`op ${name}: internal is true or left out`)
+      if (op.guest !== undefined || op.connector !== undefined) {
+        out.push(`op ${name}: an internal move is neither a guest's nor an effect`)
+      }
+    }
+    if (op.secret !== undefined) {
+      const props = Object.keys((op.input?.properties as object | undefined) ?? {})
+      if (!Array.isArray(op.secret) || op.secret.some((f) => !props.includes(f))) {
+        out.push(`op ${name}: secret names input fields`)
+      }
     }
     if (op.upload !== undefined) {
       const field = op.upload.type

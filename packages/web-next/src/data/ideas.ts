@@ -1839,10 +1839,34 @@ export function moodboardOf(brandId: BrandId): Pick<BrandIdeas, 'references' | '
   return moodboards[brandId] ?? (onCore ? undefined : IDEAS_BY_BRAND[brandId]) ?? NO_BOARD
 }
 
+/**
+ * The brand's Pinterest boards: the moodboard's own, or the board the brand reads live from its
+ * Pinterest account (`ideas-store.ts` loads it). Live pins are never stored on the server; the
+ * page reads them once per load, and again when the board changes.
+ */
+const liveBoards: Partial<Record<BrandId, Board[]>> = {}
+
+export function boardsOf(brandId: BrandId): Board[] {
+  return liveBoards[brandId] ?? moodboardOf(brandId).boards
+}
+
+/** The boards the brand's Pinterest account gives, in place of the moodboard's; null for none. */
+export function showBoards(brandId: BrandId, boards: Board[] | null) {
+  if (boards) liveBoards[brandId] = boards
+  else delete liveBoards[brandId]
+}
+
+/** Whether the brand's live board has been read (or failed) since the page loaded. */
+export const boardsShown = (brandId: BrandId) => liveBoards[brandId] !== undefined
+
 /** Every reference a brand has: pasted in, on the shelf, or on a board. */
 export function referencesOf(brandId: BrandId): Reference[] {
   const b = moodboardOf(brandId)
-  return [...pastedReferences(brandId), ...b.references, ...b.boards.flatMap((board) => board.pins)]
+  return [
+    ...pastedReferences(brandId),
+    ...b.references,
+    ...boardsOf(brandId).flatMap((board) => board.pins),
+  ]
 }
 
 export function referenceById(brandId: BrandId, id: string): Reference | undefined {

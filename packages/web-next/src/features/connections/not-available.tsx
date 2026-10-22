@@ -2,13 +2,14 @@
 
 import * as React from 'react'
 
-import { remote } from '@/lib/remote'
+import { platformOn, remote } from '@/lib/remote'
 
 /**
  * The services whose access is not set up on our side yet. On the core none of them can be
- * connected: Meta, TikTok and Pinterest have not given the app access, Google Drive, Lark and the
- * Insights sources are not wired, and the connect sheet's sign-in is a pretend one. A connection
- * stored for one of them is not trusted. The static demo keeps its pretend sign-in.
+ * connected: Meta and TikTok have not given the app access, Google Drive, Lark and the Insights
+ * sources are not wired, and the connect sheet's sign-in is a pretend one. Pinterest is the one
+ * exception, once the server says its app is set up (`GET /platforms`). A connection stored for
+ * one of the others is not trusted. The static demo keeps its pretend sign-in.
  */
 export const NOT_SET_UP = [
   'ig',
@@ -42,7 +43,7 @@ export function reasonOf(name: string, source?: string): string {
 }
 
 export function notAvailable(key: string): boolean {
-  return remote && (NOT_SET_UP as readonly string[]).includes(key)
+  return remote && (NOT_SET_UP as readonly string[]).includes(key) && !platformOn(key)
 }
 
 /**

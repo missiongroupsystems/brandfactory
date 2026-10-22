@@ -8,7 +8,7 @@
  * that brand from the server, which puts the screen back to what is stored.
  */
 
-import { coreCall, guestCall, PACK } from './core-routes'
+import { coreCall, guestCall, isAccountRoute, PACK } from './core-routes'
 import { setToday } from './dates'
 
 /** The core (`packages/core`): the routes in `core-routes.ts` run there as the pack's moves. */
@@ -248,6 +248,9 @@ export async function request<T = unknown>(
       ...headers,
     })
   }
+  if (isAccountRoute(method, path)) {
+    return answer<T>(`${CORE_URL}${path}`, method, body, { ...auth, ...headers })
+  }
   throw new RemoteError(501, 'NO_MOVE', `No move on the core for ${method} ${path}.`)
 }
 
@@ -386,7 +389,10 @@ export function newId(): string {
 
 /** What `GET /brands/:id/state` answers; each store reads its own part. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type BrandState = Record<string, any> & { brand: { id: string; tiktokDefaults?: any } }
+export type BrandState = Record<string, any> & {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  brand: { id: string; name?: string; tiktokDefaults?: any }
+}
 
 const states = new Map<string, BrandState>()
 const hydrators = new Set<(brandId: string, state: BrandState) => void>()
@@ -453,10 +459,34 @@ export function onAccount(listener: (account: Account) => void) {
   }
 }
 
+// ── Platforms ───────────────────────────────────────────────────────────────────────────────
+
+/** The platforms the server has an app set up for (`GET /platforms`); none until it answers. */
+let platforms: Record<string, boolean> = {}
+
+/** True when the server can sign a brand in to this platform (only `pinterest` so far). */
+export const platformOn = (platform: string) => platforms[platform] === true
+
+/**
+ * Asks the server which platforms it can sign in to. A core with no host beside it has no such
+ * route (404). Whatever goes wrong, the app still loads: no platform is offered until the next
+ * load, so a platform is never shown as connectable by mistake.
+ */
+async function loadPlatforms() {
+  try {
+    platforms = await answer<Record<string, boolean>>(`${CORE_URL}/platforms`, 'GET', undefined, {})
+  } catch (err) {
+    platforms = {}
+    if (!(err instanceof RemoteError && err.status === 404)) console.error('platforms', err)
+  }
+}
+
 export async function loadAll() {
+  // The platforms first: the stores read them when each brand's state comes in.
   const [brands, me] = await Promise.all([
     request<CoreBrand[]>('GET', '/brands'),
     request<{ companies?: Company[] }>('GET', '/me'),
+    loadPlatforms(),
   ])
   // One brand refused (gone meanwhile, or walled off) is not the account refused: it must not
   // read as "Not in a company yet" (`noAccess`).

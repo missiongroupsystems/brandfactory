@@ -7,6 +7,7 @@ import {
   needsPassword,
   noAccess,
   onAccount,
+  platformOn,
   sessionEmail,
   setPassword,
   signIn,
@@ -88,6 +89,46 @@ describe('loadAll', () => {
     const err: unknown = await loadAll().catch((e: unknown) => e)
     expect(err).toBeInstanceOf(Error)
     expect(noAccess(err)).toBe(false)
+  })
+})
+
+describe('the platforms the server can sign in to', () => {
+  const answering = (platforms: Response) =>
+    vi
+      .mocked(fetch)
+      .mockImplementation(async (url) =>
+        String(url).endsWith('/platforms')
+          ? platforms
+          : String(url).endsWith('/account.me')
+            ? json({ user: { id: 'u' }, companies: [], brands: [] })
+            : json([]),
+      )
+
+  it('offers Pinterest only when the server says its app is set up', async () => {
+    answering(json({ pinterest: true }))
+    await loadAll()
+    expect(platformOn('pinterest')).toBe(true)
+    expect(platformOn('ig')).toBe(false)
+    answering(json({ pinterest: false }))
+    await loadAll()
+    expect(platformOn('pinterest')).toBe(false)
+  })
+
+  it('reads a core with no host beside it (no such route) as signing in to none', async () => {
+    answering(json({ pinterest: true }))
+    await loadAll()
+    answering(json({ code: 'NOT_FOUND', message: 'Not Found' }, 404))
+    await expect(loadAll()).resolves.toEqual([])
+    expect(platformOn('pinterest')).toBe(false)
+  })
+
+  it('still loads the app when the platforms cannot be read, offering none', async () => {
+    answering(json({ pinterest: true }))
+    await loadAll()
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    answering(json({ code: 'ERROR', message: 'bad gateway' }, 502))
+    await expect(loadAll()).resolves.toEqual([])
+    expect(platformOn('pinterest')).toBe(false)
   })
 })
 

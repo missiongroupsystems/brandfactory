@@ -667,6 +667,68 @@
           }
         },
         {
+          "call": "account.link",
+          "input": {
+            "brand": "temper",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "username": "x",
+            "tokens": "sealed",
+            "details": {}
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "account.read",
+          "input": {
+            "brand": "temper",
+            "platform": "pinterest"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "account.retoken",
+          "input": {
+            "brand": "temper",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "tokens": "sealed"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "account.board",
+          "input": {
+            "brand": "temper",
+            "board": "b1"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "account.forget",
+          "input": {
+            "brand": "temper",
+            "platform": "pinterest",
+            "accountId": "pin-1"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
           "call": "brand.tiktok_defaults",
           "input": {
             "brand": "temper",
@@ -1149,7 +1211,7 @@
             "rows": [
               {
                 "per_row": 0,
-                "by_brand": 17,
+                "by_brand": 18,
                 "by_company": 2,
                 "by_manager": 2
               }
