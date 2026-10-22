@@ -11,7 +11,7 @@
       },
       "input": {
         "type": "object",
-        "required": ["brand", "job"],
+        "required": ["brand"],
         "properties": {
           "brand": {
             "type": "string",
@@ -33,5 +33,5 @@
   },
   "returns": "many",
   "sql": "update brandbase.post_jobs j set status = 'failed', error = case :code::text when 'NEEDS_APPROVAL' then 'Waiting for a person to approve this send.' else coalesce(:message::text, 'The send failed.') end, updated_at = now() where j.id = :input::jsonb ->> 'job' and j.brand_id = :input::jsonb ->> 'brand' and j.status = 'scheduled' and coalesce(:code::text, '') <> 'NOT_FOUND' returning j.id, j.status, j.error",
-  "before": ["job.reachable"]
+  "before": ["job.reachable", "job.not_events_tick"]
 }

@@ -4,6 +4,7 @@ import { type Hono } from 'hono'
 import { agentTokens, withAgentTokens } from './agents'
 import { createCore } from './app'
 import { simulatedConnector } from './effects'
+import { feedConnector } from './feeds'
 import { startScheduler } from './scheduler'
 import { openPglite, openPostgres } from './db'
 import { type CoreEnv, loadEnv } from './env'
@@ -40,7 +41,18 @@ export async function serveCore(extend?: (deps: CoreDeps, env: CoreEnv) => Exten
     now: env.now,
     // Real connectors come with the platforms' reviews (and a Lark provider); until then
     // nothing leaves the core.
-    connectors: { simulated: simulatedConnector, lark: simulatedConnector },
+    connectors: {
+      simulated: simulatedConnector,
+      lark: simulatedConnector,
+      // Read-only: the Mission Events feed, with its service key in `X-Service-Key`.
+      ...(env.missionEvents && {
+        mission_events: feedConnector({
+          url: env.missionEvents.url,
+          header: 'X-Service-Key',
+          key: env.missionEvents.key,
+        }),
+      }),
+    },
     files: env.files,
   }
   const extension = extend?.(deps, env) ?? {}

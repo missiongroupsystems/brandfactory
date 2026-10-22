@@ -1,7 +1,7 @@
 {
   "name": "brandbase",
-  "version": "1.7.0",
-  "description": "Brand Base: a brand's posts on a calendar, sent to its social accounts. Posts and the brand's state, and timed sends.",
+  "version": "1.8.0",
+  "description": "Brand Base: a brand's posts on a calendar, sent to its social accounts. Posts and the brand's state, timed sends, the brand's linked Pinterest account, and the company's own events from Mission Events.",
   "errors": {
     "posts_story_day": {
       "status": 409,

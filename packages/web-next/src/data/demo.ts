@@ -169,6 +169,8 @@ export interface CalendarEvent {
   span: number
   /** A shoot's event opens its call sheet (`data/shoots.ts`). */
   shootId?: string
+  /** The company's own event (Mission Events) this is, on the core. */
+  eventId?: string
 }
 
 export interface Week {

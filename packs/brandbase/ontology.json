@@ -10,5 +10,6 @@
   "story row": "Each day holds one planned story, and none once stories went out that day.",
   "channels": "The accounts a post goes to: ig (Instagram), tt (TikTok), yt (YouTube), li (LinkedIn), fb (Facebook).",
   "moodboard": "Posts a brand's team saved to borrow from, each by key: pasted links, saved posts on the shelf, and pins on a Pinterest board. An idea's inspiration names them by key.",
-  "accounts": "A brand's own account on a platform, linked by its sign-in: Pinterest so far, whose one picked board the moodboard reads live. One per platform per brand; an account belongs to one brand. Its tokens are sealed and only internal moves read or write it. Not a person's sign-in (account.me)."
+  "accounts": "A brand's own account on a platform, linked by its sign-in: Pinterest so far, whose one picked board the moodboard reads live. One per platform per brand; an account belongs to one brand. Its tokens are sealed and only internal moves read or write it. Not a person's sign-in (account.me).",
+  "events": "The company's own bookings at a brand's venue, read hourly from Mission Events (which owns them) for the brand's outlet: what is on, when, tentative, confirmed or completed. A pull replaces its window, so an event removed there goes here. event_feeds holds each brand's outlet."
 }

@@ -242,7 +242,7 @@ function WeekRow({
       >
         {lanes.map(({ event, lane }) => (
           <EventChip
-            key={event.shootId ?? event.text}
+            key={event.shootId ?? event.eventId ?? event.text}
             event={event}
             className="bb-lane pointer-events-auto mx-1 flex min-w-0 items-center rounded-[4px] px-2 text-[10.5px] leading-none font-medium"
             style={{ gridColumn: `${event.col} / span ${event.span}`, gridRow: lane + 1 }}

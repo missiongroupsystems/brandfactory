@@ -1,0 +1,7 @@
+{
+  "id": "event.feed_managed",
+  "sql": "select exists (select 1 from brandbase.brands b where b.id = :brand and b.org_id = any (brandbase.managed_orgs())) as ok",
+  "status": 403,
+  "code": "FORBIDDEN",
+  "message": "only the company's owners and admins set a brand's events feed"
+}
