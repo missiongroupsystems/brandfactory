@@ -110,6 +110,23 @@ export function InsightsPage() {
   const hub = HUB_BY_BRAND[brand.id]
   const [tab, setTab] = React.useState<Tab>('overview')
 
+  // A brand made on the core has nothing to read until its first post goes out.
+  if (!data || !hub) {
+    return (
+      <div className="flex min-h-svh flex-col">
+        <AppHeader />
+        <main key={brand.id} className="bb-swap mx-auto flex w-full max-w-[760px] flex-col px-4">
+          <div className="flex flex-col gap-4 pt-6 max-md:pt-2">
+            <h1 className="font-display text-[56px] leading-none tracking-[-0.035em] max-md:text-[34px]">
+              Insights
+            </h1>
+            <p className="text-[15px] text-ink-3">Nothing yet. The first post out starts them.</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="flex min-h-svh flex-col">
       <AppHeader />

@@ -29,11 +29,17 @@ export type BrandId = 'casa-vostra' | 'temper' | 'carlitos'
 export interface Brand {
   id: BrandId
   name: string
-  /** The brand's own mark, from its website's icon, drawn round in the brand switcher. */
-  logo: string
+  /**
+   * The brand's own mark, from its website's icon, drawn round in the brand switcher. A brand
+   * made on the core has none here: its kit holds the logo once the team uploads one.
+   */
+  logo?: string
   handle: string
-  /** A CSS custom property from `styles/tokens.css`; use it as `var(${brand.colour})`. */
-  colour: `--brand-${BrandId}`
+  /**
+   * A CSS custom property from `styles/tokens.css`; use it as `var(${brand.colour})`. A brand
+   * made on the core gets `--brand-other`.
+   */
+  colour: `--brand-${string}`
   /** The brand's own one-line description, from the seed. */
   line: string
 }

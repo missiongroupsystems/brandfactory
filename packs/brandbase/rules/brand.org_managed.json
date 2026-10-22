@@ -1,0 +1,7 @@
+{
+  "id": "brand.org_managed",
+  "sql": "select :org = any (brandbase.managed_orgs()) as ok",
+  "status": 403,
+  "code": "FORBIDDEN",
+  "message": "only the company's owners and admins add brands"
+}

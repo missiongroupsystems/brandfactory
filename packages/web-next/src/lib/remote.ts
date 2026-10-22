@@ -322,9 +322,51 @@ export async function loadBrand(brandId: string) {
   return state
 }
 
+/** A brand as `brand.list` answers it. */
+export interface CoreBrand {
+  id: string
+  orgId: string
+  name: string
+  handle: string
+  line: string
+  linked: string[]
+  timezone: string
+  position: number
+}
+
+/** One of the caller's companies, with their role in it (`account.me`). */
+export interface Company {
+  id: string
+  name: string
+  role: 'owner' | 'admin' | 'member'
+}
+
+interface Account {
+  brands: CoreBrand[]
+  companies: Company[]
+}
+
+let account: Account | null = null
+const accountListeners = new Set<(account: Account) => void>()
+
+/** The brands and companies the caller reaches: called on each load, and at once if loaded. */
+export function onAccount(listener: (account: Account) => void) {
+  accountListeners.add(listener)
+  if (account) listener(account)
+  return () => {
+    accountListeners.delete(listener)
+  }
+}
+
 export async function loadAll() {
-  const brands = await request<{ id: string }[]>('GET', '/brands')
+  const [brands, me] = await Promise.all([
+    request<CoreBrand[]>('GET', '/brands'),
+    request<{ companies: Company[] }>('GET', '/me'),
+  ])
   await Promise.all(brands.map((b) => loadBrand(b.id)))
+  // After the states: a store asked for a brand's kit finds it loaded.
+  account = { brands, companies: me.companies }
+  accountListeners.forEach((l) => l(account!))
   return brands.map((b) => b.id)
 }
 

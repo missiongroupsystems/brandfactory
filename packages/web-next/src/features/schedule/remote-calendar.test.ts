@@ -139,4 +139,12 @@ describe('the calendar from the server', () => {
       span: 1,
     })
   })
+
+  it("gives a brand made on the core the city's events and holidays, never a demo brand's own", () => {
+    const { weeks } = calendarOf('lucali' as 'casa-vostra', state([], [], '2026-10-22'))
+    const wk41 = weeks.find((w) => w.days[0]!.date === '2026-10-05')!
+    expect(wk41.events).toContainEqual(expect.objectContaining({ text: 'F1 Singapore Grand Prix' }))
+    const layers = new Set(weeks.flatMap((w) => w.events.map((e) => e.layer)))
+    expect([...layers].every((l) => l === 'city' || l === 'holiday')).toBe(true)
+  })
 })

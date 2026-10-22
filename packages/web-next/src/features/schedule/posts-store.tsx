@@ -15,8 +15,20 @@ import {
 import type { Format, Post, Stage, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
 import { dayLabel, landingDay } from '@/features/ideate/calendar-slot'
+import { asBrand, managed, type NewBrand } from '@/features/brand/new-brand'
 import { ideaIdOfHook } from '@/features/ideate/ideas-store'
-import { newId, onState, push, remote, request, setActiveBrand } from '@/lib/remote'
+import {
+  type Company,
+  type CoreBrand,
+  loadBrand,
+  newId,
+  onAccount,
+  onState,
+  push,
+  remote,
+  request,
+  setActiveBrand,
+} from '@/lib/remote'
 import { mediaItem } from '@/lib/remote-days'
 
 import { archiveFor } from './month'
@@ -43,6 +55,13 @@ interface PostsValue {
 export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
   brands: Brand[]
   setBrandId: (id: BrandId) => void
+  /** The companies the person may add a brand to (an owner or an admin). Empty without the core. */
+  companies: Company[]
+  /**
+   * Makes the brand on the core, puts it in the switcher and opens it; answers its id. Rejects
+   * with the refusal.
+   */
+  addBrand: (input: NewBrand) => Promise<string>
   /**
    * Puts an idea on the current brand's calendar and returns the day in words ("Tue 20 Oct"),
    * or null when no day ahead is free. The ideas page calls it; the calendar then shows the
@@ -163,6 +182,18 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     setActiveBrand(brandId)
   }, [brandId])
 
+  // The brands the person reaches, and the companies they manage, from the core; the demo's own
+  // brands without it.
+  const [brands, setBrands] = React.useState<Brand[]>(BRANDS)
+  const [companies, setCompanies] = React.useState<Company[]>([])
+  React.useEffect(() => {
+    if (!remote) return
+    return onAccount((account) => {
+      setBrands(account.brands.map(asBrand))
+      setCompanies(managed(account.companies))
+    })
+  }, [])
+
   // The server's posts and calendar replace the static ones, brand by brand.
   React.useEffect(() => {
     if (!remote) return
@@ -203,6 +234,18 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       setBrandIdNow(id)
     }
   }, [])
+
+  // The brand's state is loaded before it opens, so every store knows it when the screen asks.
+  const addBrand = React.useCallback(
+    async (input: NewBrand) => {
+      const made = await request<CoreBrand>('POST', '/brands', input)
+      await loadBrand(made.id)
+      setBrands((all) => (all.some((b) => b.id === made.id) ? all : [...all, asBrand(made)]))
+      setBrandId(made.id as BrandId)
+      return made.id
+    },
+    [setBrandId],
+  )
 
   // A dragged tile carries its post to the new day, and the post's slot follows, so the composer
   // opened afterwards shows the day the tile is on. The time of day stays.
@@ -500,11 +543,16 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   )
 
   const value = React.useMemo<BrandValue>(() => {
-    const content = contentFor(brandId)
-    const posts = postsByBrand[brandId]
+    // A brand made on the core has no demo content: it starts with nothing, on the demo's weeks.
+    const demo = BRANDS.some((b) => b.id === brandId)
+    const content = demo
+      ? contentFor(brandId)
+      : { ...contentFor(brandId), ideas: [], library: [], captions: {} }
+    const posts = postsByBrand[brandId] ?? []
     return {
       ...content,
-      weeks: weeksByBrand[brandId],
+      brand: brands.find((b) => b.id === brandId) ?? content.brand,
+      weeks: weeksByBrand[brandId] ?? content.weeks,
       posts,
       movePost,
       addIdeaToCalendar,
@@ -517,7 +565,9 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       unplanPost,
       setChannels,
       saved: (id) => savedRef.current[id],
-      brands: BRANDS,
+      brands,
+      companies,
+      addBrand,
       setBrandId,
       setStage,
       byId: (id) =>
@@ -541,6 +591,9 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     placeIdea,
     unplanPost,
     setChannels,
+    brands,
+    companies,
+    addBrand,
     setBrandId,
     setStage,
   ])

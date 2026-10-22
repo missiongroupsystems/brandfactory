@@ -38,7 +38,7 @@
       "steps": [
         {
           "call": "idea.create",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "casa",
             "id": "i1",
@@ -49,7 +49,7 @@
         },
         {
           "call": "idea.create",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "temper",
             "id": "i1",

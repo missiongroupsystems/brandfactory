@@ -999,7 +999,7 @@
         },
         {
           "call": "post.move",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "casa",
             "id": "p1",

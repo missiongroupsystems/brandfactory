@@ -107,11 +107,13 @@ function LogoSection() {
       label="Logo"
       action={
         <span className="flex items-center">
-          <a href={logo.src} download={logo.name ?? `${brand.id}-logo.png`} className={QUIET}>
-            Download
-          </a>
+          {logo.src && (
+            <a href={logo.src} download={logo.name ?? `${brand.id}-logo.png`} className={QUIET}>
+              Download
+            </a>
+          )}
           <button type="button" onClick={() => input.current?.click()} className={`${QUIET} -mr-3`}>
-            Replace
+            {logo.src ? 'Replace' : 'Upload'}
           </button>
           <input
             ref={input}
@@ -131,7 +133,7 @@ function LogoSection() {
                 const src = URL.createObjectURL(file)
                 editKit(brand.id, (k) => {
                   // The old upload has no other reader once it is replaced.
-                  if (k.logo.src.startsWith('blob:')) URL.revokeObjectURL(k.logo.src)
+                  if (k.logo.src?.startsWith('blob:')) URL.revokeObjectURL(k.logo.src)
                   return { ...k, logo: { src, name: file.name } }
                 })
               }
@@ -147,6 +149,8 @@ function LogoSection() {
           <span
             key={logo.src}
             className={`relative size-[88px] overflow-hidden rounded-full ${logo.name ? 'bb-pop' : ''}`}
+            // No logo yet: the initials sit on the brand's colour, as in the switcher.
+            style={logo.src ? undefined : { background: `var(${brand.colour})` }}
           >
             <BrandLogo
               brandId={brand.id}

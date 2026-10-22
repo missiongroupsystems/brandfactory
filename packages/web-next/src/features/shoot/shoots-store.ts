@@ -102,8 +102,11 @@ const useState = () =>
 
 /** A brand's shoots, in date order as the seed and the planner add them. */
 export function useShoots(brandId: BrandId): Shoot[] {
-  return useState().shoots[brandId]
+  return useState().shoots[brandId] ?? NONE
 }
+
+/** A brand made on the core, before its state loads. One list, so a reader's memo holds. */
+const NONE: Shoot[] = []
 
 /** Any brand's shoot, for a link that carries only the id. */
 export function useShootById(id: string): { brandId: BrandId; shoot: Shoot } | null {

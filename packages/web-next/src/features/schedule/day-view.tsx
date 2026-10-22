@@ -59,7 +59,8 @@ export function DayView({
 }) {
   const { brand, library, byId } = useBrand()
   const items = itemsOf(day, byId, stages)
-  const best = Number(INSIGHTS_BY_BRAND[brand.id].best.split(':')[0])
+  // A brand made on the core has no insights yet: an evening hour until it does.
+  const best = Number((INSIGHTS_BY_BRAND[brand.id]?.best ?? '18:00').split(':')[0])
   const hours = Array.from({ length: LAST_HOUR - FIRST_HOUR }, (_, i) => FIRST_HOUR + i)
   const top = (time: string) => {
     const [h, m] = time.split(':').map(Number)

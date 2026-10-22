@@ -62,7 +62,8 @@ export function storiesOf(
   library: string[],
   byId: (id: string) => Post | undefined,
 ): Story[] {
-  const titles = TITLES[brandId]
+  // A brand made on the core has no demo titles.
+  const titles = TITLES[brandId] ?? ['Story']
   const seed = Number(dayNumber(date))
   const posted: Story[] = Array.from({ length: items.storiesPosted }, (_, i) => ({
     id: `${date}-story-${i}`,

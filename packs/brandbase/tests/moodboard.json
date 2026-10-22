@@ -326,7 +326,7 @@
       "steps": [
         {
           "call": "idea.create",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "temper",
             "id": "t-idea",

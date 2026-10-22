@@ -180,7 +180,7 @@ function Avatar({ size, ring = false }: { size: number; ring?: boolean }) {
   const { src } = useBrandKit(brand.id).logo
   return (
     <ProfilePicture
-      src={src}
+      src={src ?? undefined}
       size={size}
       className={`rounded-full bg-(--pc-white) ${ring ? 'shadow-[0_0_0_1px_var(--pc-white)]' : ''}`}
     >

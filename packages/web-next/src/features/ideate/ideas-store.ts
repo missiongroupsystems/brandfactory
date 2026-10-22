@@ -55,6 +55,14 @@ function initial(): State {
   ) as State
 }
 
+/** A brand made on the core, before its state loads: no ideas, no sources. */
+const EMPTY: BrandIdeasState = {
+  ideas: [],
+  suggesting: false,
+  sources: { pinterest: false, dm: false, tt: false },
+  suggestedFrom: 0,
+}
+
 let state: State = initial()
 let serial = 0
 const listeners = new Set<() => void>()
@@ -67,7 +75,7 @@ function subscribe(listener: () => void) {
 }
 
 function update(brandId: BrandId, fn: (s: BrandIdeasState) => BrandIdeasState) {
-  state = { ...state, [brandId]: fn(state[brandId]) }
+  state = { ...state, [brandId]: fn(state[brandId] ?? EMPTY) }
   listeners.forEach((l) => l())
 }
 
@@ -182,7 +190,7 @@ export function showIdeas(brandId: BrandId, cards: IdeaCard[]) {
 
 /** The id of the brand's idea with these words: the calendar knows a tile by its hook. */
 export function ideaIdOfHook(brandId: BrandId, hook: string): string | undefined {
-  return state[brandId].ideas.find((i) => i.hook === hook)?.id
+  return state[brandId]?.ideas.find((i) => i.hook === hook)?.id
 }
 
 function patch(brandId: BrandId, id: string, fields: Partial<IdeaCard>) {
@@ -195,10 +203,10 @@ function patch(brandId: BrandId, id: string, fields: Partial<IdeaCard>) {
 export function useIdeas(brandId: BrandId): BrandIdeasState & { target: number } {
   const s = React.useSyncExternalStore(
     subscribe,
-    () => state[brandId],
-    () => state[brandId],
+    () => state[brandId] ?? EMPTY,
+    () => state[brandId] ?? EMPTY,
   )
-  return { ...s, target: IDEAS_BY_BRAND[brandId].target }
+  return { ...s, target: IDEAS_BY_BRAND[brandId]?.target ?? 0 }
 }
 
 /** Any brand's ideas by id, for a page that a link opens with only the id (a shared brief). */
@@ -228,7 +236,7 @@ export function useCoverOfHook(brandId: BrandId, hook: string): string | undefin
   const { ideas } = useIdeas(brandId)
   const card =
     ideas.find((i) => i.hook === hook) ??
-    IDEAS_BY_BRAND[brandId].moments.find((m) => m.seed.hook === hook)?.seed
+    IDEAS_BY_BRAND[brandId]?.moments.find((m) => m.seed.hook === hook)?.seed
   return card ? coverOf(brandId, card) : undefined
 }
 
@@ -256,9 +264,9 @@ export interface IdeaTileMark {
  * once: the next look finds it by the same hook.
  */
 export function ideaOfTile(brandId: BrandId, tile: IdeaTileMark, date?: string): string {
-  const found = state[brandId].ideas.find((i) => i.hook === tile.hook)
+  const found = state[brandId]?.ideas.find((i) => i.hook === tile.hook)
   if (found) return found.id
-  const moment = IDEAS_BY_BRAND[brandId].moments.find((m) => m.seed.hook === tile.hook)
+  const moment = IDEAS_BY_BRAND[brandId]?.moments.find((m) => m.seed.hook === tile.hook)
   if (moment) {
     return addIdea(
       brandId,

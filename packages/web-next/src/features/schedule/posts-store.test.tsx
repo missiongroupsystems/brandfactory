@@ -221,7 +221,8 @@ describe('the brand switcher', () => {
 
   it('points every photo at a file that ships in public/, so no tile renders empty', () => {
     const srcs = BRAND_CONTENT.flatMap((c) => [
-      c.brand.logo,
+      // A demo brand ships its own logo; `logo` is optional only for a brand made on the core.
+      c.brand.logo ?? `${c.brand.id}-logo-missing`,
       ...c.library,
       ...c.posts.flatMap((p) => p.images),
       ...c.weeks.flatMap((w) =>

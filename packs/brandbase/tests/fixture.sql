@@ -1,13 +1,22 @@
--- Two brands: casa (ig, tt, fb; Lark linked) and temper. member reaches casa only, admin both,
--- gone is deactivated, stranger has no account (packages/server/src/test-helpers.ts).
-insert into brandbase.brands (id, name, handle, linked, position) values
-  ('casa', 'Casa Vostra', '@casavostra', '{ig,tt,fb}', 0),
-  ('temper', 'Temper', '@temper', '{ig,tt,fb}', 1);
+-- Two companies: casa (ig, tt, fb; Lark linked) and osteria in company A, temper in company B.
+-- member and owner are in A; both is a member of A and an admin of B; b-owner owns B; gone is A's
+-- but deactivated; loner has an account (an admin by users.role, which reaches nothing now) and no
+-- company; stranger has no account.
+insert into brandbase.organizations (id, name) values ('co-a', 'Company A'), ('co-b', 'Company B');
+insert into brandbase.brands (id, name, handle, linked, position, org_id) values
+  ('casa', 'Casa Vostra', '@casavostra', '{ig,tt,fb}', 0, 'co-a'),
+  ('temper', 'Temper', '@temper', '{ig,tt,fb}', 1, 'co-b'),
+  ('osteria', 'Osteria', '@osteria', '{ig}', 2, 'co-a');
 insert into brandbase.users (id, email, role, deactivated_at) values
   ('member', 'member@example.com', 'member', null),
-  ('admin', 'admin@example.com', 'admin', null),
-  ('gone', 'gone@example.com', 'member', now());
-insert into brandbase.members (user_id, brand_id) values ('member', 'casa'), ('gone', 'casa');
+  ('owner', 'owner@example.com', 'member', null),
+  ('both', 'both@example.com', 'member', null),
+  ('gone', 'gone@example.com', 'member', now()),
+  ('loner', 'loner@example.com', 'admin', null),
+  ('b-owner', 'b-owner@example.com', 'member', null);
+insert into brandbase.org_members (user_id, org_id, role) values
+  ('member', 'co-a', 'member'), ('owner', 'co-a', 'owner'), ('both', 'co-a', 'member'),
+  ('both', 'co-b', 'admin'), ('gone', 'co-a', 'member'), ('b-owner', 'co-b', 'owner');
 insert into brandbase.connections (brand_id, key, status) values ('casa', 'lark', 'connected');
 -- Moodboards: casa's boards in an order their ids do not sort in, a shelf and a pin on each; one
 -- shelf post for temper.
