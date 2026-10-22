@@ -8,6 +8,7 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 - **2.34.1** — 2026-10-22 — `feat/real-brand-posts`: a test scrape of the six brands, checked against the live accounts. The import keeps only the brand's own posts (not creators' collabs), hooks read styled letters as plain ones, the post preview prints a real post's own counts, a second Instagram cover host, and the scrape prints its cost and its caps (the most Apify can charge) and refuses caps over a budget. 999 tests.
 - **2.34.0** — 2026-10-22 — `feat/real-brand-posts`: the brands' own posts (brandbase 1.6.0, migration 0014, not applied to production). `post.import` brings in a post already out on the brand's Instagram or TikTok as posted, with its address and counts; a second import refreshes the counts. A script runs Apify's scrapers (cost first, capped) and loads a scrape through the core as the signed-in person. The post page no longer throws for a brand outside the demo's data. 991 tests.
+- **2.33.1** — 2026-10-22 — `fix/real-brand-insights`: on the core, no brand shows the demo's invented figures. Production's casa-vostra and temper share ids with demo brands, so Insights showed the demo's reach, followers, posts and creators for them, the calendar shaded the demo's best hour, and the inbox showed the demo's messages and count. Insights now shows its empty state, the calendar shades the evening hour, and the inbox shows only the messages the server holds. The static demo is unchanged. No migration. 782 tests (191 more skipped without a Postgres server).
 - **2.33.0** — 2026-10-22 — `feat/company-access`: access by company (brandbase 1.5.0, migration 0013, not applied to production). Every active member of a company reaches all its brands; owners and admins add brands with `brand.create`; brands already in the database go to one company, Mission Group. web-next gets an Add brand page. 966 tests.
 - **2.32.0** — 2026-10-22 — `fix/core-migrations-supabase`: the core refuses to install as a login that is not a superuser, before it changes anything, and fails any database whose runtime role can call a function migration 0001 takes away. On Supabase (and Fly Managed Postgres) migration 0001 cannot take `set_config` and the other risky functions from the runtime role, and a pack's SQL could then reach `set_config('role', …)` through `ts_stat` or `query_to_xml` and leave the runtime role. A new `core setup-login` makes the login a deployed core runs as (no superuser, the pack roles, the core's schemas, `set_config` only), core migrations 0009 and 0010 take back what 0001 gave to roles that existed before the install (its functions from every pack role; the superuser's own server file and reload functions from every other role), and a new core migration waits for the superuser. The database moves to a self-managed Postgres on Fly; sign-in stays on Supabase (Passport). 925 tests.
 - **2.31.0** — 2026-10-21 — `perf/core-plan-once`: fewer trips per call. The core no longer reads the whole pack version on each call and folds its first steps into one trip; with `DATABASE_PREPARE` on it keeps each move's plan per connection; a read sends its check, rules and move in one trip and the log with the commit in a second (core migration 0008, not applied to production). Every check is kept, the database judges each call before its move runs, and a pack statement that leaves a quote open is refused. Fly to Supabase Singapore, a read went from 55–99 ms on `main` to 10–47 ms with saved plans, 10–60 ms without (a traditional single query: 4–30 ms). 916 tests with a local Postgres.
@@ -103,6 +104,31 @@ Plan and as built: `docs/completions/real-brand-posts-plan.md`,
   and no suggestions.
 - **Gate.** typecheck, lint, format, 991 tests (795 passed, 196 skipped without a Postgres
   server; the pack's 161 cases also passed on Postgres 16 through `core test`), web-next build.
+
+## 2.33.1 — 2026-10-22
+
+No plan document: a small web-next fix.
+
+- **Why.** In production the company has six real brands. Two of them, `casa-vostra` and
+  `temper`, have the same ids as two demo brands. Every screen that looked up the demo's static
+  tables by brand id alone found the demo's invented data for those two brands.
+- **Insights** (`insights-page.tsx`) reads `INSIGHTS_BY_BRAND` and `HUB_BY_BRAND` only in the
+  static demo. On the core every brand shows "Nothing yet. The first post out starts them."
+- **Calendar** (`day-view.tsx`, `phone-calendar.tsx`) shades the demo's best hour only in the
+  static demo. On the core it shades the evening hour (18:00), as for any other brand.
+- **Inbox** (`inbox-store.ts`, `inbox-page.tsx`): on the core the page and the nav count show only
+  the demo messages whose ids the server holds (`brand.state`'s `inbox.messages`). A real brand
+  has none, so it shows "All caught up" and no count. A local core seeded with the demo data
+  shows the same messages as before.
+  Bubbles' "cleared" card counts from the same messages (`turn-cards.tsx`).
+- **Not changed, still demo data on the core for `casa-vostra` and `temper`:** the composer's best
+  times and its suggestions (creators, tagged accounts, places, labels, hashtags, venue, caption
+  drafts), and the idea page's best time. `feat/real-brand-posts` changes those lines to stop a
+  crash for brands outside the demo; gate them on `remote` after it merges.
+- **Tests.** `insights-remote.test.tsx` and `inbox-remote.test.tsx` run the pages with `remote`
+  on; each failed before the fix. A static test checks that casa-vostra keeps its demo figures.
+- **Gate:** typecheck, lint, format, build; 782 tests pass, 191 skipped without a Postgres
+  server (`CORE_TEST_PG_URL` not set).
 
 ## 2.33.0 — 2026-10-22
 

@@ -13,6 +13,7 @@ import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { useCoverOfHook, useCoverOfPost } from '@/features/ideate/ideas-store'
 import { NewShootForm } from '@/features/shoot/new-shoot'
 import { dayNumber } from '@/lib/dates'
+import { remote } from '@/lib/remote'
 
 import { EventChip } from './event-chip'
 import { ideaLabel, useOpenIdea } from './open-idea'
@@ -123,8 +124,8 @@ export function PhoneCalendar({
 
   const shownWeek = weeks[Math.min(week, weeks.length - 1)]!
   const shownDay = shownWeek.days[day]!
-  // A brand made on the core has no insights yet: an evening hour until it does.
-  const best = INSIGHTS_BY_BRAND[brand.id]?.best ?? '18:00'
+  // On the core no brand has insights yet (the demo's are invented): an evening hour until it does.
+  const best = (remote ? undefined : INSIGHTS_BY_BRAND[brand.id]?.best) ?? '18:00'
   const items = (d: Day) => itemsOf(d, byId, stages)
   const stories = (d: Day, it: DayItems) => storiesOf(d.date, it, brand.id, library, byId)
   const movingFrom = moving
