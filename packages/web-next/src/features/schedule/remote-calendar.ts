@@ -32,6 +32,7 @@ interface ServerPost {
   jobs: { channel: string; status: string; error: string | null }[]
   caption: string
   draft: Record<string, unknown>
+  metrics?: Post['metrics'] | null
 }
 
 interface ServerIdea {
@@ -56,6 +57,7 @@ export function postOf(p: ServerPost): Post {
     ...slotOf(p.day, p.time),
     ...(p.channels.length > 0 && { channels: p.channels }),
     ...(p.fromIdea && { fromIdea: p.fromIdea }),
+    ...(p.metrics && { metrics: p.metrics }),
     ...(failed && {
       error: failed.error ?? 'It did not go out.',
       failedOn: failed.channel as Post['failedOn'],

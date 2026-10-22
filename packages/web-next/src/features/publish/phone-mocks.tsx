@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 import { isVideo } from '@/components/media'
 import { ProfilePicture } from '@/components/profile-picture'
-import type { Format } from '@/data/demo'
+import type { Format, Post } from '@/data/demo'
 import { useBrandKit } from '@/features/brand/brand-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
@@ -26,7 +26,8 @@ import { ShotView } from './shot'
  * `text` is the caption that channel will show; for YouTube it is the title.
  *
  * Each screen copies its app's overlay at phone scale (172px wide). The counts are invented
- * but fixed per app, so a screenshot reads as one post. PhoneCard draws its check badge in the
+ * but fixed per app, so a screenshot reads as one post; a post brought in from the brand's own
+ * account shows its own counts, and none it does not have. PhoneCard draws its check badge in the
  * top-right corner, so nothing critical sits there.
  */
 export function PhoneMock({
@@ -38,6 +39,7 @@ export function PhoneMock({
   people = NOBODY,
   live = false,
   onAdd,
+  counts,
 }: {
   channel: ChannelKey
   format: Format
@@ -52,6 +54,8 @@ export function PhoneMock({
   live?: boolean
   /** Opens the file picker, from the empty state. */
   onAdd?: () => void
+  /** A post brought in from its account: its real counts, in place of the invented ones. */
+  counts?: Counts
 }) {
   const first = shots[0]
   // The feed screens show a carousel. The full-screen apps play one clip under the controls;
@@ -68,12 +72,13 @@ export function PhoneMock({
   else if (format === 'story' && (channel === 'ig' || channel === 'fb'))
     screen = <Story channel={channel} media={media} />
   else if (format === 'carousel' && channel === 'ig')
-    screen = <InstagramPost media={media} text={text} people={people} />
+    screen = <InstagramPost media={media} text={text} people={people} counts={counts} />
   else if (format === 'carousel' && channel === 'fb')
     screen = <FacebookPost media={media} text={text} />
-  else if (channel === 'ig') screen = <InstagramReel media={media} text={text} people={people} />
+  else if (channel === 'ig')
+    screen = <InstagramReel media={media} text={text} people={people} counts={counts} />
   else if (channel === 'tt')
-    screen = <TikTok media={media} text={text} photos={format === 'carousel'} />
+    screen = <TikTok media={media} text={text} photos={format === 'carousel'} counts={counts} />
   else if (channel === 'yt') screen = <Shorts media={media} text={text} />
   else screen = <FacebookReel media={media} text={text} />
   return (
@@ -103,6 +108,21 @@ export interface People {
 }
 
 const NOBODY: People = { collabs: [], tags: [] }
+
+type Counts = NonNullable<Post['metrics']>
+
+/**
+ * A count as the app prints it: the post's own when it has counts (none when it lacks that one),
+ * else the mock's invented one. `compact` as TikTok and the rails print it (24.8K).
+ */
+function countOf(counts: Counts | undefined, key: keyof Counts, made: string, compact = false) {
+  if (!counts) return made
+  const n = counts[key]
+  if (n === undefined) return undefined
+  return compact
+    ? new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
+    : n.toLocaleString('en-US')
+}
 
 /* ---------- Shared pieces ---------- */
 
@@ -340,10 +360,12 @@ function InstagramReel({
   media,
   text,
   people,
+  counts,
 }: {
   media: MockMedia
   text: string
   people: People
+  counts?: Counts
 }) {
   const { brand } = useBrand()
   return (
@@ -364,7 +386,7 @@ function InstagramReel({
               <path d={HEART} />
             </Svg>
           }
-          label="2,418"
+          label={countOf(counts, 'likes', '2,418', true)}
         />
         <RailItem
           icon={
@@ -372,9 +394,9 @@ function InstagramReel({
               <path d="M20.66 17.01a9.99 9.99 0 1 0-3.59 3.61L22 22Z" />
             </Svg>
           }
-          label="86"
+          label={countOf(counts, 'comments', '86', true)}
         />
-        <RailItem icon={PAPER_PLANE(15)} label="41" />
+        <RailItem icon={PAPER_PLANE(15)} label={countOf(counts, 'shares', '41', true)} />
         <RailItem icon={DOTS_H(13)} />
         <span className="relative size-[16px] overflow-hidden rounded-[4px] shadow-[0_0_0_1.5px_var(--pc-white)]">
           <Photo media={media} still />
@@ -419,11 +441,15 @@ function InstagramPost({
   media,
   text,
   people,
+  counts,
 }: {
   media: MockMedia
   text: string
   people: People
+  counts?: Counts
 }) {
+  const likes = countOf(counts, 'likes', '2,418')
+  const comments = countOf(counts, 'comments', '86')
   const { brand } = useBrand()
   return (
     <span className="absolute inset-0 flex flex-col bg-(--pc-black) text-(--pc-ig-dark-text)">
@@ -486,14 +512,20 @@ function InstagramPost({
         </span>
       </span>
       <span className="flex shrink-0 flex-col gap-[2px] px-[8px] pb-[9px] text-[7.5px] leading-[1.3]">
-        <span className="font-semibold">2,418 likes</span>
+        {likes && (
+          <span className="font-semibold">{likes === '1' ? '1 like' : `${likes} likes`}</span>
+        )}
         <span className="flex">
           <span className="truncate">
             <span className="font-semibold">{brand.handle.slice(1)}</span> {text}
           </span>
           <span className="shrink-0 pl-[2px] text-(--pc-ig-dark-muted)">more</span>
         </span>
-        <span className="text-(--pc-ig-dark-muted)">View all 86 comments</span>
+        {comments && (
+          <span className="text-(--pc-ig-dark-muted)">
+            {comments === '1' ? 'View 1 comment' : `View all ${comments} comments`}
+          </span>
+        )}
       </span>
     </span>
   )
@@ -501,7 +533,17 @@ function InstagramPost({
 
 /* ---------- TikTok ---------- */
 
-function TikTok({ media, text, photos }: { media: MockMedia; text: string; photos: boolean }) {
+function TikTok({
+  media,
+  text,
+  photos,
+  counts,
+}: {
+  media: MockMedia
+  text: string
+  photos: boolean
+  counts?: Counts
+}) {
   const { brand } = useBrand()
   return (
     <span className="absolute inset-0 bg-(--pc-tt-nav) text-(--pc-white)">
@@ -542,7 +584,7 @@ function TikTok({ media, text, photos }: { media: MockMedia; text: string; photo
               <path d="M12 21.2s-8.6-5.1-9.9-10.6C1.3 6.8 3.7 3.6 7.1 3.6c2.2 0 3.8 1.2 4.9 2.8 1.1-1.6 2.7-2.8 4.9-2.8 3.4 0 5.8 3.2 5 7-1.3 5.5-9.9 10.6-9.9 10.6Z" />
             </Svg>
           }
-          label="24.8K"
+          label={countOf(counts, 'likes', '24.8K', true)}
         />
         <RailItem
           icon={
@@ -556,7 +598,7 @@ function TikTok({ media, text, photos }: { media: MockMedia; text: string; photo
               <circle cx="16.4" cy="11.4" r="1.35" fill="var(--pc-glyph-shadow)" />
             </svg>
           }
-          label="312"
+          label={countOf(counts, 'comments', '312', true)}
         />
         <RailItem
           icon={
@@ -564,7 +606,7 @@ function TikTok({ media, text, photos }: { media: MockMedia; text: string; photo
               <path d="M6 2.5h12A1.5 1.5 0 0 1 19.5 4v17.2a.8.8 0 0 1-1.3.6L12 17.3l-6.2 4.5a.8.8 0 0 1-1.3-.6V4A1.5 1.5 0 0 1 6 2.5Z" />
             </Svg>
           }
-          label="1,204"
+          label={countOf(counts, 'saves', '1,204', true)}
         />
         <RailItem
           icon={
@@ -572,7 +614,7 @@ function TikTok({ media, text, photos }: { media: MockMedia; text: string; photo
               <path d="M13.3 3.4a.9.9 0 0 1 1.5-.6l7.4 7.2a1.2 1.2 0 0 1 0 1.7l-7.4 7.2a.9.9 0 0 1-1.5-.6v-3.6c-5.2 0-8.6 1.6-10.6 4.8-.3.4-.9.2-.9-.3.6-6.1 4.2-10.6 11.5-11.1V3.4Z" />
             </Svg>
           }
-          label="418"
+          label={countOf(counts, 'shares', '418', true)}
         />
         <span className="relative mt-[2px] flex size-[20px] animate-[spin_6s_linear_infinite] items-center justify-center rounded-full bg-(--pc-tt-disc) shadow-[inset_0_0_0_3px_var(--pc-black)] motion-reduce:animate-none">
           <span className="relative size-[11px] overflow-hidden rounded-full">

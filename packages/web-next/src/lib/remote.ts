@@ -15,6 +15,13 @@ import { setToday } from './dates'
 export const CORE_URL = (process.env.NEXT_PUBLIC_CORE_URL ?? '').replace(/\/$/, '')
 export const remote = CORE_URL !== ''
 
+/**
+ * A brand's row of a static demo table, in the static demo only. On the core a real brand can
+ * share an id with a demo brand, and the demo's invented figures must not show for it.
+ */
+export const demoOf = <T>(table: Partial<Record<string, T>>, brandId: string): T | undefined =>
+  remote ? undefined : table[brandId]
+
 const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '')
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 

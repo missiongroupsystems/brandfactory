@@ -1,0 +1,7 @@
+{
+  "id": "post.import_id_fits",
+  "sql": "select char_length(:brand || '-' || :channel || '-' || :externalId) <= 71 as ok",
+  "status": 400,
+  "code": "ID_TOO_LONG",
+  "message": "the brand and the post's id there make an id longer than 71 characters"
+}

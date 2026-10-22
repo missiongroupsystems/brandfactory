@@ -52,6 +52,23 @@
           }
         },
         {
+          "call": "post.import",
+          "input": {
+            "brand": "temper",
+            "channel": "ig",
+            "externalId": "X1",
+            "format": "reel",
+            "hook": "Steak",
+            "at": "2026-09-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/reel/X1/",
+            "metrics": {}
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
           "call": "post.edit",
           "input": {
             "brand": "temper",

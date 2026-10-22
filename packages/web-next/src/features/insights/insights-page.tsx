@@ -31,6 +31,7 @@ import {
 } from '@/data/insights-hub'
 import { addIdea, keepSuggestion, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
+import { remote } from '@/lib/remote'
 
 import { addSplits, bestOffSocial, bookingsByFormat, percents, sum } from './hub-model'
 
@@ -106,11 +107,11 @@ type Tab = 'overview' | 'posts' | 'sentiment' | 'creators'
  */
 export function InsightsPage() {
   const { brand } = useBrand()
-  const data = INSIGHTS_BY_BRAND[brand.id]
-  const hub = HUB_BY_BRAND[brand.id]
+  // The figures are the demo's, invented: on the core no brand has any until real counts come.
+  const data = remote ? undefined : INSIGHTS_BY_BRAND[brand.id]
+  const hub = remote ? undefined : HUB_BY_BRAND[brand.id]
   const [tab, setTab] = React.useState<Tab>('overview')
 
-  // A brand made on the core has nothing to read until its first post goes out.
   if (!data || !hub) {
     return (
       <div className="flex min-h-svh flex-col">

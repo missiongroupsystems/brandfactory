@@ -1,0 +1,611 @@
+{
+  "name": "imports",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "member",
+  "agents": {
+    "bot": "member"
+  },
+  "cases": [
+    {
+      "name": "brings in a post already out as posted, under an id that names the brand, on the day and time it went out in the brand's zone, with its address and counts",
+      "steps": [
+        {
+          "call": "media.create",
+          "input": {
+            "brand": "casa",
+            "id": "ig-DPx1-0",
+            "mime": "image/jpeg",
+            "bytes": 2000
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "DPx1",
+            "format": "carousel",
+            "hook": "Ravioli, filled by hand.",
+            "caption": "Ravioli, filled by hand.\n\nRaffles City, Jem & Tampines Mall.",
+            "at": "2026-09-30T14:30:05.000Z",
+            "permalink": "https://www.instagram.com/p/DPx1/",
+            "media": [
+              {
+                "src": "/files/sig/brandbase/x.jpg#photo",
+                "kind": "photo",
+                "mediaId": "ig-DPx1-0"
+              }
+            ],
+            "metrics": {
+              "likes": 412,
+              "comments": 18
+            }
+          },
+          "expect": {
+            "result": {
+              "id": "casa-ig-DPx1",
+              "brandId": "casa",
+              "format": "carousel",
+              "stage": "posted",
+              "marked": "posted",
+              "day": "2026-09-30",
+              "time": "22:30",
+              "channels": ["ig"],
+              "permalink": "https://www.instagram.com/p/DPx1/",
+              "metrics": {
+                "likes": 412,
+                "comments": 18
+              },
+              "measuredAt": "2026-10-06T04:00:00.000Z",
+              "media": [
+                {
+                  "mediaId": "ig-DPx1-0",
+                  "kind": "photo"
+                }
+              ],
+              "jobs": [],
+              "version": 1
+            }
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "posts": [
+                {
+                  "id": "casa-ig-DPx1",
+                  "stage": "posted",
+                  "metrics": {
+                    "likes": 412
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "tt",
+            "externalId": "7420001",
+            "format": "reel",
+            "hook": "Watch the crust.",
+            "at": "2026-10-05T23:59:00+08:00",
+            "permalink": "https://www.tiktok.com/@casavostrasg/video/7420001",
+            "metrics": {
+              "likes": 90,
+              "comments": 3,
+              "views": 5100,
+              "shares": 7,
+              "saves": 12
+            }
+          },
+          "expect": {
+            "result": {
+              "id": "casa-tt-7420001",
+              "channels": ["tt"],
+              "day": "2026-10-05",
+              "time": "23:59",
+              "caption": "",
+              "media": [],
+              "metrics": {
+                "views": 5100,
+                "saves": 12
+              }
+            }
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+            "format": "reel",
+            "hook": "x",
+            "at": "2026-09-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/reel/L/",
+            "metrics": {}
+          },
+          "expect": {
+            "result": {
+              "id": "casa-ig-LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "refreshes the caption and counts of a post brought in again, keeps its media, and stays one post",
+      "steps": [
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "DPx2",
+            "format": "reel",
+            "hook": "Old hook",
+            "at": "2026-09-01T10:00:00Z",
+            "permalink": "https://www.instagram.com/reel/DPx2/",
+            "media": [
+              {
+                "src": "/files/sig/brandbase/cover.jpg#photo",
+                "kind": "photo"
+              }
+            ],
+            "metrics": {
+              "likes": 10,
+              "views": 100
+            }
+          }
+        },
+        {
+          "call": "post.import",
+          "now": "2026-10-07T04:00:00Z",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "DPx2",
+            "format": "reel",
+            "hook": "New hook",
+            "caption": "New hook, edited on Instagram.",
+            "at": "2026-09-01T10:00:00Z",
+            "permalink": "https://www.instagram.com/reel/DPx2/",
+            "media": [],
+            "metrics": {
+              "likes": 25,
+              "views": 340
+            }
+          },
+          "expect": {
+            "result": {
+              "id": "casa-ig-DPx2",
+              "hook": "New hook",
+              "caption": "New hook, edited on Instagram.",
+              "metrics": {
+                "likes": 25,
+                "views": 340
+              },
+              "measuredAt": "2026-10-07T04:00:00.000Z",
+              "media": [
+                {
+                  "src": "/files/sig/brandbase/cover.jpg#photo"
+                }
+              ],
+              "version": 2
+            }
+          }
+        },
+        {
+          "sql": "select count(*)::int as n, (array_agg(metrics))[1] ->> 'views' as views from brandbase.posts where id = 'casa-ig-DPx2'",
+          "expect": {
+            "rows": [
+              {
+                "n": 1,
+                "views": "340"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps a post brought in final: no edit, move, mark or unplan changes it",
+      "steps": [
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "DPx3",
+            "format": "carousel",
+            "hook": "Out already",
+            "at": "2026-09-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/p/DPx3/",
+            "metrics": {}
+          }
+        },
+        {
+          "call": "post.edit",
+          "input": {
+            "brand": "casa",
+            "id": "casa-ig-DPx3",
+            "caption": "changed"
+          },
+          "expect": {
+            "status": 409,
+            "code": "POST_POSTED"
+          }
+        },
+        {
+          "call": "post.mark",
+          "input": {
+            "brand": "casa",
+            "id": "casa-ig-DPx3",
+            "stage": "draft"
+          },
+          "expect": {
+            "status": 409,
+            "code": "POST_POSTED"
+          }
+        },
+        {
+          "call": "post.move",
+          "input": {
+            "brand": "casa",
+            "id": "casa-ig-DPx3",
+            "day": "2026-10-20"
+          },
+          "expect": {
+            "status": 409,
+            "code": "POST_POSTED"
+          }
+        },
+        {
+          "call": "post.unplan",
+          "input": {
+            "brand": "casa",
+            "id": "casa-ig-DPx3"
+          },
+          "expect": {
+            "status": 409,
+            "code": "POST_POSTED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses an id a post BrandBase made holds, in this brand or another company's, and keeps the same post brought in by two brands apart",
+      "steps": [
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "casa-ig-mine",
+            "format": "reel",
+            "hook": "Made here"
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "mine",
+            "format": "carousel",
+            "hook": "Taken over",
+            "at": "2026-09-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/p/mine/",
+            "metrics": {
+              "likes": 1
+            }
+          },
+          "expect": {
+            "status": 409,
+            "code": "ID_TAKEN"
+          }
+        },
+        {
+          "sql": "select hook, marked, permalink from brandbase.posts where id = 'casa-ig-mine'",
+          "expect": {
+            "rows": [
+              {
+                "hook": "Made here",
+                "marked": null,
+                "permalink": null
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "as": "b-owner",
+          "input": {
+            "brand": "temper",
+            "id": "casa-ig-Squat",
+            "format": "reel",
+            "hook": "Steak"
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "Squat",
+            "format": "carousel",
+            "hook": "Pasta",
+            "at": "2026-09-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/p/Squat/",
+            "metrics": {
+              "likes": 999
+            }
+          },
+          "expect": {
+            "status": 409,
+            "code": "ID_TAKEN"
+          }
+        },
+        {
+          "sql": "select brand_id, hook, permalink from brandbase.posts where id = 'casa-ig-Squat'",
+          "expect": {
+            "rows": [
+              {
+                "brand_id": "temper",
+                "hook": "Steak",
+                "permalink": null
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "temper",
+            "channel": "ig",
+            "externalId": "Shared",
+            "format": "carousel",
+            "hook": "Steak",
+            "at": "2026-09-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/p/Shared/",
+            "metrics": {
+              "likes": 5
+            }
+          },
+          "as": "b-owner"
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "Shared",
+            "format": "carousel",
+            "hook": "Pasta",
+            "at": "2026-09-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/p/Shared/",
+            "metrics": {
+              "likes": 7
+            }
+          },
+          "expect": {
+            "result": {
+              "id": "casa-ig-Shared",
+              "metrics": {
+                "likes": 7
+              }
+            }
+          }
+        },
+        {
+          "sql": "select id, brand_id, metrics ->> 'likes' as likes from brandbase.posts where id like '%-ig-Shared' order by id",
+          "expect": {
+            "rows": [
+              {
+                "id": "casa-ig-Shared",
+                "brand_id": "casa",
+                "likes": "7"
+              },
+              {
+                "id": "temper-ig-Shared",
+                "brand_id": "temper",
+                "likes": "5"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses an agent, a post whose time has not come, a file of another brand, a date that does not exist, an id past 71 characters and bad input",
+      "steps": [
+        {
+          "call": "post.import",
+          "as": "bot",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "Bot1",
+            "format": "reel",
+            "hook": "Made up",
+            "at": "2026-09-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/reel/Bot1/",
+            "metrics": {
+              "likes": 100000
+            }
+          },
+          "expect": {
+            "status": 403,
+            "code": "PERSON_ONLY"
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "Later",
+            "format": "reel",
+            "hook": "Tomorrow",
+            "at": "2026-10-06T04:00:01Z",
+            "permalink": "https://www.instagram.com/reel/Later/",
+            "metrics": {}
+          },
+          "expect": {
+            "status": 400,
+            "code": "NOT_OUT_YET"
+          }
+        },
+        {
+          "call": "media.create",
+          "as": "b-owner",
+          "input": {
+            "brand": "temper",
+            "id": "t-photo",
+            "mime": "image/jpeg",
+            "bytes": 10
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "Theirs",
+            "format": "carousel",
+            "hook": "Their photo",
+            "at": "2026-09-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/p/Theirs/",
+            "media": [
+              {
+                "src": "/files/sig/brandbase/t.jpg#photo",
+                "kind": "photo",
+                "mediaId": "t-photo"
+              }
+            ],
+            "metrics": {}
+          },
+          "expect": {
+            "status": 400,
+            "code": "BAD_MEDIA"
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "fb",
+            "externalId": "F1",
+            "format": "reel",
+            "hook": "x",
+            "at": "2026-09-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/reel/F1/",
+            "metrics": {}
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "N1",
+            "format": "reel",
+            "hook": "x",
+            "at": "2026-09-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/reel/N1/",
+            "metrics": {
+              "likes": -1
+            }
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "E1",
+            "format": "reel",
+            "hook": "x",
+            "at": "2026-09-20T10:00:00Z",
+            "permalink": "https://evil.example.com/reel/E1/",
+            "metrics": {}
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "S1",
+            "format": "story",
+            "hook": "x",
+            "at": "2026-09-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/p/S1/",
+            "metrics": {}
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "D1",
+            "format": "reel",
+            "hook": "x",
+            "at": "2026-13-40T10:00:00Z",
+            "permalink": "https://www.instagram.com/reel/D1/",
+            "metrics": {}
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+            "format": "reel",
+            "hook": "x",
+            "at": "2026-09-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/reel/L/",
+            "metrics": {}
+          },
+          "expect": {
+            "status": 400,
+            "code": "ID_TOO_LONG"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.posts where permalink is not null",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

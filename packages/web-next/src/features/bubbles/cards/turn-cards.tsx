@@ -3,11 +3,10 @@
 import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
-import { INBOX_BY_BRAND } from '@/data/inbox'
 import { useBrandFiles } from '@/features/brand/brand-store'
 import { dayOfHook } from '@/features/ideate/calendar-slot'
 import { useIdeasById } from '@/features/ideate/ideas-store'
-import { useInbox } from '@/features/inbox/inbox-store'
+import { messagesOf, useInbox } from '@/features/inbox/inbox-store'
 import { queue } from '@/features/inbox/model'
 import { useBrand } from '@/features/schedule/posts-store'
 import { useShoots } from '@/features/shoot/shoots-store'
@@ -101,8 +100,7 @@ function useKeep(turn: Turn) {
           break
         case 'cleared': {
           const brandId = (typeof input.brand === 'string' ? input.brand : brand.id) as BrandId
-          const messages = INBOX_BY_BRAND[brandId]?.messages ?? []
-          snapshot = queue(messages, done).noise.length
+          snapshot = queue(messagesOf(brandId), done).noise.length
           break
         }
       }
