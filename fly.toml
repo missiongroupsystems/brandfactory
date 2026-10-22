@@ -23,6 +23,8 @@
 #   PINTEREST_APP_ID, PINTEREST_APP_SECRET, PINTEREST_REDIRECT_URL: all three or none
 #                          (packages/connect/src/brandbase/env.ts). The redirect is the web app's
 #                          /connect/pinterest page, as registered on the Pinterest app.
+#   MISSION_EVENTS_URL, MISSION_EVENTS_SERVICE_KEY: both or none (src/env.ts). The Mission Events
+#                          feed that `event.pull` reads (src/feeds.ts).
 
 app            = "brandfactory"
 primary_region = "sin"

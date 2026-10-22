@@ -1,6 +1,6 @@
 # The real Pinterest connection: as built
 
-Plan: `docs/executing/pinterest-connect-plan.md`. Branch `feat/pinterest-connect`, from
+Plan: `docs/completions/pinterest-connect-plan.md`. Branch `feat/pinterest-connect`, from
 `origin/fix/onboarding-polish` at `7d2a99f`. Ported from `feat/real-publishing` (87f2a96).
 
 ## Phase 1: core, pack 1.7.0 and the server
@@ -128,7 +128,8 @@ linked, before a board is picked (as on `feat/real-publishing`).
 - Meta and TikTok are not ported (their sign-ins, publishers and the `social` connector stay on
   `feat/real-publishing`, as do the core's connector and scheduler changes).
 - Scopes are the three the Trial app has; secret boards do not list.
-- The plan stays in `docs/executing/` until production runs the steps below.
+- Released with Mission Events from `feat/pinterest-and-events`: production gets brandbase 1.8.0
+  (0015 and 0016), never 1.7.0 alone. Read "1.8.0" for "1.7.0" in the steps below.
 
 ## Production steps
 

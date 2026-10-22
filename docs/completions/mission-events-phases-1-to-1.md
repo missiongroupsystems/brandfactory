@@ -2,6 +2,7 @@
 
 Plan: `docs/completions/mission-events-plan.md`. Branch `feat/mission-events`, from
 `fix/onboarding-polish`. brandbase 1.8.0, migration `0016_events.sql` (not applied to production).
+Released with the Pinterest connection from `feat/pinterest-and-events`: 1.8.0 holds 0015 and 0016.
 
 ## Phase 1: the hourly pull and the "Our events" row
 
@@ -12,7 +13,8 @@ Plan: `docs/completions/mission-events-plan.md`. Branch `feat/mission-events`, f
   40 pages, and an empty page stops the read), and keeps only the items whose fields equal the
   payload's `keep`. A 401, 403, 429, other non-2xx answer, wrong shape or a body that is not JSON
   fails the send; it never answers an empty list. The payload's path is checked so the key cannot
-  go to another host. `main.ts` adds it as `mission_events` (header `X-Service-Key`) when
+  go to another host. `server.ts` (which `main.ts` and connect's `host.ts` both run) adds it as
+  `mission_events` (header `X-Service-Key`) when
   `MISSION_EVENTS_URL` and `MISSION_EVENTS_SERVICE_KEY` are both set. `env.ts` refuses one setting
   without the other, and refuses a URL that is not https in production.
 - **Core, the test runner.** Every connector that a pack names goes to the case's connector, and a
