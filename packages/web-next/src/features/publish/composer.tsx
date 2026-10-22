@@ -225,7 +225,7 @@ export function Composer({
     () => (post && dayOf(weeks, post.id)) || start?.day || addDays(todayDate(), 7),
   )
   const [time, setTime] = React.useState(
-    () => post?.slot.split(', ')[1] ?? start?.time ?? INSIGHTS_BY_BRAND[brand.id].best,
+    () => post?.slot.split(', ')[1] ?? start?.time ?? INSIGHTS_BY_BRAND[brand.id]?.best ?? '18:00',
   )
   // A new post, once placed: a second send after "Edit post" moves it instead of placing another.
   const [madeId, setMadeId] = React.useState<string | null>(null)

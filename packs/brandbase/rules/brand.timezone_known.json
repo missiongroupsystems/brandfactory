@@ -1,0 +1,7 @@
+{
+  "id": "brand.timezone_known",
+  "sql": "select :timezone::text is null or exists (select 1 from pg_timezone_names where name = :timezone::text) as ok",
+  "status": 400,
+  "code": "BAD_TIMEZONE",
+  "message": "this time zone is not known"
+}

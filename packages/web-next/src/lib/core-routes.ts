@@ -26,6 +26,7 @@ type Route = [
 const ROUTES: Route[] = [
   ['GET', /^\/me$/, () => ({ op: 'account.me', input: {} })],
   ['GET', /^\/brands$/, () => ({ op: 'brand.list', input: {} })],
+  ['POST', /^\/brands$/, (_m, body) => ({ op: 'brand.create', input: { ...body } })],
   ['GET', /^\/brands\/([^/]+)\/state$/, ([b]) => ({ op: 'brand.state', input: { brand: b } })],
   [
     'POST',

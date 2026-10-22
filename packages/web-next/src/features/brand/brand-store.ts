@@ -13,9 +13,9 @@ import { printed } from '@/lib/remote-days'
  * switcher) sees it at once. A reload starts over at `data/brand-kit.ts`.
  */
 
-/** The logo the team uploaded last; `name` is null for the brand's own. */
+/** The logo the team uploaded last; `name` is null for the brand's own, `src` until there is one. */
 export interface Logo {
-  src: string
+  src: string | null
   name: string | null
 }
 
@@ -23,11 +23,19 @@ export type Kit = BrandKit & { logo: Logo }
 
 type State = Record<BrandId, Kit>
 
+/** A brand made on the core starts with this kit, until its state loads or the team fills it. */
+const EMPTY: Kit = {
+  voice: { summary: '', words: [], examples: [] },
+  colours: [],
+  logo: { src: null, name: null },
+  files: [],
+}
+
 const initial = (): State =>
   Object.fromEntries(
     Object.entries(BRAND_KIT).map(([id, k]) => [
       id,
-      { ...k, logo: { src: contentFor(id as BrandId).brand.logo, name: null } },
+      { ...k, logo: { src: contentFor(id as BrandId).brand.logo ?? null, name: null } },
     ]),
   ) as State
 
@@ -75,7 +83,7 @@ const send = (brandId: BrandId, method: string, path: string, body?: unknown) =>
  */
 function sendChanges(brandId: BrandId, before: Kit, after: Kit) {
   if (before.colours !== after.colours) send(brandId, 'PUT', '/colours', { colours: after.colours })
-  if (before.logo !== after.logo && !after.logo.src.startsWith('blob:')) {
+  if (before.logo !== after.logo && after.logo.src && !after.logo.src.startsWith('blob:')) {
     send(brandId, 'PUT', '/logo', after.logo)
   }
   if (before.files === after.files) return
@@ -95,8 +103,8 @@ function sendChanges(brandId: BrandId, before: Kit, after: Kit) {
 export function useBrandKit(brandId: BrandId): Kit {
   return React.useSyncExternalStore(
     subscribe,
-    () => state[brandId],
-    () => state[brandId],
+    () => state[brandId] ?? EMPTY,
+    () => state[brandId] ?? EMPTY,
   )
 }
 
@@ -105,7 +113,7 @@ export function useBrandFiles(brandId: BrandId): BrandFile[] {
 }
 
 export function editKit(brandId: BrandId, fn: (kit: Kit) => Kit) {
-  const before = state[brandId]
+  const before = state[brandId] ?? EMPTY
   state = { ...state, [brandId]: fn(before) }
   sendChanges(brandId, before, state[brandId])
   listeners.forEach((l) => l())

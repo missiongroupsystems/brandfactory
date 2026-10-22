@@ -1,0 +1,53 @@
+{
+  "name": "brand.create",
+  "description": "A new brand in one of the caller's companies, with an empty kit, after the company's other brands in the switcher. Only the company's owners and admins add brands, themselves: never an agent. Its id comes from its name; a name whose id another brand holds is refused.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["org", "name", "handle", "linked"],
+    "properties": {
+      "org": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80,
+        "pattern": "[A-Za-z0-9]"
+      },
+      "handle": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 40,
+        "pattern": "^@\\S+$"
+      },
+      "linked": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": {
+          "enum": ["ig", "tt", "fb"]
+        }
+      },
+      "line": {
+        "type": "string",
+        "maxLength": 120
+      },
+      "timezone": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      }
+    }
+  },
+  "before": [
+    "account.exists",
+    "account.active",
+    "brand.by_a_person",
+    "brand.org_reached",
+    "brand.org_managed",
+    "brand.timezone_known"
+  ],
+  "returns": "one",
+  "sql": "with b as (\n  insert into brandbase.brands (id, org_id, name, handle, line, timezone, linked, position, created_at)\n  select trim(both '-' from left(trim(both '-' from regexp_replace(lower(:name::text), '[^a-z0-9]+', '-', 'g')), 60)), :org, btrim(:name::text), :handle, coalesce(:line::text, ''),\n    coalesce(:timezone::text, 'Asia/Singapore'), array(select jsonb_array_elements_text(:linked::jsonb)),\n    coalesce((select max(x.position) + 1 from brandbase.brands x where x.org_id = :org), 0), :now::timestamptz\n  returning *\n),\nk as (\n  insert into brandbase.brand_kits (brand_id, org_id, voice, colours, logo)\n  select b.id, b.org_id, '{\"summary\": \"\", \"words\": [], \"examples\": []}', '[]', '{\"src\": null, \"name\": null}' from b\n)\nselect brandbase.camel(to_jsonb(b)) || jsonb_build_object('createdAt', brandbase.iso(b.created_at)) as result from b"
+}

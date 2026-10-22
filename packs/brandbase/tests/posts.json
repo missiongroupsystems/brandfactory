@@ -81,7 +81,7 @@
             "day": "2026-10-08",
             "time": "18:00"
           },
-          "as": "admin",
+          "as": "both",
           "expect": {
             "status": 200
           }
@@ -96,7 +96,7 @@
             "day": "2026-10-08",
             "time": "18:00"
           },
-          "as": "admin",
+          "as": "both",
           "expect": {
             "status": 409,
             "code": "ID_TAKEN"
@@ -1078,7 +1078,7 @@
       "steps": [
         {
           "call": "post.create_draft",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "nowhere",
             "id": "p9",

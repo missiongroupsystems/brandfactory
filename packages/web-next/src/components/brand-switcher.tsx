@@ -5,10 +5,11 @@ import * as React from 'react'
 
 import type { Brand } from '@/data/brands'
 import { BrandLogo } from '@/features/brand/brand-logo'
+import { NewBrandForm } from '@/features/brand/new-brand-form'
 import { useConnections } from '@/features/connections/connections-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
-import { CheckIcon, ChevronIcon } from './icons'
+import { CheckIcon, ChevronIcon, PlusIcon } from './icons'
 
 function BrandMark({ brand, size }: { brand: Brand; size: 'sm' | 'md' }) {
   return (
@@ -24,9 +25,13 @@ function BrandMark({ brand, size }: { brand: Brand; size: 'sm' | 'md' }) {
 
 /** The header pill: shows the current brand and opens a menu to switch to another. */
 export function BrandSwitcher() {
-  const { brand, brands, setBrandId } = useBrand()
+  const { brand, brands, setBrandId, companies, addBrand } = useBrand()
   const attention = Object.values(useConnections(brand.id)).includes('attention')
   const [open, setOpen] = React.useState(false)
+  const [adding, setAdding] = React.useState(false)
+  // Only an owner or an admin of a company adds a brand; the item takes one place in the menu.
+  const canAdd = companies.length > 0
+  const links = brands.length + (canAdd ? 1 : 0)
   const root = React.useRef<HTMLDivElement>(null)
   const trigger = React.useRef<HTMLButtonElement>(null)
   const items = React.useRef<Array<HTMLElement | null>>([])
@@ -124,11 +129,31 @@ export function BrandSwitcher() {
               </button>
             )
           })}
+          {canAdd && (
+            <button
+              ref={(el) => {
+                items.current[brands.length] = el
+              }}
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => {
+                close(false)
+                setAdding(true)
+              }}
+              className="flex items-center gap-2.5 rounded-[8px] px-2 py-[7px] text-left text-[13.5px] text-ink-3 transition-colors outline-none hover:bg-surface-2 hover:text-ink focus-visible:bg-surface"
+            >
+              <span className="flex size-6 shrink-0 items-center justify-center">
+                <PlusIcon size={13} />
+              </span>
+              Add brand
+            </button>
+          )}
           <span aria-hidden="true" className="mx-2 my-1.5 h-px bg-line" />
           {/* The current brand's voice, colours and files: not a daily page, so it lives here. */}
           <Link
             ref={(el) => {
-              items.current[brands.length] = el
+              items.current[links] = el
             }}
             href="/brand"
             role="menuitem"
@@ -142,7 +167,7 @@ export function BrandSwitcher() {
           {/* What the brand has linked; a dot when something needs signing in again. */}
           <Link
             ref={(el) => {
-              items.current[brands.length + 1] = el
+              items.current[links + 1] = el
             }}
             href="/brand/connections"
             role="menuitem"
@@ -156,6 +181,9 @@ export function BrandSwitcher() {
             )}
           </Link>
         </div>
+      )}
+      {adding && (
+        <NewBrandForm companies={companies} onAdd={addBrand} onClose={() => setAdding(false)} />
       )}
     </div>
   )

@@ -1,7 +1,8 @@
 {
   "brands": "A restaurant or venue whose social accounts the team runs. Each has one time zone; every 'today' rule reads it.",
-  "users": "A person who signs in. An admin reaches every brand; a member reaches the brands in members.",
-  "members": "Which brands a member may reach.",
+  "users": "A person who signs in. They reach every brand of each company they are a member of, while their account is active.",
+  "organizations": "A company. Each brand belongs to one.",
+  "org_members": "Who is in which company, as owner, admin or member. Every member reaches every brand of the company; roles decide nothing yet.",
   "posts": "One piece of content for several accounts: a reel, a carousel or a story, on a day and time in the brand's zone. Its stage comes from its jobs, or from a stage a person set by hand (marked). Posted is final.",
   "post_jobs": "One account's send of one post: scheduled, uploading, live or failed.",
   "ideas": "A plan for a post, with its references and shots. It sits on one calendar day, or is linked to the post it became.",

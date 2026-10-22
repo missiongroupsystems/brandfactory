@@ -4,6 +4,12 @@ import { coreCall, guestCall } from './core-routes'
 describe('the routes on the core', () => {
   it('turns each ported route into its move, with the path and the body as the input', () => {
     expect(coreCall('GET', '/me', undefined)).toEqual({ op: 'account.me', input: {} })
+    expect(
+      coreCall('POST', '/brands', { org: 'demo', name: 'Lucali', handle: '@lucali', linked: [] }),
+    ).toEqual({
+      op: 'brand.create',
+      input: { org: 'demo', name: 'Lucali', handle: '@lucali', linked: [] },
+    })
     expect(coreCall('GET', '/brands/casa-vostra/state', undefined)).toEqual({
       op: 'brand.state',
       input: { brand: 'casa-vostra' },

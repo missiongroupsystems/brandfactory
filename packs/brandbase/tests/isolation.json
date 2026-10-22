@@ -4,11 +4,11 @@
   "as": "member",
   "cases": [
     {
-      "name": "answers not-found to a member calling every move with another brand's ids",
+      "name": "answers not-found to a member calling every move with another company's brand's ids",
       "steps": [
         {
           "call": "post.create_draft",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "temper",
             "id": "t1",
@@ -211,7 +211,7 @@
         },
         {
           "call": "idea.create",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "temper",
             "id": "ti",
@@ -308,7 +308,7 @@
         },
         {
           "call": "shoot.create",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "temper",
             "id": "ts",
@@ -472,7 +472,7 @@
           }
         },
         {
-          "sql": "insert into brandbase.brand_kits (brand_id, voice, colours, logo) values ('temper', '{\"summary\": \"Bold\", \"words\": [], \"examples\": []}', '[]', '{\"src\": \"/t.png\", \"name\": null}')"
+          "sql": "insert into brandbase.brand_kits (brand_id, org_id, voice, colours, logo) values ('temper', 'co-b', '{\"summary\": \"Bold\", \"words\": [], \"examples\": []}', '[]', '{\"src\": \"/t.png\", \"name\": null}')"
         },
         {
           "sql": "insert into brandbase.voice_versions (brand_id, n, by, voice) values ('temper', 1, 'x', '{\"summary\": \"Bold\", \"words\": [], \"examples\": []}')"
@@ -767,7 +767,70 @@
       ]
     },
     {
-      "name": "shows a member only their brands, and an admin every brand in the switcher's order",
+      "name": "reaches nothing for an account in no company, whatever its users.role says",
+      "steps": [
+        {
+          "call": "brand.list",
+          "as": "loner",
+          "input": {},
+          "expect": {
+            "length": 0
+          }
+        },
+        {
+          "call": "account.me",
+          "as": "loner",
+          "input": {},
+          "expect": {
+            "result": {
+              "user": {
+                "id": "loner"
+              },
+              "companies": [],
+              "brands": []
+            }
+          }
+        },
+        {
+          "call": "post.list",
+          "as": "loner",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "brand.state",
+          "as": "loner",
+          "input": {
+            "brand": "temper"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "as": "loner",
+          "input": {
+            "brand": "casa",
+            "id": "l1",
+            "format": "reel",
+            "hook": "x"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        }
+      ]
+    },
+    {
+      "name": "shows a member every brand of their company and none of another, and a member of both companies every brand, in the switcher's order",
       "steps": [
         {
           "call": "brand.list",
@@ -776,14 +839,19 @@
             "result": [
               {
                 "id": "casa",
-                "name": "Casa Vostra"
+                "name": "Casa Vostra",
+                "orgId": "co-a"
+              },
+              {
+                "id": "osteria",
+                "orgId": "co-a"
               }
             ]
           }
         },
         {
           "call": "brand.list",
-          "as": "admin",
+          "as": "owner",
           "input": {},
           "expect": {
             "result": [
@@ -791,7 +859,63 @@
                 "id": "casa"
               },
               {
-                "id": "temper"
+                "id": "osteria"
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.list",
+          "as": "both",
+          "input": {},
+          "expect": {
+            "result": [
+              {
+                "id": "casa"
+              },
+              {
+                "id": "osteria"
+              },
+              {
+                "id": "temper",
+                "orgId": "co-b"
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "osteria"
+          },
+          "expect": {
+            "result": {
+              "brand": {
+                "id": "osteria"
+              }
+            }
+          }
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "osteria",
+            "id": "o1",
+            "format": "reel",
+            "hook": "Antipasti"
+          }
+        },
+        {
+          "call": "post.list",
+          "as": "owner",
+          "input": {
+            "brand": "osteria"
+          },
+          "expect": {
+            "length": 1,
+            "result": [
+              {
+                "id": "o1"
               }
             ]
           }
@@ -802,12 +926,21 @@
           "expect": {
             "result": {
               "user": {
-                "id": "member",
-                "role": "member"
+                "id": "member"
               },
+              "companies": [
+                {
+                  "id": "co-a",
+                  "name": "Company A",
+                  "role": "member"
+                }
+              ],
               "brands": [
                 {
                   "id": "casa"
+                },
+                {
+                  "id": "osteria"
                 }
               ]
             }
@@ -815,18 +948,54 @@
         },
         {
           "call": "account.me",
-          "as": "admin",
+          "as": "owner",
+          "input": {},
+          "expect": {
+            "result": {
+              "companies": [
+                {
+                  "id": "co-a",
+                  "role": "owner"
+                }
+              ],
+              "brands": [
+                {
+                  "id": "casa"
+                },
+                {
+                  "id": "osteria"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "call": "account.me",
+          "as": "both",
           "input": {},
           "expect": {
             "result": {
               "user": {
-                "id": "admin",
-                "role": "admin",
+                "id": "both",
                 "deactivatedAt": null
               },
+              "companies": [
+                {
+                  "id": "co-a",
+                  "role": "member"
+                },
+                {
+                  "id": "co-b",
+                  "name": "Company B",
+                  "role": "admin"
+                }
+              ],
               "brands": [
                 {
                   "id": "casa"
+                },
+                {
+                  "id": "osteria"
                 },
                 {
                   "id": "temper"
@@ -838,27 +1007,36 @@
       ]
     },
     {
-      "name": "shows a member every brand they hold and no other, and an admin every brand",
+      "name": "shows a brand added to a company to its members at once, and to no one else",
       "steps": [
         {
-          "sql": "insert into brandbase.brands (id, name, handle, linked, position) values ('third', 'Third', '@third', '{ig}', 2)"
-        },
-        {
-          "sql": "insert into brandbase.members (user_id, brand_id) values ('member', 'third')"
+          "sql": "insert into brandbase.brands (id, name, handle, linked, position, org_id) values ('third', 'Third', '@third', '{ig}', 3, 'co-a')"
         },
         {
           "call": "brand.list",
           "input": {},
           "expect": {
-            "length": 2,
+            "length": 3,
             "result": [
               {
                 "id": "casa"
               },
               {
+                "id": "osteria"
+              },
+              {
                 "id": "third"
               }
             ]
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "third"
+          },
+          "expect": {
+            "length": 0
           }
         },
         {
@@ -873,34 +1051,57 @@
         },
         {
           "call": "brand.list",
-          "as": "admin",
+          "as": "both",
           "input": {},
           "expect": {
-            "length": 3,
+            "length": 4,
             "result": [
               {
                 "id": "casa"
               },
               {
-                "id": "temper"
+                "id": "osteria"
               },
               {
                 "id": "third"
+              },
+              {
+                "id": "temper"
               }
             ]
+          }
+        },
+        {
+          "sql": "insert into brandbase.brands (id, name, handle, linked, position, org_id) values ('fourth', 'Fourth', '@fourth', '{ig}', 4, 'co-b')"
+        },
+        {
+          "call": "brand.list",
+          "input": {},
+          "expect": {
+            "length": 3
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "fourth"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
           }
         }
       ]
     },
     {
-      "name": "reaches nothing for a deactivated admin: the brand wall alone guards post.list",
+      "name": "reaches nothing for a deactivated member of both companies: the brand wall alone guards post.list",
       "steps": [
         {
-          "sql": "update brandbase.users set deactivated_at = now() where id = 'admin'"
+          "sql": "update brandbase.users set deactivated_at = now() where id = 'both'"
         },
         {
           "call": "post.list",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "casa"
           },
@@ -911,7 +1112,7 @@
         },
         {
           "call": "brand.state",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "temper"
           },
@@ -923,15 +1124,17 @@
       ]
     },
     {
-      "name": "asks the brand wall once per statement: no row rule calls can_reach for each row",
+      "name": "asks the brand walls once per statement: no row rule calls a function for each row",
       "steps": [
         {
-          "sql": "select count(*) filter (where qual like '%can_reach%' or with_check like '%can_reach%')::int as per_row, count(*) filter (where qual like '%SELECT brandbase.reaches_all()%SELECT brandbase.reached()%' and with_check like '%SELECT brandbase.reaches_all()%SELECT brandbase.reached()%')::int as once from pg_policies where schemaname = 'brandbase' and policyname = 'reach'",
+          "sql": "select count(*) filter (where regexp_replace(coalesce(qual, '') || ' ' || coalesce(with_check, ''), '\\(\\s*SELECT brandbase\\.(reached|reached_orgs|managed_orgs)\\(\\) AS (reached|reached_orgs|managed_orgs)\\)', '', 'g') ~ 'brandbase\\.\\w+\\(')::int as per_row, count(*) filter (where policyname = 'reach' and tablename <> 'brands' and qual ~ '\\(\\s*SELECT brandbase\\.reached\\(\\) AS reached\\)' and with_check ~ '\\(\\s*SELECT brandbase\\.reached\\(\\) AS reached\\)')::int as by_brand, count(*) filter (where tablename = 'brands' and policyname like 'reach%' and qual ~ '\\(\\s*SELECT brandbase\\.reached_orgs\\(\\) AS reached_orgs\\)' and coalesce(with_check, qual) ~ '\\(\\s*SELECT brandbase\\.reached_orgs\\(\\) AS reached_orgs\\)')::int as by_company, count(*) filter (where policyname = 'manage' and with_check ~ '\\(\\s*SELECT brandbase\\.managed_orgs\\(\\) AS managed_orgs\\)')::int as by_manager from pg_policies where schemaname = 'brandbase' and policyname in ('reach', 'reach_update', 'reach_delete', 'manage')",
           "expect": {
             "rows": [
               {
                 "per_row": 0,
-                "once": 18
+                "by_brand": 17,
+                "by_company": 2,
+                "by_manager": 2
               }
             ]
           }
@@ -1054,6 +1257,42 @@
                 ]
               }
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "shows a person only their own memberships and companies, and lets the runtime role write neither",
+      "steps": [
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('both'); set local role pack_runtime; raise exception 'both sees % memberships of others, % companies', (select count(*) from brandbase.org_members where user_id <> 'both'), (select count(*) from brandbase.organizations); end $$",
+          "expect": {
+            "error": "both sees 0 memberships of others, 2 companies"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('member'); set local role pack_runtime; raise exception 'member sees % memberships, companies %', (select count(*) from brandbase.org_members), (select string_agg(id, ',') from brandbase.organizations); end $$",
+          "expect": {
+            "error": "member sees 1 memberships, companies co-a"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('gone'); set local role pack_runtime; raise exception 'gone sees % companies, % brands', (select count(*) from brandbase.organizations), (select count(*) from brandbase.brands); end $$",
+          "expect": {
+            "error": "gone sees 0 companies, 0 brands"
+          }
+        },
+        {
+          "sql": "select has_table_privilege('pack_runtime', 'brandbase.organizations', 'select') as orgs, has_table_privilege('pack_runtime', 'brandbase.org_members', 'select') as memberships, has_table_privilege('pack_runtime', 'brandbase.organizations', 'insert, update, delete') or has_table_privilege('pack_runtime', 'brandbase.org_members', 'insert, update, delete') or has_table_privilege('pack_runtime', 'brandbase.users', 'insert, update, delete') as writes, to_regclass('brandbase.members') is null as members_gone",
+          "expect": {
+            "rows": [
+              {
+                "orgs": true,
+                "memberships": true,
+                "writes": false,
+                "members_gone": true
+              }
+            ]
           }
         }
       ]

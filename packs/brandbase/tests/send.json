@@ -274,7 +274,7 @@
             "status": 404
           },
           "key": "send-abcdefgh",
-          "as": "admin"
+          "as": "both"
         }
       ]
     },
@@ -805,7 +805,7 @@
           "key": "send-abcdefgh"
         },
         {
-          "sql": "delete from brandbase.members where user_id = 'member'"
+          "sql": "delete from brandbase.org_members where user_id = 'member'"
         },
         {
           "call": "post.schedule",

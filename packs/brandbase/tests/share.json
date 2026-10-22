@@ -971,7 +971,7 @@
         },
         {
           "call": "share.link",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "temper",
             "kind": "idea",

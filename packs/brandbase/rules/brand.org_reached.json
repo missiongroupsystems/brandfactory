@@ -1,0 +1,7 @@
+{
+  "id": "brand.org_reached",
+  "sql": "select :org = any (brandbase.reached_orgs()) as ok",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "message": "company not found"
+}

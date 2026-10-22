@@ -1,6 +1,6 @@
 {
   "name": "brand.list",
-  "description": "The brands the caller reaches, in the switcher's order: every brand for an admin, a member's own brands otherwise.",
+  "description": "The brands the caller reaches, in the switcher's order: every brand of every company they are a member of, company by company (by name), each company's in its own order.",
   "input": {
     "type": "object",
     "additionalProperties": false,
@@ -8,5 +8,5 @@
   },
   "before": ["account.exists", "account.active"],
   "returns": "many",
-  "sql": "select (brandbase.camel(to_jsonb(b)) || jsonb_build_object('createdAt', brandbase.iso(b.created_at))) as result from brandbase.brands b order by b.position, b.id"
+  "sql": "select (brandbase.camel(to_jsonb(b)) || jsonb_build_object('createdAt', brandbase.iso(b.created_at))) as result from brandbase.brands b join brandbase.organizations o on o.id = b.org_id order by o.name, o.id, b.position, b.id"
 }

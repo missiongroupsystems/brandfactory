@@ -24,7 +24,10 @@ export function VoiceSection() {
   const { brand } = useBrand()
   const voice = useBrandKit(brand.id).voice
   const versions = useVoiceVersions(brand.id)
+  // A brand made on the core has no version until its voice is first written.
   const [current] = versions
+  const n = current?.n ?? 0
+  const empty = !voice.summary && voice.words.length === 0 && voice.examples.length === 0
   // The voice when the flow opened (what the proof compares with), and the draft's start: the
   // same voice, or an old version to bring back.
   const [flow, setFlow] = React.useState<{
@@ -44,42 +47,48 @@ export function VoiceSection() {
         <button
           type="button"
           aria-label="Edit voice"
-          onClick={() => setFlow({ base: voice, from: voice, next: current.n + 1 })}
+          onClick={() => setFlow({ base: voice, from: voice, next: n + 1 })}
           className={`${QUIET} -mr-3`}
         >
           Edit
         </button>
       }
     >
-      <div key={current.n} className={`flex flex-col gap-6 ${landed ? 'bb-rise' : ''}`}>
-        <VoiceView voice={voice} />
+      <div key={n} className={`flex flex-col gap-6 ${landed ? 'bb-rise' : ''}`}>
+        {empty ? (
+          <p className="text-[15px] text-ink-4">No voice yet.</p>
+        ) : (
+          <VoiceView voice={voice} />
+        )}
       </div>
-      <div className="flex flex-col">
-        <button
-          type="button"
-          aria-expanded={history}
-          aria-label="Version history"
-          onClick={() => setHistory((h) => !h)}
-          className="-ml-2 flex h-8 items-center gap-2 self-start rounded-full px-2 text-[12.5px] text-ink-4 transition-colors hover:bg-surface hover:text-ink-2"
-        >
-          <span className="font-mono text-[11px] text-ink-3">v{current.n}</span>
-          <span>
-            {current.by} · {current.when}
-          </span>
-          <ChevronIcon open={history} size={8} />
-        </button>
-        <div className="bb-fold" style={{ gridTemplateRows: history ? '1fr' : '0fr' }}>
-          <div inert={!history}>
-            <History
-              versions={versions}
-              landed={landed}
-              onRestore={(v) =>
-                setFlow({ base: voice, from: v.voice, restoring: v, next: current.n + 1 })
-              }
-            />
+      {current && (
+        <div className="flex flex-col">
+          <button
+            type="button"
+            aria-expanded={history}
+            aria-label="Version history"
+            onClick={() => setHistory((h) => !h)}
+            className="-ml-2 flex h-8 items-center gap-2 self-start rounded-full px-2 text-[12.5px] text-ink-4 transition-colors hover:bg-surface hover:text-ink-2"
+          >
+            <span className="font-mono text-[11px] text-ink-3">v{current.n}</span>
+            <span>
+              {current.by} · {current.when}
+            </span>
+            <ChevronIcon open={history} size={8} />
+          </button>
+          <div className="bb-fold" style={{ gridTemplateRows: history ? '1fr' : '0fr' }}>
+            <div inert={!history}>
+              <History
+                versions={versions}
+                landed={landed}
+                onRestore={(v) =>
+                  setFlow({ base: voice, from: v.voice, restoring: v, next: n + 1 })
+                }
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
       {flow && (
         <Flow
           voice={flow.base}
@@ -383,7 +392,7 @@ function Flow({
                   >
                     <span className={EYEBROW}>{k}</span>
                     <SampleDiff
-                      draft={SAMPLES[brand.id][k]}
+                      draft={SAMPLES[brand.id]?.[k] ?? ''}
                       before={voice}
                       after={result}
                       labels={[`v${next - 1}`, `v${next}`]}

@@ -326,7 +326,7 @@
         },
         {
           "call": "idea.create",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "temper",
             "id": "t1",
@@ -1154,7 +1154,7 @@
       "steps": [
         {
           "call": "idea.create",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "temper",
             "id": "t1",
@@ -1164,7 +1164,7 @@
         },
         {
           "call": "shoot.create",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "temper",
             "id": "t-s1",
@@ -1182,7 +1182,7 @@
         },
         {
           "approve": "shoot.invite",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "temper",
             "id": "t-s1"

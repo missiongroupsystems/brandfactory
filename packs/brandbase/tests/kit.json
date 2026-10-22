@@ -7,7 +7,7 @@
       "name": "publishes a voice as a new version under the edit rules",
       "steps": [
         {
-          "sql": "insert into brandbase.brand_kits (brand_id, voice, colours, logo) values ('casa', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
+          "sql": "insert into brandbase.brand_kits (brand_id, org_id, voice, colours, logo) values ('casa', 'co-a', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
         },
         {
           "call": "kit.voice",
@@ -48,7 +48,7 @@
       "name": "brings back an old version as a new one, not a rewind",
       "steps": [
         {
-          "sql": "insert into brandbase.brand_kits (brand_id, voice, colours, logo) values ('casa', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
+          "sql": "insert into brandbase.brand_kits (brand_id, org_id, voice, colours, logo) values ('casa', 'co-a', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
         },
         {
           "call": "kit.voice",
@@ -119,7 +119,7 @@
       "name": "never saves a hex that is not one, and reads one the way people paste it",
       "steps": [
         {
-          "sql": "insert into brandbase.brand_kits (brand_id, voice, colours, logo) values ('casa', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
+          "sql": "insert into brandbase.brand_kits (brand_id, org_id, voice, colours, logo) values ('casa', 'co-a', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
         },
         {
           "call": "kit.colours",
@@ -176,7 +176,7 @@
       "name": "titles a new file from its name, keeps the title on a new version, and ignores a blank rename",
       "steps": [
         {
-          "sql": "insert into brandbase.brand_kits (brand_id, voice, colours, logo) values ('casa', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
+          "sql": "insert into brandbase.brand_kits (brand_id, org_id, voice, colours, logo) values ('casa', 'co-a', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
         },
         {
           "call": "kit.file_add",
@@ -282,7 +282,7 @@
       "name": "keeps a logo that was uploaded, never a blob: URL",
       "steps": [
         {
-          "sql": "insert into brandbase.brand_kits (brand_id, voice, colours, logo) values ('casa', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
+          "sql": "insert into brandbase.brand_kits (brand_id, org_id, voice, colours, logo) values ('casa', 'co-a', '{\"summary\": \"Warm, Italian, never fussy.\", \"words\": [{\"use\": \"nonna\", \"avoid\": \"grandmother\"}], \"examples\": [\"Pasta, made this morning.\"]}', '[{\"name\": \"Tomato\", \"hex\": \"#D9572B\"}]', '{\"src\": \"/logo.png\", \"name\": null}')"
         },
         {
           "call": "kit.logo",

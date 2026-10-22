@@ -123,7 +123,8 @@ export function PhoneCalendar({
 
   const shownWeek = weeks[Math.min(week, weeks.length - 1)]!
   const shownDay = shownWeek.days[day]!
-  const best = INSIGHTS_BY_BRAND[brand.id].best
+  // A brand made on the core has no insights yet: an evening hour until it does.
+  const best = INSIGHTS_BY_BRAND[brand.id]?.best ?? '18:00'
   const items = (d: Day) => itemsOf(d, byId, stages)
   const stories = (d: Day, it: DayItems) => storiesOf(d.date, it, brand.id, library, byId)
   const movingFrom = moving
