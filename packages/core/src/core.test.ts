@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { createCore } from './app'
 import { type Db } from './db'
-import { addPrincipal, setLoadout } from './registry'
-import { deps, freshDb, goLive, person } from './testing'
+import { hashOf } from './pack'
+import { addPrincipal, promote, publish, recordTestRun, setLoadout } from './registry'
+import { deps, freshDb, goLive, OWNER, person } from './testing'
 import { toyPack } from './toy-pack'
 
 const open: Db[] = []
@@ -123,6 +124,102 @@ describe('a call through the core', () => {
     const res = await call('note.add', { id: 'n1', body: 'a\u0000b', extra: 'x'.repeat(20_000) })
     expect(res.data.code).toBe('VALIDATION')
     expect(await lastLog()).toMatchObject({ status: 400, code: 'VALIDATION' })
+  })
+})
+
+describe('what a call reads, on every call', () => {
+  it('sees a promotion and a rollback at the next call, in every core on the database', async () => {
+    const { db, call } = await setup()
+    const other = createCore(deps(db))
+    const callOther = async (op: string) =>
+      (
+        await other.request(`/ops/toy/${op}`, {
+          method: 'POST',
+          headers: { authorization: 'Bearer ana' },
+          body: '{}',
+        })
+      ).json() as Promise<{ code?: string }>
+    const v2 = toyPack('1.1.0')
+    v2.ops['note.count'] = {
+      name: 'note.count',
+      description: 'How many notes the caller has.',
+      input: { type: 'object', additionalProperties: false, properties: {} },
+      sql: 'select count(*)::int as result from toy.notes',
+      returns: 'one',
+    }
+    expect((await call('note.count', {})).data.code).toBe('OP_NOT_FOUND')
+    expect((await callOther('note.count')).code).toBe('OP_NOT_FOUND')
+    await publish(db, v2, OWNER)
+    await recordTestRun(db, {
+      pack: 'toy',
+      version: '1.1.0',
+      hash: hashOf(v2),
+      passed: true,
+      results: [],
+    })
+    await setLoadout(db, 'ana', 'toy', Object.keys(v2.ops))
+    await promote(db, { actor: OWNER, environment: 'local', pack: 'toy', version: '1.1.0' })
+    expect(await call('note.count', {})).toEqual({ status: 200, data: 0 })
+    expect(await callOther('note.count')).toBe(0)
+    await promote(db, { actor: OWNER, environment: 'local', pack: 'toy', version: '1.0.0' })
+    expect((await call('note.count', {})).data.code).toBe('OP_NOT_FOUND')
+    expect((await callOther('note.count')).code).toBe('OP_NOT_FOUND')
+  })
+
+  it('reads the pointer, the account and the loadout in the first trip once it knows the version', async () => {
+    const { db } = await setup()
+    const firsts: string[] = []
+    const watched: Db = {
+      ...db,
+      transaction: (fn, first, saved) => {
+        firsts.push(first ?? '')
+        return db.transaction(fn, first, saved)
+      },
+    }
+    const app = createCore(deps(watched))
+    const list = async (token: string) =>
+      (
+        await app.request('/ops/toy/note.list', {
+          method: 'POST',
+          headers: { authorization: `Bearer ${token}` },
+          body: '{}',
+        })
+      ).json() as Promise<unknown>
+    await db.query(`insert into toy.notes (id, owner, body) values ('b1', 'ben', 'ben only')`)
+    expect(await list('ana')).toEqual([])
+    expect(await list('ben')).toEqual([{ id: 'b1', body: 'ben only' }])
+    expect(await list('stranger')).toMatchObject({ code: 'NO_ACCOUNT' })
+    expect(firsts.map((f) => f.includes('core_check'))).toEqual([false, true, true])
+  })
+
+  it('refuses a person at the next call once their loadout or their account is gone', async () => {
+    const { db, call, lastLog } = await setup()
+    expect((await call('note.list', {})).status).toBe(200)
+    await setLoadout(db, 'ana', 'toy', [])
+    expect((await call('note.list', {})).data.code).toBe('FORBIDDEN')
+    await setLoadout(db, 'ana', 'toy', ['note.list'])
+    expect((await call('note.list', {})).status).toBe(200)
+    await db.query(`delete from packs.principals where id = 'ana'`)
+    expect((await call('note.list', {})).data.code).toBe('NO_ACCOUNT')
+    expect(await lastLog()).toMatchObject({ principal: 'ana', status: 403, code: 'NO_ACCOUNT' })
+  })
+
+  it('logs every call with its input as sent, refused or not', async () => {
+    const { db, call } = await setup()
+    const body = `it's \\ a "note"; drop table packs.op_calls; -- ünïcode 🌿`
+    expect((await call('note.add', { id: 'n1', body })).status).toBe(200)
+    expect((await call('note.add', { id: 'n2', body: 'LOUD' })).data.code).toBe('SHOUTING')
+    expect((await call('note.add', { id: 'n1', body: 'again' }, 'ben')).data.code).toBe(
+      'NOTE_TAKEN',
+    )
+    const rows = await db.query<{ input: unknown; status: number; code: string | null }>(
+      `select input, status, code from packs.op_calls where op = 'note.add' order by id`,
+    )
+    expect(rows).toEqual([
+      { input: { id: 'n1', body }, status: 200, code: null },
+      { input: { id: 'n2', body: 'LOUD' }, status: 400, code: 'SHOUTING' },
+      { input: { id: 'n1', body: 'again' }, status: 409, code: 'NOTE_TAKEN' },
+    ])
   })
 })
 

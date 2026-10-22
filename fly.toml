@@ -44,6 +44,9 @@ kill_signal    = "SIGTERM"
   grace_period = "10s"
 
 [env]
+  # DATABASE_PREPARE stays unset (off). `on` plans moves once per connection; the core refuses it
+  # on the transaction pooler (6543), so DATABASE_URL needs the direct port or the session pooler
+  # first.
   AUTH_PROVIDER    = "supabase"
   FILES_PROVIDER   = "supabase"
   CORE_ENVIRONMENT = "production"

@@ -7,6 +7,7 @@ import {
   everyPolicyRestricts,
   everyTableHasRowRules,
   noCodeRunsOnWrite,
+  noImmutableFunctionReadsTheCaller,
   noFunctionCarriesSettings,
   noFunctionRunsAsItsOwner,
   registryIsIntact,
@@ -34,6 +35,7 @@ for (const dir of dirs) {
           ...(await everyPolicyRestricts(db)),
           ...(await noFunctionRunsAsItsOwner(db)),
           ...(await noFunctionCarriesSettings(db)),
+          ...(await noImmutableFunctionReadsTheCaller(db)),
           ...(await noCodeRunsOnWrite(db)),
         ]).toEqual([])
       } finally {

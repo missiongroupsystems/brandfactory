@@ -6,6 +6,7 @@ import {
   noCodeRunsOnWrite,
   noFunctionCarriesSettings,
   noFunctionRunsAsItsOwner,
+  noImmutableFunctionReadsTheCaller,
   registryIsIntact,
   runtimeRoleIsLimited,
   testVersion,
@@ -149,6 +150,14 @@ describe('the platform tests', () => {
     ],
     ['the core’s schema', 'alter table packs.channels disable trigger channels_promotion'],
     ['a core role', 'grant pack_admin to pack_runtime'],
+    [
+      'a view over the prepared statements',
+      'create view toy.seen as select statement from pg_prepared_statements',
+    ],
+    [
+      'a function body over the prepared statements',
+      "create function toy.seen() returns setof text language sql as 'select statement from pg_catalog.pg_prepared_statement()'",
+    ],
   ])('refuse at publish a migration with %s', (_what, sql) => {
     const pack = toyPack('1.0.6', {
       migrations: [...toyPack().migrations, { name: '0002_more.sql', sql }],
@@ -217,6 +226,93 @@ describe('the platform tests', () => {
       'toy.leak() sets session_authorization=postgres while it runs',
       'toy.path() sets search_path=toy while it runs',
     ])
+  })
+
+  const mayReadCaller = (fn: string) =>
+    `${fn} is immutable but may read the caller (a string body, a table or a call that is not immutable)`
+
+  it.each([
+    [
+      'naming the claims',
+      'create function toy.me() returns text language sql immutable return claims.user_id();',
+    ],
+    [
+      'reading a setting in a string body',
+      "create function toy.me() returns text language sql immutable as 'select current_setting(''app.who'', true)';",
+    ],
+    [
+      'a string body calling a stable pack function',
+      `create function toy.mine() returns text language sql stable as 'select claims.user_id()';
+       create function toy.me() returns text language sql immutable as 'select toy.mine()';`,
+    ],
+    [
+      'a plpgsql body calling a stable pack function',
+      `create function toy.mine() returns text language sql stable return claims.user_id();
+       create function toy.me() returns text language plpgsql immutable
+         as $$ begin return toy.mine(); end $$;`,
+    ],
+    [
+      'a line comment splitting the claims name',
+      `create function toy.me() returns text language sql immutable as 'select claims --x
+         .user_id()';`,
+    ],
+    [
+      'a RETURN body reading a table whose row rule reads the claims',
+      `create table toy.members (user_id text primary key, owner_as text not null);
+       alter table toy.members enable row level security;
+       alter table toy.members force row level security;
+       create policy mine on toy.members using (user_id = claims.user_id());
+       grant select on toy.members to pack_runtime;
+       create function toy.me() returns text language sql immutable
+         return (select owner_as from toy.members);`,
+    ],
+    [
+      'an operator whose function is stable',
+      `create function toy.pick(a text, b text) returns text language sql stable
+         return coalesce(claims.user_id(), a || b);
+       create operator toy.@@ (function = toy.pick, leftarg = text, rightarg = text);
+       create function toy.me() returns text language sql immutable return 'x' operator(toy.@@) 'y';`,
+    ],
+    [
+      'a string body under a stable plpgsql function, whose own kept plan would freeze it',
+      `create function toy.mine() returns text language sql stable as 'select claims.user_id()';
+       create function toy.me() returns text language sql immutable as 'select toy.mine()';
+       create function toy.owner_now() returns text language plpgsql stable
+         as $$ begin return toy.me(); end $$;`,
+    ],
+  ])('fail an immutable function that may read the caller: %s', async (_what, sql) => {
+    const db = await migrated(
+      `${sql}\n grant execute on all functions in schema toy to pack_runtime;`,
+    )
+    expect(await noImmutableFunctionReadsTheCaller(db)).toEqual([mayReadCaller('toy.me()')])
+  })
+
+  it('pass immutable functions with RETURN bodies that call only immutable ones', async () => {
+    const db = await migrated(
+      `create function toy.upper_of(t text) returns text language sql immutable return upper(t);
+       create function toy.twice(t text) returns text language sql immutable
+         return toy.upper_of(t) || toy.upper_of(t);
+       create function toy.mine() returns text language sql stable return claims.user_id();
+       grant execute on all functions in schema toy to pack_runtime;`,
+    )
+    expect(await noImmutableFunctionReadsTheCaller(db)).toEqual([])
+  })
+
+  it('fail the version of a pack whose row rule reads the caller through an immutable function', async () => {
+    const frozen = toyPack('1.0.3', {
+      migrations: [
+        ...toyPack().migrations,
+        {
+          name: '0002_me.sql',
+          sql: `create function toy.me() returns text language sql immutable return claims.user_id();
+                drop policy own on toy.notes;
+                create policy own on toy.notes using (owner = toy.me()) with check (owner = toy.me());`,
+        },
+      ],
+    })
+    const run = await testVersion(frozen)
+    expect(run.passed).toBe(false)
+    expect(run.platform).toContain(mayReadCaller('toy.me()'))
   })
 
   it('fail a trigger, a rule or a default that runs pack code on a write', async () => {

@@ -11,6 +11,8 @@ type Token =
   | { kind: 'comment' }
   | { kind: 'semicolon' }
   | { kind: 'other'; text: string }
+  /** A string, quoted name, dollar quote or block comment that runs to the end of the text. */
+  | { kind: 'unclosed' }
 
 interface Located {
   token: Token
@@ -42,34 +44,43 @@ function tokenize(sql: string): Located[] {
     } else if (ch === '/' && next === '*') {
       const close = sql.indexOf('*/', i + 2)
       i = close === -1 ? sql.length : close + 2
-      push({ kind: 'comment' }, start)
+      push({ kind: close === -1 ? 'unclosed' : 'comment' }, start)
     } else if (ch === "'" || ((ch === 'E' || ch === 'e') && next === "'")) {
       i += ch === "'" ? 1 : 2
+      let closed = false
       while (i < sql.length) {
         if (sql[i] === '\\' && ch !== "'") i += 2
         else if (sql[i] === "'" && sql[i + 1] === "'") i += 2
-        else if (sql[i] === "'") break
-        else i++
+        else if (sql[i] === "'") {
+          closed = true
+          break
+        } else i++
       }
       i++
-      push({ kind: 'string' }, start)
+      push({ kind: closed ? 'string' : 'unclosed' }, start)
     } else if (ch === '"') {
       let text = ''
+      let closed = false
       i++
       while (i < sql.length) {
         if (sql[i] === '"' && sql[i + 1] === '"') {
           text += '"'
           i += 2
-        } else if (sql[i] === '"') break
-        else text += sql[i++]
+        } else if (sql[i] === '"') {
+          closed = true
+          break
+        } else text += sql[i++]
       }
       i++
-      push({ kind: 'word', text: text.toLowerCase(), quoted: true }, start)
+      push(
+        closed ? { kind: 'word', text: text.toLowerCase(), quoted: true } : { kind: 'unclosed' },
+        start,
+      )
     } else if (ch === '$' && (DOLLAR_TAG.lastIndex = i) >= 0 && DOLLAR_TAG.test(sql)) {
       const tag = sql.slice(i, DOLLAR_TAG.lastIndex)
       const close = sql.indexOf(tag, DOLLAR_TAG.lastIndex)
       i = close === -1 ? sql.length : close + tag.length
-      push({ kind: 'string' }, start)
+      push({ kind: close === -1 ? 'unclosed' : 'string' }, start)
     } else if (ch === ':' && next === ':') {
       i += 2
       push({ kind: 'other', text: '::' }, start)
@@ -119,6 +130,69 @@ export function bind(sql: string, values: Record<string, unknown>) {
   return { text, params: names.map((name) => toParam(values[name])), names }
 }
 
+/**
+ * A parameter's value as SQL: the text node-pg would send for it, dollar-quoted, so it is of
+ * unknown type and coerces as a parameter does. The tag is chosen so the value cannot end it.
+ */
+export function literal(value: unknown): string {
+  const v = toParam(value)
+  if (v === null) return 'null'
+  const text = v instanceof Date ? v.toISOString() : String(v)
+  let tag = 'v'
+  while (`${text}$${tag}$`.indexOf(`$${tag}$`) !== text.length) tag += 'v'
+  return `$${tag}$${text}$${tag}$`
+}
+
+/** `bind`, with each `:name` replaced by its value as a literal: a statement with no parameters. */
+export function inline(sql: string, values: Record<string, unknown>) {
+  let text = ''
+  let at = 0
+  for (const { token, start, end } of tokenize(sql)) {
+    if (token.kind !== 'param') continue
+    text += sql.slice(at, start) + literal(values[token.name])
+    at = end
+  }
+  return text + sql.slice(at)
+}
+
+/**
+ * Whether a move's or a rule's text may go among other statements in one text: no string, quoted
+ * name, dollar quote or block comment left open, and no comment, which could hide what the core
+ * puts after it. `sqlProblem` refuses both at publish; a version published before it refused the
+ * first is checked here too. A plain string with a backslash is refused too: a server with
+ * `standard_conforming_strings` off would read the backslash as an escape and the string as open.
+ * So is a digit with anything but a digit, `.` or space right after it: Postgres before 15 reads
+ * `1e5$a$` as a number and a dollar quote, where this check reads a number and a name.
+ */
+export function closes(sql: string): boolean {
+  if (/[0-9][^0-9.\s,;:)\]+\-*/<>=%|^&]/.test(withoutStrings(sql))) return false
+  return !tokenize(sql).some(
+    ({ token, start, end }) =>
+      token.kind === 'unclosed' ||
+      token.kind === 'comment' ||
+      (token.kind === 'string' && sql[start] === "'" && sql.slice(start, end).includes('\\')),
+  )
+}
+
+/** The text with each string and quoted name as a space, and each word as `w`: what is left. */
+function withoutStrings(sql: string) {
+  let out = ''
+  let at = 0
+  for (const { token, start, end } of tokenize(sql)) {
+    if (token.kind === 'string' || token.kind === 'unclosed' || token.kind === 'word') {
+      out += sql.slice(at, start) + (token.kind === 'word' && !token.quoted ? 'w' : ' ')
+      at = end
+    }
+  }
+  return out + sql.slice(at)
+}
+
+/** A move's or a rule's text without the one `;` it may end with, to go among others. */
+export function withoutSemicolon(sql: string) {
+  const last = tokenize(sql).at(-1)
+  return last?.token.kind === 'semicolon' ? sql.slice(0, last.start) : sql
+}
+
 /** The statements a move or a rule may be. */
 const FIRST = new Set(['select', 'insert', 'update', 'delete', 'with', 'values'])
 
@@ -142,6 +216,13 @@ const WORDS = new Set([
   'call',
   'import',
 ])
+
+/**
+ * Catalog names a move may never use. `pg_prepared_statements`, and the function behind it, show
+ * the text of every statement prepared on the connection, other packs' moves among them. Not in
+ * `FUNCTIONS`: that list is also what the database refuses the runtime role (`0001_registry.sql`).
+ */
+const NAMES = new Set(['pg_prepared_statements', 'pg_prepared_statement'])
 
 /**
  * Functions a move may never call (the proposal's security rules). The runtime role cannot call
@@ -182,6 +263,11 @@ export function forbiddenFunction(name: string) {
 export function sqlProblem(sql: string): string | null {
   const tokens = tokenize(sql).map((t) => t.token)
   if (tokens.length === 0) return 'empty statement'
+  // A read sends its statements among the core's own (`inOneRead`): one left open would take
+  // in what follows it.
+  if (tokens.some((t) => t.kind === 'unclosed')) {
+    return 'a string, a quoted name or a dollar quote that does not end'
+  }
   if (tokens.some((t) => t.kind === 'comment')) return 'comments are not allowed'
   const semicolon = tokens.findIndex((t) => t.kind === 'semicolon')
   if (semicolon !== -1 && semicolon !== tokens.length - 1) return 'one statement only'
@@ -198,7 +284,7 @@ export function sqlProblem(sql: string): string | null {
       const amp = tokens[i + 1] as { text: string }
       if (amp.text === '&') return 'U& identifiers are not allowed'
     }
-    if (WORDS.has(t.text)) return `"${t.text}" is not allowed`
+    if (WORDS.has(t.text) || NAMES.has(t.text)) return `"${t.text}" is not allowed`
     if (forbiddenFunction(t.text)) return `${t.text} is not allowed`
     if (t.text === 'into') {
       const prev = tokens[i - 1]
@@ -241,6 +327,7 @@ const MIGRATION_TEXT: [RegExp, string][] = [
   [/\bpack_(admin|migrator)\b/, 'a core role'],
   [/\bu&/, 'U& escapes'],
   [/\b(copy|dblink\w*|lo_\w+)\b/, 'COPY, dblink or large objects'],
+  [/\bpg_prepared_statements?\b/, 'the connection’s prepared statements'],
 ]
 
 /**

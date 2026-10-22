@@ -71,4 +71,11 @@ describe('the environment', () => {
   it('needs the key set to check Supabase tokens against', () => {
     expect(() => loadEnv({ AUTH_PROVIDER: 'supabase' })).toThrow(/SUPABASE_JWKS_URL/)
   })
+
+  it('plans moves once per connection only when DATABASE_PREPARE is on', () => {
+    expect(loadEnv({}).prepare).toBe(false)
+    expect(loadEnv({ DATABASE_PREPARE: 'on' }).prepare).toBe(true)
+    expect(loadEnv({ DATABASE_PREPARE: '' }).prepare).toBe(false)
+    expect(() => loadEnv({ DATABASE_PREPARE: 'yes' })).toThrow(/on or off/)
+  })
 })
