@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.31.0** — 2026-10-21 — `perf/core-plan-once`: fewer trips per call. The core no longer reads the whole pack version on each call and folds its first steps into one trip; with `DATABASE_PREPARE` on it keeps each move's plan per connection; a read sends its check, rules and move in one trip and the log with the commit in a second (core migration 0008, not applied to production). Every check is kept, the database judges each call before its move runs, and a pack statement that leaves a quote open is refused. Fly to Supabase Singapore, a read went from 55–99 ms on `main` to 10–47 ms with saved plans, 10–60 ms without (a traditional single query: 4–30 ms). 916 tests.
+- **2.31.0** — 2026-10-21 — `perf/core-plan-once`: fewer trips per call. The core no longer reads the whole pack version on each call and folds its first steps into one trip; with `DATABASE_PREPARE` on it keeps each move's plan per connection; a read sends its check, rules and move in one trip and the log with the commit in a second (core migration 0008, not applied to production). Every check is kept, the database judges each call before its move runs, and a pack statement that leaves a quote open is refused. Fly to Supabase Singapore, a read went from 55–99 ms on `main` to 10–47 ms with saved plans, 10–60 ms without (a traditional single query: 4–30 ms). 916 tests with a local Postgres.
 - **2.29.0** — 2026-10-20 — `feat/moodboard-in-chat`: moodboard picks in Bubbles. The moodboard moves into the core (brandbase 1.3.0, migrations 0010 and 0011, not applied to production); Bubbles suggests posts on a card the person ticks and saves to the idea, and a tray beside the chat box attaches posts to a question. A post with nothing to show on the calendar shows its words. 859 tests.
 - **2.28.0** — 2026-10-20 — `feat/client-feedback-ui`: Nat's first round. The address field lists the brand's outlets first; the sharpened hook sits in a field the team edits from; "Shots" is "Storyboard" on the idea page and the call sheet; the Shoot capture stage goes and every format takes one final edit in the Post stage, then its date, and brandbase 1.2.0 keeps the final edit as a list (migration 0009); a collab post in Insights names the creators it is shared with. 815 tests.
 - **2.27.1** — 2026-10-19 — `feat/packs-core`: ready for main. The Bubbles link shows in the header and the tab bar only where Bubbles is connected, so the static demo has no dead tab; CLAUDE.md no longer calls the core "this branch only". No migration. 806 tests.
@@ -81,15 +81,17 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **Pack SQL that leaves a quote open is refused** at publish, and checked again before a read
   sends it among the core's statements; such a read, one with a rule that writes, one with a NUL
   byte in a value, and one whose saved plan went stale go the old way.
-- **Measured:** Fly `sin` to Supabase Singapore (2.2 ms a trip), as a member with brandbase 1.4.0:
-  `main` 55 / 69 / 99 ms (list brands, list posts, load brand), saved plans 18 / 26 / 52 ms, a
-  traditional single query 4 / 13 / 30 ms. The one-trip read locally: 1.5 → 0.9, 3.6 → 3.2,
-  9.9 → 9.5 ms; on Fly 16.2 → 9.5, 23.9 → 19.6, 49.4 → 47.3 ms.
+- **Measured:** Fly `sin` to Supabase Singapore (2.2 ms a trip), as a member with brandbase 1.4.0,
+  list brands / list posts / load brand. Run of 21 Oct: `main` 55 / 69 / 99 ms, saved plans 18 / 26
+  / 52 ms, a traditional single query 4 / 13 / 30 ms. Run of 22 Oct, the one-trip read: saved plans
+  16.2 / 23.9 / 49.4 ms before, 9.5 / 19.6 / 47.3 ms after. Locally: 1.5 → 0.9, 3.6 → 3.2, 9.9 →
+  9.5 ms.
 - **Found on Supabase:** core migration 0001 needs a superuser, which Supabase does not give.
 - **Reviews:** phase 1, three passes (Opus and Sonnet); phase 2, Opus and Sonnet, then a fresh Opus
   on the fixes. The blocker (an open quote in pack SQL letting a caller's value run as SQL) is fixed
   and tested end to end.
-- **Gate:** typecheck, lint, format, build; tests 916, none skipped.
+- **Gate:** typecheck, lint, format, build; tests 916, none skipped, with a local Postgres (CI skips the
+  176 Postgres tests).
 
 ## 2.29.0 — 2026-10-20
 
