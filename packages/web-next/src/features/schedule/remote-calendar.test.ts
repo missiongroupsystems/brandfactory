@@ -122,7 +122,7 @@ describe('the calendar from the server', () => {
     expect(day(weeks, '2026-11-04').past).toBeFalsy()
   })
 
-  it('runs from two months before today to six after, and reaches any dated post beyond', () => {
+  it('runs from two months before today to six after, and reaches the whole month of any dated post beyond', () => {
     const { weeks } = calendarOf(
       'casa-vostra',
       state([post({ id: 'old', day: '2026-01-14' })], [], '2026-11-03'),
@@ -132,7 +132,9 @@ describe('the calendar from the server', () => {
     mondays.forEach((m, i) => {
       if (i > 0) expect(Date.parse(m) - Date.parse(mondays[i - 1]!)).toBe(7 * 86400000)
     })
-    expect(mondays[0]).toBe('2026-01-12')
+    // January's first Monday, not the post's own week: a month picked from the title shows whole,
+    // its weeks matching its title.
+    expect(mondays[0]).toBe('2026-01-05')
     // May 2027's last Monday: six months after November.
     expect(mondays.at(-1)).toBe('2027-05-31')
     expect(feedsOf(day(weeks, '2026-01-14'))).toEqual([{ kind: 'post', postId: 'old' }])

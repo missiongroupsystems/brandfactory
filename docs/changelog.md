@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.38.5** — 2026-10-23 — `feat/calendar-year-picker`: on the core the calendar never shows the static demo's dates, posts or shoots: before a brand's state arrives, or when it does not, today is the device's date in Singapore and the weeks are open. The calendar title opens a month picker (a year stepper over twelve months, from the year of the brand's first post to next year) that jumps the Month, Week or Day view there, on the desktop and in the phone's view menu. The core's run of weeks now covers whole months, so a month reached from an early post shows every week its title names. No pack change, no migration. 1166 tests (211 skipped without a Postgres server).
 - **2.38.4** — 2026-10-23 — `fix/bubbles-max-tokens`: Bubbles answers questions about a brand with history. The runtime was told the model has a 65,536-token window; a brand's whole state (`brand.state`) took the prompt past it, so the runtime asked for one token and the turn ended on `max-tokens` with no answer. It is now told 262,144 (the model has a million on every host). A turn cut off now says so after any words it wrote, and a turn that ends with nothing said says so too. No migration; Bubbles only, web-next unchanged. 1162 tests, all run on a throwaway Postgres.
 - **2.38.3** — 2026-10-23 — `fix/moodboard-placeholders`: the fan of four photos above "Bring in your moodboard" is back on the core, the same four for every brand, as decoration only. 2.35.2 took it away with the demo moodboard. The static demo is unchanged. No migration. 1171 tests (211 skipped without a Postgres server).
 - **2.38.2** — 2026-10-23 — `fix/sign-out`: on the core, New post's amber pill beside the platforms says "Not available yet", with "Publishing isn’t set up yet." The old line, "Posts go out once accounts are connected.", promised that a planned post goes out by itself later; it does not. No migration. 1169 tests (211 skipped without a Postgres server).
@@ -80,6 +81,34 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
+## 2.38.5 — 2026-10-23
+
+- **Why.** On the core the stores started with the demo's posts, weeks and shoots, and today
+  started as the demo's Tue 6 Oct 2026. A brand whose state had not arrived (or never did) showed
+  the demo's week and posts. Imported posts reach back to 2023, and the arrows step one month at a
+  time.
+- **Today on the core.** `lib/dates.ts` starts today from the device clock in Asia/Singapore when
+  `NEXT_PUBLIC_CORE_URL` is set; the brand's `today` from `brand.state` still replaces it. The
+  static demo keeps Tue 6 Oct 2026.
+- **No demo seed on the core.** `posts-store.tsx` starts each brand with no posts and open weeks
+  around today (`openWeeks` in `month.ts`); `shoots-store.ts` starts with no shoots.
+- **Month picker.** `month-picker.tsx`: the title opens a year stepper over a 4 × 3 grid of
+  months, from the year of the brand's first post to next year. A month picked moves the Month
+  view to it, the Week view to its first week and the Day view to its 1st (`monthPlace`). Arrow
+  keys move between months and into the next or last year, Enter picks, Escape closes. On a phone
+  the picker sits under the three views in the title's menu, inside the screen.
+- **Whole months.** `remote-calendar.ts` started the run of weeks at the week of the first dated
+  post, so that month's first weeks were missing and its title named a week the grid did not show.
+  The run now starts at the first Monday of that month and ends at the last Monday of the month of
+  the last dated day.
+- **Tests.** `core-today.test.tsx` (the core before load: this week by the Singapore clock, no
+  demo posts or shoots), `month-picker.test.tsx` (each view jumps to the month picked; the keys;
+  the years). The composer tests on the core get their posts from a core state
+  (`src/test-core-state.ts`), as the stores no longer seed the demo's.
+- **Review fixes (Sonnet).** On a phone, focus goes back to the title after a pick or Escape; a
+  month shown past next year opens the picker on the nearest end.
+- **Gate:** typecheck, lint, format, build; tests 1166 (955 run, 211 skipped: no Postgres server).
+  Playwright on a stub core: the picker open on the desktop and the phone, and a jump to May 2023.
 ## 2.38.4 — 2026-10-23
 
 - **Why.** In production a simple question on a brand got no answer. Bubbles' log: two model

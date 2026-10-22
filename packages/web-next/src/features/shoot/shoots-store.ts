@@ -43,7 +43,13 @@ interface State {
 }
 
 function initial(): State {
-  return { shoots: { ...SHOOTS_BY_BRAND }, invited: {}, replies: {} }
+  // On the core a brand's shoots are the server's; the demo's dated shoots never show there.
+  const shoots = remote
+    ? (Object.fromEntries(
+        Object.keys(SHOOTS_BY_BRAND).map((id) => [id, [] as Shoot[]]),
+      ) as State['shoots'])
+    : { ...SHOOTS_BY_BRAND }
+  return { shoots, invited: {}, replies: {} }
 }
 
 let state: State = initial()

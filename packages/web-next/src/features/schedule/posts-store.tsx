@@ -33,7 +33,7 @@ import {
 } from '@/lib/remote'
 import { mediaItem } from '@/lib/remote-days'
 
-import { archiveFor } from './month'
+import { archiveFor, openWeeks } from './month'
 import { calendarOf, postingTimes, type PostingTimes, type Saved } from './remote-calendar'
 
 import { movePost as moveInWeeks, moveRefusal, placeStory, slotFor, storyTaken } from './move-post'
@@ -143,8 +143,10 @@ let planned = 0
 type PostsByBrand = Record<BrandId, Post[]>
 type WeeksByBrand = Record<BrandId, Week[]>
 
+// On the core no brand starts with the demo's posts or weeks: until its state arrives (or when the
+// core cannot be reached) it shows open weeks on today's real dates.
 const INITIAL_POSTS = Object.fromEntries(
-  BRAND_CONTENT.map((c) => [c.brand.id, c.posts]),
+  BRAND_CONTENT.map((c) => [c.brand.id, remote ? [] : c.posts]),
 ) as PostsByBrand
 
 // What each brand posted before this month (month.ts). Posted, so it never changes: it stays out
@@ -164,7 +166,7 @@ function demoTimes(brandId: BrandId): PostingTimes | undefined {
 }
 
 const INITIAL_WEEKS = Object.fromEntries(
-  BRAND_CONTENT.map((c) => [c.brand.id, c.weeks]),
+  BRAND_CONTENT.map((c) => [c.brand.id, remote ? openWeeks() : c.weeks]),
 ) as WeeksByBrand
 
 /** A change to one of a brand's posts, sent after every change before it. */
@@ -567,7 +569,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
 
   const value = React.useMemo<BrandValue>(() => {
     // No brand on the core has demo content, even one whose id a demo brand shares: it starts
-    // with nothing, on the demo's weeks.
+    // with nothing, on open weeks around today.
     const demo = !remote && BRANDS.some((b) => b.id === brandId)
     const content = demo
       ? contentFor(brandId)
@@ -576,7 +578,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     return {
       ...content,
       brand: brands.find((b) => b.id === brandId) ?? content.brand,
-      weeks: weeksByBrand[brandId] ?? content.weeks,
+      weeks: weeksByBrand[brandId] ?? (remote ? openWeeks() : content.weeks),
       posts,
       movePost,
       addIdeaToCalendar,

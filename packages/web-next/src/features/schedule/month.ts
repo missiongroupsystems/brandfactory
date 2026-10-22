@@ -1,5 +1,13 @@
 import type { BrandId } from '@/data/brands'
-import type { CalendarEvent, Day, FeedMark, LayerKey, Post, Week } from '@/data/demo'
+import {
+  feedsOf,
+  type CalendarEvent,
+  type Day,
+  type FeedMark,
+  type LayerKey,
+  type Post,
+  type Week,
+} from '@/data/demo'
 import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import {
   addDays,
@@ -159,6 +167,22 @@ export function monthSpan(
   return { from: mondays(a.year, a.month)[0]!, to: mondays(b.year, b.month).at(-1)! }
 }
 
+/**
+ * Open weeks around today, from two months before to six after, as a brand on the core shows
+ * before its state arrives (or when the core cannot be reached): today's real dates, no demo.
+ */
+export function openWeeks(today = todayDate()): Week[] {
+  const { from, to } = monthSpan(2, 6, today)
+  return mondaysBetween(from, to).map((monday) => blankWeek(monday, today))
+}
+
+/** The first and last Mondays of the month that the week holding `date` belongs to. */
+export function monthOfWeek(date: string): { from: string; to: string } {
+  const { year, month } = monthOf(mondayOf(date))
+  const all = mondays(year, month)
+  return { from: all[0]!, to: all.at(-1)! }
+}
+
 /** "16 SEP" → a date in 2026. */
 function parseShort(date: string): string | null {
   const [d, m] = date.split(' ')
@@ -245,6 +269,43 @@ export function todayPlace(view?: 'month' | 'week' | 'day'): {
     return { offset: (own.year - year) * 12 + own.month - month, week: 0, day }
   }
   return { offset: 0, week: mondays(year, month).indexOf(mondayOf(today)), day }
+}
+
+/**
+ * Where a month picked from the title lands: the month view on that month, the week view on its
+ * first week, the day view on its 1st (in the week before the first Monday, when the 1st is not
+ * a Monday).
+ */
+export function monthPlace(
+  view: 'month' | 'week' | 'day',
+  year: number,
+  month: number,
+): { offset: number; week: number; day?: number } {
+  const home = monthAt(0)
+  const offsetOf = (m: { year: number; month: number }) =>
+    (m.year - home.year) * 12 + m.month - home.month
+  if (view !== 'day') return { offset: offsetOf({ year, month }), week: 0 }
+  const first = firstOf(year, month)
+  const monday = mondayOf(first)
+  const own = monthOf(monday)
+  return {
+    offset: offsetOf(own),
+    week: mondays(own.year, own.month).indexOf(monday),
+    day: weekdayOf(first),
+  }
+}
+
+/** The year of the brand's first post in its weeks, or this year's when none is earlier. */
+export function firstPostYear(weeks: Week[], today = todayDate()): number {
+  const first = weeks
+    .flatMap((w) => w.days)
+    .find(
+      (d) =>
+        d.story.kind === 'post' ||
+        d.story.kind === 'posted' ||
+        feedsOf(d).some((m) => m.kind === 'post'),
+    )
+  return Math.min(monthOf(first?.date ?? today).year, monthOf(today).year)
 }
 
 /**

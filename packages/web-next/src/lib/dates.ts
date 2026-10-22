@@ -3,7 +3,8 @@
  * reads the string as a date in UTC, so the browser's own zone never shifts a day.
  *
  * Today has one source: Tuesday 6 October 2026 in the demo, the server's `today` (the brand's
- * zone) once a brand loads from the API.
+ * zone) once a brand loads from the API. On the core, before that, it is the device's date in
+ * Singapore, never the demo's.
  */
 
 export const WEEKDAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -69,7 +70,14 @@ export function slotOf(date: string | null, time: string | null) {
 /** The demo's today. */
 export const DEMO_TODAY = '2026-10-06'
 
-let today = DEMO_TODAY
+/** The device's date in Singapore, where the brands are: `en-CA` prints `YYYY-MM-DD`. */
+export const clockToday = (now = new Date()) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Singapore' }).format(now)
+
+// `remote` in lib/remote.ts, read here without it: remote.ts imports this file.
+const onCore = (process.env.NEXT_PUBLIC_CORE_URL ?? '') !== ''
+
+let today = onCore ? clockToday() : DEMO_TODAY
 const listeners = new Set<() => void>()
 
 export const todayDate = () => today
