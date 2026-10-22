@@ -361,11 +361,12 @@ export function onAccount(listener: (account: Account) => void) {
 export async function loadAll() {
   const [brands, me] = await Promise.all([
     request<CoreBrand[]>('GET', '/brands'),
-    request<{ companies: Company[] }>('GET', '/me'),
+    request<{ companies?: Company[] }>('GET', '/me'),
   ])
   await Promise.all(brands.map((b) => loadBrand(b.id)))
   // After the states: a store asked for a brand's kit finds it loaded.
-  account = { brands, companies: me.companies }
+  // A core still on brandbase 1.4.0 answers no companies: the caller then manages none.
+  account = { brands, companies: me.companies ?? [] }
   accountListeners.forEach((l) => l(account!))
   return brands.map((b) => b.id)
 }

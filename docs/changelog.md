@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.33.0** — 2026-10-22 — `feat/company-access`: access by company (brandbase 1.5.0, migration 0013, not applied to production). Every active member of a company reaches all its brands; owners and admins add brands with `brand.create`; brands already in the database go to one company, Mission Group. web-next gets an Add brand page. 965 tests.
+- **2.33.0** — 2026-10-22 — `feat/company-access`: access by company (brandbase 1.5.0, migration 0013, not applied to production). Every active member of a company reaches all its brands; owners and admins add brands with `brand.create`; brands already in the database go to one company, Mission Group. web-next gets an Add brand page. 966 tests.
 - **2.31.0** — 2026-10-21 — `perf/core-plan-once`: fewer trips per call. The core no longer reads the whole pack version on each call and folds its first steps into one trip; with `DATABASE_PREPARE` on it keeps each move's plan per connection; a read sends its check, rules and move in one trip and the log with the commit in a second (core migration 0008, not applied to production). Every check is kept, the database judges each call before its move runs, and a pack statement that leaves a quote open is refused. Fly to Supabase Singapore, a read went from 55–99 ms on `main` to 10–47 ms with saved plans, 10–60 ms without (a traditional single query: 4–30 ms). 916 tests with a local Postgres.
 - **2.30.0** — 2026-10-21 — `perf/pack-walls-once`: the brand walls ask who the caller is once per statement, not once per row, and the post lists read their jobs in one join (brandbase 1.4.0, migration 0012, not applied to production). The same answers for every caller; list posts and load brand about a third faster on `main`'s core, and with saved plans list posts 3 times and load brand about 2 times faster. 865 tests.
 - **2.29.0** — 2026-10-20 — `feat/moodboard-in-chat`: moodboard picks in Bubbles. The moodboard moves into the core (brandbase 1.3.0, migrations 0010 and 0011, not applied to production); Bubbles suggests posts on a card the person ticks and saves to the idea, and a tray beside the chat box attaches posts to a question. A post with nothing to show on the calendar shows its words. 859 tests.
@@ -104,7 +104,7 @@ Plan and as built: `docs/completions/company-access-plan.md`,
   back to empty state for a brand that is not in the demo data. Screenshots were checked on
   desktop and phone. Composer internals, shoots and suggestions still read the demo's static
   tables, so a new brand there is a follow-up.
-- **Gate:** typecheck, lint, format, build; tests 965, none skipped, on Postgres 18.1.
+- **Gate:** typecheck, lint, format, build; tests 966, none skipped, on Postgres 18.1.
 
 ## 2.31.0 — 2026-10-21
 
