@@ -10,7 +10,7 @@ const remote = vi.hoisted(() => ({
   noAccess: vi.fn(() => false),
   onProblem: vi.fn(() => () => {}),
   settled: vi.fn(async () => {}),
-  signOut: vi.fn(),
+  leave: vi.fn(),
   setPassword: vi.fn(async () => {}),
   sessionEmail: vi.fn(() => 'nat@missiongroup.com'),
 }))

@@ -29,5 +29,8 @@ describe('the Bubbles link', () => {
   it('is gone where it is not, so the demo has no dead tab', async () => {
     expect(await nav('')).toHaveLength(0)
     expect(screen.getAllByRole('link', { name: /Inbox/ })).toHaveLength(2)
+    // The static demo keeps its demo avatar, with no account menu.
+    expect(screen.getByLabelText('You')).toHaveTextContent('NA')
+    expect(screen.queryByRole('button', { name: /Account/ })).not.toBeInTheDocument()
   })
 })

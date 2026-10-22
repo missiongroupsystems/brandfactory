@@ -34,6 +34,8 @@ interface Session {
   expires?: number
   /** A first sign-in: the account still has the password an admin gave it. */
   needsPassword?: boolean
+  /** The name saved on the profile page since this token was issued. */
+  name?: string
 }
 
 const SESSION_KEY = 'brandbase.session'
@@ -58,21 +60,36 @@ function writeSession(session: Session | null) {
 
 export const signedIn = () => readSession() !== null
 
+/** The session token's claims; the dev sign-in's token is the id, with none. */
+function claims(session: Session): { email?: unknown; user_metadata?: { name?: unknown } } | null {
+  const parts = session.access.split('.')
+  if (parts.length !== 3) return null
+  try {
+    return JSON.parse(atob(parts[1]!.replace(/-/g, '+').replace(/_/g, '/'))) as {
+      email?: unknown
+      user_metadata?: { name?: unknown }
+    }
+  } catch {
+    return null
+  }
+}
+
 /** The signed-in person's email, from the token's claims; the dev sign-in's token is the id. */
 export function sessionEmail(): string {
   const session = readSession()
   if (!session) return ''
-  const parts = session.access.split('.')
-  if (parts.length !== 3) return session.access
-  try {
-    const claims = parts[1]!
-    const json = JSON.parse(atob(claims.replace(/-/g, '+').replace(/_/g, '/'))) as {
-      email?: unknown
-    }
-    return typeof json.email === 'string' ? json.email : ''
-  } catch {
-    return ''
-  }
+  if (session.access.split('.').length !== 3) return session.access
+  const email = claims(session)?.email
+  return typeof email === 'string' ? email : ''
+}
+
+/** The name the person gave on their profile page (Supabase `user_metadata.name`), or ''. */
+function sessionName(): string {
+  const session = readSession()
+  if (!session) return ''
+  if (session.name !== undefined) return session.name
+  const name = claims(session)?.user_metadata?.name
+  return typeof name === 'string' ? name.trim() : ''
 }
 
 /** True when sign-in goes through Supabase; otherwise the core runs dev sign-in (an id). */
@@ -87,9 +104,31 @@ export const needsPassword = () => readSession()?.needsPassword === true
  * Supabase's own (`weak_password`, `same_password`, `reauthentication_needed`, …).
  */
 export async function setPassword(password: string): Promise<void> {
+  await updateUser({ password, data: { password_set: true } }, 'The password was not set.')
+  const session = readSession()
+  if (session) writeSession({ ...session, needsPassword: false })
+}
+
+/**
+ * Saves the person's own name on their Supabase account (`user_metadata.name`; the other keys,
+ * such as `password_set`, stay). The core's users table keeps the name an admin gave.
+ */
+export async function saveName(name: string): Promise<void> {
+  await updateUser({ data: { name } }, 'The name was not saved.')
+  const session = readSession()
+  if (session) writeSession({ ...session, name })
+  if (account) {
+    account = { ...account, user: { ...account.user, name: name || account.coreName } }
+    // Only the person's listeners: the brand listeners would put back the brands as last loaded.
+    userListeners.forEach((l) => l(account!.user))
+  }
+}
+
+/** Changes the signed-in person's own Supabase account. A refusal keeps Supabase's own code. */
+async function updateUser(body: object, failed: string): Promise<void> {
   const bearer = await freshToken()
-  // The session ended while the screen was up (a refresh refused): nothing to set it as.
-  if (!bearer) throw new RemoteError(401, 'SIGN_IN', 'Sign in again, then set your password.')
+  // The session ended while the screen was up (a refresh refused): nothing to change it as.
+  if (!bearer) throw new RemoteError(401, 'SIGN_IN', 'Sign in again, then try again.')
   const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     method: 'PUT',
     headers: {
@@ -97,7 +136,7 @@ export async function setPassword(password: string): Promise<void> {
       'content-type': 'application/json',
       authorization: `Bearer ${bearer}`,
     },
-    body: JSON.stringify({ password, data: { password_set: true } }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) {
     const data = (await res.json().catch(() => null)) as {
@@ -108,12 +147,10 @@ export async function setPassword(password: string): Promise<void> {
     } | null
     throw new RemoteError(
       res.status,
-      data?.error_code ?? data?.error ?? 'PASSWORD',
-      data?.msg ?? data?.error_description ?? 'The password was not set.',
+      data?.error_code ?? data?.error ?? 'ACCOUNT',
+      data?.msg ?? data?.error_description ?? failed,
     )
   }
-  const session = readSession()
-  if (session) writeSession({ ...session, needsPassword: false })
 }
 
 async function supabaseToken(grant: 'password' | 'refresh_token', body: object): Promise<Session> {
@@ -178,6 +215,12 @@ export function signOut() {
   writeSession(null)
   // The next person's account loads afresh; nothing of this one's stays.
   account = null
+}
+
+/** Signs out with a full page load: nothing of this account's brands or posts stays in memory. */
+export function leave() {
+  signOut()
+  window.location.assign('/sign-in')
 }
 
 async function freshToken(): Promise<string | null> {
@@ -445,6 +488,10 @@ export interface Company {
 interface Account {
   brands: CoreBrand[]
   companies: Company[]
+  /** The signed-in person, for the header's account menu: their own name first, else the core's. */
+  user: { name: string; email: string }
+  /** The name the core holds, as an admin set it. */
+  coreName: string
 }
 
 let account: Account | null = null
@@ -456,6 +503,18 @@ export function onAccount(listener: (account: Account) => void) {
   if (account) listener(account)
   return () => {
     accountListeners.delete(listener)
+  }
+}
+
+type User = Account['user']
+const userListeners = new Set<(user: User) => void>()
+
+/** The signed-in person: called on each load and each saved name, and at once if loaded. */
+export function onUser(listener: (user: User) => void) {
+  userListeners.add(listener)
+  if (account) listener(account.user)
+  return () => {
+    userListeners.delete(listener)
   }
 }
 
@@ -485,7 +544,7 @@ export async function loadAll() {
   // The platforms first: the stores read them when each brand's state comes in.
   const [brands, me] = await Promise.all([
     request<CoreBrand[]>('GET', '/brands'),
-    request<{ companies?: Company[] }>('GET', '/me'),
+    request<{ companies?: Company[]; user?: { name?: string; email?: string } }>('GET', '/me'),
     loadPlatforms(),
   ])
   // One brand refused (gone meanwhile, or walled off) is not the account refused: it must not
@@ -499,8 +558,15 @@ export async function loadAll() {
   )
   // After the states: a store asked for a brand's kit finds it loaded.
   // A core still on brandbase 1.4.0 answers no companies: the caller then manages none.
-  account = { brands, companies: me.companies ?? [] }
+  const coreName = me.user?.name?.trim() ?? ''
+  account = {
+    brands,
+    companies: me.companies ?? [],
+    user: { name: sessionName() || coreName, email: me.user?.email || sessionEmail() },
+    coreName,
+  }
   accountListeners.forEach((l) => l(account!))
+  userListeners.forEach((l) => l(account!.user))
   return brands.map((b) => b.id)
 }
 
