@@ -1,6 +1,6 @@
 {
   "name": "brandbase",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Brand Base: a brand's posts on a calendar, sent to its social accounts. Posts and the brand's state, and timed sends.",
   "errors": {
     "posts_story_day": {
@@ -22,6 +22,11 @@
       "status": 409,
       "code": "ID_TAKEN",
       "message": "this id is taken"
+    },
+    "brands_pkey": {
+      "status": 409,
+      "code": "BRAND_TAKEN",
+      "message": "a brand with this name already exists"
     }
   },
   "scheduler": {

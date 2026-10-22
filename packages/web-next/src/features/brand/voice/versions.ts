@@ -52,6 +52,9 @@ const initial = (): State => ({
   carlitos: seed('carlitos', ['Lucía', 'Javier']),
 })
 
+/** A brand made on the core has no versions until its voice is first set. */
+const NONE: VoiceVersion[] = []
+
 let state: State = initial()
 const listeners = new Set<() => void>()
 
@@ -77,8 +80,8 @@ if (remote) {
 export function useVoiceVersions(brandId: BrandId): VoiceVersion[] {
   return React.useSyncExternalStore(
     subscribe,
-    () => state[brandId],
-    () => state[brandId],
+    () => state[brandId] ?? NONE,
+    () => state[brandId] ?? NONE,
   )
 }
 
@@ -97,13 +100,13 @@ export function publishVoice(brandId: BrandId, draft: Voice, note = ''): VoiceVe
     request('PUT', `/brands/${brandId}/kit/voice`, { voice: draft, note: note.trim() }),
   )
   const version: VoiceVersion = {
-    n: state[brandId][0].n + 1,
+    n: (state[brandId]?.[0]?.n ?? 0) + 1,
     by: 'You',
     when: 'Today',
     note: note.trim(),
     voice,
   }
-  state = { ...state, [brandId]: [version, ...state[brandId]] }
+  state = { ...state, [brandId]: [version, ...(state[brandId] ?? NONE)] }
   listeners.forEach((l) => l())
   return version
 }

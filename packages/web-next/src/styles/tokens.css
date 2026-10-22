@@ -95,6 +95,8 @@
 :root {
   --brand-temper: #5b2333;
   --brand-carlitos: #a0611c;
+  /* A brand made on the core, until it has a logo of its own. */
+  --brand-other: #5c5651;
 }
 
 /* Switching brand cross-fades the page (a view transition started in posts-store.tsx). */

@@ -6,8 +6,9 @@
  *
  *   DATABASE_URL=… SEED_ADMIN=admin@local pnpm -F @brandfactory/pack-brandbase seed
  *
- * `SEED_ADMIN` makes one admin account (an email; the id is the email under the dev sign-in).
- * It writes as the login role, past the row rules, as a migration does.
+ * Every demo brand belongs to one company, `demo`. `SEED_ADMIN` makes one account (an email; the
+ * id is the email under the dev sign-in) and makes it that company's owner, so it reaches every
+ * demo brand. It writes as the login role, past the row rules, as a migration does.
  */
 import pg from 'pg'
 import type * as KitData from '../../../packages/web-next/src/data/brand-kit'
@@ -62,6 +63,9 @@ async function into(db: pg.Client, table: string, rows: object | object[]) {
 /** The number a day prints, which the seed's ids carry: "8" for 2026-10-08. */
 const dayNumber = (date: string) => String(Number(date.slice(8)))
 
+/** The one company that holds every demo brand. */
+const DEMO_ORG = 'demo'
+
 /** The inbox's fixed "now" (`inbox/model.ts`): ages count back from it. */
 const INBOX_NOW = new Date('2026-10-11T07:00:00Z')
 
@@ -99,12 +103,14 @@ async function seed(db: pg.Client) {
   if (any) throw new Error('the database already holds brands; seed only an empty one')
   const insert = (table: string, rows: object | object[]) => into(db, table, rows)
   const ownerOf = new Map<string, string>()
+  await insert('organizations', { id: DEMO_ORG, name: 'Demo' })
 
   for (const [position, content] of BRAND_CONTENT.entries()) {
     const brand = content.brand
     const id = brand.id
     await insert('brands', {
       id,
+      orgId: DEMO_ORG,
       name: brand.name,
       handle: brand.handle,
       line: brand.line,
@@ -312,6 +318,7 @@ async function seed(db: pg.Client) {
     const kit = BRAND_KIT[id]
     await insert('brand_kits', {
       brandId: id,
+      orgId: DEMO_ORG,
       voice: kit.voice,
       colours: kit.colours,
       logo: { src: brand.logo, name: null },
@@ -390,7 +397,10 @@ async function main() {
     await db.query('begin')
     await seed(db)
     const admin = process.env.SEED_ADMIN
-    if (admin) await into(db, 'users', { id: admin, email: admin, role: 'admin' })
+    if (admin) {
+      await into(db, 'users', { id: admin, email: admin })
+      await into(db, 'org_members', { userId: admin, orgId: DEMO_ORG, role: 'owner' })
+    }
     await db.query('commit')
     console.info('seeded', BRAND_CONTENT.length, 'brands')
   } finally {

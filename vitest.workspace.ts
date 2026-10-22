@@ -9,4 +9,5 @@ export default [
   'packages/connect/vitest.config.ts',
   'packages/core/vitest.config.ts',
   'packages/bubbles/vitest.config.ts',
+  'packs/brandbase/vitest.config.ts',
 ]

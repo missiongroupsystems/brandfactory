@@ -177,7 +177,7 @@ function Ideas({
 
   // A moment already used is one of the ideas now, so it leaves the list. Its idea is found by
   // the moment's title, which a sharper hook does not change, or else by its hook on the calendar.
-  const moments = IDEAS_BY_BRAND[brand.id].moments.filter(
+  const moments = (IDEAS_BY_BRAND[brand.id]?.moments ?? []).filter(
     (m) =>
       !ideas.some((i) => i.source.kind === 'moment' && i.source.title === m.title) &&
       !dayOfHook(weeks, m.seed.hook, (id) => byId(id)?.hook),

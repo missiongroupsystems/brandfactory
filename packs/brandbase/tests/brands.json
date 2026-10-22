@@ -1,0 +1,776 @@
+{
+  "name": "brands",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "owner",
+  "agents": {
+    "bot": "owner"
+  },
+  "cases": [
+    {
+      "name": "lets a company's owner add a brand with an empty kit, after the company's brands, seen at once by every member and by no one else",
+      "steps": [
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "Trattoria Roma",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"],
+            "line": "Roman kitchen",
+            "timezone": "Europe/Rome"
+          },
+          "expect": {
+            "result": {
+              "id": "trattoria-roma",
+              "orgId": "co-a",
+              "name": "Trattoria Roma",
+              "handle": "@trattoria",
+              "line": "Roman kitchen",
+              "timezone": "Europe/Rome",
+              "linked": ["ig", "tt"],
+              "position": 3,
+              "tiktokDefaults": null,
+              "createdAt": "2026-10-06T04:00:00.000Z"
+            }
+          }
+        },
+        {
+          "call": "brand.list",
+          "as": "member",
+          "input": {},
+          "expect": {
+            "length": 3,
+            "result": [
+              {
+                "id": "casa"
+              },
+              {
+                "id": "osteria"
+              },
+              {
+                "id": "trattoria-roma"
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.list",
+          "as": "both",
+          "input": {},
+          "expect": {
+            "length": 4,
+            "result": [
+              {
+                "id": "casa"
+              },
+              {
+                "id": "osteria"
+              },
+              {
+                "id": "trattoria-roma"
+              },
+              {
+                "id": "temper"
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.list",
+          "as": "b-owner",
+          "input": {},
+          "expect": {
+            "length": 1,
+            "result": [
+              {
+                "id": "temper"
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.state",
+          "as": "b-owner",
+          "input": {
+            "brand": "trattoria-roma"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "brand.state",
+          "as": "loner",
+          "input": {
+            "brand": "trattoria-roma"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "brand.state",
+          "as": "member",
+          "input": {
+            "brand": "trattoria-roma"
+          },
+          "expect": {
+            "result": {
+              "brand": {
+                "id": "trattoria-roma"
+              },
+              "kit": {
+                "voice": {
+                  "summary": "",
+                  "words": [],
+                  "examples": []
+                },
+                "colours": [],
+                "logo": {
+                  "src": null,
+                  "name": null
+                },
+                "version": 1
+              },
+              "posts": []
+            }
+          }
+        },
+        {
+          "call": "kit.colours",
+          "as": "member",
+          "input": {
+            "brand": "trattoria-roma",
+            "colours": [
+              {
+                "name": "Red",
+                "hex": "#AA0000"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "version": 2
+            }
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "Second One",
+            "handle": "@second",
+            "linked": []
+          },
+          "expect": {
+            "result": {
+              "id": "second-one",
+              "position": 4,
+              "linked": [],
+              "line": "",
+              "timezone": "Asia/Singapore"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "lets a company's admin add a brand to it, and no member, outsider or deactivated account",
+      "steps": [
+        {
+          "call": "brand.create",
+          "as": "both",
+          "input": {
+            "org": "co-b",
+            "name": "Temper Two",
+            "handle": "@t2",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "result": {
+              "id": "temper-two",
+              "orgId": "co-b",
+              "position": 2
+            }
+          }
+        },
+        {
+          "call": "brand.list",
+          "as": "b-owner",
+          "input": {},
+          "expect": {
+            "result": [
+              {
+                "id": "temper"
+              },
+              {
+                "id": "temper-two"
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.list",
+          "as": "member",
+          "input": {},
+          "expect": {
+            "length": 2
+          }
+        },
+        {
+          "call": "brand.create",
+          "as": "member",
+          "input": {
+            "org": "co-a",
+            "name": "Mine",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 403,
+            "code": "FORBIDDEN"
+          }
+        },
+        {
+          "call": "brand.create",
+          "as": "both",
+          "input": {
+            "org": "co-a",
+            "name": "Mine",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 403,
+            "code": "FORBIDDEN"
+          }
+        },
+        {
+          "call": "brand.create",
+          "as": "b-owner",
+          "input": {
+            "org": "co-a",
+            "name": "Mine",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "brand.create",
+          "as": "loner",
+          "input": {
+            "org": "co-a",
+            "name": "Mine",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "brand.create",
+          "as": "owner",
+          "input": {
+            "org": "nowhere",
+            "name": "Mine",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "brand.create",
+          "as": "gone",
+          "input": {
+            "org": "co-a",
+            "name": "Mine",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 403,
+            "code": "ACCOUNT_DEACTIVATED"
+          }
+        },
+        {
+          "call": "brand.create",
+          "as": "stranger",
+          "input": {
+            "org": "co-a",
+            "name": "Mine",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.brands where id = 'mine'",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a member a brand added past the move, and anyone a kit for another company's brand: the row rules and the kit's key alone guard them",
+      "steps": [
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('member'); set local role pack_runtime; insert into brandbase.brands (id, org_id, name, handle) values ('direct', 'co-a', 'Direct', '@direct'); end $$",
+          "expect": {
+            "error": "new row violates row-level security policy"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('both'); set local role pack_runtime; insert into brandbase.brands (id, org_id, name, handle) values ('direct', 'co-a', 'Direct', '@direct'); end $$",
+          "expect": {
+            "error": "new row violates row-level security policy"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('owner'); set local role pack_runtime; insert into brandbase.brands (id, org_id, name, handle) values ('direct', 'co-b', 'Direct', '@direct'); end $$",
+          "expect": {
+            "error": "new row violates row-level security policy"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('owner'); set local role pack_runtime; insert into brandbase.brands (id, org_id, name, handle) values ('direct', 'co-a', 'Direct', '@direct'); raise exception 'owner added %', (select count(*) from brandbase.brands where id = 'direct'); end $$",
+          "expect": {
+            "error": "owner added 1"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('owner'); set local role pack_runtime; insert into brandbase.brand_kits (brand_id, org_id, voice, colours, logo) values ('temper', 'co-a', '{}', '[]', '{}'); end $$",
+          "expect": {
+            "error": "brand_kits_brand_org"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('owner'); set local role pack_runtime; insert into brandbase.brand_kits (brand_id, org_id, voice, colours, logo) values ('temper', 'co-b', '{}', '[]', '{}'); end $$",
+          "expect": {
+            "error": "new row violates row-level security policy"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('member'); set local role pack_runtime; insert into brandbase.brand_kits (brand_id, org_id, voice, colours, logo) values ('temper', 'co-a', '{}', '[]', '{}'); end $$",
+          "expect": {
+            "error": "new row violates row-level security policy"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('member'); set local role pack_runtime; update brandbase.brands set tiktok_defaults = '{}' where id = 'osteria'; raise exception 'member changed %', (select count(*) from brandbase.brands where tiktok_defaults is not null); end $$",
+          "expect": {
+            "error": "member changed 1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses everyone a brand's removal, a move to another company and a new id, past any move",
+      "steps": [
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('member'); set local role pack_runtime; delete from brandbase.brands where id = 'osteria'; end $$",
+          "expect": {
+            "error": "permission denied for table brands"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('owner'); set local role pack_runtime; delete from brandbase.brands where id = 'osteria'; end $$",
+          "expect": {
+            "error": "permission denied for table brands"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('both'); set local role pack_runtime; delete from brandbase.brands where id = 'osteria'; end $$",
+          "expect": {
+            "error": "permission denied for table brands"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('b-owner'); set local role pack_runtime; delete from brandbase.brands where id = 'osteria'; end $$",
+          "expect": {
+            "error": "permission denied for table brands"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('member'); set local role pack_runtime; update brandbase.brands set org_id = 'co-b' where id = 'casa'; end $$",
+          "expect": {
+            "error": "permission denied for table brands"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('owner'); set local role pack_runtime; update brandbase.brands set org_id = 'co-b' where id = 'casa'; end $$",
+          "expect": {
+            "error": "permission denied for table brands"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('both'); set local role pack_runtime; update brandbase.brands set org_id = 'co-b' where id = 'casa'; end $$",
+          "expect": {
+            "error": "permission denied for table brands"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('member'); set local role pack_runtime; update brandbase.brands set id = 'moved' where id = 'casa'; end $$",
+          "expect": {
+            "error": "permission denied for table brands"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('member'); set local role pack_runtime; update brandbase.brands set line = 'x' where id = 'casa'; end $$",
+          "expect": {
+            "error": "permission denied for table brands"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('owner'); set local role pack_runtime; update brandbase.brands set id = 'moved' where id = 'casa'; end $$",
+          "expect": {
+            "error": "permission denied for table brands"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('owner'); set local role pack_runtime; update brandbase.brands set line = 'x' where id = 'casa'; end $$",
+          "expect": {
+            "error": "permission denied for table brands"
+          }
+        },
+        {
+          "sql": "select string_agg(id || ':' || org_id, ',' order by id) as brands from brandbase.brands",
+          "expect": {
+            "rows": [
+              {
+                "brands": "casa:co-a,osteria:co-a,temper:co-b"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses an agent a new brand, even for an owner: only a person adds one",
+      "steps": [
+        {
+          "call": "brand.create",
+          "as": "bot",
+          "input": {
+            "org": "co-a",
+            "name": "Bot Brand",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 403,
+            "code": "PERSON_ONLY"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.brands where id = 'bot-brand'",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.create",
+          "as": "owner",
+          "input": {
+            "org": "co-a",
+            "name": "Bot Brand",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "result": {
+              "id": "bot-brand"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a name whose id another brand holds, in this company or another",
+      "steps": [
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "Casa",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 409,
+            "code": "BRAND_TAKEN"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "  OSTERIA!! ",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 409,
+            "code": "BRAND_TAKEN"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "Temper",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 409,
+            "code": "BRAND_TAKEN"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "Trattoria Roma",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "Trattoria-Roma",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 409,
+            "code": "BRAND_TAKEN"
+          }
+        },
+        {
+          "call": "brand.list",
+          "as": "member",
+          "input": {},
+          "expect": {
+            "length": 3
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses input that does not fit",
+      "steps": [
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "Trattoria Roma",
+            "handle": "trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "Trattoria Roma",
+            "handle": "@",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "Trattoria Roma",
+            "handle": "@xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "!!!",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "Trattoria Roma",
+            "handle": "@trattoria",
+            "linked": ["ig", "ig"]
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "Trattoria Roma",
+            "handle": "@trattoria",
+            "linked": ["yt"]
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "Trattoria Roma",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"],
+            "line": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "Trattoria Roma",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"],
+            "colour": "red"
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "No handle",
+            "linked": []
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "Trattoria Roma",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"],
+            "timezone": "Mars/Olympus"
+          },
+          "expect": {
+            "status": 400,
+            "code": "BAD_TIMEZONE"
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "result": {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        },
+        {
+          "call": "brand.create",
+          "input": {
+            "org": "co-a",
+            "name": "-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb c",
+            "handle": "@trattoria",
+            "linked": ["ig", "tt"]
+          },
+          "expect": {
+            "result": {
+              "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.33.0** — 2026-10-22 — `feat/company-access`: access by company (brandbase 1.5.0, migration 0013, not applied to production). Every active member of a company reaches all its brands; owners and admins add brands with `brand.create`; brands already in the database go to one company, Mission Group. web-next gets an Add brand page. 966 tests.
 - **2.31.0** — 2026-10-21 — `perf/core-plan-once`: fewer trips per call. The core no longer reads the whole pack version on each call and folds its first steps into one trip; with `DATABASE_PREPARE` on it keeps each move's plan per connection; a read sends its check, rules and move in one trip and the log with the commit in a second (core migration 0008, not applied to production). Every check is kept, the database judges each call before its move runs, and a pack statement that leaves a quote open is refused. Fly to Supabase Singapore, a read went from 55–99 ms on `main` to 10–47 ms with saved plans, 10–60 ms without (a traditional single query: 4–30 ms). 916 tests with a local Postgres.
 - **2.30.0** — 2026-10-21 — `perf/pack-walls-once`: the brand walls ask who the caller is once per statement, not once per row, and the post lists read their jobs in one join (brandbase 1.4.0, migration 0012, not applied to production). The same answers for every caller; list posts and load brand about a third faster on `main`'s core, and with saved plans list posts 3 times and load brand about 2 times faster. 865 tests.
 - **2.29.0** — 2026-10-20 — `feat/moodboard-in-chat`: moodboard picks in Bubbles. The moodboard moves into the core (brandbase 1.3.0, migrations 0010 and 0011, not applied to production); Bubbles suggests posts on a card the person ticks and saves to the idea, and a tray beside the chat box attaches posts to a question. A post with nothing to show on the calendar shows its words. 859 tests.
@@ -58,6 +59,52 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.33.0 — 2026-10-22
+
+Plan and as built: `docs/completions/company-access-plan.md`,
+`docs/completions/company-access-phases-1-to-1.md`. 2.32.0 is the core fix on PR #8
+(`fix/core-migrations-supabase`), not yet on `main`.
+
+- **Companies (brandbase 1.5.0).** Migration `0013_companies.sql` adds `organizations` and
+  `org_members` (role `owner`, `admin` or `member`) and `brands.org_id`, not null. A person
+  reaches a brand when they are active and a member of its company. The brands wall asks
+  `reached_orgs()`, the 17 other walls `reached()` (the brands the caller sees), each once per
+  statement. `reaches_all()` and `members` are dropped; `can_reach` keeps its name with the
+  company rule. Neither new table is writable by the runtime role.
+- **Brands stay where they are.** The runtime role may update only a brand's `tiktok_defaults`
+  (the one column a move changes) and may not delete a brand, so no one can remove a brand or
+  move it to another company through any statement.
+- **Adding a brand.** `brand.create` adds a brand to one of the caller's companies, with an empty
+  kit, after the company's other brands; its id is its name as a slug. Only a company's owners
+  and admins, and only a person: a rule answers 403 to a member, 404 for another company and 403
+  `PERSON_ONLY` to an agent (Bubbles), and the brands insert wall (`managed_orgs()`) refuses a
+  member whatever the statement. Each kit names its brand's company (`brand_kits.org_id`, not
+  null, held to the brand's by a foreign key), since one statement cannot see the brand it adds.
+- **One namespace of brand ids.** Ids are unique across companies, so a name whose id another
+  company's brand holds answers 409 `BRAND_TAKEN` and tells the caller that brand exists.
+  Accepted while Mission Group is the only company.
+- **Backfill.** On a database that holds brands, 0013 makes one company, Mission Group, gives it
+  every brand and kit, makes each admin by `users.role` its owner and each person with a
+  `members` row its member, so anyone who held a members row on 1.4.0 reaches every brand of the
+  company. An empty database gets no company. Tested from a 1.4.0 database, run as the tables'
+  non-superuser owner (`packs/brandbase/upgrade.test.ts`).
+- **`account.me`** answers `companies` (id, name, role); `user` no longer carries `role`. It and
+  `brand.list` list brands company by company (by name), then in each company's order. The demo
+  seed puts the demo brands in one company with `SEED_ADMIN` its owner.
+- **Reviews:** Opus and Sonnet; no blocker. Fixed: a member could delete a brand, and a member of
+  two companies could move a brand between them; existing kits had no company; `brand.create`
+  was open to agents; the lists interleaved companies.
+- **web-next: Add brand.** Owners and admins get "Add brand" in the brand switcher (members and
+  the static demo do not). One page: a live card of the brand (logo or initials on its colour,
+  name, @handle, channels) above name, handle and channels; a line, colours and the timezone wait
+  folded until wanted. The logo is picked or dropped there, optional. One press creates the brand,
+  then saves its colours and logo on its kit; if only the logo fails, the brand stays and the page
+  offers to try again. A brand with no logo shows its initials everywhere; stores and pages fall
+  back to empty state for a brand that is not in the demo data. Screenshots were checked on
+  desktop and phone. Composer internals, shoots and suggestions still read the demo's static
+  tables, so a new brand there is a follow-up.
+- **Gate:** typecheck, lint, format, build; tests 966, none skipped, on Postgres 18.1.
 
 ## 2.31.0 — 2026-10-21
 

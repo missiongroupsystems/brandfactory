@@ -22,8 +22,11 @@ interface BrandInboxState {
 
 type State = Record<BrandId, BrandInboxState>
 
+const empty = (): BrandInboxState => ({ done: new Set(), sentTo: {} })
+/** A brand made on the core, before its state loads: nothing done yet. */
+const EMPTY = empty()
+
 function initial(): State {
-  const empty = (): BrandInboxState => ({ done: new Set(), sentTo: {} })
   return Object.fromEntries(Object.keys(INBOX_BY_BRAND).map((id) => [id, empty()])) as State
 }
 
@@ -38,7 +41,7 @@ function subscribe(listener: () => void) {
 }
 
 function update(brandId: BrandId, fn: (s: BrandInboxState) => BrandInboxState) {
-  state = { ...state, [brandId]: fn(state[brandId]) }
+  state = { ...state, [brandId]: fn(state[brandId] ?? EMPTY) }
   listeners.forEach((l) => l())
 }
 
@@ -66,15 +69,15 @@ if (remote) {
 export function useInbox(brandId: BrandId): BrandInboxState {
   return React.useSyncExternalStore(
     subscribe,
-    () => state[brandId],
-    () => state[brandId],
+    () => state[brandId] ?? EMPTY,
+    () => state[brandId] ?? EMPTY,
   )
 }
 
 /** How many real messages still need a reply: the nav's count. Noise does not count. */
 export function useWaiting(brandId: BrandId): number {
   const { done } = useInbox(brandId)
-  return queue(INBOX_BY_BRAND[brandId].messages, done).open.length
+  return queue(INBOX_BY_BRAND[brandId]?.messages ?? [], done).open.length
 }
 
 /** The reply went out (simulated), or the noise was cleared: the messages leave the inbox. */

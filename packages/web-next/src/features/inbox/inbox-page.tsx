@@ -49,13 +49,16 @@ const FILTERS: ReadonlyArray<{ value: InboxFilter; label: string }> = [
  * A complaint can still go to a named person, from the thread's menu. Noise is folded away at
  * the end. On a phone the list comes first and a message opens full screen.
  */
+/** A brand made on the core: no platform inbox is read yet, so there is nothing here. */
+const NO_MESSAGES: BrandInbox = { people: [], messages: [] }
+
 export function InboxPage() {
   const { brand } = useBrand()
   return (
     <div className="flex min-h-svh flex-col">
       <AppHeader />
       {/* A brand switch starts the page over: its own messages, nothing selected. */}
-      <Inbox key={brand.id} brand={brand} data={INBOX_BY_BRAND[brand.id]} />
+      <Inbox key={brand.id} brand={brand} data={INBOX_BY_BRAND[brand.id] ?? NO_MESSAGES} />
     </div>
   )
 }

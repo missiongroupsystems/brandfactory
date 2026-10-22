@@ -121,7 +121,7 @@
         },
         {
           "call": "pasted.add",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "temper",
             "id": "p-1",
@@ -146,7 +146,7 @@
         },
         {
           "call": "brand.state",
-          "as": "admin",
+          "as": "both",
           "input": {
             "brand": "temper"
           },

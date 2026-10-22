@@ -20,6 +20,23 @@ export type SourceKey = ConnectionKey | 'pinterest'
 
 type State = Record<BrandId, Record<ConnectionKey, ConnectionStatus>>
 
+const KEYS = [
+  'ig',
+  'tt',
+  'fb',
+  'drive',
+  'lark',
+  'web',
+  'gbp',
+  'res',
+] as const satisfies readonly ConnectionKey[]
+
+/** Every source off: a brand made on the core, before its state loads. */
+const OFF = Object.fromEntries(KEYS.map((k) => [k, 'off'])) as Record<
+  ConnectionKey,
+  ConnectionStatus
+>
+
 const initial = (): State => ({ ...CONNECTIONS })
 
 let state: State = initial()
@@ -36,9 +53,7 @@ if (remote) {
   onState((brandId, s) => {
     const rows = s.connections as { key: SourceKey; status: ConnectionStatus }[]
     // A key with no row on the server is off: the demo's seed never stands in for the server.
-    const own = Object.fromEntries(
-      Object.keys(state[brandId as BrandId]).map((k) => [k, 'off']),
-    ) as Record<ConnectionKey, ConnectionStatus>
+    const own = { ...OFF }
     for (const r of rows) {
       if (r.key === 'pinterest') {
         if (r.status === 'connected') connectSource(brandId as BrandId, 'pinterest')
@@ -62,8 +77,8 @@ function set(brandId: BrandId, key: ConnectionKey, status: ConnectionStatus) {
 export function useConnections(brandId: BrandId): Record<SourceKey, ConnectionStatus> {
   const own = React.useSyncExternalStore(
     subscribe,
-    () => state[brandId],
-    () => state[brandId],
+    () => state[brandId] ?? OFF,
+    () => state[brandId] ?? OFF,
   )
   const pinterest = useIdeas(brandId).sources.pinterest
   return React.useMemo(

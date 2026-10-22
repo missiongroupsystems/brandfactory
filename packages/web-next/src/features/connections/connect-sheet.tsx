@@ -68,7 +68,7 @@ export const SOURCES: Record<SourceKey, SourceInfo> = {
   },
   gbp: {
     name: 'Google Business Profile',
-    account: (b) => VENUE[b.id],
+    account: (b) => VENUE[b.id] ?? b.name,
     brings: 'Searches, Maps views, calls',
     asks: () => ['Read searches, Maps views, calls and directions'],
   },
