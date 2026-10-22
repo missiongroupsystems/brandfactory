@@ -1,5 +1,6 @@
-# The build context of `packages/core/Dockerfile` is the repo root. The Dockerfile copies only
-# what the core needs; this keeps host installs, secrets and noise out of the context.
+# The build context of `packages/core/Dockerfile` and `packages/bubbles/Dockerfile` is the repo
+# root. Each Dockerfile copies only what its service needs; this keeps host installs, secrets
+# and noise out of the context.
 node_modules
 **/node_modules
 .env
@@ -24,3 +25,5 @@ packages/connect/*
 !packages/connect/package.json
 packs/brandbase/*
 !packs/brandbase/package.json
+# Bubbles' brief for the pack.
+!packs/brandbase/bubbles.md

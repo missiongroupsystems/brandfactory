@@ -1,0 +1,52 @@
+# Bubbles (packages/bubbles) on its own Fly app, `brandbase-bubbles` (region sin, next to the
+# core). Deploy from the repo root, which is the build context:
+#
+#   fly deploy . --config packages/bubbles/fly.toml --dockerfile packages/bubbles/Dockerfile --ha=false
+#
+# --ha=false: a new app otherwise gets two machines, and each would keep its own conversations
+# and its own daily spend.
+#
+# A separate app, not a second process on `brandfactory`: each conversation runs a ~270 MB
+# runtime, which must not take memory from the core that publishes posts, and Bubbles can be
+# stopped (`fly scale count 0`) without touching the core.
+#
+# Secrets, set with `fly secrets set` (never in this file):
+#   OPENROUTER_API_KEY     held by the gateway only; best a key of its own with a credit limit
+#                          set on openrouter.ai, which is the hard cap on spend
+
+app            = "brandbase-bubbles"
+primary_region = "sin"
+kill_signal    = "SIGTERM"
+
+[http_service]
+  internal_port        = 3014
+  force_https          = true
+  auto_stop_machines   = false
+  # Off, so `fly scale count 0` keeps Bubbles off until it is scaled back up.
+  auto_start_machines  = false
+  # One machine: conversations, their runtimes and the daily spend live in the process.
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type       = "requests"
+    soft_limit = 20
+    hard_limit = 40
+
+[[http_service.checks]]
+  method       = "GET"
+  path         = "/health"
+  interval     = "15s"
+  grace_period = "20s"
+
+[env]
+  # The core, over the public door: the runtime's MCP client and the agent sessions go there.
+  CORE_URL             = "https://brandfactory.fly.dev"
+  CORS_ALLOWED_ORIGINS = "https://branding.missionsystems.ai"
+  BUBBLES_MODEL        = "deepseek/deepseek-v4.1-flash"
+  # Dollars a UTC day, by OpenRouter's own count; the in-process cap under the key's limit.
+  BUBBLES_DAILY_USD    = "5"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus     = 1
+  memory   = "2gb"

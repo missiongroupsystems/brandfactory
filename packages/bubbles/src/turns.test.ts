@@ -30,7 +30,7 @@ function agents(expiresInMs = HOUR) {
 
 async function setup(
   script: unknown[],
-  opts: Partial<TurnsOptions> & { fail?: boolean; expiresInMs?: number } = {},
+  opts: Partial<TurnsOptions> & { fail?: boolean; expiresInMs?: number; dailyUsd?: number } = {},
 ) {
   const gateway = new Gateway({
     upstream: 'http://127.0.0.1:9',
@@ -38,6 +38,7 @@ async function setup(
     model: 'm',
     providers: [],
     toolPrefix: 'mcp__brandbase__',
+    dailyUsd: opts.dailyUsd ?? 5,
   })
   await gateway.listen()
   const log = join(mkdtempSync(join(tmpdir(), 'bubbles-test-')), 'prompts.jsonl')
@@ -270,6 +271,14 @@ describe('a turn with Bubbles', () => {
     const { turn } = await setup([{ type: 'turn/end', data: { reason: { kind: 'error' } } }])
     const { events } = await turn('Hello')
     expect(events.map((e) => e.event)).toEqual(['status', 'status', 'error', 'done'])
+  })
+
+  it('says the day’s budget is spent and starts no runtime for it', async () => {
+    const { turn, prompts } = await setup([say('Hi')], { dailyUsd: 0 })
+    const { events } = await turn('Hello')
+    expect(events.map((e) => e.event)).toEqual(['error', 'done'])
+    expect(events[0]!.data).toMatchObject({ code: 'DAILY_LIMIT' })
+    expect(prompts()).toHaveLength(0)
   })
 
   it('starts a new runtime before the agent token runs out', async () => {
