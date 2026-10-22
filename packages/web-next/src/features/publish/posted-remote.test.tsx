@@ -182,10 +182,8 @@ describe('a draft on the core', () => {
   it('says it will not publish yet, promises no connect, and offers no demo labels', () => {
     open(draft)
     const accounts = screen.getByRole('region', { name: 'Accounts' })
-    expect(within(accounts).getByRole('button', { name: 'Won’t publish' })).toBeTruthy()
-    expect(within(accounts).getByRole('tooltip').textContent).toBe(
-      'Posts go out once accounts are connected.',
-    )
+    expect(within(accounts).getByRole('button', { name: 'Not available yet' })).toBeTruthy()
+    expect(within(accounts).getByRole('tooltip').textContent).toBe('Publishing isn’t set up yet.')
     expect(screen.queryByRole('link', { name: 'Connect an account' })).toBeNull()
     expect(screen.queryByText('Tick an account to preview it.')).toBeNull()
     expect(screen.queryByText('Pick an account')).toBeNull()

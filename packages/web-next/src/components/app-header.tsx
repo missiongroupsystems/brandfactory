@@ -3,11 +3,11 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import { BRAND } from '@/data/demo'
 import { BUBBLES_URL } from '@/features/bubbles/client'
 import { useWaiting } from '@/features/inbox/inbox-store'
 import { useBrand } from '@/features/schedule/posts-store'
 
+import { AccountMenu } from './account-menu'
 import { BrandSwitcher } from './brand-switcher'
 import { LogoMark } from './icons'
 
@@ -63,13 +63,7 @@ export function AppHeader() {
       </nav>
       <div className="col-start-3 flex items-center gap-2.5 justify-self-end">
         <BrandSwitcher />
-        <span
-          aria-label="You"
-          className="flex size-9 items-center justify-center rounded-full text-xs font-semibold"
-          style={{ background: 'var(--avatar)', color: 'var(--avatar-ink)' }}
-        >
-          {BRAND.user}
-        </span>
+        <AccountMenu />
       </div>
     </header>
   )

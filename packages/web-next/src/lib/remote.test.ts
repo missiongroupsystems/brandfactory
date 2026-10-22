@@ -7,7 +7,9 @@ import {
   needsPassword,
   noAccess,
   onAccount,
+  onUser,
   platformOn,
+  saveName,
   sessionEmail,
   setPassword,
   signIn,
@@ -228,5 +230,75 @@ describe('setPassword', () => {
     )
     await expect(setPassword('pw')).rejects.toMatchObject({ status: 422, code: 'same_password' })
     expect(needsPassword()).toBe(true)
+  })
+})
+
+describe("the signed-in person's name", () => {
+  // Signs in with a token whose claims carry this Supabase name, then loads a core whose users
+  // table names the person "Natalie Ng".
+  async function load(supabaseName?: string) {
+    const named = Buffer.from(
+      JSON.stringify({
+        sub: 'u1',
+        email: 'nat@missiongroup.com',
+        user_metadata: supabaseName ? { name: supabaseName } : {},
+      }),
+    ).toString('base64url')
+    vi.mocked(fetch).mockImplementation(async (url) => {
+      const u = String(url)
+      if (u.includes('/auth/v1/token'))
+        return json({
+          access_token: `h.${named}.s`,
+          refresh_token: 'r',
+          expires_at: Math.floor(Date.now() / 1000) + 3600,
+          user: { id: 'u1', user_metadata: { password_set: true } },
+        })
+      if (u.endsWith('/account.me'))
+        return json({
+          user: { id: 'u1', name: 'Natalie Ng', email: 'nat@missiongroup.com' },
+          companies: [],
+          brands: [],
+        })
+      return json([])
+    })
+    await signIn('nat@missiongroup.com', 'pw')
+    await loadAll()
+    let user: unknown = null
+    onAccount((a) => (user = a.user))()
+    return user
+  }
+
+  it('is the one the person saved on their profile first', async () => {
+    expect(await load('Priya Sharma')).toEqual({
+      name: 'Priya Sharma',
+      email: 'nat@missiongroup.com',
+    })
+  })
+
+  it("is the core's, as an admin set it, until the person saves their own", async () => {
+    expect(await load()).toEqual({ name: 'Natalie Ng', email: 'nat@missiongroup.com' })
+  })
+
+  it('saves on the Supabase account as the person, only the name, and shows at once', async () => {
+    await load()
+    // A brand made since the load lives in the store only: a saved name must not put back the
+    // brands as last loaded.
+    const brands = vi.fn()
+    const off = onAccount(brands)
+    brands.mockClear()
+    vi.mocked(fetch).mockClear()
+    vi.mocked(fetch).mockResolvedValueOnce(json({ id: 'u1' }))
+    await saveName('Nat Ng')
+    const [url, init] = vi.mocked(fetch).mock.calls[0]!
+    expect(String(url)).toBe('http://auth.test/auth/v1/user')
+    expect(init?.method).toBe('PUT')
+    expect((init?.headers as Record<string, string>).authorization).toMatch(/^Bearer h\./)
+    // Only `name`: Supabase merges it into user_metadata, so `password_set` stays.
+    expect(JSON.parse(String(init?.body))).toEqual({ data: { name: 'Nat Ng' } })
+    let name = ''
+    onUser((u) => (name = u.name))()
+    expect(name).toBe('Nat Ng')
+    expect(brands).not.toHaveBeenCalled()
+    off()
   })
 })

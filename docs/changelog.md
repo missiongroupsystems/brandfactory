@@ -6,6 +6,8 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.38.2** — 2026-10-23 — `fix/sign-out`: on the core, New post's amber pill beside the platforms says "Not available yet", with "Publishing isn’t set up yet." The old line, "Posts go out once accounts are connected.", promised that a planned post goes out by itself later; it does not. No migration. 1169 tests (211 skipped without a Postgres server).
+- **2.38.1** — 2026-10-23 — `fix/sign-out`: sign out, and a profile, on the core. The header's avatar shows the signed-in person's initials (first name and last name) and opens a menu with their name, email, Edit profile and Sign out. `/profile` edits the first and last name (saved on the person's Supabase account) and changes the password. The core's users table keeps the name an admin gave. The static demo keeps its avatar, with no menu and no profile page. No pack change, no migration. 1169 tests (211 skipped without a Postgres server).
 - **2.38.0** — 2026-10-22 — `feat/mission-events`: the company's own events from Mission Events on the calendar's "Our events" row (brandbase 1.8.0: 2.37.0's migration 0015, then 0016; released with 2.37.0 from `feat/pinterest-and-events`, not applied to production). An owner names a brand's Mission Events outlet (`event.feed`); every hour the core pulls that outlet's events for 14 days back to 78 days ahead through a read-only `mission_events` connector (`MISSION_EVENTS_URL`, `MISSION_EVENTS_SERVICE_KEY`) and replaces the window, so a deleted event goes at the next pull. The archive's mapping, time rules and feed spec are ported. Only companies the operator lists (`event_orgs`, Mission Group) may have a feed. 1158 tests with 2.37.0, all run on a throwaway Postgres; `core test brandbase 1.8.0` 176/176.
 - **2.37.0** — 2026-10-22 — `feat/pinterest-connect`: the real Pinterest connection (migration 0015; it reaches production inside brandbase 1.8.0 with 2.38.0, and 1.7.0 is never published). A brand links its own Pinterest account and picks one board; the moodboard reads its pins live. The server is the core with `packages/connect`'s account routes beside it (`host.ts`, the image's entry), and `GET /platforms` tells the web app Pinterest is set up, so only Pinterest leaves the amber "Not connected"; Instagram, TikTok and Facebook keep it. Core: internal moves and secret input fields. Ported from `feat/real-publishing` without Meta, TikTok or posting. 1113 tests, all run on a local Postgres.
 - **2.36.0** — 2026-10-22 — `feat/bubbles-deploy`: Bubbles deployed (22 Oct, Fly app `brandbase-bubbles`). Its own Fly app `brandbase-bubbles` in sin (`packages/bubbles/fly.toml`, a Debian `Dockerfile` with the runtime from the pinned wheel, checked by digest), and a daily spend cap in the gateway (`BUBBLES_DAILY_USD`, default $5, by OpenRouter's own cost) after which the page says Bubbles is back tomorrow. Checked end to end on this machine: the real runtime, a local core with the demo data and a scripted model. No migration. 1091 tests (196 skipped without a Postgres server).
@@ -75,6 +77,35 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.38.2 — 2026-10-23
+
+- **Why.** New post's amber pill on the core said "Won’t publish" with "Posts go out once
+  accounts are connected." A planned post has no job, so it never goes out by itself later.
+- **web-next.** `composer.tsx`: the pill says "Not available yet", with "Publishing isn’t set up
+  yet." `plan-remote.test.tsx` and `posted-remote.test.tsx` assert the new words.
+- **Tests.** 1169 (958 run, 211 skipped without a Postgres server).
+
+## 2.38.1 — 2026-10-23
+
+- **Why.** On the core a signed-in person could sign out only from "Set your password" and "Not
+  in a company yet". The marketing team shares computers and switches accounts. The header's
+  avatar showed the demo's "NA" for everyone.
+- **Avatar.** `account-menu.tsx`: on the core the avatar shows the first letters of the first
+  and last names. The name comes from the person's Supabase account (`user_metadata.name`, set on
+  `/profile`), then from the core's `/me` (`brandbase.users.name`), then from the email's name
+  part split on dots (pranav.pappu@… is PP). It opens a menu like the brand switcher's: the name
+  and the email, quiet, then Edit profile and Sign out. Arrows, Escape and Tab work. Sign out is
+  `leave()` in `remote.ts`: the session goes, then a full page load of `/sign-in`, as on the two
+  pages that had it.
+- **Profile.** `/profile` (on the core, signed in only): first name and last name, saved with
+  `PUT /auth/v1/user` and `{ data: { name } }` as the person (Supabase merges it into
+  `user_metadata`, so `password_set` stays); the email to read; Change password with the first
+  sign-in's rules, refusal words and check mark. `setPassword` and the new `saveName` share one
+  request. No pack move or migration: the core's users table keeps the name an admin set, and the
+  header shows the person's own name first.
+- **Static demo.** The avatar keeps "NA" with no menu; `/profile` is not found.
+- **Tests.** 1169 (958 run, 211 skipped without a Postgres server).
 
 ## 2.38.0 — 2026-10-22
 

@@ -1167,13 +1167,13 @@ function Accounts({ api }: { api: PublishDraftApi }) {
             )
           })}
           {PUBLISHERS.every((k) => notAvailable(k)) ? (
-            // On the core no account can connect yet: the post is planned on them, and the note
-            // says it will not publish until they are set up.
+            // On the core no account can publish yet: the post is planned on them, and the note
+            // says publishing is not set up. It does not promise the post goes out later.
             linkedChannels(draft).length > 0 ? (
               <span className="flex h-10 items-center max-md:h-14">
                 <NotAvailable
-                  label="Won’t publish"
-                  reason="Posts go out once accounts are connected."
+                  label="Not available yet"
+                  reason="Publishing isn’t set up yet."
                   align="left"
                 />
               </span>
