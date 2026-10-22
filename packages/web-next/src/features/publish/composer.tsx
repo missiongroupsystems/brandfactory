@@ -19,10 +19,8 @@ import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
 import { Combobox, useMention, type Suggestion } from '@/components/suggest'
 import { usePhone } from '@/components/use-phone'
-import type { BrandId } from '@/data/brands'
 import type { Format, Post, Stage } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
-import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { CAPTION_DRAFTS, HASHTAGS, VENUE } from '@/data/publish'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { MonthArrows, useMonthPages } from '@/features/ideate/day-picker'
@@ -33,6 +31,7 @@ import { useConnections, useConnected } from '@/features/connections/connections
 import { NotAvailable, notAvailable } from '@/features/connections/not-available'
 import { ideaIdOfHook } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
+import type { PostingTimes } from '@/features/schedule/remote-calendar'
 import { demoOf, newId, quietly, remote, request, sent } from '@/lib/remote'
 import { addDays, dayNumber, monthOf, todayDate, weekdayOf } from '@/lib/dates'
 import { mediaItem } from '@/lib/remote-days'
@@ -168,6 +167,7 @@ export function Composer({
     setStage,
     setChannels,
     saved: savedOf,
+    times,
   } = useBrand()
   // What the composer kept with this post on the server: its caption and the rest of the draft.
   const kept = post ? savedOf(post.id) : undefined
@@ -236,11 +236,7 @@ export function Composer({
     () => (post && dayOf(weeks, post.id)) || start?.day || addDays(todayDate(), 7),
   )
   const [time, setTime] = React.useState(
-    () =>
-      post?.slot.split(', ')[1] ??
-      start?.time ??
-      demoOf(INSIGHTS_BY_BRAND, brand.id)?.best ??
-      '18:00',
+    () => post?.slot.split(', ')[1] ?? start?.time ?? times?.best ?? '18:00',
   )
   // A new post, once placed: a second send after "Edit post" moves it instead of placing another.
   const [madeId, setMadeId] = React.useState<string | null>(null)
@@ -603,6 +599,7 @@ export function Composer({
         details={keptDraft.details}
         labels={keptDraft.labels ?? []}
         extra={keptDraft.extra}
+        caption={kept?.caption || captions[post.id] || ''}
         onFiles={addFiles}
       />
     )
@@ -854,6 +851,7 @@ function PostedPost({
   details,
   labels,
   extra,
+  caption,
   onFiles,
 }: {
   post: Post
@@ -868,6 +866,8 @@ function PostedPost({
   labels: string[]
   /** Its accounts' own settings, kept only when it went out from brand base. */
   extra: Extra | undefined
+  /** Its own caption: the title never stands in for one it did not have. */
+  caption: string
   onFiles: (files: FileList | null) => Promise<void>
 }) {
   const { draft } = api
@@ -879,7 +879,10 @@ function PostedPost({
     { label: 'Collaborators', value: details?.collab.join(', ') },
     { label: 'AI-generated label', value: details?.aiLabel ? 'On' : '' },
     ...(extra
-      ? accounts.map((c) => ({ label: c.name, value: summaryOf(draft, extra)[c.key].text }))
+      ? accounts.map((c) => {
+          const s = summaryOf(draft, extra)[c.key]
+          return { label: c.name, value: s.needs ? '' : s.text }
+        })
       : []),
   ].filter((r): r is { label: string; value: string } => Boolean(r.value?.trim()))
   // On the core only the cover came across: a video shows it, and says why it does not play.
@@ -918,7 +921,7 @@ function PostedPost({
               </div>
             </section>
           )}
-          {(media.length > 0 || draft.caption.trim() !== '') && (
+          {(media.length > 0 || caption.trim() !== '') && (
             <section aria-label="Content" className={card}>
               {media.length > 0 && (
                 <div className={`flex flex-wrap gap-2 ${STRIP}`}>
@@ -937,11 +940,11 @@ function PostedPost({
                   ))}
                 </div>
               )}
-              {draft.caption.trim() !== '' && (
+              {caption.trim() !== '' && (
                 <div className="flex flex-col gap-2">
                   <span className={EYEBROW}>Caption</span>
                   <p className="text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap">
-                    {draft.caption}
+                    {caption}
                   </p>
                 </div>
               )}
@@ -2590,8 +2593,8 @@ function WhenCard({
   time: string
   setTime: (t: string) => void
 }) {
-  const { brand, weeks } = useBrand()
-  const best = bestTimes(brand.id, weeks)[0]
+  const { times, weeks } = useBrand()
+  const best = bestTimes(times, weeks)[0]
   const onBest = best !== undefined && best.date === date && best.time === time
   const pages = useMonthPages(weeks, date)
   const { setPage, reveal } = pages
@@ -2743,14 +2746,6 @@ function hourly(parts: number[]): number[] {
   })
 }
 
-/** Insights' weight for each weekday, Monday first. */
-function dayWeights(brandId: BrandId): number[] {
-  const chart = demoOf(INSIGHTS_BY_BRAND, brandId)?.stories.find(
-    (s) => s.chart.kind === 'days',
-  )?.chart
-  return chart && chart.kind === 'days' ? chart.values : [1, 1, 1, 1, 1, 1, 1]
-}
-
 /**
  * The picked day's hours as bars, the way a map shows how busy a place is. The best hour is green;
  * a bar sets the hour. The bars share one scale across the week, so a quiet day looks quiet.
@@ -2764,15 +2759,16 @@ function DayChart({
   time: string
   setTime: (t: string) => void
 }) {
-  const { brand } = useBrand()
+  const { times } = useBrand()
   const [hover, setHover] = React.useState<number | null>(null)
   const weekday = weekdayOf(date)
-  const weights = dayWeights(brand.id)
-  const curve = hourly(demoOf(INSIGHTS_BY_BRAND, brand.id)?.hours ?? [1, 1, 1, 1, 1])
+  const weights = times?.days ?? [1, 1, 1, 1, 1, 1, 1]
+  const curve = hourly(times?.hours ?? [1, 1, 1, 1, 1])
   const top = Math.max(...weights) * Math.max(...curve)
   const bars = curve.map((v) => (v * (weights[weekday] ?? 1)) / top)
-  // A brand with no Insights has no best hour to mark.
-  const peak = demoOf(INSIGHTS_BY_BRAND, brand.id) ? bars.indexOf(Math.max(...bars)) : -1
+  // The best hour is the brand's best time, the same as the Day view's band; a brand without
+  // enough posts with numbers has none to mark.
+  const peak = times ? HOURS.indexOf(Number(times.best.slice(0, 2))) : -1
   // A bar picks the hour and keeps the minutes; the quarters beside the label pick the minutes.
   const hour = Number(time.slice(0, 2))
   const minutes = time.slice(3)
@@ -2837,15 +2833,15 @@ function DayChart({
 }
 
 /** The brand's best upcoming slots: Insights' day weight times its daypart weight, top five. */
-function bestTimes(brandId: BrandId, weeks: ReturnType<typeof useBrand>['weeks']) {
-  // A brand with no Insights has no best times yet.
-  const data = demoOf(INSIGHTS_BY_BRAND, brandId) ?? { hours: [] }
-  const weights = dayWeights(brandId)
+function bestTimes(times: PostingTimes | undefined, weeks: ReturnType<typeof useBrand>['weeks']) {
+  // A brand without enough posts with numbers has no best times yet.
+  const weights = times?.days ?? []
+  const hours = times?.hours ?? []
   const out: Array<{ date: string; label: string; time: string; score: number }> = []
   for (const w of weeks) {
     w.days.forEach((d, i) => {
       if (d.past || d.today) return
-      data.hours.forEach((h, part) => {
+      hours.forEach((h, part) => {
         out.push({
           date: d.date,
           label: dayLabel(d.date),
@@ -3034,7 +3030,7 @@ function Outcomes({
             : 'Live everywhere'
   const sub =
     phase === 'scheduled' && planned
-      ? `Planned for ${slot}. Posts go out once accounts are connected.`
+      ? `Planned for ${slot}. Nothing is sent yet.`
       : phase === 'scheduled'
         ? `${slot}, on ${accounts}. It is on the calendar.`
         : phase === 'publishing'

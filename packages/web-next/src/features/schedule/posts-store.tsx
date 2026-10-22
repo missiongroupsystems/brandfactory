@@ -14,12 +14,14 @@ import {
 } from '@/data/brands'
 import type { Format, Post, Stage, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
+import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { dayLabel, landingDay } from '@/features/ideate/calendar-slot'
 import { asBrand, managed, type NewBrand } from '@/features/brand/new-brand'
 import { ideaIdOfHook } from '@/features/ideate/ideas-store'
 import {
   type Company,
   type CoreBrand,
+  demoOf,
   loadBrand,
   newId,
   onAccount,
@@ -32,7 +34,7 @@ import {
 import { mediaItem } from '@/lib/remote-days'
 
 import { archiveFor } from './month'
-import { calendarOf, type Saved } from './remote-calendar'
+import { calendarOf, postingTimes, type PostingTimes, type Saved } from './remote-calendar'
 
 import { movePost as moveInWeeks, moveRefusal, placeStory, slotFor, storyTaken } from './move-post'
 
@@ -96,6 +98,11 @@ export interface BrandValue extends Omit<BrandContent, 'posts'>, PostsValue {
   reschedule: (id: string, date: string, time: string) => boolean
   /** The caption and draft the composer saved with a post on the server, if any. */
   saved: (id: string) => Saved[string] | undefined
+  /**
+   * When to post, from the brand's own posts that went out with numbers; undefined until there
+   * are enough. The demo's Insights stand in only off the core.
+   */
+  times: PostingTimes | undefined
   /** The composer picked the accounts a post goes to. */
   setChannels: (id: string, channels: NonNullable<Post['channels']>) => void
   /** The brief renamed the idea behind a post; the post says the same words. */
@@ -144,6 +151,18 @@ const INITIAL_POSTS = Object.fromEntries(
 // of the month's posts and `byId` finds it here, for the earlier months the calendar draws.
 const ARCHIVE: Post[] = BRAND_CONTENT.flatMap((c) => archiveFor(c.brand.id))
 
+/** The demo's invented Insights, in the shape the core's posts give: the static demo only. */
+function demoTimes(brandId: BrandId): PostingTimes | undefined {
+  const data = demoOf(INSIGHTS_BY_BRAND, brandId)
+  if (!data) return undefined
+  const chart = data.stories.find((s) => s.chart.kind === 'days')?.chart
+  return {
+    best: data.best,
+    hours: data.hours,
+    days: chart?.kind === 'days' ? chart.values : [1, 1, 1, 1, 1, 1, 1],
+  }
+}
+
 const INITIAL_WEEKS = Object.fromEntries(
   BRAND_CONTENT.map((c) => [c.brand.id, c.weeks]),
 ) as WeeksByBrand
@@ -166,6 +185,9 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   const [brandId, setBrandIdNow] = React.useState<BrandId>(DEFAULT_BRAND_ID)
   const [postsByBrand, setPostsByBrand] = React.useState<PostsByBrand>(INITIAL_POSTS)
   const [weeksByBrand, setWeeksByBrand] = React.useState<WeeksByBrand>(INITIAL_WEEKS)
+  const [timesByBrand, setTimesByBrand] = React.useState<
+    Partial<Record<BrandId, PostingTimes | undefined>>
+  >({})
   // What the composer saved with each post, from the server; empty in the static demo.
   const savedRef = React.useRef<Saved>({})
   // The posts as they are now, for the callbacks that must not change identity.
@@ -202,6 +224,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       savedRef.current = { ...savedRef.current, ...saved }
       setPostsByBrand((all) => ({ ...all, [id]: posts }))
       setWeeksByBrand((all) => ({ ...all, [id]: weeks }))
+      setTimesByBrand((all) => ({ ...all, [id]: postingTimes(state.posts) }))
     })
   }, [])
 
@@ -566,6 +589,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       unplanPost,
       setChannels,
       saved: (id) => savedRef.current[id],
+      times: remote ? timesByBrand[brandId] : demoTimes(brandId),
       brands,
       companies,
       addBrand,
@@ -582,6 +606,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     brandId,
     postsByBrand,
     weeksByBrand,
+    timesByBrand,
     movePost,
     addIdeaToCalendar,
     planPost,

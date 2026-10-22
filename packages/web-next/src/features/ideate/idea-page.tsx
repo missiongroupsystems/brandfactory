@@ -30,7 +30,6 @@ import {
   type Reference,
   type Shot,
 } from '@/data/ideas'
-import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { storyTaken } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 import { Comments } from '@/features/share/comments'
@@ -59,10 +58,9 @@ import {
 } from './idea-parts'
 import { editIdea, keepSuggestion, setDay, skipSuggestion, type IdeaEdit } from './ideas-store'
 import { useSortable, type Sortable } from './sortable'
-import { demoOf } from '@/lib/remote'
 
 const HAIR = 'border-(--cal-line)'
-const TIMES = ['08:00', '12:00', '15:00', '18:00', '19:30', '21:00']
+const TIMES = ['08:00', '09:00', '12:00', '15:00', '18:00', '19:30', '21:00']
 const FORMAT_LABEL = { reel: 'Reel', carousel: 'Carousel', story: 'Story' } as const
 /** A carousel takes ten slides at most, as the composer says. */
 const SLIDES_MAX = 10
@@ -1593,7 +1591,7 @@ function PlanSection({
   board: Board
   edit: (fields: IdeaEdit | ((c: IdeaCard) => IdeaEdit)) => void
 }) {
-  const { brand } = useBrand()
+  const { times } = useBrand()
   const { card, status, date } = slot
   const step = stepOf(status)
 
@@ -1615,7 +1613,7 @@ function PlanSection({
               infoOf={plan.infoOf}
               time={plan.time}
               times={TIMES}
-              best={demoOf(INSIGHTS_BY_BRAND, brand.id)?.best}
+              best={times?.best}
               onTime={plan.setTime}
             />
           </span>

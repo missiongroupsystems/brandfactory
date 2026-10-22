@@ -9,11 +9,9 @@ import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
 import { startTouchDrag } from '@/components/touch-drag'
 import type { Day, FeedMark, LayerKey, Post, Week } from '@/data/demo'
-import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { useCoverOfHook, useCoverOfPost } from '@/features/ideate/ideas-store'
 import { NewShootForm } from '@/features/shoot/new-shoot'
 import { dayNumber } from '@/lib/dates'
-import { demoOf } from '@/lib/remote'
 
 import { EventChip } from './event-chip'
 import { ideaLabel, useOpenIdea } from './open-idea'
@@ -116,7 +114,7 @@ export function PhoneCalendar({
   onStages: (next: StageFilter) => void
   onLayers: (next: Record<LayerKey, boolean>) => void
 }) {
-  const { brand, library, byId, movePost } = useBrand()
+  const { brand, library, byId, movePost, times } = useBrand()
   const [moving, setMoving] = React.useState<string | null>(null)
   const [over, setOver] = React.useState<string | null>(null)
   const [landed, setLanded] = React.useState<string | null>(null)
@@ -124,8 +122,8 @@ export function PhoneCalendar({
 
   const shownWeek = weeks[Math.min(week, weeks.length - 1)]!
   const shownDay = shownWeek.days[day]!
-  // On the core no brand has insights yet (the demo's are invented): no best time until it does.
-  const best = demoOf(INSIGHTS_BY_BRAND, brand.id)?.best
+  // On the core, from the brand's own posts once enough have numbers; none before.
+  const best = times?.best
   const items = (d: Day) => itemsOf(d, byId, stages)
   const stories = (d: Day, it: DayItems) => storiesOf(d.date, it, brand.id, library, byId)
   const movingFrom = moving
@@ -790,7 +788,7 @@ function Hours({
 }: {
   day: Day
   items: DayItems
-  /** The best hour, from Insights; none on the core yet. */
+  /** The best hour; none until the brand has enough posts with numbers. */
   best: number | null
   moving: string | null
   landed: string | null
