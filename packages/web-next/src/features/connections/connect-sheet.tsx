@@ -13,7 +13,7 @@ import { useBrand } from '@/features/schedule/posts-store'
 import { demoOf } from '@/lib/remote'
 
 import { connect, type SourceKey } from './connections-store'
-import { notAvailable, reasonOf } from './not-available'
+import { notAvailable } from './not-available'
 
 interface SourceInfo {
   name: string
@@ -198,7 +198,7 @@ export function ConnectSheet({
         aria-modal="true"
         aria-label={
           unset
-            ? `${info.name} is not available yet`
+            ? `${info.name} isn’t connected`
             : step === 'done'
               ? `${info.name} connected`
               : `Connect ${info.name}`
@@ -253,18 +253,18 @@ export function ConnectSheet({
         <div className="flex flex-col gap-1.5">
           <h2 className="text-[19px] font-medium tracking-[-0.02em]">
             {unset
-              ? `${info.name} is not available yet`
+              ? `${info.name} isn’t connected`
               : step === 'done'
                 ? `${info.name} connected`
                 : `Connect ${info.name}`}
           </h2>
-          <p className="text-[13.5px] text-ink-3">
-            {unset
-              ? reasonOf(info.name, source)
-              : step === 'done'
+          {!unset && (
+            <p className="text-[13.5px] text-ink-3">
+              {step === 'done'
                 ? `${brand.name} is linked as ${info.account(brand)}.`
                 : `For ${brand.name}, brand base wants to:`}
-          </p>
+            </p>
+          )}
         </div>
         {/* On the core it asks for nothing: it cannot connect. */}
         {!unset && (

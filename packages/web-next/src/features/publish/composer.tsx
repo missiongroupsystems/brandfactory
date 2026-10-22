@@ -335,7 +335,7 @@ export function Composer({
     : active.length === 0
       ? // On the core no account can be picked yet: nothing to ask for.
         remote && draft.linked.length === 0
-        ? 'Not available yet'
+        ? 'No platform listed'
         : 'Pick an account'
       : planOnly
         ? 'Schedule'
@@ -580,7 +580,7 @@ export function Composer({
     tags: draft.format === 'story' ? [] : (media[0]?.tags ?? []),
   }
   const counts = post?.metrics && { on: post.channels?.[0], metrics: post.metrics }
-  // Posted is final: the post as it went out, on the accounts it went to, and nothing to change.
+  // Posted is final: the same page as any post, every field filled in as text, nothing to change.
   if (post?.stage === 'posted') {
     // Only the accounts it went out on, its first one open; none recorded, no preview.
     // On the core a post with no account recorded shows none; the demo's archive posts carry
@@ -588,32 +588,23 @@ export function Composer({
     const went = post.channels ?? (remote ? [] : channelsOf(post))
     const day = dayOf(weeks, post.id)
     const year = day ? monthOf(day).year : 0
-    const posted = day
+    const on = day
       ? `${dayLabel(day)}${year !== monthOf(todayDate()).year ? ` ${year}` : ''}`
-      : post.slot.split(', ')[0]
+      : post.slot.split(', ')[0]!
     return (
-      <div className="flex flex-col gap-6">
-        <header className="flex flex-col gap-2">
-          <h1 className="font-display text-[38px] leading-none tracking-[-0.035em] max-md:text-[28px] max-md:leading-[1.05]">
-            {post.hook}
-          </h1>
-          <p className="text-[13px] text-ink-3">Posted on {posted}</p>
-        </header>
-        {went.length > 0 && (
-          <div className="w-full max-w-[400px]">
-            <Preview
-              api={api}
-              media={media}
-              people={people}
-              onFiles={addFiles}
-              // Its own counts or none: never the preview's invented ones.
-              counts={{ on: went[0], metrics: post.metrics ?? {} }}
-              on={went}
-              self={post.id}
-            />
-          </div>
-        )}
-      </div>
+      <PostedPost
+        post={post}
+        api={api}
+        media={media}
+        people={people}
+        went={went}
+        on={on}
+        // Only what was kept with the post: no demo venue stands in for a location it never had.
+        details={keptDraft.details}
+        labels={keptDraft.labels ?? []}
+        extra={keptDraft.extra}
+        onFiles={addFiles}
+      />
     )
   }
   // The sheet a phone row opened, over the same cards the desktop shows in place.
@@ -771,7 +762,7 @@ export function Composer({
                     · {FORMAT_LABEL[draft.format]}
                   </span>
                 ) : remote ? (
-                  'Not available yet'
+                  'No platform listed'
                 ) : (
                   'No account'
                 )
@@ -845,6 +836,175 @@ export function Composer({
           {inSheet[sheet].body}
         </Sheet>
       )}
+    </div>
+  )
+}
+
+/**
+ * A posted post: the post page's own cards, every field it went out with as plain text, and
+ * nothing to change. An empty field is left out, not shown empty.
+ */
+function PostedPost({
+  post,
+  api,
+  media,
+  people,
+  went,
+  on,
+  details,
+  labels,
+  extra,
+  onFiles,
+}: {
+  post: Post
+  api: PublishDraftApi
+  media: Shot[]
+  people: People
+  /** The accounts it went out on, in its own order. */
+  went: ChannelKey[]
+  /** The day it went out, in words. */
+  on: string
+  details: DetailState | undefined
+  labels: string[]
+  /** Its accounts' own settings, kept only when it went out from brand base. */
+  extra: Extra | undefined
+  onFiles: (files: FileList | null) => Promise<void>
+}) {
+  const { draft } = api
+  const accounts = went.flatMap((k) => CHANNELS.filter((c) => c.key === k))
+  const rows = [
+    { label: 'Location', value: details?.location },
+    { label: 'First comment', value: details?.comment },
+    { label: 'Tagged', value: taggedIn(media).join(', ') },
+    { label: 'Collaborators', value: details?.collab.join(', ') },
+    { label: 'AI-generated label', value: details?.aiLabel ? 'On' : '' },
+    ...(extra
+      ? accounts.map((c) => ({ label: c.name, value: summaryOf(draft, extra)[c.key].text }))
+      : []),
+  ].filter((r): r is { label: string; value: string } => Boolean(r.value?.trim()))
+  // On the core only the cover came across: a video shows it, and says why it does not play.
+  const video =
+    remote && post.format === 'reel' && media.length > 0 && !media.some((m) => isVideo(m.src))
+  const first = went[0]
+  const card = `${CARD} max-md:border-t max-md:border-(--cal-line) max-md:pt-6`
+  return (
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-2">
+        <span className="self-start rounded-full bg-surface px-2 py-[2px] text-[11px] font-medium text-ink-2">
+          Posted on {on}
+        </span>
+        <h1 className="font-display text-[38px] leading-none tracking-[-0.035em] max-md:text-[28px] max-md:leading-[1.05]">
+          {post.hook}
+        </h1>
+      </header>
+      <div className="grid grid-cols-[minmax(0,1fr)_400px] items-start gap-6 max-lg:grid-cols-1">
+        <div className="flex min-w-0 flex-col gap-4 max-md:gap-6">
+          {accounts.length > 0 && (
+            <section aria-label="Accounts" className={card}>
+              <span className={EYEBROW}>Posted to</span>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-2">
+                  {accounts.map((c) => (
+                    <span
+                      key={c.key}
+                      className="flex h-9 items-center gap-2 rounded-full bg-surface pr-4 pl-3 text-[13px] font-medium text-ink-2"
+                    >
+                      <PlatformLogo platform={c.key} size={14} />
+                      {c.name}
+                    </span>
+                  ))}
+                </div>
+                <span className="text-[13px] text-ink-3">{FORMAT_LABEL[post.format]}</span>
+              </div>
+            </section>
+          )}
+          {(media.length > 0 || draft.caption.trim() !== '') && (
+            <section aria-label="Content" className={card}>
+              {media.length > 0 && (
+                <div className={`flex flex-wrap gap-2 ${STRIP}`}>
+                  {media.map((shot, i) => (
+                    <span
+                      key={shot.src + i}
+                      className="relative block h-[132px] w-[106px] shrink-0 overflow-hidden rounded-[12px] bg-tile"
+                    >
+                      <ShotView shot={shot} sizes="260px" />
+                      {media.length > 1 && (
+                        <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/50 px-1.5 font-mono text-[10px] text-page">
+                          {i + 1}
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {draft.caption.trim() !== '' && (
+                <div className="flex flex-col gap-2">
+                  <span className={EYEBROW}>Caption</span>
+                  <p className="text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap">
+                    {draft.caption}
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
+          {(rows.length > 0 || labels.length > 0) && (
+            <section aria-label="Details" className={card}>
+              <span className={EYEBROW}>Details</span>
+              <dl className="flex flex-col">
+                {rows.map((r) => (
+                  <div
+                    key={r.label}
+                    className="grid grid-cols-[132px_minmax(0,1fr)] gap-3 border-b border-(--cal-line) py-3 first:pt-0 last:border-b-0 max-md:grid-cols-1 max-md:gap-1"
+                  >
+                    <dt className="text-[13px] text-ink-3">{r.label}</dt>
+                    <dd className="min-w-0 text-[13.5px] break-words whitespace-pre-wrap">
+                      {r.value}
+                    </dd>
+                  </div>
+                ))}
+                {labels.length > 0 && (
+                  <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 border-t border-(--cal-line) pt-3 first:border-t-0 first:pt-0 max-md:grid-cols-1 max-md:gap-1.5">
+                    <dt className="text-[13px] text-ink-3">Labels</dt>
+                    <dd className="flex flex-wrap gap-1.5">
+                      {labels.map((l) => (
+                        <span
+                          key={l}
+                          className="flex h-7 items-center rounded-full bg-surface px-2.5 text-[12.5px] text-ink-2"
+                        >
+                          {l}
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </section>
+          )}
+        </div>
+        {first && (
+          <div className="sticky top-6 flex flex-col gap-3 max-lg:static max-md:border-t max-md:border-(--cal-line) max-md:pt-6">
+            <Preview
+              api={api}
+              media={media}
+              people={people}
+              onFiles={onFiles}
+              // Its own counts or none: never the preview's invented ones.
+              counts={{ on: first, metrics: post.metrics ?? {} }}
+              on={went}
+              self={post.id}
+            />
+            {video && (
+              <span className="flex px-1">
+                <NotAvailable
+                  label="Cover only"
+                  reason={`Video plays once ${NAME[first]} is connected.`}
+                  align="left"
+                />
+              </span>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -1008,7 +1168,11 @@ function Accounts({ api }: { api: PublishDraftApi }) {
             // says it will not publish until they are set up.
             linkedChannels(draft).length > 0 ? (
               <span className="flex h-10 items-center max-md:h-14">
-                <NotAvailable name={namesOf(draft.linked)} align="left" />
+                <NotAvailable
+                  label="Won’t publish"
+                  reason="Posts go out once accounts are connected."
+                  align="left"
+                />
               </span>
             ) : (
               // A brand that posts on none of them has nothing to plan a post on.
@@ -2870,7 +3034,7 @@ function Outcomes({
             : 'Live everywhere'
   const sub =
     phase === 'scheduled' && planned
-      ? `Planned for ${slot}. Nothing is sent until the accounts are set up.`
+      ? `Planned for ${slot}. Posts go out once accounts are connected.`
       : phase === 'scheduled'
         ? `${slot}, on ${accounts}. It is on the calendar.`
         : phase === 'publishing'
@@ -3000,7 +3164,7 @@ function OutcomePill({ outcome, planned }: { outcome: Outcome; planned: boolean 
   const label =
     outcome.state === 'scheduled'
       ? planned
-        ? 'Planned'
+        ? 'Planned only'
         : 'Scheduled'
       : outcome.state === 'uploading'
         ? `${outcome.progress}%`

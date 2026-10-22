@@ -135,7 +135,7 @@ describe('planning a post on the core, with no account connected', () => {
     open(draft)
     expect(screen.getByText('This brand has no Instagram, TikTok or Facebook.')).toBeTruthy()
     const accounts = screen.getByRole('region', { name: 'Accounts' })
-    expect(within(accounts).queryByRole('button', { name: 'Not available yet' })).toBeNull()
+    expect(within(accounts).queryByRole('button', { name: 'Won’t publish' })).toBeNull()
   })
 
   it('picks the platforms and previews the post on the one picked', () => {
@@ -146,7 +146,7 @@ describe('planning a post on the core, with no account connected', () => {
     fireEvent.click(tiktok)
     expect(tiktok).toHaveAttribute('aria-checked', 'true')
     // The note stays: planned, not published.
-    expect(within(accounts).getByRole('button', { name: 'Not available yet' })).toBeTruthy()
+    expect(within(accounts).getByRole('button', { name: 'Won’t publish' })).toBeTruthy()
     const preview = screen.getByRole('region', { name: 'Preview' })
     expect(within(preview).getByRole('button', { name: 'Preview on Instagram' })).toBeTruthy()
     expect(within(preview).getByRole('button', { name: 'Preview on TikTok' })).toBeTruthy()
@@ -181,9 +181,9 @@ describe('planning a post on the core, with no account connected', () => {
     // The result says plainly that it is planned and that nothing goes out yet.
     expect(screen.getByRole('heading', { name: 'Planned' })).toBeInTheDocument()
     expect(
-      screen.getByText(/^Planned for .+\. Nothing is sent until the accounts are set up\.$/),
+      screen.getByText(/^Planned for .+\. Posts go out once accounts are connected\.$/),
     ).toBeInTheDocument()
-    expect(screen.getAllByText('Planned', { selector: 'span' }).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Planned only', { selector: 'span' }).length).toBeGreaterThan(0)
     expect(screen.queryByText(/It is on the calendar/)).toBeNull()
     expect(screen.queryByText('Scheduled')).toBeNull()
   })

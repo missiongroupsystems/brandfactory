@@ -57,17 +57,13 @@ describe('Connections on the core', () => {
     )
     for (const name of ['Instagram', 'TikTok', 'Facebook', 'Pinterest']) {
       const r = row(name)
-      expect(within(r).getByRole('button', { name: 'Not available yet' })).toBeInTheDocument()
-      expect(within(r).getByRole('tooltip')).toHaveTextContent(
-        `${name} isn’t connected on our side yet.`,
-      )
+      expect(within(r).getByRole('button', { name: 'Not connected' })).toBeInTheDocument()
+      expect(within(r).getByRole('tooltip')).toHaveTextContent(`${name} isn’t connected yet.`)
       expect(within(r).queryByRole('button', { name: new RegExp(`Connect|More for`) })).toBeNull()
     }
-    // The other services fake their sign-in the same way: they wait too, each with what works meanwhile.
+    // The other services fake their sign-in the same way: they wait too, in one short line.
     const drive = row('Google Drive')
-    expect(within(drive).getByRole('tooltip')).toHaveTextContent(
-      'Google Drive isn’t connected on our side yet. You can upload from your computer meanwhile.',
-    )
+    expect(within(drive).getByRole('tooltip').textContent).toBe('Google Drive isn’t connected yet.')
     expect(within(drive).queryByRole('button', { name: /Connect/ })).toBeNull()
   })
 
@@ -81,7 +77,7 @@ describe('Connections on the core', () => {
 
   it('opens its reason on a tap', () => {
     page()
-    const pill = within(row('Instagram')).getByRole('button', { name: 'Not available yet' })
+    const pill = within(row('Instagram')).getByRole('button', { name: 'Not connected' })
     fireEvent.click(pill)
     expect(within(row('Instagram')).getByRole('tooltip').className).not.toContain('invisible')
   })
@@ -92,7 +88,7 @@ describe('Connections on the core', () => {
         <ConnectSheet source="drive" onClose={vi.fn()} />
       </BrandProvider>,
     )
-    const sheet = screen.getByRole('dialog', { name: 'Google Drive is not available yet' })
+    const sheet = screen.getByRole('dialog', { name: 'Google Drive isn’t connected' })
     expect(within(sheet).queryByRole('button', { name: 'Allow' })).toBeNull()
     // Allow is hidden: Close takes the focus, so it stays inside the dialog.
     expect(document.activeElement).toBe(within(sheet).getByRole('button', { name: 'Close' }))
@@ -102,11 +98,11 @@ describe('Connections on the core', () => {
   it('closes its reason on a tap elsewhere, and hides it on Escape', () => {
     page()
     const r = row('Instagram')
-    fireEvent.click(within(r).getByRole('button', { name: 'Not available yet' }))
+    fireEvent.click(within(r).getByRole('button', { name: 'Not connected' }))
     expect(within(r).getByRole('tooltip').className).not.toContain('invisible')
     fireEvent.pointerDown(document.body)
     expect(within(r).getByRole('tooltip').className).toContain('invisible')
-    fireEvent.click(within(r).getByRole('button', { name: 'Not available yet' }))
+    fireEvent.click(within(r).getByRole('button', { name: 'Not connected' }))
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(within(r).getByRole('tooltip').className).toContain('invisible')
     expect(within(r).getByRole('tooltip').className).not.toContain('group-hover')
@@ -124,14 +120,14 @@ describe('Connections on the core', () => {
       ],
     }
     const [card] = cardsFor(turn as unknown as Parameters<typeof cardsFor>[0])
-    expect(card!.verb).toBe('Not available')
+    expect(card!.verb).toBe('Not connected')
     render(
       <BrandProvider>
         <ConnectionCard model={card!} index={0} />
       </BrandProvider>,
     )
     expect(screen.queryByText('Connected')).toBeNull()
-    expect(screen.getByText('Not available yet')).toBeInTheDocument()
+    expect(screen.getAllByText('Not connected').length).toBeGreaterThan(0)
   })
 
   it('runs no pretend sign-in for them: nothing is stored as connected', () => {

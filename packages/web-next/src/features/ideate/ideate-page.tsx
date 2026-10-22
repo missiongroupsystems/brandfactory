@@ -24,7 +24,7 @@ import { BrandLogo } from '@/features/brand/brand-logo'
 import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 import { planShoot } from '@/features/shoot/shoots-store'
-import { NotAvailable, notAvailable } from '@/features/connections/not-available'
+import { NotAvailable, notAvailable, reasonOf } from '@/features/connections/not-available'
 import { demoOf, newId } from '@/lib/remote'
 
 import { EYEBROW, FormatIcon, STATUS_LABEL, statusColour, useSlots, type Slot } from './idea-parts'
@@ -791,7 +791,7 @@ function SourceSetup({ source }: { source: MoodSource }) {
   // On the core none of these can connect yet: the amber state in place of a pretend Connect.
   const action = (label: string) =>
     notAvailable(PLATFORM[source]) ? (
-      <NotAvailable name={NAME[source]} align="left" />
+      <NotAvailable reason={reasonOf(NAME[source])} align="left" />
     ) : (
       <button
         type="button"

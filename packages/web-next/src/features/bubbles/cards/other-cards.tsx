@@ -80,7 +80,7 @@ export function ConnectionCard({ model, index }: { model: Model; index: number }
       verb={model.verb}
       href="/brand/connections"
       index={index}
-      label={`${name} ${unset ? 'not available yet' : on ? 'connected' : 'off'}`}
+      label={`${name} ${unset ? 'not connected' : on ? 'connected' : 'off'}`}
     >
       <span className="flex items-center gap-3">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-surface text-ink">
@@ -93,7 +93,7 @@ export function ConnectionCard({ model, index }: { model: Model; index: number }
               className={`bb-pop size-1.5 rounded-full ${unset ? 'bg-(--pending)' : on ? 'bg-live' : 'bg-ink-5'}`}
               style={{ animationDelay: '200ms' }}
             />
-            {unset ? 'Not available yet' : on ? 'Connected' : 'Off'}
+            {unset ? 'Not connected' : on ? 'Connected' : 'Off'}
           </span>
         </span>
       </span>

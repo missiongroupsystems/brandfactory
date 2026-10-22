@@ -22,23 +22,9 @@ export const NOT_SET_UP = [
   'res',
 ] as const
 
-/** What still works meanwhile, said after "… isn't connected on our side yet." */
-const MEANWHILE: Partial<Record<string, string>> = {
-  pinterest: 'Its pins reach the moodboard once it’s set up.',
-  drive: 'You can upload from your computer meanwhile.',
-  lark: 'Shoots stay on this calendar meanwhile.',
-  web: 'Its figures reach Insights once it’s set up.',
-  gbp: 'Its figures reach Insights once it’s set up.',
-  res: 'Its figures reach Insights once it’s set up.',
-}
-
-/** Why a service shows "Not available yet", in plain words. Several names read as one plural. */
-export function reasonOf(name: string, source?: string): string {
-  const many = name.includes(' and ')
-  const then =
-    (source && MEANWHILE[source]) ??
-    `You can plan posts here; they won’t publish until ${many ? 'they’re' : 'it’s'} set up.`
-  return `${name} ${many ? 'aren’t' : 'isn’t'} connected on our side yet. ${then}`
+/** Why a service shows "Not connected": one short line. Several names read as one plural. */
+export function reasonOf(name: string): string {
+  return `${name} ${name.includes(' and ') ? 'aren’t' : 'isn’t'} connected yet.`
 }
 
 export function notAvailable(key: string): boolean {
@@ -46,18 +32,19 @@ export function notAvailable(key: string): boolean {
 }
 
 /**
- * A calm amber "Not available yet" in place of Connect. Its reason opens in a small card on hover,
- * on keyboard focus and on a tap; Escape or a tap elsewhere closes it.
+ * A calm amber pill that names what is missing ("Not connected", "Cover only"). Its reason, one
+ * short line, opens in a small card on hover, on keyboard focus and on a tap; Escape or a tap
+ * elsewhere closes it.
  */
 export function NotAvailable({
-  name,
-  source,
+  label = 'Not connected',
+  reason,
   align = 'right',
 }: {
-  /** The platform, or several: "Instagram, TikTok and Facebook". */
-  name: string
-  /** Its key, for what still works meanwhile; publishing platforms when left out. */
-  source?: string
+  /** Two or three words for the exact thing that is missing. */
+  label?: string
+  /** Why, in one short sentence: "TikTok isn’t connected yet." */
+  reason: string
   align?: 'left' | 'right' | 'center'
 }) {
   const [open, setOpen] = React.useState(false)
@@ -103,14 +90,14 @@ export function NotAvailable({
         className="flex h-8 items-center gap-1.5 rounded-full bg-(--pending-soft) px-3 text-[12.5px] font-medium text-(--pending-ink) outline-none focus-visible:shadow-[0_0_0_2px_var(--pending)]"
       >
         <span aria-hidden="true" className="size-1.5 rounded-full bg-(--pending)" />
-        Not available yet
+        {label}
       </button>
       <span
         id={id}
         role="tooltip"
-        className={`absolute top-[calc(100%+8px)] z-30 before:absolute before:inset-x-0 before:-top-2 before:h-2 before:content-[""] w-[248px] rounded-[12px] bg-page p-3 text-left text-[12.5px] leading-[1.45] text-ink-2 shadow-pop transition-opacity duration-150 ${hushed ? '' : 'group-hover/na:visible group-hover/na:opacity-100 group-focus-within/na:visible group-focus-within/na:opacity-100'} ${align === 'right' ? 'right-0' : align === 'left' ? 'left-0' : 'left-1/2 -translate-x-1/2'} ${open ? 'visible opacity-100' : 'invisible opacity-0'}`}
+        className={`absolute top-[calc(100%+8px)] z-30 before:absolute before:inset-x-0 before:-top-2 before:h-2 before:content-[""] w-max max-w-[240px] rounded-[12px] bg-page px-3 py-2.5 text-left text-[12.5px] leading-[1.45] text-ink-2 shadow-pop transition-opacity duration-150 ${hushed ? '' : 'group-hover/na:visible group-hover/na:opacity-100 group-focus-within/na:visible group-focus-within/na:opacity-100'} ${align === 'right' ? 'right-0' : align === 'left' ? 'left-0' : 'left-1/2 -translate-x-1/2'} ${open ? 'visible opacity-100' : 'invisible opacity-0'}`}
       >
-        {reasonOf(name, source)}
+        {reason}
       </span>
     </span>
   )

@@ -156,10 +156,11 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
             {unlinked && waiting.length === 0 && remote ? (
               // On the core no account can connect yet: no link to a connect that cannot work.
               <div className="flex flex-col items-center gap-3 py-16 text-center">
-                <p className="text-[14px] text-ink-3">
-                  Comments and DMs show here once the accounts are set up.
-                </p>
-                <NotAvailable name="Instagram, TikTok and Facebook" align="center" />
+                <p className="text-[14px] text-ink-3">No comments or DMs yet.</p>
+                <NotAvailable
+                  reason="Comments and DMs arrive once accounts are connected."
+                  align="center"
+                />
               </div>
             ) : unlinked && waiting.length === 0 ? (
               <p className="py-16 text-center text-[14px] text-ink-3">

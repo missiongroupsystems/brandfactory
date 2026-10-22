@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.35.6** — 2026-10-22 — `fix/onboarding-polish`: a posted post (brought in or sent from Brand base) opens on the post page's own cards, every field as plain text and no empty field: Posted to with its platforms and format, the media and caption, Details, and the preview. On the core a posted reel or TikTok video shows its cover with an amber "Cover only" and why. Every amber notice is shorter and names what is missing: "Not connected", "Won't publish", "Planned only", each with one short line. No migration. 1076 tests (196 skipped without a Postgres server).
 - **2.35.5** — 2026-10-22 — `fix/onboarding-polish`: public Terms of Service (`/terms`) and Privacy Policy (`/privacy`) pages for TikTok's app form, open with no sign-in on the core, linked quietly from the sign-in page; and TikTok's site-verification file. No migration. 1073 tests (196 skipped without a Postgres server).
 - **2.35.4** — 2026-10-22 — `fix/onboarding-polish`: review fixes. On the core the result after Schedule says "Planned for <day>, <time>. Nothing is sent until the accounts are set up." with "Planned" pills; a failed post is planned again instead of asking for a reconnect; a scheduled post cannot lose its last platform; a post's YouTube or LinkedIn stay on every save. The static demo's earlier-month posts preview again. A publishing hand-off note: planned posts have no job. No migration. 1071 tests (196 skipped without a Postgres server).
 - **2.35.3** — 2026-10-22 — `fix/onboarding-polish`: on the core a post is planned without a connected account. New post picks the brand's own platforms, previews the post on the one picked, and Schedule puts it on the calendar as Scheduled (`post.mark`), with the amber note that it will not publish until the account is set up. Nothing is sent: no job, so nothing turns Failed at its time. No pack change, no migration. 1067 tests (196 skipped without a Postgres server).
@@ -70,6 +71,46 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.35.6 — 2026-10-22
+
+- **Why.** The owner rejected 2.35.1's posted view (a title, "Posted on" and the preview only): it
+  read as a new, unfinished page. A post brought in must look like a post sent from Brand base.
+  The owner also found the amber notices too long and too vague about what is missing.
+- **A posted post opens on the post page.** The same header, the same grid and the same cards: the
+  stage pill reads "Posted on <day>" (with the year outside this one); "Posted to" shows its
+  platforms as static chips and its format; Content shows its media tiles and its caption as text;
+  Details shows only what it went out with (location, first comment, tagged accounts,
+  collaborators, the AI label when on, each account's own settings when it went out from Brand
+  base, labels as chips); the preview on its own accounts with its own counts sits on the right.
+  Nothing is an input: no upload, Drive or Library tiles, no caption box, no format switch, no
+  When card, no send bar, no "Pick a channel." An empty field is left out, and a demo venue no
+  longer stands in for a location the post never had. A carousel brought in shows its one cover
+  with no slide number.
+- **A video that cannot play says so.** Only the cover was imported. On the core a posted reel or
+  TikTok video with no video file shows the cover and, under the preview, an amber "Cover only";
+  its card reads "Video plays once TikTok is connected." (the post's own platform). A photo or a
+  carousel shows no notice. The static demo shows none.
+- **Shorter amber notices.** The pill names the thing; the card is one short sentence. Connections
+  and the moodboard's sources: "Not connected" / "<Platform> isn't connected yet."; the connect
+  sheet's title reads "<Platform> isn't connected" and drops its second line. New post's "Post to": "Won't publish" /
+  "Posts go out once accounts are connected." The inbox: "No comments or DMs yet." with "Not
+  connected" / "Comments and DMs arrive once accounts are connected." A Bubbles connection card: "Not
+  connected". The planned result: pills "Planned only", and "Planned for <day, time>. Posts go
+  out once accounts are connected." A brand with none of Instagram, TikTok or Facebook reads "No
+  platform listed" where the button and the phone row said "Not available yet".
+- **Kept.** Real counts only, the preview on the post's own first account, the grid draws the
+  post once, and the static demo's archive posts preview on the format's usual accounts.
+- **Tests.** `posted-remote.test.tsx`: a posted post opens the full page with its caption,
+  location, AI label and labels and no input, and leaves out an empty first comment and
+  collaborators; a posted TikTok video shows "Cover only" with its reason; a photo, a reel with
+  its video and a reel with no picture show none; no Details card for a post with none, no
+  Accounts card for a post with no account recorded.
+  Each fails on the 2.35.5 composer. Changed on purpose for the new text:
+  `connections-remote.test.tsx`, `inbox-remote.test.tsx`, `plan-remote.test.tsx`.
+- **Gate:** typecheck, lint, format, build; tests 1076 (880 run, 196 skipped: no Postgres server).
+  Screenshots on a stub core, desktop and phone: a posted TikTok video (with its card open), a
+  posted Instagram reel and photo, Connections and New post's "Post to" with the card open.
 
 ## 2.35.5 — 2026-10-22
 

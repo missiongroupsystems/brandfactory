@@ -71,8 +71,11 @@ describe('the inbox on the core', () => {
     // Production's brands have no account connected, and none can connect yet.
     act(() => linkers[0]!('casa-vostra', { brand: { id: 'casa-vostra' }, connections: [] }))
     expect(screen.queryByText('All caught up')).toBeNull()
-    expect(screen.getByText(/once the accounts are set up/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Not available yet' })).toBeInTheDocument()
+    expect(screen.getByText('No comments or DMs yet.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Not connected' })).toBeInTheDocument()
+    expect(screen.getByRole('tooltip').textContent).toBe(
+      'Comments and DMs arrive once accounts are connected.',
+    )
     expect(screen.queryByRole('link', { name: /connect/i })).toBeNull()
   })
 
@@ -86,6 +89,6 @@ describe('the inbox on the core', () => {
       }),
     )
     expect(screen.queryByText('All caught up')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Not available yet' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Not connected' })).toBeInTheDocument()
   })
 })

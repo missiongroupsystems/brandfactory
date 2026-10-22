@@ -83,18 +83,46 @@ describe('a posted post on the core', () => {
     expect(within(preview).queryByRole('button', { name: 'Preview on Instagram' })).toBeNull()
   })
 
-  it('is read-only: one "Posted on" line, and nothing to edit, schedule or send', () => {
+  it('is read-only: the post page with nothing to edit, schedule or send', () => {
     open(posted)
     expect(screen.getByText('Posted on Fri 16 Oct')).toBeInTheDocument()
-    for (const name of ['Accounts', 'When', 'Details']) {
-      expect(screen.queryByRole('region', { name })).toBeNull()
-    }
+    expect(screen.queryByRole('region', { name: 'When' })).toBeNull()
     expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(screen.queryByRole('radiogroup', { name: 'Format' })).toBeNull()
     expect(
-      screen.queryByRole('button', { name: /^(Schedule on|Post on|Save|Save draft)/ }),
+      screen.queryByRole('button', { name: /Upload|Google Drive|Library|Draft with AI/ }),
     ).toBeNull()
+    expect(screen.queryByRole('button', { name: /^(Schedule|Post on|Save|Save draft)/ })).toBeNull()
     expect(screen.queryByText('Pick a channel.')).toBeNull()
     expect(screen.queryByText('Pick a day ahead.')).toBeNull()
+  })
+
+  it('shows the cover of a video with "Cover only" and why, on its own platform', () => {
+    open({ ...posted, format: 'reel', channels: ['tt'] })
+    const pill = screen.getByRole('button', { name: 'Cover only' })
+    expect(pill).toHaveAccessibleDescription('Video plays once TikTok is connected.')
+  })
+
+  it('says nothing about playing on a reel that has its video', () => {
+    open({ ...posted, format: 'reel', images: ['/demo/casa-vostra/margherita-reel.mp4#video'] })
+    expect(screen.queryByRole('button', { name: 'Cover only' })).toBeNull()
+  })
+
+  it('claims no cover on a video brought in with no picture at all', () => {
+    open({ ...posted, format: 'reel', images: [] })
+    expect(screen.queryByRole('button', { name: 'Cover only' })).toBeNull()
+  })
+
+  it('shows no Details card when it went out with none', () => {
+    open(posted)
+    expect(screen.queryByRole('region', { name: 'Details' })).toBeNull()
+  })
+
+  it('says nothing about playing on a photo or a carousel', () => {
+    open(posted)
+    expect(screen.queryByRole('button', { name: 'Cover only' })).toBeNull()
+    expect(screen.queryByRole('tooltip')).toBeNull()
   })
 })
 
@@ -137,6 +165,7 @@ describe('a posted post, whatever it holds', () => {
   it('shows no account it never went to when none is recorded', () => {
     open({ ...posted, channels: undefined })
     expect(screen.queryByRole('region', { name: 'Preview' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Accounts' })).toBeNull()
     expect(screen.getByText('Posted on Fri 16 Oct')).toBeInTheDocument()
   })
 })
@@ -150,12 +179,12 @@ describe('a draft on the core', () => {
     expect(within(strip).queryByText('1')).toBeNull()
   })
 
-  it('says the accounts are not available yet, promises no connect, and offers no demo labels', () => {
+  it('says it will not publish yet, promises no connect, and offers no demo labels', () => {
     open(draft)
     const accounts = screen.getByRole('region', { name: 'Accounts' })
-    expect(within(accounts).getByRole('button', { name: 'Not available yet' })).toBeTruthy()
-    expect(within(accounts).getByRole('tooltip')).toHaveTextContent(
-      'Instagram, TikTok and Facebook aren’t connected on our side yet.',
+    expect(within(accounts).getByRole('button', { name: 'Won’t publish' })).toBeTruthy()
+    expect(within(accounts).getByRole('tooltip').textContent).toBe(
+      'Posts go out once accounts are connected.',
     )
     expect(screen.queryByRole('link', { name: 'Connect an account' })).toBeNull()
     expect(screen.queryByText('Tick an account to preview it.')).toBeNull()
@@ -216,6 +245,57 @@ describe('a posted post from an earlier year, on the calendar', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Grid' }))
     const preview = screen.getByRole('region', { name: 'Preview' })
     expect(preview.querySelectorAll('.grid-cols-3 > span')).toHaveLength(1)
+  })
+
+  it('opens as the full post page, every field filled in as text and none empty', () => {
+    render(
+      <BrandProvider>
+        <Opened id="casa-vostra-ig-full" />
+      </BrandProvider>,
+    )
+    act(() =>
+      loads.at(-1)!('casa-vostra', {
+        brand: { id: 'casa-vostra' },
+        posts: [
+          {
+            id: 'casa-vostra-ig-full',
+            format: 'carousel',
+            hook: 'Friday is for the wood oven',
+            day: '2026-10-16',
+            time: '19:00',
+            channels: ['ig'],
+            media: [{ src: '/demo/crust.jpg', kind: 'photo' }],
+            fromIdea: null,
+            stage: 'posted',
+            jobs: [],
+            caption: 'Friday is for the wood oven.\nBook a table.',
+            draft: {
+              details: { location: 'Club Street', comment: '', collab: [], aiLabel: true },
+              labels: ['F1 weekend'],
+            },
+            metrics: { likes: 3 },
+          },
+        ],
+        ideas: [],
+      }),
+    )
+    const accounts = screen.getByRole('region', { name: 'Accounts' })
+    expect(within(accounts).getByText('Instagram')).toBeInTheDocument()
+    expect(within(accounts).getByText('Post')).toBeInTheDocument()
+    const content = screen.getByRole('region', { name: 'Content' })
+    expect(within(content).getByText(/Book a table\./)).toBeInTheDocument()
+    expect(content.querySelectorAll('img')).toHaveLength(1)
+    const details = screen.getByRole('region', { name: 'Details' })
+    expect(within(details).getByText('Club Street')).toBeInTheDocument()
+    expect(within(details).getByText('AI-generated label')).toBeInTheDocument()
+    expect(within(details).getByText('F1 weekend')).toBeInTheDocument()
+    // An empty field is left out, not shown as an empty input.
+    expect(within(details).queryByText('First comment')).toBeNull()
+    expect(within(details).queryByText('Collaborators')).toBeNull()
+    expect(screen.getByRole('region', { name: 'Preview' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.queryByRole('switch')).toBeNull()
+    expect(screen.queryByRole('combobox')).toBeNull()
   })
 
   it('names the year it went out on', () => {
