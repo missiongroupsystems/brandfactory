@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { openPostgres, type Db } from './db'
 import { loadEnv } from './env'
 import { Refused } from './errors'
-import { applyPackMigrations, migrateCore } from './migrate'
+import { applyPackMigrations, migrateCore, setupLogin } from './migrate'
 import { readPack, type PackContent } from './pack'
 import { testVersion } from './platform'
 import { addPrincipal, liveVersion, promote, publish, recordTestRun, setLoadout } from './registry'
@@ -14,6 +14,8 @@ import { authenticate } from './run'
 const USAGE = `core <command>
 
   migrate [<pack> <version>]        the core's migrations, then a tested version's
+  setup-login <role>                as the installing superuser: the login a deployed core runs
+                                    as; the password is read from CORE_LOGIN_PASSWORD
   login --dev <userId>              local sign-in: the token is the user id
   login <email>                     Supabase sign-in; the password is read from CORE_PASSWORD
   publish <packDir>                 freezes the pack's version
@@ -115,6 +117,13 @@ export async function main(argv: string[]) {
         if (!row) throw new Error(`${pack} ${version} has no passing test run`)
         const done = await applyPackMigrations(db, pack, row.content.migrations)
         console.info(`${pack}:`, done.join(', ') || 'up to date')
+      })
+    case 'setup-login':
+      return withDb(async (db) => {
+        const password = process.env.CORE_LOGIN_PASSWORD
+        if (!args[0] || !password) throw new Error(USAGE)
+        const n = await setupLogin(db, args[0], password)
+        console.info(`${args[0]} logs in, holds the pack roles and owns the core's ${n} objects`)
       })
     case 'login': {
       const dev = option(args, '--dev')
