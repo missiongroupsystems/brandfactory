@@ -10,7 +10,7 @@ import { PAST_CREW } from '@/data/suggestions'
 
 import { Composer } from './composer'
 import { COLLAB_MAX } from './model'
-import { peopleOf } from './suggestions'
+import { hashtagsOf, labelsOf, peopleOf, placesOf } from './suggestions'
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/post/new',
@@ -55,6 +55,14 @@ describe('who the people fields offer', () => {
     expect(tags[0]!.value).toBe('@chefmarco.cv')
     // A creator who posted about the brand is known, never worked with: last.
     expect(tags.at(-1)!.meta).toBe('Posted about you')
+  })
+
+  it('offers nothing made up for a brand outside the demo, whose post page must still open', () => {
+    const real = 'chin-mee-chin' as Parameters<typeof peopleOf>[0]
+    expect(peopleOf(real, 'caption')).toEqual([])
+    expect(placesOf(real)).toEqual([])
+    expect(labelsOf(real)).toEqual([])
+    expect(hashtagsOf(real)).toEqual([])
   })
 })
 

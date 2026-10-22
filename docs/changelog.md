@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.34.0** — 2026-10-22 — `feat/real-brand-posts`: the brands' own posts (brandbase 1.6.0, migration 0014, not applied to production). `post.import` brings in a post already out on the brand's Instagram or TikTok as posted, with its address and counts; a second import refreshes the counts. A script runs Apify's scrapers (cost first, capped) and loads a scrape through the core as the signed-in person. The post page no longer throws for a brand outside the demo's data. 991 tests.
 - **2.33.0** — 2026-10-22 — `feat/company-access`: access by company (brandbase 1.5.0, migration 0013, not applied to production). Every active member of a company reaches all its brands; owners and admins add brands with `brand.create`; brands already in the database go to one company, Mission Group. web-next gets an Add brand page. 966 tests.
 - **2.32.0** — 2026-10-22 — `fix/core-migrations-supabase`: the core refuses to install as a login that is not a superuser, before it changes anything, and fails any database whose runtime role can call a function migration 0001 takes away. On Supabase (and Fly Managed Postgres) migration 0001 cannot take `set_config` and the other risky functions from the runtime role, and a pack's SQL could then reach `set_config('role', …)` through `ts_stat` or `query_to_xml` and leave the runtime role. A new `core setup-login` makes the login a deployed core runs as (no superuser, the pack roles, the core's schemas, `set_config` only), core migrations 0009 and 0010 take back what 0001 gave to roles that existed before the install (its functions from every pack role; the superuser's own server file and reload functions from every other role), and a new core migration waits for the superuser. The database moves to a self-managed Postgres on Fly; sign-in stays on Supabase (Passport). 925 tests.
 - **2.31.0** — 2026-10-21 — `perf/core-plan-once`: fewer trips per call. The core no longer reads the whole pack version on each call and folds its first steps into one trip; with `DATABASE_PREPARE` on it keeps each move's plan per connection; a read sends its check, rules and move in one trip and the log with the commit in a second (core migration 0008, not applied to production). Every check is kept, the database judges each call before its move runs, and a pack statement that leaves a quote open is refused. Fly to Supabase Singapore, a read went from 55–99 ms on `main` to 10–47 ms with saved plans, 10–60 ms without (a traditional single query: 4–30 ms). 916 tests with a local Postgres.
@@ -60,6 +61,28 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.34.0 — 2026-10-22
+
+Plan and as built: `docs/completions/real-brand-posts-plan.md`,
+`docs/completions/real-brand-posts-phases-1-to-1.md`.
+
+- **Posts already out (brandbase 1.6.0).** Migration `0014_imported_posts.sql` adds
+  `posts.permalink`, `posts.metrics` and `posts.measured_at`; `post_json` adds `measuredAt`.
+  `post.import` makes a post `<brand>-<ig|tt>-<id there>`, posted, on the day and time it went out in the
+  brand's zone. The same post again refreshes its hook, caption and counts and keeps its media; an
+  id a BrandBase post or another brand holds is 409. Only a person (403 `PERSON_ONLY` for an
+  agent), only a time that has passed (400 `NOT_OUT_YET`), only an id of at most 71 characters
+  (400 `ID_TOO_LONG`), only the brand's own files.
+- **The import.** `packs/brandbase/import/`: `scrape` runs `apify/instagram-post-scraper` and
+  `clockworks/tiktok-scraper` for the handles in `accounts.json`, prints the most each run costs
+  and runs nothing without `--yes`; `load` copies each new post's cover into storage through
+  `media.create` and calls `post.import`. Nothing was scraped or loaded into production.
+- **Brands outside the demo.** The composer, the idea page and the suggestion lists gave a throw
+  for a brand with no static demo data (four of the six in production); they now give no drafts
+  and no suggestions.
+- **Gate.** typecheck, lint, format, 991 tests (795 passed, 196 skipped without a Postgres
+  server; the pack's 161 cases also passed on Postgres 16 through `core test`), web-next build.
 
 ## 2.33.0 — 2026-10-22
 

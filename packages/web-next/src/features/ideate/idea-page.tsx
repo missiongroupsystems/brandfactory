@@ -1614,7 +1614,7 @@ function PlanSection({
               infoOf={plan.infoOf}
               time={plan.time}
               times={TIMES}
-              best={INSIGHTS_BY_BRAND[brand.id].best}
+              best={INSIGHTS_BY_BRAND[brand.id]?.best}
               onTime={plan.setTime}
             />
           </span>

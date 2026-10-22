@@ -35,13 +35,14 @@ const tagMeta = (a: Account) => `Tagged ${a.tagged}×`
  * too, so it offers that platform's creators; a tag or an invite is Instagram's alone.
  */
 export function peopleOf(brandId: BrandId, field: 'collab' | 'tag' | 'caption'): Suggestion[] {
-  const accounts = ACCOUNTS[brandId]
+  // A brand outside the demo's data has no accounts, places, labels or hashtags to suggest yet.
+  const accounts = ACCOUNTS[brandId] ?? []
   const collabs = accounts.filter((a) => a.collab).map((a) => person(a, collabMeta(a)))
   const tagged = accounts
     .filter((a) => a.tagged)
     .sort((a, b) => b.tagged! - a.tagged!)
     .map((a) => person(a, tagMeta(a)))
-  const creators = INSIGHTS_BY_BRAND[brandId].creators
+  const creators = (INSIGHTS_BY_BRAND[brandId]?.creators ?? [])
     .filter((c) => field === 'caption' || c.platform === 'ig')
     .map((c) => person(c, 'Posted about you'))
   const ordered = field === 'tag' ? [...tagged, ...collabs] : [...collabs, ...tagged]
@@ -51,20 +52,20 @@ export function peopleOf(brandId: BrandId, field: 'collab' | 'tag' | 'caption'):
 /** The venue first, as the location defaults to it, then the places posts were tagged at. */
 export function placesOf(brandId: BrandId): Suggestion[] {
   return [
-    { value: VENUE[brandId], meta: 'Your venue' },
-    ...PLACES[brandId].map((p) => ({ value: p.place, meta: postsMeta(p.posts) })),
+    ...(VENUE[brandId] ? [{ value: VENUE[brandId], meta: 'Your venue' }] : []),
+    ...(PLACES[brandId] ?? []).map((p) => ({ value: p.place, meta: postsMeta(p.posts) })),
   ]
 }
 
 export function labelsOf(brandId: BrandId): Suggestion[] {
-  return LABELS[brandId].map((l) => ({ value: l.label, meta: postsMeta(l.posts) }))
+  return (LABELS[brandId] ?? []).map((l) => ({ value: l.label, meta: postsMeta(l.posts) }))
 }
 
 /** The hashtags on every post first, then the ones used most. */
 export function hashtagsOf(brandId: BrandId): Suggestion[] {
   return once([
-    ...HASHTAGS[brandId].map((tag) => ({ value: tag, meta: 'On every post' })),
-    ...USED_HASHTAGS[brandId].map((h) => ({ value: h.tag, meta: postsMeta(h.posts) })),
+    ...(HASHTAGS[brandId] ?? []).map((tag) => ({ value: tag, meta: 'On every post' })),
+    ...(USED_HASHTAGS[brandId] ?? []).map((h) => ({ value: h.tag, meta: postsMeta(h.posts) })),
   ])
 }
 

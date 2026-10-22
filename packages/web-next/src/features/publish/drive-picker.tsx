@@ -36,7 +36,8 @@ export function DrivePicker({
   onPick: (srcs: string[]) => void
 }) {
   const { brand } = useBrand()
-  const drive = DRIVE[brand.id]
+  // A brand outside the demo's data has no Drive yet: an empty one, open at its top.
+  const drive = DRIVE[brand.id] ?? { root: { name: brand.name, folders: [], files: [] }, start: [] }
   const [path, setPath] = React.useState(drive.start)
   const [query, setQuery] = React.useState('')
   const [picked, setPicked] = React.useState<string[]>([])
