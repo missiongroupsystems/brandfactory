@@ -1,6 +1,6 @@
 import { contentFor, type BrandId } from '@/data/brands'
-import type { Day, FeedMark, Post, StoryMark, Week } from '@/data/demo'
-import { mondayOf, slotOf, todayDate } from '@/lib/dates'
+import type { CalendarEvent, Day, FeedMark, Post, StoryMark, Week } from '@/data/demo'
+import { addDays, mondayOf, slotOf, todayDate, weekdayOf } from '@/lib/dates'
 import { srcOf } from '@/lib/remote-days'
 import { type BrandState } from '@/lib/remote'
 
@@ -10,7 +10,8 @@ import { blankWeek, mondaysBetween, monthSpan } from './month'
  * The calendar as the server stores it, in the demo's shapes: a run of weeks from two months
  * before today's month to six months after it, stretched to hold every dated post, idea and
  * shoot, filled with the brand's posts and idea tiles. The demo's October weeks keep their city
- * events; other weeks get the holidays.
+ * events; other weeks get the holidays. The company's own events, from Mission Events, go on the
+ * "Our events" row.
  */
 
 interface ServerMedia {
@@ -43,6 +44,38 @@ interface ServerIdea {
   why: string | null
   status: 'suggested' | 'idea'
   postId: string | null
+}
+
+/** One of the company's own events, as `brand.state` answers it: days in the brand's zone. */
+export interface ServerEvent {
+  id: string
+  name: string
+  status: 'tentative' | 'confirmed' | 'completed'
+  day: string
+  lastDay: string
+  guestCount: number | null
+}
+
+/**
+ * The events on one week's "Our events" row, each cut to the week: an event over Sunday night
+ * shows in both weeks. The guests follow the name, as the demo's did; a tentative one says so.
+ */
+export function ourEvents(events: ServerEvent[], monday: string): CalendarEvent[] {
+  const sunday = addDays(monday, 6)
+  return events
+    .filter((e) => e.day <= sunday && e.lastDay >= monday)
+    .map((e) => {
+      const first = e.day < monday ? monday : e.day
+      const last = e.lastDay > sunday ? sunday : e.lastDay
+      const text = [e.name, e.guestCount ? String(e.guestCount) : null].filter(Boolean).join(' · ')
+      return {
+        layer: 'ours',
+        text: e.status === 'tentative' ? `${text} (tentative)` : text,
+        col: weekdayOf(first) + 1,
+        span: weekdayOf(last) - weekdayOf(first) + 1,
+        eventId: e.id,
+      }
+    })
 }
 
 export function postOf(p: ServerPost): Post {
@@ -140,14 +173,16 @@ export function calendarOf(
   }
 
   // Every brand on the core shares the city's events and holidays, never a demo brand's own, even
-  // one whose id a demo brand shares.
+  // one whose id a demo brand shares. Its own events are the company's, from the server.
+  const own = (state.events ?? []) as ServerEvent[]
   const weeks = mondaysBetween(from, to).map((monday): Week => {
     const blank = blankWeek(monday, today)
     const demo = skeleton.find((w) => w.days[0]!.date === monday)
-    const events = demo?.events.filter((e) => e.layer === 'city' || e.layer === 'holiday')
+    const shared = demo?.events.filter((e) => e.layer === 'city' || e.layer === 'holiday')
     return {
       ...blank,
-      ...(demo && events && { label: demo.label, events }),
+      ...(demo && { label: demo.label }),
+      events: [...(shared ?? blank.events), ...ourEvents(own, monday)],
       days: blank.days.map(fill),
     }
   })

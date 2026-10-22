@@ -24,6 +24,8 @@ export interface CoreEnv {
   disk?: DiskFiles
   /** Signs agents' tokens (`agents.ts`). */
   agentSecret: string
+  /** The Mission Events feed (`feeds.ts`), when both its settings are set. */
+  missionEvents?: { url: string; key: string }
 }
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
@@ -89,6 +91,15 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): CoreEnv {
     filesProvider === 'disk'
       ? diskFiles({ root: env.FILES_DIR ?? '.data/files', secret, baseUrl: publicUrl })
       : undefined
+  // Both or neither: one alone is a half-set deployment that would quietly read nothing.
+  const eventsUrl = env.MISSION_EVENTS_URL || undefined
+  const eventsKey = env.MISSION_EVENTS_SERVICE_KEY || undefined
+  if (!eventsUrl !== !eventsKey) {
+    throw new Error('MISSION_EVENTS_URL and MISSION_EVENTS_SERVICE_KEY are set together')
+  }
+  if (eventsUrl && new URL(eventsUrl).protocol !== 'https:' && production) {
+    throw new Error('MISSION_EVENTS_URL is https in production')
+  }
   const pinned = env.PIN_NOW ? new Date(env.PIN_NOW) : null
   if (pinned && Number.isNaN(pinned.getTime())) throw new Error('PIN_NOW is not a date')
   return {
@@ -125,5 +136,6 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): CoreEnv {
     },
     disk,
     agentSecret,
+    missionEvents: eventsUrl && eventsKey ? { url: eventsUrl, key: eventsKey } : undefined,
   }
 }

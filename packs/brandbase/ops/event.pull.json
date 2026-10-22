@@ -1,0 +1,32 @@
+{
+  "name": "event.pull",
+  "description": "Reads the brand's outlet's events from Mission Events for a window of Singapore days (tentative, confirmed and completed) and makes the brand's copy of that window match: new and changed events are kept, events the feed no longer returns are removed. Events before the window keep their last state. An effect on the mission_events connector, which only reads; A feed whose outlet changed since the read keeps its rows. event.tick calls it hourly with the yes of the person who started the feed.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "at", "from", "to"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "at": {
+        "type": "string",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$"
+      },
+      "from": {
+        "type": "string",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      },
+      "to": {
+        "type": "string",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      }
+    }
+  },
+  "before": ["brand.reachable", "event.org_allowed"],
+  "connector": "mission_events",
+  "payload": "select jsonb_build_object(\n  'brand', f.brand_id, 'at', :at::text,\n  'path', '/api/v1/internal/marketing/events',\n  'query', jsonb_build_object('from', :from::text, 'to', :to::text,\n    'status', jsonb_build_array('tentative', 'confirmed', 'completed')),\n  'keep', jsonb_build_object('outlet_id', f.outlet_id::text)) as result\nfrom brandbase.event_feeds f where f.brand_id = :brand",
+  "returns": "one",
+  "sql": "with feed as (\n  select f.brand_id, f.outlet_id from brandbase.event_feeds f where f.brand_id = :brand\n    and f.outlet_id::text = :payload::jsonb -> 'keep' ->> 'outlet_id'\n),\ngot as (\n  select e from jsonb_array_elements(case when jsonb_typeof(:outcome::jsonb -> 'items') = 'array'\n    then :outcome::jsonb -> 'items' else '[]'::jsonb end) e\n),\nparsed as (\n  select distinct on (e ->> 'id') e ->> 'id' as id, left(e ->> 'name', 300) as name, e ->> 'status' as status,\n    nullif(e ->> 'event_type', '') as event_type,\n    brandbase.source_instant(e ->> 'date_start') as starts_at,\n    brandbase.source_instant(e ->> 'date_end') as ends_at,\n    coalesce(e -> 'is_all_day' = 'true'::jsonb, false) as all_day,\n    nullif(e ->> 'room_name', '') as room_name,\n    case when jsonb_typeof(e -> 'guest_count') = 'number' and (e ->> 'guest_count')::numeric between 0 and 100000\n      then trunc((e ->> 'guest_count')::numeric)::integer end as guest_count\n  from got, feed\n  where jsonb_typeof(e) = 'object' and lower(e ->> 'outlet_id') = feed.outlet_id::text\n    and nullif(e ->> 'id', '') is not null and nullif(e ->> 'name', '') is not null\n    and e ->> 'status' in ('tentative', 'confirmed', 'completed')\n  order by e ->> 'id'\n),\ngood as (\n  select * from parsed where starts_at is not null\n),\nup as (\n  insert into brandbase.events (brand_id, id, name, status, event_type, starts_at, ends_at, all_day,\n    room_name, guest_count, pulled_at)\n  select :brand, g.id, g.name, g.status, g.event_type, g.starts_at, g.ends_at, g.all_day, g.room_name,\n    g.guest_count, :now::timestamptz from good g\n  on conflict (brand_id, id) do update set name = excluded.name, status = excluded.status,\n    event_type = excluded.event_type, starts_at = excluded.starts_at, ends_at = excluded.ends_at,\n    all_day = excluded.all_day, room_name = excluded.room_name, guest_count = excluded.guest_count,\n    pulled_at = excluded.pulled_at\n  returning id\n),\ngone as (\n  delete from brandbase.events x using feed\n  where x.brand_id = feed.brand_id and jsonb_typeof(:outcome::jsonb -> 'items') = 'array'\n    and not exists (select 1 from good g where g.id = x.id)\n    and (x.starts_at at time zone 'Asia/Singapore')::date <= :to::date\n    and (coalesce(x.ends_at, x.starts_at) at time zone 'Asia/Singapore')::date >= :from::date\n  returning x.id\n),\nlanded as (\n  update brandbase.event_feeds f set pulled_at = :now::timestamptz\n  from feed where f.brand_id = feed.brand_id and jsonb_typeof(:outcome::jsonb -> 'items') = 'array'\n  returning f.brand_id\n)\nselect jsonb_build_object('brand', :brand, 'events', (select count(*) from up),\n  'removed', (select count(*) from gone), 'pulled', exists (select 1 from landed)) as result"
+}

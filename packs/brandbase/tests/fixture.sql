@@ -31,3 +31,5 @@ insert into brandbase.moodboard_posts (id, brand_id, board_id, platform, account
   ('casa-p-late', 'casa', 'casa-b-late', 'pinterest', 'Late', '/pl.jpg', 'Candles', 1.5, '{"format": "story", "hook": "Candles"}', 0),
   ('temper-s1', 'temper', null, 'ig', '@steak', '/t1.jpg', 'The sear', null, '{"format": "reel", "hook": "Sear"}', 0),
   ('temper-p1', 'temper', 'temper-b', 'pinterest', 'Steak', '/tp.jpg', 'Smoke', 1, '{"format": "reel", "hook": "Smoke"}', 0);
+-- Company A's brands may read Mission Events (event_orgs); company B's may not.
+insert into brandbase.event_orgs (org_id) values ('co-a');

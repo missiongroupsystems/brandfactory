@@ -1,0 +1,1708 @@
+{
+  "name": "events",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "owner",
+  "agents": {
+    "bot": "owner"
+  },
+  "cases": [
+    {
+      "name": "an owner names the outlet; the hourly step pulls the window with their yes, keeps only that outlet's events it can read, and every member reads them",
+      "steps": [
+        {
+          "call": "event.feed",
+          "input": {
+            "brand": "casa",
+            "outlet": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90"
+          },
+          "expect": {
+            "result": {
+              "brand": "casa",
+              "outlet": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+              "removed": 0
+            }
+          }
+        },
+        {
+          "tick": "run",
+          "answer": {
+            "items": [
+              {
+                "id": "e-dinner",
+                "name": "Wine dinner",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": "2026-10-09T15:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": "Upstairs",
+                "guest_count": 120,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-festival",
+                "name": "Harvest festival",
+                "status": "tentative",
+                "event_type": "private",
+                "date_start": "2026-09-30T16:00:00",
+                "date_end": null,
+                "is_all_day": true,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-party",
+                "name": "Closing party",
+                "status": "completed",
+                "event_type": "private",
+                "date_start": "2026-10-10T12:00:00",
+                "date_end": "2026-10-10T17:30:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": 80.7,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-elsewhere",
+                "name": "Another outlet",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-bad",
+                "name": "No date",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "next Friday",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-cancelled",
+                "name": "Called off",
+                "status": "cancelled",
+                "event_type": "private",
+                "date_start": "2026-10-12T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-old",
+                "name": "Summer launch",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-09-01T11:00:00",
+                "date_end": "2026-09-01T14:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              null
+            ]
+          }
+        },
+        {
+          "call": "brand.state",
+          "as": "member",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "events": [
+                {
+                  "id": "e-old",
+                  "name": "Summer launch",
+                  "status": "confirmed",
+                  "day": "2026-09-01",
+                  "lastDay": "2026-09-01",
+                  "time": "19:00",
+                  "allDay": false
+                },
+                {
+                  "id": "e-festival",
+                  "name": "Harvest festival",
+                  "status": "tentative",
+                  "allDay": true,
+                  "day": "2026-10-01",
+                  "lastDay": "2026-10-01",
+                  "time": null
+                },
+                {
+                  "id": "e-dinner",
+                  "name": "Wine dinner",
+                  "status": "confirmed",
+                  "allDay": false,
+                  "day": "2026-10-09",
+                  "lastDay": "2026-10-09",
+                  "time": "19:00",
+                  "roomName": "Upstairs",
+                  "guestCount": 120
+                },
+                {
+                  "id": "e-party",
+                  "status": "completed",
+                  "day": "2026-10-10",
+                  "lastDay": "2026-10-10",
+                  "time": "20:00",
+                  "guestCount": 80
+                }
+              ]
+            }
+          }
+        },
+        {
+          "sql": "select op, status, input from packs.scheduled_calls order by id",
+          "expect": {
+            "rows": [
+              {
+                "op": "event.tick",
+                "status": "done",
+                "input": {
+                  "brand": "casa",
+                  "at": "2026-10-06T04:00:00.000Z"
+                }
+              },
+              {
+                "op": "event.pull",
+                "status": "done",
+                "input": {
+                  "brand": "casa",
+                  "at": "2026-10-06T04:00:00.000Z",
+                  "from": "2026-09-22",
+                  "to": "2026-12-23"
+                }
+              },
+              {
+                "op": "event.tick",
+                "status": "scheduled",
+                "input": {
+                  "brand": "casa",
+                  "at": "2026-10-06T05:00:00.000Z"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select brand_id, brandbase.iso(pulled_at) as pulled_at, brandbase.iso(next_at) as next_at from brandbase.event_feeds",
+          "expect": {
+            "rows": [
+              {
+                "brand_id": "casa",
+                "pulled_at": "2026-10-06T04:00:00.000Z",
+                "next_at": "2026-10-06T05:00:00.000Z"
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.state",
+          "as": "b-owner",
+          "input": {
+            "brand": "temper"
+          },
+          "expect": {
+            "result": {
+              "events": []
+            }
+          }
+        },
+        {
+          "sql": "select brandbase.iso(brandbase.source_instant('2026-10-09T19:00:00')) as naive, brandbase.iso(brandbase.source_instant('2026-10-09T19:00:00+08:00')) as zoned, brandbase.iso(brandbase.source_instant('2026-10-09 19:00:00.5Z')) as utc, brandbase.source_instant('2026-13-45T19:00:00') as bad, brandbase.source_instant('2026-10-09') as day_only, brandbase.source_instant(null) as nothing",
+          "expect": {
+            "rows": [
+              {
+                "naive": "2026-10-09T19:00:00.000Z",
+                "zoned": "2026-10-09T11:00:00.000Z",
+                "utc": "2026-10-09T19:00:00.500Z",
+                "bad": null,
+                "day_only": null,
+                "nothing": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "the next pull replaces the window: a changed event changes, one the feed no longer returns goes, one before the window stays",
+      "steps": [
+        {
+          "call": "event.feed",
+          "input": {
+            "brand": "casa",
+            "outlet": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90"
+          }
+        },
+        {
+          "tick": "run",
+          "answer": {
+            "items": [
+              {
+                "id": "e-dinner",
+                "name": "Wine dinner",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": "2026-10-09T15:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": "Upstairs",
+                "guest_count": 120,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-festival",
+                "name": "Harvest festival",
+                "status": "tentative",
+                "event_type": "private",
+                "date_start": "2026-09-30T16:00:00",
+                "date_end": null,
+                "is_all_day": true,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-party",
+                "name": "Closing party",
+                "status": "completed",
+                "event_type": "private",
+                "date_start": "2026-10-10T12:00:00",
+                "date_end": "2026-10-10T17:30:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": 80.7,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-elsewhere",
+                "name": "Another outlet",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-bad",
+                "name": "No date",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "next Friday",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-cancelled",
+                "name": "Called off",
+                "status": "cancelled",
+                "event_type": "private",
+                "date_start": "2026-10-12T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-old",
+                "name": "Summer launch",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-09-01T11:00:00",
+                "date_end": "2026-09-01T14:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              null
+            ]
+          }
+        },
+        {
+          "tick": "run",
+          "now": "2026-10-06T05:00:00Z",
+          "answer": {
+            "items": [
+              {
+                "id": "e-dinner",
+                "name": "Wine dinner, sold out",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": "2026-10-09T15:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": "Upstairs",
+                "guest_count": 120,
+                "updated_at": "2026-10-01T00:00:00"
+              }
+            ],
+            "total": 1
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "events": [
+                {
+                  "id": "e-old"
+                },
+                {
+                  "id": "e-dinner",
+                  "name": "Wine dinner, sold out"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "an answer with no list changes nothing, and a failed read keeps the copy while the hourly step goes on",
+      "steps": [
+        {
+          "call": "event.feed",
+          "input": {
+            "brand": "casa",
+            "outlet": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90"
+          }
+        },
+        {
+          "tick": "run",
+          "answer": {
+            "items": [
+              {
+                "id": "e-dinner",
+                "name": "Wine dinner",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": "2026-10-09T15:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": "Upstairs",
+                "guest_count": 120,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-festival",
+                "name": "Harvest festival",
+                "status": "tentative",
+                "event_type": "private",
+                "date_start": "2026-09-30T16:00:00",
+                "date_end": null,
+                "is_all_day": true,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-party",
+                "name": "Closing party",
+                "status": "completed",
+                "event_type": "private",
+                "date_start": "2026-10-10T12:00:00",
+                "date_end": "2026-10-10T17:30:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": 80.7,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-elsewhere",
+                "name": "Another outlet",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-bad",
+                "name": "No date",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "next Friday",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-cancelled",
+                "name": "Called off",
+                "status": "cancelled",
+                "event_type": "private",
+                "date_start": "2026-10-12T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-old",
+                "name": "Summer launch",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-09-01T11:00:00",
+                "date_end": "2026-09-01T14:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              null
+            ]
+          }
+        },
+        {
+          "tick": "run",
+          "now": "2026-10-06T05:00:00Z",
+          "answer": {
+            "rows": []
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "events": [
+                {
+                  "id": "e-old"
+                },
+                {
+                  "id": "e-festival"
+                },
+                {
+                  "id": "e-dinner"
+                },
+                {
+                  "id": "e-party"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "tick": "run",
+          "now": "2026-10-06T06:00:00Z",
+          "connector": "fails"
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "events": [
+                {
+                  "id": "e-old"
+                },
+                {
+                  "id": "e-festival"
+                },
+                {
+                  "id": "e-dinner"
+                },
+                {
+                  "id": "e-party"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "sql": "select op, status, error from packs.scheduled_calls where run_at = '2026-10-06T06:00:00Z' or status = 'scheduled' order by run_at, op = 'event.pull'",
+          "expect": {
+            "rows": [
+              {
+                "op": "event.tick",
+                "status": "done",
+                "error": null
+              },
+              {
+                "op": "event.pull",
+                "status": "refused",
+                "error": "SEND_FAILED: the send failed; a person checks before another try"
+              },
+              {
+                "op": "event.tick",
+                "status": "scheduled",
+                "error": null
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from packs.alerts",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "starting the feed again runs one hourly step, and stopping it removes the events and the pulls",
+      "steps": [
+        {
+          "call": "event.feed",
+          "input": {
+            "brand": "casa",
+            "outlet": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90"
+          }
+        },
+        {
+          "call": "event.feed",
+          "input": {
+            "brand": "casa",
+            "outlet": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90"
+          },
+          "now": "2026-10-06T04:10:00Z"
+        },
+        {
+          "tick": "run",
+          "answer": {
+            "items": [
+              {
+                "id": "e-dinner",
+                "name": "Wine dinner",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": "2026-10-09T15:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": "Upstairs",
+                "guest_count": 120,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-festival",
+                "name": "Harvest festival",
+                "status": "tentative",
+                "event_type": "private",
+                "date_start": "2026-09-30T16:00:00",
+                "date_end": null,
+                "is_all_day": true,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-party",
+                "name": "Closing party",
+                "status": "completed",
+                "event_type": "private",
+                "date_start": "2026-10-10T12:00:00",
+                "date_end": "2026-10-10T17:30:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": 80.7,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-elsewhere",
+                "name": "Another outlet",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-bad",
+                "name": "No date",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "next Friday",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-cancelled",
+                "name": "Called off",
+                "status": "cancelled",
+                "event_type": "private",
+                "date_start": "2026-10-12T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-old",
+                "name": "Summer launch",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-09-01T11:00:00",
+                "date_end": "2026-09-01T14:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              null
+            ]
+          }
+        },
+        {
+          "sql": "select op, count(*)::int as n from packs.scheduled_calls where status = 'scheduled' group by op",
+          "expect": {
+            "rows": [
+              {
+                "op": "event.tick",
+                "n": 1
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from packs.scheduled_calls where op = 'event.pull'",
+          "expect": {
+            "rows": [
+              {
+                "n": 1
+              }
+            ]
+          }
+        },
+        {
+          "call": "event.feed",
+          "input": {
+            "brand": "casa",
+            "outlet": null
+          },
+          "expect": {
+            "result": {
+              "outlet": null,
+              "removed": 4
+            }
+          }
+        },
+        {
+          "tick": "run",
+          "now": "2026-10-06T05:10:00Z",
+          "answer": {
+            "items": [
+              {
+                "id": "e-dinner",
+                "name": "Wine dinner",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": "2026-10-09T15:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": "Upstairs",
+                "guest_count": 120,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-festival",
+                "name": "Harvest festival",
+                "status": "tentative",
+                "event_type": "private",
+                "date_start": "2026-09-30T16:00:00",
+                "date_end": null,
+                "is_all_day": true,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-party",
+                "name": "Closing party",
+                "status": "completed",
+                "event_type": "private",
+                "date_start": "2026-10-10T12:00:00",
+                "date_end": "2026-10-10T17:30:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": 80.7,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-elsewhere",
+                "name": "Another outlet",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-bad",
+                "name": "No date",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "next Friday",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-cancelled",
+                "name": "Called off",
+                "status": "cancelled",
+                "event_type": "private",
+                "date_start": "2026-10-12T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-old",
+                "name": "Summer launch",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-09-01T11:00:00",
+                "date_end": "2026-09-01T14:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              null
+            ]
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from packs.scheduled_calls where op = 'event.pull' or status = 'scheduled'",
+          "expect": {
+            "rows": [
+              {
+                "n": 1
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "events": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "naming another outlet removes the brand's events, so no other venue's events stay",
+      "steps": [
+        {
+          "call": "event.feed",
+          "input": {
+            "brand": "casa",
+            "outlet": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90"
+          }
+        },
+        {
+          "tick": "run",
+          "answer": {
+            "items": [
+              {
+                "id": "e-dinner",
+                "name": "Wine dinner",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": "2026-10-09T15:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": "Upstairs",
+                "guest_count": 120,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-festival",
+                "name": "Harvest festival",
+                "status": "tentative",
+                "event_type": "private",
+                "date_start": "2026-09-30T16:00:00",
+                "date_end": null,
+                "is_all_day": true,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-party",
+                "name": "Closing party",
+                "status": "completed",
+                "event_type": "private",
+                "date_start": "2026-10-10T12:00:00",
+                "date_end": "2026-10-10T17:30:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": 80.7,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-elsewhere",
+                "name": "Another outlet",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-bad",
+                "name": "No date",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "next Friday",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-cancelled",
+                "name": "Called off",
+                "status": "cancelled",
+                "event_type": "private",
+                "date_start": "2026-10-12T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-old",
+                "name": "Summer launch",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-09-01T11:00:00",
+                "date_end": "2026-09-01T14:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              null
+            ]
+          }
+        },
+        {
+          "call": "event.feed",
+          "input": {
+            "brand": "casa",
+            "outlet": "0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d"
+          },
+          "expect": {
+            "result": {
+              "outlet": "0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d",
+              "removed": 4
+            }
+          }
+        },
+        {
+          "call": "event.feed",
+          "input": {
+            "brand": "casa",
+            "outlet": "0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d"
+          },
+          "expect": {
+            "result": {
+              "outlet": "0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d",
+              "removed": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "only an owner or admin of the brand's company sets its feed, themselves; a pull goes only with a yes and a feed",
+      "steps": [
+        {
+          "call": "event.feed",
+          "input": {
+            "brand": "casa",
+            "outlet": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90"
+          },
+          "as": "member",
+          "expect": {
+            "status": 403,
+            "code": "FORBIDDEN"
+          }
+        },
+        {
+          "call": "event.feed",
+          "input": {
+            "brand": "casa",
+            "outlet": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90"
+          },
+          "as": "bot",
+          "expect": {
+            "status": 403,
+            "code": "PERSON_ONLY"
+          }
+        },
+        {
+          "call": "event.feed",
+          "as": "owner",
+          "input": {
+            "brand": "temper",
+            "outlet": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "event.feed",
+          "as": "b-owner",
+          "input": {
+            "brand": "temper",
+            "outlet": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90"
+          },
+          "expect": {
+            "status": 403,
+            "code": "FORBIDDEN",
+            "message": "this company's brands have no Mission Events feed"
+          }
+        },
+        {
+          "call": "event.pull",
+          "as": "b-owner",
+          "input": {
+            "brand": "temper",
+            "at": "2026-10-06T04:00:00.000Z",
+            "from": "2026-10-01",
+            "to": "2026-10-31"
+          },
+          "expect": {
+            "status": 403,
+            "code": "FORBIDDEN"
+          }
+        },
+        {
+          "call": "event.tick",
+          "input": {
+            "brand": "temper",
+            "at": "2026-10-06T04:00:00.000Z"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "event.pull",
+          "input": {
+            "brand": "casa",
+            "at": "2026-10-06T04:00:00.000Z",
+            "from": "2026-10-01",
+            "to": "2026-10-31"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "event.feed",
+          "input": {
+            "brand": "casa",
+            "outlet": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90"
+          }
+        },
+        {
+          "call": "event.pull",
+          "input": {
+            "brand": "casa",
+            "at": "2026-10-06T04:00:00.000Z",
+            "from": "2026-10-01",
+            "to": "2026-10-31"
+          },
+          "answer": {
+            "items": [
+              {
+                "id": "e-dinner",
+                "name": "Wine dinner",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": "2026-10-09T15:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": "Upstairs",
+                "guest_count": 120,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-festival",
+                "name": "Harvest festival",
+                "status": "tentative",
+                "event_type": "private",
+                "date_start": "2026-09-30T16:00:00",
+                "date_end": null,
+                "is_all_day": true,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-party",
+                "name": "Closing party",
+                "status": "completed",
+                "event_type": "private",
+                "date_start": "2026-10-10T12:00:00",
+                "date_end": "2026-10-10T17:30:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": 80.7,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-elsewhere",
+                "name": "Another outlet",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-bad",
+                "name": "No date",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "next Friday",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-cancelled",
+                "name": "Called off",
+                "status": "cancelled",
+                "event_type": "private",
+                "date_start": "2026-10-12T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-old",
+                "name": "Summer launch",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-09-01T11:00:00",
+                "date_end": "2026-09-01T14:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              null
+            ]
+          },
+          "expect": {
+            "status": 403,
+            "code": "NEEDS_APPROVAL"
+          }
+        },
+        {
+          "call": "event.tick",
+          "input": {
+            "brand": "casa",
+            "at": "2026-10-06T03:00:00.000Z"
+          },
+          "expect": {
+            "result": {
+              "brand": "casa",
+              "nextAt": null
+            }
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from packs.scheduled_calls where op = 'event.pull'",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "a tick that cannot go on stops the feed loudly: the person is alerted, while a failed pull is recorded quietly",
+      "steps": [
+        {
+          "call": "event.feed",
+          "input": {
+            "brand": "casa",
+            "outlet": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90"
+          }
+        },
+        {
+          "sql": "update packs.loadouts set ops = array_remove(ops, 'event.pull') where principal = 'owner'"
+        },
+        {
+          "tick": "run",
+          "answer": {
+            "items": [
+              {
+                "id": "e-dinner",
+                "name": "Wine dinner",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": "2026-10-09T15:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": "Upstairs",
+                "guest_count": 120,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-festival",
+                "name": "Harvest festival",
+                "status": "tentative",
+                "event_type": "private",
+                "date_start": "2026-09-30T16:00:00",
+                "date_end": null,
+                "is_all_day": true,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-party",
+                "name": "Closing party",
+                "status": "completed",
+                "event_type": "private",
+                "date_start": "2026-10-10T12:00:00",
+                "date_end": "2026-10-10T17:30:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": 80.7,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-elsewhere",
+                "name": "Another outlet",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-bad",
+                "name": "No date",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "next Friday",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-cancelled",
+                "name": "Called off",
+                "status": "cancelled",
+                "event_type": "private",
+                "date_start": "2026-10-12T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-old",
+                "name": "Summer launch",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-09-01T11:00:00",
+                "date_end": "2026-09-01T14:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              null
+            ]
+          }
+        },
+        {
+          "sql": "select op, status from packs.scheduled_calls order by id",
+          "expect": {
+            "rows": [
+              {
+                "op": "event.tick",
+                "status": "refused"
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select message from packs.alerts",
+          "expect": {
+            "rows": [
+              {
+                "message": "event.tick ended badly and post.job_refused could not record it"
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.job_refused",
+          "input": {
+            "call": "event.tick",
+            "input": {
+              "brand": "casa"
+            },
+            "code": "FORBIDDEN"
+          },
+          "expect": {
+            "status": 409,
+            "code": "FEED_STOPPED"
+          }
+        },
+        {
+          "call": "post.job_unknown",
+          "input": {
+            "call": "event.tick",
+            "input": {
+              "brand": "casa"
+            }
+          },
+          "expect": {
+            "status": 409,
+            "code": "FEED_STOPPED"
+          }
+        },
+        {
+          "call": "post.job_refused",
+          "input": {
+            "call": "event.pull",
+            "input": {
+              "brand": "casa"
+            },
+            "code": "SEND_FAILED"
+          },
+          "expect": {
+            "result": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "puts an all-day event on Mission Events' Singapore day and a timed one in the brand's zone, and says when the last pull landed",
+      "steps": [
+        {
+          "sql": "update brandbase.brands set timezone = 'Europe/Rome' where id = 'casa'"
+        },
+        {
+          "call": "event.feed",
+          "input": {
+            "brand": "casa",
+            "outlet": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90"
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "eventsPulledAt": null
+            }
+          }
+        },
+        {
+          "tick": "run",
+          "answer": {
+            "items": [
+              {
+                "id": "e-dinner",
+                "name": "Wine dinner",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": "2026-10-09T15:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": "Upstairs",
+                "guest_count": 120,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-festival",
+                "name": "Harvest festival",
+                "status": "tentative",
+                "event_type": "private",
+                "date_start": "2026-09-30T16:00:00",
+                "date_end": null,
+                "is_all_day": true,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-party",
+                "name": "Closing party",
+                "status": "completed",
+                "event_type": "private",
+                "date_start": "2026-10-10T12:00:00",
+                "date_end": "2026-10-10T17:30:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": 80.7,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-elsewhere",
+                "name": "Another outlet",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-10-09T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-bad",
+                "name": "No date",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "next Friday",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-cancelled",
+                "name": "Called off",
+                "status": "cancelled",
+                "event_type": "private",
+                "date_start": "2026-10-12T11:00:00",
+                "date_end": null,
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              {
+                "id": "e-old",
+                "name": "Summer launch",
+                "status": "confirmed",
+                "event_type": "private",
+                "date_start": "2026-09-01T11:00:00",
+                "date_end": "2026-09-01T14:00:00",
+                "is_all_day": false,
+                "outlet_id": "6f1c2b0e-8d4a-4c1e-9a7b-2f5d3e8c1a90",
+                "outlet_slug": "casa-vostra",
+                "outlet_name": "Casa Vostra",
+                "room_name": null,
+                "guest_count": null,
+                "updated_at": "2026-10-01T00:00:00"
+              },
+              null
+            ]
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "eventsPulledAt": "2026-10-06T04:00:00.000Z",
+              "events": [
+                {
+                  "id": "e-old"
+                },
+                {
+                  "id": "e-festival",
+                  "day": "2026-10-01",
+                  "lastDay": "2026-10-01",
+                  "time": null
+                },
+                {
+                  "id": "e-dinner",
+                  "day": "2026-10-09",
+                  "time": "13:00"
+                },
+                {
+                  "id": "e-party",
+                  "day": "2026-10-10",
+                  "lastDay": "2026-10-10",
+                  "time": "14:00"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.38.0** — 2026-10-22 — `feat/mission-events`: the company's own events from Mission Events on the calendar's "Our events" row (brandbase 1.8.0, migration 0016, not applied to production). An owner names a brand's Mission Events outlet (`event.feed`); every hour the core pulls that outlet's events for 14 days back to 78 days ahead through a read-only `mission_events` connector (`MISSION_EVENTS_URL`, `MISSION_EVENTS_SERVICE_KEY`) and replaces the window, so a deleted event goes at the next pull. The archive's mapping, time rules and feed spec are ported. Only companies the operator lists (`event_orgs`, Mission Group) may have a feed. 1099 tests (204 skipped without a Postgres server).
 - **2.35.5** — 2026-10-22 — `fix/onboarding-polish`: public Terms of Service (`/terms`) and Privacy Policy (`/privacy`) pages for TikTok's app form, open with no sign-in on the core, linked quietly from the sign-in page; and TikTok's site-verification file. No migration. 1073 tests (196 skipped without a Postgres server).
 - **2.35.4** — 2026-10-22 — `fix/onboarding-polish`: review fixes. On the core the result after Schedule says "Planned for <day>, <time>. Nothing is sent until the accounts are set up." with "Planned" pills; a failed post is planned again instead of asking for a reconnect; a scheduled post cannot lose its last platform; a post's YouTube or LinkedIn stay on every save. The static demo's earlier-month posts preview again. A publishing hand-off note: planned posts have no job. No migration. 1071 tests (196 skipped without a Postgres server).
 - **2.35.3** — 2026-10-22 — `fix/onboarding-polish`: on the core a post is planned without a connected account. New post picks the brand's own platforms, previews the post on the one picked, and Schedule puts it on the calendar as Scheduled (`post.mark`), with the amber note that it will not publish until the account is set up. Nothing is sent: no job, so nothing turns Failed at its time. No pack change, no migration. 1067 tests (196 skipped without a Postgres server).
@@ -70,6 +71,33 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.38.0 — 2026-10-22
+
+- **Why.** 2.35.1 took the demo's invented events off "Our events" on the core. The real bookings
+  are in Mission Events, and the archived BrandFactory server read them.
+- **Core.** `feeds.ts`: a connector that reads. It sends a GET to one configured service with
+  the key in a header, reads every page of `{items, total}`, keeps the items that match the
+  payload's `keep`, and fails loudly on a refusal or a wrong shape. It is added as `mission_events`
+  when `MISSION_EVENTS_URL` and `MISSION_EVENTS_SERVICE_KEY` are both set (https in production).
+  The test runner gives a pack's own connectors to the case and takes a canned `answer`.
+- **Pack 1.8.0.** Migration `0016_events.sql` adds `event_feeds`, `events` and `source_instant`.
+  `event.feed` (an owner or admin, a person) names the outlet and starts the chain. `event.tick`
+  runs hourly: it asks for a pull with the person's yes and for the next tick. `event.pull` is the
+  effect that replaces the window. `brand.state` adds `events`. The scheduler's two hooks take a
+  call that is not a post job.
+- **web-next.** Each event is on its week's "Our events" row as "Name · guests", with
+  "(tentative)" when the event is tentative.
+- **Docs.** `docs/completions/mission-events-plan.md` and `mission-events-phases-1-to-1.md`
+  (what the archive had, the production steps).
+- **Review fixes (Opus and Sonnet).** The connector refuses redirects (the key header would
+  follow one) and stops within 25 seconds. `event_orgs` limits feeds to listed companies. Each
+  pull's yes names its brand and tick. A tick that cannot go on now alerts the person
+  (`FEED_STOPPED`). `brand.state` adds `eventsPulledAt`. All-day events use Singapore days.
+- **Gate:** typecheck, lint, format, build; tests 1099 (895 run, 204 skipped: no Postgres server).
+  The pack's cases also passed on a local Postgres 18 (`core test` 169/169). Before the review
+  fixes, a local core pulled a stand-in feed end to end, and the week, month and phone views
+  showed the events.
 
 ## 2.35.5 — 2026-10-22
 

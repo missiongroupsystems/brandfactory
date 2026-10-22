@@ -1,0 +1,7 @@
+{
+  "id": "event.org_allowed",
+  "sql": "select exists (select 1 from brandbase.brands b join brandbase.event_orgs o on o.org_id = b.org_id where b.id = :brand) as ok",
+  "status": 403,
+  "code": "FORBIDDEN",
+  "message": "this company's brands have no Mission Events feed"
+}

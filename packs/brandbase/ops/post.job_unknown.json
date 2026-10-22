@@ -11,7 +11,7 @@
       },
       "input": {
         "type": "object",
-        "required": ["brand", "job"],
+        "required": ["brand"],
         "properties": {
           "brand": {
             "type": "string",
@@ -33,5 +33,5 @@
   },
   "returns": "many",
   "sql": "update brandbase.post_jobs j set status = 'failed', error = 'Interrupted. Check the account before you retry.', updated_at = now() where j.id = :input::jsonb ->> 'job' and j.brand_id = :input::jsonb ->> 'brand' and j.status = 'scheduled' returning j.id, j.status, j.error",
-  "before": ["job.reachable"]
+  "before": ["job.reachable", "job.not_events_tick"]
 }

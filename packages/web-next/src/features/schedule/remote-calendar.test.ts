@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { feedsOf } from '@/data/demo'
 
-import { calendarOf } from './remote-calendar'
+import { calendarOf, ourEvents, type ServerEvent } from './remote-calendar'
 
 const post = (over: object) => ({
   format: 'reel',
@@ -169,5 +169,68 @@ describe('the calendar from the server', () => {
     expect(texts).toContain('F1 Singapore Grand Prix')
     const layers = new Set(weeks.flatMap((w) => w.events.map((e) => e.layer)))
     expect([...layers].every((l) => l === 'city' || l === 'holiday')).toBe(true)
+  })
+
+  it("puts the company's own events on the Our events row, cut at the week's edges", () => {
+    const events: ServerEvent[] = [
+      {
+        id: 'a',
+        name: 'Wine dinner',
+        status: 'confirmed',
+        day: '2026-10-09',
+        lastDay: '2026-10-09',
+        guestCount: 120,
+      },
+      {
+        id: 'b',
+        name: 'Harvest weekend',
+        status: 'tentative',
+        day: '2026-10-10',
+        lastDay: '2026-10-13',
+        guestCount: null,
+      },
+      {
+        id: 'c',
+        name: 'Wine dinner',
+        status: 'completed',
+        day: '2026-10-11',
+        lastDay: '2026-10-11',
+        guestCount: 0,
+      },
+    ]
+    const { weeks } = calendarOf('casa-vostra', { ...state([], [], '2026-10-22'), events })
+    const ours = (monday: string) =>
+      weeks.find((w) => w.days[0]!.date === monday)!.events.filter((e) => e.layer === 'ours')
+    // Friday to Sunday of the first week; the weekend that runs on carries into Monday and Tuesday.
+    expect(ours('2026-10-05')).toEqual([
+      { layer: 'ours', text: 'Wine dinner · 120', col: 5, span: 1, eventId: 'a' },
+      { layer: 'ours', text: 'Harvest weekend (tentative)', col: 6, span: 2, eventId: 'b' },
+      { layer: 'ours', text: 'Wine dinner', col: 7, span: 1, eventId: 'c' },
+    ])
+    expect(ours('2026-10-12')).toEqual([
+      { layer: 'ours', text: 'Harvest weekend (tentative)', col: 1, span: 2, eventId: 'b' },
+    ])
+    // The city's events stay beside them.
+    expect(weeks.find((w) => w.days[0]!.date === '2026-10-05')!.events).toContainEqual(
+      expect.objectContaining({ text: 'F1 Singapore Grand Prix' }),
+    )
+  })
+
+  it('leaves out an event that ends before the week or starts after it', () => {
+    const e: ServerEvent = {
+      id: 'x',
+      name: 'Launch',
+      status: 'confirmed',
+      day: '2026-10-04',
+      lastDay: '2026-10-04',
+      guestCount: null,
+    }
+    expect(ourEvents([e], '2026-10-05')).toEqual([])
+    expect(ourEvents([{ ...e, day: '2026-10-12', lastDay: '2026-10-12' }], '2026-10-05')).toEqual(
+      [],
+    )
+    expect(ourEvents([{ ...e, lastDay: '2026-10-05' }], '2026-10-05')).toEqual([
+      { layer: 'ours', text: 'Launch', col: 1, span: 1, eventId: 'x' },
+    ])
   })
 })

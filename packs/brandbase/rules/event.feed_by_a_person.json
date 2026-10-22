@@ -1,0 +1,7 @@
+{
+  "id": "event.feed_by_a_person",
+  "sql": "select :agent::text is null as ok",
+  "status": 403,
+  "code": "PERSON_ONLY",
+  "message": "only a person sets a brand's events feed, not an agent"
+}

@@ -3,6 +3,7 @@ import { serve } from '@hono/node-server'
 import { agentTokens, withAgentTokens } from './agents'
 import { createCore } from './app'
 import { simulatedConnector } from './effects'
+import { feedConnector } from './feeds'
 import { startScheduler } from './scheduler'
 import { openPglite, openPostgres } from './db'
 import { loadEnv } from './env'
@@ -32,7 +33,18 @@ const deps = {
   now: env.now,
   // Real connectors come with the platforms' reviews (and a Lark provider); until then
   // nothing leaves the core.
-  connectors: { simulated: simulatedConnector, lark: simulatedConnector },
+  connectors: {
+    simulated: simulatedConnector,
+    lark: simulatedConnector,
+    // Read-only: the Mission Events feed, with its service key in `X-Service-Key`.
+    ...(env.missionEvents && {
+      mission_events: feedConnector({
+        url: env.missionEvents.url,
+        header: 'X-Service-Key',
+        key: env.missionEvents.key,
+      }),
+    }),
+  },
   files: env.files,
 }
 const app = createCore(deps, { corsOrigins: env.corsOrigins, disk: env.disk })

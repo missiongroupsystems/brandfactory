@@ -1,0 +1,22 @@
+{
+  "name": "event.tick",
+  "description": "The scheduler's hourly step of a brand's events feed: a pull now (event.pull, with the caller's yes) for the window from 14 days back to 78 days ahead, Singapore days, and the next step in an hour. A step that is not the feed's next one does nothing, so starting the feed again never runs it twice.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "at"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "at": {
+        "type": "string",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$"
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "returns": "one",
+  "sql": "with t as (\n  update brandbase.event_feeds f set next_at = :now::timestamptz + interval '1 hour'\n  where f.brand_id = :brand and f.next_at = :at::timestamptz\n  returning f.brand_id, f.next_at\n),\nw as (\n  select (:now::timestamptz at time zone 'Asia/Singapore')::date - 14 as first_day\n)\nselect jsonb_build_object('brand', :brand, 'nextAt', (select brandbase.iso(t.next_at) from t)) as result,\n  (select jsonb_build_array(\n     jsonb_build_object('op', 'event.pull', 'at', brandbase.iso(:now::timestamptz), 'key', t.brand_id, 'approve', true,\n       'input', jsonb_build_object('brand', t.brand_id, 'at', brandbase.iso(:at::timestamptz), 'from', to_char(w.first_day, 'YYYY-MM-DD'),\n         'to', to_char(w.first_day + 92, 'YYYY-MM-DD'))),\n     jsonb_build_object('op', 'event.tick', 'at', brandbase.iso(t.next_at), 'key', t.brand_id || ':' || brandbase.iso(t.next_at),\n       'input', jsonb_build_object('brand', t.brand_id, 'at', brandbase.iso(t.next_at))))\n   from t, w) as schedule"
+}
