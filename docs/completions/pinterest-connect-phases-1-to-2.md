@@ -71,7 +71,10 @@ Plan: `docs/completions/pinterest-connect-plan.md`. Branch `feat/pinterest-conne
 - `pnpm --filter=@brandfactory/connect deploy --prod --legacy` (the Dockerfile's step, without
   Docker): the tree holds `@brandfactory/core`; `host.ts` starts on PGlite and answers `/health`,
   `/platforms` (`{"pinterest":true}`) and 401 to a connect with no session; the release command's
-  path runs `migrate`. The image itself was not built (no Docker).
+  path runs `migrate`. The image itself was not built (no Docker). Correction (release review,
+  `feat/pinterest-and-events`): through that path, a symlink, the CLI ran nothing and exited 0, so
+  the release command would skip every core migration. `cli.ts` now compares real paths;
+  `cli.test.ts` runs it through a symlink.
 
 ## Phase 2: web-next
 
