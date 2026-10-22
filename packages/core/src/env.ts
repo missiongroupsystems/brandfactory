@@ -7,6 +7,11 @@ export interface CoreEnv {
   host: string
   /** A Postgres server; without it the core runs on PGlite in `pgliteDir`. */
   databaseUrl?: string
+  /**
+   * `DATABASE_PREPARE=on`: moves and rules are planned once per connection (`openPostgres`).
+   * Off unless set; refused on the transaction pooler.
+   */
+  prepare: boolean
   pgliteDir: string
   /** Which live pointer this core reads. */
   environment: string
@@ -51,6 +56,10 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): CoreEnv {
   if (provider === 'supabase' && !env.SUPABASE_JWKS_URL) {
     throw new Error('AUTH_PROVIDER=supabase needs SUPABASE_JWKS_URL')
   }
+  const prepare = env.DATABASE_PREPARE || 'off'
+  if (prepare !== 'on' && prepare !== 'off') {
+    throw new Error(`DATABASE_PREPARE is on or off, not ${prepare}`)
+  }
   const port = Number(env.PORT ?? 3003)
   const publicUrl = (env.PUBLIC_URL ?? `http://localhost:${port}`).replace(/\/$/, '')
   // With the dev sign-in on this machine, a fixed secret, so addresses survive a restart. Anything
@@ -87,6 +96,7 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): CoreEnv {
     // With the dev sign-in a token is a user id, so the server listens on this machine only.
     host: env.HOST ?? (provider === 'dev' ? '127.0.0.1' : '0.0.0.0'),
     databaseUrl,
+    prepare: prepare === 'on',
     pgliteDir: env.PGLITE_DIR ?? '.data/core',
     environment: env.CORE_ENVIRONMENT ?? 'local',
     auth:

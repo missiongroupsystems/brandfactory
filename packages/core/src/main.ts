@@ -16,7 +16,7 @@ import { migrateCore } from './migrate'
 const env = loadEnv()
 let db
 if (env.databaseUrl) {
-  db = openPostgres(env.databaseUrl)
+  db = openPostgres(env.databaseUrl, 5, { prepare: env.prepare })
 } else {
   mkdirSync(env.pgliteDir, { recursive: true })
   db = openPglite(env.pgliteDir)

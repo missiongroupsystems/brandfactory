@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.31.0** — 2026-10-21 — `perf/core-plan-once`: fewer trips per call. The core no longer reads the whole pack version on each call and folds its first steps into one trip; with `DATABASE_PREPARE` on it keeps each move's plan per connection; a read sends its check, rules and move in one trip and the log with the commit in a second (core migration 0008, not applied to production). Every check is kept, the database judges each call before its move runs, and a pack statement that leaves a quote open is refused. Fly to Supabase Singapore, a read went from 55–99 ms on `main` to 10–47 ms with saved plans, 10–60 ms without (a traditional single query: 4–30 ms). 916 tests with a local Postgres.
 - **2.30.0** — 2026-10-21 — `perf/pack-walls-once`: the brand walls ask who the caller is once per statement, not once per row, and the post lists read their jobs in one join (brandbase 1.4.0, migration 0012, not applied to production). The same answers for every caller; list posts and load brand about a third faster on `main`'s core, and with saved plans list posts 3 times and load brand about 2 times faster. 865 tests.
 - **2.29.0** — 2026-10-20 — `feat/moodboard-in-chat`: moodboard picks in Bubbles. The moodboard moves into the core (brandbase 1.3.0, migrations 0010 and 0011, not applied to production); Bubbles suggests posts on a card the person ticks and saves to the idea, and a tray beside the chat box attaches posts to a question. A post with nothing to show on the calendar shows its words. 859 tests.
 - **2.28.0** — 2026-10-20 — `feat/client-feedback-ui`: Nat's first round. The address field lists the brand's outlets first; the sharpened hook sits in a field the team edits from; "Shots" is "Storyboard" on the idea page and the call sheet; the Shoot capture stage goes and every format takes one final edit in the Post stage, then its date, and brandbase 1.2.0 keeps the final edit as a list (migration 0009); a collab post in Insights names the creators it is shared with. 815 tests.
@@ -57,6 +58,41 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.31.0 — 2026-10-21
+
+2.30.0 is the brand walls change (brandbase 1.4.0) on `perf/pack-walls-once`. Plans and as built:
+`docs/completions/core-plan-once-plan.md`, `docs/completions/core-read-in-one-trip-plan.md`,
+`docs/completions/core-plan-once-phases-1-to-2.md`.
+
+- **The pack read once per version.** The live pointer is read alone, the version's content kept
+  by its hash; the principal and its loadouts in one statement; begin, the claims, the settings and
+  the role in one trip; reset, the log row and the commit in one. In those trips caller values go in as hex
+  literals.
+- **Saved plans (`DATABASE_PREPARE`, off by default).** Moves and rules are sent as named statements
+  and keep a plan per connection. Refused on Supabase's transaction pooler (port 6543); a lost
+  statement drops its connection and the call runs once more; connections live 30 minutes. Pack SQL
+  may not read the prepared statements. A platform test fails a version with an immutable function
+  that could read the caller, which a kept plan would freeze to the first caller.
+- **A read in one trip.** Core migration 0008 adds `packs.judge` (the version, the account, an
+  agent's person and both loadouts, as the login role) and `claims.rule_ok`. A read sends the
+  claims, the check, the role, its rules and its move in one trip; the database stops it at the
+  first refusal, so nothing after runs and nothing commits; the log row goes with the commit in a
+  second trip. 5 → 2 trips for list brands, 4 → 2 for list posts and load brand, the same answers.
+- **Pack SQL that leaves a quote open is refused** at publish, and checked again before a read
+  sends it among the core's statements; such a read, one with a rule that writes, one with a NUL
+  byte in a value, and one whose saved plan went stale go the old way.
+- **Measured:** Fly `sin` to Supabase Singapore (2.2 ms a trip), as a member with brandbase 1.4.0,
+  list brands / list posts / load brand. Run of 21 Oct: `main` 55 / 69 / 99 ms, saved plans 18 / 26
+  / 52 ms, a traditional single query 4 / 13 / 30 ms. Run of 22 Oct, the one-trip read: saved plans
+  16.2 / 23.9 / 49.4 ms before, 9.5 / 19.6 / 47.3 ms after. Locally: 1.5 → 0.9, 3.6 → 3.2, 9.9 →
+  9.5 ms.
+- **Found on Supabase:** core migration 0001 needs a superuser, which Supabase does not give.
+- **Reviews:** phase 1, three passes (Opus and Sonnet); phase 2, Opus and Sonnet, then a fresh Opus
+  on the fixes. The blocker (an open quote in pack SQL letting a caller's value run as SQL) is fixed
+  and tested end to end.
+- **Gate:** typecheck, lint, format, build; tests 916, none skipped, with a local Postgres (CI skips the
+  176 Postgres tests).
 
 ## 2.30.0 — 2026-10-21
 

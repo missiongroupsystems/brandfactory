@@ -47,6 +47,12 @@ sends the browser on to a short-lived storage URL. Storage never overwrites a ke
 those links), `FILES_PROVIDER` (`disk`, under `FILES_DIR`, served by the core and refused in
 production; or `supabase`, with `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` and `FILES_BUCKET`).
 
+**Saved plans.** `DATABASE_PREPARE=on` sends each move's and rule's SQL as a named statement, so
+each connection plans it once; off (the default) sends it unnamed. The core refuses `on` with
+Supabase's transaction pooler (port 6543), which keeps no statement between transactions: use the
+direct port or the session pooler. A read sends its check, rules and move in one trip either way
+(`inOneRead` in `src/run.ts`, core migration 0008).
+
 **Agent sessions.** `POST /agents/session` with `{ name }` and a person's token answers a token
 for the person's agent, `<person>/<name>` (made on first use, `agent_of` the person), valid for an
 hour. Each session copies the person's loadouts to the agent; the core still checks both on every
