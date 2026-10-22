@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.32.0** — 2026-10-22 — `fix/core-migrations-supabase`: the core refuses to install as a login that is not a superuser, before it changes anything, and fails any database whose runtime role can call a function migration 0001 takes away. On Supabase (and Fly Managed Postgres) migration 0001 cannot take `set_config` and the other risky functions from the runtime role, and a pack's SQL could then reach `set_config('role', …)` through `ts_stat` or `query_to_xml` and leave the runtime role. The database moves to a self-managed Postgres on Fly; sign-in stays on Supabase (Passport). No migration. 924 tests.
 - **2.31.0** — 2026-10-21 — `perf/core-plan-once`: fewer trips per call. The core no longer reads the whole pack version on each call and folds its first steps into one trip; with `DATABASE_PREPARE` on it keeps each move's plan per connection; a read sends its check, rules and move in one trip and the log with the commit in a second (core migration 0008, not applied to production). Every check is kept, the database judges each call before its move runs, and a pack statement that leaves a quote open is refused. Fly to Supabase Singapore, a read went from 55–99 ms on `main` to 10–47 ms with saved plans, 10–60 ms without (a traditional single query: 4–30 ms). 916 tests with a local Postgres.
 - **2.30.0** — 2026-10-21 — `perf/pack-walls-once`: the brand walls ask who the caller is once per statement, not once per row, and the post lists read their jobs in one join (brandbase 1.4.0, migration 0012, not applied to production). The same answers for every caller; list posts and load brand about a third faster on `main`'s core, and with saved plans list posts 3 times and load brand about 2 times faster. 865 tests.
 - **2.29.0** — 2026-10-20 — `feat/moodboard-in-chat`: moodboard picks in Bubbles. The moodboard moves into the core (brandbase 1.3.0, migrations 0010 and 0011, not applied to production); Bubbles suggests posts on a card the person ticks and saves to the idea, and a tray beside the chat box attaches posts to a question. A post with nothing to show on the calendar shows its words. 859 tests.
@@ -58,6 +59,31 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.32.0 — 2026-10-22
+
+- **The core needs a superuser to install, and says so.** `migrateCore` refuses a first install
+  as a login that is not a superuser, before any statement runs, with a message that names the
+  reason. On Supabase it used to fail inside migration 0001 (`permission denied for function
+  lo_import`, at the grant back of a function already closed to PUBLIC).
+- **And checks what 0001 is for, on every run.** After the migrations, `migrateCore` fails if the
+  runtime role can call any function on 0001's list (the list `sqlProblem` refuses), naming them:
+  a database installed some other way, or a grant made since, stops there.
+- **Why it matters (found on a local copy of Supabase's roles).** As a login that does not own the
+  built-in functions, 0001's `REVOKE … FROM PUBLIC` is a warning that does nothing, and the
+  migration fails only later, at the first function PUBLIC could not call anyway. A database where
+  0001 is made to pass that way (as the Supabase speed test was, by hand) leaves the runtime role
+  `set_config`, and `set_config('role', 'postgres', true)` leaves `pack_runtime`
+  for the login role, which may ignore every row rule. The SQL checks do not stop every way there:
+  `select * from ts_stat('select set_config(''role'', ''postgres'', true)::tsvector')` passes the
+  move check, and a pack migration can build the name inside `query_to_xml`. With 0001 applied by
+  a superuser both fail, as the runtime role cannot call `set_config` or `query_to_xml`. The core
+  was never deployed on Supabase; nothing was exposed.
+- **The database moves.** BrandBase's data goes to a self-managed Postgres app on Fly in `sin`
+  (`brandbase-db`), installed once by a superuser; the running core logs in as a role that is
+  not one (`fly.toml` notes, from the phase 3 review in `packs-core-phases-1-to-8.md`). Sign-in
+  is Passport's Supabase project.
+- **Gate:** typecheck, lint, format, build; tests 924, none skipped, with a local Postgres.
 
 ## 2.31.0 — 2026-10-21
 

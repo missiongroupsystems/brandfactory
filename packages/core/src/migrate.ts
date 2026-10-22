@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { type Db } from './db'
-import { migrationProblem, statements } from './sql'
+import { forbiddenFunction, migrationProblem, statements } from './sql'
 
 export interface Migration {
   name: string
@@ -85,6 +85,42 @@ async function apply(db: Db, scope: string, migrations: Migration[], role: strin
   return done
 }
 
-export function migrateCore(db: Db) {
-  return applyMigrations(db, 'core', readMigrations(CORE_DIR))
+/**
+ * The core's migrations, as the login role. The first install needs that role to be a superuser:
+ * 0001 takes risky functions (`set_config`, the `*_to_xml` family, large objects…) from PUBLIC,
+ * which only their owner can do. Without it Postgres skips the revokes with a warning, and a
+ * pack's SQL could reach `set_config('role', …)` and leave pack_runtime for the login role. A
+ * managed Postgres that gives no superuser (Supabase, Fly Managed Postgres) is refused here.
+ */
+export async function migrateCore(db: Db) {
+  const [installed] = await db.query<{ ok: boolean }>(
+    `select to_regclass('packs.migrations') is not null as ok`,
+  )
+  if (!installed?.ok) {
+    const [me] = await db.query<{ rolsuper: boolean }>(
+      'select rolsuper from pg_roles where rolname = current_user',
+    )
+    if (!me?.rolsuper) {
+      throw new Error(
+        'the core must be installed by a superuser: without one, migration 0001 cannot take ' +
+          'set_config and the other risky functions from the runtime role ' +
+          '(packages/core/src/migrate.ts)',
+      )
+    }
+  }
+  const done = await applyMigrations(db, 'core', readMigrations(CORE_DIR))
+  // What 0001 is for, checked on every run: a database installed some other way, or a function
+  // granted back since, is refused before a pack's SQL can reach it.
+  const callable = await db.query<{ proname: string }>(
+    `select distinct p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'pg_catalog' and has_function_privilege('pack_runtime', p.oid, 'execute')`,
+  )
+  const risky = callable.map((r) => r.proname).filter(forbiddenFunction)
+  if (risky.length > 0) {
+    throw new Error(
+      `the runtime role can call ${risky.sort().join(', ')}: migration 0001 was not applied by a ` +
+        'superuser, or a grant brought them back (packages/core/src/migrate.ts)',
+    )
+  }
+  return done
 }

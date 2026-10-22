@@ -4,10 +4,14 @@
 # owner decides when.
 #
 # Secrets, set with `fly secrets set` (never in this file):
-#   DATABASE_URL           Supabase transaction pooler, port 6543; a login role that is not a
-#                          superuser (the core drops to pack_runtime for every move)
-#   SUPABASE_JWKS_URL      https://<project>.supabase.co/auth/v1/.well-known/jwks.json
-#   SUPABASE_JWT_ISSUER    https://<project>.supabase.co/auth/v1
+#   DATABASE_URL           the Fly Postgres app `brandbase-db` (sin), over Fly's private network,
+#                          as a login role that is not a superuser: a member of pack_runtime,
+#                          pack_admin and pack_migrator that owns the packs schema and nothing
+#                          else (docs/completions/packs-core-phases-1-to-8.md, phase 3 review).
+#                          Not Supabase or Fly Managed Postgres: neither gives the superuser the
+#                          first install needs (src/migrate.ts).
+#   SUPABASE_JWKS_URL      Passport's project: https://<project>.supabase.co/auth/v1/.well-known/jwks.json
+#   SUPABASE_JWT_ISSUER    Passport's project: https://<project>.supabase.co/auth/v1
 #   SUPABASE_URL, SUPABASE_SERVICE_KEY   for Storage
 #   FILES_BUCKET           a private bucket
 #   FILES_SECRET           openssl rand -base64 32
@@ -23,8 +27,9 @@ kill_signal    = "SIGTERM"
   dockerfile = "packages/core/Dockerfile"
 
 # The core's own migrations (the registry, the roles and the wall) run before new machines take
-# traffic. They need a superuser; whether Supabase's `postgres` role is enough is not checked yet
-# (docs/completions/packs-core-phases-1-to-8.md, phase 1). A pack's migrations run with
+# traffic. The first install needs a superuser and is done once by hand; the core refuses it as
+# any other login (src/migrate.ts). Supabase's `postgres` is not one: there 0001 cannot take
+# set_config and the other risky functions from the runtime role. A pack's migrations run with
 # `core migrate <pack> <version>` once a version has passed its tests.
 [deploy]
   release_command = "node_modules/.bin/tsx src/cli.ts migrate"

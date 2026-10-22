@@ -43,6 +43,55 @@ describe.skipIf(!url)('on a real Postgres', () => {
     await admin?.close()
   })
 
+  it('refuses to install the core as a login that is not a superuser, before it changes anything', async () => {
+    // As Supabase's `postgres` or Fly Managed Postgres's admin: it may create databases and roles
+    // but owns none of the built-in functions 0001 takes from PUBLIC.
+    const role = `managed_${randomUUID().slice(0, 8)}`
+    const plain = `${name}_managed`
+    await admin.exec(
+      `create role ${role} login password 'pw' nosuperuser createdb createrole bypassrls`,
+    )
+    await admin.exec(`create database ${plain} owner ${role}`)
+    const u = new URL(url!)
+    u.username = role
+    u.password = 'pw'
+    u.pathname = `/${plain}`
+    const managed = openPostgres(u.toString(), 1)
+    try {
+      await expect(migrateCore(managed)).rejects.toThrow(/must be installed by a superuser/)
+      expect(await managed.query(`select to_regnamespace('packs') is null as untouched`)).toEqual([
+        { untouched: true },
+      ])
+    } finally {
+      await managed.close()
+      await admin.exec(`drop database if exists ${plain} with (force)`)
+      await admin.exec(`drop role if exists ${role}`)
+    }
+  })
+
+  it('refuses a database whose runtime role can call a function 0001 takes away, on every run', async () => {
+    const other = `${name}_regrant`
+    await admin.exec(`create database ${other}`)
+    const u = new URL(url!)
+    u.pathname = `/${other}`
+    const d = openPostgres(u.toString(), 1)
+    try {
+      await migrateCore(d)
+      // Installed correctly, then a grant brings set_config back to the runtime role.
+      await d.exec(
+        'grant execute on function pg_catalog.set_config(text, text, boolean) to pack_runtime',
+      )
+      await expect(migrateCore(d)).rejects.toThrow(/runtime role can call set_config:/)
+      await d.exec(
+        'revoke execute on function pg_catalog.set_config(text, text, boolean) from pack_runtime',
+      )
+      expect(await migrateCore(d)).toEqual([])
+    } finally {
+      await d.close()
+      await admin.exec(`drop database if exists ${other} with (force)`)
+    }
+  })
+
   it('stops a move that runs past the statement timeout', async () => {
     const pack = toyPack()
     const slow = {
