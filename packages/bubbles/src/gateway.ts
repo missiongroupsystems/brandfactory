@@ -8,7 +8,7 @@ import { Readable } from 'node:stream'
  * OpenRouter, as openworld's `harness/gateway.py`. The runtime never holds the OpenRouter key.
  * Each runtime gets a token of its own; the gateway refuses a request that is not streamed, has
  * no token cap or offers a tool from outside the core, adds the provider rules (no data
- * collection, reasoning off) and counts the model requests of each turn.
+ * collection, reasoning off), counts the model requests of each turn and keeps to a daily spend.
  */
 
 export interface GatewayOptions {
@@ -28,6 +28,14 @@ export interface GatewayOptions {
   retryBudgetMs?: number
   /** Longest wait for a model's whole answer. */
   answerMs?: number
+  /** Most dollars the model may cost in one UTC day, by OpenRouter's own count. */
+  dailyUsd: number
+  /**
+   * What a request is held at until its answer states its cost: a request whose cost never
+   * arrives (a stopped turn) keeps its hold, so the cap errs on the side of spending less.
+   */
+  holdUsd?: number
+  now?: () => Date
 }
 
 /** One runtime's pass to the gateway, and its count of model requests this turn. */
@@ -58,6 +66,7 @@ export const MAX_TOKENS = 1200
 
 export class Gateway {
   private passes = new Map<string, { requests: number }>()
+  private spend = { day: '', usd: 0 }
   private server: Server
   url = ''
   /** Most model requests in one turn. */
@@ -81,6 +90,28 @@ export class Gateway {
 
   close(): Promise<void> {
     return new Promise((ok) => this.server.close(() => ok()))
+  }
+
+  /** Today's spend in dollars, held requests included. */
+  get spentToday(): number {
+    return this.today().usd
+  }
+
+  /** True once today's spend has reached the daily cap: no model request goes out. */
+  get overBudget(): boolean {
+    return this.spentToday >= this.opts.dailyUsd
+  }
+
+  private today() {
+    const day = (this.opts.now?.() ?? new Date()).toISOString().slice(0, 10)
+    if (this.spend.day !== day) this.spend = { day, usd: 0 }
+    return this.spend
+  }
+
+  /** Adds to today's spend; a correction never takes it below nothing. */
+  private charge(usd: number) {
+    const t = this.today()
+    t.usd = Math.max(0, t.usd + usd)
   }
 
   pass(): Pass {
@@ -121,7 +152,10 @@ export class Gateway {
     if (state.requests >= this.maxRequests) {
       return refuse(res, 429, 'too many model requests in one turn')
     }
+    if (this.overBudget) return refuse(res, 429, 'the daily budget is spent')
     state.requests += 1
+    const hold = this.opts.holdUsd ?? 0.02
+    this.charge(hold)
 
     // Only the fields a chat needs: the runtime cannot add routing or plugin fields of its own.
     const kept = Object.fromEntries(
@@ -146,13 +180,34 @@ export class Gateway {
     // being paid for; a model that never answers is given up on.
     const abort = new AbortController()
     res.on('close', () => abort.abort())
-    const upstream = await this.send(out, abort.signal)
+    let upstream: Response
+    try {
+      upstream = await this.send(out, abort.signal)
+    } catch (err) {
+      // Nothing was answered, so nothing is owed.
+      this.charge(-hold)
+      throw err
+    }
     res.writeHead(upstream.status, {
       'content-type': upstream.headers.get('content-type') ?? 'text/event-stream',
     })
+    // OpenRouter charges only for an answer.
+    if (!upstream.ok) this.charge(-hold)
     if (!upstream.body) return res.end()
     const answer = Readable.fromWeb(upstream.body as never)
     answer.on('error', () => res.destroy())
+    if (upstream.ok) {
+      // The answer's last event states what it cost; that replaces the hold.
+      const cost = costReader()
+      answer.on('data', (chunk: Buffer) => {
+        const usd = cost.read(chunk)
+        if (usd === undefined) return
+        this.charge(usd - hold)
+        console.info(
+          `bubbles: model request $${usd.toFixed(4)}, today $${this.spentToday.toFixed(2)} of $${this.opts.dailyUsd}`,
+        )
+      })
+    }
     answer.pipe(res)
   }
 
@@ -177,6 +232,32 @@ export class Gateway {
       await new Promise((ok) => setTimeout(ok, wait))
       if (signal.aborted) return res
     }
+  }
+}
+
+/** Finds `usage.cost` in a streamed answer, across chunks; gives it once. */
+function costReader() {
+  let rest = ''
+  let found = false
+  return {
+    read(chunk: Buffer): number | undefined {
+      if (found) return undefined
+      const lines = (rest + chunk.toString()).split('\n')
+      rest = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data:') || !line.includes('"usage"')) continue
+        try {
+          const cost = (JSON.parse(line.slice(5)) as { usage?: { cost?: unknown } }).usage?.cost
+          if (typeof cost === 'number' && Number.isFinite(cost) && cost >= 0) {
+            found = true
+            return cost
+          }
+        } catch {
+          // Not a whole event: no cost in it.
+        }
+      }
+      return undefined
+    },
   }
 }
 

@@ -25,6 +25,9 @@ const pack = env.BUBBLES_PACK ?? 'brandbase'
 const model = env.BUBBLES_MODEL ?? 'deepseek/deepseek-v4.1-flash'
 const brief = env.BUBBLES_BRIEF ? readFileSync(env.BUBBLES_BRIEF, 'utf8') : ''
 const bin = need('DSH_BIN')
+const dailyUsd = Number(env.BUBBLES_DAILY_USD ?? 5)
+if (!Number.isFinite(dailyUsd) || dailyUsd <= 0)
+  throw new Error('BUBBLES_DAILY_USD is a dollar amount')
 
 const gateway = new Gateway({
   upstream: (env.OPENROUTER_URL ?? 'https://openrouter.ai/api/v1').replace(/\/$/, ''),
@@ -32,6 +35,7 @@ const gateway = new Gateway({
   model,
   providers: (env.BUBBLES_PROVIDERS ?? 'together,alibaba,novita,deepinfra').split(','),
   toolPrefix: `mcp__${pack}__`,
+  dailyUsd,
 })
 await gateway.listen()
 
@@ -69,7 +73,9 @@ const app = createBubbles({
 })
 const port = Number(env.PORT ?? 3014)
 const server = serve({ fetch: app.fetch, port, hostname: env.HOST ?? '127.0.0.1' }, (info) =>
-  console.info(`bubbles on :${info.port}, acting on ${pack} at ${coreUrl} with ${model}`),
+  console.info(
+    `bubbles on :${info.port}, acting on ${pack} at ${coreUrl} with ${model}, at most $${dailyUsd} a day`,
+  ),
 )
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

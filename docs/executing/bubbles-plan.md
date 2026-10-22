@@ -104,5 +104,6 @@ is not enough.
 
 1. Where the page sits: **settled 18 Oct, a fifth tab** (the owner).
 2. The OpenRouter key and spend: **settled 18 Oct, the owner's key**, read from the clipboard for the phase 5 check.
-3. Where Bubbles runs when deployed: settle at deploy time. A second process on the `brandfactory` Fly app keeps to
-   "no new Fly apps".
+3. Where Bubbles runs when deployed: **recommended 22 Oct, its own Fly app `brandbase-bubbles` (sin)**, the owner
+   to confirm. Each conversation runs a ~200 MB runtime, which must not take memory from the core that publishes
+   posts (512 MB), and Bubbles can then be stopped alone. `packages/bubbles/fly.toml` and `Dockerfile` (2.36.0).

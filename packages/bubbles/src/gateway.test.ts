@@ -8,8 +8,11 @@ afterEach(async () => {
   await Promise.all(servers.splice(0).map((s) => s.close()))
 })
 
-/** A fake OpenRouter: answers each request with the next status, recording what it was sent. */
-async function upstream(statuses: number[] = [200]) {
+/**
+ * A fake OpenRouter: answers each request with the next status, recording what it was sent; a
+ * cost given ends the answer with OpenRouter's usage event.
+ */
+async function upstream(statuses: number[] = [200], cost?: number) {
   const seen: { auth?: string; body: Record<string, unknown> }[] = []
   const server: Server = createServer((req, res) => {
     let body = ''
@@ -18,7 +21,8 @@ async function upstream(statuses: number[] = [200]) {
       seen.push({ auth: req.headers.authorization, body: JSON.parse(body) })
       const status = statuses.shift() ?? 200
       res.writeHead(status, { 'content-type': 'text/event-stream' })
-      res.end(status === 200 ? 'data: {"choices":[]}\n\ndata: [DONE]\n\n' : '')
+      const usage = cost === undefined ? '' : `data: {"choices":[],"usage":{"cost":${cost}}}\n\n`
+      res.end(status === 200 ? `data: {"choices":[]}\n\n${usage}data: [DONE]\n\n` : '')
     })
   })
   await new Promise<void>((ok) => server.listen(0, '127.0.0.1', ok))
@@ -33,6 +37,7 @@ async function gateway(opts: Partial<GatewayOptions> & { upstream: string }) {
     providers: ['together', 'novita'],
     toolPrefix: 'mcp__toy__',
     retryDelaysMs: [1, 1],
+    dailyUsd: 100,
     ...opts,
   })
   await g.listen()
@@ -149,5 +154,40 @@ describe('the model gateway', () => {
     const g2 = await gateway({ upstream: alwaysBusy.url })
     expect((await ask(g2, g2.pass().token, ok)).status).toBe(503)
     expect(alwaysBusy.seen).toHaveLength(3)
+  })
+
+  it('stops asking the model once the day’s spend, by OpenRouter’s own count, reaches the cap', async () => {
+    const up = await upstream([200, 200, 200], 0.4)
+    const g = await gateway({ upstream: up.url, dailyUsd: 0.8 })
+    const { token } = g.pass()
+    for (let i = 0; i < 2; i++) await (await ask(g, token, ok)).text()
+    expect(g.spentToday).toBeCloseTo(0.8)
+    expect(g.overBudget).toBe(true)
+    expect((await ask(g, token, ok)).status).toBe(429)
+    expect(up.seen).toHaveLength(2)
+  })
+
+  it('holds a request whose cost never arrives, and charges nothing for a refused one', async () => {
+    const noCost = await upstream([200])
+    const g = await gateway({ upstream: noCost.url, holdUsd: 0.05 })
+    await (await ask(g, g.pass().token, ok)).text()
+    expect(g.spentToday).toBeCloseTo(0.05)
+
+    const refused = await upstream([400])
+    const g2 = await gateway({ upstream: refused.url, holdUsd: 0.05 })
+    expect((await ask(g2, g2.pass().token, ok)).status).toBe(400)
+    expect(g2.spentToday).toBe(0)
+  })
+
+  it('starts each UTC day with a fresh budget', async () => {
+    let now = new Date('2026-10-22T23:59:00Z')
+    const up = await upstream([200, 200], 1)
+    const g = await gateway({ upstream: up.url, dailyUsd: 1, now: () => now })
+    const { token } = g.pass()
+    await (await ask(g, token, ok)).text()
+    expect((await ask(g, token, ok)).status).toBe(429)
+    now = new Date('2026-10-23T00:01:00Z')
+    expect(g.overBudget).toBe(false)
+    expect((await ask(g, token, ok)).status).toBe(200)
   })
 })

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.36.0** — 2026-10-22 — `feat/bubbles-deploy`: Bubbles deployed (22 Oct, Fly app `brandbase-bubbles`). Its own Fly app `brandbase-bubbles` in sin (`packages/bubbles/fly.toml`, a Debian `Dockerfile` with the runtime from the pinned wheel, checked by digest), and a daily spend cap in the gateway (`BUBBLES_DAILY_USD`, default $5, by OpenRouter's own cost) after which the page says Bubbles is back tomorrow. Checked end to end on this machine: the real runtime, a local core with the demo data and a scripted model. No migration. 1088 tests (196 skipped without a Postgres server).
 - **2.35.7** — 2026-10-22 — `feat/best-time`: on the core, the best time to post comes from the brand's own posts that went out with numbers (the imported Instagram and TikTok posts), once there are twenty: the Day view's band, the phone Day view, New post's default time, hour chart, "best hour" and best time, and the idea page's day picker. Fewer than twenty: no best time, as before. The static demo is unchanged. No pack change, no migration. Also from the 2.35.6 merge review: a posted post with no caption shows none (the title no longer stands in), a TikTok row that still needs an answer is left off the read-only page, and a planned post says "Nothing is sent yet." A post after midnight counts toward the evening, and the idea page can mark 09:00. 1087 tests (196 skipped without a Postgres server).
 - **2.35.6** — 2026-10-22 — `fix/onboarding-polish`: a posted post (brought in or sent from Brand base) opens on the post page's own cards, every field as plain text and no empty field: Posted to with its platforms and format, the media and caption, Details, and the preview. On the core a posted reel or TikTok video shows its cover with an amber "Cover only" and why. Every amber notice is shorter and names what is missing: "Not connected", "Won't publish", "Planned only", each with one short line. No migration. 1076 tests (196 skipped without a Postgres server).
 - **2.35.5** — 2026-10-22 — `fix/onboarding-polish`: public Terms of Service (`/terms`) and Privacy Policy (`/privacy`) pages for TikTok's app form, open with no sign-in on the core, linked quietly from the sign-in page; and TikTok's site-verification file. No migration. 1073 tests (196 skipped without a Postgres server).
@@ -73,6 +74,35 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
+## 2.36.0 — 2026-10-22
+
+- **Why.** Bubbles must run in production for the marketing team's first day, with a hard limit on
+  what the model costs.
+- **Where it runs.** Its own Fly app, `brandbase-bubbles` in sin, one machine (shared CPU, 2 GB).
+  Not a second process on `brandfactory`: one runtime used about 200 MB in the local check, up to
+  four run at once, and the core that publishes posts has 512 MB. Bubbles reaches the core at
+  `https://brandfactory.fly.dev`; `auto_start_machines` is off, so `fly scale count 0` turns it
+  off until it is scaled up again.
+- **The image.** `node:24.13.0-bookworm-slim`, not Alpine: the runtime is built for glibc 2.28
+  and needs libstdc++. The Linux x64 runtime comes from
+  `deepseek_harness_runtime_bin-0.1.5rc1-py3-none-manylinux_2_28_x86_64.whl`, checked against its
+  PyPI SHA-256; it runs as `node`, under tini. `.dockerignore` lets `packs/brandbase/bubbles.md`
+  in, which the image reads as the brief.
+- **Daily cap.** The gateway holds each model request at $0.02, replaces the hold with
+  `usage.cost` from the answer's last event, and releases it when OpenRouter refuses or never
+  answers. At `BUBBLES_DAILY_USD` (default 5) it refuses further requests; a turn then ends with
+  `DAILY_LIMIT`, "Bubbles has used today's budget. It is back tomorrow.", and no runtime starts
+  for the next one. The count resets at 00:00 UTC and on a restart, so the OpenRouter key's own
+  credit limit is the hard cap. Each request logs its cost and the day's total.
+- **Local check.** A throwaway Postgres with the demo data (`demo/web.sh`), Bubbles with the
+  macOS runtime and a scripted model: a turn ran `brand.list` through the core as
+  `admin@local/bubbles` and answered; at a $0.02 cap the fourth turn ended with `DAILY_LIMIT`.
+  Each request carried 56 tools in about 43 KB (about 11k tokens). No real OpenRouter call: the
+  Keychain item `openrouter`/`key` does not exist. The Linux image was not built (no Docker here).
+- **Tests.** `gateway.test.ts`: the cap stops requests at OpenRouter's count, a request with no
+  cost keeps its hold and a refused one costs nothing, and a new UTC day starts afresh.
+  `turns.test.ts`: a spent day ends the turn with `DAILY_LIMIT` and starts no runtime.
+- **Gate:** typecheck, lint, format, build; tests 1077 (881 run, 196 skipped: no Postgres server).
 ## 2.35.7 — 2026-10-22
 
 - **Why.** 2.33.1 took the demo's invented best hour off the core, so no brand had one. The

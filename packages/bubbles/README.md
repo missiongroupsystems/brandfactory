@@ -34,6 +34,7 @@ platform (`deepseek_harness_runtime/runtime/deepseek-harness-sdk-runtime-<os>-<a
 | `BUBBLES_MODEL`        | `deepseek/deepseek-v4.1-flash`      |                                           |
 | `BUBBLES_PROVIDERS`    | `together,alibaba,novita,deepinfra` | OpenRouter hosts, fastest first           |
 | `BUBBLES_BRIEF`        | none                                | the pack's brief, added to the persona    |
+| `BUBBLES_DAILY_USD`    | `5`                                 | most dollars a UTC day (see below)        |
 | `PORT`, `HOST`         | `3014`, `127.0.0.1`                 |                                           |
 | `CORS_ALLOWED_ORIGINS` | none                                | the page's origin(s)                      |
 
@@ -46,5 +47,20 @@ platform (`deepseek_harness_runtime/runtime/deepseek-harness-sdk-runtime-<os>-<a
   core checks the agent's moves and its person's on every call, and a send waits for the person.
 - A conversation keeps its runtime between questions and belongs to one person; a turn has 90 s
   and can be stopped. A stopped, timed-out or dead runtime is replaced, with the chat replayed.
+
+- The gateway keeps a day's spend by OpenRouter's own `usage.cost`. Each request is held at
+  $0.02 until its cost arrives (a stopped answer keeps its hold); at `BUBBLES_DAILY_USD` the
+  gateway sends nothing more and the page says Bubbles is back tomorrow. The count lives in the
+  process, so a restart clears it: the OpenRouter key's own credit limit is the hard cap.
+
+## Deploy
+
+Its own Fly app, `brandbase-bubbles` in sin (`fly.toml` and `Dockerfile` here), from the repo root:
+`fly deploy . --config packages/bubbles/fly.toml --dockerfile packages/bubbles/Dockerfile --ha=false`
+(one machine: conversations and the day's spend live in the process). The
+image takes the Linux runtime from the pinned wheel, checked by its digest. The page needs
+`NEXT_PUBLIC_BUBBLES_URL` at build time; Bubbles needs the page's origin in
+`CORS_ALLOWED_ORIGINS`. The core needs nothing new: it already holds `AGENT_SECRET`, and Bubbles
+calls it from the server, so the core's CORS does not apply.
 
 Tests (`src/*.test.ts`) run a fake runtime (`scripts/fake-runtime.mjs`) and a fake model.

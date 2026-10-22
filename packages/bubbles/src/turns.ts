@@ -28,6 +28,11 @@ export type TurnEvent =
   | { event: 'error'; data: { code: string; message: string } }
   | { event: 'done'; data: Record<string, never> }
 
+const OVER_BUDGET: TurnEvent = {
+  event: 'error',
+  data: { code: 'DAILY_LIMIT', message: 'Bubbles has used today’s budget. It is back tomorrow.' },
+}
+
 /** A refusal before the stream starts, as an HTTP answer. */
 export class TurnRefused extends Error {
   constructor(
@@ -130,6 +135,8 @@ export class Turns {
   }
 
   private async turn(req: Turn, claim: Claim, emit: (e: TurnEvent) => void) {
+    // The day's spend is gone: say so before a runtime starts for nothing.
+    if (this.opts.gateway.overBudget) return emit(OVER_BUDGET)
     let c = this.live.get(req.conversation)
     // A runtime that died on its own is replaced, never prompted again.
     if (c && !c.runtime.alive) {
@@ -184,6 +191,7 @@ export class Turns {
       if (failed) {
         console.error('bubbles: turn ended', failed, live.runtime.tail())
         const steps = live.pass.requests >= this.opts.gateway.maxRequests
+        if (this.opts.gateway.overBudget) return emit(OVER_BUDGET)
         emit({
           event: 'error',
           data: steps
