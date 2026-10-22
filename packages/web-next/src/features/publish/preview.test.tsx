@@ -236,7 +236,10 @@ describe('the grid preview', () => {
     expect(post.images.length).toBeGreaterThan(1)
     inBrand(<Composer post={post} />)
     fireEvent.click(screen.getByRole('radio', { name: 'Grid' }))
-    const feed = POSTS.filter((p) => p.images.length > 0 && p.format !== 'story').slice(0, 8)
+    // The feed after it, without the post itself: it is drawn once.
+    const feed = POSTS.filter(
+      (p) => p.id !== post.id && p.images.length > 0 && p.format !== 'story',
+    ).slice(0, 8)
     const reels = feed.filter((p) => p.format === 'reel').length
     const carousels = feed.filter((p) => p.format === 'carousel' && p.images.length > 1).length
     expect(reels).toBeGreaterThan(0)

@@ -15,7 +15,9 @@ import type { Brand } from '@/data/brands'
 import { INBOX_BY_BRAND, type BrandInbox, type InboxEarlier, type InboxMessage } from '@/data/inbox'
 import { useBrandKit } from '@/features/brand/brand-store'
 import { useConnections } from '@/features/connections/connections-store'
+import { NotAvailable } from '@/features/connections/not-available'
 import { useBrand } from '@/features/schedule/posts-store'
+import { demoOf, remote } from '@/lib/remote'
 
 import { clearNoise, messagesOf, sendReply, sendTo, useInbox } from './inbox-store'
 import {
@@ -60,7 +62,7 @@ export function InboxPage() {
     <div className="flex min-h-svh flex-col">
       <AppHeader />
       {/* A brand switch starts the page over: its own messages, nothing selected. */}
-      <Inbox key={brand.id} brand={brand} data={INBOX_BY_BRAND[brand.id] ?? NO_MESSAGES} />
+      <Inbox key={brand.id} brand={brand} data={demoOf(INBOX_BY_BRAND, brand.id) ?? NO_MESSAGES} />
     </div>
   )
 }
@@ -83,6 +85,8 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
   // No account connected: nothing can arrive, so "caught up" would say something untrue.
   const links = useConnections(brand.id)
   const unlinked = !(['ig', 'tt', 'fb'] as const).some((k) => links[k] === 'connected')
+  // An account that needs signing in again is linked, but nothing comes through it meanwhile.
+  const lapsed = (['ig', 'tt', 'fb'] as const).some((k) => links[k] === 'attention')
 
   function send(id: string, text: string) {
     setLeaving((s) => new Set(s).add(id))
@@ -149,13 +153,21 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
           {/* Only once something is left to see another way: the end of the inbox needs no tabs. */}
           {(waiting.length > 0 || filter !== 'all') && tabs}
           <div className="flex flex-col items-center">
-            {unlinked && waiting.length === 0 ? (
+            {unlinked && waiting.length === 0 && remote ? (
+              // On the core no account can connect yet: no link to a connect that cannot work.
+              <div className="flex flex-col items-center gap-3 py-16 text-center">
+                <p className="text-[14px] text-ink-3">
+                  Comments and DMs show here once the accounts are set up.
+                </p>
+                <NotAvailable name="Instagram, TikTok and Facebook" align="center" />
+              </div>
+            ) : unlinked && waiting.length === 0 ? (
               <p className="py-16 text-center text-[14px] text-ink-3">
                 <Link
                   href="/brand/connections"
                   className="text-ink underline decoration-ink-5 underline-offset-4 hover:decoration-ink"
                 >
-                  Connect Instagram
+                  {lapsed ? 'Reconnect your accounts' : 'Connect your accounts'}
                 </Link>{' '}
                 to see comments and DMs.
               </p>

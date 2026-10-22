@@ -3,6 +3,7 @@
 import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
+import { notAvailable } from '@/features/connections/not-available'
 import { demoOf, newId, onState, push, remote, request } from '@/lib/remote'
 import {
   coverOf,
@@ -161,6 +162,8 @@ export function moodboardFromState(s: {
 
 /** The moodboard's sources other than Pinterest, as the server's connection keys name them. */
 const SOURCE_KEY = { dm: 'moodboard-dm', tt: 'moodboard-tt' } as const
+/** The platform each moodboard source reads from. */
+const PLATFORM_OF: Record<MoodSource, string> = { pinterest: 'pinterest', dm: 'ig', tt: 'tt' }
 
 if (remote) {
   onState((brandId, s) => {
@@ -175,7 +178,12 @@ if (remote) {
     update(brandId as BrandId, (b) => ({
       ...b,
       ideas: (s.ideas as unknown[]).map(cardOf),
-      sources: { ...b.sources, dm: on(SOURCE_KEY.dm), tt: on(SOURCE_KEY.tt) },
+      // Instagram and TikTok are not set up on our side yet: a stored "connected" is not trusted.
+      sources: {
+        ...b.sources,
+        dm: on(SOURCE_KEY.dm) && !notAvailable('ig'),
+        tt: on(SOURCE_KEY.tt) && !notAvailable('tt'),
+      },
     }))
   })
 }
@@ -348,6 +356,7 @@ export function suggest(brandId: BrandId) {
  * owns that key; the other two are sent from here.
  */
 export function connectSource(brandId: BrandId, source: MoodSource) {
+  if (notAvailable(PLATFORM_OF[source])) return
   if (source !== 'pinterest') {
     push(brandId, () =>
       request('PUT', `/brands/${brandId}/connections/${SOURCE_KEY[source]}`, {

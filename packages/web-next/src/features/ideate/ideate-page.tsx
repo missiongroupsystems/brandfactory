@@ -24,6 +24,7 @@ import { BrandLogo } from '@/features/brand/brand-logo'
 import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 import { planShoot } from '@/features/shoot/shoots-store'
+import { NotAvailable, notAvailable } from '@/features/connections/not-available'
 import { demoOf, newId } from '@/lib/remote'
 
 import { EYEBROW, FormatIcon, STATUS_LABEL, statusColour, useSlots, type Slot } from './idea-parts'
@@ -773,6 +774,10 @@ function DmHint() {
  * brand's board is the one that connects; the others belong to their own brands. Instagram: the
  * steps to DM a post to the moodboard account, then a button to turn the source on.
  */
+/** The platform each moodboard source reads from, and its name. */
+const PLATFORM: Record<MoodSource, string> = { pinterest: 'pinterest', dm: 'ig', tt: 'tt' }
+const NAME: Record<MoodSource, string> = { pinterest: 'Pinterest', dm: 'Instagram', tt: 'TikTok' }
+
 function SourceSetup({ source }: { source: MoodSource }) {
   const { brand, brands } = useBrand()
   const [busy, setBusy] = React.useState(false)
@@ -783,18 +788,22 @@ function SourceSetup({ source }: { source: MoodSource }) {
     window.setTimeout(() => connectSource(brand.id, source), 900)
   }
 
-  const action = (label: string) => (
-    <button
-      type="button"
-      onClick={connect}
-      className="bb-press flex h-10 items-center justify-center gap-2 self-start rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85"
-    >
-      {busy && (
-        <span className="size-3 animate-spin rounded-full border-[1.5px] border-white/30 border-t-white" />
-      )}
-      {busy ? 'Connecting…' : label}
-    </button>
-  )
+  // On the core none of these can connect yet: the amber state in place of a pretend Connect.
+  const action = (label: string) =>
+    notAvailable(PLATFORM[source]) ? (
+      <NotAvailable name={NAME[source]} align="left" />
+    ) : (
+      <button
+        type="button"
+        onClick={connect}
+        className="bb-press flex h-10 items-center justify-center gap-2 self-start rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85"
+      >
+        {busy && (
+          <span className="size-3 animate-spin rounded-full border-[1.5px] border-white/30 border-t-white" />
+        )}
+        {busy ? 'Connecting…' : label}
+      </button>
+    )
 
   if (source === 'tt') {
     return (

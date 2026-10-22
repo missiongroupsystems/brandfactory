@@ -7,6 +7,7 @@ import { CheckIcon, ChevronIcon, CloseIcon } from '@/components/icons'
 import { isVideo, Media } from '@/components/media'
 import { DRIVE, folderAt, searchDrive, type DriveFolder, type DriveHit } from '@/data/publish'
 import { useBrand } from '@/features/schedule/posts-store'
+import { demoOf } from '@/lib/remote'
 
 /** How long the picker takes to leave, so the parent unmounts it after the animation. */
 export const LEAVE = 240
@@ -37,7 +38,10 @@ export function DrivePicker({
 }) {
   const { brand } = useBrand()
   // A brand outside the demo's data has no Drive yet: an empty one, open at its top.
-  const drive = DRIVE[brand.id] ?? { root: { name: brand.name, folders: [], files: [] }, start: [] }
+  const drive = demoOf(DRIVE, brand.id) ?? {
+    root: { name: brand.name, folders: [], files: [] },
+    start: [],
+  }
   const [path, setPath] = React.useState(drive.start)
   const [query, setQuery] = React.useState('')
   const [picked, setPicked] = React.useState<string[]>([])

@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Post } from '@/data/demo'
@@ -7,6 +7,7 @@ import { BrandProvider, useBrand } from '@/features/schedule/posts-store'
 import type * as Remote from '@/lib/remote'
 
 import { Composer } from './composer'
+import { DrivePicker } from './drive-picker'
 
 // The posts store's way in: the test hands it a brand's state, as a load would.
 const loads = vi.hoisted(() => [] as Array<(brandId: string, state: Remote.BrandState) => void>)
@@ -97,6 +98,49 @@ describe('a posted post on the core', () => {
   })
 })
 
+describe('a posted post, whatever it holds', () => {
+  it('prints no invented count when it has none: a missing count shows nothing', () => {
+    open({ ...posted, metrics: undefined })
+    const preview = screen.getByRole('region', { name: 'Preview' })
+    expect(within(preview).queryByText(/likes|comments/)).toBeNull()
+    expect(within(preview).queryByText(/2,418|86/)).toBeNull()
+  })
+
+  it("prints none of TikTok's invented counts either", () => {
+    open({ ...posted, format: 'reel', channels: ['tt'], metrics: undefined })
+    const preview = screen.getByRole('region', { name: 'Preview' })
+    expect(within(preview).queryByText(/24\.8K|312|1,204|418/)).toBeNull()
+  })
+
+  it("prints no invented count on Facebook's screen either", () => {
+    open({ ...posted, channels: ['fb'], metrics: { likes: 5 } })
+    const preview = screen.getByRole('region', { name: 'Preview' })
+    expect(within(preview).getByText('5')).toBeInTheDocument()
+    expect(within(preview).queryByText(/64 comments|27 shares|1\.2K/)).toBeNull()
+  })
+
+  it('asks for no photo when it has none: nothing can be added to it', () => {
+    open({ ...posted, images: [] })
+    const preview = screen.getByRole('region', { name: 'Preview' })
+    expect(within(preview).queryByText('Add a photo or video')).toBeNull()
+    expect(within(preview).queryByText('or drop it here')).toBeNull()
+  })
+
+  it('opens on the first account it went out on, in its own order', () => {
+    open({ ...posted, format: 'reel', channels: ['tt', 'ig'] })
+    expect(screen.getByRole('button', { name: 'Preview on TikTok' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('shows no account it never went to when none is recorded', () => {
+    open({ ...posted, channels: undefined })
+    expect(screen.queryByRole('region', { name: 'Preview' })).toBeNull()
+    expect(screen.getByText('Posted on Fri 16 Oct')).toBeInTheDocument()
+  })
+})
+
 describe('a draft on the core', () => {
   const draft: Post = { ...posted, id: 'd1', stage: 'draft', metrics: undefined }
 
@@ -106,12 +150,16 @@ describe('a draft on the core', () => {
     expect(within(strip).queryByText('1')).toBeNull()
   })
 
-  it('links to Connections when no account is linked, and offers no demo labels', () => {
+  it('says the accounts are not available yet, promises no connect, and offers no demo labels', () => {
     open(draft)
-    expect(screen.getAllByRole('link', { name: 'Connect an account' })[0]).toHaveAttribute(
-      'href',
-      '/brand/connections',
+    const accounts = screen.getByRole('region', { name: 'Accounts' })
+    expect(within(accounts).getByRole('button', { name: 'Not available yet' })).toBeTruthy()
+    expect(within(accounts).getByRole('tooltip')).toHaveTextContent(
+      'Instagram, TikTok and Facebook aren’t connected on our side yet.',
     )
+    expect(screen.queryByRole('link', { name: 'Connect an account' })).toBeNull()
+    expect(screen.queryByText('Tick an account to preview it.')).toBeNull()
+    expect(screen.queryByText('Pick an account')).toBeNull()
     expect(screen.queryByPlaceholderText(/TMP_Wine/)).toBeNull()
   })
 })
@@ -135,6 +183,40 @@ describe('a posted post from an earlier year, on the calendar', () => {
     const post = byId(id)
     return post ? <Composer post={post} /> : null
   }
+
+  it("draws itself once in Instagram's grid", () => {
+    render(
+      <BrandProvider>
+        <Opened id="casa-vostra-ig-grid" />
+      </BrandProvider>,
+    )
+    act(() =>
+      loads.at(-1)!('casa-vostra', {
+        brand: { id: 'casa-vostra' },
+        posts: [
+          {
+            id: 'casa-vostra-ig-grid',
+            format: 'carousel',
+            hook: 'Friday is for the wood oven',
+            day: '2026-10-16',
+            time: '19:00',
+            channels: ['ig'],
+            media: [{ src: '/demo/crust.jpg', kind: 'photo' }],
+            fromIdea: null,
+            stage: 'posted',
+            jobs: [],
+            caption: '',
+            draft: {},
+            metrics: null,
+          },
+        ],
+        ideas: [],
+      }),
+    )
+    fireEvent.click(screen.getByRole('radio', { name: 'Grid' }))
+    const preview = screen.getByRole('region', { name: 'Preview' })
+    expect(preview.querySelectorAll('.grid-cols-3 > span')).toHaveLength(1)
+  })
 
   it('names the year it went out on', () => {
     render(
@@ -166,5 +248,17 @@ describe('a posted post from an earlier year, on the calendar', () => {
       }),
     )
     expect(screen.getByText('Posted on Fri 14 Mar 2025')).toBeInTheDocument()
+  })
+})
+
+describe('Google Drive on the core', () => {
+  it("opens empty for casa-vostra, never the demo brand's folders", () => {
+    render(
+      <BrandProvider>
+        <DrivePicker phone={false} room={10} onClose={vi.fn()} onPick={vi.fn()} />
+      </BrandProvider>,
+    )
+    const picker = screen.getByRole('dialog', { name: 'Google Drive' })
+    expect(within(picker).queryAllByRole('checkbox')).toEqual([])
   })
 })

@@ -65,15 +65,27 @@ describe('the inbox on the core', () => {
     expect(screen.getByRole('link', { name: /Inbox/ }).textContent).toBe('Inbox1')
   })
 
-  it('asks for Instagram, not "All caught up", while no account is connected', () => {
+  it('says the accounts are not set up yet, not "All caught up", and links to no connect', () => {
     page()
     load([])
-    // Production's brands have no account connected yet: nothing can arrive to be caught up on.
+    // Production's brands have no account connected, and none can connect yet.
     act(() => linkers[0]!('casa-vostra', { brand: { id: 'casa-vostra' }, connections: [] }))
     expect(screen.queryByText('All caught up')).toBeNull()
-    expect(screen.getByRole('link', { name: 'Connect Instagram' })).toHaveAttribute(
-      'href',
-      '/brand/connections',
+    expect(screen.getByText(/once the accounts are set up/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Not available yet' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /connect/i })).toBeNull()
+  })
+
+  it('does not trust an account stored as connected: it cannot be, yet', () => {
+    page()
+    load([])
+    act(() =>
+      linkers[0]!('casa-vostra', {
+        brand: { id: 'casa-vostra' },
+        connections: [{ key: 'ig', status: 'connected' }],
+      }),
     )
+    expect(screen.queryByText('All caught up')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Not available yet' })).toBeInTheDocument()
   })
 })

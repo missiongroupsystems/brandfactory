@@ -467,6 +467,9 @@ describe('the moodboard in the chat', () => {
       }),
     )
     vi.resetModules()
+    // The moodboard as the server sends it: on the core the demo's own is never read.
+    const ideas = await import('@/data/ideas')
+    ideas.showMoodboard('casa-vostra', ideas.IDEAS_BY_BRAND['casa-vostra'])
     const { BubblesPage: Page } = await import('./bubbles-page')
     const { BrandProvider: Provider } = await import('@/features/schedule/posts-store')
     render(

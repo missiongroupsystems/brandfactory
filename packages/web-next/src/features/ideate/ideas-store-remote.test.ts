@@ -53,19 +53,19 @@ describe('the moodboard on the API', () => {
     })
     expect(pastedReferences('temper').map((r) => r.id)).toEqual(['p-old'])
     const { result } = renderHook(() => useIdeas('temper'))
-    expect(result.current.sources).toMatchObject({ dm: true, tt: false })
+    // Instagram and TikTok are not set up on our side yet: a stored "connected" is not trusted.
+    expect(result.current.sources).toMatchObject({ dm: false, tt: false })
 
     pasteLink('temper', link('p-new'))
     expect(pastedReferences('temper').map((r) => r.id)).toEqual(['p-new', 'p-old'])
     const { id: _id, ...fields } = link('p-new')
     expect(sends.at(-1)).toEqual(['POST', '/brands/temper/pasted', { id: 'p-new', ...fields }])
 
+    // No pretend sign-in: nothing is sent, and the source stays off.
+    const sent = sends.length
     connectSource('temper', 'tt')
-    expect(sends.at(-1)).toEqual([
-      'PUT',
-      '/brands/temper/connections/moodboard-tt',
-      { status: 'connected' },
-    ])
+    expect(sends.length).toBe(sent)
+    expect(result.current.sources.tt).toBe(false)
     disconnectSource('temper', 'dm')
     expect(sends.at(-1)).toEqual([
       'PUT',

@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.35.2** — 2026-10-22 — `fix/onboarding-polish`: review fixes. New shoot and Plan shoot no longer throw for a brand outside the demo, and on the core no brand gets the demo's outlets, crew, past places, Drive, voice samples, story titles, moodboard, venue or inbox people. A posted post prints only its own counts on every app's screen, asks for no photo, opens on its own first account and draws itself once in the grid. No false "connected" on the core: Instagram, TikTok, Facebook, Pinterest, Google Drive, Lark and the Insights sources show a calm amber "Not available yet" with the reason on hover or tap, and the pretend sign-in does not run for them. No migration. 1062 tests (196 skipped without a Postgres server).
 - **2.35.1** — 2026-10-22 — `fix/onboarding-polish`: the QA pass before the marketing team's first day on production. A posted post (brought in or sent from Brand base) is shown as it went out: its own account's preview with its real counts, a "Posted on" line, and nothing to edit. On the core: no best-time band, no demo voice history, events, ideas, library or caption drafts for a brand that shares a demo id; Insights and the inbox say what is missing; a link to Connections where no account is linked. The calendar title names the year outside this one. Smaller: one cover is not numbered, Ideate is "Ideas", Select hides with no ideas, the kit's "Saved" waits for a save, Add brand waits for a name. No migration. 1037 tests (196 skipped without a Postgres server).
 - **2.35.0** — 2026-10-22 — `feat/first-sign-in`: the first sign-in. An admin makes each account in the Supabase dashboard; the person's first sign-in asks for a password of their own, draws one check mark, then opens the dashboard; later sign-ins go straight in. A person the core has no place for yet sees "Not in a company yet" with their email and Sign out instead of a refusal on the sign-in page. No public sign-up, no email. No move or migration; adding a member is still by hand (steps in `docs/completions/first-sign-in-plan.md`). Sign-in and sign-out load the page afresh, so nothing of one account stays for the next, and one brand refused no longer reads as "Not in a company yet". 1025 tests (196 skipped without a Postgres server).
 - **2.34.2** — 2026-10-22 — `feat/real-brand-posts`: on the core, the post and idea pages offer none of the demo's data for a brand that shares a demo id: no demo best hour or hour chart, no demo creators, tags, places, labels, hashtags, venue or caption drafts. One helper, `demoOf`, reads a static demo table in the static demo only. 1004 tests.
@@ -66,6 +67,61 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.35.2 — 2026-10-22
+
+- **Why.** An Opus review of 2.35.1 found no blocker and listed these.
+- **The shoot flow on the core.** New shoot and Plan shoot read the demo's outlets and usual crew
+  by brand id with no guard (`new-shoot.tsx`, `shoots-store.ts`, `shoot-page.tsx`): they threw for
+  chin-mee-chin, petra, firebird and willow, and gave casa-vostra and temper the demo's outlets
+  and people. They read through `demoOf` now: a shoot on the core starts with no place and nobody,
+  and the call sheet then shows only its hours and no "Invites sent".
+- **Every other static table read by brand id**, found by a search of web-next, reads through
+  `demoOf`: the Drive picker, the voice samples, the stories' titles, the Google Business Profile
+  account name in the connect sheet, and the inbox's people. The moodboard reads the same core
+  flag from the environment (the pack's seed loads that file outside the browser) and is empty
+  until the server sends one. Left as they are: the Insights figures and the archive in `month.ts`, already
+  behind `remote`; `INBOX_BY_BRAND` in `inbox-store.ts`, which shows only the messages the server
+  holds; the kit seed in `brand-store.ts`, which the server's kit replaces.
+- **A posted post.** It prints its own counts or none, never the preview's invented ones, on
+  Facebook, LinkedIn and YouTube screens too. With no picture it shows a quiet frame, not "Add a
+  photo or video". It opens on the first account it went out on, and one with no account
+  recorded shows no preview instead of the default accounts. Instagram's grid draws it once.
+- **The static demo too.** A posted demo post now shows no invented counts and, with no picture,
+  a bare frame; every existing post (posted, scheduled or a draft) draws itself once in
+  Instagram's grid.
+- **No false "connected" on the core.** Meta, TikTok and Pinterest have not given the app access,
+  and Google Drive, Lark, the website, Google Business Profile and bookings are not wired either:
+  each connected through the same pretend sign-in. On the core every one of them shows a calm
+  amber "Not available yet" in Connections; its reason opens in a small card on hover, keyboard
+  focus or a tap ("Instagram isn't connected on our side yet. You can plan posts here; they won't
+  publish until it's set up."; Drive, Lark and the Insights sources say what works meanwhile). A
+  connection stored as connected is not trusted, `connect` and the moodboard's `connectSource`
+  send nothing for them, and the connect sheet (opened from the composer's Drive tile or the call
+  sheet's Lark) says it is not available and offers no Allow. New post shows the same amber state
+  under "Post to" in place of a Connections link; the inbox says "Comments and DMs show here once
+  the accounts are set up." with it; the moodboard's sources show it in place of Connect; a
+  Bubbles card for a connection the agent sets says "Not available yet", not "Connected". The
+  card closes on a tap elsewhere and hides on Escape; the sheet puts the focus on Close. The
+  static demo keeps its pretend sign-in. Scheduling still needs a connected account, so on the
+  core a post can be planned and saved as a draft, not scheduled, until access is set up.
+- **Inbox.** In the static demo, with no account connected: "Connect your accounts to see comments
+  and DMs.", or "Reconnect your accounts" when one needs signing in again. On the core the inbox's
+  people for "send to" are empty (the demo's are not read); the server's own people are not wired
+  to that menu yet, which matters only once messages arrive.
+- **Tests.** New: `shoot-remote.test.tsx`, `demo-tables-remote.test.ts`,
+  `schedule-title.test.tsx` (the desktop and phone titles in month, week and day),
+  `connections-remote.test.tsx`; new cases in `posted-remote.test.tsx` and
+  `inbox-remote.test.tsx`. Each fails with the file it guards put back as in 2.35.1 (the title
+  test, as on `main`). Changed on purpose: `preview.test.tsx` (the grid draws a post once),
+  `bubbles-page.test.tsx` and `ideas-store-remote.test.ts` (the moodboard and its sources on the
+  core come from the server and are not trusted as connected), and `composer-remote.test.tsx` and
+  `real-brand.test.tsx` run as if access were set up, so they still cover a send on the core.
+  Not covered by a test: the voice samples, the connect sheet's account name, the inbox's people.
+- **Gate:** typecheck, lint, format, build; tests 1062 (866 run, 196 skipped: no Postgres server).
+  Screenshots on a stub core: the shoot flow on casa-vostra and chin-mee-chin, a posted post with
+  no counts and with no picture, Connections with its amber state and its card open, New post's
+  "Post to", the inbox.
 
 ## 2.35.1 — 2026-10-22
 

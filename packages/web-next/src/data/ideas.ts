@@ -1828,9 +1828,15 @@ export function showMoodboard(brandId: BrandId, board: Pick<BrandIdeas, 'referen
   moodboards[brandId] = board
 }
 
+// `remote` in lib/remote.ts, read here without it: the pack's demo seed loads this file outside
+// the browser. On the core a brand's moodboard is the server's; one that shares a demo id must not
+// get the demo's.
+const onCore = (process.env.NEXT_PUBLIC_CORE_URL ?? '') !== ''
+const NO_BOARD: Pick<BrandIdeas, 'references' | 'boards'> = { references: [], boards: [] }
+
 /** A brand's shelf and boards: the server's on the API, the demo's otherwise. */
 export function moodboardOf(brandId: BrandId): Pick<BrandIdeas, 'references' | 'boards'> {
-  return moodboards[brandId] ?? IDEAS_BY_BRAND[brandId]
+  return moodboards[brandId] ?? (onCore ? undefined : IDEAS_BY_BRAND[brandId]) ?? NO_BOARD
 }
 
 /** Every reference a brand has: pasted in, on the shelf, or on a board. */

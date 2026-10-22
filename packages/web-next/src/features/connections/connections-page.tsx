@@ -8,6 +8,7 @@ import { useBrand } from '@/features/schedule/posts-store'
 
 import { ConnectSheet, SOURCES, SourceMark } from './connect-sheet'
 import { disconnect, useConnections, type SourceKey } from './connections-store'
+import { NotAvailable, notAvailable } from './not-available'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 
@@ -98,7 +99,9 @@ function Row({
           </span>
         </span>
       </span>
-      {status === 'connected' ? (
+      {notAvailable(source) ? (
+        <NotAvailable name={info.name} source={source} />
+      ) : status === 'connected' ? (
         <RowMenu
           name={info.name}
           onReconnect={onConnect}

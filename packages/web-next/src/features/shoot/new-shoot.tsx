@@ -5,6 +5,7 @@ import * as React from 'react'
 
 import { OUTLETS, type Shoot } from '@/data/shoots'
 import { useBrand } from '@/features/schedule/posts-store'
+import { demoOf } from '@/lib/remote'
 
 import { freeShootDay } from './model'
 import { Details } from './shoot-page'
@@ -26,7 +27,8 @@ export function NewShootForm({ date }: { date?: string }) {
     date: date && !shoots.some((s) => s.date === date) ? date : freeShootDay(weeks, shoots),
     start: '12:00',
     end: '17:00',
-    place: OUTLETS[brand.id][0]!,
+    // A brand with no outlet on record starts with no place; the sheet takes one.
+    place: demoOf(OUTLETS, brand.id)?.[0] ?? '',
     crew: [],
     ideaIds: [],
   }))

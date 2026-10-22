@@ -14,9 +14,14 @@ import {
   type Shoot,
 } from '@/data/shoots'
 
-import { newId, onState, push, quietly, remote, request } from '@/lib/remote'
+import { demoOf, newId, onState, push, quietly, remote, request } from '@/lib/remote'
 
 import { freeShootDay, moveStart } from './model'
+
+// The demo's outlets and usual crew, in the static demo only: on the core a brand has none on
+// record yet, and one that shares a demo id must not get the demo's people.
+const outletOf = (brandId: BrandId) => demoOf(OUTLETS, brandId)?.[0] ?? ''
+const usualCrew = (brandId: BrandId): CrewMember[] => demoOf(USUAL_CREW, brandId) ?? []
 
 /**
  * The shoots, in memory and outside React, like the ideas (`ideas-store.ts`): the ideas page
@@ -174,8 +179,8 @@ export function planShoot(
     title: 'New shoot',
     date: when.date ?? freeShootDay(weeks, shoots),
     ...moveStart({ start: '12:00', end: '17:00' }, when.start ?? '12:00'),
-    place: OUTLETS[brandId][0]!,
-    crew: USUAL_CREW[brandId],
+    place: outletOf(brandId),
+    crew: usualCrew(brandId),
     ideaIds,
   }
   planned.add(id)
@@ -204,7 +209,7 @@ export function addShoot(
   fields: Pick<Shoot, 'title' | 'place' | 'date' | 'start' | 'end'>,
 ): string {
   const id = remote ? newId() : `${brandId}-shoot-${++serial}`
-  update(brandId, (list) => [...list, { id, ...fields, crew: USUAL_CREW[brandId], ideaIds: [] }])
+  update(brandId, (list) => [...list, { id, ...fields, crew: usualCrew(brandId), ideaIds: [] }])
   send(brandId, 'POST', '', {
     id,
     title: fields.title,
@@ -213,7 +218,7 @@ export function addShoot(
     start: fields.start,
     end: fields.end,
     place: fields.place,
-    crew: withIds(id, USUAL_CREW[brandId]),
+    crew: withIds(id, usualCrew(brandId)),
   })
   return id
 }

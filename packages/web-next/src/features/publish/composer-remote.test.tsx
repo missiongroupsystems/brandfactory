@@ -6,6 +6,7 @@ import { resetConnections } from '@/features/connections/connections-store'
 import { resetIdeas } from '@/features/ideate/ideas-store'
 import { BrandProvider } from '@/features/schedule/posts-store'
 import { DEMO_TODAY, setToday } from '@/lib/dates'
+import type * as NotAvailable from '@/features/connections/not-available'
 import type * as Remote from '@/lib/remote'
 
 import { Composer } from './composer'
@@ -29,6 +30,11 @@ vi.mock('@/lib/remote', async (original) => ({
   },
   push: vi.fn(),
   onState: () => () => undefined,
+}))
+// The day the platforms are set up on our side: their accounts connect, and posts can go out.
+vi.mock('@/features/connections/not-available', async (original) => ({
+  ...(await original<typeof NotAvailable>()),
+  notAvailable: () => false,
 }))
 vi.mock('next/navigation', () => ({
   usePathname: () => '/post/crust',

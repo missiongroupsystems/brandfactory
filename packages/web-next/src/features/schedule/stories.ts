@@ -1,6 +1,7 @@
 import type { BrandId } from '@/data/brands'
 import type { Post, Stage } from '@/data/demo'
 import { dayNumber } from '@/lib/dates'
+import { demoOf } from '@/lib/remote'
 
 import type { DayItems } from './calendar-items'
 
@@ -62,8 +63,8 @@ export function storiesOf(
   library: string[],
   byId: (id: string) => Post | undefined,
 ): Story[] {
-  // A brand made on the core has no demo titles.
-  const titles = TITLES[brandId] ?? ['Story']
+  // No brand on the core has demo titles, even one whose id a demo brand shares.
+  const titles = demoOf(TITLES, brandId) ?? ['Story']
   const seed = Number(dayNumber(date))
   const posted: Story[] = Array.from({ length: items.storiesPosted }, (_, i) => ({
     id: `${date}-story-${i}`,

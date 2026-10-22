@@ -139,6 +139,10 @@
   /* A failed post's quiet surface: a tint and a hairline, the red kept to a dot and the words. */
   --fail-soft: #fbf1ef;
   --fail-line: rgba(200, 68, 47, 0.28);
+  /* Not available yet: a platform whose access is not set up on our side. Calm amber. */
+  --pending: #d49a2a;
+  --pending-soft: #fbf3e2;
+  --pending-ink: #7a5512;
 }
 
 /*

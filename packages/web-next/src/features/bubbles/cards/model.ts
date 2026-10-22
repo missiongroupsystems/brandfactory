@@ -1,3 +1,5 @@
+import { notAvailable } from '@/features/connections/not-available'
+
 import type { ToolCall, Turn } from '../client'
 
 /**
@@ -80,7 +82,13 @@ const MOVES: Record<string, Move> = {
   'share.set': { kind: 'link', verb: 'Link', id: (i) => `${str(i.kind)}:${str(i.id)}` },
   'connection.set': {
     kind: 'connection',
-    verb: (i) => (i.status === 'connected' ? 'Connected' : 'Disconnected'),
+    // On the core no source can connect yet: the card says so, not "Connected".
+    verb: (i) =>
+      notAvailable(str(i.key))
+        ? 'Not available'
+        : i.status === 'connected'
+          ? 'Connected'
+          : 'Disconnected',
     id: 'key',
   },
   'pasted.add': { kind: 'pasted', verb: 'Added' },

@@ -26,10 +26,11 @@ import { INSIGHTS_BY_BRAND } from '@/data/insights'
 import { CAPTION_DRAFTS, HASHTAGS, VENUE } from '@/data/publish'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { MonthArrows, useMonthPages } from '@/features/ideate/day-picker'
-import { channelsOf, composeChannels, sentChannels } from '@/features/schedule/calendar-items'
+import { composeChannels, sentChannels } from '@/features/schedule/calendar-items'
 import { dayOf, storyTaken } from '@/features/schedule/move-post'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
+import { NotAvailable } from '@/features/connections/not-available'
 import { ideaIdOfHook } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import { demoOf, newId, quietly, remote, request, sent } from '@/lib/remote'
@@ -310,7 +311,10 @@ export function Composer({
   const label = retry
     ? 'Retry on'
     : active.length === 0
-      ? 'Pick an account'
+      ? // On the core no account can be picked yet: nothing to ask for.
+        remote && draft.linked.length === 0
+        ? 'Not available yet'
+        : 'Pick an account'
       : when === 'now'
         ? 'Post on'
         : 'Schedule on'
@@ -539,6 +543,8 @@ export function Composer({
   const counts = post?.metrics && { on: post.channels?.[0], metrics: post.metrics }
   // Posted is final: the post as it went out, on the accounts it went to, and nothing to change.
   if (post?.stage === 'posted') {
+    // Only the accounts it went out on, its first one open; none recorded, no preview.
+    const went = post.channels ?? []
     const day = dayOf(weeks, post.id)
     const year = day ? monthOf(day).year : 0
     const posted = day
@@ -552,16 +558,20 @@ export function Composer({
           </h1>
           <p className="text-[13px] text-ink-3">Posted on {posted}</p>
         </header>
-        <div className="w-full max-w-[400px]">
-          <Preview
-            api={api}
-            media={media}
-            people={people}
-            onFiles={addFiles}
-            counts={counts}
-            on={channelsOf(post)}
-          />
-        </div>
+        {went.length > 0 && (
+          <div className="w-full max-w-[400px]">
+            <Preview
+              api={api}
+              media={media}
+              people={people}
+              onFiles={addFiles}
+              // Its own counts or none: never the preview's invented ones.
+              counts={{ on: went[0], metrics: post.metrics ?? {} }}
+              on={went}
+              self={post.id}
+            />
+          </div>
+        )}
       </div>
     )
   }
@@ -597,7 +607,16 @@ export function Composer({
     },
     preview: {
       title: 'Preview',
-      body: <Preview api={api} media={media} people={people} onFiles={addFiles} counts={counts} />,
+      body: (
+        <Preview
+          api={api}
+          media={media}
+          people={people}
+          onFiles={addFiles}
+          counts={counts}
+          self={post?.id}
+        />
+      ),
     },
     ...Object.fromEntries(
       active.map((c) => [
@@ -706,6 +725,8 @@ export function Composer({
                     </span>
                     · {FORMAT_LABEL[draft.format]}
                   </span>
+                ) : remote ? (
+                  'Not available yet'
                 ) : (
                   'No account'
                 )
@@ -757,7 +778,14 @@ export function Composer({
         </div>
         {/* The button sits under the preview and scrolls with it, so what goes out is in view. */}
         <div className="sticky top-6 flex flex-col gap-3 max-lg:static max-md:hidden">
-          <Preview api={api} media={media} people={people} onFiles={addFiles} counts={counts} />
+          <Preview
+            api={api}
+            media={media}
+            people={people}
+            onFiles={addFiles}
+            counts={counts}
+            self={post?.id}
+          />
           <div className="flex items-center gap-2 px-1">
             {draftButton}
             {send(false)}
@@ -777,6 +805,9 @@ export function Composer({
 }
 
 type SheetKey = 'accounts' | 'details' | 'when' | 'preview' | ChannelKey
+
+/** The publishing platforms, none of which can connect on the core yet. */
+const UNSET: ChannelKey[] = ['ig', 'tt', 'fb']
 
 const FORMAT_LABEL: Record<Format, string> = { carousel: 'Post', reel: 'Reel', story: 'Story' }
 
@@ -927,14 +958,25 @@ function Accounts({ api }: { api: PublishDraftApi }) {
               </button>
             )
           })}
-          {linkedChannels(draft).length === 0 && (
-            <Link
-              href="/brand/connections"
-              className="flex h-10 items-center text-[13px] text-ink-3 underline decoration-ink-5 underline-offset-4 transition-colors hover:text-ink max-md:h-14 max-md:text-[15px]"
-            >
-              Connect an account
-            </Link>
-          )}
+          {linkedChannels(draft).length === 0 &&
+            (remote ? (
+              // On the core no publishing account can connect yet: say so, calmly, in place.
+              <span className="flex h-10 items-center gap-3 max-md:h-14">
+                <span className="flex items-center gap-2 text-ink-4">
+                  {UNSET.map((k) => (
+                    <PlatformLogo key={k} platform={k} size={14} />
+                  ))}
+                </span>
+                <NotAvailable name={namesOf(UNSET)} align="left" />
+              </span>
+            ) : (
+              <Link
+                href="/brand/connections"
+                className="flex h-10 items-center text-[13px] text-ink-3 underline decoration-ink-5 underline-offset-4 transition-colors hover:text-ink max-md:h-14 max-md:text-[15px]"
+              >
+                Connect an account
+              </Link>
+            ))}
         </div>
         <div className={`w-[240px] max-md:w-full ${TAP}`}>
           <Segmented<Format>
@@ -2617,6 +2659,7 @@ function Preview({
   onFiles,
   counts,
   on,
+  self,
 }: {
   api: PublishDraftApi
   media: Shot[]
@@ -2629,10 +2672,13 @@ function Preview({
   counts?: { on: ChannelKey | undefined; metrics: NonNullable<Post['metrics']> }
   /** A posted post: the accounts it went out on, shown as they are, with nothing to add. */
   on?: ChannelKey[]
+  /** The post's own id: Instagram's grid draws it first, and not again among the feed. */
+  self?: string
 }) {
   const { draft } = api
   const { posts } = useBrand()
-  const active = on ? CHANNELS.filter((c) => on.includes(c.key)) : activeChannels(draft)
+  // A posted post's accounts in the order it has them, so its first one opens.
+  const active = on ? on.flatMap((k) => CHANNELS.filter((c) => c.key === k)) : activeChannels(draft)
   const [picked, setPicked] = React.useState<ChannelKey | null>(null)
   const [grid, setGrid] = React.useState(false)
   const input = React.useRef<HTMLInputElement>(null)
@@ -2660,7 +2706,7 @@ function Preview({
   const tiles = [
     { shot: media[0], format: draft.format, slides: media.length },
     ...posts
-      .filter((p) => p.images.length > 0 && p.format !== 'story')
+      .filter((p) => p.id !== self && p.images.length > 0 && p.format !== 'story')
       .map((p) => ({ shot: shotOf(p.images[0]!), format: p.format, slides: p.images.length })),
   ].slice(0, 9)
   return (
@@ -2699,7 +2745,11 @@ function Preview({
         )}
       </div>
       {!channel ? (
-        <p className="py-16 text-center text-[13px] text-ink-4">Tick an account to preview it.</p>
+        <p className="py-16 text-center text-[13px] text-ink-4">
+          {remote && draft.linked.length === 0
+            ? 'The preview shows once an account is set up.'
+            : 'Tick an account to preview it.'}
+        </p>
       ) : showGrid ? (
         <div
           key="grid"

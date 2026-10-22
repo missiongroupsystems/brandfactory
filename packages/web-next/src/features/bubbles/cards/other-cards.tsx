@@ -6,6 +6,7 @@ import { CheckIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import { SOURCES, SourceMark } from '@/features/connections/connect-sheet'
 import type { SourceKey } from '@/features/connections/connections-store'
+import { notAvailable } from '@/features/connections/not-available'
 import {
   shareUrl,
   useShareAccess,
@@ -70,14 +71,16 @@ export function LinkCard({ model, index }: { model: Model; index: number }) {
 /** A source linked or unlinked: its mark, its name and a live dot when it is on. */
 export function ConnectionCard({ model, index }: { model: Model; index: number }) {
   const key = model.id as SourceKey
-  const on = model.input.status === 'connected'
+  // On the core no source can connect yet: a stored "connected" is not one.
+  const unset = notAvailable(key)
+  const on = model.input.status === 'connected' && !unset
   const name = SOURCES[key]?.name ?? key
   return (
     <Card
       verb={model.verb}
       href="/brand/connections"
       index={index}
-      label={`${name} ${on ? 'connected' : 'off'}`}
+      label={`${name} ${unset ? 'not available yet' : on ? 'connected' : 'off'}`}
     >
       <span className="flex items-center gap-3">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-surface text-ink">
@@ -87,10 +90,10 @@ export function ConnectionCard({ model, index }: { model: Model; index: number }
           <span className={`${TITLE} truncate`}>{name}</span>
           <span className={META}>
             <span
-              className={`bb-pop size-1.5 rounded-full ${on ? 'bg-live' : 'bg-ink-5'}`}
+              className={`bb-pop size-1.5 rounded-full ${unset ? 'bg-(--pending)' : on ? 'bg-live' : 'bg-ink-5'}`}
               style={{ animationDelay: '200ms' }}
             />
-            {on ? 'Connected' : 'Off'}
+            {unset ? 'Not available yet' : on ? 'Connected' : 'Off'}
           </span>
         </span>
       </span>

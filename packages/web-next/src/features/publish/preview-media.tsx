@@ -474,6 +474,7 @@ export function Placeholder({ light, onAdd }: { light: boolean; onAdd?: () => vo
     </>
   )
   const cls = 'absolute inset-0 flex flex-col items-center justify-center gap-[10px]'
+  // Nothing can be added here (a post already out): a quiet frame, not a prompt to add.
   return onAdd ? (
     <button
       type="button"
@@ -485,9 +486,7 @@ export function Placeholder({ light, onAdd }: { light: boolean; onAdd?: () => vo
       {inner}
     </button>
   ) : (
-    <span className={cls} style={{ background }}>
-      {inner}
-    </span>
+    <span className={cls} style={{ background }} />
   )
 }
 
