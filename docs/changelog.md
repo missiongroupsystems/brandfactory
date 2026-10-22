@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.34.2** — 2026-10-22 — `feat/real-brand-posts`: on the core, the post and idea pages offer none of the demo's data for a brand that shares a demo id: no demo best hour or hour chart, no demo creators, tags, places, labels, hashtags, venue or caption drafts. One helper, `demoOf`, reads a static demo table in the static demo only. 1004 tests.
 - **2.34.1** — 2026-10-22 — `feat/real-brand-posts`: a test scrape of the six brands, checked against the live accounts. The import keeps only the brand's own posts (not creators' collabs), hooks read styled letters as plain ones, the post preview prints a real post's own counts, a second Instagram cover host, and the scrape prints its cost and its caps (the most Apify can charge) and refuses caps over a budget. 999 tests.
 - **2.34.0** — 2026-10-22 — `feat/real-brand-posts`: the brands' own posts (brandbase 1.6.0, migration 0014, not applied to production). `post.import` brings in a post already out on the brand's Instagram or TikTok as posted, with its address and counts; a second import refreshes the counts. A script runs Apify's scrapers (cost first, capped) and loads a scrape through the core as the signed-in person. The post page no longer throws for a brand outside the demo's data. 991 tests.
 - **2.33.1** — 2026-10-22 — `fix/real-brand-insights`: on the core, no brand shows the demo's invented figures. Production's casa-vostra and temper share ids with demo brands, so Insights showed the demo's reach, followers, posts and creators for them, the calendar shaded the demo's best hour, and the inbox showed the demo's messages and count. Insights now shows its empty state, the calendar shades the evening hour, and the inbox shows only the messages the server holds. The static demo is unchanged. No migration. 782 tests (191 more skipped without a Postgres server).
@@ -63,6 +64,18 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.34.2 — 2026-10-22
+
+- **Why.** The merge review of 2.33.1 with 2.34.x found that the post page and the idea page still
+  read the demo's static tables by brand id on the core, so production's `casa-vostra` and
+  `temper` got the demo's best hour, hour chart, creators ("Posted about you"), tagged accounts,
+  places, labels, hashtags, venue and caption drafts.
+- **Fix.** `demoOf(table, brandId)` in `lib/remote.ts` answers a demo table's row in the static
+  demo only. `composer.tsx`, `idea-page.tsx` and `suggestions.ts` read through it. The static
+  demo is unchanged. Not changed: the shoot page's outlets and past places.
+- **Test.** `suggestions-remote.test.ts` loads the suggestions with a core URL set and expects no
+  demo suggestion for casa-vostra; it fails without the fix.
 
 ## 2.34.1 — 2026-10-22
 

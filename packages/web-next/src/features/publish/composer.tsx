@@ -32,7 +32,7 @@ import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
 import { ideaIdOfHook } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
-import { newId, quietly, remote, request, sent } from '@/lib/remote'
+import { demoOf, newId, quietly, remote, request, sent } from '@/lib/remote'
 import { addDays, dayNumber, todayDate, weekdayOf } from '@/lib/dates'
 import { mediaItem } from '@/lib/remote-days'
 
@@ -225,7 +225,11 @@ export function Composer({
     () => (post && dayOf(weeks, post.id)) || start?.day || addDays(todayDate(), 7),
   )
   const [time, setTime] = React.useState(
-    () => post?.slot.split(', ')[1] ?? start?.time ?? INSIGHTS_BY_BRAND[brand.id]?.best ?? '18:00',
+    () =>
+      post?.slot.split(', ')[1] ??
+      start?.time ??
+      demoOf(INSIGHTS_BY_BRAND, brand.id)?.best ??
+      '18:00',
   )
   // A new post, once placed: a second send after "Edit post" moves it instead of placing another.
   const [madeId, setMadeId] = React.useState<string | null>(null)
@@ -237,7 +241,7 @@ export function Composer({
     () =>
       keptDraft.details ?? {
         comment: '',
-        location: VENUE[brand.id] ?? '',
+        location: demoOf(VENUE, brand.id) ?? '',
         collab: [] as string[],
         aiLabel: false,
       },
@@ -1006,10 +1010,10 @@ function Content({
   )
 
   // A brand outside the demo's data has no prepared captions or hashtags.
-  const drafts = CAPTION_DRAFTS[brand.id] ?? []
+  const drafts = demoOf(CAPTION_DRAFTS, brand.id) ?? []
   // A caption the marketer wrote is improved, not replaced; an empty box or a draft gets a draft.
   const typed = draft.caption.trim() !== '' && !drafts.includes(draft.caption)
-  const improved = typed ? improveCaption(draft.caption, HASHTAGS[brand.id] ?? []) : null
+  const improved = typed ? improveCaption(draft.caption, demoOf(HASHTAGS, brand.id) ?? []) : null
   const aiLabel = writing
     ? 'Writing…'
     : !typed
@@ -2456,7 +2460,9 @@ function hourly(parts: number[]): number[] {
 
 /** Insights' weight for each weekday, Monday first. */
 function dayWeights(brandId: BrandId): number[] {
-  const chart = INSIGHTS_BY_BRAND[brandId]?.stories.find((s) => s.chart.kind === 'days')?.chart
+  const chart = demoOf(INSIGHTS_BY_BRAND, brandId)?.stories.find(
+    (s) => s.chart.kind === 'days',
+  )?.chart
   return chart && chart.kind === 'days' ? chart.values : [1, 1, 1, 1, 1, 1, 1]
 }
 
@@ -2477,11 +2483,11 @@ function DayChart({
   const [hover, setHover] = React.useState<number | null>(null)
   const weekday = weekdayOf(date)
   const weights = dayWeights(brand.id)
-  const curve = hourly(INSIGHTS_BY_BRAND[brand.id]?.hours ?? [1, 1, 1, 1, 1])
+  const curve = hourly(demoOf(INSIGHTS_BY_BRAND, brand.id)?.hours ?? [1, 1, 1, 1, 1])
   const top = Math.max(...weights) * Math.max(...curve)
   const bars = curve.map((v) => (v * (weights[weekday] ?? 1)) / top)
   // A brand with no Insights has no best hour to mark.
-  const peak = INSIGHTS_BY_BRAND[brand.id] ? bars.indexOf(Math.max(...bars)) : -1
+  const peak = demoOf(INSIGHTS_BY_BRAND, brand.id) ? bars.indexOf(Math.max(...bars)) : -1
   // A bar picks the hour and keeps the minutes; the quarters beside the label pick the minutes.
   const hour = Number(time.slice(0, 2))
   const minutes = time.slice(3)
@@ -2548,7 +2554,7 @@ function DayChart({
 /** The brand's best upcoming slots: Insights' day weight times its daypart weight, top five. */
 function bestTimes(brandId: BrandId, weeks: ReturnType<typeof useBrand>['weeks']) {
   // A brand with no Insights has no best times yet.
-  const data = INSIGHTS_BY_BRAND[brandId] ?? { hours: [] }
+  const data = demoOf(INSIGHTS_BY_BRAND, brandId) ?? { hours: [] }
   const weights = dayWeights(brandId)
   const out: Array<{ date: string; label: string; time: string; score: number }> = []
   for (const w of weeks) {

@@ -59,6 +59,7 @@ import {
 } from './idea-parts'
 import { editIdea, keepSuggestion, setDay, skipSuggestion, type IdeaEdit } from './ideas-store'
 import { useSortable, type Sortable } from './sortable'
+import { demoOf } from '@/lib/remote'
 
 const HAIR = 'border-(--cal-line)'
 const TIMES = ['08:00', '12:00', '15:00', '18:00', '19:30', '21:00']
@@ -1614,7 +1615,7 @@ function PlanSection({
               infoOf={plan.infoOf}
               time={plan.time}
               times={TIMES}
-              best={INSIGHTS_BY_BRAND[brand.id]?.best}
+              best={demoOf(INSIGHTS_BY_BRAND, brand.id)?.best}
               onTime={plan.setTime}
             />
           </span>
