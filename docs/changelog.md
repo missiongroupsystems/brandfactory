@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.38.4** — 2026-10-23 — `fix/bubbles-max-tokens`: Bubbles answers questions about a brand with history. The runtime was told the model has a 65,536-token window; a brand's whole state (`brand.state`) took the prompt past it, so the runtime asked for one token and the turn ended on `max-tokens` with no answer. It is now told 262,144 (the model has a million on every host). A turn cut off now says so after any words it wrote, and a turn that ends with nothing said says so too. No migration; Bubbles only, web-next unchanged. 1162 tests, all run on a throwaway Postgres.
 - **2.38.3** — 2026-10-23 — `fix/moodboard-placeholders`: the fan of four photos above "Bring in your moodboard" is back on the core, the same four for every brand, as decoration only. 2.35.2 took it away with the demo moodboard. The static demo is unchanged. No migration. 1171 tests (211 skipped without a Postgres server).
 - **2.38.2** — 2026-10-23 — `fix/sign-out`: on the core, New post's amber pill beside the platforms says "Not available yet", with "Publishing isn’t set up yet." The old line, "Posts go out once accounts are connected.", promised that a planned post goes out by itself later; it does not. No migration. 1169 tests (211 skipped without a Postgres server).
 - **2.38.1** — 2026-10-23 — `fix/sign-out`: sign out, and a profile, on the core. The header's avatar shows the signed-in person's initials (first name and last name) and opens a menu with their name, email, Edit profile and Sign out. `/profile` edits the first and last name (saved on the person's Supabase account) and changes the password. The core's users table keeps the name an admin gave. The static demo keeps its avatar, with no menu and no profile page. No pack change, no migration. 1169 tests (211 skipped without a Postgres server).
@@ -79,6 +80,34 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
+## 2.38.4 — 2026-10-23
+
+- **Why.** In production a simple question on a brand got no answer. Bubbles' log: two model
+  requests ($0.0045, then $0.0235) and `turn ended max-tokens`.
+- **Cause.** Reproduced on this machine with the real runtime and model, a local core and a demo
+  brand given history (posts, inbox, moodboard, 150 events: `brand.state` 243 KB). The first
+  request called `brand.state`; the second sent 93,676 prompt tokens with `max_tokens: 1`, and the
+  model wrote one token (`**`) before `finish_reason: length`, at $0.0237. The runtime caps each
+  answer at the context window it is told, less its estimate of the prompt and 4,096 tokens, and
+  never below 1 (`clampMaxTokensToContext`). The patch told it 65,536. No reasoning came back
+  (`reasoning_tokens: 0` on Together, the host it chose), and the gateway's 1,200 cap was not hit.
+  Of the four hosts, Novita does send reasoning with `reasoning: { enabled: false }`; it was not
+  the cause here.
+- **Fix.** `prompt.ts`: `CONTEXT_WINDOW = 262_144`, which holds the persona and tools (15,000
+  tokens), two such states and a full answer; the model has a million tokens on every host in
+  `BUBBLES_PROVIDERS`. `turns.ts`: a turn that ends on `max-tokens` keeps the words it wrote and
+  adds `CUT_OFF`, "Bubbles's answer was cut off. Ask for a shorter answer."; a turn that ends
+  normally with no words and no move adds `NO_ANSWER`. The page shows both as it shows every
+  error; web-next is unchanged.
+- **Checked live.** The same question then answered (one table of the week). A follow-up in the
+  same chat answered from the 282 KB context, and "Which brands do we have?" and a Temper ideas
+  question answered. Model spend for the whole check: $0.08.
+- **Tests.** `prompt.test.ts`: the runtime's cap leaves a full answer after one and two brand
+  states, and the window stays under the smallest host's. `turns.test.ts`: a cut-off turn shows
+  its words and `CUT_OFF`; an empty turn shows `NO_ANSWER`. These three fail without the fix; the fourth guards the ceiling.
+- **Gate:** typecheck, lint, format, build; tests 1162, all run on a throwaway Postgres.
+- **Not done.** `brand.state` sends a brand's whole history to the model on most questions:
+  about $0.02 a question before the host's cache. A narrower read for Bubbles is a pack change.
 ## 2.38.3 — 2026-10-23
 
 - **Why.** The moodboard's empty state on the core lost its fan of photos in 2.35.2, when the demo

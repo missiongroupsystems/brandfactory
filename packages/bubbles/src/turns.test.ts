@@ -273,6 +273,26 @@ describe('a turn with Bubbles', () => {
     expect(events.map((e) => e.event)).toEqual(['status', 'status', 'error', 'done'])
   })
 
+  it('shows what was written before an answer was cut off, and says it was cut off', async () => {
+    const { turn } = await setup([
+      say('Casa Vostra has three posts'),
+      { type: 'turn/end', data: { reason: { kind: 'max-tokens' } } },
+    ])
+    const { events } = await turn('What is on this week?')
+    expect(events.slice(2)).toEqual([
+      { event: 'text', data: { text: 'Casa Vostra has three posts' } },
+      { event: 'error', data: { code: 'CUT_OFF', message: expect.stringMatching(/cut off/) } },
+      { event: 'done', data: {} },
+    ])
+  })
+
+  it('never leaves the page silent when a turn ends with nothing said', async () => {
+    const { turn } = await setup([])
+    const { events } = await turn('Hello')
+    expect(events.map((e) => e.event)).toEqual(['status', 'status', 'error', 'done'])
+    expect(events[2]!.data).toMatchObject({ code: 'NO_ANSWER' })
+  })
+
   it('says the day’s budget is spent and starts no runtime for it', async () => {
     const { turn, prompts } = await setup([say('Hi')], { dailyUsd: 0 })
     const { events } = await turn('Hello')

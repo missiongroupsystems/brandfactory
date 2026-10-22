@@ -175,6 +175,7 @@ export class Turns {
     emit({ event: 'status', data: { phase: 'thinking' } })
     const calls = new Map<string, { tool: string; input: unknown }>()
     let failed: string | null = null
+    let said = false
     try {
       await live.runtime.prompt(
         live.session,
@@ -182,6 +183,7 @@ export class Turns {
         (e) => {
           const out = this.translate(e, calls)
           for (const o of out) emit(o)
+          if (out.some((o) => o.event === 'text' || o.event === 'tool_call')) said = true
           if (e.type === 'turn/end') {
             const kind = (e.data.reason as { kind?: string } | undefined)?.kind
             if (kind !== 'completed') failed = kind ?? 'unknown'
@@ -194,12 +196,24 @@ export class Turns {
         if (this.opts.gateway.overBudget) return emit(OVER_BUDGET)
         emit({
           event: 'error',
-          data: steps
-            ? {
-                code: 'TOO_MANY_STEPS',
-                message: 'That took Bubbles too many steps. Try a narrower question.',
-              }
-            : { code: 'TURN_FAILED', message: 'Bubbles could not finish that. Try again.' },
+          data:
+            failed === 'max-tokens'
+              ? {
+                  code: 'CUT_OFF',
+                  message: 'Bubbles’s answer was cut off. Ask for a shorter answer.',
+                }
+              : steps
+                ? {
+                    code: 'TOO_MANY_STEPS',
+                    message: 'That took Bubbles too many steps. Try a narrower question.',
+                  }
+                : { code: 'TURN_FAILED', message: 'Bubbles could not finish that. Try again.' },
+        })
+      } else if (!said) {
+        // A turn that ended normally with nothing to show still gets a line on the page.
+        emit({
+          event: 'error',
+          data: { code: 'NO_ANSWER', message: 'Bubbles had no answer to that. Try again.' },
         })
       }
     } catch (err) {
