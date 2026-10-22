@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
 
@@ -70,6 +71,15 @@ export function SignIn() {
         >
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
+        {/* Accounts are made on Supabase; the dev sign-in has none to make. */}
+        {passwordSignIn && (
+          <Link
+            href="/sign-up"
+            className="mt-3 self-center text-[13px] text-ink-4 transition-colors hover:text-ink"
+          >
+            New here? Sign up
+          </Link>
+        )}
       </form>
     </main>
   )

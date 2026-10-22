@@ -20,7 +20,7 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 
 // ── Session ─────────────────────────────────────────────────────────────────────────────────
 
-interface Session {
+export interface Session {
   access: string
   refresh?: string
   /** Epoch seconds. */
@@ -49,8 +49,109 @@ function writeSession(session: Session | null) {
 
 export const signedIn = () => readSession() !== null
 
+/** The signed-in person's email, from the token's claims; the dev sign-in's token is the id. */
+export function sessionEmail(): string {
+  const session = readSession()
+  if (!session) return ''
+  const parts = session.access.split('.')
+  if (parts.length !== 3) return session.access
+  try {
+    const claims = parts[1]!
+    const json = JSON.parse(atob(claims.replace(/-/g, '+').replace(/_/g, '/'))) as {
+      email?: unknown
+    }
+    return typeof json.email === 'string' ? json.email : ''
+  } catch {
+    return ''
+  }
+}
+
 /** True when sign-in goes through Supabase; otherwise the core runs dev sign-in (an id). */
 export const passwordSignIn = SUPABASE_URL !== ''
+
+/** The address the confirm link comes back to, with the session in its hash. */
+const SIGN_UP_DONE = '/sign-up/done'
+
+/**
+ * Makes an account. Answers `'mail'` when Supabase sent a confirm link (the person reads their
+ * email), `'in'` when the project does not ask for one and the session is already kept. A refusal
+ * is a `RemoteError` whose code is Supabase's own (`user_already_exists`, `weak_password`, …).
+ */
+export async function signUp(
+  name: string,
+  email: string,
+  password: string,
+): Promise<'mail' | 'in'> {
+  const back = encodeURIComponent(`${window.location.origin}${SIGN_UP_DONE}`)
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/signup?redirect_to=${back}`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_ANON_KEY, 'content-type': 'application/json' },
+    body: JSON.stringify({ email, password, data: { name } }),
+  })
+  const data = (await res.json().catch(() => null)) as {
+    error_code?: string
+    error?: string
+    msg?: string
+    error_description?: string
+    identities?: unknown[]
+    access_token?: string
+    refresh_token?: string
+    expires_at?: number
+    expires_in?: number
+  } | null
+  if (!res.ok) {
+    throw new RemoteError(
+      res.status,
+      data?.error_code ?? data?.error ?? 'SIGN_UP',
+      data?.msg ?? data?.error_description ?? 'The account was not made.',
+    )
+  }
+  // An email that has an account: Supabase answers a user with no identities, not a refusal.
+  if (Array.isArray(data?.identities) && data.identities.length === 0) {
+    throw new RemoteError(422, 'user_already_exists', 'this email has an account')
+  }
+  if (data?.access_token) {
+    writeSession({
+      access: data.access_token,
+      refresh: data.refresh_token,
+      expires: expiresOf(data.expires_at, data.expires_in),
+    })
+    return 'in'
+  }
+  return 'mail'
+}
+
+/**
+ * What a confirm link carries in its hash: a session (`#access_token=…&refresh_token=…`) for
+ * `keepSession`, or the trouble in words when Supabase sent an error instead.
+ */
+export function readLink(hash: string): { session: Session } | { trouble: string } {
+  const p = new URLSearchParams(hash.replace(/^#/, ''))
+  const access = p.get('access_token')
+  if (access) {
+    return {
+      session: {
+        access,
+        refresh: p.get('refresh_token') ?? undefined,
+        expires: expiresOf(Number(p.get('expires_at')), Number(p.get('expires_in'))),
+      },
+    }
+  }
+  return {
+    trouble:
+      p.get('error_code') === 'otp_expired' ? 'This link has expired.' : 'This link did not work.',
+  }
+}
+
+/** When a token ends, in epoch seconds: Supabase gives the instant, or only how long it lasts. */
+function expiresOf(at: number | undefined, inS: number | undefined): number | undefined {
+  return at || (inS ? Math.floor(Date.now() / 1000) + inS : undefined)
+}
+
+/** Signs in with the session a confirm link carried. */
+export function keepSession(session: Session) {
+  writeSession(session)
+}
 
 async function supabaseToken(grant: 'password' | 'refresh_token', body: object) {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=${grant}`, {
@@ -67,7 +168,10 @@ async function supabaseToken(grant: 'password' | 'refresh_token', body: object) 
   return { access: data.access_token, refresh: data.refresh_token, expires: data.expires_at }
 }
 
-/** Signs in and checks the account can reach Brand Base before keeping the session. */
+/**
+ * Signs in and checks the core answers the account before keeping the session. A person the core
+ * knows in no company is signed in all the same: the app shows them that state (`RemoteSync`).
+ */
 export async function signIn(email: string, password: string) {
   const session = passwordSignIn
     ? await supabaseToken('password', { email, password })
@@ -76,13 +180,34 @@ export async function signIn(email: string, password: string) {
   try {
     await request('GET', '/me')
   } catch (err) {
+    if (noAccess(err)) return
     writeSession(null)
     throw err
   }
 }
 
+/**
+ * The core's answer to a signed-in person it has no place for yet: no principal (403
+ * `NO_ACCOUNT`), no loadout (403 `FORBIDDEN`), no account in the pack (404 `NOT_FOUND`), or a
+ * deactivated one. An admin adds them; the app waits.
+ */
+export function noAccess(err: unknown): boolean {
+  return (
+    err instanceof RemoteError &&
+    (err.status === 403 || err.status === 404) &&
+    NO_ACCESS.includes(err.code)
+  )
+}
+const NO_ACCESS = ['NO_ACCOUNT', 'FORBIDDEN', 'NOT_FOUND', 'ACCOUNT_DEACTIVATED']
+
+/** True once the account is loaded and reaches no brand and no company: nothing to show yet. */
+export const accountEmpty = () =>
+  account !== null && account.brands.length === 0 && account.companies.length === 0
+
 export function signOut() {
   writeSession(null)
+  // The next person's account loads afresh; nothing of this one's stays.
+  account = null
 }
 
 async function freshToken(): Promise<string | null> {

@@ -3,18 +3,31 @@
 import { usePathname, useRouter } from 'next/navigation'
 import * as React from 'react'
 
-import { loadAll, onProblem, remote, settled, signedIn } from '@/lib/remote'
+import {
+  accountEmpty,
+  loadAll,
+  noAccess,
+  onProblem,
+  remote,
+  settled,
+  signedIn,
+  signOut,
+} from '@/lib/remote'
+
+import { NoCompany } from './no-company'
 
 /**
  * With the server on: the team's pages wait for the brands to load, a visit without a session
- * goes to sign-in, and the data reloads when the tab comes back into view. A refused change shows
- * a short line at the bottom. The static demo and the guest share page pass straight through.
+ * goes to sign-in, a signed-in person the core knows in no company sees that one page, and the
+ * data reloads when the tab comes back into view. A refused change shows a short line at the
+ * bottom. The static demo, the guest share page and the sign-in and sign-up pages pass straight
+ * through.
  */
 export function RemoteSync({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const open = !remote || pathname.startsWith('/share') || pathname === '/sign-in'
-  const [ready, setReady] = React.useState(false)
+  const open = !remote || pathname.startsWith('/share') || pathname.startsWith('/sign-')
+  const [state, setState] = React.useState<'loading' | 'ready' | 'waiting'>('loading')
   const [problem, setProblem] = React.useState<string | null>(null)
 
   React.useEffect(() => onProblem(setProblem), [])
@@ -25,33 +38,50 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
   }, [problem])
 
   React.useEffect(() => {
-    if (open || ready) return
+    if (open || state !== 'loading') return
     if (!signedIn()) {
       router.replace('/sign-in')
       return
     }
+    // Loaded: the app, or the waiting page for an account with no brand and no company yet.
     loadAll().then(
-      () => setReady(true),
-      () => router.replace('/sign-in'),
+      () => setState(accountEmpty() ? 'waiting' : 'ready'),
+      (err: unknown) => {
+        if (noAccess(err)) setState('waiting')
+        else router.replace('/sign-in')
+      },
     )
-  }, [open, ready, router])
+  }, [open, state, router])
 
   // Back to the tab: what others changed meanwhile comes in, after this tab's own changes land.
+  // A person who was waiting and has been added since comes through to the app.
   React.useEffect(() => {
-    if (open || !ready) return
+    if (open || state === 'loading') return
     const back = () => {
       if (document.visibilityState === 'visible')
         void settled()
           .then(loadAll)
-          .catch(() => {})
+          .then(() => setState(accountEmpty() ? 'waiting' : 'ready'))
+          // Taken out of the company meanwhile: the waiting page, not a stale app.
+          .catch((err: unknown) => noAccess(err) && setState('waiting'))
     }
     document.addEventListener('visibilitychange', back)
     return () => document.removeEventListener('visibilitychange', back)
-  }, [open, ready])
+  }, [open, state])
+
+  function leave() {
+    signOut()
+    setState('loading')
+    router.replace('/sign-in')
+  }
 
   return (
     <>
-      {open || ready ? children : null}
+      {open || state === 'ready' ? (
+        children
+      ) : state === 'waiting' ? (
+        <NoCompany onSignOut={leave} />
+      ) : null}
       {problem && (
         <div
           role="status"

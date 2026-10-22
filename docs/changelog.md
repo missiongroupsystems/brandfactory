@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.34.0** — 2026-10-22 — `feat/sign-up`: a sign-up page. Name, work email and password make an account on Supabase; the confirm link lands signed in; a person the core has no place for yet sees "Not in a company yet" with their email and Sign out instead of a refusal on the sign-in page. No move or migration; adding a member is still by hand (plan in `docs/completions/sign-up-plan.md`). 982 tests (191 skipped without a Postgres server).
 - **2.33.0** — 2026-10-22 — `feat/company-access`: access by company (brandbase 1.5.0, migration 0013, not applied to production). Every active member of a company reaches all its brands; owners and admins add brands with `brand.create`; brands already in the database go to one company, Mission Group. web-next gets an Add brand page. 966 tests.
 - **2.32.0** — 2026-10-22 — `fix/core-migrations-supabase`: the core refuses to install as a login that is not a superuser, before it changes anything, and fails any database whose runtime role can call a function migration 0001 takes away. On Supabase (and Fly Managed Postgres) migration 0001 cannot take `set_config` and the other risky functions from the runtime role, and a pack's SQL could then reach `set_config('role', …)` through `ts_stat` or `query_to_xml` and leave the runtime role. A new `core setup-login` makes the login a deployed core runs as (no superuser, the pack roles, the core's schemas, `set_config` only), core migrations 0009 and 0010 take back what 0001 gave to roles that existed before the install (its functions from every pack role; the superuser's own server file and reload functions from every other role), and a new core migration waits for the superuser. The database moves to a self-managed Postgres on Fly; sign-in stays on Supabase (Passport). 925 tests.
 - **2.31.0** — 2026-10-21 — `perf/core-plan-once`: fewer trips per call. The core no longer reads the whole pack version on each call and folds its first steps into one trip; with `DATABASE_PREPARE` on it keeps each move's plan per connection; a read sends its check, rules and move in one trip and the log with the commit in a second (core migration 0008, not applied to production). Every check is kept, the database judges each call before its move runs, and a pack statement that leaves a quote open is refused. Fly to Supabase Singapore, a read went from 55–99 ms on `main` to 10–47 ms with saved plans, 10–60 ms without (a traditional single query: 4–30 ms). 916 tests with a local Postgres.
@@ -60,6 +61,35 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.34.0 — 2026-10-22
+
+Plan and as built: `docs/completions/sign-up-plan.md`,
+`docs/completions/sign-up-phases-1-to-1.md`.
+
+- **Sign-up.** `/sign-up`, linked from sign-in where sign-in goes through Supabase: name, work
+  email, password, one button. The form checks a name, an email that looks like one and eight
+  characters before it sends; Supabase's refusals (an email with an account, a weak password, the
+  sent-email limit, the built-in mailer's members-only rule, sign-up closed) show in the form's
+  words. Then "Check your email".
+- **The confirm link** lands on `/sign-up/done` with the session in the hash; the page keeps it
+  and opens the app. An expired link says so and offers sign-up again, which sends a fresh one.
+- **Not in a company yet.** A signed-in person the core refuses (no principal, no loadout, no
+  account in the pack) or knows in no company sees one calm page with their email and Sign out,
+  on any route; sign-in no longer drops their session and shows the core's words. When the tab
+  comes back into view the account loads again, so a person added meanwhile comes through.
+- **Adding a member is still by hand:** `core principal`, `core loadout`, and SQL into
+  `brandbase.users` and `brandbase.org_members`. The plan lists the smallest build (a principal
+  on first sign-in, invites by email, an Invite row in the switcher) and recommends it next.
+- **Supabase before go-live:** add `https://branding.missionsystems.ai/sign-up/done` to the
+  redirect URL list, set custom SMTP (the built-in mailer sends 2 emails an hour, to the Supabase
+  organisation's own members only), set the password minimum to 8.
+- **Review:** Sonnet, one pass; no blocker. Fixed: the waiting page showed on any 403 or 404
+  (a proxy's too), now only on the core's own codes; a person removed from their company kept a
+  stale app; sign-out kept the loaded account; a sign-up answer's `expires_in` was dropped; a
+  fixed date in two tests.
+- **Gate:** typecheck, lint, format, build; tests 982 (791 run, 191 skipped: no Postgres server
+  was started on this machine). Screenshots on desktop and phone.
 
 ## 2.33.0 — 2026-10-22
 
