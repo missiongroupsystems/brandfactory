@@ -120,6 +120,16 @@ describe('planning a post on the core, with no account connected', () => {
     expect(screen.getByTestId('channels').textContent).toBe('tt yt')
   })
 
+  it('drops a platform the brand no longer uses, as the core refuses a save that names it', async () => {
+    account.platforms = ['tt']
+    open({ ...draft, format: 'reel', channels: ['tt', 'yt'] })
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: /^Schedule/ })[0]!)
+    })
+    const patch = requests.find((r) => r.call === 'PATCH /brands/casa-vostra/posts/crust')
+    expect((patch!.body as { channels: string[] }).channels).toEqual(['tt'])
+  })
+
   it('says a brand with none of the platforms has nothing to plan on', () => {
     account.platforms = []
     open(draft)

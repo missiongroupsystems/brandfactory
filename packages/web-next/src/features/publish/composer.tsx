@@ -295,9 +295,13 @@ export function Composer({
 
   const active = activeChannels(draft)
   // Planned only on the platforms the composer offers: a post's others (YouTube, LinkedIn) are
-  // kept on every save, here and on the calendar, not dropped.
+  // kept on every save, here and on the calendar, not dropped. One the brand no longer uses goes:
+  // the core refuses a save that names it.
   const others = planOnly
-    ? (opened?.channels ?? []).filter((k) => !(PUBLISHERS as readonly string[]).includes(k))
+    ? (opened?.channels ?? []).filter(
+        (k) =>
+          !(PUBLISHERS as readonly string[]).includes(k) && (brand.platforms ?? [k]).includes(k),
+      )
     : []
   const targetId = post?.id ?? madeId
   const storyDay = when === 'now' ? todayDate() : date
