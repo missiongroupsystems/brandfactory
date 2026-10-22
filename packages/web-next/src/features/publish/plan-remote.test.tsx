@@ -135,7 +135,7 @@ describe('planning a post on the core, with no account connected', () => {
     open(draft)
     expect(screen.getByText('This brand has no Instagram, TikTok or Facebook.')).toBeTruthy()
     const accounts = screen.getByRole('region', { name: 'Accounts' })
-    expect(within(accounts).queryByRole('button', { name: 'Won’t publish' })).toBeNull()
+    expect(within(accounts).queryByRole('button', { name: 'Not available yet' })).toBeNull()
   })
 
   it('picks the platforms and previews the post on the one picked', () => {
@@ -146,7 +146,7 @@ describe('planning a post on the core, with no account connected', () => {
     fireEvent.click(tiktok)
     expect(tiktok).toHaveAttribute('aria-checked', 'true')
     // The note stays: planned, not published.
-    expect(within(accounts).getByRole('button', { name: 'Won’t publish' })).toBeTruthy()
+    expect(within(accounts).getByRole('button', { name: 'Not available yet' })).toBeTruthy()
     const preview = screen.getByRole('region', { name: 'Preview' })
     expect(within(preview).getByRole('button', { name: 'Preview on Instagram' })).toBeTruthy()
     expect(within(preview).getByRole('button', { name: 'Preview on TikTok' })).toBeTruthy()
