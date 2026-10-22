@@ -1,6 +1,6 @@
 {
   "name": "connection.set",
-  "description": "Turns one of a brand's connections on or off, as the connect sheet does. The real sign-in for Meta, Pinterest and TikTok lives in packages/connect, not wired to this yet.",
+  "description": "Turns one of a brand's connections on or off, as the connect sheet does. Pinterest follows the brand's linked account instead (account.link, account.board); the real sign-ins for Meta and TikTok are not wired to this yet.",
   "input": {
     "type": "object",
     "additionalProperties": false,
@@ -20,7 +20,6 @@
           "web",
           "gbp",
           "res",
-          "pinterest",
           "moodboard-dm",
           "moodboard-tt"
         ]

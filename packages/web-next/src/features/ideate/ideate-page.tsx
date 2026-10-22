@@ -11,6 +11,7 @@ import { CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import { MOODBOARD_ACCOUNT, moodboardTag, PINTEREST_ACCOUNT } from '@/data/brand-kit'
 import {
+  boardsOf,
   IDEAS_BY_BRAND,
   moodboardOf,
   inspirationOf,
@@ -25,7 +26,7 @@ import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 import { planShoot } from '@/features/shoot/shoots-store'
 import { NotAvailable, notAvailable, reasonOf } from '@/features/connections/not-available'
-import { demoOf, newId } from '@/lib/remote'
+import { demoOf, newId, remote, RemoteError } from '@/lib/remote'
 
 import { EYEBROW, FormatIcon, STATUS_LABEL, statusColour, useSlots, type Slot } from './idea-parts'
 import { dayLabel, dayOfHook, landingDay } from './calendar-slot'
@@ -33,6 +34,7 @@ import {
   addIdea,
   addIdeaFromPosts,
   connectSource,
+  forgetLiveBoard,
   pasteLink,
   skipSuggestion,
   suggest,
@@ -40,6 +42,7 @@ import {
   type MoodSource,
 } from './ideas-store'
 import { IDEAS_HREF } from './idea-page'
+import { pickBoard, pinterestSetup, startPinterest, type PinterestSetup } from './pinterest'
 
 const FORMAT_LABEL: Record<IdeaFormat, string> = {
   reel: 'Reel',
@@ -548,15 +551,20 @@ const SOURCE_LOGO: Record<MoodSource, 'pinterest' | 'ig' | 'tt'> = {
 function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   const { brand } = useBrand()
   const { sources } = useIdeas(brand.id)
-  const { boards, references } = moodboardOf(brand.id)
+  const { references } = moodboardOf(brand.id)
+  const boards = boardsOf(brand.id)
   const [filter, setFilter] = React.useState<string>('all')
   // Pasted links live in the data module, so an idea keeps them and they outlast a view switch.
   // Read on every render: a paste and a reload from the server both notify the ideas store.
   const pasted = pastedReferences(brand.id)
   // The posts picked, in the order they were picked: the first lends the idea its words.
   const [selected, setSelected] = React.useState<string[]>([])
-  // Whether a source is being added from the one "+" chip, shown under the chip row.
-  const [adding, setAdding] = React.useState(false)
+  // Whether a source is being added from the one "+" chip, shown under the chip row. Until the
+  // person opens or closes it, it is open when the page came back from a sign-in, ready for that
+  // source's next step.
+  const [addingSet, setAdding] = React.useState<boolean | null>(null)
+  const asked = useSetupAsked()
+  const adding = addingSet ?? asked !== null
   const top = React.useRef<HTMLDivElement>(null)
   // Where the chip that opened the setup starts, so on a wide screen the setup opens under it.
   const [anchor, setAnchor] = React.useState(0)
@@ -702,7 +710,7 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
                   const chip = e.currentTarget.getBoundingClientRect()
                   // Kept on screen: a chip near the right edge opens the setup leftwards.
                   if (row) setAnchor(Math.min(chip.left - row.left, row.width - 360 - 40))
-                  setAdding((a) => !a)
+                  setAdding(!adding)
                 }}
                 className="flex size-9 items-center justify-center rounded-full text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink"
               >
@@ -716,7 +724,7 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
             style={{ '--x': `${anchor}px` } as React.CSSProperties}
             className="bb-pop absolute top-full left-(--x) mt-1 w-[360px] rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line),0_16px_40px_-16px_rgba(0,0,0,0.22)] max-md:right-4 max-md:left-4 max-md:w-auto"
           >
-            <AddSource missing={missing} />
+            <AddSource missing={missing} initial={asked} />
           </div>
         )}
       </div>
@@ -735,9 +743,26 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   )
 }
 
+const noSubscribe = () => () => undefined
+
+/** The source the address asks to set up, or none; never on the server. */
+function setupInAddress(): MoodSource | null {
+  const source = new URLSearchParams(window.location.search).get('setup')
+  return source && Object.hasOwn(SOURCE_NAME, source) ? (source as MoodSource) : null
+}
+
+/**
+ * The source a link asks to set up (`/ideate?setup=pinterest`, where the Pinterest sign-in comes
+ * back to). Read from the address on the client only, so the server's page and the first client
+ * render agree.
+ */
+function useSetupAsked(): MoodSource | null {
+  return React.useSyncExternalStore(noSubscribe, setupInAddress, () => null)
+}
+
 /** One more source for the board: the only one left sets up at once; otherwise, pick first. */
-function AddSource({ missing }: { missing: MoodSource[] }) {
-  const [picked, setPicked] = React.useState<MoodSource | null>(null)
+function AddSource({ missing, initial }: { missing: MoodSource[]; initial?: MoodSource | null }) {
+  const [picked, setPicked] = React.useState<MoodSource | null>(initial ?? null)
   const source = missing.length === 1 ? missing[0]! : picked
   if (source) return <SourceSetup source={source} />
   return (
@@ -769,16 +794,23 @@ function DmHint() {
   )
 }
 
-/**
- * Setting up one source. Pinterest: the team's one account keeps a board per brand, and this
- * brand's board is the one that connects; the others belong to their own brands. Instagram: the
- * steps to DM a post to the moodboard account, then a button to turn the source on.
- */
 /** The platform each moodboard source reads from, and its name. */
 const PLATFORM: Record<MoodSource, string> = { pinterest: 'pinterest', dm: 'ig', tt: 'tt' }
 const NAME: Record<MoodSource, string> = { pinterest: 'Pinterest', dm: 'Instagram', tt: 'TikTok' }
 
+/**
+ * Setting up one source. Pinterest on the core, once the server has its app set up: the brand's
+ * own Pinterest account and the one board on it the moodboard reads. In the static demo,
+ * Pinterest is the team's one account with a board per brand. Instagram: the steps to DM a post
+ * to the moodboard account, then a button to turn the source on.
+ */
 function SourceSetup({ source }: { source: MoodSource }) {
+  if (remote && source === 'pinterest' && !notAvailable('pinterest')) return <PinterestSetup />
+  return <DemoSetup source={source} />
+}
+
+/** A short pretend step, or on the core the amber state, since it cannot connect yet. */
+function DemoSetup({ source }: { source: MoodSource }) {
   const { brand, brands } = useBrand()
   const [busy, setBusy] = React.useState(false)
 
@@ -840,7 +872,7 @@ function SourceSetup({ source }: { source: MoodSource }) {
       <div role="radiogroup" aria-label="Boards" className="flex flex-col">
         {brands.map((b) => {
           const own = b.id === brand.id
-          const pins = moodboardOf(b.id).boards.reduce((n, s) => n + s.pinCount, 0)
+          const pins = boardsOf(b.id).reduce((n, s) => n + s.pinCount, 0)
           return (
             <span
               key={b.id}
@@ -869,10 +901,208 @@ function SourceSetup({ source }: { source: MoodSource }) {
   )
 }
 
+/**
+ * Pinterest on the core: the brand signs in with its own Pinterest account, then picks the board
+ * its moodboard reads.
+ */
+function PinterestSetup() {
+  const { brand } = useBrand()
+  const [setup, setSetup] = React.useState<PinterestSetup | null>(null)
+  const [error, setError] = React.useState<string | null>(null)
+  const [picked, setPicked] = React.useState<string | null>(null)
+  const [busy, setBusy] = React.useState(false)
+  // Bumped by "Check again", which reads the boards once more; `checking` until it answers.
+  const [reads, setReads] = React.useState(0)
+  const [checking, setChecking] = React.useState(false)
+
+  React.useEffect(() => {
+    let live = true
+    pinterestSetup(brand.id).then(
+      (s) => {
+        if (!live) return
+        setChecking(false)
+        setSetup(s)
+        // The board it reads now; else the likely one, the first with pins, so one click links it.
+        setPicked(
+          (s.boards.find((b) => b.picked) ?? s.boards.find((b) => b.pinCount > 0) ?? s.boards[0])
+            ?.id ?? null,
+        )
+      },
+      (err: unknown) => {
+        if (!live) return
+        setChecking(false)
+        // A dead sign-in: offer Connect again, with the reason.
+        if (err instanceof RemoteError && err.code === 'PINTEREST_RECONNECT') {
+          setSetup({ account: null, boards: [] })
+        }
+        setError(message(err))
+      },
+    )
+    return () => {
+      live = false
+    }
+  }, [brand.id, reads])
+
+  async function run(act: () => Promise<unknown>) {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      await act()
+    } catch (err) {
+      setError(message(err))
+      setBusy(false)
+    }
+  }
+
+  const button = (label: string, onClick: () => void, disabled = false) => (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || busy}
+      className="bb-press flex h-10 items-center justify-center gap-2 self-start rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85 disabled:opacity-40"
+    >
+      {busy && (
+        <span className="size-3 animate-spin rounded-full border-[1.5px] border-white/30 border-t-white" />
+      )}
+      {busy ? 'Connecting…' : label}
+    </button>
+  )
+  const problem = error && <p className="text-[12.5px] text-fail-ink">{error}</p>
+
+  if (!setup) {
+    return (
+      <div className="flex flex-col gap-4 text-left">
+        <span className={EYEBROW}>Pinterest</span>
+        {problem ?? <p className="text-[13.5px] text-ink-4">Loading…</p>}
+      </div>
+    )
+  }
+
+  if (!setup.account) {
+    return (
+      <div className="flex flex-col gap-4 text-left">
+        <span className={EYEBROW}>Pinterest</span>
+        <p className="text-[13.5px] text-ink-2">Link {brand.name}’s Pinterest account.</p>
+        {button('Connect Pinterest', () => void run(() => startPinterest(brand.id)))}
+        {problem}
+      </div>
+    )
+  }
+
+  const handle = `Pinterest · @${setup.account.username}`
+  // Pinterest signs in whoever is signed in on pinterest.com, so another account starts there.
+  const another = (
+    <button
+      type="button"
+      onClick={() => void run(() => startPinterest(brand.id))}
+      className="self-start text-[12.5px] text-ink-4 underline-offset-2 hover:text-ink hover:underline"
+    >
+      Use another Pinterest account
+    </button>
+  )
+
+  if (setup.boards.length === 0) {
+    return (
+      <div className="flex flex-col gap-4 text-left">
+        <span className={EYEBROW}>{handle}</span>
+        <p className="text-[13.5px] text-ink-2">
+          No boards on this account yet. Make one on{' '}
+          <a
+            href="https://www.pinterest.com/"
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-ink underline underline-offset-2"
+          >
+            Pinterest
+          </a>
+          , then check again.
+        </p>
+        <button
+          type="button"
+          disabled={checking}
+          onClick={() => {
+            setError(null)
+            setChecking(true)
+            setReads((n) => n + 1)
+          }}
+          className="bb-press flex h-10 items-center self-start rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85 disabled:opacity-40"
+        >
+          {checking ? 'Checking…' : 'Check again'}
+        </button>
+        {another}
+        {problem}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-4 text-left">
+      <span className={EYEBROW}>{handle}</span>
+      <div
+        role="radiogroup"
+        aria-label="Boards"
+        className="flex max-h-[320px] flex-col overflow-y-auto"
+      >
+        {setup.boards.map((b) => {
+          const on = picked === b.id
+          return (
+            <button
+              key={b.id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => setPicked(b.id)}
+              className="flex items-center gap-3 border-t border-line py-2.5 text-left first:border-t-0"
+            >
+              <span className="relative size-7 shrink-0 overflow-hidden rounded-[8px] bg-tile">
+                {b.cover && (
+                  <Image src={b.cover} alt="" fill sizes="56px" className="object-cover" />
+                )}
+              </span>
+              <span className="flex flex-1 flex-col">
+                <span className="text-[13.5px] font-medium">{b.name}</span>
+                <span className="text-[12px] text-ink-4">{b.pinCount} pins</span>
+              </span>
+              {on && <CheckIcon size={13} />}
+            </button>
+          )
+        })}
+      </div>
+      {button(
+        `Connect ${brand.name}’s board`,
+        () =>
+          void run(async () => {
+            // The old board's pins leave; the brand reloads and reads the new one.
+            forgetLiveBoard(brand.id)
+            await pickBoard(brand.id, picked!)
+            setBusy(false)
+          }),
+        !picked,
+      )}
+      {another}
+      {problem}
+    </div>
+  )
+}
+
+const message = (err: unknown) => {
+  const text = err instanceof Error && err.message ? err.message : 'That did not work'
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`
+}
+
 function ConnectSources() {
   const { brand } = useBrand()
-  const { boards } = moodboardOf(brand.id)
-  const [open, setOpen] = React.useState<MoodSource | null>(null)
+  const boards = boardsOf(brand.id)
+  // The source whose setup is open: the one a sign-in came back for, until the person picks.
+  const [picked, setOpen] = React.useState<MoodSource | null | undefined>(undefined)
+  const asked = useSetupAsked()
+  const open = picked === undefined ? asked : picked
+  const setup = React.useRef<HTMLDivElement>(null)
+  // Opened by a sign-in coming back: in view, since on a phone it sits below the fold.
+  React.useEffect(() => {
+    if (asked && picked === undefined) setup.current?.scrollIntoView({ block: 'center' })
+  }, [asked, picked])
 
   return (
     <section
@@ -914,7 +1144,11 @@ function ConnectSources() {
         })}
       </div>
       {open && (
-        <div key={open} className="bb-pop w-full max-w-[420px] rounded-[18px] bg-surface-2 p-5">
+        <div
+          key={open}
+          ref={setup}
+          className="bb-pop w-full max-w-[420px] rounded-[18px] bg-surface-2 p-5"
+        >
           <SourceSetup source={open} />
         </div>
       )}

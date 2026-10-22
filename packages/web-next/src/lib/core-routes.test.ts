@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { coreCall, guestCall } from './core-routes'
+import { coreCall, guestCall, isAccountRoute } from './core-routes'
 
 describe('the routes on the core', () => {
   it('turns each ported route into its move, with the path and the body as the input', () => {
@@ -121,5 +121,20 @@ describe('the routes on the core', () => {
 
   it('has no move for a route the app does not call', () => {
     expect(coreCall('GET', '/brands/casa/posts/p1', undefined)).toBeNull()
+  })
+})
+
+describe('the account routes', () => {
+  it('sends Pinterest’s sign-in, boards and pins to the server as they are, and no other platform’s', () => {
+    expect(isAccountRoute('POST', '/brands/b1/pinterest/connect')).toBe(true)
+    expect(isAccountRoute('POST', '/pinterest/callback')).toBe(true)
+    expect(isAccountRoute('GET', '/brands/b1/pinterest')).toBe(true)
+    expect(isAccountRoute('GET', '/brands/b1/pinterest/pins')).toBe(true)
+    expect(isAccountRoute('PUT', '/brands/b1/pinterest')).toBe(true)
+    expect(isAccountRoute('DELETE', '/brands/b1/pinterest')).toBe(true)
+    // Meta and TikTok have no sign-in on the server yet.
+    expect(isAccountRoute('POST', '/brands/b1/meta/connect')).toBe(false)
+    expect(isAccountRoute('POST', '/tiktok/callback')).toBe(false)
+    expect(isAccountRoute('PUT', '/brands/b1/pinterest/pins')).toBe(false)
   })
 })

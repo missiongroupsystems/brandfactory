@@ -9,5 +9,6 @@
   "stage": "draft, scheduled, posted or failed. Failed means at least one account failed.",
   "story row": "Each day holds one planned story, and none once stories went out that day.",
   "channels": "The accounts a post goes to: ig (Instagram), tt (TikTok), yt (YouTube), li (LinkedIn), fb (Facebook).",
-  "moodboard": "Posts a brand's team saved to borrow from, each by key: pasted links, saved posts on the shelf, and pins on a Pinterest board. An idea's inspiration names them by key."
+  "moodboard": "Posts a brand's team saved to borrow from, each by key: pasted links, saved posts on the shelf, and pins on a Pinterest board. An idea's inspiration names them by key.",
+  "accounts": "A brand's own account on a platform, linked by its sign-in: Pinterest so far, whose one picked board the moodboard reads live. One per platform per brand; an account belongs to one brand. Its tokens are sealed and only internal moves read or write it. Not a person's sign-in (account.me)."
 }

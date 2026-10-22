@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.37.0** — 2026-10-22 — `feat/pinterest-connect`: the real Pinterest connection (brandbase 1.7.0, migration 0015, not applied to production). A brand links its own Pinterest account and picks one board; the moodboard reads its pins live. The server is the core with `packages/connect`'s account routes beside it (`host.ts`, the image's entry), and `GET /platforms` tells the web app Pinterest is set up, so only Pinterest leaves the amber "Not available yet"; Instagram, TikTok and Facebook keep it. Core: internal moves and secret input fields. Ported from `feat/real-publishing` without Meta, TikTok or posting. 1113 tests, all run on a local Postgres.
 - **2.36.0** — 2026-10-22 — `feat/bubbles-deploy`: Bubbles deployed (22 Oct, Fly app `brandbase-bubbles`). Its own Fly app `brandbase-bubbles` in sin (`packages/bubbles/fly.toml`, a Debian `Dockerfile` with the runtime from the pinned wheel, checked by digest), and a daily spend cap in the gateway (`BUBBLES_DAILY_USD`, default $5, by OpenRouter's own cost) after which the page says Bubbles is back tomorrow. Checked end to end on this machine: the real runtime, a local core with the demo data and a scripted model. No migration. 1091 tests (196 skipped without a Postgres server).
 - **2.35.7** — 2026-10-22 — `feat/best-time`: on the core, the best time to post comes from the brand's own posts that went out with numbers (the imported Instagram and TikTok posts), once there are twenty: the Day view's band, the phone Day view, New post's default time, hour chart, "best hour" and best time, and the idea page's day picker. Fewer than twenty: no best time, as before. The static demo is unchanged. No pack change, no migration. Also from the 2.35.6 merge review: a posted post with no caption shows none (the title no longer stands in), a TikTok row that still needs an answer is left off the read-only page, and a planned post says "Nothing is sent yet." A post after midnight counts toward the evening, and the idea page can mark 09:00. 1087 tests (196 skipped without a Postgres server).
 - **2.35.6** — 2026-10-22 — `fix/onboarding-polish`: a posted post (brought in or sent from Brand base) opens on the post page's own cards, every field as plain text and no empty field: Posted to with its platforms and format, the media and caption, Details, and the preview. On the core a posted reel or TikTok video shows its cover with an amber "Cover only" and why. Every amber notice is shorter and names what is missing: "Not connected", "Won't publish", "Planned only", each with one short line. No migration. 1076 tests (196 skipped without a Postgres server).
@@ -73,6 +74,39 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.37.0 — 2026-10-22
+
+- **Why.** The team starts on production on 23 Oct; the Pinterest app and its Fly secrets exist,
+  so the moodboard's Pinterest source can be real while Meta and TikTok wait for review.
+- **Core.** A move marked `internal` is called only by code beside the core (`call(…, {internal:
+  true})`): a screen gets 404 `OP_NOT_FOUND`, an agent 403 `NOT_A_PERSON`, MCP lists none. A move's
+  `secret` input fields stay out of the call log. `serveCore(extend)` lets a host add routes;
+  `main.ts` runs it bare.
+- **brandbase 1.7.0.** `brandbase.accounts` (migration 0015, walled like 0013): one account per
+  platform per brand, an account to one brand only (409 `ACCOUNT_TAKEN`). Internal moves
+  `account.link`, `account.read`, `account.retoken`, `account.board`, `account.forget`, Pinterest
+  only. The `pinterest` connection follows the account: on once a board is picked; `connection.set`
+  no longer takes it, and 0015 turns off one the pretend sign-in stored. `brand.state` names the
+  linked account, never its tokens.
+- **Server.** `packages/connect/src/brandbase/host.ts` is the image's entry: the core plus
+  Pinterest's sign-in (sealed state, sealed tokens bound to brand and account, refresh a day
+  early), boards and pins read live, and `GET /platforms`. Scopes `boards:read`, `pins:read`,
+  `user_accounts:read`. `.dockerignore` now lets connect's source into the image; the release
+  command takes the core's CLI from `node_modules`.
+- **web-next.** `/connect/pinterest` takes Pinterest's return; the moodboard opens on the board
+  picker; the board's pins show on the moodboard, read once per page load for a brand on screen,
+  one read at a time (Trial allows 1,000 reads a day for the app). Connections shows `@handle` and a real Connect for Pinterest only when
+  the server says it is set up.
+- **Review.** Opus and Sonnet panel: the server must deploy before pack 1.7.0 (the running core
+  would treat the account moves as ordinary ones); `/platforms` failing no longer stops the app's
+  load; one token refresh at a time; a late board read after a disconnect is dropped.
+- **Tests.** Pack: `accounts.json` (7), five more isolation steps, an upgrade test for 0015. Core:
+  internal moves and secret fields. connect: `pinterest.test.ts` (13). web-next:
+  `pinterest-remote.test.tsx`, `/platforms` in `remote.test.ts`, the account routes.
+- **Gate:** typecheck, lint, format, build; tests 1113, all run (a local Postgres for the core's
+  Postgres tests). A browser check at desktop and phone width with a stand-in Pinterest. Not
+  deployed; production steps in `docs/completions/pinterest-connect-phases-1-to-2.md`.
 
 ## 2.36.0 — 2026-10-22
 
