@@ -1,0 +1,33 @@
+{
+  "name": "account.retoken",
+  "description": "Keeps an account's new sealed tokens after a refresh, only if the brand still holds that same account. Internal: packages/connect.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "platform", "accountId", "tokens"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "platform": {
+        "enum": ["pinterest"]
+      },
+      "accountId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "tokens": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 20000
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "internal": true,
+  "returns": "many",
+  "sql": "update brandbase.accounts a set tokens = :tokens, updated_at = now() where a.brand_id = :brand and a.platform = :platform and a.account_id = :accountId returning jsonb_build_object('accountId', a.account_id) as result",
+  "secret": ["tokens"]
+}

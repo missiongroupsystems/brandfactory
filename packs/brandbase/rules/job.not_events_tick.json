@@ -1,0 +1,7 @@
+{
+  "id": "job.not_events_tick",
+  "sql": "select :call::text is distinct from 'event.tick' as ok",
+  "status": 409,
+  "code": "FEED_STOPPED",
+  "message": "a brand's events feed stopped: an owner starts it again with event.feed"
+}

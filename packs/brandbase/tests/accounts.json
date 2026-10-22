@@ -1,0 +1,477 @@
+{
+  "name": "accounts",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "member",
+  "cases": [
+    {
+      "name": "links the brand's Pinterest account, and Pinterest turns on only once a board is picked",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "username": "casa.pins",
+            "tokens": "sealed-pin-1",
+            "details": {}
+          },
+          "expect": {
+            "result": {
+              "platform": "pinterest",
+              "accountId": "pin-1",
+              "username": "casa.pins",
+              "details": {}
+            }
+          }
+        },
+        {
+          "sql": "select key, status from brandbase.connections where brand_id = 'casa' and key = 'pinterest'",
+          "expect": {
+            "rows": [
+              {
+                "key": "pinterest",
+                "status": "off"
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "pinterest": {
+                "username": "casa.pins"
+              }
+            }
+          }
+        },
+        {
+          "call": "account.board",
+          "input": {
+            "brand": "casa",
+            "board": "b1"
+          },
+          "expect": {
+            "result": {
+              "details": {
+                "board": "b1"
+              }
+            }
+          }
+        },
+        {
+          "sql": "select key, status from brandbase.connections where brand_id = 'casa' and key = 'pinterest'",
+          "expect": {
+            "rows": [
+              {
+                "key": "pinterest",
+                "status": "connected"
+              }
+            ]
+          }
+        },
+        {
+          "call": "account.forget",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1"
+          },
+          "expect": {
+            "length": 1
+          }
+        },
+        {
+          "sql": "select key, status from brandbase.connections where brand_id = 'casa' and key = 'pinterest'",
+          "expect": {
+            "rows": [
+              {
+                "key": "pinterest",
+                "status": "off"
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "pinterest": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps the tokens out of the brand's state and the log",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "username": "casa.pins",
+            "tokens": "sealed-pin-1",
+            "details": {}
+          }
+        },
+        {
+          "call": "account.retoken",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "tokens": "sealed-pin-1b"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from packs.op_calls where input::text like '%sealed-pin-1%'",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select op, input ->> 'tokens' as tokens from packs.op_calls where op in ('account.link', 'account.retoken') order by id",
+          "expect": {
+            "rows": [
+              {
+                "op": "account.link",
+                "tokens": "(secret)"
+              },
+              {
+                "op": "account.retoken",
+                "tokens": "(secret)"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses an account another brand holds, without naming it",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "temper",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "username": "shared.pins",
+            "tokens": "sealed-pin-1",
+            "details": {}
+          },
+          "as": "both"
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "username": "shared.pins",
+            "tokens": "sealed-pin-1",
+            "details": {}
+          },
+          "expect": {
+            "status": 409,
+            "code": "ACCOUNT_TAKEN",
+            "message": "this account belongs to another brand"
+          }
+        },
+        {
+          "call": "account.read",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest"
+          },
+          "expect": {
+            "length": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps the Pinterest board for the same account and drops it for another",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "username": "casa.pins",
+            "tokens": "sealed-pin-1",
+            "details": {}
+          }
+        },
+        {
+          "call": "account.board",
+          "input": {
+            "brand": "casa",
+            "board": "b1"
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "username": "casa.pins",
+            "tokens": "sealed-pin-1b",
+            "details": {}
+          },
+          "expect": {
+            "result": {
+              "details": {
+                "board": "b1"
+              }
+            }
+          }
+        },
+        {
+          "sql": "select key, status from brandbase.connections where brand_id = 'casa' and key = 'pinterest'",
+          "expect": {
+            "rows": [
+              {
+                "key": "pinterest",
+                "status": "connected"
+              }
+            ]
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-2",
+            "username": "other.pins",
+            "tokens": "sealed-pin-2",
+            "details": {}
+          },
+          "expect": {
+            "result": {
+              "details": {}
+            }
+          }
+        },
+        {
+          "sql": "select key, status from brandbase.connections where brand_id = 'casa' and key = 'pinterest'",
+          "expect": {
+            "rows": [
+              {
+                "key": "pinterest",
+                "status": "off"
+              }
+            ]
+          }
+        },
+        {
+          "call": "account.board",
+          "input": {
+            "brand": "casa",
+            "board": "b2"
+          }
+        },
+        {
+          "sql": "select key, status from brandbase.connections where brand_id = 'casa' and key = 'pinterest'",
+          "expect": {
+            "rows": [
+              {
+                "key": "pinterest",
+                "status": "connected"
+              }
+            ]
+          }
+        },
+        {
+          "call": "account.board",
+          "input": {
+            "brand": "casa",
+            "board": null
+          },
+          "expect": {
+            "result": {
+              "details": {}
+            }
+          }
+        },
+        {
+          "sql": "select key, status from brandbase.connections where brand_id = 'casa' and key = 'pinterest'",
+          "expect": {
+            "rows": [
+              {
+                "key": "pinterest",
+                "status": "off"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "asks for Pinterest again when the brand has no account to pick a board on",
+      "steps": [
+        {
+          "call": "account.board",
+          "input": {
+            "brand": "casa",
+            "board": "b1"
+          },
+          "expect": {
+            "status": 409,
+            "code": "PINTEREST_RECONNECT"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps new tokens and forgets only the account it read, never one linked since",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "username": "casa.pins",
+            "tokens": "sealed-pin-1",
+            "details": {}
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-2",
+            "username": "casa.new",
+            "tokens": "sealed-pin-2",
+            "details": {}
+          }
+        },
+        {
+          "call": "account.retoken",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "tokens": "stale"
+          },
+          "expect": {
+            "length": 0
+          }
+        },
+        {
+          "call": "account.forget",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1"
+          },
+          "expect": {
+            "length": 0
+          }
+        },
+        {
+          "call": "account.read",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest"
+          },
+          "expect": {
+            "result": [
+              {
+                "accountId": "pin-2",
+                "tokens": "sealed-pin-2"
+              }
+            ]
+          }
+        },
+        {
+          "call": "account.retoken",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-2",
+            "tokens": "fresh"
+          },
+          "expect": {
+            "length": 1
+          }
+        },
+        {
+          "call": "account.read",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest"
+          },
+          "expect": {
+            "result": [
+              {
+                "tokens": "fresh"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "leaves Pinterest to the account, not the connect sheet, and links no Meta or TikTok account yet",
+      "steps": [
+        {
+          "call": "connection.set",
+          "input": {
+            "brand": "casa",
+            "key": "pinterest",
+            "status": "connected"
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "meta",
+            "accountId": "page-1",
+            "username": "Casa",
+            "tokens": "sealed",
+            "details": {}
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "tiktok",
+            "accountId": "tt-1",
+            "username": "casa",
+            "tokens": "sealed",
+            "details": {}
+          },
+          "expect": {
+            "status": 400
+          }
+        }
+      ]
+    }
+  ]
+}

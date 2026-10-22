@@ -4,11 +4,13 @@ import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
 import { notAvailable } from '@/features/connections/not-available'
-import { demoOf, newId, onState, push, remote, request } from '@/lib/remote'
+import { demoOf, newId, onState, push, remote, RemoteError, report, request } from '@/lib/remote'
 import {
   coverOf,
   IDEAS_BY_BRAND,
+  boardsShown,
   pasteReference,
+  showBoards,
   showMoodboard,
   showPasted,
   type Board,
@@ -18,6 +20,8 @@ import {
   type IdeaSource,
   type Reference,
 } from '@/data/ideas'
+
+import { loadBoard } from './pinterest'
 
 /**
  * The ideas, in memory and outside React, so the insights page can add one and the ideas page
@@ -174,18 +178,75 @@ if (remote) {
     showPasted(brandId as BrandId, (s.pasted ?? []) as Reference[])
     const board = moodboardFromState(s as Parameters<typeof moodboardFromState>[0])
     if (board) showMoodboard(brandId as BrandId, board)
-    // Pinterest's status comes through the connections store, which owns that key.
+    // Pinterest is on once the brand's own account has a board picked, as the server decides, and
+    // its sign-in has not died since the page loaded. A server with no Pinterest app shows none.
+    const pinterest =
+      on('pinterest') &&
+      Boolean(s.pinterest) &&
+      !notAvailable('pinterest') &&
+      !deadPinterest.has(brandId as BrandId)
+    if (pinterest) wantedBoards.set(brandId as BrandId, s.brand.name ?? '')
+    else if (wantedBoards.has(brandId as BrandId)) forgetLiveBoard(brandId as BrandId)
     update(brandId as BrandId, (b) => ({
       ...b,
       ideas: (s.ideas as unknown[]).map(cardOf),
       // Instagram and TikTok are not set up on our side yet: a stored "connected" is not trusted.
       sources: {
-        ...b.sources,
+        pinterest,
         dm: on(SOURCE_KEY.dm) && !notAvailable('ig'),
         tt: on(SOURCE_KEY.tt) && !notAvailable('tt'),
       },
     }))
   })
+}
+
+/**
+ * The live Pinterest board, on the core. Its pins are read from Pinterest only for a brand a
+ * screen shows (`useIdeas`), once per page load, and once at a time: a state read again (the tab
+ * back in view) does not ask Pinterest again, since the app's Trial access allows 1,000 reads a
+ * day for every brand together. A board changed or forgotten meanwhile drops a read on its way.
+ */
+const wantedBoards = new Map<BrandId, string>()
+const readingBoards = new Set<BrandId>()
+/** Brands whose Pinterest sign-in died this page load: off until it signs in again. */
+const deadPinterest = new Set<BrandId>()
+/** Bumped each time a brand's board is forgotten, so an older read is dropped. */
+const boardRounds = new Map<BrandId, number>()
+
+/** Forgets the brand's live board: after a disconnect, a new sign-in or a new board. */
+export function forgetLiveBoard(brandId: BrandId) {
+  wantedBoards.delete(brandId)
+  deadPinterest.delete(brandId)
+  boardRounds.set(brandId, (boardRounds.get(brandId) ?? 0) + 1)
+  showBoards(brandId, null)
+}
+
+function readLiveBoard(brandId: BrandId) {
+  const name = wantedBoards.get(brandId)
+  if (name === undefined || boardsShown(brandId) || readingBoards.has(brandId)) return
+  const round = boardRounds.get(brandId) ?? 0
+  const current = () => (boardRounds.get(brandId) ?? 0) === round && wantedBoards.has(brandId)
+  readingBoards.add(brandId)
+  loadBoard(brandId, name)
+    .then(
+      (live) => {
+        if (!current()) return
+        showBoards(brandId, [live])
+        update(brandId, (b) => ({ ...b }))
+      },
+      (err: unknown) => {
+        if (!current()) return
+        showBoards(brandId, [])
+        // A dead sign-in: the source shows as off, so its setup offers Connect again.
+        if (err instanceof RemoteError && err.code === 'PINTEREST_RECONNECT') {
+          deadPinterest.add(brandId)
+          wantedBoards.delete(brandId)
+          update(brandId, (b) => ({ ...b, sources: { ...b.sources, pinterest: false } }))
+        }
+        report(err instanceof Error && err.message ? err.message : 'Pinterest did not load.')
+      },
+    )
+    .finally(() => readingBoards.delete(brandId))
 }
 
 const send = (brandId: BrandId, method: string, path: string, body?: unknown) =>
@@ -214,6 +275,10 @@ export function useIdeas(brandId: BrandId): BrandIdeasState & { target: number }
     () => state[brandId] ?? EMPTY,
     () => state[brandId] ?? EMPTY,
   )
+  // A brand on screen reads its live Pinterest board, if it has one and has not read it yet.
+  React.useEffect(() => {
+    if (remote) readLiveBoard(brandId)
+  }, [brandId, s])
   return { ...s, target: demoOf(IDEAS_BY_BRAND, brandId)?.target ?? 0 }
 }
 
@@ -352,8 +417,9 @@ export function suggest(brandId: BrandId) {
 }
 
 /**
- * Connects one source to this brand's moodboard. Pinterest is sent by the connections store, which
- * owns that key; the other two are sent from here.
+ * Connects one source to this brand's moodboard. In the static demo Pinterest is a pretend step;
+ * on the core it is set by picking a board on the brand's own account (`pinterest.ts`), so only
+ * the other two are sent from here.
  */
 export function connectSource(brandId: BrandId, source: MoodSource) {
   if (notAvailable(PLATFORM_OF[source])) return

@@ -3,7 +3,7 @@
  * Unicode classes Postgres regex lacks spelled out from this Node's tables. `text.test.ts` fails
  * when the file and this output differ. Run: `pnpm -F @brandfactory/core exec tsx scripts/text-functions.ts`.
  */
-import { writeFileSync } from 'node:fs'
+import { realpathSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { bracket } from './unicode-class'
@@ -51,6 +51,6 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA textfn TO pack_runtime;
 const here = path.dirname(fileURLToPath(import.meta.url))
 export const TEXT_MIGRATION = path.resolve(here, '../migrations/0002_text.sql')
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   writeFileSync(TEXT_MIGRATION, textFunctionsSql())
 }

@@ -61,13 +61,18 @@ The repository is a pnpm workspaces monorepo with these packages:
   `src/features/schedule/posts-store.tsx`. The folder keeps the name `web-next` because the
   Vercel project's Root Directory is `packages/web-next`; do not rename it without changing
   that setting.
-- `packages/connect` (`@brandfactory/connect`) links each brand's social accounts (Meta,
-  Pinterest, TikTok) by OAuth, with tokens encrypted per brand. It is separate from the demo and
-  imports no other package (see its README).
+- `packages/connect` (`@brandfactory/connect`) links each brand's own accounts by OAuth, with
+  tokens sealed per brand. Its `src/brandbase/` is what runs: `host.ts` is the server's entry (the
+  Dockerfile's), which starts the core with the account routes beside it, so connect imports the
+  core and the core still imports nothing. Only Pinterest signs in so far (the moodboard's board);
+  Meta and TikTok are on `feat/real-publishing`. The accounts live in the pack's
+  `brandbase.accounts`, read and written only through the pack's internal moves. The older
+  standalone service in the same package (`src/app.ts`, `src/main.ts`) is not deployed.
 - `packages/core` (`@brandfactory/core`) is BrandBase's backend: a generic
   core with one door, `POST /ops/{pack}/{op}`, that checks each call and runs a pack's move under
   row-level security. It holds no business words (`purity.test.ts`) and imports no other package.
-  Its `Dockerfile` and the root `fly.toml` target the existing Fly app `brandfactory`.
+  Its `Dockerfile` (which runs `packages/connect`'s host) and the root `fly.toml` target the
+  existing Fly app `brandfactory`.
 - `packs/brandbase` (`@brandfactory/pack-brandbase`) is the BrandBase pack: data the core reads
   (manifest, migrations, moves, rules, tests); `packages/core/src/packs.test.ts` runs its
   `tests/*.json` through the core's test runner. It is a workspace package only for its demo

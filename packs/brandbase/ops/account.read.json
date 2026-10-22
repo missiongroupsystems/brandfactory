@@ -1,0 +1,22 @@
+{
+  "name": "account.read",
+  "description": "A brand's account on one platform with its sealed tokens, or nothing when none is linked. Internal: for packages/connect only, never a screen.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "platform"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "platform": {
+        "enum": ["pinterest"]
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "internal": true,
+  "returns": "many",
+  "sql": "select jsonb_build_object('accountId', a.account_id, 'username', a.username, 'tokens', a.tokens, 'details', a.details, 'updatedAt', brandbase.iso(a.updated_at)) as result from brandbase.accounts a where a.brand_id = :brand and a.platform = :platform"
+}

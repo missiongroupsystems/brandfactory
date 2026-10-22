@@ -418,6 +418,23 @@ function cleaned(value: unknown): unknown {
   return value
 }
 
+/**
+ * The input as the log keeps it: without the fields the move marks secret, and none at all while
+ * the move is not known yet (no version read, or a move it lacks), so nothing secret slips in.
+ */
+export function withoutSecrets(
+  live: LiveVersion | undefined | null,
+  opName: string,
+  input: unknown,
+) {
+  const op = live && Object.hasOwn(live.content.ops, opName) ? live.content.ops[opName] : undefined
+  if (!op) return null
+  if (!op.secret || !input || typeof input !== 'object' || Array.isArray(input)) return input
+  return Object.fromEntries(
+    Object.entries(input).map(([k, v]) => [k, op.secret!.includes(k) ? '(secret)' : v]),
+  )
+}
+
 /** Input as the log keeps it: every string cleaned before it is serialized, and capped. */
 function loggedInput(input: unknown): string | null {
   const text = JSON.stringify(cleaned(input))
@@ -504,6 +521,8 @@ export async function call(
      * asked for. Never set from a request.
      */
     as?: string
+    /** Code beside the core (a host's route, a connector): it may call internal moves. */
+    internal?: boolean
   },
 ) {
   const entry: LogEntry = {
@@ -517,12 +536,18 @@ export async function call(
     status: 200,
     code: null,
   }
+  // A move's secret fields stay out of the log from the start, refusals included.
+  entry.input = withoutSecrets(recalled(deps.db, deps.environment, req.pack), req.op, req.input)
   try {
     entry.principal = req.as ?? (await authenticate(deps.auth, req.authorization))
     // A read or a write by a principal, of a version this process has read: one first trip.
     // The scheduler's calls, effects and moves the version lacks go the long way.
     const seen = req.as === undefined ? recalled(deps.db, deps.environment, req.pack) : undefined
-    const known = seen && Object.hasOwn(seen.content.ops, req.op) ? seen : undefined
+    // An internal move goes the long way too, where its caller is checked.
+    const known =
+      seen && Object.hasOwn(seen.content.ops, req.op) && !seen.content.ops[req.op]!.internal
+        ? seen
+        : undefined
     const kind = known && kindOf(known.content.ops[req.op]!)
     // A read of a principal this process has admitted: the rules and the move go in the first
     // trip too (`inOneRead`).
@@ -554,9 +579,16 @@ async function theLongWay(deps: CoreDeps, req: Request, entry: LogEntry) {
   })
   remember(deps.db, deps.environment, req.pack, live)
   entry.version = live.version
+  entry.input = withoutSecrets(live, req.op, req.input)
   const { op, caller } = await authorise(deps.db, entry.principal!, live, req.op)
   entry.agentOf = caller.agent ? caller.person : null
   remembered(deps.db, caller.principal, entry.agentOf)
+  // An internal move answers a screen or an agent's tool as a move that is not there; an agent
+  // reaches one only through a send its person approved.
+  if (op.internal && !req.internal) throw new Refused(404, 'OP_NOT_FOUND', `no move ${req.op}`)
+  if (op.internal && caller.agent && !req.as) {
+    throw new Refused(403, 'NOT_A_PERSON', 'only a person can do this')
+  }
   const input = validate(live, op, req.input)
   // Before the move runs: a record whose file has nowhere to go is not made.
   if (op.upload && !deps.files) throw new Refused(501, 'NO_FILES', 'this core keeps no files')

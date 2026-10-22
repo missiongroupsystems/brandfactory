@@ -26,8 +26,8 @@ import { claim, tick } from './scheduler'
  * - `{ parallel: [calls], expect: { codes } }`: moves at once; the codes (null for success) in
  *   any order;
  * - `{ approve, input, as?, expect? }`: a person's yes to what an effect move would send now;
- * - `{ tick: 'run' | 'abandon', now?, connector?, failOn? }` and `{ claim: true, now? }`: the
- *   scheduler, as above;
+ * - `{ tick: 'run' | 'abandon', now?, connector?, failOn?, answer? }` and `{ claim: true, now? }`:
+ *   the scheduler, as above;
  * - `{ guest, input, expect? }`: a guest's move, with no sign-in.
  */
 
@@ -40,6 +40,7 @@ interface CallStep {
   /** The connector an effect move uses for this call, as in a tick step. */
   connector?: TickStep['connector']
   failOn?: string[]
+  answer?: unknown
   expect?: Expect
 }
 interface SqlStep {
@@ -58,12 +59,14 @@ interface ApproveStep {
  * The scheduler, as the test's clock says: `run` waits for one pass; `abandon` starts a pass and
  * leaves it, as a process killed mid-send would. `connector` makes the sends of this pass fail
  * for `failOn` channels, hang, or answer with something the app cannot store (`garbled`).
+ * `answer` is what every connector answers in this pass instead (a read's canned page).
  */
 interface TickStep {
   tick: 'run' | 'abandon'
   now?: string
   connector?: 'ok' | 'fails' | 'hangs' | 'garbled'
   failOn?: string[]
+  answer?: unknown
 }
 /** A guest's move, with no sign-in: the capability is in its input. */
 interface GuestStep {
@@ -294,7 +297,13 @@ async function runCase(
       now: () => now,
       // Every connector a pack names goes to the one this pass uses.
       connectors: Object.fromEntries(
-        ['simulated', 'lark'].map((name) => [
+        [
+          ...new Set([
+            'simulated',
+            'lark',
+            ...Object.values(content.ops).flatMap((o) => (o.connector ? [o.connector] : [])),
+          ]),
+        ].map((name) => [
           name,
           { send: (i: Parameters<Connector['send']>[0]) => connector.send(i) },
         ]),
@@ -354,10 +363,13 @@ async function runCase(
           op,
           input: step.input ?? {},
         }
-        if ('call' in step && step.connector) connector = connectorFor(step)
+        if ('call' in step && (step.connector || step.answer !== undefined)) {
+          connector = connectorFor(step)
+        }
         const result =
           'call' in step
-            ? await call(deps, { ...request, key: step.key })
+            ? // The runner calls as code beside the core does, so a pack tests its internal moves.
+              await call(deps, { ...request, key: step.key, internal: true })
             : await approve(deps, request)
         connector = simulatedConnector
         return { status: 200, body: JSON.parse(JSON.stringify(result ?? null)) }
@@ -462,7 +474,8 @@ async function runCase(
   }
 }
 
-function connectorFor(step: Pick<TickStep, 'connector' | 'failOn'>): Connector {
+function connectorFor(step: Pick<TickStep, 'connector' | 'failOn' | 'answer'>): Connector {
+  if (step.answer !== undefined) return { send: async () => step.answer }
   if (step.connector === 'hangs') return { send: () => new Promise(() => {}) }
   // Takes the send, then answers with something the app cannot store.
   if (step.connector === 'garbled') return { send: async () => ({ externalId: 1n }) }

@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -192,7 +192,9 @@ export async function main(argv: string[]) {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// Node runs a module by its real path; in the image the CLI is reached through a symlink
+// (node_modules/@brandfactory/core), so the path given is resolved the same way.
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main(process.argv.slice(2)).catch((err: unknown) => {
     console.error(err instanceof Refused ? `${err.code}: ${err.message}` : (err as Error).message)
     process.exitCode = 1

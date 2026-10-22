@@ -58,7 +58,7 @@ active ad account in good standing.
 - Fly app `brandfactory` has `PINTEREST_APP_ID`, `PINTEREST_APP_SECRET`, `PINTEREST_REDIRECT_URL`,
   `TOKEN_ENCRYPTION_KEY`. `PINTEREST_REDIRECT_URL` may still name the old vercel.app address; set
   it to the live one at deploy.
-- Code is being ported to `feat/pinterest-connect` (pack 1.7.0, accounts migration renumbered).
+- Code is on `feat/pinterest-and-events` with Mission Events (pack 1.8.0: migrations 0015 and 0016).
   Open question: whether a Trial-tier app can be authorised by Pinterest accounts other than the
   app owner's, which per-brand accounts need.
 

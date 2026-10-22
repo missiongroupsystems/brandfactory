@@ -1,0 +1,27 @@
+{
+  "name": "event.feed",
+  "description": "Names the Mission Events outlet that is this brand, by its id, and starts the hourly pull of its events (event.tick) at once, as the caller. Null stops the pull. A new outlet removes the brand's events; the pull brings the new outlet's. Only the company's owners and admins, themselves (never an agent), and only for a company on the operator's list (event_orgs).",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "outlet"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "outlet": {
+        "type": ["string", "null"],
+        "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+      }
+    }
+  },
+  "before": [
+    "brand.reachable",
+    "event.feed_by_a_person",
+    "event.feed_managed",
+    "event.org_allowed"
+  ],
+  "returns": "one",
+  "sql": "with old as (\n  select f.outlet_id from brandbase.event_feeds f where f.brand_id = :brand\n),\nstopped as (\n  delete from brandbase.event_feeds f where f.brand_id = :brand and :outlet::uuid is null\n  returning f.brand_id\n),\ncleared as (\n  delete from brandbase.events e where e.brand_id = :brand\n    and not exists (select 1 from old where old.outlet_id = :outlet::uuid)\n  returning e.id\n),\narmed as (\n  insert into brandbase.event_feeds (brand_id, outlet_id, next_at)\n  select :brand, :outlet::uuid, :now::timestamptz where :outlet::uuid is not null\n  on conflict (brand_id) do update set outlet_id = excluded.outlet_id, next_at = excluded.next_at,\n    pulled_at = case when brandbase.event_feeds.outlet_id = excluded.outlet_id then brandbase.event_feeds.pulled_at end\n  returning brand_id, outlet_id, next_at\n)\nselect jsonb_build_object('brand', :brand, 'outlet', (select a.outlet_id from armed a),\n    'removed', (select count(*) from cleared)) as result,\n  (select jsonb_build_array(jsonb_build_object(\n     'op', 'event.tick', 'at', brandbase.iso(a.next_at), 'key', a.brand_id || ':' || brandbase.iso(a.next_at),\n     'input', jsonb_build_object('brand', a.brand_id, 'at', brandbase.iso(a.next_at))))\n   from armed a) as schedule"
+}

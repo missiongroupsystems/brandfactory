@@ -247,6 +247,23 @@ const ROUTES: Route[] = [
   ],
 ]
 
+/**
+ * The brands' own accounts, which the server holds beside the core (`packages/connect`):
+ * Pinterest's sign-in, its boards and pins read live, and forgetting the account. These go to
+ * the server as they are, not as moves.
+ */
+const ACCOUNT_ROUTES: Array<[method: string, path: RegExp]> = [
+  ['POST', /^\/brands\/[^/]+\/pinterest\/connect$/],
+  ['POST', /^\/pinterest\/callback$/],
+  ['GET', /^\/brands\/[^/]+\/pinterest(\/pins)?$/],
+  ['PUT', /^\/brands\/[^/]+\/pinterest$/],
+  ['DELETE', /^\/brands\/[^/]+\/pinterest$/],
+]
+
+/** Whether a route is one of the accounts' routes on the server. */
+export const isAccountRoute = (method: string, path: string) =>
+  ACCOUNT_ROUTES.some(([m, pattern]) => m === method && pattern.test(path))
+
 /** The move a route becomes on the core, or null when the route is not ported yet. */
 export function coreCall(method: string, path: string, body: unknown): CoreCall | null {
   const [bare = '', search = ''] = path.split('?')

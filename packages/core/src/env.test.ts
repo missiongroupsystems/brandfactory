@@ -78,4 +78,29 @@ describe('the environment', () => {
     expect(loadEnv({ DATABASE_PREPARE: '' }).prepare).toBe(false)
     expect(() => loadEnv({ DATABASE_PREPARE: 'yes' })).toThrow(/on or off/)
   })
+  it('reads the Mission Events feed only with both its settings, and over https in production', () => {
+    expect(loadEnv({}).missionEvents).toBeUndefined()
+    expect(
+      loadEnv({ MISSION_EVENTS_URL: 'http://localhost:9000', MISSION_EVENTS_SERVICE_KEY: 'k' })
+        .missionEvents,
+    ).toEqual({ url: 'http://localhost:9000', key: 'k' })
+    expect(() => loadEnv({ MISSION_EVENTS_URL: 'https://e.example.com' })).toThrow(/together/)
+    expect(() => loadEnv({ MISSION_EVENTS_SERVICE_KEY: 'k' })).toThrow(/together/)
+    const prod = {
+      NODE_ENV: 'production',
+      AUTH_PROVIDER: 'supabase',
+      SUPABASE_JWKS_URL: 'https://x.supabase.co/auth/v1/.well-known/jwks.json',
+      FILES_PROVIDER: 'supabase',
+      SUPABASE_URL: 'https://x.supabase.co',
+      SUPABASE_SERVICE_KEY: 'service',
+      FILES_BUCKET: 'files',
+      FILES_SECRET: 'x'.repeat(32),
+      AGENT_SECRET: 'y'.repeat(32),
+      MISSION_EVENTS_SERVICE_KEY: 'k',
+    }
+    expect(() => loadEnv({ ...prod, MISSION_EVENTS_URL: 'http://e.example.com' })).toThrow(/https/)
+    expect(
+      loadEnv({ ...prod, MISSION_EVENTS_URL: 'https://e.example.com' }).missionEvents?.url,
+    ).toBe('https://e.example.com')
+  })
 })

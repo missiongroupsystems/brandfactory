@@ -34,6 +34,8 @@ async function tools(deps: CoreDeps, principal: string, pack: string) {
   const live = await resolve(deps.db, deps.environment, pack)
   const out = []
   for (const op of Object.values(live.content.ops)) {
+    // An internal move is never a tool.
+    if (op.internal) continue
     // A move outside the loadout is left out; a caller with no account is refused outright.
     const allowed = await authorise(deps.db, principal, live, op.name).then(
       () => true,

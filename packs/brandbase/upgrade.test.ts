@@ -117,3 +117,35 @@ describe('migration 0013 on a 1.4.0 database', () => {
     }
   })
 })
+
+/**
+ * Migration 0015 on a 1.6.0 database: a Pinterest connection the pretend sign-in stored has no
+ * account behind it, so it goes off; the brand's other connections stay as they were.
+ */
+describe('migration 0015 on a 1.6.0 database', () => {
+  it('turns off a Pinterest connection with no account, and keeps the row rules forced', async () => {
+    const db = openPglite()
+    try {
+      await migrateCore(db)
+      await applyPackMigrations(
+        db,
+        'brandbase',
+        content.migrations.filter((m) => m.name < '0015'),
+      )
+      await db.exec(`
+        insert into brandbase.organizations (id, name) values ('co', 'Co');
+        insert into brandbase.brands (id, name, handle, org_id) values ('one', 'One', '@one', 'co');
+        insert into brandbase.connections (brand_id, key, status) values
+          ('one', 'pinterest', 'connected'), ('one', 'lark', 'connected');
+      `)
+      await applyPackMigrations(db, 'brandbase', content.migrations)
+      expect(await db.query('select key, status from brandbase.connections order by key')).toEqual([
+        { key: 'lark', status: 'connected' },
+        { key: 'pinterest', status: 'off' },
+      ])
+      expect(await everyTableHasRowRules(db)).toEqual([])
+    } finally {
+      await db.close()
+    }
+  })
+})

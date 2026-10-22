@@ -9,6 +9,25 @@ The research behind it (flows, scopes, token lifetimes, review requirements) is 
 `docs/executing/brandbase-accounts-integration.md`, the brief of 7 Oct 2026. The facts
 this package depends on are repeated below, so this file stands on its own.
 
+## What runs: `src/brandbase/`
+
+The server deployed to Fly is `src/brandbase/host.ts`: the core (`packages/core`) with this
+package's account routes added. Everything else in `src/` is the earlier standalone service
+described below; it is not deployed.
+
+- **Accounts** are rows of the pack's `brandbase.accounts`, read and written only through the
+  pack's internal moves (`account.link`, `account.read`, `account.retoken`, `account.board`,
+  `account.forget`), run as the signed-in person. The pack's row rules decide which brands they
+  reach; a screen or an agent cannot call these moves. Only Pinterest signs in so far.
+- **Routes** (on the core's address, called by the web app with the person's session):
+  `GET /platforms` (no sign-in: which platforms have an app set up),
+  `POST /brands/:brand/pinterest/connect`, `POST /pinterest/callback`,
+  `GET|PUT|DELETE /brands/:brand/pinterest`, `GET /brands/:brand/pinterest/pins`.
+- **Environment** (`src/brandbase/env.ts`): `TOKEN_ENCRYPTION_KEY`, and `PINTEREST_APP_ID`,
+  `PINTEREST_APP_SECRET`, `PINTEREST_REDIRECT_URL`, all three or none. The redirect is the web
+  app's `/connect/pinterest` page. `pnpm -F @brandfactory/connect serve` starts it with the core's
+  own variables too.
+
 ## The brand rule
 
 - A connection belongs to one brand. `UNIQUE(platform, external_account_id)` is in the schema,

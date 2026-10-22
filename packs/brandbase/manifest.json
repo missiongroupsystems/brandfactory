@@ -1,7 +1,7 @@
 {
   "name": "brandbase",
-  "version": "1.6.0",
-  "description": "Brand Base: a brand's posts on a calendar, sent to its social accounts. Posts and the brand's state, and timed sends.",
+  "version": "1.8.0",
+  "description": "Brand Base: a brand's posts on a calendar, sent to its social accounts. Posts and the brand's state, timed sends, the brand's linked Pinterest account, and the company's own events from Mission Events.",
   "errors": {
     "posts_story_day": {
       "status": 409,
@@ -27,6 +27,11 @@
       "status": 409,
       "code": "BRAND_TAKEN",
       "message": "a brand with this name already exists"
+    },
+    "accounts_platform_account": {
+      "status": 409,
+      "code": "ACCOUNT_TAKEN",
+      "message": "this account belongs to another brand"
     }
   },
   "scheduler": {
