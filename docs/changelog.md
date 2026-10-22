@@ -6,7 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
-- **2.36.0** — 2026-10-22 — `feat/bubbles-deploy`: Bubbles deployed (22 Oct, Fly app `brandbase-bubbles`). Its own Fly app `brandbase-bubbles` in sin (`packages/bubbles/fly.toml`, a Debian `Dockerfile` with the runtime from the pinned wheel, checked by digest), and a daily spend cap in the gateway (`BUBBLES_DAILY_USD`, default $5, by OpenRouter's own cost) after which the page says Bubbles is back tomorrow. Checked end to end on this machine: the real runtime, a local core with the demo data and a scripted model. No migration. 1088 tests (196 skipped without a Postgres server).
+- **2.36.0** — 2026-10-22 — `feat/bubbles-deploy`: Bubbles deployed (22 Oct, Fly app `brandbase-bubbles`). Its own Fly app `brandbase-bubbles` in sin (`packages/bubbles/fly.toml`, a Debian `Dockerfile` with the runtime from the pinned wheel, checked by digest), and a daily spend cap in the gateway (`BUBBLES_DAILY_USD`, default $5, by OpenRouter's own cost) after which the page says Bubbles is back tomorrow. Checked end to end on this machine: the real runtime, a local core with the demo data and a scripted model. No migration. 1091 tests (196 skipped without a Postgres server).
 - **2.35.7** — 2026-10-22 — `feat/best-time`: on the core, the best time to post comes from the brand's own posts that went out with numbers (the imported Instagram and TikTok posts), once there are twenty: the Day view's band, the phone Day view, New post's default time, hour chart, "best hour" and best time, and the idea page's day picker. Fewer than twenty: no best time, as before. The static demo is unchanged. No pack change, no migration. Also from the 2.35.6 merge review: a posted post with no caption shows none (the title no longer stands in), a TikTok row that still needs an answer is left off the read-only page, and a planned post says "Nothing is sent yet." A post after midnight counts toward the evening, and the idea page can mark 09:00. 1087 tests (196 skipped without a Postgres server).
 - **2.35.6** — 2026-10-22 — `fix/onboarding-polish`: a posted post (brought in or sent from Brand base) opens on the post page's own cards, every field as plain text and no empty field: Posted to with its platforms and format, the media and caption, Details, and the preview. On the core a posted reel or TikTok video shows its cover with an amber "Cover only" and why. Every amber notice is shorter and names what is missing: "Not connected", "Won't publish", "Planned only", each with one short line. No migration. 1076 tests (196 skipped without a Postgres server).
 - **2.35.5** — 2026-10-22 — `fix/onboarding-polish`: public Terms of Service (`/terms`) and Privacy Policy (`/privacy`) pages for TikTok's app form, open with no sign-in on the core, linked quietly from the sign-in page; and TikTok's site-verification file. No migration. 1073 tests (196 skipped without a Postgres server).
@@ -102,7 +102,9 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **Tests.** `gateway.test.ts`: the cap stops requests at OpenRouter's count, a request with no
   cost keeps its hold and a refused one costs nothing, and a new UTC day starts afresh.
   `turns.test.ts`: a spent day ends the turn with `DAILY_LIMIT` and starts no runtime.
-- **Gate:** typecheck, lint, format, build; tests 1077 (881 run, 196 skipped: no Postgres server).
+- **Deployed** 22 Oct: `brandbase-bubbles` in sin, one machine, `/health` answers, the key from the macOS Keychain, CORS to the live site only; `NEXT_PUBLIC_BUBBLES_URL` set on Vercel.
+- **Gate:** typecheck, lint, format, build; tests 1091 (895 run, 196 skipped: no Postgres server).
+
 ## 2.35.7 — 2026-10-22
 
 - **Why.** 2.33.1 took the demo's invented best hour off the core, so no brand had one. The
