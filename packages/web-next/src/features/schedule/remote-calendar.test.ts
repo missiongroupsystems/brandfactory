@@ -76,6 +76,18 @@ describe('the calendar from the server', () => {
     expect(posts.map((p) => p.id)).toEqual(['s3'])
   })
 
+  it('keeps the counts of a post brought in from its account, and gives a made post none', () => {
+    const { posts } = calendarOf(
+      'casa-vostra',
+      state([
+        post({ id: 'in', day: '2026-10-10', stage: 'posted', metrics: { likes: 37, comments: 1 } }),
+        post({ id: 'made', day: '2026-10-11', metrics: null }),
+      ]),
+    )
+    expect(posts.find((p) => p.id === 'in')?.metrics).toEqual({ likes: 37, comments: 1 })
+    expect(posts.find((p) => p.id === 'made')).not.toHaveProperty('metrics')
+  })
+
   it('names the account a failed post failed on, with the reason', () => {
     const { posts } = calendarOf(
       'casa-vostra',

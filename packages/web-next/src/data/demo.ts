@@ -54,6 +54,8 @@ export interface Post {
   channels?: Array<'ig' | 'tt' | 'yt' | 'li' | 'fb'>
   /** The idea tile it was planned from, kept so taking it back to an idea restores that tile. */
   fromIdea?: { why: string; suggested?: boolean }
+  /** A post brought in from the brand's own account: its counts there, as last read. */
+  metrics?: { likes?: number; comments?: number; views?: number; shares?: number; saves?: number }
 }
 
 export const POSTS: Post[] = [

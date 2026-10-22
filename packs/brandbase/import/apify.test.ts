@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fromInstagram, fromTikTok, hookOf, postsOf } from './apify'
+import { coverAddresses, fromInstagram, fromTikTok, hookOf, postsOf } from './apify'
 
 // Items shaped as the actors' documented output (apify/instagram-post-scraper with detailed data,
 // clockworks/tiktok-scraper on a profile), cut to the fields the import reads.
@@ -50,6 +50,15 @@ const video = {
 }
 
 describe('an Instagram item', () => {
+  it('is skipped when a creator made it, even with the brand as a coauthor: their voice, their reach', () => {
+    const collab = {
+      ...photo,
+      ownerUsername: 'singapore.foodie',
+      coauthorProducers: [{ username: 'chinmeechin.sg' }],
+    }
+    expect(fromInstagram(collab, 'chinmeechin.sg')).toBeNull()
+  })
+
   it('becomes a posted reel with its first line as the hook, its plays as views and its length', () => {
     expect(fromInstagram(reel, 'chinmeechin.sg')).toEqual({
       channel: 'ig',
@@ -79,7 +88,7 @@ describe('an Instagram item', () => {
   })
 
   it('cuts a long hook between emoji, never inside one', () => {
-    const hook = hookOf('🍞'.repeat(130), 'x')
+    const hook = hookOf(`Kaya${'🍞'.repeat(130)}`, 'x')
     expect(Array.from(hook)).toHaveLength(121)
     expect(hook).not.toMatch(/\uFFFD/)
     expect(hook.endsWith('🍞…')).toBe(true)
@@ -90,6 +99,16 @@ describe('an Instagram item', () => {
       fromInstagram({ error: 'not_found', errorDescription: 'private' }, 'chinmeechin.sg'),
     ).toBeNull()
     expect(fromInstagram({ ...photo, ownerUsername: 'foodie.sg' }, 'chinmeechin.sg')).toBeNull()
+    expect(
+      fromInstagram(
+        {
+          ...photo,
+          ownerUsername: 'foodie.sg',
+          coauthorProducers: [{ username: 'nex.singapore' }],
+        },
+        'chinmeechin.sg',
+      ),
+    ).toBeNull()
     expect(fromInstagram({ ...photo, displayUrl: '' }, 'chinmeechin.sg')).toBeNull()
     expect(fromInstagram({ ...photo, timestamp: undefined }, 'chinmeechin.sg')).toBeNull()
   })
@@ -125,6 +144,23 @@ describe('a scrape', () => {
   })
 })
 
+describe('a cover', () => {
+  it('is tried on Instagram’s general host after its regional one, with the same path and signature', () => {
+    const regional =
+      'https://instagram.fosu2-2.fna.fbcdn.net/v/t51/806_n.jpg?stp=dst-jpg&oh=00_A&oe=6A'
+    expect(coverAddresses(regional)).toEqual([
+      regional,
+      'https://scontent.cdninstagram.com/v/t51/806_n.jpg?stp=dst-jpg&oh=00_A&oe=6A',
+    ])
+  })
+
+  it('has one address on any other host', () => {
+    const tiktok = 'https://p16-sign-sg.tiktokcdn.com/cover.image?x-expires=1'
+    expect(coverAddresses(tiktok)).toEqual([tiktok])
+    expect(coverAddresses('https://scontent.cdninstagram.com/v/x.jpg')).toHaveLength(1)
+  })
+})
+
 describe('a hook', () => {
   it('is the first line that has words, cut at a word', () => {
     expect(hookOf('\n\n  Kaya toast.\nMore', 'x')).toBe('Kaya toast.')
@@ -132,5 +168,21 @@ describe('a hook', () => {
     const long = hookOf(`${'word '.repeat(40)}end`, 'x')
     expect(long.length).toBeLessThanOrEqual(121)
     expect(long.endsWith('word…')).toBe(true)
+  })
+
+  it('reads styled letters as plain ones and drops dashes at the ends, keeping the caption as it was', () => {
+    expect(hookOf('𝐏𝐨𝐝𝐢𝐮𝐦 𝐏𝐢𝐜𝐤𝐬', 'x')).toBe('Podium Picks')
+    expect(hookOf('Growing up is realising… Kaya™ ½ price', 'x')).toBe(
+      'Growing up is realising… Kaya™ ½ price',
+    )
+    expect(hookOf('- 𝗖𝗲𝗹𝗲𝗯𝗿𝗮𝘁𝗶𝗻𝗴 𝗕𝗼𝗼𝗸𝘀𝗵𝗼𝗽 𝗗𝗮𝘆 -', 'x')).toBe('Celebrating Bookshop Day')
+    const post = fromInstagram({ ...photo, caption: '𝐏𝐨𝐝𝐢𝐮𝐦 𝐏𝐢𝐜𝐤𝐬' }, 'chinmeechin.sg')
+    expect(post?.caption).toBe('𝐏𝐨𝐝𝐢𝐮𝐦 𝐏𝐢𝐜𝐤𝐬')
+  })
+
+  it('skips a line with no words, and ends a cut with one ellipsis, not a stop and an ellipsis', () => {
+    expect(hookOf('🔥🔥🔥\n---\nKaya toast at Katong', 'x')).toBe('Kaya toast at Katong')
+    const cut = hookOf(`${'a'.repeat(70)} challenge. ${'b'.repeat(100)}`, 'x')
+    expect(cut.endsWith('challenge…')).toBe(true)
   })
 })

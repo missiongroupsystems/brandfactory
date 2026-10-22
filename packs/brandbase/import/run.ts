@@ -1,11 +1,14 @@
 /**
  * Brings each brand's own Instagram and TikTok posts into BrandBase, in two steps.
  *
- *   pnpm -F @brandfactory/pack-brandbase import-posts scrape <brand|all> <dir> [--limit 150] [--yes]
+ *   pnpm -F @brandfactory/pack-brandbase import-posts scrape <brand|all> <dir> [--limit 150]
+ *     [--budget 4.50] [--yes]
  *
  * runs Apify's scrapers for the accounts in `accounts.json` and writes `<dir>/<brand>-<ig|tt>.json`.
- * Without `--yes` it prints the runs and their most cost, and runs nothing. Each run is capped at
- * that cost (`maxTotalChargeUsd`). The token is read from the macOS Keychain (`apify` / `token`)
+ * It prints what each run's posts cost at the actor's price, and the cap each run takes
+ * (`maxTotalChargeUsd`): that cost, or the smallest cap Apify takes for the actor when that is
+ * more. The caps are the most Apify can charge. It runs nothing without `--yes`, or when the caps
+ * add to more than `--budget`. The token is read from the macOS Keychain (`apify` / `token`)
  * and goes nowhere but Apify's Authorization header.
  *
  *   CORE_URL=http://localhost:3013 CORE_TOKEN=admin@local \
@@ -25,7 +28,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { postsOf, type Imported } from './apify'
+import { coverAddresses, postsOf, type Imported } from './apify'
 
 type Channel = 'ig' | 'tt'
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -80,11 +83,14 @@ const option = (name: string) => {
   const i = args.indexOf(name)
   return i === -1 ? undefined : args[i + 1]
 }
-const positional = args.filter((a, i) => !a.startsWith('--') && !args[i - 1]?.startsWith('--limit'))
+const positional = args.filter(
+  (a, i) => !a.startsWith('--') && !['--limit', '--budget'].includes(args[i - 1] ?? ''),
+)
 
 async function scrape() {
   const [, which, dir] = positional
-  if (!which || !dir) throw new Error('usage: scrape <brand|all> <dir> [--limit 150] [--yes]')
+  if (!which || !dir)
+    throw new Error('usage: scrape <brand|all> <dir> [--limit 150] [--budget 4.50] [--yes]')
   const limit = Number(option('--limit') ?? 150)
   if (!Number.isInteger(limit) || limit < 1 || args.some((a) => a.startsWith('--limit='))) {
     throw new Error('--limit takes a whole number of posts, as --limit 150')
@@ -100,15 +106,27 @@ async function scrape() {
         channel,
         handle,
         actor,
-        most: +Math.max(limit * actor.perItem + actor.perRun, actor.least).toFixed(4),
+        most: +(limit * actor.perItem + actor.perRun).toFixed(4),
       }
     })
   })
-  for (const r of runs)
-    console.log(`${r.brand.padEnd(14)} ${r.channel} @${r.handle.padEnd(18)} at most $${r.most}`)
+  const cap = (r: (typeof runs)[number]) => Math.max(r.most, r.actor.least)
+  for (const r of runs) {
+    const capped = cap(r) > r.most ? ` (capped at Apify's least, $${cap(r)})` : ''
+    console.log(
+      `${r.brand.padEnd(14)} ${r.channel} @${r.handle.padEnd(18)} at most $${r.most}${capped}`,
+    )
+  }
+  const cost = runs.reduce((s, r) => s + r.most, 0)
+  const capped = runs.reduce((s, r) => s + cap(r), 0)
   console.log(
-    `at most $${runs.reduce((s, r) => s + r.most, 0).toFixed(2)} in all, for at most ${limit} posts each`,
+    `$${cost.toFixed(2)} for at most ${limit} posts each; the caps, the most Apify can charge: $${capped.toFixed(2)}`,
   )
+  if (args.some((a) => a.startsWith('--budget=')))
+    throw new Error('--budget takes a number, as --budget 4.50')
+  const budget = Number(option('--budget') ?? Infinity)
+  if (!(capped <= budget))
+    throw new Error(`the caps add to $${capped.toFixed(2)}, over the budget of $${budget}`)
   if (!flag('--yes')) return console.log('nothing ran: add --yes to run these scrapes')
   // Before any run: a scrape that cannot be saved is money spent for nothing.
   mkdirSync(dir, { recursive: true })
@@ -129,7 +147,7 @@ async function scrape() {
     return (await r.json()) as ApifyRun & Record<string, unknown>[]
   }
   for (const r of runs) {
-    const started = await apify(`/acts/${r.actor.id}/runs?maxTotalChargeUsd=${r.most}`, {
+    const started = await apify(`/acts/${r.actor.id}/runs?maxTotalChargeUsd=${cap(r)}`, {
       method: 'POST',
       body: JSON.stringify(r.actor.input(r.handle, limit)),
     })
@@ -224,8 +242,19 @@ async function uploadCover(
   id: string,
   post: Imported,
 ) {
-  const got = await fetch(post.cover)
-  if (!got.ok) throw new Error(`cover ${got.status}`)
+  let got: Response | undefined
+  let failure = 'no address'
+  for (const address of coverAddresses(post.cover)) {
+    try {
+      got = await fetch(address)
+      if (got.ok) break
+      failure = `cover ${got.status}`
+    } catch (err) {
+      failure = `cover ${(err as Error).message}`
+    }
+    got = undefined
+  }
+  if (!got) throw new Error(failure)
   const mime = (got.headers.get('content-type') ?? '').split(';')[0]!.trim()
   if (!TYPES.includes(mime)) throw new Error(`cover is ${mime || 'of no type'}`)
   const bytes = Buffer.from(await got.arrayBuffer())

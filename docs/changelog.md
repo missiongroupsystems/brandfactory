@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.34.1** — 2026-10-22 — `feat/real-brand-posts`: a test scrape of the six brands, checked against the live accounts. The import keeps only the brand's own posts (not creators' collabs), hooks read styled letters as plain ones, the post preview prints a real post's own counts, a second Instagram cover host, and the scrape prints its cost and its caps (the most Apify can charge) and refuses caps over a budget. 999 tests.
 - **2.34.0** — 2026-10-22 — `feat/real-brand-posts`: the brands' own posts (brandbase 1.6.0, migration 0014, not applied to production). `post.import` brings in a post already out on the brand's Instagram or TikTok as posted, with its address and counts; a second import refreshes the counts. A script runs Apify's scrapers (cost first, capped) and loads a scrape through the core as the signed-in person. The post page no longer throws for a brand outside the demo's data. 991 tests.
 - **2.33.0** — 2026-10-22 — `feat/company-access`: access by company (brandbase 1.5.0, migration 0013, not applied to production). Every active member of a company reaches all its brands; owners and admins add brands with `brand.create`; brands already in the database go to one company, Mission Group. web-next gets an Add brand page. 966 tests.
 - **2.32.0** — 2026-10-22 — `fix/core-migrations-supabase`: the core refuses to install as a login that is not a superuser, before it changes anything, and fails any database whose runtime role can call a function migration 0001 takes away. On Supabase (and Fly Managed Postgres) migration 0001 cannot take `set_config` and the other risky functions from the runtime role, and a pack's SQL could then reach `set_config('role', …)` through `ts_stat` or `query_to_xml` and leave the runtime role. A new `core setup-login` makes the login a deployed core runs as (no superuser, the pack roles, the core's schemas, `set_config` only), core migrations 0009 and 0010 take back what 0001 gave to roles that existed before the install (its functions from every pack role; the superuser's own server file and reload functions from every other role), and a new core migration waits for the superuser. The database moves to a self-managed Postgres on Fly; sign-in stays on Supabase (Passport). 925 tests.
@@ -62,10 +63,29 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
+## 2.34.1 — 2026-10-22
+
+As built: `docs/completions/real-brand-posts-phases-1-to-2.md`, phase 2.
+
+- **Test scrape.** The 12 latest posts of each brand's Instagram and of three TikTok accounts
+  ($0.28 spent), loaded into a local core and compared with the live accounts by a reviewer who
+  had not written the code.
+- **Only the brand's own posts.** Creators' collab posts that name the brand as a coauthor are no
+  longer imported: they are in the creator's voice and carry the creator's reach.
+- **Hooks.** Styled Unicode letters read as plain ones, dashes and stops at the ends go, a line
+  with no words is skipped, a cut ends in one "…"; the caption is unchanged.
+- **Real counts in the preview.** A post brought in carries its `metrics` into web-next, and the
+  Instagram and TikTok previews print them in place of the fixed ones.
+- **Loader.** A cover is tried on `scontent.cdninstagram.com` when its regional host fails;
+  `scrape` prints what the posts cost and the caps, the most Apify can charge, and `--budget`
+  refuses caps that add to more.
+- **Gate.** typecheck, lint, format, 999 tests (803 passed, 196 skipped without a
+  Postgres server), web-next build.
+
 ## 2.34.0 — 2026-10-22
 
 Plan and as built: `docs/completions/real-brand-posts-plan.md`,
-`docs/completions/real-brand-posts-phases-1-to-1.md`.
+`docs/completions/real-brand-posts-phases-1-to-2.md`.
 
 - **Posts already out (brandbase 1.6.0).** Migration `0014_imported_posts.sql` adds
   `posts.permalink`, `posts.metrics` and `posts.measured_at`; `post_json` adds `measuredAt`.

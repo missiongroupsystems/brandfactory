@@ -563,7 +563,15 @@ export function Composer({
     },
     preview: {
       title: 'Preview',
-      body: <Preview api={api} media={media} people={people} onFiles={addFiles} />,
+      body: (
+        <Preview
+          api={api}
+          media={media}
+          people={people}
+          onFiles={addFiles}
+          counts={post?.metrics && { on: post.channels?.[0], metrics: post.metrics }}
+        />
+      ),
     },
     ...Object.fromEntries(
       active.map((c) => [
@@ -723,7 +731,13 @@ export function Composer({
         </div>
         {/* The button sits under the preview and scrolls with it, so what goes out is in view. */}
         <div className="sticky top-6 flex flex-col gap-3 max-lg:static max-md:hidden">
-          <Preview api={api} media={media} people={people} onFiles={addFiles} />
+          <Preview
+            api={api}
+            media={media}
+            people={people}
+            onFiles={addFiles}
+            counts={post?.metrics && { on: post.channels?.[0], metrics: post.metrics }}
+          />
           <div className="flex items-center gap-2 px-1">
             {draftButton}
             {send(false)}
@@ -2568,11 +2582,17 @@ function Preview({
   media,
   people,
   onFiles,
+  counts,
 }: {
   api: PublishDraftApi
   media: Shot[]
   people: People
   onFiles: (files: FileList | null) => Promise<void>
+  /**
+   * A post brought in from its account: its real counts, shown on the account it came from. Other
+   * accounts show none, so another account's counts never pass for that one's.
+   */
+  counts?: { on: ChannelKey | undefined; metrics: NonNullable<Post['metrics']> }
 }) {
   const { draft } = api
   const { posts } = useBrand()
@@ -2657,6 +2677,7 @@ function Preview({
                 }
                 live
                 onAdd={() => input.current?.click()}
+                counts={counts && (channel === counts.on ? counts.metrics : {})}
               />
             </Phone>
           </DropZone>

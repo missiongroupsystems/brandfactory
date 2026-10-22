@@ -33,20 +33,32 @@ const text = (v: unknown) => (typeof v === 'string' ? v : '')
 const count = (v: unknown) =>
   typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : undefined
 
-/** The caption's first line, cut at a word to 120 characters. */
+/**
+ * The caption's first line with words, cut at a word to 120 characters. Styled letters
+ * (𝐏𝐨𝐝𝐢𝐮𝐦, 𝕬𝖌𝖊𝖉) become plain ones, so the title reads and searches as text, and dashes or
+ * stops at its ends go. The caption itself is kept as it was posted.
+ */
 export function hookOf(caption: string, fallback: string): string {
+  const tidy = (l: string) =>
+    l
+      // Only Unicode's styled letters and digits (U+1D400–1D7FF): a wider normalisation would turn
+      // "…" into "..." and rewrite ™ or ½.
+      .replace(/[\u{1D400}-\u{1D7FF}]/gu, (c) => c.normalize('NFKC'))
+      .trim()
+      .replace(/^[-–—•·.,:;\s]+|[-–—•·,:;\s]+$/gu, '')
   const line =
     caption
       .split('\n')
-      .map((l) => l.trim())
-      .find((l) => l !== '') ?? ''
+      .map(tidy)
+      .find((l) => /[\p{L}\p{N}]/u.test(l)) ?? ''
   if (line === '') return fallback
   // By code points, so an emoji is never cut in half.
   const points = Array.from(line)
   if (points.length <= 120) return line
   const cut = points.slice(0, 120).join('')
   const space = cut.lastIndexOf(' ')
-  return `${(space > 60 ? cut.slice(0, space) : cut).trimEnd()}…`
+  const kept = (space > 60 ? cut.slice(0, space) : cut).replace(/[\s.,:;!?-]+$/u, '')
+  return `${kept}…`
 }
 
 export function durationOf(seconds: unknown): string | undefined {
@@ -63,6 +75,8 @@ export function fromInstagram(item: Item, handle: string): Imported | null {
   const shortCode = text(item.shortCode)
   if (item.error || !ID.test(shortCode) || !text(item.timestamp) || !text(item.displayUrl))
     return null
+  // Only what the brand posted. A creator's collab that names the brand as a coauthor shows on the
+  // brand's grid too, but it is in the creator's voice and carries the creator's reach.
   if (text(item.ownerUsername).toLowerCase() !== handle.toLowerCase()) return null
   const video = item.type === 'Video'
   const caption = text(item.caption)
@@ -112,6 +126,20 @@ export function fromTikTok(item: Item, handle: string): Imported | null {
     cover,
     duration: slideshow ? undefined : durationOf(meta.duration),
   }
+}
+
+/**
+ * Where to fetch a cover from, in order. Instagram's image addresses name a regional host
+ * (`instagram.fosu2-2.fna.fbcdn.net`) that some networks cannot resolve; the same path and
+ * signature also load from its general host.
+ */
+export function coverAddresses(cover: string): string[] {
+  const url = new URL(cover)
+  if (!/(^|\.)(fbcdn\.net|cdninstagram\.com)$/.test(url.hostname)) return [cover]
+  if (url.hostname === 'scontent.cdninstagram.com') return [cover]
+  const general = new URL(cover)
+  general.hostname = 'scontent.cdninstagram.com'
+  return [cover, general.toString()]
 }
 
 /** Every post of a scrape, newest first, each once. */

@@ -78,3 +78,46 @@ Plan: `real-brand-posts-plan.md`. Branch `feat/real-brand-posts`, from `main` at
 - Not tested against Supabase Storage: the end-to-end run used the core's disk storage.
 - Applying 1.6.0 to production, and the first real scrape and load (they cost money and write to
   production; they wait for the owner).
+
+## Phase 2: a test scrape, checked against the real accounts
+
+### What ran
+
+The 12 latest Instagram posts of each brand and the 12 latest TikTok videos of Casa Vostra, Chin
+Mee Chin and temper (at most $0.33 printed, $0.28 spent), loaded into a local core with the demo
+data and the four brands the demo lacks. A reviewer who had not written the code compared the
+screenshots and the stored posts with the live accounts.
+
+### What it found and what changed
+
+- **Creators' collab posts.** Instagram returns a creator's post that names the brand as a
+  coauthor (`coauthorProducers`), and it shows on the brand's grid; six of Chin Mee Chin's 12 were
+  such posts, in the creator's voice and with the creator's reach (166K views against 1–5K on the
+  brand's own). The import keeps only the brand's own posts (`ownerUsername`).
+- **Hooks.** Styled letters (𝐏𝐨𝐝𝐢𝐮𝐦, 𝕬𝖌𝖊𝖉, U+1D400–1D7FF) become plain ones; dashes and stops at
+  the ends of the line go; a line with no letter or digit is skipped; a cut ends in one "…". The
+  caption is kept as posted.
+- **Invented counts on a real post.** The post page's phone preview printed fixed counts
+  ("2,418 likes · View all 86 comments") on a real Temper post with 37 likes and 1 comment. A post
+  brought in now carries its `metrics` into web-next (`Post.metrics`, `postOf`), and the Instagram
+  and TikTok previews print them, and none it lacks; other posts keep the fixed ones.
+- **A cover host this network cannot resolve.** One Willow cover named
+  `instagram.fosu2-2.fna.fbcdn.net`; the same path and signature load from
+  `scontent.cdninstagram.com`, which the loader now tries second.
+- **The cost line.** `scrape` printed the TikTok cap ($0.50, the least Apify takes) as the cost.
+  It now prints what the posts cost and the caps (the most Apify can charge), and refuses caps
+  that add to more than `--budget`. A real post's preview shows its counts on the account it
+  came from, and none on another.
+
+### Found and left as they are
+
+- The post page of a posted post still shows the composer's controls (Improve, upload) beside
+  "Already posted: it can be viewed, not changed".
+- A video posted to both Instagram and TikTok is two posts with the same cover.
+- A single Instagram photo shows the carousel icon (posts have no photo format).
+- Some TikTok covers are blurred at the source (the same 48 KB file at `coverUrl` and
+  `originalCoverUrl`); one TikTok caption's hashtags come garbled in Apify's `text`.
+- Counts are as of the scrape; a later load refreshes them.
+- web-next does not show the permalink; there is no "open on Instagram" link yet.
+- The Instagram scraper does not return pinned posts; a 150-post scrape reaches them by date.
+
