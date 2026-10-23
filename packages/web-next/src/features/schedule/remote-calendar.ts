@@ -35,6 +35,7 @@ interface ServerPost {
   draft: Record<string, unknown>
   metrics?: Post['metrics'] | null
   permalink?: string | null
+  measuredAt?: string | null
 }
 
 interface ServerIdea {
@@ -93,6 +94,7 @@ export function postOf(p: ServerPost): Post {
     ...(p.fromIdea && { fromIdea: p.fromIdea }),
     ...(p.metrics && { metrics: p.metrics }),
     ...(p.permalink && { permalink: p.permalink }),
+    ...(p.measuredAt && { measuredAt: p.measuredAt }),
     ...(failed && {
       error: failed.error ?? 'It did not go out.',
       failedOn: failed.channel as Post['failedOn'],
