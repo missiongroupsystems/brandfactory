@@ -1,0 +1,443 @@
+{
+  "name": "avatar",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "member",
+  "agents": {
+    "bot": "member"
+  },
+  "cases": [
+    {
+      "name": "makes a picture's upload for the caller, under a key the core makes, and records it as theirs",
+      "steps": [
+        {
+          "call": "account.avatar_upload",
+          "input": {
+            "mime": "image/jpeg",
+            "bytes": 48000
+          },
+          "expect": {
+            "result": {
+              "upload": {
+                "headers": {
+                  "content-type": "image/jpeg"
+                }
+              }
+            }
+          }
+        },
+        {
+          "sql": "select count(*)::int as n, bool_and(key ~ '^brandbase/[0-9a-f-]{36}\\.jpg$') as made, bool_and(user_id = 'member') as mine from brandbase.avatar_uploads",
+          "expect": {
+            "rows": [
+              {
+                "n": 1,
+                "made": true,
+                "mine": true
+              }
+            ]
+          }
+        },
+        {
+          "call": "account.avatar_upload",
+          "input": {
+            "mime": "image/webp",
+            "bytes": 5242880
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.avatar_uploads where key ~ '^brandbase/[0-9a-f-]{36}\\.webp$'",
+          "expect": {
+            "rows": [
+              {
+                "n": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sets the caller's own picture as its path on the core, never another host, and account.me answers it; nobody else's changes",
+      "steps": [
+        {
+          "sql": "insert into brandbase.avatar_uploads (key, user_id) values ('brandbase/00000000-0000-4000-8000-000000000001.jpg', 'member')"
+        },
+        {
+          "call": "account.avatar_set",
+          "input": {
+            "src": "https://core.test/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.jpg"
+          },
+          "expect": {
+            "result": {
+              "avatar": "/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.jpg"
+            }
+          }
+        },
+        {
+          "call": "account.me",
+          "expect": {
+            "result": {
+              "user": {
+                "id": "member",
+                "avatar": "/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.jpg"
+              }
+            }
+          }
+        },
+        {
+          "call": "account.avatar_set",
+          "input": {
+            "src": "https://elsewhere.test/files/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/brandbase/00000000-0000-4000-8000-000000000001.jpg"
+          },
+          "expect": {
+            "result": {
+              "avatar": "/files/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/brandbase/00000000-0000-4000-8000-000000000001.jpg"
+            }
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.users where avatar is not null and id <> 'member'",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "removes the picture with null",
+      "steps": [
+        {
+          "sql": "insert into brandbase.avatar_uploads (key, user_id) values ('brandbase/00000000-0000-4000-8000-000000000001.png', 'member')"
+        },
+        {
+          "call": "account.avatar_set",
+          "input": {
+            "src": "https://core.test/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.png"
+          }
+        },
+        {
+          "call": "account.avatar_set",
+          "input": {
+            "src": null
+          },
+          "expect": {
+            "result": {
+              "avatar": null
+            }
+          }
+        },
+        {
+          "call": "account.me",
+          "expect": {
+            "result": {
+              "user": {
+                "id": "member",
+                "avatar": null
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses another person's upload, and takes no person from the input",
+      "steps": [
+        {
+          "sql": "insert into brandbase.avatar_uploads (key, user_id) values ('brandbase/00000000-0000-4000-8000-000000000002.jpg', 'owner')"
+        },
+        {
+          "call": "account.avatar_set",
+          "input": {
+            "src": "https://core.test/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000002.jpg"
+          },
+          "expect": {
+            "status": 400,
+            "code": "BAD_AVATAR"
+          }
+        },
+        {
+          "call": "account.avatar_set",
+          "input": {
+            "src": null,
+            "user": "owner"
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.users where avatar is not null",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses an address the core did not issue for the caller's picture",
+      "steps": [
+        {
+          "sql": "insert into brandbase.avatar_uploads (key, user_id) values ('brandbase/00000000-0000-4000-8000-000000000001.jpg', 'member')"
+        },
+        {
+          "sql": "insert into brandbase.media (id, brand_id, storage_key, kind, mime, name, bytes) values ('m1', 'casa', 'brandbase/00000000-0000-4000-8000-000000000003.jpg', 'photo', 'image/jpeg', '', 10)"
+        },
+        {
+          "call": "account.avatar_set",
+          "input": {
+            "src": "https://core.test/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000003.jpg"
+          },
+          "expect": {
+            "status": 400,
+            "code": "BAD_AVATAR"
+          }
+        },
+        {
+          "call": "account.avatar_set",
+          "input": {
+            "src": "https://elsewhere.test/brandbase/00000000-0000-4000-8000-000000000001.jpg"
+          },
+          "expect": {
+            "status": 400,
+            "code": "BAD_AVATAR"
+          }
+        },
+        {
+          "call": "account.avatar_set",
+          "input": {
+            "src": "https://core.test/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.jpg?x=1"
+          },
+          "expect": {
+            "status": 400,
+            "code": "BAD_AVATAR"
+          }
+        },
+        {
+          "call": "account.avatar_set",
+          "input": {
+            "src": "javascript:alert(1)//files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/00000000-0000-4000-8000-000000000001.jpg"
+          },
+          "expect": {
+            "status": 400,
+            "code": "BAD_AVATAR"
+          }
+        },
+        {
+          "call": "account.avatar_set",
+          "input": {
+            "src": ""
+          },
+          "expect": {
+            "status": 400,
+            "code": "BAD_AVATAR"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.users where avatar is not null",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a picture of another type, or over 5 MB",
+      "steps": [
+        {
+          "call": "account.avatar_upload",
+          "input": {
+            "mime": "image/gif",
+            "bytes": 100
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "account.avatar_upload",
+          "input": {
+            "mime": "image/svg+xml",
+            "bytes": 100
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "account.avatar_upload",
+          "input": {
+            "mime": "image/jpeg",
+            "bytes": 5242881
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "account.avatar_upload",
+          "input": {
+            "mime": "image/jpeg",
+            "bytes": 100,
+            "file": "brandbase/00000000-0000-4000-8000-000000000009.jpg"
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.avatar_uploads",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses an agent, for the upload and for the picture",
+      "steps": [
+        {
+          "call": "account.avatar_upload",
+          "as": "bot",
+          "input": {
+            "mime": "image/jpeg",
+            "bytes": 100
+          },
+          "expect": {
+            "status": 403,
+            "code": "PERSON_ONLY"
+          }
+        },
+        {
+          "call": "account.avatar_set",
+          "as": "bot",
+          "input": {
+            "src": null
+          },
+          "expect": {
+            "status": 403,
+            "code": "PERSON_ONLY"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.avatar_uploads",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a caller with no account, and a deactivated one",
+      "steps": [
+        {
+          "call": "account.avatar_upload",
+          "as": "stranger",
+          "input": {
+            "mime": "image/jpeg",
+            "bytes": 100
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "account.avatar_set",
+          "as": "stranger",
+          "input": {
+            "src": null
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "account.avatar_upload",
+          "as": "gone",
+          "input": {
+            "mime": "image/jpeg",
+            "bytes": 100
+          },
+          "expect": {
+            "status": 403,
+            "code": "ACCOUNT_DEACTIVATED"
+          }
+        },
+        {
+          "call": "account.avatar_set",
+          "as": "gone",
+          "input": {
+            "src": null
+          },
+          "expect": {
+            "status": 403,
+            "code": "ACCOUNT_DEACTIVATED"
+          }
+        }
+      ]
+    },
+    {
+      "name": "the wall: under the runtime role a person changes only their own picture, even a company's owner",
+      "steps": [
+        {
+          "sql": "do $$ declare n int; begin insert into claims.calls (user_id) values ('owner'); set local role pack_runtime; update brandbase.users set avatar = 'x' where id = 'member'; get diagnostics n = row_count; if n <> 0 then raise exception 'owner changed member'; end if; update brandbase.users set avatar = 'mine' where id = 'owner'; get diagnostics n = row_count; if n <> 1 then raise exception 'owner did not change their own'; end if; end $$"
+        },
+        {
+          "sql": "select id, avatar from brandbase.users where avatar is not null",
+          "expect": {
+            "rows": [
+              {
+                "id": "owner",
+                "avatar": "mine"
+              }
+            ]
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('member'); set local role pack_runtime; update brandbase.users set email = 'x@example.com' where id = 'member'; end $$",
+          "expect": {
+            "error": "permission denied"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('member'); set local role pack_runtime; insert into brandbase.avatar_uploads (key, user_id) values ('brandbase/00000000-0000-4000-8000-000000000004.jpg', 'owner'); end $$",
+          "expect": {
+            "error": "row-level security"
+          }
+        },
+        {
+          "sql": "do $$ begin insert into claims.calls (user_id) values ('member'); set local role pack_runtime; delete from brandbase.avatar_uploads; end $$",
+          "expect": {
+            "error": "permission denied"
+          }
+        }
+      ]
+    }
+  ]
+}

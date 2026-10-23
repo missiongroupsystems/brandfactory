@@ -9,12 +9,14 @@ import {
   onAccount,
   onUser,
   platformOn,
+  removeAvatar,
   saveName,
   sessionEmail,
   setPassword,
   signIn,
   signedIn,
   signOut,
+  uploadAvatar,
 } from './remote'
 
 vi.hoisted(() => {
@@ -236,7 +238,7 @@ describe('setPassword', () => {
 describe("the signed-in person's name", () => {
   // Signs in with a token whose claims carry this Supabase name, then loads a core whose users
   // table names the person "Natalie Ng".
-  async function load(supabaseName?: string) {
+  async function load(supabaseName?: string, avatar: string | null = null) {
     const named = Buffer.from(
       JSON.stringify({
         sub: 'u1',
@@ -255,7 +257,7 @@ describe("the signed-in person's name", () => {
         })
       if (u.endsWith('/account.me'))
         return json({
-          user: { id: 'u1', name: 'Natalie Ng', email: 'nat@missiongroup.com' },
+          user: { id: 'u1', name: 'Natalie Ng', email: 'nat@missiongroup.com', avatar },
           companies: [],
           brands: [],
         })
@@ -272,11 +274,16 @@ describe("the signed-in person's name", () => {
     expect(await load('Priya Sharma')).toEqual({
       name: 'Priya Sharma',
       email: 'nat@missiongroup.com',
+      avatar: null,
     })
   })
 
   it("is the core's, as an admin set it, until the person saves their own", async () => {
-    expect(await load()).toEqual({ name: 'Natalie Ng', email: 'nat@missiongroup.com' })
+    expect(await load()).toEqual({
+      name: 'Natalie Ng',
+      email: 'nat@missiongroup.com',
+      avatar: null,
+    })
   })
 
   it('saves on the Supabase account as the person, only the name, and shows at once', async () => {
@@ -300,5 +307,69 @@ describe("the signed-in person's name", () => {
     expect(name).toBe('Nat Ng')
     expect(brands).not.toHaveBeenCalled()
     off()
+  })
+
+  const PATH = '/files/sig/brandbase/0a.jpg'
+  const SRC = `http://core.test${PATH}`
+
+  it('carries the photo the core keeps for the person', async () => {
+    // The core keeps the path; the address is always this core's, never another host.
+    expect(await load(undefined, PATH)).toMatchObject({ avatar: SRC })
+  })
+
+  it('uploads a photo: the record on the core, the bytes to storage, then the photo set', async () => {
+    await load()
+    vi.mocked(fetch).mockReset()
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        json({
+          upload: { url: 'http://storage.test/put', headers: { 'content-type': 'image/jpeg' } },
+          src: SRC,
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(json({ avatar: PATH }))
+    const picture = new Blob(['jpeg'], { type: 'image/jpeg' })
+    expect(await uploadAvatar(picture)).toBe(SRC)
+    const calls = vi.mocked(fetch).mock.calls
+    expect(calls.map(([url, init]) => [String(url), init?.method])).toEqual([
+      ['http://core.test/ops/brandbase/account.avatar_upload', 'POST'],
+      ['http://storage.test/put', 'PUT'],
+      ['http://core.test/ops/brandbase/account.avatar_set', 'POST'],
+    ])
+    expect(JSON.parse(String(calls[0]![1]?.body))).toEqual({ mime: 'image/jpeg', bytes: 4 })
+    expect(calls[1]![1]?.body).toBe(picture)
+    expect(calls[1]![1]?.headers).toEqual({ 'content-type': 'image/jpeg' })
+    expect(JSON.parse(String(calls[2]![1]?.body))).toEqual({ src: SRC })
+    let avatar: string | null | undefined
+    onUser((u) => (avatar = u.avatar))()
+    expect(avatar).toBe(SRC)
+  })
+
+  it('does not set a photo whose bytes did not reach storage', async () => {
+    await load()
+    vi.mocked(fetch).mockReset()
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        json({ upload: { url: 'http://storage.test/put', headers: {} }, src: SRC }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 500 }))
+    await expect(uploadAvatar(new Blob(['x'], { type: 'image/jpeg' }))).rejects.toMatchObject({
+      code: 'UPLOAD',
+    })
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2)
+  })
+
+  it('removes the photo with null, and the header falls back to the initials', async () => {
+    await load(undefined, PATH)
+    vi.mocked(fetch).mockReset()
+    vi.mocked(fetch).mockResolvedValueOnce(json({ avatar: null }))
+    await removeAvatar()
+    const [url, init] = vi.mocked(fetch).mock.calls[0]!
+    expect(String(url)).toBe('http://core.test/ops/brandbase/account.avatar_set')
+    expect(JSON.parse(String(init?.body))).toEqual({ src: null })
+    let avatar: string | null | undefined = SRC
+    onUser((u) => (avatar = u.avatar))()
+    expect(avatar).toBeNull()
   })
 })

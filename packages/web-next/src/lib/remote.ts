@@ -489,7 +489,7 @@ interface Account {
   brands: CoreBrand[]
   companies: Company[]
   /** The signed-in person, for the header's account menu: their own name first, else the core's. */
-  user: { name: string; email: string }
+  user: { name: string; email: string; avatar?: string | null }
   /** The name the core holds, as an admin set it. */
   coreName: string
 }
@@ -544,7 +544,10 @@ export async function loadAll() {
   // The platforms first: the stores read them when each brand's state comes in.
   const [brands, me] = await Promise.all([
     request<CoreBrand[]>('GET', '/brands'),
-    request<{ companies?: Company[]; user?: { name?: string; email?: string } }>('GET', '/me'),
+    request<{
+      companies?: Company[]
+      user?: { name?: string; email?: string; avatar?: string | null }
+    }>('GET', '/me'),
     loadPlatforms(),
   ])
   // One brand refused (gone meanwhile, or walled off) is not the account refused: it must not
@@ -562,12 +565,57 @@ export async function loadAll() {
   account = {
     brands,
     companies: me.companies ?? [],
-    user: { name: sessionName() || coreName, email: me.user?.email || sessionEmail() },
+    user: {
+      name: sessionName() || coreName,
+      email: me.user?.email || sessionEmail(),
+      avatar: avatarAddress(me.user?.avatar),
+    },
     coreName,
   }
   accountListeners.forEach((l) => l(account!))
   userListeners.forEach((l) => l(account!.user))
   return brands.map((b) => b.id)
+}
+
+/**
+ * The core keeps a picture as its path on the core (`/files/<signature>/<key>`), never a host:
+ * the address is always this core's.
+ */
+const avatarAddress = (path: string | null | undefined) => (path ? `${CORE_URL}${path}` : null)
+
+/** Puts the person's picture on the account and tells their listeners. */
+function showAvatar(avatar: string | null) {
+  if (!account) return
+  account = { ...account, user: { ...account.user, avatar } }
+  userListeners.forEach((l) => l(account!.user))
+}
+
+/**
+ * Uploads the person's own profile picture (the cropped square) and makes it theirs: the core
+ * makes the file's record and key, the browser writes the bytes to storage, then the core takes
+ * the file's address. Returns the address the header now shows.
+ */
+export async function uploadAvatar(picture: Blob): Promise<string> {
+  const made = await request<{
+    src: string
+    upload: { url: string; headers: Record<string, string> }
+  }>('POST', '/me/avatar', { mime: picture.type, bytes: picture.size })
+  const put = await fetch(made.upload.url, {
+    method: 'PUT',
+    headers: made.upload.headers,
+    body: picture,
+  })
+  if (!put.ok) throw new RemoteError(put.status, 'UPLOAD', 'The photo did not upload.')
+  const set = await request<{ avatar: string | null }>('PUT', '/me/avatar', { src: made.src })
+  const address = avatarAddress(set.avatar)
+  showAvatar(address)
+  return address ?? ''
+}
+
+/** Takes the person's profile picture away; the header shows their initials again. */
+export async function removeAvatar(): Promise<void> {
+  await request('PUT', '/me/avatar', { src: null })
+  showAvatar(null)
 }
 
 // ── Files ───────────────────────────────────────────────────────────────────────────────────

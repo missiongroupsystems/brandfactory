@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.40.0** — 2026-10-23 — `feat/profile-picture`: a person adds their own profile picture on `/profile` (brandbase 1.9.0, migration 0017, not applied to production). Upload photo opens a square crop (drag, zoom) that saves a 512×512 JPEG to storage; Remove photo takes it away; the header's avatar shows the photo, else the initials. Only the person sets their own picture: no admin, no agent, and only an address the core issued for that person's upload. The static demo is unchanged. 1236 tests, all run on a throwaway Postgres; `core test brandbase 1.9.0` 185/185.
 - **2.39.0** — 2026-10-23 — `feat/posted-post-poster`: a posted post, imported or sent, opens as a poster: the cover first, large and sticky (a carousel's other slides under it; a video's cover marked "Cover only"), then the account chips, the format and the day, the title, the real counts (views first, no number invented), the caption folded after six lines with More, the facts it has, "Open on TikTok" or "Open on Instagram" from the post's permalink, and an Analytics section with the amber "Not connected" pill and a preview of what arrives, drawn with no figures. Replaces the old posted page (the composer's cards with a phone preview). The core's `permalink` now reaches the web app. The static demo keeps its two posted posts. No migration. 1197 tests (211 skipped without a Postgres server).
 - **2.38.5** — 2026-10-23 — `feat/calendar-year-picker`: on the core the calendar never shows the static demo's dates, posts or shoots: before a brand's state arrives, or when it does not, today is the device's date in Singapore and the weeks are open. The calendar title opens a month picker (a year stepper over twelve months, from the year of the brand's first post to next year) that jumps the Month, Week or Day view there, on the desktop and in the phone's view menu. The core's run of weeks now covers whole months, so a month reached from an early post shows every week its title names. No pack change, no migration. 1166 tests (211 skipped without a Postgres server).
 - **2.38.4** — 2026-10-23 — `fix/bubbles-max-tokens`: Bubbles answers questions about a brand with history. The runtime was told the model has a 65,536-token window; a brand's whole state (`brand.state`) took the prompt past it, so the runtime asked for one token and the turn ended on `max-tokens` with no answer. It is now told 262,144 (the model has a million on every host). A turn cut off now says so after any words it wrote, and a turn that ends with nothing said says so too. No migration; Bubbles only, web-next unchanged. 1162 tests, all run on a throwaway Postgres.
@@ -81,6 +82,25 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.40.0 — 2026-10-23
+
+- **Why.** The header and the profile showed only initials; people asked for their own photo.
+- **Pack 1.9.0.** Migration `0017_avatar.sql`: `users.avatar`, the table `avatar_uploads` (the
+  keys the core made for each person's picture), an UPDATE policy on `users` for the caller's own
+  row and `GRANT UPDATE (avatar)` only. `account.avatar_upload` (an upload move: JPEG, PNG or
+  WebP, at most 5 MB) and `account.avatar_set` (an address the core issued for the caller's own
+  upload, or null; only the path on the core is kept, never a host). Both for a person only.
+  `account.me` answers `user.avatar`.
+- **web-next.** `/profile`: the photo or the initials, Upload photo, a square crop on the post
+  crop's model with a canvas export, Remove photo. The header's avatar shows the photo.
+- **Docs.** `docs/completions/profile-picture-plan.md` and `profile-picture-phases-1-to-1.md`
+  (the production steps: publish, test, migrate, promote 1.9.0, then the loadouts; no core
+  redeploy).
+- **Review fixes (Opus and Sonnet).** The picture was kept as the full address, so a person
+  could keep their own key under another host; now only the path on the core is kept and the web
+  app adds its own core address. Focus moves into the crop and back to Upload photo.
+- **Gate:** typecheck, lint, format, build; tests 1236, all run on a throwaway Postgres 18; `core test brandbase 1.9.0` 185/185.
 
 ## 2.39.0 — 2026-10-23
 

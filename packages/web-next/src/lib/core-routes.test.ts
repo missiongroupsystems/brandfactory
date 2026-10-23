@@ -119,6 +119,17 @@ describe('the routes on the core', () => {
     })
   })
 
+  it("sends the person's own picture to its two moves", () => {
+    expect(coreCall('POST', '/me/avatar', { mime: 'image/jpeg', bytes: 9 })).toEqual({
+      op: 'account.avatar_upload',
+      input: { mime: 'image/jpeg', bytes: 9 },
+    })
+    expect(coreCall('PUT', '/me/avatar', { src: null })).toEqual({
+      op: 'account.avatar_set',
+      input: { src: null },
+    })
+  })
+
   it('has no move for a route the app does not call', () => {
     expect(coreCall('GET', '/brands/casa/posts/p1', undefined)).toBeNull()
   })

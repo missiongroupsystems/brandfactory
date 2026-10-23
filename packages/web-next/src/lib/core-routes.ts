@@ -25,6 +25,9 @@ type Route = [
 // The path's ids come last, so a body cannot point a route at another brand or post.
 const ROUTES: Route[] = [
   ['GET', /^\/me$/, () => ({ op: 'account.me', input: {} })],
+  // The person's own picture: the core takes the person from the session, never from the body.
+  ['POST', /^\/me\/avatar$/, (_m, body) => ({ op: 'account.avatar_upload', input: { ...body } })],
+  ['PUT', /^\/me\/avatar$/, (_m, body) => ({ op: 'account.avatar_set', input: { ...body } })],
   ['GET', /^\/brands$/, () => ({ op: 'brand.list', input: {} })],
   ['POST', /^\/brands$/, (_m, body) => ({ op: 'brand.create', input: { ...body } })],
   ['GET', /^\/brands\/([^/]+)\/state$/, ([b]) => ({ op: 'brand.state', input: { brand: b } })],
