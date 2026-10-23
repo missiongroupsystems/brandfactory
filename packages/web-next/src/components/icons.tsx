@@ -27,6 +27,19 @@ export function CropIcon({ size = 11 }: { size?: number }) {
   )
 }
 
+export function PencilIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <path
+        d="M8 1.75L10.25 4L4 10.25H1.75V8L8 1.75Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function PlusIcon({ size = 14 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">

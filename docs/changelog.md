@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.40.2** — 2026-10-23 — `fix/profile-photo-edit`: on `/profile` the zoomed crop pans again. The browser's own image drag took the press and cancelled the pan; no image in the app is a drag source of its own now (a CSS rule, and one `dragstart` handler for Firefox), while a calendar tile, an idea's reference or a storyboard shot still drags by its photo. The photo controls are a small pencil on the photo: View photo (a lightbox, also on a click on the photo), Change photo and Remove photo. No pack change, no migration. 1244 tests (220 skipped without a Postgres server).
 - **2.40.1** — 2026-10-23 — `fix/unavailable-label`: the amber pill for a service the core cannot reach yet (Instagram, TikTok, Facebook, Pinterest, Google Drive, Lark, Insights sources, a posted post's Analytics) says "Unavailable" instead of "Not connected"; Bubbles' connection card says the same. Its hover line ("… isn’t connected yet.") is unchanged. Text only, no migration. 1236 tests (220 skipped without a Postgres server).
 - **2.40.0** — 2026-10-23 — `feat/profile-picture`: a person adds their own profile picture on `/profile` (brandbase 1.9.0, migration 0017, not applied to production). Upload photo opens a square crop (drag, zoom) that saves a 512×512 JPEG to storage; Remove photo takes it away; the header's avatar shows the photo, else the initials. Only the person sets their own picture: no admin, no agent, and only an address the core issued for that person's upload. The static demo is unchanged. 1236 tests, all run on a throwaway Postgres; `core test brandbase 1.9.0` 185/185.
 - **2.39.0** — 2026-10-23 — `feat/posted-post-poster`: a posted post, imported or sent, opens as a poster: the cover first, large and sticky (a carousel's other slides under it; a video's cover marked "Cover only"), then the account chips, the format and the day, the title, the real counts (views first, no number invented), the caption folded after six lines with More, the facts it has, "Open on TikTok" or "Open on Instagram" from the post's permalink, and an Analytics section with the amber "Not connected" pill and a preview of what arrives, drawn with no figures. Replaces the old posted page (the composer's cards with a phone preview). The core's `permalink` now reaches the web app. The static demo keeps its two posted posts. No migration. 1197 tests (211 skipped without a Postgres server).
@@ -83,6 +84,29 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.40.2 — 2026-10-23
+
+- **Why.** On `/profile`, a drag in the zoomed crop moved a ghost of the photo instead of the
+  photo. The press landed on the `<img>`, the browser started its own image drag, and that drag
+  sent `pointercancel`, which ended the pan after a few pixels. `select-none` and `touch-none` do
+  not stop an image drag. The post's crop had the same fault.
+- **What.** No image in the app is a drag source of its own: a global `img` rule
+  (`-webkit-user-drag: none; user-select: none`) for Chrome and Safari, and `NoImageDrag`, one
+  capture-phase `dragstart` handler on the document for Firefox. It leaves alone an image inside
+  an element made `draggable="true"`, so a calendar tile, an idea's reference or a storyboard shot
+  still moves when the press lands on its photo. Both crops also stop `dragstart` themselves. The
+  crop maths was right: a pan moves the photo 1:1 with the pointer, stops at the photo's edge,
+  and the saved 512×512 square is what the circle shows.
+- **Photo controls.** The "Upload photo" and "Remove photo" pills are gone. The photo (or the
+  initials) is 96 px with a small round pencil on its edge. The pencil opens a menu: View photo
+  and Remove photo when there is a photo, and Change photo (the file picker, then the crop). View
+  photo, or a click on the photo, shows the whole photo over a dimmed page; Escape, the close
+  button or a press outside closes it.
+- **Checked** in a browser (Playwright, stub core): a zoomed pan by mouse and by touch moves the
+  photo the full distance with no `dragstart` or `pointercancel`; a calendar tile dragged by its
+  photo moves to the next day.
+- **Gate:** typecheck, lint, format, build; tests 1244 (220 skipped without a Postgres server); reviewed by Sonnet (menu and photo view focus fixes).
 
 ## 2.40.1 — 2026-10-23
 

@@ -4,19 +4,17 @@ import * as React from 'react'
 
 import { initials } from '@/components/account-menu'
 import { AppHeader } from '@/components/app-header'
-import { ProfilePicture } from '@/components/profile-picture'
 import { onUser, removeAvatar, saveName, setPassword, uploadAvatar } from '@/lib/remote'
 
 import { AvatarCrop } from './avatar-crop'
 import { problem, refusal } from './password'
+import { ProfilePhoto } from './profile-photo'
 
 const FIELD =
   'h-11 w-full rounded-[10px] border border-line bg-page px-3 text-[16px] outline-none focus:border-ink-3'
 const LABEL = 'text-[12.5px] text-ink-4'
 const BUTTON =
   'bb-press mt-1 h-11 rounded-full bg-ink text-[14px] font-medium text-page disabled:opacity-50'
-const PILL =
-  'bb-press h-8 w-fit rounded-full border border-line px-3 text-[13px] text-ink-2 transition-colors hover:bg-surface hover:text-ink disabled:opacity-50'
 
 /** How long the check mark stays after a password change, as on the first sign-in. */
 const SHOWN_MS = 1300
@@ -41,12 +39,12 @@ export function ProfilePage() {
   const [photoBusy, setPhotoBusy] = React.useState(false)
   const [photoError, setPhotoError] = React.useState<string | null>(null)
   const picker = React.useRef<HTMLInputElement>(null)
-  const uploadButton = React.useRef<HTMLButtonElement>(null)
-  // Focus goes back to Upload photo when the crop closes, not to the page's start.
+  const pencil = React.useRef<HTMLButtonElement>(null)
+  // Focus goes back to the pencil when the crop closes, not to the page's start.
   const cropped = React.useRef(false)
   React.useEffect(() => {
     if (chosen) cropped.current = true
-    else if (cropped.current) uploadButton.current?.focus()
+    else if (cropped.current) pencil.current?.focus()
   }, [chosen])
 
   const [password, setWord] = React.useState('')
@@ -174,37 +172,14 @@ export function ProfilePage() {
               }}
             />
           ) : (
-            <div className="flex items-center gap-4">
-              <span
-                className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full text-[18px] font-semibold"
-                style={{ background: 'var(--avatar)', color: 'var(--avatar-ink)' }}
-              >
-                <ProfilePicture src={avatar ?? undefined} size={64} className="rounded-full">
-                  {initials([first, last].join(' '), email)}
-                </ProfilePicture>
-              </span>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  ref={uploadButton}
-                  type="button"
-                  onClick={() => picker.current?.click()}
-                  disabled={photoBusy}
-                  className={PILL}
-                >
-                  Upload photo
-                </button>
-                {avatar && (
-                  <button
-                    type="button"
-                    onClick={dropPhoto}
-                    disabled={photoBusy}
-                    className="bb-press h-8 px-2 text-[13px] text-ink-4 transition-colors hover:text-ink disabled:opacity-50"
-                  >
-                    {photoBusy ? 'Removing…' : 'Remove photo'}
-                  </button>
-                )}
-              </div>
-            </div>
+            <ProfilePhoto
+              src={avatar}
+              initials={initials([first, last].join(' '), email)}
+              busy={photoBusy}
+              pencil={pencil}
+              onChange={() => picker.current?.click()}
+              onRemove={dropPhoto}
+            />
           )}
           <input
             ref={picker}

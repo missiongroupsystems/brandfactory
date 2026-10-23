@@ -49,6 +49,12 @@
     outline: 2px solid var(--ink);
     outline-offset: 2px;
   }
+  /* No photo is a drag source of its own: a press on it pans a crop or moves the tile it is in,
+     never a ghost of the photo. Firefox ignores user-drag; NoImageDrag covers it there. */
+  img {
+    -webkit-user-drag: none;
+    user-select: none;
+  }
 }
 
 /*

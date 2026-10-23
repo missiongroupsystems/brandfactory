@@ -88,11 +88,46 @@ describe('the profile page', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('That password is too weak.')
   })
 
-  it('shows the initials with no photo, and only Upload photo', () => {
+  it('shows the initials with no photo, and a pencil that offers only Change photo', () => {
     render(<ProfilePage />)
     expect(screen.getByText('NN')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Upload photo' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Remove photo' })).toBeNull()
+    // No pill under the photo any more, and nothing to view.
+    expect(screen.queryByRole('button', { name: 'Upload photo' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'View photo' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit photo' }))
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Change photo'])
+  })
+
+  it('opens the file picker from Change photo', () => {
+    render(<ProfilePage />)
+    const picker = screen.getByLabelText('Photo file')
+    const click = vi.spyOn(picker, 'click')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit photo' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Change photo' }))
+    expect(click).toHaveBeenCalled()
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('shows the whole photo from the menu or the photo itself, and closes it on Escape', () => {
+    account.avatar = 'https://core.test/files/s/brandbase/a.jpg'
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit photo' }))
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual([
+      'View photo',
+      'Change photo',
+      'Remove photo',
+    ])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'View photo' }))
+    const dialog = screen.getByRole('dialog', { name: 'Your photo' })
+    expect(dialog.querySelector('img')?.getAttribute('src')).toContain(
+      encodeURIComponent(account.avatar),
+    )
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    // The photo itself opens it too; a press outside closes it.
+    fireEvent.click(screen.getByRole('button', { name: 'View photo' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close photo' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('crops a chosen file, then uploads the square and shows it', async () => {
@@ -124,7 +159,20 @@ describe('the profile page', () => {
     expect(container.querySelector('img')?.getAttribute('src')).toContain(
       encodeURIComponent(account.avatar),
     )
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Remove photo' })))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit photo' }))
+    await act(async () => fireEvent.click(screen.getByRole('menuitem', { name: 'Remove photo' })))
     expect(remote.removeAvatar).toHaveBeenCalled()
+    // The keyboard keeps its place on the pencil.
+    expect(screen.getByRole('button', { name: 'Edit photo' })).toHaveFocus()
+  })
+
+  it('keeps Tab inside the photo view, and a click on the photo closes the open menu', () => {
+    account.avatar = 'https://core.test/files/s/brandbase/a.jpg'
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit photo' }))
+    fireEvent.click(screen.getByRole('button', { name: 'View photo' }))
+    expect(screen.queryByRole('menu')).toBeNull()
+    fireEvent.keyDown(window, { key: 'Tab' })
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus()
   })
 })

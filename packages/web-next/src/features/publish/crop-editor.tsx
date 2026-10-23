@@ -48,6 +48,8 @@ export function CropEditor({
           start.current = { x: e.clientX, y: e.clientY, crop }
         }}
         onPointerMove={drag}
+        // The photo's own drag would cancel the pointer and end the pan after a few pixels.
+        onDragStart={(e) => e.preventDefault()}
         onPointerUp={() => (start.current = null)}
         onPointerCancel={() => (start.current = null)}
         className="relative h-[400px] w-full cursor-grab touch-none overflow-hidden rounded-[14px] bg-tile select-none active:cursor-grabbing max-md:h-[360px]"
