@@ -239,7 +239,10 @@ describe('a posted post from the calendar, on the core', () => {
       },
       metrics: { likes: 3 },
       permalink: 'https://www.instagram.com/p/C1/',
+      // 1 am on the 22nd in Singapore: the counts are as of the 22nd, not the UTC day.
+      measuredAt: '2026-10-21T17:00:00.000Z',
     })
+    expect(screen.getByText('as of 22 Oct')).toBeInTheDocument()
     expect(within(header()).getByText('Instagram')).toBeInTheDocument()
     expect(screen.getByText('Post · Fri 16 Oct, 19:00')).toBeInTheDocument()
     expect(screen.getByText(/Book a table\./)).toBeInTheDocument()

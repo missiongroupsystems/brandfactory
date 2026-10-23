@@ -7,6 +7,7 @@ import { PlatformLogo } from '@/components/platform-logos'
 import type { Post } from '@/data/demo'
 import { NotAvailable, reasonOf } from '@/features/connections/not-available'
 import { useBrand } from '@/features/schedule/posts-store'
+import { clockToday, MONTH_SHORT, todayDate } from '@/lib/dates'
 
 import { CHANNELS, FORMAT_LABEL, type ChannelKey, type Shot } from './model'
 import { TypeBadge } from './preview-media'
@@ -269,7 +270,15 @@ function FactRows({ v }: { v: PostedView }) {
   )
 }
 
-/** The numbers in a row: the first one large, the rest beside it. */
+/** When the counts were read, in Singapore: "22 Oct", with the year only when it is not this one. */
+function asOf(measuredAt: string): string {
+  const day = clockToday(new Date(measuredAt))
+  const [year, month, date] = day.split('-').map(Number)
+  const words = `${date} ${MONTH_SHORT[month! - 1]}`
+  return day.slice(0, 4) === todayDate().slice(0, 4) ? words : `${words} ${year}`
+}
+
+/** The numbers in a row: the first one large, the rest beside it, then when they were read. */
 function CountRow({ post }: { post: Post }) {
   const counts = countsOf(post)
   if (counts.length === 0) return null
@@ -288,6 +297,9 @@ function CountRow({ post }: { post: Post }) {
           <span className="text-[12.5px] text-ink-4">{c.label}</span>
         </span>
       ))}
+      {post.measuredAt && (
+        <span className="text-[12.5px] text-ink-4">as of {asOf(post.measuredAt)}</span>
+      )}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Post } from '@/data/demo'
@@ -174,6 +174,24 @@ describe('the counts', () => {
     open({ post: { ...post, metrics: undefined } })
     expect(screen.queryByText(/^(Views|Likes|Comments|Shares|Saves)$/)).toBeNull()
     expect(screen.queryByText(/^[\d.,]+k?$/)).toBeNull()
+  })
+
+  it('say the day they were read, in Singapore, since they are not live', () => {
+    open({ post: { ...post, measuredAt: '2026-10-21T17:00:00.000Z' } })
+    expect(screen.getByText('as of 22 Oct')).toBeInTheDocument()
+  })
+
+  it('give the year only when it is not this one', () => {
+    open({ post: { ...post, measuredAt: '2025-12-30T04:00:00.000Z' } })
+    expect(screen.getByText('as of 30 Dec 2025')).toBeInTheDocument()
+  })
+
+  it('give no date when none was read, or when there are no counts', () => {
+    open({})
+    expect(screen.queryByText(/^as of/)).toBeNull()
+    cleanup()
+    open({ post: { ...post, metrics: undefined, measuredAt: '2026-10-21T17:00:00.000Z' } })
+    expect(screen.queryByText(/^as of/)).toBeNull()
   })
 })
 

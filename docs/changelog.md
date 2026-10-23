@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.40.3** — 2026-10-23 — `fix/counts-as-of`: on a posted post's page the real counts end with "as of 22 Oct", the day the core read them (the post's `measuredAt`, from migration 0014's `measured_at`, in Singapore; the year only when it is not this one). The counts are a snapshot from the import, not live. Nothing shows without counts or without a date, so the static demo is unchanged. The core's `measuredAt` now reaches the web app. No pack change, no migration. 1247 tests (220 skipped without a Postgres server).
 - **2.40.2** — 2026-10-23 — `fix/profile-photo-edit`: on `/profile` the zoomed crop pans again. The browser's own image drag took the press and cancelled the pan; no image in the app is a drag source of its own now (a CSS rule, and one `dragstart` handler for Firefox), while a calendar tile, an idea's reference or a storyboard shot still drags by its photo. The photo controls are a small pencil on the photo: View photo (a lightbox, also on a click on the photo), Change photo and Remove photo. No pack change, no migration. 1244 tests (220 skipped without a Postgres server).
 - **2.40.1** — 2026-10-23 — `fix/unavailable-label`: the amber pill for a service the core cannot reach yet (Instagram, TikTok, Facebook, Pinterest, Google Drive, Lark, Insights sources, a posted post's Analytics) says "Unavailable" instead of "Not connected"; Bubbles' connection card says the same. Its hover line ("… isn’t connected yet.") is unchanged. Text only, no migration. 1236 tests (220 skipped without a Postgres server).
 - **2.40.0** — 2026-10-23 — `feat/profile-picture`: a person adds their own profile picture on `/profile` (brandbase 1.9.0, migration 0017, not applied to production). Upload photo opens a square crop (drag, zoom) that saves a 512×512 JPEG to storage; Remove photo takes it away; the header's avatar shows the photo, else the initials. Only the person sets their own picture: no admin, no agent, and only an address the core issued for that person's upload. The static demo is unchanged. 1236 tests, all run on a throwaway Postgres; `core test brandbase 1.9.0` 185/185.
@@ -84,6 +85,21 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.40.3 — 2026-10-23
+
+- **Why.** The counts on a posted post (views, likes, comments, shares, saves) are read once,
+  when the post is imported. The page showed them as if they were live.
+- **What.** The count row ends with a quiet "as of 22 Oct" in the labels' style: the day the
+  counts were read, in Singapore, with the year only when it is not this one. It comes from the
+  post's `measuredAt`, which `brandbase.post_json` already returned (migration 0014) and which
+  `postOf` in `schedule/remote-calendar.ts` now maps onto the `Post`, as `permalink` was. With no
+  counts or no date nothing shows; the static demo has no date.
+- **Tests.** `posted.test.tsx` checks the date with counts and a date, the year from another
+  year, and nothing without a date or without counts; `posted-remote.test.tsx` checks that the
+  core's `measuredAt` reaches the page. 1247 tests (220 skipped without a Postgres server).
+  `next build` passes in a checkout outside the repository folder; in a worktree under
+  `.claude/worktrees/` Turbopack cannot resolve `next/font/google`, a path problem, not this change.
 
 ## 2.40.2 — 2026-10-23
 
