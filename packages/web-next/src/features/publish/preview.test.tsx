@@ -254,13 +254,12 @@ describe('the grid preview', () => {
 })
 
 describe('a post from an earlier month in the demo', () => {
-  it('previews on its usual accounts, though it records none', () => {
+  it('names its usual accounts, though it records none', () => {
     const old = archiveFor('casa-vostra')[0]!
     expect(old.channels).toBeUndefined()
     inBrand(<Composer post={old} />)
-    expect(
-      within(preview()).getAllByRole('button', { name: /^Preview on/ }).length,
-    ).toBeGreaterThan(0)
+    const header = document.querySelector('header')!
+    expect(within(header).getAllByText(/^(Instagram|TikTok|Facebook)$/).length).toBeGreaterThan(0)
   })
 })
 

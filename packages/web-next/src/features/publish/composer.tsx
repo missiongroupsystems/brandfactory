@@ -42,9 +42,9 @@ import { DropZone } from './drop-zone'
 import {
   activeChannels,
   blockers,
-  CHANNELS,
   COLLAB_MAX,
   defaultCrop,
+  FORMAT_LABEL,
   frameRatio,
   handleOf,
   improveCaption,
@@ -72,6 +72,7 @@ import {
   type Shot,
 } from './model'
 import { PhoneMock, type People } from './phone-mocks'
+import { PostedPost } from './posted'
 import { TypeBadge } from './preview-media'
 import { ratioOf, ShotView } from './shot'
 import { hashtagsOf, labelsOf, peopleOf, placesOf } from './suggestions'
@@ -589,18 +590,27 @@ export function Composer({
       : post.slot.split(', ')[0]!
     return (
       <PostedPost
-        post={post}
-        api={api}
-        media={media}
-        people={people}
-        went={went}
-        on={on}
-        // Only what was kept with the post: no demo venue stands in for a location it never had.
-        details={keptDraft.details}
-        labels={keptDraft.labels ?? []}
-        extra={keptDraft.extra}
-        caption={kept?.caption || captions[post.id] || ''}
-        onFiles={addFiles}
+        v={{
+          post,
+          media,
+          went,
+          on,
+          at: post.slot.split(', ')[1] ?? '',
+          // Its own caption: the title never stands in for one it did not have.
+          caption: kept?.caption || captions[post.id] || '',
+          // Only what was kept with the post: no demo venue stands in for a location it never had.
+          collabs: keptDraft.details?.collab ?? [],
+          tagged: taggedIn(media),
+          location: keptDraft.details?.location ?? '',
+          labels: keptDraft.labels ?? [],
+          // On the core only the cover came across: a video shows it, and says why it does not play.
+          video:
+            remote &&
+            post.format === 'reel' &&
+            media.length > 0 &&
+            !media.some((m) => isVideo(m.src)),
+          permalink: post.permalink,
+        }}
       />
     )
   }
@@ -837,187 +847,10 @@ export function Composer({
   )
 }
 
-/**
- * A posted post: the post page's own cards, every field it went out with as plain text, and
- * nothing to change. An empty field is left out, not shown empty.
- */
-function PostedPost({
-  post,
-  api,
-  media,
-  people,
-  went,
-  on,
-  details,
-  labels,
-  extra,
-  caption,
-  onFiles,
-}: {
-  post: Post
-  api: PublishDraftApi
-  media: Shot[]
-  people: People
-  /** The accounts it went out on, in its own order. */
-  went: ChannelKey[]
-  /** The day it went out, in words. */
-  on: string
-  details: DetailState | undefined
-  labels: string[]
-  /** Its accounts' own settings, kept only when it went out from brand base. */
-  extra: Extra | undefined
-  /** Its own caption: the title never stands in for one it did not have. */
-  caption: string
-  onFiles: (files: FileList | null) => Promise<void>
-}) {
-  const { draft } = api
-  const accounts = went.flatMap((k) => CHANNELS.filter((c) => c.key === k))
-  const rows = [
-    { label: 'Location', value: details?.location },
-    { label: 'First comment', value: details?.comment },
-    { label: 'Tagged', value: taggedIn(media).join(', ') },
-    { label: 'Collaborators', value: details?.collab.join(', ') },
-    { label: 'AI-generated label', value: details?.aiLabel ? 'On' : '' },
-    ...(extra
-      ? accounts.map((c) => {
-          const s = summaryOf(draft, extra)[c.key]
-          return { label: c.name, value: s.needs ? '' : s.text }
-        })
-      : []),
-  ].filter((r): r is { label: string; value: string } => Boolean(r.value?.trim()))
-  // On the core only the cover came across: a video shows it, and says why it does not play.
-  const video =
-    remote && post.format === 'reel' && media.length > 0 && !media.some((m) => isVideo(m.src))
-  const first = went[0]
-  const card = `${CARD} max-md:border-t max-md:border-(--cal-line) max-md:pt-6`
-  return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <span className="self-start rounded-full bg-surface px-2 py-[2px] text-[11px] font-medium text-ink-2">
-          Posted on {on}
-        </span>
-        <h1 className="font-display text-[38px] leading-none tracking-[-0.035em] max-md:text-[28px] max-md:leading-[1.05]">
-          {post.hook}
-        </h1>
-      </header>
-      <div className="grid grid-cols-[minmax(0,1fr)_400px] items-start gap-6 max-lg:grid-cols-1">
-        <div className="flex min-w-0 flex-col gap-4 max-md:gap-6">
-          {accounts.length > 0 && (
-            <section aria-label="Accounts" className={card}>
-              <span className={EYEBROW}>Posted to</span>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap gap-2">
-                  {accounts.map((c) => (
-                    <span
-                      key={c.key}
-                      className="flex h-9 items-center gap-2 rounded-full bg-surface pr-4 pl-3 text-[13px] font-medium text-ink-2"
-                    >
-                      <PlatformLogo platform={c.key} size={14} />
-                      {c.name}
-                    </span>
-                  ))}
-                </div>
-                <span className="text-[13px] text-ink-3">{FORMAT_LABEL[post.format]}</span>
-              </div>
-            </section>
-          )}
-          {(media.length > 0 || caption.trim() !== '') && (
-            <section aria-label="Content" className={card}>
-              {media.length > 0 && (
-                <div className={`flex flex-wrap gap-2 ${STRIP}`}>
-                  {media.map((shot, i) => (
-                    <span
-                      key={shot.src + i}
-                      className="relative block h-[132px] w-[106px] shrink-0 overflow-hidden rounded-[12px] bg-tile"
-                    >
-                      <ShotView shot={shot} sizes="260px" />
-                      {media.length > 1 && (
-                        <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/50 px-1.5 font-mono text-[10px] text-page">
-                          {i + 1}
-                        </span>
-                      )}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {caption.trim() !== '' && (
-                <div className="flex flex-col gap-2">
-                  <span className={EYEBROW}>Caption</span>
-                  <p className="text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap">
-                    {caption}
-                  </p>
-                </div>
-              )}
-            </section>
-          )}
-          {(rows.length > 0 || labels.length > 0) && (
-            <section aria-label="Details" className={card}>
-              <span className={EYEBROW}>Details</span>
-              <dl className="flex flex-col">
-                {rows.map((r) => (
-                  <div
-                    key={r.label}
-                    className="grid grid-cols-[132px_minmax(0,1fr)] gap-3 border-b border-(--cal-line) py-3 first:pt-0 last:border-b-0 max-md:grid-cols-1 max-md:gap-1"
-                  >
-                    <dt className="text-[13px] text-ink-3">{r.label}</dt>
-                    <dd className="min-w-0 text-[13.5px] break-words whitespace-pre-wrap">
-                      {r.value}
-                    </dd>
-                  </div>
-                ))}
-                {labels.length > 0 && (
-                  <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 border-t border-(--cal-line) pt-3 first:border-t-0 first:pt-0 max-md:grid-cols-1 max-md:gap-1.5">
-                    <dt className="text-[13px] text-ink-3">Labels</dt>
-                    <dd className="flex flex-wrap gap-1.5">
-                      {labels.map((l) => (
-                        <span
-                          key={l}
-                          className="flex h-7 items-center rounded-full bg-surface px-2.5 text-[12.5px] text-ink-2"
-                        >
-                          {l}
-                        </span>
-                      ))}
-                    </dd>
-                  </div>
-                )}
-              </dl>
-            </section>
-          )}
-        </div>
-        {first && (
-          <div className="sticky top-6 flex flex-col gap-3 max-lg:static max-md:border-t max-md:border-(--cal-line) max-md:pt-6">
-            <Preview
-              api={api}
-              media={media}
-              people={people}
-              onFiles={onFiles}
-              // Its own counts or none: never the preview's invented ones.
-              counts={{ on: first, metrics: post.metrics ?? {} }}
-              on={went}
-              self={post.id}
-            />
-            {video && (
-              <span className="flex px-1">
-                <NotAvailable
-                  label="Cover only"
-                  reason={`Video plays once ${NAME[first]} is connected.`}
-                  align="left"
-                />
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 type SheetKey = 'accounts' | 'details' | 'when' | 'preview' | ChannelKey
 
 /** The accounts a post is published to. */
 const PUBLISHERS = ['ig', 'tt', 'fb'] as const satisfies readonly ChannelKey[]
-
-const FORMAT_LABEL: Record<Format, string> = { carousel: 'Post', reel: 'Reel', story: 'Story' }
 
 /** One line of the phone's list: what it is, its answer so far, and a chevron into its sheet. */
 function Row({
@@ -2870,7 +2703,6 @@ function Preview({
   people,
   onFiles,
   counts,
-  on,
   self,
 }: {
   api: PublishDraftApi
@@ -2882,15 +2714,12 @@ function Preview({
    * accounts show none, so another account's counts never pass for that one's.
    */
   counts?: { on: ChannelKey | undefined; metrics: NonNullable<Post['metrics']> }
-  /** A posted post: the accounts it went out on, shown as they are, with nothing to add. */
-  on?: ChannelKey[]
   /** The post's own id: Instagram's grid draws it first, and not again among the feed. */
   self?: string
 }) {
   const { draft } = api
   const { posts } = useBrand()
-  // A posted post's accounts in the order it has them, so its first one opens.
-  const active = on ? on.flatMap((k) => CHANNELS.filter((c) => c.key === k)) : activeChannels(draft)
+  const active = activeChannels(draft)
   const [picked, setPicked] = React.useState<ChannelKey | null>(null)
   const [grid, setGrid] = React.useState(false)
   const input = React.useRef<HTMLInputElement>(null)
@@ -2909,7 +2738,7 @@ function Preview({
             : textFor(draft, channel).text
         }
         live
-        onAdd={on ? undefined : () => input.current?.click()}
+        onAdd={() => input.current?.click()}
         counts={counts && (channel === counts.on ? counts.metrics : {})}
       />
     </Phone>
@@ -2979,16 +2808,10 @@ function Preview({
         </div>
       ) : (
         <div key={channel} className="bb-swap flex justify-center">
-          {on ? (
-            phone
-          ) : (
-            <>
-              <DropZone onFiles={onFiles} radius={22 * 1.25}>
-                {phone}
-              </DropZone>
-              <MediaInput ref={input} format={draft.format} onFiles={onFiles} />
-            </>
-          )}
+          <DropZone onFiles={onFiles} radius={22 * 1.25}>
+            {phone}
+          </DropZone>
+          <MediaInput ref={input} format={draft.format} onFiles={onFiles} />
         </div>
       )}
     </section>

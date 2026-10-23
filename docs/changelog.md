@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.39.0** — 2026-10-23 — `feat/posted-post-poster`: a posted post, imported or sent, opens as a poster: the cover first, large and sticky (a carousel's other slides under it; a video's cover marked "Cover only"), then the account chips, the format and the day, the title, the real counts (views first, no number invented), the caption folded after six lines with More, the facts it has, "Open on TikTok" or "Open on Instagram" from the post's permalink, and an Analytics section with the amber "Not connected" pill and a preview of what arrives, drawn with no figures. Replaces the old posted page (the composer's cards with a phone preview). The core's `permalink` now reaches the web app. The static demo keeps its two posted posts. No migration. 1197 tests (211 skipped without a Postgres server).
 - **2.38.5** — 2026-10-23 — `feat/calendar-year-picker`: on the core the calendar never shows the static demo's dates, posts or shoots: before a brand's state arrives, or when it does not, today is the device's date in Singapore and the weeks are open. The calendar title opens a month picker (a year stepper over twelve months, from the year of the brand's first post to next year) that jumps the Month, Week or Day view there, on the desktop and in the phone's view menu. The core's run of weeks now covers whole months, so a month reached from an early post shows every week its title names. No pack change, no migration. 1166 tests (211 skipped without a Postgres server).
 - **2.38.4** — 2026-10-23 — `fix/bubbles-max-tokens`: Bubbles answers questions about a brand with history. The runtime was told the model has a 65,536-token window; a brand's whole state (`brand.state`) took the prompt past it, so the runtime asked for one token and the turn ended on `max-tokens` with no answer. It is now told 262,144 (the model has a million on every host). A turn cut off now says so after any words it wrote, and a turn that ends with nothing said says so too. No migration; Bubbles only, web-next unchanged. 1162 tests, all run on a throwaway Postgres.
 - **2.38.3** — 2026-10-23 — `fix/moodboard-placeholders`: the fan of four photos above "Bring in your moodboard" is back on the core, the same four for every brand, as decoration only. 2.35.2 took it away with the demo moodboard. The static demo is unchanged. No migration. 1171 tests (211 skipped without a Postgres server).
@@ -80,6 +81,51 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.39.0 — 2026-10-23
+
+- **Why.** A posted post opened as the composer's own cards with every field as text and a phone
+  mock beside them: the page for writing a post, frozen. It read as a form, and the counts a post
+  brought in from its account sat inside a pretend phone. The owner picked "Poster" from three
+  designs (branch `design/posted-post-options`, behind `?design=`, never shipped).
+- **The page.** `features/publish/posted.tsx`, `PostedPost`, for every posted post on the core and
+  in the static demo. A 300px cover column, sticky, with a reel's 9:16 frame or a post's 4:5 one,
+  the slide count and the other slides as a strip; under the desktop width the cover is small and
+  sits beside the title. Beside it: the account chips in the post's own order, the format and
+  "Mon 19 Oct, 12:40" (the year when it is not this one), the title, the real counts in short form
+  (views first; none when the post has none), the caption with line breaks kept and hashtags
+  quietened, folded after six lines with More only when something is hidden, the facts it has
+  (collaborators, tagged, location, labels; none shown empty), and "Open on TikTok ↗" in a new tab
+  when the post has an address. Then Analytics: the amber pill with "TikTok analytics isn’t
+  connected yet." on hover, and a PREVIEW card in the Insights style, with Reach, Watch time
+  (Profile visits on a post), New followers and Spend as shapes with no numbers, "Who watched",
+  and "Reach by account" with the collaborators or "Found it through" (For You on TikTok, Explore
+  on Instagram) without.
+- **Gone.** The old `PostedPost` in `composer.tsx` and what only it used: `Preview`'s posted mode
+  (`on`). Not on the new page: the first comment, the AI-generated label
+  and each account's own settings, which the old page listed; none of them reaches a post the core
+  imports today.
+- **Data.** `Post.permalink`, from the core's `permalink` column (migration 0014), mapped in
+  `remote-calendar.ts`. `FORMAT_LABEL` moved to `model.ts`.
+- **Tests.** `posted.test.tsx` (23): a long caption folds and More opens it with its blank lines
+  back; a short one offers no More; none shows nothing; a hashtag is set apart and a URL's `#` is
+  not; a reel's frame and "Cover only" with its reason; a carousel's count and strip; no frame and
+  no room for one without a picture; no account named when none is recorded; the real counts in
+  order, none invented, and 999,950 as "1m"; the facts shown and left out; the link's address, new
+  tab and `noopener`; the pill's hover text; Reach by account against Found it through; no figure
+  in the preview; the phone's row of pills switches the number. `posted-remote.test.tsx` rewritten
+  for the page on the core (the core's draft, permalink, collaborators and tags reach it; the year
+  is named). The jsdom `ResizeObserver` stub moved into `test-setup.ts`.
+- **Review.** One Opus review of the staged diff. Fixed from it: a post with no picture kept an
+  empty 300px cover column and a 112px one beside its title; a carousel strip of up to ten slides
+  ran past its column (it wraps now); a post with no recorded account said "Instagram analytics"
+  and "once Instagram is connected" (now "Analytics" and "the account", and "Open post" for its
+  link); a URL's `#` read as a hashtag; 999,950 views read "1000k". Not changed: the cover and
+  the number switch are each in the DOM twice, one per breakpoint, hidden by CSS.
+- **Checked.** Playwright against a stub core, desktop and phone: a TikTok reel with a long caption
+  (folded and open), the hover card, an Instagram carousel, a reel, a reel with no caption; the
+  static demo's two posted posts.
+- **Gate:** typecheck, lint, format, build; tests 1197 (211 skipped without a Postgres server).
 
 ## 2.38.5 — 2026-10-23
 
