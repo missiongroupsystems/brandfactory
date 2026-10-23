@@ -26,6 +26,7 @@ import {
   type StageFilter,
 } from './calendar-items'
 import { onlyFailed } from './failed-menu'
+import { MonthPicker, type MonthPick } from './month-picker'
 import { PhoneFilters } from './phone-filters'
 import { useBrand } from './posts-store'
 import { storiesOf, type Story } from './stories'
@@ -73,6 +74,7 @@ export function PhoneCalendar({
   day,
   view,
   title,
+  monthPick,
   layers,
   stages,
   failed,
@@ -97,6 +99,8 @@ export function PhoneCalendar({
   day: number
   view: CalendarMode
   title: string
+  /** The title's month picker, under the views. */
+  monthPick: MonthPick
   layers: Record<LayerKey, boolean>
   stages: StageFilter
   failed: Post[]
@@ -284,7 +288,7 @@ export function PhoneCalendar({
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-0.5 px-4 pt-1 pb-2">
-        <ViewMenu title={title} view={view} onView={onView} />
+        <ViewMenu title={title} view={view} onView={onView} pick={monthPick} />
         <StepArrow label={`Previous ${view}`} onClick={() => onStep(-1)} flip />
         <StepArrow label={`Next ${view}`} onClick={() => onStep(1)} />
         <span className="ml-auto flex shrink-0 items-center gap-1.5">
@@ -411,18 +415,21 @@ export function PhoneCalendar({
   )
 }
 
-/** The title, which names the view and opens the menu of the three. */
+/** The title, which names the view and opens the menu of the three, with the month picker. */
 function ViewMenu({
   title,
   view,
   onView,
+  pick,
 }: {
   title: string
   view: CalendarMode
   onView: (view: CalendarMode) => void
+  pick: MonthPick
 }) {
   const [open, setOpen] = React.useState(false)
   const root = React.useRef<HTMLDivElement>(null)
+  const button = React.useRef<HTMLButtonElement>(null)
 
   React.useEffect(() => {
     if (!open) return
@@ -430,7 +437,9 @@ function ViewMenu({
       if (!root.current?.contains(e.target as Node)) setOpen(false)
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key !== 'Escape') return
+      setOpen(false)
+      button.current?.focus()
     }
     window.addEventListener('pointerdown', onPointer)
     window.addEventListener('keydown', onKey)
@@ -445,10 +454,11 @@ function ViewMenu({
       {/* The heading holds the button, so the page keeps its heading for a screen reader. */}
       <h1 className="min-w-0 font-display text-[26px] leading-none tracking-[-0.03em] max-[360px]:text-[22px]">
         <button
+          ref={button}
           type="button"
-          aria-haspopup="menu"
+          aria-haspopup="dialog"
           aria-expanded={open}
-          aria-label={`${title}. Change view`}
+          aria-label={`${title}. Change view or month`}
           onClick={() => setOpen((o) => !o)}
           className="flex h-10 max-w-full items-center gap-1.5 rounded-[10px] pr-1.5 pl-0 text-left"
         >
@@ -460,28 +470,40 @@ function ViewMenu({
       </h1>
       {open && (
         <div
-          role="menu"
-          aria-label="View"
-          className="bb-menu absolute top-11 left-0 z-30 flex w-[168px] origin-top-left flex-col rounded-[12px] bg-page p-1 shadow-[0_0_0_1px_var(--line),var(--shadow-pop)]"
+          role="dialog"
+          aria-label="View and month"
+          className="bb-menu absolute top-11 left-0 z-30 flex w-[264px] max-w-[calc(100vw-32px)] origin-top-left flex-col rounded-[14px] bg-page p-1 shadow-[0_0_0_1px_var(--line),var(--shadow-pop)]"
         >
-          {VIEWS.map((v) => (
-            <button
-              key={v.value}
-              type="button"
-              role="menuitemradio"
-              aria-checked={view === v.value}
-              onClick={() => {
-                onView(v.value)
+          <div role="menu" aria-label="View" className="flex flex-col">
+            {VIEWS.map((v) => (
+              <button
+                key={v.value}
+                type="button"
+                role="menuitemradio"
+                aria-checked={view === v.value}
+                onClick={() => {
+                  onView(v.value)
+                  setOpen(false)
+                }}
+                className={`flex h-10 items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[14px] ${view === v.value ? 'text-ink' : 'text-ink-3'}`}
+              >
+                <span className="flex-1">{v.label}</span>
+                <span className={view === v.value ? 'text-ink' : 'opacity-0'}>
+                  <CheckIcon size={13} />
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="mx-1.5 mt-1 border-t border-(--cal-line) px-1 pt-3 pb-2">
+            <MonthPicker
+              {...pick}
+              onPick={(picked) => {
+                pick.onPick(picked)
                 setOpen(false)
+                button.current?.focus()
               }}
-              className={`flex h-10 items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[14px] ${view === v.value ? 'text-ink' : 'text-ink-3'}`}
-            >
-              <span className="flex-1">{v.label}</span>
-              <span className={view === v.value ? 'text-ink' : 'opacity-0'}>
-                <CheckIcon size={13} />
-              </span>
-            </button>
-          ))}
+            />
+          </div>
         </div>
       )}
     </div>

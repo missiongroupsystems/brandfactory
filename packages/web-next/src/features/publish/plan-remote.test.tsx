@@ -12,42 +12,52 @@ import { Composer } from './composer'
 // a day and the brand's own platforms, and Schedule puts it on the calendar without sending it.
 const requests = vi.hoisted(() => [] as Array<{ call: string; body: unknown }>)
 const account = vi.hoisted(() => ({ platforms: undefined as string[] | undefined }))
-vi.mock('@/lib/remote', async (original) => ({
-  ...(await original<typeof Remote>()),
-  remote: true,
-  demoOf: () => undefined,
-  // The server answers at once: each queued change runs, then counts as stored.
-  sent: async (_brandId: string, send: () => Promise<unknown>) => {
-    await send()
-    return null
-  },
-  request: async (method: string, path: string, body?: unknown) => {
-    requests.push({ call: `${method} ${path}`, body })
-    return {}
-  },
-  push: vi.fn(),
-  onState: () => () => undefined,
-  // The brand as brand.list answers it, with its own platforms, when a test names them.
-  onAccount: (listener: (a: unknown) => void) => {
-    if (account.platforms)
-      listener({
-        brands: [
-          {
-            id: 'casa-vostra',
-            orgId: 'mission-group',
-            name: 'Casa Vostra',
-            handle: '@casavostrasg',
-            line: '',
-            linked: account.platforms,
-            timezone: 'Asia/Singapore',
-            position: 0,
-          },
-        ],
-        companies: [],
-      })
-    return () => undefined
-  },
-}))
+// The brand's state, as the core sends it, once the test begins.
+const core = vi.hoisted(() => ({ loaded: false }))
+vi.mock('@/lib/remote', async (original) => {
+  const { demoAsCore } = await import('@/test-core-state')
+  return {
+    ...(await original<typeof Remote>()),
+    remote: true,
+    demoOf: () => undefined,
+    // The server answers at once: each queued change runs, then counts as stored.
+    sent: async (_brandId: string, send: () => Promise<unknown>) => {
+      await send()
+      return null
+    },
+    request: async (method: string, path: string, body?: unknown) => {
+      requests.push({ call: `${method} ${path}`, body })
+      return {}
+    },
+    push: vi.fn(),
+    // The demo brand's posts, as the core sends them: on the core no store starts with the demo's.
+    onState: (hydrate: (id: string, state: unknown) => void) => {
+      // Once the modules are in: the stores that listen from their first line hear nothing.
+      if (core.loaded) hydrate('casa-vostra', demoAsCore('casa-vostra'))
+      return () => undefined
+    },
+    // The brand as brand.list answers it, with its own platforms, when a test names them.
+    onAccount: (listener: (a: unknown) => void) => {
+      if (account.platforms)
+        listener({
+          brands: [
+            {
+              id: 'casa-vostra',
+              orgId: 'mission-group',
+              name: 'Casa Vostra',
+              handle: '@casavostrasg',
+              line: '',
+              linked: account.platforms,
+              timezone: 'Asia/Singapore',
+              position: 0,
+            },
+          ],
+          companies: [],
+        })
+      return () => undefined
+    },
+  }
+})
 vi.mock('next/navigation', () => ({
   usePathname: () => '/post/d1',
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
@@ -58,6 +68,7 @@ vi.stubGlobal('matchMedia', () => ({
   removeEventListener() {},
 }))
 beforeAll(() => {
+  core.loaded = true
   Element.prototype.scrollIntoView = vi.fn()
   Element.prototype.scrollTo = vi.fn()
   HTMLMediaElement.prototype.play = vi.fn(() => Promise.resolve())

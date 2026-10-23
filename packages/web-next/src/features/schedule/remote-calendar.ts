@@ -1,10 +1,10 @@
 import { contentFor, type BrandId } from '@/data/brands'
 import type { CalendarEvent, Day, FeedMark, Post, StoryMark, Week } from '@/data/demo'
-import { addDays, mondayOf, slotOf, todayDate, weekdayOf } from '@/lib/dates'
+import { addDays, slotOf, todayDate, weekdayOf } from '@/lib/dates'
 import { srcOf } from '@/lib/remote-days'
 import { type BrandState } from '@/lib/remote'
 
-import { blankWeek, mondaysBetween, monthSpan } from './month'
+import { blankWeek, mondaysBetween, monthOfWeek, monthSpan } from './month'
 
 /**
  * The calendar as the server stores it, in the demo's shapes: a run of weeks from two months
@@ -120,8 +120,9 @@ export function calendarOf(
     .filter((d): d is string => Boolean(d))
     .sort()
   const span = monthSpan(2, 6, today)
-  const from = dated[0] && dated[0] < span.from ? mondayOf(dated[0]) : span.from
-  const to = dated.at(-1) && dated.at(-1)! > span.to ? mondayOf(dated.at(-1)!) : span.to
+  // Whole months: a month cut from the run has every week its title names.
+  const from = dated[0] && dated[0] < span.from ? monthOfWeek(dated[0]).from : span.from
+  const to = dated.at(-1) && dated.at(-1)! > span.to ? monthOfWeek(dated.at(-1)!).to : span.to
   const skeleton = contentFor(brandId).weeks
 
   // A run of weeks holds hundreds of days: each day's posts and ideas are found by date.

@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import * as React from 'react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { POSTS } from '@/data/demo'
 import { resetConnections } from '@/features/connections/connections-store'
 import { resetIdeas } from '@/features/ideate/ideas-store'
-import { BrandProvider } from '@/features/schedule/posts-store'
+import { BrandProvider, useBrand } from '@/features/schedule/posts-store'
 import { DEMO_TODAY, setToday } from '@/lib/dates'
 import type * as NotAvailable from '@/features/connections/not-available'
 import type * as Remote from '@/lib/remote'
@@ -20,17 +21,27 @@ const sent = vi.fn(
 )
 // The requests a change would make, as the server would see them.
 const requests: string[] = []
-vi.mock('@/lib/remote', async (original) => ({
-  ...(await original<typeof Remote>()),
-  remote: true,
-  sent: (brandId: string, send: () => Promise<unknown>) => sent(brandId, send),
-  request: async (method: string, path: string, body?: { id?: string }) => {
-    requests.push(`${method} ${path}${body?.id ? ` ${body.id}` : ''}`)
-    return {}
-  },
-  push: vi.fn(),
-  onState: () => () => undefined,
-}))
+// The brand's state, as the core sends it, once the test begins.
+const core = vi.hoisted(() => ({ loaded: false }))
+vi.mock('@/lib/remote', async (original) => {
+  const { demoAsCore } = await import('@/test-core-state')
+  return {
+    ...(await original<typeof Remote>()),
+    remote: true,
+    sent: (brandId: string, send: () => Promise<unknown>) => sent(brandId, send),
+    request: async (method: string, path: string, body?: { id?: string }) => {
+      requests.push(`${method} ${path}${body?.id ? ` ${body.id}` : ''}`)
+      return {}
+    },
+    push: vi.fn(),
+    // The demo brand's posts, as the core sends them: on the core no store starts with the demo's.
+    onState: (hydrate: (id: string, state: unknown) => void) => {
+      // Once the modules are in: the stores that listen from their first line hear nothing.
+      if (core.loaded) hydrate('casa-vostra', demoAsCore('casa-vostra'))
+      return () => undefined
+    },
+  }
+})
 // The day the platforms are set up on our side: their accounts connect, and posts can go out.
 vi.mock('@/features/connections/not-available', async (original) => ({
   ...(await original<typeof NotAvailable>()),
@@ -46,6 +57,7 @@ vi.stubGlobal('matchMedia', () => ({
   removeEventListener() {},
 }))
 beforeAll(() => {
+  core.loaded = true
   Element.prototype.scrollIntoView = vi.fn()
   Element.prototype.scrollTo = vi.fn()
   HTMLMediaElement.prototype.play = vi.fn(() => Promise.resolve())
@@ -64,6 +76,11 @@ async function land(refusal: string | null) {
   await act(async () => answer(refusal))
 }
 
+/** The page once the brand's state is in, as the app opens it only after the brand loads. */
+function Loaded({ children }: { children: React.ReactNode }) {
+  return useBrand().posts.length > 0 ? children : null
+}
+
 const crust = POSTS.find((p) => p.id === 'crust')!
 const schedule = () => screen.getAllByRole('button', { name: /^Schedule on/ })[0]!
 
@@ -71,7 +88,9 @@ describe('the composer on the API', () => {
   it('says done only once the server has stored the post', async () => {
     render(
       <BrandProvider>
-        <Composer post={crust} />
+        <Loaded>
+          <Composer post={crust} />
+        </Loaded>
       </BrandProvider>,
     )
     fireEvent.click(schedule())
@@ -88,7 +107,9 @@ describe('the composer on the API', () => {
   it('stays open with everything in it when the server refuses', async () => {
     render(
       <BrandProvider>
-        <Composer post={crust} />
+        <Loaded>
+          <Composer post={crust} />
+        </Loaded>
       </BrandProvider>,
     )
     fireEvent.click(schedule())
@@ -107,7 +128,9 @@ describe('the composer on the API', () => {
     try {
       render(
         <BrandProvider>
-          <Composer post={pasta} />
+          <Loaded>
+            <Composer post={pasta} />
+          </Loaded>
         </BrandProvider>,
       )
       expect(screen.getAllByText('Pick a day ahead.').length).toBeGreaterThan(0)
@@ -121,7 +144,9 @@ describe('the composer on the API', () => {
   it('makes a new post again under the same id when its first save was refused', async () => {
     render(
       <BrandProvider>
-        <Composer />
+        <Loaded>
+          <Composer />
+        </Loaded>
       </BrandProvider>,
     )
     const save = () => screen.getAllByRole('button', { name: 'Save draft' })[0]!

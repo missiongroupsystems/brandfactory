@@ -10,7 +10,7 @@ import { DEFAULT_LAYERS } from '@/data/demo'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { withShoots } from '@/features/shoot/model'
 import { useShoots } from '@/features/shoot/shoots-store'
-import { dayNumber, MONTH_SHORT, monthOf, weekdayOf } from '@/lib/dates'
+import { dayNumber, MONTH_SHORT, monthOf, todayDate, weekdayOf } from '@/lib/dates'
 
 import { PhoneCalendar } from './phone-calendar'
 import { setCalendarPlace, useCalendarPlace, type CalendarMode } from './calendar-view'
@@ -20,7 +20,9 @@ import { FailedPill } from './failed-menu'
 import { MoreMenu } from './filter-menu'
 import {
   dateOf,
+  firstPostYear,
   monthAt,
+  monthPlace,
   monthRows,
   monthTitle,
   monthView,
@@ -29,6 +31,7 @@ import {
   weeksOfMonth,
   withYear,
 } from './month'
+import { TitleMonthPicker, type MonthPick } from './month-picker'
 import { storyTaken } from './move-post'
 import { useBrand } from './posts-store'
 import { storiesOf } from './stories'
@@ -120,6 +123,15 @@ export function SchedulePage() {
     (view === 'month' || week === here.week) &&
     (view !== 'day' || day === here.day)
   const unit = view === 'month' ? 'month' : view === 'week' ? 'week' : 'day'
+  // The title picks a month of any year from the brand's first post to next year.
+  const thisMonth = monthOf(todayDate())
+  const pick: MonthPick = {
+    shown: view === 'day' ? monthOf(current) : monthAt(offset),
+    today: thisMonth,
+    from: firstPostYear(weeks),
+    to: thisMonth.year + 1,
+    onPick: ({ year, month }) => setCalendarPlace(monthPlace(view, year, month)),
+  }
 
   const openPost = (id: string) => router.push(`/post/${id}`)
   // A slot's day and hour carry into the composer, if its day picker holds that day.
@@ -188,6 +200,7 @@ export function SchedulePage() {
                   )
                 : title
           }
+          monthPick={pick}
           layers={layers}
           stages={stages}
           failed={failed}
@@ -212,7 +225,7 @@ export function SchedulePage() {
             <StepArrow label={`Previous ${unit}`} onClick={() => step(-1)} flip />
             <StepArrow label={`Next ${unit}`} onClick={() => step(1)} />
           </span>
-          <h1 className="font-display text-[38px] leading-none tracking-[-0.035em]">{title}</h1>
+          <TitleMonthPicker title={title} pick={pick} />
           {!atToday && (
             <button
               type="button"

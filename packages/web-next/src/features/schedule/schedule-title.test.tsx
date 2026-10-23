@@ -33,30 +33,30 @@ describe('the schedule title', () => {
   // Every h1 on the page: the desktop toolbar's title is one of them.
   const titles = () => screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)
   const phone = () =>
-    screen.getByRole('button', { name: /\. Change view$/ }).getAttribute('aria-label')
+    screen.getByRole('button', { name: /\. Change view or month$/ }).getAttribute('aria-label')
 
   it('names no year in this year', () => {
     shown({ view: 'month', offset: 0, week: 0, day: 0 })
     expect(titles()).toContain('October')
-    expect(phone()).toBe('October. Change view')
+    expect(phone()).toBe('October. Change view or month')
   })
 
   it("names a month's own year: December 2025, though its last week runs into January", () => {
     shown({ view: 'month', offset: -10, week: 0, day: 0 })
     expect(titles()).toContain('December 2025')
-    expect(phone()).toBe('December 2025. Change view')
+    expect(phone()).toBe('December 2025. Change view or month')
   })
 
   it("names a week's year by its last day: the week into January is next year's", () => {
     // December 2026 is month 2; its last week is Mon 28 Dec – Sun 3 Jan.
     shown({ view: 'week', offset: 2, week: 3, day: 0 })
     expect(titles()).toContain('28 Dec – 3 Jan 2027')
-    expect(phone()).toBe('28 Dec–3 Jan 2027. Change view')
+    expect(phone()).toBe('28 Dec–3 Jan 2027. Change view or month')
   })
 
   it('names a day by its own year', () => {
     shown({ view: 'day', offset: -10, week: 0, day: 0 })
     expect(titles()).toContain('Mon 1 Dec 2025')
-    expect(phone()).toBe('Mon 1 Dec 2025. Change view')
+    expect(phone()).toBe('Mon 1 Dec 2025. Change view or month')
   })
 })
