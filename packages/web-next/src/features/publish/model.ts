@@ -26,6 +26,13 @@ export const CHANNELS: Channel[] = [
   { key: 'fb', name: 'Facebook', badge: 'FB' },
 ]
 
+/** What the app calls each format. */
+export const FORMAT_LABEL: Record<Format, string> = {
+  carousel: 'Post',
+  reel: 'Reel',
+  story: 'Story',
+}
+
 /** What each channel calls this format, or `null` when it cannot take it. */
 const KIND: Record<Format, Record<ChannelKey, string | null>> = {
   reel: { ig: 'Reel', tt: 'Video', yt: 'Short', li: 'Video', fb: 'Reel' },

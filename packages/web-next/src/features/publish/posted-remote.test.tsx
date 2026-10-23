@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Post } from '@/data/demo'
@@ -66,26 +66,27 @@ const open = (post: Post) =>
       <Composer post={post} />
     </BrandProvider>,
   )
+/** The posted page's title block: the accounts it went out on, the format and the day. */
+const header = () => document.querySelector('header')!
 
 describe('a posted post on the core', () => {
-  it('previews on the account it went out on, with its own counts, with nothing connected', () => {
+  it('shows the account it went out on and its own counts, with nothing connected', () => {
     open(posted)
-    const preview = screen.getByRole('region', { name: 'Preview' })
-    expect(within(preview).queryByText('Tick an account to preview it.')).toBeNull()
-    expect(within(preview).getByRole('button', { name: 'Preview on Instagram' })).toBeTruthy()
-    expect(within(preview).getByText('214 likes')).toBeInTheDocument()
+    expect(within(header()).getByText('Instagram')).toBeInTheDocument()
+    expect(screen.getByText('214')).toBeInTheDocument()
+    expect(screen.getByText('Likes')).toBeInTheDocument()
+    expect(screen.getByText('9')).toBeInTheDocument()
   })
 
-  it('previews a TikTok post on TikTok', () => {
+  it('shows a TikTok post on TikTok', () => {
     open({ ...posted, format: 'reel', channels: ['tt'] })
-    const preview = screen.getByRole('region', { name: 'Preview' })
-    expect(within(preview).getByRole('button', { name: 'Preview on TikTok' })).toBeTruthy()
-    expect(within(preview).queryByRole('button', { name: 'Preview on Instagram' })).toBeNull()
+    expect(within(header()).getByText('TikTok')).toBeInTheDocument()
+    expect(within(header()).queryByText('Instagram')).toBeNull()
   })
 
   it('is read-only: the post page with nothing to edit, schedule or send', () => {
     open(posted)
-    expect(screen.getByText('Posted on Fri 16 Oct')).toBeInTheDocument()
+    expect(screen.getByText('Post · Fri 16 Oct, 19:12')).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'When' })).toBeNull()
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.queryByRole('checkbox')).toBeNull()
@@ -100,7 +101,7 @@ describe('a posted post on the core', () => {
 
   it('shows the cover of a video with "Cover only" and why, on its own platform', () => {
     open({ ...posted, format: 'reel', channels: ['tt'] })
-    const pill = screen.getByRole('button', { name: 'Cover only' })
+    const [pill] = screen.getAllByRole('button', { name: 'Cover only' })
     expect(pill).toHaveAccessibleDescription('Video plays once TikTok is connected.')
   })
 
@@ -114,59 +115,49 @@ describe('a posted post on the core', () => {
     expect(screen.queryByRole('button', { name: 'Cover only' })).toBeNull()
   })
 
-  it('shows no Details card when it went out with none', () => {
+  it('lists no facts when it went out with none', () => {
     open(posted)
-    expect(screen.queryByRole('region', { name: 'Details' })).toBeNull()
+    expect(screen.queryByText(/^(Collaborators|Tagged|Location|Labels)$/)).toBeNull()
   })
 
   it('says nothing about playing on a photo or a carousel', () => {
     open(posted)
     expect(screen.queryByRole('button', { name: 'Cover only' })).toBeNull()
-    expect(screen.queryByRole('tooltip')).toBeNull()
   })
 })
 
 describe('a posted post, whatever it holds', () => {
   it('prints no invented count when it has none: a missing count shows nothing', () => {
     open({ ...posted, metrics: undefined })
-    const preview = screen.getByRole('region', { name: 'Preview' })
-    expect(within(preview).queryByText(/likes|comments/)).toBeNull()
-    expect(within(preview).queryByText(/2,418|86/)).toBeNull()
+    expect(screen.queryByText(/^(Views|Likes|Comments|Shares|Saves)$/)).toBeNull()
+    expect(screen.queryByText(/2,418|86/)).toBeNull()
   })
 
-  it("prints none of TikTok's invented counts either", () => {
-    open({ ...posted, format: 'reel', channels: ['tt'], metrics: undefined })
-    const preview = screen.getByRole('region', { name: 'Preview' })
-    expect(within(preview).queryByText(/24\.8K|312|1,204|418/)).toBeNull()
-  })
-
-  it("prints no invented count on Facebook's screen either", () => {
+  it('prints only the counts it has, on any account', () => {
     open({ ...posted, channels: ['fb'], metrics: { likes: 5 } })
-    const preview = screen.getByRole('region', { name: 'Preview' })
-    expect(within(preview).getByText('5')).toBeInTheDocument()
-    expect(within(preview).queryByText(/64 comments|27 shares|1\.2K/)).toBeNull()
+    expect(screen.getByText('5')).toBeInTheDocument()
+    expect(screen.getByText('Likes')).toBeInTheDocument()
+    expect(screen.queryByText('Comments')).toBeNull()
   })
 
-  it('asks for no photo when it has none: nothing can be added to it', () => {
+  it('shows no picture when it has none, and asks for none', () => {
     open({ ...posted, images: [] })
-    const preview = screen.getByRole('region', { name: 'Preview' })
-    expect(within(preview).queryByText('Add a photo or video')).toBeNull()
-    expect(within(preview).queryByText('or drop it here')).toBeNull()
+    expect(document.querySelector('img')).toBeNull()
+    expect(screen.queryByRole('button', { name: /photo|video|Upload/ })).toBeNull()
   })
 
-  it('opens on the first account it went out on, in its own order', () => {
+  it('names its accounts in its own order', () => {
     open({ ...posted, format: 'reel', channels: ['tt', 'ig'] })
-    expect(screen.getByRole('button', { name: 'Preview on TikTok' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
+    const chips = within(header())
+      .getAllByText(/^(TikTok|Instagram)$/)
+      .map((e) => e.textContent)
+    expect(chips).toEqual(['TikTok', 'Instagram'])
   })
 
   it('shows no account it never went to when none is recorded', () => {
     open({ ...posted, channels: undefined })
-    expect(screen.queryByRole('region', { name: 'Preview' })).toBeNull()
-    expect(screen.queryByRole('region', { name: 'Accounts' })).toBeNull()
-    expect(screen.getByText('Posted on Fri 16 Oct')).toBeInTheDocument()
+    expect(within(header()).queryByText(/^(Instagram|TikTok|Facebook)$/)).toBeNull()
+    expect(screen.getByText('Post · Fri 16 Oct, 19:12')).toBeInTheDocument()
   })
 })
 
@@ -203,162 +194,106 @@ describe('a new post on the core', () => {
   })
 })
 
-describe('a posted post from an earlier year, on the calendar', () => {
+describe('a posted post from the calendar, on the core', () => {
   /** The post as the calendar holds it once the brand's state has loaded. */
   function Opened({ id }: { id: string }) {
     const { byId } = useBrand()
     const post = byId(id)
     return post ? <Composer post={post} /> : null
   }
-
-  it("draws itself once in Instagram's grid", () => {
+  const served: Record<string, unknown> = {
+    format: 'carousel',
+    day: '2026-10-16',
+    time: '19:00',
+    channels: ['ig'],
+    media: [{ src: '/demo/crust.jpg', kind: 'photo' }],
+    fromIdea: null,
+    stage: 'posted',
+    jobs: [],
+    caption: '',
+    draft: {},
+    metrics: null,
+  }
+  const load = (id: string, post: Record<string, unknown>) => {
     render(
       <BrandProvider>
-        <Opened id="casa-vostra-ig-grid" />
+        <Opened id={id} />
       </BrandProvider>,
     )
     act(() =>
       loads.at(-1)!('casa-vostra', {
         brand: { id: 'casa-vostra' },
-        posts: [
-          {
-            id: 'casa-vostra-ig-grid',
-            format: 'carousel',
-            hook: 'Friday is for the wood oven',
-            day: '2026-10-16',
-            time: '19:00',
-            channels: ['ig'],
-            media: [{ src: '/demo/crust.jpg', kind: 'photo' }],
-            fromIdea: null,
-            stage: 'posted',
-            jobs: [],
-            caption: '',
-            draft: {},
-            metrics: null,
-          },
-        ],
+        posts: [{ ...served, id, ...post }],
         ideas: [],
       }),
     )
-    fireEvent.click(screen.getByRole('radio', { name: 'Grid' }))
-    const preview = screen.getByRole('region', { name: 'Preview' })
-    expect(preview.querySelectorAll('.grid-cols-3 > span')).toHaveLength(1)
-  })
+  }
 
-  it('opens as the full post page, every field filled in as text and none empty', () => {
-    render(
-      <BrandProvider>
-        <Opened id="casa-vostra-ig-full" />
-      </BrandProvider>,
-    )
-    act(() =>
-      loads.at(-1)!('casa-vostra', {
-        brand: { id: 'casa-vostra' },
-        posts: [
-          {
-            id: 'casa-vostra-ig-full',
-            format: 'carousel',
-            hook: 'Friday is for the wood oven',
-            day: '2026-10-16',
-            time: '19:00',
-            channels: ['ig'],
-            media: [{ src: '/demo/crust.jpg', kind: 'photo' }],
-            fromIdea: null,
-            stage: 'posted',
-            jobs: [],
-            caption: 'Friday is for the wood oven.\nBook a table.',
-            draft: {
-              details: { location: 'Club Street', comment: '', collab: [], aiLabel: true },
-              labels: ['F1 weekend'],
-            },
-            metrics: { likes: 3 },
-          },
-        ],
-        ideas: [],
-      }),
-    )
-    const accounts = screen.getByRole('region', { name: 'Accounts' })
-    expect(within(accounts).getByText('Instagram')).toBeInTheDocument()
-    expect(within(accounts).getByText('Post')).toBeInTheDocument()
-    const content = screen.getByRole('region', { name: 'Content' })
-    expect(within(content).getByText(/Book a table\./)).toBeInTheDocument()
-    expect(content.querySelectorAll('img')).toHaveLength(1)
-    const details = screen.getByRole('region', { name: 'Details' })
-    expect(within(details).getByText('Club Street')).toBeInTheDocument()
-    expect(within(details).getByText('AI-generated label')).toBeInTheDocument()
-    expect(within(details).getByText('F1 weekend')).toBeInTheDocument()
-    // An empty field is left out, not shown as an empty input.
-    expect(within(details).queryByText('First comment')).toBeNull()
-    expect(within(details).queryByText('Collaborators')).toBeNull()
-    expect(screen.getByRole('region', { name: 'Preview' })).toBeInTheDocument()
+  it('opens as the full page: every field it went out with, as text, and none empty', () => {
+    load('casa-vostra-ig-full', {
+      hook: 'Friday is for the wood oven',
+      caption: 'Friday is for the wood oven.\nBook a table.',
+      draft: {
+        details: { location: 'Club Street', comment: '', collab: ['@giulia.cooks'], aiLabel: true },
+        labels: ['F1 weekend'],
+      },
+      metrics: { likes: 3 },
+      permalink: 'https://www.instagram.com/p/C1/',
+    })
+    expect(within(header()).getByText('Instagram')).toBeInTheDocument()
+    expect(screen.getByText('Post · Fri 16 Oct, 19:00')).toBeInTheDocument()
+    expect(screen.getByText(/Book a table\./)).toBeInTheDocument()
+    expect(screen.getByText('Collaborators').nextSibling).toHaveTextContent('@giulia.cooks')
+    expect(screen.getByText('Location').nextSibling).toHaveTextContent('Club Street')
+    expect(screen.getByText('Labels').nextSibling).toHaveTextContent('F1 weekend')
+    expect(screen.queryByText('Tagged')).toBeNull()
+    const link = screen.getByRole('link', { name: 'Open on Instagram' })
+    expect(link).toHaveAttribute('href', 'https://www.instagram.com/p/C1/')
+    expect(link).toHaveAttribute('target', '_blank')
+    // The collaborator reaches the analytics preview too.
+    expect(screen.getByText('Reach by account')).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.queryByRole('switch')).toBeNull()
     expect(screen.queryByRole('combobox')).toBeNull()
   })
 
-  it('names the year it went out on', () => {
-    render(
-      <BrandProvider>
-        <Opened id="casa-vostra-ig-old" />
-      </BrandProvider>,
-    )
-    act(() =>
-      loads.at(-1)!('casa-vostra', {
-        brand: { id: 'casa-vostra' },
-        posts: [
+  it('lists the people tagged on its photos, once each', () => {
+    load('casa-vostra-ig-tagged', {
+      hook: 'Two photos, three tags',
+      media: [
+        { src: '/demo/crust.jpg', kind: 'photo' },
+        { src: '/demo/pasta.jpg', kind: 'photo' },
+      ],
+      draft: {
+        shots: [
+          { crop: null, tags: [{ handle: '@nonna.rosa', at: { x: 0.4, y: 0.5 } }] },
           {
-            id: 'casa-vostra-ig-old',
-            format: 'reel',
-            hook: 'The first wood oven',
-            day: '2025-03-14',
-            time: '19:00',
-            channels: ['ig'],
-            media: [{ src: '/demo/crust.jpg', kind: 'photo' }],
-            fromIdea: null,
-            stage: 'posted',
-            jobs: [],
-            caption: '',
-            draft: {},
-            metrics: { likes: 12 },
+            crop: null,
+            tags: [
+              { handle: '@nonna.rosa', at: null },
+              { handle: '@giulia.cooks', at: null },
+            ],
           },
         ],
-        ideas: [],
-      }),
-    )
-    expect(screen.getByText('Posted on Fri 14 Mar 2025')).toBeInTheDocument()
+      },
+    })
+    expect(screen.getByText('Tagged').nextSibling).toHaveTextContent('@nonna.rosa, @giulia.cooks')
+  })
+
+  it('names the year it went out on', () => {
+    load('casa-vostra-ig-old', {
+      format: 'reel',
+      hook: 'The first wood oven',
+      day: '2025-03-14',
+      metrics: { likes: 12 },
+    })
+    expect(screen.getByText('Reel · Fri 14 Mar 2025, 19:00')).toBeInTheDocument()
   })
 
   it('shows no caption when it went out with none: the title does not stand in for one', () => {
-    render(
-      <BrandProvider>
-        <Opened id="casa-vostra-ig-bare" />
-      </BrandProvider>,
-    )
-    act(() =>
-      loads.at(-1)!('casa-vostra', {
-        brand: { id: 'casa-vostra' },
-        posts: [
-          {
-            id: 'casa-vostra-ig-bare',
-            format: 'carousel',
-            hook: 'A title with no caption',
-            day: '2026-10-16',
-            time: '19:00',
-            channels: ['ig'],
-            media: [{ src: '/demo/crust.jpg', kind: 'photo' }],
-            fromIdea: null,
-            stage: 'posted',
-            jobs: [],
-            caption: '',
-            draft: {},
-            metrics: { likes: 3 },
-          },
-        ],
-        ideas: [],
-      }),
-    )
-    const content = screen.getByRole('region', { name: 'Content' })
-    expect(within(content).queryByText('A title with no caption')).toBeNull()
+    load('casa-vostra-ig-bare', { hook: 'A title with no caption', metrics: { likes: 3 } })
+    expect(screen.getAllByText('A title with no caption')).toHaveLength(1)
+    expect(screen.getByText('A title with no caption').tagName).toBe('H1')
   })
 })
 
