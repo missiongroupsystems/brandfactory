@@ -1,0 +1,26 @@
+{
+  "name": "account.avatar_upload",
+  "description": "A new file for the caller's own profile picture: a JPEG, PNG or WebP of at most 5 MB. Records the core's key as the caller's, and answers a signed write URL and the file's stable address, which account.avatar_set then takes. A person only, not an agent.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["mime", "bytes"],
+    "properties": {
+      "mime": {
+        "type": "string",
+        "enum": ["image/jpeg", "image/png", "image/webp"]
+      },
+      "bytes": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 5242880
+      }
+    }
+  },
+  "upload": {
+    "type": "mime"
+  },
+  "before": ["account.exists", "account.active", "account.avatar_by_a_person"],
+  "returns": "one",
+  "sql": "with made as (insert into brandbase.avatar_uploads (key, user_id) values (:file, brandbase.caller()) returning key)\nselect jsonb_build_object('upload', jsonb_build_object('key', made.key, 'type', :mime::text)) as result from made"
+}

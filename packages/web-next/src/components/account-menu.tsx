@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import * as React from 'react'
 
+import { ProfilePicture } from '@/components/profile-picture'
 import { BRAND } from '@/data/demo'
 import { leave, onUser, remote } from '@/lib/remote'
 
@@ -24,11 +25,14 @@ export function initials(name: string, email: string): string {
 }
 
 /**
- * The round avatar at the header's end. On the core it is the signed-in person's, and opens a
+ * The round avatar at the header's end. On the core it is the signed-in person's photo or initials, and opens a
  * menu with their name and email, Edit profile and Sign out. The static demo keeps its demo initials and no menu.
  */
 export function AccountMenu() {
-  const [user, setUser] = React.useState({ name: '', email: '' })
+  const [user, setUser] = React.useState<{ name: string; email: string; avatar?: string | null }>({
+    name: '',
+    email: '',
+  })
   React.useEffect(() => {
     if (!remote) return
     return onUser(setUser)
@@ -84,10 +88,13 @@ export function AccountMenu() {
             setOpen(true)
           }
         }}
-        className={`${avatar} transition-shadow hover:ring-2 hover:ring-line ${open ? 'ring-2 ring-line' : ''}`}
+        className={`${avatar} overflow-hidden transition-shadow hover:ring-2 hover:ring-line ${open ? 'ring-2 ring-line' : ''}`}
         style={avatarColours}
       >
-        {initials(user.name, user.email)}
+        {/* The person's own photo when they added one, else their initials. */}
+        <ProfilePicture src={user.avatar ?? undefined} size={36} className="rounded-full">
+          {initials(user.name, user.email)}
+        </ProfilePicture>
       </button>
       {open && (
         <div

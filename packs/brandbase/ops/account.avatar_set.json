@@ -1,0 +1,23 @@
+{
+  "name": "account.avatar_set",
+  "description": "Sets the caller's own profile picture to an address account.avatar_upload answered them, or removes it with null. Keeps only the address's path on the core (/files/<signature>/<key>), never a host: the client puts the core's own address in front. A person only, not an agent.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["src"],
+    "properties": {
+      "src": {
+        "type": ["string", "null"],
+        "maxLength": 2048
+      }
+    }
+  },
+  "before": [
+    "account.exists",
+    "account.active",
+    "account.avatar_by_a_person",
+    "account.avatar_issued"
+  ],
+  "returns": "one",
+  "sql": "update brandbase.users u set avatar = substring(:src::text from '/files/[A-Za-z0-9_-]{43}/brandbase/[0-9a-f-]{36}\\.(?:jpg|png|webp)$') where u.id = brandbase.caller() returning jsonb_build_object('avatar', u.avatar) as result"
+}

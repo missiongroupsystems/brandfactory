@@ -5,7 +5,11 @@ import type * as Remote from '@/lib/remote'
 
 // On the core, with the account as `/me` loaded it. `leave` stays the real one.
 const core = vi.hoisted(() => ({
-  user: { name: 'Priya Sharma', email: 'priya@missiongroup.com' },
+  user: { name: 'Priya Sharma', email: 'priya@missiongroup.com' } as {
+    name: string
+    email: string
+    avatar?: string | null
+  },
 }))
 vi.mock('@/lib/remote', async (original) => ({
   ...(await original<typeof Remote>()),
@@ -29,6 +33,18 @@ describe('the account menu on the core', () => {
   it("shows the signed-in person's own initials, not the demo's", () => {
     render(<AccountMenu />)
     expect(avatar()).toHaveTextContent('PS')
+  })
+
+  it("shows the person's own photo when they added one, not the initials", () => {
+    const src = 'https://core.test/files/s/brandbase/a.jpg'
+    core.user = { ...core.user, avatar: src }
+    try {
+      render(<AccountMenu />)
+      expect(avatar().querySelector('img')?.getAttribute('src')).toContain(encodeURIComponent(src))
+      expect(avatar()).not.toHaveTextContent('PS')
+    } finally {
+      core.user = { name: 'Priya Sharma', email: 'priya@missiongroup.com' }
+    }
   })
 
   it("takes the first name's and last name's first letters, else the email's", () => {

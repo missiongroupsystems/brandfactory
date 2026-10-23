@@ -1,0 +1,7 @@
+{
+  "id": "account.avatar_issued",
+  "sql": "select :src::text is null or exists (select 1 from brandbase.avatar_uploads a where a.user_id = brandbase.caller() and a.key = substring(:src::text from '^https?://[^?#]+/files/[A-Za-z0-9_-]{43}/(brandbase/[0-9a-f-]{36}\\.(?:jpg|png|webp))$')) as ok",
+  "status": 400,
+  "code": "BAD_AVATAR",
+  "message": "this picture was not uploaded for your profile"
+}

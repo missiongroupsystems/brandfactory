@@ -2,9 +2,12 @@
 
 import * as React from 'react'
 
+import { initials } from '@/components/account-menu'
 import { AppHeader } from '@/components/app-header'
-import { onUser, saveName, setPassword } from '@/lib/remote'
+import { ProfilePicture } from '@/components/profile-picture'
+import { onUser, removeAvatar, saveName, setPassword, uploadAvatar } from '@/lib/remote'
 
+import { AvatarCrop } from './avatar-crop'
 import { problem, refusal } from './password'
 
 const FIELD =
@@ -12,13 +15,16 @@ const FIELD =
 const LABEL = 'text-[12.5px] text-ink-4'
 const BUTTON =
   'bb-press mt-1 h-11 rounded-full bg-ink text-[14px] font-medium text-page disabled:opacity-50'
+const PILL =
+  'bb-press h-8 w-fit rounded-full border border-line px-3 text-[13px] text-ink-2 transition-colors hover:bg-surface hover:text-ink disabled:opacity-50'
 
 /** How long the check mark stays after a password change, as on the first sign-in. */
 const SHOWN_MS = 1300
 
 /**
- * The signed-in person's own profile (`/profile`, on the core): their name, saved on their
- * Supabase account, their email to read, and a new password. The core's users table keeps the
+ * The signed-in person's own profile (`/profile`, on the core): their photo (cropped square,
+ * kept on the core), their name, saved on their Supabase account, their email to read, and a new
+ * password. The core's users table keeps the
  * name an admin gave; the header shows this one first.
  */
 export function ProfilePage() {
@@ -29,6 +35,19 @@ export function ProfilePage() {
   const [justSaved, setJustSaved] = React.useState(false)
   const [nameError, setNameError] = React.useState<string | null>(null)
   const [savingName, setSavingName] = React.useState(false)
+
+  const [avatar, setAvatar] = React.useState<string | null>(null)
+  const [chosen, setChosen] = React.useState<File | null>(null)
+  const [photoBusy, setPhotoBusy] = React.useState(false)
+  const [photoError, setPhotoError] = React.useState<string | null>(null)
+  const picker = React.useRef<HTMLInputElement>(null)
+  const uploadButton = React.useRef<HTMLButtonElement>(null)
+  // Focus goes back to Upload photo when the crop closes, not to the page's start.
+  const cropped = React.useRef(false)
+  React.useEffect(() => {
+    if (chosen) cropped.current = true
+    else if (cropped.current) uploadButton.current?.focus()
+  }, [chosen])
 
   const [password, setWord] = React.useState('')
   const [again, setAgain] = React.useState('')
@@ -41,6 +60,8 @@ export function ProfilePage() {
   React.useEffect(
     () =>
       onUser((user) => {
+        // The photo follows every change; the name fields fill once.
+        setAvatar(user.avatar ?? null)
         if (filled.current) return
         filled.current = true
         const [head = '', ...rest] = user.name.trim().split(/\s+/)
@@ -75,6 +96,40 @@ export function ProfilePage() {
     setSavingName(false)
   }
 
+  function choose(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    // The same file chosen again still opens the crop.
+    e.target.value = ''
+    if (!file) return
+    setPhotoError(null)
+    setChosen(file)
+  }
+
+  async function savePhoto(picture: Blob) {
+    setPhotoBusy(true)
+    setPhotoError(null)
+    try {
+      await uploadAvatar(picture)
+      setChosen(null)
+    } catch (err) {
+      setPhotoError(err instanceof Error && err.message ? err.message : 'The photo was not saved.')
+    }
+    setPhotoBusy(false)
+  }
+
+  async function dropPhoto() {
+    setPhotoBusy(true)
+    setPhotoError(null)
+    try {
+      await removeAvatar()
+    } catch (err) {
+      setPhotoError(
+        err instanceof Error && err.message ? err.message : 'The photo was not removed.',
+      )
+    }
+    setPhotoBusy(false)
+  }
+
   async function submitPassword(e: React.FormEvent) {
     e.preventDefault()
     const words = problem({ password, again })
@@ -105,8 +160,69 @@ export function ProfilePage() {
     <div className="flex min-h-svh flex-col">
       <AppHeader />
       <main className="mx-auto flex w-full max-w-[360px] flex-col gap-10 px-4 pt-10 pb-24 max-md:pt-4">
+        <section className="flex flex-col gap-5">
+          <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Profile</h1>
+          {chosen ? (
+            <AvatarCrop
+              file={chosen}
+              busy={photoBusy}
+              onCancel={() => setChosen(null)}
+              onSave={savePhoto}
+              onError={(message) => {
+                setPhotoError(message)
+                setChosen(null)
+              }}
+            />
+          ) : (
+            <div className="flex items-center gap-4">
+              <span
+                className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full text-[18px] font-semibold"
+                style={{ background: 'var(--avatar)', color: 'var(--avatar-ink)' }}
+              >
+                <ProfilePicture src={avatar ?? undefined} size={64} className="rounded-full">
+                  {initials([first, last].join(' '), email)}
+                </ProfilePicture>
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  ref={uploadButton}
+                  type="button"
+                  onClick={() => picker.current?.click()}
+                  disabled={photoBusy}
+                  className={PILL}
+                >
+                  Upload photo
+                </button>
+                {avatar && (
+                  <button
+                    type="button"
+                    onClick={dropPhoto}
+                    disabled={photoBusy}
+                    className="bb-press h-8 px-2 text-[13px] text-ink-4 transition-colors hover:text-ink disabled:opacity-50"
+                  >
+                    {photoBusy ? 'Removing…' : 'Remove photo'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          <input
+            ref={picker}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            aria-label="Photo file"
+            tabIndex={-1}
+            onChange={choose}
+            className="sr-only"
+          />
+          {photoError && (
+            <p role="alert" className="text-[13px] text-red-600">
+              {photoError}
+            </p>
+          )}
+        </section>
+
         <form onSubmit={submitName} noValidate className="flex flex-col gap-3">
-          <h1 className="mb-1 text-[22px] font-semibold tracking-[-0.02em]">Profile</h1>
           <label className="flex flex-col gap-1.5">
             <span className={LABEL}>First name</span>
             <input
