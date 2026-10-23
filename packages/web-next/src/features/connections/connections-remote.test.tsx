@@ -57,7 +57,7 @@ describe('Connections on the core', () => {
     )
     for (const name of ['Instagram', 'TikTok', 'Facebook', 'Pinterest']) {
       const r = row(name)
-      expect(within(r).getByRole('button', { name: 'Not connected' })).toBeInTheDocument()
+      expect(within(r).getByRole('button', { name: 'Unavailable' })).toBeInTheDocument()
       expect(within(r).getByRole('tooltip')).toHaveTextContent(`${name} isn’t connected yet.`)
       expect(within(r).queryByRole('button', { name: new RegExp(`Connect|More for`) })).toBeNull()
     }
@@ -77,7 +77,7 @@ describe('Connections on the core', () => {
 
   it('opens its reason on a tap', () => {
     page()
-    const pill = within(row('Instagram')).getByRole('button', { name: 'Not connected' })
+    const pill = within(row('Instagram')).getByRole('button', { name: 'Unavailable' })
     fireEvent.click(pill)
     expect(within(row('Instagram')).getByRole('tooltip').className).not.toContain('invisible')
   })
@@ -98,11 +98,11 @@ describe('Connections on the core', () => {
   it('closes its reason on a tap elsewhere, and hides it on Escape', () => {
     page()
     const r = row('Instagram')
-    fireEvent.click(within(r).getByRole('button', { name: 'Not connected' }))
+    fireEvent.click(within(r).getByRole('button', { name: 'Unavailable' }))
     expect(within(r).getByRole('tooltip').className).not.toContain('invisible')
     fireEvent.pointerDown(document.body)
     expect(within(r).getByRole('tooltip').className).toContain('invisible')
-    fireEvent.click(within(r).getByRole('button', { name: 'Not connected' }))
+    fireEvent.click(within(r).getByRole('button', { name: 'Unavailable' }))
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(within(r).getByRole('tooltip').className).toContain('invisible')
     expect(within(r).getByRole('tooltip').className).not.toContain('group-hover')
@@ -120,14 +120,14 @@ describe('Connections on the core', () => {
       ],
     }
     const [card] = cardsFor(turn as unknown as Parameters<typeof cardsFor>[0])
-    expect(card!.verb).toBe('Not connected')
+    expect(card!.verb).toBe('Unavailable')
     render(
       <BrandProvider>
         <ConnectionCard model={card!} index={0} />
       </BrandProvider>,
     )
     expect(screen.queryByText('Connected')).toBeNull()
-    expect(screen.getAllByText('Not connected').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Unavailable').length).toBeGreaterThan(0)
   })
 
   it('runs no pretend sign-in for them: nothing is stored as connected', () => {

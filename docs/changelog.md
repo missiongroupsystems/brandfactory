@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.40.1** — 2026-10-23 — `fix/unavailable-label`: the amber pill for a service the core cannot reach yet (Instagram, TikTok, Facebook, Pinterest, Google Drive, Lark, Insights sources, a posted post's Analytics) says "Unavailable" instead of "Not connected"; Bubbles' connection card says the same. Its hover line ("… isn’t connected yet.") is unchanged. Text only, no migration. 1236 tests (220 skipped without a Postgres server).
 - **2.40.0** — 2026-10-23 — `feat/profile-picture`: a person adds their own profile picture on `/profile` (brandbase 1.9.0, migration 0017, not applied to production). Upload photo opens a square crop (drag, zoom) that saves a 512×512 JPEG to storage; Remove photo takes it away; the header's avatar shows the photo, else the initials. Only the person sets their own picture: no admin, no agent, and only an address the core issued for that person's upload. The static demo is unchanged. 1236 tests, all run on a throwaway Postgres; `core test brandbase 1.9.0` 185/185.
 - **2.39.0** — 2026-10-23 — `feat/posted-post-poster`: a posted post, imported or sent, opens as a poster: the cover first, large and sticky (a carousel's other slides under it; a video's cover marked "Cover only"), then the account chips, the format and the day, the title, the real counts (views first, no number invented), the caption folded after six lines with More, the facts it has, "Open on TikTok" or "Open on Instagram" from the post's permalink, and an Analytics section with the amber "Not connected" pill and a preview of what arrives, drawn with no figures. Replaces the old posted page (the composer's cards with a phone preview). The core's `permalink` now reaches the web app. The static demo keeps its two posted posts. No migration. 1197 tests (211 skipped without a Postgres server).
 - **2.38.5** — 2026-10-23 — `feat/calendar-year-picker`: on the core the calendar never shows the static demo's dates, posts or shoots: before a brand's state arrives, or when it does not, today is the device's date in Singapore and the weeks are open. The calendar title opens a month picker (a year stepper over twelve months, from the year of the brand's first post to next year) that jumps the Month, Week or Day view there, on the desktop and in the phone's view menu. The core's run of weeks now covers whole months, so a month reached from an early post shows every week its title names. No pack change, no migration. 1166 tests (211 skipped without a Postgres server).
@@ -83,6 +84,15 @@ One line each — full write-ups are under the matching `##` heading further dow
 
 ---
 
+## 2.40.1 — 2026-10-23
+
+- **Why.** The owner asked for every "Not connected" label to read "Unavailable".
+- **What.** `NotAvailable`'s default label, and the Bubbles connection card's verb, status line
+  and aria label, now say "Unavailable". Sentences keep their words: the pill's hover line
+  ("TikTok isn’t connected yet."), the connect sheet's heading, "Bubbles is not connected." and
+  "Pinterest was not connected.". New post's "Not available yet" pill is a different label and
+  stays.
+- **Gate:** typecheck, lint, format, build; tests 1236 (220 skipped without a Postgres server); reviewed by Sonnet (clean).
 ## 2.40.0 — 2026-10-23
 
 - **Why.** The header and the profile showed only initials; people asked for their own photo.

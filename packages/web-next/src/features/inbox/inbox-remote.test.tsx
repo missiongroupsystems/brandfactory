@@ -72,7 +72,7 @@ describe('the inbox on the core', () => {
     act(() => linkers[0]!('casa-vostra', { brand: { id: 'casa-vostra' }, connections: [] }))
     expect(screen.queryByText('All caught up')).toBeNull()
     expect(screen.getByText('No comments or DMs yet.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Not connected' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unavailable' })).toBeInTheDocument()
     expect(screen.getByRole('tooltip').textContent).toBe(
       'Comments and DMs arrive once accounts are connected.',
     )
@@ -89,6 +89,6 @@ describe('the inbox on the core', () => {
       }),
     )
     expect(screen.queryByText('All caught up')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Not connected' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unavailable' })).toBeInTheDocument()
   })
 })

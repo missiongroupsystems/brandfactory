@@ -23,7 +23,7 @@ export const NOT_SET_UP = [
   'res',
 ] as const
 
-/** Why a service shows "Not connected": one short line. Several names read as one plural. */
+/** Why a service shows "Unavailable": one short line. Several names read as one plural. */
 export function reasonOf(name: string): string {
   return `${name} ${name.includes(' and ') ? 'aren’t' : 'isn’t'} connected yet.`
 }
@@ -33,12 +33,12 @@ export function notAvailable(key: string): boolean {
 }
 
 /**
- * A calm amber pill that names what is missing ("Not connected", "Cover only"). Its reason, one
+ * A calm amber pill that names what is missing ("Unavailable", "Cover only"). Its reason, one
  * short line, opens in a small card on hover, on keyboard focus and on a tap; Escape or a tap
  * elsewhere closes it.
  */
 export function NotAvailable({
-  label = 'Not connected',
+  label = 'Unavailable',
   reason,
   align = 'right',
 }: {

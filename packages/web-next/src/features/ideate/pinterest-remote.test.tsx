@@ -217,10 +217,10 @@ describe('Connections on the core with Pinterest set up', () => {
     )
     const row = (name: string) => screen.getByText(name, { selector: 'span' }).closest('li')!
     for (const name of ['Instagram', 'TikTok', 'Facebook']) {
-      expect(within(row(name)).getByRole('button', { name: 'Not connected' })).toBeVisible()
+      expect(within(row(name)).getByRole('button', { name: 'Unavailable' })).toBeVisible()
     }
     const pinterest = row('Pinterest')
-    expect(within(pinterest).queryByRole('button', { name: 'Not connected' })).toBeNull()
+    expect(within(pinterest).queryByRole('button', { name: 'Unavailable' })).toBeNull()
     // No pretend sheet: the browser leaves for Pinterest's own sign-in.
     fireEvent.click(within(pinterest).getByRole('button', { name: 'Connect Pinterest' }))
     expect(screen.queryByRole('dialog')).toBeNull()
