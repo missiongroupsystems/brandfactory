@@ -4,8 +4,9 @@ import { accountRoutes } from './routes'
 
 /**
  * The server: the core, with the brands' own accounts beside it. The routes run the Pinterest
- * sign-in and read the brand's board live. Nothing here posts: the core's connectors stay the
- * simulated ones.
+ * sign-in and read the brand's board live, and run the TikTok sign-in and send a planned video to
+ * the brand's TikTok inbox as a draft. Nothing here posts: the core's connectors stay the simulated
+ * ones.
  */
 const platforms = platformsFromEnv()
 

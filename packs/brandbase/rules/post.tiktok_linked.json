@@ -1,0 +1,7 @@
+{
+  "id": "post.tiktok_linked",
+  "sql": "select exists (select 1 from brandbase.accounts a where a.brand_id = :brand and a.platform = 'tiktok') as ok",
+  "status": 409,
+  "code": "TIKTOK_NOT_LINKED",
+  "message": "connect the brand's TikTok first"
+}

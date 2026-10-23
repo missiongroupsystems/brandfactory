@@ -1,0 +1,31 @@
+{
+  "name": "post.tiktok_start",
+  "description": "Starts sending a planned video post to the brand's TikTok inbox as a draft (upload only; the team finishes the post in the TikTok app). Marks the send as uploading and answers the send's id and the video's storage key, type and size. Internal: packages/connect calls it as the person who pressed Send, never an agent.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": [
+    "brand.reachable",
+    "post.found",
+    "post.not_posted",
+    "post.tiktok_on",
+    "post.tiktok_linked",
+    "post.tiktok_video",
+    "post.tiktok_free"
+  ],
+  "internal": true,
+  "returns": "one",
+  "sql": "with v as (select * from brandbase.tiktok_video(:id) limit 1), s as (insert into brandbase.tiktok_sends as s (post_id, brand_id, send_id, status, publish_id, reason, sent_by, updated_at) select :id, :brand, gen_random_uuid(), 'uploading', null, null, :actor, :now::timestamptz from v on conflict (post_id) do update set send_id = excluded.send_id, status = 'uploading', publish_id = null, reason = null, sent_by = excluded.sent_by, updated_at = :now::timestamptz returning s.send_id) select jsonb_build_object('sendId', s.send_id, 'key', v.storage_key, 'mime', v.mime, 'bytes', v.bytes) as result from v, s"
+}

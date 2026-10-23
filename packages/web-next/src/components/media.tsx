@@ -57,12 +57,14 @@ export function isVideo(src: string): boolean {
 }
 
 /**
- * A demo video's poster: the JPEG beside it, `reel.mp4` → `reel.jpg`. A dropped video has none;
- * the browser shows its first frame instead.
+ * A demo video's poster: the JPEG beside it, `reel.mp4` → `reel.jpg`. A dropped video, or one
+ * uploaded to the core, has none; the browser shows its first frame instead.
  */
 export function posterOf(src: string): string | undefined {
   const path = src.replace(/#.*$/, '')
-  return isVideo(src) && path.endsWith('.mp4') ? path.replace(/\.mp4$/, '.jpg') : undefined
+  return isVideo(src) && path.startsWith('/demo/') && path.endsWith('.mp4')
+    ? path.replace(/\.mp4$/, '.jpg')
+    : undefined
 }
 
 /**

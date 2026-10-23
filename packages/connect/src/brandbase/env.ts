@@ -1,9 +1,11 @@
 import { pinterestApp } from './pinterest'
+import { tiktokApp } from './tiktok'
 import { type Platforms } from './routes'
 
 /** Each platform's variables: all of them or none, with the key that seals the tokens. */
 const GROUPS = {
   Pinterest: ['PINTEREST_APP_ID', 'PINTEREST_APP_SECRET', 'PINTEREST_REDIRECT_URL'],
+  TikTok: ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET', 'TIKTOK_REDIRECT_URL'],
 } as const
 
 /**
@@ -30,6 +32,14 @@ export function platformsFromEnv(env: NodeJS.ProcessEnv = process.env): Platform
           appId: env.PINTEREST_APP_ID,
           appSecret: env.PINTEREST_APP_SECRET!,
           redirectUrl: env.PINTEREST_REDIRECT_URL!,
+          masterKey: masterKey!,
+        })
+      : undefined,
+    tiktok: env.TIKTOK_CLIENT_KEY
+      ? tiktokApp({
+          clientKey: env.TIKTOK_CLIENT_KEY,
+          clientSecret: env.TIKTOK_CLIENT_SECRET!,
+          redirectUrl: env.TIKTOK_REDIRECT_URL!,
           masterKey: masterKey!,
         })
       : undefined,

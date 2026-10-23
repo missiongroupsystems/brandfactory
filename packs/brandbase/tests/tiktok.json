@@ -1,0 +1,850 @@
+{
+  "name": "tiktok",
+  "now": "2026-10-06T04:00:00Z",
+  "as": "member",
+  "agents": {
+    "bot": "member"
+  },
+  "cases": [
+    {
+      "name": "links the brand's TikTok account: the state shows its name and picture, never its tokens, and no connection turns on",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "tiktok",
+            "accountId": "tt-1",
+            "username": "Casa on TikTok",
+            "tokens": "sealed-tt-1",
+            "details": {
+              "avatar": "https://p16.tiktokcdn.test/a.jpg"
+            }
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "tiktok": {
+                "name": "Casa on TikTok",
+                "avatar": "https://p16.tiktokcdn.test/a.jpg"
+              },
+              "tiktokSends": []
+            }
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.connections where brand_id = 'casa' and key in ('tt', 'tiktok')",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from packs.op_calls where input::text like '%sealed-tt-1%'",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        },
+        {
+          "call": "account.read",
+          "input": {
+            "brand": "casa",
+            "platform": "tiktok"
+          },
+          "expect": {
+            "result": [
+              {
+                "accountId": "tt-1",
+                "tokens": "sealed-tt-1"
+              }
+            ]
+          }
+        },
+        {
+          "call": "account.retoken",
+          "input": {
+            "brand": "casa",
+            "platform": "tiktok",
+            "accountId": "tt-1",
+            "tokens": "sealed-tt-2"
+          },
+          "expect": {
+            "length": 1
+          }
+        },
+        {
+          "call": "account.forget",
+          "input": {
+            "brand": "casa",
+            "platform": "tiktok",
+            "accountId": "tt-1"
+          },
+          "expect": {
+            "length": 1
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "tiktok": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a TikTok account another brand holds",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "tiktok",
+            "accountId": "tt-1",
+            "username": "Casa on TikTok",
+            "tokens": "sealed-tt-1",
+            "details": {
+              "avatar": "https://p16.tiktokcdn.test/a.jpg"
+            }
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "temper",
+            "platform": "tiktok",
+            "accountId": "tt-1",
+            "username": "Casa on TikTok",
+            "tokens": "sealed-tt-1",
+            "details": {
+              "avatar": "https://p16.tiktokcdn.test/a.jpg"
+            }
+          },
+          "as": "both",
+          "expect": {
+            "status": 409,
+            "code": "ACCOUNT_TAKEN"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sends a planned video to the TikTok inbox once at a time, and records where it stands",
+      "steps": [
+        {
+          "sql": "insert into brandbase.media (id, brand_id, storage_key, kind, mime, bytes) values ('v1', 'casa', 'brandbase/00000000-0000-4000-8000-0000000000a1.mp4', 'video', 'video/mp4', 2048), ('p1', 'casa', 'brandbase/00000000-0000-4000-8000-0000000000a2.jpg', 'photo', 'image/jpeg', 10), ('v-temper', 'temper', 'brandbase/00000000-0000-4000-8000-0000000000a3.mp4', 'video', 'video/mp4', 99)"
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, channels, media, marked) values ('tp1', 'casa', 'reel', 'h', '2026-10-12', '{ig,tt}', '[{\"src\": \"https://core.test/files/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/brandbase/00000000-0000-4000-8000-0000000000a1.mp4#video\", \"kind\": \"video\"}]', null)"
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "tiktok",
+            "accountId": "tt-1",
+            "username": "Casa on TikTok",
+            "tokens": "sealed-tt-1",
+            "details": {
+              "avatar": "https://p16.tiktokcdn.test/a.jpg"
+            }
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "expect": {
+            "result": {
+              "key": "brandbase/00000000-0000-4000-8000-0000000000a1.mp4",
+              "mime": "video/mp4",
+              "bytes": 2048
+            }
+          }
+        },
+        {
+          "sql": "update brandbase.tiktok_sends set send_id = '00000000-0000-4000-8000-00000000c0de' where post_id = 'tp1'"
+        },
+        {
+          "sql": "select status, sent_by from brandbase.tiktok_sends where post_id = 'tp1'",
+          "expect": {
+            "rows": [
+              {
+                "status": "uploading",
+                "sent_by": "member"
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "expect": {
+            "status": 409,
+            "code": "TIKTOK_SENDING"
+          }
+        },
+        {
+          "call": "post.tiktok_done",
+          "input": {
+            "brand": "casa",
+            "id": "tp1",
+            "sendId": "00000000-0000-4000-8000-00000000c0de",
+            "status": "processing",
+            "publishId": "v_inbox_file~v2.1"
+          },
+          "expect": {
+            "result": [
+              {
+                "postId": "tp1",
+                "status": "processing"
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "expect": {
+            "status": 409,
+            "code": "TIKTOK_SENDING"
+          }
+        },
+        {
+          "call": "post.tiktok_read",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "expect": {
+            "result": [
+              {
+                "status": "processing",
+                "publishId": "v_inbox_file~v2.1"
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.tiktok_done",
+          "input": {
+            "brand": "casa",
+            "id": "tp1",
+            "sendId": "00000000-0000-4000-8000-00000000c0de",
+            "status": "sent"
+          },
+          "expect": {
+            "result": [
+              {
+                "status": "sent",
+                "reason": null
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.tiktok_done",
+          "input": {
+            "brand": "casa",
+            "id": "tp1",
+            "sendId": "00000000-0000-4000-8000-00000000c0de",
+            "status": "failed",
+            "reason": "late"
+          },
+          "expect": {
+            "length": 0
+          }
+        },
+        {
+          "call": "post.tiktok_read",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "expect": {
+            "result": [
+              {
+                "status": "sent",
+                "publishId": "v_inbox_file~v2.1"
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "tiktokSends": [
+                {
+                  "postId": "tp1",
+                  "status": "sent",
+                  "reason": null
+                }
+              ]
+            }
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "expect": {
+            "result": {
+              "key": "brandbase/00000000-0000-4000-8000-0000000000a1.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "lets an upload cut off mid-way go again after 30 minutes, and one TikTok never confirmed after 3",
+      "steps": [
+        {
+          "sql": "insert into brandbase.media (id, brand_id, storage_key, kind, mime, bytes) values ('v1', 'casa', 'brandbase/00000000-0000-4000-8000-0000000000a1.mp4', 'video', 'video/mp4', 2048), ('p1', 'casa', 'brandbase/00000000-0000-4000-8000-0000000000a2.jpg', 'photo', 'image/jpeg', 10), ('v-temper', 'temper', 'brandbase/00000000-0000-4000-8000-0000000000a3.mp4', 'video', 'video/mp4', 99)"
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, channels, media, marked) values ('tp1', 'casa', 'reel', 'h', '2026-10-12', '{ig,tt}', '[{\"src\": \"https://core.test/files/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/brandbase/00000000-0000-4000-8000-0000000000a1.mp4#video\", \"kind\": \"video\"}]', null)"
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "tiktok",
+            "accountId": "tt-1",
+            "username": "Casa on TikTok",
+            "tokens": "sealed-tt-1",
+            "details": {
+              "avatar": "https://p16.tiktokcdn.test/a.jpg"
+            }
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "now": "2026-10-06T04:29:00Z",
+          "expect": {
+            "status": 409,
+            "code": "TIKTOK_SENDING"
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "now": "2026-10-06T04:31:00Z",
+          "expect": {
+            "result": {
+              "key": "brandbase/00000000-0000-4000-8000-0000000000a1.mp4"
+            }
+          }
+        },
+        {
+          "sql": "update brandbase.tiktok_sends set send_id = '00000000-0000-4000-8000-00000000c0de' where post_id = 'tp1'"
+        },
+        {
+          "call": "post.tiktok_done",
+          "now": "2026-10-06T04:31:00Z",
+          "input": {
+            "brand": "casa",
+            "id": "tp1",
+            "sendId": "00000000-0000-4000-8000-00000000c0de",
+            "status": "processing",
+            "publishId": "v1"
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "now": "2026-10-06T04:33:00Z",
+          "expect": {
+            "status": 409,
+            "code": "TIKTOK_SENDING"
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "now": "2026-10-06T04:35:00Z",
+          "expect": {
+            "result": {
+              "key": "brandbase/00000000-0000-4000-8000-0000000000a1.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "changes nothing on a late answer to an earlier send of the post",
+      "steps": [
+        {
+          "sql": "insert into brandbase.media (id, brand_id, storage_key, kind, mime, bytes) values ('v1', 'casa', 'brandbase/00000000-0000-4000-8000-0000000000a1.mp4', 'video', 'video/mp4', 2048), ('p1', 'casa', 'brandbase/00000000-0000-4000-8000-0000000000a2.jpg', 'photo', 'image/jpeg', 10), ('v-temper', 'temper', 'brandbase/00000000-0000-4000-8000-0000000000a3.mp4', 'video', 'video/mp4', 99)"
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, channels, media, marked) values ('tp1', 'casa', 'reel', 'h', '2026-10-12', '{ig,tt}', '[{\"src\": \"https://core.test/files/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/brandbase/00000000-0000-4000-8000-0000000000a1.mp4#video\", \"kind\": \"video\"}]', null)"
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "tiktok",
+            "accountId": "tt-1",
+            "username": "Casa on TikTok",
+            "tokens": "sealed-tt-1",
+            "details": {
+              "avatar": "https://p16.tiktokcdn.test/a.jpg"
+            }
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          }
+        },
+        {
+          "sql": "update brandbase.tiktok_sends set send_id = '00000000-0000-4000-8000-00000000c0de' where post_id = 'tp1'"
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "now": "2026-10-06T04:31:00Z",
+          "expect": {
+            "result": {
+              "key": "brandbase/00000000-0000-4000-8000-0000000000a1.mp4"
+            }
+          }
+        },
+        {
+          "call": "post.tiktok_done",
+          "now": "2026-10-06T04:32:00Z",
+          "input": {
+            "brand": "casa",
+            "id": "tp1",
+            "sendId": "00000000-0000-4000-8000-00000000c0de",
+            "status": "failed",
+            "reason": "late"
+          },
+          "expect": {
+            "length": 0
+          }
+        },
+        {
+          "sql": "select status, send_id <> '00000000-0000-4000-8000-00000000c0de' as fresh from brandbase.tiktok_sends where post_id = 'tp1'",
+          "expect": {
+            "rows": [
+              {
+                "status": "uploading",
+                "fresh": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "records a failed send in words, and it may go again",
+      "steps": [
+        {
+          "sql": "insert into brandbase.media (id, brand_id, storage_key, kind, mime, bytes) values ('v1', 'casa', 'brandbase/00000000-0000-4000-8000-0000000000a1.mp4', 'video', 'video/mp4', 2048), ('p1', 'casa', 'brandbase/00000000-0000-4000-8000-0000000000a2.jpg', 'photo', 'image/jpeg', 10), ('v-temper', 'temper', 'brandbase/00000000-0000-4000-8000-0000000000a3.mp4', 'video', 'video/mp4', 99)"
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, channels, media, marked) values ('tp1', 'casa', 'reel', 'h', '2026-10-12', '{ig,tt}', '[{\"src\": \"https://core.test/files/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/brandbase/00000000-0000-4000-8000-0000000000a1.mp4#video\", \"kind\": \"video\"}]', null)"
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "tiktok",
+            "accountId": "tt-1",
+            "username": "Casa on TikTok",
+            "tokens": "sealed-tt-1",
+            "details": {
+              "avatar": "https://p16.tiktokcdn.test/a.jpg"
+            }
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          }
+        },
+        {
+          "sql": "update brandbase.tiktok_sends set send_id = '00000000-0000-4000-8000-00000000c0de' where post_id = 'tp1'"
+        },
+        {
+          "call": "post.tiktok_done",
+          "input": {
+            "brand": "casa",
+            "id": "tp1",
+            "sendId": "00000000-0000-4000-8000-00000000c0de",
+            "status": "failed",
+            "reason": "TikTok allows 5 drafts a day."
+          },
+          "expect": {
+            "result": [
+              {
+                "status": "failed",
+                "reason": "TikTok allows 5 drafts a day."
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "expect": {
+            "result": {
+              "key": "brandbase/00000000-0000-4000-8000-0000000000a1.mp4"
+            }
+          }
+        },
+        {
+          "sql": "select status, reason from brandbase.tiktok_sends where post_id = 'tp1'",
+          "expect": {
+            "rows": [
+              {
+                "status": "uploading",
+                "reason": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sends only a planned TikTok post with one uploaded video of the brand, with the account linked",
+      "steps": [
+        {
+          "sql": "insert into brandbase.media (id, brand_id, storage_key, kind, mime, bytes) values ('v1', 'casa', 'brandbase/00000000-0000-4000-8000-0000000000a1.mp4', 'video', 'video/mp4', 2048), ('p1', 'casa', 'brandbase/00000000-0000-4000-8000-0000000000a2.jpg', 'photo', 'image/jpeg', 10), ('v-temper', 'temper', 'brandbase/00000000-0000-4000-8000-0000000000a3.mp4', 'video', 'video/mp4', 99)"
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, channels, media, marked) values ('no-tt', 'casa', 'reel', 'h', '2026-10-12', '{ig}', '[{\"src\": \"https://core.test/files/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/brandbase/00000000-0000-4000-8000-0000000000a1.mp4#video\", \"kind\": \"video\"}]', null)"
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, channels, media, marked) values ('no-day', 'casa', 'reel', 'h', null, '{ig,tt}', '[{\"src\": \"https://core.test/files/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/brandbase/00000000-0000-4000-8000-0000000000a1.mp4#video\", \"kind\": \"video\"}]', null)"
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, channels, media, marked) values ('photo', 'casa', 'carousel', 'h', '2026-10-12', '{ig,tt}', '[{\"src\": \"https://core.test/files/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/brandbase/00000000-0000-4000-8000-0000000000a2.jpg#photo\", \"kind\": \"photo\"}]', null)"
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, channels, media, marked) values ('two', 'casa', 'reel', 'h', '2026-10-12', '{ig,tt}', '[{\"src\": \"https://core.test/files/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/brandbase/00000000-0000-4000-8000-0000000000a1.mp4#video\", \"kind\": \"video\"}, {\"src\": \"https://core.test/files/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/brandbase/00000000-0000-4000-8000-0000000000a1.mp4#video\", \"kind\": \"video\"}]', null)"
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, channels, media, marked) values ('theirs', 'casa', 'reel', 'h', '2026-10-12', '{ig,tt}', '[{\"src\": \"https://core.test/files/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/brandbase/00000000-0000-4000-8000-0000000000a3.mp4#video\", \"kind\": \"video\"}]', null)"
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, channels, media, marked) values ('sample', 'casa', 'reel', 'h', '2026-10-12', '{ig,tt}', '[{\"src\": \"/media/abc/clip.mp4\", \"kind\": \"video\"}]', null)"
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, channels, media, marked) values ('posted', 'casa', 'reel', 'h', '2026-10-12', '{ig,tt}', '[{\"src\": \"https://core.test/files/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/brandbase/00000000-0000-4000-8000-0000000000a1.mp4#video\", \"kind\": \"video\"}]', 'posted')"
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, channels, media, marked) values ('tp1', 'casa', 'reel', 'h', '2026-10-12', '{ig,tt}', '[{\"src\": \"https://core.test/files/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/brandbase/00000000-0000-4000-8000-0000000000a1.mp4#video\", \"kind\": \"video\"}]', null)"
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "expect": {
+            "status": 409,
+            "code": "TIKTOK_NOT_LINKED"
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "tiktok",
+            "accountId": "tt-1",
+            "username": "Casa on TikTok",
+            "tokens": "sealed-tt-1",
+            "details": {
+              "avatar": "https://p16.tiktokcdn.test/a.jpg"
+            }
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "no-tt"
+          },
+          "expect": {
+            "status": 409,
+            "code": "NOT_ON_TIKTOK"
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "no-day"
+          },
+          "expect": {
+            "status": 409,
+            "code": "NOT_ON_TIKTOK"
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "photo"
+          },
+          "expect": {
+            "status": 409,
+            "code": "TIKTOK_NEEDS_VIDEO"
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "two"
+          },
+          "expect": {
+            "status": 409,
+            "code": "TIKTOK_NEEDS_VIDEO"
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "theirs"
+          },
+          "expect": {
+            "status": 409,
+            "code": "TIKTOK_NEEDS_VIDEO"
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "sample"
+          },
+          "expect": {
+            "status": 409,
+            "code": "TIKTOK_NEEDS_VIDEO"
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "posted"
+          },
+          "expect": {
+            "status": 409,
+            "code": "POST_POSTED"
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "missing"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.tiktok_sends",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "keeps every brand's sends to its own people, and away from agents",
+      "steps": [
+        {
+          "sql": "insert into brandbase.media (id, brand_id, storage_key, kind, mime, bytes) values ('v1', 'casa', 'brandbase/00000000-0000-4000-8000-0000000000a1.mp4', 'video', 'video/mp4', 2048), ('p1', 'casa', 'brandbase/00000000-0000-4000-8000-0000000000a2.jpg', 'photo', 'image/jpeg', 10), ('v-temper', 'temper', 'brandbase/00000000-0000-4000-8000-0000000000a3.mp4', 'video', 'video/mp4', 99)"
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, channels, media, marked) values ('tp1', 'casa', 'reel', 'h', '2026-10-12', '{ig,tt}', '[{\"src\": \"https://core.test/files/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/brandbase/00000000-0000-4000-8000-0000000000a1.mp4#video\", \"kind\": \"video\"}]', null)"
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "tiktok",
+            "accountId": "tt-1",
+            "username": "Casa on TikTok",
+            "tokens": "sealed-tt-1",
+            "details": {
+              "avatar": "https://p16.tiktokcdn.test/a.jpg"
+            }
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "input": {
+            "brand": "temper",
+            "id": "tp1"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.tiktok_done",
+          "input": {
+            "brand": "temper",
+            "id": "tp1",
+            "sendId": "00000000-0000-4000-8000-00000000c0de",
+            "status": "sent"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.tiktok_read",
+          "input": {
+            "brand": "temper",
+            "id": "tp1"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.tiktok_read",
+          "as": "b-owner",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "brand.state",
+          "as": "b-owner",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.tiktok_start",
+          "as": "bot",
+          "input": {
+            "brand": "casa",
+            "id": "tp1"
+          },
+          "expect": {
+            "status": 403,
+            "code": "NOT_A_PERSON"
+          }
+        },
+        {
+          "call": "post.tiktok_done",
+          "as": "bot",
+          "input": {
+            "brand": "casa",
+            "id": "tp1",
+            "sendId": "00000000-0000-4000-8000-00000000c0de",
+            "status": "sent"
+          },
+          "expect": {
+            "status": 403,
+            "code": "NOT_A_PERSON"
+          }
+        },
+        {
+          "sql": "select status from brandbase.tiktok_sends where post_id = 'tp1'",
+          "expect": {
+            "rows": [
+              {
+                "status": "uploading"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

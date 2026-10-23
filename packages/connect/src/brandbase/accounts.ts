@@ -4,9 +4,9 @@ import { call, type CoreDeps } from '@brandfactory/core/src/run'
 /** The pack whose accounts these are. */
 export const PACK = 'brandbase'
 
-/** The platforms a brand links an account on. Only Pinterest has a sign-in so far. */
-export type Platform = 'pinterest'
-export const NAME: Record<Platform, string> = { pinterest: 'Pinterest' }
+/** The platforms a brand links an account on. Meta has no sign-in yet. */
+export type Platform = 'pinterest' | 'tiktok'
+export const NAME: Record<Platform, string> = { pinterest: 'Pinterest', tiktok: 'TikTok' }
 
 /**
  * Who an account move runs as: the signed-in person behind a route's request. The pack's row
@@ -85,3 +85,56 @@ export const forgetAccount = (
 /** The Pinterest board the brand's moodboard reads, or none. */
 export const keepBoard = (core: CoreDeps, who: Who, brand: string, board: string | null) =>
   move(core, who, 'account.board', { brand, board })
+
+/** A post's send to the TikTok inbox, as the pack keeps it. */
+export interface TikTokSend {
+  postId: string
+  /** The id of this send (`post.tiktok_read` only): a record names it. */
+  sendId?: string
+  status: 'uploading' | 'processing' | 'sent' | 'failed'
+  publishId?: string | null
+  reason: string | null
+  updatedAt: string
+}
+
+/**
+ * Marks a planned video post as on its way to the brand's TikTok inbox, after the pack's walls
+ * (the brand, a TikTok post with one uploaded video, the account linked, no send on its way).
+ * Answers the send's id and the video's storage key.
+ */
+export const startTikTokSend = (core: CoreDeps, who: Who, brand: string, id: string) =>
+  move(core, who, 'post.tiktok_start', { brand, id }) as Promise<{
+    sendId: string
+    key: string
+    mime: string
+    bytes: number | null
+  }>
+
+/**
+ * Records where the send `sendId` stands. A send already finished, or one a later send of the post
+ * replaced, is left as it is (null back).
+ */
+export async function recordTikTokSend(
+  core: CoreDeps,
+  who: Who,
+  brand: string,
+  id: string,
+  sendId: string,
+  outcome: { status: 'processing' | 'sent' | 'failed'; publishId?: string; reason?: string },
+): Promise<TikTokSend | null> {
+  const rows = (await move(core, who, 'post.tiktok_done', {
+    brand,
+    id,
+    sendId,
+    status: outcome.status,
+    publishId: outcome.publishId ?? null,
+    reason: outcome.reason ?? null,
+  })) as TikTokSend[]
+  return rows[0] ?? null
+}
+
+/** A post's latest send to the TikTok inbox, with TikTok's publish id, or null. */
+export async function readTikTokSend(core: CoreDeps, who: Who, brand: string, id: string) {
+  const rows = (await move(core, who, 'post.tiktok_read', { brand, id })) as TikTokSend[]
+  return rows[0] ?? null
+}

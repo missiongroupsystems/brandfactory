@@ -18,14 +18,19 @@ described below; it is not deployed.
 - **Accounts** are rows of the pack's `brandbase.accounts`, read and written only through the
   pack's internal moves (`account.link`, `account.read`, `account.retoken`, `account.board`,
   `account.forget`), run as the signed-in person. The pack's row rules decide which brands they
-  reach; a screen or an agent cannot call these moves. Only Pinterest signs in so far.
+  reach; a screen or an agent cannot call these moves. Pinterest and TikTok sign in; Meta does not
+  yet. TikTok is upload only (`user.info.basic`, `video.upload`): a planned video goes to the
+  brand's TikTok inbox as a draft (`post.tiktok_start`, `post.tiktok_done`, `post.tiktok_read`).
 - **Routes** (on the core's address, called by the web app with the person's session):
   `GET /platforms` (no sign-in: which platforms have an app set up),
   `POST /brands/:brand/pinterest/connect`, `POST /pinterest/callback`,
-  `GET|PUT|DELETE /brands/:brand/pinterest`, `GET /brands/:brand/pinterest/pins`.
+  `GET|PUT|DELETE /brands/:brand/pinterest`, `GET /brands/:brand/pinterest/pins`,
+  `POST /brands/:brand/tiktok/connect`, `POST /tiktok/callback`, `DELETE /brands/:brand/tiktok`,
+  `POST|GET /brands/:brand/posts/:post/tiktok` (send to the inbox, and how the send stands).
 - **Environment** (`src/brandbase/env.ts`): `TOKEN_ENCRYPTION_KEY`, and `PINTEREST_APP_ID`,
   `PINTEREST_APP_SECRET`, `PINTEREST_REDIRECT_URL`, all three or none. The redirect is the web
-  app's `/connect/pinterest` page. `pnpm -F @brandfactory/connect serve` starts it with the core's
+  app's `/connect/pinterest` page. `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`,
+  `TIKTOK_REDIRECT_URL` (the web app's `/connect/tiktok`), all three or none. `pnpm -F @brandfactory/connect serve` starts it with the core's
   own variables too.
 
 ## The brand rule

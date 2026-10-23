@@ -430,7 +430,7 @@
       ]
     },
     {
-      "name": "leaves Pinterest to the account, not the connect sheet, and links no Meta or TikTok account yet",
+      "name": "leaves Pinterest to the account, not the connect sheet, and links no Meta account yet",
       "steps": [
         {
           "call": "connection.set",
@@ -450,20 +450,6 @@
             "platform": "meta",
             "accountId": "page-1",
             "username": "Casa",
-            "tokens": "sealed",
-            "details": {}
-          },
-          "expect": {
-            "status": 400
-          }
-        },
-        {
-          "call": "account.link",
-          "input": {
-            "brand": "casa",
-            "platform": "tiktok",
-            "accountId": "tt-1",
-            "username": "casa",
             "tokens": "sealed",
             "details": {}
           },

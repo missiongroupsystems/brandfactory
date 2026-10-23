@@ -75,6 +75,7 @@ import { PhoneMock, type People } from './phone-mocks'
 import { PostedPost } from './posted'
 import { TypeBadge } from './preview-media'
 import { ratioOf, ShotView } from './shot'
+import { TikTokInbox } from './tiktok-inbox'
 import { hashtagsOf, labelsOf, peopleOf, placesOf } from './suggestions'
 import {
   saveTikTokDefault,
@@ -739,6 +740,8 @@ export function Composer({
           )}
         </div>
       )}
+
+      {post && <TikTokInbox post={post} />}
 
       <div className="grid grid-cols-[minmax(0,1fr)_400px] items-start gap-6 max-lg:grid-cols-1">
         <div className="flex min-w-0 flex-col gap-4 max-md:gap-7">

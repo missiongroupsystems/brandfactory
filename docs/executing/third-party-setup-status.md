@@ -38,9 +38,12 @@ Pinterest is on the unmerged local branch `feat/real-publishing`; the other serv
     "may take a few minutes" notice), and the owner's Everyone/comments-on defaults conflict
     with the "no default" rule.
   - Recommended: submit upload only (Login Kit plus `video.upload`; the video lands in the brand's
-    TikTok inbox as a draft) and rewrite the review text around that. Undecided.
-- **Demo video:** cannot be filmed until the TikTok flow runs on the live site in Sandbox. A
-  shot-by-shot script exists (from the review-video subagent, 22 Oct); about 3–4 days of work first.
+    TikTok inbox as a draft) and rewrite the review text around that.
+- **Decided (23 Oct): upload only.** Built on `feat/tiktok-upload` (2.41.0, brandbase 1.10.0):
+  Connect on Connections, and "Send to TikTok inbox" on a planned video post. Turn Direct Post off
+  and remove `video.publish` from the Sandbox and the production form before the submission.
+- **Demo video:** filmed on the live site with the Sandbox keys once that branch runs in
+  production; the release steps and the shot list are kept with the release notes of 2.41.0.
 
 ## Meta (Instagram, Facebook)
 

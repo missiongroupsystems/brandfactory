@@ -5,7 +5,9 @@ import * as React from 'react'
 import { AppHeader } from '@/components/app-header'
 import type { ConnectionStatus } from '@/data/connections'
 import { useBrand } from '@/features/schedule/posts-store'
-import { remote } from '@/lib/remote'
+import { remote, report } from '@/lib/remote'
+
+import { TikTokPicture } from '@/features/publish/tiktok-inbox'
 
 import { ConnectSheet, SOURCES, SourceMark } from './connect-sheet'
 import {
@@ -16,6 +18,7 @@ import {
   type SourceKey,
 } from './connections-store'
 import { NotAvailable, notAvailable, reasonOf } from './not-available'
+import { connectTikTok, disconnectTikTok, tiktokOn, useTikTokAccount } from './tiktok'
 
 const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 
@@ -32,7 +35,9 @@ const GROUPS: Array<{ label: string; keys: SourceKey[] }> = [
  * has linked, in one list. Each row says what it is linked as and whether it works; one action
  * fixes it. What changes here, the composer, the Drive picker, the call sheet and the moodboard
  * read. Simulated: a Connect is a pretend sign-in (`ConnectSheet`), except Pinterest on the core,
- * which leaves for Pinterest's own sign-in and comes back to the moodboard to pick the board.
+ * which leaves for Pinterest's own sign-in and comes back to the moodboard to pick the board, and
+ * TikTok on the core once the server has its app, which leaves for TikTok's sign-in (upload only:
+ * `tiktok.ts`) and comes back here.
  */
 export function ConnectionsPage() {
   const { brand } = useBrand()
@@ -41,7 +46,12 @@ export function ConnectionsPage() {
 
   function open(key: SourceKey) {
     if (remote && key === 'pinterest') connect(brand.id, key)
-    else setConnecting(key)
+    else if (key === 'tt' && tiktokOn()) {
+      // A real sign-in: the browser leaves for TikTok and comes back to `/connect/tiktok`.
+      connectTikTok(brand.id).catch((err: unknown) =>
+        report(err instanceof Error && err.message ? err.message : 'That did not work.'),
+      )
+    } else setConnecting(key)
   }
 
   return (
@@ -73,7 +83,7 @@ export function ConnectionsPage() {
 
 function Row({
   source,
-  status,
+  status: stored,
   onConnect,
 }: {
   source: SourceKey
@@ -82,13 +92,22 @@ function Row({
 }) {
   const { brand } = useBrand()
   const info = SOURCES[source]
-  const name = useAccountName(brand.id, source)
+  const linkedName = useAccountName(brand.id, source)
+  // TikTok on the core, once the server has its app: the brand's own account, upload only.
+  const tiktok = source === 'tt' && tiktokOn()
+  const account = useTikTokAccount(brand.id)
+  const status: ConnectionStatus = tiktok ? (account ? 'connected' : 'off') : stored
+  const name = tiktok ? (account?.name ?? null) : linkedName
   return (
     <li className="flex items-center gap-3.5 border-t border-line px-4 py-3.5 first:border-t-0 max-md:gap-3 max-md:px-3.5">
       <span
-        className={`flex size-10 shrink-0 items-center justify-center rounded-[11px] bg-surface ${status === 'off' ? 'text-ink-4' : 'text-ink'}`}
+        className={`relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-[11px] bg-surface ${status === 'off' ? 'text-ink-4' : 'text-ink'}`}
       >
-        <SourceMark source={source} size={16} />
+        {tiktok && account ? (
+          <TikTokPicture src={account.avatar} />
+        ) : (
+          <SourceMark source={source} size={16} />
+        )}
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[14.5px] font-medium">{info.name}</span>
@@ -101,20 +120,28 @@ function Row({
           )}
           <span className={`truncate ${status === 'attention' ? 'text-fail-ink' : ''}`}>
             {status === 'off'
-              ? info.brings
+              ? tiktok
+                ? 'Videos to the TikTok inbox'
+                : info.brings
               : status === 'attention'
                 ? 'Signed out · sign in again'
                 : (name ?? info.account(brand))}
           </span>
         </span>
       </span>
-      {notAvailable(source) ? (
+      {notAvailable(source) && !tiktok ? (
         <NotAvailable reason={reasonOf(info.name)} />
       ) : status === 'connected' ? (
         <RowMenu
           name={info.name}
           onReconnect={onConnect}
-          onDisconnect={() => disconnect(brand.id, source)}
+          onDisconnect={() =>
+            tiktok
+              ? disconnectTikTok(brand.id).catch((err: unknown) =>
+                  report(err instanceof Error && err.message ? err.message : 'That did not work.'),
+                )
+              : disconnect(brand.id, source)
+          }
         />
       ) : (
         <button

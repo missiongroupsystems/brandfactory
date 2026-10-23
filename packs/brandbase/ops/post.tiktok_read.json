@@ -1,0 +1,23 @@
+{
+  "name": "post.tiktok_read",
+  "description": "A post's latest send to the TikTok inbox with TikTok's publish id, or nothing. Internal: packages/connect, to ask TikTok how the send stands.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "internal": true,
+  "returns": "many",
+  "sql": "select jsonb_build_object('postId', s.post_id, 'sendId', s.send_id, 'status', s.status, 'publishId', s.publish_id, 'reason', s.reason, 'updatedAt', brandbase.iso(s.updated_at)) as result from brandbase.tiktok_sends s where s.post_id = :id and s.brand_id = :brand"
+}

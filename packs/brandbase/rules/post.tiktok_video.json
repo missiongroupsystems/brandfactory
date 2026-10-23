@@ -1,0 +1,7 @@
+{
+  "id": "post.tiktok_video",
+  "sql": "select exists (select 1 from brandbase.tiktok_video(:id)) as ok",
+  "status": 409,
+  "code": "TIKTOK_NEEDS_VIDEO",
+  "message": "TikTok takes one uploaded video (MP4, MOV or WebM)"
+}

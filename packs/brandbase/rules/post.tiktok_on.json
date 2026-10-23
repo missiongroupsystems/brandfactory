@@ -1,0 +1,7 @@
+{
+  "id": "post.tiktok_on",
+  "sql": "select exists (select 1 from brandbase.posts p where p.id = :id and p.brand_id = :brand and 'tt' = any(p.channels) and p.day is not null) as ok",
+  "status": 409,
+  "code": "NOT_ON_TIKTOK",
+  "message": "this post is not planned for TikTok"
+}

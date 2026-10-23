@@ -1,0 +1,7 @@
+{
+  "id": "post.tiktok_free",
+  "sql": "select not exists (select 1 from brandbase.tiktok_sends s where s.post_id = :id and s.updated_at > :now::timestamptz - case s.status when 'uploading' then interval '30 minutes' when 'processing' then interval '3 minutes' else interval '0' end) as ok",
+  "status": 409,
+  "code": "TIKTOK_SENDING",
+  "message": "this post is on its way to TikTok"
+}

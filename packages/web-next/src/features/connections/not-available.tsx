@@ -9,7 +9,9 @@ import { platformOn, remote } from '@/lib/remote'
  * connected: Meta and TikTok have not given the app access, Google Drive, Lark and the Insights
  * sources are not wired, and the connect sheet's sign-in is a pretend one. Pinterest is the one
  * exception, once the server says its app is set up (`GET /platforms`). A connection stored for
- * one of the others is not trusted. The static demo keeps its pretend sign-in.
+ * one of the others is not trusted. The static demo keeps its pretend sign-in. TikTok's upload
+ * connection (`tiktok.ts`) shows on Connections and on a planned post only; for everything else
+ * here (publishing, the inbox, the moodboard) TikTok stays not set up.
  */
 export const NOT_SET_UP = [
   'ig',

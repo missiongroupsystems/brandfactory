@@ -12,12 +12,15 @@ import {
   type Who,
 } from './accounts'
 import { type PinterestApp, PinterestReconnect } from './pinterest'
+import { type TikTokApp } from './tiktok'
+import { tiktokRoutes } from './tiktok-routes'
 
 /** Refresh a Pinterest token when less than a day is left, so it never runs out mid-request. */
 const REFRESH_MARGIN_MS = 24 * 60 * 60 * 1000
 
 export interface Platforms {
   pinterest?: PinterestApp
+  tiktok?: TikTokApp
 }
 
 const reconnect = () =>
@@ -109,7 +112,12 @@ export function accountRoutes(core: CoreDeps, platforms: Platforms) {
     new Hono()
       // Which platforms have an app set up on this server: the web app offers Connect only for
       // these. It names no account and needs no sign-in.
-      .get('/platforms', (c) => c.json({ pinterest: Boolean(platforms.pinterest) }))
+      .get('/platforms', (c) =>
+        c.json({ pinterest: Boolean(platforms.pinterest), tiktok: Boolean(platforms.tiktok) }),
+      )
+
+      // TikTok's sign-in and the send of a planned video to the brand's TikTok inbox.
+      .route('/', tiktokRoutes(core, platforms.tiktok))
 
       // The start of a sign-in for a brand the person reaches (the account read refuses others).
       .post('/brands/:brand/pinterest/connect', async (c) => {

@@ -136,16 +136,21 @@ describe('the routes on the core', () => {
 })
 
 describe('the account routes', () => {
-  it('sends Pinterest’s sign-in, boards and pins to the server as they are, and no other platform’s', () => {
+  it('sends Pinterest’s and TikTok’s routes to the server as they are, and no Meta route', () => {
     expect(isAccountRoute('POST', '/brands/b1/pinterest/connect')).toBe(true)
     expect(isAccountRoute('POST', '/pinterest/callback')).toBe(true)
     expect(isAccountRoute('GET', '/brands/b1/pinterest')).toBe(true)
     expect(isAccountRoute('GET', '/brands/b1/pinterest/pins')).toBe(true)
     expect(isAccountRoute('PUT', '/brands/b1/pinterest')).toBe(true)
     expect(isAccountRoute('DELETE', '/brands/b1/pinterest')).toBe(true)
-    // Meta and TikTok have no sign-in on the server yet.
+    expect(isAccountRoute('POST', '/brands/b1/tiktok/connect')).toBe(true)
+    expect(isAccountRoute('POST', '/tiktok/callback')).toBe(true)
+    expect(isAccountRoute('DELETE', '/brands/b1/tiktok')).toBe(true)
+    expect(isAccountRoute('POST', '/brands/b1/posts/p1/tiktok')).toBe(true)
+    expect(isAccountRoute('GET', '/brands/b1/posts/p1/tiktok')).toBe(true)
+    // Meta has no sign-in on the server yet.
     expect(isAccountRoute('POST', '/brands/b1/meta/connect')).toBe(false)
-    expect(isAccountRoute('POST', '/tiktok/callback')).toBe(false)
     expect(isAccountRoute('PUT', '/brands/b1/pinterest/pins')).toBe(false)
+    expect(isAccountRoute('PUT', '/brands/b1/tiktok')).toBe(false)
   })
 })

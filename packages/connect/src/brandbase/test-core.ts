@@ -2,6 +2,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readPack } from '@brandfactory/core/src/pack'
 import { createCore } from '@brandfactory/core/src/app'
+import { type Files } from '@brandfactory/core/src/files'
 import { deps, freshDb, goLive, person } from '@brandfactory/core/src/testing'
 import { accountRoutes, type Platforms } from './routes'
 
@@ -17,13 +18,13 @@ const pack = readPack(
  * fixture: `member` in company A (casa, osteria), `both` in company A and B (temper too), `gone`
  * deactivated.
  */
-export async function testCore(now = NOW) {
+export async function testCore(now = NOW, files?: Files) {
   const db = await freshDb()
   await goLive(db, pack)
   await db.exec(pack.fixture)
   for (const id of ['member', 'both', 'gone']) await person(db, id, pack)
   let at = now
-  const core = { ...deps(db), now: () => at }
+  const core = { ...deps(db), now: () => at, files }
   /** Moves the core's clock. */
   const setNow = (when: Date) => (at = when)
   return { db, core, setNow }
@@ -33,8 +34,8 @@ export async function testCore(now = NOW) {
  * The core with the account routes beside it, as the host mounts them. `call` sends one request
  * with a person's token (the dev sign-in: the token is the user id).
  */
-export async function serve(platforms: Platforms, now = NOW) {
-  const t = await testCore(now)
+export async function serve(platforms: Platforms, now = NOW, files?: Files) {
+  const t = await testCore(now, files)
   const app = createCore(t.core)
   app.route('/', accountRoutes(t.core, platforms))
   async function call(method: string, path: string, body?: unknown, token = 'member') {

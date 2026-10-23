@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.41.0** — 2026-10-23 — `feat/tiktok-upload`: TikTok, upload only (brandbase 1.10.0, migration 0018, not applied to production). A brand connects its own TikTok account on Connections (Login Kit, scopes `user.info.basic` and `video.upload` only), which then shows the account's name and picture; a planned TikTok video post has a "Send to TikTok inbox" card: the video goes to the account's TikTok inbox as a draft, and the team finishes the post in the TikTok app. Nothing is posted from Brand Base; Instagram and Facebook stay "Unavailable" and the composer still plans only. The core needs a deploy and the `TIKTOK_*` settings. 1288 tests, all run on a throwaway Postgres; `core test brandbase 1.10.0` 193/193.
 - **2.40.2** — 2026-10-23 — `fix/profile-photo-edit`: on `/profile` the zoomed crop pans again. The browser's own image drag took the press and cancelled the pan; no image in the app is a drag source of its own now (a CSS rule, and one `dragstart` handler for Firefox), while a calendar tile, an idea's reference or a storyboard shot still drags by its photo. The photo controls are a small pencil on the photo: View photo (a lightbox, also on a click on the photo), Change photo and Remove photo. No pack change, no migration. 1244 tests (220 skipped without a Postgres server).
 - **2.40.1** — 2026-10-23 — `fix/unavailable-label`: the amber pill for a service the core cannot reach yet (Instagram, TikTok, Facebook, Pinterest, Google Drive, Lark, Insights sources, a posted post's Analytics) says "Unavailable" instead of "Not connected"; Bubbles' connection card says the same. Its hover line ("… isn’t connected yet.") is unchanged. Text only, no migration. 1236 tests (220 skipped without a Postgres server).
 - **2.40.0** — 2026-10-23 — `feat/profile-picture`: a person adds their own profile picture on `/profile` (brandbase 1.9.0, migration 0017, not applied to production). Upload photo opens a square crop (drag, zoom) that saves a 512×512 JPEG to storage; Remove photo takes it away; the header's avatar shows the photo, else the initials. Only the person sets their own picture: no admin, no agent, and only an address the core issued for that person's upload. The static demo is unchanged. 1236 tests, all run on a throwaway Postgres; `core test brandbase 1.9.0` 185/185.
@@ -84,6 +85,38 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.41.0 — 2026-10-23
+
+- **Why.** TikTok's review needs a demo video of the flow on the live site, in TikTok's Sandbox.
+  The compliance review of 22 Oct found Direct Post likely to be refused for an internal team
+  tool; the owner chose upload only.
+- **Pack 1.10.0.** Migration `0018_tiktok_inbox.sql`: `tiktok_sends` (one row per post, its
+  latest send, under its own send id) behind the brand wall, and `tiktok_video(post)`. The
+  `account.*` moves take `tiktok`. Internal moves `post.tiktok_start` (the walls: the brand, the
+  post, not posted, on TikTok and on a day, the account linked, one uploaded MP4, MOV or WebM, no
+  send on its way), `post.tiktok_done`, `post.tiktok_read`. `brand.state` answers `tiktok` (name and
+  picture) and `tiktokSends`.
+- **Server.** `packages/connect`: TikTok Login Kit for web, the token exchange, refresh and revoke,
+  tokens sealed per brand; the upload to the creator's inbox (`FILE_UPLOAD` in 10 MB chunks from
+  storage), then the status fetch. `GET /platforms` says `tiktok: true` only with
+  `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` and `TIKTOK_REDIRECT_URL`. TikTok's limits for an
+  unaudited app show in words (at most 5 drafts from apps in 24 hours; Sandbox sign-in for its test
+  users only).
+- **web-next.** Connections' TikTok row, `/connect/tiktok`, and the "TikTok inbox" card on a
+  planned post: Send to TikTok inbox, Sending, "Sent to your TikTok inbox. Open TikTok to post it.",
+  a failure in TikTok's words with Try again. An MP4 uploaded to the core no longer shows a broken
+  thumbnail (a guessed `.jpg` poster).
+- **Docs.** `docs/completions/tiktok-upload-plan.md` and `tiktok-upload-phases-1-to-3.md` (the
+  production steps: the pack and loadouts, the three settings, a core deploy, the web app).
+- **Review fixes (Opus and Sonnet).** Send ids, so a late answer cannot overwrite a newer send; no
+  card stuck on "Sending…"; one deadline for the whole upload; a send whose account is disconnected
+  ends in words; a partial grant is revoked; TikTok's `error` on the return page; a failed
+  disconnect reloads the brand; an expired picture shows TikTok's logo.
+- **Checked** in a browser (Playwright, a local core with a stand-in TikTok): connect, consent,
+  linked account, send to inbox, sent; desktop and phone.
+- **Gate:** typecheck, lint, format, build; tests 1288, all run on a throwaway Postgres 18;
+  `core test brandbase 1.10.0` 193/193.
 
 ## 2.40.2 — 2026-10-23
 

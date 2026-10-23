@@ -61,6 +61,8 @@ describe('the demo reel', () => {
     expect(posterOf(VIDEO.margherita)).toBe('/demo/casa-vostra/margherita-reel.jpg')
     // A dropped video has no poster: the browser shows its first frame.
     expect(posterOf('blob:x#video')).toBeUndefined()
+    // Nor does one uploaded to the core: no JPEG sits beside it, and a guessed one shows broken.
+    expect(posterOf('https://core.test/files/sig/brandbase/a.mp4#video')).toBeUndefined()
   })
 })
 

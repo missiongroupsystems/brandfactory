@@ -1,0 +1,38 @@
+{
+  "name": "post.tiktok_done",
+  "description": "Records where a send to the TikTok inbox stands: processing (TikTok has the file), sent (the draft is in the creator's inbox) or failed, with TikTok's publish id and the reason in words. Only the send named, while still on its way, changes: a late answer to an earlier send changes nothing. Internal: packages/connect.",
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "sendId", "status"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "status": {
+        "enum": ["processing", "sent", "failed"]
+      },
+      "publishId": {
+        "type": ["string", "null"],
+        "maxLength": 64
+      },
+      "reason": {
+        "type": ["string", "null"],
+        "maxLength": 500
+      },
+      "sendId": {
+        "type": "string",
+        "pattern": "^[0-9a-f-]{36}$"
+      }
+    }
+  },
+  "before": ["brand.reachable"],
+  "internal": true,
+  "returns": "many",
+  "sql": "update brandbase.tiktok_sends s set status = :status, publish_id = coalesce(:publishId::text, s.publish_id), reason = :reason::text, updated_at = :now::timestamptz where s.post_id = :id and s.brand_id = :brand and s.send_id = :sendId::uuid and s.status in ('uploading', 'processing') returning jsonb_build_object('postId', s.post_id, 'status', s.status, 'reason', s.reason, 'updatedAt', brandbase.iso(s.updated_at)) as result"
+}

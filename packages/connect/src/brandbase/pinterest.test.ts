@@ -318,7 +318,7 @@ describe('Pinterest', () => {
     const res = await on.call('GET', '/platforms', undefined, '')
     expect(res).toMatchObject({ status: 200, data: { pinterest: true } })
     const off = await serve({})
-    expect((await off.call('GET', '/platforms')).data).toEqual({ pinterest: false })
+    expect((await off.call('GET', '/platforms')).data).toEqual({ pinterest: false, tiktok: false })
   })
 
   it('lets only a person who reaches the brand link it: not an agent, not a screen', async () => {
