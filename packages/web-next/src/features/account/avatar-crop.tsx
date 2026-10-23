@@ -127,6 +127,8 @@ export function AvatarCrop({
             ),
           )
         }}
+        // The photo's own drag would cancel the pointer and end the pan after a few pixels.
+        onDragStart={(e) => e.preventDefault()}
         onPointerUp={() => (start.current = null)}
         onPointerCancel={() => (start.current = null)}
         className="relative aspect-square w-full cursor-grab touch-none overflow-hidden rounded-[14px] bg-tile select-none active:cursor-grabbing"
@@ -155,7 +157,7 @@ export function AvatarCrop({
         <button
           type="button"
           onClick={onCancel}
-          // The crop takes the place of Upload photo, which had the focus.
+          // The crop takes the place of the photo and its pencil, which had the focus.
           // eslint-disable-next-line jsx-a11y/no-autofocus
           autoFocus
           disabled={busy}
