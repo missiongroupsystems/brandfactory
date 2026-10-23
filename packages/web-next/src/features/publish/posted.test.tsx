@@ -146,7 +146,7 @@ describe('the cover', () => {
       'Video plays once the account is connected.',
     )
     expect(
-      within(analytics()).getByRole('button', { name: 'Not connected' }),
+      within(analytics()).getByRole('button', { name: 'Unavailable' }),
     ).toHaveAccessibleDescription('Analytics isn’t connected yet.')
     expect(screen.getByRole('link', { name: 'Open post' })).toBeInTheDocument()
   })
@@ -206,9 +206,9 @@ describe('the facts and the link', () => {
 })
 
 describe('the analytics preview', () => {
-  it('is marked Not connected, and says which analytics on hover', () => {
+  it('is marked Unavailable, and says which analytics on hover', () => {
     open({})
-    const pill = within(analytics()).getByRole('button', { name: 'Not connected' })
+    const pill = within(analytics()).getByRole('button', { name: 'Unavailable' })
     expect(pill).toHaveAccessibleDescription('TikTok analytics isn’t connected yet.')
     expect(within(analytics()).getByText('Preview')).toBeInTheDocument()
   })

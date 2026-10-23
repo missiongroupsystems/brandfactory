@@ -85,7 +85,7 @@ const MOVES: Record<string, Move> = {
     // On the core no source can connect yet: the card says so, not "Connected".
     verb: (i) =>
       notAvailable(str(i.key))
-        ? 'Not connected'
+        ? 'Unavailable'
         : i.status === 'connected'
           ? 'Connected'
           : 'Disconnected',
