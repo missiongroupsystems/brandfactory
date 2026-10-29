@@ -33,12 +33,12 @@ const open = (on?: React.ReactNode) => {
 // Settings live under the person: the brand's kit and connections open from the avatar on every
 // page, and the demo, with no account to edit or leave, offers nothing else.
 describe('the account menu in the demo', () => {
-  it('opens on the demo initials and offers the brand kit and connections, named for the brand', () => {
+  it('opens on the demo initials and offers the brand kit and connections', () => {
     open()
-    const kit = screen.getByRole('menuitem', { name: /Brand kit/ })
+    const kit = screen.getByRole('menuitem', { name: 'Brand kit' })
     expect(kit).toHaveAttribute('href', '/brand')
-    // The demo has more than one brand, so the item says which brand's kit it opens.
-    expect(kit).toHaveTextContent('Casa Vostra')
+    // The switcher beside the avatar names the brand; the item does not say it a second time.
+    expect(kit).not.toHaveTextContent('Casa Vostra')
     expect(screen.getByRole('menuitem', { name: 'Connections' })).toHaveAttribute(
       'href',
       '/brand/connections',

@@ -36,8 +36,10 @@ afterEach(() => vi.useRealTimers())
 describe('Posted in the static demo', () => {
   it('opens on Instagram as the brand’s profile: its stories as rings, its posts newest first', () => {
     open()
-    // Nothing is linked in the demo: the brand's name, never a handle it may not own there.
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Casa Vostra$/)
+    // The page has its own title; the account sits under it. Nothing is linked in the demo: the
+    // brand's name, never a handle it may not own there.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Posted$/)
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(/^Casa Vostra$/)
     expect(platform()).toHaveTextContent('Instagram')
     // The morning's stories (from 09:00 on 6 Oct, the demo's today) are up; the 5th's have gone.
     expect(rings().map((r) => r.getAttribute('aria-label'))).toEqual([
@@ -52,7 +54,7 @@ describe('Posted in the static demo', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('shows a post’s counts on its tile, says when they were read once, and opens its poster with the way back', () => {
+  it('shows a post’s counts on its tile, names the period, and opens its poster with the way back', () => {
     open()
     const ravioli = tile('Ravioli, filled by hand.')
     expect(counted(ravioli)).toBe(true)
@@ -60,12 +62,12 @@ describe('Posted in the static demo', () => {
       'href',
       expect.stringMatching(/^\/post\/casa-vostra-archive-\d+\?posted=ig$/),
     )
-    // "as of" once, beside the totals, never repeated on each post.
-    expect(screen.getAllByText(/as of/)).toHaveLength(1)
-    // The totals name their period beside the day they were read.
-    expect(screen.getByText('Last 30 days, as of 6 Oct').parentElement).toHaveAttribute(
+    // The totals name their period; the day they were read is said once, on each post's page,
+    // and kept here only in the line's title.
+    expect(screen.queryByText(/as of/)).toBeNull()
+    expect(screen.getByText('Last 30 days').parentElement).toHaveAttribute(
       'title',
-      expect.stringMatching(/^Last 30 days/),
+      expect.stringMatching(/^Last 30 days.*as of 6 Oct$/),
     )
   })
 
@@ -82,6 +84,15 @@ describe('Posted in the static demo', () => {
         name: /^Reel · Today, \d\d:\d\d: Margherita, oven to table in 90 seconds\.$/,
       }),
     ).toBeInTheDocument()
+  })
+
+  it('gives every cover the same count, and a dash to one that has none yet', () => {
+    open()
+    // The margherita reel went out today: no reach yet, but its cover still carries the slot.
+    const margherita = tile('Margherita, oven to table')
+    expect(counted(margherita)).toBe(false)
+    expect(margherita).toHaveTextContent('–')
+    expect(counted(tile('Ravioli, filled by hand.'))).toBe(true)
   })
 
   it('marks a collaboration post with the creators it is shared with', () => {

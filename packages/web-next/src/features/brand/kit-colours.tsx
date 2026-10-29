@@ -54,8 +54,8 @@ export function ColoursEditable() {
               style={{ background: c.hex }}
             />
             <span className="flex flex-col">
-              <span className="text-[13.5px] font-medium">{c.name}</span>
-              <span className="font-mono text-[12px] text-ink-4">{c.hex}</span>
+              <span className="text-[13px] font-medium">{c.name}</span>
+              <span className="font-mono text-[13px] text-ink-4 lowercase">{c.hex}</span>
             </span>
           </button>
         ))}

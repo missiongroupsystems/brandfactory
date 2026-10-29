@@ -251,43 +251,6 @@ export function LogoMark() {
   )
 }
 
-/** Newest first: a clock. */
-export function ClockIcon({ size = 14 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <circle cx="8" cy="8" r="6" />
-      <path d="M8 4.8V8l2.2 1.4" />
-    </svg>
-  )
-}
-
-/** Ranked: bars rising. */
-export function RankIcon({ size = 14 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M3.5 13V9.5M8 13V6M12.5 13V3" />
-    </svg>
-  )
-}
-
 export function HeartIcon({ size = 12 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden="true">

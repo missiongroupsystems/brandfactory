@@ -4,10 +4,10 @@ import Link from 'next/link'
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
-import { CarouselIcon, ClockIcon, EyeIcon, HeartIcon, PlayIcon, RankIcon } from '@/components/icons'
+import { CarouselIcon, EyeIcon, HeartIcon, PlayIcon } from '@/components/icons'
 import { LoadingDots } from '@/components/loading-dots'
 import { Media } from '@/components/media'
-import { TITLE } from '@/components/page-title'
+import { PAGE, PageTitle, SECTION } from '@/components/page-title'
 import { PlatformLogo } from '@/components/platform-logos'
 import { BrandLogo } from '@/features/brand/brand-logo'
 import { useConnections } from '@/features/connections/connections-store'
@@ -19,7 +19,6 @@ import { todayDate } from '@/lib/dates'
 import { remote, timezoneOf } from '@/lib/remote'
 
 import {
-  asOf,
   canRank,
   figuresOf,
   gridOf,
@@ -54,9 +53,10 @@ const NUM = 'font-display font-semibold tracking-[-0.03em] tabular-nums'
 const ON_COVER = 'rounded-full bg-black/30 text-page backdrop-blur-md'
 
 /**
- * What went out, one platform at a time, as the account looks: the platforms in a quiet rail (tabs
- * on a phone), then the brand's profile with its last 30 days, its stories as rings and its posts
- * as a grid of covers. A cover shows one count; hover shows them all. A cover opens its poster.
+ * What went out, one platform at a time, as the account looks: under the page's title the
+ * platforms in a quiet rail (tabs on a phone), then the account with its last 30 days, its stories
+ * as rings and its posts as a grid of covers. Every cover shows the same count, a dash where it
+ * has none yet; hover shows them all. A cover opens its poster.
  */
 export function PostedPage({ on }: { on?: Platform }) {
   const { brand } = useBrand()
@@ -78,60 +78,60 @@ export function PostedPage({ on }: { on?: Platform }) {
   return (
     <div className="flex min-h-svh flex-col">
       <AppHeader />
-      <main
-        key={brand.id}
-        className="bb-swap mx-auto grid w-full max-w-[1120px] grid-cols-[168px_minmax(0,1fr)] items-start gap-16 px-10 pt-6 pb-28 max-lg:grid-cols-[148px_minmax(0,1fr)] max-lg:gap-10 max-lg:px-6 max-md:grid-cols-1 max-md:gap-0 max-md:px-4 max-md:pt-2"
-      >
-        <nav aria-label="Platforms" className="sticky top-6 max-md:hidden">
-          <div role="radiogroup" aria-label="Platform" className="flex flex-col gap-1">
-            {rail.map((p) => (
-              <button
-                key={p}
-                type="button"
-                role="radio"
-                aria-checked={p === platform}
-                onClick={() => setPicked(p)}
-                className={`bb-press flex h-10 items-center gap-3 rounded-[10px] px-3 text-left text-[14px] ${p === platform ? 'bg-surface font-medium text-ink' : linked(p) ? 'text-ink-3 hover:text-ink' : 'text-ink-4 hover:text-ink-3'}`}
-              >
-                <PlatformLogo platform={p} size={16} />
-                {PLATFORM_NAME[p]}
-              </button>
-            ))}
-          </div>
-        </nav>
+      <main key={brand.id} className={`bb-swap pb-28 ${PAGE}`}>
+        <PageTitle title="Posted" />
+        <div className="grid grid-cols-[168px_minmax(0,1fr)] items-start gap-16 max-lg:grid-cols-[148px_minmax(0,1fr)] max-lg:gap-10 max-md:grid-cols-1 max-md:gap-0">
+          <nav aria-label="Platforms" className="sticky top-6 max-md:hidden">
+            <div role="radiogroup" aria-label="Platform" className="flex flex-col gap-1">
+              {rail.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  role="radio"
+                  aria-checked={p === platform}
+                  onClick={() => setPicked(p)}
+                  className={`bb-press flex h-10 items-center gap-3 rounded-[10px] px-3 text-left text-[14px] ${p === platform ? 'bg-surface font-medium text-ink' : linked(p) ? 'text-ink-3 hover:text-ink' : 'text-ink-4 hover:text-ink-3'}`}
+                >
+                  <PlatformLogo platform={p} size={16} />
+                  {PLATFORM_NAME[p]}
+                </button>
+              ))}
+            </div>
+          </nav>
 
-        <section className="flex min-w-0 flex-col">
-          {/* On a phone the platforms are tabs above the profile. */}
-          <div
-            role="radiogroup"
-            aria-label="Platform"
-            className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-5 md:hidden"
-          >
-            {rail.map((p) => (
-              <button
-                key={p}
-                type="button"
-                role="radio"
-                aria-checked={p === platform}
-                onClick={() => setPicked(p)}
-                className={`bb-press flex h-9 shrink-0 items-center gap-2 rounded-full pr-3.5 pl-3 text-[13px] font-medium ${p === platform ? 'bg-ink text-page' : linked(p) ? 'bg-surface text-ink-3' : 'bg-surface text-ink-4'}`}
-              >
-                <PlatformLogo platform={p} size={13} />
-                {PLATFORM_NAME[p]}
-              </button>
-            ))}
-          </div>
+          <section className="flex min-w-0 flex-col">
+            {/* On a phone the platforms are tabs above the profile. */}
+            <div
+              role="radiogroup"
+              aria-label="Platform"
+              className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-5 md:hidden"
+            >
+              {rail.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  role="radio"
+                  aria-checked={p === platform}
+                  onClick={() => setPicked(p)}
+                  className={`bb-press flex h-9 shrink-0 items-center gap-2 rounded-full pr-3.5 pl-3 text-[13px] font-medium ${p === platform ? 'bg-ink text-page' : linked(p) ? 'bg-surface text-ink-3' : 'bg-surface text-ink-4'}`}
+                >
+                  <PlatformLogo platform={p} size={13} />
+                  {PLATFORM_NAME[p]}
+                </button>
+              ))}
+            </div>
 
-          <div key={platform} className="bb-swap flex flex-col">
-            {!items ? (
-              <LoadingDots label="Loading posts" className="py-40" />
-            ) : ledger.length === 0 ? (
-              <Empty platform={platform} linked={linked(platform)} />
-            ) : (
-              <Profile ledger={ledger} platform={platform} now={now} />
-            )}
-          </div>
-        </section>
+            <div key={platform} className="bb-swap flex flex-col">
+              {!items ? (
+                <LoadingDots label="Loading posts" className="py-40" />
+              ) : ledger.length === 0 ? (
+                <Empty platform={platform} linked={linked(platform)} />
+              ) : (
+                <Profile ledger={ledger} platform={platform} now={now} />
+              )}
+            </div>
+          </section>
+        </div>
       </main>
     </div>
   )
@@ -142,17 +142,15 @@ function Empty({ platform, linked }: { platform: Platform; linked: boolean }) {
   return (
     <div className="flex max-w-[420px] flex-col items-start gap-3.5 pt-16 max-md:gap-3 max-md:pt-12">
       {!linked && <NotAvailable label="Not connected" reason={reasonOf(name)} align="left" />}
-      <h1 className="font-display text-[26px] leading-[1.15] tracking-[-0.025em] max-md:text-[24px]">
-        Nothing on {name} yet.
-      </h1>
-      <span className="text-[15px] leading-normal text-ink-3 max-md:text-[14.5px]">
+      <h2 className={SECTION}>Nothing on {name} yet.</h2>
+      <span className="text-[14px] leading-normal text-ink-3">
         {linked
           ? 'Posts show here once they go out.'
           : `Posts show here once the brand’s ${name} account is connected.`}
       </span>
       <Link
         href={linked ? '/post/new' : '/brand/connections'}
-        className="bb-press mt-2 inline-flex h-9 items-center rounded-full bg-ink px-4 text-[13.5px] font-medium text-page max-md:h-10"
+        className="bb-press mt-2 inline-flex h-9 items-center rounded-full bg-ink px-4 text-[14px] font-medium text-page max-md:h-10"
       >
         {linked ? 'New post' : `Connect ${name}`}
       </Link>
@@ -185,32 +183,29 @@ function Profile({
   const rings = ringsOf(ledger, now)
   return (
     <>
-      <header className="flex items-center gap-8 pb-10 max-md:gap-5 max-md:pb-6">
+      <header className="flex items-center gap-4 pb-8 max-md:gap-3 max-md:pb-6">
         <span
           aria-hidden="true"
-          className="relative size-[88px] shrink-0 overflow-hidden rounded-full max-md:size-16"
+          className="relative size-14 shrink-0 overflow-hidden rounded-full max-md:size-12"
           style={{ background: `var(${brand.colour})` }}
         >
-          <BrandLogo brandId={brand.id} sizes="176px" className="object-cover" />
+          <BrandLogo brandId={brand.id} sizes="112px" className="object-cover" />
         </span>
-        <div className="flex min-w-0 flex-1 flex-col gap-3 max-md:gap-2">
-          <h1 className={`truncate ${TITLE}`}>{profileName(platform, accounts, brand)}</h1>
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <h2 className={`truncate ${SECTION}`}>{profileName(platform, accounts, brand)}</h2>
           <p
             title={windowLine(sum)}
-            className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-[14px] text-ink-3 max-md:gap-x-4 max-md:text-[13px]"
+            className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[13px] text-ink-3 max-md:gap-x-3"
           >
             {figures.map((f) => (
               <span key={f.label}>
-                <b className={`${NUM} mr-1 text-[17px] text-ink max-md:text-[15px]`}>
-                  {k(f.value)}
-                </b>
+                <b className={`${NUM} mr-1 text-[14px] text-ink`}>{k(f.value)}</b>
                 {f.label}
               </span>
             ))}
             {figures.length > 0 && (
-              <span className="text-[13px] text-ink-3">
-                Last 30 days{sum.measuredAt && `, as of ${asOf(sum.measuredAt)}`}
-              </span>
+              // When they were read stays in the title: each post's page says it beside its counts.
+              <span>Last 30 days</span>
             )}
           </p>
         </div>
@@ -246,31 +241,29 @@ const GLYPH: Partial<Record<CountKey, React.ReactNode>> = {
   likes: <HeartIcon />,
 }
 
-/** Newest or ranked, as two quiet icons; each names itself on hover. */
+/** Newest or ranked, in two words. */
 function OrderToggle({ order, onChange }: { order: Order; onChange: (o: Order) => void }) {
   return (
     <div
       role="radiogroup"
       aria-label="Order"
-      className="flex shrink-0 gap-0.5 self-end rounded-full bg-surface p-[3px] max-md:self-center"
+      className="flex shrink-0 gap-0.5 rounded-full bg-surface p-[3px]"
     >
       {(
         [
-          ['newest', 'Newest', <ClockIcon key="n" />],
-          ['top', 'Top', <RankIcon key="t" />],
+          ['newest', 'Newest'],
+          ['top', 'Top'],
         ] as const
-      ).map(([o, label, icon]) => (
+      ).map(([o, label]) => (
         <button
           key={o}
           type="button"
           role="radio"
           aria-checked={order === o}
-          aria-label={label}
-          title={label}
           onClick={() => onChange(o)}
-          className={`bb-press flex size-7 items-center justify-center rounded-full ${order === o ? 'bg-page text-ink shadow-soft' : 'text-ink-4 hover:text-ink'}`}
+          className={`bb-press flex h-8 items-center rounded-full px-3 text-[13px] ${order === o ? 'bg-page font-medium text-ink shadow-soft' : 'text-ink-3 hover:text-ink'}`}
         >
-          {icon}
+          {label}
         </button>
       ))}
     </div>
@@ -278,8 +271,8 @@ function OrderToggle({ order, onChange }: { order: Order; onChange: (o: Order) =
 }
 
 /**
- * A story as a ring: green while it is up, grey once gone. Under it the day; the hours left show
- * on hover or focus, and always on a touch screen, which has no hover.
+ * A story as a ring: green while it is up, grey once gone. Under it, the same on every screen: the
+ * hours left while it is up, the day once it has gone.
  */
 function Ring({ item, left, today }: { item: PostedItem; left: number | null; today: string }) {
   const live = left !== null
@@ -300,17 +293,10 @@ function Ring({ item, left, today }: { item: PostedItem; left: number | null; to
           {item.post.images[0] && <Media src={item.post.images[0]} sizes="136px" />}
         </span>
       </span>
-      <span className="grid text-[12px] leading-none whitespace-nowrap tabular-nums">
-        <span
-          className={`col-start-1 row-start-1 text-center transition-opacity duration-200 ${live ? 'text-ink group-hover:opacity-0 group-focus-visible:opacity-0 [@media(hover:none)]:opacity-0' : 'text-ink-3'}`}
-        >
-          {day}
-        </span>
-        {live && (
-          <span className="col-start-1 row-start-1 text-center text-live opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:none)]:opacity-100">
-            {left} h left
-          </span>
-        )}
+      <span
+        className={`text-center text-[13px] leading-none whitespace-nowrap tabular-nums ${live ? 'text-live' : 'text-ink-3'}`}
+      >
+        {live ? `${left} h left` : day}
       </span>
     </li>
   )
@@ -352,26 +338,29 @@ function Tile({
       <Cover src={post.images[0]} />
       {mark && (
         <span
-          className={`pointer-events-none absolute top-2 right-2 flex h-[22px] min-w-[22px] items-center justify-center px-1.5 font-mono text-[12px] tabular-nums max-md:top-1 max-md:right-1 max-md:h-5 max-md:min-w-5 max-md:text-[12px] ${ON_COVER}`}
+          className={`pointer-events-none absolute top-2 right-2 flex h-[22px] min-w-[22px] items-center justify-center px-1.5 text-[12px] font-medium tabular-nums max-md:top-1 max-md:right-1 max-md:h-5 max-md:min-w-5 ${ON_COVER}`}
         >
           {mark}
         </span>
       )}
-      {head && (
+      {headline && (
+        // The grid's one count on every cover; a quiet dash on one that has none yet.
         <span
-          className={`pointer-events-none absolute bottom-2 left-2 flex h-6 items-center gap-1.5 px-2.5 text-[12px] font-semibold tabular-nums transition-opacity duration-200 group-hover:opacity-0 group-focus-visible:opacity-0 max-md:bottom-1 max-md:left-1 max-md:h-5 max-md:gap-1 max-md:px-2 max-md:text-[12px] ${ON_COVER}`}
+          className={`pointer-events-none absolute bottom-2 left-2 flex h-6 items-center gap-1.5 px-2.5 text-[13px] font-semibold tabular-nums transition-opacity duration-200 group-hover:opacity-0 group-focus-visible:opacity-0 max-md:bottom-1 max-md:left-1 max-md:h-5 max-md:gap-1 max-md:px-2 max-md:text-[12px] ${ON_COVER} ${head ? '' : 'opacity-70'}`}
         >
-          {GLYPH[head.key] ?? null}
-          {k(head.value)}
-          <span className={GLYPH[head.key] ? 'sr-only' : 'font-normal'}>
-            {head.label.toLowerCase()}
-          </span>
+          {GLYPH[headline] ?? null}
+          {head ? k(head.value) : <span aria-hidden="true">–</span>}
+          {head && (
+            <span className={GLYPH[head.key] ? 'sr-only' : 'font-normal'}>
+              {head.label.toLowerCase()}
+            </span>
+          )}
         </span>
       )}
       {/* The post laid over its cover, on hover or focus; a phone opens the poster instead. */}
       <span className="pointer-events-none absolute inset-0 flex flex-col justify-end gap-3 bg-black/55 p-4 text-page opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 max-md:hidden">
         <span className="flex flex-col gap-1">
-          <span className="truncate text-[12px] text-(--pc-dim)">
+          <span className="truncate text-[13px] text-(--pc-dim)">
             {kindOf(post, platform)} · {whenOf(item, today)}
             {collab}
           </span>
@@ -382,7 +371,7 @@ function Tile({
             {counts.map((c) => (
               <span key={c.key} className="flex flex-col gap-[3px]">
                 <span className={`${NUM} text-[16px] leading-none`}>{k(c.value)}</span>
-                <span className="text-[12px] text-(--pc-dim)">{c.label.toLowerCase()}</span>
+                <span className="text-[13px] text-(--pc-dim)">{c.label.toLowerCase()}</span>
               </span>
             ))}
           </span>

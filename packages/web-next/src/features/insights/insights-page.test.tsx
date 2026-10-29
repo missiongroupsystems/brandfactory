@@ -26,10 +26,14 @@ describe('the static demo', () => {
       </BrandProvider>,
     )
     const demo = INSIGHTS_BY_BRAND['casa-vostra']
-    // The numbers name their period: the last 30 days, and its dates.
-    expect(screen.getByText('Last 30 days · 7 Sep – 6 Oct')).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'The month in numbers' })).toHaveTextContent(
-      demo.kpis[0]!.value,
+    // The numbers name their period: the last 30 days as their heading, and its dates.
+    const month = within(screen.getByRole('region', { name: 'The month in numbers' }))
+    expect(month.getByRole('heading', { name: 'Last 30 days' })).toBeInTheDocument()
+    expect(month.getByText('7 Sep – 6 Oct')).toBeInTheDocument()
+    expect(month.getByText(demo.kpis[0]!.value)).toBeInTheDocument()
+    // The change says, to a screen reader too, what it is measured against.
+    expect(month.getByTitle(/on the 30 days before$/)).toHaveTextContent(
+      /^\+[\d.]+% on the 30 days before$/,
     )
     expect(screen.queryByText(/^Nothing yet\./)).toBeNull()
   })
@@ -49,14 +53,13 @@ describe('the static demo', () => {
 })
 
 describe('planning an idea from a finding', () => {
-  it('opens the idea on its own page', () => {
+  it('opens the idea on its own page, one step from the open finding', () => {
     render(
       <BrandProvider>
         <InsightsPage />
       </BrandProvider>,
     )
     fireEvent.click(screen.getByRole('button', { name: /Hand-made reels hold viewers/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Turn into idea' }))
     fireEvent.click(screen.getByRole('button', { name: 'Plan it' }))
     expect(push).toHaveBeenCalledTimes(1)
     expect(push.mock.calls[0]![0]).toMatch(/^\/ideate\/[\w-]+$/)
@@ -89,10 +92,16 @@ describe('this week', () => {
     expect(main.querySelector('section')).toBe(screen.getByRole('region', { name: 'This week' }))
   })
 
-  it('leads to every post, ranked by reach with the same counts on each row', () => {
+  it('names the week by its dates', () => {
     open()
-    fireEvent.click(card().getByRole('button', { name: 'See all posts' }))
+    expect(card().getByText('This week · 30 Sep – 6 Oct')).toBeInTheDocument()
+  })
+
+  it('leads to every post of the 30 days, as its link says, ranked by reach with the same counts on each row', () => {
+    open()
+    fireEvent.click(card().getByRole('button', { name: 'All posts, last 30 days' }))
     expect(screen.getByRole('radio', { name: 'Posts', checked: true })).toBeInTheDocument()
+    expect(screen.getByText('Last 30 days · 7 Sep – 6 Oct')).toBeInTheDocument()
     const rows = within(screen.getByRole('region', { name: 'Posts' })).getAllByRole('link')
     expect(rows[0]).toHaveTextContent('Ravioli, filled by hand.')
     expect(rows[0]).toHaveTextContent('11.2k reach')
@@ -115,7 +124,7 @@ describe('the views', () => {
     expect(screen.queryByRole('button', { name: /A chef in frame/ })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '2 more' }))
     expect(screen.getByRole('button', { name: /A chef in frame/ })).toBeInTheDocument()
-    for (const fold of ['Sentiment', 'Beyond social', 'Best time to post'])
+    for (const fold of ['Sentiment', 'Visits and bookings', 'Best time to post'])
       expect(screen.getByRole('button', { name: new RegExp(`^${fold}`) })).toHaveAttribute(
         'aria-expanded',
         'false',
@@ -143,10 +152,10 @@ describe('the marketing hub', () => {
         <InsightsPage />
       </BrandProvider>,
     )
-    fireEvent.click(screen.getByRole('button', { name: /^Beyond social/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Visits and bookings/ }))
     // The marker in green is the post bookings rose most after; its label says so, not only its colour.
     expect(
-      within(screen.getByRole('region', { name: 'Beyond social' })).getByRole('img', {
+      within(screen.getByRole('region', { name: 'Visits and bookings' })).getByRole('img', {
         name: /Ravioli, filled by hand\.?, bookings rose most after it$/,
       }),
     ).toBeInTheDocument()

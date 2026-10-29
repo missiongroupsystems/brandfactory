@@ -295,6 +295,16 @@ describe('a post on more than one account', () => {
     expect(screen.queryByRole('link', { name: /^Open on/ })).toBeNull()
   })
 
+  it('keeps the cover the same size while switching to an account with no reading', () => {
+    const fbOnly: Post = { ...both, metrics: undefined, readings: { fb: both.readings!.fb! } }
+    open({ post: fbOnly, went: ['ig', 'fb'], asked: 'fb' })
+    const width = () => aside().parentElement!.className
+    const before = width()
+    fireEvent.click(within(account()).getByRole('radio', { name: 'Instagram' }))
+    expect(screen.getByText('No numbers yet.')).toBeInTheDocument()
+    expect(width()).toBe(before)
+  })
+
   it('has no switch when it went to one account; its mark sits in the line above the title', () => {
     open({ went: ['ig'], post: { ...post, channels: ['ig'] } })
     expect(screen.queryByRole('radiogroup', { name: 'Account' })).toBeNull()

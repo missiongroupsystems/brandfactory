@@ -77,6 +77,23 @@ export function voiceEdited(old: Voice, draft: Voice): Voice {
   return { summary, words, examples }
 }
 
+/**
+ * Which parts of a draft change the voice in use, read as `voiceEdited` reads them (trimmed, a
+ * half-filled pair or a blank line left out) and matched by content, not by place: removing a
+ * pair marks nothing else. A blank summary keeps the old one, so it is no change.
+ */
+export function changedParts(old: Voice, draft: Voice) {
+  const summary = draft.summary.trim()
+  return {
+    summary: summary !== '' && summary !== old.summary,
+    words: draft.words.map((w) => {
+      const [use, avoid] = [w.use.trim(), w.avoid.trim()]
+      return !!use && !!avoid && !old.words.some((o) => o.use === use && o.avoid === avoid)
+    }),
+    lines: draft.examples.map((l) => !!l.trim() && !old.examples.includes(l.trim())),
+  }
+}
+
 /** "#d9572b", "d9572b" or "#d52" as "#D9572B"; anything else is null, so a typo is never saved. */
 export function hexOf(input: string): string | null {
   const h = input.trim().replace(/^#/, '')

@@ -142,6 +142,21 @@ describe('the inbox', () => {
     expect(screen.getByRole('link', { name: /Inbox/ }).textContent).toBe('Inbox7')
   })
 
+  it('says the reply went out, briefly, with no Undo the core could not honour', () => {
+    page()
+    fireEvent.change(reply(), { target: { value: 'Sorry, Rachel. DM us?' } })
+    fireEvent.click(send())
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent(/^Replied$/)
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+    act(() => {
+      vi.advanceTimersByTime(3000)
+    })
+    expect(screen.queryByText('Replied')).toBeNull()
+  })
+
   it('ends at all caught up once every message has a reply', () => {
     page()
     for (let i = 0; i < 8; i++) {

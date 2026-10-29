@@ -100,7 +100,7 @@ export function Popover({
           <div
             className={`h-11 shrink-0 items-center justify-between ${plain ? 'hidden' : 'flex'}`}
           >
-            <span className="text-[15px] font-medium">{label}</span>
+            <span className="text-[14px] font-medium">{label}</span>
             <button
               type="button"
               onClick={onClose}

@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom'
 
 import { AppHeader } from '@/components/app-header'
 import { Fold } from '@/components/controls'
-import { PAGE, PageTitle } from '@/components/page-title'
+import { PAGE, PageTitle, SECTION } from '@/components/page-title'
 import { CheckIcon, ChevronIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
@@ -38,6 +38,8 @@ import {
 const LEAVE_MS = 620
 /** How long a picked direction takes to write its reply. */
 const WRITE_MS = 750
+/** How long "Replied" stays at the foot of the screen. */
+const REPLIED_MS = 2400
 
 const FILTERS: ReadonlyArray<{ value: InboxFilter; label: string }> = [
   { value: 'all', label: 'All' },
@@ -88,12 +90,22 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
   // An account that needs signing in again is linked, but nothing comes through it meanwhile.
   const lapsed = (['ig', 'tt', 'fb'] as const).some((k) => links[k] === 'attention')
 
+  // The last reply sent, said for a moment at the foot of the screen. No Undo: a reply goes to
+  // the server at once, and the core has no way to take one back.
+  const [replied, setReplied] = React.useState<string | null>(null)
+  React.useEffect(() => {
+    if (!replied) return
+    const t = window.setTimeout(() => setReplied(null), REPLIED_MS)
+    return () => window.clearTimeout(t)
+  }, [replied])
+
   function send(id: string, text: string) {
     setLeaving((s) => new Set(s).add(id))
     // On a phone the list comes back, so the reply is seen to leave it.
     setSelected(phone ? null : nextAfter(staying, id))
     window.setTimeout(() => {
       sendReply(brand.id, id, text)
+      setReplied(id)
       setLeaving((s) => {
         const next = new Set(s)
         next.delete(id)
@@ -220,6 +232,14 @@ function Inbox({ brand, data }: { brand: Brand; data: BrandInbox }) {
             ))}
         </div>
       )}
+      {replied && (
+        <div
+          role="status"
+          className="bb-rise fixed bottom-6 left-1/2 z-50 flex h-11 -translate-x-1/2 items-center rounded-full bg-ink px-5 text-[14px] font-medium text-page shadow-lift max-md:bottom-[calc(76px+env(safe-area-inset-bottom))]"
+        >
+          Replied
+        </div>
+      )}
     </main>
   )
 }
@@ -241,7 +261,7 @@ function FullScreen({ onBack, children }: { onBack: () => void; children: React.
       <button
         type="button"
         onClick={onBack}
-        className="mx-3 flex h-11 shrink-0 items-center gap-1.5 self-start text-[15px] text-ink-2"
+        className="mx-3 flex h-11 shrink-0 items-center gap-1.5 self-start text-[14px] text-ink-2"
       >
         <span className="rotate-90">
           <ChevronIcon size={12} />
@@ -376,7 +396,7 @@ function Noise({ brandId, noise }: { brandId: Brand['id']; noise: InboxMessage[]
           {noise.slice(0, 5).map((m, i) => (
             <span
               key={m.id}
-              className={`flex size-5 items-center justify-center rounded-full bg-tile text-[10px] font-semibold text-ink-3 shadow-[0_0_0_1.5px_var(--page)] ${i > 0 ? '-ml-1.5' : ''}`}
+              className={`flex size-5 items-center justify-center rounded-full bg-tile text-[12px] font-semibold text-ink-3 shadow-[0_0_0_1.5px_var(--page)] ${i > 0 ? '-ml-1.5' : ''}`}
             >
               {m.from.name.charAt(0).toUpperCase()}
             </span>
@@ -428,7 +448,7 @@ function CaughtUp({ filter }: { filter: InboxFilter }) {
           />
         </svg>
       </span>
-      <h2 className="font-display text-[28px] leading-none tracking-[-0.03em]">All caught up</h2>
+      <h2 className={SECTION}>All caught up</h2>
       <p className="max-w-[320px] text-[14px] text-ink-3">
         {filter === 'all'
           ? 'Every comment, tag and DM has its reply.'
@@ -493,7 +513,7 @@ function Thread({
       <header className="flex shrink-0 items-center gap-3 border-b border-line px-6 py-3.5 max-md:px-4 max-md:pt-1 max-md:pb-3">
         <Avatar m={m} size={36} />
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-[15px] font-medium">{m.from.name}</span>
+          <span className="truncate text-[14px] font-medium">{m.from.name}</span>
           <span className="truncate text-[13px] text-ink-4">{whereFrom(m)}</span>
         </div>
         {/* The post it is about, as a thumbnail at the edge, the way Instagram shows it. */}
@@ -509,7 +529,7 @@ function Thread({
       >
         <ol
           aria-label="Conversation"
-          className="mx-auto mt-auto flex w-full max-w-[600px] flex-col px-6 pt-6 pb-4 max-md:px-4"
+          className="mx-auto flex w-full max-w-[600px] flex-col px-6 pt-6 pb-4 max-md:px-4"
         >
           {items.map((e, i) => (
             <li
@@ -573,9 +593,9 @@ function Thread({
                 id={`reply-${m.id}`}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Or write your own"
+                placeholder="Reply"
                 rows={2}
-                className={`field-sizing-content max-h-[214px] min-h-[64px] resize-none bg-transparent px-4 pt-3.5 pb-1 text-[14.5px] leading-[1.5] outline-none placeholder:text-ink-5 max-md:max-h-[162px] ${picked === null ? '' : 'bb-rise'}`}
+                className={`field-sizing-content max-h-[214px] min-h-[64px] resize-none bg-transparent px-4 pt-3.5 pb-1 text-[14px] leading-[1.5] outline-none placeholder:text-ink-5 max-md:max-h-[162px] ${picked === null ? '' : 'bb-rise'}`}
               />
             )}
             <div className="flex justify-end py-2 pr-2">
@@ -583,7 +603,7 @@ function Thread({
                 type="button"
                 onClick={() => onSend(text)}
                 disabled={writing || !text.trim()}
-                className="bb-press h-8 shrink-0 rounded-full bg-ink px-3.5 text-[13px] font-medium text-page disabled:opacity-40"
+                className="bb-press h-8 shrink-0 rounded-full bg-ink px-3.5 text-[14px] font-medium text-page disabled:opacity-40"
               >
                 Send
               </button>
@@ -606,7 +626,7 @@ function Bubble({ item, tail }: { item: InboxEarlier; tail: boolean }) {
         <span className="text-[12px] text-ink-4">
           {firstName(item.by ?? '')} · only the team sees this
         </span>
-        <p className="text-[13.5px] leading-[1.45] text-ink-2">{item.text}</p>
+        <p className="text-[13px] leading-[1.45] text-ink-2">{item.text}</p>
       </div>
     )
   }
@@ -615,7 +635,7 @@ function Bubble({ item, tail }: { item: InboxEarlier; tail: boolean }) {
     ? `self-end bg-ink text-page ${tail ? 'rounded-br-[6px]' : ''}`
     : `self-start bg-surface ${tail ? 'rounded-bl-[6px]' : ''}`
   return (
-    <p className={`max-w-[80%] rounded-[18px] px-3.5 py-2 text-[14.5px] leading-[1.45] ${side}`}>
+    <p className={`max-w-[80%] rounded-[18px] px-3.5 py-2 text-[14px] leading-[1.45] ${side}`}>
       {item.text}
     </p>
   )
@@ -733,7 +753,7 @@ function SendTo({
               setMenu(false)
               sendTo(brandId, m.id, chosen)
             }}
-            className="bb-press mt-1 h-9 rounded-[10px] bg-ink text-[13px] font-medium text-page transition-opacity disabled:opacity-30"
+            className="bb-press mt-1 h-9 rounded-[10px] bg-ink text-[14px] font-medium text-page transition-opacity disabled:opacity-30"
           >
             {chosen.length === 1 ? `Send to ${firstName(chosen[0]!)}` : `Send to ${chosen.length}`}
           </button>
@@ -775,7 +795,7 @@ function PostPeek({ m, post }: { m: InboxMessage; post: NonNullable<InboxMessage
         <PlatformLogo platform={m.platform} size={10} />
         {whose} on {PLATFORM[m.platform]}
       </span>
-      <p className="text-[13.5px] leading-[1.5] text-ink-2">{post.caption}</p>
+      <p className="text-[13px] leading-[1.5] text-ink-2">{post.caption}</p>
     </div>
   )
 

@@ -3,7 +3,7 @@
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
-import { PAGE as COLUMN, PageTitle } from '@/components/page-title'
+import { PAGE as COLUMN, PageTitle, SECTION } from '@/components/page-title'
 import type { BrandFile, FileKind } from '@/data/brand-kit'
 import { useBrand } from '@/features/schedule/posts-store'
 import { remote, report, upload as uploadFile } from '@/lib/remote'
@@ -19,7 +19,7 @@ import {
   useBrandKit,
 } from './brand-store'
 import { ColoursEditable } from './kit-colours'
-import { EYEBROW, QUIET, Section } from './kit-parts'
+import { QUIET, Section } from './kit-parts'
 import { removed, renamed, replaced, uploaded } from './model'
 import { VoiceSection } from './voice/voice-section'
 
@@ -78,10 +78,10 @@ export function BrandPage() {
     <div className="flex min-h-svh flex-col">
       <AppHeader />
       <main key={brand.id} className={`bb-swap flex flex-col pb-24 ${COLUMN}`}>
-        <PageTitle title={brand.name} back />
+        <PageTitle title="Brand kit" back />
         {/* The page reads in one column, from the same left edge as every title. */}
         <div className="flex w-full max-w-[760px] flex-col">
-          <p className="max-w-[560px] pb-8 text-[15px] text-ink-3 max-md:pb-6">{brand.line}</p>
+          <p className="max-w-[560px] pb-8 text-[16px] text-ink-3 max-md:pb-6">{brand.line}</p>
           <VoiceSection />
           <ColoursEditable />
           <LogoSection />
@@ -205,7 +205,7 @@ function Files() {
   return (
     <section aria-label="Files" className="flex flex-col gap-4 border-t border-line py-9">
       <div className="flex items-center justify-between">
-        <h2 className={EYEBROW}>Files</h2>
+        <h2 className={SECTION}>Files</h2>
         <button type="button" onClick={() => upload.current?.click()} className={`${QUIET} -mr-3`}>
           Upload
         </button>
@@ -231,7 +231,7 @@ function Files() {
         />
       </div>
       {files.length === 0 ? (
-        <p className="py-6 text-[13.5px] text-ink-4">No files yet.</p>
+        <p className="py-6 text-[13px] text-ink-4">No files yet.</p>
       ) : (
         <ul className="flex flex-col">
           {files.map((f) => (
@@ -282,7 +282,7 @@ function FileRow({
         {editing ? (
           <TitleInput title={file.title} onDone={onRename} onCancel={onCancel} />
         ) : (
-          <span className="truncate text-[14.5px] font-medium">{file.title}</span>
+          <span className="truncate text-[14px] font-medium">{file.title}</span>
         )}
         <span className="truncate text-[12px] text-ink-4">
           {file.updated} · {file.name}
@@ -320,7 +320,7 @@ function TitleInput({
         if (e.key === 'Enter') onDone(value)
         else if (e.key === 'Escape') onCancel()
       }}
-      className="-my-1 -ml-2 rounded-[8px] bg-surface px-2 py-1 text-[14.5px] font-medium outline-none"
+      className="-my-1 -ml-2 rounded-[8px] bg-surface px-2 py-1 text-[14px] font-medium outline-none"
     />
   )
 }
@@ -364,7 +364,7 @@ function RowMenu({
         setOpen(false)
         act()
       }}
-      className={`rounded-[8px] px-2.5 py-[7px] text-left text-[13.5px] transition-colors hover:bg-surface-2 ${danger ? 'text-fail-ink' : 'text-ink'}`}
+      className={`rounded-[8px] px-2.5 py-[7px] text-left text-[13px] transition-colors hover:bg-surface-2 ${danger ? 'text-fail-ink' : 'text-ink'}`}
     >
       {label}
     </button>

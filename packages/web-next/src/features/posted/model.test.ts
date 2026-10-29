@@ -4,6 +4,7 @@ import type { Post } from '@/data/demo'
 import type { ServerPost } from '@/features/schedule/remote-calendar'
 
 import {
+  averageOn,
   canRank,
   countsOn,
   figuresOf,
@@ -31,6 +32,7 @@ import {
   summaryOf,
   whenOf,
   windowLine,
+  versusAverage,
   type PostedItem,
 } from './model'
 
@@ -614,5 +616,46 @@ describe('an account’s link from the core', () => {
       counts: [{ key: 'likes', label: 'Likes', value: 3 }],
       measuredAt: '2026-10-29T05:00:00Z',
     })
+  })
+})
+
+// The post page sets one post's reach against the account's usual one, so a number means something.
+describe('a post against the account’s average', () => {
+  const OLD = '2026-10-01'
+  const reach = (id: string, n: number, over: Partial<Post> = {}, day = OLD) =>
+    item(id, day, { metrics: { reach: n }, ...over })
+  const others = [reach('a', 1000), reach('b', 2000), reach('c', 3000)]
+
+  it('is the mean of the other settled posts with that count, stories left out', () => {
+    const items = [
+      ...others,
+      reach('me', 9000),
+      reach('s', 50_000, { format: 'story' }),
+      // Too new to compare with: its reach is still coming in.
+      reach('new', 10, {}, TODAY),
+    ]
+    expect(averageOn(items, 'ig', 'reach', 'me', TODAY)).toBe(2000)
+  })
+
+  it('says nothing for a story, or for a post younger than a week', () => {
+    expect(
+      averageOn([...others, reach('s', 9000, { format: 'story' })], 'ig', 'reach', 's', TODAY),
+    ).toBeUndefined()
+    expect(
+      averageOn([...others, reach('me', 9000, {}, '2026-10-25')], 'ig', 'reach', 'me', TODAY),
+    ).toBeUndefined()
+  })
+
+  it('says nothing under three posts to compare with', () => {
+    expect(
+      averageOn([reach('a', 1000), reach('b', 2000), reach('me', 1)], 'ig', 'reach', 'me', TODAY),
+    ).toBeUndefined()
+  })
+
+  it('reads as a multiple above, a share under, and "about" close to it', () => {
+    expect(versusAverage(4200, 2000, 'Reach')).toBe('2.1× your average reach')
+    expect(versusAverage(4000, 2000, 'Reach')).toBe('2× your average reach')
+    expect(versusAverage(1200, 2000, 'Reach')).toBe('40% under your average reach')
+    expect(versusAverage(2100, 2000, 'Reach')).toBe('About your average reach')
   })
 })

@@ -28,7 +28,7 @@ import {
 import { type Anchor, Popover, anchorOf } from './popover'
 
 const FIELD =
-  'h-11 w-full rounded-[10px] border border-line bg-page px-3 text-[15px] outline-none transition-colors focus:border-ink-3 max-md:text-[16px]'
+  'h-11 w-full rounded-[10px] border border-line bg-page px-3 text-[14px] outline-none transition-colors focus:border-ink-3 max-md:text-[16px]'
 const QUIET =
   'flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[13px] text-ink-4 transition-colors hover:bg-surface hover:text-ink'
 const PRIMARY =
@@ -216,7 +216,7 @@ export function NewBrandForm({
                     <PlusIcon size={18} />
                   )}
                   {!logo && shownName && (
-                    <span className="absolute inset-0 flex items-end justify-center bg-linear-to-t from-black/45 to-transparent pb-1.5 font-mono text-[12px] tracking-[0.06em] text-white uppercase opacity-0 transition-opacity group-hover:opacity-100">
+                    <span className="absolute inset-0 flex items-end justify-center bg-linear-to-t from-black/45 to-transparent pb-1.5 text-[12px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
                       Logo
                     </span>
                   )}
@@ -262,7 +262,7 @@ export function NewBrandForm({
                   )}
                 </span>
                 <span
-                  className={`truncate font-mono text-[12px] tracking-[0.02em] text-ink-5 transition-opacity ${id ? 'opacity-100' : 'opacity-0'}`}
+                  className={`truncate font-mono text-[12px] text-ink-5 transition-opacity ${id ? 'opacity-100' : 'opacity-0'}`}
                 >
                   brandbase / {id || '…'}
                 </span>
@@ -434,7 +434,7 @@ export function NewBrandForm({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="h-11 rounded-full px-4 text-[13.5px] text-ink-3 transition-colors hover:bg-surface hover:text-ink"
+                  className="h-11 rounded-full px-4 text-[13px] text-ink-3 transition-colors hover:bg-surface hover:text-ink"
                 >
                   Go on without it
                 </button>

@@ -74,7 +74,9 @@ describe('editing the voice in place', () => {
   const section = () => within(screen.getByRole('region', { name: 'Voice' }))
   const history = () => section().getByRole('button', { name: 'Version history' })
   const say1 = () => screen.getByRole('textbox', { name: 'Say 1' })
-  const save = () => section().queryByRole('button', { name: /^Save as v/ })
+  const save = () => section().queryByRole('button', { name: 'Save' })
+  /** The version in use: the first in the history the History control opens. */
+  const inUse = () => within(section().getByRole('list')).getAllByRole('listitem')[0]
 
   it('offers to save only once the draft would change the voice, through the voiceEdited rules', () => {
     open()
@@ -87,14 +89,40 @@ describe('editing the voice in place', () => {
     // A blank summary keeps the old one: still nothing to save.
     expect(save()).toBeNull()
     fireEvent.change(say1(), { target: { value: 'rolled this morning' } })
-    fireEvent.click(section().getByRole('button', { name: 'Save as v5' }))
+    fireEvent.click(section().getByRole('button', { name: 'Save' }))
     expect(save()).toBeNull()
     // The new pair is live in the kit, for every reader at once; the summary stays.
     expect(screen.getByTestId('kit-summary')).toHaveTextContent(casa.summary)
     expect(say1()).toHaveValue('rolled this morning')
-    expect(history()).toHaveTextContent('v5You · Today')
+    expect(inUse()).toHaveTextContent(/^YYouv5/)
+    expect(inUse()).toHaveTextContent('In use')
     // The history says what changed, so the team can tell versions apart.
     expect(section().getByText('“made this morning” → “rolled this morning”')).toBeInTheDocument()
+  })
+
+  it('marks each field that changes the voice, by content, and only while there is a Save', () => {
+    open()
+    const summary = () => screen.getByRole('textbox', { name: 'How the brand sounds' })
+    fireEvent.change(say1(), { target: { value: 'rolled' } })
+    // The changed row is described as changed; the summary and the next row are not.
+    expect(say1()).toHaveAccessibleDescription('Changed')
+    expect(screen.getByRole('textbox', { name: 'Say 2' })).not.toHaveAccessibleDescription()
+    expect(summary()).not.toHaveAccessibleDescription()
+    // Spaces alone change nothing the save would keep: no dot, and no Save.
+    fireEvent.change(say1(), { target: { value: ' made this morning ' } })
+    expect(save()).toBeNull()
+    expect(say1()).not.toHaveAccessibleDescription()
+    // A blank summary keeps the old one: no dot without a Save.
+    fireEvent.change(summary(), { target: { value: '   ' } })
+    expect(summary()).not.toHaveAccessibleDescription()
+  })
+
+  it('marks no other row when a pair is removed', () => {
+    open()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove made this morning' }))
+    expect(save()).toBeInTheDocument()
+    for (const field of section().getAllByRole('textbox', { name: /^(Say|Not) \d/ }))
+      expect(field).not.toHaveAccessibleDescription()
   })
 
   it('discards a draft only on request; Escape just leaves the field', () => {
@@ -108,7 +136,7 @@ describe('editing the voice in place', () => {
     fireEvent.click(section().getByRole('button', { name: 'Discard' }))
     expect(say1()).toHaveValue('made this morning')
     expect(save()).toBeNull()
-    expect(history()).toHaveTextContent('v4')
+    expect(inUse()).toHaveTextContent(/v4/)
   })
 
   it('keeps an unsaved draft for the brand while the person is away, with the bar', () => {
@@ -126,7 +154,7 @@ describe('editing the voice in place', () => {
       </BrandProvider>,
     )
     expect(within(again.container).getByRole('textbox', { name: 'Say 1' })).toHaveValue('rolled')
-    expect(within(again.container).queryByRole('button', { name: /^Save as v/ })).toBeNull()
+    expect(within(again.container).queryByRole('button', { name: 'Save' })).toBeNull()
   })
 
   it('asks before an old version replaces a draft with changes, and notes the bring-back only while unchanged', () => {
@@ -145,7 +173,7 @@ describe('editing the voice in place', () => {
     expect(section().queryByDisplayValue('by hand')).not.toBeInTheDocument()
     // Edited after the bring-back, it is a new voice, not v3 again.
     fireEvent.change(say1(), { target: { value: 'rolled' } })
-    fireEvent.click(section().getByRole('button', { name: 'Save as v5' }))
+    fireEvent.click(section().getByRole('button', { name: 'Save' }))
     expect(section().queryByText('Brought back v3')).not.toBeInTheDocument()
     expect(section().getByText(/“made this morning” → “rolled”/)).toBeInTheDocument()
   })
@@ -154,7 +182,7 @@ describe('editing the voice in place', () => {
     open()
     fireEvent.change(say1(), { target: { value: 'rolled' } })
     fireEvent.keyDown(say1(), { key: 'Enter', metaKey: true })
-    expect(history()).toHaveTextContent('v5')
+    expect(inUse()).toHaveTextContent(/v5/)
     expect(say1()).toHaveValue('rolled')
   })
 
@@ -178,7 +206,7 @@ describe('editing the voice in place', () => {
     fireEvent.click(section().getByRole('button', { name: 'Bring back' }))
     // v3's words fill the fields, ready to save as v5.
     expect(section().queryByDisplayValue('by hand')).not.toBeInTheDocument()
-    fireEvent.click(section().getByRole('button', { name: 'Save as v5' }))
+    fireEvent.click(section().getByRole('button', { name: 'Save' }))
     // v3 had no "by hand"; it comes back as v5, and v4 stays in the history.
     expect(section().queryByDisplayValue('by hand')).not.toBeInTheDocument()
     expect(section().getByText('Brought back v3')).toBeInTheDocument()

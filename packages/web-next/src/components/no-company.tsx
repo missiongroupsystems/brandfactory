@@ -12,7 +12,7 @@ export function NoCompany({ onSignOut }: { onSignOut: () => void }) {
     <main className="flex min-h-svh items-center justify-center px-4">
       <div className="bb-rise flex w-full max-w-[320px] flex-col gap-3">
         <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Not in a company yet</h1>
-        <p className="text-[15px] leading-[1.5] text-ink-2">
+        <p className="text-[14px] leading-[1.5] text-ink-2">
           Ask an admin at your company to add <span className="text-ink">{email}</span>. Your brands
           show here once they do.
         </p>

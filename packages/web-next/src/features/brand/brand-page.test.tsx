@@ -43,6 +43,11 @@ const tapOutside = () => fireEvent.pointerDown(document.body)
 const colours = () => within(screen.getByRole('region', { name: 'Colours' }))
 
 describe('the brand page', () => {
+  it('is titled Brand kit, as the avatar menu names it; the switcher alone names the brand', () => {
+    open()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Brand kit')
+  })
+
   it('opens an upload for a plain title, and keeps the title the team types', () => {
     open()
     const file = new File(['x'], 'CV_menu-autumn.pdf', { type: 'application/pdf' })
@@ -65,7 +70,7 @@ describe('the brand page', () => {
 
 describe('editing the kit', () => {
   // The voice is edited where it is read; Save makes the next version.
-  const save = () => fireEvent.click(voice().getByRole('button', { name: /^Save as v/ }))
+  const save = () => fireEvent.click(voice().getByRole('button', { name: 'Save' }))
 
   it('saves a new voice as the brand’s voice', () => {
     open()
@@ -76,7 +81,9 @@ describe('editing the kit', () => {
     expect(voice().getByRole('textbox', { name: 'How the brand sounds' })).toHaveValue(
       'Short and bright. Never fussy.',
     )
-    expect(voice().getByRole('button', { name: 'Version history' })).toHaveTextContent('v5')
+    // The new version is the one in use, first in the history.
+    const [first] = within(voice().getByRole('list')).getAllByRole('listitem')
+    expect(first).toHaveTextContent(/v5.*In use/)
   })
 
   it('removes a pair and adds one, and keeps neither change after Discard', () => {
@@ -94,7 +101,7 @@ describe('editing the kit', () => {
     expect(voice().queryByDisplayValue('pasta')).not.toBeInTheDocument()
     fireEvent.click(voice().getByRole('button', { name: 'Discard' }))
     expect(voice().getByDisplayValue('pasta')).toBeInTheDocument()
-    expect(voice().queryByRole('button', { name: /^Save as v/ })).toBeNull()
+    expect(voice().queryByRole('button', { name: 'Save' })).toBeNull()
   })
 
   it('changes a colour in the picker, and never saves a hex that is not one', () => {

@@ -3,6 +3,7 @@
 import * as React from 'react'
 
 import { CheckIcon } from '@/components/icons'
+import { SECTION } from '@/components/page-title'
 import type { BrandKit } from '@/data/brand-kit'
 
 /** The pieces of the Brand page that its sections share. */
@@ -28,7 +29,7 @@ export function Section({
   return (
     <section aria-label={label} className="flex flex-col gap-6 border-t border-line py-9">
       <div className="-my-1.5 flex h-8 items-center justify-between">
-        <h2 className={EYEBROW}>{label}</h2>
+        <h2 className={SECTION}>{label}</h2>
         {action}
       </div>
       {children}

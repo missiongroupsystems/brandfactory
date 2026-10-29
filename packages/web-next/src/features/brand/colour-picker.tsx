@@ -281,7 +281,7 @@ function HexField({ hex, onHex }: { hex: string; onHex: (h: string) => void }) {
           if (h) onHex(h)
         }}
         onBlur={() => setText(hex)}
-        className={`h-8 min-w-0 flex-1 rounded-[8px] px-2 font-mono text-[13px] uppercase shadow-[inset_0_0_0_1px_var(--line)] outline-none transition-shadow focus:shadow-[inset_0_0_0_1px_var(--line-strong)] ${valid ? 'text-ink-2' : 'text-fail-ink'}`}
+        className={`h-8 min-w-0 flex-1 rounded-[8px] px-2 font-mono text-[13px] lowercase shadow-[inset_0_0_0_1px_var(--line)] outline-none transition-shadow focus:shadow-[inset_0_0_0_1px_var(--line-strong)] ${valid ? 'text-ink-2' : 'text-fail-ink'}`}
       />
       <button
         type="button"

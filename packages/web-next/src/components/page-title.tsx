@@ -8,6 +8,10 @@ import { cameFromApp } from './path-trail'
 /** The one size a page's title has: 34px on a desktop, 28px on a phone. */
 export const TITLE = 'font-display text-[34px] leading-none tracking-[-0.03em] max-md:text-[28px]'
 
+/** The one style a section's heading has, on every page. */
+export const SECTION =
+  'font-display text-[16px] leading-tight font-medium tracking-[-0.01em] text-ink'
+
 /** The column every reading page sits in; its left edge is where every title starts. */
 export const PAGE = 'mx-auto w-full max-w-[1120px] px-10 max-md:px-4'
 

@@ -217,9 +217,7 @@ function List({
                 )
               )}
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[13.5px] font-medium max-md:text-[15px]">
-                  {name}
-                </span>
+                <span className="truncate text-[13px] font-medium max-md:text-[14px]">{name}</span>
                 {detail && (
                   <span className="truncate text-[12px] text-ink-4 max-md:text-[13px]">
                     {detail}

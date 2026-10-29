@@ -32,7 +32,7 @@ export function SampleDiff({
   )
   const same = diff.after.every((p) => !p.changed)
   const label = (text: string) => (
-    <span className="w-7 shrink-0 pt-[3px] font-mono text-[12px] text-ink-4">{text}</span>
+    <span className="w-7 shrink-0 pt-[3px] text-[13px] tabular-nums text-ink-4">{text}</span>
   )
   return (
     <div className="flex flex-col">
@@ -52,7 +52,7 @@ export function SampleDiff({
           </p>
         </div>
       </div>
-      <p className="flex gap-3 text-[15.5px] leading-[1.55] text-ink">
+      <p className="flex gap-3 text-[16px] leading-[1.55] text-ink">
         {labels && label(same ? '' : labels[1])}
         <span>
           <Pieces pieces={diff.after} kind="won" stagger={stagger} />

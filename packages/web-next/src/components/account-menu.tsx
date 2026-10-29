@@ -11,7 +11,7 @@ import { leave, onUser, remote } from '@/lib/remote'
 
 const avatar = 'flex size-9 items-center justify-center rounded-full text-xs font-semibold'
 const ITEM =
-  'flex items-center justify-between gap-3 rounded-[8px] px-2.5 py-[7px] text-[13.5px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface'
+  'flex items-center justify-between gap-3 rounded-[8px] px-2.5 py-[7px] text-[13px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface'
 const avatarColours = { background: 'var(--avatar)', color: 'var(--avatar-ink)' }
 
 /**
@@ -34,7 +34,7 @@ export function initials(name: string, email: string): string {
  * and Sign out.
  */
 export function AccountMenu() {
-  const { brand, brands } = useBrand()
+  const { brand } = useBrand()
   const attention = Object.values(useConnections(brand.id)).includes('attention')
   const [user, setUser] = React.useState<{ name: string; email: string; avatar?: string | null }>({
     name: '',
@@ -117,13 +117,13 @@ export function AccountMenu() {
           {remote && (
             <>
               <span className="flex flex-col px-2.5 pt-2 pb-1.5">
-                {user.name && <span className="truncate text-[13.5px] text-ink">{user.name}</span>}
+                {user.name && <span className="truncate text-[13px] text-ink">{user.name}</span>}
                 <span className="truncate text-[13px] text-ink-4">{user.email}</span>
               </span>
               <span aria-hidden="true" className="mx-2 my-1.5 h-px bg-line" />
             </>
           )}
-          {/* The current brand's voice, colours and files: named only where there is a choice. */}
+          {/* The current brand's voice, colours and files; the switcher already names the brand. */}
           <Link
             ref={(el) => {
               items.current[0] = el
@@ -135,9 +135,6 @@ export function AccountMenu() {
             className={ITEM}
           >
             Brand kit
-            {brands.length > 1 && (
-              <span className="truncate text-[12px] text-ink-4">{brand.name}</span>
-            )}
           </Link>
           <Link
             ref={(el) => {

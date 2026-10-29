@@ -8,7 +8,7 @@ import { flushSync } from 'react-dom'
 
 import { AppHeader } from '@/components/app-header'
 import { LoadingDots } from '@/components/loading-dots'
-import { TITLE } from '@/components/page-title'
+import { PAGE, TITLE } from '@/components/page-title'
 import { Segmented } from '@/components/controls'
 import {
   ArrowUpRightIcon,
@@ -116,7 +116,7 @@ export function IdeatePage({ view: initial }: { view?: View }) {
       {/* The title settles in with the page, as on Schedule, Insights and Inbox. */}
       <div
         key={brand.id}
-        className="bb-swap mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-10 pt-6 pb-8 max-md:px-4 max-md:pt-2 max-md:pb-5"
+        className={`bb-swap flex flex-col gap-5 pt-6 pb-8 max-md:pt-2 max-md:pb-5 ${PAGE}`}
       >
         <h1 className={TITLE}>Ideas</h1>
         <div className="w-[240px] max-md:w-full">
@@ -133,10 +133,7 @@ export function IdeatePage({ view: initial }: { view?: View }) {
         </div>
       </div>
 
-      <main
-        key={`${brand.id}-${view}`}
-        className="bb-swap mx-auto w-full max-w-[1440px] px-10 pb-16 max-md:px-4"
-      >
+      <main key={`${brand.id}-${view}`} className={`bb-swap pb-16 ${PAGE}`}>
         {view === 'ideas' ? (
           <Ideas slots={slots} onToast={setToast} onNew={() => choose('board')} />
         ) : (

@@ -10,7 +10,7 @@ import { demoOf } from '@/lib/remote'
 
 import { useBrandKit } from '../brand-store'
 import { EYEBROW, QUIET, Section, type Voice } from '../kit-parts'
-import { voiceEdited } from '../model'
+import { changedParts, voiceEdited } from '../model'
 import { LinesField, SummaryField, useTakeover, WordsField } from './editor'
 import { changesBetween, SAMPLES, type SampleKind } from './preview'
 import { SampleDiff } from './sample'
@@ -61,6 +61,8 @@ export function VoiceSection() {
   const result = React.useMemo(() => voiceEdited(voice, draft), [voice, draft])
   const changes = changesBetween(voice, result)
   const changed = changes.length > 0
+  // The dots show only with the Save bar, read from the same rules as the save.
+  const marks = changed ? changedParts(voice, draft) : undefined
 
   function setDraft(d: Voice) {
     setDraftState(d)
@@ -125,78 +127,44 @@ export function VoiceSection() {
           <button type="button" onClick={() => setFlow(true)} className={`${QUIET} -mr-3`}>
             Write the voice
           </button>
+        ) : current ? (
+          // Who made the voice in use, and when, sits in the history it opens.
+          <button
+            type="button"
+            aria-expanded={history}
+            aria-label="Version history"
+            onClick={() => setHistory((h) => !h)}
+            className={`${QUIET} -mr-3`}
+          >
+            History
+            <ChevronIcon open={history} size={8} />
+          </button>
         ) : undefined
       }
     >
-      {empty ? (
-        <p className="text-[15px] text-ink-4">No voice yet.</p>
-      ) : (
-        <div ref={root} key={n} className={`flex flex-col gap-7 ${landed === n ? 'bb-rise' : ''}`}>
-          <SummaryField
-            value={draft.summary}
-            onChange={(summary) => setDraft({ ...draft, summary })}
-          />
-          <WordsField words={draft.words} onChange={(words) => setDraft({ ...draft, words })} />
-          <LinesField
-            lines={draft.examples}
-            onChange={(examples) => setDraft({ ...draft, examples })}
-          />
-          {changed && (
-            <div className="bb-rise flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-1">
-                <button
-                  type="button"
-                  onClick={save}
-                  className="bb-press flex h-9 items-center rounded-full bg-ink px-4 text-[13.5px] font-medium text-page hover:opacity-85"
-                >
-                  Save as v{next}
-                </button>
-                <button type="button" onClick={discard} className={QUIET}>
-                  Discard
-                </button>
-                <button
-                  type="button"
-                  aria-expanded={preview}
-                  onClick={() => setPreview((p) => !p)}
-                  className={`${QUIET} ml-auto`}
-                >
-                  Preview
-                  <ChevronIcon open={preview} size={8} />
-                </button>
-              </div>
-              <Fold open={preview}>
-                <div className="flex flex-col">
-                  {KINDS.map((k) => (
-                    <div
-                      key={k}
-                      className="flex flex-col gap-3 border-t border-line py-5 first:border-t-0 first:pt-0"
-                    >
-                      <span className={EYEBROW}>{k}</span>
-                      <SampleDiff
-                        draft={demoOf(SAMPLES, brand.id)?.[k] ?? ''}
-                        before={voice}
-                        after={result}
-                        labels={[`v${next - 1}`, `v${next}`]}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </Fold>
-            </div>
-          )}
+      {current && (
+        <div className="bb-fold -mt-6" style={{ gridTemplateRows: history ? '1fr' : '0fr' }}>
+          <div inert={!history}>
+            <History
+              versions={versions}
+              landed={landed}
+              // A draft with changes is not thrown away without a word.
+              onRestore={(v) => (changed ? setAsking(v) : restore(v))}
+            />
+          </div>
         </div>
       )}
       {asking && (
         <div
           role="alertdialog"
           aria-label={`Bring back v${asking.n}`}
-          className="bb-rise flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[12px] bg-surface px-4 py-3 text-[13.5px]"
+          className="bb-rise flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[12px] bg-surface px-4 py-3 text-[13px]"
         >
           <span className="flex-1">Replace your unsaved changes with v{asking.n}?</span>
           <button
             type="button"
             onClick={() => restore(asking)}
-            className="bb-press h-8 rounded-full bg-ink px-3.5 text-[13px] font-medium text-page hover:opacity-85"
+            className="bb-press h-8 rounded-full bg-ink px-3.5 text-[14px] font-medium text-page hover:opacity-85"
           >
             Replace
           </button>
@@ -205,31 +173,71 @@ export function VoiceSection() {
           </button>
         </div>
       )}
-      {current && (
-        <div className="flex flex-col">
-          <button
-            type="button"
-            aria-expanded={history}
-            aria-label="Version history"
-            onClick={() => setHistory((h) => !h)}
-            className="-ml-2 flex h-8 items-center gap-2 self-start rounded-full px-2 text-[13px] text-ink-4 transition-colors hover:bg-surface hover:text-ink-2"
-          >
-            <span className="font-mono text-[12px] text-ink-3">v{current.n}</span>
-            <span>
-              {current.by} · {current.when}
-            </span>
-            <ChevronIcon open={history} size={8} />
-          </button>
-          <div className="bb-fold" style={{ gridTemplateRows: history ? '1fr' : '0fr' }}>
-            <div inert={!history}>
-              <History
-                versions={versions}
-                landed={landed}
-                // A draft with changes is not thrown away without a word.
-                onRestore={(v) => (changed ? setAsking(v) : restore(v))}
-              />
+      {empty ? (
+        <p className="text-[14px] text-ink-4">No voice yet.</p>
+      ) : (
+        <div ref={root} key={n} className={`flex flex-col gap-7 ${landed === n ? 'bb-rise' : ''}`}>
+          <SummaryField
+            value={draft.summary}
+            onChange={(summary) => setDraft({ ...draft, summary })}
+            changed={marks?.summary}
+          />
+          <WordsField
+            words={draft.words}
+            marks={marks?.words}
+            onChange={(words) => setDraft({ ...draft, words })}
+          />
+          <LinesField
+            lines={draft.examples}
+            marks={marks?.lines}
+            onChange={(examples) => setDraft({ ...draft, examples })}
+          />
+          {/* While a draft exists its bar stays in view: at the foot of the screen, above the
+              phone's tab bar, and back in its place once the page scrolls to it. A direct child
+              of the fields' column, so it can stick for the whole length of the voice. */}
+          {changed && (
+            <div className="bb-rise sticky bottom-6 z-20 -mx-2 flex items-center gap-1 self-start rounded-full bg-page p-1.5 shadow-pop max-md:bottom-[calc(76px+env(safe-area-inset-bottom))]">
+              <button
+                type="button"
+                onClick={save}
+                className="bb-press flex h-9 items-center rounded-full bg-ink px-4 text-[14px] font-medium text-page hover:opacity-85"
+              >
+                Save
+              </button>
+              <button type="button" onClick={discard} className={QUIET}>
+                Discard
+              </button>
+              <button
+                type="button"
+                aria-expanded={preview}
+                onClick={() => setPreview((p) => !p)}
+                className={QUIET}
+              >
+                Preview
+                <ChevronIcon open={preview} size={8} />
+              </button>
             </div>
-          </div>
+          )}
+          {changed && (
+            <Fold open={preview}>
+              <div className="flex flex-col">
+                {KINDS.map((k) => (
+                  <div
+                    key={k}
+                    className="flex flex-col gap-3 border-t border-line py-5 first:border-t-0 first:pt-0"
+                  >
+                    <span className={EYEBROW}>{k}</span>
+                    <SampleDiff
+                      draft={demoOf(SAMPLES, brand.id)?.[k] ?? ''}
+                      before={voice}
+                      after={result}
+                      labels={[`v${next - 1}`, `v${next}`]}
+                    />
+                  </div>
+                ))}
+              </div>
+            </Fold>
+          )}
         </div>
       )}
       {flow && (
@@ -278,9 +286,9 @@ function History({
             {v.by[0]}
           </span>
           <span className="flex min-w-0 flex-col gap-0.5 pt-px">
-            <span className="flex items-baseline gap-2 text-[13.5px]">
+            <span className="flex items-baseline gap-2 text-[13px]">
               <span className="font-medium">{v.by}</span>
-              <span className="font-mono text-[12px] text-ink-4">v{v.n}</span>
+              <span className="text-[13px] text-ink-4 tabular-nums">v{v.n}</span>
               {/* No hover on touch, so the date sits here and Bring back stays shown. */}
               <span className="hidden text-[13px] text-ink-4 [@media(hover:none)]:inline">
                 {v.when}
@@ -493,7 +501,7 @@ function Flow({
             >
               {question}
             </h2>
-            <p className="text-[15px] text-ink-3 max-md:text-[14px]">{hint}</p>
+            <p className="text-[14px] text-ink-3">{hint}</p>
           </div>
 
           <div
@@ -546,7 +554,7 @@ function Flow({
           <button
             type="button"
             onClick={() => go(-1)}
-            className={`-ml-4 h-10 rounded-full px-4 text-[13.5px] text-ink-3 transition duration-300 hover:bg-surface hover:text-ink ${step === 0 || done ? 'pointer-events-none opacity-0' : ''}`}
+            className={`-ml-4 h-10 rounded-full px-4 text-[13px] text-ink-3 transition duration-300 hover:bg-surface hover:text-ink ${step === 0 || done ? 'pointer-events-none opacity-0' : ''}`}
             tabIndex={step === 0 || done ? -1 : undefined}
           >
             Back

@@ -150,7 +150,7 @@ describe('a posted post, whatever it holds', () => {
     open({ ...posted, format: 'reel', channels: ['tt', 'ig'] })
     const chips = within(screen.getByRole('radiogroup', { name: 'Account' }))
       .getAllByRole('radio')
-      .map((e) => e.getAttribute('aria-label'))
+      .map((e) => e.textContent)
     expect(chips).toEqual(['TikTok', 'Instagram'])
   })
 

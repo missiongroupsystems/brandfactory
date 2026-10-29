@@ -113,7 +113,7 @@ export function BrandSwitcher() {
                   close(true)
                   if (!current) setBrandId(b.id)
                 }}
-                className="flex items-center gap-2.5 rounded-[8px] px-2 py-[7px] text-left text-[13.5px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface"
+                className="flex items-center gap-2.5 rounded-[8px] px-2 py-[7px] text-left text-[13px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface"
               >
                 <BrandMark brand={b} size="sm" />
                 <span className="flex-1 truncate">{b.name}</span>
@@ -137,7 +137,7 @@ export function BrandSwitcher() {
                 close(false)
                 setAdding(true)
               }}
-              className="flex items-center gap-2.5 rounded-[8px] px-2 py-[7px] text-left text-[13.5px] text-ink-3 transition-colors outline-none hover:bg-surface-2 hover:text-ink focus-visible:bg-surface"
+              className="flex items-center gap-2.5 rounded-[8px] px-2 py-[7px] text-left text-[13px] text-ink-3 transition-colors outline-none hover:bg-surface-2 hover:text-ink focus-visible:bg-surface"
             >
               <span className="flex size-6 shrink-0 items-center justify-center">
                 <PlusIcon size={13} />

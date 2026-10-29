@@ -205,6 +205,41 @@ export function countsOn(item: PostedItem, platform: Platform) {
   return readingOn(item.post, platform, item.went).counts
 }
 
+/** How old a post's numbers must be to compare: a day-old post has not had its reach yet. */
+export const SETTLED_DAYS = 7
+
+/**
+ * The account's usual figure for one count, for the post `id`: the mean over its other settled
+ * posts (not stories, at least `SETTLED_DAYS` old) that have it. None for a story, for a post not
+ * settled yet, and under three posts to compare with, where a mean says little.
+ */
+export function averageOn(
+  items: PostedItem[],
+  platform: Platform,
+  key: CountKey,
+  id: string,
+  today: string,
+): number | undefined {
+  const settled = (i: PostedItem) =>
+    i.post.format !== 'story' && addDays(i.day, SETTLED_DAYS) <= today
+  const self = items.find((i) => i.post.id === id)
+  if (!self || !settled(self)) return undefined
+  const values = ledgerOf(items, platform)
+    .filter((i) => i.post.id !== id && settled(i))
+    .flatMap((i) => countsOn(i, platform).filter((c) => c.key === key))
+    .map((c) => c.value)
+  return values.length >= 3 ? values.reduce((a, b) => a + b, 0) / values.length : undefined
+}
+
+/** A post against the account's mean: "2.1× your average reach", "40% under your average reach". */
+export function versusAverage(value: number, average: number, label: string): string {
+  const ratio = value / average
+  const what = `your average ${label.toLowerCase()}`
+  if (ratio >= 1.1) return `${ratio.toFixed(1).replace(/\.0$/, '')}× ${what}`
+  if (ratio <= 0.9) return `${Math.round((1 - ratio) * 100)}% under ${what}`
+  return `About ${what}`
+}
+
 /** 18420 → 18.4k; 480 → 480. */
 export function k(n: number): string {
   if (n >= 999_500) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}m`
