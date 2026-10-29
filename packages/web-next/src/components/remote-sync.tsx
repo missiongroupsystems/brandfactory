@@ -11,6 +11,7 @@ import {
   noAccess,
   onProblem,
   remote,
+  type MessageAction,
   settled,
   signedIn,
 } from '@/lib/remote'
@@ -35,7 +36,9 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
   // The sign-in page, the terms and the privacy policy open with no sign-in, as do share links.
   const open = !remote || pathname.startsWith('/share') || PUBLIC_PATHS.includes(pathname)
   const [state, setState] = React.useState<State>('loading')
-  const [problem, setProblem] = React.useState<string | null>(null)
+  const [problem, setProblem] = React.useState<{ text: string; action?: MessageAction } | null>(
+    null,
+  )
 
   // Back on sign-in (a link, the address bar), whoever signs in next loads afresh: nothing of the
   // last account's state, screen or password step carries over.
@@ -45,10 +48,11 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
     if (open) setState('loading')
   }
 
-  React.useEffect(() => onProblem(setProblem), [])
+  React.useEffect(() => onProblem((text, action) => setProblem({ text, action })), [])
   React.useEffect(() => {
     if (!problem) return
-    const t = setTimeout(() => setProblem(null), 5000)
+    // A line with an action, such as Undo, stays longer: there is something to press.
+    const t = setTimeout(() => setProblem(null), problem.action ? 8000 : 5000)
     return () => clearTimeout(t)
   }, [problem])
 
@@ -100,14 +104,29 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
         // The account is loading: dots that rise in turn, not a blank page.
         <LoadingDots label="Loading" className="min-h-dvh bg-page" />
       )}
-      {problem && (
-        <div
-          role="status"
-          className="fixed inset-x-0 bottom-24 z-50 mx-auto w-fit max-w-[90vw] rounded-full bg-ink px-4 py-2 text-[13px] text-page"
-        >
-          {problem}
-        </div>
-      )}
+      {/* One status region, always there, so a screen reader hears each line as it comes. */}
+      <div
+        role="status"
+        className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center"
+      >
+        {problem && (
+          <div className="pointer-events-auto flex w-fit max-w-[90vw] items-center gap-3 rounded-full bg-ink px-4 py-2 text-[13px] text-page">
+            {problem.text}
+            {problem.action && (
+              <button
+                type="button"
+                onClick={() => {
+                  problem.action?.run()
+                  setProblem(null)
+                }}
+                className="-my-1.5 h-8 rounded-full px-2.5 font-medium underline-offset-2 hover:underline"
+              >
+                {problem.action.label}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </>
   )
 }

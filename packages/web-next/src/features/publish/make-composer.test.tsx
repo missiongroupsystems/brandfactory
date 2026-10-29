@@ -81,6 +81,13 @@ const open = () =>
   )
 afterEach(() => vi.useRealTimers())
 
+/** Moves the post to tomorrow and presses Reschedule: a save that keeps the day sends nothing. */
+function reschedule() {
+  fireEvent.click(screen.getByRole('button', { name: /^\w{3} \d+ \w{3}, \d\d:\d\d$/ }))
+  fireEvent.click(screen.getByRole('button', { name: /^Tomorrow / }))
+  fireEvent.click(screen.getAllByRole('button', { name: /^Reschedule/ })[0]!)
+}
+
 /** Ticks an account on, or off. */
 const tick = (name: string, on = true) => {
   const box = screen.getAllByRole('checkbox', { name: new RegExp(name) })[0]!
@@ -100,7 +107,7 @@ describe('the composer with Instagram through Make', () => {
     tick('Facebook', false)
     expect(screen.queryByRole('radio', { name: 'Publish now' })).toBeNull()
     expect(screen.queryByText('Publish now')).toBeNull()
-    fireEvent.click(screen.getAllByRole('button', { name: /^Reschedule/ })[0]!)
+    reschedule()
     await land()
     const patch = requests.find((r) => r.call === 'PATCH /brands/casa-vostra/posts/ravioli')
     expect((patch!.body as { channels: string[] }).channels).toEqual(['ig', 'tt'])
@@ -112,13 +119,20 @@ describe('the composer with Instagram through Make', () => {
   })
 
   it('plans a Story without sending it, and says Make cannot post Stories', async () => {
-    open()
+    // A new Story: an existing post keeps the format it has.
+    render(
+      <BrandProvider>
+        <Loaded>
+          <Composer />
+        </Loaded>
+      </BrandProvider>,
+    )
+    fireEvent.click(screen.getAllByRole('radio', { name: 'Story' })[0]!)
     tick('Instagram')
     tick('TikTok', false)
     tick('Facebook', false)
-    fireEvent.click(screen.getAllByRole('radio', { name: 'Story' })[0]!)
     expect(screen.getAllByText('Not available yet').length).toBeGreaterThan(0)
-    fireEvent.click(screen.getAllByRole('button', { name: /^Reschedule/ })[0]!)
+    fireEvent.click(screen.getAllByRole('button', { name: /^Schedule/ })[0]!)
     await land()
     expect(requests.some((r) => r.call.endsWith('/send'))).toBe(false)
     expect(requests.find((r) => r.call.endsWith('/mark'))?.body).toEqual({ stage: 'scheduled' })

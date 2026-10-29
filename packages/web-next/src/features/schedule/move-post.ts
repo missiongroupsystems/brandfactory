@@ -1,6 +1,7 @@
 import type { FeedMark, Post, Week } from '@/data/demo'
 import { feedsOf } from '@/data/demo'
-import { slotOf } from '@/lib/dates'
+import { clockTime, clockToday, slotOf, todayDate } from '@/lib/dates'
+import { remote, timezoneOf } from '@/lib/remote'
 
 /** Where a day sits in the weeks: its week and its column (0 = Monday). */
 function locate(weeks: Week[], date: string): { w: number; d: number } | null {
@@ -104,4 +105,25 @@ export function movePost(weeks: Week[], posts: Post[], postId: string, to: strin
 function timeOf(mark: FeedMark, posts: Post[]): string {
   if (mark.kind !== 'post') return ''
   return posts.find((p) => p.id === mark.postId)?.slot.split(', ')[1] ?? ''
+}
+
+/**
+ * Today in the brand's own timezone on the core, the same clock `tooSoon` reads; the demo's fixed
+ * today otherwise. The app's `todayDate()` is the last brand loaded, which may sit elsewhere.
+ */
+export const brandToday = (brandId: string) =>
+  remote ? clockToday(new Date(), timezoneOf(brandId)) : todayDate()
+
+/**
+ * On the core, whether `time` on `date` has gone in the brand's own timezone, or comes within two
+ * minutes: it would go out at once. The demo's today is a fixed day, so it never says so.
+ */
+export function tooSoon(brandId: string, date: string, time: string) {
+  if (!remote) return false
+  // The brand's own today: the app's today is the last brand loaded, which may sit elsewhere.
+  const zone = timezoneOf(brandId)
+  if (date !== clockToday(new Date(), zone)) return false
+  const soon = clockTime(zone, new Date(Date.now() + 2 * 60_000))
+  // Within two minutes of midnight the rest of today has gone.
+  return soon < clockTime(zone) || time <= soon
 }

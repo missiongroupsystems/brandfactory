@@ -25,24 +25,16 @@ import { CAPTION_DRAFTS, HASHTAGS, VENUE } from '@/data/publish'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { MonthArrows, useMonthPages } from '@/features/ideate/day-picker'
 import { channelsOf, composeChannels, sentChannels } from '@/features/schedule/calendar-items'
-import { dayOf, storyTaken } from '@/features/schedule/move-post'
+import { brandToday, dayOf, storyTaken, tooSoon } from '@/features/schedule/move-post'
 import { ConnectSheet } from '@/features/connections/connect-sheet'
 import { useConnections, useConnected } from '@/features/connections/connections-store'
 import { makeOn } from '@/features/connections/make'
 import { NotAvailable, notAvailable } from '@/features/connections/not-available'
-import { ideaIdOfHook } from '@/features/ideate/ideas-store'
+import { editIdea, ideaIdOfHook, useIdeas } from '@/features/ideate/ideas-store'
 import { useBrand } from '@/features/schedule/posts-store'
 import type { PostingTimes } from '@/features/schedule/remote-calendar'
-import { demoOf, newId, quietly, remote, report, request, sent, timezoneOf } from '@/lib/remote'
-import {
-  addDays,
-  clockTime,
-  clockToday,
-  dayNumber,
-  monthOf,
-  todayDate,
-  weekdayOf,
-} from '@/lib/dates'
+import { demoOf, newId, quietly, remote, report, request, sent } from '@/lib/remote'
+import { addDays, dayNumber, monthOf, todayDate, weekdayOf } from '@/lib/dates'
 import { mediaItem } from '@/lib/remote-days'
 
 import { CropEditor } from './crop-editor'
@@ -88,6 +80,8 @@ import { ratioOf, ShotView } from './shot'
 import { TikTokInbox } from './tiktok-inbox'
 import { hashtagsOf, labelsOf, peopleOf, placesOf } from './suggestions'
 import {
+  lastAccounts,
+  saveLastAccounts,
   saveTikTokDefault,
   tiktokDefault,
   usePublishDraft,
@@ -95,6 +89,9 @@ import {
   type Sound,
   type TikTokDefault,
 } from './use-publish-draft'
+
+/** Posts deleted from their own page: it shows nothing while it goes back to the calendar. */
+export const leaving = new Set<string>()
 
 // On a phone a card is bare: the page is white, and a card opens in a sheet that has its own frame.
 const CARD =
@@ -185,9 +182,12 @@ export function Composer({
     reschedule,
     setStage,
     setChannels,
+    unplanPost,
     saved: savedOf,
     times,
   } = useBrand()
+  // The idea this post was planned from, if any: deleting the post puts it back on its day.
+  const fromCard = useIdeas(brand.id).ideas.find((c) => post && c.postId === post.id)
   // Redrawn every 30 seconds, so a time picked for later today says when it has gone.
   const [, tick] = React.useReducer((n: number) => n + 1, 0)
   React.useEffect(() => {
@@ -241,6 +241,16 @@ export function Composer({
           }
         : tiktokDefault(brand.id),
   })
+  // A new post starts on the accounts the brand's last new post went to, where those still post.
+  // Read after the first paint: the server cannot see this browser's memory.
+  React.useEffect(() => {
+    if (post || planOnly) return
+    const usual = sends.filter((k) => publishing.includes(k))
+    const last = lastAccounts(brand.id)?.filter((k) => usual.includes(k as (typeof usual)[number]))
+    if (last && last.length > 0) api.update({ selected: last })
+    // Once, as a new post opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [reconnected, setReconnected] = React.useState(false)
   // The post as it opened: after a retry the live post is no longer failed, and a second send
   // (after "Edit post") must still keep the accounts it had reached.
@@ -297,6 +307,8 @@ export function Composer({
    * and comes back when Story is left; a post with a day keeps it, and the blocker says why.
    */
   function pickFormat(format: Format) {
+    // An existing post keeps its format: a save does not change it, so the page never offers to.
+    if (post) return
     setFormatChosen(true)
     update({ format })
     // What the last add left out was said for the format of then.
@@ -410,15 +422,31 @@ export function Composer({
   // Sent and on the way back to the calendar: a second press in that moment sends nothing.
   const submitted = React.useRef(false)
   // The day and the time the post opened on: a save that keeps them is not a move.
-  const openedSlot = React.useRef({ date, time })
+  // Save keeps them; Reschedule shows once either changes.
+  const [openedAt] = React.useState({ date, time })
+  const moved = date !== openedAt.date || time !== openedAt.time
   // On a phone each card opens in a sheet from its row; one sheet at a time.
   const [sheet, setSheet] = React.useState<SheetKey | null>(null)
   const closeSheet = () => setSheet(null)
-  const [saved, setSaved] = React.useState(false)
+  // Save draft was pressed on a post with nothing in it: the reason shows at the button.
+  const [emptyNote, setEmptyNote] = React.useState(false)
   // A save or a send on its way to the server.
   const [waiting, setWaiting] = React.useState<'send' | 'save' | null>(null)
 
   const active = activeChannels(draft)
+  const story = draft.format === 'story'
+  // The accounts the post really goes out on, as it opened and as it is now. A scheduled post
+  // whose set changed must be sent again: a PATCH drops a removed account's job, but only a send
+  // makes one for an added account.
+  const [openedOn] = React.useState(() => activeChannels(api.draft).map((c) => c.key))
+  const sendsTo = (keys: readonly string[]) =>
+    keys
+      .filter((k) => (sends as readonly string[]).includes(k))
+      .sort()
+      .join(' ')
+  const accountsChanged = sendsTo(active.map((c) => c.key)) !== sendsTo(openedOn)
+  // A scheduled post is sent again when its day, its time or its accounts changed.
+  const resend = moved || accountsChanged
   // Planned, not sent: Make cannot post a Story, and the planned-only accounts (TikTok) never go.
   const planned =
     planOnly ||
@@ -481,15 +509,21 @@ export function Composer({
         : 'Pick an account'
       : when === 'now'
         ? 'Post on'
-        : // On the edit page "Schedule" would mean a fourth thing: a scheduled post is moved.
+        : // On the edit page "Schedule" would mean a fourth thing: a scheduled post is moved
+          // (Reschedule), or sent again where its accounts changed (Save and send).
           post?.stage === 'scheduled'
-          ? 'Reschedule'
+          ? moved
+            ? 'Reschedule'
+            : 'Save and send'
           : 'Schedule'
   // A send names its accounts by their logos, so the button shows exactly where the post goes.
   const logos = retry ? retryOn : active.map((c) => c.key)
 
   /** The words a new post is known by on the calendar. */
-  const newHook = () => ideaHook ?? (draft.caption.split(/[.!?\n]/)[0]?.trim() || 'New post')
+  const newHook = () =>
+    ideaHook ??
+    ((draft.format !== 'story' && draft.caption.split(/[.!?\n]/)[0]?.trim()) ||
+      (draft.format === 'story' ? 'New story' : 'New post'))
 
   /**
    * The server's side of a save or a send, in order: the post is made or moved, everything the
@@ -499,9 +533,13 @@ export function Composer({
   function toServer(id: string, isNew: boolean, send: 'now' | 'slot' | null) {
     // Resolves to the server's refusal in words, or null once everything is stored.
     const b = brand.id
+    // A Story has no caption, and its box is hidden: words typed before are not sent. An existing
+    // post keeps its own format whatever the switch shows, so its caption stays.
+    const isStory = (post?.format ?? draft.format) === 'story'
     const day = date
     const content = {
-      caption: draft.caption,
+      // Only a post that is a Story: an existing post's format is not saved by a switch.
+      caption: isStory ? '' : draft.caption,
       channels: [
         ...(retry ? retryOn : active.map((c) => c.key)),
         // Planned only on the platforms the composer offers: a post's others (YouTube, LinkedIn)
@@ -510,7 +548,7 @@ export function Composer({
       ] as string[],
       media: media.map((m) => mediaItem(m.src)),
       draft: {
-        overrides: draft.overrides,
+        overrides: isStory ? {} : draft.overrides,
         youtubeTitle: draft.youtubeTitle,
         madeForKids: draft.madeForKids,
         privacy: draft.privacy,
@@ -540,7 +578,8 @@ export function Composer({
             ...(send !== 'now' && { day, time }),
           })
         }
-      } else if (send !== 'now') {
+      } else if (send === 'slot' || (send === null && moved)) {
+        // A plain save that keeps the day and the time is a PATCH alone, not a move.
         await request('POST', `/brands/${b}/posts/${id}/move`, { day, time })
       }
       await request('PATCH', `/brands/${b}/posts/${id}`, content)
@@ -630,12 +669,12 @@ export function Composer({
     } else {
       toCalendar(when === 'now' ? 'posted' : 'scheduled')
     }
+    remember()
     // Scheduled: back to the calendar, where the post now sits, with a word on when. The demo's
-    // "Publish now" and a planned-only post keep the Outcomes page: the uploads, or the note that
-    // nothing is sent.
-    if (how === 'slot' && !planned) {
+    // "Publish now" and a new planned-only post keep the Outcomes page: the uploads, or the note
+    // that nothing is sent. A scheduled post moved goes back to the calendar either way.
+    if (how === 'slot' && (!planned || post?.stage === 'scheduled')) {
       submitted.current = true
-      const moved = date !== openedSlot.current.date || time !== openedSlot.current.time
       const word = post?.stage !== 'scheduled' ? 'Scheduled for' : moved ? 'Moved to' : 'Saved for'
       report(`${word} ${dayLabel(date)}, ${time}`)
       router.push('/')
@@ -646,27 +685,86 @@ export function Composer({
 
   // A post already past draft keeps its stage when saved: saving a caption must not unschedule it.
   const keeps = post !== undefined && post.stage !== 'draft'
+  // A scheduled post has one save action: Save (a PATCH alone) while its day, time and accounts
+  // are as they were; Reschedule or Save and send, which send it again, once one changed.
+  const oneAction = post?.stage === 'scheduled' && when === 'schedule'
 
   // A scheduled post with no platform cannot be kept scheduled: the core refuses it.
   const unsaveable = readOnly || (remote && post?.stage === 'scheduled' && active.length === 0)
 
+  // A new post with no media and no caption has nothing to keep.
+  // A Story may be kept with nothing in it (it can be scheduled so), and an idea's words count.
+  const empty = !post && !story && !ideaHook && media.length === 0 && draft.caption.trim() === ''
+
+  /** The accounts a new post went to, for the next one. A Story's (Instagram only) are not. */
+  function remember() {
+    if (post || story) return
+    saveLastAccounts(
+      brand.id,
+      active.map((c) => c.key),
+    )
+  }
+
+  /** Saves and goes back to the calendar, with a line that says where the post sits. */
   async function saveDraft() {
+    if (empty) return setEmptyNote(true)
     if (unsaveable || waiting || submitted.current) return
     if (remote) {
       if (!(await stored(keeps ? post.stage : 'draft', null))) return
     } else {
       toCalendar(keeps ? post.stage : 'draft')
     }
-    setSaved(true)
+    remember()
+    submitted.current = true
+    report(`${keeps ? 'Saved for' : 'Draft saved for'} ${dayLabel(date)}, ${time}`)
+    router.push('/')
   }
 
-  if (saved)
-    return (
-      <Saved
-        title={keeps ? 'Saved' : 'Saved as a draft on the calendar'}
-        onEdit={() => setSaved(false)}
-      />
+  /**
+   * A scheduled or failed post back to a draft: its waiting sends are cancelled. The calendar
+   * changes, and the line says so, only once the server has it; a refusal shows its own line.
+   */
+  async function unschedule() {
+    if (!post || post.stage === 'posted' || post.stage === 'draft' || waiting) return
+    const b = brand.id
+    setWaiting('save')
+    const refused = await sent(b, () =>
+      request('POST', `/brands/${b}/posts/${post.id}/mark`, { stage: 'draft' }),
     )
+    setWaiting(null)
+    if (refused !== null) return
+    quietly(() => setStage(post.id, 'draft'))
+    report('Unscheduled: it is a draft now')
+  }
+
+  /**
+   * The post leaves the calendar once the server has deleted it. One planned from an idea gives
+   * its day back to the idea (the core does the same). A refusal keeps the page as it was.
+   */
+  async function remove() {
+    if (!post || post.stage === 'posted' || waiting || submitted.current) return
+    const b = brand.id
+    setWaiting('save')
+    const refused = await sent(b, () => request('DELETE', `/brands/${b}/posts/${post.id}`))
+    setWaiting(null)
+    if (refused !== null) return
+    submitted.current = true
+    // Gone on purpose: the page goes back to the calendar, not to "not in the demo".
+    leaving.add(post.id)
+    router.push('/')
+    quietly(() => {
+      if (fromCard) {
+        const src = fromCard.source
+        const why =
+          src.kind === 'moment' ? src.title : src.kind === 'insight' ? src.line : 'Team idea'
+        unplanPost(post.id, { format: fromCard.format, hook: fromCard.hook, why })
+        editIdea(brand.id, fromCard.id, { postId: undefined })
+      } else {
+        unplanPost(post.id)
+      }
+    })
+    report(fromCard ? 'Deleted: the idea is back on its day' : 'Deleted')
+  }
   if (phase !== 'compose') {
     return (
       <Outcomes
@@ -682,8 +780,13 @@ export function Composer({
   }
 
   /** What stops the post, each on its own line; the phone has room for the first alone. */
+  // What the button shown waits for: a plain Save waits only for an account; a send for all.
+  const reasons = [
+    ...(emptyNote && empty ? ['Nothing to save yet: add a photo or a caption.'] : []),
+    ...(oneAction && !resend ? (unsaveable && !readOnly ? ['Pick an account.'] : []) : blocked),
+  ]
   const hint = (all: boolean) =>
-    blocked.slice(0, all ? undefined : 1).map((b) => (
+    reasons.slice(0, all ? undefined : 1).map((b) => (
       <span key={b} className="flex min-w-0 items-center gap-1.5">
         <span className="size-1.5 shrink-0 rounded-full bg-ink" />
         <span className="min-w-0 truncate">{b}</span>
@@ -697,7 +800,7 @@ export function Composer({
       aria-label={logos.length > 0 ? `${label} ${namesOf(logos)}` : undefined}
       aria-busy={waiting === 'send'}
       onClick={primary}
-      className={`flex h-10 min-w-0 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-[13.5px] font-medium transition-[background-color,box-shadow] max-md:h-12 max-md:flex-1 max-md:text-[14px] ${stuck ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
+      className={`flex h-10 min-w-0 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-[14px] font-medium transition-[background-color,box-shadow] max-md:h-12 max-md:flex-1 max-md:text-[14px] ${stuck ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
     >
       {waiting === 'send' ? (
         'Sending…'
@@ -722,13 +825,40 @@ export function Composer({
   const draftButton = (
     <button
       type="button"
-      aria-disabled={unsaveable}
+      aria-disabled={unsaveable || empty}
       aria-busy={waiting === 'save'}
       onClick={saveDraft}
-      className={`flex h-10 shrink-0 items-center rounded-full px-4 text-[13px] font-medium transition-colors max-md:h-12 max-md:text-[14px] ${unsaveable ? 'cursor-not-allowed text-ink-5' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
+      className={`flex h-10 shrink-0 items-center rounded-full px-4 text-[14px] font-medium transition-colors max-md:h-12 ${unsaveable || empty ? 'cursor-not-allowed text-ink-4' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
     >
       {waiting === 'save' ? 'Saving…' : keeps ? 'Save' : 'Save draft'}
     </button>
+  )
+  // A scheduled post whose day, time and accounts are as they were: Save is the one button. It
+  // keeps the stage and sends nothing (a PATCH alone), so a time already past does not stop it.
+  // Once one of them changes, the send takes its place: Reschedule, or Save and send.
+  const saveMain = (
+    <button
+      type="button"
+      aria-disabled={unsaveable}
+      aria-busy={waiting === 'save'}
+      onClick={saveDraft}
+      className={`flex h-10 min-w-0 shrink-0 items-center justify-center rounded-full px-5 text-[14px] font-medium transition-[background-color,box-shadow] max-md:h-12 max-md:flex-1 ${unsaveable ? 'cursor-not-allowed bg-surface text-ink-4' : 'bb-press bg-ink text-page hover:shadow-lift'}`}
+    >
+      {waiting === 'save' ? 'Saving…' : 'Save'}
+    </button>
+  )
+  // A scheduled post has no second save button beside its one action.
+  const actions = oneAction ? (
+    <>
+      {resend ? send : saveMain}
+      {nowMenu}
+    </>
+  ) : (
+    <>
+      {draftButton}
+      {send}
+      {nowMenu}
+    </>
   )
   // What Instagram shows of the people: the collaborators in its name line, the first photo's tags.
   const people = {
@@ -821,26 +951,33 @@ export function Composer({
       <header className="flex flex-col gap-2">
         {/* A post that exists says where it is; a new one is new, as its title says. */}
         {post && (
-          <span className="self-start rounded-full bg-surface px-2 py-[2px] text-[12px] font-medium text-ink-2">
-            {STAGE_LABEL[post.stage]}
+          <span className="flex items-center justify-between gap-3">
+            <span className="rounded-full bg-surface px-2 py-[2px] text-[12px] font-medium text-ink-2">
+              {STAGE_LABEL[post.stage]}
+            </span>
+            {!readOnly && (
+              <PostMenu
+                onUnschedule={
+                  post.stage === 'scheduled' || post.stage === 'failed' ? unschedule : undefined
+                }
+                onDelete={remove}
+                ideaBack={Boolean(fromCard)}
+              />
+            )}
           </span>
         )}
-        <h1 className="font-display text-[38px] leading-none tracking-[-0.035em] max-md:text-[28px] max-md:leading-[1.05]">
+        <h1 className="font-display text-[34px] leading-none tracking-[-0.035em] max-md:text-[28px] max-md:leading-[1.05]">
           {post ? post.hook : 'New post'}
         </h1>
       </header>
       {/* On a phone the send bar sits at the bottom, under the thumb, and stays there. */}
       <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col gap-2 border-t border-line bg-page px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom))] md:hidden">
-        {blocked.length > 0 && (
+        {reasons.length > 0 && (
           <span aria-live="polite" className="flex flex-col text-[13px] text-ink-3">
             {hint(false)}
           </span>
         )}
-        <div className="flex items-center gap-2">
-          {draftButton}
-          {send}
-          {nowMenu}
-        </div>
+        <div className="flex items-center gap-2">{actions}</div>
       </div>
 
       {post?.stage === 'failed' && (
@@ -901,6 +1038,7 @@ export function Composer({
             ideas={post ? [] : ideas.filter((i) => !i.postId || !byId(i.postId))}
             onIdea={setIdeaHook}
             pickFormat={pickFormat}
+            formatLocked={post !== undefined}
           />
           {/* The phone's list: every other card as a row that says its answer and opens it. */}
           <div className="flex flex-col border-t border-(--cal-line) md:hidden">
@@ -914,7 +1052,6 @@ export function Composer({
                         <PlatformLogo key={c.key} platform={c.key} size={12} />
                       ))}
                     </span>
-                    · {FORMAT_LABEL[draft.format]}
                   </span>
                 ) : remote ? (
                   'No platform listed'
@@ -974,11 +1111,7 @@ export function Composer({
               >
                 {hint(true)}
               </div>
-              <span className="flex shrink-0 items-center gap-2">
-                {draftButton}
-                {send}
-                {nowMenu}
-              </span>
+              <span className="flex shrink-0 items-center gap-2">{actions}</span>
             </div>
           </div>
         </div>
@@ -1246,6 +1379,7 @@ function Content({
   ideas,
   onIdea,
   pickFormat,
+  formatLocked,
   addMedia,
   leftOut,
   room,
@@ -1263,9 +1397,12 @@ function Content({
   ideas: Array<{ hook: string; format: Exclude<Format, 'story'> }>
   onIdea: (hook: string) => void
   pickFormat: (format: Format) => void
+  /** An existing post: its format shows as words, since a save keeps the format it has. */
+  formatLocked: boolean
 }) {
   const { draft, update } = api
   const active = activeChannels(draft)
+  const story = draft.format === 'story'
   const [tab, setTab] = React.useState<'all' | ChannelKey>('all')
   const [writing, setWriting] = React.useState(false)
   const [drafted, setDrafted] = React.useState(0)
@@ -1418,7 +1555,7 @@ function Content({
                   onIdea(idea.hook)
                   setMedia(library.slice(0, 1).map(shotOf))
                 }}
-                className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 text-[12.5px] text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-10 max-md:text-[13.5px]"
+                className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 text-[13px] text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-10 max-md:text-[14px]"
               >
                 <SparkIcon size={9} />
                 {idea.hook}
@@ -1430,19 +1567,28 @@ function Content({
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3 max-md:flex-col max-md:items-stretch max-md:gap-2">
-          <div className={`w-[240px] max-md:w-full ${TAP}`}>
-            <Segmented<Format>
-              label="Format"
-              pill
-              value={draft.format}
-              onChange={pickFormat}
-              options={[
-                { value: 'carousel', label: 'Post' },
-                { value: 'reel', label: 'Reel' },
-                { value: 'story', label: 'Story' },
-              ]}
-            />
-          </div>
+          {formatLocked ? (
+            <span
+              title="Make a new post to change the format"
+              className="text-[13px] font-medium text-ink-2"
+            >
+              {FORMAT_LABEL[draft.format]}
+            </span>
+          ) : (
+            <div className={`w-[240px] max-md:w-full ${TAP}`}>
+              <Segmented<Format>
+                label="Format"
+                pill
+                value={draft.format}
+                onChange={pickFormat}
+                options={[
+                  { value: 'carousel', label: 'Post' },
+                  { value: 'reel', label: 'Reel' },
+                  { value: 'story', label: 'Story' },
+                ]}
+              />
+            </div>
+          )}
           {/* Two or more photos in a post make a carousel: said, since the switch says Post. */}
           {draft.format === 'carousel' && media.length > 1 && (
             <span className="text-[13px] text-ink-3">Carousel · {media.length}</span>
@@ -1567,25 +1713,40 @@ function Content({
             core has no library yet, so nothing shows there. */}
         {library.length > 0 && room > 0 && (
           <div className={`flex gap-2 ${STRIP}`}>
-            {library.map((src) => (
-              <button
-                key={src}
-                type="button"
-                aria-label={`Add ${src.split('/').pop()?.split('#')[0]}`}
-                onClick={() => addMedia([shotOf(src)])}
-                className="relative block h-[72px] w-[58px] shrink-0 overflow-hidden rounded-[8px] bg-tile transition-transform hover:-translate-y-0.5"
-              >
-                <Media src={src} sizes="140px" />
-                {isVideo(src) && <TypeBadge format="reel" slides={1} />}
-              </button>
-            ))}
+            {library.map((src) => {
+              // A photo already in the post is marked, and a second tap takes it out again.
+              const picked = media.some((m) => m.src === src)
+              const name = src.split('/').pop()?.split('#')[0]
+              return (
+                <button
+                  key={src}
+                  type="button"
+                  aria-label={picked ? `Remove ${name}` : `Add ${name}`}
+                  aria-pressed={picked}
+                  onClick={() =>
+                    picked ? setMedia(media.filter((m) => m.src !== src)) : addMedia([shotOf(src)])
+                  }
+                  className={`relative block h-[72px] w-[58px] shrink-0 overflow-hidden rounded-[8px] bg-tile transition-transform hover:-translate-y-0.5 ${picked ? 'shadow-[0_0_0_2px_var(--page),0_0_0_3.5px_var(--ink)]' : ''}`}
+                >
+                  <Media src={src} sizes="140px" />
+                  {isVideo(src) && <TypeBadge format="reel" slides={1} />}
+                  {picked && (
+                    <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-ink text-page">
+                      <CheckIcon size={8} strokeWidth={2.4} />
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
 
-      <div ref={captionBox} className="flex flex-col gap-2">
-        {/* The tabs, once a caption differs per account, and the AI draft while it has work. */}
-        {(perAccount || aiLabel !== 'Looks good') && (
+      {/* A Story has no caption on Instagram or Facebook, so it shows no caption box. Words
+          typed before the format changed are kept with the post. */}
+      <div ref={captionBox} hidden={story} className="flex flex-col gap-2 [&[hidden]]:hidden">
+        {/* The tabs, once a caption differs per account, the way to them, and the AI draft. */}
+        {(perAccount || aiLabel !== 'Looks good' || active.length > 1) && (
           <div className="flex items-center justify-between gap-3">
             {perAccount ? (
               <div
@@ -1613,6 +1774,14 @@ function Content({
                   )
                 })}
               </div>
+            ) : active.length > 1 ? (
+              <button
+                type="button"
+                onClick={() => setAsked(true)}
+                className="text-[13px] text-ink-3 transition-colors hover:text-ink max-md:h-8"
+              >
+                Different caption per account
+              </button>
             ) : (
               <span />
             )}
@@ -1621,7 +1790,7 @@ function Content({
                 type="button"
                 onClick={writeWithAI}
                 disabled={writing}
-                className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:bg-paper hover:text-ink disabled:opacity-60 max-md:h-10 max-md:bg-transparent max-md:px-0 max-md:text-[13.5px]"
+                className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-colors hover:bg-paper hover:text-ink disabled:opacity-60 max-md:h-10 max-md:bg-transparent max-md:px-0 max-md:text-[14px]"
               >
                 <SparkIcon size={10} />
                 {aiLabel}
@@ -1636,12 +1805,12 @@ function Content({
             shownTab === 'all' ? 'Write a caption…' : `What ${NAME[shownTab]} shows instead`
           }
           aria-label={shownTab === 'all' ? 'Caption' : `${NAME[shownTab]} text`}
-          className="w-full resize-none rounded-[12px] bg-surface-2 p-4 text-[14.5px] leading-[1.5] outline-none placeholder:text-ink-5 focus:bg-surface max-md:min-h-[96px] max-md:rounded-none max-md:bg-transparent max-md:px-0 max-md:py-1 max-md:field-sizing-content max-md:focus:bg-transparent"
+          className="w-full resize-none rounded-[12px] bg-surface-2 p-4 text-[14px] leading-[1.5] outline-none placeholder:text-ink-5 focus:bg-surface max-md:min-h-[96px] max-md:rounded-none max-md:bg-transparent max-md:px-0 max-md:py-1 max-md:field-sizing-content max-md:focus:bg-transparent"
         />
         {mention.list}
         {/* Quiet meta under the caption: each account's count against its limit, once there is
             something to count, the AI's verdict, and the way to a caption per account. */}
-        <div className="flex min-h-6 flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-ink-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px] text-ink-4 empty:hidden">
           {active.map((c) => {
             const { used, max: limit } = lengthFor(draft, c.key)
             if (used === 0) return null
@@ -1666,18 +1835,9 @@ function Content({
             <button
               type="button"
               onClick={useShared}
-              className="ml-auto text-[12.5px] text-ink-3 transition-colors hover:text-ink max-md:h-8"
+              className="ml-auto text-[13px] text-ink-3 transition-colors hover:text-ink max-md:h-8"
             >
               Use the shared text
-            </button>
-          )}
-          {!perAccount && active.length > 1 && (
-            <button
-              type="button"
-              onClick={() => setAsked(true)}
-              className="ml-auto text-[12.5px] text-ink-3 transition-colors hover:text-ink max-md:h-8"
-            >
-              Different caption per account
             </button>
           )}
         </div>
@@ -1897,7 +2057,7 @@ function Details({
         options={placesOf(brand.id)}
         onPick={(location) => setDetails({ ...details, location })}
         aria-label="Location"
-        className="h-9 rounded-[10px] bg-surface-2 px-3 text-[13.5px] outline-none focus:bg-surface max-md:h-11"
+        className="h-9 rounded-[10px] bg-surface-2 px-3 text-[14px] outline-none focus:bg-surface max-md:h-11"
       />
     ),
     comment: (
@@ -1907,7 +2067,7 @@ function Details({
           rows={2}
           placeholder="Booking link, hashtags…"
           aria-label="First comment"
-          className="resize-none rounded-[10px] bg-surface-2 px-3 py-2 text-[13.5px] outline-none placeholder:text-ink-5 focus:bg-surface"
+          className="resize-none rounded-[10px] bg-surface-2 px-3 py-2 text-[14px] outline-none placeholder:text-ink-5 focus:bg-surface"
         />
         {comment.list}
       </>
@@ -1920,7 +2080,7 @@ function Details({
         <button
           type="button"
           onClick={() => setTagging(true)}
-          className="flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[12.5px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-10 max-md:text-[13.5px]"
+          className="flex h-8 items-center gap-1.5 rounded-full bg-surface px-3 text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-10 max-md:text-[14px]"
         >
           <PersonGlyph />
           {tagged.length > 0 ? 'Edit tags' : 'Tag on the photo'}
@@ -2129,7 +2289,7 @@ function TagEditor({
           </span>
         )}
       </div>
-      <p className="text-center text-[12.5px] text-ink-3">
+      <p className="text-center text-[13px] text-ink-3">
         {full
           ? `${TAG_MAX} tags is the most a photo takes.`
           : 'Tap the photo where someone is to tag them.'}
@@ -2323,7 +2483,7 @@ function MoreCard({
         onClick={() => setOpen((o) => !o)}
         className="flex min-h-[56px] w-full items-center gap-3 text-left"
       >
-        <span className="text-[13.5px] font-medium">More options</span>
+        <span className="text-[14px] font-medium">More options</span>
         <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px] text-ink-3">
           {needs && <span className="size-1.5 shrink-0 rounded-full bg-ink" />}
           <span className="truncate">{summary}</span>
@@ -2436,7 +2596,7 @@ function PerAccount({
                 className="flex min-h-12 w-full items-center gap-3 text-left"
               >
                 <PlatformLogo platform={c.key} size={14} />
-                <span className="text-[13.5px] font-medium">{c.name}</span>
+                <span className="text-[14px] font-medium">{c.name}</span>
                 <span className="flex flex-1 items-center gap-1.5 text-[13px] text-ink-3">
                   {s.needs && <span className="size-1.5 rounded-full bg-ink" />}
                   {s.text}
@@ -2684,7 +2844,7 @@ function TikTokRows({
               role="checkbox"
               aria-checked={draft.promo[key]}
               onClick={() => update({ promo: { ...draft.promo, [key]: !draft.promo[key] } })}
-              className={`h-8 rounded-full px-3.5 text-[12.5px] font-medium max-md:h-10 ${draft.promo[key] ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:text-ink'}`}
+              className={`h-8 rounded-full px-3.5 text-[13px] font-medium max-md:h-10 ${draft.promo[key] ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:text-ink'}`}
             >
               {label}
             </button>
@@ -2699,13 +2859,13 @@ function TikTokRows({
             saveTikTokDefault(brand.id, current)
             setStart(current)
           }}
-          className="h-8 self-start text-[12.5px] font-medium text-ink-3 underline-offset-2 transition-colors hover:text-ink hover:underline max-md:h-10 max-md:text-[13.5px]"
+          className="h-8 self-start text-[13px] font-medium text-ink-3 underline-offset-2 transition-colors hover:text-ink hover:underline max-md:h-10 max-md:text-[14px]"
         >
           Save as {brand.name} default
         </button>
       ) : (
         tiktokDefault(brand.id) && (
-          <span className="flex h-8 items-center gap-1.5 text-[12.5px] text-ink-4 max-md:h-10 max-md:text-[13.5px]">
+          <span className="flex h-8 items-center gap-1.5 text-[13px] text-ink-4 max-md:h-10 max-md:text-[14px]">
             <CheckIcon size={9} />
             {brand.name} default
           </span>
@@ -2832,7 +2992,7 @@ function WhenCard({
             </div>
             <div className="grid grid-cols-7 gap-1 text-center">
               {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-                <span key={i} className="text-[12px] text-ink-5">
+                <span key={i} className="text-[13px] text-ink-4">
                   {d}
                 </span>
               ))}
@@ -2848,7 +3008,7 @@ function WhenCard({
                     disabled={disabled}
                     aria-pressed={on}
                     onClick={() => setDate(d.date)}
-                    className={`relative flex h-9 items-center justify-center rounded-[9px] text-[12.5px] tabular-nums transition-colors max-md:h-10 max-md:text-[14px] ${on ? 'bg-ink text-page' : disabled ? 'text-ink-5' : d.outside ? 'text-ink-4 hover:bg-surface' : 'text-ink hover:bg-surface'}`}
+                    className={`relative flex h-9 items-center justify-center rounded-[9px] text-[13px] tabular-nums transition-colors max-md:h-10 max-md:text-[14px] ${on ? 'bg-ink text-page' : disabled ? 'text-ink-5' : d.outside ? 'text-ink-4 hover:bg-surface' : 'text-ink hover:bg-surface'}`}
                   >
                     {dayNumber(d.date)}
                   </button>
@@ -2976,6 +3136,143 @@ function NowMenu({ when, setWhen }: { when: WhenChoice; setWhen: (w: WhenChoice)
   )
 }
 
+/**
+ * The post's quiet menu: Unschedule takes a scheduled or failed post back to a draft, Delete takes
+ * it off the calendar after one question asked in the menu itself, never in a browser dialog.
+ */
+function PostMenu({
+  onUnschedule,
+  onDelete,
+  ideaBack,
+}: {
+  onUnschedule?: () => void
+  onDelete: () => void
+  /** The post came from an idea: the idea goes back on its day. */
+  ideaBack: boolean
+}) {
+  const [open, setOpen] = React.useState(false)
+  const [asking, setAsking] = React.useState(false)
+  const root = React.useRef<HTMLSpanElement>(null)
+  const button = React.useRef<HTMLButtonElement>(null)
+  React.useEffect(() => {
+    if (!open) return
+    const opener = button.current
+    root.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+    const away = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false)
+    }
+    // Escape closes; Up and Down step through the items, round the ends.
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') return setOpen(false)
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      const items = [...(root.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])]
+      if (items.length === 0) return
+      e.preventDefault()
+      const at = items.indexOf(document.activeElement as HTMLElement)
+      const step = e.key === 'ArrowDown' ? 1 : -1
+      items[(at + step + items.length) % items.length]!.focus()
+    }
+    document.addEventListener('pointerdown', away)
+    document.addEventListener('keydown', key)
+    return () => {
+      document.removeEventListener('pointerdown', away)
+      document.removeEventListener('keydown', key)
+      setAsking(false)
+      opener?.focus()
+    }
+  }, [open])
+  // The question takes the focus to Cancel, the safe answer.
+  const cancel = React.useRef<HTMLButtonElement>(null)
+  React.useEffect(() => {
+    if (asking) cancel.current?.focus()
+  }, [asking])
+  const item =
+    'flex h-9 w-full items-center rounded-[8px] px-3 text-left text-[14px] transition-colors hover:bg-surface max-md:h-11'
+  return (
+    <span ref={root} className="relative flex shrink-0">
+      <button
+        ref={button}
+        type="button"
+        aria-label="Post actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex size-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface hover:text-ink max-md:size-11"
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+          <circle cx="3" cy="7" r="1.3" />
+          <circle cx="7" cy="7" r="1.3" />
+          <circle cx="11" cy="7" r="1.3" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          role="menu"
+          aria-label="Post actions"
+          className="bb-menu absolute top-[calc(100%+6px)] right-0 z-30 w-[240px] rounded-[12px] bg-page p-1 shadow-pop ring-1 ring-(--cal-line)"
+        >
+          {asking ? (
+            <div className="flex flex-col gap-3 p-2">
+              <span className="text-[14px] leading-[1.4] text-ink">
+                Delete this post?
+                <span className="block text-[13px] text-ink-3">
+                  {ideaBack ? 'Its idea goes back on its day.' : 'This cannot be undone.'}
+                </span>
+              </span>
+              <span className="flex justify-end gap-2">
+                <button
+                  ref={cancel}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => setAsking(false)}
+                  className="h-9 rounded-full px-3 text-[13px] font-medium text-ink-2 hover:bg-surface"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false)
+                    onDelete()
+                  }}
+                  className="bb-press h-9 rounded-full bg-fail px-4 text-[13px] font-medium text-page"
+                >
+                  Delete
+                </button>
+              </span>
+            </div>
+          ) : (
+            <>
+              {onUnschedule && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false)
+                    onUnschedule()
+                  }}
+                  className={item}
+                >
+                  Unschedule
+                </button>
+              )}
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => setAsking(true)}
+                className={`${item} text-fail-ink`}
+              >
+                Delete…
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </span>
+  )
+}
+
 function CalendarGlyph() {
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -3032,27 +3329,6 @@ function TimeField({ time, setTime }: { time: string; setTime: (t: string) => vo
 function namesOf(keys: readonly ChannelKey[]): string {
   const names = keys.map((k) => NAME[k])
   return names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
-}
-
-/**
- * Today in the brand's own timezone on the core, the same clock `tooSoon` reads; the demo's fixed
- * today otherwise. The app's `todayDate()` is the last brand loaded, which may sit elsewhere.
- */
-const brandToday = (brandId: string) =>
-  remote ? clockToday(new Date(), timezoneOf(brandId)) : todayDate()
-
-/**
- * On the core, whether `time` on `date` has gone in the brand's own timezone, or comes within two
- * minutes: it would go out at once. The demo's today is a fixed day, so it never says so.
- */
-function tooSoon(brandId: string, date: string, time: string) {
-  if (!remote) return false
-  // The brand's own today: the app's today is the last brand loaded, which may sit elsewhere.
-  const zone = timezoneOf(brandId)
-  if (date !== clockToday(new Date(), zone)) return false
-  const soon = clockTime(zone, new Date(Date.now() + 2 * 60_000))
-  // Within two minutes of midnight the rest of today has gone.
-  return soon < clockTime(zone) || time <= soon
 }
 
 /** Each hour the chart draws, 8:00 to 22:00. */
@@ -3118,10 +3394,9 @@ function DayChart({
       <span
         className={`flex min-h-6 items-center text-[13px] ${hover === peak ? 'text-(--insight-6)' : 'text-ink-3'}`}
       >
+        {/* The hour picked, or the one under the pointer: the chart says the rest. */}
         {hover === null
-          ? times
-            ? 'Best hours to post'
-            : 'Hours'
+          ? `${time}${hour === HOURS[peak] ? ' · best hour' : ''}`
           : `${timeFor(HOURS[hover]!) ?? at(HOURS[hover]!)}${hover === peak ? ' · best hour' : ''}`}
       </span>
       <div role="radiogroup" aria-label="Post hour" className="flex h-[96px] items-end gap-[3px]">
@@ -3157,7 +3432,7 @@ function DayChart({
           )
         })}
       </div>
-      <div className="flex gap-[3px] border-t border-(--cal-line) pt-1.5 text-[12px] text-ink-5">
+      <div className="flex gap-[3px] border-t border-(--cal-line) pt-1.5 text-[12px] text-ink-4">
         {HOURS.map((h) => (
           <span key={h} className="flex-1 text-center whitespace-nowrap">
             {h % 3 === 0 ? String(h).padStart(2, '0') : ''}
@@ -3415,7 +3690,7 @@ function Outcomes({
                   <button
                     type="button"
                     onClick={() => api.retry(k)}
-                    className="h-8 rounded-full bg-ink px-3.5 text-[12.5px] font-medium text-page"
+                    className="h-8 rounded-full bg-ink px-3.5 text-[13px] font-medium text-page"
                   >
                     Reconnect and retry
                   </button>
@@ -3505,32 +3780,5 @@ function OutcomePill({ outcome, planned }: { outcome: Outcome; planned: boolean 
       <span className={`size-1.5 rounded-full ${dot}`} />
       {label}
     </span>
-  )
-}
-
-/** A draft saved: it is on the calendar, nothing went out. */
-function Saved({ title, onEdit }: { title: string; onEdit: () => void }) {
-  return (
-    <div className="flex flex-col items-center gap-5 pt-16 text-center">
-      <span className="bb-pop flex size-10 items-center justify-center rounded-full bg-ink text-page">
-        <CheckIcon size={14} strokeWidth={2.2} />
-      </span>
-      <h1 className="font-display text-[36px] leading-none tracking-[-0.035em]">{title}</h1>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onEdit}
-          className="h-10 rounded-full bg-surface px-4 text-[13px] font-medium text-ink-2 hover:text-ink"
-        >
-          Keep editing
-        </button>
-        <Link
-          href="/"
-          className="bb-press flex h-10 items-center rounded-full bg-ink px-5 text-[13px] font-medium text-page"
-        >
-          Back to schedule
-        </Link>
-      </div>
-    </div>
   )
 }

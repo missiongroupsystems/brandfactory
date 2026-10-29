@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 
-import { SparkIcon } from '@/components/icons'
+import { PlusIcon, SparkIcon } from '@/components/icons'
 import { Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import type { CalendarEvent, Day, FeedMark } from '@/data/demo'
@@ -31,8 +31,10 @@ const STAGE_LABEL = {
   failed: 'Failed',
 } as const
 
+const hourOf = (h: number) => `${String(h % 24).padStart(2, '0')}:00`
+
 /** The hours' labels, also used for the band above them. */
-const GUTTER = 'font-mono text-[12px] text-ink-4'
+const GUTTER = 'text-[13px] text-ink-4 tabular-nums'
 
 /**
  * One day by the hour. Each post sits at its time as a thumbnail with its hook, channels and
@@ -99,7 +101,7 @@ export function DayView({
                     <EventChip
                       key={e.shootId ?? e.eventId ?? e.text}
                       event={e}
-                      className="flex h-7 items-center rounded-[6px] px-2.5 text-[12px] font-medium"
+                      className="flex h-7 items-center rounded-[6px] px-2.5 text-[13px] font-medium"
                     >
                       {e.text}
                     </EventChip>
@@ -124,21 +126,13 @@ export function DayView({
           {hours.map((h, i) => (
             <React.Fragment key={h}>
               <span
-                className="font-mono text-[12px] text-ink-4 tabular-nums"
-                style={{ position: 'absolute', top: i * HOUR_H - 6, left: 0 }}
+                className={GUTTER}
+                style={{ position: 'absolute', top: i * HOUR_H - 7, left: 0 }}
               >
-                {String(h % 24).padStart(2, '0')}:00
+                {hourOf(h)}
               </span>
-              <button
-                type="button"
-                tabIndex={-1}
-                aria-hidden="true"
-                onClick={
-                  day.past
-                    ? undefined
-                    : () => onNewPost(day.date, `${String(h).padStart(2, '0')}:00`)
-                }
-                className="absolute right-0 left-16 border-t border-(--cal-line) transition-colors hover:bg-(--cal-hover)"
+              <span
+                className="absolute right-0 left-16 border-t border-(--cal-line)"
                 style={{ top: i * HOUR_H, height: HOUR_H }}
               />
             </React.Fragment>
@@ -148,7 +142,7 @@ export function DayView({
               className="pointer-events-none absolute right-0 left-16 rounded-[10px] bg-(--insight-wash) shadow-[inset_2px_0_0_var(--insight-4)]"
               style={{ top: (best - FIRST_HOUR) * HOUR_H, height: 2 * HOUR_H }}
             >
-              <span className="absolute top-2 right-3 flex items-center gap-1 text-[12px] font-medium text-(--insight-6)">
+              <span className="absolute top-2 right-3 flex items-center gap-1 text-[13px] font-medium text-(--insight-6)">
                 <SparkIcon size={8} />
                 Best time to post
               </span>
@@ -164,7 +158,7 @@ export function DayView({
               <EventChip
                 key={shoot.id}
                 event={event}
-                className="absolute flex max-w-[300px] flex-col gap-0.5 overflow-hidden rounded-[10px] px-3 py-2.5 text-[12px] shadow-[inset_2px_0_0_var(--layer-shoot-ink)]"
+                className="absolute z-10 flex max-w-[300px] flex-col gap-0.5 overflow-hidden rounded-[10px] px-3 py-2.5 text-[12px] shadow-[inset_2px_0_0_var(--layer-shoot-ink)]"
                 style={{
                   top: from + 2,
                   height: Math.max(top(shoot.end) - from - 4, 28),
@@ -172,7 +166,7 @@ export function DayView({
                   right: 148,
                 }}
               >
-                <span className="font-mono text-[12px] tabular-nums opacity-75">
+                <span className="text-[13px] tabular-nums opacity-75">
                   Shoot · {timeRange(shoot)}
                 </span>
                 <span className="truncate text-[14px] font-medium">{shoot.title}</span>
@@ -187,10 +181,10 @@ export function DayView({
               type="button"
               onClick={onOpenStories}
               title={`${s.time} · ${s.title}`}
-              className="absolute right-3 flex items-center gap-2 rounded-[8px] p-1 transition-colors hover:bg-surface"
+              className="absolute right-3 z-10 flex items-center gap-2 rounded-[8px] p-1 transition-colors hover:bg-surface"
               style={{ top: top(s.time) + 4 }}
             >
-              <span className="font-mono text-[12px] text-ink-4 tabular-nums">{s.time}</span>
+              <span className="text-[13px] text-ink-4 tabular-nums">{s.time}</span>
               <span className="relative block h-[44px] w-[25px] overflow-hidden rounded-[4px] bg-tile shadow-[0_0_0_1px_var(--line)]">
                 {s.image && <Media src={s.image} sizes="64px" />}
               </span>
@@ -199,7 +193,7 @@ export function DayView({
           {placed.map(({ post, lane }) => (
             <div
               key={post.id}
-              className={`absolute flex items-start gap-3 rounded-[12px] bg-page p-2 ${post.stage === 'failed' ? 'shadow-[0_0_0_1px_var(--fail-line),var(--shadow-soft)]' : 'shadow-[0_0_0_1px_var(--line),var(--shadow-soft)]'}`}
+              className={`absolute z-10 flex items-start gap-3 rounded-[12px] bg-page p-2 ${post.stage === 'failed' ? 'shadow-[0_0_0_1px_var(--fail-line),var(--shadow-soft)]' : 'shadow-[0_0_0_1px_var(--line),var(--shadow-soft)]'}`}
               style={{
                 top: top(postTime(post)) + 4,
                 width: CARD_W,
@@ -214,13 +208,11 @@ export function DayView({
                 onClick={() => onOpenPost(post.id)}
                 className="flex min-w-0 flex-col gap-1.5 pt-0.5 text-left"
               >
-                <span className="font-mono text-[12px] text-ink-3 tabular-nums">
-                  {postTime(post)}
-                </span>
+                <span className="text-[13px] text-ink-3 tabular-nums">{postTime(post)}</span>
                 <span className="line-clamp-2 font-display text-[15px] leading-[1.2]">
                   {post.hook}
                 </span>
-                <span className="flex items-center gap-2 text-[12px] text-ink-3">
+                <span className="flex items-center gap-2 text-[13px] text-ink-3">
                   <span className="flex items-center gap-1 text-ink-4">
                     {channelsOf(post).map((c) => (
                       <PlatformLogo key={c} platform={c} size={10} />
@@ -235,13 +227,32 @@ export function DayView({
                   </span>
                 </span>
                 {post.stage === 'failed' && post.error && (
-                  <span className="text-[12px] leading-[1.35] font-medium text-fail-ink">
+                  <span className="text-[13px] leading-[1.35] font-medium text-fail-ink">
                     {post.error}
                   </span>
                 )}
               </button>
             </div>
           ))}
+          {/* An empty hour starts a post at that hour: "+ 11:00" shows on hover and on focus.
+              After the posts in the page, so a keyboard reaches the posts first; under them on
+              screen, so a post's card stays on top. */}
+          {!day.past &&
+            hours.map((h, i) => (
+              <button
+                key={h}
+                type="button"
+                aria-label={`New post at ${hourOf(h)}`}
+                onClick={() => onNewPost(day.date, hourOf(h))}
+                className="group/hour absolute right-0 left-16 flex items-start px-3 pt-2 text-left outline-none transition-colors hover:bg-(--cal-hover) focus-visible:bg-(--cal-hover) focus-visible:shadow-[inset_0_0_0_2px_var(--ink)]"
+                style={{ top: i * HOUR_H + 1, height: HOUR_H - 1 }}
+              >
+                <span className="flex items-center gap-1 text-[13px] text-ink-3 opacity-0 transition-opacity group-hover/hour:opacity-100 group-focus-visible/hour:opacity-100">
+                  <PlusIcon size={10} />
+                  {hourOf(h)}
+                </span>
+              </button>
+            ))}
         </div>
       </div>
     </div>
@@ -271,7 +282,7 @@ export function IdeaPills({
         <button
           type="button"
           onClick={() => setAll(true)}
-          className="h-8 rounded-full px-2.5 text-[12px] text-ink-3 transition-colors hover:text-ink"
+          className="h-8 rounded-full px-2.5 text-[13px] text-ink-3 transition-colors hover:text-ink"
         >
           +{more} more
         </button>

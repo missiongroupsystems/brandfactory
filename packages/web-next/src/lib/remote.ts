@@ -344,10 +344,15 @@ let chain: Promise<unknown> = Promise.resolve()
 /** Changes queued or on their way: a load waits until there are none. */
 let pending = 0
 let muted = 0
-const problems = new Set<(message: string) => void>()
+/** One thing a message offers to do, such as Undo. */
+export interface MessageAction {
+  label: string
+  run: () => void
+}
+const problems = new Set<(message: string, action?: MessageAction) => void>()
 
 /** Hears each refused write, in words; the app shows it briefly. */
-export function onProblem(listener: (message: string) => void) {
+export function onProblem(listener: (message: string, action?: MessageAction) => void) {
   problems.add(listener)
   return () => {
     problems.delete(listener)
@@ -361,9 +366,12 @@ function sentence(err: unknown): string {
   return /[.!?]$/.test(capital) ? capital : `${capital}.`
 }
 
-/** Shows a problem without a reload, for a page with no brand to reload (the guest page). */
-export function report(message: string) {
-  problems.forEach((l) => l(message))
+/**
+ * Shows a short line without a reload: a problem on a page with no brand to reload (the guest
+ * page), or what a change did, with one action such as Undo.
+ */
+export function report(message: string, action?: MessageAction) {
+  problems.forEach((l) => l(message, action))
 }
 
 /**

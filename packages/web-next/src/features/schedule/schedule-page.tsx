@@ -6,6 +6,7 @@ import * as React from 'react'
 import { AppHeader } from '@/components/app-header'
 import { Segmented } from '@/components/controls'
 import { PlusIcon } from '@/components/icons'
+import { PAGE } from '@/components/page-title'
 import { DEFAULT_LAYERS } from '@/data/demo'
 import { dayLabel } from '@/features/ideate/calendar-slot'
 import { withShoots } from '@/features/shoot/model'
@@ -218,23 +219,26 @@ export function SchedulePage() {
           onLayers={setLayers}
         />
       </div>
-      <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-end justify-between gap-x-6 gap-y-4 px-10 pt-6 pb-7 max-md:hidden">
+      {/* The title starts where every page's title starts (PAGE); the grid below keeps its own
+          wider column. */}
+      <div
+        className={`${PAGE} flex flex-wrap items-center justify-between gap-x-6 gap-y-4 pt-6 pb-7 max-md:hidden`}
+      >
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-          {/* Arrows first, so they stay put while the title changes width. */}
-          <span className="-ml-2 flex items-center">
-            <StepArrow label={`Previous ${unit}`} onClick={() => step(-1)} flip />
-            <StepArrow label={`Next ${unit}`} onClick={() => step(1)} />
-          </span>
           <TitleMonthPicker title={title} pick={pick} />
-          {!atToday && (
+          {/* Today is an outlined button beside the arrows, never a tag beside the date it names. */}
+          <span className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setCalendarPlace(todayPlace(view))}
-              className="bb-pop flex h-7 items-center rounded-full bg-surface px-3 text-[12px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink"
+              aria-disabled={atToday}
+              onClick={() => !atToday && setCalendarPlace(todayPlace(view))}
+              className={`flex h-8 items-center rounded-full px-3 text-[13px] font-medium shadow-[inset_0_0_0_1px_var(--line)] transition-colors ${atToday ? 'cursor-default text-ink-4' : 'text-ink-2 hover:bg-surface hover:text-ink'}`}
             >
               Today
             </button>
-          )}
+            <StepArrow label={`Previous ${unit}`} onClick={() => step(-1)} flip />
+            <StepArrow label={`Next ${unit}`} onClick={() => step(1)} />
+          </span>
           {/* What needs someone sits with the title, as a line of text, not among the controls. */}
           <FailedPill
             posts={failed}
@@ -266,7 +270,7 @@ export function SchedulePage() {
           <button
             type="button"
             onClick={() => newPost()}
-            className="bb-press group/new flex h-9 items-center gap-1.5 rounded-full bg-ink pr-4 pl-3.5 text-[13px] font-medium whitespace-nowrap text-page transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-[0_8px_18px_-8px_rgba(18,18,18,0.55)]"
+            className="bb-press group/new flex h-9 items-center gap-1.5 rounded-full bg-ink pr-4 pl-3.5 text-[14px] font-medium whitespace-nowrap text-page transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-[0_8px_18px_-8px_rgba(18,18,18,0.55)]"
           >
             {/* The one strong button: on hover it lifts a pixel and its plus turns a quarter. */}
             <span className="flex transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-hover/new:rotate-90">

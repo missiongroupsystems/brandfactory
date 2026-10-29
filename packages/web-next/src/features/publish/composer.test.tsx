@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import * as React from 'react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -96,9 +96,10 @@ describe('a new post in the demo', () => {
     show()
     const add = (name: RegExp, nth = 0) =>
       fireEvent.click(screen.getAllByRole('button', { name })[nth]!)
-    add(/^Add .+\.jpg$/, 0)
-    add(/^Add .+\.jpg$/, 1)
-    add(/^Add .+\.jpg$/, 2)
+    // A photo once added reads "Remove": the first "Add" is always the next photo.
+    add(/^Add .+\.jpg$/)
+    add(/^Add .+\.jpg$/)
+    add(/^Add .+\.jpg$/)
     add(/^Add .+\.mp4$/)
     expect(screen.getAllByRole('button', { name: 'Remove' })).toHaveLength(4)
     expect(format('Post')).toHaveAttribute('aria-checked', 'true')
@@ -153,10 +154,12 @@ describe('a new post in the demo', () => {
 
   it('keeps what the post holds when an add goes over the limit, and says how many were left out', async () => {
     show()
-    const add = (name: RegExp, nth = 0) =>
-      fireEvent.click(screen.getAllByRole('button', { name })[nth]!)
-    for (let i = 0; i < 10; i++) add(/^Add .+\.jpg$/, i % 4)
-    expect(screen.getAllByRole('button', { name: 'Remove' })).toHaveLength(10)
+    // Every library photo once (a second tap would take it out again), then uploads to ten.
+    while (screen.queryAllByRole('button', { name: /^Add .+\.jpg$/ }).length > 0)
+      fireEvent.click(screen.getAllByRole('button', { name: /^Add .+\.jpg$/ })[0]!)
+    const fromLibrary = screen.getAllByRole('button', { name: 'Remove' }).length
+    upload(...Array.from({ length: 10 - fromLibrary }, (_, i) => `photo-${i}.jpg`))
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Remove' })).toHaveLength(10))
     // Full: the library steps back, and an upload says what it could not take.
     upload('eleven.jpg')
     await screen.findByText('A post takes 10: 1 left out.')

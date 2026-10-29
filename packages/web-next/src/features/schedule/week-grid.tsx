@@ -28,8 +28,9 @@ import {
 import { storiesOf } from './stories'
 import { StoryDeck } from './story-panel'
 import { useBrand } from './posts-store'
+import { useMoveWithUndo } from './use-move-post'
 
-const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const CHANNEL_NAME = {
   ig: 'Instagram',
@@ -130,7 +131,7 @@ export function WeekGrid({
   onOpenStories: (date: string) => void
 }) {
   const todayCol = weeks.flatMap((w) => w.days).findIndex((d) => d.today) % 7
-  const { movePost } = useBrand()
+  const movePost = useMoveWithUndo()
   const [postId, setPostId] = React.useState<string | null>(null)
   const [landed, setLanded] = React.useState<string | null>(null)
   const [touchOver, setTouchOver] = React.useState<string | null>(null)
@@ -163,7 +164,7 @@ export function WeekGrid({
                 {DAY_NAMES.map((d, i) => (
                   <span
                     key={d}
-                    className={`px-2.5 font-mono text-[12px] tracking-[0.08em] ${i === todayCol ? 'text-ink' : 'text-ink-4'}`}
+                    className={`px-2.5 text-[13px] ${i === todayCol ? 'text-ink' : 'text-ink-4'}`}
                   >
                     {d}
                   </span>
@@ -244,7 +245,7 @@ function WeekRow({
           <EventChip
             key={event.shootId ?? event.eventId ?? event.text}
             event={event}
-            className="bb-lane pointer-events-auto mx-1 flex min-w-0 items-center rounded-[4px] px-2 text-[12px] leading-none font-medium"
+            className="bb-lane pointer-events-auto mx-1 flex min-w-0 items-center rounded-[4px] px-2 text-[13px] leading-none font-medium"
             style={{ gridColumn: `${event.col} / span ${event.span}`, gridRow: lane + 1 }}
           >
             <span className="truncate">{event.text}</span>
@@ -292,7 +293,7 @@ function DayCell({
         aria-hidden="true"
         className={`px-2.5 pt-2.5 pb-5 ${first ? '' : 'border-l border-(--cal-line)'}`}
       >
-        <span className="flex size-[22px] items-center justify-center text-[12px] font-medium text-ink-5 tabular-nums opacity-40">
+        <span className="flex size-[24px] items-center justify-center text-[13px] font-medium text-ink-5 tabular-nums opacity-40">
           {dayNumber(day.date)}
         </span>
       </div>
@@ -331,7 +332,7 @@ function DayCell({
       />
       <div className="flex h-6 items-center justify-between gap-1">
         <span
-          className={`flex size-[22px] items-center justify-center rounded-full text-[12px] font-medium tabular-nums ${day.today ? 'bg-ink text-page' : day.past ? 'text-ink-4' : 'text-ink-2'}`}
+          className={`flex size-[24px] items-center justify-center rounded-full text-[13px] font-medium tabular-nums ${day.today ? 'bg-ink text-page' : day.past ? 'text-ink-4' : 'text-ink-2'}`}
         >
           {dayNumber(day.date)}
         </span>
@@ -488,7 +489,7 @@ function WeekDay({
         <div key={post.id} className="flex flex-col gap-1.5">
           <PostTile post={post} eager={eager} onOpen={() => onOpenPost(post.id)} />
           <span
-            className={`flex items-center gap-1.5 text-[12px] tabular-nums ${post.stage === 'failed' ? 'font-medium text-fail-ink' : 'text-ink-3'}`}
+            className={`flex items-center gap-1.5 text-[13px] tabular-nums ${post.stage === 'failed' ? 'font-medium text-fail-ink' : 'text-ink-3'}`}
           >
             {postTime(post)}
             {post.stage === 'failed' && <span>· Fix it</span>}
@@ -508,7 +509,7 @@ function WeekDay({
           type="button"
           onClick={() => onNewPost(day.date)}
           aria-label={`New post on ${dayNumber(day.date)}`}
-          className={`flex h-9 max-w-[200px] items-center justify-center rounded-[8px] border border-dashed border-(--cal-ghost) text-ink-4 transition-opacity duration-200 group-hover:opacity-100 hover:text-ink focus-visible:opacity-100 ${items.posts.length + items.ideas.length > 0 ? 'opacity-0' : 'opacity-100'}`}
+          className="flex h-9 max-w-[200px] items-center justify-center rounded-[8px] border border-dashed border-(--cal-ghost) text-ink-4 transition-colors hover:text-ink"
         >
           <PlusIcon size={12} />
         </button>
@@ -551,7 +552,7 @@ export function IdeaTile({
   const open = useOpenIdea()
   const wide = React.useContext(WideTiles)
   const tint = tintOf(mark, brand.colour)
-  const kind = mark.format === 'reel' ? 'Reel' : 'Carousel'
+  const kind = mark.format === 'reel' ? 'Reel' : 'Post'
   // The calendar knows an idea by its hook, the same words the ideas page keeps.
   const cover = useCoverOfHook(brand.id, mark.hook)
   if (row) {
@@ -576,12 +577,12 @@ export function IdeaTile({
             />
           )}
         </span>
-        <span
-          className="shrink-0 font-mono text-[12px] tracking-[0.08em] uppercase"
-          style={{ color: tint }}
-        >
-          {mark.suggested ? 'Suggested' : 'Idea'}
-        </span>
+        {/* The dashed outline marks an idea; only a suggestion says so in words. */}
+        {mark.suggested && (
+          <span className="shrink-0 text-[13px] font-medium" style={{ color: tint }}>
+            Suggested
+          </span>
+        )}
         <span className="min-w-0 truncate text-[13px] text-ink">{mark.hook}</span>
       </button>
     )
@@ -594,15 +595,14 @@ export function IdeaTile({
       className={`group/idea flex w-full flex-col gap-1 rounded-[10px] border border-dashed p-2.5 text-left transition-[border-color,background-color] ${wide ? 'max-w-[200px]' : 'max-w-[124px]'} ${mark.suggested ? 'bg-(--insight-wash)' : 'bg-page hover:bg-surface'}`}
       style={{ borderColor: `color-mix(in oklab, ${tint} 55%, transparent)` }}
     >
-      <span
-        className="flex items-center gap-1 font-mono text-[12px] tracking-[0.08em] uppercase"
-        style={{ color: tint }}
-      >
-        {mark.suggested ? 'Suggested' : 'Idea'}
-      </span>
-      <span className="font-display text-[13.5px] leading-[1.15] text-ink">{mark.hook}</span>
-      <span className="line-clamp-2 text-[12px] leading-[1.3] text-ink-3">{mark.why}</span>
-      <span className="mt-1 flex items-center gap-1.5 text-[12px] text-ink-4">
+      {mark.suggested && (
+        <span className="text-[13px] font-medium" style={{ color: tint }}>
+          Suggested
+        </span>
+      )}
+      <span className="font-display text-[14px] leading-[1.15] text-ink">{mark.hook}</span>
+      <span className="line-clamp-2 text-[13px] leading-[1.3] text-ink-3">{mark.why}</span>
+      <span className="mt-1 flex items-center gap-1.5 text-[13px] text-ink-4">
         {cover && (
           <span className="relative size-4 shrink-0 overflow-hidden rounded-[4px] bg-tile">
             <Image
@@ -637,6 +637,10 @@ function ArrowIcon() {
     </svg>
   )
 }
+
+/** What a tile is: a Reel, a carousel of two or more, or a single photo. */
+export const kindOf = (post: Post) =>
+  post.format === 'reel' ? 'Reel' : post.images.length > 1 ? 'Carousel' : 'Photo'
 
 export function PostTile({
   post,
@@ -679,7 +683,7 @@ export function PostTile({
         drag.start(post.id)
       }}
       onDragEnd={drag.end}
-      aria-label={`${post.format === 'reel' ? 'Reel' : 'Carousel'}: ${post.hook}, ${STAGE_LABEL[post.stage].toLowerCase()}`}
+      aria-label={`${kindOf(post)}: ${post.hook}, ${STAGE_LABEL[post.stage].toLowerCase()}`}
       className={`${tile} group/tile bb-tile @container bg-tile text-left ${movable ? 'bb-touch-drag cursor-grab active:cursor-grabbing' : ''} ${drag.landed === post.id ? 'bb-land' : ''} ${failed ? 'shadow-[0_0_0_2px_var(--page),0_0_0_3.5px_var(--fail-line)]' : ''}`}
       style={{ opacity: drag.postId === post.id ? 0.35 : 1 }}
     >
@@ -709,7 +713,7 @@ export function PostTile({
             draggable={false}
             className="object-cover opacity-40 grayscale-[0.4]"
           />
-          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-page/90 px-2 py-1 font-mono text-[12px] tracking-[0.08em] whitespace-nowrap text-ink-2 uppercase">
+          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-page/90 px-2 py-1 text-[12px] whitespace-nowrap text-ink-2">
             No media yet
           </span>
         </>
@@ -720,18 +724,19 @@ export function PostTile({
           <span className="line-clamp-4 font-display text-[13px] leading-[1.2] text-ink-2 @max-[100px]:line-clamp-3 @max-[100px]:text-[12px]">
             {post.hook}
           </span>
-          <span className="font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase @max-[100px]:hidden">
-            No media yet
-          </span>
+          <span className="text-[12px] text-ink-4 @max-[100px]:hidden">No media yet</span>
         </span>
       )}
       {isDraft && (
         <span className="pointer-events-none absolute inset-[3px] rounded-[6px] border border-dashed border-(--tile-dash)" />
       )}
       {failed ? <FailedBadge /> : <StageChip stage={post.stage} />}
-      <span className="absolute top-2 right-2 text-page drop-shadow-[0_1px_2px_var(--tile-glyph-shadow)]">
-        {post.format === 'reel' ? <ReelIcon size={12} /> : <CarouselIcon size={12} />}
-      </span>
+      {/* A Reel and a carousel say so; a single photo needs no glyph. */}
+      {kindOf(post) !== 'Photo' && (
+        <span className="absolute top-2 right-2 text-page drop-shadow-[0_1px_2px_var(--tile-glyph-shadow)]">
+          {post.format === 'reel' ? <ReelIcon size={12} /> : <CarouselIcon size={12} />}
+        </span>
+      )}
     </button>
   )
 }

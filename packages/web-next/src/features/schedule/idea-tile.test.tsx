@@ -65,7 +65,8 @@ describe('an idea tile on the calendar', () => {
   it('reads as a plan, not a post, and opens the idea page, never the composer', () => {
     show(f1)
     const tile = screen.getByRole('button', { name: /^Idea: Pizza before the lights go out/ })
-    expect(tile).toHaveTextContent('Idea')
+    // The dashed outline says idea: no label repeats it (its accessible name still does).
+    expect(tile).not.toHaveTextContent(/^Idea/)
     expect(tile).toHaveTextContent('F1 weekend')
     expect(tile).toHaveTextContent('Reel')
     fireEvent.click(tile)

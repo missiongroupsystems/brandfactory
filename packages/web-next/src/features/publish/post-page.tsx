@@ -1,12 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
 import type { Platform } from '@/features/posted/model'
 import { useBrand } from '@/features/schedule/posts-store'
 
-import { Composer } from './composer'
+import { Composer, leaving } from './composer'
 
 /**
  * Scheduling on its own page, the core of the product: a post opened from the calendar, the shoot
@@ -31,6 +32,13 @@ export function PostPage({
   // so one taken back to an idea still reads as this brand's, gone from the demo.
   const mine = id ? posts.some((p) => p.id === id) || id.startsWith(`${brand.id}-`) : true
   const post = id && mine ? byId(id) : undefined
+  // A post deleted from this page is forgotten once the page goes.
+  React.useEffect(
+    () => () => {
+      if (id) leaving.delete(id)
+    },
+    [id],
+  )
   return (
     <div className="flex min-h-svh flex-col bg-surface-2 max-md:bg-page">
       {/* A post is a task: on a phone it is one white screen, with a back link and no header. */}
@@ -55,7 +63,7 @@ export function PostPage({
             {posted ? 'Posted' : 'Schedule'}
           </Link>
         </div>
-        {id && !post ? (
+        {id && !post && leaving.has(id) ? null : id && !post ? (
           <p className="text-[15px] text-ink-3">
             {mine
               ? 'This post is not in the demo any more. A reload starts the demo over.'

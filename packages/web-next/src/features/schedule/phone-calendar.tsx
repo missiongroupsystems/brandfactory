@@ -28,10 +28,11 @@ import {
 } from './calendar-items'
 import { onlyFailed } from './failed-menu'
 import { MonthPicker, type MonthPick } from './month-picker'
-import { PhoneFilters } from './phone-filters'
+import { filtering, PhoneFilters } from './phone-filters'
 import { useBrand } from './posts-store'
 import { storiesOf, type Story } from './stories'
 import { StoryDeck } from './story-panel'
+import { useMoveWithUndo } from './use-move-post'
 import { packLanes } from './week-grid'
 
 const LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
@@ -119,11 +120,15 @@ export function PhoneCalendar({
   onStages: (next: StageFilter) => void
   onLayers: (next: Record<LayerKey, boolean>) => void
 }) {
-  const { brand, library, byId, movePost, times } = useBrand()
+  const { brand, library, byId, times } = useBrand()
+  const movePost = useMoveWithUndo()
   const [moving, setMoving] = React.useState<string | null>(null)
   const [over, setOver] = React.useState<string | null>(null)
   const [landed, setLanded] = React.useState<string | null>(null)
   const swipe = React.useRef<{ x: number; y: number } | null>(null)
+  // The sheet the title menu opened: the filters or a new shoot.
+  const [sheet, setSheet] = React.useState<'filters' | 'shoot' | null>(null)
+  const closeSheet = React.useCallback(() => setSheet(null), [])
 
   const shownWeek = weeks[Math.min(week, weeks.length - 1)]!
   const shownDay = shownWeek.days[day]!
@@ -268,7 +273,7 @@ export function PhoneCalendar({
           <button
             type="button"
             onClick={() => pick(wi, di)}
-            className="font-mono text-[12px] tracking-[0.04em] text-ink-4 tabular-nums"
+            className="text-[13px] text-ink-4 tabular-nums"
           >
             +{more}
           </button>
@@ -293,8 +298,19 @@ export function PhoneCalendar({
 
   return (
     <div className="flex flex-col">
+      {/* The title row keeps four things: the title (its menu holds the views, the month, the
+          filters and a new shoot), the arrows, Today when away from it, and the one plus. */}
       <div className="flex items-center gap-0.5 px-4 pt-1 pb-2">
-        <ViewMenu title={title} view={view} onView={onView} pick={monthPick} />
+        <ViewMenu
+          title={title}
+          view={view}
+          onView={onView}
+          pick={monthPick}
+          failed={failed.length}
+          filtered={filtering(stages, layers)}
+          onFilters={() => setSheet('filters')}
+          onShoot={() => setSheet('shoot')}
+        />
         <StepArrow label={`Previous ${view}`} onClick={() => onStep(-1)} flip />
         <StepArrow label={`Next ${view}`} onClick={() => onStep(1)} />
         <span className="ml-auto flex shrink-0 items-center gap-1.5">
@@ -307,19 +323,32 @@ export function PhoneCalendar({
               Today
             </button>
           )}
-          <PhoneFilters
-            failed={failed}
-            stages={stages}
-            layers={layers}
-            onStages={onStages}
-            onLayers={onLayers}
-          />
-          <NewMenu
-            onPost={() => onNewPost(shownDay.past ? undefined : shownDay.date)}
-            shootDay={shootDay}
-          />
+          {/* The plus opens a new post at once, on the day picked when it is ahead. */}
+          <button
+            type="button"
+            aria-label="New post"
+            onClick={() => onNewPost(shownDay.past ? undefined : shownDay.date)}
+            className="bb-press flex size-9 items-center justify-center rounded-full bg-ink text-page"
+          >
+            <PlusIcon size={13} />
+          </button>
         </span>
       </div>
+      {sheet === 'filters' && (
+        <PhoneFilters
+          failed={failed}
+          stages={stages}
+          layers={layers}
+          onStages={onStages}
+          onLayers={onLayers}
+          onClose={closeSheet}
+        />
+      )}
+      {sheet === 'shoot' && (
+        <Sheet title="New shoot" onClose={closeSheet}>
+          <NewShootForm date={shootDay} />
+        </Sheet>
+      )}
       {failedOnly && (
         <button
           type="button"
@@ -354,7 +383,7 @@ export function PhoneCalendar({
           {LETTERS.map((l, i) => (
             <span
               key={i}
-              className={`py-1 text-center font-mono text-[12px] tracking-[0.06em] ${shownWeek.days[i]?.today && view !== 'month' ? 'text-ink' : 'text-ink-4'}`}
+              className={`py-1 text-center text-[13px] ${shownWeek.days[i]?.today && view !== 'month' ? 'text-ink' : 'text-ink-4'}`}
             >
               {l}
             </span>
@@ -427,11 +456,21 @@ function ViewMenu({
   view,
   onView,
   pick,
+  failed,
+  filtered,
+  onFilters,
+  onShoot,
 }: {
   title: string
   view: CalendarMode
   onView: (view: CalendarMode) => void
   pick: MonthPick
+  /** How many posts did not go out: the title carries a red dot while there are any. */
+  failed: number
+  /** A filter is on: the title carries a dot, so a filtered week never passes for a quiet one. */
+  filtered: boolean
+  onFilters: () => void
+  onShoot: () => void
 }) {
   const [open, setOpen] = React.useState(false)
   const root = React.useRef<HTMLDivElement>(null)
@@ -464,7 +503,7 @@ function ViewMenu({
           type="button"
           aria-haspopup="dialog"
           aria-expanded={open}
-          aria-label={`${title}. Change view or month`}
+          aria-label={`${title}. Change view or month${filtered ? ', filters on' : ''}${failed ? `, ${failed} failed` : ''}`}
           onClick={() => setOpen((o) => !o)}
           className="flex h-10 max-w-full items-center gap-1.5 rounded-[10px] pr-1.5 pl-0 text-left"
         >
@@ -472,6 +511,11 @@ function ViewMenu({
           <span className={`shrink-0 text-ink-4 transition-transform ${open ? 'rotate-180' : ''}`}>
             <ChevronIcon size={10} />
           </span>
+          {(failed > 0 || filtered) && (
+            <span
+              className={`size-2 shrink-0 self-start rounded-full ${failed > 0 ? 'bg-fail' : 'bg-ink'}`}
+            />
+          )}
         </button>
       </h1>
       {open && (
@@ -500,6 +544,33 @@ function ViewMenu({
               </button>
             ))}
           </div>
+          <div className="mx-1.5 mt-1 flex flex-col border-t border-(--cal-line) pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false)
+                onFilters()
+              }}
+              className="-mx-1.5 flex h-10 items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[14px] text-ink-2"
+            >
+              <span className="flex-1">Filters</span>
+              {failed > 0 ? (
+                <span className="text-[13px] font-medium text-fail-ink">{failed} failed</span>
+              ) : (
+                filtered && <span className="text-[13px] text-ink-3">On</span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false)
+                onShoot()
+              }}
+              className="-mx-1.5 flex h-10 items-center rounded-[8px] px-2.5 text-left text-[14px] text-ink-2"
+            >
+              New shoot
+            </button>
+          </div>
           <div className="mx-1.5 mt-1 border-t border-(--cal-line) px-1 pt-3 pb-2">
             <MonthPicker
               {...pick}
@@ -511,87 +582,6 @@ function ViewMenu({
             />
           </div>
         </div>
-      )}
-    </div>
-  )
-}
-
-/**
- * The one plus: a small menu of what to add, a post or a shoot, as a phone calendar's add button
- * offers an event or a task. A shoot opens its form in a sheet.
- */
-function NewMenu({ onPost, shootDay }: { onPost: () => void; shootDay?: string }) {
-  const [open, setOpen] = React.useState(false)
-  const [shoot, setShoot] = React.useState(false)
-  const root = React.useRef<HTMLDivElement>(null)
-
-  React.useEffect(() => {
-    if (!open) return
-    function onPointer(e: PointerEvent) {
-      if (!root.current?.contains(e.target as Node)) setOpen(false)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('pointerdown', onPointer)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('pointerdown', onPointer)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
-  const item = 'flex h-10 items-center rounded-[8px] px-2.5 text-left text-[14px]'
-  return (
-    <div ref={root} className="relative">
-      <button
-        type="button"
-        aria-label="New"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className="bb-press group/new flex size-9 items-center justify-center rounded-full bg-ink text-page"
-      >
-        <span
-          className={`flex transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${open ? 'rotate-45' : ''}`}
-        >
-          <PlusIcon size={13} />
-        </span>
-      </button>
-      {open && (
-        <div
-          role="menu"
-          aria-label="New"
-          className="bb-menu absolute top-11 right-0 z-30 flex w-[168px] origin-top-right flex-col rounded-[12px] bg-page p-1 shadow-[0_0_0_1px_var(--line),var(--shadow-pop)]"
-        >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false)
-              onPost()
-            }}
-            className={item}
-          >
-            New post
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false)
-              setShoot(true)
-            }}
-            className={item}
-          >
-            New shoot
-          </button>
-        </div>
-      )}
-      {shoot && (
-        <Sheet title="New shoot" onClose={() => setShoot(false)}>
-          <NewShootForm date={shootDay} />
-        </Sheet>
       )}
     </div>
   )
@@ -685,7 +675,7 @@ function IdeaSquare({ mark, date }: { mark: Extract<FeedMark, { kind: 'idea' }>;
       className={`flex aspect-[2/1] w-full items-center justify-center rounded-[8px] border border-dashed ${mark.suggested ? 'bg-(--insight-wash)' : 'bg-page'}`}
       style={{ borderColor: `color-mix(in oklab, ${tint} 55%, transparent)`, color: tint }}
     >
-      <span className="font-mono text-[12px] tracking-[0.04em] uppercase">Idea</span>
+      <span className="text-[12px] font-medium">Idea</span>
     </button>
   )
 }
@@ -737,7 +727,7 @@ function DayHead({
             <EventChip
               key={e.shootId ?? e.eventId ?? e.text}
               event={e}
-              className="flex h-7 items-center rounded-[6px] px-2.5 text-[12px] font-medium"
+              className="flex h-7 items-center rounded-[6px] px-2.5 text-[13px] font-medium"
             >
               {e.text}
             </EventChip>
@@ -842,9 +832,7 @@ function Hours({
             key={h}
             className={`relative flex min-h-[44px] gap-2 border-t border-(--cal-line) ${shaded ? 'bg-(--insight-wash)' : ''}`}
           >
-            <span className="w-11 shrink-0 pt-1.5 font-mono text-[12px] text-ink-4 tabular-nums">
-              {time}
-            </span>
+            <span className="w-11 shrink-0 pt-1.5 text-[13px] text-ink-4 tabular-nums">{time}</span>
             <div className="flex min-w-0 flex-1 flex-col">
               {posts.map((post) => (
                 <PostRow
@@ -859,7 +847,7 @@ function Hours({
               ))}
             </div>
             {h === best && (
-              <span className="pointer-events-none absolute top-1.5 right-2 flex items-center gap-1 text-[12px] font-medium text-(--insight-6)">
+              <span className="pointer-events-none absolute top-1.5 right-2 flex items-center gap-1 text-[13px] font-medium text-(--insight-6)">
                 <SparkIcon size={8} />
                 Best time
               </span>
@@ -930,7 +918,7 @@ function PostRow({
           </span>
         </span>
         {failed && post.error && (
-          <span className="line-clamp-2 text-[12px] leading-[1.35] text-fail-ink">
+          <span className="line-clamp-2 text-[13px] leading-[1.35] text-fail-ink">
             {post.error}
           </span>
         )}
@@ -965,11 +953,14 @@ function IdeaRow({ mark, date }: { mark: Extract<FeedMark, { kind: 'idea' }>; da
         )}
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span
-          className="truncate font-mono text-[12px] tracking-[0.08em] uppercase"
-          style={{ color: tint }}
-        >
-          {mark.suggested ? 'Suggested' : 'Idea'} · {mark.why}
+        {/* The dashed square marks an idea; only a suggestion says so in words. */}
+        <span className="truncate text-[13px] text-ink-3">
+          {mark.suggested && (
+            <span className="font-medium" style={{ color: tint }}>
+              Suggested ·{' '}
+            </span>
+          )}
+          {mark.why}
         </span>
         <span className="truncate text-[15px]">{mark.hook}</span>
       </span>
