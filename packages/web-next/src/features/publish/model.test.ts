@@ -319,25 +319,6 @@ describe('Improve keeps the marketer’s words', () => {
   })
 })
 
-describe('a typed post time', () => {
-  it('reads the ways people type a time, as the calendar stores it', () => {
-    expect(parseTime('19:30')).toBe('19:30')
-    expect(parseTime('1930')).toBe('19:30')
-    expect(parseTime('930')).toBe('09:30')
-    expect(parseTime('7.30pm')).toBe('19:30')
-    expect(parseTime('7pm')).toBe('19:00')
-    expect(parseTime('12am')).toBe('00:00')
-    expect(parseTime('9')).toBe('09:00')
-  })
-
-  it('refuses what is not a time, so the field goes back to the time it had', () => {
-    expect(parseTime('25:00')).toBeNull()
-    expect(parseTime('19:75')).toBeNull()
-    expect(parseTime('13pm')).toBeNull()
-    expect(parseTime('soon')).toBeNull()
-  })
-})
-
 describe('what Make can post to Instagram and Facebook', () => {
   const jpg = { src: 'https://core.test/files/s/brandbase/a.jpg', video: false }
   const png = { src: 'https://core.test/files/s/brandbase/b.png', video: false }
@@ -368,5 +349,24 @@ describe('what Make can post to Instagram and Facebook', () => {
     expect(makeBlockers('story', ['ig'], [png])).toEqual([])
     expect(makeBlockers('carousel', ['tt'], [png])).toEqual([])
     expect(makeBlockers('carousel', ['ig'], [sample])).toEqual([])
+  })
+})
+
+describe('a typed post time', () => {
+  it('reads the ways people type a time, as the calendar stores it', () => {
+    expect(parseTime('19:30')).toBe('19:30')
+    expect(parseTime('1930')).toBe('19:30')
+    expect(parseTime('930')).toBe('09:30')
+    expect(parseTime('7.30pm')).toBe('19:30')
+    expect(parseTime('7pm')).toBe('19:00')
+    expect(parseTime('12am')).toBe('00:00')
+    expect(parseTime('9')).toBe('09:00')
+  })
+
+  it('refuses what is not a time, so the field goes back to the time it had', () => {
+    expect(parseTime('25:00')).toBeNull()
+    expect(parseTime('19:75')).toBeNull()
+    expect(parseTime('13pm')).toBeNull()
+    expect(parseTime('soon')).toBeNull()
   })
 })

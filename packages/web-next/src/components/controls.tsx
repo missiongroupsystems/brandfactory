@@ -83,7 +83,8 @@ export function Switch({
 export function Fold({ open, children }: { open: boolean; children: React.ReactNode }) {
   return (
     <div
-      className="bb-fold"
+      // One column no wider than the fold: a row of chips inside must wrap, not push it out.
+      className="bb-fold grid-cols-[minmax(0,1fr)]"
       style={{ gridTemplateRows: open ? '1fr' : '0fr', opacity: open ? 1 : 0 }}
       aria-hidden={!open}
       inert={!open}

@@ -326,7 +326,7 @@ export function DrivePicker({
 }
 
 /** Tab stays inside the picker: from its last control it goes to the first, and back. */
-function trap(e: KeyboardEvent, box: HTMLElement) {
+export function trap(e: KeyboardEvent, box: HTMLElement) {
   const nodes = [...box.querySelectorAll<HTMLElement>('button, input, [tabindex="0"]')]
   const first = nodes[0]
   const last = nodes[nodes.length - 1]

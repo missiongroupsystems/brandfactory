@@ -32,12 +32,15 @@ beforeEach(() => {
   resetIdeas()
 })
 
-const show = () =>
+/** The composer with More options open, where the people, place and label fields are. */
+function show() {
   render(
     <BrandProvider>
       <Composer />
     </BrandProvider>,
   )
+  fireEvent.click(screen.getByRole('button', { name: /^More options/, expanded: false }))
+}
 
 const collaborators = () => screen.getByRole('combobox', { name: /^@account, up to/ })
 const offered = () => screen.getAllByRole('option').map((o) => o.textContent)

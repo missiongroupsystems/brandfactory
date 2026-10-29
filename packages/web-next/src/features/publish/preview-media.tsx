@@ -460,16 +460,8 @@ export function Placeholder({ light, onAdd }: { light: boolean; onAdd?: () => vo
       >
         {PLUS_GLYPH}
       </span>
-      <span className="flex flex-col items-center gap-[4px]">
-        <span className="text-[9px] leading-none font-medium" style={{ color: ink }}>
-          Add a photo or video
-        </span>
-        <span
-          className="text-[7.5px] leading-none"
-          style={{ color: `color-mix(in oklab, ${ink} 50%, transparent)` }}
-        >
-          or drop it here
-        </span>
+      <span className="text-[9px] leading-none font-medium" style={{ color: ink }}>
+        Add a photo or video
       </span>
     </>
   )

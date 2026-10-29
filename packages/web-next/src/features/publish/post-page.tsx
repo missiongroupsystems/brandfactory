@@ -37,7 +37,7 @@ export function PostPage({
       <div className="max-md:hidden">
         <AppHeader section={posted ? '/posted' : undefined} />
       </div>
-      <main className="mx-auto w-full max-w-[1280px] px-10 pb-24 max-md:px-4 max-md:pt-4 max-md:pb-[calc(96px+env(safe-area-inset-bottom))]">
+      <main className="mx-auto w-full max-w-[1280px] px-10 pb-24 max-md:px-4 max-md:pt-4 max-md:pb-[calc(140px+env(safe-area-inset-bottom))]">
         <div className="pb-5 max-md:pb-4">
           <Link
             href={posted ? `/posted?on=${posted}` : '/'}

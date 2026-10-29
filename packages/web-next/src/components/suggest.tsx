@@ -393,8 +393,11 @@ export function useMention({
     caret.current = null
   }, [value])
 
-  const read = (el: HTMLTextAreaElement) =>
+  const read = (el: HTMLTextAreaElement) => {
+    // A pick is landing: the field still holds the old text, so its selection says nothing yet.
+    if (caret.current !== null) return
     setWord(el.selectionStart === el.selectionEnd ? wordAt(el.value, el.selectionStart) : null)
+  }
 
   function pick(row: Row) {
     if (!word) return
