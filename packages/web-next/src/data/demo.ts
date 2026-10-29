@@ -69,6 +69,20 @@ export interface Post {
   permalink?: string
   /** When a story read back from its account comes down, an ISO time. */
   expiresAt?: string
+  /**
+   * The accounts it went out on, on the core: those whose job went live, or all its accounts for a
+   * post with no job. A planned-only account (TikTok beside Instagram) is not one of them.
+   */
+  wentOn?: Array<'ig' | 'tt' | 'yt' | 'li' | 'fb'>
+  /** Each account's latest reading as the core read it back: counts with their time, and its address. */
+  readings?: Partial<Record<'ig' | 'fb', Reading>>
+}
+
+/** One account's latest reading of a post: what the platform gave, nothing filled in. */
+export interface Reading {
+  metrics?: Post['metrics']
+  readAt?: string
+  permalink?: string
 }
 
 export const POSTS: Post[] = [

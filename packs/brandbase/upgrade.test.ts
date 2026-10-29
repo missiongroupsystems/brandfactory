@@ -332,3 +332,68 @@ describe('migration 0022 on a 1.12.1 database', () => {
     }
   })
 })
+
+describe('migration 0023 on a 1.13.0 database', () => {
+  it("keeps each reading, gives a post each channel's latest counts, and no link it never read", async () => {
+    const db = openPglite()
+    try {
+      await migrateCore(db)
+      await applyPackMigrations(
+        db,
+        'brandbase',
+        content.migrations.filter((m) => m.name < '0023'),
+      )
+      await db.exec(`
+        insert into brandbase.organizations (id, name) values ('co', 'Co'), ('other', 'Other');
+        insert into brandbase.brands (id, name, handle, org_id) values
+          ('one', 'One', '@one', 'co'), ('two', 'Two', '@two', 'other');
+        insert into brandbase.users (id, email, role) values ('a', 'a@example.com', 'member');
+        insert into brandbase.org_members (user_id, org_id, role) values ('a', 'co', 'owner');
+        insert into brandbase.posts (id, brand_id, format, hook, day, time, channels, marked, permalink, metrics, measured_at) values
+          ('sent', 'one', 'carousel', 'Sent', '2026-10-28', '18:00', '{ig,fb}', null, 'https://www.instagram.com/p/x/', '{"likes": 9}', '2026-10-29T05:00:00Z'),
+          ('quiet', 'one', 'carousel', 'Quiet', '2026-10-27', '18:00', '{ig}', 'posted', null, null, null),
+          ('theirs', 'two', 'carousel', 'Theirs', '2026-10-27', '18:00', '{ig}', 'posted', null, null, null);
+        insert into brandbase.post_readings (brand_id, channel, external_id, read_at, post_id, metrics) values
+          ('one', 'ig', '1', '2026-10-28T05:00:00Z', 'sent', '{"likes": 4}'),
+          ('one', 'ig', '1', '2026-10-29T05:00:00Z', 'sent', '{"likes": 9}'),
+          ('one', 'fb', '1_2', '2026-10-29T05:00:00Z', 'sent', '{"likes": 2}'),
+          ('two', 'ig', '3', '2026-10-29T05:00:00Z', 'theirs', '{"likes": 1}');
+      `)
+      await applyPackMigrations(db, 'brandbase', content.migrations)
+
+      const readings = `select id, brandbase.post_json(p) -> 'readings' as readings from brandbase.posts p order by id`
+      // Readings from before have no address: the post's own still covers its first account.
+      expect(await db.query(readings)).toEqual([
+        { id: 'quiet', readings: {} },
+        {
+          id: 'sent',
+          readings: {
+            fb: { metrics: { likes: 2 }, readAt: '2026-10-29T05:00:00.000Z' },
+            ig: { metrics: { likes: 9 }, readAt: '2026-10-29T05:00:00.000Z' },
+          },
+        },
+        {
+          id: 'theirs',
+          readings: { ig: { metrics: { likes: 1 }, readAt: '2026-10-29T05:00:00.000Z' } },
+        },
+      ])
+      // Under the row rules a person sees only their own company's readings in a post's JSON.
+      expect(await as(db, 'a', readings)).toEqual([
+        { id: 'quiet', readings: {} },
+        {
+          id: 'sent',
+          readings: {
+            fb: { metrics: { likes: 2 }, readAt: '2026-10-29T05:00:00.000Z' },
+            ig: { metrics: { likes: 9 }, readAt: '2026-10-29T05:00:00.000Z' },
+          },
+        },
+      ])
+      expect(await db.query('select count(*)::int as n from brandbase.post_readings')).toEqual([
+        { n: 4 },
+      ])
+      expect(await everyTableHasRowRules(db)).toEqual([])
+    } finally {
+      await db.close()
+    }
+  })
+})

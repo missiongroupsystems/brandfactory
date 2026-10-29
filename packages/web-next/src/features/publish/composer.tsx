@@ -161,8 +161,11 @@ interface KeptDraft {
 export function Composer({
   post,
   start,
+  posted,
 }: {
   post?: Post
+  /** A posted post opened from Posted: the account it opens on. */
+  posted?: ChannelKey
   /** A new post started from an empty day or hour on the calendar. */
   start?: { day?: string; time?: string; format?: Format }
 }) {
@@ -632,7 +635,7 @@ export function Composer({
     // Only the accounts it went out on, its first one open; none recorded, no preview.
     // On the core a post with no account recorded shows none; the demo's archive posts carry
     // none and preview on the format's usual ones, as before.
-    const went = post.channels ?? (remote ? [] : channelsOf(post))
+    const went = post.wentOn ?? post.channels ?? (remote ? [] : channelsOf(post))
     const day = dayOf(weeks, post.id)
     const year = day ? monthOf(day).year : 0
     const on = day
@@ -653,13 +656,7 @@ export function Composer({
           tagged: taggedIn(media),
           location: keptDraft.details?.location ?? '',
           labels: keptDraft.labels ?? [],
-          // On the core only the cover came across: a video shows it, and says why it does not play.
-          video:
-            remote &&
-            post.format === 'reel' &&
-            media.length > 0 &&
-            !media.some((m) => isVideo(m.src)),
-          permalink: post.permalink,
+          ...(posted && { asked: posted }),
         }}
       />
     )

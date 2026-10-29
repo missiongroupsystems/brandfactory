@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BrandProvider } from '@/features/schedule/posts-store'
 
@@ -25,10 +25,19 @@ const counted = (t: HTMLElement) =>
 const platform = () =>
   screen.getAllByRole('radio', { checked: true }).find((r) => r.closest('[aria-label="Platform"]'))
 
+// A story's "Live, n h left" counts from the real clock: noon keeps the demo's stories where the
+// tests expect them, whatever time the suite runs.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 9, 29, 12, 0))
+})
+afterEach(() => vi.useRealTimers())
+
 describe('Posted in the static demo', () => {
   it('opens on Instagram as the brand’s profile: its stories as rings, its posts newest first', () => {
     open()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('@casavostrasg')
+    // Nothing is linked in the demo: the brand's name, never a handle it may not own there.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Casa Vostra$/)
     expect(platform()).toHaveTextContent('Instagram')
     // The morning's stories (from 09:00 on 6 Oct, the demo's today) are up; the 5th's have gone.
     expect(rings().map((r) => r.getAttribute('aria-label'))).toEqual([

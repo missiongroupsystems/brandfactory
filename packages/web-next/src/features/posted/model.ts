@@ -1,6 +1,6 @@
 import type { Post } from '@/data/demo'
 import { FORMAT_LABEL, kindOn, type ChannelKey } from '@/features/publish/model'
-import { postOf, type ServerPost } from '@/features/schedule/remote-calendar'
+import { postOf, wentOf, type ServerPost } from '@/features/schedule/remote-calendar'
 import { addDays, clockTime, clockToday, dayLabel, MONTH_SHORT, todayDate } from '@/lib/dates'
 
 /**
@@ -58,13 +58,7 @@ export function nowIn(at: Date, zone: string, demoDay?: string): Moment {
  */
 export function fromServer(posts: ServerPost[]): PostedItem[] {
   return posts.flatMap((p) => {
-    const live = new Set(p.jobs.filter((j) => j.status === 'live').map((j) => j.channel))
-    const went =
-      p.jobs.length > 0
-        ? p.channels.filter((c) => live.has(c))
-        : p.stage === 'posted'
-          ? p.channels
-          : []
+    const went = wentOf(p)
     if (went.length === 0 || !p.day) return []
     const details = (p.draft as { details?: { collab?: string[] } }).details
     return [
@@ -108,6 +102,26 @@ export function platformOf(rail: Platform[], items: PostedItem[], picked?: Platf
   return rail.find((p) => ledgerOf(items, p).length > 0) ?? rail[0]!
 }
 
+/** "@casavostra", whether or not the name carries its "@". */
+const at = (name: string) => `@${name.trim().replace(/^@+/, '')}`
+
+/**
+ * The name over the profile: the account linked on the platform. An Instagram account is a
+ * handle; a Facebook Page has none, so its name shows as typed; TikTok shows its account's name,
+ * else the brand's handle (its imports are the brand's own). Instagram or Facebook with nothing
+ * linked shows the brand's name, never a handle it may not own there.
+ */
+export function profileName(
+  platform: Platform,
+  linked: { ig?: string; fb?: string; tt?: string },
+  brand: { name: string; handle: string },
+): string {
+  const name = linked[platform]?.trim()
+  if (platform === 'tt') return name || (brand.handle.trim() ? at(brand.handle) : brand.name)
+  if (!name) return brand.name
+  return platform === 'ig' ? at(name) : name
+}
+
 // ── Counts ───────────────────────────────────────────────────────────────────────────────────
 
 export type CountKey = keyof NonNullable<Post['metrics']>
@@ -120,20 +134,75 @@ const COUNT_ORDER: Array<[CountKey, string]> = [
   ['saves', 'Saves'],
 ]
 
-/** The real counts a post has, biggest story first: views, reach, then the reactions. */
-export function countsOf(post: Post): Array<{ key: CountKey; label: string; value: number }> {
-  const m = post.metrics ?? {}
+/** The real counts in a reading, biggest story first: views, reach, then the reactions. */
+export function countsIn(
+  metrics: Post['metrics'],
+): Array<{ key: CountKey; label: string; value: number }> {
+  const m = metrics ?? {}
   return COUNT_ORDER.flatMap(([key, label]) =>
     typeof m[key] === 'number' ? [{ key, label, value: m[key] }] : [],
   )
 }
 
+/** What one account read of a post: its counts, when they were read, and where the post is. */
+export interface ReadingOn {
+  counts: ReturnType<typeof countsIn>
+  measuredAt?: string
+  permalink?: string
+}
+
+/** Each account's site, by the end of a link's host. */
+const SITE: Record<ChannelKey, RegExp> = {
+  ig: /(^|\.)instagram\.com$/,
+  fb: /(^|\.)(facebook\.com|fb\.com|fb\.watch)$/,
+  tt: /(^|\.)tiktok\.com$/,
+  yt: /(^|\.)(youtube\.com|youtu\.be)$/,
+  li: /(^|\.)linkedin\.com$/,
+}
+
+function linksTo(link: string | undefined, channel: ChannelKey): boolean {
+  if (!link) return false
+  try {
+    return SITE[channel].test(new URL(link).hostname)
+  } catch {
+    return false
+  }
+}
+
 /**
- * The counts on one platform: a post's counts are its first account's, as the poster shows them,
- * so a post that also went to Facebook does not repeat Instagram's numbers there.
+ * A post on one of the accounts it went out on: that account's own latest reading and address.
+ * A post the core read back before it kept each account's (and the demo's) carries only its first
+ * account's, so that one stands in for the first account alone: Facebook never repeats
+ * Instagram's numbers or link. An account with no reading has no counts; nothing is filled in.
  */
+export function readingOn(post: Post, channel: ChannelKey, went: ChannelKey[]): ReadingOn {
+  const own = channel === 'ig' || channel === 'fb' ? post.readings?.[channel] : undefined
+  const first = went[0] === channel
+  const metrics = own?.metrics ?? (first ? post.metrics : undefined)
+  const measuredAt = own?.metrics ? own.readAt : first ? post.measuredAt : undefined
+  // Before 1.13.1 a post's link came from whichever account answered first, so it stands in only
+  // when it points at this account's site: "Open on Instagram" never opens Facebook.
+  const permalink =
+    own?.permalink ?? (first && linksTo(post.permalink, channel) ? post.permalink : undefined)
+  return {
+    counts: countsIn(metrics),
+    ...(measuredAt && { measuredAt }),
+    ...(permalink && { permalink }),
+  }
+}
+
+/**
+ * The account a post opens on: the one asked for (the Posted tab it came from) while the post went
+ * there, else the first with counts, else its first.
+ */
+export function openOn(post: Post, went: ChannelKey[], asked?: ChannelKey): ChannelKey | undefined {
+  if (asked && went.includes(asked)) return asked
+  return went.find((c) => readingOn(post, c, went).counts.length > 0) ?? went[0]
+}
+
+/** The counts on one platform: its own reading, never another account's. */
 export function countsOn(item: PostedItem, platform: Platform) {
-  return item.went[0] === platform ? countsOf(item.post) : []
+  return readingOn(item.post, platform, item.went).counts
 }
 
 /** 18420 → 18.4k; 480 → 480. */
@@ -180,8 +249,7 @@ export function summaryOf(ledger: PostedItem[], platform: Platform, today: strin
   const reach = total('reach')
   const totals = [...(reach.length > 0 ? reach : total('views')), ...total('likes')]
   const measuredAt = recent
-    .filter((_, i) => read[i]!.length > 0)
-    .flatMap((i) => (i.post.measuredAt ? [i.post.measuredAt] : []))
+    .flatMap((i) => readingOn(i.post, platform, i.went).measuredAt ?? [])
     .sort()
     .at(-1)
   return {
@@ -327,6 +395,19 @@ export function whenOf(item: PostedItem, today: string): string {
 /** "Today", or the weekday and the date: "Tue 28". */
 export function shortDay(item: PostedItem, today: string): string {
   return item.day === today ? 'Today' : dayLabel(item.day).split(' ').slice(0, 2).join(' ')
+}
+
+/** The caption under its title: without a first line that only says the title again. */
+export function bodyOf(caption: string, hook: string): string {
+  const lines = caption.split('\n')
+  const first = lines.findIndex((l) => l.trim() !== '')
+  if (first < 0) return ''
+  return lines[first]!.trim() === hook.trim()
+    ? lines
+        .slice(first + 1)
+        .join('\n')
+        .trim()
+    : caption.trim()
 }
 
 /** How long a story stays up. */

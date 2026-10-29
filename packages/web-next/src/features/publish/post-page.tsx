@@ -3,7 +3,7 @@
 import Link from 'next/link'
 
 import { AppHeader } from '@/components/app-header'
-import { PLATFORM_NAME, type Platform } from '@/features/posted/model'
+import type { Platform } from '@/features/posted/model'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { Composer } from './composer'
@@ -35,13 +35,13 @@ export function PostPage({
     <div className="flex min-h-svh flex-col bg-surface-2 max-md:bg-page">
       {/* A post is a task: on a phone it is one white screen, with a back link and no header. */}
       <div className="max-md:hidden">
-        <AppHeader />
+        <AppHeader section={posted ? '/posted' : undefined} />
       </div>
       <main className="mx-auto w-full max-w-[1280px] px-10 pb-24 max-md:px-4 max-md:pt-4 max-md:pb-[calc(96px+env(safe-area-inset-bottom))]">
         <div className="pb-5 max-md:pb-4">
           <Link
             href={posted ? `/posted?on=${posted}` : '/'}
-            className="inline-flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase transition-colors hover:text-ink"
+            className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 transition-colors hover:text-ink"
           >
             <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
               <path
@@ -52,7 +52,7 @@ export function PostPage({
                 strokeLinejoin="round"
               />
             </svg>
-            {posted ? `Posted · ${PLATFORM_NAME[posted]}` : 'Schedule'}
+            {posted ? 'Posted' : 'Schedule'}
           </Link>
         </div>
         {id && !post ? (
@@ -62,7 +62,12 @@ export function PostPage({
               : `This post belongs to another brand, not ${brand.name}.`}
           </p>
         ) : (
-          <Composer key={`${brand.id}-${post?.id ?? 'new'}`} post={post} start={start} />
+          <Composer
+            key={`${brand.id}-${post?.id ?? 'new'}`}
+            post={post}
+            start={start}
+            posted={posted}
+          />
         )}
       </main>
     </div>

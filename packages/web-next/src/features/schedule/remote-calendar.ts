@@ -30,13 +30,16 @@ export interface ServerPost {
   media: ServerMedia[]
   fromIdea: Post['fromIdea'] | null
   stage: Post['stage']
-  jobs: { channel: string; status: string; error: string | null }[]
+  /** `permalink`: where Make said the post is on that account (pack 1.13.1). */
+  jobs: { channel: string; status: string; error: string | null; permalink?: string | null }[]
   caption: string
   draft: Record<string, unknown>
   metrics?: Post['metrics'] | null
   permalink?: string | null
   measuredAt?: string | null
   expiresAt?: string | null
+  /** Each account's latest reading (pack 1.13.1); absent from an older core. */
+  readings?: Post['readings']
 }
 
 interface ServerIdea {
@@ -81,6 +84,29 @@ export function ourEvents(events: ServerEvent[], monday: string): CalendarEvent[
     })
 }
 
+/**
+ * The accounts a post went out on: those whose job is live, in its own order; with no job (an
+ * imported post, or one marked posted by hand), all its accounts.
+ */
+export function wentOf(p: ServerPost): NonNullable<Post['channels']> {
+  if (p.jobs.length === 0) return p.stage === 'posted' ? p.channels : []
+  const live = new Set(p.jobs.filter((j) => j.status === 'live').map((j) => j.channel))
+  return p.channels.filter((c) => live.has(c))
+}
+
+/**
+ * Each account's latest reading, with the address Make answered when it posted standing in for a
+ * reading's own until the read-back gives one. None when there is neither.
+ */
+export function readingsOf(p: ServerPost): Post['readings'] {
+  const out: NonNullable<Post['readings']> = { ...p.readings }
+  for (const j of p.jobs) {
+    if (j.status !== 'live' || !j.permalink || (j.channel !== 'ig' && j.channel !== 'fb')) continue
+    out[j.channel] = { ...out[j.channel], permalink: out[j.channel]?.permalink ?? j.permalink }
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
 export function postOf(p: ServerPost): Post {
   const failed = p.jobs.find((j) => j.status === 'failed')
   return {
@@ -97,6 +123,8 @@ export function postOf(p: ServerPost): Post {
     ...(p.permalink && { permalink: p.permalink }),
     ...(p.measuredAt && { measuredAt: p.measuredAt }),
     ...(p.expiresAt && { expiresAt: p.expiresAt }),
+    ...(readingsOf(p) && { readings: readingsOf(p) }),
+    ...(p.stage === 'posted' && { wentOn: wentOf(p) }),
     ...(failed && {
       error: failed.error ?? 'It did not go out.',
       failedOn: failed.channel as Post['failedOn'],

@@ -261,7 +261,11 @@ describe('a post from an earlier month in the demo', () => {
     expect(old.channels).toBeUndefined()
     inBrand(<Composer post={old} />)
     const header = document.querySelector('header')!
-    expect(within(header).getAllByText(/^(Instagram|TikTok|Facebook)$/).length).toBeGreaterThan(0)
+    const named = /^(Instagram|TikTok|Facebook)$/
+    expect(
+      within(header).queryAllByRole('img', { name: named }).length +
+        screen.queryAllByRole('radio', { name: named }).length,
+    ).toBeGreaterThan(0)
   })
 })
 

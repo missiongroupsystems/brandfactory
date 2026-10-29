@@ -791,6 +791,180 @@
       ]
     },
     {
+      "name": "a post on two accounts keeps each one's address and latest counts; a reading with only an address keeps its link, and a later one without keeps it",
+      "steps": [
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "facebook",
+            "accountId": "100000000000001",
+            "username": "Casa Vostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, time, caption, channels, media, marked, permalink) values\n  ('sent', 'casa', 'carousel', 'Pasta night', '2026-10-28', '18:00', 'Our own caption.', '{ig,fb,tt}',\n   '[{\"src\": \"https://core.test/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/11111111-1111-1111-1111-111111111111.jpg#photo\", \"kind\": \"photo\"}]', null, null)"
+        },
+        {
+          "sql": "insert into brandbase.post_jobs (id, post_id, brand_id, channel, status, run_at, external_id) values\n  ('sent:ig', 'sent', 'casa', 'ig', 'live', '2026-10-28T10:00:00Z', '17890000000000001'),\n  ('sent:fb', 'sent', 'casa', 'fb', 'live', '2026-10-28T10:00:00Z', '100000000000001_200000000000001')"
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "17890000000000001",
+                "kind": "carousel",
+                "postedAt": "2026-10-28T10:00:01Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "reach": 800,
+                  "likes": 64
+                },
+                "caption": "Changed on Instagram",
+                "permalink": "https://www.instagram.com/p/DSent1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/other.jpg"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 0,
+              "updated": 1,
+              "readings": 1,
+              "covers": []
+            }
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "fb",
+            "account": "100000000000001",
+            "items": [
+              {
+                "externalId": "100000000000001_200000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T10:00:01Z",
+                "readAt": "2026-10-29T04:00:00Z",
+                "metrics": {},
+                "permalink": "https://www.facebook.com/casa/posts/200000000000001"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 0,
+              "updated": 0,
+              "readings": 1
+            }
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "fb",
+            "account": "100000000000001",
+            "items": [
+              {
+                "externalId": "100000000000001_200000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T10:00:01Z",
+                "readAt": "2026-10-29T05:30:00Z",
+                "metrics": {
+                  "likes": 12,
+                  "shares": 2
+                }
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 0,
+              "updated": 0,
+              "readings": 1
+            }
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "id": "sent",
+                "permalink": "https://www.instagram.com/p/DSent1/",
+                "metrics": {
+                  "reach": 800,
+                  "likes": 64
+                },
+                "readings": {
+                  "ig": {
+                    "metrics": {
+                      "reach": 800,
+                      "likes": 64
+                    },
+                    "readAt": "2026-10-29T05:00:00.000Z",
+                    "permalink": "https://www.instagram.com/p/DSent1/"
+                  },
+                  "fb": {
+                    "metrics": {
+                      "likes": 12,
+                      "shares": 2
+                    },
+                    "readAt": "2026-10-29T05:30:00.000Z",
+                    "permalink": "https://www.facebook.com/casa/posts/200000000000001"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, time, caption, channels, media, marked) values ('quiet', 'casa', 'carousel', 'Not read yet', '2026-10-27', '18:00', '', '{ig}', '[]', 'posted')"
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "id": "quiet",
+                "readings": {}
+              },
+              {
+                "id": "sent"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "a story ends 24 hours after it went out, or when the reading says, and two stories on one day are both kept",
       "steps": [
         {

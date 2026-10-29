@@ -203,6 +203,14 @@ table's reach rule read the caller's company). Decided:
   - a Facebook reel or video read back by its `<page id>_<post id>` instead of its video id.
   Each is rare; the person can delete the extra one.
 
+## Per-account links and counts (brandbase 1.13.1, 2.46.0), as built
+
+Migration `0023_reading_links.sql`: each reading and each job keeps its address; `post_json` gives
+each post `readings`, the latest counts, read time and link per channel. A post on two accounts
+shows each one's own on its page, through a switch of platform marks, and on Posted's tabs. The
+publish scenario (8248176) should answer `permalink` so a sent post has its link before the first
+read-back (see the 2.46.0 changelog).
+
 ## Phase 3: a Make read-back scenario (about 1 day)
 
 One new scheduled scenario, "Read back", read-only on Meta. It does not edit scenario 8248176.

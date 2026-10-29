@@ -1,8 +1,11 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const at = vi.hoisted(() => ({ path: '/' }))
-vi.mock('next/navigation', () => ({ usePathname: () => at.path }))
+vi.mock('next/navigation', () => ({
+  usePathname: () => at.path,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}))
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -63,4 +66,39 @@ describe('a post’s own page', () => {
       expect(screen.getByRole('link', { name: 'Posted' })).not.toHaveAttribute('aria-current')
     },
   )
+})
+
+describe('a post opened from Posted', () => {
+  it('belongs to Posted, and back leads to Posted; opened from anywhere else it stays Schedule', async () => {
+    at.path = '/post/casa-vostra-archive-0'
+    vi.resetModules()
+    const { PostPage } = await import('@/features/publish/post-page')
+    const { BrandProvider } = await import('@/features/schedule/posts-store')
+    const { unmount } = render(
+      <BrandProvider>
+        <PostPage id="casa-vostra-archive-0" posted="ig" />
+      </BrandProvider>,
+    )
+    const main = screen.getByRole('navigation', { name: 'Main' })
+    expect(within(main).getByRole('link', { name: 'Posted' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    expect(within(main).getByRole('link', { name: 'Schedule' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: 'Posted', current: false })).toHaveAttribute(
+      'href',
+      '/posted?on=ig',
+    )
+    unmount()
+    render(
+      <BrandProvider>
+        <PostPage id="casa-vostra-archive-0" />
+      </BrandProvider>,
+    )
+    const again = screen.getByRole('navigation', { name: 'Main' })
+    expect(within(again).getByRole('link', { name: 'Schedule' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  })
 })

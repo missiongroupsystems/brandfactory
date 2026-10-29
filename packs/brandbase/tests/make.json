@@ -337,6 +337,122 @@
       ]
     },
     {
+      "name": "a link Make answers stays with its own account's job: a Facebook job that goes first never gives the post Facebook's link as its own",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "facebook",
+            "accountId": "100000000000001",
+            "username": "Casa Vostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "sql": "insert into brandbase.media (id, brand_id, storage_key, kind, mime, bytes) values ('m1', 'casa', 'brandbase/11111111-1111-1111-1111-111111111111.jpg', 'photo', 'image/jpeg', 2000)"
+        },
+        {
+          "call": "post.create_draft",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "format": "carousel",
+            "hook": "Pasta night",
+            "day": "2026-10-08",
+            "time": "18:00",
+            "caption": "Fresh pasta tonight.",
+            "media": [
+              {
+                "src": "https://core.test/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/11111111-1111-1111-1111-111111111111.jpg#photo",
+                "kind": "photo"
+              },
+              {
+                "src": "/photos/sample.jpg",
+                "kind": "photo"
+              }
+            ],
+            "channels": ["ig", "fb"]
+          }
+        },
+        {
+          "call": "post.schedule",
+          "input": {
+            "brand": "casa",
+            "id": "p1",
+            "when": "slot",
+            "channels": ["ig", "fb"]
+          },
+          "expect": {
+            "result": {
+              "channels": ["ig", "fb"],
+              "jobs": [
+                {
+                  "channel": "fb",
+                  "status": "scheduled"
+                },
+                {
+                  "channel": "ig",
+                  "status": "scheduled"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "approve": "post.publish_job",
+          "input": {
+            "brand": "casa",
+            "job": "p1:fb"
+          }
+        },
+        {
+          "sql": "delete from brandbase.post_jobs where id = 'p1:ig'"
+        },
+        {
+          "tick": "run",
+          "now": "2026-10-08T10:00:00Z",
+          "answer": {
+            "externalId": "100000000000001_200000000000001",
+            "permalink": "https://www.facebook.com/casa/posts/200000000000001"
+          }
+        },
+        {
+          "call": "post.list",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": [
+              {
+                "channels": ["ig", "fb"],
+                "permalink": null,
+                "jobs": [
+                  {
+                    "channel": "fb",
+                    "status": "live",
+                    "permalink": "https://www.facebook.com/casa/posts/200000000000001"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "an agent cannot send a scheduled Instagram job before its time, even with its person's yes",
       "steps": [
         {

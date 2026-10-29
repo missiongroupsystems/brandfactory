@@ -3,20 +3,22 @@
 import * as React from 'react'
 
 import { Segmented } from '@/components/controls'
+import { ArrowUpRightIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import type { Post } from '@/data/demo'
 import { NotAvailable, reasonOf } from '@/features/connections/not-available'
+import { asOf, bodyOf, k, openOn, readingOn, type ReadingOn } from '@/features/posted/model'
 import { useBrand } from '@/features/schedule/posts-store'
-import { asOf, countsOf, k } from '@/features/posted/model'
 
 import { CHANNELS, FORMAT_LABEL, type ChannelKey, type Shot } from './model'
 import { TypeBadge } from './preview-media'
 import { ShotView } from './shot'
 
 /*
- * A posted post, imported or sent: the cover first, large and sticky; the real counts, the
- * caption and the facts beside it; then what analytics will show once the account's analytics
- * are connected, drawn with no figures. Nothing on it can be changed.
+ * A posted post, imported or sent: the cover first, large and sticky, its slides under it; beside
+ * it the title and the caption, then one card for the account on show (its counts as last read,
+ * and the way to the post there), then what analytics will show, drawn with no figures. A post on
+ * more than one account switches between them. Nothing on it can be changed.
  */
 
 /** What a posted post carries, already read out of the post and its kept draft. */
@@ -25,6 +27,8 @@ export interface PostedView {
   media: Shot[]
   /** The accounts it went out on, in its own order. */
   went: ChannelKey[]
+  /** The account to open on: the Posted tab it came from. */
+  asked?: ChannelKey
   /** The day it went out, in words. */
   on: string
   /** The time it went out, "12:40", or "". */
@@ -34,92 +38,25 @@ export interface PostedView {
   tagged: string[]
   location: string
   labels: string[]
-  /** Only the cover came across: a video cannot play. */
-  video: boolean
-  permalink?: string
 }
 
 const NAME = Object.fromEntries(CHANNELS.map((c) => [c.key, c.name])) as Record<ChannelKey, string>
-const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 const CARD =
   'rounded-[18px] bg-page p-6 shadow-[0_0_0_1px_var(--line)] max-md:rounded-none max-md:p-0 max-md:shadow-none'
 const HEADING = 'font-display text-[15px] font-semibold tracking-[-0.01em]'
 const NUM = 'font-display font-semibold tracking-[-0.03em] tabular-nums'
 
-function Arrow() {
-  return (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-      <path
-        d="M2.5 7.5l5-5M3.5 2.5h4v4"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-/** "Open on TikTok ↗", only when the post has an address. */
-function OpenLink({ v }: { v: PostedView }) {
-  if (!v.permalink) return null
-  const first = v.went[0]
-  return (
-    <a
-      href={v.permalink}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 self-start text-[13px] text-ink-3 transition-colors hover:text-ink"
-    >
-      {first ? `Open on ${NAME[first]}` : 'Open post'}
-      <Arrow />
-    </a>
-  )
-}
-
-/** The account chips it went out on. */
-function Chips({ v }: { v: PostedView }) {
-  return (
-    <span className="flex flex-wrap gap-1.5">
-      {v.went.map((c) => (
-        <span
-          key={c}
-          className="flex h-7 items-center gap-1.5 rounded-full bg-surface pr-3 pl-2.5 text-[12.5px] font-medium text-ink-2"
-        >
-          <PlatformLogo platform={c} size={12} />
-          {NAME[c]}
-        </span>
-      ))}
-    </span>
-  )
-}
-
-function CoverOnly({ v }: { v: PostedView }) {
-  const first = v.went[0]
-  return (
-    <NotAvailable
-      label="Cover only"
-      reason={`Video plays once ${first ? NAME[first] : 'the account'} is connected.`}
-      align="left"
-    />
-  )
-}
-
 /**
- * The cover as the post shows it: a reel's tall frame, a post's 4:5 one. A video says it is the
- * cover only; a carousel shows how many slides there are and the rest as a strip.
+ * The cover as the post shows it: a reel's tall frame, a post's 4:5 one; a carousel's other
+ * slides as a strip under it.
  */
 function Cover({
   v,
   strip = false,
-  pill = true,
   className = '',
 }: {
   v: PostedView
-  /** A carousel's other slides under the first. */
   strip?: boolean
-  /** "Cover only" over the frame; off when the frame is small and the page says it beside the title. */
-  pill?: boolean
   className?: string
 }) {
   const first = v.media[0]
@@ -128,19 +65,12 @@ function Cover({
   const rest = strip ? v.media.slice(1) : []
   return (
     <div className={`flex w-full flex-col gap-2.5 ${className}`}>
-      <span className="relative block">
-        <span className={`relative block ${ratio} overflow-hidden rounded-[16px] bg-tile`}>
-          <ShotView shot={first} sizes="400px" />
-          <TypeBadge format={v.post.format} slides={v.media.length} />
-          {v.media.length > 1 && (
-            <span className="absolute top-2 left-2 rounded-full bg-black/50 px-2 py-[2px] font-mono text-[10.5px] text-page tabular-nums">
-              1/{v.media.length}
-            </span>
-          )}
-        </span>
-        {v.video && pill && (
-          <span className="absolute bottom-2.5 left-2.5 flex">
-            <CoverOnly v={v} />
+      <span className={`relative block ${ratio} overflow-hidden rounded-[16px] bg-tile`}>
+        <ShotView shot={first} sizes="400px" />
+        <TypeBadge format={v.post.format} slides={v.media.length} />
+        {v.media.length > 1 && (
+          <span className="absolute top-2 left-2 rounded-full bg-black/50 px-2 py-[2px] font-mono text-[10.5px] text-page tabular-nums">
+            1/{v.media.length}
           </span>
         )}
       </span>
@@ -185,16 +115,8 @@ function Caption({ text, lines }: { text: string; lines: number }) {
       <p
         ref={ref}
         className="w-full text-[14.5px] leading-[1.55] break-words whitespace-pre-wrap text-ink"
-        style={
-          open
-            ? undefined
-            : {
-                display: '-webkit-box',
-                WebkitLineClamp: lines,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-              }
-        }
+        // Cut by height, not line-clamp: "More" says there is more, with no "…" after a full stop.
+        style={open ? undefined : { maxHeight: `${lines * 1.55}em`, overflow: 'hidden' }}
       >
         {parts.map((p, i) =>
           i % 2 === 1 ? (
@@ -247,71 +169,126 @@ function FactRows({ v }: { v: PostedView }) {
   )
 }
 
-/** The numbers in a row: the first one large, the rest beside it, then when they were read. */
-function CountRow({ post }: { post: Post }) {
-  const counts = countsOf(post)
-  if (counts.length === 0) return null
+/** The accounts it went out on, as their marks: the one on show filled. Named for a reader. */
+function Switch({
+  went,
+  on,
+  setOn,
+}: {
+  went: ChannelKey[]
+  on: ChannelKey
+  setOn: (c: ChannelKey) => void
+}) {
   return (
-    <div className="flex flex-wrap items-end gap-x-8 gap-y-4 max-md:gap-x-6">
-      {counts.map((c, i) => (
-        <span
-          key={c.key}
-          className={`flex flex-col gap-1 ${i === 0 && counts.length > 3 ? 'max-md:w-full' : ''}`}
+    <div role="radiogroup" aria-label="Account" className="flex gap-1.5">
+      {went.map((c) => (
+        <button
+          key={c}
+          type="button"
+          role="radio"
+          aria-checked={c === on}
+          aria-label={NAME[c]}
+          title={NAME[c]}
+          onClick={() => setOn(c)}
+          className={`bb-press flex size-9 items-center justify-center rounded-full ${c === on ? 'bg-ink text-page' : 'bg-surface text-ink-3 hover:text-ink'}`}
         >
-          <span
-            className={`${NUM} leading-none ${i === 0 ? 'text-[34px]' : 'text-[22px] max-md:text-[19px]'}`}
-          >
-            {k(c.value)}
-          </span>
-          <span className="text-[12.5px] text-ink-4">{c.label}</span>
-        </span>
+          <PlatformLogo platform={c} size={15} />
+        </button>
       ))}
-      {post.measuredAt && (
-        <span className="text-[12.5px] text-ink-4">as of {asOf(post.measuredAt)}</span>
-      )}
     </div>
+  )
+}
+
+/** "Open on Instagram ↗": a pill, so the way to the post is easy to find. */
+function OpenPill({ href, on }: { href: string; on: ChannelKey }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="bb-press inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-surface px-4 text-[13px] font-medium text-ink hover:bg-paper"
+    >
+      Open on {NAME[on]}
+      <ArrowUpRightIcon size={10} />
+    </a>
+  )
+}
+
+/**
+ * The account on show: the switch when the post went to more than one, the way to it there, and
+ * its counts with when they were read. An account with no reading shows no counts.
+ */
+function OnAccount({
+  v,
+  on,
+  setOn,
+  read,
+}: {
+  v: PostedView
+  on: ChannelKey
+  setOn: (c: ChannelKey) => void
+  read: ReadingOn
+}) {
+  const many = v.went.length > 1
+  if (!many && read.counts.length === 0 && !read.permalink) return null
+  return (
+    <section aria-label={NAME[on]} className={`flex flex-col gap-6 ${CARD}`}>
+      {(many || read.permalink) && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {many && <Switch went={v.went} on={on} setOn={setOn} />}
+          {read.permalink && <OpenPill href={read.permalink} on={on} />}
+        </div>
+      )}
+      {read.counts.length > 0 && (
+        <div key={on} className="bb-swap flex flex-wrap items-end gap-x-9 gap-y-4 max-md:gap-x-7">
+          {read.counts.map((c) => (
+            <span key={c.key} className="flex flex-col gap-1.5">
+              <span className={`${NUM} text-[28px] leading-none max-md:text-[24px]`}>
+                {k(c.value)}
+              </span>
+              <span className="text-[12.5px] text-ink-3">{c.label.toLowerCase()}</span>
+            </span>
+          ))}
+          {read.measuredAt && (
+            <span className="ml-auto pb-px text-[12px] text-ink-3 max-md:ml-0 max-md:w-full">
+              as of {asOf(read.measuredAt)}
+            </span>
+          )}
+        </div>
+      )}
+    </section>
   )
 }
 
 // ── Analytics: not connected, with a preview of what arrives ─────────────────────────────────
 
-type Series = { key: string; label: string; unit: string; about: string; shape: number[] }
+type Series = { key: string; label: string; shape: number[] }
 
 /** The first two weeks after it went out, as shapes with no numbers: a preview, not a reading. */
 const SERIES: Record<string, Series> = {
   reach: {
     key: 'reach',
     label: 'Reach',
-    unit: 'people',
-    about: 'How many people saw it, each day of its first two weeks.',
     shape: [1, 0.82, 0.55, 0.4, 0.3, 0.26, 0.22, 0.3, 0.2, 0.16, 0.14, 0.12, 0.11, 0.1],
   },
   watch: {
     key: 'watch',
     label: 'Watch time',
-    unit: 'minutes',
-    about: 'How long people watched, in all, and how far through they got.',
     shape: [0.9, 0.95, 0.7, 0.5, 0.42, 0.38, 0.35, 0.4, 0.3, 0.26, 0.24, 0.2, 0.18, 0.17],
   },
   visits: {
     key: 'visits',
     label: 'Profile visits',
-    unit: 'visits',
-    about: 'How many people went on to the profile from this post.',
     shape: [0.7, 1, 0.5, 0.3, 0.2, 0.35, 0.15, 0.1, 0.25, 0.1, 0.08, 0.12, 0.06, 0.05],
   },
   followers: {
     key: 'followers',
     label: 'New followers',
-    unit: 'followers',
-    about: 'Who followed after seeing it.',
     shape: [0.6, 1, 0.5, 0.3, 0.2, 0.35, 0.15, 0.1, 0.25, 0.1, 0.08, 0.12, 0.06, 0.05],
   },
   spend: {
     key: 'spend',
     label: 'Spend',
-    unit: 'per view',
-    about: 'What a boost cost by day, and what each view and follower cost.',
     shape: [0, 0, 0.7, 0.7, 0.7, 0.7, 0.7, 1, 1, 1, 0, 0, 0, 0],
   },
 }
@@ -391,14 +368,12 @@ function GhostRows({ title, rows }: { title: string; rows: Array<[string, number
 }
 
 /**
- * What analytics will show for this post, once the account's analytics are connected: the
- * number card and two small rows from Insights, drawn with no figures. The pill says why it is
- * empty; the switch lets a person see each number that will appear. The pill shows in the static
- * demo too: no account's analytics are connected there either.
+ * What analytics will show for this post on the account on show, once its analytics are
+ * connected: the number card and two small rows from Insights, drawn with no figures. The pill
+ * says why it is empty, on hover; the switch shows each number that will appear.
  */
-function Analytics({ v }: { v: PostedView }) {
+function Analytics({ v, on }: { v: PostedView; on: ChannelKey | undefined }) {
   const { brand } = useBrand()
-  const first = v.went[0]
   const series = [
     SERIES.reach!,
     v.post.format === 'reel' ? SERIES.watch! : SERIES.visits!,
@@ -421,7 +396,7 @@ function Analytics({ v }: { v: PostedView }) {
       : {
           title: 'Found it through',
           rows: [
-            [first === 'tt' ? 'For You' : 'Explore', 1],
+            [on === 'tt' ? 'For You' : 'Explore', 1],
             ['Following', 0.5],
             ['Profile', 0.22],
             ['Search', 0.12],
@@ -431,42 +406,32 @@ function Analytics({ v }: { v: PostedView }) {
     <section aria-label="Analytics" className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <h2 className={HEADING}>Analytics</h2>
-        <NotAvailable reason={reasonOf(first ? `${NAME[first]} analytics` : 'Analytics')} />
+        <NotAvailable reason={reasonOf(on ? `${NAME[on]} analytics` : 'Analytics')} />
       </div>
       <div className={`flex flex-col ${CARD}`}>
-        <div className="flex items-start justify-between gap-4 max-md:flex-col-reverse max-md:gap-3">
-          <div className="min-w-0 flex-1 max-md:w-full">
-            <div className="max-md:hidden">
-              <Segmented
-                label="Number"
-                pill
-                value={at}
-                onChange={setAt}
-                options={series.map((x) => ({ value: x.key, label: x.label }))}
-              />
-            </div>
-            <div role="radiogroup" aria-label="Number" className="flex flex-wrap gap-1.5 md:hidden">
-              {series.map((x) => (
-                <button
-                  key={x.key}
-                  type="button"
-                  role="radio"
-                  aria-checked={at === x.key}
-                  onClick={() => setAt(x.key)}
-                  className={`h-8 rounded-full px-3 text-[12.5px] font-medium transition-colors ${at === x.key ? 'bg-ink text-page' : 'bg-surface text-ink-3'}`}
-                >
-                  {x.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <span className={`${EYEBROW} shrink-0 pt-2`}>Preview</span>
+        <div className="max-md:hidden">
+          <Segmented
+            label="Number"
+            pill
+            value={at}
+            onChange={setAt}
+            options={series.map((x) => ({ value: x.key, label: x.label }))}
+          />
         </div>
-        <span className="mt-6 flex items-center gap-2.5">
-          <span aria-hidden="true" className="block h-9 w-[88px] rounded-[9px] bg-tile" />
-          <span className="text-[14px] text-ink-3">{s.unit}</span>
-        </span>
-        <p className="mt-2 text-[13.5px] text-ink-3">{s.about}</p>
+        <div role="radiogroup" aria-label="Number" className="flex flex-wrap gap-1.5 md:hidden">
+          {series.map((x) => (
+            <button
+              key={x.key}
+              type="button"
+              role="radio"
+              aria-checked={at === x.key}
+              onClick={() => setAt(x.key)}
+              className={`h-8 rounded-full px-3 text-[12.5px] font-medium transition-colors ${at === x.key ? 'bg-ink text-page' : 'bg-surface text-ink-3'}`}
+            >
+              {x.label}
+            </button>
+          ))}
+        </div>
         <div className="mt-7">
           <GhostBars key={s.key} shape={s.shape} />
         </div>
@@ -482,50 +447,52 @@ function Analytics({ v }: { v: PostedView }) {
 // ── The page ─────────────────────────────────────────────────────────────────────────────────
 
 export function PostedPost({ v }: { v: PostedView }) {
+  const [picked, setOn] = React.useState<ChannelKey | undefined>()
+  const on = picked ?? openOn(v.post, v.went, v.asked)
+  const read: ReadingOn = on ? readingOn(v.post, on, v.went) : { counts: [] }
   const when = v.at ? `${v.on}, ${v.at}` : v.on
+  const body = bodyOf(v.caption, v.post.hook)
   // A post that came across with no picture has no cover column and no room kept for one.
   const bare = v.media.length === 0
   return (
     <div
-      className={`grid items-start gap-12 max-lg:grid-cols-1 max-lg:gap-8 ${bare ? '' : 'grid-cols-[300px_minmax(0,1fr)]'}`}
+      className={`grid items-start gap-14 max-lg:grid-cols-1 max-lg:gap-8 ${bare ? '' : 'grid-cols-[300px_minmax(0,1fr)]'}`}
     >
       {!bare && (
-        <aside className="sticky top-6 flex flex-col gap-3 max-lg:hidden">
+        <aside className="sticky top-6 max-lg:hidden">
           <Cover v={v} strip />
         </aside>
       )}
-      <div className="flex min-w-0 flex-col gap-8 max-md:gap-7">
+      <div className="flex max-w-[680px] min-w-0 flex-col gap-8 max-md:gap-7">
         {/* Under the desktop width the cover is small and sits with the title, like an album. */}
         <header
-          className={`grid grid-cols-1 gap-3 ${bare ? '' : 'max-lg:grid-cols-[112px_minmax(0,1fr)] max-lg:items-end max-lg:gap-x-5'}`}
+          className={`grid grid-cols-1 gap-3 ${bare ? '' : 'max-lg:grid-cols-[96px_minmax(0,1fr)] max-lg:items-end max-lg:gap-x-5'}`}
         >
-          <Cover v={v} pill={false} className="lg:hidden" />
-          <div className="flex min-w-0 flex-col gap-3">
-            <span className="flex flex-wrap items-center gap-2 text-[13px] text-ink-3">
-              <Chips v={v} />
-              <span>
-                {FORMAT_LABEL[v.post.format]} · {when}
-              </span>
+          <Cover v={v} className="lg:hidden" />
+          <div className="flex min-w-0 flex-col gap-2.5">
+            <span className="flex items-center gap-2 text-[13px] text-ink-3">
+              {/* One account needs no switch: its mark says where it went. */}
+              {v.went.length === 1 && (
+                <span role="img" aria-label={NAME[v.went[0]!]} className="flex">
+                  <PlatformLogo platform={v.went[0]!} size={13} />
+                </span>
+              )}
+              {/* A post is the usual case: only a reel or a story is named. */}
+              {v.post.format === 'carousel' ? when : `${FORMAT_LABEL[v.post.format]} · ${when}`}
             </span>
-            <h1 className="font-display text-[36px] leading-[1.05] tracking-[-0.035em] max-md:text-[26px]">
+            <h1 className="font-display text-[28px] leading-[1.12] tracking-[-0.03em] max-md:text-[22px]">
               {v.post.hook}
             </h1>
-            {v.video && (
-              <span className="flex lg:hidden">
-                <CoverOnly v={v} />
-              </span>
-            )}
           </div>
         </header>
-        <CountRow post={v.post} />
-        <Caption text={v.caption} lines={6} />
-        {(factsOf(v).length > 0 || v.permalink) && (
-          <div className="flex flex-col gap-4">
+        {(body || factsOf(v).length > 0) && (
+          <div className="-mt-2 flex flex-col gap-5">
+            <Caption text={body} lines={3} />
             <FactRows v={v} />
-            <OpenLink v={v} />
           </div>
         )}
-        <Analytics v={v} />
+        {on && <OnAccount v={v} on={on} setOn={setOn} read={read} />}
+        <Analytics key={on} v={v} on={on} />
       </div>
     </div>
   )

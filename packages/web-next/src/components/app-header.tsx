@@ -22,7 +22,11 @@ const NAV = [
 // Bubbles has a link only where it is connected.
 const SHOWN = NAV.filter((n) => n.href !== '/bubbles' || BUBBLES_URL)
 
-export function AppHeader() {
+/**
+ * `section` names the page's section where its address alone does not: a post opened from Posted
+ * belongs to Posted.
+ */
+export function AppHeader({ section }: { section?: (typeof NAV)[number]['href'] } = {}) {
   const pathname = usePathname()
   const { brand } = useBrand()
   const waiting = useWaiting(brand.id)
@@ -41,9 +45,10 @@ export function AppHeader() {
       {/* A phone has the tab bar at the bottom instead. */}
       <nav aria-label="Main" className="flex gap-7 max-md:hidden">
         {SHOWN.map((n) => {
-          // A post's own page belongs to Schedule.
-          const current =
-            n.href === '/'
+          // A post's own page belongs to Schedule, unless its page names another section.
+          const current = section
+            ? n.href === section
+            : n.href === '/'
               ? pathname === '/' || pathname.startsWith('/post/')
               : pathname.startsWith(n.href)
           return (

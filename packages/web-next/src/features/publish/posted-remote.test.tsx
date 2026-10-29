@@ -72,21 +72,21 @@ const header = () => document.querySelector('header')!
 describe('a posted post on the core', () => {
   it('shows the account it went out on and its own counts, with nothing connected', () => {
     open(posted)
-    expect(within(header()).getByText('Instagram')).toBeInTheDocument()
+    expect(within(header()).getByRole('img', { name: 'Instagram' })).toBeInTheDocument()
     expect(screen.getByText('214')).toBeInTheDocument()
-    expect(screen.getByText('Likes')).toBeInTheDocument()
+    expect(screen.getByText('likes')).toBeInTheDocument()
     expect(screen.getByText('9')).toBeInTheDocument()
   })
 
   it('shows a TikTok post on TikTok', () => {
     open({ ...posted, format: 'reel', channels: ['tt'] })
-    expect(within(header()).getByText('TikTok')).toBeInTheDocument()
-    expect(within(header()).queryByText('Instagram')).toBeNull()
+    expect(within(header()).getByRole('img', { name: 'TikTok' })).toBeInTheDocument()
+    expect(within(header()).queryByRole('img', { name: 'Instagram' })).toBeNull()
   })
 
   it('is read-only: the post page with nothing to edit, schedule or send', () => {
     open(posted)
-    expect(screen.getByText('Post · Fri 16 Oct, 19:12')).toBeInTheDocument()
+    expect(screen.getByText('Fri 16 Oct, 19:12')).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'When' })).toBeNull()
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.queryByRole('checkbox')).toBeNull()
@@ -99,10 +99,10 @@ describe('a posted post on the core', () => {
     expect(screen.queryByText('Pick a day ahead.')).toBeNull()
   })
 
-  it('shows the cover of a video with "Cover only" and why, on its own platform', () => {
+  it('shows the cover of a video as a still, with no note about it: the frame says enough', () => {
     open({ ...posted, format: 'reel', channels: ['tt'] })
-    const [pill] = screen.getAllByRole('button', { name: 'Cover only' })
-    expect(pill).toHaveAccessibleDescription('Video plays once TikTok is connected.')
+    expect(document.querySelector('aside img')).not.toBeNull()
+    expect(screen.queryByText('Cover only')).toBeNull()
   })
 
   it('says nothing about playing on a reel that has its video', () => {
@@ -129,15 +129,15 @@ describe('a posted post on the core', () => {
 describe('a posted post, whatever it holds', () => {
   it('prints no invented count when it has none: a missing count shows nothing', () => {
     open({ ...posted, metrics: undefined })
-    expect(screen.queryByText(/^(Views|Likes|Comments|Shares|Saves)$/)).toBeNull()
+    expect(screen.queryByText(/^(views|likes|comments|shares|saves)$/)).toBeNull()
     expect(screen.queryByText(/2,418|86/)).toBeNull()
   })
 
   it('prints only the counts it has, on any account', () => {
     open({ ...posted, channels: ['fb'], metrics: { likes: 5 } })
     expect(screen.getByText('5')).toBeInTheDocument()
-    expect(screen.getByText('Likes')).toBeInTheDocument()
-    expect(screen.queryByText('Comments')).toBeNull()
+    expect(screen.getByText('likes')).toBeInTheDocument()
+    expect(screen.queryByText('comments')).toBeNull()
   })
 
   it('shows no picture when it has none, and asks for none', () => {
@@ -146,18 +146,21 @@ describe('a posted post, whatever it holds', () => {
     expect(screen.queryByRole('button', { name: /photo|video|Upload/ })).toBeNull()
   })
 
-  it('names its accounts in its own order', () => {
+  it('names its accounts in its own order, as the switch between them', () => {
     open({ ...posted, format: 'reel', channels: ['tt', 'ig'] })
-    const chips = within(header())
-      .getAllByText(/^(TikTok|Instagram)$/)
-      .map((e) => e.textContent)
+    const chips = within(screen.getByRole('radiogroup', { name: 'Account' }))
+      .getAllByRole('radio')
+      .map((e) => e.getAttribute('aria-label'))
     expect(chips).toEqual(['TikTok', 'Instagram'])
   })
 
   it('shows no account it never went to when none is recorded', () => {
     open({ ...posted, channels: undefined })
-    expect(within(header()).queryByText(/^(Instagram|TikTok|Facebook)$/)).toBeNull()
-    expect(screen.getByText('Post · Fri 16 Oct, 19:12')).toBeInTheDocument()
+    expect(
+      within(header()).queryByRole('img', { name: /^(Instagram|TikTok|Facebook)$/ }),
+    ).toBeNull()
+    expect(screen.queryByRole('radiogroup', { name: 'Account' })).toBeNull()
+    expect(screen.getByText('Fri 16 Oct, 19:12')).toBeInTheDocument()
   })
 })
 
@@ -243,8 +246,8 @@ describe('a posted post from the calendar, on the core', () => {
       measuredAt: '2026-10-21T17:00:00.000Z',
     })
     expect(screen.getByText('as of 22 Oct')).toBeInTheDocument()
-    expect(within(header()).getByText('Instagram')).toBeInTheDocument()
-    expect(screen.getByText('Post · Fri 16 Oct, 19:00')).toBeInTheDocument()
+    expect(within(header()).getByRole('img', { name: 'Instagram' })).toBeInTheDocument()
+    expect(screen.getByText('Fri 16 Oct, 19:00')).toBeInTheDocument()
     expect(screen.getByText(/Book a table\./)).toBeInTheDocument()
     expect(screen.getByText('Collaborators').nextSibling).toHaveTextContent('@giulia.cooks')
     expect(screen.getByText('Location').nextSibling).toHaveTextContent('Club Street')

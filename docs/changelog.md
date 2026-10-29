@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.46.0** — 2026-10-29 — `fix/posted-handle`: every post has its own link and counts on each account it went to, and the post page is calmer (brandbase 1.13.1, migration 0023, not applied to production). Migration 0023 keeps the address on each reading and on each job (the link Make answers when it posts); a post's JSON carries `readings`, its latest counts, read time and link per channel; a link Make answers for a second account no longer becomes the post's own. The post page from Posted: the cover and its slides stay on the left; on the right one meta line (the account's mark when it went to one), a shorter title, the caption without its repeated first line, folded after three lines; one card for the account on show, with a switch of platform marks when the post went to more than one, an "Open on Instagram ↗" pill and the counts with one "as of"; the analytics card as before, its "Preview" tag and helper sentences gone. "Cover only" goes, and the back link says "Posted", and a post's meta line drops "Post ·". A post opened from Posted highlights Posted in the header. The Posted page's Facebook tab shows Facebook's own counts. The header shows the account linked on each platform (Instagram's handle, the Facebook Page's name, the TikTok account, else the brand's name or handle). 1449 tests, all run on a throwaway Postgres 18.
 - **2.45.1** — 2026-10-29 — `feat/posted-profile`: the Posted page reads as the account's profile (design option A, polished). The platforms stay a quiet rail on the left (glyph and name; pill tabs on a phone). On the right: the brand's avatar and handle, the last 30 days as inline totals with one small "as of" (the window and "x of y with numbers" on hover), the stories as rings (green while up, hours left on hover; grey for one gone in the last week), and the posts as a 3-column grid of 4:5 covers. A cover shows one count (views on a reel, likes on the rest, else the first count it has) and a reel's length or a carousel mark; hover or focus shows the hook, the kind and day, and every count. A cover opens its poster, which links back. Newest or Top is a two-icon toggle. Gone: the "Posted · brand" eyebrow, the platform title, the month headings, the "Last 30 days" sentence, "as of" on every row, the Newest and Top words and the "Most engaging" and "No numbers yet" headings, each row's caption line. No pack change, no migration. 1425 tests (249 skipped without a Postgres server).
 - **2.45.0** — 2026-10-29 — `feat/post-sync`: the core's side of the Posted page's sync, phase 2 of `docs/executing/posted-page-plan.md` (brandbase 1.13.0, migration 0022, not applied to production). A new server route, `POST /brands/:brand/make/readings`, takes what a Make scenario (phase 3, not built) reads back from a brand's Instagram account or Facebook Page: posts and stories with their counts. It checks its own key (`MAKE_READINGS_SECRET`) and runs as an agent of a Mission Group owner (`MAKE_READINGS_AS`), so the company walls still hold, and the pack takes readings only for the account the brand linked through Make. `post.sync` finds a post Brand Base sent by its job's id and gives it only its counts (its first account's) and its address, never its caption or media; a post made outside Brand Base, or one the Apify import brought in, becomes or stays a posted post with its counts, address and "as of"; a story ends when Meta says or after 24 hours and keeps its last counts. Each reading is kept in `post_readings` for a later "reach, by day"; counts Meta did not give are left out; the same batch twice changes nothing. Covers are copied from Meta's image hosts into the core's storage, at most 8 per request; a failed copy keeps the post as it was and is tried again next run. After review: a Facebook reel is matched by its video id, an import after the sync is refused (`ALREADY_SYNCED`), a newer reading refreshes a caption without counts, two readings of one post in a batch no longer fail it, an impossible date is a 400, and a cover is streamed, checked by its bytes and skipped for a gone story. The Posted page shows a synced story's own end, and drops a summary figure that is 0 ("0 stories"). 1419 tests, all run on a throwaway Postgres 18.
 - **2.44.0** — 2026-10-29 — `feat/posted-page`: a Posted page, phase 1 of `docs/executing/posted-page-plan.md`. `/posted` shows what went out on one platform at a time: an accounts rail (Instagram, Facebook, TikTok; those with posts or a linked account), the platform as the title, the last 30 days in one line (posts, stories, reach or views and likes, "x of y with numbers" when only some have them, "as of"), and a ledger of posts and stories, newest first, each with its counts as last read. A story is a row of 9:16 frames, live with the hours left or gone after 24 hours. A post opens its poster, which links back to Posted. "Top" ranks by likes, comments, shares and saves; posts with no numbers wait apart. Insights loses its Posts view with its reach and engagement-% ranking, average line, pillar and comment mood (Overview, Sentiment and Creators stay). Only data the web app already has: a post lists on the accounts whose job went live, or on all its accounts when imported or marked posted by hand; a post Brand Base sent shows no counts; Facebook stories are not listed; the demo's archive counts are invented, in the demo only. Posted is in the header and the phone's tab bar. No pack change, no migration. 1382 tests (237 skipped without a Postgres server).
@@ -99,6 +100,45 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.46.0 — 2026-10-29
+
+- **Why.** On production, a post Brand Base sent had no link, a post on Instagram and Facebook
+  showed one account's numbers only, and the owner found the post page cluttered and the link
+  hard to find. The Posted header showed the brand's own handle on every platform.
+- **Pack 1.13.1, migration `0023_reading_links.sql`.** `post_readings.permalink` and
+  `post_jobs.permalink`, both nullable, no backfill. `post.sync` keeps each reading's address, and
+  keeps a reading that has an address but no counts. `post.publish_job` keeps Make's link on the
+  job, and gives the post its own link only from its first account. `post_json` adds `readings`
+  (per channel: the latest counts with `readAt`, and the latest address) and each job's
+  `permalink`. Under the row rules a person sees only their company's readings. 1.13.0 runs on
+  0023 unchanged: its inserts name their columns, and the new keys are extra. The readings index
+  becomes `(post_id, channel, read_at)` for the per-channel lookups.
+- **web-next.** `readingOn` (model) gives one account's counts, time and link: its own reading,
+  else the job's link, else the post's own for its first account only, and only when it points at
+  that account's site (before 1.13.1 a Facebook link could land there); nothing is filled in.
+  `openOn` picks the account: the Posted tab it came from, else the first with counts. The poster
+  (`publish/posted.tsx`) is rebuilt as the summary says; `bodyOf` drops a caption's first line
+  when it repeats the title. `AppHeader` takes a `section`; `PostPage` passes `/posted` for a post
+  opened from Posted. `profileName` gives the Posted header's name per platform.
+- **Words removed.** "Cover only", the platform name chips, "Preview", the analytics helper
+  sentences, the back link's platform name, the caption's repeated first line, "Post ·" before a
+  post's date, the empty number box in the analytics preview. The caption folds by height, so no
+  "…" follows a full stop.
+- **Test clock.** `posted-page.test.tsx` fixes the time at noon: its stories' "Live, n h left"
+  read the real clock and failed after midnight.
+- **Make 8248176 (not changed).** Answer `permalink` beside `id` from each route: Instagram, a
+  "Get a media" (fields `permalink`) on the created media id; Facebook, a "Get a post" (field
+  `permalink_url`) on the created post id. The core reads it already (`packages/connect/src/brandbase/make.ts`).
+- **Production (outline).**
+  1. Check out `fix/posted-handle` once merged to `release/pinterest-make`; `pnpm install`.
+  2. Open the `brandbase-db` tunnel; check Postgres is 16 or newer.
+  3. `core publish ../../packs/brandbase`; `core test brandbase 1.13.1` (all cases pass).
+  4. `core migrate brandbase 1.13.1` (applies 0023; 1.13.0 still runs on it).
+  5. `core promote brandbase 1.13.1`.
+  6. Deploy the web app. No server deploy, no new secret.
+  7. Open a sent post from Posted: both accounts' links and counts, Posted highlighted.
+- 1449 tests, all run on a throwaway Postgres 18.
 
 ## 2.45.1 — 2026-10-29
 

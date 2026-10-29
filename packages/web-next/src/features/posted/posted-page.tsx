@@ -9,9 +9,10 @@ import { LoadingDots } from '@/components/loading-dots'
 import { Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
 import { BrandLogo } from '@/features/brand/brand-logo'
-import { handleOf } from '@/features/brand/new-brand'
 import { useConnections } from '@/features/connections/connections-store'
+import { useMakeAccount } from '@/features/connections/make'
 import { NotAvailable, reasonOf } from '@/features/connections/not-available'
+import { useTikTokAccount } from '@/features/connections/tiktok'
 import { useBrand } from '@/features/schedule/posts-store'
 import { todayDate } from '@/lib/dates'
 import { remote, timezoneOf } from '@/lib/remote'
@@ -28,6 +29,7 @@ import {
   nowIn,
   PLATFORM_NAME,
   platformOf,
+  profileName,
   railOf,
   ringsOf,
   shortDay,
@@ -166,6 +168,11 @@ function Profile({
   now: Moment
 }) {
   const { brand } = useBrand()
+  const accounts = {
+    ig: useMakeAccount(brand.id, 'ig')?.name,
+    fb: useMakeAccount(brand.id, 'fb')?.name,
+    tt: useTikTokAccount(brand.id)?.name,
+  }
   const [order, setOrder] = React.useState<Order>('newest')
   const sum = summaryOf(ledger, platform, now.day)
   const figures = figuresOf(sum, platform)
@@ -184,7 +191,7 @@ function Profile({
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-3 max-md:gap-2">
           <h1 className="truncate font-display text-[26px] leading-none tracking-[-0.025em] max-md:text-[21px]">
-            {handleOf(brand.handle) || brand.name}
+            {profileName(platform, accounts, brand)}
           </h1>
           <p
             title={windowLine(sum)}

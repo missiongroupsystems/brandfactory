@@ -13,9 +13,13 @@ import {
   hoursLeft,
   kindOf,
   ledgerOf,
+  openOn,
+  readingOn,
+  bodyOf,
   nowIn,
   PLATFORMS,
   platformOf,
+  profileName,
   railOf,
   rankedOf,
   ringsOf,
@@ -177,6 +181,30 @@ describe('the rail', () => {
     // An address naming Instagram, which is not in this rail, opens on TikTok, the one with posts.
     expect(platformOf(rail, items, 'ig')).toBe('tt')
     expect(platformOf(['fb', 'ig'], [], 'tt')).toBe('fb')
+  })
+})
+
+describe('the profile name', () => {
+  const brand = { name: 'Casa Vostra', handle: '@casavostrasg' }
+  const linked = { ig: 'testbrandbase', fb: 'CV', tt: 'Casa Vostra SG' }
+
+  it('is the linked Instagram account, as a handle, never the brand’s own', () => {
+    expect(profileName('ig', linked, brand)).toBe('@testbrandbase')
+    expect(profileName('ig', { ig: '@testbrandbase' }, brand)).toBe('@testbrandbase')
+  })
+
+  it('is the Facebook Page’s name as typed: a Page has no handle', () => {
+    expect(profileName('fb', linked, brand)).toBe('CV')
+  })
+
+  it('is the TikTok account’s name, else the brand’s handle', () => {
+    expect(profileName('tt', linked, brand)).toBe('Casa Vostra SG')
+    expect(profileName('tt', {}, brand)).toBe('@casavostrasg')
+  })
+
+  it('is the brand’s name on Instagram or Facebook with nothing linked', () => {
+    expect(profileName('ig', {}, brand)).toBe('Casa Vostra')
+    expect(profileName('fb', { ig: 'testbrandbase' }, brand)).toBe('Casa Vostra')
   })
 })
 
@@ -452,5 +480,126 @@ describe('words', () => {
   it('give a ring its day in short', () => {
     expect(shortDay(item('a', TODAY), TODAY)).toBe('Today')
     expect(shortDay(item('a', '2026-10-27'), TODAY)).toBe('Tue 27')
+  })
+})
+
+describe('each account’s own reading', () => {
+  const both = item('both', TODAY, {
+    channels: ['ig', 'fb'],
+    metrics: { reach: 800, likes: 64 },
+    measuredAt: '2026-10-29T05:00:00Z',
+    permalink: 'https://www.instagram.com/p/A/',
+    readings: {
+      ig: {
+        metrics: { reach: 800, likes: 64 },
+        readAt: '2026-10-29T05:00:00Z',
+        permalink: 'https://www.instagram.com/p/A/',
+      },
+      fb: {
+        metrics: { likes: 12 },
+        readAt: '2026-10-28T05:00:00Z',
+        permalink: 'https://www.facebook.com/x/posts/1',
+      },
+    },
+  }).post
+
+  it('gives each account its own counts, their time and its link', () => {
+    expect(readingOn(both, 'fb', ['ig', 'fb'])).toEqual({
+      counts: [{ key: 'likes', label: 'Likes', value: 12 }],
+      measuredAt: '2026-10-28T05:00:00Z',
+      permalink: 'https://www.facebook.com/x/posts/1',
+    })
+    expect(readingOn(both, 'ig', ['ig', 'fb']).permalink).toBe('https://www.instagram.com/p/A/')
+  })
+
+  it("never labels Facebook's link as Instagram's on a post from before each account kept its own", () => {
+    // Before 1.13.1 the post kept whichever account's link came first: here Facebook's.
+    const old = { ...both, readings: undefined, permalink: 'https://www.facebook.com/x/posts/1' }
+    expect(readingOn(old, 'ig', ['ig', 'fb']).permalink).toBeUndefined()
+    expect(readingOn(old, 'ig', ['ig', 'fb']).counts.length).toBeGreaterThan(0)
+  })
+
+  it('fills nothing in for an account with no reading: no counts, no link', () => {
+    const igOnly = { ...both, readings: { ig: both.readings!.ig! } }
+    expect(readingOn(igOnly, 'fb', ['ig', 'fb'])).toEqual({ counts: [] })
+  })
+
+  it('lets a post read before each account kept its own stand for its first account alone', () => {
+    const old = { ...both, readings: undefined }
+    expect(readingOn(old, 'ig', ['ig', 'fb']).counts.map((c) => c.value)).toEqual([800, 64])
+    expect(readingOn(old, 'ig', ['ig', 'fb']).permalink).toBe('https://www.instagram.com/p/A/')
+    expect(readingOn(old, 'fb', ['ig', 'fb'])).toEqual({ counts: [] })
+  })
+
+  it('keeps a link that came with no counts, and a later reading without one does not lose it', () => {
+    const linkOnly = {
+      ...both,
+      readings: { fb: { permalink: 'https://www.facebook.com/x/posts/1' } },
+    }
+    expect(readingOn(linkOnly, 'fb', ['ig', 'fb'])).toEqual({
+      counts: [],
+      permalink: 'https://www.facebook.com/x/posts/1',
+    })
+  })
+
+  it('reads a post on one account from that account', () => {
+    const one = item('one', TODAY, {
+      metrics: { likes: 5 },
+      permalink: 'https://www.instagram.com/p/B/',
+    }).post
+    expect(readingOn(one, 'ig', ['ig'])).toMatchObject({
+      permalink: 'https://www.instagram.com/p/B/',
+    })
+    expect(readingOn(one, 'ig', ['ig']).counts).toHaveLength(1)
+  })
+
+  it('puts Facebook’s own counts on the Posted page’s Facebook tab', () => {
+    const it2 = item('both', TODAY, both, { went: ['ig', 'fb'] })
+    expect(countsOn(it2, 'fb').map((c) => c.value)).toEqual([12])
+  })
+
+  it('opens on the account asked for, else the first with counts, else the first', () => {
+    expect(openOn(both, ['ig', 'fb'], 'fb')).toBe('fb')
+    expect(openOn(both, ['ig', 'fb'], 'tt')).toBe('ig')
+    const fbOnly = { ...both, metrics: undefined, readings: { fb: both.readings!.fb! } }
+    expect(openOn(fbOnly, ['ig', 'fb'])).toBe('fb')
+    expect(openOn({ ...both, metrics: undefined, readings: undefined }, ['ig', 'fb'])).toBe('ig')
+    expect(openOn(both, [])).toBeUndefined()
+  })
+})
+
+describe('the caption under the title', () => {
+  it('drops a first line that only says the title again', () => {
+    expect(bodyOf('\nPasta night\nBook a table.', 'Pasta night')).toBe('Book a table.')
+    expect(bodyOf('Book a table.', 'Pasta night')).toBe('Book a table.')
+    expect(bodyOf('', 'Pasta night')).toBe('')
+  })
+})
+
+describe('an account’s link from the core', () => {
+  it('is what Make answered when it posted, until the read-back gives its own', () => {
+    const sent = server('sent', {
+      channels: ['ig', 'fb'],
+      stage: 'scheduled',
+      jobs: [
+        { channel: 'ig', status: 'live', error: null },
+        {
+          channel: 'fb',
+          status: 'live',
+          error: null,
+          permalink: 'https://www.facebook.com/x/posts/1',
+        },
+      ],
+      readings: { ig: { metrics: { likes: 3 }, readAt: '2026-10-29T05:00:00Z' } },
+    })
+    const [it2] = fromServer([sent])
+    expect(readingOn(it2!.post, 'fb', it2!.went).permalink).toBe(
+      'https://www.facebook.com/x/posts/1',
+    )
+    // Instagram has counts but no link anywhere: none is borrowed from Facebook.
+    expect(readingOn(it2!.post, 'ig', it2!.went)).toEqual({
+      counts: [{ key: 'likes', label: 'Likes', value: 3 }],
+      measuredAt: '2026-10-29T05:00:00Z',
+    })
   })
 })

@@ -59,7 +59,6 @@ const base: PostedView = {
   tagged: [],
   location: '',
   labels: [],
-  video: false,
 }
 const LONG = `Pasta, hand cut, every morning before the doors open.
 
@@ -77,14 +76,14 @@ const aside = () => document.querySelector('aside')!
 const analytics = () => screen.getByRole('region', { name: 'Analytics' })
 
 describe('the caption', () => {
-  it('folds a long one after six lines, and More opens it with its blank lines back', () => {
+  it('folds a long one after three lines, and More opens it with its blank lines back', () => {
     tall = true
     open({ caption: LONG })
     const p = screen.getByText(/Nonna Rosa/)
-    expect(p.style.webkitLineClamp).toBe('6')
+    expect(p.style.maxHeight).toBe(`${3 * 1.55}em`)
     expect(p.textContent).not.toContain('\n\n')
     fireEvent.click(screen.getByRole('button', { name: 'More' }))
-    expect(p.style.webkitLineClamp).toBe('')
+    expect(p.style.maxHeight).toBe('')
     expect(p.textContent).toContain('\n\n')
     expect(screen.getByRole('button', { name: 'Less' })).toBeInTheDocument()
   })
@@ -111,17 +110,11 @@ describe('the caption', () => {
 })
 
 describe('the cover', () => {
-  it('is a tall frame for a reel, and says Cover only when only the cover came across', () => {
-    open({ video: true })
+  it('is a tall frame for a reel, with no note about it: a still cover says enough', () => {
+    open({})
     expect(aside().querySelector('.aspect-\\[9\\/16\\]')).not.toBeNull()
-    const pill = within(aside()).getByRole('button', { name: 'Cover only' })
-    expect(pill).toHaveAccessibleDescription('Video plays once TikTok is connected.')
+    expect(screen.queryByText('Cover only')).toBeNull()
     expect(within(aside()).queryByText(/^1\//)).toBeNull()
-  })
-
-  it('says nothing about the cover when the video is there', () => {
-    open({ video: false })
-    expect(screen.queryByRole('button', { name: 'Cover only' })).toBeNull()
   })
 
   it('shows a carousel as its first slide, the count, and the rest as a strip', () => {
@@ -130,25 +123,23 @@ describe('the cover', () => {
     expect(within(aside()).getByText('1/3')).toBeInTheDocument()
     expect(aside().querySelectorAll('img')).toHaveLength(3)
     expect(aside().querySelector('.aspect-\\[4\\/5\\]')).not.toBeNull()
-    expect(screen.getByText('Post · Mon 19 Oct, 12:40')).toBeInTheDocument()
+    expect(screen.getByText('Mon 19 Oct, 12:40')).toBeInTheDocument()
   })
 
   it('shows no frame, and keeps no room for one, when no picture came across', () => {
     open({ media: [] })
     expect(document.querySelector('img')).toBeNull()
     expect(document.querySelector('aside')).toBeNull()
-    expect(document.querySelector('header')!.className).not.toMatch(/grid-cols-\[112px/)
+    expect(document.querySelector('header')!.className).not.toMatch(/grid-cols-\[96px/)
   })
 
-  it('names no account when none is recorded', () => {
-    open({ went: [], video: true, permalink: 'https://www.instagram.com/p/C1/' })
-    expect(within(aside()).getByRole('button', { name: 'Cover only' })).toHaveAccessibleDescription(
-      'Video plays once the account is connected.',
-    )
+  it('names no account, and offers no counts or link, when none is recorded', () => {
+    open({ went: [], post: { ...post, permalink: 'https://www.instagram.com/p/C1/' } })
     expect(
       within(analytics()).getByRole('button', { name: 'Unavailable' }),
     ).toHaveAccessibleDescription('Analytics isn’t connected yet.')
-    expect(screen.getByRole('link', { name: 'Open post' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Open on/ })).toBeNull()
+    expect(screen.queryByText('22.1k')).toBeNull()
   })
 })
 
@@ -156,9 +147,9 @@ describe('the counts', () => {
   it('are the real ones, views first, in short form', () => {
     open({})
     const labels = screen
-      .getAllByText(/^(Views|Likes|Comments|Shares|Saves)$/)
+      .getAllByText(/^(views|likes|comments|shares|saves)$/)
       .map((e) => e.textContent)
-    expect(labels).toEqual(['Views', 'Likes', 'Comments'])
+    expect(labels).toEqual(['views', 'likes', 'comments'])
     expect(screen.getByText('22.1k')).toBeInTheDocument()
     expect(screen.getByText('1.8k')).toBeInTheDocument()
     expect(screen.getByText('41')).toBeInTheDocument()
@@ -172,7 +163,7 @@ describe('the counts', () => {
 
   it('show nothing when the post has none: no number is invented', () => {
     open({ post: { ...post, metrics: undefined } })
-    expect(screen.queryByText(/^(Views|Likes|Comments|Shares|Saves)$/)).toBeNull()
+    expect(screen.queryByText(/^(views|likes|comments|shares|saves)$/)).toBeNull()
     expect(screen.queryByText(/^[\d.,]+k?$/)).toBeNull()
   })
 
@@ -205,7 +196,7 @@ describe('the facts and the link', () => {
   })
 
   it('opens the post on its account in a new tab, only when it has an address', () => {
-    open({ permalink: 'https://www.tiktok.com/@casavostrasg/video/7' })
+    open({ post: { ...post, permalink: 'https://www.tiktok.com/@casavostrasg/video/7' } })
     const link = screen.getByRole('link', { name: 'Open on TikTok' })
     expect(link).toHaveAttribute('href', 'https://www.tiktok.com/@casavostrasg/video/7')
     expect(link).toHaveAttribute('target', '_blank')
@@ -218,7 +209,7 @@ describe('the facts and the link', () => {
   })
 
   it('names the account on the link', () => {
-    open({ went: ['ig'], permalink: 'https://www.instagram.com/p/C1/' })
+    open({ went: ['ig'], post: { ...post, permalink: 'https://www.instagram.com/p/C1/' } })
     expect(screen.getByRole('link', { name: 'Open on Instagram' })).toBeInTheDocument()
   })
 })
@@ -228,7 +219,9 @@ describe('the analytics preview', () => {
     open({})
     const pill = within(analytics()).getByRole('button', { name: 'Unavailable' })
     expect(pill).toHaveAccessibleDescription('TikTok analytics isn’t connected yet.')
-    expect(within(analytics()).getByText('Preview')).toBeInTheDocument()
+    // No words it does not need: no "Preview" tag, no sentence under the number.
+    expect(within(analytics()).queryByText('Preview')).toBeNull()
+    expect(within(analytics()).queryByText(/each day of its first two weeks/)).toBeNull()
   })
 
   it('shows reach by account when there are collaborators', () => {
@@ -273,6 +266,91 @@ describe('the analytics preview', () => {
       'aria-checked',
       'true',
     )
-    expect(within(analytics()).getByText('minutes')).toBeInTheDocument()
+    // The chart redraws as watch time's shape: its first day is 0.9 of the top, reach's is 1.
+    const first = analytics().querySelector<HTMLElement>('.bb-grow')!
+    expect(first.style.height).toBe(`${0.9 * 92}%`)
+  })
+})
+
+describe('a post on more than one account', () => {
+  const both: Post = {
+    ...post,
+    format: 'carousel',
+    channels: ['ig', 'fb'],
+    metrics: { reach: 800, likes: 64 },
+    measuredAt: '2026-10-29T05:00:00.000Z',
+    permalink: 'https://www.instagram.com/p/DSent1/',
+    readings: {
+      ig: {
+        metrics: { reach: 800, likes: 64 },
+        readAt: '2026-10-29T05:00:00.000Z',
+        permalink: 'https://www.instagram.com/p/DSent1/',
+      },
+      fb: {
+        metrics: { likes: 12, shares: 2 },
+        readAt: '2026-10-21T05:00:00.000Z',
+        permalink: 'https://www.facebook.com/casa/posts/2',
+      },
+    },
+  }
+  const account = () => screen.getByRole('radiogroup', { name: 'Account' })
+
+  it('opens on the account it came from, and switches the counts, their date and the link', () => {
+    open({ post: both, went: ['ig', 'fb'], asked: 'fb' })
+    expect(within(account()).getByRole('radio', { name: 'Facebook' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(screen.getByText('12')).toBeInTheDocument()
+    expect(screen.getByText('as of 21 Oct')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open on Facebook' })).toHaveAttribute(
+      'href',
+      'https://www.facebook.com/casa/posts/2',
+    )
+    fireEvent.click(within(account()).getByRole('radio', { name: 'Instagram' }))
+    expect(screen.getByText('800')).toBeInTheDocument()
+    expect(screen.queryByText('12')).toBeNull()
+    expect(screen.getByText('as of 29 Oct')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open on Instagram' })).toHaveAttribute(
+      'href',
+      'https://www.instagram.com/p/DSent1/',
+    )
+    // The analytics preview follows the account on show.
+    expect(
+      within(analytics()).getByRole('button', { name: 'Unavailable' }),
+    ).toHaveAccessibleDescription('Instagram analytics isn’t connected yet.')
+  })
+
+  it('opens on the first account with numbers when none is asked for', () => {
+    const fbOnly: Post = {
+      ...both,
+      metrics: undefined,
+      measuredAt: undefined,
+      readings: { fb: both.readings!.fb! },
+    }
+    open({ post: fbOnly, went: ['ig', 'fb'] })
+    expect(within(account()).getByRole('radio', { name: 'Facebook' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+  })
+
+  it('shows no counts and no link on an account with no reading: nothing is filled in', () => {
+    const igOnly: Post = { ...both, readings: { ig: both.readings!.ig! } }
+    open({ post: igOnly, went: ['ig', 'fb'], asked: 'fb' })
+    expect(screen.queryByText(/^(reach|likes|shares)$/)).toBeNull()
+    expect(screen.queryByText(/^as of/)).toBeNull()
+    expect(screen.queryByRole('link', { name: /^Open on/ })).toBeNull()
+  })
+
+  it('has no switch when it went to one account; its mark sits in the line above the title', () => {
+    open({ went: ['ig'], post: { ...post, channels: ['ig'] } })
+    expect(screen.queryByRole('radiogroup', { name: 'Account' })).toBeNull()
+  })
+
+  it('does not say the title twice when the caption starts with it', () => {
+    open({ caption: 'Pasta, hand cut every morning\nBook a table.' })
+    expect(screen.getAllByText(/Pasta, hand cut every morning/)).toHaveLength(1)
+    expect(screen.getByText('Book a table.')).toBeInTheDocument()
   })
 })
