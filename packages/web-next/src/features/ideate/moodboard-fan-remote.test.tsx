@@ -100,7 +100,7 @@ describe('the moodboard’s empty state on the core', () => {
       within(empty)
         .getAllByRole('button')
         .map((b) => b.textContent),
-    ).toEqual(['Pinterest', 'Instagram DMs', 'TikTok'])
+    ).toEqual(['Pinterest', 'Instagram', 'TikTok'])
     // Nothing of the demo's moodboard comes with the photos: no board names, captions or handles.
     expect(screen.queryByText('Pasta shots')).toBeNull()
     expect(screen.queryByText('Pizza close-ups')).toBeNull()

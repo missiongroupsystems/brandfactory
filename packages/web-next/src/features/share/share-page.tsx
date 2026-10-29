@@ -66,7 +66,7 @@ function Frame({
 function Missing() {
   return (
     <div className="flex min-h-svh items-center justify-center px-4 text-center">
-      <p className="max-w-[360px] text-[15px] text-ink-3">
+      <p className="max-w-[360px] text-[14px] text-ink-3">
         This link has nothing to show. Ask the team for a new one.
       </p>
     </div>
@@ -78,7 +78,7 @@ function TeamOnly({ brandId }: { brandId: BrandId }) {
   const brand = contentFor(brandId).brand
   return (
     <div className="flex min-h-svh items-center justify-center px-4 text-center">
-      <p className="max-w-[360px] text-[15px] text-ink-3">
+      <p className="max-w-[360px] text-[14px] text-ink-3">
         This link is only for the {brand.name} team.
       </p>
     </div>
@@ -133,7 +133,7 @@ function IdeaBrief({ brandId, card }: { brandId: BrandId; card: IdeaCard }) {
           <FormatIcon format={card.format} size={11} />
           {FORMAT_LABEL[card.format]} · Brief
         </span>
-        <h1 className="font-display text-[44px] leading-[1.05] tracking-[-0.035em] max-md:text-[30px]">
+        <h1 className="font-display text-[34px] leading-[1.08] tracking-[-0.03em] max-md:text-[28px]">
           {card.hook}
         </h1>
         {card.angle && <p className="text-[16px] leading-[1.5] text-ink-2">{card.angle}</p>}
@@ -156,23 +156,26 @@ function IdeaBrief({ brandId, card }: { brandId: BrandId; card: IdeaCard }) {
       </header>
       {refs.length > 0 && (
         <section aria-label="References" className="flex flex-col gap-4">
-          <span className={EYEBROW}>What it should look like</span>
+          <h2 className="text-[16px] font-medium tracking-[-0.01em]">What it should look like</h2>
           <ul className="grid grid-cols-4 gap-3 max-md:grid-cols-3 max-md:gap-2">
             {refs.map((r) => (
               <li key={r.key} className="flex min-w-0 flex-col gap-1.5">
                 <span className="relative aspect-[4/5] overflow-hidden rounded-[12px] bg-tile">
                   <Media src={r.src} sizes="180px" />
                 </span>
-                {r.note && <span className="truncate text-[12px] text-ink-4">{r.note}</span>}
+                {r.note && <span className="truncate text-[13px] text-ink-4">{r.note}</span>}
               </li>
             ))}
           </ul>
         </section>
       )}
       <section aria-label="Storyboard" className="flex flex-col gap-4">
-        <span className={EYEBROW}>
-          Storyboard · {card.shots.length} {card.shots.length === 1 ? 'shot' : 'shots'}
-        </span>
+        <h2 className="flex items-baseline gap-2">
+          <span className="text-[16px] font-medium tracking-[-0.01em]">Storyboard</span>
+          <span className="text-[13px] text-ink-4">
+            {card.shots.length} {card.shots.length === 1 ? 'shot' : 'shots'}
+          </span>
+        </h2>
         <ShotList brandId={brandId} ideas={[card]} headings={false} bleed={BLEED} />
       </section>
     </>
@@ -197,7 +200,7 @@ function CallSheet({ brandId, shoot }: { brandId: BrandId; shoot: Shoot }) {
     <>
       <header className="flex flex-col gap-5">
         <span className={EYEBROW}>Call sheet · {shoot.title}</span>
-        <h1 className="font-display text-[44px] leading-[1.05] tracking-[-0.035em] max-md:text-[30px]">
+        <h1 className="font-display text-[34px] leading-[1.08] tracking-[-0.03em] max-md:text-[28px]">
           {dayLabel(shoot.date)}
           <span className="text-ink-4">
             , {shoot.start}–{shoot.end}
@@ -217,9 +220,12 @@ function CallSheet({ brandId, shoot }: { brandId: BrandId; shoot: Shoot }) {
         </ul>
       </header>
       <section aria-label="Storyboard" className="flex flex-col gap-6">
-        <span className={EYEBROW}>
-          Storyboard · {shots} {shots === 1 ? 'shot' : 'shots'}
-        </span>
+        <h2 className="flex items-baseline gap-2">
+          <span className="text-[16px] font-medium tracking-[-0.01em]">Storyboard</span>
+          <span className="text-[13px] text-ink-4">
+            {shots} {shots === 1 ? 'shot' : 'shots'}
+          </span>
+        </h2>
         <ShotList brandId={brandId} ideas={cards} bleed={BLEED} />
       </section>
     </>

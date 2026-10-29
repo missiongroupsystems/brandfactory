@@ -76,7 +76,7 @@ describe('the moodboard', () => {
   it('brings Instagram in by DM to the moodboard account, with the brand tag', () => {
     // Instagram lets no app read saved posts, so the honest route is a DM with the brand's tag.
     openMoodboard()
-    fireEvent.click(screen.getByRole('button', { name: 'Instagram DMs' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Instagram' }))
     expect(screen.getAllByText('@mission.moodboards').length).toBeGreaterThan(0)
     expect(screen.getByText('#casavostra')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Turn on' }))
@@ -84,7 +84,7 @@ describe('the moodboard', () => {
       vi.advanceTimersByTime(1000)
     })
     expect(ideasOf('casa-vostra').sources).toEqual({ pinterest: false, dm: true, tt: false })
-    // One name for one thing: the source button says Instagram DMs, so the chip says Instagram.
+    // One name for one thing: the source button and the chip it makes both say Instagram.
     expect(screen.getByRole('tab', { name: /Instagram/ })).toBeInTheDocument()
   })
 
@@ -185,6 +185,9 @@ describe('the moodboard', () => {
     fireEvent.blur(words)
     expect(screen.getByRole('button', { name: /instagram.com: The slow zoom/ })).toBeInTheDocument()
     expect(ideasOf('casa-vostra').sources.dm).toBe(false)
+    // What was just pasted leads the board: the judge found it lost in the middle of the grid.
+    const pins = screen.getAllByRole('button', { name: /^(instagram\.com|Pasta shots|Pizza)/ })
+    expect(pins[0]).toHaveAccessibleName(/^instagram.com: The slow zoom/)
   })
 })
 
@@ -197,5 +200,26 @@ describe('the current ideas', () => {
     expect(screen.queryByText('Hand-made reels hold viewers 2× longer')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Use it' })).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Plan it' }).length).toBeGreaterThan(0)
+  })
+
+  // Round 2: "Idea · Tue 20 Oct" repeated on every card, and the green button did not say why.
+  it('say only what differs on a card, and Suggest says what it fills', () => {
+    openMoodboard()
+    fireEvent.click(screen.getByRole('radio', { name: 'Current ideas' }))
+    const grid = screen.getByRole('region', { name: 'Ideas' })
+    expect(within(grid).queryByText(/^Idea · /)).toBeNull()
+    // A placed idea says its day; a draft says it is one.
+    expect(
+      within(grid).getAllByText(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d+ Oct$/).length,
+    ).toBeGreaterThan(0)
+    expect(within(grid).getByText(/^Draft · /)).toBeInTheDocument()
+    const suggest = within(grid).getByRole('button', { name: /^Suggest .* for this month$/ })
+    expect(suggest).toHaveAttribute('title', expect.stringMatching(/feed posts this month/))
+    // A suggestion can be dismissed from the board, as before: Skip on its card.
+    fireEvent.click(suggest)
+    const skips = within(grid).getAllByRole('button', { name: 'Skip' })
+    expect(skips.length).toBeGreaterThan(0)
+    fireEvent.click(skips[0]!)
+    expect(within(grid).getAllByRole('button', { name: 'Skip' })).toHaveLength(skips.length - 1)
   })
 })

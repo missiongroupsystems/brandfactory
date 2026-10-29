@@ -288,10 +288,11 @@ function Ideas({
                 <button
                   type="button"
                   onClick={() => suggest(brand.id)}
+                  title={`${own} of ${target} feed posts this month have an idea. This drafts ${open} more from what worked; you keep or skip each.`}
                   className="flex h-9 items-center gap-2 rounded-full px-3 text-[13px] font-medium text-(--insight-6) transition-colors hover:bg-(--insight-wash)"
                 >
                   <SparkIcon size={10} />
-                  Suggest {open === 1 ? 'an idea' : `${open} ideas`}
+                  Suggest {open === 1 ? 'one' : open} for this month
                 </button>
               )}
             </span>
@@ -323,7 +324,9 @@ function Ideas({
 
       {moments.length > 0 && (
         <section aria-label="Moments ahead" className="flex flex-col gap-6">
-          <span className={`${EYEBROW} flex h-9 items-center`}>Moments ahead</span>
+          <h2 className="flex h-9 items-center text-[16px] font-medium tracking-[-0.01em]">
+            Moments ahead
+          </h2>
           <ul className={GRID}>
             {moments.map((m) => (
               <li key={m.id}>
@@ -389,50 +392,57 @@ function IdeaView({
         <span className="flex flex-col gap-1.5 px-0.5">
           <span className={HOOK}>{card.hook}</span>
           {source && (
-            <span className="truncate text-[12px]" style={{ color: source.colour }}>
+            <span className="truncate text-[13px]" style={{ color: source.colour }}>
               {source.text}
             </span>
           )}
-          <span className="flex items-center gap-2 text-[12px] text-ink-4">
-            <span
-              className="size-1.5 shrink-0 rounded-full"
-              style={{ background: statusColour(status) }}
-            />
-            <span className="truncate">
-              {[STATUS_LABEL[status], label].filter(Boolean).join(' · ')}
-            </span>
-            <span className="ml-auto flex shrink-0 items-center gap-1">
-              <FormatIcon format={card.format} size={10} />
-              {FORMAT_LABEL[card.format]}
-            </span>
-          </span>
         </span>
       </Link>
-      {/* The card opens the idea; under it, only what the card itself cannot do. */}
-      {suggested ? (
-        <span className="flex items-center gap-4 px-0.5">
-          <Link href={href} className={`${ACT} text-ink hover:opacity-70`}>
-            Review
-          </Link>
-          <button
-            type="button"
-            onClick={() => skipSuggestion(brand.id, card.id)}
-            className={`${ACT} text-ink-3 hover:text-ink`}
-          >
-            Skip
-          </button>
-        </span>
-      ) : (
-        !placed && (
+      {/* Every card ends in the same line: where it stands at the left, its format at the right.
+          Only what differs is said: the day, and the stage once it is past an idea. An idea with
+          no day has the one action in that place: Plan it. A suggestion opens on its page to keep,
+          and Skip dismisses it here. */}
+      <span className="flex min-h-5 items-center gap-2 px-0.5 text-[13px] text-ink-4">
+        {suggested ? (
+          // Dismissed from the board as before; keeping it is the idea page's job.
+          <>
+            <span className="truncate text-(--insight-6)">
+              {['Suggested', label].filter(Boolean).join(' · ')}
+            </span>
+            <button
+              type="button"
+              onClick={() => skipSuggestion(brand.id, card.id)}
+              className={`${ACT} relative z-[1] text-ink-4 hover:text-ink`}
+            >
+              Skip
+            </button>
+          </>
+        ) : placed ? (
+          <span className="flex min-w-0 items-center gap-2">
+            {status !== 'idea' && (
+              <span
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ background: statusColour(status) }}
+              />
+            )}
+            <span className="truncate">
+              {[status === 'idea' ? '' : STATUS_LABEL[status], label].filter(Boolean).join(' · ')}
+            </span>
+          </span>
+        ) : (
           <button
             type="button"
             onClick={onPlan}
-            className={`${ACT} self-start px-0.5 text-ink hover:opacity-70`}
+            className={`${ACT} relative z-[1] text-ink hover:opacity-70`}
           >
             Plan it
           </button>
-        )
-      )}
+        )}
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          <FormatIcon format={card.format} size={10} />
+          {FORMAT_LABEL[card.format]}
+        </span>
+      </span>
     </article>
   )
 }
@@ -495,7 +505,7 @@ function Collage({
             className="object-cover transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] group-hover/card:scale-[1.03]"
           />
           {i === shown.length - 1 && more > 0 && (
-            <span className="absolute inset-0 flex items-center justify-center bg-black/40 font-mono text-[12px] text-white">
+            <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[13px] font-medium text-white">
               +{more}
             </span>
           )}
@@ -519,26 +529,25 @@ function MomentView({ moment, onUse }: { moment: Moment; onUse: () => void }) {
         <span className="font-display text-[56px] leading-none tracking-[-0.04em] max-md:text-[44px]">
           {day}
         </span>
-        <span className={EYEBROW}>{month}</span>
+        <span className="text-[13px] font-medium">
+          {month && month.charAt(0) + month.slice(1).toLowerCase()}
+        </span>
       </span>
       <span className="flex flex-col gap-1.5 px-0.5">
         <span className={HOOK}>{moment.seed.hook}</span>
-        <span className="truncate text-[12px] text-(--layer-holiday-ink)">{moment.title}</span>
-        <span className="flex items-center gap-2 text-[12px] text-ink-4">
-          <span className="truncate">{moment.near}</span>
-          <span className="ml-auto flex shrink-0 items-center gap-1">
-            <FormatIcon format={moment.seed.format} size={10} />
-            {FORMAT_LABEL[moment.seed.format]}
-          </span>
+        <span className="truncate text-[13px] text-(--layer-holiday-ink)">
+          {moment.title} · {moment.near}
         </span>
       </span>
-      <button
-        type="button"
-        onClick={onUse}
-        className={`${ACT} self-start px-0.5 text-ink hover:opacity-70`}
-      >
-        Plan it
-      </button>
+      <span className="flex min-h-5 items-center gap-2 px-0.5 text-[13px] text-ink-4">
+        <button type="button" onClick={onUse} className={`${ACT} text-ink hover:opacity-70`}>
+          Plan it
+        </button>
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          <FormatIcon format={moment.seed.format} size={10} />
+          {FORMAT_LABEL[moment.seed.format]}
+        </span>
+      </span>
     </article>
   )
 }
@@ -547,7 +556,7 @@ function MomentView({ moment, onUse }: { moment: Moment; onUse: () => void }) {
 
 const SOURCE_NAME: Record<MoodSource, string> = {
   pinterest: 'Pinterest',
-  dm: 'Instagram DMs',
+  dm: 'Instagram',
   tt: 'TikTok',
 }
 
@@ -710,7 +719,7 @@ function openingSetup(brandId: BrandId): PinterestSetup | null {
   return { ...known, boards: known.boards.map((b) => ({ ...b, picked: live.includes(b.id) })) }
 }
 
-/** Instagram DMs carry Instagram's logo. */
+/** Posts DM'd to the moodboard account carry Instagram's logo. */
 const SOURCE_LOGO: Record<MoodSource, 'pinterest' | 'ig' | 'tt'> = {
   pinterest: 'pinterest',
   dm: 'ig',
@@ -818,9 +827,11 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   ]
   // One board: the folders dealt in turn, so every source shows near the top.
   const longest = Math.max(0, ...folders.map((f) => f.pins.length))
-  const all = Array.from({ length: longest }, (_, i) => folders.flatMap((f) => f.pins[i] ?? []))
-    .flat()
-    .filter((p, i, a) => a.findIndex((q) => q.id === p.id) === i)
+  // A pasted link leads the board: it is what the person just did, so it shows first.
+  const all = [
+    ...pasted,
+    ...Array.from({ length: longest }, (_, i) => folders.flatMap((f) => f.pins[i] ?? [])).flat(),
+  ].filter((p, i, a) => a.findIndex((q) => q.id === p.id) === i)
   const current = folders.find((f) => f.id === filter)
   const shown = current ? current.pins : all
   const missing = (Object.keys(SOURCE_NAME) as MoodSource[]).filter((k) => !sources[k])
@@ -1064,7 +1075,7 @@ function AddSource({
           key={m}
           type="button"
           onClick={() => setPicked(m)}
-          className="flex h-10 items-center gap-2.5 rounded-[10px] px-2.5 text-[13.5px] font-medium transition-colors hover:bg-surface"
+          className="flex h-10 items-center gap-2.5 rounded-[10px] px-2.5 text-[14px] font-medium transition-colors hover:bg-surface"
         >
           <PlatformLogo platform={SOURCE_LOGO[m]} size={13} />
           {SOURCE_NAME[m]}
@@ -1110,7 +1121,7 @@ function DemoSetup({ source }: { source: MoodSource }) {
       <button
         type="button"
         onClick={connect}
-        className="bb-press flex h-10 items-center justify-center gap-2 self-start rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85"
+        className="bb-press flex h-10 items-center justify-center gap-2 self-start rounded-full bg-ink px-5 text-[14px] font-medium text-page hover:opacity-85"
       >
         {busy && (
           <span className="size-3 animate-spin rounded-full border-[1.5px] border-white/30 border-t-white" />
@@ -1123,7 +1134,7 @@ function DemoSetup({ source }: { source: MoodSource }) {
     return (
       <div className="flex flex-col gap-4 text-left">
         <span className={EYEBROW}>TikTok · {brand.handle}</span>
-        <p className="text-[13.5px] text-ink-2">
+        <p className="text-[14px] text-ink-2">
           Videos saved on {brand.name}’s TikTok land on its moodboard.
         </p>
         {action('Connect TikTok')}
@@ -1135,7 +1146,7 @@ function DemoSetup({ source }: { source: MoodSource }) {
     return (
       <div className="flex flex-col gap-4 text-left">
         <span className={EYEBROW}>Instagram · {MOODBOARD_ACCOUNT}</span>
-        <ol className="flex flex-col gap-2 text-[13.5px] text-ink-2">
+        <ol className="flex flex-col gap-2 text-[14px] text-ink-2">
           <li>1. On Instagram, tap Share on any post or reel.</li>
           <li>
             2. Send it to <span className="font-medium text-ink">{MOODBOARD_ACCOUNT}</span> with{' '}
@@ -1163,8 +1174,8 @@ function DemoSetup({ source }: { source: MoodSource }) {
             <BrandLogo brandId={brand.id} sizes="56px" />
           </span>
           <span className="flex flex-1 flex-col">
-            <span className="text-[13.5px] font-medium">{brand.name}</span>
-            <span className="text-[12px] text-ink-4">
+            <span className="text-[14px] font-medium">{brand.name}</span>
+            <span className="text-[13px] text-ink-4">
               {boardsOf(brand.id).reduce((n, s) => n + s.pinCount, 0)} pins
             </span>
           </span>
@@ -1253,7 +1264,7 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
       type="button"
       onClick={onClick}
       disabled={disabled || busy}
-      className="bb-press flex h-10 items-center justify-center gap-2 self-start rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85 disabled:opacity-40"
+      className="bb-press flex h-10 items-center justify-center gap-2 self-start rounded-full bg-ink px-5 text-[14px] font-medium text-page hover:opacity-85 disabled:opacity-40"
     >
       {busy && (
         <span className="size-3 animate-spin rounded-full border-[1.5px] border-white/30 border-t-white" />
@@ -1293,7 +1304,7 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
     return (
       <div className="flex flex-col gap-4 text-left">
         <span className={EYEBROW}>Pinterest</span>
-        <p className="text-[13.5px] text-ink-2">Link {brand.name}’s Pinterest account.</p>
+        <p className="text-[14px] text-ink-2">Link {brand.name}’s Pinterest account.</p>
         {button('Connect Pinterest', () => void run(() => startPinterest(brand.id)))}
         {problem}
       </div>
@@ -1316,7 +1327,7 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
     return (
       <div className="flex flex-col gap-4 text-left">
         <span className={EYEBROW}>{handle}</span>
-        <p className="text-[13.5px] text-ink-2">
+        <p className="text-[14px] text-ink-2">
           No boards on this account yet. Make one on{' '}
           <a
             href="https://www.pinterest.com/"
@@ -1336,7 +1347,7 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
             setChecking(true)
             setReads((n) => n + 1)
           }}
-          className="bb-press flex h-10 items-center self-start rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85 disabled:opacity-40"
+          className="bb-press flex h-10 items-center self-start rounded-full bg-ink px-5 text-[14px] font-medium text-page hover:opacity-85 disabled:opacity-40"
         >
           {checking ? 'Checking…' : 'Check again'}
         </button>
@@ -1379,8 +1390,8 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
             {b.cover && <Image src={b.cover} alt="" fill sizes="56px" className="object-cover" />}
           </span>
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-[13.5px] font-medium">{b.name}</span>
-            <span className="text-[12px] text-ink-4">{b.pinCount} pins</span>
+            <span className="truncate text-[14px] font-medium">{b.name}</span>
+            <span className="text-[13px] text-ink-4">{b.pinCount} pins</span>
           </span>
           {on && <CheckIcon size={13} />}
         </button>
@@ -1418,7 +1429,7 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
             }}
             placeholder="Search boards"
             aria-label="Search boards"
-            className="h-full w-full rounded-full bg-surface-2 pr-4 pl-9 text-[13px] outline-none placeholder:text-ink-5 focus:bg-surface [&::-webkit-search-cancel-button]:appearance-none max-md:text-[15px]"
+            className="h-full w-full rounded-full bg-surface-2 pr-4 pl-9 text-[13px] outline-none placeholder:text-ink-5 focus:bg-surface [&::-webkit-search-cancel-button]:appearance-none max-md:text-[16px]"
           />
         </label>
       )}
@@ -1434,7 +1445,7 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
           <div key={g.label} className="flex flex-col">
             {/* Headings only when the boards split in two: one list needs no title. */}
             {reading.length > 0 && reading.length < setup.boards.length && (
-              <span className="pb-0.5 text-[12px] text-ink-4">{g.label}</span>
+              <span className="pb-0.5 text-[13px] text-ink-4">{g.label}</span>
             )}
             {g.boards.map(row)}
           </div>
@@ -1483,11 +1494,11 @@ function ConnectSources() {
   const setup = React.useRef<HTMLDivElement>(null)
   // Opened by a sign-in coming back: in view, since on a phone it sits below the fold.
   React.useEffect(() => {
-    if (asked && picked === undefined) setup.current?.scrollIntoView({ block: 'center' })
+    if (asked && picked === undefined) setup.current?.scrollIntoView({ block: 'nearest' })
   }, [asked, picked])
   // Opened by a tap: the panel lands below the fold on a short screen, so bring it into view.
   React.useEffect(() => {
-    if (picked) setup.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    if (picked) setup.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [picked])
 
   return (
@@ -1531,7 +1542,8 @@ function ConnectSources() {
         <div
           key={open}
           ref={setup}
-          className="bb-pop w-full max-w-[420px] rounded-[18px] bg-surface-2 p-5"
+          // On a phone the tab bar covers the foot of the window: the panel stops above it.
+          className="bb-pop w-full max-w-[420px] scroll-mb-6 rounded-[18px] bg-surface-2 p-5 max-md:scroll-mb-[calc(88px+env(safe-area-inset-bottom))]"
         >
           <SourceSetup source={open} />
         </div>
@@ -1732,7 +1744,7 @@ function Masonry({
                     >
                       <PlatformLogo platform={ref.platform} size={12} brand />
                     </span>
-                    <span className="truncate text-[12px] text-ink-2">{ref.account}</span>
+                    <span className="truncate text-[13px] text-ink-2">{ref.account}</span>
                     {used && (
                       <span className="ml-auto shrink-0 text-[12px] text-ink-4">{used}</span>
                     )}
@@ -1891,7 +1903,7 @@ function Preview({
         )}
       </span>
       <div className="flex flex-col gap-1">
-        {ref.borrow && <span className="text-[15px] leading-[1.35] text-ink">{ref.borrow}</span>}
+        {ref.borrow && <span className="text-[16px] leading-[1.35] text-ink">{ref.borrow}</span>}
         <span className="flex min-w-0 items-center gap-2 text-[13px] text-ink-3">
           <PlatformLogo platform={ref.platform} size={11} brand />
           <span className="truncate">{ref.account}</span>
@@ -1912,7 +1924,7 @@ function Preview({
         ref={main}
         type="button"
         onClick={() => onPlan(ref)}
-        className="bb-press flex h-10 items-center justify-center rounded-full bg-ink px-5 text-[13.5px] font-medium text-page hover:opacity-85"
+        className="bb-press flex h-10 items-center justify-center rounded-full bg-ink px-5 text-[14px] font-medium text-page hover:opacity-85"
       >
         Plan idea from this
       </button>
@@ -2012,6 +2024,7 @@ function PasteLink({ onPaste }: { onPaste: (r: Reference) => void }) {
       <button
         type="button"
         aria-label="Paste a link"
+        title="Paste a link"
         onClick={() => setOpen(true)}
         className="flex size-9 shrink-0 items-center justify-center rounded-full text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink"
       >
@@ -2026,12 +2039,16 @@ function PasteLink({ onPaste }: { onPaste: (r: Reference) => void }) {
         paste()
       }}
       // Open on a phone, the field lies over the chips, the width of the row.
-      className={`flex shrink-0 ${phone ? 'absolute inset-x-0 top-0 z-[1] h-9 bg-page' : ''}`}
+      className={`flex shrink-0 ${phone ? 'absolute inset-x-0 top-0 z-[1] h-9 items-center bg-page' : ''}`}
     >
       <input
         ref={field}
         value={link}
-        onBlur={() => link.trim() === '' && setOpen(false)}
+        onBlur={(e) => {
+          // Focus moving inside the form (Tab to the ×) keeps the field open.
+          if (e.currentTarget.form?.contains(e.relatedTarget as Node | null)) return
+          if (link.trim() === '') setOpen(false)
+        }}
         onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
         onChange={(e) => setLink(e.target.value)}
         onPaste={(e) => {
@@ -2044,8 +2061,24 @@ function PasteLink({ onPaste }: { onPaste: (r: Reference) => void }) {
         maxLength={500}
         placeholder="Paste a link"
         aria-label="Paste an Instagram or TikTok link"
-        className={`h-9 rounded-full bg-surface px-3.5 text-[13px] outline-none placeholder:text-ink-4 focus:bg-paper focus:shadow-[0_0_0_1.5px_var(--ink)] ${phone ? 'w-full' : 'w-[180px]'}`}
+        className={`h-9 rounded-full bg-surface px-3.5 text-[13px] outline-none placeholder:text-ink-4 focus:bg-paper focus:shadow-[0_0_0_1.5px_var(--ink)] ${phone ? 'w-full min-w-0 text-[16px]' : 'w-[180px]'}`}
       />
+      {/* Over the chips on a phone, the field has its own way out: the chips and Select return. */}
+      {phone && (
+        <button
+          type="button"
+          aria-label="Cancel the link"
+          // Before the field's blur, which would close it first and swallow the tap.
+          onPointerDown={(e) => e.preventDefault()}
+          onClick={() => {
+            setLink('')
+            setOpen(false)
+          }}
+          className="ml-1.5 flex size-9 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:text-ink"
+        >
+          <CloseIcon />
+        </button>
+      )}
     </form>
   )
 }

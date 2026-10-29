@@ -39,6 +39,8 @@ export function DayPicker({
   placeholder = 'Pick a day',
   shortcuts,
   onClear,
+  prefix,
+  down = false,
 }: {
   label: string
   value: string | null
@@ -55,6 +57,13 @@ export function DayPicker({
   shortcuts?: Array<{ key: string; label: string; date: string }>
   /** Lets the field be emptied again; absent when the field always holds a day. */
   onClear?: () => void
+  /** A word in the field before the day, which says what the day is for: "Shoot", "Post". */
+  prefix?: string
+  /**
+   * Always opens below the field, the page scrolling it into view: opened upward it covered
+   * what sits above the field.
+   */
+  down?: boolean
 }) {
   const phone = usePhone()
   const [open, setOpen] = React.useState(false)
@@ -100,9 +109,9 @@ export function DayPicker({
     if (!f) return
     const below = f.bottom + 8 + h <= window.innerHeight
     const above = f.top - 8 - h >= 0
-    setUp(!below && above)
-    if (!below && !above) pop.current?.scrollIntoView({ block: 'nearest' })
-  }, [open, phone])
+    setUp(!down && !below && above)
+    if (!below && (down || !above)) pop.current?.scrollIntoView({ block: 'nearest' })
+  }, [open, phone, down])
 
   const text = value ? `${dayLabel(value)}${time ? `, ${time}` : ''}` : placeholder
   const body = (
@@ -147,6 +156,7 @@ export function DayPicker({
         className={`flex h-8 items-center gap-2 rounded-full bg-surface pr-3 pl-3 text-[13px] font-medium outline-none transition-colors hover:bg-paper focus-visible:shadow-[0_0_0_2px_var(--ink)] disabled:cursor-default disabled:opacity-50 ${value ? 'text-ink' : 'text-ink-3'}`}
       >
         <CalendarGlyph />
+        {prefix && <span className="font-normal text-ink-3">{prefix}</span>}
         {text}
       </button>
       {open &&
@@ -343,7 +353,7 @@ function Body({
                 type="button"
                 aria-pressed={on}
                 onClick={() => onDay(s.date)}
-                className={`flex h-7 items-center rounded-full px-2.5 text-[12px] transition-colors ${on ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:text-ink'}`}
+                className={`flex h-7 items-center rounded-full px-2.5 text-[13px] transition-colors ${on ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:text-ink'}`}
               >
                 {s.label}
               </button>
@@ -361,19 +371,19 @@ function Body({
             <button
               type="button"
               onClick={onClear}
-              className="text-[12px] text-ink-3 transition-colors hover:text-ink"
+              className="text-[13px] text-ink-3 transition-colors hover:text-ink"
             >
               Clear
             </button>
           ) : (
-            <span className="font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase">
+            <span className="text-[13px] text-ink-4">
               Today {dayNumber(today)} {MONTH_SHORT[monthOf(today).month]}
             </span>
           )}
         </div>
         <div aria-hidden="true" className="grid grid-cols-7 text-center">
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-            <span key={i} className="font-mono text-[12px] text-ink-4">
+            <span key={i} className="text-[12px] text-ink-4">
               {d}
             </span>
           ))}
@@ -441,13 +451,11 @@ function Body({
                 role="radio"
                 aria-checked={on}
                 onClick={() => onTime(t)}
-                className={`flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] tabular-nums transition-colors ${on ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:text-ink'}`}
+                className={`flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[13px] tabular-nums transition-colors ${on ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:text-ink'}`}
               >
                 {t}
                 {t === best && (
-                  <span
-                    className={`font-mono text-[12px] tracking-[0.04em] uppercase ${on ? 'text-page/70' : 'text-(--insight-6)'}`}
-                  >
+                  <span className={`text-[12px] ${on ? 'text-page/70' : 'text-(--insight-6)'}`}>
                     Best
                   </span>
                 )}

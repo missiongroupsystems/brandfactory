@@ -1,6 +1,7 @@
 import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { IDEAS_BY_BRAND } from '@/data/ideas'
 import { OUTLETS } from '@/data/shoots'
 import { PAST_CREW } from '@/data/suggestions'
 import { IdeaPage } from '@/features/ideate/idea-page'
@@ -10,6 +11,7 @@ import { BrandProvider } from '@/features/schedule/posts-store'
 import { pastCrew } from './model'
 import { NewShootForm } from './new-shoot'
 import { ShootPage } from './shoot-page'
+import { shotImages } from './shot-list'
 import { resetShoots, shootOfIdea, useShoots } from './shoots-store'
 
 vi.mock('next/navigation', () => ({
@@ -182,6 +184,24 @@ const press = (code: 'ArrowLeft' | 'ArrowRight' | 'Space' | 'Escape') =>
     fireEvent.keyDown(document.activeElement ?? document, { code })
   })
 
+describe('the strip of shots', () => {
+  // Round 2: one cover three times down each strip read as a bug.
+  it('never shows one photo twice in an idea: a linked reference, the next unused one, or none', () => {
+    const card = IDEAS_BY_BRAND['casa-vostra'].ideas.find((i) => i.id === 'cv-dough')!
+    const shown = shotImages('casa-vostra', card).filter(Boolean)
+    expect(shown.length).toBeGreaterThan(0)
+    expect(new Set(shown).size).toBe(shown.length)
+    // A shot linked to a reference shows it, and no other shot repeats it.
+    const linked = {
+      ...card,
+      shots: card.shots.map((s, i) => (i === 2 ? { ...s, ref: card.inspiration[0] } : s)),
+    }
+    const images = shotImages('casa-vostra', linked)
+    expect(images[2]).toBeDefined()
+    expect(images.filter((m) => m === images[2])).toHaveLength(1)
+  })
+})
+
 describe('the shot list', () => {
   const measure = Element.prototype.getBoundingClientRect
   beforeEach(() => {
@@ -306,13 +326,21 @@ describe('ideas on the shoot', () => {
     expect(shootOfIdea(shoots(), 'cv-blindfold')?.id).toBe('cv-shoot-raffles')
     unmount()
 
-    // No retyping on the idea page: its shoot line is this shoot, day and hours.
+    // No retyping on the idea page: its shoot chip is this shoot's day and start, said once,
+    // and the card beside it opens this shoot's call sheet.
     render(
       <BrandProvider>
         <IdeaPage id="cv-blindfold" />
       </BrandProvider>,
     )
-    expect(screen.getByText('Wed 7 Oct, 12:00–17:00 · Raffles City')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Shoot day' })).toHaveTextContent(
+      'ShootWed 7 Oct, 12:00',
+    )
+    expect(screen.getByRole('link', { name: /^Raffles City.*Call sheet/ })).toHaveAttribute(
+      'href',
+      '/shoot/cv-shoot-raffles',
+    )
+    expect(screen.queryByText(/Wed 7 Oct, 12:00–17:00/)).not.toBeInTheDocument()
   })
 
   it('asks before it moves an idea off another shoot; Cancel changes nothing', () => {

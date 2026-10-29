@@ -124,7 +124,7 @@ const open = (id: string) =>
       <IdeaPage id={id} />
     </BrandProvider>,
   )
-const schedule = () => screen.getByRole('button', { name: /^(Schedule|Plan)/ })
+const schedule = () => screen.getByRole('button', { name: /^Continue to post/ })
 const calls = () => requests.map((r) => r.call)
 
 /** Picks the first open day ahead and 18:00: the core's calendar runs on real dates. */
@@ -149,7 +149,8 @@ describe('scheduling an idea on the core', () => {
     })
     pickADay()
     await waitFor(() => expect(schedule()).toBeEnabled())
-    expect(schedule()).toHaveTextContent(/^Schedule · /)
+    // It goes on to the post, which schedules; it does not say Schedule itself.
+    expect(schedule()).not.toHaveTextContent(/Schedule/)
     expect(screen.queryByRole('group', { name: 'Accounts' })).toBeNull()
     requests.length = 0
     fireEvent.click(schedule())

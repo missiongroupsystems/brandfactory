@@ -66,7 +66,7 @@ export function ShootPage({ id }: { id: string }) {
         ) : (
           <>
             <BackLink />
-            <p className="pt-6 text-[15px] text-ink-3">
+            <p className="pt-6 text-[14px] text-ink-3">
               This shoot is not here: it belongs to another brand, or a reload started the demo
               over.
             </p>
@@ -119,7 +119,7 @@ function BackLink() {
 function Heading({ label, count }: { label: string; count?: string }) {
   return (
     <span className="flex items-baseline gap-2">
-      <h2 className="text-[17px] font-medium tracking-[-0.01em]">{label}</h2>
+      <h2 className="text-[16px] font-medium tracking-[-0.01em]">{label}</h2>
       {count && <span className="text-[13px] text-ink-4">{count}</span>}
     </span>
   )
@@ -176,7 +176,14 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
         <h1 className="font-display text-[34px] leading-[1.08] tracking-[-0.03em] max-md:text-[28px]">
           {shoot.title}
         </h1>
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] leading-[1.5] text-ink-2">
+        {/* The details are their own control: a tap on the line opens them to change. */}
+        <button
+          type="button"
+          aria-label="Edit details"
+          aria-expanded={editing}
+          onClick={() => setEditing((e) => !e)}
+          className="-mx-2 flex items-center gap-1.5 self-start rounded-[8px] px-2 py-0.5 text-left text-[14px] leading-[1.5] text-ink-2 transition-colors hover:bg-surface hover:text-ink"
+        >
           <span>
             {dayLabel(shoot.date)} ·{' '}
             <span className="tabular-nums">
@@ -185,18 +192,24 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
             {/* A shoot with no place yet says only its day and hours. */}
             {shoot.place && ` · ${shoot.place}`}
           </span>
-          <button
-            type="button"
-            aria-expanded={editing}
-            onClick={() => setEditing((e) => !e)}
-            className="text-[13px] text-ink-3 transition-colors hover:text-ink"
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 12 12"
+            fill="none"
+            aria-hidden="true"
+            className={`shrink-0 text-ink-4 transition-transform ${editing ? 'rotate-180' : ''}`}
           >
-            {editing ? 'Done' : 'Edit details'}
-          </button>
-        </p>
-        <Fold open={editing}>
-          <Details shoot={shoot} edit={edit} />
-        </Fold>
+            <path
+              d="M3 4.5l3 3 3-3"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+        <Fold open={editing}>{editing && <Details shoot={shoot} edit={edit} />}</Fold>
         {/* The one thing to do: send the invites. Sent, that stands as a line, with the answers. */}
         {shoot.crew.length > 0 && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
@@ -204,7 +217,7 @@ function CallSheet({ shoot }: { shoot: Shoot }) {
               <button
                 type="button"
                 onClick={invite}
-                className="bb-press flex h-10 items-center rounded-full bg-ink px-5 text-[13.5px] font-medium text-page transition-opacity hover:opacity-85"
+                className="bb-press flex h-10 items-center rounded-full bg-ink px-5 text-[14px] font-medium text-page transition-opacity hover:opacity-85"
               >
                 {asked.length > 0 ? `Invite ${waiting} more` : 'Send Lark invites'}
               </button>
@@ -434,15 +447,17 @@ function Crew({ shoot }: { shoot: Shoot }) {
     <section aria-label="Who comes" className={`${COLUMN} flex flex-col gap-3`}>
       <div className="flex items-center justify-between gap-3">
         <Heading label="Who comes" count={String(shoot.crew.length)} />
-        {!adding && (
+        {/* One control for the list: it opens the row to add someone and shows each Remove. */}
+        {(shoot.crew.length > 0 || !adding) && (
           <button
             type="button"
-            aria-label="Add someone"
-            onClick={() => setAdding(true)}
+            aria-label={adding ? 'Done' : 'Add someone'}
+            aria-expanded={adding}
+            onClick={() => setAdding((a) => !a)}
             className="flex items-center gap-1.5 text-[13px] font-medium text-ink-3 transition-colors hover:text-ink"
           >
-            <PlusIcon size={10} />
-            Add
+            {!adding && <PlusIcon size={10} />}
+            {adding ? 'Done' : 'Add'}
           </button>
         )}
       </div>
@@ -467,14 +482,14 @@ function Crew({ shoot }: { shoot: Shoot }) {
               </span>
               <span className="flex items-center gap-2">
                 {status.text && (
-                  <span className={`text-[12px] ${status.className}`}>{status.text}</span>
+                  <span className={`text-[13px] ${status.className}`}>{status.text}</span>
                 )}
-                {/* On hover, or under a finger, which has none. */}
+                {/* On hover, or while the list is open to change; a finger opens it with Add. */}
                 <button
                   type="button"
                   aria-label={`Remove ${c.name}`}
                   onClick={() => removeCrew(brand.id, shoot.id, i)}
-                  className="flex size-6 items-center justify-center rounded-full text-ink-4 opacity-0 transition-opacity group-hover/crew:opacity-100 hover:text-ink focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+                  className={`flex size-6 items-center justify-center rounded-full text-ink-4 transition-opacity hover:text-ink focus-visible:opacity-100 ${adding ? 'opacity-100' : 'opacity-0 group-hover/crew:opacity-100 [@media(hover:none)]:hidden'}`}
                 >
                   <CloseIcon />
                 </button>
@@ -632,7 +647,7 @@ function AddIdea({ shoot, ideas }: { shoot: Shoot; ideas: IdeaCard[] }) {
               </span>
               <span className="flex min-w-0 flex-col gap-0.5">
                 <span className="truncate text-[14px]">{card.hook}</span>
-                <span className="flex items-center gap-1.5 text-[12px] text-ink-4">
+                <span className="flex items-center gap-1.5 text-[13px] text-ink-4">
                   <FormatIcon format={card.format} size={10} />
                   {FORMAT_LABEL[card.format]}
                   {other && (

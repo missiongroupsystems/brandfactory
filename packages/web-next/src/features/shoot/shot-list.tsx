@@ -34,7 +34,7 @@ import { createPortal } from 'react-dom'
 
 import { Media } from '@/components/media'
 import type { BrandId } from '@/data/brands'
-import { coverOf, isMediaRef, referenceById, type IdeaCard, type Shot } from '@/data/ideas'
+import { isMediaRef, referenceById, type IdeaCard, type Shot } from '@/data/ideas'
 import { FormatIcon } from '@/features/ideate/idea-parts'
 
 const FORMAT_LABEL = { reel: 'Reel', carousel: 'Carousel', story: 'Story' } as const
@@ -42,10 +42,21 @@ const FORMAT_LABEL = { reel: 'Reel', carousel: 'Carousel', story: 'Story' } as c
 /** A reel's and a story's frames stand; a carousel's slides are the post's 4:5. */
 const ASPECT = { reel: 'aspect-[9/16]', story: 'aspect-[9/16]', carousel: 'aspect-[4/5]' } as const
 
-/** What a shot looks like on the sheet: the reference it is shot like, else the idea's cover. */
-export function shotImage(brandId: BrandId, card: IdeaCard, shot: Shot): string | undefined {
-  if (shot.ref) return isMediaRef(shot.ref) ? shot.ref : referenceById(brandId, shot.ref)?.image
-  return coverOf(brandId, card)
+const refImage = (brandId: BrandId, ref: string) =>
+  isMediaRef(ref) ? ref : referenceById(brandId, ref)?.image
+
+/**
+ * What each shot of an idea looks like on the sheet, in order: the reference it is shot like;
+ * else the next of the idea's own photo and references that no shot uses yet; else nothing, a
+ * plain frame. One photo three times down a strip read as a bug.
+ */
+export function shotImages(brandId: BrandId, card: IdeaCard): Array<string | undefined> {
+  const linked = card.shots.flatMap((s) => (s.ref ? (refImage(brandId, s.ref) ?? []) : []))
+  const spare = [card.image, ...card.inspiration.map((k) => refImage(brandId, k))].filter(
+    (src, i, a): src is string => !!src && a.indexOf(src) === i && !linked.includes(src),
+  )
+  let next = 0
+  return card.shots.map((s) => (s.ref ? refImage(brandId, s.ref) : spare[next++]))
 }
 
 /**
@@ -260,6 +271,7 @@ export function ShotList({
     useSensor(KeyboardSensor, { coordinateGetter: alongTheLine }),
   )
   const ids = ideas.map((i) => i.id)
+  const [strip, more] = useMoreRight()
   // The numbers follow the drag: the lifted item counts where it is held.
   const starts = startsOf(liveOrder(ids, GROUPS, held), ideas)
 
@@ -317,7 +329,20 @@ export function ShotList({
   }
 
   const line = (
-    <div className={`overflow-x-auto pt-1 pb-2 [scrollbar-width:none] ${bleed}`}>
+    <div
+      ref={strip}
+      // More past the right edge: the edge fades, which says the line goes on (a phone shows
+      // no scroll bar).
+      style={
+        more
+          ? {
+              maskImage: 'linear-gradient(to right, #000 calc(100% - 48px), transparent)',
+              WebkitMaskImage: 'linear-gradient(to right, #000 calc(100% - 48px), transparent)',
+            }
+          : undefined
+      }
+      className={`overflow-x-auto pt-1 pb-2 [scrollbar-width:none] ${bleed}`}
+    >
       <SortableContext items={ids.map(groupId)} strategy={horizontalListSortingStrategy}>
         <ol
           aria-label="Shots in order"
@@ -411,6 +436,7 @@ function Lifted({
   const start = starts.get(card.id) ?? 0
   const at = group ? -1 : card.shots.findIndex((s) => s.id === key)
   const shot = card.shots[at]
+  const images = shotImages(brandId, card)
   return (
     // The outer box is the item's exact size: dnd-kit measures it for the hit test and the landing.
     <div aria-hidden="true" className="relative h-full w-full">
@@ -427,7 +453,7 @@ function Lifted({
                 <li key={s.id} className={CLIP}>
                   <FrameBody
                     shot={s}
-                    src={shotImage(brandId, card, s)}
+                    src={images[i]}
                     aspect={ASPECT[card.format]}
                     n={start + i + 1}
                   />
@@ -440,7 +466,7 @@ function Lifted({
             <div className="flex flex-col gap-1.5">
               <FrameBody
                 shot={shot}
-                src={shotImage(brandId, card, shot)}
+                src={images[at]}
                 aspect={ASPECT[card.format]}
                 n={start + at + 1}
               />
@@ -491,13 +517,14 @@ function Group({
   } = useSortable({ id: groupId(card.id), disabled: !sortable, transition: still ? null : SLIDE })
   // Remove shows on hover of the label; a finger gets it from a small "…" beside the format.
   const [more, setMore] = React.useState(false)
+  const images = shotImages(brandId, card)
   const remove = onRemove && (
     <>
       <button
         type="button"
         aria-label={`Remove ${card.hook}`}
         onClick={onRemove}
-        className={`ml-auto shrink-0 text-[12px] text-ink-4 hover:text-ink [@media(hover:none)]:hidden ${ON_HOVER}`}
+        className={`ml-auto shrink-0 text-[13px] text-ink-4 hover:text-ink [@media(hover:none)]:hidden ${ON_HOVER}`}
       >
         Remove
       </button>
@@ -570,12 +597,12 @@ function Group({
           strategy={horizontalListSortingStrategy}
         >
           <ol aria-label={`Shots of ${card.hook}`} className="flex gap-1.5">
-            {card.shots.map((shot) => (
+            {card.shots.map((shot, i) => (
               <Frame
                 key={shot.id}
                 id={clipId(card.id, shot.id)}
                 shot={shot}
-                src={shotImage(brandId, card, shot)}
+                src={images[i]}
                 aspect={ASPECT[card.format]}
                 n={start + order.indexOf(shot.id) + 1}
                 still={still}
@@ -631,7 +658,7 @@ function Label({
       {grip}
       <span className="flex min-w-0 items-center gap-2 px-0.5">
         {hook}
-        <span className="flex shrink-0 items-center gap-1 text-[12px] text-ink-4">
+        <span className="flex shrink-0 items-center gap-1 text-[13px] font-normal text-ink-4">
           <FormatIcon format={card.format} size={9} />
           {FORMAT_LABEL[card.format]}
         </span>
@@ -721,10 +748,8 @@ function FrameBody({
         {src && <Media src={src} sizes="(max-width: 768px) 108px, 152px" />}
       </span>
       <span className="flex min-w-0 items-baseline gap-1.5 px-0.5">
-        <span className="font-mono text-[12px] text-ink-4 tabular-nums">
-          {String(n).padStart(2, '0')}
-        </span>
-        <span className="line-clamp-2 min-w-0 text-[13px] leading-snug text-ink-2">
+        <span className="text-[12px] text-ink-4 tabular-nums">{String(n).padStart(2, '0')}</span>
+        <span className="min-w-0 text-[13px] leading-snug break-words text-ink-2">
           {shot.title || 'Untitled shot'}
         </span>
       </span>
@@ -767,6 +792,26 @@ function Grip({
       </svg>
     </button>
   )
+}
+
+/** A scrolling row's ref, and whether more of it lies past its right edge. */
+function useMoreRight(): [(el: HTMLDivElement | null) => void, boolean] {
+  const [el, setEl] = React.useState<HTMLDivElement | null>(null)
+  const [more, setMore] = React.useState(false)
+  React.useEffect(() => {
+    if (!el) return
+    const measure = () => setMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+    measure()
+    el.addEventListener('scroll', measure, { passive: true })
+    const resize = new ResizeObserver(measure)
+    resize.observe(el)
+    if (el.firstElementChild) resize.observe(el.firstElementChild)
+    return () => {
+      el.removeEventListener('scroll', measure)
+      resize.disconnect()
+    }
+  }, [el])
+  return [setEl, more]
 }
 
 /** How many shots the ideas hold together. */

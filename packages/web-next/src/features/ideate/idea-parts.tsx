@@ -16,7 +16,8 @@ import { setHook, useIdeas } from './ideas-store'
  * day, and a new hook carried to the calendar.
  */
 
-export const EYEBROW = 'font-mono text-[12px] tracking-[0.08em] text-ink-4 uppercase'
+/** A small label over a group, in words and sentence case: never a mono kicker. */
+export const EYEBROW = 'text-[13px] font-medium text-ink-3'
 
 export const STATUS_LABEL: Record<IdeaStatus, string> = {
   suggested: 'Suggested',

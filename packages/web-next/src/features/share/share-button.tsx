@@ -83,7 +83,7 @@ export function ShareButton({
           value={access.who}
           options={WHO}
           onChange={(who) => setShareAccess(kind, id, { who })}
-          className="-ml-2 text-[13.5px] font-medium text-ink"
+          className="-ml-2 text-[14px] font-medium text-ink"
         />
         {access.who === 'link' && (
           <Choice
@@ -91,7 +91,7 @@ export function ShareButton({
             value={access.can}
             options={remote ? CAN.filter((c) => c.value !== 'edit') : CAN}
             onChange={(can) => setShareAccess(kind, id, { can })}
-            className="ml-auto text-[13.5px] text-ink-3"
+            className="ml-auto text-[14px] text-ink-3"
           />
         )}
       </div>
@@ -99,7 +99,7 @@ export function ShareButton({
         <button
           type="button"
           onClick={copy}
-          className="bb-press flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-ink text-[13.5px] font-medium text-page hover:opacity-85"
+          className="bb-press flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-ink text-[14px] font-medium text-page hover:opacity-85"
         >
           {copied ? <CheckIcon size={11} strokeWidth={2.2} /> : <LinkGlyph />}
           {copied ? 'Copied' : 'Copy link'}

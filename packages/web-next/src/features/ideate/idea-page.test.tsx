@@ -119,7 +119,8 @@ function PostImages({ id }: { id: string }) {
 /** The final edit's file input, named for what the format takes. */
 const finalEdit = () => screen.getByLabelText(/^Add the (final|slides)/)
 const video = () => new File(['x'], 'cut.mp4', { type: 'video/mp4' })
-const schedule = () => screen.getByRole('button', { name: /^Schedule/ })
+/** The way on to the post, where Schedule is pressed: it never sends, so it never says Schedule. */
+const schedule = () => screen.getByRole('button', { name: /^Continue to post/ })
 
 const openWithPost = (id: string) =>
   render(
@@ -146,7 +147,9 @@ describe('an idea page', () => {
     // A plan with no post is an idea: a draft is made on purpose, and taken back the same way.
     fireEvent.click(screen.getByRole('button', { name: 'Save as draft' }))
     expect(screen.getByRole('link', { name: /Draft · Fri 23 Oct/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open in scheduler →' })).toBeInTheDocument()
+    // The draft opens from the one button beside its day; no second link says the same.
+    expect(schedule()).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Open in scheduler →' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Remove the draft' }))
     expect(screen.queryByRole('link', { name: /Draft · / })).not.toBeInTheDocument()
     // The plan keeps its day.
@@ -159,7 +162,11 @@ describe('an idea page', () => {
     // Two reviews found a send path of the page's own wrong twice: the composer is the one place
     // that sends, so Schedule makes the draft on its day and opens it there.
     openWithPost('cv-blindfold')
-    expect(schedule()).toHaveTextContent('Schedule · Fri 23 Oct, 18:00')
+    // The day is named Post on its own field; the button only goes on to the post.
+    expect(screen.getByRole('button', { name: 'Post date' })).toHaveTextContent(
+      'PostFri 23 Oct, 18:00',
+    )
+    expect(schedule()).not.toHaveTextContent(/Schedule/)
     expect(schedule()).toBeDisabled()
     expect(screen.getByText('Add the final video first.')).toBeInTheDocument()
     fireEvent.change(finalEdit(), { target: { files: [video()] } })
@@ -169,14 +176,12 @@ describe('an idea page', () => {
     fireEvent.click(schedule())
     expect(screen.getByRole('link', { name: /Draft · Fri 23 Oct, 18:00/ })).toBeInTheDocument()
     expect(screen.getByTestId('post-images')).toHaveTextContent(/^blob:file-1#video$/)
-    const id = screen.getByRole('link', { name: 'Open in scheduler →' }).getAttribute('href')
-    expect(id).toMatch(/^\/post\//)
-    await waitFor(() => expect(push).toHaveBeenCalledWith(id))
+    await waitFor(() => expect(push).toHaveBeenCalledWith(expect.stringMatching(/^\/post\//)))
     // Scheduled in the composer: the state stands here, and Unschedule makes it a draft again,
     // the post kept. Only "Remove the draft" takes it off the calendar.
     fireEvent.click(screen.getByRole('button', { name: 'The composer scheduled it' }))
     expect(screen.getByRole('link', { name: /Scheduled · Fri 23 Oct, 18:00/ })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Schedule/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Continue to post/ })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Unschedule' }))
     expect(screen.getByRole('link', { name: /Draft · Fri 23 Oct/ })).toBeInTheDocument()
     expect(schedule()).toBeEnabled()
@@ -202,7 +207,7 @@ describe('an idea page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'The job went live' }))
     expect(screen.getByRole('link', { name: /Posted · Fri 23 Oct/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Unschedule' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Schedule/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Continue to post/ })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Post date' })).toBeDisabled()
   })
 
@@ -227,7 +232,6 @@ describe('an idea page', () => {
     expect(screen.getByRole('button', { name: 'Post date' })).toHaveFocus()
     // A date alone moves the plan; it is still an idea, and no post exists yet.
     expect(screen.getByRole('button', { name: 'Post date' })).toHaveTextContent('Tue 27 Oct, 12:00')
-    expect(schedule()).toHaveTextContent('Schedule · Tue 27 Oct, 12:00')
     expect(screen.queryByRole('link', { name: /Open in scheduler/ })).not.toBeInTheDocument()
     // With its final edit in, Schedule makes it a draft on the day and at the time picked, and
     // opens the composer to send it.
@@ -236,6 +240,19 @@ describe('an idea page', () => {
     fireEvent.click(schedule())
     expect(screen.getByRole('link', { name: /Draft · Tue 27 Oct, 12:00/ })).toBeInTheDocument()
     await waitFor(() => expect(push).toHaveBeenCalledWith(expect.stringMatching(/^\/post\//)))
+  })
+
+  // Round 2: three empty frames down the storyboard read as scaffolding, and an upload left a
+  // blank tile that did not show it had landed.
+  it('shows a shot without a reference as its line alone, and names the final edit once in', async () => {
+    open('cv-blindfold')
+    const shots = screen.getByRole('region', { name: 'Storyboard' })
+    expect(within(shots).queryByRole('button', { name: /^Change the reference/ })).toBeNull()
+    expect(
+      within(shots).getAllByRole('button', { name: /^Pick a reference for shot/ }),
+    ).toHaveLength(3)
+    fireEvent.change(finalEdit(), { target: { files: [video()] } })
+    expect(await screen.findByText('cut.mp4')).toBeInTheDocument()
   })
 
   it('reorders the shots by a drag, and by Option with an arrow key on a shot', () => {

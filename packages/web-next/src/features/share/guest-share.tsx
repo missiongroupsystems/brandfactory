@@ -102,7 +102,7 @@ export function GuestShare({ token }: { token: string }) {
   if (shown === 'missing' || shown === 'team') {
     return (
       <div className="flex min-h-svh items-center justify-center px-4 text-center">
-        <p className="max-w-[360px] text-[15px] text-ink-3">
+        <p className="max-w-[360px] text-[14px] text-ink-3">
           {shown === 'team'
             ? 'This link is only for the team.'
             : 'This link has nothing to show. Ask the team for a new one.'}

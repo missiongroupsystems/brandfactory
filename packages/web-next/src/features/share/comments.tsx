@@ -137,9 +137,9 @@ function Comment({
       <div className="flex min-w-0 flex-col gap-1">
         <span className="flex items-baseline gap-2 text-[13px]">
           <span className="font-medium">{c.name}</span>
-          <span className="text-[12px] text-ink-4">{c.when}</span>
+          <span className="text-[13px] text-ink-4">{c.when}</span>
           {guest && c.done && (
-            <span className="ml-auto flex items-center gap-1 text-[12px] text-ink-4">
+            <span className="ml-auto flex items-center gap-1 text-[13px] text-ink-4">
               <CheckIcon size={9} strokeWidth={2} />
               Done
             </span>
@@ -158,9 +158,9 @@ function Comment({
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="flex items-baseline gap-2 text-[13px]">
                     <span className="font-medium">{r.name}</span>
-                    <span className="text-[12px] text-ink-4">{r.when}</span>
+                    <span className="text-[13px] text-ink-4">{r.when}</span>
                   </span>
-                  <span className="text-[13.5px] leading-[1.5] whitespace-pre-line text-ink-2">
+                  <span className="text-[14px] leading-[1.5] whitespace-pre-line text-ink-2">
                     {r.text}
                   </span>
                 </span>
