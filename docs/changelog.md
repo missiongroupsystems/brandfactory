@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.45.1** — 2026-10-29 — `feat/posted-profile`: the Posted page reads as the account's profile (design option A, polished). The platforms stay a quiet rail on the left (glyph and name; pill tabs on a phone). On the right: the brand's avatar and handle, the last 30 days as inline totals with one small "as of" (the window and "x of y with numbers" on hover), the stories as rings (green while up, hours left on hover; grey for one gone in the last week), and the posts as a 3-column grid of 4:5 covers. A cover shows one count (views on a reel, likes on the rest, else the first count it has) and a reel's length or a carousel mark; hover or focus shows the hook, the kind and day, and every count. A cover opens its poster, which links back. Newest or Top is a two-icon toggle. Gone: the "Posted · brand" eyebrow, the platform title, the month headings, the "Last 30 days" sentence, "as of" on every row, the Newest and Top words and the "Most engaging" and "No numbers yet" headings, each row's caption line. No pack change, no migration. 1425 tests (249 skipped without a Postgres server).
 - **2.45.0** — 2026-10-29 — `feat/post-sync`: the core's side of the Posted page's sync, phase 2 of `docs/executing/posted-page-plan.md` (brandbase 1.13.0, migration 0022, not applied to production). A new server route, `POST /brands/:brand/make/readings`, takes what a Make scenario (phase 3, not built) reads back from a brand's Instagram account or Facebook Page: posts and stories with their counts. It checks its own key (`MAKE_READINGS_SECRET`) and runs as an agent of a Mission Group owner (`MAKE_READINGS_AS`), so the company walls still hold, and the pack takes readings only for the account the brand linked through Make. `post.sync` finds a post Brand Base sent by its job's id and gives it only its counts (its first account's) and its address, never its caption or media; a post made outside Brand Base, or one the Apify import brought in, becomes or stays a posted post with its counts, address and "as of"; a story ends when Meta says or after 24 hours and keeps its last counts. Each reading is kept in `post_readings` for a later "reach, by day"; counts Meta did not give are left out; the same batch twice changes nothing. Covers are copied from Meta's image hosts into the core's storage, at most 8 per request; a failed copy keeps the post as it was and is tried again next run. After review: a Facebook reel is matched by its video id, an import after the sync is refused (`ALREADY_SYNCED`), a newer reading refreshes a caption without counts, two readings of one post in a batch no longer fail it, an impossible date is a 400, and a cover is streamed, checked by its bytes and skipped for a gone story. The Posted page shows a synced story's own end, and drops a summary figure that is 0 ("0 stories"). 1419 tests, all run on a throwaway Postgres 18.
 - **2.44.0** — 2026-10-29 — `feat/posted-page`: a Posted page, phase 1 of `docs/executing/posted-page-plan.md`. `/posted` shows what went out on one platform at a time: an accounts rail (Instagram, Facebook, TikTok; those with posts or a linked account), the platform as the title, the last 30 days in one line (posts, stories, reach or views and likes, "x of y with numbers" when only some have them, "as of"), and a ledger of posts and stories, newest first, each with its counts as last read. A story is a row of 9:16 frames, live with the hours left or gone after 24 hours. A post opens its poster, which links back to Posted. "Top" ranks by likes, comments, shares and saves; posts with no numbers wait apart. Insights loses its Posts view with its reach and engagement-% ranking, average line, pillar and comment mood (Overview, Sentiment and Creators stay). Only data the web app already has: a post lists on the accounts whose job went live, or on all its accounts when imported or marked posted by hand; a post Brand Base sent shows no counts; Facebook stories are not listed; the demo's archive counts are invented, in the demo only. Posted is in the header and the phone's tab bar. No pack change, no migration. 1382 tests (237 skipped without a Postgres server).
 - **2.43.8** — 2026-10-29 — `fix/photo-files`: a photo post goes out (brandbase 1.12.1, migration 0021, not applied to production). The web app uploads a photo with its kind in the address (`…jpg#photo`, as a video carries `#video`); 0020's `post_files` took only `#video`, so every uploaded photo read as a sample and the first scheduled test post failed with "Upload this post's photos and videos again: some are only samples." 0021 takes either. The pack test now uses the address the web app writes (it used a bare `.jpg`, which hid the bug). Production: `core publish`, `core test brandbase 1.12.1`, `core migrate`, `core promote`; no server or web deploy. 1347 tests, all run on a throwaway Postgres 18.
@@ -98,6 +99,33 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.45.1 — 2026-10-29
+
+- **Why.** The owner chose option A, "Profile", of the Posted layout options canvas, asking for it
+  more readable, with fewer words, more premium, and the platform rail kept on desktop.
+- **web-next.** `posted-page.tsx` is rebuilt: a quiet rail (glyph and platform name, the picked
+  one on `bg-surface`; pill tabs on a phone), then a profile header (brand avatar, handle, the 30
+  days' figures inline with one "as of"; `windowLine` is now the hover on them), story rings, and
+  a grid of 4:5 covers (8 px apart, edge to edge 2 px apart on a phone). A cover fades in once
+  loaded and eases in on hover; its count and mark sit on small frosted chips, not a gradient.
+  The order toggle is two icons with their names on hover. The empty state and the loading dots
+  are unchanged.
+- **Model.** New rules: `gridOf` (posts only; ranked on Top when ranking says something, the
+  uncounted after), `headlineOf` (a tile's one count), `ringsOf` (stories up, and those gone in the
+  last 7 days), `shortDay`. `monthsOf` and `firstLine` go with the month headings and the caption
+  line. What lists where, the first account's counts, a story's own end, 0 figures hidden, views
+  for reach and the ranking itself are unchanged.
+- **After review.** Each cover link carries its own name (`tileLabel`: kind, when, collab, hook,
+  its one count), since the hover layer never shows on a phone; a glyph count names its metric for
+  a screen reader. The hover's counts wrap and show every count. A ring takes keyboard focus and
+  shows its hours left on focus, and always on a touch screen. A reel with no length has no corner
+  mark. A count of 0 never shows on a tile (`tileCountsOf`); the next count stands in. A cover from
+  the core loads lazily (`media.tsx`).
+- **Kept from option A, changed.** No avatar tabs on desktop (the rail stays); no followers (no
+  data yet); the rail names the platform, not the handle, as the handle is the brand's on every
+  platform; no "No numbers yet" text on a tile: a cover without counts shows none.
+- 1425 tests (249 skipped without a Postgres server).
 
 ## 2.45.0 — 2026-10-29
 

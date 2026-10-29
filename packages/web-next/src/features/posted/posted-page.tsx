@@ -4,12 +4,14 @@ import Link from 'next/link'
 import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
+import { CarouselIcon, ClockIcon, EyeIcon, HeartIcon, PlayIcon, RankIcon } from '@/components/icons'
 import { LoadingDots } from '@/components/loading-dots'
 import { Media } from '@/components/media'
 import { PlatformLogo } from '@/components/platform-logos'
+import { BrandLogo } from '@/features/brand/brand-logo'
+import { handleOf } from '@/features/brand/new-brand'
 import { useConnections } from '@/features/connections/connections-store'
 import { NotAvailable, reasonOf } from '@/features/connections/not-available'
-import { useMakeAccount } from '@/features/connections/make'
 import { useBrand } from '@/features/schedule/posts-store'
 import { todayDate } from '@/lib/dates'
 import { remote, timezoneOf } from '@/lib/remote'
@@ -17,39 +19,40 @@ import { remote, timezoneOf } from '@/lib/remote'
 import {
   asOf,
   canRank,
-  countsOn,
   figuresOf,
-  firstLine,
-  hoursLeft,
+  gridOf,
+  headlineOf,
   k,
   kindOf,
   ledgerOf,
-  monthsOf,
   nowIn,
   PLATFORM_NAME,
   platformOf,
   railOf,
-  rankedOf,
+  ringsOf,
+  shortDay,
   storyKind,
   summaryOf,
+  tileCountsOf,
+  tileLabel,
   whenOf,
   windowLine,
+  type CountKey,
   type Moment,
+  type Order,
   type Platform,
   type PostedItem,
 } from './model'
 import { usePostedItems } from './posted-store'
 
-const EYEBROW = 'font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase'
 const NUM = 'font-display font-semibold tracking-[-0.03em] tabular-nums'
-
-type Order = 'newest' | 'top'
+/** A small frosted chip over a cover: white type that reads on a light photo as on a dark one. */
+const ON_COVER = 'rounded-full bg-black/30 text-page backdrop-blur-md'
 
 /**
- * What went out, one platform at a time: the accounts rail picks the platform, which is the
- * title; under it the last 30 days in one line, then a ledger of posts and stories, newest first,
- * each with its counts as last read. A post opens its poster. Not a grid of covers: the numbers
- * beside what went out are the page's reason to exist.
+ * What went out, one platform at a time, as the account looks: the platforms in a quiet rail (tabs
+ * on a phone), then the brand's profile with its last 30 days, its stories as rings and its posts
+ * as a grid of covers. A cover shows one count; hover shows them all. A cover opens its poster.
  */
 export function PostedPage({ on }: { on?: Platform }) {
   const { brand } = useBrand()
@@ -62,33 +65,21 @@ export function PostedPage({ on }: { on?: Platform }) {
   const now = nowIn(at, timezoneOf(brand.id), remote ? undefined : todayDate())
   const items = usePostedItems(now.day)
   const links = useConnections(brand.id)
-  const named = {
-    ig: useMakeAccount(brand.id, 'ig')?.name,
-    fb: useMakeAccount(brand.id, 'fb')?.name,
-    tt: undefined,
-  }
   const linked = (p: Platform) => links[p] !== 'off'
   const rail = railOf(items ?? [], linked)
   const [picked, setPicked] = React.useState<Platform | undefined>(on)
   const platform = platformOf(rail, items ?? [], picked)
   const ledger = ledgerOf(items ?? [], platform)
 
-  const subtitle = (p: Platform) => {
-    const n = ledgerOf(items ?? [], p).filter((i) => i.post.format !== 'story').length
-    if (!linked(p) && n === 0) return 'Not connected'
-    return named[p] ?? (n === 0 ? 'Nothing yet' : `${n} ${n === 1 ? 'post' : 'posts'}`)
-  }
-
   return (
     <div className="flex min-h-svh flex-col">
       <AppHeader />
       <main
         key={brand.id}
-        className="bb-swap mx-auto grid w-full max-w-[1040px] grid-cols-[220px_minmax(0,1fr)] items-start gap-[72px] pt-6 pb-24 max-lg:grid-cols-[180px_minmax(0,1fr)] max-lg:gap-10 max-lg:px-6 max-md:grid-cols-1 max-md:gap-0 max-md:px-4 max-md:pt-2"
+        className="bb-swap mx-auto grid w-full max-w-[1080px] grid-cols-[168px_minmax(0,1fr)] items-start gap-16 px-10 pt-10 pb-28 max-lg:grid-cols-[148px_minmax(0,1fr)] max-lg:gap-10 max-lg:px-6 max-md:grid-cols-1 max-md:gap-0 max-md:px-4 max-md:pt-2"
       >
-        <aside className="sticky top-6 flex flex-col gap-2.5 pt-[76px] max-md:hidden">
-          <span className={`${EYEBROW} px-2.5 pb-1`}>Accounts</span>
-          <div role="radiogroup" aria-label="Account" className="flex flex-col gap-2.5">
+        <nav aria-label="Platforms" className="sticky top-10 max-md:hidden">
+          <div role="radiogroup" aria-label="Platform" className="flex flex-col gap-1">
             {rail.map((p) => (
               <button
                 key={p}
@@ -96,30 +87,21 @@ export function PostedPage({ on }: { on?: Platform }) {
                 role="radio"
                 aria-checked={p === platform}
                 onClick={() => setPicked(p)}
-                className={`grid grid-cols-[20px_minmax(0,1fr)] items-center gap-3 rounded-[12px] px-2.5 py-[9px] text-left transition-colors ${p === platform ? 'bg-surface' : 'hover:bg-surface-2'} ${linked(p) || p === platform ? 'text-ink' : 'text-ink-3'}`}
+                className={`bb-press flex h-10 items-center gap-3 rounded-[10px] px-3 text-left text-[14px] ${p === platform ? 'bg-surface font-medium text-ink' : linked(p) ? 'text-ink-3 hover:text-ink' : 'text-ink-4 hover:text-ink-3'}`}
               >
-                <PlatformLogo platform={p} size={18} />
-                <span className="min-w-0">
-                  <span className="block text-[14px] font-medium">{PLATFORM_NAME[p]}</span>
-                  <span className="block truncate text-[12.5px] text-ink-3">{subtitle(p)}</span>
-                </span>
+                <PlatformLogo platform={p} size={16} />
+                {PLATFORM_NAME[p]}
               </button>
             ))}
           </div>
-        </aside>
+        </nav>
 
         <section className="flex min-w-0 flex-col">
-          <div className="flex flex-col gap-3.5 pb-7 max-md:gap-2.5 max-md:pb-4">
-            <span className={EYEBROW}>Posted · {brand.name}</span>
-            <h1 className="font-display text-[56px] leading-none tracking-[-0.035em] max-md:text-[34px]">
-              {PLATFORM_NAME[platform]}
-            </h1>
-          </div>
-          {/* On a phone the rail is a row of chips under the title. */}
+          {/* On a phone the platforms are tabs above the profile. */}
           <div
             role="radiogroup"
-            aria-label="Account"
-            className="flex gap-1.5 overflow-x-auto pb-[18px] md:hidden"
+            aria-label="Platform"
+            className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-5 md:hidden"
           >
             {rail.map((p) => (
               <button
@@ -128,9 +110,9 @@ export function PostedPage({ on }: { on?: Platform }) {
                 role="radio"
                 aria-checked={p === platform}
                 onClick={() => setPicked(p)}
-                className={`flex h-8 shrink-0 items-center gap-1.5 rounded-full pr-3 pl-2.5 text-[12.5px] font-medium transition-colors ${p === platform ? 'bg-ink text-page' : linked(p) ? 'bg-surface text-ink-3' : 'bg-surface text-ink-4'}`}
+                className={`bb-press flex h-9 shrink-0 items-center gap-2 rounded-full pr-3.5 pl-3 text-[13px] font-medium ${p === platform ? 'bg-ink text-page' : linked(p) ? 'bg-surface text-ink-3' : 'bg-surface text-ink-4'}`}
               >
-                <PlatformLogo platform={p} size={12} />
+                <PlatformLogo platform={p} size={13} />
                 {PLATFORM_NAME[p]}
               </button>
             ))}
@@ -142,7 +124,7 @@ export function PostedPage({ on }: { on?: Platform }) {
             ) : ledger.length === 0 ? (
               <Empty platform={platform} linked={linked(platform)} />
             ) : (
-              <Ledger ledger={ledger} platform={platform} now={now} />
+              <Profile ledger={ledger} platform={platform} now={now} />
             )}
           </div>
         </section>
@@ -154,11 +136,11 @@ export function PostedPage({ on }: { on?: Platform }) {
 function Empty({ platform, linked }: { platform: Platform; linked: boolean }) {
   const name = PLATFORM_NAME[platform]
   return (
-    <div className="flex max-w-[420px] flex-col items-start gap-3.5 pt-24 max-md:gap-3 max-md:pt-16">
+    <div className="flex max-w-[420px] flex-col items-start gap-3.5 pt-16 max-md:gap-3 max-md:pt-12">
       {!linked && <NotAvailable label="Not connected" reason={reasonOf(name)} align="left" />}
-      <span className="font-display text-[26px] leading-[1.15] tracking-[-0.025em] max-md:text-[24px]">
+      <h1 className="font-display text-[26px] leading-[1.15] tracking-[-0.025em] max-md:text-[24px]">
         Nothing on {name} yet.
-      </span>
+      </h1>
       <span className="text-[15px] leading-normal text-ink-3 max-md:text-[14.5px]">
         {linked
           ? 'Posts show here once they go out.'
@@ -166,7 +148,7 @@ function Empty({ platform, linked }: { platform: Platform; linked: boolean }) {
       </span>
       <Link
         href={linked ? '/post/new' : '/brand/connections'}
-        className="mt-2 inline-flex h-9 items-center rounded-full bg-ink px-4 text-[13.5px] font-medium text-page max-md:h-10"
+        className="bb-press mt-2 inline-flex h-9 items-center rounded-full bg-ink px-4 text-[13.5px] font-medium text-page max-md:h-10"
       >
         {linked ? 'New post' : `Connect ${name}`}
       </Link>
@@ -174,7 +156,7 @@ function Empty({ platform, linked }: { platform: Platform; linked: boolean }) {
   )
 }
 
-function Ledger({
+function Profile({
   ledger,
   platform,
   now,
@@ -183,185 +165,235 @@ function Ledger({
   platform: Platform
   now: Moment
 }) {
+  const { brand } = useBrand()
   const [order, setOrder] = React.useState<Order>('newest')
-  const ranks = canRank(ledger, platform)
-  const today = now.day
-  const sum = summaryOf(ledger, platform, today)
+  const sum = summaryOf(ledger, platform, now.day)
   const figures = figuresOf(sum, platform)
-  const top = rankedOf(ledger, platform)
-  // Ranked, what has no numbers yet waits apart, in time order, under its own quiet heading.
-  const groups =
-    ranks && order === 'top'
-      ? [
-          { key: 'top', title: 'Most engaging', items: top.ranked },
-          ...(top.unread.length > 0
-            ? [{ key: 'unread', title: 'No numbers yet', items: top.unread }]
-            : []),
-        ]
-      : monthsOf(ledger, today)
+  const grid = gridOf(ledger, platform, order)
+  const ranks = canRank(gridOf(ledger, platform, 'newest'), platform)
+  const rings = ringsOf(ledger, now)
   return (
     <>
-      <div className="flex flex-wrap items-end gap-x-8 gap-y-3 pb-1 max-md:gap-x-[22px]">
-        {figures.map((f) => (
-          <span key={f.label} className="flex flex-col gap-1 max-md:gap-[3px]">
-            <span className={`${NUM} text-[24px] leading-none max-md:text-[20px]`}>
-              {k(f.value)}
-            </span>
-            <span className="text-[12.5px] text-ink-3 max-md:text-[12px]">{f.label}</span>
-          </span>
-        ))}
-        <span className="pb-px text-[12.5px] text-ink-3 max-md:w-full max-md:text-[12px]">
-          {windowLine(sum)}
+      <header className="flex items-center gap-8 pb-10 max-md:gap-5 max-md:pb-6">
+        <span
+          aria-hidden="true"
+          className="relative size-[88px] shrink-0 overflow-hidden rounded-full max-md:size-16"
+          style={{ background: `var(${brand.colour})` }}
+        >
+          <BrandLogo brandId={brand.id} sizes="176px" className="object-cover" />
         </span>
-      </div>
-      {groups.map((g, gi) => (
-        <section key={g.key} aria-label={g.title} className="flex flex-col">
-          <div className="sticky top-0 z-[1] flex items-center justify-between gap-3 bg-page pt-[18px] pb-2.5 max-md:pt-3.5 max-md:pb-1.5">
-            <span className={EYEBROW}>{g.title}</span>
-            {gi === 0 && ranks && (
-              <div role="radiogroup" aria-label="Order" className="flex gap-3">
-                {(['newest', 'top'] as const).map((o) => (
-                  <button
-                    key={o}
-                    type="button"
-                    role="radio"
-                    aria-checked={order === o}
-                    onClick={() => setOrder(o)}
-                    className={`text-[12.5px] transition-colors ${order === o ? 'font-medium text-ink' : 'text-ink-4 hover:text-ink'}`}
-                  >
-                    {o === 'newest' ? 'Newest' : 'Top'}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <ol className="flex flex-col">
-            {g.items.map((item, i) => (
-              <li key={item.post.id} className={i > 0 ? 'border-t border-(--cal-line)' : ''}>
-                <Row item={item} platform={platform} today={today} now={now} />
-              </li>
+        <div className="flex min-w-0 flex-1 flex-col gap-3 max-md:gap-2">
+          <h1 className="truncate font-display text-[26px] leading-none tracking-[-0.025em] max-md:text-[21px]">
+            {handleOf(brand.handle) || brand.name}
+          </h1>
+          <p
+            title={windowLine(sum)}
+            className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-[14px] text-ink-3 max-md:gap-x-4 max-md:text-[13px]"
+          >
+            {figures.map((f) => (
+              <span key={f.label}>
+                <b className={`${NUM} mr-1 text-[17px] text-ink max-md:text-[15px]`}>
+                  {k(f.value)}
+                </b>
+                {f.label}
+              </span>
             ))}
-          </ol>
-        </section>
-      ))}
+            {sum.measuredAt && (
+              <span className="text-[12px] text-ink-3">as of {asOf(sum.measuredAt)}</span>
+            )}
+          </p>
+        </div>
+        {ranks && <OrderToggle order={order} onChange={setOrder} />}
+      </header>
+
+      {rings.length > 0 && (
+        <ul
+          aria-label="Stories"
+          className="-mx-1.5 -mt-1.5 flex gap-5 overflow-x-auto px-1.5 pt-1.5 pb-9 max-md:gap-4 max-md:pb-6"
+        >
+          {rings.map(({ item, left }) => (
+            <Ring key={item.post.id} item={item} left={left} today={now.day} />
+          ))}
+        </ul>
+      )}
+
+      <ol aria-label="Posts" className="grid grid-cols-3 gap-2 max-md:-mx-4 max-md:gap-0.5">
+        {grid.map((item) => (
+          <li key={item.post.id}>
+            <Tile item={item} platform={platform} today={now.day} />
+          </li>
+        ))}
+      </ol>
     </>
   )
 }
 
-/** One post or story: its cover, what it was, and its counts on the right (under it on a phone). */
-function Row({
-  item,
-  platform,
-  today,
-  now,
-}: {
-  item: PostedItem
-  platform: Platform
-  today: string
-  now: Moment
-}) {
-  const { post } = item
-  const story = post.format === 'story'
-  const left = story ? hoursLeft(item, now) : null
-  const counts = countsOn(item, platform)
-  const line = firstLine(item)
-  const kind = story ? storyKind(post) : kindOf(post, platform)
-  const collab = item.collabs.length > 0 ? ` · Collab · ${item.collabs.join(', ')}` : ''
-  const meta = `${kind} · ${whenOf(item, today)}${collab}`
-  const live = left !== null && (
-    <span className="inline-block size-1.5 shrink-0 rounded-full bg-(--live)" aria-hidden="true" />
+/** The counts a tile names by a glyph: views, reach and likes. The rest keep their word. */
+const GLYPH: Partial<Record<CountKey, React.ReactNode>> = {
+  views: <PlayIcon />,
+  reach: <EyeIcon />,
+  likes: <HeartIcon />,
+}
+
+/** Newest or ranked, as two quiet icons; each names itself on hover. */
+function OrderToggle({ order, onChange }: { order: Order; onChange: (o: Order) => void }) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Order"
+      className="flex shrink-0 gap-0.5 self-end rounded-full bg-surface p-[3px] max-md:self-center"
+    >
+      {(
+        [
+          ['newest', 'Newest', <ClockIcon key="n" />],
+          ['top', 'Top', <RankIcon key="t" />],
+        ] as const
+      ).map(([o, label, icon]) => (
+        <button
+          key={o}
+          type="button"
+          role="radio"
+          aria-checked={order === o}
+          aria-label={label}
+          title={label}
+          onClick={() => onChange(o)}
+          className={`bb-press flex size-7 items-center justify-center rounded-full ${order === o ? 'bg-page text-ink shadow-soft' : 'text-ink-4 hover:text-ink'}`}
+        >
+          {icon}
+        </button>
+      ))}
+    </div>
   )
-  const state = story && (left !== null ? `Live · ${left} h left` : 'Gone after 24 h')
-  const row = (
-    <>
-      <Cover item={item} gone={story && left === null} />
-      <span className="flex min-w-0 flex-col">
-        <span className="flex items-center gap-1.5 text-[13px] text-ink-3 max-md:text-[12px]">
-          {live && <span className="flex md:hidden">{live}</span>}
-          <span className="truncate">
-            {meta}
-            {story && (
-              <span className="md:hidden"> · {left !== null ? `${left} h left` : 'Gone'}</span>
-            )}
-          </span>
+}
+
+/**
+ * A story as a ring: green while it is up, grey once gone. Under it the day; the hours left show
+ * on hover or focus, and always on a touch screen, which has no hover.
+ */
+function Ring({ item, left, today }: { item: PostedItem; left: number | null; today: string }) {
+  const live = left !== null
+  const day = shortDay(item, today)
+  return (
+    <li
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- focus shows the hours left, as hover does
+      tabIndex={0}
+      aria-label={`${storyKind(item.post)} · ${day} · ${live ? `Live, ${left} h left` : 'Gone'}`}
+      className="group flex rounded-[10px] w-[68px] shrink-0 flex-col items-center gap-2 max-md:w-[60px]"
+    >
+      <span
+        className={`block size-[68px] rounded-full border-[1.5px] p-[3px] transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)] group-hover:scale-[1.04] group-focus-visible:scale-[1.04] max-md:size-[60px] ${live ? 'border-live' : 'border-track'}`}
+      >
+        <span
+          className={`relative block size-full overflow-hidden rounded-full bg-tile ${live ? '' : 'opacity-60'}`}
+        >
+          {item.post.images[0] && <Media src={item.post.images[0]} sizes="136px" />}
         </span>
-        <span className="mt-1 mb-[3px] truncate font-display text-[17px] leading-[1.2] font-medium tracking-[-0.01em] max-md:mt-[3px] max-md:mb-1 max-md:text-[15.5px]">
-          {post.hook}
+      </span>
+      <span className="grid text-[11.5px] leading-none whitespace-nowrap tabular-nums">
+        <span
+          className={`col-start-1 row-start-1 text-center transition-opacity duration-200 ${live ? 'text-ink group-hover:opacity-0 group-focus-visible:opacity-0 [@media(hover:none)]:opacity-0' : 'text-ink-3'}`}
+        >
+          {day}
         </span>
-        {(state || line) && (
-          <span className="flex min-w-0 items-center gap-1.5 text-[13.5px] text-ink-3 max-md:hidden">
-            {live}
-            <span className="truncate">{state || line}</span>
+        {live && (
+          <span className="col-start-1 row-start-1 text-center text-live opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:none)]:opacity-100">
+            {left} h left
           </span>
         )}
+      </span>
+    </li>
+  )
+}
+
+/**
+ * A post's cover at 4:5, as the platform's grid crops it. A small mark top right says a reel's
+ * length or a carousel; one count sits bottom left. Hover or focus lays the post over it: what it
+ * was, when, and every count it has.
+ */
+function Tile({ item, platform, today }: { item: PostedItem; platform: Platform; today: string }) {
+  const { post } = item
+  const counts = tileCountsOf(item, platform)
+  const head = headlineOf(item, platform)
+  const collab = item.collabs.length > 0 ? ` · with ${item.collabs.join(', ')}` : ''
+  // A reel's length, or a carousel's mark; a single photo, or a reel with no length, has none.
+  const mark =
+    post.format === 'reel' ? (
+      post.duration
+    ) : post.images.length > 1 ? (
+      <CarouselIcon size={12} />
+    ) : null
+  return (
+    <Link
+      href={`/post/${post.id}?posted=${platform}`}
+      aria-label={tileLabel(item, platform, today)}
+      className="group relative block aspect-[4/5] overflow-hidden rounded-[10px] bg-tile transition-transform duration-200 ease-[cubic-bezier(.2,.8,.2,1)] active:scale-[0.985] max-md:rounded-none"
+    >
+      <Cover src={post.images[0]} />
+      {mark && (
+        <span
+          className={`pointer-events-none absolute top-2 right-2 flex h-[22px] min-w-[22px] items-center justify-center px-1.5 font-mono text-[10.5px] tabular-nums max-md:top-1 max-md:right-1 max-md:h-5 max-md:min-w-5 max-md:text-[9.5px] ${ON_COVER}`}
+        >
+          {mark}
+        </span>
+      )}
+      {head && (
+        <span
+          className={`pointer-events-none absolute bottom-2 left-2 flex h-6 items-center gap-1.5 px-2.5 text-[12px] font-semibold tabular-nums transition-opacity duration-200 group-hover:opacity-0 group-focus-visible:opacity-0 max-md:bottom-1 max-md:left-1 max-md:h-5 max-md:gap-1 max-md:px-2 max-md:text-[10.5px] ${ON_COVER}`}
+        >
+          {GLYPH[head.key] ?? null}
+          {k(head.value)}
+          <span className={GLYPH[head.key] ? 'sr-only' : 'font-normal'}>
+            {head.label.toLowerCase()}
+          </span>
+        </span>
+      )}
+      {/* The post laid over its cover, on hover or focus; a phone opens the poster instead. */}
+      <span className="pointer-events-none absolute inset-0 flex flex-col justify-end gap-3 bg-black/55 p-4 text-page opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 max-md:hidden">
+        <span className="flex flex-col gap-1">
+          <span className="truncate text-[12px] text-(--pc-dim)">
+            {kindOf(post, platform)} · {whenOf(item, today)}
+            {collab}
+          </span>
+          <span className="line-clamp-2 font-display text-[16px] leading-[1.25]">{post.hook}</span>
+        </span>
         {counts.length > 0 && (
-          <span className="truncate text-[12.5px] text-ink-3 tabular-nums md:hidden">
-            {counts.slice(0, 3).map((c, i) => (
-              <React.Fragment key={c.key}>
-                {i > 0 && ' · '}
-                <b className="font-semibold text-ink">{k(c.value)}</b> {c.label.toLowerCase()}
-              </React.Fragment>
+          <span className="flex flex-wrap gap-x-4 gap-y-2">
+            {counts.map((c) => (
+              <span key={c.key} className="flex flex-col gap-[3px]">
+                <span className={`${NUM} text-[16px] leading-none`}>{k(c.value)}</span>
+                <span className="text-[11px] text-(--pc-dim)">{c.label.toLowerCase()}</span>
+              </span>
             ))}
           </span>
         )}
       </span>
-      {counts.length > 0 && (
-        <span className="flex flex-col items-end max-md:hidden">
-          <span className="flex items-end gap-[26px]">
-            {counts.slice(0, 4).map((c) => (
-              <span key={c.key} className="flex min-w-[52px] flex-col items-end gap-[3px]">
-                <span className={`${NUM} text-[16px] leading-none`}>{k(c.value)}</span>
-                <span className="text-[11.5px] text-ink-3">{c.label.toLowerCase()}</span>
-              </span>
-            ))}
-          </span>
-          {post.measuredAt && (
-            <span className="mt-1.5 text-[11.5px] text-ink-3">as of {asOf(post.measuredAt)}</span>
-          )}
-        </span>
-      )}
-    </>
-  )
-  const box = `grid grid-cols-[88px_minmax(0,1fr)_auto] items-center gap-[22px] rounded-[14px] px-3 py-3.5 -mx-3 max-md:mx-0 max-md:grid-cols-[56px_minmax(0,1fr)] max-md:gap-3.5 max-md:rounded-none max-md:px-0 max-md:py-3`
-  // A story stays in the ledger, but nothing opens it yet: its frames are what there is.
-  if (story) return <div className={box}>{row}</div>
-  return (
-    <Link
-      href={`/post/${post.id}?posted=${platform}`}
-      className={`${box} transition-colors hover:bg-surface-2 max-md:hover:bg-transparent`}
-    >
-      {row}
     </Link>
   )
 }
 
-/** A post's 4:5 cover with its length or its slide count; a story's 9:16 frames, up to three. */
-function Cover({ item, gone }: { item: PostedItem; gone: boolean }) {
-  const { post } = item
-  if (post.format === 'story') {
-    return (
-      <span className={`flex gap-1 max-md:gap-[3px] ${gone ? 'opacity-75' : ''}`}>
-        {post.images.slice(0, 3).map((src, i) => (
-          <span
-            key={src + i}
-            className="relative block h-[78px] w-11 overflow-hidden rounded-[6px] bg-tile max-md:h-[46px] max-md:w-[26px] max-md:rounded-[4px]"
-          >
-            <Media src={src} sizes="88px" />
-          </span>
-        ))}
-      </span>
-    )
-  }
-  const badge =
-    post.format === 'reel' ? post.duration : post.images.length > 1 ? `1/${post.images.length}` : ''
+/** The cover fades in once it has loaded, and eases in a little on hover. */
+function Cover({ src }: { src?: string }) {
+  const box = React.useRef<HTMLSpanElement>(null)
+  const [loaded, setLoaded] = React.useState(false)
+  React.useEffect(() => {
+    const el = box.current?.querySelector('img, video')
+    if (!el) return
+    const done = () => setLoaded(true)
+    if (el instanceof HTMLImageElement ? el.complete : (el as HTMLVideoElement).readyState >= 2)
+      return done()
+    el.addEventListener('load', done)
+    el.addEventListener('loadeddata', done)
+    return () => {
+      el.removeEventListener('load', done)
+      el.removeEventListener('loadeddata', done)
+    }
+  }, [src])
   return (
-    <span className="relative block h-[110px] w-[88px] overflow-hidden rounded-[10px] bg-tile max-md:h-[70px] max-md:w-14 max-md:rounded-[8px]">
-      {post.images[0] && <Media src={post.images[0]} sizes="176px" />}
-      {badge && (
-        <span className="absolute right-1.5 bottom-1.5 rounded-full bg-black/50 px-[5px] py-[2px] font-mono text-[10px] text-page tabular-nums max-md:hidden">
-          {badge}
-        </span>
-      )}
+    <span
+      ref={box}
+      className={`absolute inset-0 transition-[opacity,transform] duration-500 ease-[cubic-bezier(.2,.8,.2,1)] group-hover:scale-[1.03] ${loaded ? 'opacity-100' : 'opacity-0'}`}
+    >
+      {src && <Media src={src} sizes="(max-width: 767px) 33vw, 300px" />}
     </span>
   )
 }

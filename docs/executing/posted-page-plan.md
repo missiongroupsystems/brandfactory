@@ -35,6 +35,14 @@ No core change, no migration.
   each post's pillar and its comment mood bar. Overview, Sentiment and Creators stay.
 - The static demo shows invented counts on its archive posts, in the demo only.
 
+### Layout change (2.45.1)
+
+The ledger became the profile view, option A of the Posted layout options canvas: the rail stays
+on desktop (tabs on a phone), then the brand's avatar, handle and 30-day totals with one "as of",
+story rings, and a 3-column grid of 4:5 covers with one count each and every count on hover.
+Month headings, the window sentence and per-row "as of" are gone; Newest and Top are icons.
+The rules above are unchanged.
+
 ## Phase 2: core sync and readings (brandbase 1.13.0, 2.45.0), as built
 
 Migration `0022_post_sync.sql`, two internal moves, four rules (and one for `post.import`) and one

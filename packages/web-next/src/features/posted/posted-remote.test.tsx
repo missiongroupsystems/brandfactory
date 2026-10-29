@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { BrandProvider } from '@/features/schedule/posts-store'
@@ -64,11 +64,11 @@ describe('Posted on the core', () => {
       }),
     )
     expect(screen.queryByRole('status', { name: 'Loading posts' })).toBeNull()
-    const items = screen.getAllByRole('listitem')
+    const items = within(screen.getByRole('list', { name: 'Posts' })).getAllByRole('listitem')
     expect(items.map((r) => r.textContent?.includes('Sent from Brand Base'))).toEqual([true, false])
-    expect(items[0]).not.toHaveTextContent(/\d+\s*likes/)
+    expect(items[0]).not.toHaveTextContent(/\d(k|m)?(views|reach|likes|comments|shares|saves)/)
     expect(items[1]).toHaveTextContent('214')
-    expect(items[1]).toHaveTextContent('as of 22 Oct')
+    expect(screen.getByText('as of 22 Oct')).toBeInTheDocument()
     // Only Instagram has anything, and nothing is linked: the rail holds Instagram alone.
     expect(screen.queryAllByRole('radio', { name: /TikTok|Facebook/ })).toEqual([])
   })

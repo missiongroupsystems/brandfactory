@@ -92,6 +92,6 @@ export function Media({
   }
   // A blob: URL, or an upload on the API, does not go through the image optimiser.
   if (src.startsWith('blob:') || /^https?:/.test(src))
-    return <img src={src} alt="" className={fill} />
+    return <img src={src} alt="" loading="lazy" decoding="async" className={fill} />
   return <Image src={src} alt="" fill sizes={sizes} className="object-cover" />
 }

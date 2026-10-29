@@ -16,67 +16,96 @@ const open = (on?: 'ig' | 'fb' | 'tt') =>
       <PostedPage on={on} />
     </BrandProvider>,
   )
-const rows = () => screen.getAllByRole('listitem')
-const row = (hook: string) => rows().find((r) => r.textContent?.includes(hook))!
+const tiles = () => within(screen.getByRole('list', { name: 'Posts' })).getAllByRole('listitem')
+const tile = (hook: string) => tiles().find((t) => t.textContent?.includes(hook))!
+const rings = () => within(screen.getByRole('list', { name: 'Stories' })).getAllByRole('listitem')
+/** A tile with counts names them in its hover: "662likes". */
+const counted = (t: HTMLElement) =>
+  /\d(k|m)?(views|reach|likes|comments|shares|saves)/.test(t.textContent ?? '')
+const platform = () =>
+  screen.getAllByRole('radio', { checked: true }).find((r) => r.closest('[aria-label="Platform"]'))
 
 describe('Posted in the static demo', () => {
-  it('opens on Instagram, newest first, the demo’s stories with its posts', () => {
+  it('opens on Instagram as the brand’s profile: its stories as rings, its posts newest first', () => {
     open()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Instagram')
-    // Newest first: the margherita reel (noon on 6 Oct, the demo's today), then that morning's
-    // stories (from 09:00), then the archive.
-    const order = rows().map((r) => r.textContent ?? '')
-    const stories = order.findIndex((t) => t.startsWith('Story'))
-    const reel = order.findIndex((t) => t.includes('Margherita, oven to table'))
-    const archive = order.findIndex((t) => t.includes('Wine pairing night.'))
-    expect(reel).toBe(0)
-    expect(stories).toBe(1)
-    expect(archive).toBeGreaterThan(stories)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('@casavostrasg')
+    expect(platform()).toHaveTextContent('Instagram')
+    // The morning's stories (from 09:00 on 6 Oct, the demo's today) are up; the 5th's have gone.
+    expect(rings().map((r) => r.getAttribute('aria-label'))).toEqual([
+      expect.stringMatching(/^Story · \d frames · Today · Live, \d+ h left$/),
+      expect.stringMatching(/^Story · \d frames · Mon 5 · Gone$/),
+    ])
+    // Newest first, stories not in the grid: the margherita reel (noon today), then the archive.
+    expect(tiles()[0]).toHaveTextContent('Margherita, oven to table')
+    expect(tiles().some((t) => t.textContent?.startsWith('Story'))).toBe(false)
+    expect(
+      tiles().findIndex((t) => t.textContent?.includes('Wine pairing night.')),
+    ).toBeGreaterThan(0)
   })
 
-  it('shows a post’s counts with when they were read, and opens its poster with the way back', () => {
+  it('shows a post’s counts on its tile, says when they were read once, and opens its poster with the way back', () => {
     open()
-    const ravioli = row('Ravioli, filled by hand.')
-    expect(ravioli).toHaveTextContent(/reach/)
-    expect(ravioli).toHaveTextContent('as of 6 Oct')
+    const ravioli = tile('Ravioli, filled by hand.')
+    expect(counted(ravioli)).toBe(true)
     expect(within(ravioli).getByRole('link')).toHaveAttribute(
       'href',
       expect.stringMatching(/^\/post\/casa-vostra-archive-\d+\?posted=ig$/),
     )
+    // "as of" once, beside the totals, never repeated on each post.
+    expect(screen.getAllByText(/as of/)).toHaveLength(1)
+    expect(screen.getByText('as of 6 Oct').parentElement).toHaveAttribute(
+      'title',
+      expect.stringMatching(/^Last 30 days/),
+    )
+  })
+
+  it('names each tile for a reader from the post itself, not from the hover a phone never shows', () => {
+    open()
+    // The name is the link's own label: the hover layer, hidden on a phone, plays no part in it.
+    const ravioli = screen.getByRole('link', {
+      name: /^(Post|Carousel) · .+: Ravioli, filled by hand\. · [\d.]+k? (likes|reach)$/,
+    })
+    expect(ravioli).toHaveAttribute('href', expect.stringMatching(/\?posted=ig$/))
+    // A post with no numbers is named with none.
+    expect(
+      screen.getByRole('link', {
+        name: /^Reel · Today, \d\d:\d\d: Margherita, oven to table in 90 seconds\.$/,
+      }),
+    ).toBeInTheDocument()
   })
 
   it('marks a collaboration post with the creators it is shared with', () => {
     open()
-    expect(row('Wine pairing night.')).toHaveTextContent('Collab · @danielfooddiary')
-    expect(row('Guess the ingredient.')).not.toHaveTextContent('Collab')
+    expect(tile('Wine pairing night.')).toHaveTextContent('with @danielfooddiary')
+    expect(tile('Guess the ingredient.')).not.toHaveTextContent('with @')
   })
 
-  it('ranks the posts by engagement on request, and back to newest', () => {
+  it('ranks the posts by engagement on request, the ones without numbers last, and back to newest', () => {
     open()
+    const newest = tiles().map((t) => t.textContent)
     fireEvent.click(screen.getByRole('radio', { name: 'Top' }))
-    const region = (name: string) =>
-      within(screen.getByRole('region', { name })).getAllByRole('listitem')
-    // Every ranked post has numbers; the rest wait apart, in time order, none ranked.
-    expect(region('Most engaging').every((r) => /as of/.test(r.textContent ?? ''))).toBe(true)
-    const unread = region('No numbers yet')
-    expect(unread.length).toBeGreaterThan(0)
-    expect(unread.some((r) => /as of/.test(r.textContent ?? ''))).toBe(false)
+    const ranked = tiles().map(counted)
+    const first = ranked.indexOf(false)
+    expect(first).toBeGreaterThan(0)
+    // Every post with numbers comes before every post without; none of those is ranked.
+    expect(ranked.slice(first).every((c) => !c)).toBe(true)
+    expect(tiles().map((t) => t.textContent)).not.toEqual(newest)
     fireEvent.click(screen.getByRole('radio', { name: 'Newest' }))
-    expect(screen.queryByRole('region', { name: 'Most engaging' })).toBeNull()
+    expect(tiles().map((t) => t.textContent)).toEqual(newest)
   })
 
   it('switches platform from the rail, and shows no Instagram numbers on Facebook', () => {
     open()
     fireEvent.click(screen.getAllByRole('radio', { name: /Facebook/ })[0]!)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Facebook')
+    expect(platform()).toHaveTextContent('Facebook')
     // The archive's carousels also went to Facebook; their counts are Instagram's, so none show.
-    expect(row('Ravioli, filled by hand.')).not.toHaveTextContent('as of')
+    expect(counted(tile('Ravioli, filled by hand.'))).toBe(false)
     // Nothing reads Facebook's stories.
-    expect(rows().some((r) => r.textContent?.startsWith('Story'))).toBe(false)
+    expect(screen.queryByRole('list', { name: 'Stories' })).toBeNull()
   })
 
   it('opens on the platform the address names', () => {
     open('tt')
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('TikTok')
+    expect(platform()).toHaveTextContent('TikTok')
   })
 })

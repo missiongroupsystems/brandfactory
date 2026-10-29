@@ -5,9 +5,10 @@ import { addDays, clockTime, clockToday, dayLabel, MONTH_SHORT, todayDate } from
 
 /**
  * The Posted page's model, as pure functions the page only reads: what went out on each platform,
- * newest first, with its counts as last read, and the platform's last 30 days in one line. A count
- * a post does not have is left out, never shown as 0: until the core reads the platforms back, a
- * post Brand Base sent has no counts at all.
+ * newest first, with its counts as last read; the platform's last 30 days as the profile's totals;
+ * its stories as rings and its posts as a grid of covers, each with one count. A count a post does
+ * not have is left out, never shown as 0: until the core reads the platforms back, a post Brand
+ * Base sent has no counts at all.
  */
 
 /** The platforms the page lists, in the rail's order. */
@@ -211,8 +212,8 @@ export function figuresOf(
 }
 
 /**
- * The line after the figures: the window and, when only some have numbers, how many the totals
- * cover: "Last 30 days · 3 of 20 with numbers · as of 28 Oct".
+ * What the totals cover, for the hover on them: the window and, when only some have numbers, how
+ * many: "Last 30 days · 3 of 20 with numbers · as of 28 Oct". The page shows only "as of".
  */
 export function windowLine(sum: Summary): string {
   return [
@@ -256,6 +257,50 @@ export function rankedOf(
   }
 }
 
+/** The grid's order: newest first, or ranked. */
+export type Order = 'newest' | 'top'
+
+/**
+ * The grid: the posts, stories left out (they are the rings). Newest first; ranked when asked and
+ * ranking says something, with what has no counts after, newest first.
+ */
+export function gridOf(ledger: PostedItem[], platform: Platform, order: Order): PostedItem[] {
+  const posts = ledger.filter((i) => i.post.format !== 'story')
+  if (order === 'newest' || !canRank(posts, platform)) return posts
+  const { ranked, unread } = rankedOf(posts, platform)
+  return [...ranked, ...unread]
+}
+
+/**
+ * The counts a tile shows on this platform, in the summary's spirit: a count of 0 says nothing and
+ * is left out.
+ */
+export function tileCountsOf(item: PostedItem, platform: Platform) {
+  return countsOn(item, platform).filter((c) => c.value !== 0)
+}
+
+/**
+ * The one count a tile shows: views on a reel, likes on the rest; the first count it has when
+ * that one is missing or 0 (an import with reach only). None when it has no counts on this
+ * platform.
+ */
+export function headlineOf(item: PostedItem, platform: Platform) {
+  const counts = tileCountsOf(item, platform)
+  const want: CountKey = item.post.format === 'reel' ? 'views' : 'likes'
+  return counts.find((c) => c.key === want) ?? counts[0]
+}
+
+/**
+ * A tile in words, for a reader that cannot see the cover: "Reel · Sun 25 Oct, 12:40: Sunday
+ * roast is back · 12.4k views". A collab names its creators; no count when it has none.
+ */
+export function tileLabel(item: PostedItem, platform: Platform, today: string): string {
+  const head = headlineOf(item, platform)
+  const collab = item.collabs.length > 0 ? ` · with ${item.collabs.join(', ')}` : ''
+  const count = head ? ` · ${k(head.value)} ${head.label.toLowerCase()}` : ''
+  return `${kindOf(item.post, platform)} · ${whenOf(item, today)}${collab}: ${item.post.hook}${count}`
+}
+
 // ── Words ────────────────────────────────────────────────────────────────────────────────────
 
 /** What the platform calls it: "Reel", "Carousel", "Photos"; one photo is a "Post" ("Photo" on Facebook). */
@@ -279,14 +324,9 @@ export function whenOf(item: PostedItem, today: string): string {
   return `${day}, ${item.time}`
 }
 
-/** The caption's first line under the hook; nothing when it only says the hook again. */
-export function firstLine(item: PostedItem): string {
-  const line =
-    item.caption
-      .split('\n')
-      .find((l) => l.trim() !== '')
-      ?.trim() ?? ''
-  return line === item.post.hook.trim() ? '' : line
+/** "Today", or the weekday and the date: "Tue 28". */
+export function shortDay(item: PostedItem, today: string): string {
+  return item.day === today ? 'Today' : dayLabel(item.day).split(' ').slice(0, 2).join(' ')
 }
 
 /** How long a story stays up. */
@@ -305,28 +345,20 @@ export function hoursLeft(item: PostedItem, now: Moment): number | null {
   return left > 0 ? Math.min(STORY_HOURS, Math.ceil(left / 60)) : null
 }
 
-/** The ledger in months, newest first: "October", with the year when it is not this one. */
-export function monthsOf(
+/** How far back a story that has gone keeps its ring. */
+export const RING_DAYS = 7
+
+/**
+ * The story rings, newest first: every story still up, with its hours left, and the ones gone in
+ * the last week, with none.
+ */
+export function ringsOf(
   ledger: PostedItem[],
-  today: string,
-): Array<{ key: string; title: string; items: PostedItem[] }> {
-  const out: Array<{ key: string; title: string; items: PostedItem[] }> = []
-  for (const item of ledger) {
-    const key = item.day.slice(0, 7)
-    const last = out.at(-1)
-    if (last?.key === key) {
-      last.items.push(item)
-      continue
-    }
-    const name = new Date(`${key}-01T00:00:00Z`).toLocaleString('en-GB', {
-      month: 'long',
-      timeZone: 'UTC',
-    })
-    out.push({
-      key,
-      title: key.slice(0, 4) === today.slice(0, 4) ? name : `${name} ${key.slice(0, 4)}`,
-      items: [item],
-    })
-  }
-  return out
+  now: Moment,
+): Array<{ item: PostedItem; left: number | null }> {
+  const from = addDays(now.day, -(RING_DAYS - 1))
+  return ledger
+    .filter((i) => i.post.format === 'story')
+    .map((item) => ({ item, left: hoursLeft(item, now) }))
+    .filter((r) => r.left !== null || r.item.day >= from)
 }

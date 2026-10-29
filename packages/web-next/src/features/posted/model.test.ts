@@ -7,17 +7,21 @@ import {
   canRank,
   countsOn,
   figuresOf,
-  firstLine,
   fromServer,
+  gridOf,
+  headlineOf,
   hoursLeft,
   kindOf,
   ledgerOf,
-  monthsOf,
   nowIn,
   PLATFORMS,
   platformOf,
   railOf,
   rankedOf,
+  ringsOf,
+  shortDay,
+  tileCountsOf,
+  tileLabel,
   storyKind,
   summaryOf,
   whenOf,
@@ -154,18 +158,6 @@ describe('the ledger', () => {
     expect(ledgerOf(items, 'fb')).toEqual([])
     expect(ledgerOf(items, 'ig')).toHaveLength(1)
   })
-
-  it('groups by month, with the year only when it is not this one', () => {
-    const months = monthsOf(
-      ledgerOf([item('a', '2026-10-02'), item('b', '2026-09-30'), item('c', '2025-12-01')], 'ig'),
-      TODAY,
-    )
-    expect(months.map((m) => [m.title, m.items.length])).toEqual([
-      ['October', 1],
-      ['September', 1],
-      ['December 2025', 1],
-    ])
-  })
 })
 
 describe('the rail', () => {
@@ -288,6 +280,43 @@ describe('counts', () => {
   })
 })
 
+describe('a tile', () => {
+  it('shows views on a reel and likes on the rest', () => {
+    const reel = item('r', TODAY, { format: 'reel', metrics: { views: 900, likes: 40 } })
+    const photo = item('p', TODAY, { metrics: { reach: 900, likes: 40 } })
+    expect(headlineOf(reel, 'ig')).toMatchObject({ key: 'views', value: 900 })
+    expect(headlineOf(photo, 'ig')).toMatchObject({ key: 'likes', value: 40 })
+  })
+
+  it('falls back to the first count it has, and shows none without counts or off its first account', () => {
+    const reach = item('a', TODAY, { metrics: { reach: 300 } })
+    expect(headlineOf(reach, 'ig')).toMatchObject({ key: 'reach', value: 300 })
+    expect(headlineOf(item('b', TODAY), 'ig')).toBeUndefined()
+    // Instagram's counts never show on Facebook.
+    const both = item('c', TODAY, { metrics: { likes: 5 } }, { went: ['ig', 'fb'] })
+    expect(headlineOf(both, 'fb')).toBeUndefined()
+  })
+
+  it('never shows a 0: the next count stands in, and the hover leaves it out', () => {
+    const reel = item('r', TODAY, { format: 'reel', metrics: { views: 0, likes: 12, saves: 0 } })
+    expect(headlineOf(reel, 'ig')).toMatchObject({ key: 'likes', value: 12 })
+    expect(tileCountsOf(reel, 'ig').map((c) => c.key)).toEqual(['likes'])
+    expect(headlineOf(item('z', TODAY, { metrics: { likes: 0 } }), 'ig')).toBeUndefined()
+  })
+
+  it('says itself in words: kind, when, collab, hook and its one count', () => {
+    const reel = item('Sunday roast is back', '2026-10-25', {
+      format: 'reel',
+      metrics: { views: 12400, likes: 318 },
+    })
+    expect(tileLabel(reel, 'ig', TODAY)).toBe(
+      'Reel · Sun 25 Oct, 12:00: Sunday roast is back · 12.4k views',
+    )
+    const collab = item('Wine night', TODAY, {}, { collabs: ['@dan'] })
+    expect(tileLabel(collab, 'ig', TODAY)).toBe('Post · Today, 12:00 · with @dan: Wine night')
+  })
+})
+
 describe('ranking', () => {
   const ledger = ledgerOf(
     [
@@ -303,6 +332,31 @@ describe('ranking', () => {
     const { ranked, unread } = rankedOf(ledger, 'ig')
     expect(ranked.map((i) => i.post.id)).toEqual(['loud', 'tie', 'quiet'])
     expect(unread.map((i) => i.post.id)).toEqual(['none'])
+  })
+
+  it('orders the grid ranked only when asked and ranking says something, stories never in it', () => {
+    const withStory = [
+      ...ledger,
+      item('story', '2026-10-28', { format: 'story', metrics: { likes: 99 } }),
+    ]
+    expect(gridOf(withStory, 'ig', 'newest').map((i) => i.post.id)).toEqual([
+      'none',
+      'quiet',
+      'loud',
+      'tie',
+    ])
+    expect(gridOf(withStory, 'ig', 'top').map((i) => i.post.id)).toEqual([
+      'loud',
+      'tie',
+      'quiet',
+      'none',
+    ])
+    // One post with counts ranks nothing: Top stays newest first.
+    const one = ledgerOf(
+      [item('a', '2026-10-20', { metrics: { likes: 1 } }), item('b', '2026-10-21')],
+      'ig',
+    )
+    expect(gridOf(one, 'ig', 'top').map((i) => i.post.id)).toEqual(['b', 'a'])
   })
 
   it('needs two posts with counts to say anything', () => {
@@ -355,6 +409,26 @@ describe('stories', () => {
     })
   })
 
+  it('ring every story still up and those gone in the last week, newest first', () => {
+    const now = { day: '2026-10-29', time: '10:00' }
+    const rings = ringsOf(
+      ledgerOf(
+        [
+          item('up', '2026-10-29', { format: 'story' }, { time: '08:00' }),
+          item('gone', '2026-10-23', { format: 'story' }),
+          item('old', '2026-10-22', { format: 'story' }),
+          item('post', '2026-10-28'),
+        ],
+        'ig',
+      ),
+      now,
+    )
+    expect(rings.map((r) => [r.item.post.id, r.left])).toEqual([
+      ['up', 22],
+      ['gone', null],
+    ])
+  })
+
   it('name their frames', () => {
     expect(storyKind(story.post)).toBe('Story')
     expect(storyKind({ ...story.post, images: ['/a', '/b', '/c'] })).toBe('Story · 3 frames')
@@ -375,9 +449,8 @@ describe('words', () => {
     expect(whenOf(item('a', '2025-10-26'), TODAY)).toBe('Sun 26 Oct 2025, 12:00')
   })
 
-  it('take the caption’s first line, never the hook again', () => {
-    const a = item('Hook', TODAY, {}, { caption: '\nBeef and gravy.\nMore' })
-    expect(firstLine(a)).toBe('Beef and gravy.')
-    expect(firstLine(item('Hook', TODAY, {}, { caption: 'Hook\nrest' }))).toBe('')
+  it('give a ring its day in short', () => {
+    expect(shortDay(item('a', TODAY), TODAY)).toBe('Today')
+    expect(shortDay(item('a', '2026-10-27'), TODAY)).toBe('Tue 27')
   })
 })
