@@ -1,0 +1,7 @@
+{
+  "id": "post.sync_linked",
+  "sql": "select exists (select 1 from brandbase.accounts a join brandbase.brands b on b.id = a.brand_id join brandbase.make_orgs o on o.org_id = b.org_id where a.brand_id = :brand and a.platform = case :channel when 'ig' then 'instagram' when 'fb' then 'facebook' end and a.account_id = :account and a.tokens = 'make') as ok",
+  "status": 409,
+  "code": "NOT_LINKED",
+  "message": "this is not the account the brand linked through Make"
+}

@@ -523,8 +523,10 @@ export async function call(
     /** An idempotency key: the same call sent again under it runs once. */
     key?: string
     /**
-     * The scheduler's own calls only: who asked for this call, already checked when it was
-     * asked for. Never set from a request.
+     * The scheduler's own calls: who asked for this call, already checked when it was asked
+     * for. Also a host's route that checked a key of its own and acts as the principal the
+     * server's settings name (Make's read-back, `readings.ts` in connect). Never set from a
+     * request.
      */
     as?: string
     /** Code beside the core (a host's route, a connector): it may call internal moves. */

@@ -1,0 +1,48 @@
+{
+  "name": "post.sync_cover",
+  "description": "Gives a post the sync made its cover: the brand's own copy of the platform's image (media.create, then the upload), because Meta's image addresses expire. Only a posted post made outside Brand Base that has no media yet takes one; any other post is left as it is and nothing is answered. Called by the server's Make route, never by a screen or an agent's tool.",
+  "internal": true,
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["brand", "id", "media"],
+    "properties": {
+      "brand": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,80}$"
+      },
+      "media": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 1,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["src", "kind", "mediaId"],
+          "properties": {
+            "src": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "pattern": "^(?!blob:)"
+            },
+            "kind": {
+              "enum": ["photo"]
+            },
+            "mediaId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,80}$"
+            }
+          }
+        }
+      }
+    }
+  },
+  "before": ["brand.reachable", "post.media_in_brand"],
+  "returns": "many",
+  "sql": "update brandbase.posts p set media = :media::jsonb\nwhere p.id = :id and p.brand_id = :brand and p.marked = 'posted' and p.media = '[]'::jsonb\n  and not exists (select 1 from brandbase.post_jobs j where j.post_id = p.id)\nreturning brandbase.post_json(p) as result"
+}

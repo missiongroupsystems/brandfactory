@@ -1,0 +1,7 @@
+{
+  "id": "post.sync_ids_fit",
+  "sql": "select not exists (select 1 from jsonb_array_elements(:items::jsonb) e where char_length(:brand || '-' || :channel || '-' || (e ->> 'externalId')) > 71) as ok",
+  "status": 400,
+  "code": "ID_TOO_LONG",
+  "message": "the brand and a post's id there make an id longer than 71 characters"
+}

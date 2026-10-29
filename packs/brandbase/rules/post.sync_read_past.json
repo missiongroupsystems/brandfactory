@@ -1,0 +1,7 @@
+{
+  "id": "post.sync_read_past",
+  "sql": "select not exists (select 1 from jsonb_array_elements(:items::jsonb) e where (e ->> 'readAt')::timestamptz > :now::timestamptz + interval '10 minutes' or (e ->> 'postedAt')::timestamptz > (e ->> 'readAt')::timestamptz) as ok",
+  "status": 422,
+  "code": "READ_IN_FUTURE",
+  "message": "a reading is dated after now, or before its post went out"
+}

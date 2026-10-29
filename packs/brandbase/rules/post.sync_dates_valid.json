@@ -1,0 +1,7 @@
+{
+  "id": "post.sync_dates_valid",
+  "sql": "select not exists (select 1 from jsonb_array_elements(:items::jsonb) e where not pg_input_is_valid(e ->> 'postedAt', 'timestamptz') or not pg_input_is_valid(e ->> 'readAt', 'timestamptz') or (e ->> 'expiresAt' is not null and not pg_input_is_valid(e ->> 'expiresAt', 'timestamptz'))) as ok",
+  "status": 400,
+  "code": "VALIDATION",
+  "message": "a time is not a real date and time"
+}

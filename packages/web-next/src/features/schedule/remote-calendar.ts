@@ -36,6 +36,7 @@ export interface ServerPost {
   metrics?: Post['metrics'] | null
   permalink?: string | null
   measuredAt?: string | null
+  expiresAt?: string | null
 }
 
 interface ServerIdea {
@@ -95,6 +96,7 @@ export function postOf(p: ServerPost): Post {
     ...(p.metrics && { metrics: p.metrics }),
     ...(p.permalink && { permalink: p.permalink }),
     ...(p.measuredAt && { measuredAt: p.measuredAt }),
+    ...(p.expiresAt && { expiresAt: p.expiresAt }),
     ...(failed && {
       error: failed.error ?? 'It did not go out.',
       failedOn: failed.channel as Post['failedOn'],

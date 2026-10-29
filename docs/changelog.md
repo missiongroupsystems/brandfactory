@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.45.0** — 2026-10-29 — `feat/post-sync`: the core's side of the Posted page's sync, phase 2 of `docs/executing/posted-page-plan.md` (brandbase 1.13.0, migration 0022, not applied to production). A new server route, `POST /brands/:brand/make/readings`, takes what a Make scenario (phase 3, not built) reads back from a brand's Instagram account or Facebook Page: posts and stories with their counts. It checks its own key (`MAKE_READINGS_SECRET`) and runs as an agent of a Mission Group owner (`MAKE_READINGS_AS`), so the company walls still hold, and the pack takes readings only for the account the brand linked through Make. `post.sync` finds a post Brand Base sent by its job's id and gives it only its counts (its first account's) and its address, never its caption or media; a post made outside Brand Base, or one the Apify import brought in, becomes or stays a posted post with its counts, address and "as of"; a story ends when Meta says or after 24 hours and keeps its last counts. Each reading is kept in `post_readings` for a later "reach, by day"; counts Meta did not give are left out; the same batch twice changes nothing. Covers are copied from Meta's image hosts into the core's storage, at most 8 per request; a failed copy keeps the post as it was and is tried again next run. After review: a Facebook reel is matched by its video id, an import after the sync is refused (`ALREADY_SYNCED`), a newer reading refreshes a caption without counts, two readings of one post in a batch no longer fail it, an impossible date is a 400, and a cover is streamed, checked by its bytes and skipped for a gone story. The Posted page shows a synced story's own end, and drops a summary figure that is 0 ("0 stories"). 1419 tests, all run on a throwaway Postgres 18.
 - **2.44.0** — 2026-10-29 — `feat/posted-page`: a Posted page, phase 1 of `docs/executing/posted-page-plan.md`. `/posted` shows what went out on one platform at a time: an accounts rail (Instagram, Facebook, TikTok; those with posts or a linked account), the platform as the title, the last 30 days in one line (posts, stories, reach or views and likes, "x of y with numbers" when only some have them, "as of"), and a ledger of posts and stories, newest first, each with its counts as last read. A story is a row of 9:16 frames, live with the hours left or gone after 24 hours. A post opens its poster, which links back to Posted. "Top" ranks by likes, comments, shares and saves; posts with no numbers wait apart. Insights loses its Posts view with its reach and engagement-% ranking, average line, pillar and comment mood (Overview, Sentiment and Creators stay). Only data the web app already has: a post lists on the accounts whose job went live, or on all its accounts when imported or marked posted by hand; a post Brand Base sent shows no counts; Facebook stories are not listed; the demo's archive counts are invented, in the demo only. Posted is in the header and the phone's tab bar. No pack change, no migration. 1382 tests (237 skipped without a Postgres server).
 - **2.43.8** — 2026-10-29 — `fix/photo-files`: a photo post goes out (brandbase 1.12.1, migration 0021, not applied to production). The web app uploads a photo with its kind in the address (`…jpg#photo`, as a video carries `#video`); 0020's `post_files` took only `#video`, so every uploaded photo read as a sample and the first scheduled test post failed with "Upload this post's photos and videos again: some are only samples." 0021 takes either. The pack test now uses the address the web app writes (it used a bare `.jpg`, which hid the bug). Production: `core publish`, `core test brandbase 1.12.1`, `core migrate`, `core promote`; no server or web deploy. 1347 tests, all run on a throwaway Postgres 18.
 - **2.43.7** — 2026-10-29 — `fix/schedule-today`: a post can be scheduled for later today. The composer's day grid greyed out today as well as the past, so on the core nothing could go out before tomorrow. Today is open. A time that has gone, or comes within two minutes, in the brand's own timezone and on its own today (`timezoneOf`, from the core's brand list; `clockToday(now, zone)`) says "Pick a time ahead.": it would go out at once. The composer redraws every 30 seconds and checks the clock again when Schedule is pressed, so a time that passes while it stays open is not sent; the hour chart greys the hours gone. The demo's fixed today is left alone. The core takes today already (`post.send_day_not_past`); it does not yet refuse a time gone (follow-up: a before-rule; the calendar's own today is still the last brand loaded). No pack change, no migration. 1347 tests (237 skipped without a Postgres server).
@@ -97,6 +98,94 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.45.0 — 2026-10-29
+
+- **Why.** The Posted page listed what Brand Base sent, with no counts, and nothing made outside
+  Brand Base except imported posts. Phase 2 of `docs/executing/posted-page-plan.md` builds what the
+  core needs so that a Make scenario (phase 3) can post each brand's posts, stories and counts
+  every hour. The plan now holds phase 2 as built and the exact request phase 3 sends.
+- **Pack 1.13.0.** Migration `0022_post_sync.sql`: `posts.expires_at`; `posts.synced_at`;
+  `ig_shortcode(permalink)`; `post_readings` (brand,
+  channel, external id, read at, post id, metrics; one row per reading, the brand's reach rule,
+  deleted with its post); an index on `post_jobs (brand_id, channel, external_id)`; `post_json`
+  answers `expiresAt` and `syncedAt`. No `lock_timeout`: a migration may not `SET`. No new column for the platform's id: a post made outside Brand Base has the
+  id `<brand>-<channel>-<id>` as `post.import` makes them, and a sent post is found by its job.
+- **`post.sync`** (internal). Up to 50 readings for one brand and one account. A post Brand Base
+  sent, found by its live job's `external_id` (a Facebook reel's job keeps the video id Make
+  answers, and phase 3 sends that id): counts, `measured_at` and a missing `permalink`
+  only, and only from its first account (the one the web app shows counts for), so Facebook's
+  never replace Instagram's. An Instagram post of the brand's own with the same address's
+  shortcode (imported, or synced under another id): no second post; two readings of one post in a
+  batch keep the newer. Any other: a posted post on the day and time it went out in the
+  brand's zone, its hook the caption's first line. A newer reading refreshes its caption, with
+  counts or without (`synced_at`); a reading replaces the counts only when it has counts and is
+  newer (`measured_at`); counts that are missing or null are left out, never 0; the same batch twice changes
+  nothing; every reading with counts is kept, an older one too. A story ends at `expiresAt` or 24
+  hours after it went out. Rules: `brand.reachable`, `post.sync_dates_valid` (a real date, or 400
+  `VALIDATION`), `post.sync_linked` (the account the brand
+  linked through Make, on a company on `make_orgs`), `post.sync_ids_fit`, `post.sync_read_past`.
+- **`post.import`.** Refuses (`post.import_not_synced`, 409 `ALREADY_SYNCED`) an Instagram post
+  the brand already has under another id with the same shortcode; the importer skips it before
+  uploading a cover and counts it apart.
+- **`post.sync_cover`** (internal). A post of its own with no media takes its stored cover once;
+  a post Brand Base made never does.
+- **Server.** `packages/connect/src/brandbase/readings.ts`: `POST /brands/:brand/make/readings`,
+  key in `x-make-apikey` (`MAKE_READINGS_SECRET`, 32 characters or more, compared in constant
+  time; not `MAKE_WEBHOOK_SECRET`, which goes the other way), body at most 2 MB. The moves run as
+  `MAKE_READINGS_AS`, an agent of a Mission Group owner (`<owner uid>/make`), through the core's
+  `as` with `internal`: the owner's company bounds what it reaches, the log names the agent, and
+  its loadout holds three moves. At most 8 covers per request, four at a time, newest first, the rest
+  `left` for the next run; a post with no image or a story already gone takes no place. A cover is read only for a story not yet gone and a post whose cover id fits, only from
+  `*.fbcdn.net` and `*.cdninstagram.com` (https, no port, no redirect, 15 s), streamed and cut off
+  past 8 MB, and kept only when its first bytes are the JPEG, PNG or WebP its type says; its file
+  record is made only then, and stored through `media.create` and its signed write URL. A failure
+  is logged and counted and never fails the batch.
+  `run.ts`'s comment on `as` names this second use; the code is unchanged.
+- **web-next.** `ServerPost` and `Post` carry `expiresAt`; a synced story's hours left come from
+  it (`hoursLeft`, with the instant in `nowIn`), others still from 24 hours. `figuresOf` leaves
+  out a figure that is 0 ("0 stories", "0 posts"). Permalinks, counts, "as of" and stored covers
+  already flowed through `postOf`.
+- **Tests.** `tests/sync.json` (12 cases): outside posts with counts and readings, idempotence and
+  newer or older readings, a sent post's caption and media kept, stories' ends, an imported post
+  matched by address, a Facebook reel by its video id, an import refused after the sync, a caption
+  refreshed with no counts, two readings of one post in a batch, impossible dates, covers, and the walls (no linked account, another account, another company,
+  a company not on Make's list, a deactivated person, a dated reading, ids too long, bad fields,
+  51 items). `upgrade.test.ts`: 0022 on a 1.12.1 database. `readings.test.ts`: the key, the
+  settings, validation, the walls through the route, covers and their failures, the agent's
+  loadout, the 8-cover share, the story gone, the port, the bytes, the 8 MB cut and the id length.
+  `isolation.json` counts one more walled table. Each guard was removed on purpose and a test
+  failed: the newer-reading guard, the sent-post match, the Facebook job match, the import rule,
+  the date rule, the caption guard, the dedupe, the cover cap, the stream cut, the byte check, the
+  port, the story's end and the id length.
+- **Review (Opus and Sonnet).** No auth bypass, cross-company write or SSRF found. Fixed: a
+  Facebook reel would show twice (job keeps the video id); an import after the sync made a second
+  post; the first run's covers could outlast Make's 300 s; an impossible date failed the whole
+  batch (`BAD_INPUT`); a reading without counts never refreshed a caption; two readings of one post
+  failed the batch every hour; the cover read buffered the whole body, trusted the type header,
+  took any port, retried gone stories, left a refused response unread, could make an id too long,
+  and let covers that never copy hold every place.
+- **Not in this release.** The Make scenario (phase 3), the account summary (followers), a list of
+  linked accounts for Make (phase 3 keeps them in a Make data store), TikTok, Facebook stories. A
+  post shows twice when it was marked posted by hand, when its job went live with no id (Make's id
+  past 2^53), or when a Facebook reel is read back by its post id instead of its video id.
+- **Production.** In this order, with `DATABASE_URL` for `brandbase-db` and a `core login`:
+  1. Make a key: `openssl rand -base64 32 | pbcopy`, keep it in the password manager, then
+     `fly secrets set --stage MAKE_READINGS_SECRET="$(pbpaste)" MAKE_READINGS_AS=<owner uid>/make
+     -a brandfactory >/dev/null && echo OK; pbcopy </dev/null`. The owner is a Mission Group owner
+     (`brandbase.org_members`, role `owner`).
+  2. `core publish packs/brandbase`, `core test brandbase 1.13.0` (214/214), `core migrate
+     brandbase 1.13.0` (applies 0022; 1.12.1 runs on it unchanged).
+  3. `core principal <owner uid>/make --agent-of <owner uid>`, then `core loadout <owner uid>/make
+     brandbase post.sync post.sync_cover media.create`.
+  4. Deploy the core (`fly deploy -a brandfactory`): `packages/connect` changed.
+  5. `core promote brandbase 1.13.0`, then `core loadout <owner uid> brandbase all`: the agent
+     needs its moves in its person's loadout too.
+  6. The web app from this branch (Vercel).
+  7. Check: `POST /brands/<brand>/make/readings` without the key answers 401; with it and
+     `{"channel": "ig", "account": "<id>", "items": []}` answers 400 `VALIDATION` and writes
+     nothing. The first real reading comes with phase 3.
+- **Gate:** typecheck, lint, format, build; 1419 tests, all run on a throwaway Postgres 18.
 
 ## 2.44.0 — 2026-10-29
 

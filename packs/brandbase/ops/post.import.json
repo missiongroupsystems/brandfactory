@@ -1,6 +1,6 @@
 {
   "name": "post.import",
-  "description": "Brings in a post already out on the brand's own Instagram or TikTok, as posted, on the day and time it went out in the brand's zone, with its address and its counts. Its id is the brand, the account and the post's id there, at most 71 characters, so every move that names a post can name it and its cover's id fits beside it. The same post again refreshes its caption and counts and keeps its media; an id another brand holds, or a post BrandBase made, is refused.",
+  "description": "Brings in a post already out on the brand's own Instagram or TikTok, as posted, on the day and time it went out in the brand's zone, with its address and its counts. Its id is the brand, the account and the post's id there, at most 71 characters, so every move that names a post can name it and its cover's id fits beside it. The same post again refreshes its caption and counts and keeps its media; an id another brand holds, a post BrandBase made, or an Instagram post the brand already has under another id (the same address's shortcode, as the read-back or a send keeps it) is refused.",
   "input": {
     "type": "object",
     "additionalProperties": false,
@@ -96,6 +96,7 @@
   "before": [
     "brand.reachable",
     "post.import_id_fits",
+    "post.import_not_synced",
     "post.import_by_a_person",
     "post.import_past",
     "post.media_in_brand"

@@ -67,6 +67,8 @@ export interface Post {
   measuredAt?: string
   /** Where it is on its account, once it has gone out. */
   permalink?: string
+  /** When a story read back from its account comes down, an ISO time. */
+  expiresAt?: string
 }
 
 export const POSTS: Post[] = [

@@ -1,0 +1,2468 @@
+{
+  "name": "sync",
+  "now": "2026-10-29T06:00:00Z",
+  "as": "owner",
+  "cases": [
+    {
+      "name": "posts made outside Brand Base become posted posts with their counts, their address and a reading each; a count the platform did not give is left out",
+      "steps": [
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              },
+              {
+                "externalId": "18000000000000002",
+                "kind": "reel",
+                "postedAt": "2026-10-27T12:15:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "views": 5400,
+                  "reach": 3100,
+                  "likes": 210,
+                  "comments": 12,
+                  "shares": 9,
+                  "saves": 30
+                },
+                "caption": null,
+                "permalink": "https://www.instagram.com/reel/DReel2/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/reel.mp4",
+                "thumbnailUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/reel.jpg"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "brand": "casa",
+              "channel": "ig",
+              "made": 2,
+              "updated": 0,
+              "readings": 2,
+              "covers": [
+                {
+                  "externalId": "18000000000000001",
+                  "post": "casa-ig-18000000000000001"
+                },
+                {
+                  "externalId": "18000000000000002",
+                  "post": "casa-ig-18000000000000002"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "sql": "select id, format, hook, day::text, time, caption, channels, media, marked, permalink, metrics, brandbase.iso(measured_at) as measured_at, brandbase.iso(expires_at) as expires_at, version from brandbase.posts where brand_id = 'casa' order by id",
+          "expect": {
+            "rows": [
+              {
+                "id": "casa-ig-18000000000000001",
+                "format": "carousel",
+                "hook": "🍝 Fresh pasta, every night",
+                "day": "2026-10-28",
+                "time": "10:30",
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "channels": ["ig"],
+                "media": [],
+                "marked": "posted",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "saves": 4
+                },
+                "measured_at": "2026-10-29T05:00:00.000Z",
+                "expires_at": null,
+                "version": 1
+              },
+              {
+                "id": "casa-ig-18000000000000002",
+                "format": "reel",
+                "hook": "Instagram reel",
+                "day": "2026-10-27",
+                "time": "20:15",
+                "caption": "",
+                "channels": ["ig"],
+                "media": [],
+                "marked": "posted",
+                "permalink": "https://www.instagram.com/reel/DReel2/",
+                "metrics": {
+                  "views": 5400,
+                  "reach": 3100,
+                  "likes": 210,
+                  "comments": 12,
+                  "shares": 9,
+                  "saves": 30
+                },
+                "measured_at": "2026-10-29T05:00:00.000Z",
+                "expires_at": null,
+                "version": 1
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select external_id, brandbase.iso(read_at) as read_at, post_id, metrics from brandbase.post_readings order by external_id, read_at",
+          "expect": {
+            "rows": [
+              {
+                "external_id": "18000000000000001",
+                "read_at": "2026-10-29T05:00:00.000Z",
+                "post_id": "casa-ig-18000000000000001",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "saves": 4
+                }
+              },
+              {
+                "external_id": "18000000000000002",
+                "read_at": "2026-10-29T05:00:00.000Z",
+                "post_id": "casa-ig-18000000000000002",
+                "metrics": {
+                  "views": 5400,
+                  "reach": 3100,
+                  "likes": 210,
+                  "comments": 12,
+                  "shares": 9,
+                  "saves": 30
+                }
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "posts": [
+                {
+                  "id": "casa-ig-18000000000000002",
+                  "stage": "posted",
+                  "measuredAt": "2026-10-29T05:00:00.000Z",
+                  "permalink": "https://www.instagram.com/reel/DReel2/",
+                  "expiresAt": null,
+                  "jobs": []
+                },
+                {
+                  "id": "casa-ig-18000000000000001",
+                  "stage": "posted",
+                  "metrics": {
+                    "likes": 120,
+                    "comments": 8,
+                    "saves": 4
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "the same batch twice changes nothing; a newer reading replaces the counts and an older one is only kept as a reading",
+      "steps": [
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              },
+              {
+                "externalId": "18000000000000002",
+                "kind": "reel",
+                "postedAt": "2026-10-27T12:15:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "views": 5400,
+                  "reach": 3100,
+                  "likes": 210,
+                  "comments": 12,
+                  "shares": 9,
+                  "saves": 30
+                },
+                "caption": null,
+                "permalink": "https://www.instagram.com/reel/DReel2/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/reel.mp4",
+                "thumbnailUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/reel.jpg"
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              },
+              {
+                "externalId": "18000000000000002",
+                "kind": "reel",
+                "postedAt": "2026-10-27T12:15:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "views": 5400,
+                  "reach": 3100,
+                  "likes": 210,
+                  "comments": 12,
+                  "shares": 9,
+                  "saves": 30
+                },
+                "caption": null,
+                "permalink": "https://www.instagram.com/reel/DReel2/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/reel.mp4",
+                "thumbnailUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/reel.jpg"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 0,
+              "updated": 0,
+              "readings": 0
+            }
+          }
+        },
+        {
+          "sql": "select id, format, hook, day::text, time, caption, channels, media, marked, permalink, metrics, brandbase.iso(measured_at) as measured_at, brandbase.iso(expires_at) as expires_at, version from brandbase.posts where brand_id = 'casa' order by id",
+          "expect": {
+            "rows": [
+              {
+                "id": "casa-ig-18000000000000001",
+                "format": "carousel",
+                "hook": "🍝 Fresh pasta, every night",
+                "day": "2026-10-28",
+                "time": "10:30",
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "channels": ["ig"],
+                "media": [],
+                "marked": "posted",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "saves": 4
+                },
+                "measured_at": "2026-10-29T05:00:00.000Z",
+                "expires_at": null,
+                "version": 1
+              },
+              {
+                "id": "casa-ig-18000000000000002",
+                "format": "reel",
+                "hook": "Instagram reel",
+                "day": "2026-10-27",
+                "time": "20:15",
+                "caption": "",
+                "channels": ["ig"],
+                "media": [],
+                "marked": "posted",
+                "permalink": "https://www.instagram.com/reel/DReel2/",
+                "metrics": {
+                  "views": 5400,
+                  "reach": 3100,
+                  "likes": 210,
+                  "comments": 12,
+                  "shares": 9,
+                  "saves": 30
+                },
+                "measured_at": "2026-10-29T05:00:00.000Z",
+                "expires_at": null,
+                "version": 1
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select external_id, brandbase.iso(read_at) as read_at, post_id, metrics from brandbase.post_readings order by external_id, read_at",
+          "expect": {
+            "rows": [
+              {
+                "external_id": "18000000000000001",
+                "read_at": "2026-10-29T05:00:00.000Z",
+                "post_id": "casa-ig-18000000000000001",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "saves": 4
+                }
+              },
+              {
+                "external_id": "18000000000000002",
+                "read_at": "2026-10-29T05:00:00.000Z",
+                "post_id": "casa-ig-18000000000000002",
+                "metrics": {
+                  "views": 5400,
+                  "reach": 3100,
+                  "likes": 210,
+                  "comments": 12,
+                  "shares": 9,
+                  "saves": 30
+                }
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:30:00Z",
+                "metrics": {
+                  "likes": 150,
+                  "comments": 9
+                },
+                "caption": "Fresh pasta, every night (edited)"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 0,
+              "updated": 1,
+              "readings": 1
+            }
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T04:00:00Z",
+                "metrics": {
+                  "likes": 90
+                },
+                "caption": "An old caption"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 0,
+              "updated": 0,
+              "readings": 1
+            }
+          }
+        },
+        {
+          "sql": "select caption, hook, metrics, brandbase.iso(measured_at) as measured_at, version from brandbase.posts where id = 'casa-ig-18000000000000001'",
+          "expect": {
+            "rows": [
+              {
+                "caption": "Fresh pasta, every night (edited)",
+                "hook": "🍝 Fresh pasta, every night",
+                "metrics": {
+                  "likes": 150,
+                  "comments": 9
+                },
+                "measured_at": "2026-10-29T05:30:00.000Z",
+                "version": 1
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select brandbase.iso(read_at) as read_at, metrics from brandbase.post_readings where external_id = '18000000000000001' order by read_at",
+          "expect": {
+            "rows": [
+              {
+                "read_at": "2026-10-29T04:00:00.000Z",
+                "metrics": {
+                  "likes": 90
+                }
+              },
+              {
+                "read_at": "2026-10-29T05:00:00.000Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "saves": 4
+                }
+              },
+              {
+                "read_at": "2026-10-29T05:30:00.000Z",
+                "metrics": {
+                  "likes": 150,
+                  "comments": 9
+                }
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000003",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 1,
+              "readings": 0
+            }
+          }
+        },
+        {
+          "sql": "select metrics, measured_at from brandbase.posts where id = 'casa-ig-18000000000000003'",
+          "expect": {
+            "rows": [
+              {
+                "metrics": null,
+                "measured_at": null
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000004",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 1
+                }
+              },
+              {
+                "externalId": "18000000000000004",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:10:00Z",
+                "metrics": {
+                  "likes": 2
+                }
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 1,
+              "readings": 1
+            }
+          }
+        },
+        {
+          "sql": "select metrics from brandbase.posts where id = 'casa-ig-18000000000000004'",
+          "expect": {
+            "rows": [
+              {
+                "metrics": {
+                  "likes": 2
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "a post Brand Base sent is found by its job's id: it gets its first account's counts and its address, and keeps its caption and media",
+      "steps": [
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "facebook",
+            "accountId": "100000000000001",
+            "username": "Casa Vostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, time, caption, channels, media, marked, permalink) values\n  ('sent', 'casa', 'carousel', 'Pasta night', '2026-10-28', '18:00', 'Our own caption.', '{ig,fb,tt}',\n   '[{\"src\": \"https://core.test/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/11111111-1111-1111-1111-111111111111.jpg#photo\", \"kind\": \"photo\"}]', null, null)"
+        },
+        {
+          "sql": "insert into brandbase.post_jobs (id, post_id, brand_id, channel, status, run_at, external_id) values\n  ('sent:ig', 'sent', 'casa', 'ig', 'live', '2026-10-28T10:00:00Z', '17890000000000001'),\n  ('sent:fb', 'sent', 'casa', 'fb', 'live', '2026-10-28T10:00:00Z', '100000000000001_200000000000001')"
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "17890000000000001",
+                "kind": "carousel",
+                "postedAt": "2026-10-28T10:00:01Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "reach": 800,
+                  "likes": 64
+                },
+                "caption": "Changed on Instagram",
+                "permalink": "https://www.instagram.com/p/DSent1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/other.jpg"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 0,
+              "updated": 1,
+              "readings": 1,
+              "covers": []
+            }
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "fb",
+            "account": "100000000000001",
+            "items": [
+              {
+                "externalId": "100000000000001_200000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T10:00:01Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 12,
+                  "comments": 1,
+                  "shares": 2
+                },
+                "caption": "Changed on Facebook",
+                "permalink": "https://www.facebook.com/casa/posts/200000000000001"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 0,
+              "updated": 0,
+              "readings": 1,
+              "covers": []
+            }
+          }
+        },
+        {
+          "sql": "select id, caption, hook, media, permalink, metrics, brandbase.iso(measured_at) as measured_at, version from brandbase.posts where brand_id = 'casa'",
+          "expect": {
+            "rows": [
+              {
+                "id": "sent",
+                "caption": "Our own caption.",
+                "hook": "Pasta night",
+                "media": [
+                  {
+                    "src": "https://core.test/files/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/brandbase/11111111-1111-1111-1111-111111111111.jpg#photo",
+                    "kind": "photo"
+                  }
+                ],
+                "permalink": "https://www.instagram.com/p/DSent1/",
+                "metrics": {
+                  "reach": 800,
+                  "likes": 64
+                },
+                "measured_at": "2026-10-29T05:00:00.000Z",
+                "version": 1
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select channel, post_id, metrics from brandbase.post_readings order by channel",
+          "expect": {
+            "rows": [
+              {
+                "channel": "fb",
+                "post_id": "sent",
+                "metrics": {
+                  "likes": 12,
+                  "comments": 1,
+                  "shares": 2
+                }
+              },
+              {
+                "channel": "ig",
+                "post_id": "sent",
+                "metrics": {
+                  "reach": 800,
+                  "likes": 64
+                }
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.sync_cover",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "id": "sent",
+            "media": [
+              {
+                "src": "https://core.test/files/x/brandbase/y.jpg#photo",
+                "kind": "photo",
+                "mediaId": "m1"
+              }
+            ]
+          },
+          "expect": {
+            "code": "BAD_MEDIA"
+          }
+        },
+        {
+          "sql": "insert into brandbase.media (id, brand_id, storage_key, kind, mime, bytes) values ('m1', 'casa', 'brandbase/22222222-2222-2222-2222-222222222222.jpg', 'photo', 'image/jpeg', 2000)"
+        },
+        {
+          "call": "post.sync_cover",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "id": "sent",
+            "media": [
+              {
+                "src": "https://core.test/files/x/brandbase/22222222-2222-2222-2222-222222222222.jpg#photo",
+                "kind": "photo",
+                "mediaId": "m1"
+              }
+            ]
+          },
+          "expect": {
+            "length": 0
+          }
+        },
+        {
+          "sql": "update brandbase.post_jobs set status = 'failed' where id = 'sent:ig'"
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "17890000000000001",
+                "kind": "carousel",
+                "postedAt": "2026-10-28T10:00:01Z",
+                "readAt": "2026-10-29T05:40:00Z",
+                "metrics": {
+                  "likes": 70
+                }
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 1,
+              "updated": 0
+            }
+          }
+        },
+        {
+          "sql": "select caption, metrics from brandbase.posts where id = 'sent'",
+          "expect": {
+            "rows": [
+              {
+                "caption": "Our own caption.",
+                "metrics": {
+                  "reach": 800,
+                  "likes": 64
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "a story ends 24 hours after it went out, or when the reading says, and two stories on one day are both kept",
+      "steps": [
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18100000000000001",
+                "kind": "story",
+                "postedAt": "2026-10-29T01:00:00+0000",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "reach": 300
+                },
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/s1.jpg"
+              },
+              {
+                "externalId": "18100000000000002",
+                "kind": "story",
+                "postedAt": "2026-10-29T03:00:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "reach": 120
+                },
+                "expiresAt": "2026-10-30T02:59:00Z"
+              },
+              {
+                "externalId": "18100000000000003",
+                "kind": "post",
+                "postedAt": "2026-10-29T03:00:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 3
+                },
+                "expiresAt": "2026-10-30T02:59:00Z"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 3,
+              "readings": 3
+            }
+          }
+        },
+        {
+          "sql": "select id, format, hook, day::text, time, brandbase.iso(expires_at) as expires_at from brandbase.posts where brand_id = 'casa' order by id",
+          "expect": {
+            "rows": [
+              {
+                "id": "casa-ig-18100000000000001",
+                "format": "story",
+                "hook": "Instagram story",
+                "day": "2026-10-29",
+                "time": "09:00",
+                "expires_at": "2026-10-30T01:00:00.000Z"
+              },
+              {
+                "id": "casa-ig-18100000000000002",
+                "format": "story",
+                "hook": "Instagram story",
+                "day": "2026-10-29",
+                "time": "11:00",
+                "expires_at": "2026-10-30T02:59:00.000Z"
+              },
+              {
+                "id": "casa-ig-18100000000000003",
+                "format": "carousel",
+                "hook": "Instagram post",
+                "day": "2026-10-29",
+                "time": "11:00",
+                "expires_at": null
+              }
+            ]
+          }
+        },
+        {
+          "call": "brand.state",
+          "input": {
+            "brand": "casa"
+          },
+          "expect": {
+            "result": {
+              "posts": [
+                {
+                  "id": "casa-ig-18100000000000001",
+                  "format": "story",
+                  "stage": "posted",
+                  "expiresAt": "2026-10-30T01:00:00.000Z",
+                  "metrics": {
+                    "reach": 300
+                  }
+                },
+                {},
+                {}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "an imported Instagram post is found by its address and gets the counts, not a second post",
+      "steps": [
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "post.import",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "DAbc123xyz",
+            "format": "reel",
+            "hook": "Brought in",
+            "caption": "Brought in",
+            "at": "2026-10-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/p/DAbc123xyz/",
+            "media": [
+              {
+                "src": "https://core.test/files/x/brandbase/imported.jpg#photo",
+                "kind": "photo"
+              }
+            ],
+            "metrics": {
+              "views": 900
+            }
+          },
+          "now": "2026-10-25T00:00:00Z"
+        },
+        {
+          "now": "2026-10-29T06:00:00Z",
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18200000000000001",
+                "kind": "reel",
+                "postedAt": "2026-10-20T10:00:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "views": 1500,
+                  "reach": 1100
+                },
+                "caption": "Brought in, edited",
+                "permalink": "https://www.instagram.com/reel/DAbc123xyz/",
+                "thumbnailUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/x.jpg"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 0,
+              "updated": 1,
+              "readings": 1,
+              "covers": []
+            }
+          }
+        },
+        {
+          "sql": "select id, caption, hook, media, metrics from brandbase.posts where brand_id = 'casa'",
+          "expect": {
+            "rows": [
+              {
+                "id": "casa-ig-DAbc123xyz",
+                "caption": "Brought in, edited",
+                "hook": "Brought in",
+                "media": [
+                  {
+                    "src": "https://core.test/files/x/brandbase/imported.jpg#photo",
+                    "kind": "photo"
+                  }
+                ],
+                "metrics": {
+                  "views": 1500,
+                  "reach": 1100
+                }
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select post_id from brandbase.post_readings",
+          "expect": {
+            "rows": [
+              {
+                "post_id": "casa-ig-DAbc123xyz"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "a synced post takes its cover once: the brand's own copy, never another brand's file",
+      "steps": [
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              }
+            ]
+          }
+        },
+        {
+          "sql": "insert into brandbase.media (id, brand_id, storage_key, kind, mime, bytes) values ('c1', 'casa', 'brandbase/33333333-3333-3333-3333-333333333333.jpg', 'photo', 'image/jpeg', 2000), ('t1', 'temper', 'brandbase/44444444-4444-4444-4444-444444444444.jpg', 'photo', 'image/jpeg', 2000)"
+        },
+        {
+          "call": "post.sync_cover",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "id": "casa-ig-18000000000000001",
+            "media": [
+              {
+                "src": "https://core.test/files/x/brandbase/44444444-4444-4444-4444-444444444444.jpg#photo",
+                "kind": "photo",
+                "mediaId": "t1"
+              }
+            ]
+          },
+          "expect": {
+            "code": "BAD_MEDIA"
+          }
+        },
+        {
+          "call": "post.sync_cover",
+          "as": "b-owner",
+          "input": {
+            "brand": "casa",
+            "id": "casa-ig-18000000000000001",
+            "media": [
+              {
+                "src": "https://core.test/files/x/brandbase/33333333-3333-3333-3333-333333333333.jpg#photo",
+                "kind": "photo",
+                "mediaId": "c1"
+              }
+            ]
+          },
+          "expect": {
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.sync_cover",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "id": "casa-ig-18000000000000001",
+            "media": [
+              {
+                "src": "https://core.test/files/x/brandbase/33333333-3333-3333-3333-333333333333.jpg#photo",
+                "kind": "photo",
+                "mediaId": "c1"
+              }
+            ]
+          },
+          "expect": {
+            "length": 1,
+            "result": [
+              {
+                "id": "casa-ig-18000000000000001",
+                "media": [
+                  {
+                    "mediaId": "c1"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.sync_cover",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "id": "casa-ig-18000000000000001",
+            "media": [
+              {
+                "src": "https://core.test/files/x/brandbase/33333333-3333-3333-3333-333333333333.jpg#photo",
+                "kind": "photo",
+                "mediaId": "c1"
+              }
+            ]
+          },
+          "expect": {
+            "length": 0
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "covers": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "the walls: a brand with no linked account, another account, another company, a company not on Make's list, and a dated or oversized batch are refused",
+      "steps": [
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              }
+            ]
+          },
+          "expect": {
+            "status": 409,
+            "code": "NOT_LINKED"
+          }
+        },
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000999",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              }
+            ]
+          },
+          "expect": {
+            "code": "NOT_LINKED"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "fb",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              }
+            ]
+          },
+          "expect": {
+            "code": "NOT_LINKED"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              }
+            ]
+          },
+          "as": "b-owner",
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              }
+            ]
+          },
+          "as": "gone",
+          "expect": {
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              }
+            ]
+          },
+          "as": "loner",
+          "expect": {
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "sql": "insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values ('temper', 'instagram', '17841400000000777', '@temper', 'make', '{}', 'b-owner')"
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "temper",
+            "channel": "ig",
+            "account": "17841400000000777",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              }
+            ]
+          },
+          "as": "b-owner",
+          "expect": {
+            "code": "NOT_LINKED"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "temper",
+            "channel": "ig",
+            "account": "17841400000000777",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              }
+            ]
+          },
+          "as": "owner",
+          "expect": {
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000009",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T06:11:00Z",
+                "metrics": {
+                  "likes": 1
+                }
+              }
+            ]
+          },
+          "expect": {
+            "status": 422,
+            "code": "READ_IN_FUTURE"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000009",
+                "kind": "post",
+                "postedAt": "2026-10-29T05:00:00Z",
+                "readAt": "2026-10-29T04:00:00Z",
+                "metrics": {
+                  "likes": 1
+                }
+              }
+            ]
+          },
+          "expect": {
+            "code": "READ_IN_FUTURE"
+          }
+        },
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "osteria",
+            "platform": "facebook",
+            "accountId": "100000000000001",
+            "username": "Osteria",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "osteria",
+            "channel": "fb",
+            "account": "100000000000001",
+            "items": [
+              {
+                "externalId": "111111111111111111111111111111_222222222222222222222222222222",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 1
+                }
+              }
+            ]
+          },
+          "expect": {
+            "status": 400,
+            "code": "ID_TOO_LONG"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg",
+                "hook": "made up"
+              }
+            ]
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 1,
+                  "impressions": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              }
+            ]
+          },
+          "expect": {
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": -1
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "https://scontent-sin6-1.cdninstagram.com/v/t51/pasta.jpg"
+              }
+            ]
+          },
+          "expect": {
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 120,
+                  "comments": 8,
+                  "reach": null,
+                  "saves": 4
+                },
+                "caption": "\n🍝 Fresh pasta, every night\nBook a table.",
+                "permalink": "https://www.instagram.com/p/DPasta1/",
+                "mediaUrl": "http://example.com/a.jpg"
+              }
+            ]
+          },
+          "expect": {
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000100",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000101",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000102",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000103",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000104",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000105",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000106",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000107",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000108",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000109",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000110",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000111",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000112",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000113",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000114",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000115",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000116",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000117",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000118",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000119",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000120",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000121",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000122",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000123",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000124",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000125",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000126",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000127",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000128",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000129",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000130",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000131",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000132",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000133",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000134",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000135",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000136",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000137",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000138",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000139",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000140",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000141",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000142",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000143",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000144",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000145",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000146",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000147",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000148",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000149",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              },
+              {
+                "externalId": "18000000000000150",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              }
+            ]
+          },
+          "expect": {
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": []
+          },
+          "expect": {
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.posts where brand_id in ('casa', 'temper', 'osteria')",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.post_readings",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "a Facebook reel Brand Base sent is found by its video id, the id Make answers for a reel, and is not made twice",
+      "steps": [
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "facebook",
+            "accountId": "100000000000001",
+            "username": "Casa Vostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "sql": "insert into brandbase.posts (id, brand_id, format, hook, day, time, caption, channels, media) values\n    ('fbreel', 'casa', 'reel', 'Reel night', '2026-10-28', '18:00', 'Our reel.', '{fb}', '[{\"src\": \"https://core.test/files/x/brandbase/v.mp4#video\", \"kind\": \"video\"}]')"
+        },
+        {
+          "sql": "insert into brandbase.post_jobs (id, post_id, brand_id, channel, status, run_at, external_id) values\n    ('fbreel:fb', 'fbreel', 'casa', 'fb', 'live', '2026-10-28T10:00:00Z', '900000000000001')"
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "fb",
+            "account": "100000000000001",
+            "items": [
+              {
+                "externalId": "900000000000001",
+                "kind": "reel",
+                "postedAt": "2026-10-28T10:00:01Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 30,
+                  "shares": 2
+                },
+                "caption": "Changed on Facebook"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 0,
+              "updated": 1,
+              "readings": 1,
+              "covers": []
+            }
+          }
+        },
+        {
+          "sql": "select id, caption, metrics from brandbase.posts where brand_id = 'casa'",
+          "expect": {
+            "rows": [
+              {
+                "id": "fbreel",
+                "caption": "Our reel.",
+                "metrics": {
+                  "likes": 30,
+                  "shares": 2
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "an import after the sync is refused for a post the brand already has from the read-back, so nothing shows twice",
+      "steps": [
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18300000000000001",
+                "kind": "reel",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "views": 10
+                },
+                "permalink": "https://www.instagram.com/reel/DSync1/"
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "DSync1",
+            "format": "reel",
+            "hook": "Again",
+            "at": "2026-10-28T02:30:00Z",
+            "permalink": "https://www.instagram.com/p/DSync1/",
+            "metrics": {
+              "views": 99
+            }
+          },
+          "expect": {
+            "status": 409,
+            "code": "ALREADY_SYNCED"
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "DOther",
+            "format": "reel",
+            "hook": "Other",
+            "at": "2026-10-28T02:30:00Z",
+            "permalink": "https://www.instagram.com/p/DOther/",
+            "metrics": {
+              "views": 5
+            }
+          }
+        },
+        {
+          "sql": "select id, metrics from brandbase.posts where brand_id = 'casa' order by id",
+          "expect": {
+            "rows": [
+              {
+                "id": "casa-ig-18300000000000001",
+                "metrics": {
+                  "views": 10
+                }
+              },
+              {
+                "id": "casa-ig-DOther",
+                "metrics": {
+                  "views": 5
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "a newer reading refreshes the caption of a post made outside Brand Base even with no counts, and keeps its counts",
+      "steps": [
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18400000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 5
+                },
+                "caption": "First words"
+              }
+            ]
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18400000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:20:00Z",
+                "metrics": {},
+                "caption": "Edited on Instagram"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 0,
+              "updated": 1,
+              "readings": 0
+            }
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18400000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:20:00Z",
+                "metrics": {},
+                "caption": "Same time, other words"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "updated": 0
+            }
+          }
+        },
+        {
+          "sql": "select caption, metrics, brandbase.iso(measured_at) as measured_at, brandbase.iso(synced_at) as synced_at from brandbase.posts where id = 'casa-ig-18400000000000001'",
+          "expect": {
+            "rows": [
+              {
+                "caption": "Edited on Instagram",
+                "metrics": {
+                  "likes": 5
+                },
+                "measured_at": "2026-10-29T05:00:00.000Z",
+                "synced_at": "2026-10-29T05:20:00.000Z"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "two readings that land on one post in a batch keep the newer and do not fail the batch",
+      "steps": [
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "post.import",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "externalId": "DTwice",
+            "format": "carousel",
+            "hook": "Twice",
+            "at": "2026-10-20T10:00:00Z",
+            "permalink": "https://www.instagram.com/p/DTwice/",
+            "metrics": {
+              "likes": 1
+            }
+          },
+          "now": "2026-10-25T00:00:00Z"
+        },
+        {
+          "now": "2026-10-29T06:00:00Z",
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18500000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {
+                  "likes": 7
+                },
+                "permalink": "https://www.instagram.com/p/DTwice/"
+              },
+              {
+                "externalId": "18500000000000002",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:30:00Z",
+                "metrics": {
+                  "likes": 8
+                },
+                "permalink": "https://www.instagram.com/p/DTwice/"
+              }
+            ]
+          },
+          "expect": {
+            "result": {
+              "made": 0,
+              "updated": 1,
+              "readings": 1
+            }
+          }
+        },
+        {
+          "sql": "select id, metrics from brandbase.posts where brand_id = 'casa'",
+          "expect": {
+            "rows": [
+              {
+                "id": "casa-ig-DTwice",
+                "metrics": {
+                  "likes": 8
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "a time that is no real date is refused as a bad field, not a failure",
+      "steps": [
+        {
+          "call": "account.link",
+          "as": "owner",
+          "input": {
+            "brand": "casa",
+            "platform": "instagram",
+            "accountId": "17841400000000001",
+            "username": "@casavostra",
+            "tokens": "make",
+            "details": {}
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-02-30T10:00:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              }
+            ]
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-13-01T10:00:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {}
+              }
+            ]
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "post",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T25:00:00Z",
+                "metrics": {}
+              }
+            ]
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "call": "post.sync",
+          "input": {
+            "brand": "casa",
+            "channel": "ig",
+            "account": "17841400000000001",
+            "items": [
+              {
+                "externalId": "18000000000000001",
+                "kind": "story",
+                "postedAt": "2026-10-28T02:30:00Z",
+                "readAt": "2026-10-29T05:00:00Z",
+                "metrics": {},
+                "expiresAt": "2026-10-29T10:61:00Z"
+              }
+            ]
+          },
+          "expect": {
+            "status": 400,
+            "code": "VALIDATION"
+          }
+        },
+        {
+          "sql": "select count(*)::int as n from brandbase.posts where brand_id = 'casa'",
+          "expect": {
+            "rows": [
+              {
+                "n": 0
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

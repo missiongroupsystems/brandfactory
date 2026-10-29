@@ -1,0 +1,7 @@
+{
+  "id": "post.import_not_synced",
+  "sql": "select not exists (select 1 from brandbase.posts p where p.brand_id = :brand and :channel = 'ig' and p.id <> :brand || '-' || :channel || '-' || :externalId and brandbase.ig_shortcode(p.permalink) = brandbase.ig_shortcode(:permalink)) as ok",
+  "status": 409,
+  "code": "ALREADY_SYNCED",
+  "message": "this post is already in Brand Base under another id, from the account's read-back or a send"
+}

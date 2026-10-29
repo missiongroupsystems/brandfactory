@@ -259,3 +259,76 @@ describe('migration 0020 after 0019', () => {
     }
   })
 })
+
+/**
+ * Migration 0022 on a 1.12.1 database: the posts already there keep everything and read no story
+ * end; a post Brand Base sent is found by its job's id; the readings are walled per company like
+ * the posts they belong to.
+ */
+describe('migration 0022 on a 1.12.1 database', () => {
+  it('keeps every post as it was and walls the readings by company', async () => {
+    const db = openPglite()
+    try {
+      await migrateCore(db)
+      await applyPackMigrations(
+        db,
+        'brandbase',
+        content.migrations.filter((m) => m.name < '0022'),
+      )
+      await db.exec(`
+        insert into brandbase.organizations (id, name) values ('co', 'Co'), ('other', 'Other');
+        insert into brandbase.brands (id, name, handle, org_id) values
+          ('one', 'One', '@one', 'co'), ('two', 'Two', '@two', 'other');
+        insert into brandbase.users (id, email, role) values
+          ('a', 'a@example.com', 'member'), ('b', 'b@example.com', 'member');
+        insert into brandbase.org_members (user_id, org_id, role) values ('a', 'co', 'owner'), ('b', 'other', 'owner');
+        insert into brandbase.posts (id, brand_id, format, hook, day, time, channels, marked, permalink, metrics, measured_at) values
+          ('sent', 'one', 'reel', 'Sent', '2026-10-28', '18:00', '{ig}', null, 'https://www.instagram.com/reel/x/', null, null),
+          ('one-ig-DAbc', 'one', 'reel', 'Imported', '2026-10-20', '10:00', '{ig}', 'posted', 'https://www.instagram.com/p/DAbc/', '{"views": 9}', '2026-10-22T00:00:00Z'),
+          ('two-post', 'two', 'carousel', 'Theirs', '2026-10-20', '10:00', '{ig}', 'posted', null, null, null);
+        insert into brandbase.post_jobs (id, post_id, brand_id, channel, status, run_at, external_id) values
+          ('sent:ig', 'sent', 'one', 'ig', 'live', '2026-10-28T10:00:00Z', '17890000000000001');
+      `)
+      await applyPackMigrations(db, 'brandbase', content.migrations)
+
+      expect(
+        await db.query(
+          `select id, brandbase.post_json(p) ->> 'expiresAt' as ends, brandbase.post_json(p) -> 'metrics' as metrics,
+             brandbase.post_json(p) ->> 'measuredAt' as measured from brandbase.posts p order by id`,
+        ),
+      ).toEqual([
+        {
+          id: 'one-ig-DAbc',
+          ends: null,
+          metrics: { views: 9 },
+          measured: '2026-10-22T00:00:00.000Z',
+        },
+        { id: 'sent', ends: null, metrics: null, measured: null },
+        { id: 'two-post', ends: null, metrics: null, measured: null },
+      ])
+      // The new index serves the sync's look-up of a sent post.
+      expect(
+        await db.query(
+          `select indexdef like '%(brand_id, channel, external_id)%' as fits from pg_indexes
+           where schemaname = 'brandbase' and indexname = 'post_jobs_external'`,
+        ),
+      ).toEqual([{ fits: true }])
+
+      await db.exec(`
+        insert into brandbase.post_readings (brand_id, channel, external_id, read_at, post_id, metrics) values
+          ('one', 'ig', '17890000000000001', '2026-10-29T05:00:00Z', 'sent', '{"reach": 10}'),
+          ('two', 'ig', '17890000000000009', '2026-10-29T05:00:00Z', 'two-post', '{"likes": 1}');
+      `)
+      const readings = 'select post_id from brandbase.post_readings order by post_id'
+      expect(await as(db, 'a', readings)).toEqual([{ post_id: 'sent' }])
+      expect(await as(db, 'b', readings)).toEqual([{ post_id: 'two-post' }])
+      expect(await as(db, 'stranger', readings)).toEqual([])
+      // A post deleted takes its readings with it.
+      await db.exec(`delete from brandbase.posts where id = 'sent'`)
+      expect(await db.query(readings)).toEqual([{ post_id: 'two-post' }])
+      expect(await everyTableHasRowRules(db)).toEqual([])
+    } finally {
+      await db.close()
+    }
+  })
+})

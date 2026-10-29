@@ -60,6 +60,32 @@ function server(id: string, over: Partial<ServerPost> = {}): ServerPost {
 }
 
 describe('what went out, from the core', () => {
+  it('shows what the sync read back: the address, the counts as of their reading, the story’s end and the stored cover', () => {
+    const cover = 'https://core.test/files/sig/brandbase/c.jpg#photo'
+    const [post, story] = fromServer([
+      server('casa-ig-1', {
+        media: [{ src: cover, kind: 'photo' }],
+        permalink: 'https://www.instagram.com/p/D1/',
+        metrics: { reach: 900, likes: 40 },
+        measuredAt: '2026-10-29T05:00:00.000Z',
+        expiresAt: null,
+      }),
+      server('casa-ig-2', {
+        format: 'story',
+        day: '2026-10-29',
+        expiresAt: '2026-10-30T01:00:00.000Z',
+      }),
+    ])
+    expect(post!.post).toMatchObject({
+      images: [cover],
+      permalink: 'https://www.instagram.com/p/D1/',
+      metrics: { reach: 900, likes: 40 },
+      measuredAt: '2026-10-29T05:00:00.000Z',
+    })
+    expect(post!.post.expiresAt).toBeUndefined()
+    expect(story!.post.expiresAt).toBe('2026-10-30T01:00:00.000Z')
+  })
+
   it('takes posted posts and the accounts a post is live on, and nothing that never went out', () => {
     const items = fromServer([
       server('out'),
@@ -234,9 +260,31 @@ describe('counts', () => {
   })
 
   it('count stories on Instagram only: no other platform lists them', () => {
-    const sum = summaryOf([], 'ig', TODAY)
-    expect(figuresOf(sum, 'ig').map((f) => f.label)).toEqual(['posts', 'stories'])
+    const sum = { posts: 2, stories: 1, totals: [], counted: 0, of: 3 }
+    expect(figuresOf(sum, 'ig')).toEqual([
+      { label: 'posts', value: 2 },
+      { label: 'story', value: 1 },
+    ])
     expect(figuresOf(sum, 'fb').map((f) => f.label)).toEqual(['posts'])
+  })
+
+  it('leave out a figure that is 0: no "0 stories", no "0 posts"', () => {
+    const sum = summaryOf(
+      ledgerOf([item('a', '2026-10-20', { metrics: { likes: 0, reach: 40 } })], 'ig'),
+      'ig',
+      TODAY,
+    )
+    expect(figuresOf(sum, 'ig')).toEqual([
+      { label: 'post', value: 1 },
+      { label: 'reach', value: 40 },
+    ])
+    const stories = summaryOf(
+      ledgerOf([item('s', '2026-10-28', { format: 'story' })], 'ig'),
+      'ig',
+      TODAY,
+    )
+    expect(figuresOf(stories, 'ig')).toEqual([{ label: 'story', value: 1 }])
+    expect(figuresOf(summaryOf([], 'ig', TODAY), 'ig')).toEqual([])
   })
 })
 
@@ -274,21 +322,37 @@ describe('stories', () => {
     expect(hoursLeft(story, { day: '2026-10-29', time: '11:40' })).toBeNull()
   })
 
+  it('end when the core says, for a story it read back', () => {
+    const read = item('r', '2026-10-28', { format: 'story', expiresAt: '2026-10-29T02:00:00Z' })
+    // 18:00 UTC: eight hours to go by the core's end, whatever the day and time say.
+    const at = new Date('2026-10-28T18:00:00Z')
+    expect(hoursLeft(read, { day: '2026-10-28', time: '12:00', at })).toBe(8)
+    expect(
+      hoursLeft(read, { day: '2026-10-29', time: '10:00', at: new Date('2026-10-29T02:00:00Z') }),
+    ).toBeNull()
+    // Without the instant (or the end), 24 hours from the time it went out.
+    expect(hoursLeft(read, { day: '2026-10-28', time: '12:00' })).toBe(24)
+  })
+
   it("read now in the brand's own zone, day and time from one instant", () => {
     // 23:30 in Singapore on the 28th is 16:30 in Rome: still the 28th there.
     const at = new Date('2026-10-28T15:30:00Z')
-    expect(nowIn(at, 'Europe/Rome')).toEqual({ day: '2026-10-28', time: '16:30' })
+    expect(nowIn(at, 'Europe/Rome')).toEqual({ day: '2026-10-28', time: '16:30', at })
     // Past midnight in Singapore, the 29th; Rome is still on the 28th.
     const late = new Date('2026-10-28T16:30:00Z')
-    expect(nowIn(late, 'Asia/Singapore')).toEqual({ day: '2026-10-29', time: '00:30' })
-    expect(nowIn(late, 'Europe/Rome')).toEqual({ day: '2026-10-28', time: '17:30' })
+    expect(nowIn(late, 'Asia/Singapore')).toEqual({ day: '2026-10-29', time: '00:30', at: late })
+    expect(nowIn(late, 'Europe/Rome')).toEqual({ day: '2026-10-28', time: '17:30', at: late })
     // A story at 11:40 Rome time is still up at 00:30 Singapore, which is 17:30 in Rome.
     expect(hoursLeft(story, nowIn(late, 'Europe/Rome'))).toBe(19)
   })
 
   it('keep the demo on its fixed today, with the clock’s time', () => {
     const at = new Date('2026-10-28T04:00:00Z')
-    expect(nowIn(at, 'Asia/Singapore', '2026-10-06')).toEqual({ day: '2026-10-06', time: '12:00' })
+    expect(nowIn(at, 'Asia/Singapore', '2026-10-06')).toEqual({
+      day: '2026-10-06',
+      time: '12:00',
+      at,
+    })
   })
 
   it('name their frames', () => {

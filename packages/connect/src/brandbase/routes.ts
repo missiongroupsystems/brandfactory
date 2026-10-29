@@ -15,6 +15,7 @@ import {
 import { type MakeApp } from './make'
 import { makeRoutes } from './make-routes'
 import { type PinterestApp, PinterestReconnect } from './pinterest'
+import { type MakeReadings, readingsRoutes } from './readings'
 import { type TikTokApp } from './tiktok'
 import { tiktokRoutes } from './tiktok-routes'
 
@@ -26,6 +27,8 @@ const MAX_BOARDS = 5
 export interface Platforms {
   /** Instagram and Facebook, posted to through Make. */
   make?: MakeApp
+  /** What went out on Instagram and Facebook, as Make reads it back. */
+  readings?: MakeReadings
   pinterest?: PinterestApp
   tiktok?: TikTokApp
 }
@@ -131,6 +134,9 @@ export function accountRoutes(core: CoreDeps, platforms: Platforms) {
 
       // Each brand's Instagram account and Facebook Page, as Make posts to them.
       .route('/', makeRoutes(core, platforms.make))
+
+      // Make's hourly read-back of each brand's posts, stories and counts, with its own key.
+      .route('/', readingsRoutes(core, platforms.readings))
 
       // TikTok's sign-in and the send of a planned video to the brand's TikTok inbox.
       .route('/', tiktokRoutes(core, platforms.tiktok))

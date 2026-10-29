@@ -35,6 +35,8 @@ export interface PostedItem {
 export interface Moment {
   day: string
   time: string
+  /** Now as an instant, to read a story's end the core keeps against. */
+  at?: Date
 }
 
 const minutesOf = (m: Moment) => Date.parse(`${m.day}T${m.time}:00Z`) / 60_000
@@ -44,7 +46,7 @@ const minutesOf = (m: Moment) => Date.parse(`${m.day}T${m.time}:00Z`) / 60_000
  * its fixed today (`demoDay`) with the clock's time, as its calendar does.
  */
 export function nowIn(at: Date, zone: string, demoDay?: string): Moment {
-  return { day: demoDay ?? clockToday(at, zone), time: clockTime(zone, at) }
+  return { day: demoDay ?? clockToday(at, zone), time: clockTime(zone, at), at }
 }
 
 /**
@@ -191,7 +193,10 @@ export function summaryOf(ledger: PostedItem[], platform: Platform, today: strin
   }
 }
 
-/** The summary's figures: what went out (stories on Instagram only), then the totals. */
+/**
+ * The summary's figures: what went out (stories on Instagram only), then the totals. A figure that
+ * is 0 says nothing ("0 stories") and is left out.
+ */
 export function figuresOf(
   sum: Summary,
   platform: Platform,
@@ -202,7 +207,7 @@ export function figuresOf(
       ? [{ label: sum.stories === 1 ? 'story' : 'stories', value: sum.stories }]
       : []),
     ...sum.totals,
-  ]
+  ].filter((f) => f.value !== 0)
 }
 
 /**
@@ -287,9 +292,16 @@ export function firstLine(item: PostedItem): string {
 /** How long a story stays up. */
 export const STORY_HOURS = 24
 
-/** The hours a story has left while it is up, rounded up; null once it has gone. */
+/**
+ * The hours a story has left while it is up, rounded up; null once it has gone. A story the core
+ * read back ends when the platform said (`expiresAt`); any other, 24 hours after it went out.
+ */
 export function hoursLeft(item: PostedItem, now: Moment): number | null {
-  const left = STORY_HOURS * 60 - (minutesOf(now) - minutesOf(item))
+  const ends = item.post.expiresAt ? Date.parse(item.post.expiresAt) : NaN
+  const left =
+    now.at && !Number.isNaN(ends)
+      ? (ends - now.at.getTime()) / 60_000
+      : STORY_HOURS * 60 - (minutesOf(now) - minutesOf(item))
   return left > 0 ? Math.min(STORY_HOURS, Math.ceil(left / 60)) : null
 }
 

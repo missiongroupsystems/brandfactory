@@ -205,10 +205,27 @@ async function load() {
   const posts = postsOf(JSON.parse(readFileSync(file, 'utf8')), channel, handle)
   const listed = (await call('post.list', { brand })) as { id: string; permalink: string | null }[]
   const known = new Set(listed.filter((p) => p.permalink).map((p) => p.id))
+  // An Instagram post the brand already has under another id (Make's read-back keeps it by its
+  // media id, a send by its job): `post.import` refuses it, so its cover is never uploaded.
+  const shortcode = (url: string | null) =>
+    /^https:\/\/(?:www\.)?instagram\.com\/(?:[A-Za-z0-9_.]+\/)?(?:p|reel|tv)\/([A-Za-z0-9_-]{1,40})/.exec(
+      url ?? '',
+    )?.[1]
+  const elsewhere = new Map(
+    listed.flatMap((p) => {
+      const code = shortcode(p.permalink)
+      return code ? [[code, p.id] as const] : []
+    }),
+  )
 
-  const tally = { added: 0, refreshed: 0, skipped: [] as string[] }
+  const tally = { added: 0, refreshed: 0, synced: 0, skipped: [] as string[] }
   for (const post of posts) {
     const id = `${brand}-${post.channel}-${post.externalId}`
+    const other = post.channel === 'ig' ? elsewhere.get(shortcode(post.permalink) ?? '') : undefined
+    if (other && other !== id) {
+      tally.synced++
+      continue
+    }
     try {
       const media = known.has(id) ? [] : [await uploadCover(call, brand, id, post)]
       await call('post.import', {
@@ -229,7 +246,7 @@ async function load() {
     }
   }
   console.log(
-    `${brand} ${channel}: ${posts.length} posts; ${tally.added} added, ${tally.refreshed} refreshed, ${tally.skipped.length} skipped`,
+    `${brand} ${channel}: ${posts.length} posts; ${tally.added} added, ${tally.refreshed} refreshed, ${tally.synced} already there from the read-back, ${tally.skipped.length} skipped`,
   )
   for (const s of tally.skipped) console.log(`  skipped ${s}`)
   if (tally.skipped.length > 0) process.exitCode = 1

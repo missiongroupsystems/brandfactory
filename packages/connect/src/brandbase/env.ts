@@ -23,6 +23,15 @@ export function platformsFromEnv(env: NodeJS.ProcessEnv = process.env): Platform
       problems.push('MAKE_WEBHOOK_URL: an https address')
     }
   }
+  // Make's read-back: its own key (Make sends it to us) and the principal its moves run as.
+  const readingKeys = ['MAKE_READINGS_SECRET', 'MAKE_READINGS_AS'] as const
+  if (readingKeys.some((k) => env[k])) {
+    for (const k of readingKeys.filter((k) => !env[k]))
+      problems.push(`${k}: the read-back needs both`)
+    if (env.MAKE_READINGS_SECRET && env.MAKE_READINGS_SECRET.length < 32) {
+      problems.push('MAKE_READINGS_SECRET: 32 characters or more')
+    }
+  }
   for (const [name, keys] of Object.entries(GROUPS)) {
     if (!keys.some((k) => env[k])) continue
     for (const k of [...keys, 'TOKEN_ENCRYPTION_KEY'].filter((k) => !env[k])) {
@@ -47,6 +56,10 @@ export function platformsFromEnv(env: NodeJS.ProcessEnv = process.env): Platform
     make:
       env.MAKE_WEBHOOK_URL && env.MAKE_WEBHOOK_SECRET
         ? ({ url: env.MAKE_WEBHOOK_URL, secret: env.MAKE_WEBHOOK_SECRET } satisfies MakeApp)
+        : undefined,
+    readings:
+      env.MAKE_READINGS_SECRET && env.MAKE_READINGS_AS
+        ? { secret: env.MAKE_READINGS_SECRET, as: env.MAKE_READINGS_AS }
         : undefined,
     tiktok: env.TIKTOK_CLIENT_KEY
       ? tiktokApp({
