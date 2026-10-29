@@ -18,7 +18,6 @@ import { dayNumber } from '@/lib/dates'
 
 import {
   channelsOf,
-  countsOf,
   failedOf,
   itemsOf,
   postTime,
@@ -99,8 +98,8 @@ export function packLanes(events: CalendarEvent[]): { event: CalendarEvent; lane
 }
 
 /**
- * The month and week views. Month: every week, each day a count per platform, no thumbnails (a day
- * can hold 28 stories); a day opens in the day view. Week: one week, each day its posts as
+ * The month and week views. Month: every week, each day its first post as a small thumbnail with
+ * the time, the rest counted; a day opens in the day view. Week: one week, each day its posts as
  * thumbnails by time, with drag between days.
  */
 
@@ -336,6 +335,17 @@ function DayCell({
         >
           {dayNumber(day.date)}
         </span>
+        {/* Month: a plus at the cell's corner, shown on hover or focus (always on a touch screen). */}
+        {mode === 'month' && !day.past && (
+          <button
+            type="button"
+            onClick={() => onNewPost(day.date)}
+            aria-label={`New post on ${dayNumber(day.date)}`}
+            className="flex size-6 items-center justify-center rounded-full text-ink-4 opacity-0 transition-[opacity,color,background-color] group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-surface hover:text-ink focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+          >
+            <PlusIcon size={12} />
+          </button>
+        )}
       </div>
       <div
         aria-hidden="true"
@@ -347,7 +357,7 @@ function DayCell({
         className={`mt-2.5 ${day.past && !items.posts.some((p) => p.stage === 'failed') ? 'opacity-60' : ''}`}
       >
         {mode === 'month' ? (
-          <DaySummary day={day} stages={stages} onOpen={onOpen} />
+          <MonthDay day={day} stages={stages} onOpen={onOpen} eager={eager} />
         ) : (
           <WeekDay
             day={day}
@@ -364,40 +374,48 @@ function DayCell({
 }
 
 /**
- * A month day: one chip per platform with its count, stories counted on Instagram, and the ideas
- * still to make. No thumbnails: the day opens in the day view for those.
+ * A month day: the first post as a small thumbnail with its time (two side by side where the cell
+ * is wide enough), the rest counted, then stories and ideas as one quiet line each. A post that
+ * failed keeps its red pill, first. The cell opens the day view; the plus in the date row starts a
+ * post on the day.
  */
-function DaySummary({
+function MonthDay({
   day,
   stages,
   onOpen,
+  eager,
 }: {
   day: Day
   stages: StageFilter
   onOpen: () => void
+  eager: boolean
 }) {
-  const { brand, byId } = useBrand()
-  const items = itemsOf(day, byId, stages)
-  const counts = countsOf(items)
-  // Plans in the tiles' language: a dashed mark, the team's ideas apart from suggestions.
-  const plans = [
-    {
-      n: items.ideas.filter((m) => !m.suggested).length,
-      word: 'idea',
-      tint: `var(${brand.colour})`,
-    },
-    { n: items.ideas.filter((m) => m.suggested).length, word: 'suggested', tint: 'var(--insight)' },
-  ].filter((p) => p.n > 0)
+  const items = itemsOf(day, useBrand().byId, stages)
   const failed = failedOf(items)
   const stories = storyCount(items)
-  const empty =
-    counts.length === 0 && failed.length === 0 && items.ideas.length === 0 && stories === 0
+  const ideas = items.ideas.filter((m) => !m.suggested).length
+  const suggested = items.ideas.filter((m) => m.suggested).length
+  const posts = items.posts.length
+  const lines = [
+    stories > 0 && `${stories} ${stories > 1 ? 'stories' : 'story'}`,
+    ideas > 0 && `${ideas} ${ideas > 1 ? 'ideas' : 'idea'}`,
+    suggested > 0 && `${suggested} suggested`,
+  ].filter((line): line is string => Boolean(line))
+  // The name says what the day holds: the label replaces the children for a screen reader.
+  const failedN = failed.reduce((a, f) => a + f.n, 0)
+  const summary = [
+    posts > 0 && `${posts} ${posts > 1 ? 'posts' : 'post'}`,
+    failedN > 0 && `${failedN} failed`,
+    ...lines,
+  ]
+    .filter(Boolean)
+    .join(', ')
   return (
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`Open ${dayNumber(day.date)} in the day view`}
-      className="flex min-h-[64px] w-full flex-wrap content-start items-start gap-1 rounded-[8px] text-left"
+      aria-label={`Open ${dayNumber(day.date)} in the day view${summary ? `: ${summary}` : ''}`}
+      className="@container flex min-h-[64px] w-full flex-col items-start gap-1.5 rounded-[8px] text-left"
     >
       {failed.map(({ channel, n }) => (
         <span
@@ -410,53 +428,74 @@ function DaySummary({
           {n}
         </span>
       ))}
-      {counts.map(({ channel, n }) => (
-        <span
-          key={channel}
-          title={`${n} on ${CHANNEL_NAME[channel]}`}
-          className="flex h-[22px] items-center gap-1 rounded-full bg-surface px-1.5 text-[12px] font-medium text-ink-2 tabular-nums"
-        >
-          <PlatformLogo platform={channel} size={11} />
-          {n}
-        </span>
-      ))}
-      {stories > 0 && (
-        <span
-          title={`${stories} ${stories > 1 ? 'stories' : 'story'}`}
-          className="flex h-[22px] items-center gap-1 rounded-full bg-surface px-1.5 text-[12px] font-medium text-ink-2 tabular-nums"
-        >
-          <StoriesIcon />
-          {stories}
+      {posts > 0 && (
+        <span className="flex items-center gap-2">
+          {items.posts.slice(0, 2).map((post, i) => (
+            <MonthPost
+              key={post.id}
+              post={post}
+              eager={eager}
+              // The second shows only where two fit side by side (about 164px of cell).
+              className={i === 1 ? 'hidden @min-[164px]:flex' : ''}
+            />
+          ))}
         </span>
       )}
-      {plans.map(({ n, word, tint }) => (
-        <span
-          key={word}
-          title={`${n} ${word === 'idea' && n > 1 ? 'ideas' : word}`}
-          className="flex h-[22px] items-center gap-1 rounded-full bg-surface px-1.5 text-[12px] font-medium text-ink-2 tabular-nums"
-        >
-          {/* A plan's mark: the idea card's dashed outline, small. */}
-          <span
-            aria-hidden="true"
-            className="size-[10px] rounded-[3px] border border-dashed"
-            style={{ borderColor: tint }}
-          />
-          <span className="sr-only">{word === 'idea' ? 'Ideas:' : 'Suggested:'}</span>
-          {n}
+      {posts > 1 && (
+        <span className="text-[13px] text-ink-3 @min-[164px]:hidden">+{posts - 1} more</span>
+      )}
+      {posts > 2 && (
+        <span className="hidden text-[13px] text-ink-3 @min-[164px]:inline">+{posts - 2} more</span>
+      )}
+      {lines.map((line) => (
+        <span key={line} className="text-[13px] text-ink-3">
+          {line}
         </span>
       ))}
-      {empty && <span className="sr-only">Nothing on this day</span>}
     </button>
   )
 }
 
-/** Two story frames, for the Month view's story count. */
-function StoriesIcon() {
+/** A post in a month cell: a small thumbnail with its stage glyph, and its time beside it. */
+function MonthPost({ post, eager, className }: { post: Post; eager: boolean; className: string }) {
+  const image = post.images[0]
+  // No media yet: the idea's cover stands in, faded, as on the week tile.
+  const standIn = useCoverOfPost(useBrand().brand.id, post)
+  const failed = post.stage === 'failed'
   return (
-    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-      <rect x="1.5" y="1.5" width="5" height="9" rx="1.2" fill="currentColor" />
-      <rect x="7.6" y="2.5" width="3" height="7" rx="1" stroke="currentColor" strokeWidth="1.2" />
-    </svg>
+    <span className={`flex items-center gap-1.5 ${className}`}>
+      <span className="relative block aspect-[4/5] w-10 shrink-0 overflow-hidden rounded-[6px] bg-tile">
+        {image && (image.startsWith('blob:') || isVideo(image)) ? (
+          <Media src={image} sizes="80px" />
+        ) : (
+          (image ?? standIn) && (
+            <Image
+              src={image ?? standIn!}
+              alt=""
+              fill
+              sizes="80px"
+              draggable={false}
+              loading={eager ? 'eager' : undefined}
+              className={`object-cover ${image ? '' : 'opacity-40 grayscale-[0.4]'}`}
+            />
+          )
+        )}
+        {post.stage === 'draft' && (
+          <span className="pointer-events-none absolute inset-[2px] rounded-[4px] border border-dashed border-(--tile-dash)" />
+        )}
+        <span
+          className="absolute bottom-1 left-1 flex size-4 items-center justify-center rounded-full bg-(--tile-pill) shadow-[0_1px_3px_rgba(0,0,0,0.12)]"
+          style={{ color: `var(--stage-${post.stage})` }}
+        >
+          <StageGlyph stage={post.stage} />
+        </span>
+      </span>
+      <span
+        className={`text-[13px] tabular-nums ${failed ? 'font-medium text-fail-ink' : 'text-ink-3'}`}
+      >
+        {postTime(post)}
+      </span>
+    </span>
   )
 }
 

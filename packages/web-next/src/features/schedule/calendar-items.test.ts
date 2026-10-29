@@ -3,14 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { contentFor } from '@/data/brands'
 import type { Day, Post } from '@/data/demo'
 
-import {
-  ALL_STAGES,
-  composeChannels,
-  countsOf,
-  failedOf,
-  itemsOf,
-  sentChannels,
-} from './calendar-items'
+import { ALL_STAGES, composeChannels, failedOf, itemsOf, sentChannels } from './calendar-items'
 
 const casa = contentFor('casa-vostra')
 const byId = (id: string) => casa.posts.find((p) => p.id === id)
@@ -23,8 +16,8 @@ const failed = (id: string, on: Post['failedOn']): Post => ({
   failedOn: on,
 })
 
-describe('the month chips', () => {
-  it('count a failed post once, on the account it failed on, and not again per platform', () => {
+describe('the failed pill', () => {
+  it('counts a failed post once, on the account it failed on', () => {
     // 5 Oct holds one post: the wine night carousel, for Instagram and Facebook, failed on Facebook.
     const wine = failed('wine-night', 'fb')
     const lookup = (id: string) => (id === wine.id ? wine : byId(id))
@@ -32,19 +25,7 @@ describe('the month chips', () => {
     for (const stages of [ALL_STAGES, onlyFailed]) {
       const items = itemsOf(day, lookup, stages)
       expect(failedOf(items)).toEqual([{ channel: 'fb', n: 1 }])
-      expect(countsOf(items)).toEqual([])
     }
-  })
-
-  it('count every account of a post that did not fail', () => {
-    // 8 Oct: a carousel for Instagram and Facebook, and a reel for Instagram and TikTok.
-    const items = itemsOf(date('2026-10-08'), byId, ALL_STAGES)
-    expect(failedOf(items)).toEqual([])
-    expect(countsOf(items)).toEqual([
-      { channel: 'ig', n: 2 },
-      { channel: 'tt', n: 1 },
-      { channel: 'fb', n: 1 },
-    ])
   })
 })
 

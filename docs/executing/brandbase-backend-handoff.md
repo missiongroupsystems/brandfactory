@@ -161,7 +161,7 @@ A server must either accept client-made UUIDs or have each caller await the crea
 - **The idea's status comes from its post.** `status = card.status === 'suggested' ? 'suggested' : post?.stage ?? 'idea'` (`idea-parts.tsx:64-65`). On the idea page's rail, failed shows as scheduled (`idea-page.tsx:95-98`).
 - **renameIdea and renamePost:** a hook edit on the idea page carries to the post or to the tile (`idea-parts.tsx:102-109`). Test: "keeps an idea on its day when the brief renames it, so planning it leaves no stray tile".
 - **Stage filter:** idea, draft, scheduled, posted. Failed is not in the menu; a "N failed" pill filters to failed posts only (`schedule/failed-menu.tsx`). Hiding Posted hides posted stories (test "follows the stage filter").
-- **Month chips** count posts per channel. A failed post counts once, on the account it failed on (`countsOf` and `failedOf`, `calendar-items.ts:117-133`). Test: "count a failed post once...".
+- **Month cells** show the day's first posts with their times, "+N more", stories and ideas in words, and a red pill for failed posts. A failed post counts once, on the account it failed on (`failedOf`, `calendar-items.ts`). Test: "the failed pill > counts a failed post once...".
 - **Default channels** apply when a post has none: reel → ig, tt; carousel → ig, fb; story → ig (`calendar-items.ts:47-55`).
 - **Failed retry:**
   - The composer opens on the failed account only (`composeChannels`). After the send, the post's channels are the ones it already reached plus the ones retried (`sentChannels`, `calendar-items.ts:61-69`). Tests: "starts on the account the post failed on...", "...and a send replaces them".

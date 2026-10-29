@@ -90,6 +90,43 @@ describe('the day view', () => {
   })
 })
 
+describe('the month view', () => {
+  function monthDesk() {
+    const { container } = render(
+      <BrandProvider>
+        <SchedulePage />
+      </BrandProvider>,
+    )
+    act(() => setCalendarPlace({ view: 'month', offset: 0, week: 1, day: 1 }))
+    // The desktop half of the page; a change of view mounts it anew.
+    return () => container.querySelector<HTMLElement>('.bb-swap.max-md\\:hidden')!
+  }
+
+  it('shows a busy day as its first post with the time, the rest counted', () => {
+    // Thu 8 Oct: posts at 12:00 and 18:00, and three stories out.
+    const cell = monthDesk()().querySelector<HTMLElement>('[data-drop="2026-10-08"]')!
+    expect(within(cell).getByText('12:00')).toBeTruthy()
+    expect(within(cell).getByText('+1 more')).toBeTruthy()
+    expect(within(cell).getByText('3 stories')).toBeTruthy()
+    expect(cell.querySelectorAll('img').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('reads an idea as "1 idea", in words, not as a glyph with a number', () => {
+    const cell = monthDesk()().querySelector<HTMLElement>('[data-drop="2026-10-09"]')!
+    expect(within(cell).getByText('1 idea')).toBeTruthy()
+    expect(within(cell).queryByText('1')).toBeNull()
+  })
+
+  it('opens the composer on the day from the plus, and the day view from the rest of the cell', () => {
+    const desk = monthDesk()
+    const cell = desk().querySelector<HTMLElement>('[data-drop="2026-10-08"]')!
+    fireEvent.click(within(cell).getByRole('button', { name: 'New post on 8' }))
+    expect(told.push).toHaveBeenCalledWith('/post/new?day=2026-10-08')
+    fireEvent.click(within(cell).getByRole('button', { name: /^Open 8 in the day view/ }))
+    expect(within(desk()).getByRole('button', { name: 'New post at 11:00' })).toBeTruthy()
+  })
+})
+
 describe('the phone calendar', () => {
   it('opens a new post from the plus at once, with New shoot in the title menu', () => {
     const { container } = render(
