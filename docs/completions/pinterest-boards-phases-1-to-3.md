@@ -1,4 +1,4 @@
-# Pinterest boards on the moodboard: phases 1 and 2
+# Pinterest boards on the moodboard: phases 1 to 3
 
 Branch `feat/pinterest-boards`, 2.42.0, brandbase 1.11.0. From David's feedback of 29 Oct: he
 could not see which board was connected or its address, could not connect a second board, and

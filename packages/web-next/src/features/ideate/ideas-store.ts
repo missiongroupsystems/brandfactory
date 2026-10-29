@@ -18,6 +18,7 @@ import {
 import {
   coverOf,
   IDEAS_BY_BRAND,
+  boardsOf,
   boardsShown,
   pasteReference,
   showBoards,
@@ -31,7 +32,7 @@ import {
   type Reference,
 } from '@/data/ideas'
 
-import { loadBoards, pickBoards } from './pinterest'
+import { loadBoards, pickBoards, pinterestIdOf } from './pinterest'
 
 /**
  * The ideas, in memory and outside React, so the insights page can add one and the ideas page
@@ -239,6 +240,29 @@ export async function saveBoards(brandId: BrandId, boardIds: string[]) {
   await pickBoards(brandId, boardIds)
   forgetLiveBoard(brandId)
   await loadBrand(brandId)
+}
+
+/**
+ * Takes one board off the moodboard at once: the other boards keep the pins they have, so nothing
+ * is read from Pinterest again. A refused change puts the board back. The last board turns
+ * Pinterest off, which only the brand's state says, so that one loads the brand.
+ */
+export async function removeBoard(brandId: BrandId, boardId: string) {
+  const before = boardsOf(brandId)
+  const rest = before.filter((b) => b.id !== boardId)
+  showBoards(brandId, rest)
+  update(brandId, (b) => ({ ...b }))
+  try {
+    await pickBoards(brandId, rest.map(pinterestIdOf))
+  } catch (err) {
+    showBoards(brandId, before)
+    update(brandId, (b) => ({ ...b }))
+    throw err
+  }
+  if (rest.length === 0) {
+    forgetLiveBoard(brandId)
+    await loadBrand(brandId)
+  }
 }
 
 function readLiveBoard(brandId: BrandId) {

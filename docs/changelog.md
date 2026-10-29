@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.43.2** — 2026-10-29 — `fix/pinterest-board-picker`: removing a board no longer reloads the moodboard. Its pins leave at once and the other boards keep theirs, with no new read from Pinterest; where the browser has view transitions, the board's pins shrink away and the rest glide into place. A removal the core refuses puts the board back. A board chip is centred at rest and widens to show its × on hover. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
 - **2.43.1** — 2026-10-29 — `fix/pinterest-board-picker`: a board chip's × removes the board in one click, with no "Remove {board}?" step; the "+" picker adds it back. The board picker lists the boards on the moodboard first, under "On the moodboard", then "Other boards", and gets a search field once an account has more than six boards (Escape clears it first). The list is shorter (about four rows) and scrolls. The Drive picker's search icon moves to the shared icons. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
 - **2.43.0** — 2026-10-29 — `feat/make-publishing`: Instagram and Facebook post through Make (make.com) until our own Meta app passes review (brandbase 1.12.0, migration 0020, not applied to production; released together with 2.42.0 on `release/pinterest-make`: 1.11.0 is never promoted on its own, so production goes from 1.10.0 to 1.12.0 in one migrate, 0019 then 0020). An owner or admin of a company on the operator's list (Mission Group) enters the brand's Instagram account id and Page id on Connections; at a post's time the scheduler sends the job to a Make custom webhook (`MAKE_WEBHOOK_URL`, key in `x-make-apikey`), the scenario posts with Make's modules and answers in the same request. Photo, carousel and reel; Stories stay planned only, TikTok stays planned only beside them. The core runs up to ten sends at once and keeps a connector's own words. 1328 tests, all run on a throwaway Postgres 18.
 - **2.42.0** — 2026-10-29 — `feat/pinterest-boards`: a moodboard reads several Pinterest boards (brandbase 1.11.0, migration 0019, not applied to production). Each board is a chip: a × on hover asks "Remove {board}?" and a ✓ removes it. The "+" opens the board picker with the boards read now ticked, to add or change them, and a ↗ on each row opens the board on Pinterest (its pinterest.com address). The chip row scrolls sideways and never wraps. Removing the last board turns Pinterest off and keeps the account. An existing board carries over. The core needs a deploy. 1305 tests, all run on a throwaway Postgres; `core test brandbase 1.11.0` 197/197.
@@ -89,6 +90,23 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.43.2 — 2026-10-29
+
+- **Why.** Removing a board emptied the moodboard and read every board from Pinterest again, which
+  looked like a page reload. The chip also kept room for its hidden ×, so it sat off-centre.
+- **web-next.** `removeBoard` (`ideas-store.ts`) drops the board from the live boards at once,
+  then sends the list; a refusal puts it back. Only the last board loads the brand again, since
+  the brand's state says Pinterest is off. The page runs the change in a view transition (as the
+  brand switch does), with each pin named, and `tokens.css` shrinks a leaving pin and glides the
+  rest; reduced motion turns it off. The filter goes back to All only when it showed the board
+  removed. `BoardChip`: the × sits in a 0fr-to-1fr grid column that opens on hover or focus,
+  with the calendar tile's easing.
+- **Tests.** `pinterest-boards-remote.test.tsx`: the pins leave at once and no pin read follows
+  (fails with the old reload); a refused removal puts the board and its pins back.
+- **Checked in a browser.** The stand-in core at 1280 × 860: a chip at rest, mid-hover and open;
+  frames during a removal, with no pin read after it.
+- 1343 tests (237 skipped without a Postgres server).
 
 ## 2.43.1 — 2026-10-29
 
@@ -178,7 +196,7 @@ One line each — full write-ups are under the matching `##` heading further dow
   Escape or a press elsewhere keeps the board. On the core with Pinterest connected, the "+" opens
   the board picker with checkboxes, Save, and a ↗ per row to open the board on Pinterest. The chip
   row never wraps: it scrolls, with a fade at an edge that has more. The static demo is unchanged.
-- **Docs.** `docs/completions/pinterest-boards-phases-1-to-2.md`, with the production steps.
+- **Docs.** `docs/completions/pinterest-boards-phases-1-to-3.md`, with the production steps.
 - **Checked** in a browser (Playwright, a local core with a stand-in Pinterest): connect, tick two
   boards, a chip's ×, its confirm state, the "+" picker with ↗, an overflowing row, remove a
   board; desktop and phone.

@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
+import { flushSync } from 'react-dom'
 
 import { AppHeader } from '@/components/app-header'
 import { Segmented } from '@/components/controls'
@@ -41,6 +42,7 @@ import {
   addIdea,
   addIdeaFromPosts,
   connectSource,
+  removeBoard,
   saveBoards,
   pasteLink,
   skipSuggestion,
@@ -49,13 +51,7 @@ import {
   type MoodSource,
 } from './ideas-store'
 import { IDEAS_HREF } from './idea-page'
-import {
-  MAX_BOARDS,
-  pinterestIdOf,
-  pinterestSetup,
-  startPinterest,
-  type PinterestSetup,
-} from './pinterest'
+import { MAX_BOARDS, pinterestSetup, startPinterest, type PinterestSetup } from './pinterest'
 
 const FORMAT_LABEL: Record<IdeaFormat, string> = {
   reel: 'Reel',
@@ -600,8 +596,9 @@ function ChipRow({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * A live Pinterest board's chip. A small × fades in on hover or focus (on a touch screen, on the
- * chosen chip only) and removes the board at once: the "+" picker adds it back in two clicks.
+ * A live Pinterest board's chip. On hover or focus (on a touch screen, on the chosen chip only) the
+ * chip widens to show a small × that removes the board at once: the "+" picker adds it back in two
+ * clicks.
  */
 function BoardChip({
   label,
@@ -616,31 +613,42 @@ function BoardChip({
   onSelect: () => void
   onRemove: () => void
 }) {
-  const shown = `opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 ${on ? NO_HOVER_SHOWN : '[@media(hover:none)]:pointer-events-none'}`
+  // Closed, the × takes no room, so the chip's label sits centred like every other chip.
+  const open =
+    'group-hover:-ml-2.5 group-hover:grid-cols-[1fr] group-hover:opacity-100 group-focus-within:-ml-2.5 group-focus-within:grid-cols-[1fr] group-focus-within:opacity-100'
+  const touch = on
+    ? '[@media(hover:none)]:-ml-2.5 [@media(hover:none)]:grid-cols-[1fr] [@media(hover:none)]:opacity-100'
+    : '[@media(hover:none)]:pointer-events-none'
 
   return (
     <span
-      className={`group relative flex h-9 shrink-0 items-center rounded-full transition-colors ${on ? CHIP_ON : CHIP_OFF} ${busy ? 'opacity-50' : ''}`}
+      className={`group flex h-9 shrink-0 items-center rounded-full transition-colors ${on ? CHIP_ON : CHIP_OFF} ${busy ? 'opacity-50' : ''}`}
     >
       <button
         type="button"
         role="tab"
         aria-selected={on}
         onClick={onSelect}
-        className="flex h-9 items-center gap-2 rounded-full pr-8 pl-4 text-[13px] font-medium"
+        className="flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-medium"
       >
         <PlatformLogo platform="pinterest" size={11} />
         {label}
       </button>
-      <button
-        type="button"
-        aria-label={`Remove ${label}`}
-        disabled={busy}
-        onClick={onRemove}
-        className={`absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded-full transition-opacity duration-150 hover:bg-current/10 ${shown}`}
+      <span
+        className={`grid grid-cols-[0fr] opacity-0 transition-[grid-template-columns,opacity,margin] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${open} ${touch}`}
       >
-        <CloseIcon size={8} />
-      </button>
+        <span className="overflow-clip">
+          <button
+            type="button"
+            aria-label={`Remove ${label}`}
+            disabled={busy}
+            onClick={onRemove}
+            className="mr-1.5 flex size-6 items-center justify-center rounded-full hover:bg-current/10"
+          >
+            <CloseIcon size={8} />
+          </button>
+        </span>
+      </span>
     </span>
   )
 }
@@ -787,13 +795,24 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
     if (row) setAnchor(Math.max(0, Math.min(chip.left - row.left, row.width - width - 40)))
   }
 
-  /** Takes a board off the moodboard; the last one turns Pinterest off. The account stays. */
+  /**
+   * Takes a board off the moodboard at once; the last one turns Pinterest off. The account stays.
+   * Where the browser has view transitions, its pins shrink away and the rest glide into place
+   * (CSS in tokens.css).
+   */
   async function remove(id: string) {
     if (removing) return
-    setFilter('all')
-    setRemoving(true)
+    // Committed before the transition starts, so the old snapshot already names the pins.
+    flushSync(() => setRemoving(true))
     try {
-      await saveBoards(brand.id, boards.filter((b) => b.id !== id).map(pinterestIdOf))
+      await new Promise<void>((resolve, reject) => {
+        const drop = () => {
+          if (filter === id) setFilter('all')
+          removeBoard(brand.id, id).then(resolve, reject)
+        }
+        if ('startViewTransition' in document) document.startViewTransition(() => flushSync(drop))
+        else drop()
+      })
     } catch (err) {
       report(message(err))
     } finally {
@@ -895,7 +914,7 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
           <DmHint />
         </div>
       )}
-      <Masonry key={filter} pins={shown} selected={selected} onToggle={toggle} />
+      <Masonry key={filter} pins={shown} selected={selected} named={removing} onToggle={toggle} />
     </div>
   )
 }
@@ -1421,10 +1440,13 @@ function toColumns(pins: Reference[], count: number) {
 function Masonry({
   pins,
   selected,
+  named,
   onToggle,
 }: {
   pins: Reference[]
   selected: string[]
+  /** Each pin named for the view transition of a board's removal, and only then. */
+  named: boolean
   onToggle: (id: string) => void
 }) {
   const { brand, weeks, byId } = useBrand()
@@ -1467,7 +1489,16 @@ function Masonry({
               <div
                 key={ref.id}
                 className="bb-deal flex flex-col gap-2"
-                style={{ animationDelay: `${Math.min(i, 12) * 45}ms` }}
+                style={
+                  {
+                    animationDelay: `${Math.min(i, 12) * 45}ms`,
+                    // Not on a brand switch, whose own transition fades the whole page.
+                    ...(named && {
+                      viewTransitionName: `pin-${ref.id.replace(/[^\w-]/g, '_')}`,
+                      viewTransitionClass: 'pin',
+                    }),
+                  } as React.CSSProperties
+                }
               >
                 <button
                   type="button"

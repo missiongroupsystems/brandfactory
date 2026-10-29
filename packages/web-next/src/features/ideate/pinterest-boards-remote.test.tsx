@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { BrandProvider } from '@/features/schedule/posts-store'
 import type { BrandState } from '@/lib/remote'
@@ -19,6 +19,9 @@ const hydrate = vi.hoisted(() => {
 })
 const sends = vi.hoisted(() => [] as Array<[string, string, unknown]>)
 const answers = vi.hoisted(() => ({}) as Record<string, unknown>)
+// Requests the core refuses, as "METHOD path".
+const refused = vi.hoisted(() => new Set<string>())
+afterEach(() => refused.clear())
 vi.mock('@/lib/remote', async (original) => ({
   ...(await original<typeof Remote>()),
   remote: true,
@@ -36,6 +39,7 @@ vi.mock('@/lib/remote', async (original) => ({
   report: () => undefined,
   request: async (method: string, path: string, body?: unknown) => {
     sends.push([method, path, body])
+    if (refused.has(`${method} ${path}`)) throw new Error('the core refused')
     return answers[path] ?? {}
   },
 }))
@@ -101,13 +105,25 @@ describe('the moodboard’s Pinterest boards on the core', () => {
     expect(screen.getByRole('checkbox', { name: /Tacos at dusk/ })).toBeVisible()
     expect(screen.getByRole('checkbox', { name: /Green salsa/ })).toBeVisible()
 
-    // The × sends the list without the board at once; the moodboard reads the rest afresh.
-    answers['/brands/casa-vostra/pinterest/pins'] = { boards: [SALSA] }
+    // A removal the core refuses puts the board and its pins back.
+    refused.add('PUT /brands/casa-vostra/pinterest')
     fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
+    await waitFor(() => expect(within(folders()).getByRole('tab', { name: /Tacos/ })).toBeVisible())
+    expect(screen.getByRole('checkbox', { name: /Tacos at dusk/ })).toBeVisible()
+    refused.clear()
+
+    // The × takes the board and its pins off at once, then sends the list without it. The other
+    // board keeps the pins it has: nothing is read from Pinterest again.
+    const reads = () => sends.filter(([, path]) => path.endsWith('/pinterest/pins')).length
+    const before = reads()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Tacos' }))
+    expect(within(folders()).queryByRole('tab', { name: /Tacos/ })).toBeNull()
+    expect(screen.queryByRole('checkbox', { name: /Tacos at dusk/ })).toBeNull()
+    expect(screen.getByRole('checkbox', { name: /Green salsa/ })).toBeVisible()
     await waitFor(() =>
       expect(sends).toContainEqual(['PUT', '/brands/casa-vostra/pinterest', { boardIds: ['222'] }]),
     )
-    await waitFor(() => expect(within(folders()).queryByRole('tab', { name: /Tacos/ })).toBeNull())
+    expect(reads()).toBe(before)
     expect(within(folders()).getByRole('tab', { name: /Salsa/ })).toBeVisible()
   })
 
