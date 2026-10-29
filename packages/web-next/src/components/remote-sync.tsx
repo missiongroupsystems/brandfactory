@@ -95,7 +95,22 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
         <SetPassword onDone={load} onSignOut={leave} />
       ) : state === 'waiting' ? (
         <NoCompany onSignOut={leave} />
-      ) : null}
+      ) : (
+        // The account is loading: three dots, as the inbox shows while it writes, not a blank page.
+        <div
+          role="status"
+          aria-label="Loading"
+          className="flex min-h-dvh items-center justify-center gap-1.5 bg-page"
+        >
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="bb-pulse size-2 rounded-full bg-ink-4"
+              style={{ animationDelay: `${i * 160}ms` }}
+            />
+          ))}
+        </div>
+      )}
       {problem && (
         <div
           role="status"

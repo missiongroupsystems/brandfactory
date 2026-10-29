@@ -224,6 +224,9 @@ const deadPinterest = new Set<BrandId>()
 /** Bumped each time a brand's board is forgotten, so an older read is dropped. */
 const boardRounds = new Map<BrandId, number>()
 
+/** Whether the brand's live boards are still on their way from Pinterest. */
+export const pinsLoading = (brandId: BrandId) => wantedBoards.has(brandId) && !boardsShown(brandId)
+
 /** Forgets the brand’s live boards: after a disconnect, a new sign-in or a change of boards. */
 export function forgetLiveBoard(brandId: BrandId) {
   wantedBoards.delete(brandId)
@@ -320,7 +323,14 @@ function readLiveBoard(brandId: BrandId) {
         report(err instanceof Error && err.message ? err.message : 'Pinterest did not load.')
       },
     )
-    .finally(() => readingBoards.delete(brandId))
+    .finally(() => {
+      readingBoards.delete(brandId)
+      // A change of boards overtook this read while the brand still wants them: the screen asks
+      // again (`useIdeas`), so the moodboard does not wait on a read that will never show.
+      if (!current() && wantedBoards.has(brandId) && !boardsShown(brandId)) {
+        update(brandId, (b) => ({ ...b }))
+      }
+    })
 }
 
 const send = (brandId: BrandId, method: string, path: string, body?: unknown) =>

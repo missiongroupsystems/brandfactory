@@ -43,6 +43,7 @@ import {
   addIdea,
   addIdeaFromPosts,
   connectSource,
+  pinsLoading,
   removeBoard,
   saveBoards,
   pasteLink,
@@ -963,7 +964,26 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
           <DmHint />
         </div>
       )}
-      <Masonry key={filter} pins={shown} selected={selected} onToggle={toggle} />
+      {shown.length === 0 &&
+      (!current || current.source === 'pinterest') &&
+      pinsLoading(brand.id) ? (
+        // Pinterest's pins take a few seconds: three dots, as the inbox shows while it writes.
+        <span
+          role="status"
+          aria-label="Loading the moodboard"
+          className="flex items-center justify-center gap-1.5 py-24"
+        >
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="bb-pulse size-2 rounded-full bg-ink-4"
+              style={{ animationDelay: `${i * 160}ms` }}
+            />
+          ))}
+        </span>
+      ) : (
+        <Masonry key={filter} pins={shown} selected={selected} onToggle={toggle} />
+      )}
     </div>
   )
 }
@@ -1232,7 +1252,11 @@ function PinterestSetup({ onDone }: { onDone?: () => void }) {
           // Rows the shape of the boards, so the card keeps its size when they come.
           <div aria-label="Loading boards" className="flex flex-col">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="flex animate-pulse items-center gap-3 py-2">
+              <div
+                key={i}
+                className="bb-pulse flex items-center gap-3 py-2"
+                style={{ animationDelay: `${i * 160}ms` }}
+              >
                 <span className="size-7 shrink-0 rounded-[8px] bg-tile" />
                 <span className="flex flex-col gap-1.5">
                   <span className="h-2.5 w-28 rounded-full bg-tile" />

@@ -104,7 +104,10 @@ describe('the moodboard’s Pinterest boards on the core', () => {
   it('shows each board as a chip that its × removes in one click', async () => {
     answers['/brands/casa-vostra/pinterest/pins'] = { boards: [TACOS, SALSA] }
     openMoodboard()
+    // Three dots while Pinterest's pins are on their way, gone once they come.
+    expect(screen.getByRole('status', { name: 'Loading the moodboard' })).toBeVisible()
     await waitFor(() => expect(within(folders()).getByRole('tab', { name: /Tacos/ })).toBeVisible())
+    expect(screen.queryByRole('status', { name: 'Loading the moodboard' })).toBeNull()
     expect(within(folders()).getByRole('tab', { name: /Salsa/ })).toBeVisible()
     // "All" holds the pins of both boards.
     expect(screen.getByRole('checkbox', { name: /Tacos at dusk/ })).toBeVisible()

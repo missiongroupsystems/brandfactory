@@ -61,7 +61,10 @@ describe('RemoteSync', () => {
 
   it("goes straight to the app when the password is already the person's own", async () => {
     render(tree())
+    // Three dots while the account loads, not a blank page.
+    expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument()
     expect(await screen.findByText('the app')).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: 'Loading' })).not.toBeInTheDocument()
     expect(passwordScreen()).not.toBeInTheDocument()
   })
 

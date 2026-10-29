@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.43.5** — 2026-10-29 — `fix/pinterest-board-picker`: no blank screen while the app loads. On the core, the whole page showed nothing until the account and every brand had loaded (after a sign-in, a Pinterest connect, a reload); it now shows three pulsing dots, the inbox's own. The moodboard shows the same dots while Pinterest's pins are on their way, and the board picker's placeholder rows pulse in turn. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
 - **2.43.4** — 2026-10-29 — `fix/pinterest-board-picker`: saving the board picker no longer reloads the moodboard. The pins on screen stay until the new list arrives (one Pinterest read), then new pins grow in, leaving ones shrink away and the rest glide into place, as a removal does. The picker opens on the boards it read last, refreshing them behind; the first read starts when the pointer reaches the "+", and rows the shape of the boards stand in for "Loading…". Only connecting Pinterest or turning it off loads the brand again. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
 - **2.43.3** — 2026-10-29 — `fix/pinterest-board-picker`: a board chip at rest is centred again. 2.43.2's `overflow-clip` on the hidden × kept its grid column at the ×'s width (about 30 px), since `overflow-clip`, unlike a scroll container, does not let a `0fr` column shrink below its content; `min-w-0` lets it close. Measured in a browser: each chip as wide as its label at rest. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
 - **2.43.2** — 2026-10-29 — `fix/pinterest-board-picker`: removing a board no longer reloads the moodboard. Its pins leave at once and the other boards keep theirs, with no new read from Pinterest; where the browser has view transitions, the board's pins shrink away and the rest glide into place. A removal the core refuses puts the board back. A board chip is centred at rest and widens to show its × on hover. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
@@ -92,6 +93,21 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.43.5 — 2026-10-29
+
+- **Why.** After a sign-in, a Pinterest connect or a reload, the page stayed blank for a few
+  seconds: `RemoteSync` rendered nothing until `loadAll` had every brand. The moodboard then sat
+  empty under its chips until Pinterest's pins came.
+- **web-next.** `RemoteSync` shows three pulsing dots (`bb-pulse`, staggered as in the inbox) in
+  the middle of the page while it loads. `pinsLoading` (`ideas-store.ts`: Pinterest wanted, its
+  boards not shown yet) puts the same dots where the pins go. The board picker's placeholder rows
+  use `bb-pulse`, staggered, in place of Tailwind's fainter `animate-pulse`.
+- **Tests.** `remote-sync.test.tsx`: the dots while the account loads, gone once it has.
+  `pinterest-boards-remote.test.tsx`: the moodboard's dots until the pins come.
+- **Checked in a browser.** A stand-in core that answers the brand in 1.2 s and the pins in 3 s:
+  the dots at 0.7 s, the moodboard's dots at 3.2 s, the pins after.
+- 1343 tests (237 skipped without a Postgres server).
 
 ## 2.43.4 — 2026-10-29
 
