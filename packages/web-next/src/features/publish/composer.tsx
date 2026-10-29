@@ -428,6 +428,8 @@ export function Composer({
   // On a phone each card opens in a sheet from its row; one sheet at a time.
   const [sheet, setSheet] = React.useState<SheetKey | null>(null)
   const closeSheet = () => setSheet(null)
+  // One caption for every account, until the person asks in More options for one per account.
+  const [perAccountAsked, setPerAccountAsked] = React.useState(false)
   // Save draft was pressed on a post with nothing in it: the reason shows at the button.
   const [emptyNote, setEmptyNote] = React.useState(false)
   // A save or a send on its way to the server.
@@ -472,7 +474,7 @@ export function Composer({
       : []),
     // 6. A planned post needs a platform: the core refuses a scheduled post with none.
     ...(planOnly && active.length === 0 ? ['Pick an account.'] : []),
-    ...(media.length === 0 && draft.format !== 'story' ? ['Add a photo or video.'] : []),
+    ...(media.length === 0 ? ['Add a photo or video.'] : []),
     ...(media.length > MEDIA_MAX[draft.format]
       ? [`A ${draft.format} takes ${MEDIA_MAX[draft.format]}: remove the extra media.`]
       : []),
@@ -693,7 +695,8 @@ export function Composer({
   const unsaveable = readOnly || (remote && post?.stage === 'scheduled' && active.length === 0)
 
   // A new post with no media and no caption has nothing to keep.
-  // A Story may be kept with nothing in it (it can be scheduled so), and an idea's words count.
+  // A Story may be kept as a draft with nothing in it (it is scheduled only with media), and an
+  // idea's words count.
   const empty = !post && !story && !ideaHook && media.length === 0 && draft.caption.trim() === ''
 
   /** The accounts a new post went to, for the next one. A Story's (Instagram only) are not. */
@@ -722,7 +725,8 @@ export function Composer({
 
   /**
    * A scheduled or failed post back to a draft: its waiting sends are cancelled. The calendar
-   * changes, and the line says so, only once the server has it; a refusal shows its own line.
+   * changes, and the line says so, only once the server has it; then the page goes back to the
+   * calendar. A refusal shows its own line and keeps the page.
    */
   async function unschedule() {
     if (!post || post.stage === 'posted' || post.stage === 'draft' || waiting) return
@@ -733,8 +737,12 @@ export function Composer({
     )
     setWaiting(null)
     if (refused !== null) return
+    submitted.current = true
     quietly(() => setStage(post.id, 'draft'))
+    // Back to the calendar, as Schedule, Reschedule and Save draft go. No Undo: scheduling it
+    // again is a new send, which the post page's Schedule makes on purpose.
     report('Unscheduled: it is a draft now')
+    router.push('/')
   }
 
   /**
@@ -897,9 +905,25 @@ export function Composer({
       />
     )
   }
+  // A caption per account is offered where there are two accounts and a caption to split. A post
+  // that already has its own text for an account shows the tabs by the caption instead.
+  const ownText = activeChannels(draft).some((c) =>
+    c.key === 'yt' ? draft.youtubeTitle !== null : draft.overrides[c.key] !== undefined,
+  )
+  const offerPerAccount =
+    !perAccountAsked && !ownText && draft.format !== 'story' && activeChannels(draft).length > 1
   // The sheet a phone row opened, over the same cards the desktop shows in place.
   const more = (
     <MoreOptions
+      onPerAccount={
+        offerPerAccount
+          ? () => {
+              setPerAccountAsked(true)
+              // On a phone the sheet closes on the caption, where the tabs now are.
+              closeSheet()
+            }
+          : undefined
+      }
       api={api}
       details={details}
       setDetails={setDetails}
@@ -948,7 +972,9 @@ export function Composer({
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
+      {/* The title starts where every page's title starts (PAGE, 1120px wide); the cards below
+          keep the wider column. */}
+      <header className="flex flex-col gap-2 md:pl-[max(0px,(100%_-_1040px)/2)]">
         {/* A post that exists says where it is; a new one is new, as its title says. */}
         {post && (
           <span className="flex items-center justify-between gap-3">
@@ -1039,6 +1065,7 @@ export function Composer({
             onIdea={setIdeaHook}
             pickFormat={pickFormat}
             formatLocked={post !== undefined}
+            perAccountAsked={perAccountAsked}
           />
           {/* The phone's list: every other card as a row that says its answer and opens it. */}
           <div className="flex flex-col border-t border-(--cal-line) md:hidden">
@@ -1085,7 +1112,9 @@ export function Composer({
           </div>
           {/* The lines that send: where the post goes and when, then the one button. They stay
                 at the foot of the window while the page is taller than it. */}
-          <div className="sticky bottom-0 -mx-1 flex flex-col gap-2 border-t border-line bg-surface-2 px-1 pt-3 pb-5 max-md:hidden">
+          {/* No rule on top: stuck over the card, a fade from the page's colour hides its edge
+              instead of a line drawn across it. */}
+          <div className="sticky bottom-0 -mx-1 flex flex-col gap-2 bg-surface-2 px-1 pt-3 pb-5 before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-linear-to-t before:from-surface-2 before:to-transparent max-md:hidden">
             <div className="flex flex-wrap items-center gap-2 px-1">
               <Accounts api={api} sends={sends} />
               <span className="ml-auto">
@@ -1162,7 +1191,7 @@ function Row({
       onClick={onClick}
       className="flex min-h-[54px] w-full items-center gap-3 border-b border-(--cal-line) py-2 text-left"
     >
-      <span className="shrink-0 text-[15px]">{label}</span>
+      <span className="shrink-0 text-[16px] font-medium">{label}</span>
       <span className="flex min-w-0 flex-1 items-center justify-end gap-2 text-[14px] text-ink-3">
         {dot && <span className="size-1.5 shrink-0 rounded-full bg-ink" />}
         <span className="truncate">{value}</span>
@@ -1306,7 +1335,7 @@ function Accounts({
             {c.name}
             {/* No Stories on TikTok: the chip says so in two words. */}
             {takes === null && (
-              <span className="text-[12px] font-normal">No {PLURAL[draft.format]}</span>
+              <span className="text-[13px] font-normal">No {PLURAL[draft.format]}</span>
             )}
             {/* Planned only: an amber dot, ticked or not, so the chip never changes width. */}
             {planned && (
@@ -1383,6 +1412,7 @@ function Content({
   addMedia,
   leftOut,
   room,
+  perAccountAsked,
 }: {
   api: PublishDraftApi
   media: Shot[]
@@ -1399,6 +1429,8 @@ function Content({
   pickFormat: (format: Format) => void
   /** An existing post: its format shows as words, since a save keeps the format it has. */
   formatLocked: boolean
+  /** A caption per account was asked for in More options. */
+  perAccountAsked: boolean
 }) {
   const { draft, update } = api
   const active = activeChannels(draft)
@@ -1522,10 +1554,10 @@ function Content({
 
   const own = (k: ChannelKey) =>
     k === 'yt' ? draft.youtubeTitle !== null : draft.overrides[k] !== undefined
-  // One caption for every account, until the person asks for one per account. A post with its
-  // own text for a ticked account shows the tabs whenever that is so, however it came to be.
-  const [asked, setAsked] = React.useState(false)
-  const perAccount = asked || active.some((c) => own(c.key))
+  // One caption for every account, until the person asks for one per account (in More options).
+  // A post with its own text for a ticked account shows the tabs whenever that is so, however it
+  // came to be.
+  const perAccount = perAccountAsked || active.some((c) => own(c.key))
   // The shown tab has its own text: one tap drops it for the shared caption.
   const shared = shownTab !== 'all' && own(shownTab)
   const useShared = () =>
@@ -1745,8 +1777,8 @@ function Content({
       {/* A Story has no caption on Instagram or Facebook, so it shows no caption box. Words
           typed before the format changed are kept with the post. */}
       <div ref={captionBox} hidden={story} className="flex flex-col gap-2 [&[hidden]]:hidden">
-        {/* The tabs, once a caption differs per account, the way to them, and the AI draft. */}
-        {(perAccount || aiLabel !== 'Looks good' || active.length > 1) && (
+        {/* The tabs, once a caption differs per account, and the AI draft. */}
+        {(perAccount || aiLabel !== 'Looks good') && (
           <div className="flex items-center justify-between gap-3">
             {perAccount ? (
               <div
@@ -1774,14 +1806,6 @@ function Content({
                   )
                 })}
               </div>
-            ) : active.length > 1 ? (
-              <button
-                type="button"
-                onClick={() => setAsked(true)}
-                className="text-[13px] text-ink-3 transition-colors hover:text-ink max-md:h-8"
-              >
-                Different caption per account
-              </button>
             ) : (
               <span />
             )}
@@ -1809,7 +1833,7 @@ function Content({
         />
         {mention.list}
         {/* Quiet meta under the caption: each account's count against its limit, once there is
-            something to count, the AI's verdict, and the way to a caption per account. */}
+            something to count, and the AI's verdict. */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px] text-ink-4 empty:hidden">
           {active.map((c) => {
             const { used, max: limit } = lengthFor(draft, c.key)
@@ -2416,6 +2440,7 @@ function Chips({
  * in one sheet.
  */
 function MoreOptions({
+  onPerAccount,
   api,
   details,
   setDetails,
@@ -2435,6 +2460,8 @@ function MoreOptions({
   setMedia: (m: Shot[]) => void
   extra: Extra
   setExtra: (e: Extra) => void
+  /** Turns on a caption per account; absent where it is not offered or is on already. */
+  onPerAccount?: () => void
 }) {
   return (
     <div className="flex flex-col">
@@ -2447,6 +2474,20 @@ function MoreOptions({
         media={media}
         setMedia={setMedia}
       />
+      {onPerAccount && (
+        <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 border-b border-(--cal-line) py-3 max-md:grid-cols-1 max-md:gap-1.5 max-md:py-4">
+          <span className="text-[13px] max-md:text-[14px]">Caption</span>
+          <span>
+            <button
+              type="button"
+              onClick={onPerAccount}
+              className="flex h-8 items-center rounded-full bg-surface px-3 text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper hover:text-ink max-md:h-10 max-md:text-[14px]"
+            >
+              Different caption per account
+            </button>
+          </span>
+        </div>
+      )}
       {activeChannels(api.draft).length > 0 && (
         <PerAccount api={api} extra={extra} setExtra={setExtra} />
       )}
@@ -2715,7 +2756,7 @@ function Rows({
           {r.control}
         </div>
       ))}
-      {note && <p className="text-[12px] leading-[1.45] text-ink-4">{note}</p>}
+      {note && <p className="text-[13px] leading-[1.45] text-ink-4">{note}</p>}
     </div>
   )
 }
@@ -2738,7 +2779,7 @@ function Choice({
           role="radio"
           aria-checked={o === value}
           onClick={() => onChange(o)}
-          className={`h-7 rounded-full px-3 text-[12px] font-medium transition-colors max-md:h-9 max-md:text-[13px] ${o === value ? 'bg-page text-ink shadow-soft' : 'text-ink-3 hover:text-ink'}`}
+          className={`h-7 rounded-full px-3 text-[13px] font-medium transition-colors max-md:h-9 ${o === value ? 'bg-page text-ink shadow-soft' : 'text-ink-3 hover:text-ink'}`}
         >
           {o}
         </button>
@@ -2801,7 +2842,7 @@ function TikTokRows({
         />
       </div>
       {extra.ttSound === 'library' && (
-        <p className="-mt-1 text-[12px] leading-[1.45] text-ink-4">
+        <p className="-mt-1 text-[13px] leading-[1.45] text-ink-4">
           At the time, the video lands in the TikTok inbox: pick a song from the library there and
           post.
         </p>
@@ -2851,7 +2892,7 @@ function TikTokRows({
           ))}
         </div>
       </Fold>
-      <p className="text-[12px] leading-[1.45] text-ink-4">{tiktokConsent(draft)}</p>
+      <p className="text-[13px] leading-[1.45] text-ink-4">{tiktokConsent(draft)}</p>
       {!asStart ? (
         <button
           type="button"
@@ -3432,7 +3473,7 @@ function DayChart({
           )
         })}
       </div>
-      <div className="flex gap-[3px] border-t border-(--cal-line) pt-1.5 text-[12px] text-ink-4">
+      <div className="flex gap-[3px] border-t border-(--cal-line) pt-1.5 text-[13px] text-ink-4">
         {HOURS.map((h) => (
           <span key={h} className="flex-1 text-center whitespace-nowrap">
             {h % 3 === 0 ? String(h).padStart(2, '0') : ''}
@@ -3686,7 +3727,7 @@ function Outcomes({
               </span>
               {o.state === 'failed' && (
                 <span className="flex flex-col items-center gap-1.5 text-center">
-                  <span className="text-[12px] text-fail-ink">{o.reason}</span>
+                  <span className="text-[13px] text-fail-ink">{o.reason}</span>
                   <button
                     type="button"
                     onClick={() => api.retry(k)}

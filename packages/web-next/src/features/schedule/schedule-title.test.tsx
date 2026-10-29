@@ -37,7 +37,8 @@ describe('the schedule title', () => {
 
   it('names no year in this year', () => {
     shown({ view: 'month', offset: 0, week: 0, day: 0 })
-    expect(titles()).toContain('October')
+    // One h1: the phone's title is not a second heading on a desktop.
+    expect(titles()).toEqual(['October'])
     expect(phone()).toBe('October. Change view or month')
   })
 
@@ -56,7 +57,7 @@ describe('the schedule title', () => {
 
   it('names a day by its own year', () => {
     shown({ view: 'day', offset: -10, week: 0, day: 0 })
-    expect(titles()).toContain('Mon 1 Dec 2025')
+    expect(titles()).toEqual(['Monday 1 Dec 2025'])
     expect(phone()).toBe('Mon 1 Dec 2025. Change view or month')
   })
 })

@@ -224,10 +224,11 @@ export function SchedulePage() {
       <div
         className={`${PAGE} flex flex-wrap items-center justify-between gap-x-6 gap-y-4 pt-6 pb-7 max-md:hidden`}
       >
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5">
           <TitleMonthPicker title={title} pick={pick} />
-          {/* Today is an outlined button beside the arrows, never a tag beside the date it names. */}
+          {/* The arrows hold Today between them: one control that steps, apart from the title. */}
           <span className="flex items-center gap-1">
+            <StepArrow label={`Previous ${unit}`} onClick={() => step(-1)} flip />
             <button
               type="button"
               aria-disabled={atToday}
@@ -236,7 +237,6 @@ export function SchedulePage() {
             >
               Today
             </button>
-            <StepArrow label={`Previous ${unit}`} onClick={() => step(-1)} flip />
             <StepArrow label={`Next ${unit}`} onClick={() => step(1)} />
           </span>
           {/* What needs someone sits with the title, as a line of text, not among the controls. */}

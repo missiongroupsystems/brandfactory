@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import * as React from 'react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -54,6 +54,31 @@ describe('a new post in the demo', () => {
     expect(when()).toHaveTextContent('Tue 6 Oct, 18:00')
     expect(format('Post')).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('textbox', { name: 'Caption' })).toHaveFocus()
+  })
+
+  it('holds an empty Story back until it has a photo or video, as a post and a reel are', () => {
+    show()
+    fireEvent.click(format('Story'))
+    // A Story is its picture: with nothing in it there is nothing to put up.
+    expect(screen.getAllByText('Add a photo or video.').length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: /^Schedule/ })[0]).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    fireEvent.click(screen.getAllByRole('button', { name: /^Add .+\.jpg$/ })[0]!)
+    expect(screen.queryAllByText('Add a photo or video.')).toHaveLength(0)
+  })
+
+  it('keeps the caption per account in More options, and shows its tabs once asked', () => {
+    show()
+    // By the caption only the AI draft: the split is a rarer need.
+    expect(screen.queryByRole('tablist', { name: 'Caption for' })).toBeNull()
+    const more = screen.getByRole('region', { name: 'More options' })
+    fireEvent.click(within(more).getByRole('button', { name: /^More options/ }))
+    fireEvent.click(within(more).getByRole('button', { name: 'Different caption per account' }))
+    expect(screen.getByRole('tablist', { name: 'Caption for' })).toBeTruthy()
+    // On, it is no longer offered.
+    expect(screen.queryByRole('button', { name: 'Different caption per account' })).toBeNull()
   })
 
   it('follows the first file in: a video makes a Reel, a photo keeps a photo post', () => {

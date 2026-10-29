@@ -6,6 +6,7 @@ import * as React from 'react'
 import { CheckIcon, ChevronIcon, PlusIcon, SparkIcon } from '@/components/icons'
 import { isVideo, Media } from '@/components/media'
 import { TITLE } from '@/components/page-title'
+import { usePhone } from '@/components/use-phone'
 import { PlatformLogo } from '@/components/platform-logos'
 import { Sheet } from '@/components/sheet'
 import { startTouchDrag } from '@/components/touch-drag'
@@ -184,7 +185,7 @@ export function PhoneCalendar({
         <span
           key={d.date}
           aria-hidden="true"
-          className="flex h-10 items-center justify-center text-[15px] font-medium text-ink-5 tabular-nums opacity-50"
+          className="flex h-10 items-center justify-center text-[14px] font-medium text-ink-5 tabular-nums opacity-50"
         >
           {dayNumber(d.date)}
         </span>
@@ -206,7 +207,7 @@ export function PhoneCalendar({
         className="flex h-10 items-center justify-center"
       >
         <span
-          className={`flex size-[30px] items-center justify-center rounded-full text-[15px] font-medium tabular-nums transition-colors ${picked ? 'bg-ink text-page' : target ? 'bg-(--cal-drop) text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]' : d.today ? 'text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]' : d.past ? 'text-ink-4' : 'text-ink-2'}`}
+          className={`flex size-[30px] items-center justify-center rounded-full text-[14px] font-medium tabular-nums transition-colors ${picked ? 'bg-ink text-page' : target ? 'bg-(--cal-drop) text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]' : d.today ? 'text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]' : d.past ? 'text-ink-4' : 'text-ink-2'}`}
         >
           {dayNumber(d.date)}
         </span>
@@ -475,6 +476,8 @@ function ViewMenu({
   const [open, setOpen] = React.useState(false)
   const root = React.useRef<HTMLDivElement>(null)
   const button = React.useRef<HTMLButtonElement>(null)
+  // One h1 a page: off a phone the desktop toolbar's title is the heading, and this one is hidden.
+  const Heading = usePhone() ? 'h1' : 'div'
 
   React.useEffect(() => {
     if (!open) return
@@ -497,7 +500,7 @@ function ViewMenu({
   return (
     <div ref={root} className="relative min-w-0">
       {/* The heading holds the button, so the page keeps its heading for a screen reader. */}
-      <h1 className={`min-w-0 ${TITLE} max-[360px]:text-[22px]`}>
+      <Heading className={`min-w-0 ${TITLE} max-[360px]:text-[22px]`}>
         <button
           ref={button}
           type="button"
@@ -517,7 +520,7 @@ function ViewMenu({
             />
           )}
         </button>
-      </h1>
+      </Heading>
       {open && (
         <div
           role="dialog"
@@ -715,9 +718,7 @@ function DayHead({
 }) {
   return (
     <>
-      <h2
-        className={`text-[17px] font-semibold tracking-[-0.01em] ${day.past ? 'text-ink-3' : ''}`}
-      >
+      <h2 className={`text-[16px] font-medium ${day.past ? 'text-ink-3' : ''}`}>
         {WEEKDAY[di]!.slice(0, 3)} {dayNumber(day.date)}
         {day.today && <span className="ml-2 text-[13px] font-medium text-ink-4">Today</span>}
       </h2>
@@ -901,7 +902,7 @@ function PostRow({
         <Photo src={post.images[0]} standIn={standIn} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-[15px]">{post.hook}</span>
+        <span className="truncate text-[14px]">{post.hook}</span>
         <span
           className={`flex items-center gap-1.5 text-[13px] tabular-nums ${failed ? 'font-medium text-fail-ink' : 'text-ink-3'}`}
         >
@@ -962,7 +963,7 @@ function IdeaRow({ mark, date }: { mark: Extract<FeedMark, { kind: 'idea' }>; da
           )}
           {mark.why}
         </span>
-        <span className="truncate text-[15px]">{mark.hook}</span>
+        <span className="truncate text-[14px]">{mark.hook}</span>
       </span>
     </button>
   )

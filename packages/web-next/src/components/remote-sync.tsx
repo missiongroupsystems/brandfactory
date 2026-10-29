@@ -104,10 +104,16 @@ export function RemoteSync({ children }: { children: React.ReactNode }) {
         // The account is loading: dots that rise in turn, not a blank page.
         <LoadingDots label="Loading" className="min-h-dvh bg-page" />
       )}
-      {/* One status region, always there, so a screen reader hears each line as it comes. */}
+      {/* One status region, always there, so a screen reader hears each line as it comes. It
+          sits clear of what a page keeps at its foot: above a post's send bar, above the phone's
+          tab bar, and near the bottom edge elsewhere. */}
       <div
         role="status"
-        className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center"
+        className={`pointer-events-none fixed inset-x-0 z-50 flex justify-center ${
+          pathname.startsWith('/post/')
+            ? 'bottom-[136px] max-md:bottom-[calc(132px+env(safe-area-inset-bottom))]'
+            : 'bottom-6 max-md:bottom-[calc(76px+env(safe-area-inset-bottom))]'
+        }`}
       >
         {problem && (
           <div className="pointer-events-auto flex w-fit max-w-[90vw] items-center gap-3 rounded-full bg-ink px-4 py-2 text-[13px] text-page">

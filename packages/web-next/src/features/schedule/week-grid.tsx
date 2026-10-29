@@ -713,7 +713,7 @@ export function PostTile({
             draggable={false}
             className="object-cover opacity-40 grayscale-[0.4]"
           />
-          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-page/90 px-2 py-1 text-[12px] whitespace-nowrap text-ink-2">
+          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-page/90 px-2 py-1 text-[13px] whitespace-nowrap text-ink-2">
             No media yet
           </span>
         </>
@@ -724,7 +724,7 @@ export function PostTile({
           <span className="line-clamp-4 font-display text-[13px] leading-[1.2] text-ink-2 @max-[100px]:line-clamp-3 @max-[100px]:text-[12px]">
             {post.hook}
           </span>
-          <span className="text-[12px] text-ink-4 @max-[100px]:hidden">No media yet</span>
+          <span className="text-[13px] text-ink-4 @max-[100px]:hidden">No media yet</span>
         </span>
       )}
       {isDraft && (

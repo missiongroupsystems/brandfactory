@@ -155,7 +155,7 @@ export function StoryPanel({
                     <span className="truncate text-[14px]">{s.title}</span>
                   </span>
                   <span
-                    className={`flex shrink-0 items-center gap-1.5 text-[12px] ${s.stage === 'failed' ? 'text-fail-ink' : 'text-ink-3'}`}
+                    className={`flex shrink-0 items-center gap-1.5 text-[13px] ${s.stage === 'failed' ? 'text-fail-ink' : 'text-ink-3'}`}
                   >
                     <span style={{ color: `var(--stage-${s.stage})` }}>
                       <StageGlyph stage={s.stage} />

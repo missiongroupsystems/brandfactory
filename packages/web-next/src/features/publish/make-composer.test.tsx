@@ -33,6 +33,8 @@ vi.mock('@/lib/remote', async (original) => {
       return {}
     },
     push: vi.fn(),
+    // A file goes to storage and comes back as its stable address.
+    upload: async (_brandId: string, file: File) => `https://media.test/${file.name}#photo`,
     onState: (hydrate: (id: string, state: unknown) => void) => {
       if (core.loaded) hydrate('casa-vostra', demoAsCore('casa-vostra'))
       return () => undefined
@@ -50,6 +52,8 @@ vi.stubGlobal('matchMedia', () => ({
 }))
 beforeAll(() => {
   core.loaded = true
+  URL.createObjectURL = () => `blob:${Math.random()}`
+  URL.revokeObjectURL = () => undefined
   Element.prototype.scrollIntoView = vi.fn()
   Element.prototype.scrollTo = vi.fn()
   HTMLMediaElement.prototype.play = vi.fn(() => Promise.resolve())
@@ -128,6 +132,10 @@ describe('the composer with Instagram through Make', () => {
       </BrandProvider>,
     )
     fireEvent.click(screen.getAllByRole('radio', { name: 'Story' })[0]!)
+    fireEvent.change(document.querySelector<HTMLInputElement>('input[type="file"]')!, {
+      target: { files: [new File(['x'], 'story.jpg', { type: 'image/jpeg' })] },
+    })
+    await act(async () => undefined)
     tick('Instagram')
     tick('TikTok', false)
     tick('Facebook', false)

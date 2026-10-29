@@ -275,9 +275,11 @@ describe('the composer on the API', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Post actions' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Unschedule' }))
     expect(told.report).not.toHaveBeenCalled()
+    expect(told.push).not.toHaveBeenCalled()
     await land(null)
     expect(requests).toEqual(['POST /brands/casa-vostra/posts/ravioli/mark'])
     expect(told.report).toHaveBeenCalledWith('Unscheduled: it is a draft now')
+    expect(told.push).toHaveBeenCalledWith('/')
   })
 
   it('stays open with everything in it when the server refuses', async () => {

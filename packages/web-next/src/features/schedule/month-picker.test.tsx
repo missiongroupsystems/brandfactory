@@ -58,7 +58,7 @@ describe('the month picker on the calendar title', () => {
     open()
     nextYear()
     fireEvent.click(screen.getByRole('button', { name: 'April 2027' }))
-    expect(titles()).toContain('Thu 1 Apr 2027')
+    expect(titles()).toEqual(['Thursday 1 Apr 2027'])
   })
 
   it('moves by arrow keys into the next year, picks the month focused and closes with Escape', () => {

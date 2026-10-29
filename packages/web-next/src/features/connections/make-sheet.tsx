@@ -120,7 +120,7 @@ export function MakeSheet({
               placeholder="17841400000000000"
               className={`${FIELD} font-mono tracking-tight`}
             />
-            <span className="text-[12px] text-ink-4">{copy.idHint}</span>
+            <span className="text-[13px] text-ink-4">{copy.idHint}</span>
           </div>
           <label className="flex flex-col gap-1.5">
             <span className="text-[13px] font-medium text-ink-2">{copy.name}</span>

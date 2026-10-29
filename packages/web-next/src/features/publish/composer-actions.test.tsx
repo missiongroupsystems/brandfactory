@@ -158,7 +158,7 @@ describe('a scheduled post', () => {
     expect(button(/^Reschedule /)).toBeTruthy()
   })
 
-  it('unschedules from its menu: back to a draft, on the same day', async () => {
+  it('unschedules from its menu: back to a draft, on the same day, and back to the calendar', async () => {
     show(ravioli)
     fireEvent.click(button(/^Post actions$/))
     await act(async () => {
@@ -166,6 +166,8 @@ describe('a scheduled post', () => {
     })
     expect(seen.brand!.byId('ravioli')?.stage).toBe('draft')
     expect(told.report).toHaveBeenCalledWith('Unscheduled: it is a draft now')
+    // As Schedule, Reschedule and Save draft do: the calendar shows where the draft now sits.
+    expect(told.push).toHaveBeenCalledWith('/')
   })
 
   it('deletes only after a question asked in the menu, then goes back to the calendar', async () => {

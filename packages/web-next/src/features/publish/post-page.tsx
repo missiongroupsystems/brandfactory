@@ -46,7 +46,8 @@ export function PostPage({
         <AppHeader section={posted ? '/posted' : undefined} />
       </div>
       <main className="mx-auto w-full max-w-[1280px] px-10 pb-24 max-md:px-4 max-md:pt-4 max-md:pb-[calc(140px+env(safe-area-inset-bottom))]">
-        <div className="pb-5 max-md:pb-4">
+        {/* The back link sits over the title, at the left edge every page's title shares. */}
+        <div className="pb-5 max-md:pb-4 md:pl-[max(0px,(100%_-_1040px)/2)]">
           <Link
             href={posted ? `/posted?on=${posted}` : '/'}
             className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 transition-colors hover:text-ink"

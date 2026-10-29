@@ -158,7 +158,7 @@ export function DayView({
               <EventChip
                 key={shoot.id}
                 event={event}
-                className="absolute z-10 flex max-w-[300px] flex-col gap-0.5 overflow-hidden rounded-[10px] px-3 py-2.5 text-[12px] shadow-[inset_2px_0_0_var(--layer-shoot-ink)]"
+                className="absolute z-10 flex max-w-[300px] flex-col gap-0.5 overflow-hidden rounded-[10px] px-3 py-2.5 text-[13px] shadow-[inset_2px_0_0_var(--layer-shoot-ink)]"
                 style={{
                   top: from + 2,
                   height: Math.max(top(shoot.end) - from - 4, 28),
@@ -193,24 +193,29 @@ export function DayView({
           {placed.map(({ post, lane }) => (
             <div
               key={post.id}
-              className={`absolute z-10 flex items-start gap-3 rounded-[12px] bg-page p-2 ${post.stage === 'failed' ? 'shadow-[0_0_0_1px_var(--fail-line),var(--shadow-soft)]' : 'shadow-[0_0_0_1px_var(--line),var(--shadow-soft)]'}`}
+              className={`absolute z-10 flex items-start gap-3 rounded-[12px] bg-page p-1.5 pr-3 ${post.stage === 'failed' ? 'shadow-[0_0_0_1px_var(--fail-line),var(--shadow-soft)]' : 'shadow-[0_0_0_1px_var(--line),var(--shadow-soft)]'}`}
               style={{
                 top: top(postTime(post)) + 4,
                 width: CARD_W,
                 left: `calc(76px + ${lane} * ${LANE_STEP})`,
               }}
             >
-              <div className="w-[64px] shrink-0">
+              {/* Small, so a post on the hour sits inside its hour; one at :30 or later runs into the next. */}
+              <div className="w-[44px] shrink-0">
                 <PostTile post={post} eager onOpen={() => onOpenPost(post.id)} />
               </div>
               <button
                 type="button"
                 onClick={() => onOpenPost(post.id)}
-                className="flex min-w-0 flex-col gap-1.5 pt-0.5 text-left"
+                className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5 text-left"
               >
-                <span className="text-[13px] text-ink-3 tabular-nums">{postTime(post)}</span>
-                <span className="line-clamp-2 font-display text-[15px] leading-[1.2]">
-                  {post.hook}
+                <span className="flex min-w-0 items-baseline gap-2">
+                  <span className="shrink-0 text-[13px] text-ink-3 tabular-nums">
+                    {postTime(post)}
+                  </span>
+                  <span className="truncate font-display text-[14px] leading-[1.3]">
+                    {post.hook}
+                  </span>
                 </span>
                 <span className="flex items-center gap-2 text-[13px] text-ink-3">
                   <span className="flex items-center gap-1 text-ink-4">

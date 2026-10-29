@@ -53,3 +53,15 @@ describe('a post planned from an idea typed on the calendar', () => {
     expect(getByText('No media yet')).toBeTruthy()
   })
 })
+
+describe('a single photo on the calendar', () => {
+  it('is named a photo, not a carousel, so a screen reader hears what is posted', () => {
+    const photo = POSTS.find((p) => p.format !== 'reel' && p.images.length === 1)!
+    const { getByRole } = render(
+      <BrandProvider>
+        <PostTile post={photo} eager={false} onOpen={() => {}} />
+      </BrandProvider>,
+    )
+    expect(getByRole('button').getAttribute('aria-label')).toMatch(/^Photo: /)
+  })
+})

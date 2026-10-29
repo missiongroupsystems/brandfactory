@@ -3,6 +3,7 @@
 import * as React from 'react'
 
 import { TITLE } from '@/components/page-title'
+import { usePhone } from '@/components/use-phone'
 import { MONTH_SHORT } from '@/lib/dates'
 
 import { monthTitle } from './month'
@@ -119,6 +120,8 @@ export function TitleMonthPicker({ title, pick }: { title: string; pick: MonthPi
   const [open, setOpen] = React.useState(false)
   const root = React.useRef<HTMLDivElement>(null)
   const button = React.useRef<HTMLButtonElement>(null)
+  // One h1 a page: on a phone the phone calendar's title is the heading, and this one is hidden.
+  const Heading = usePhone() ? 'div' : 'h1'
 
   React.useEffect(() => {
     if (!open) return
@@ -140,7 +143,7 @@ export function TitleMonthPicker({ title, pick }: { title: string; pick: MonthPi
 
   return (
     <div ref={root} className="relative">
-      <h1 className={TITLE}>
+      <Heading className={TITLE}>
         <button
           ref={button}
           type="button"
@@ -152,7 +155,7 @@ export function TitleMonthPicker({ title, pick }: { title: string; pick: MonthPi
         >
           {title}
         </button>
-      </h1>
+      </Heading>
       {open && (
         <div
           role="dialog"

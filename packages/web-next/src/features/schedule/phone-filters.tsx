@@ -10,7 +10,7 @@ import { ONLY_FAILED, onlyFailed } from './failed-menu'
 
 const EYEBROW = 'text-[13px] font-medium text-ink-3'
 const CHIP =
-  'flex h-10 items-center gap-2 rounded-full px-3.5 text-[13.5px] font-medium transition-colors'
+  'flex h-10 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition-colors'
 
 /** True while a stage is hidden or the layers differ from the usual ones. */
 export function filtering(stages: StageFilter, layers: Record<LayerKey, boolean>): boolean {
