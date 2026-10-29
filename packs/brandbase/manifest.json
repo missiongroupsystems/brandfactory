@@ -1,6 +1,6 @@
 {
   "name": "brandbase",
-  "version": "1.12.0",
+  "version": "1.12.1",
   "description": "Brand Base: a brand's posts on a calendar, sent to its social accounts. Posts and the brand's state, timed sends, the brand's linked Pinterest (its boards) and TikTok accounts, its Instagram account and Facebook Page posted to through Make, planned videos sent to the TikTok inbox, and the company's own events from Mission Events.",
   "errors": {
     "posts_story_day": {

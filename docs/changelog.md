@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.43.8** — 2026-10-29 — `fix/photo-files`: a photo post goes out (brandbase 1.12.1, migration 0021, not applied to production). The web app uploads a photo with its kind in the address (`…jpg#photo`, as a video carries `#video`); 0020's `post_files` took only `#video`, so every uploaded photo read as a sample and the first scheduled test post failed with "Upload this post's photos and videos again: some are only samples." 0021 takes either. The pack test now uses the address the web app writes (it used a bare `.jpg`, which hid the bug). Production: `core publish`, `core test brandbase 1.12.1`, `core migrate`, `core promote`; no server or web deploy. 1347 tests, all run on a throwaway Postgres 18.
 - **2.43.7** — 2026-10-29 — `fix/schedule-today`: a post can be scheduled for later today. The composer's day grid greyed out today as well as the past, so on the core nothing could go out before tomorrow. Today is open. A time that has gone, or comes within two minutes, in the brand's own timezone and on its own today (`timezoneOf`, from the core's brand list; `clockToday(now, zone)`) says "Pick a time ahead.": it would go out at once. The composer redraws every 30 seconds and checks the clock again when Schedule is pressed, so a time that passes while it stays open is not sent; the hour chart greys the hours gone. The demo's fixed today is left alone. The core takes today already (`post.send_day_not_past`); it does not yet refuse a time gone (follow-up: a before-rule; the calendar's own today is still the last brand loaded). No pack change, no migration. 1347 tests (237 skipped without a Postgres server).
 - **2.43.6** — 2026-10-29 — `fix/pinterest-board-picker`: the loading dots are lighter and bounce. One `LoadingDots` (three 5 px dots, `bg-ink-3`, `bb-bounce`: each rises 4 px and brightens in turn, 1.2 s, eased) replaces 2.43.5's thicker pulsing dots on the page while the app loads and on the moodboard while the pins load. With reduced motion the dots rest at 60% (a looping animation shortened to 1 ms would flicker). No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
 - **2.43.5** — 2026-10-29 — `fix/pinterest-board-picker`: no blank screen while the app loads. On the core, the whole page showed nothing until the account and every brand had loaded (after a sign-in, a Pinterest connect, a reload); it now shows three pulsing dots, the inbox's own. The moodboard shows the same dots while Pinterest's pins are on their way, and the board picker's placeholder rows pulse in turn. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
@@ -95,6 +96,38 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.43.8 — 2026-10-29
+
+- **Why.** The first post scheduled from the app failed at its time: "Upload this post's photos
+  and videos again: some are only samples." The web app uploads a photo as `…jpg#photo`
+  (`upload` in `remote.ts`), and 0020's `post_files` matched only an optional `#video`.
+- **Pack 1.12.1.** Migration `0021_photo_files.sql` replaces `post_files` with `(?:#video|#photo)?$`;
+  the body and the grant are otherwise unchanged. The address is read when the post is read, so
+  existing photo posts need no backfill. TikTok's own match (0018) stays video only.
+- **Tests.** `tests/make.json` now stores the photo as the app writes it, `#photo`; without 0021
+  that case fails. 1347 tests, all run on a throwaway Postgres 18.
+- **Production.** `core publish`, `core test brandbase 1.12.1`, `core migrate brandbase 1.12.1`,
+  `core promote brandbase 1.12.1`. No server or web deploy.
+
+## 2.43.7 — 2026-10-29
+
+- **Why.** On the core nothing could be scheduled before tomorrow: the composer's day grid greyed
+  out today along with the past.
+- **web-next.** Today is open. `tooSoon` blocks a time gone or within two minutes, on the brand's
+  own clock and today (`timezoneOf`, `clockTime`, `clockToday`), with "Pick a time ahead."; the
+  composer redraws every 30 seconds and checks again on Schedule; the hour chart greys the hours
+  gone. The demo is unchanged.
+- **Follow-up.** The core does not yet refuse a time already gone; the calendar's own today is still
+  the last brand loaded.
+- 1347 tests (237 skipped without a Postgres server).
+
+## 2.43.6 — 2026-10-29
+
+- **web-next.** `LoadingDots`: three 5 px dots that rise in turn (`bb-bounce`), in place of 2.43.5's
+  thicker pulsing dots, while the app loads and while the moodboard's pins load. With reduced
+  motion they rest at 60%.
+- 1343 tests (237 skipped without a Postgres server).
 
 ## 2.43.5 — 2026-10-29
 
