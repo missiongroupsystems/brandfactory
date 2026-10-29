@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.43.3** — 2026-10-29 — `fix/pinterest-board-picker`: a board chip at rest is centred again. 2.43.2's `overflow-clip` on the hidden × kept its grid column at the ×'s width (about 30 px), since `overflow-clip`, unlike a scroll container, does not let a `0fr` column shrink below its content; `min-w-0` lets it close. Measured in a browser: each chip as wide as its label at rest. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
 - **2.43.2** — 2026-10-29 — `fix/pinterest-board-picker`: removing a board no longer reloads the moodboard. Its pins leave at once and the other boards keep theirs, with no new read from Pinterest; where the browser has view transitions, the board's pins shrink away and the rest glide into place. A removal the core refuses puts the board back. A board chip is centred at rest and widens to show its × on hover. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
 - **2.43.1** — 2026-10-29 — `fix/pinterest-board-picker`: a board chip's × removes the board in one click, with no "Remove {board}?" step; the "+" picker adds it back. The board picker lists the boards on the moodboard first, under "On the moodboard", then "Other boards", and gets a search field once an account has more than six boards (Escape clears it first). The list is shorter (about four rows) and scrolls. The Drive picker's search icon moves to the shared icons. No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
 - **2.43.0** — 2026-10-29 — `feat/make-publishing`: Instagram and Facebook post through Make (make.com) until our own Meta app passes review (brandbase 1.12.0, migration 0020, not applied to production; released together with 2.42.0 on `release/pinterest-make`: 1.11.0 is never promoted on its own, so production goes from 1.10.0 to 1.12.0 in one migrate, 0019 then 0020). An owner or admin of a company on the operator's list (Mission Group) enters the brand's Instagram account id and Page id on Connections; at a post's time the scheduler sends the job to a Make custom webhook (`MAKE_WEBHOOK_URL`, key in `x-make-apikey`), the scenario posts with Make's modules and answers in the same request. Photo, carousel and reel; Stories stay planned only, TikTok stays planned only beside them. The core runs up to ten sends at once and keeps a connector's own words. 1328 tests, all run on a throwaway Postgres 18.
@@ -90,6 +91,18 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.43.3 — 2026-10-29
+
+- **Why.** On production a board chip at rest still kept room on its right. 2.43.2 changed the
+  hidden ×'s inner span from `overflow-hidden` to `overflow-clip`. A grid item's automatic
+  minimum size is its content's unless it is a scroll container, and `overflow-clip` makes none,
+  so the `0fr` column stayed about 30 px wide.
+- **web-next.** `min-w-0` on that span lets the column close, and `overflow-clip` still keeps a
+  focused × from scrolling inside it. A comment says why.
+- **Checked in a browser.** The stand-in core at 1280 × 860: each chip as wide as its label at
+  rest (83/83, 105/105, 94/94 px), and the × opens on hover.
+- 1343 tests (237 skipped without a Postgres server).
 
 ## 2.43.2 — 2026-10-29
 

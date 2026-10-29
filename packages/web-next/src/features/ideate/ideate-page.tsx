@@ -637,7 +637,8 @@ function BoardChip({
       <span
         className={`grid grid-cols-[0fr] opacity-0 transition-[grid-template-columns,opacity,margin] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${open} ${touch}`}
       >
-        <span className="overflow-clip">
+        {/* min-w-0: unlike overflow-hidden, overflow-clip alone keeps the 0fr column at the ×'s width. */}
+        <span className="min-w-0 overflow-clip">
           <button
             type="button"
             aria-label={`Remove ${label}`}
