@@ -1,6 +1,6 @@
 {
   "name": "account.link",
-  "description": "Links a brand's account after the platform's sign-in, with its sealed tokens: one per platform per brand, and an account another brand holds is refused. Linking the same account again keeps its Pinterest board; another account starts clean. Internal: packages/connect calls it as the person who signed in.",
+  "description": "Links a brand's account after the platform's sign-in, with its sealed tokens: one per platform per brand, and an account another brand holds is refused. Linking the same account again keeps its Pinterest boards; another account starts clean. Internal: packages/connect calls it as the person who signed in.",
   "input": {
     "type": "object",
     "additionalProperties": false,

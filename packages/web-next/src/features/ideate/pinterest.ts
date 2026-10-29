@@ -1,12 +1,12 @@
 /**
- * The moodboard’s Pinterest source on the core: the brand's own Pinterest account, the one board on
- * it the moodboard reads, and that board's pins read live (the server keeps no pin). The static
- * demo never calls these.
+ * The moodboard’s Pinterest source on the core: the brand's own Pinterest account, the boards on
+ * it the moodboard reads, and their pins read live (the server keeps no pin). The static demo
+ * never calls these.
  */
 
 import type { BrandId } from '@/data/brands'
 import type { Board, Reference } from '@/data/ideas'
-import { loadBrand, request } from '@/lib/remote'
+import { request } from '@/lib/remote'
 
 export interface PinterestSetup {
   account: { username: string } | null
@@ -15,10 +15,15 @@ export interface PinterestSetup {
     name: string
     pinCount: number
     cover: string | null
-    /** The board the brand's moodboard reads now. */
+    /** The board on pinterest.com. */
+    url: string
+    /** One of the boards the brand's moodboard reads now. */
     picked: boolean
   }>
 }
+
+/** The most boards one moodboard reads, as the server allows. */
+export const MAX_BOARDS = 5
 
 interface Pin {
   id: string
@@ -42,11 +47,15 @@ export async function startPinterest(brandId: BrandId) {
 export const finishPinterest = (code: string, state: string) =>
   request<{ brandId: BrandId; username: string }>('POST', '/pinterest/callback', { code, state })
 
-/** This brand reads the board from now on; the brand reloads with it. */
-export async function pickBoard(brandId: BrandId, boardId: string) {
-  await request('PUT', `/brands/${brandId}/pinterest`, { boardId })
-  await loadBrand(brandId)
-}
+/**
+ * This brand reads these boards from now on, in this order; none turns Pinterest off and keeps the
+ * account. `saveBoards` in the ideas store also reads them afresh.
+ */
+export const pickBoards = (brandId: BrandId, boardIds: string[]) =>
+  request('PUT', `/brands/${brandId}/pinterest`, { boardIds })
+
+/** The Pinterest id of a board the moodboard shows (`board-<id>`). */
+export const pinterestIdOf = (board: Pick<Board, 'id'>) => board.id.replace(/^board-/, '')
 
 /** Forgets the brand's account and its board: the server drops its only copy of the tokens. */
 export const dropBoard = (brandId: BrandId) => request('DELETE', `/brands/${brandId}/pinterest`)
@@ -73,18 +82,20 @@ function referenceOf(board: string, pin: Pin, brandName: string): Reference {
   }
 }
 
-/** The brand's board with its pins, as one folder on the moodboard. */
-export async function loadBoard(brandId: BrandId, brandName: string): Promise<Board> {
-  const { board, pins } = await request<{ board: { id: string; name: string }; pins: Pin[] }>(
-    'GET',
-    `/brands/${brandId}/pinterest/pins`,
-  )
-  const refs = pins.map((p) => referenceOf(board.name, p, brandName))
-  return {
-    id: `board-${board.id}`,
-    name: board.name,
-    pinCount: refs.length,
-    covers: refs.slice(0, 4).map((r) => r.image),
-    pins: refs,
-  }
+/** The brand's boards with their pins, each one folder on the moodboard, in the order picked. */
+export async function loadBoards(brandId: BrandId, brandName: string): Promise<Board[]> {
+  const { boards } = await request<{
+    boards: Array<{ id: string; name: string; url: string; pins: Pin[] }>
+  }>('GET', `/brands/${brandId}/pinterest/pins`)
+  return boards.map((board) => {
+    const refs = board.pins.map((p) => referenceOf(board.name, p, brandName))
+    return {
+      id: `board-${board.id}`,
+      name: board.name,
+      url: board.url,
+      pinCount: refs.length,
+      covers: refs.slice(0, 4).map((r) => r.image),
+      pins: refs,
+    }
+  })
 }

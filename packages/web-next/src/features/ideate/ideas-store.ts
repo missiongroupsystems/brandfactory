@@ -4,7 +4,17 @@ import * as React from 'react'
 
 import type { BrandId } from '@/data/brands'
 import { notAvailable } from '@/features/connections/not-available'
-import { demoOf, newId, onState, push, remote, RemoteError, report, request } from '@/lib/remote'
+import {
+  demoOf,
+  loadBrand,
+  newId,
+  onState,
+  push,
+  remote,
+  RemoteError,
+  report,
+  request,
+} from '@/lib/remote'
 import {
   coverOf,
   IDEAS_BY_BRAND,
@@ -21,7 +31,7 @@ import {
   type Reference,
 } from '@/data/ideas'
 
-import { loadBoard } from './pinterest'
+import { loadBoards, pickBoards } from './pinterest'
 
 /**
  * The ideas, in memory and outside React, so the insights page can add one and the ideas page
@@ -201,7 +211,7 @@ if (remote) {
 }
 
 /**
- * The live Pinterest board, on the core. Its pins are read from Pinterest only for a brand a
+ * The live Pinterest boards, on the core. Their pins are read from Pinterest only for a brand a
  * screen shows (`useIdeas`), once per page load, and once at a time: a state read again (the tab
  * back in view) does not ask Pinterest again, since the app's Trial access allows 1,000 reads a
  * day for every brand together. A board changed or forgotten meanwhile drops a read on its way.
@@ -213,12 +223,22 @@ const deadPinterest = new Set<BrandId>()
 /** Bumped each time a brand's board is forgotten, so an older read is dropped. */
 const boardRounds = new Map<BrandId, number>()
 
-/** Forgets the brand's live board: after a disconnect, a new sign-in or a new board. */
+/** Forgets the brand’s live boards: after a disconnect, a new sign-in or a change of boards. */
 export function forgetLiveBoard(brandId: BrandId) {
   wantedBoards.delete(brandId)
   deadPinterest.delete(brandId)
   boardRounds.set(brandId, (boardRounds.get(brandId) ?? 0) + 1)
   showBoards(brandId, null)
+}
+
+/**
+ * Keeps the boards the brand's moodboard reads, then reads them afresh: the old pins leave only
+ * once the server took the change, so a refused change keeps the moodboard as it was.
+ */
+export async function saveBoards(brandId: BrandId, boardIds: string[]) {
+  await pickBoards(brandId, boardIds)
+  forgetLiveBoard(brandId)
+  await loadBrand(brandId)
 }
 
 function readLiveBoard(brandId: BrandId) {
@@ -227,11 +247,11 @@ function readLiveBoard(brandId: BrandId) {
   const round = boardRounds.get(brandId) ?? 0
   const current = () => (boardRounds.get(brandId) ?? 0) === round && wantedBoards.has(brandId)
   readingBoards.add(brandId)
-  loadBoard(brandId, name)
+  loadBoards(brandId, name)
     .then(
       (live) => {
         if (!current()) return
-        showBoards(brandId, [live])
+        showBoards(brandId, live)
         update(brandId, (b) => ({ ...b }))
       },
       (err: unknown) => {

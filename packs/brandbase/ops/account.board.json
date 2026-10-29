@@ -1,25 +1,31 @@
 {
   "name": "account.board",
-  "description": "Picks the Pinterest board the brand's moodboard reads, or none (null). Internal: packages/connect checks the board is on the brand's account first.",
+  "description": "Sets the Pinterest boards the brand's moodboard reads, in order. An empty list reads none, and Pinterest turns off. Internal: packages/connect checks each board is on the brand's account first.",
   "input": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["brand", "board"],
+    "required": ["brand", "boards"],
     "properties": {
       "brand": {
         "type": "string",
         "pattern": "^[A-Za-z0-9_-]{1,80}$"
       },
-      "board": {
-        "type": ["string", "null"],
-        "maxLength": 200
+      "boards": {
+        "type": "array",
+        "uniqueItems": true,
+        "maxItems": 5,
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
       }
     }
   },
   "before": ["brand.reachable"],
   "internal": true,
   "returns": "one",
-  "sql": "with a as (update brandbase.accounts a set details = case when :board::text is null then a.details - 'board' else a.details || jsonb_build_object('board', :board::text) end, updated_at = now() where a.brand_id = :brand and a.platform = 'pinterest' returning a.*), k as (insert into brandbase.connections as c (brand_id, key, status) select a.brand_id, x.key, case when x.linked then 'connected' else 'off' end from a, brandbase.account_keys(a.platform, a.details) x on conflict (brand_id, key) do update set status = excluded.status, updated_at = now()) select jsonb_build_object('accountId', a.account_id, 'username', a.username, 'details', a.details) as result from a",
+  "sql": "with a as (update brandbase.accounts a set details = (a.details - 'board') || jsonb_build_object('boards', :boards::jsonb), updated_at = now() where a.brand_id = :brand and a.platform = 'pinterest' returning a.*), k as (insert into brandbase.connections as c (brand_id, key, status) select a.brand_id, x.key, case when x.linked then 'connected' else 'off' end from a, brandbase.account_keys(a.platform, a.details) x on conflict (brand_id, key) do update set status = excluded.status, updated_at = now()) select jsonb_build_object('accountId', a.account_id, 'username', a.username, 'details', a.details) as result from a",
   "empty": {
     "status": 409,
     "code": "PINTEREST_RECONNECT",

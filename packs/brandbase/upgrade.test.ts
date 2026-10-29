@@ -149,3 +149,63 @@ describe('migration 0015 on a 1.6.0 database', () => {
     }
   })
 })
+
+/**
+ * Migration 0019 on a 1.10.0 database: the one board a brand picked becomes its list of boards,
+ * Pinterest stays connected, and a brand with an account but no board stays off.
+ */
+describe('migration 0019 on a 1.10.0 database', () => {
+  it('moves the picked board into the list and keeps each connection as it was', async () => {
+    const db = openPglite()
+    try {
+      await migrateCore(db)
+      await applyPackMigrations(
+        db,
+        'brandbase',
+        content.migrations.filter((m) => m.name < '0019'),
+      )
+      await db.exec(`
+        insert into brandbase.organizations (id, name) values ('co', 'Co');
+        insert into brandbase.brands (id, name, handle, org_id) values
+          ('one', 'One', '@one', 'co'), ('two', 'Two', '@two', 'co');
+        insert into brandbase.accounts (brand_id, platform, account_id, username, tokens, details, connected_by) values
+          ('one', 'pinterest', 'p1', 'one.pins', 'sealed', '{"board": "b1"}', 'u'),
+          ('two', 'pinterest', 'p2', 'two.pins', 'sealed', '{}', 'u');
+        insert into brandbase.connections (brand_id, key, status) values
+          ('one', 'pinterest', 'connected'), ('two', 'pinterest', 'off');
+      `)
+      await applyPackMigrations(db, 'brandbase', content.migrations)
+      expect(
+        await db.query('select brand_id, details from brandbase.accounts order by brand_id'),
+      ).toEqual([
+        { brand_id: 'one', details: { board: 'b1', boards: ['b1'] } },
+        { brand_id: 'two', details: {} },
+      ])
+      expect(
+        await db.query(
+          `select a.brand_id, x.linked from brandbase.accounts a,
+             brandbase.account_keys(a.platform, a.details) x order by a.brand_id`,
+        ),
+      ).toEqual([
+        { brand_id: 'one', linked: true },
+        { brand_id: 'two', linked: false },
+      ])
+      // Between this migration and the promote, 1.10.0's account.board writes only the old key:
+      // that board still turns Pinterest on.
+      expect(
+        await db.query(
+          `select linked from brandbase.account_keys('pinterest', '{"board": "b2"}'::jsonb)`,
+        ),
+      ).toEqual([{ linked: true }])
+      expect(
+        await db.query('select brand_id, status from brandbase.connections order by brand_id'),
+      ).toEqual([
+        { brand_id: 'one', status: 'connected' },
+        { brand_id: 'two', status: 'off' },
+      ])
+      expect(await everyTableHasRowRules(db)).toEqual([])
+    } finally {
+      await db.close()
+    }
+  })
+})

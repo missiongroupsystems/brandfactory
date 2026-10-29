@@ -53,12 +53,12 @@
           "call": "account.board",
           "input": {
             "brand": "casa",
-            "board": "b1"
+            "boards": ["b1"]
           },
           "expect": {
             "result": {
               "details": {
-                "board": "b1"
+                "boards": ["b1"]
               }
             }
           }
@@ -220,7 +220,7 @@
           "call": "account.board",
           "input": {
             "brand": "casa",
-            "board": "b1"
+            "boards": ["b1"]
           }
         },
         {
@@ -236,7 +236,7 @@
           "expect": {
             "result": {
               "details": {
-                "board": "b1"
+                "boards": ["b1"]
               }
             }
           }
@@ -283,7 +283,7 @@
           "call": "account.board",
           "input": {
             "brand": "casa",
-            "board": "b2"
+            "boards": ["b2"]
           }
         },
         {
@@ -301,11 +301,13 @@
           "call": "account.board",
           "input": {
             "brand": "casa",
-            "board": null
+            "boards": []
           },
           "expect": {
             "result": {
-              "details": {}
+              "details": {
+                "boards": []
+              }
             }
           }
         },
@@ -329,7 +331,7 @@
           "call": "account.board",
           "input": {
             "brand": "casa",
-            "board": "b1"
+            "boards": ["b1"]
           },
           "expect": {
             "status": 409,
@@ -455,6 +457,254 @@
           },
           "expect": {
             "status": 400
+          }
+        }
+      ]
+    },
+    {
+      "name": "reads two boards, then one, and Pinterest turns off with the last one removed",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "username": "casa.pins",
+            "tokens": "sealed-pin-1",
+            "details": {}
+          }
+        },
+        {
+          "call": "account.board",
+          "input": {
+            "brand": "casa",
+            "boards": ["b1", "b2"]
+          },
+          "expect": {
+            "result": {
+              "details": {
+                "boards": ["b1", "b2"]
+              }
+            }
+          }
+        },
+        {
+          "sql": "select key, status from brandbase.connections where brand_id = 'casa' and key = 'pinterest'",
+          "expect": {
+            "rows": [
+              {
+                "key": "pinterest",
+                "status": "connected"
+              }
+            ]
+          }
+        },
+        {
+          "call": "account.board",
+          "input": {
+            "brand": "casa",
+            "boards": ["b2"]
+          },
+          "expect": {
+            "result": {
+              "details": {
+                "boards": ["b2"]
+              }
+            }
+          }
+        },
+        {
+          "sql": "select key, status from brandbase.connections where brand_id = 'casa' and key = 'pinterest'",
+          "expect": {
+            "rows": [
+              {
+                "key": "pinterest",
+                "status": "connected"
+              }
+            ]
+          }
+        },
+        {
+          "call": "account.board",
+          "input": {
+            "brand": "casa",
+            "boards": []
+          }
+        },
+        {
+          "sql": "select key, status from brandbase.connections where brand_id = 'casa' and key = 'pinterest'",
+          "expect": {
+            "rows": [
+              {
+                "key": "pinterest",
+                "status": "off"
+              }
+            ]
+          }
+        },
+        {
+          "call": "account.read",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest"
+          },
+          "expect": {
+            "length": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "drops the old one-board key once the boards are set",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "username": "casa.pins",
+            "tokens": "sealed-pin-1",
+            "details": {
+              "board": "b0"
+            }
+          }
+        },
+        {
+          "call": "account.board",
+          "input": {
+            "brand": "casa",
+            "boards": ["b1"]
+          }
+        },
+        {
+          "sql": "select details from brandbase.accounts where brand_id = 'casa' and platform = 'pinterest'",
+          "expect": {
+            "rows": [
+              {
+                "details": {
+                  "boards": ["b1"]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "sql": "select (details -> 'board') is not null as old from brandbase.accounts where brand_id = 'casa' and platform = 'pinterest'",
+          "expect": {
+            "rows": [
+              {
+                "old": false
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refuses a board list that repeats a board or is too long",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "username": "casa.pins",
+            "tokens": "sealed-pin-1",
+            "details": {}
+          }
+        },
+        {
+          "call": "account.board",
+          "input": {
+            "brand": "casa",
+            "boards": ["b1", "b1"]
+          },
+          "expect": {
+            "status": 400
+          }
+        },
+        {
+          "call": "account.board",
+          "input": {
+            "brand": "casa",
+            "boards": ["1", "2", "3", "4", "5", "6"]
+          },
+          "expect": {
+            "status": 400
+          }
+        }
+      ]
+    },
+    {
+      "name": "another brand's person cannot read or change the brand's boards",
+      "steps": [
+        {
+          "call": "account.link",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest",
+            "accountId": "pin-1",
+            "username": "casa.pins",
+            "tokens": "sealed-pin-1",
+            "details": {}
+          }
+        },
+        {
+          "call": "account.board",
+          "input": {
+            "brand": "casa",
+            "boards": ["b1", "b2"]
+          }
+        },
+        {
+          "call": "account.board",
+          "as": "b-owner",
+          "input": {
+            "brand": "casa",
+            "boards": []
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "account.read",
+          "as": "b-owner",
+          "input": {
+            "brand": "casa",
+            "platform": "pinterest"
+          },
+          "expect": {
+            "status": 404,
+            "code": "NOT_FOUND"
+          }
+        },
+        {
+          "call": "account.board",
+          "as": "both",
+          "input": {
+            "brand": "temper",
+            "boards": ["b1"]
+          },
+          "expect": {
+            "status": 409,
+            "code": "PINTEREST_RECONNECT"
+          }
+        },
+        {
+          "sql": "select details from brandbase.accounts where brand_id = 'casa' and platform = 'pinterest'",
+          "expect": {
+            "rows": [
+              {
+                "details": {
+                  "boards": ["b1", "b2"]
+                }
+              }
+            ]
           }
         }
       ]

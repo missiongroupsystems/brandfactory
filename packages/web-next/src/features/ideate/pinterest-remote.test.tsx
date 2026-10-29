@@ -66,8 +66,14 @@ const PIN = {
 describe('the moodboard’s Pinterest on the core', () => {
   it('reads the brand’s board live once it has one, and shows no pin without one', async () => {
     answers['/brands/carlitos/pinterest/pins'] = {
-      board: { id: '111', name: 'Tacos' },
-      pins: [PIN],
+      boards: [
+        {
+          id: '111',
+          name: 'Tacos',
+          url: 'https://www.pinterest.com/brand.pins/tacos/',
+          pins: [PIN],
+        },
+      ],
     }
     hydrate.fn('carlitos', {
       brand: { id: 'carlitos', name: 'Carlitos' },
@@ -148,7 +154,9 @@ describe('the moodboard’s Pinterest on the core', () => {
   })
 
   it('shows the account on Connections once linked, before any board, and forgets it on disconnect', async () => {
-    answers['/brands/temper/pinterest/pins'] = { board: { id: '1', name: 'Steak' }, pins: [PIN] }
+    answers['/brands/temper/pinterest/pins'] = {
+      boards: [{ id: '1', name: 'Steak', url: 'https://www.pinterest.com/t/steak/', pins: [PIN] }],
+    }
     hydrate.fn('temper', {
       brand: { id: 'temper' },
       ideas: [],
@@ -188,7 +196,9 @@ describe('a board read on its way', () => {
       expect(sends.some(([, p]) => p.endsWith('/temper/pinterest/pins'))).toBe(true),
     )
     disconnect('temper', 'pinterest')
-    answer({ board: { id: '9', name: 'Late' }, pins: [PIN] })
+    answer({
+      boards: [{ id: '9', name: 'Late', url: 'https://www.pinterest.com/t/late/', pins: [PIN] }],
+    })
     await new Promise((r) => setTimeout(r, 0))
     // The old pins never come back after the disconnect.
     expect(boardsOf('temper')).toEqual([])

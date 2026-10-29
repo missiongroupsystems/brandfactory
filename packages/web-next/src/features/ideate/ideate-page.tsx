@@ -7,7 +7,7 @@ import * as React from 'react'
 
 import { AppHeader } from '@/components/app-header'
 import { Segmented } from '@/components/controls'
-import { CheckIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
+import { CheckIcon, ChevronIcon, CloseIcon, PlusIcon, SparkIcon } from '@/components/icons'
 import { PlatformLogo } from '@/components/platform-logos'
 import { MOODBOARD_ACCOUNT, moodboardTag, PINTEREST_ACCOUNT } from '@/data/brand-kit'
 import {
@@ -26,7 +26,7 @@ import { dayOf } from '@/features/schedule/move-post'
 import { useBrand } from '@/features/schedule/posts-store'
 import { planShoot } from '@/features/shoot/shoots-store'
 import { NotAvailable, notAvailable, reasonOf } from '@/features/connections/not-available'
-import { demoOf, newId, remote, RemoteError } from '@/lib/remote'
+import { demoOf, newId, remote, RemoteError, report } from '@/lib/remote'
 
 import { EYEBROW, FormatIcon, STATUS_LABEL, statusColour, useSlots, type Slot } from './idea-parts'
 import { dayLabel, dayOfHook, landingDay } from './calendar-slot'
@@ -34,7 +34,7 @@ import {
   addIdea,
   addIdeaFromPosts,
   connectSource,
-  forgetLiveBoard,
+  saveBoards,
   pasteLink,
   skipSuggestion,
   suggest,
@@ -42,7 +42,13 @@ import {
   type MoodSource,
 } from './ideas-store'
 import { IDEAS_HREF } from './idea-page'
-import { pickBoard, pinterestSetup, startPinterest, type PinterestSetup } from './pinterest'
+import {
+  MAX_BOARDS,
+  pinterestIdOf,
+  pinterestSetup,
+  startPinterest,
+  type PinterestSetup,
+} from './pinterest'
 
 const FORMAT_LABEL: Record<IdeaFormat, string> = {
   reel: 'Reel',
@@ -534,6 +540,11 @@ const PLATFORM_NAME: Record<Reference['platform'], string> = {
   tt: 'TikTok',
 }
 
+/** A Pinterest board's menu on the moodboard. */
+const MENU_WIDTH = 200
+const MENU_ITEM =
+  'rounded-[8px] px-2.5 py-[7px] text-left text-[13.5px] text-ink transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface disabled:opacity-40'
+
 /** Instagram DMs carry Instagram's logo. */
 const SOURCE_LOGO: Record<MoodSource, 'pinterest' | 'ig' | 'tt'> = {
   pinterest: 'pinterest',
@@ -568,21 +579,30 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   const top = React.useRef<HTMLDivElement>(null)
   // Where the chip that opened the setup starts, so on a wide screen the setup opens under it.
   const [anchor, setAnchor] = React.useState(0)
+  // The Pinterest board whose menu is open (Open on Pinterest, Remove), by its folder id.
+  const [menu, setMenu] = React.useState<string | null>(null)
+  const [removing, setRemoving] = React.useState(false)
 
-  // The setup floats over the board like a menu: a tap outside or Escape closes it.
+  // The setup and a board's menu float over the board: a tap outside or Escape closes them.
   React.useEffect(() => {
-    if (!adding) return
+    if (!adding && !menu) return
     const close = (e: PointerEvent) => {
-      if (!top.current?.contains(e.target as Node)) setAdding(false)
+      if (top.current?.contains(e.target as Node)) return
+      setAdding(false)
+      setMenu(null)
     }
-    const escape = (e: KeyboardEvent) => e.key === 'Escape' && setAdding(false)
+    const escape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setAdding(false)
+      setMenu(null)
+    }
     document.addEventListener('pointerdown', close)
     document.addEventListener('keydown', escape)
     return () => {
       document.removeEventListener('pointerdown', close)
       document.removeEventListener('keydown', escape)
     }
-  }, [adding])
+  }, [adding, menu])
 
   // A source just connected: the popover closes, so it never jumps to a source nobody picked.
   const linked = Object.values(sources).filter(Boolean).length
@@ -594,11 +614,23 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
 
   if (!sources.pinterest && !sources.dm && !sources.tt) return <ConnectSources />
 
-  // The brand's board sections on Pinterest, everything sent by DM or pasted as a link, then the
-  // brand's TikTok saves. Pins come only from the board.
-  const folders: Array<{ id: string; label: string; source: MoodSource; pins: Reference[] }> = [
+  // The brand's boards on Pinterest, everything sent by DM or pasted as a link, then the brand's
+  // TikTok saves. Pins come only from the boards.
+  const folders: Array<{
+    id: string
+    label: string
+    source: MoodSource
+    pins: Reference[]
+    url?: string
+  }> = [
     ...(sources.pinterest
-      ? boards.map((b) => ({ id: b.id, label: b.name, source: 'pinterest' as const, pins: b.pins }))
+      ? boards.map((b) => ({
+          id: b.id,
+          label: b.name,
+          source: 'pinterest' as const,
+          pins: b.pins,
+          url: b.url,
+        }))
       : []),
     ...(sources.dm
       ? [
@@ -631,10 +663,15 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
   const current = folders.find((f) => f.id === filter)
   const shown = current ? current.pins : all
   const missing = (Object.keys(SOURCE_NAME) as MoodSource[]).filter((k) => !sources[k])
+  // On the core, once Pinterest reads a board, the "+" picks the boards: the other sources cannot
+  // connect there yet.
+  const livePinterest = remote && sources.pinterest && !notAvailable('pinterest')
+  const choices: MoodSource[] = livePinterest ? ['pinterest'] : missing
   const chips = [
-    { id: 'all', label: 'All', source: null },
-    ...folders.map((f) => ({ id: f.id, label: f.label, source: f.source })),
+    { id: 'all', label: 'All', source: null, url: undefined },
+    ...folders.map((f) => ({ id: f.id, label: f.label, source: f.source, url: f.url })),
   ]
+  const menuBoard = menu ? folders.find((f) => f.id === menu && f.url) : undefined
   const picked = selected.flatMap((id) => all.find((p) => p.id === id) ?? [])
 
   function toggle(id: string) {
@@ -650,6 +687,28 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
     const id = addIdeaFromPosts(brand.id, picked)
     clear()
     onPlanned(id)
+  }
+
+  /** Where a popover opens: under the chip `el`, kept on screen near the right edge. */
+  function anchorAt(el: HTMLElement, width: number) {
+    const row = top.current?.getBoundingClientRect()
+    const chip = el.getBoundingClientRect()
+    if (row) setAnchor(Math.max(0, Math.min(chip.left - row.left, row.width - width - 40)))
+  }
+
+  /** Takes a board off the moodboard; the last one turns Pinterest off. The account stays. */
+  async function remove(id: string) {
+    if (removing) return
+    setMenu(null)
+    setFilter('all')
+    setRemoving(true)
+    try {
+      await saveBoards(brand.id, boards.filter((b) => b.id !== id).map(pinterestIdOf))
+    } catch (err) {
+      report(message(err))
+    } finally {
+      setRemoving(false)
+    }
   }
 
   return (
@@ -686,30 +745,60 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
           >
             {chips.map((c) => {
               const on = c.id === filter
-              return (
+              const colours = on
+                ? 'bg-ink text-page'
+                : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'
+              const tab = (
                 <button
                   key={c.id}
                   type="button"
                   role="tab"
                   aria-selected={on}
-                  onClick={() => setFilter(c.id)}
-                  className={`flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-medium transition-colors ${on ? 'bg-ink text-page' : 'bg-surface text-ink-2 hover:bg-paper hover:text-ink'}`}
+                  onClick={() => {
+                    setMenu(null)
+                    setFilter(c.id)
+                  }}
+                  className={`flex h-9 items-center gap-2 rounded-full text-[13px] font-medium transition-colors ${c.url ? 'pr-1.5 pl-4' : `px-4 ${colours}`}`}
                 >
                   {c.source && <PlatformLogo platform={SOURCE_LOGO[c.source]} size={11} />}
                   {c.label}
                 </button>
               )
+              if (!c.url) return tab
+              // A live Pinterest board: its chip carries a small menu to open it on Pinterest or
+              // take it off the moodboard.
+              return (
+                <span
+                  key={c.id}
+                  className={`flex h-9 items-center rounded-full transition-colors ${colours} ${removing ? 'opacity-50' : ''}`}
+                >
+                  {tab}
+                  <button
+                    type="button"
+                    aria-label={`${c.label} board`}
+                    aria-haspopup="menu"
+                    aria-expanded={menu === c.id}
+                    onClick={(e) => {
+                      anchorAt(e.currentTarget, MENU_WIDTH)
+                      setAdding(false)
+                      setMenu(menu === c.id ? null : c.id)
+                    }}
+                    className="flex h-9 items-center rounded-full pr-3.5 pl-1.5 opacity-60 hover:opacity-100"
+                  >
+                    <ChevronIcon open={menu === c.id} />
+                  </button>
+                </span>
+              )
             })}
-            {missing.length > 0 && (
+            {choices.length > 0 && (
               <button
                 type="button"
-                aria-label="Add a source"
+                aria-label={livePinterest ? 'Pinterest boards' : 'Add a source'}
                 aria-expanded={adding}
                 onClick={(e) => {
-                  const row = top.current?.getBoundingClientRect()
-                  const chip = e.currentTarget.getBoundingClientRect()
                   // Kept on screen: a chip near the right edge opens the setup leftwards.
-                  if (row) setAnchor(Math.min(chip.left - row.left, row.width - 360 - 40))
+                  anchorAt(e.currentTarget, 360)
+                  setMenu(null)
                   setAdding(!adding)
                 }}
                 className="flex size-9 items-center justify-center rounded-full text-ink-3 shadow-[inset_0_0_0_1px_var(--cal-ghost)] transition-colors hover:text-ink"
@@ -719,12 +808,40 @@ function Board({ onPlanned }: { onPlanned: (id: string) => void }) {
             )}
           </div>
         )}
-        {adding && missing.length > 0 && (
+        {adding && choices.length > 0 && (
           <div
             style={{ '--x': `${anchor}px` } as React.CSSProperties}
             className="bb-pop absolute top-full left-(--x) mt-1 w-[360px] rounded-[18px] bg-page p-5 shadow-[0_0_0_1px_var(--line),0_16px_40px_-16px_rgba(0,0,0,0.22)] max-md:right-4 max-md:left-4 max-md:w-auto"
           >
-            <AddSource missing={missing} initial={asked} />
+            <AddSource missing={choices} initial={asked} onDone={() => setAdding(false)} />
+          </div>
+        )}
+        {menuBoard && (
+          <div
+            role="menu"
+            aria-label={`${menuBoard.label} board`}
+            style={{ '--x': `${anchor}px` } as React.CSSProperties}
+            className="bb-menu absolute top-full left-(--x) z-40 mt-1 flex w-[200px] origin-top-left flex-col rounded-[12px] bg-page p-1.5 shadow-pop"
+          >
+            <a
+              role="menuitem"
+              href={menuBoard.url}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => setMenu(null)}
+              className={MENU_ITEM}
+            >
+              Open on Pinterest
+            </a>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={removing}
+              onClick={() => void remove(menuBoard.id)}
+              className={MENU_ITEM}
+            >
+              Remove
+            </button>
           </div>
         )}
       </div>
@@ -761,10 +878,19 @@ function useSetupAsked(): MoodSource | null {
 }
 
 /** One more source for the board: the only one left sets up at once; otherwise, pick first. */
-function AddSource({ missing, initial }: { missing: MoodSource[]; initial?: MoodSource | null }) {
+function AddSource({
+  missing,
+  initial,
+  onDone,
+}: {
+  missing: MoodSource[]
+  initial?: MoodSource | null
+  /** After the Pinterest boards are saved. */
+  onDone?: () => void
+}) {
   const [picked, setPicked] = React.useState<MoodSource | null>(initial ?? null)
   const source = missing.length === 1 ? missing[0]! : picked
-  if (source) return <SourceSetup source={source} />
+  if (source) return <SourceSetup source={source} onDone={onDone} />
   return (
     <div className="flex flex-col gap-1 text-left">
       {missing.map((m) => (
@@ -800,12 +926,14 @@ const NAME: Record<MoodSource, string> = { pinterest: 'Pinterest', dm: 'Instagra
 
 /**
  * Setting up one source. Pinterest on the core, once the server has its app set up: the brand's
- * own Pinterest account and the one board on it the moodboard reads. In the static demo,
+ * own Pinterest account and the boards on it the moodboard reads. In the static demo,
  * Pinterest is the team's one account with a board per brand. Instagram: the steps to DM a post
  * to the moodboard account, then a button to turn the source on.
  */
-function SourceSetup({ source }: { source: MoodSource }) {
-  if (remote && source === 'pinterest' && !notAvailable('pinterest')) return <PinterestSetup />
+function SourceSetup({ source, onDone }: { source: MoodSource; onDone?: () => void }) {
+  if (remote && source === 'pinterest' && !notAvailable('pinterest')) {
+    return <PinterestSetup onDone={onDone} />
+  }
   return <DemoSetup source={source} />
 }
 
@@ -902,14 +1030,15 @@ function DemoSetup({ source }: { source: MoodSource }) {
 }
 
 /**
- * Pinterest on the core: the brand signs in with its own Pinterest account, then picks the board
- * its moodboard reads.
+ * Pinterest on the core: the brand signs in with its own Pinterest account, then ticks the boards
+ * its moodboard reads. Opened again from the "+", it shows the boards read now ticked, to add or
+ * change them.
  */
-function PinterestSetup() {
+function PinterestSetup({ onDone }: { onDone?: () => void }) {
   const { brand } = useBrand()
   const [setup, setSetup] = React.useState<PinterestSetup | null>(null)
   const [error, setError] = React.useState<string | null>(null)
-  const [picked, setPicked] = React.useState<string | null>(null)
+  const [picked, setPicked] = React.useState<string[]>([])
   const [busy, setBusy] = React.useState(false)
   // Bumped by "Check again", which reads the boards once more; `checking` until it answers.
   const [reads, setReads] = React.useState(0)
@@ -922,11 +1051,10 @@ function PinterestSetup() {
         if (!live) return
         setChecking(false)
         setSetup(s)
-        // The board it reads now; else the likely one, the first with pins, so one click links it.
-        setPicked(
-          (s.boards.find((b) => b.picked) ?? s.boards.find((b) => b.pinCount > 0) ?? s.boards[0])
-            ?.id ?? null,
-        )
+        // The boards it reads now; else the likely one, the first with pins, so one click links it.
+        const now = s.boards.filter((b) => b.picked).map((b) => b.id)
+        const likely = s.boards.find((b) => b.pinCount > 0) ?? s.boards[0]
+        setPicked(now.length > 0 ? now : likely ? [likely.id] : [])
       },
       (err: unknown) => {
         if (!live) return
@@ -955,7 +1083,12 @@ function PinterestSetup() {
     }
   }
 
-  const button = (label: string, onClick: () => void, disabled = false) => (
+  const button = (
+    label: string,
+    onClick: () => void,
+    disabled = false,
+    pending = 'Connecting…',
+  ) => (
     <button
       type="button"
       onClick={onClick}
@@ -965,7 +1098,7 @@ function PinterestSetup() {
       {busy && (
         <span className="size-3 animate-spin rounded-full border-[1.5px] border-white/30 border-t-white" />
       )}
-      {busy ? 'Connecting…' : label}
+      {busy ? pending : label}
     </button>
   )
   const problem = error && <p className="text-[12.5px] text-fail-ink">{error}</p>
@@ -1036,24 +1169,27 @@ function PinterestSetup() {
     )
   }
 
+  // The boards read now; the list saves in the account's order, so the chips keep that order.
+  const reading = setup.boards.filter((b) => b.picked).map((b) => b.id)
+  const chosen = setup.boards.filter((b) => picked.includes(b.id)).map((b) => b.id)
+  const changed = chosen.join() !== reading.join()
+  const full = chosen.length >= MAX_BOARDS
+
   return (
     <div className="flex flex-col gap-4 text-left">
       <span className={EYEBROW}>{handle}</span>
-      <div
-        role="radiogroup"
-        aria-label="Boards"
-        className="flex max-h-[320px] flex-col overflow-y-auto"
-      >
+      <div role="group" aria-label="Boards" className="flex max-h-[320px] flex-col overflow-y-auto">
         {setup.boards.map((b) => {
-          const on = picked === b.id
+          const on = picked.includes(b.id)
           return (
             <button
               key={b.id}
               type="button"
-              role="radio"
+              role="checkbox"
               aria-checked={on}
-              onClick={() => setPicked(b.id)}
-              className="flex items-center gap-3 border-t border-line py-2.5 text-left first:border-t-0"
+              disabled={!on && full}
+              onClick={() => setPicked((p) => (on ? p.filter((id) => id !== b.id) : [...p, b.id]))}
+              className="flex items-center gap-3 border-t border-line py-2.5 text-left first:border-t-0 disabled:opacity-40"
             >
               <span className="relative size-7 shrink-0 overflow-hidden rounded-[8px] bg-tile">
                 {b.cover && (
@@ -1070,15 +1206,17 @@ function PinterestSetup() {
         })}
       </div>
       {button(
-        `Connect ${brand.name}’s board`,
+        reading.length > 0
+          ? 'Save'
+          : `Connect ${chosen.length > 1 ? `${chosen.length} boards` : `${brand.name}’s board`}`,
         () =>
           void run(async () => {
-            // The old board's pins leave; the brand reloads and reads the new one.
-            forgetLiveBoard(brand.id)
-            await pickBoard(brand.id, picked!)
+            await saveBoards(brand.id, chosen)
             setBusy(false)
+            onDone?.()
           }),
-        !picked,
+        reading.length > 0 ? !changed : chosen.length === 0,
+        reading.length > 0 ? 'Saving…' : 'Connecting…',
       )}
       {another}
       {problem}

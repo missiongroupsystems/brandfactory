@@ -82,9 +82,13 @@ export const forgetAccount = (
   accountId: string,
 ) => move(core, who, 'account.forget', { brand, platform, accountId })
 
-/** The Pinterest board the brand's moodboard reads, or none. */
-export const keepBoard = (core: CoreDeps, who: Who, brand: string, board: string | null) =>
-  move(core, who, 'account.board', { brand, board })
+/** The Pinterest boards the brand's moodboard reads, in order; none turns Pinterest off. */
+export const keepBoards = (core: CoreDeps, who: Who, brand: string, boards: string[]) =>
+  move(core, who, 'account.board', { brand, boards })
+
+/** The boards an account's details name, as `account.board` keeps them. */
+export const boardsOf = (account: Account): string[] =>
+  Array.isArray(account.details.boards) ? (account.details.boards as string[]) : []
 
 /** A post's send to the TikTok inbox, as the pack keeps it. */
 export interface TikTokSend {
