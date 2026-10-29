@@ -14,6 +14,7 @@ import { LogoMark } from './icons'
 const NAV = [
   { href: '/', label: 'Schedule' },
   { href: '/ideate', label: 'Ideas' },
+  { href: '/posted', label: 'Posted' },
   { href: '/insights', label: 'Insights' },
   { href: '/inbox', label: 'Inbox' },
   { href: '/bubbles', label: 'Bubbles' },
@@ -43,7 +44,7 @@ export function AppHeader() {
           // A post's own page belongs to Schedule.
           const current =
             n.href === '/'
-              ? pathname === '/' || pathname.startsWith('/post')
+              ? pathname === '/' || pathname.startsWith('/post/')
               : pathname.startsWith(n.href)
           return (
             <Link

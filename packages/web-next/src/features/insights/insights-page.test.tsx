@@ -49,19 +49,17 @@ describe('planning an idea from a finding', () => {
   })
 })
 
-describe('the posts', () => {
-  it('marks a collaboration post with the creators it is shared with', () => {
+describe('the views', () => {
+  it('keep the brand’s story and leave each post’s numbers to Posted', () => {
     render(
       <BrandProvider>
         <InsightsPage />
       </BrandProvider>,
     )
-    fireEvent.click(screen.getByRole('radio', { name: 'Posts' }))
-    const rows = within(screen.getByRole('region', { name: 'Posts' })).getAllByRole('listitem')
-    const shared = rows.find((r) => r.textContent?.includes('Wine pairing night.'))!
-    const own = rows.find((r) => r.textContent?.includes('Guess the ingredient.'))!
-    expect(shared).toHaveTextContent('Collab · @danielfooddiary')
-    expect(own).not.toHaveTextContent('Collab')
+    const views = within(screen.getByRole('radiogroup', { name: 'View' }))
+      .getAllByRole('radio')
+      .map((r) => r.textContent)
+    expect(views).toEqual(['Overview', 'Sentiment', 'Creators'])
   })
 })
 

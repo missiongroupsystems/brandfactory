@@ -94,14 +94,15 @@ function plain(s: string): string {
     .join(' ')
 }
 
-type Tab = 'overview' | 'posts' | 'sentiment' | 'creators'
+type Tab = 'overview' | 'sentiment' | 'creators'
 
 /**
- * The insights page, one calm column in four views, switched the way Ideate switches its two.
+ * The insights page, one calm column in three views, switched the way Ideate switches its two.
  * It reads five sources: Instagram, TikTok, the website, Google Business Profile and
  * reservations. Overview: the month in a sentence, one number at a time over its twelve weeks,
  * every source on one time axis beside the posts, what worked (each opens to its chart and its
- * idea) and the best time to post. Posts and Creators: each post and each creator, ranked.
+ * idea) and the best time to post. Creators: each creator, ranked. Each post's own numbers are
+ * on Posted, beside the post.
  * Sentiment: what people think of the brand, from comments and mentions. Every chart shows its
  * numbers on hover.
  */
@@ -144,7 +145,7 @@ export function InsightsPage() {
               Insights
             </h1>
           </div>
-          <div className="w-[440px] max-sm:w-full">
+          <div className="w-[340px] max-sm:w-full">
             <Segmented
               label="View"
               pill
@@ -152,7 +153,6 @@ export function InsightsPage() {
               onChange={setTab}
               options={[
                 { value: 'overview', label: 'Overview' },
-                { value: 'posts', label: 'Posts' },
                 { value: 'sentiment', label: 'Sentiment' },
                 { value: 'creators', label: 'Creators' },
               ]}
@@ -162,7 +162,6 @@ export function InsightsPage() {
 
         <div key={tab} className="bb-swap">
           {tab === 'overview' && <Overview data={data} hub={hub} />}
-          {tab === 'posts' && <Posts posts={data.posts} splits={hub.sentiment.posts} />}
           {tab === 'sentiment' && <SentimentView sentiment={hub.sentiment} />}
           {tab === 'creators' && <Creators creators={data.creators} />}
         </div>
@@ -640,102 +639,6 @@ function Heat({ days, hours }: { days: number[]; hours: number[] }) {
       </div>
       <Tip tip={tip} />
     </div>
-  )
-}
-
-// ── Posts ────────────────────────────────────────────────────────────────────────────────────
-
-type PostSort = 'reach' | 'engagement'
-
-/**
- * Every post this month, ranked by reach or by engagement, with the average as a divider. Each
- * post carries what its comments said, as a small positive, neutral and negative bar, and a
- * collaboration post names the creators it is shared with.
- */
-function Posts({ posts, splits }: { posts: PostStat[]; splits: Record<string, Split> }) {
-  const [sort, setSort] = React.useState<PostSort>('reach')
-  const ranked = [...posts].sort((a, b) => b[sort] - a[sort])
-  const avg = posts.reduce((n, p) => n + p[sort], 0) / posts.length
-  const below = ranked.findIndex((p) => p[sort] < avg)
-  return (
-    <section aria-label="Posts" className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <div className="w-[260px] max-sm:w-full">
-          <Segmented
-            label="Rank by"
-            pill
-            value={sort}
-            onChange={setSort}
-            options={[
-              { value: 'reach', label: 'Most reach' },
-              { value: 'engagement', label: 'Most engaging' },
-            ]}
-          />
-        </div>
-      </div>
-      <ol className={`${CARD} px-6 py-1 max-md:px-4`}>
-        {ranked.map((p, i) => (
-          <React.Fragment key={p.hook}>
-            {i === below && (
-              <li
-                aria-hidden="true"
-                className="flex items-center gap-3 py-2 text-[12px] text-(--insight-6) before:flex-1 before:border-t before:border-dashed before:border-(--insight-3) after:flex-1 after:border-t after:border-dashed after:border-(--insight-3)"
-              >
-                Average{' '}
-                {sort === 'reach' ? `reach ${k(Math.round(avg))}` : `engagement ${avg.toFixed(1)}%`}
-              </li>
-            )}
-            <li
-              className={`bb-rise grid grid-cols-[18px_40px_minmax(0,1fr)_auto] items-center gap-3.5 py-3 ${i > 0 && i !== below ? `border-t ${HAIR}` : ''}`}
-              style={{ animationDelay: `${i * 35}ms` }}
-            >
-              <span className="font-mono text-[11px] text-ink-5 tabular-nums">{i + 1}</span>
-              <span className="relative block h-[50px] w-10 overflow-hidden rounded-[6px] bg-tile">
-                <Image src={p.image} alt="" fill sizes="80px" className="object-cover" />
-              </span>
-              <span className="flex min-w-0 flex-col gap-0.5">
-                <span className="truncate text-[14px] font-medium max-md:line-clamp-2 max-md:whitespace-normal">
-                  {p.hook}
-                </span>
-                <span className="text-[12px] text-ink-4">
-                  {plain(p.format)} · {p.pillar} · {plain(p.date)}
-                  {/* A shared post says whose it is with, so it reads apart from the brand's own. */}
-                  {p.collab && (
-                    <span className="text-ink-2">
-                      {' · '}
-                      Collab ·{' '}
-                      {p.collab.map((h, i) => (
-                        <span key={h} className="whitespace-nowrap">
-                          {i > 0 && ', '}
-                          {h}
-                        </span>
-                      ))}
-                    </span>
-                  )}
-                </span>
-                {/* On a phone the second figures move under the name, so the name has room. */}
-                <span className="text-[12px] text-ink-4 tabular-nums md:hidden">
-                  {sort === 'reach'
-                    ? `${p.engagement}% engaged · ${p.saves} saves`
-                    : `${k(p.reach)} reach · ${p.saves} saves`}
-                </span>
-                {splits[p.hook] && <PostMood split={splits[p.hook]!} />}
-              </span>
-              <span className="flex flex-col items-end gap-0.5 tabular-nums">
-                <span className="text-[14px] font-medium">
-                  {sort === 'reach' ? k(p.reach) : `${p.engagement}%`}
-                </span>
-                <span className="text-[12px] whitespace-nowrap text-ink-4 max-md:hidden">
-                  {sort === 'reach'
-                    ? `${p.engagement}% engaged · ${p.saves} saves`
-                    : `${k(p.reach)} reach · ${p.saves} saves`}
-                </span>
-              </span>
-            </li>
-          </React.Fragment>
-        ))}
-      </ol>
-    </section>
   )
 }
 
@@ -1337,25 +1240,6 @@ function SplitBar({ split, height = 6, title }: { split: Split; height?: number;
         />
       ))}
       <Tip tip={tip} />
-    </span>
-  )
-}
-
-/** A post's comments in one line: their bar, how many, and the tone most of them took. */
-function PostMood({ split }: { split: Split }) {
-  const p = percents(split)
-  const top = [...TONES].sort((a, b) => p[b.key] - p[a.key])[0]!
-  return (
-    <span className="mt-1 flex items-center gap-2 text-[12px] text-ink-4 tabular-nums">
-      <span className="w-14 shrink-0">
-        <SplitBar split={split} height={5} title="comments on this post" />
-      </span>
-      <span className="whitespace-nowrap">
-        {sum(split)} comments ·{' '}
-        <span className={top.key === 'neg' ? 'font-medium text-ink-2' : ''}>
-          {p[top.key]}% {top.label.toLowerCase()}
-        </span>
-      </span>
     </span>
   )
 }

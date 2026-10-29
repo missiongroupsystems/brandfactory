@@ -20,7 +20,7 @@ interface ServerMedia {
   duration?: string
 }
 
-interface ServerPost {
+export interface ServerPost {
   id: string
   format: Post['format']
   hook: string

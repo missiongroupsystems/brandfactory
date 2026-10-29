@@ -12,6 +12,7 @@ import { PUBLIC_PATHS } from './legal'
 const TABS = [
   { href: '/', label: 'Schedule', icon: <CalendarGlyph /> },
   { href: '/ideate', label: 'Ideas', icon: <IdeaGlyph /> },
+  { href: '/posted', label: 'Posted', icon: <PostedGlyph /> },
   { href: '/insights', label: 'Insights', icon: <ChartGlyph /> },
   { href: '/inbox', label: 'Inbox', icon: <InboxGlyph /> },
   { href: '/bubbles', label: 'Bubbles', icon: <BubblesGlyph /> },
@@ -30,7 +31,7 @@ export function TabBar() {
   const waiting = useWaiting(brand.id)
   // A shared link is for someone outside the team: no app navigation at all.
   if (
-    pathname.startsWith('/post') ||
+    pathname.startsWith('/post/') ||
     pathname.startsWith('/share') ||
     PUBLIC_PATHS.includes(pathname)
   )
@@ -100,6 +101,21 @@ function IdeaGlyph() {
         strokeLinejoin="round"
       />
       <path d="M17 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" fill="currentColor" />
+    </svg>
+  )
+}
+
+function PostedGlyph() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+      <rect x="3.5" y="3.5" width="15" height="15" rx="4" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M7.5 11.5l2.5 2.5 4.5-5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }

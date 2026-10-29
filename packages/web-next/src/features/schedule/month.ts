@@ -183,6 +183,9 @@ export function monthOfWeek(date: string): { from: string; to: string } {
   return { from: all[0]!, to: all.at(-1)! }
 }
 
+/** When the demo's counts were read: 09:00 on its today, in Singapore. */
+const DEMO_READ = '2026-10-06T01:00:00Z'
+
 /** "16 SEP" → a date in 2026. */
 function parseShort(date: string): string | null {
   const [d, m] = date.split(' ')
@@ -193,9 +196,11 @@ function parseShort(date: string): string | null {
 /**
  * What each brand posted before today, as posts the calendar can draw: the month's posts from the
  * insights page, posted at 18:00, with the date each went out. Posted, so nothing can drag them.
+ * Each carries the insights page's invented counts in the shape the core gives, read on the demo's
+ * today: its reach, its saves, and its likes as the rest of the people it engaged.
  * The demo's only: on the API the server holds what went out.
  */
-function archive(brandId: BrandId): Array<{ post: Post; date: string }> {
+export function archive(brandId: BrandId): Array<{ post: Post; date: string; collab?: string[] }> {
   if (remote) return []
   return INSIGHTS_BY_BRAND[brandId].posts.flatMap((p, i) => {
     const date = parseShort(p.date)
@@ -207,8 +212,14 @@ function archive(brandId: BrandId): Array<{ post: Post; date: string }> {
       images: [p.image],
       stage: 'posted',
       ...slotOf(date, '18:00'),
+      metrics: {
+        reach: p.reach,
+        likes: Math.max(0, Math.round((p.reach * p.engagement) / 100) - p.saves),
+        saves: p.saves,
+      },
+      measuredAt: DEMO_READ,
     }
-    return [{ post, date }]
+    return [{ post, date, ...(p.collab && { collab: p.collab }) }]
   })
 }
 

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 
 import { AppHeader } from '@/components/app-header'
+import { PLATFORM_NAME, type Platform } from '@/features/posted/model'
 import { useBrand } from '@/features/schedule/posts-store'
 
 import { Composer } from './composer'
@@ -10,7 +11,8 @@ import { Composer } from './composer'
 /**
  * Scheduling on its own page, the core of the product: a post opened from the calendar, the shoot
  * brief or Ideate (`/post/<id>`), or a new one (`/post/new`, optionally with the day and hour of
- * the slot it came from). Back returns to the calendar where it was.
+ * the slot it came from). Back returns to the calendar where it was, or to Posted on the platform
+ * it was opened from (`posted`).
  *
  * The page belongs to the brand in the header. A post of another brand is not shown, and
  * switching brand starts the composer over, so nothing is ever saved into the wrong brand.
@@ -18,9 +20,11 @@ import { Composer } from './composer'
 export function PostPage({
   id,
   start,
+  posted,
 }: {
   id?: string
   start?: { day?: string; time?: string; format?: 'story' }
+  posted?: Platform
 }) {
   const { brand, posts, byId } = useBrand()
   // Past posts (an earlier month) and posts planned from an idea carry the brand's id in theirs,
@@ -36,7 +40,7 @@ export function PostPage({
       <main className="mx-auto w-full max-w-[1280px] px-10 pb-24 max-md:px-4 max-md:pt-4 max-md:pb-[calc(96px+env(safe-area-inset-bottom))]">
         <div className="pb-5 max-md:pb-4">
           <Link
-            href="/"
+            href={posted ? `/posted?on=${posted}` : '/'}
             className="inline-flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.08em] text-ink-4 uppercase transition-colors hover:text-ink"
           >
             <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -48,7 +52,7 @@ export function PostPage({
                 strokeLinejoin="round"
               />
             </svg>
-            Schedule
+            {posted ? `Posted · ${PLATFORM_NAME[posted]}` : 'Schedule'}
           </Link>
         </div>
         {id && !post ? (

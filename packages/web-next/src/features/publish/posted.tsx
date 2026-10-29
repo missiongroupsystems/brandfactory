@@ -7,7 +7,7 @@ import { PlatformLogo } from '@/components/platform-logos'
 import type { Post } from '@/data/demo'
 import { NotAvailable, reasonOf } from '@/features/connections/not-available'
 import { useBrand } from '@/features/schedule/posts-store'
-import { clockToday, MONTH_SHORT, todayDate } from '@/lib/dates'
+import { asOf, countsOf, k } from '@/features/posted/model'
 
 import { CHANNELS, FORMAT_LABEL, type ChannelKey, type Shot } from './model'
 import { TypeBadge } from './preview-media'
@@ -45,29 +45,6 @@ const CARD =
   'rounded-[18px] bg-page p-6 shadow-[0_0_0_1px_var(--line)] max-md:rounded-none max-md:p-0 max-md:shadow-none'
 const HEADING = 'font-display text-[15px] font-semibold tracking-[-0.01em]'
 const NUM = 'font-display font-semibold tracking-[-0.03em] tabular-nums'
-
-/** 18420 → 18.4k; 480 → 480. */
-function k(n: number): string {
-  if (n >= 999_500) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}m`
-  return n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n)
-}
-
-type CountKey = keyof NonNullable<Post['metrics']>
-const COUNT_ORDER: Array<[CountKey, string]> = [
-  ['views', 'Views'],
-  ['likes', 'Likes'],
-  ['comments', 'Comments'],
-  ['shares', 'Shares'],
-  ['saves', 'Saves'],
-]
-
-/** The real counts the post has, biggest story first: views, then likes, comments, shares, saves. */
-function countsOf(post: Post): Array<{ key: CountKey; label: string; value: number }> {
-  const m = post.metrics ?? {}
-  return COUNT_ORDER.flatMap(([key, label]) =>
-    typeof m[key] === 'number' ? [{ key, label, value: m[key] }] : [],
-  )
-}
 
 function Arrow() {
   return (
@@ -268,14 +245,6 @@ function FactRows({ v }: { v: PostedView }) {
       ))}
     </dl>
   )
-}
-
-/** When the counts were read, in Singapore: "22 Oct", with the year only when it is not this one. */
-function asOf(measuredAt: string): string {
-  const day = clockToday(new Date(measuredAt))
-  const [year, month, date] = day.split('-').map(Number)
-  const words = `${date} ${MONTH_SHORT[month! - 1]}`
-  return day.slice(0, 4) === todayDate().slice(0, 4) ? words : `${words} ${year}`
 }
 
 /** The numbers in a row: the first one large, the rest beside it, then when they were read. */

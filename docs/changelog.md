@@ -6,6 +6,7 @@ Latest releases at the top. Each version has a one-line entry in the index below
 
 One line each — full write-ups are under the matching `##` heading further down.
 
+- **2.44.0** — 2026-10-29 — `feat/posted-page`: a Posted page, phase 1 of `docs/executing/posted-page-plan.md`. `/posted` shows what went out on one platform at a time: an accounts rail (Instagram, Facebook, TikTok; those with posts or a linked account), the platform as the title, the last 30 days in one line (posts, stories, reach or views and likes, "x of y with numbers" when only some have them, "as of"), and a ledger of posts and stories, newest first, each with its counts as last read. A story is a row of 9:16 frames, live with the hours left or gone after 24 hours. A post opens its poster, which links back to Posted. "Top" ranks by likes, comments, shares and saves; posts with no numbers wait apart. Insights loses its Posts view with its reach and engagement-% ranking, average line, pillar and comment mood (Overview, Sentiment and Creators stay). Only data the web app already has: a post lists on the accounts whose job went live, or on all its accounts when imported or marked posted by hand; a post Brand Base sent shows no counts; Facebook stories are not listed; the demo's archive counts are invented, in the demo only. Posted is in the header and the phone's tab bar. No pack change, no migration. 1382 tests (237 skipped without a Postgres server).
 - **2.43.8** — 2026-10-29 — `fix/photo-files`: a photo post goes out (brandbase 1.12.1, migration 0021, not applied to production). The web app uploads a photo with its kind in the address (`…jpg#photo`, as a video carries `#video`); 0020's `post_files` took only `#video`, so every uploaded photo read as a sample and the first scheduled test post failed with "Upload this post's photos and videos again: some are only samples." 0021 takes either. The pack test now uses the address the web app writes (it used a bare `.jpg`, which hid the bug). Production: `core publish`, `core test brandbase 1.12.1`, `core migrate`, `core promote`; no server or web deploy. 1347 tests, all run on a throwaway Postgres 18.
 - **2.43.7** — 2026-10-29 — `fix/schedule-today`: a post can be scheduled for later today. The composer's day grid greyed out today as well as the past, so on the core nothing could go out before tomorrow. Today is open. A time that has gone, or comes within two minutes, in the brand's own timezone and on its own today (`timezoneOf`, from the core's brand list; `clockToday(now, zone)`) says "Pick a time ahead.": it would go out at once. The composer redraws every 30 seconds and checks the clock again when Schedule is pressed, so a time that passes while it stays open is not sent; the hour chart greys the hours gone. The demo's fixed today is left alone. The core takes today already (`post.send_day_not_past`); it does not yet refuse a time gone (follow-up: a before-rule; the calendar's own today is still the last brand loaded). No pack change, no migration. 1347 tests (237 skipped without a Postgres server).
 - **2.43.6** — 2026-10-29 — `fix/pinterest-board-picker`: the loading dots are lighter and bounce. One `LoadingDots` (three 5 px dots, `bg-ink-3`, `bb-bounce`: each rises 4 px and brightens in turn, 1.2 s, eased) replaces 2.43.5's thicker pulsing dots on the page while the app loads and on the moodboard while the pins load. With reduced motion the dots rest at 60% (a looping animation shortened to 1 ms would flicker). No pack change, no migration. 1343 tests (237 skipped without a Postgres server).
@@ -96,6 +97,43 @@ One line each — full write-ups are under the matching `##` heading further dow
 - **1.62.0** — 2026-10-06 — BrandBase becomes a UI-only demo for the 7 October client meeting: `packages/brandbase` draws the schedule, New post and a publish flow that sends one reel to Instagram, TikTok, YouTube and LinkedIn from one button, on static data with no server. Channels are picked by tapping their previews, and the publish rules (TikTok's unanswered privacy, its consent text, YouTube's title) are a tested model the view only reads. No migration. 3393 tests.
 
 ---
+
+## 2.44.0 — 2026-10-29
+
+- **Why.** A post's numbers belong beside the post, under its platform. Insights' Posts view showed
+  them apart from the post, across platforms. The design is the "Brand Base Posted page" canvas,
+  the recommended ledger; the plan for phases 2 and 3 (core `post.sync` with readings, a Make
+  read-back scenario) is `docs/executing/posted-page-plan.md`.
+- **What went out.** A post with jobs went out on the accounts whose job is live, in its own
+  order: an account planned beside them (TikTok next to Instagram) never lists it. A post with no
+  job that reads posted went out on all its accounts: an imported post, and a post a person
+  marked posted by hand, which lists as gone out though nothing sent it.
+- **web-next.** `features/posted/model.ts` holds the rules: what went out, the ledger per
+  platform, the rail (every platform when nothing is linked or posted), the platform on show, the
+  counts (the first account's only, so Facebook never repeats Instagram's numbers), the 30-day
+  summary, the ranking, story liveness, and now in the brand's own zone (`timezoneOf`; day and
+  time from one instant, read again each minute). `posted-store.ts` reads every posted post and
+  story from `brand.state` on the core, and builds the demo's from its month, its archive and its
+  stories. `posted.tsx` takes its counts and "as of" from the model; reach joins the count row. A
+  poster opened from Posted links back to "Posted · Instagram". Posted sits between Ideas and
+  Insights in the header and the tab bar; a `/post/` address no longer matches `/posted`.
+- **Summary.** Posts and stories (stories on Instagram only), then reach (views where no post has
+  reach: an import reads none) and likes, over the posts that have numbers. When only some do,
+  the line says so: "Last 30 days · 3 of 20 with numbers · as of 28 Oct". None have numbers: no
+  totals.
+- **Top.** Ranks by likes, comments, shares and saves added up, a tie to the bigger reach or views,
+  offered when two posts have numbers. Posts with none wait apart under "No numbers yet". This is
+  not the Insights ranking it replaces.
+- **Insights.** The Posts view goes, with all it had: its "Most reach" and "Most engaging"
+  (engagement %) ranking, the average divider, each post's pillar, its engagement % and saves line,
+  and its comment mood bar. Overview, Sentiment and Creators stay; the month's comment mood is
+  still in Sentiment. Its collaboration-post test moves to Posted, which marks a collab post.
+- **Demo only.** The demo's archive posts carry invented counts, from the insights page's invented
+  figures: reach, saves, and likes as the rest of the people each engaged, "as of" the demo's
+  today. On the core nothing is invented.
+- **Not in phase 1.** No counts for sent posts, no Facebook stories, no story sheet, no followers
+  in the rail: they need the sync.
+- 1382 tests (237 skipped without a Postgres server).
 
 ## 2.43.8 — 2026-10-29
 
